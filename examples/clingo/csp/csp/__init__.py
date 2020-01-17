@@ -125,8 +125,6 @@ class VarState(object):
     def lower_bound(self):
         """
         Get the current lower bound on top of the stack.
-
-        Must not be called on an empty stack.
         """
         assert self._lower_bound
         return self._lower_bound[-1]
@@ -140,6 +138,14 @@ class VarState(object):
         """
         assert self._lower_bound
         self._lower_bound[-1] = value
+
+    @property
+    def min_bound(self):
+        """
+        Get the smallest lower bound of the state.
+        """
+        assert self._lower_bound
+        return self._lower_bound[0]
 
     @property
     def upper_bound(self):
@@ -162,6 +168,14 @@ class VarState(object):
         self._upper_bound[-1] = value
 
     @property
+    def max_bound(self):
+        """
+        Get the largest upper bound of the state.
+        """
+        assert self._upper_bound
+        return self._upper_bound[0]
+
+    @property
     def is_assigned(self):
         """
         Determine if the variable is assigned, i.e., the current lower bound
@@ -173,9 +187,9 @@ class VarState(object):
         """
         Determine if the given `value` is associated with an order literal.
 
-        The value must lie in the range `[MIN_INT,MAX_INT)`.
+        The value must lie in the range `[min_bound,max_bound)`.
         """
-        assert MIN_INT <= value < MAX_INT
+        assert self.min_bound <= value < self.max_bound
         if _HAS_SC:
             return value in self._literals
         return self._literals[value - MIN_INT] is not None
@@ -186,7 +200,7 @@ class VarState(object):
 
         The value must be associated with a literal.
         """
-        assert self.has_literal(value)
+        assert MIN_INT <= value < MAX_INT
         if _HAS_SC:
             return self._literals[value]
         return self._literals[value - MIN_INT]
@@ -204,7 +218,7 @@ class VarState(object):
             if i > 0:
                 return self._literals.peekitem(i-1)[0]
         else:
-            for prev in range(value-1, MIN_INT-1, -1):
+            for prev in range(value-1, self.min_bound-1, -1):
                 if self.has_literal(prev):
                     return prev
         return None
@@ -222,7 +236,7 @@ class VarState(object):
             if i < len(self._literals):
                 return self._literals.peekitem(i)[0]
         else:
-            for succ in range(value+1, MAX_INT):
+            for succ in range(value+1, self.max_bound):
                 if self.has_literal(succ):
                     return succ
         return None
@@ -231,9 +245,9 @@ class VarState(object):
         """
         Set the literal of the given `value`.
 
-        The value must lie in the range `[MIN_INT,MAX_INT)`.
+        The value must lie in the range `[min_bound,max_bound)`.
         """
-        assert MIN_INT <= value < MAX_INT
+        assert self.min_bound <= value < self.max_bound
         if _HAS_SC:
             self._literals[value] = lit
         else:
@@ -243,9 +257,9 @@ class VarState(object):
         """
         Unset the literal of the given `value`.
 
-        The value must lie in the range `[MIN_INT,MAX_INT)`.
+        The value must lie in the range `[min_bound,max_bound)`.
         """
-        assert MIN_INT <= value < MAX_INT
+        assert self.min_bound <= value < self.max_bound
         if _HAS_SC:
             del self._literals[value]
         else:
@@ -396,15 +410,16 @@ class State(object):
         """
         Returns the literal associated with the `vs.var/value` pair.
 
-        Values smaller the MIN_INT are associated with the false literal and
-        values greater or equal to MAX_INT with the true literal.
+        Values smaller below the smallest lower bound are associated with the
+        false literal and values greater or equal to the largest upper bound
+        with the true literal.
 
         This function creates a new literal using `control` if there is no
         literal for the given value.
         """
-        if value < MIN_INT:
+        if value < vs.min_bound:
             return -TRUE_LIT
-        if value >= MAX_INT:
+        if value >= vs.max_bound:
             return TRUE_LIT
         if not vs.has_literal(value):
             lit = control.add_literal()
@@ -437,6 +452,24 @@ class State(object):
                 control.remove_watch(lit)
                 control.remove_watch(-lit)
 
+    def _replace_literal(self, init, var, value, lit):
+        """
+        This function should only be used during initialisation to copy order
+        literals from the master to other states.
+
+        The function assumes that the state is consistent with the master.
+
+        Use with care!
+        """
+        vs = self._state(var)
+        if vs.min_bound <= value < vs.max_bound:
+            if vs.has_literal(value):
+                old = vs.get_literal(value)
+                if old != lit:
+                    self._remove_literal(init, vs, old, value)
+            vs.set_literal(value, lit)
+            self._litmap.setdefault(lit, []).append((vs, value))
+
     def _update_literal(self, vs, value, control, truth):
         """
         This function is an extended version of `_get_literal` that can update
@@ -449,9 +482,9 @@ class State(object):
         if truth is None:
           return None, _get_literal(vs, value, control)
         lit = TRUE_LIT if truth else -TRUE_LIT
-        if value < MIN_INT:
+        if value < vs.min_bound:
           old = -TRUE_LIT
-        elif value >= MAX_INT:
+        elif value >= vs.max_bound:
           old = TRUE_LIT
         elif vs.has_literal(value):
           old = vs.get_literal(value)
@@ -472,7 +505,7 @@ class State(object):
         if truth is None:
             return None, self._get_literal(vs, value, control)
         lit = TRUE_LIT if truth else -TRUE_LIT
-        if value < MIN_INT or value >= MAX_INT:
+        if value < vs.min_bound or value >= vs.max_bound:
             old = self._get_literal(vs, value, control)
             if old == lit:
                 return None, lit
@@ -627,7 +660,7 @@ class State(object):
 
         return True
 
-    def propagate_constraint(self, l, c, control):
+    def propagate_constraint(self, c, control):
         """
         This function propagates a constraint that became active because its
         associated literal became true or because the bound of one of its
@@ -649,7 +682,8 @@ class State(object):
         locked.
         """
         ass = control.assignment
-        assert not ass.is_false(l)
+        clit = c.literal
+        assert not ass.is_false(clit)
 
         # NOTE: recalculation could be avoided by maintaing per clause state
         #       (but the necessary data structure would be quite complicated)
@@ -673,17 +707,17 @@ class State(object):
             if not ass.is_fixed(lit):
                 num_guess += 1
             lbs.append(lit)
-        if not ass.is_fixed(l):
+        if not ass.is_fixed(clit):
             num_guess += 1
 
-        lbs.append(-l)
+        lbs.append(-clit)
 
         # this is necessary to correctly handle empty constraints (and do
         # propagation of false constraints)
         if slack < 0:
             yield lbs, False
 
-        if not ass.is_true(l):
+        if not ass.is_true(clit):
             return
 
         for i, (co, var) in enumerate(c.elements):
@@ -720,6 +754,63 @@ class State(object):
                 lbs[i], lit = lit, lbs[i]
                 yield lbs, False
                 lbs[i] = lit
+
+    def integrate_simple(self, init, constraint, strict, states):
+        """
+        This function integrates singleton constraints into the state.
+
+        We explicitely handle the strict case here to avoid introducing
+        unnecessary literals.
+        """
+        # pylint: disable=protected-access
+
+        ass = init.assignment
+        clit = constraint.literal
+
+        # the constraint is never propagated
+        if not strict and ass.is_false(clit):
+            return
+
+        assert len(constraint.elements) == 1
+        co, var = constraint.elements[0]
+        vs = self._state(var)
+
+        if co > 0:
+            truth = ass.value(clit)
+            value = constraint.rhs//co
+        else:
+            truth = ass.value(-clit)
+            value = -(constraint.rhs//-co)-1
+
+        # in this case we can use the literal of the constraint as order variable
+        if strict and vs.min_bound <= value < vs.max_bound and not vs.has_literal(value):
+            lit = clit
+            if co < 0:
+                lit = -lit
+            if truth is None:
+                init.add_watch(lit)
+                init.add_watch(-lit)
+            elif truth:
+                lit = TRUE_LIT
+            else:
+                lit = -TRUE_LIT
+            vs.set_literal(value, lit)
+            self._litmap.setdefault(lit, []).append((vs, value))
+            for state in states:
+                state._replace_literal(init, var, value, lit)
+
+        # otherwise we just update the existing order literal
+        else:
+            old, lit = self._update_literal(vs, value, init, truth)
+            for state in states:
+                state._replace_literal(init, var, value, lit)
+            if old is not None:
+                yield [old if truth else -old]
+            if co < 0:
+                lit = -lit
+            yield [-clit, lit]
+            if strict:
+                yield [-lit, clit]
 
     def undo(self):
         """
@@ -800,11 +891,11 @@ class State(object):
             for c in self._todo:
                 lit = c.literal
                 if not ass.is_false(lit):
-                    for clause, lock in self.propagate_constraint(lit, c, control):
+                    for clause, lock in self.propagate_constraint(c, control):
                         # Note: This is a hack because the PropagateInit object
                         #       does not have a lock parameter.
                         args = {}
-                        if lock:
+                        if lock and isinstance(control, clingo.PropagateControl):
                             args["lock"] = True
                         if not control.add_clause(clause, **args) or not control.propagate():
                             self._todo.clear()
@@ -983,22 +1074,31 @@ class Propagator(object):
         constraints = []
         variables = []
         variables_seen = set(self._vars)
+        simple = []
 
-        for lit, elems, rhs in parse_constraints(init):
+        for lit, elems, rhs, strict in parse_constraints(init):
             c = Constraint(lit, elems, rhs)
-            constraints.append(c)
-            self._l2c.setdefault(c.literal, []).append(c)
-            init.add_watch(lit)
-            for co, var in elems:
+            if len(elems) == 1:
+                _, var = elems[0]
+                simple.append((c, strict))
                 if var not in variables_seen:
                     variables_seen.add(var)
                     variables.append(var)
-                if co > 0:
-                    self._vl2c.setdefault(var, []).append(c)
-                else:
-                    self._vu2c.setdefault(var, []).append(c)
+            else:
+                assert not strict
+                constraints.append(c)
+                self._l2c.setdefault(c.literal, []).append(c)
+                init.add_watch(lit)
+                for co, var in elems:
+                    if var not in variables_seen:
+                        variables_seen.add(var)
+                        variables.append(var)
+                    if co > 0:
+                        self._vl2c.setdefault(var, []).append(c)
+                    else:
+                        self._vu2c.setdefault(var, []).append(c)
 
-        return constraints, variables
+        return simple, constraints, variables
 
     def init(self, init):
         """
@@ -1010,18 +1110,17 @@ class Propagator(object):
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
 
         # get newly added constraints and variables
-        constraints, variables = self._add_constraints(init)
+        simple, constraints, variables = self._add_constraints(init)
 
         # remove solve step local and fixed literals
         for state in self._states:
             state.remove_literals(init)
 
         # gather bounds of states in master
-        if self._states:
-            master = self._states[0]
-            for state in self._states[1:]:
-                if not master.update_bounds(init, state):
-                    return
+        master = self._state(0)
+        for state in self._states[1:]:
+            if not master.update_bounds(init, state):
+                return
 
         # adjust number of threads if necessary
         del self._states[init.number_of_threads:]
@@ -1038,10 +1137,15 @@ class Propagator(object):
             state.init_domain(variables)
 
         # propagate bounds in master to other states
-        master = self._states[0]
         for state in self._states[1:]:
             if not state.update_bounds(init, master):
                 return
+
+        # integrate clauses that can directly be represented by order literals
+        for constraint, strict in simple:
+            for clause in master.integrate_simple(init, constraint, strict, self._states[1:]):
+                if not init.add_clause(clause):
+                    return
 
         ass = init.assignment
         trail = ass.trail

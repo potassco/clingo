@@ -23,25 +23,42 @@ def parse_model(model, prp):
     return list(sorted(m)), list(sorted(a))
 
 
-def solve(s, minint=-20, maxint=20):
+class Solver(object):
+    """
+    Simplistic solver for multi-shot solving.
+    """
+    def __init__(self, minint=-20, maxint=20, threads=8):
+        self.minint = minint
+        self.maxint = maxint
+        self.prp = csp.Propagator()
+        self.prg = clingo.Control(['0', '-t', str(threads)], message_limit=0)
+        self.step = 0
+
+        self.prg.register_propagator(self.prp)
+        self.prg.add("base", [], csp.THEORY)
+
+    def solve(self, s):
+        """
+        Extend the current program with the program in the given string and
+        then return its models.
+        """
+        csp.MIN_INT = self.minint
+        csp.MAX_INT = self.maxint
+        step = "step{}".format(self.step)
+
+        with self.prg.builder() as b:
+            transform(b, "#program {}.\n{}".format(step, s))
+        self.prg.ground([(step, [])])
+
+        ret = []
+        self.prg.solve(on_model=lambda m: ret.append(parse_model(m, self.prp)))
+
+        self.step += 1
+
+        return [a + b for a, b in list(sorted(ret))]
+
+def solve(s, minint=-20, maxint=20, threads=8):
     """
     Return the models/assignments of the program in the given string.
     """
-
-    csp.MIN_INT = minint
-    csp.MAX_INT = maxint
-
-    prp = csp.Propagator()
-    prg = clingo.Control(['0'], message_limit=0)
-    prg.register_propagator(prp)
-
-    prg.add("base", [], csp.THEORY)
-    with prg.builder() as b:
-        transform(b, s)
-
-    prg.ground([("base", [])])
-
-    ret = []
-    prg.solve(on_model=lambda m: ret.append(parse_model(m, prp)))
-
-    return [a + b for a, b in list(sorted(ret))]
+    return Solver(minint, maxint, threads).solve(s)

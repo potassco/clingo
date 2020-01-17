@@ -3,7 +3,7 @@ Basic tests checking the whole system.
 """
 
 import unittest
-from csp.tests import solve
+from csp.tests import Solver, solve
 
 
 # pylint: disable=missing-docstring
@@ -95,3 +95,20 @@ class TestMain(unittest.TestCase):
             [('x', 2)], [('x', 3)], ['a', ('x', 1)]])
         self.assertEqual(solve("&sum { 5*x + 10*y } = 20.", -3, 3), [[('x', -2), ('y', 3)], [('x', 0), ('y', 2)], [('x', 2), ('y', 1)]])
         self.assertEqual(solve("&sum { -5*x + 10*y } = 20.", -3, 3), [[('x', -2), ('y', 1)], [('x', 0), ('y', 2)], [('x', 2), ('y', 3)]])
+
+    def test_singleton(self):
+        self.assertEqual(solve("&sum { x } <= 1.", 0, 2), [[('x', 0)], [('x', 1)]])
+        self.assertEqual(solve("&sum { x } >= 1.", 0, 2), [[('x', 1)], [('x', 2)]])
+        self.assertEqual(solve("a :- &sum { x } <= 1.", 0, 2), [[('x', 2)], ['a', ('x', 0)], ['a', ('x', 1)]])
+        self.assertEqual(solve(":- &sum { x } <= 1.", 0, 2), [[('x', 2)]])
+        self.assertEqual(solve(":- not &sum { x } <= 1.", 0, 2), [[('x', 0)], [('x', 1)]])
+        self.assertEqual(solve("a :- &sum { x } <= 1. b :- not &sum { x } > 1.", 0, 2), [[('x', 2)], ['a', 'b', ('x', 0)], ['a', 'b', ('x', 1)]])
+        self.assertEqual(solve(" :- &sum { x } <= 1. :- not &sum { x } > 1.", 0, 2), [[('x', 2)]])
+
+    def test_multishot(self):
+        s = Solver(0, 3)
+        self.assertEqual(s.solve("&sum { x } <= 2."), [[('x', 0)], [('x', 1)], [('x', 2)]])
+        self.assertEqual(s.solve("&sum { x } <= 1."), [[('x', 0)], [('x', 1)]])
+        self.assertEqual(s.solve("&sum { x } <= 0."), [[('x', 0)]])
+        self.assertEqual(s.solve("&sum { x } <= 1."), [[('x', 0)]])
+        self.assertEqual(s.solve("&sum { x } <= 2."), [[('x', 0)]])

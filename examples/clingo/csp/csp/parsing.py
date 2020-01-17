@@ -104,15 +104,41 @@ def _normalize_constraint(init, literal, elements, op, rhs, strict):
         elements = [(-co, var) for co, var in elements]
 
     if op == "<=":
-        yield literal, elements, rhs
+        if strict and len(elements) == 1:
+            yield literal, elements, rhs, True
+            return
+        else:
+            yield literal, elements, rhs, False
 
     elif op == "=":
-        for c in _normalize_constraint(init, literal, elements, "<=", rhs, False):
+        if strict:
+            if init.assignment.is_true(literal):
+                a = b = 1
+            else:
+                a = init.add_literal()
+                b = init.add_literal()
+
+            # Note: this cannot fail because constraint normalization does not propagate
+            init.add_clause([-literal, a])
+            init.add_clause([-literal, b])
+            init.add_clause([-a, -b, literal])
+        else:
+            a = b = literal
+
+        for c in _normalize_constraint(init, a, elements, "<=", rhs, strict):
             yield c
-        for c in _normalize_constraint(init, literal, elements, ">=", rhs, False):
+        for c in _normalize_constraint(init, b, elements, ">=", rhs, strict):
             yield c
 
+        if strict:
+            return
+
     elif op == "!=":
+        if strict:
+            for c in _normalize_constraint(init, -literal, elements, "=", rhs, True):
+                yield c
+            return
+
         a = init.add_literal()
         b = init.add_literal()
 
@@ -128,8 +154,6 @@ def _normalize_constraint(init, literal, elements, op, rhs, strict):
     if strict:
         if op == "<=":
             op = ">"
-        elif op == "=":
-            op = "!="
         elif op == "!=":
             op = "="
 
