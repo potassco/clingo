@@ -1229,4 +1229,4 @@ class Propagator(object):
 
         Should be called on total assignments.
         """
-        return self._state(thread_id).get_value(str(symbol))
+        return self._state(thread_id).get_value(symbol)

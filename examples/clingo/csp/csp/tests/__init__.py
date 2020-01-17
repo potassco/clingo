@@ -27,11 +27,11 @@ class Solver(object):
     """
     Simplistic solver for multi-shot solving.
     """
-    def __init__(self, minint=-20, maxint=20, threads=8):
+    def __init__(self, minint=-20, maxint=20, threads=8, options=()):
         self.minint = minint
         self.maxint = maxint
         self.prp = csp.Propagator()
-        self.prg = clingo.Control(['0', '-t', str(threads)], message_limit=0)
+        self.prg = clingo.Control(['0', '-t', str(threads)] + list(options), message_limit=0)
         self.step = 0
 
         self.prg.register_propagator(self.prp)
@@ -57,8 +57,9 @@ class Solver(object):
 
         return [a + b for a, b in list(sorted(ret))]
 
-def solve(s, minint=-20, maxint=20, threads=8):
+
+def solve(s, minint=-20, maxint=20, threads=8, options=()):
     """
     Return the models/assignments of the program in the given string.
     """
-    return Solver(minint, maxint, threads).solve(s)
+    return Solver(minint, maxint, threads, options).solve(s)

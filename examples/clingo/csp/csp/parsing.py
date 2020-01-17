@@ -107,8 +107,7 @@ def _normalize_constraint(init, literal, elements, op, rhs, strict):
         if strict and len(elements) == 1:
             yield literal, elements, rhs, True
             return
-        else:
-            yield literal, elements, rhs, False
+        yield literal, elements, rhs, False
 
     elif op == "=":
         if strict:
@@ -162,6 +161,9 @@ def _normalize_constraint(init, literal, elements, op, rhs, strict):
 
 
 def _parse_constraint_elems(elems, rhs, is_sum):
+    if not is_sum and len(elems) != 1:
+        raise RuntimeError("Invalid Syntax")
+
     for elem in elems:
         if len(elem.terms) == 1 and not elem.condition:
             for co, var in _parse_constraint_elem(elem.terms[0], is_sum):
@@ -169,8 +171,15 @@ def _parse_constraint_elems(elems, rhs, is_sum):
         else:
             raise RuntimeError("Invalid Syntax")
 
-    for co, var in _parse_constraint_elem(rhs, is_sum):
-        yield -co, var
+    if is_sum:
+        for co, var in _parse_constraint_elem(rhs, is_sum):
+            yield -co, var
+    else:
+        term = _evaluate_term(rhs)
+        if term.type == clingo.SymbolType.Number:
+            yield -term.number, None
+        else:
+            raise RuntimeError("Invalid Syntax")
 
 
 def _parse_constraint_elem(term, is_sum):
