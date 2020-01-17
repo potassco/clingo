@@ -21,3 +21,9 @@ To have some more instances to play with, clingo-dl's `diff` atoms are also
 accepted:
 
     $ python -m csp 0 --min-int=0 --max-int=30 --minimize-variable=bound examples/fsD.lp examples/fsI.lp
+
+# Running the Unit Tests
+
+You can run the tests with
+
+    $ python -m unittest discover csp.tests '*_test.py'
