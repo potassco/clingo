@@ -601,6 +601,7 @@ class State(object):
         assert vs.has_literal(value)
 
         # get the literal to propagate
+        # Note: this explicetly does not use _get_literal
         con = sign * vs.get_literal(value)
 
         # on-the-fly simplify
