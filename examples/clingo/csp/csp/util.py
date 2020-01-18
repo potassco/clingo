@@ -74,3 +74,6 @@ class TodoList(object):
         """
         self._seen.clear()
         del self._list[:]
+
+    def __str__(self):
+        return str(self._list)

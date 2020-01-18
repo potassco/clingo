@@ -187,9 +187,9 @@ class VarState(object):
         """
         Determine if the given `value` is associated with an order literal.
 
-        The value must lie in the range `[min_bound,max_bound)`.
+        The value must lie in the range `[MIN_INT,MAX_INT)`.
         """
-        assert self.min_bound <= value < self.max_bound
+        assert MIN_INT <= value < MAX_INT
         if _HAS_SC:
             return value in self._literals
         return self._literals[value - MIN_INT] is not None
@@ -245,9 +245,9 @@ class VarState(object):
         """
         Set the literal of the given `value`.
 
-        The value must lie in the range `[min_bound,max_bound)`.
+        The value must lie in the range `[MIN_INT,MAX_INT)`.
         """
-        assert self.min_bound <= value < self.max_bound
+        assert MIN_INT <= value < MAX_INT
         if _HAS_SC:
             self._literals[value] = lit
         else:
@@ -257,13 +257,24 @@ class VarState(object):
         """
         Unset the literal of the given `value`.
 
-        The value must lie in the range `[min_bound,max_bound)`.
+        The value must lie in the range `[MIN_INT,MAX_INT)`.
         """
-        assert self.min_bound <= value < self.max_bound
+        assert MIN_INT <= value < MAX_INT
         if _HAS_SC:
             del self._literals[value]
         else:
             self._literals[value - MIN_INT] = None
+
+    def clear(self):
+        """
+        Remove all literals associated with this state.
+        """
+        self._upper_bound = [MAX_INT]
+        self._lower_bound = [MIN_INT]
+        if _HAS_SC:
+            self._literals.clear()
+        else:
+            self._literals = (MAX_INT-MIN_INT)*[None]
 
     def __repr__(self):
         return "{}=[{},{}]".format(self.var, self.lower_bound, self.upper_bound)
@@ -290,6 +301,16 @@ class Level(object):
         # assignments would have to be undone.
         self.undo_upper = TodoList()
         self.undo_lower = TodoList()
+
+    def clear(self):
+        """
+        Clear upper and lower bound stacks.
+        """
+        self.undo_upper.clear()
+        self.undo_lower.clear()
+
+    def __repr__(self):
+        return "{}:l={}/u={}".format(self.level, self.undo_lower, self.undo_upper)
 
 
 class State(object):
@@ -452,24 +473,6 @@ class State(object):
                 control.remove_watch(lit)
                 control.remove_watch(-lit)
 
-    def _replace_literal(self, init, var, value, lit):
-        """
-        This function should only be used during initialisation to copy order
-        literals from the master to other states.
-
-        The function assumes that the state is consistent with the master.
-
-        Use with care!
-        """
-        vs = self._state(var)
-        if vs.min_bound <= value < vs.max_bound:
-            if vs.has_literal(value):
-                old = vs.get_literal(value)
-                if old != lit:
-                    self._remove_literal(init, vs, old, value)
-            vs.set_literal(value, lit)
-            self._litmap.setdefault(lit, []).append((vs, value))
-
     def _update_literal(self, vs, value, control, truth):
         """
         This function is an extended version of `_get_literal` that can update
@@ -536,7 +539,7 @@ class State(object):
             self._var_state[v] = vs
             self._vars.append(vs)
 
-    def simplify(self, init, trail_offset):
+    def simplify(self, init, constraints):
         """
         Simplify the state using fixed literals in the trail up to the given
         offset and the enqued constraints in the todo list.
@@ -547,13 +550,35 @@ class State(object):
         # been added in a previous step which are then implied by the
         # newly added constraints.
         trail = init.assignment.trail
+        ass = init.assignment
+        trail = ass.trail
+        trail_offset = 0
 
-        if not self.propagate(init, trail[self._trail_offset:trail_offset]):
-            return False
-        self._trail_offset = max(self._trail_offset, trail_offset)
+        # propagate newly added constraints
+        # Note: consequences of previously added constraints are stored in the
+        # bounds already.
+        self._todo.extend(constraints)
 
-        if not self.check(init):
-            return False
+        # Note: The initial propagation below, will not introduce any order
+        # literals other than true or false.
+        while True:
+            if not init.propagate():
+                return False
+
+            # Note: Initially, the trail is guaranteed to have at least size 1.
+            # This ensures that order literals will be propagated.
+            next_trail_offset = len(trail)
+            if trail_offset == next_trail_offset:
+                break
+
+            if not self.propagate(init, trail[self._trail_offset:next_trail_offset]):
+                return False
+            self._trail_offset = max(self._trail_offset, next_trail_offset)
+
+            if not self.check(init):
+                return False
+
+            trail_offset = next_trail_offset
 
         return True
 
@@ -755,7 +780,7 @@ class State(object):
                 yield lbs, False
                 lbs[i] = lit
 
-    def integrate_simple(self, init, constraint, strict, states):
+    def integrate_simple(self, init, constraint, strict):
         """
         This function integrates singleton constraints into the state.
 
@@ -796,14 +821,10 @@ class State(object):
                 lit = -TRUE_LIT
             vs.set_literal(value, lit)
             self._litmap.setdefault(lit, []).append((vs, value))
-            for state in states:
-                state._replace_literal(init, var, value, lit)
 
         # otherwise we just update the existing order literal
         else:
             old, lit = self._update_literal(vs, value, init, truth)
-            for state in states:
-                state._replace_literal(init, var, value, lit)
             if old is not None:
                 yield [old if truth else -old]
             if co < 0:
@@ -1010,6 +1031,9 @@ class State(object):
         The function might add clauses via `init` to fix literals that have to
         be updated. This can lead to a conflict if states have conflicting
         lower/upper bounds.
+
+        Precondition: remove_literals should be called before this function to
+                      really integrate all bounds.
         """
         # pylint: disable=protected-access
 
@@ -1031,19 +1055,42 @@ class State(object):
 
         return self._update_domain(init, 1)
 
-    def copy_domain(self, init, master):
+    def copy_state(self, master):
         """
-        Copy order literals from the given `master` state to the current state.
+        Copy order literals and propagation state from the given `master` state
+        to the current state.
         """
         # pylint: disable=protected-access
 
-        for lit, vss in sorted(master._litmap.items()):
-            # Note: fixed literals are handled in `update_bounds` and `remove_literals`.
-            if not init.assignment.is_fixed(lit):
-                for vs_m, value in vss:
-                    vs = self._var_state[vs_m.var]
-                    vs.set_literal(lit, value)
-                    self._litmap.setdefault(lit, []).append((vs, value))
+        # adjust integrated facts
+        self._set_integrated(0, master._get_integrated(0))
+
+        # make sure we have an empty var state for each variable
+        self.init_domain(vs.var for vs in master._vars[len(self._vars):])
+        for vs, vs_master in zip(self._vars, master._vars):
+            assert vs.var == vs_master.var
+            vs.clear()
+
+        # copy the map from literals to var states
+        self._litmap.clear()
+        for lit, vss in master._litmap.items():
+            for vs_master, value in vss:
+                vs = self._state(vs_master.var)
+                vs.set_literal(value, lit)
+                self._litmap.setdefault(lit, []).append((vs, value))
+
+        # adjust the bounds
+        for vs, vs_master in zip(self._vars, master._vars):
+            vs.lower_bound = vs_master.lower_bound
+            vs.upper_bound = vs_master.upper_bound
+
+        # adjust levels
+        lvl, lvl_master = self._level, master._level
+        lvl.clear()
+        for vs in lvl_master.undo_lower:
+            lvl.undo_lower.add(self._state(vs.var))
+        for vs in lvl_master.undo_upper:
+            lvl.undo_upper.add(self._state(vs.var))
 
 
 class Propagator(object):
@@ -1122,64 +1169,27 @@ class Propagator(object):
             if not master.update_bounds(init, state):
                 return
 
-        # adjust number of threads if necessary
-        del self._states[init.number_of_threads:]
-        if self._vars:
-            for i in range(len(self._states), init.number_of_threads):
-                state = self._state(i)
-                state.init_domain(self._vars)
-                state.copy_domain(self._states[0])
-
         # add newly introduced variables
         self._vars.extend(variables)
-        for i in range(init.number_of_threads):
-            state = self._state(i)
-            state.init_domain(variables)
-
-        # propagate bounds in master to other states
-        for state in self._states[1:]:
-            if not state.update_bounds(init, master):
-                return
+        master.init_domain(variables)
 
         # integrate clauses that can directly be represented by order literals
         for constraint, strict in simple:
-            for clause in master.integrate_simple(init, constraint, strict, self._states[1:]):
+            for clause in master.integrate_simple(init, constraint, strict):
                 if not init.add_clause(clause):
                     return
 
-        ass = init.assignment
-        trail = ass.trail
-        trail_offset = 0
-
         # propagate the newly added constraints
-        # Note: consequences of previously added constraints are stored in the
-        # bounds propagated above.
-        for state in self._states:
-            # pylint: disable=protected-access
-            state._todo.extend(constraints)
-
-        # Note: The initial propagation below, will not introduce any order
-        # literals other than true or false.
-        while True:
-            if not init.propagate():
-                return
-
-            # Note: Initially, the trail is guaranteed to have at least size 1.
-            # This ensures that order literals will be propagated.
-            next_trail_offset = len(trail)
-            if trail_offset == next_trail_offset:
-                break
-
-            for state in self._states:
-                if not state.simplify(init, next_trail_offset):
-                    return
-
-            trail_offset = next_trail_offset
+        if not master.simplify(init, constraints):
+            return
 
         # remove unnecessary literals after simplification
-        for state in self._states:
-            if not state.cleanup_literals(init):
-                return
+        master.cleanup_literals(init)
+
+        # copy order literals from master to other states
+        del self._states[init.number_of_threads:]
+        for i in range(1, init.number_of_threads):
+            self._state(i).copy_state(master)
 
     def propagate(self, control, changes):
         """
