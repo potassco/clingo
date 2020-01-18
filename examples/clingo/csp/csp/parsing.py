@@ -75,7 +75,9 @@ def _parse_constraint(init, atom, is_sum, strict=False):
             seen[var] = i
             elements.append((co, var))
         else:
-            elements[seen[var]][0] += co
+            co_old, var_old = elements[seen[var]]
+            assert var_old == var
+            elements[seen[var]] = (co_old + co, var)
 
     # drop zero weights and divide by gcd
     elements = [(co, var) for co, var in elements if co != 0]

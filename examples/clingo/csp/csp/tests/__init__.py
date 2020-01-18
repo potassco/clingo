@@ -13,7 +13,9 @@ def parse_model(model, prp):
     """
     m = []
     for sym in model.symbols(shown=True):
-        m.append(str(sym))
+        s = str(sym)
+        if not s.startswith("_"):
+            m.append(s)
     a = []
     for var, val in prp.get_assignment(model.thread_id):
         var = str(var)

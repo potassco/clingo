@@ -801,7 +801,7 @@ class State(object):
         else:
             old, lit = self._update_literal(vs, value, init, truth)
             if old is not None:
-                yield [old if truth else -old]
+                yield [old if truth else -old], True
             if co < 0:
                 lit = -lit
             yield [-clit, lit], True
