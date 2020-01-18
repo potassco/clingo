@@ -534,7 +534,7 @@ class State(object):
             # Note: Initially, the trail is guaranteed to have at least size 1.
             # This ensures that order literals will be propagated.
             trail_offset = len(trail)
-            if self._trail_offset == trail_offset:
+            if self._trail_offset == trail_offset and not self._todo:
                 break
 
             if not self.propagate(init, trail[self._trail_offset:trail_offset]):
