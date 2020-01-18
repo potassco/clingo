@@ -38,6 +38,6 @@ SOL10 = [
 
 class TestMain(unittest.TestCase):
     def test_smm(self):
-        self.assertEqual(solve(SMM), DOM + SOL)
+        self.assertEqual(solve(DOM + SMM), SOL)
         self.assertEqual(solve(SMM, minint=0, maxint=9), SOL)
         self.assertEqual(solve(SMM, minint=0, maxint=10), SOL10)
