@@ -6,14 +6,7 @@ stand-alone application.
 from itertools import chain
 import clingo
 from .parsing import parse_constraints
-from .util import lerp, remove_if, TodoList
-
-try:
-    # Note: Can be installed to play with realistic domain sizes.
-    from sortedcontainers import SortedDict
-    _HAS_SC = True
-except ImportError:
-    _HAS_SC = False
+from .util import lerp, remove_if, TodoList, SortedDict
 
 
 MAX_INT = 20
@@ -86,10 +79,7 @@ class VarState(object):
         self.var = var
         self._upper_bound = [MAX_INT]
         self._lower_bound = [MIN_INT]
-        if _HAS_SC:
-            self._literals = SortedDict()
-        else:
-            self._literals = (MAX_INT-MIN_INT)*[None]
+        self._literals = SortedDict()
 
     def push_lower(self):
         """
@@ -190,9 +180,7 @@ class VarState(object):
         The value must lie in the range `[MIN_INT,MAX_INT)`.
         """
         assert MIN_INT <= value < MAX_INT
-        if _HAS_SC:
-            return value in self._literals
-        return self._literals[value - MIN_INT] is not None
+        return value in self._literals
 
     def get_literal(self, value):
         """
@@ -201,9 +189,7 @@ class VarState(object):
         The value must be associated with a literal.
         """
         assert MIN_INT <= value < MAX_INT
-        if _HAS_SC:
-            return self._literals[value]
-        return self._literals[value - MIN_INT]
+        return self._literals[value]
 
     def prev_value(self, value):
         """
@@ -213,14 +199,9 @@ class VarState(object):
         The value must be associated with a literal.
         """
         assert self.has_literal(value)
-        if _HAS_SC:
-            i = self._literals.bisect_left(value)
-            if i > 0:
-                return self._literals.peekitem(i-1)[0]
-        else:
-            for prev in range(value-1, self.min_bound-1, -1):
-                if self.has_literal(prev):
-                    return prev
+        i = self._literals.bisect_left(value)
+        if i > 0:
+            return self._literals.peekitem(i-1)[0]
         return None
 
     def succ_value(self, value):
@@ -231,14 +212,9 @@ class VarState(object):
         The value must be associated with a literal.
         """
         assert self.has_literal(value)
-        if _HAS_SC:
-            i = self._literals.bisect_right(value)
-            if i < len(self._literals):
-                return self._literals.peekitem(i)[0]
-        else:
-            for succ in range(value+1, self.max_bound):
-                if self.has_literal(succ):
-                    return succ
+        i = self._literals.bisect_right(value)
+        if i < len(self._literals):
+            return self._literals.peekitem(i)[0]
         return None
 
     def set_literal(self, value, lit):
@@ -248,10 +224,7 @@ class VarState(object):
         The value must lie in the range `[MIN_INT,MAX_INT)`.
         """
         assert MIN_INT <= value < MAX_INT
-        if _HAS_SC:
-            self._literals[value] = lit
-        else:
-            self._literals[value - MIN_INT] = lit
+        self._literals[value] = lit
 
     def unset_literal(self, value):
         """
@@ -260,10 +233,7 @@ class VarState(object):
         The value must lie in the range `[MIN_INT,MAX_INT)`.
         """
         assert MIN_INT <= value < MAX_INT
-        if _HAS_SC:
-            del self._literals[value]
-        else:
-            self._literals[value - MIN_INT] = None
+        del self._literals[value]
 
     def clear(self):
         """
@@ -271,10 +241,7 @@ class VarState(object):
         """
         self._upper_bound = [MAX_INT]
         self._lower_bound = [MIN_INT]
-        if _HAS_SC:
-            self._literals.clear()
-        else:
-            self._literals = (MAX_INT-MIN_INT)*[None]
+        self._literals.clear()
 
     def __repr__(self):
         return "{}=[{},{}]".format(self.var, self.lower_bound, self.upper_bound)
