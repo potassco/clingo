@@ -33,6 +33,28 @@ THEORY = """\
 """
 
 
+def _propagate_init(init, seq):
+    """
+    Propagate all the clauses in the given sequence using a PropagateInit
+    object.
+    """
+    for clause, _ in seq:
+        if not init.add_clause(clause) or not init.propagate():
+            return False
+    return True
+
+
+def _propagate_control(control, seq):
+    """
+    Propagate all the clauses in the given sequence using a PropagateControl
+    object.
+    """
+    for clause, lock in seq:
+        if not control.add_clause(clause, lock=lock) or not control.propagate():
+            return False
+    return True
+
+
 class Constraint(object):
     """
     Class to capture sum constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
@@ -423,7 +445,7 @@ class State(object):
             control.add_watch(-lit)
         return vs.get_literal(value)
 
-    def _remove_literal(self, control, vs, lit, value):
+    def _remove_literal(self, vs, lit, value):
         """
         Removes order literal `lit` for `vs.var<=value` from `_litmap`.
         """
@@ -434,11 +456,6 @@ class State(object):
         if not vec:
             assert -lit not in self._litmap
             del self._litmap[lit]
-            # Note: When called with `PropagateInit`, there is no
-            # `remove_watch` function.
-            if hasattr(control, "remove_watch"):
-                control.remove_watch(lit)
-                control.remove_watch(-lit)
 
     def _update_literal(self, vs, value, control, truth):
         """
@@ -492,7 +509,7 @@ class State(object):
         # unnecessary.
         if old != -lit:
             vs.set_literal(value, lit)
-            self._remove_literal(control, vs, old, value)
+            self._remove_literal(vs, old, value)
             self._litmap.setdefault(lit, []).append((vs, value))
         return old, lit
 
@@ -529,20 +546,18 @@ class State(object):
         # literals other than true or false.
         while True:
             if not init.propagate():
-                return False
+                return
 
             trail_offset = len(trail)
             if self._trail_offset == trail_offset and not self._todo:
-                break
+                return
 
-            if not self.propagate(init, trail[self._trail_offset:trail_offset]):
-                return False
+            for clause, lock in self.propagate(init, trail[self._trail_offset:trail_offset]):
+                yield clause, lock
             self._trail_offset = trail_offset
 
-            if not self.check(init):
-                return False
-
-        return True
+            for clause, lock in self.check(init):
+                yield clause, lock
 
     # propagation
     def propagate(self, control, changes):
@@ -560,8 +575,8 @@ class State(object):
         # propagate order literals that became true/false
         for lit in changes:
             self._todo.extend(self._l2c.get(lit, []))
-            if not self._update_domain(control, lit):
-                return False
+            for clause, lock in self._update_domain(control, lit):
+                yield clause, lock
 
         return True
 
@@ -581,25 +596,22 @@ class State(object):
         fact, too.
         """
 
-        assert vs.has_literal(value)
         ass = control.assignment
         assert ass.is_true(lit)
+        assert vs.has_literal(value)
 
         # get the literal to propagate
-        con = sign * self._get_literal(vs, value, control)
+        con = sign * vs.get_literal(value)
 
         # on-the-fly simplify
         if ass.is_fixed(lit) and not ass.is_fixed(con):
             o, con = self._update_literal(vs, value, control, sign > 0)
             o, con = sign * o, sign * con
-            if not control.add_clause([o], lock=True):
-                return False
+            yield [o], True
 
         # propagate the literal
-        if not ass.is_true(con) and not control.add_clause([-lit, con]):
-            return False
-
-        return True
+        if not ass.is_true(con):
+            yield [-lit, con], False
 
     def _update_domain(self, control, lit):
         """
@@ -626,8 +638,9 @@ class State(object):
 
                 # make succeeding literal true
                 succ = vs.succ_value(value)
-                if succ is not None and not self._propagate_variable(control, vs, succ, lit, 1):
-                    return False
+                if succ is not None:
+                    for clause, lock in self._propagate_variable(control, vs, succ, lit, 1):
+                        yield clause, lock
 
         # update and propagate lower bound
         if -lit in self._litmap:
@@ -642,10 +655,9 @@ class State(object):
 
                 # make preceeding literal false
                 prev = vs.prev_value(value)
-                if prev is not None and not self._propagate_variable(control, vs, prev, lit, -1):
-                    return False
-
-        return True
+                if prev is not None:
+                    for clause, lock in self._propagate_variable(control, vs, prev, lit, -1):
+                        yield clause, lock
 
     def propagate_constraint(self, c, control):
         """
@@ -791,9 +803,9 @@ class State(object):
                 yield [old if truth else -old]
             if co < 0:
                 lit = -lit
-            yield [-clit, lit]
+            yield [-clit, lit], True
             if strict:
-                yield [-lit, clit]
+                yield [-lit, clit], True
 
     def undo(self):
         """
@@ -865,30 +877,21 @@ class State(object):
         while True:
             # Note: This integrates any facts that have not been integrated yet
             # on the current decision level.
-            if not self._update_domain(control, 1):
-                return False
+            for clause, lock in self._update_domain(control, 1):
+                yield clause, lock
             num_facts = self._num_facts
             self._set_integrated(ass.decision_level, num_facts)
 
             # propagate affected constraints
-            for c in self._todo:
+            todo, self._todo = self._todo, TodoList()
+            for c in todo:
                 lit = c.literal
                 if not ass.is_false(lit):
                     for clause, lock in self.propagate_constraint(c, control):
-                        # Note: This is a hack because the PropagateInit object
-                        #       does not have a lock parameter.
-                        args = {}
-                        if lock and isinstance(control, clingo.PropagateControl):
-                            args["lock"] = True
-                        if not control.add_clause(clause, **args) or not control.propagate():
-                            self._todo.clear()
-                            return False
-            self._todo.clear()
+                        yield clause, lock
 
             if num_facts == self._num_facts:
-                break
-
-        return True
+                return
 
     def check_full(self, control):
         """
@@ -943,7 +946,7 @@ class State(object):
                 vs.set_literal(value, lit)
             del self._litmap[old]
 
-    def _cleanup_literals(self, init, lit, pred):
+    def _cleanup_literals(self, lit, pred):
         """
         Remove (var,value) pairs associated with `lit` that match `pred`.
         """
@@ -970,21 +973,25 @@ class State(object):
                     # 0. But to be on the safe side in view of theory
                     # extensions, this makes the old literal equal to lit
                     # before removing the old literal.
-                    if not init.add_clause([-lit, old]) or not init.add_clause([-old, lit]):
-                        return False
-                    self._remove_literal(init, vs, old, value)
+                    yield [-lit, old], True
+                    yield [-old, lit], True
+                    self._remove_literal(vs, old, value)
                 vs.unset_literal(value)
             del variables[i:]
-
-        return True
 
     def cleanup_literals(self, init):
         """
         Remove all order literals associated with facts that are above the
         upper or below the lower bound.
         """
-        return (self._cleanup_literals(init, TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
-                self._cleanup_literals(init, -TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1))
+        # make sure that all top level literals are assigned to the fact literal
+        self.remove_literals(init)
+
+        # cleanup
+        for clause, lock in self._cleanup_literals(TRUE_LIT, lambda x: x[1] != x[0].upper_bound):
+            yield clause, lock
+        for clause, lock in self._cleanup_literals(-TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1):
+            yield clause, lock
 
     def update_bounds(self, init, other):
         """
@@ -1004,18 +1011,21 @@ class State(object):
             vs_a = self._var_state[vs_b.var]
             if vs_b.upper_bound < vs_a.upper_bound:
                 old, _ = self._update_literal(vs_a, vs_b.upper_bound, init, True)
-                if old is not None and not init.add_clause([old]):
-                    return False
+                if old is not None:
+                    yield [old], True
 
         # update lower bounds
         for vs_b, _ in other._litmap.get(-TRUE_LIT, []):
             vs_a = self._var_state[vs_b.var]
             if vs_a.lower_bound < vs_b.lower_bound:
                 old, _ = self._update_literal(vs_a, vs_b.lower_bound-1, init, False)
-                if old is not None and not init.add_clause([-old]):
-                    return False
+                if old is not None:
+                    yield [-old], True
 
-        return self._update_domain(init, 1)
+        for clause, lock in self._update_domain(init, 1):
+            yield clause, lock
+
+        return True
 
     def copy_state(self, master):
         """
@@ -1128,7 +1138,7 @@ class Propagator(object):
         # gather bounds of states in master
         master = self._state(0)
         for state in self._states[1:]:
-            if not master.update_bounds(init, state):
+            if not _propagate_init(init, master.update_bounds(init, state)):
                 return
 
         # add newly introduced variables
@@ -1137,16 +1147,17 @@ class Propagator(object):
 
         # integrate clauses that can directly be represented by order literals
         for constraint, strict in simple:
-            for clause in master.integrate_simple(init, constraint, strict):
-                if not init.add_clause(clause):
-                    return
+            seq = master.integrate_simple(init, constraint, strict)
+            if not _propagate_init(init, seq):
+                return
 
         # propagate the newly added constraints
-        if not master.simplify(init, constraints):
+        if not _propagate_init(init, master.simplify(init, constraints)):
             return
 
         # remove unnecessary literals after simplification
-        master.cleanup_literals(init)
+        if not _propagate_init(init, master.cleanup_literals(init)):
+            return
 
         # copy order literals from master to other states
         del self._states[init.number_of_threads:]
@@ -1158,7 +1169,7 @@ class Propagator(object):
         Delegates propagation to the respective state.
         """
         state = self._state(control.thread_id)
-        state.propagate(control, changes)
+        _propagate_control(control, state.propagate(control, changes))
 
     def check(self, control):
         """
@@ -1168,7 +1179,7 @@ class Propagator(object):
         size = len(control.assignment)
         state = self._state(control.thread_id)
 
-        if not state.check(control):
+        if not _propagate_control(control, state.check(control)):
             return
 
         # Note: Makes sure that all variables are assigned in the end. But even
