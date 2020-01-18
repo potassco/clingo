@@ -519,7 +519,6 @@ class State(object):
         trail = init.assignment.trail
         ass = init.assignment
         trail = ass.trail
-        trail_offset = 0
 
         # propagate newly added constraints
         # Note: consequences of previously added constraints are stored in the
@@ -534,18 +533,16 @@ class State(object):
 
             # Note: Initially, the trail is guaranteed to have at least size 1.
             # This ensures that order literals will be propagated.
-            next_trail_offset = len(trail)
-            if trail_offset == next_trail_offset:
+            trail_offset = len(trail)
+            if self._trail_offset == trail_offset:
                 break
 
-            if not self.propagate(init, trail[self._trail_offset:next_trail_offset]):
+            if not self.propagate(init, trail[self._trail_offset:trail_offset]):
                 return False
-            self._trail_offset = max(self._trail_offset, next_trail_offset)
+            self._trail_offset = trail_offset
 
             if not self.check(init):
                 return False
-
-            trail_offset = next_trail_offset
 
         return True
 
