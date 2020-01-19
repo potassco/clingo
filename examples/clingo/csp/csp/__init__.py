@@ -5,7 +5,7 @@ stand-alone application.
 
 from itertools import chain
 import clingo
-from .parsing import parse_constraints
+from .parsing import parse_theory
 from .util import lerp, remove_if, TodoList, SortedDict
 
 
@@ -514,19 +514,27 @@ class State(object):
         return old, lit
 
     # initialization
-    def init_domain(self, variables):
+    def add_variable(self, var):
         """
         Adds `VarState` objects for each variable in `variables`.
         """
-        for v in variables:
-            vs = VarState(v)
-            self._var_state[v] = vs
-            self._vars.append(vs)
+        vs = VarState(var)
+        self._var_state[var] = vs
+        self._vars.append(vs)
 
-    def simplify(self, init, constraints):
+    def enqueue(self, constraint):
+        """
+        Adds the given constraint to the propagation queue.
+        """
+        self._todo.add(constraint)
+
+    def simplify(self, init):
         """
         Simplify the state using fixed literals in the trail up to the given
         offset and the enqued constraints in the todo list.
+
+        Note that this functions assumes that newly added constraints have been
+        enqueued before.
         """
         # Note: Propagation won't add anything to the trail because atm
         # there are no order literals which could be propagated. This
@@ -536,11 +544,6 @@ class State(object):
         trail = init.assignment.trail
         ass = init.assignment
         trail = ass.trail
-
-        # propagate newly added constraints
-        # Note: consequences of previously added constraints are stored in the
-        # bounds already.
-        self._todo.extend(constraints)
 
         # Note: The initial propagation below, will not introduce any order
         # literals other than true or false.
@@ -1039,7 +1042,8 @@ class State(object):
         self._set_integrated(0, master._get_integrated(0))
 
         # make sure we have an empty var state for each variable
-        self.init_domain(vs.var for vs in master._vars[len(self._vars):])
+        for vs in master._vars[len(self._vars):]:
+            self.add_variable(vs.var)
         for vs, vs_master in zip(self._vars, master._vars):
             assert vs.var == vs_master.var
             vs.clear()
@@ -1066,16 +1070,79 @@ class State(object):
             lvl.undo_upper.add(self._state(vs.var))
 
 
+class CSPBuilder(object):
+    """
+    CSP builder to use with the parse_theory function.
+    """
+    def __init__(self, init, propagator):
+        self._init = init
+        self._propagator = propagator
+        self._simple = []
+        self._clauses = []
+
+    def is_true(self, literal):
+        """
+        Return whether the literal is true.
+        """
+        return self._init.assignment.is_true(literal)
+
+    def solver_literal(self, literal):
+        """
+        Map the literal to a solver literal.
+        """
+        return self._init.solver_literal(literal)
+
+    def add_literal(self):
+        """
+        Add a new literal.
+        """
+        return self._init.add_literal()
+
+    def add_clause(self, clause):
+        """
+        Add a clause to be added later.
+
+        Note that the clause is added later because adding clauses and
+        variables alternatingly is inefficient in clasp.
+        """
+        self._clauses.append(clause)
+
+    def add_constraint(self, lit, elems, rhs, strict):
+        """
+        Add a constraint.
+        """
+        constraint = Constraint(lit, elems, rhs)
+        if len(elems) == 1:
+            _, var = elems[0]
+            self._simple.append((constraint, strict))
+            self._propagator.add_variable(var)
+        else:
+            assert not strict
+            self._propagator.add_constraint(self._init, constraint)
+
+    def finalize(self):
+        """
+        Finish constraint translation.
+        """
+        if not _propagate_init(self._init, ((clause, True) for clause in self._clauses)):
+            return False
+        for constraint, strict in self._simple:
+            if not self._propagator.add_simple(self._init, constraint, strict):
+                return False
+
+        return True
+
+
 class Propagator(object):
     """
     A propagator for CSP constraints.
     """
     def __init__(self):
-        self._l2c = {}     # map literals to constraints
-        self._states = []  # map thread id to states
-        self._vars = []    # list of variables
-        self._vl2c = {}    # map variables affecting lower bound of constraints
-        self._vu2c = {}    # map variables affecting upper bound of constraints
+        self._l2c = {}           # map literals to constraints
+        self._states = []        # map thread id to states
+        self._vars = TodoList()  # list of variables
+        self._vl2c = {}          # map variables affecting lower bound of constraints
+        self._vu2c = {}          # map variables affecting upper bound of constraints
 
     def _state(self, thread_id):
         """
@@ -1085,40 +1152,34 @@ class Propagator(object):
             self._states.append(State(self._l2c, self._vl2c, self._vu2c))
         return self._states[thread_id]
 
-    def _add_constraints(self, init):
+    def add_variable(self, var):
         """
-        Add constraints in theory data to propagator.
-
-        Returns lists of the added constraints and newly added variables.
+        Add a variable to the program.
         """
-        constraints = []
-        variables = []
-        variables_seen = set(self._vars)
-        simple = []
+        if var not in self._vars:
+            self._vars.add(var)
+            self._state(0).add_variable(var)
 
-        for lit, elems, rhs, strict in parse_constraints(init):
-            c = Constraint(lit, elems, rhs)
-            if len(elems) == 1:
-                _, var = elems[0]
-                simple.append((c, strict))
-                if var not in variables_seen:
-                    variables_seen.add(var)
-                    variables.append(var)
+    def add_simple(self, init, constraint, strict):
+        """
+        Add a constraint that can be represented by an order literal.
+        """
+        return _propagate_init(init, self._state(0).integrate_simple(init, constraint, strict))
+
+    def add_constraint(self, init, constraint):
+        """
+        Add a variable to the program.
+        """
+        lit = constraint.literal
+        init.add_watch(lit)
+        self._l2c.setdefault(lit, []).append(constraint)
+        for co, var in constraint.elements:
+            self.add_variable(var)
+            if co > 0:
+                self._vl2c.setdefault(var, []).append(constraint)
             else:
-                assert not strict
-                constraints.append(c)
-                self._l2c.setdefault(c.literal, []).append(c)
-                init.add_watch(lit)
-                for co, var in elems:
-                    if var not in variables_seen:
-                        variables_seen.add(var)
-                        variables.append(var)
-                    if co > 0:
-                        self._vl2c.setdefault(var, []).append(c)
-                    else:
-                        self._vu2c.setdefault(var, []).append(c)
-
-        return simple, constraints, variables
+                self._vu2c.setdefault(var, []).append(constraint)
+        self._state(0).enqueue(constraint)
 
     def init(self, init):
         """
@@ -1128,9 +1189,6 @@ class Propagator(object):
         multi-threaded solving.
         """
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
-
-        # get newly added constraints and variables
-        simple, constraints, variables = self._add_constraints(init)
 
         # remove solve step local and fixed literals
         for state in self._states:
@@ -1142,18 +1200,12 @@ class Propagator(object):
             if not _propagate_init(init, master.update_bounds(init, state)):
                 return
 
-        # add newly introduced variables
-        self._vars.extend(variables)
-        master.init_domain(variables)
-
-        # integrate clauses that can directly be represented by order literals
-        for constraint, strict in simple:
-            seq = master.integrate_simple(init, constraint, strict)
-            if not _propagate_init(init, seq):
-                return
+        # add constraints
+        if not parse_theory(CSPBuilder(init, self), init.theory_atoms).finalize():
+            return
 
         # propagate the newly added constraints
-        if not _propagate_init(init, master.simplify(init, constraints)):
+        if not _propagate_init(init, master.simplify(init)):
             return
 
         # remove unnecessary literals after simplification

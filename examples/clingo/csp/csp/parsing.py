@@ -28,25 +28,21 @@ def match(term, name, arity):
             len(term.arguments) == arity)
 
 
-def parse_constraints(init):
+def parse_theory(builder, theory_atoms):
     """
-    Parse and yield sum and diff constraints in the theory data of the given
-    `PropagateInit` object.
-
-    Contraints are represented as a triple of a literal, its elements, and an
-    upper bound.
+    Parse the atoms in the given theory and pass them to the builder.
     """
-
-    for atom in init.theory_atoms:
+    for atom in theory_atoms:
         is_sum = match(atom.term, "sum", 1)
         is_diff = match(atom.term, "diff", 1)
         if is_sum or is_diff:
             body = match(atom.term.arguments[0], "body", 0)
-            for cons in _parse_constraint(init, atom, is_sum, body):
-                yield cons
+            _parse_constraint(builder, atom, is_sum, body)
+
+    return builder
 
 
-def _parse_constraint(init, atom, is_sum, strict=False):
+def _parse_constraint(builder, atom, is_sum, strict=False):
     """
     Yield constraints from the given theory atom.
 
@@ -61,7 +57,7 @@ def _parse_constraint(init, atom, is_sum, strict=False):
     rhs = 0
 
     # map literal
-    literal = init.solver_literal(atom.literal)
+    literal = builder.solver_literal(atom.literal)
 
     # combine coefficients
     seen = {}
@@ -86,11 +82,10 @@ def _parse_constraint(init, atom, is_sum, strict=False):
         elements = [(co//d, var) for co, var in elements]
         rhs //= d
 
-    for c in _normalize_constraint(init, literal, elements, atom.guard[0], rhs, strict):
-        yield c
+    _normalize_constraint(builder, literal, elements, atom.guard[0], rhs, strict)
 
 
-def _normalize_constraint(init, literal, elements, op, rhs, strict):
+def _normalize_constraint(builder, literal, elements, op, rhs, strict):
     # rerwrite > and < guard
     if op == ">":
         op = ">="
@@ -107,50 +102,45 @@ def _normalize_constraint(init, literal, elements, op, rhs, strict):
 
     if op == "<=":
         if strict and len(elements) == 1:
-            yield literal, elements, rhs, True
+            builder.add_constraint(literal, elements, rhs, True)
             return
-        yield literal, elements, rhs, False
+        builder.add_constraint(literal, elements, rhs, False)
 
     elif op == "=":
         if strict:
-            if init.assignment.is_true(literal):
+            if builder.is_true(literal):
                 a = b = 1
             else:
-                a = init.add_literal()
-                b = init.add_literal()
+                a = builder.add_literal()
+                b = builder.add_literal()
 
             # Note: this cannot fail because constraint normalization does not propagate
-            init.add_clause([-literal, a])
-            init.add_clause([-literal, b])
-            init.add_clause([-a, -b, literal])
+            builder.add_clause([-literal, a])
+            builder.add_clause([-literal, b])
+            builder.add_clause([-a, -b, literal])
         else:
             a = b = literal
 
-        for c in _normalize_constraint(init, a, elements, "<=", rhs, strict):
-            yield c
-        for c in _normalize_constraint(init, b, elements, ">=", rhs, strict):
-            yield c
+        _normalize_constraint(builder, a, elements, "<=", rhs, strict)
+        _normalize_constraint(builder, b, elements, ">=", rhs, strict)
 
         if strict:
             return
 
     elif op == "!=":
         if strict:
-            for c in _normalize_constraint(init, -literal, elements, "=", rhs, True):
-                yield c
+            _normalize_constraint(builder, -literal, elements, "=", rhs, True)
             return
 
-        a = init.add_literal()
-        b = init.add_literal()
-
-        for c in _normalize_constraint(init, a, elements, "<", rhs, False):
-            yield c
-        for c in _normalize_constraint(init, b, elements, ">", rhs, False):
-            yield c
+        a = builder.add_literal()
+        b = builder.add_literal()
 
         # Note: this cannot fail
-        init.add_clause([a, b, -literal])
-        init.add_clause([-a, -b])
+        builder.add_clause([a, b, -literal])
+        builder.add_clause([-a, -b])
+
+        _normalize_constraint(builder, a, elements, "<", rhs, False)
+        _normalize_constraint(builder, b, elements, ">", rhs, False)
 
     if strict:
         if op == "<=":
@@ -158,8 +148,7 @@ def _normalize_constraint(init, literal, elements, op, rhs, strict):
         elif op == "!=":
             op = "="
 
-        for c in _normalize_constraint(init, -literal, elements, op, rhs, False):
-            yield c
+        _normalize_constraint(builder, -literal, elements, op, rhs, False)
 
 
 def _parse_constraint_elems(elems, rhs, is_sum):
