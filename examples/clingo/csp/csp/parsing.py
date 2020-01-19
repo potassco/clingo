@@ -44,7 +44,7 @@ def parse_theory(builder, theory_atoms):
     return builder
 
 
-def _simplify(seq, drop_zero=True, drop_novar=True):
+def _simplify(seq):
     """
     Combine coefficients of terms with the same variable and optionally drop
     zero weights and sum up terms without a variable.
@@ -53,10 +53,10 @@ def _simplify(seq, drop_zero=True, drop_novar=True):
     seen = {}
     rhs = 0
     for i, (co, var) in enumerate(seq):
-        if drop_zero and co == 0:
+        if co == 0:
             continue
 
-        if drop_novar and var is None:
+        if var is None:
             rhs -= co
         elif var not in seen:
             seen[var] = i
@@ -71,31 +71,14 @@ def _simplify(seq, drop_zero=True, drop_novar=True):
 
 def _parse_distinct(builder, atom):
     """
-    Distinct constraints are parsed similar to sums. Its elements are
-    simplified and each element must evaluate to a term with at most one
-    variable. The *set* of these terms is what is passed to the builder. Zero
-    coefficients are not simplified; a distinct constraint with elements `0*x`
-    and `0*y` can never be satisfied.
-
     Currently only distinct constraints in the head are supported. Supporting
     them in the body would also be possible where they should be strict.
     """
 
     elements = []
-    seen = set()
     for elem in atom.elements:
         if len(elem.terms) == 1 and not elem.condition:
-            _, parsed = _simplify(_parse_constraint_elem(elem.terms[0], True), False, False)
-            if len(parsed) != 1:
-                raise RuntimeError("Invalid Syntax")
-
-            parsed = parsed[0]
-            if parsed not in seen:
-                seen.add(parsed)
-                # if the coefficient is zero drop the variable but allow
-                # duplicates
-                elements.append((0, None) if parsed[0] == 0 else parsed)
-
+            elements.append(_simplify(_parse_constraint_elem(elem.terms[0], True)))
         else:
             raise RuntimeError("Invalid Syntax")
 

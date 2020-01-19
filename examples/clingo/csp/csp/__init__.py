@@ -1125,38 +1125,25 @@ class CSPBuilder(object):
         """
         Adds a simplistic translation for a distinct constraint.
 
-        For each x, y with x != y in elems add `literal => &sum { x } != y`.
-        Where x and y are terms of form co*var where var might be None.
+        For each x_i, x_j with i < j in elems add
+          `literal => &sum { x_i } != x_j`
+        where each x_i is of form (rhs_i, term_i) and term_i is a list of
+        coefficients and variables; x_i corresponds to the linear term
+          `term - rhs`.
         """
         if self._init.assignment.is_false(literal):
             return
 
-        for i, (co_i, var_i) in enumerate(elems):
-            if var_i:
-                self._propagator.add_variable(var_i)
+        for i, (rhs_i, elems_i) in enumerate(elems):
+            for rhs_j, elems_j in elems[i+1:]:
+                rhs = rhs_i - rhs_j
 
-            for j in range(i+1, len(elems)):
-                co_j, var_j = elems[j]
                 celems = []
-                rhs = 0
+                celems.extend(elems_i)
+                celems.extend((-co_j, var_j) for co_j, var_j in elems_j)
 
-                if var_i == var_j:
-                    co_i -= co_j
-                    var_j = None
-                    co_j = 0
-
-                if var_i:
-                    celems.append((co_i, var_i))
-                else:
-                    rhs -= co_i
-
-                if var_j:
-                    celems.append((-co_j, var_j))
-                else:
-                    rhs += co_j
-
-                if not elems:
-                    if rhs != 0:
+                if not celems:
+                    if rhs == 0:
                         self.add_clause([-literal])
                         return
                     continue
