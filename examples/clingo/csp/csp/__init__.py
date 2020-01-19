@@ -590,7 +590,7 @@ class State(object):
 
         For example, if `sign==1`, then lit is an order literal for some
         integer value smaller than `value`. The function propagates the clause
-        `lit` implies `_get_literal(vs, value, control)`.
+        `lit` implies `vs.get_literal(value)`.
 
         Furthermore, if `lit` is a fact, the target literal is simplified to a
         fact, too.
