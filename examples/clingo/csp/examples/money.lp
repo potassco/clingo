@@ -9,7 +9,6 @@ letter(s;e;n;d;m;o;r;y).
      } = 10000*m + 1000*o + 100*n + 10*e + 1*y.
 &sum { m } != 0.
 
-%&distinct {X : letter(X)}.
-&sum { X } != Y :- letter(X), letter(Y), X < Y.
+&distinct {X : letter(X)}.
 
 %&show {X : letter(X)}.

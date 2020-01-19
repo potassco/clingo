@@ -38,13 +38,56 @@ def parse_theory(builder, theory_atoms):
         if is_sum or is_diff:
             body = match(atom.term.arguments[0], "body", 0)
             _parse_constraint(builder, atom, is_sum, body)
+        elif match(atom.term, "distinct", 0):
+            _parse_distinct(builder, atom)
 
     return builder
 
 
-def _parse_constraint(builder, atom, is_sum, strict=False):
+def _parse_distinct(builder, atom):
     """
-    Yield constraints from the given theory atom.
+    Distinct constraints are parsed similar to sums. Its elements are
+    simplified and each element must evaluate to a term with at most one
+    variable. The *set* of these terms is what is passed to the builder. Zero
+    coefficients are not simplified; a distinct constraint with elements `0*x`
+    and `0*y` can never be satisfied.
+
+    Currently only distinct constraints in the head are supported. Supporting
+    them in the body would also be possible where they should be strict.
+    """
+
+    elements = []
+    seen = set()
+    for elem in atom.elements:
+        if len(elem.terms) == 1 and not elem.condition:
+            parsed = []
+            seen_elem = {}
+            for i, (co, var) in enumerate(_parse_constraint_elem(elem.terms[0], True)):
+                if var not in seen_elem:
+                    seen_elem[var] = i
+                    parsed.append((co, var))
+                else:
+                    co_old, var_old = parsed[seen_elem[var]]
+                    assert var_old == var
+                    parsed[seen_elem[var]] = (co_old + co, var)
+            if len(parsed) != 1:
+                raise RuntimeError("Invalid Syntax")
+            parsed = parsed[0]
+            if parsed not in seen:
+                seen.add(parsed)
+                if parsed[0] == 0:
+                    elements.append((0, None))
+                else:
+                    elements.append(parsed)
+        else:
+            raise RuntimeError("Invalid Syntax")
+
+    builder.add_distinct(builder.solver_literal(atom.literal), elements)
+
+
+def _parse_constraint(builder, atom, is_sum, strict):
+    """
+    Adds constraints from the given theory atom to the builder.
 
     If `is_sum` is true parses a sum constraint. Otherwise, it parses a
     difference constraint as supported by clingo-dl.

@@ -28,7 +28,8 @@ THEORY = """\
     -  : 0, binary, left
     };
     &sum/1 : sum_term, {<=,=,!=,<,>,>=}, sum_term, any;
-    &diff/1 : diff_term, {<=}, constant, any
+    &diff/1 : diff_term, {<=}, constant, any;
+    &distinct/0 : sum_term, head
 }.
 """
 
@@ -1119,6 +1120,55 @@ class CSPBuilder(object):
         else:
             assert not strict
             self._propagator.add_constraint(self._init, constraint)
+
+    def add_distinct(self, literal, elems):
+        """
+        Adds a simplistic translation for a distinct constraint.
+
+        For each x, y with x != y in elems add `literal => &sum { x } != y`.
+        Where x and y are terms of form co*var where var might be None.
+        """
+        if self._init.assignment.is_false(literal):
+            return
+
+        for i, (co_i, var_i) in enumerate(elems):
+            if var_i:
+                self._propagator.add_variable(var_i)
+
+            for j in range(i+1, len(elems)):
+                co_j, var_j = elems[j]
+                celems = []
+                rhs = 0
+
+                if var_i == var_j:
+                    co_i -= co_j
+                    var_j = None
+                    co_j = 0
+
+                if var_i:
+                    celems.append((co_i, var_i))
+                else:
+                    rhs -= co_i
+
+                if var_j:
+                    celems.append((-co_j, var_j))
+                else:
+                    rhs += co_j
+
+                if not elems:
+                    if rhs != 0:
+                        self.add_clause([-literal])
+                        return
+                    continue
+
+                a = self.add_literal()
+                b = self.add_literal()
+
+                self.add_clause([a, b, -literal])
+                self.add_clause([-a, -b])
+
+                self.add_constraint(a, celems, rhs-1, False)
+                self.add_constraint(b, [(-co, var) for co, var in celems], -rhs-1, False)
 
     def finalize(self):
         """

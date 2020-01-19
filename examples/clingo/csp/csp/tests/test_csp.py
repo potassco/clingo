@@ -105,6 +105,19 @@ class TestMain(unittest.TestCase):
         self.assertEqual(solve("a :- &sum { x } <= 1. b :- not &sum { x } > 1.", 0, 2), [[('x', 2)], ['a', 'b', ('x', 0)], ['a', 'b', ('x', 1)]])
         self.assertEqual(solve(" :- &sum { x } <= 1. :- not &sum { x } > 1.", 0, 2), [[('x', 2)]])
 
+    def test_distinct(self):
+        self.assertEqual(solve("&distinct { x; y }.", 0, 1), [[('x', 0), ('y', 1)], [('x', 1), ('y', 0)]])
+        self.assertEqual(solve("&distinct { 2*x; 3*y }.", 2, 3), [[('x', 2), ('y', 2)], [('x', 2), ('y', 3)], [('x', 3), ('y', 3)]])
+        self.assertEqual(solve("&distinct { 0*x; 0*y }.", 0, 1), [])
+        self.assertEqual(solve("&distinct { 0; 0 }.", 0, 1), [[]])
+        self.assertEqual(solve("&distinct { 0; 1 }.", 0, 1), [[]])
+        self.assertEqual(solve("&distinct { 2*x; (1+1)*x }.", 0, 1), [[('x', 0)], [('x', 1)]])
+        self.assertEqual(solve("&distinct { x; y } :- c. &sum { x } = y :- not c. {c}.", 0, 1), [
+            [('x', 0), ('y', 0)],
+            [('x', 1), ('y', 1)],
+            ['c', ('x', 0), ('y', 1)],
+            ['c', ('x', 1), ('y', 0)]])
+
     def test_multishot(self):
         s = Solver(0, 3)
         self.assertEqual(s.solve("&sum { x } <= 2."), [[('x', 0)], [('x', 1)], [('x', 2)]])
