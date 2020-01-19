@@ -44,6 +44,31 @@ def parse_theory(builder, theory_atoms):
     return builder
 
 
+def _simplify(seq, drop_zero=True, drop_novar=True):
+    """
+    Combine coefficients of terms with the same variable and optionally drop
+    zero weights and sum up terms without a variable.
+    """
+    elements = []
+    seen = {}
+    rhs = 0
+    for i, (co, var) in enumerate(seq):
+        if drop_zero and co == 0:
+            continue
+
+        if drop_novar and var is None:
+            rhs -= co
+        elif var not in seen:
+            seen[var] = i
+            elements.append((co, var))
+        else:
+            co_old, var_old = elements[seen[var]]
+            assert var_old == var
+            elements[seen[var]] = (co_old + co, var)
+
+    return rhs, elements
+
+
 def _parse_distinct(builder, atom):
     """
     Distinct constraints are parsed similar to sums. Its elements are
@@ -60,25 +85,17 @@ def _parse_distinct(builder, atom):
     seen = set()
     for elem in atom.elements:
         if len(elem.terms) == 1 and not elem.condition:
-            parsed = []
-            seen_elem = {}
-            for i, (co, var) in enumerate(_parse_constraint_elem(elem.terms[0], True)):
-                if var not in seen_elem:
-                    seen_elem[var] = i
-                    parsed.append((co, var))
-                else:
-                    co_old, var_old = parsed[seen_elem[var]]
-                    assert var_old == var
-                    parsed[seen_elem[var]] = (co_old + co, var)
+            _, parsed = _simplify(_parse_constraint_elem(elem.terms[0], True), False, False)
             if len(parsed) != 1:
                 raise RuntimeError("Invalid Syntax")
+
             parsed = parsed[0]
             if parsed not in seen:
                 seen.add(parsed)
-                if parsed[0] == 0:
-                    elements.append((0, None))
-                else:
-                    elements.append(parsed)
+                # if the coefficient is zero drop the variable but allow
+                # duplicates
+                elements.append((0, None) if parsed[0] == 0 else parsed)
+
         else:
             raise RuntimeError("Invalid Syntax")
 
@@ -103,20 +120,7 @@ def _parse_constraint(builder, atom, is_sum, strict):
     literal = builder.solver_literal(atom.literal)
 
     # combine coefficients
-    seen = {}
-    for i, (co, var) in enumerate(_parse_constraint_elems(atom.elements, atom.guard[1], is_sum)):
-        if co == 0:
-            continue
-
-        if var is None:
-            rhs -= co
-        elif var not in seen:
-            seen[var] = i
-            elements.append((co, var))
-        else:
-            co_old, var_old = elements[seen[var]]
-            assert var_old == var
-            elements[seen[var]] = (co_old + co, var)
+    rhs, elements = _simplify(_parse_constraint_elems(atom.elements, atom.guard[1], is_sum))
 
     # drop zero weights and divide by gcd
     elements = [(co, var) for co, var in elements if co != 0]
