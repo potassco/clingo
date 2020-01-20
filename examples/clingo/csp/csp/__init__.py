@@ -582,8 +582,6 @@ class State(object):
             for clause, lock in self._update_domain(control, lit):
                 yield clause, lock
 
-        return True
-
     def _propagate_variable(self, control, vs, value, lit, sign):
         """
         Propagates the preceeding or succeeding order literal of lit.
@@ -1029,8 +1027,6 @@ class State(object):
 
         for clause, lock in self._update_domain(init, 1):
             yield clause, lock
-
-        return True
 
     def copy_state(self, master):
         """
