@@ -1139,6 +1139,12 @@ class CSPBuilder(object):
         """
         return self._init.assignment.is_true(literal)
 
+    def is_false(self, literal):
+        """
+        Return whether the literal is true.
+        """
+        return self._init.assignment.is_false(literal)
+
     def solver_literal(self, literal):
         """
         Map the literal to a solver literal.
@@ -1164,6 +1170,12 @@ class CSPBuilder(object):
         """
         Add a constraint.
         """
+        if not strict:
+            # TODO: remove once assignment is updated
+            self._init.add_clause([lit, -lit])
+            if self.is_false(lit):
+                return
+
         constraint = Constraint(lit, elems, rhs)
         if len(elems) == 1:
             _, var = elems[0]
@@ -1183,7 +1195,7 @@ class CSPBuilder(object):
         coefficients and variables; x_i corresponds to the linear term
           `term - rhs`.
         """
-        if self._init.assignment.is_false(literal):
+        if self.is_false(literal):
             return
 
         for i, (rhs_i, elems_i) in enumerate(elems):
@@ -1214,33 +1226,13 @@ class CSPBuilder(object):
         Add a domain for the given variable.
 
         The domain is represented as a set of left-closed intervals.
-
-        Intervals [1,2), [3,4), [5,6) for variable x corresponds to
-        constraints:
-
-        {i1, i2}.
-        i0 :- not literal.
-        i2 :- i1.
-        i3 :- literal.
-           :- not literal, i1.
-           :- not literal, i2.
-
-        n0 :- not literal
-        n1 :- literal, not i1.
-        n2 :- literal, not i2.
-
-        x >= 1 :- n0.
-        x <  2 :- i1.
-        x >= 3 :- n1.
-        x <  4 :- i2.
-        x >= 5 :- n2.
-        x <  6 :- i3.
         """
-        truth = self._init.assignment.value(literal)
-        if truth is not False:
-            self._propagator.add_variable(var)
-            intervals = IntervalSet(elements)
-            self._clauses.extend(self._propagator.add_dom(self._init, literal, var, list(intervals.items())))
+        if self.is_false(literal):
+            return
+
+        self._propagator.add_variable(var)
+        intervals = IntervalSet(elements)
+        self._clauses.extend(self._propagator.add_dom(self._init, literal, var, list(intervals.items())))
 
     def finalize(self):
         """
