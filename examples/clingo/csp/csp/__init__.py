@@ -6,7 +6,7 @@ stand-alone application.
 from itertools import chain
 import clingo
 from .parsing import parse_theory
-from .util import lerp, remove_if, TodoList, SortedDict
+from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
 
 
 MAX_INT = 20
@@ -14,10 +14,7 @@ MIN_INT = -20
 TRUE_LIT = 1
 THEORY = """\
 #theory cp {
-    constant  { - : 1, unary };
-    diff_term {
-    - : 0, binary, left
-    };
+    var_term  { };
     sum_term {
     -  : 3, unary;
     ** : 2, binary, right;
@@ -27,9 +24,20 @@ THEORY = """\
     +  : 0, binary, left;
     -  : 0, binary, left
     };
+    dom_term {
+    .. : 4, binary, left;
+    -  : 3, unary;
+    ** : 2, binary, right;
+    *  : 1, binary, left;
+    /  : 1, binary, left;
+    \\ : 1, binary, left;
+    +  : 0, binary, left;
+    -  : 0, binary, left
+    };
     &sum/1 : sum_term, {<=,=,!=,<,>,>=}, sum_term, any;
-    &diff/1 : diff_term, {<=}, constant, any;
-    &distinct/0 : sum_term, head
+    &diff/1 : sum_term, {<=}, sum_term, any;
+    &distinct/0 : sum_term, head;
+    &dom/0 : dom_term, {=}, var_term, head
 }.
 """
 
@@ -1152,6 +1160,65 @@ class CSPBuilder(object):
 
                 self.add_constraint(a, celems, rhs-1, False)
                 self.add_constraint(b, [(-co, var) for co, var in celems], -rhs-1, False)
+
+    def add_dom(self, literal, var, elements):
+        """
+        Add a domain for the given variable.
+
+        The domain is represented as a set of left-closed intervals.
+
+        Intervals [1,2), [3,4), [5,6) for variable x corresponds to
+        constraints:
+
+        {i1, i2}.
+        i0 :- not literal.
+        i2 :- i1.
+        i3 :- literal.
+           :- not literal, i1.
+           :- not literal, i2.
+
+        n0 :- not literal
+        n1 :- literal, not i1.
+        n2 :- literal, not i2.
+
+        x >= 1 :- n0.
+        x <  2 :- i1.
+        x >= 3 :- n1.
+        x <  4 :- i2.
+        x >= 5 :- n2.
+        x <  6 :- i3.
+        """
+        truth = self._init.assignment.value(literal)
+        if truth is False:
+            return
+        if truth is True:
+            literal = TRUE_LIT
+        intervals = IntervalSet(elements)
+
+        lx = -literal
+        for i, (x, y) in enumerate(intervals.items()):
+            ly = self.add_literal() if i+1 < len(intervals) else literal
+            # TODO: because of problem with assignment
+            self._init.add_clause([-ly, ly])
+
+            if literal not in (-lx, ly):
+                self.add_clause([-lx, ly])
+
+            nx = -lx
+            if literal not in (TRUE_LIT, nx):
+                nx = self.add_literal()
+                # TODO: because of problem with assignment
+                self._init.add_clause([-nx, nx])
+                self.add_clause([nx, -literal, lx])
+                self.add_clause([-nx, literal])
+                self.add_clause([-nx, -lx])
+
+            if literal not in (TRUE_LIT, ly):
+                self.add_clause([literal, -ly])
+
+            self.add_constraint(nx, [(-1, var)], -x, False)
+            self.add_constraint(ly, [(1, var)], y-1, False)
+            lx = ly
 
     def finalize(self):
         """

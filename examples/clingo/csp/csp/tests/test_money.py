@@ -9,9 +9,20 @@ import unittest
 from csp.tests import solve
 
 DOM = """\
-%&dom {0..9} = X :- _letter(X).
 &sum { X } <= 9 :- _letter(X).
 &sum { X } >= 0 :- _letter(X).
+"""
+
+DOMC = """\
+&dom {0..9} = X :- _letter(X).
+"""
+
+DIST = """\
+&sum { X } != Y :- _letter(X), _letter(Y), X < Y.
+"""
+
+DISTC = """\
+&distinct {X : _letter(X)}.
 """
 
 SMM = """\
@@ -21,22 +32,6 @@ _letter(s;e;n;d;m;o;r;y).
      ;             1000*m + 100*o + 10*r + 1*e
      } = 10000*m + 1000*o + 100*n + 10*e + 1*y.
 &sum { m } != 0.
-
-%&distinct {X : _letter(X)}.
-&sum { X } != Y :- _letter(X), _letter(Y), X < Y.
-
-%&show {X : _letter(X)}.
-"""
-
-SMMD = """\
-_letter(s;e;n;d;m;o;r;y).
-
-&sum {             1000*s + 100*e + 10*n + 1*d
-     ;             1000*m + 100*o + 10*r + 1*e
-     } = 10000*m + 1000*o + 100*n + 10*e + 1*y.
-&sum { m } != 0.
-
-&distinct {X : _letter(X)}.
 
 %&show {X : _letter(X)}.
 """
@@ -51,11 +46,8 @@ SOL10 = [
 
 class TestMain(unittest.TestCase):
     def test_smm(self):
-        self.assertEqual(solve(DOM + SMM), SOL)
-        self.assertEqual(solve(SMM, minint=0, maxint=9), SOL)
-        self.assertEqual(solve(SMM, minint=0, maxint=10), SOL10)
-
-    def test_smmd(self):
-        self.assertEqual(solve(DOM + SMMD), SOL)
-        self.assertEqual(solve(SMMD, minint=0, maxint=9), SOL)
-        self.assertEqual(solve(SMMD, minint=0, maxint=10), SOL10)
+        for dist in (DIST, DISTC):
+            for dom in (DOM, DOMC):
+                self.assertEqual(solve(dist + dom + SMM), SOL)
+            self.assertEqual(solve(dist + SMM, minint=0, maxint=9), SOL)
+            self.assertEqual(solve(dist + SMM, minint=0, maxint=10), SOL10)

@@ -1,8 +1,6 @@
 letter(s;e;n;d;m;o;r;y).
 
-%&dom {0..9} = X :- letter(X).
-&sum { X } <= 9 :- letter(X).
-&sum { X } >= 0 :- letter(X).
+&dom {0..9} = X :- letter(X).
 
 &sum {             1000*s + 100*e + 10*n + 1*d
      ;             1000*m + 100*o + 10*r + 1*e

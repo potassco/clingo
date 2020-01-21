@@ -2,6 +2,8 @@
 Utility functions.
 """
 
+import math
+
 try:
     # Note: Can be installed to play with realistic domain sizes.
     import sortedcontainers
@@ -9,6 +11,20 @@ try:
 except ImportError:
     import bisect as bi
     _HAS_SC = False
+
+
+if hasattr(math, "gcd"):
+    # pylint: disable=invalid-name
+    gcd = math.gcd
+else:
+    def gcd(x, y):
+        """
+        Calculate the gcd of the given integers.
+        """
+        x, y = abs(x), abs(y)
+        while y:
+            x, y = y, x % y
+        return x
 
 
 def lerp(x, y):
@@ -147,3 +163,42 @@ else:
             """
             key = self._sorted[i]
             return key, self._map[key]
+
+
+class IntervalSet(object):
+    """
+    Simplistic interval set class restricted to methods needed to implement
+    `&dom` statements.
+    """
+    def __init__(self, seq=()):
+        self._items = SortedDict()
+        for x, y in seq:
+            self.add(x, y)
+
+    def add(self, x1, y1):
+        """
+        Add an interval to the set.
+        """
+        if y1 <= x1:
+            return
+        i = self._items.bisect_left(x1)
+        while i < len(self._items):
+            y2, x2 = self._items.peekitem(i)
+            if y1 < x2:
+                break
+            x1 = min(x1, x2)
+            y1 = max(y1, y2)
+            del self._items[y2]
+        self._items[y1] = x1
+
+    def items(self):
+        """
+        Return the intervals in the set.
+        """
+        return ((x, y) for y, x in self._items.items())
+
+    def __len__(self):
+        return len(self._items)
+
+    def __repr__(self):
+        return " ".join("[{},{})".format(x, y) for x, y in self.items())

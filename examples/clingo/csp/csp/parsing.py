@@ -5,18 +5,7 @@ This module contains functions for parsing and normalizing constraints.
 from functools import reduce
 import clingo
 from clingo import ast
-
-try:
-    from math import gcd
-except ImportError:
-    def gcd(x, y):
-        """
-        Calculate the gcd of the given integers.
-        """
-        x, y = abs(x), abs(y)
-        while y:
-            x, y = y, x % y
-        return x
+from csp.util import gcd
 
 
 def match(term, name, arity):
@@ -40,6 +29,8 @@ def parse_theory(builder, theory_atoms):
             _parse_constraint(builder, atom, is_sum, body)
         elif match(atom.term, "distinct", 0):
             _parse_distinct(builder, atom)
+        elif match(atom.term, "dom", 0):
+            _parse_dom(builder, atom)
 
     return builder
 
@@ -67,6 +58,40 @@ def _simplify(seq):
             elements[seen[var]] = (co_old + co, var)
 
     return rhs, elements
+
+
+def _parse_dom(builder, atom):
+    elements = []
+    for elem in atom.elements:
+        if len(elem.terms) == 1 and not elem.condition:
+            elements.append(_parse_dom_elem(elem.terms[0]))
+        else:
+            raise RuntimeError("Invalid Syntax")
+
+    var = _evaluate_term(atom.guard[1])
+    if var.type == clingo.SymbolType.Number:
+        raise RuntimeError("Invalid Syntax")
+
+    builder.add_dom(builder.solver_literal(atom.literal), var, elements)
+
+
+def _parse_dom_elem(term):
+    if match(term, "..", 2):
+        a = _evaluate_term(term.arguments[0])
+        if a.type != clingo.SymbolType.Number:
+            raise RuntimeError("Invalid Syntax")
+
+        b = _evaluate_term(term.arguments[1])
+        if b.type != clingo.SymbolType.Number:
+            raise RuntimeError("Invalid Syntax")
+
+        return (a.number, b.number+1)
+
+    a = _evaluate_term(term)
+    if a.type != clingo.SymbolType.Number:
+        raise RuntimeError("Invalid Syntax")
+
+    return (a.number, a.number+1)
 
 
 def _parse_distinct(builder, atom):
@@ -300,10 +325,14 @@ def _evaluate_term(term):
             if a.type == clingo.SymbolType.Number:
                 return clingo.Number(-a.number)
 
-            if a.type == clingo.Function and a.name:
+            if a.type == clingo.SymbolType.Function and a.name:
                 return clingo.Function(a.name, a.arguments, not a.positive)
 
             raise RuntimeError("Invalid Unary Operation")
+
+        # invalid operators
+        if term.name == ".." and len(term.arguments) == 2:
+            raise RuntimeError("Invalid Interval")
 
         # functions
         return clingo.Function(term.name, (_evaluate_term(x) for x in term.arguments))
