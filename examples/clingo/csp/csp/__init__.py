@@ -765,6 +765,52 @@ class State(object):
                 yield lbs, False
                 lbs[i] = lit
 
+    def integrate_domain(self, init, literal, var, domain):
+        """
+        Integrates the given domain for varibale var.
+
+        Consider x in {[1,3), [4,6), [7,9)}. We can simply add the binary
+        constraints:
+        - right to left
+          - true => x < 9
+          - x < 7 => x < 6
+          - x < 4 => x < 3
+        - left to right
+          - true => x >= 1
+          - x >= 3 => x >= 4
+          - x >= 6 => x >= 7
+        """
+        ass = init.assignment
+        if ass.is_false(literal):
+            return
+        if ass.is_true(literal):
+            literal = TRUE_LIT
+        vs = self._state(var)
+
+        py = None
+        for x, y in domain:
+            ly = TRUE_LIT if py is None else -self._get_literal(vs, py-1, init)
+            # TODO: remove once assignment is updated
+            init.add_clause([ly, -ly])
+            true = literal == TRUE_LIT and ass.is_true(ly)
+            old, lx = self._update_literal(vs, x-1, init, not true and None)
+            if old is not None:
+                yield [-old]
+            yield [-literal, -ly, -lx]
+            py = y
+
+        px = None
+        for x, y in reversed(domain):
+            # TODO: remove once assignment is updated
+            ly = TRUE_LIT if px is None else self._get_literal(vs, px-1, init)
+            init.add_clause([ly, -ly])  # meh
+            true = literal == TRUE_LIT and ass.is_true(ly)
+            old, lx = self._update_literal(vs, y-1, init, true or None)
+            if old is not None:
+                yield [old]
+            yield [-literal, -ly, lx]
+            px = x
+
     def integrate_simple(self, init, constraint, strict):
         """
         This function integrates singleton constraints into the state.
@@ -776,6 +822,9 @@ class State(object):
 
         ass = init.assignment
         clit = constraint.literal
+
+        # TODO: remove once assignment is updated
+        init.add_clause([clit, -clit])
 
         # the constraint is never propagated
         if not strict and ass.is_false(clit):
@@ -811,12 +860,12 @@ class State(object):
         else:
             old, lit = self._update_literal(vs, value, init, truth)
             if old is not None:
-                yield [old if truth else -old], True
+                yield [old if truth else -old]
             if co < 0:
                 lit = -lit
-            yield [-clit, lit], True
+            yield [-clit, lit]
             if strict:
-                yield [-lit, clit], True
+                yield [-lit, clit]
 
     def undo(self):
         """
@@ -1082,7 +1131,6 @@ class CSPBuilder(object):
     def __init__(self, init, propagator):
         self._init = init
         self._propagator = propagator
-        self._simple = []
         self._clauses = []
 
     def is_true(self, literal):
@@ -1119,8 +1167,8 @@ class CSPBuilder(object):
         constraint = Constraint(lit, elems, rhs)
         if len(elems) == 1:
             _, var = elems[0]
-            self._simple.append((constraint, strict))
             self._propagator.add_variable(var)
+            self._clauses.extend(self._propagator.add_simple(self._init, constraint, strict))
         else:
             assert not strict
             self._propagator.add_constraint(self._init, constraint)
@@ -1189,48 +1237,16 @@ class CSPBuilder(object):
         x <  6 :- i3.
         """
         truth = self._init.assignment.value(literal)
-        if truth is False:
-            return
-        if truth is True:
-            literal = TRUE_LIT
-        intervals = IntervalSet(elements)
-
-        lx = -literal
-        for i, (x, y) in enumerate(intervals.items()):
-            ly = self.add_literal() if i+1 < len(intervals) else literal
-            # TODO: because of problem with assignment
-            self._init.add_clause([-ly, ly])
-
-            if literal not in (-lx, ly):
-                self.add_clause([-lx, ly])
-
-            nx = -lx
-            if literal not in (TRUE_LIT, nx):
-                nx = self.add_literal()
-                # TODO: because of problem with assignment
-                self._init.add_clause([-nx, nx])
-                self.add_clause([nx, -literal, lx])
-                self.add_clause([-nx, literal])
-                self.add_clause([-nx, -lx])
-
-            if literal not in (TRUE_LIT, ly):
-                self.add_clause([literal, -ly])
-
-            self.add_constraint(nx, [(-1, var)], -x, False)
-            self.add_constraint(ly, [(1, var)], y-1, False)
-            lx = ly
+        if truth is not False:
+            self._propagator.add_variable(var)
+            intervals = IntervalSet(elements)
+            self._clauses.extend(self._propagator.add_dom(self._init, literal, var, list(intervals.items())))
 
     def finalize(self):
         """
         Finish constraint translation.
         """
-        if not _propagate_init(self._init, ((clause, True) for clause in self._clauses)):
-            return False
-        for constraint, strict in self._simple:
-            if not self._propagator.add_simple(self._init, constraint, strict):
-                return False
-
-        return True
+        return _propagate_init(self._init, ((clause, True) for clause in self._clauses))
 
 
 class Propagator(object):
@@ -1260,11 +1276,19 @@ class Propagator(object):
             self._vars.add(var)
             self._state(0).add_variable(var)
 
+    def add_dom(self, init, literal, var, domain):
+        """
+        Add a domain for the given variable.
+        """
+        for clause in self._state(0).integrate_domain(init, literal, var, domain):
+            yield clause
+
     def add_simple(self, init, constraint, strict):
         """
         Add a constraint that can be represented by an order literal.
         """
-        return _propagate_init(init, self._state(0).integrate_simple(init, constraint, strict))
+        for clause in self._state(0).integrate_simple(init, constraint, strict):
+            yield clause
 
     def add_constraint(self, init, constraint):
         """
