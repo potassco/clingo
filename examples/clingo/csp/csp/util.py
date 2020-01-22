@@ -164,6 +164,13 @@ else:
             key = self._sorted[i]
             return key, self._map[key]
 
+        def items(self):
+            """
+            Yield key value pairs in sorted order.
+            """
+            for key in self._sorted:
+                yield key, self._map[key]
+
 
 class IntervalSet(object):
     """
