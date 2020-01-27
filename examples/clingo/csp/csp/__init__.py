@@ -9,8 +9,8 @@ from .parsing import parse_theory, simplify
 from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
 
 
-MAX_INT = 20
-MIN_INT = -20
+MAX_INT = 2**32
+MIN_INT = -(2**32)
 TRUE_LIT = 1
 THEORY = """\
 #theory cp {

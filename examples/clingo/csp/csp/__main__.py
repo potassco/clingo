@@ -58,8 +58,8 @@ class Application(object):
         Register CSP related options.
         """
         group = "CSP Options"
-        options.add(group, "min-int", "Minimum integer [-20]", self._parse_min, argument="<i>")
-        options.add(group, "max-int", "Maximum integer [20]", self._parse_max, argument="<i>")
+        options.add(group, "min-int", "Minimum integer [-(2**32)]", self._parse_min, argument="<i>")
+        options.add(group, "max-int", "Maximum integer [2*32]", self._parse_max, argument="<i>")
 
     def validate_options(self):
         """
