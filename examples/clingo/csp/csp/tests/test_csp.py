@@ -126,6 +126,7 @@ class TestMain(unittest.TestCase):
         self.assertEqual(solve("1 {a; b} 1. &dom { 0;2;4 } = x :- a. &dom { 1;3;5 } = x :- b.", -10, 10), [
             ['a', ('x', 0)], ['a', ('x', 2)], ['a', ('x', 4)],
             ['b', ('x', 1)], ['b', ('x', 3)], ['b', ('x', 5)]])
+        self.assertEqual(solve("&dom { 0-1..0+1 } = x.", -10, 10), [[('x', -1)], [('x', 0)], [('x', 1)]])
 
     def test_multishot(self):
         s = Solver(0, 3)
