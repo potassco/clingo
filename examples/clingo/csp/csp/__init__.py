@@ -5,7 +5,7 @@ stand-alone application.
 
 from itertools import chain
 import clingo
-from .parsing import parse_theory
+from .parsing import parse_theory, simplify
 from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
 
 
@@ -36,32 +36,105 @@ THEORY = """\
     };
     &sum/1 : sum_term, {<=,=,!=,<,>,>=}, sum_term, any;
     &diff/1 : sum_term, {<=}, sum_term, any;
+    &minimize/0 : sum_term, directive;
+    &maximize/0 : sum_term, directive;
     &distinct/0 : sum_term, head;
     &dom/0 : dom_term, {=}, var_term, head
 }.
 """
 
 
-def _propagate_init(init, seq):
+class InitClauseCreator(object):
     """
-    Propagate all the clauses in the given sequence using a PropagateInit
-    object.
+    Class to add solver literals, create clauses, and access the current
+    assignment using the `PropagateInit` object.
     """
-    for clause, _ in seq:
-        if not init.add_clause(clause) or not init.propagate():
-            return False
-    return True
+
+    def __init__(self, init):
+        self._solver = init
+
+    def add_literal(self):
+        """
+        Adds a new literal.
+        """
+        x = self._solver.add_literal()
+        return x
+
+    def add_watch(self, lit):
+        """
+        Watch the given solver literal.
+        """
+        self._solver.add_watch(lit)
+
+    def propagate(self):
+        """
+        Call unit propagation on the solver.
+        """
+        return self._solver.propagate()
+
+    def add_clause(self, clause, tag=False, lock=False):
+        """
+        Add the given `clause` to the sovler.
+
+        If tag is True, the clause applies only in the current solving step.
+        Parameter `lock` is ignored as clauses added with the init object are
+        problem clauses.
+        """
+        # pylint: disable=unused-argument
+        assert not tag
+
+        return self._solver.add_clause(clause) and self.propagate()
+
+    @property
+    def assignment(self):
+        """
+        Get he assignment.
+        """
+        return self._solver.assignment
 
 
-def _propagate_control(control, seq):
+class ControlClauseCreator(object):
     """
-    Propagate all the clauses in the given sequence using a PropagateControl
-    object.
+    Class to add solver literals, create clauses, and access the current
+    assignment using the `PropagateControl` object.
     """
-    for clause, lock in seq:
-        if not control.add_clause(clause, lock=lock) or not control.propagate():
-            return False
-    return True
+
+    def __init__(self, control):
+        self._solver = control
+
+    def add_literal(self):
+        """
+        Adds a new literal.
+        """
+        return self._solver.add_literal()
+
+    def add_watch(self, lit):
+        """
+        Watch the given solver literal.
+        """
+        self._solver.add_watch(lit)
+
+    def propagate(self):
+        """
+        Call unit propagation on the solver.
+        """
+        return self._solver.propagate()
+
+    def add_clause(self, clause, tag=False, lock=False):
+        """
+        Add the given clause to the sovler.
+
+        If tag is True, the clause applies only in the current solving step. If
+        lock is True, the clause is excluded from the from clause deletion.
+        """
+        return self._solver.add_clause(clause, tag=tag, lock=lock) and self.propagate()
+
+    @property
+    def assignment(self):
+        """
+        Get the assignment.
+        """
+        return self._solver.assignment
 
 
 class Constraint(object):
@@ -74,17 +147,59 @@ class Constraint(object):
     elements -- List of integer/string pairs representing coefficient and
                 variable.
     rhs      -- Integer bound of the constraint.
+
+    Class Variables
+    ======
+    tagged   -- True if constraint applies only during current solving step.
     """
+
+    tagged = False
+
     def __init__(self, literal, elements, rhs):
         """
         Create a constraint and initialize all members.
         """
         self.literal = literal
         self.elements = elements
-        self.rhs = rhs
+        self._rhs = rhs
+
+    def rhs(self, state):  # pylint: disable=unused-argument
+        """
+        Returns the rhs.
+        """
+        return self._rhs
 
     def __str__(self):
-        return "{} <= {}".format(self.elements, self.rhs)
+        return "{} <= {}".format(self.elements, self._rhs)
+
+
+class Minimize(object):
+    """
+    Class to capture minimize constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
+
+    Members
+    =======
+    literal  -- Solver literal associated with the constraint.
+    elements -- List of integer/string pairs representing coefficient and
+                variable.
+
+    Class Variables
+    ======
+    tagged   -- True if constraint applies only during current solving step.
+    """
+
+    tagged = True
+
+    def __init__(self):
+        self.literal = TRUE_LIT
+        self.elements = []
+        self.adjust = 0
+
+    def rhs(self, state):
+        """
+        Returns the current lower bound of the `state` or None.
+        """
+        return state.minimize_bound
 
 
 class VarState(object):
@@ -346,6 +461,9 @@ class State(object):
                          `check_full`.
     _lerp_last        -- Offset to speed up `check_full`.
     _trail_offset     -- Offset to speed up `simplify`.
+    _minimize_bound   -- Current bound of the minimize constraint (if any).
+    _minimize_level   -- The minimize constraint might not have been fully
+                         propagated below this level. See `update_minimize`.
     """
     def __init__(self, l2c, vl2c, vu2c):
         """
@@ -366,6 +484,27 @@ class State(object):
         self._facts_integrated = [(0, 0, 0)]
         self._lerp_last = 0
         self._trail_offset = 0
+        self._minimize_bound = None
+        self._minimize_level = 0
+
+    @property
+    def minimize_bound(self):
+        """
+        Get the current bound of the minimize constraint.
+        """
+        return self._minimize_bound
+
+    def update_minimize(self, minimize, dl, bound):
+        """
+        Updates the bound of the minimize constraint in this state.
+        """
+        if self._minimize_bound is None or bound < self._minimize_bound:
+            self._minimize_bound = bound
+            self._minimize_level = dl
+            self._todo.add(minimize)
+        elif dl < self._minimize_level:
+            self._minimize_level = dl
+            self._todo.add(minimize)
 
     def get_assignment(self):
         """
@@ -425,7 +564,7 @@ class State(object):
         """
         return self._levels[-1]
 
-    def _get_literal(self, vs, value, control):
+    def _get_literal(self, vs, value, cc):
         """
         Returns the literal associated with the `vs.var/value` pair.
 
@@ -433,15 +572,15 @@ class State(object):
         false literal and values greater or equal to the largest upper bound
         with the true literal.
 
-        This function creates a new literal using `control` if there is no
-        literal for the given value.
+        This function creates a new literal using `cc` if there is no literal
+        for the given value.
         """
         if value < vs.min_bound:
             return -TRUE_LIT
         if value >= vs.max_bound:
             return TRUE_LIT
         if not vs.has_literal(value):
-            lit = control.add_literal()
+            lit = cc.add_literal()
             # Note: By default clasp's heuristic makes literals false. By
             # flipping the literal for non-negative values, assignments close
             # to zero are preferred. This way, we might get solutions with
@@ -450,8 +589,8 @@ class State(object):
                 lit = -lit
             vs.set_literal(value, lit)
             self._litmap.setdefault(lit, []).append((vs, value))
-            control.add_watch(lit)
-            control.add_watch(-lit)
+            cc.add_watch(lit)
+            cc.add_watch(-lit)
         return vs.get_literal(value)
 
     def _remove_literal(self, vs, lit, value):
@@ -466,7 +605,7 @@ class State(object):
             assert -lit not in self._litmap
             del self._litmap[lit]
 
-    def _update_literal(self, vs, value, control, truth):
+    def _update_literal(self, vs, value, cc, truth):
         """
         This function is an extended version of `_get_literal` that can update
         an existing order literal for `vs.var/value` if truth is either true or
@@ -476,7 +615,7 @@ class State(object):
         ```
         # literal is not updated
         if truth is None:
-          return None, _get_literal(vs, value, control)
+          return True, _get_literal(vs, value, control)
         lit = TRUE_LIT if truth else -TRUE_LIT
         if value < vs.min_bound:
           old = -TRUE_LIT
@@ -488,31 +627,31 @@ class State(object):
           old = None
         # literal has not been updated
         if old == lit:
-          return None, lit
+          return True, lit
         # set the new literal
         vs.set_literal(value, lit)
-        # return old and new literal
-        return old, lit
+        # fix the old literal and return new literal
+        return cc.add_literal([old if truth else -old]), lit
         ```
 
         Additionally, if the the order literal is updated (`old` is not
         `None`), then the replaced value is also removed from `_litmap`.
         """
         if truth is None:
-            return None, self._get_literal(vs, value, control)
+            return True, self._get_literal(vs, value, cc)
         lit = TRUE_LIT if truth else -TRUE_LIT
         if value < vs.min_bound or value >= vs.max_bound:
-            old = self._get_literal(vs, value, control)
+            old = self._get_literal(vs, value, cc)
             if old == lit:
-                return None, lit
-            return old, lit
+                return True, lit
+            return cc.add_clause([old if truth else -old]), lit
         if not vs.has_literal(value):
             vs.set_literal(value, lit)
             self._litmap.setdefault(lit, []).append((vs, value))
-            return None, lit
+            return True, lit
         old = vs.get_literal(value)
         if old == lit:
-            return None, lit
+            return True, lit
         # Note: If a literal is associated with both true and false, then we
         # get a top level conflict making further data structure updates
         # unnecessary.
@@ -520,7 +659,7 @@ class State(object):
             vs.set_literal(value, lit)
             self._remove_literal(vs, old, value)
             self._litmap.setdefault(lit, []).append((vs, value))
-        return old, lit
+        return cc.add_clause([old if truth else -old]), lit
 
     # initialization
     def add_variable(self, var):
@@ -550,7 +689,6 @@ class State(object):
         # might change in the multi-shot case when order literals have
         # been added in a previous step which are then implied by the
         # newly added constraints.
-        trail = init.assignment.trail
         ass = init.assignment
         trail = ass.trail
 
@@ -558,28 +696,28 @@ class State(object):
         # literals other than true or false.
         while True:
             if not init.propagate():
-                return
+                return False
 
             trail_offset = len(trail)
             if self._trail_offset == trail_offset and not self._todo:
-                return
+                return True
 
-            for clause, lock in self.propagate(init, trail[self._trail_offset:trail_offset]):
-                yield clause, lock
+            if not self.propagate(init, trail[self._trail_offset:trail_offset]):
+                return False
             self._trail_offset = trail_offset
 
-            for clause, lock in self.check(init):
-                yield clause, lock
+            if not self.check(init):
+                return False
 
     # propagation
-    def propagate(self, control, changes):
+    def propagate(self, cc, changes):
         """
         Propagates constraints and order literals.
 
         Constraints that became true are added to the todo list and bounds of
         variables are adjusted according to the truth of order literals.
         """
-        ass = control.assignment
+        ass = cc.assignment
 
         # open a new decision level if necessary
         self._push_level(ass.decision_level)
@@ -587,10 +725,12 @@ class State(object):
         # propagate order literals that became true/false
         for lit in changes:
             self._todo.extend(self._l2c.get(lit, []))
-            for clause, lock in self._update_domain(control, lit):
-                yield clause, lock
+            if not self._update_domain(cc, lit):
+                return False
 
-    def _propagate_variable(self, control, vs, value, lit, sign):
+        return True
+
+    def _propagate_variable(self, cc, vs, value, lit, sign):
         """
         Propagates the preceeding or succeeding order literal of lit.
 
@@ -606,7 +746,7 @@ class State(object):
         fact, too.
         """
 
-        ass = control.assignment
+        ass = cc.assignment
         assert ass.is_true(lit)
         assert vs.has_literal(value)
 
@@ -616,22 +756,26 @@ class State(object):
 
         # on-the-fly simplify
         if ass.is_fixed(lit) and not ass.is_fixed(con):
-            o, con = self._update_literal(vs, value, control, sign > 0)
-            o, con = sign * o, sign * con
-            yield [o], True
+            ret, con = self._update_literal(vs, value, cc, sign > 0)
+            if not ret:
+                return False
+            con = sign * con
 
         # propagate the literal
         if not ass.is_true(con):
-            yield [-lit, con], False
+            if not cc.add_clause([-lit, con]):
+                return False
 
-    def _update_domain(self, control, lit):
+        return True
+
+    def _update_domain(self, cc, lit):
         """
         If `lit` is an order literal, this function updates the lower or upper
         bound associated to the variable of the literal (if necessary).
         Furthermore, the preceeding or succeeding order literal is propagated
         if it exists.
         """
-        ass = control.assignment
+        ass = cc.assignment
         assert ass.is_true(lit)
 
         lvl = self._level
@@ -649,9 +793,8 @@ class State(object):
 
                 # make succeeding literal true
                 succ = vs.succ_value(value)
-                if succ is not None:
-                    for clause, lock in self._propagate_variable(control, vs, succ, lit, 1):
-                        yield clause, lock
+                if succ is not None and not self._propagate_variable(cc, vs, succ, lit, 1):
+                    return False
 
         # update and propagate lower bound
         if -lit in self._litmap:
@@ -666,11 +809,12 @@ class State(object):
 
                 # make preceeding literal false
                 prev = vs.prev_value(value)
-                if prev is not None:
-                    for clause, lock in self._propagate_variable(control, vs, prev, lit, -1):
-                        yield clause, lock
+                if prev is not None and not self._propagate_variable(cc, vs, prev, lit, -1):
+                    return False
 
-    def propagate_constraint(self, c, control):
+        return True
+
+    def propagate_constraint(self, c, cc):
         """
         This function propagates a constraint that became active because its
         associated literal became true or because the bound of one of its
@@ -684,34 +828,31 @@ class State(object):
         enforce the smallest order variable that would make the slack
         non-negative.
 
-        The function yields clauses for propagating order literals. Because
-        some order literals might be replaced with facts, some clauses have to
-        be locked to permanently fix the truth values of the previous order
-        literals. For this reason a pairs of clauses and Booleans are yielded
-        where the second argument determines whether the clauses should be
-        locked.
+        The function return False if propagation fails, True otherwise.
         """
-        ass = control.assignment
+        ass = cc.assignment
         clit = c.literal
         assert not ass.is_false(clit)
 
         # NOTE: recalculation could be avoided by maintaing per clause state
         #       (but the necessary data structure would be quite complicated)
-        slack = c.rhs  # sum of lower bounds (also saw this called slack)
-        lbs = []       # lower bound literals
-        num_guess = 0  # number of assignments above level 0
+        slack = c.rhs(self)               # sum of lower bounds
+        if slack is None:
+            return True
+        lbs = []                          # lower bound literals
+        num_guess = 1 if c.tagged else 0  # number of assignments above level 0
         for i, (co, var) in enumerate(c.elements):
             vs = self._state(var)
             if co > 0:
                 slack -= co*vs.lower_bound
                 # note that any literal associated with a value smaller than
                 # the lower bound is false
-                lit = self._get_literal(vs, vs.lower_bound-1, control)
+                lit = self._get_literal(vs, vs.lower_bound-1, cc)
             else:
                 slack -= co*vs.upper_bound
                 # note that any literal associated with a value greater or
                 # equal than the upper bound is true
-                lit = -self._get_literal(vs, vs.upper_bound, control)
+                lit = -self._get_literal(vs, vs.upper_bound, cc)
 
             assert ass.is_false(lit)
             if not ass.is_fixed(lit):
@@ -724,11 +865,11 @@ class State(object):
 
         # this is necessary to correctly handle empty constraints (and do
         # propagation of false constraints)
-        if slack < 0:
-            yield lbs, False
+        if slack < 0 and not cc.add_clause(lbs, tag=c.tagged):
+            return False
 
         if not ass.is_true(clit):
-            return
+            return True
 
         for i, (co, var) in enumerate(c.elements):
             vs = self._state(var)
@@ -743,17 +884,17 @@ class State(object):
                 truth = num_guess == adjust or None
                 diff = slack+co*vs.lower_bound
                 value = diff//co
-                old, lit = self._update_literal(vs, value, control, truth)
-                if old is not None:
-                    yield [old], True
+                ret, lit = self._update_literal(vs, value, cc, truth)
+                if not ret:
+                    return False
             else:
                 truth = num_guess > adjust and None
                 diff = slack+co*vs.upper_bound
                 value = -(diff//-co)
-                old, lit = self._update_literal(vs, value-1, control, truth)
+                ret, lit = self._update_literal(vs, value-1, cc, truth)
+                if not ret:
+                    return False
                 lit = -lit
-                if old is not None:
-                    yield [-old], True
 
             # the value is chosen in a way that the slack is greater or equal
             # than 0 but also so that it does not exceed the coefficient (in
@@ -762,10 +903,13 @@ class State(object):
 
             if not ass.is_true(lit):
                 lbs[i], lit = lit, lbs[i]
-                yield lbs, False
+                if not cc.add_clause(lbs, tag=c.tagged):
+                    return False
                 lbs[i] = lit
 
-    def integrate_domain(self, init, literal, var, domain):
+        return True
+
+    def integrate_domain(self, cc, literal, var, domain):
         """
         Integrates the given domain for varibale var.
 
@@ -780,38 +924,34 @@ class State(object):
           - x >= 3 => x >= 4
           - x >= 6 => x >= 7
         """
-        ass = init.assignment
+        ass = cc.assignment
         if ass.is_false(literal):
-            return
+            return True
         if ass.is_true(literal):
             literal = TRUE_LIT
         vs = self._state(var)
 
         py = None
         for x, y in domain:
-            ly = TRUE_LIT if py is None else -self._get_literal(vs, py-1, init)
-            # TODO: remove once assignment is updated
-            init.add_clause([ly, -ly])
+            ly = TRUE_LIT if py is None else -self._get_literal(vs, py-1, cc)
             true = literal == TRUE_LIT and ass.is_true(ly)
-            old, lx = self._update_literal(vs, x-1, init, not true and None)
-            if old is not None:
-                yield [-old]
-            yield [-literal, -ly, -lx]
+            ret, lx = self._update_literal(vs, x-1, cc, not true and None)
+            if not ret or not cc.add_clause([-literal, -ly, -lx]):
+                return False
             py = y
 
         px = None
         for x, y in reversed(domain):
-            # TODO: remove once assignment is updated
-            ly = TRUE_LIT if px is None else self._get_literal(vs, px-1, init)
-            init.add_clause([ly, -ly])  # meh
+            ly = TRUE_LIT if px is None else self._get_literal(vs, px-1, cc)
             true = literal == TRUE_LIT and ass.is_true(ly)
-            old, lx = self._update_literal(vs, y-1, init, true or None)
-            if old is not None:
-                yield [old]
-            yield [-literal, -ly, lx]
+            ret, lx = self._update_literal(vs, y-1, cc, true or None)
+            if not ret or not cc.add_clause([-literal, -ly, lx]):
+                return False
             px = x
 
-    def integrate_simple(self, init, constraint, strict):
+        return True
+
+    def integrate_simple(self, cc, constraint, strict):
         """
         This function integrates singleton constraints into the state.
 
@@ -820,15 +960,12 @@ class State(object):
         """
         # pylint: disable=protected-access
 
-        ass = init.assignment
+        ass = cc.assignment
         clit = constraint.literal
-
-        # TODO: remove once assignment is updated
-        init.add_clause([clit, -clit])
 
         # the constraint is never propagated
         if not strict and ass.is_false(clit):
-            return
+            return True
 
         assert len(constraint.elements) == 1
         co, var = constraint.elements[0]
@@ -836,10 +973,10 @@ class State(object):
 
         if co > 0:
             truth = ass.value(clit)
-            value = constraint.rhs//co
+            value = constraint.rhs(self)//co
         else:
             truth = ass.value(-clit)
-            value = -(constraint.rhs//-co)-1
+            value = -(constraint.rhs(self)//-co)-1
 
         # in this case we can use the literal of the constraint as order variable
         if strict and vs.min_bound <= value < vs.max_bound and not vs.has_literal(value):
@@ -847,8 +984,8 @@ class State(object):
             if co < 0:
                 lit = -lit
             if truth is None:
-                init.add_watch(lit)
-                init.add_watch(-lit)
+                cc.add_watch(lit)
+                cc.add_watch(-lit)
             elif truth:
                 lit = TRUE_LIT
             else:
@@ -858,14 +995,17 @@ class State(object):
 
         # otherwise we just update the existing order literal
         else:
-            old, lit = self._update_literal(vs, value, init, truth)
-            if old is not None:
-                yield [old if truth else -old]
+            ret, lit = self._update_literal(vs, value, cc, truth)
+            if not ret:
+                return False
             if co < 0:
                 lit = -lit
-            yield [-clit, lit]
-            if strict:
-                yield [-lit, clit]
+            if not cc.add_clause([-clit, lit]):
+                return False
+            if strict and not cc.add_clause([-lit, clit]):
+                return False
+
+        return True
 
     def undo(self):
         """
@@ -925,20 +1065,21 @@ class State(object):
                 assert self._facts_integrated[-1][0] == level
                 self._facts_integrated[-1] = (level, num[0], num[1])
 
-    def check(self, control):
+    def check(self, cc):
         """
         This functions propagates facts that have not been integrated on the
         current level and propagates constraints gathered during `propagate`.
         """
-        ass = control.assignment
+
+        ass = cc.assignment
 
         # Note: We have to loop here because watches for the true/false
         # literals do not fire again.
         while True:
             # Note: This integrates any facts that have not been integrated yet
             # on the current decision level.
-            for clause, lock in self._update_domain(control, 1):
-                yield clause, lock
+            if not self._update_domain(cc, 1):
+                return False
             num_facts = self._num_facts
             self._set_integrated(ass.decision_level, num_facts)
 
@@ -947,11 +1088,11 @@ class State(object):
             for c in todo:
                 lit = c.literal
                 if not ass.is_false(lit):
-                    for clause, lock in self.propagate_constraint(c, control):
-                        yield clause, lock
+                    if not self.propagate_constraint(c, cc):
+                        return False
 
             if num_facts == self._num_facts:
-                return
+                return True
 
     def check_full(self, control):
         """
@@ -971,12 +1112,19 @@ class State(object):
                 return
 
     # reinitialization
-    def remove_literals(self, init):
+    def update(self, cc):
         """
-        This function removes all solve step local variables from the state and
-        maps fixed global literals to the true/false literal.
+        This function resets a state and should be called when a new solve step
+        is started.
+
+        This function removes all solve step local variables from the state,
+        maps fixed global literals to the true/false literal, and resets the
+        minimize constraint.
         """
-        ass = init.assignment
+        ass = cc.assignment
+
+        self._minimize_bound = None
+        self._minimize_level = 0
 
         remove_invalid = []
         remove_fixed = []
@@ -1006,7 +1154,7 @@ class State(object):
                 vs.set_literal(value, lit)
             del self._litmap[old]
 
-    def _cleanup_literals(self, lit, pred):
+    def _cleanup_literals(self, cc, lit, pred):
         """
         Remove (var,value) pairs associated with `lit` that match `pred`.
         """
@@ -1033,36 +1181,38 @@ class State(object):
                     # 0. But to be on the safe side in view of theory
                     # extensions, this makes the old literal equal to lit
                     # before removing the old literal.
-                    yield [-lit, old], True
-                    yield [-old, lit], True
+                    if not cc.add_clause([-lit, old], lock=True):
+                        return False
+                    if not cc.add_clause([-old, lit], lock=True):
+                        return False
                     self._remove_literal(vs, old, value)
                 vs.unset_literal(value)
             del variables[i:]
 
-    def cleanup_literals(self, init):
+        return True
+
+    def cleanup_literals(self, cc):
         """
         Remove all order literals associated with facts that are above the
         upper or below the lower bound.
         """
         # make sure that all top level literals are assigned to the fact literal
-        self.remove_literals(init)
+        self.update(cc)
 
         # cleanup
-        for clause, lock in self._cleanup_literals(TRUE_LIT, lambda x: x[1] != x[0].upper_bound):
-            yield clause, lock
-        for clause, lock in self._cleanup_literals(-TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1):
-            yield clause, lock
+        return (self._cleanup_literals(cc, TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
+                self._cleanup_literals(cc, -TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1))
 
-    def update_bounds(self, init, other):
+    def update_bounds(self, cc, other):
         """
         Integrate the lower and upper bounds from State `other`.
 
-        The function might add clauses via `init` to fix literals that have to
-        be updated. This can lead to a conflict if states have conflicting
+        The function might add clauses via `cc` to fix literals that have to be
+        updated. This can lead to a conflict if states have conflicting
         lower/upper bounds.
 
-        Precondition: remove_literals should be called before this function to
-                      really integrate all bounds.
+        Precondition: update should be called before this function to really
+                      integrate all bounds.
         """
         # pylint: disable=protected-access
 
@@ -1070,20 +1220,19 @@ class State(object):
         for vs_b, _ in other._litmap.get(TRUE_LIT, []):
             vs_a = self._var_state[vs_b.var]
             if vs_b.upper_bound < vs_a.upper_bound:
-                old, _ = self._update_literal(vs_a, vs_b.upper_bound, init, True)
-                if old is not None:
-                    yield [old], True
+                ret, _ = self._update_literal(vs_a, vs_b.upper_bound, cc, True)
+                if not ret:
+                    return False
 
         # update lower bounds
         for vs_b, _ in other._litmap.get(-TRUE_LIT, []):
             vs_a = self._var_state[vs_b.var]
             if vs_a.lower_bound < vs_b.lower_bound:
-                old, _ = self._update_literal(vs_a, vs_b.lower_bound-1, init, False)
-                if old is not None:
-                    yield [-old], True
+                ret, _ = self._update_literal(vs_a, vs_b.lower_bound-1, cc, False)
+                if not ret:
+                    return False
 
-        for clause, lock in self._update_domain(init, 1):
-            yield clause, lock
+        return self._update_domain(cc, 1)
 
     def copy_state(self, master):
         """
@@ -1128,34 +1277,17 @@ class CSPBuilder(object):
     """
     CSP builder to use with the parse_theory function.
     """
-    def __init__(self, init, propagator):
+    def __init__(self, init, propagator, minimize):
         self._init = init
         self._propagator = propagator
         self._clauses = []
-
-    def is_true(self, literal):
-        """
-        Return whether the literal is true.
-        """
-        return self._init.assignment.is_true(literal)
-
-    def is_false(self, literal):
-        """
-        Return whether the literal is true.
-        """
-        return self._init.assignment.is_false(literal)
+        self.minimize = minimize
 
     def solver_literal(self, literal):
         """
         Map the literal to a solver literal.
         """
         return self._init.solver_literal(literal)
-
-    def add_literal(self):
-        """
-        Add a new literal.
-        """
-        return self._init.add_literal()
 
     def add_clause(self, clause):
         """
@@ -1165,25 +1297,63 @@ class CSPBuilder(object):
         variables alternatingly is inefficient in clasp.
         """
         self._clauses.append(clause)
+        return True
+
+    def add_literal(self):
+        """
+        Adds a new literal.
+        """
+        return self._init.add_literal()
+
+    def add_watch(self, lit):
+        """
+        Watch the given solver literal.
+        """
+        self._init.add_watch(lit)
+
+    def propagate(self):
+        """
+        (Pretend to) call unit propagation on the solver.
+        """
+        return True
+
+    @property
+    def assignment(self):
+        """
+        Return the current assignment.
+        """
+        return self._init.assignment
 
     def add_constraint(self, lit, elems, rhs, strict):
         """
         Add a constraint.
         """
-        if not strict:
-            # TODO: remove once assignment is updated
-            self._init.add_clause([lit, -lit])
-            if self.is_false(lit):
-                return
+        if not strict and self.assignment.is_false(lit):
+            return
 
         constraint = Constraint(lit, elems, rhs)
         if len(elems) == 1:
             _, var = elems[0]
             self._propagator.add_variable(var)
-            self._clauses.extend(self._propagator.add_simple(self._init, constraint, strict))
+            self._propagator.add_simple(self, constraint, strict)
         else:
             assert not strict
-            self._propagator.add_constraint(self._init, constraint)
+            self._propagator.add_constraint(self, constraint)
+
+    def add_minimize(self, co, var):
+        """
+        Add a term to the minimize constraint.
+        """
+        if self.minimize is None:
+            self.minimize = Minimize()
+
+        if var is not None:
+            self._propagator.add_variable(var)
+
+        if co == 0:
+            return
+
+        self.minimize.elements.append((co, var))
 
     def add_distinct(self, literal, elems):
         """
@@ -1195,7 +1365,7 @@ class CSPBuilder(object):
         coefficients and variables; x_i corresponds to the linear term
           `term - rhs`.
         """
-        if self.is_false(literal):
+        if self.assignment.is_false(literal):
             return
 
         for i, (rhs_i, elems_i) in enumerate(elems):
@@ -1227,18 +1397,29 @@ class CSPBuilder(object):
 
         The domain is represented as a set of left-closed intervals.
         """
-        if self.is_false(literal):
+        if self.assignment.is_false(literal):
             return
 
         self._propagator.add_variable(var)
         intervals = IntervalSet(elements)
-        self._clauses.extend(self._propagator.add_dom(self._init, literal, var, list(intervals.items())))
+        self._propagator.add_dom(self, literal, var, list(intervals.items()))
 
     def finalize(self):
         """
         Finish constraint translation.
         """
-        return _propagate_init(self._init, ((clause, True) for clause in self._clauses))
+
+        # simplify minimize
+        if self.minimize is not None:
+            adjust, self.minimize.elements = simplify(self.minimize.elements, True)
+            self.minimize.adjust += adjust
+
+        # add clauses
+        for clause in self._clauses:
+            if not self._init.add_clause(clause) or not self._init.propagate():
+                return False
+
+        return True
 
 
 class Propagator(object):
@@ -1246,11 +1427,13 @@ class Propagator(object):
     A propagator for CSP constraints.
     """
     def __init__(self):
-        self._l2c = {}           # map literals to constraints
-        self._states = []        # map thread id to states
-        self._vars = TodoList()  # list of variables
-        self._vl2c = {}          # map variables affecting lower bound of constraints
-        self._vu2c = {}          # map variables affecting upper bound of constraints
+        self._l2c = {}               # map literals to constraints
+        self._states = []            # map thread id to states
+        self._vars = TodoList()      # list of variables
+        self._vl2c = {}              # map variables affecting lower bound of constraints
+        self._vu2c = {}              # map variables affecting upper bound of constraints
+        self._minimize = None        # minimize constraint
+        self._minimize_bound = None  # bound of the minimize constraint
 
     def _state(self, thread_id):
         """
@@ -1268,23 +1451,21 @@ class Propagator(object):
             self._vars.add(var)
             self._state(0).add_variable(var)
 
-    def add_dom(self, init, literal, var, domain):
+    def add_dom(self, cc, literal, var, domain):
         """
         Add a domain for the given variable.
         """
-        for clause in self._state(0).integrate_domain(init, literal, var, domain):
-            yield clause
+        return self._state(0).integrate_domain(cc, literal, var, domain)
 
-    def add_simple(self, init, constraint, strict):
+    def add_simple(self, cc, constraint, strict):
         """
         Add a constraint that can be represented by an order literal.
         """
-        for clause in self._state(0).integrate_simple(init, constraint, strict):
-            yield clause
+        return self._state(0).integrate_simple(cc, constraint, strict)
 
     def add_constraint(self, init, constraint):
         """
-        Add a variable to the program.
+        Add a constraint to the program.
         """
         lit = constraint.literal
         init.add_watch(lit)
@@ -1305,27 +1486,32 @@ class Propagator(object):
         multi-threaded solving.
         """
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
+        cc = InitClauseCreator(init)
+
+        # remove minimize constraint
+        minimize = self.remove_minimize()
 
         # remove solve step local and fixed literals
         for state in self._states:
-            state.remove_literals(init)
+            state.update(cc)
 
         # gather bounds of states in master
         master = self._state(0)
         for state in self._states[1:]:
-            if not _propagate_init(init, master.update_bounds(init, state)):
+            if not master.update_bounds(cc, state):
                 return
 
         # add constraints
-        if not parse_theory(CSPBuilder(init, self), init.theory_atoms).finalize():
+        builder = CSPBuilder(init, self, minimize)
+        if not parse_theory(builder, init.theory_atoms).finalize():
             return
 
         # propagate the newly added constraints
-        if not _propagate_init(init, master.simplify(init)):
+        if not master.simplify(cc):
             return
 
         # remove unnecessary literals after simplification
-        if not _propagate_init(init, master.cleanup_literals(init)):
+        if not master.cleanup_literals(cc):
             return
 
         # copy order literals from master to other states
@@ -1333,12 +1519,18 @@ class Propagator(object):
         for i in range(1, init.number_of_threads):
             self._state(i).copy_state(master)
 
+        # add minimize constraint
+        # Note: the constraint is added in the end to avoid propagating tagged
+        # clauses, which is not supported at the moment.
+        if builder.minimize is not None:
+            self.add_minimize(cc, builder.minimize)
+
     def propagate(self, control, changes):
         """
         Delegates propagation to the respective state.
         """
         state = self._state(control.thread_id)
-        _propagate_control(control, state.propagate(control, changes))
+        state.propagate(ControlClauseCreator(control), changes)
 
     def check(self, control):
         """
@@ -1347,8 +1539,12 @@ class Propagator(object):
         """
         size = len(control.assignment)
         state = self._state(control.thread_id)
+        dl = control.assignment.decision_level
+        if self.has_minimize:
+            bound = self._minimize_bound + self._minimize.adjust if self._minimize_bound else None
+            state.update_minimize(self._minimize, dl, bound)
 
-        if not _propagate_control(control, state.check(control)):
+        if not state.check(ControlClauseCreator(control)):
             return
 
         # Note: Makes sure that all variables are assigned in the end. But even
@@ -1382,3 +1578,51 @@ class Propagator(object):
         Should be called on total assignments.
         """
         return self._state(thread_id).get_value(symbol)
+
+    @property
+    def has_minimize(self):
+        """
+        Check if the propagator has a minimize constraint.
+        """
+        return self._minimize is not None
+
+    def add_minimize(self, init, minimize):
+        """
+        Add a minimize constraint to the program.
+        """
+        self._minimize = minimize
+        self.add_constraint(init, minimize)
+
+    def remove_minimize(self):
+        """
+        Removes the minimize constraint from the lookup lists.
+        """
+        minimize, self._minimize = self._minimize, None
+        if minimize is not None:
+            lit = minimize.literal
+            self._l2c.setdefault(lit, []).remove(minimize)
+            for co, var in minimize.elements:
+                if co > 0:
+                    self._vl2c.setdefault(var, []).remove(minimize)
+                else:
+                    self._vu2c.setdefault(var, []).remove(minimize)
+        return minimize
+
+    def get_minimize_value(self, thread_id):
+        """
+        Evaluates the minimize constraint w.r.t. the given thread.
+
+        Should be called on total assignments.
+        """
+        assert self.has_minimize
+        bound = 0
+        for co, var in self._minimize.elements:
+            bound += co * self._state(thread_id).get_value(var)
+        return bound - self._minimize.adjust
+
+    def update_minimize(self, bound):
+        """
+        Set the `bound` of the minimize constraint.
+        """
+        assert self.has_minimize
+        self._minimize_bound = bound

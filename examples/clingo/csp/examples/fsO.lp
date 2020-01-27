@@ -21,5 +21,6 @@ seq((T1,M),(T2,M),D) :- permutation(T1,T2), duration(T1,M,D).
 &sum {  1*T1 + -1*T2 } <= -D       :- seq(T1,T2,D).
 &sum { -1*(T,M) } <= 0             :- duration(T,M,D).
 &sum {  1*(T,M) + -1*bound } <= -D :- duration(T,M,D).
+&minimize { bound }.
 
 #show permutation/2.

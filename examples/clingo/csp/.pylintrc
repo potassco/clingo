@@ -61,5 +61,8 @@ max-branches=30
 # Maximum number of locals for function / method body.
 max-locals=20
 
+# Maximum number of return / yield for function / method body.
+max-returns=10
+
 # Maximum number of statements in function / method body.
 max-statements=100

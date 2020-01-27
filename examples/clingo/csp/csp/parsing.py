@@ -31,11 +31,24 @@ def parse_theory(builder, theory_atoms):
             _parse_distinct(builder, atom)
         elif match(atom.term, "dom", 0):
             _parse_dom(builder, atom)
+        elif match(atom.term, "minimize", 0):
+            _parse_objective(builder, atom, 1)
+        elif match(atom.term, "maximize", 0):
+            _parse_objective(builder, atom, -1)
 
     return builder
 
 
-def _simplify(seq):
+def _parse_objective(builder, atom, factor):
+    """
+    Parses minimize and maximize directives.
+    """
+    assert factor in (1, -1)
+    for co, var in _parse_constraint_elems(atom.elements, None, True):
+        builder.add_minimize(factor * co, var)
+
+
+def simplify(seq, drop_zero):
     """
     Combine coefficients of terms with the same variable and optionally drop
     zero weights and sum up terms without a variable.
@@ -56,6 +69,9 @@ def _simplify(seq):
             co_old, var_old = elements[seen[var]]
             assert var_old == var
             elements[seen[var]] = (co_old + co, var)
+
+    if drop_zero:
+        elements = [(co, var) for co, var in elements if co != 0]
 
     return rhs, elements
 
@@ -103,7 +119,7 @@ def _parse_distinct(builder, atom):
     elements = []
     for elem in atom.elements:
         if len(elem.terms) == 1 and not elem.condition:
-            elements.append(_simplify(_parse_constraint_elem(elem.terms[0], True)))
+            elements.append(simplify(_parse_constraint_elem(elem.terms[0], True), False))
         else:
             raise RuntimeError("Invalid Syntax")
 
@@ -128,10 +144,9 @@ def _parse_constraint(builder, atom, is_sum, strict):
     literal = builder.solver_literal(atom.literal)
 
     # combine coefficients
-    rhs, elements = _simplify(_parse_constraint_elems(atom.elements, atom.guard[1], is_sum))
+    rhs, elements = simplify(_parse_constraint_elems(atom.elements, atom.guard[1], is_sum), True)
 
-    # drop zero weights and divide by gcd
-    elements = [(co, var) for co, var in elements if co != 0]
+    # divide by gcd
     d = reduce(lambda a, b: gcd(a, b[0]), elements, rhs)
     if d > 1:
         elements = [(co//d, var) for co, var in elements]
@@ -163,7 +178,7 @@ def _normalize_constraint(builder, literal, elements, op, rhs, strict):
 
     elif op == "=":
         if strict:
-            if builder.is_true(literal):
+            if builder.assignment.is_true(literal):
                 a = b = 1
             else:
                 a = builder.add_literal()
@@ -218,8 +233,9 @@ def _parse_constraint_elems(elems, rhs, is_sum):
             raise RuntimeError("Invalid Syntax")
 
     if is_sum:
-        for co, var in _parse_constraint_elem(rhs, is_sum):
-            yield -co, var
+        if rhs is not None:
+            for co, var in _parse_constraint_elem(rhs, is_sum):
+                yield -co, var
     else:
         term = _evaluate_term(rhs)
         if term.type == clingo.SymbolType.Number:
@@ -229,6 +245,7 @@ def _parse_constraint_elems(elems, rhs, is_sum):
 
 
 def _parse_constraint_elem(term, is_sum):
+    assert term is not None
     if not is_sum:
         if match(term, "-", 2):
             a = _evaluate_term(term.arguments[0])

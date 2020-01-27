@@ -130,7 +130,30 @@ class TestMain(unittest.TestCase):
     def test_multishot(self):
         s = Solver(0, 3)
         self.assertEqual(s.solve("&sum { x } <= 2."), [[('x', 0)], [('x', 1)], [('x', 2)]])
+        self.assertEqual(s.solve(""), [[('x', 0)], [('x', 1)], [('x', 2)]])
         self.assertEqual(s.solve("&sum { x } <= 1."), [[('x', 0)], [('x', 1)]])
         self.assertEqual(s.solve("&sum { x } <= 0."), [[('x', 0)]])
         self.assertEqual(s.solve("&sum { x } <= 1."), [[('x', 0)]])
         self.assertEqual(s.solve("&sum { x } <= 2."), [[('x', 0)]])
+
+    def test_optimize(self):
+        self.assertEqual(solve("&minimize { x }.", -3, 3), [[('x', -3)]])
+        self.assertEqual(solve("&minimize { x+6 }.", -3, 3), [[('x', -3)]])
+        self.assertEqual(solve("&maximize { 2*x }.", -3, 3), [[('x', 3)]])
+        self.assertEqual(solve("&maximize { x + y }. ", -3, 3), [[('x', 3), ('y', 3)]])
+        self.assertEqual(solve("&maximize { x + y }. &sum{ x + y} <= 5. ", -3, 3), [[('x', 2), ('y', 3)], [('x', 3), ('y', 2)]])
+        self.assertEqual(solve("&maximize { x }. &sum{ x } <= 0 :- a. {a}. ", -3, 3), [[('x', 3)]])
+        self.assertEqual(solve("&minimize { x }. &sum{ x } <= 0 :- a. {a}. ", -3, 3), [[('x', -3)], [('a'), ('x', -3)]])
+        self.assertEqual(solve("&minimize { x }. a :- &sum{ x } <= 0. ", -3, 3), [[('a'), ('x', -3)]])
+
+    def test_optimize_bound(self):
+        sol = [[('x', 0), ('y', 2), ('z', 0)],
+               [('x', 1), ('y', 1), ('z', 1)],
+               [('x', 2), ('y', 0), ('z', 2)]]
+        s = Solver(0, 3)
+        s.solve("&minimize { x + 2 * y + z + 5 }. &sum{ x + y } >= 2. &sum { y + z } >= 2.")
+        self.assertEqual(s.bound, 9)
+        self.assertEqual(s.solve("", optimize=False, bound=9), sol)
+        self.assertEqual(s.solve("", optimize=False, bound=9), sol)
+        self.assertEqual(s.solve("&minimize { 6 }.", optimize=False, bound=9), [])
+        self.assertEqual(s.solve("", optimize=False, bound=15), sol)
