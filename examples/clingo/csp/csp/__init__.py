@@ -8,7 +8,7 @@ import clingo
 from .parsing import parse_theory, simplify
 from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
 
-
+FULL_CHECK = True
 MAX_INT = 2**32
 MIN_INT = -(2**32)
 TRUE_LIT = 1
@@ -1094,6 +1094,20 @@ class State(object):
             if num_facts == self._num_facts:
                 return True
 
+    def __satisfied(self, c):
+        """
+        This function checks if a constraint is actually satisfied given the final
+        value of its integer variables.
+
+        This function should only be called total assignments.
+        """
+        if c.rhs(self) is None:
+            return True
+        x = 0
+        for co, var in c.elements:
+            x += co*self.get_value(var)
+        return x <= c.rhs(self)
+
     def check_full(self, control):
         """
         This function selects a variable that is not fully assigned w.r.t. the
@@ -1110,6 +1124,10 @@ class State(object):
                 value = lerp(vs.lower_bound, vs.upper_bound)
                 self._get_literal(vs, value, control)
                 return
+        if FULL_CHECK:
+            for l, cl in self._l2c.items():
+                for c in cl:
+                    assert not control.assignment.is_true(l) or self.__satisfied(c)
 
     # reinitialization
     def update(self, cc):
