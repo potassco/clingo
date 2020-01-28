@@ -8,7 +8,7 @@ import clingo
 from .parsing import parse_theory, simplify
 from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
 
-CHECK_FULL = True
+CHECK_SOLUTION = True
 MAX_INT = 2**32
 MIN_INT = -(2**32)
 TRUE_LIT = 1
@@ -1127,7 +1127,7 @@ class State(object):
                 self._get_literal(vs, value, control)
                 return
 
-        if CHECK_FULL:
+        if CHECK_SOLUTION:
             for lit, constraints in self._l2c.items():
                 if control.assignment.is_true(lit):
                     for c in constraints:
