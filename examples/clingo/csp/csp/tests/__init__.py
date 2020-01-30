@@ -55,6 +55,8 @@ class Solver(object):
         """
         csp.MIN_INT = self.minint
         csp.MAX_INT = self.maxint
+        csp.CHECK_STATE = True
+        csp.CHECK_SOLUTION = True
         step = "step{}".format(self.step)
 
         with self.prg.builder() as b:

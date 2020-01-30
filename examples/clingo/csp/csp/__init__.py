@@ -9,6 +9,7 @@ from .parsing import parse_theory, simplify
 from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
 
 CHECK_SOLUTION = True
+CHECK_STATE = False
 MAX_INT = 2**32
 MIN_INT = -(2**32)
 TRUE_LIT = 1
@@ -393,6 +394,15 @@ class VarState(object):
         return "{}=[{},{}]".format(self.var, self.lower_bound, self.upper_bound)
 
 
+class ConstraintState(object):
+    """
+    Capture the lower and upper bound of constraints.
+    """
+    def __init__(self, lower_bound, upper_bound):
+        self.lower_bound = lower_bound
+        self.upper_bound = upper_bound
+
+
 class Level(object):
     """
     Simple class that captures state local to a decision level.
@@ -464,6 +474,7 @@ class State(object):
     _minimize_bound   -- Current bound of the minimize constraint (if any).
     _minimize_level   -- The minimize constraint might not have been fully
                          propagated below this level. See `update_minimize`.
+    _cstate           -- A dictionary mapping constraints to their states.
     """
     def __init__(self, l2c, vl2c, vu2c):
         """
@@ -486,6 +497,7 @@ class State(object):
         self._trail_offset = 0
         self._minimize_bound = None
         self._minimize_level = 0
+        self._cstate = {}
 
     @property
     def minimize_bound(self):
@@ -670,10 +682,22 @@ class State(object):
         self._var_state[var] = vs
         self._vars.append(vs)
 
-    def enqueue(self, constraint):
+    def add_constraint(self, constraint):
         """
-        Adds the given constraint to the propagation queue.
+        Adds the given constraint to the propagation queue and initializes its
+        state.
         """
+        lower = upper = 0
+        for co, var in constraint.elements:
+            vs = self._state(var)
+            if co > 0:
+                lower += vs.lower_bound*co
+                upper += vs.upper_bound*co
+            else:
+                lower += vs.upper_bound*co
+                upper += vs.lower_bound*co
+        self._cstate[constraint] = ConstraintState(lower, upper)
+
         self._todo.add(constraint)
 
     def simplify(self, init):
@@ -786,10 +810,17 @@ class State(object):
             for vs, value in self._litmap[lit][start:]:
                 # update upper bound
                 if vs.upper_bound > value:
+                    diff = value - vs.upper_bound
                     if lvl.undo_upper.add(vs):
                         vs.push_upper()
                     vs.upper_bound = value
-                    self._todo.extend(self._vu2c.get(vs.var, []))
+                    for co, constraint in self._vl2c.get(vs.var, []):
+                        assert co*diff < 0
+                        self._cstate[constraint].upper_bound += co*diff
+                    for co, constraint in self._vu2c.get(vs.var, []):
+                        assert co*diff > 0
+                        self._cstate[constraint].lower_bound += co*diff
+                        self._todo.add(constraint)
 
                 # make succeeding literal true
                 succ = vs.succ_value(value)
@@ -802,10 +833,17 @@ class State(object):
             for vs, value in self._litmap[-lit][start:]:
                 # update lower bound
                 if vs.lower_bound < value+1:
+                    diff = value+1-vs.lower_bound
                     if lvl.undo_lower.add(vs):
                         vs.push_lower()
                     vs.lower_bound = value+1
-                    self._todo.extend(self._vl2c.get(vs.var, []))
+                    for co, constraint in self._vu2c.get(vs.var, []):
+                        assert co*diff < 0
+                        self._cstate[constraint].upper_bound += co*diff
+                    for co, constraint in self._vl2c.get(vs.var, []):
+                        assert co*diff > 0
+                        self._cstate[constraint].lower_bound += co*diff
+                        self._todo.add(constraint)
 
                 # make preceeding literal false
                 prev = vs.prev_value(value)
@@ -813,6 +851,52 @@ class State(object):
                     return False
 
         return True
+
+    def _generate_reason(self, c, cc):
+        """
+        Generate a reason for a constraint and count the guessed literals in
+        it.
+        """
+        clit = c.literal
+        ass = cc.assignment
+        lbs = []                          # lower bound literals
+        num_guess = 1 if c.tagged else 0  # number of assignments above level 0
+        for co, var in c.elements:
+            vs = self._state(var)
+            if co > 0:
+                # note that any literal associated with a value smaller than
+                # the lower bound is false
+                lit = self._get_literal(vs, vs.lower_bound-1, cc)
+            else:
+                # note that any literal associated with a value greater or
+                # equal than the upper bound is true
+                lit = -self._get_literal(vs, vs.upper_bound, cc)
+
+            assert ass.is_false(lit)
+            if not ass.is_fixed(lit):
+                num_guess += 1
+            lbs.append(lit)
+
+        if not ass.is_fixed(clit):
+            num_guess += 1
+        lbs.append(-clit)
+
+        return num_guess, lbs
+
+    def _check_state(self, c):
+        lower = upper = 0
+        for co, var in c.elements:
+            vs = self._state(var)
+            if co > 0:
+                lower += co*vs.lower_bound
+                upper += co*vs.upper_bound
+            else:
+                lower += co*vs.upper_bound
+                upper += co*vs.lower_bound
+
+        assert lower <= upper
+        assert lower == self._cstate[c].lower_bound
+        assert upper == self._cstate[c].upper_bound
 
     def propagate_constraint(self, c, cc):
         """
@@ -828,48 +912,32 @@ class State(object):
         enforce the smallest order variable that would make the slack
         non-negative.
 
-        The function return False if propagation fails, True otherwise.
+        The function returns False if propagation fails, True otherwise.
         """
         ass = cc.assignment
         clit = c.literal
+        rhs = c.rhs(self)
+
+        # Note: this has a noticible cost because of the shortcuts below
+        if CHECK_STATE:
+            self._check_state(c)
         assert not ass.is_false(clit)
 
-        # NOTE: recalculation could be avoided by maintaing per clause state
-        #       (but the necessary data structure would be quite complicated)
-        slack = c.rhs(self)               # sum of lower bounds
-        if slack is None:
+        # skip constraints that cannot become false
+        if rhs is None or self._cstate[c].upper_bound <= rhs:
             return True
-        lbs = []                          # lower bound literals
-        num_guess = 1 if c.tagged else 0  # number of assignments above level 0
-        for i, (co, var) in enumerate(c.elements):
-            vs = self._state(var)
-            if co > 0:
-                slack -= co*vs.lower_bound
-                # note that any literal associated with a value smaller than
-                # the lower bound is false
-                lit = self._get_literal(vs, vs.lower_bound-1, cc)
-            else:
-                slack -= co*vs.upper_bound
-                # note that any literal associated with a value greater or
-                # equal than the upper bound is true
-                lit = -self._get_literal(vs, vs.upper_bound, cc)
-
-            assert ass.is_false(lit)
-            if not ass.is_fixed(lit):
-                num_guess += 1
-            lbs.append(lit)
-        if not ass.is_fixed(clit):
-            num_guess += 1
-
-        lbs.append(-clit)
+        slack = rhs-self._cstate[c].lower_bound
 
         # this is necessary to correctly handle empty constraints (and do
         # propagation of false constraints)
-        if slack < 0 and not cc.add_clause(lbs, tag=c.tagged):
-            return False
+        if slack < 0:
+            _, lbs = self._generate_reason(c, cc)
+            return cc.add_clause(lbs, tag=c.tagged)
 
         if not ass.is_true(clit):
             return True
+
+        num_guess, lbs = self._generate_reason(c, cc)
 
         for i, (co, var) in enumerate(c.elements):
             vs = self._state(var)
@@ -1015,11 +1083,30 @@ class State(object):
         that where not propagated on the current decision level.
         """
         lvl = self._level
+
         for vs in lvl.undo_lower:
+            value = vs.lower_bound
             vs.pop_lower()
+            diff = value - vs.lower_bound
+            for co, constraint in self._vl2c.get(vs.var, []):
+                assert co*diff > 0
+                self._cstate[constraint].lower_bound -= co*diff
+            for co, constraint in self._vu2c.get(vs.var, []):
+                assert co*diff < 0
+                self._cstate[constraint].upper_bound -= co*diff
+
         lvl.undo_lower.clear()
         for vs in lvl.undo_upper:
+            value = vs.upper_bound
             vs.pop_upper()
+            diff = value - vs.upper_bound
+            for co, constraint in self._vu2c.get(vs.var, []):
+                assert co*diff > 0
+                self._cstate[constraint].lower_bound -= co*diff
+            for co, constraint in self._vl2c.get(vs.var, []):
+                assert co*diff < 0
+                self._cstate[constraint].upper_bound -= co*diff
+
         self._pop_level()
         # Note: To make sure that the todo list is cleared when there is
         #       already a conflict during propagate.
@@ -1286,6 +1373,10 @@ class State(object):
             vs.lower_bound = vs_master.lower_bound
             vs.upper_bound = vs_master.upper_bound
 
+        # copy constraint state
+        for c, cs in master._cstate.items():
+            self._cstate[c] = ConstraintState(cs.lower_bound, cs.upper_bound)
+
         # adjust levels
         lvl, lvl_master = self._level, master._level
         lvl.clear()
@@ -1495,10 +1586,11 @@ class Propagator(object):
         for co, var in constraint.elements:
             self.add_variable(var)
             if co > 0:
-                self._vl2c.setdefault(var, []).append(constraint)
+                self._vl2c.setdefault(var, []).append((co, constraint))
             else:
-                self._vu2c.setdefault(var, []).append(constraint)
-        self._state(0).enqueue(constraint)
+                self._vu2c.setdefault(var, []).append((co, constraint))
+
+        self._state(0).add_constraint(constraint)
 
     def init(self, init):
         """
@@ -1536,16 +1628,16 @@ class Propagator(object):
         if not master.cleanup_literals(cc):
             return
 
-        # copy order literals from master to other states
-        del self._states[init.number_of_threads:]
-        for i in range(1, init.number_of_threads):
-            self._state(i).copy_state(master)
-
         # add minimize constraint
         # Note: the constraint is added in the end to avoid propagating tagged
         # clauses, which is not supported at the moment.
         if builder.minimize is not None:
             self.add_minimize(cc, builder.minimize)
+
+        # copy order literals from master to other states
+        del self._states[init.number_of_threads:]
+        for i in range(1, init.number_of_threads):
+            self._state(i).copy_state(master)
 
     def propagate(self, control, changes):
         """
@@ -1625,9 +1717,9 @@ class Propagator(object):
             self._l2c.setdefault(lit, []).remove(minimize)
             for co, var in minimize.elements:
                 if co > 0:
-                    self._vl2c.setdefault(var, []).remove(minimize)
+                    self._vl2c.setdefault(var, []).remove((co, minimize))
                 else:
-                    self._vu2c.setdefault(var, []).remove(minimize)
+                    self._vu2c.setdefault(var, []).remove((co, minimize))
         return minimize
 
     def get_minimize_value(self, thread_id):
