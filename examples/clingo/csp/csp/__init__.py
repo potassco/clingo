@@ -3,7 +3,9 @@ This module provides a propagator for CSP constraints. It can also be used as a
 stand-alone application.
 """
 
+from collections import OrderedDict
 from itertools import chain
+from timeit import default_timer as timer
 import clingo
 from .parsing import parse_theory, simplify
 from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
@@ -43,6 +45,81 @@ THEORY = """\
     &dom/0 : dom_term, {=}, var_term, head
 }.
 """
+
+
+def measure_time(attribute):
+    """
+    Decorator to time function calls for propagator statistics.
+    """
+    def time_wrapper(func):
+        def wrapper(self, *args, **kwargs):
+            start = timer()
+            ret = func(self, *args, **kwargs)
+            value = getattr(self.statistics, attribute)
+            setattr(self.statistics, attribute, value + timer() - start)
+            return ret
+        return wrapper
+    return time_wrapper
+
+
+class ThreadStatistics(object):
+    """
+    Thread specific statistics.
+    """
+    def __init__(self):
+        self.time_propagate = 0
+        self.time_check = 0
+        self.time_undo = 0
+
+    def reset(self):
+        """
+        Reset all statistics to they starting values.
+        """
+        self.time_propagate = 0
+        self.time_check = 0
+        self.time_undo = 0
+
+    def accu(self, stat):
+        """
+        Accumulate statistics in `stat`.
+        """
+        self.time_propagate += stat.time_propagate
+        self.time_check += stat.time_check
+        self.time_undo += stat.time_undo
+
+
+class Statistics(object):
+    """
+    Propagator specific statistics.
+    """
+    def __init__(self):
+        self.num_variables = 0
+        self.num_constraints = 0
+        self.time_init = 0
+        self.tstats = []
+
+    def reset(self):
+        """
+        Reset all statistics to they starting values.
+        """
+        self.num_variables = 0
+        self.num_constraints = 0
+        self.time_init = 0
+        for s in self.tstats:
+            s.reset()
+
+    def accu(self, stats):
+        """
+        Accumulate statistics in `stat`.
+        """
+        self.num_variables = max(self.num_variables, stats.num_variables)
+        self.num_constraints = max(self.num_constraints, stats.num_constraints)
+        self.time_init += stats.time_init
+
+        for _ in range(len(self.tstats), len(stats.tstats)):
+            self.tstats.append(ThreadStatistics())
+        for stats_a, stats_b in zip(self.tstats, stats.tstats):
+            stats_a.accu(stats_b)
 
 
 class InitClauseCreator(object):
@@ -440,6 +517,10 @@ class State(object):
     """
     Class to store and propagate thread-specific state.
 
+    Public Members
+    ==============
+    statistics        -- A ThreadStatistics object holding statistics.
+
     Private Members
     ===============
     _vars             -- List of VarState objects for variables occurring in
@@ -497,6 +578,7 @@ class State(object):
         self._trail_offset = 0
         self._minimize_bound = None
         self._minimize_level = 0
+        self.statistics = ThreadStatistics()
         self._cstate = {}
 
     @property
@@ -734,6 +816,7 @@ class State(object):
                 return False
 
     # propagation
+    @measure_time("time_propagate")
     def propagate(self, cc, changes):
         """
         Propagates constraints and order literals.
@@ -915,13 +998,12 @@ class State(object):
         The function returns False if propagation fails, True otherwise.
         """
         ass = cc.assignment
-        clit = c.literal
         rhs = c.rhs(self)
 
         # Note: this has a noticible cost because of the shortcuts below
         if CHECK_STATE:
             self._check_state(c)
-        assert not ass.is_false(clit)
+        assert not ass.is_false(c.literal)
 
         # skip constraints that cannot become false
         if rhs is None or self._cstate[c].upper_bound <= rhs:
@@ -934,7 +1016,7 @@ class State(object):
             _, lbs = self._generate_reason(c, cc)
             return cc.add_clause(lbs, tag=c.tagged)
 
-        if not ass.is_true(clit):
+        if not ass.is_true(c.literal):
             return True
 
         num_guess, lbs = self._generate_reason(c, cc)
@@ -1075,6 +1157,7 @@ class State(object):
 
         return True
 
+    @measure_time("time_undo")
     def undo(self):
         """
         This function undos decision level specific state.
@@ -1152,6 +1235,7 @@ class State(object):
                 assert self._facts_integrated[-1][0] == level
                 self._facts_integrated[-1] = (level, num[0], num[1])
 
+    @measure_time("time_check")
     def check(self, cc):
         """
         This functions propagates facts that have not been integrated on the
@@ -1540,13 +1624,15 @@ class Propagator(object):
     A propagator for CSP constraints.
     """
     def __init__(self):
-        self._l2c = {}               # map literals to constraints
-        self._states = []            # map thread id to states
-        self._vars = TodoList()      # list of variables
-        self._vl2c = {}              # map variables affecting lower bound of constraints
-        self._vu2c = {}              # map variables affecting upper bound of constraints
-        self._minimize = None        # minimize constraint
-        self._minimize_bound = None  # bound of the minimize constraint
+        self._l2c = {}                   # map literals to constraints
+        self._states = []                # map thread id to states
+        self._vars = TodoList()          # list of variables
+        self._vl2c = {}                  # map variables affecting lower bound of constraints
+        self._vu2c = {}                  # map variables affecting upper bound of constraints
+        self._minimize = None            # minimize constraint
+        self._minimize_bound = None      # bound of the minimize constraint
+        self._stats_step = Statistics()  # statistics of the current call
+        self._stats_accu = Statistics()  # accumulated statistics
 
     def _state(self, thread_id):
         """
@@ -1555,6 +1641,41 @@ class Propagator(object):
         while len(self._states) <= thread_id:
             self._states.append(State(self._l2c, self._vl2c, self._vu2c))
         return self._states[thread_id]
+
+    @property
+    def statistics(self):
+        """
+        Return statistics object.
+        """
+        return self._stats_step
+
+    def on_statistics(self, step, akku):
+        """
+        Callback to update `step` and `akku`mulated statistics.
+        """
+        for s in self._states:
+            self._stats_step.tstats.append(s.statistics)
+        self._stats_accu.accu(self._stats_step)
+        self.add_statistics(step, self._stats_step)
+        self.add_statistics(akku, self._stats_accu)
+        self._stats_step.reset()
+
+    def add_statistics(self, stats_map, stats):
+        """
+        Add collected statistics in `stats` to the clingo.StatisticsMap `stats_map`.
+        """
+        def thread_stats(tstat):
+            p, c, u = tstat.time_propagate, tstat.time_check, tstat.time_undo
+            return OrderedDict([
+                ("Time total(s)", p+c+u),
+                ("Time propagation(s)", p),
+                ("Time check(s)", c),
+                ("Time undo(s)", u)])
+        stats_map["Clingcon"] = OrderedDict([
+            ("Time init(s)", stats.time_init),
+            ("Variables", stats.num_variables),
+            ("Constraints", stats.num_constraints),
+            ("Thread", map(thread_stats, stats.tstats[:len(self._states)]))])
 
     def add_variable(self, var):
         """
@@ -1591,7 +1712,9 @@ class Propagator(object):
                 self._vu2c.setdefault(var, []).append((co, constraint))
 
         self._state(0).add_constraint(constraint)
+        self._stats_step.num_constraints += 1
 
+    @measure_time("time_init")
     def init(self, init):
         """
         Initializes the propagator extracting constraints from the theory data.
@@ -1620,6 +1743,8 @@ class Propagator(object):
         if not parse_theory(builder, init.theory_atoms).finalize():
             return
 
+        self._stats_step.num_variables = len(self._vars)
+
         # propagate the newly added constraints
         if not master.simplify(cc):
             return
@@ -1632,6 +1757,7 @@ class Propagator(object):
         # Note: the constraint is added in the end to avoid propagating tagged
         # clauses, which is not supported at the moment.
         if builder.minimize is not None:
+            self._stats_step.num_constraints += 1
             self.add_minimize(cc, builder.minimize)
 
         # copy order literals from master to other states

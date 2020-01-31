@@ -69,6 +69,9 @@ class Application(object):
         if csp.MIN_INT > csp.MAX_INT:
             raise RuntimeError("min-int must not be larger than max-int")
 
+    def _on_statistics(self, step, akku):
+        self._propagator.on_statistics(step, akku)
+
     def main(self, prg, files):
         """
         Entry point of the application registering the propagator and
@@ -83,7 +86,7 @@ class Application(object):
 
         prg.ground([("base", [])])
 
-        for model in prg.solve(yield_=True):
+        for model in prg.solve(on_statistics=self._on_statistics, yield_=True):
             if self._propagator.has_minimize:
                 bound = self._propagator.get_minimize_value(model.thread_id)
                 self._propagator.update_minimize(bound-1)
