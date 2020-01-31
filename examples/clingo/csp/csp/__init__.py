@@ -1034,6 +1034,10 @@ class State(object):
                 truth = num_guess == adjust or None
                 diff = slack+co*vs.lower_bound
                 value = diff//co
+                assert value >= vs.lower_bound
+                # Note: all order literals above the upper bound are true already
+                if value >= vs.upper_bound:
+                    continue
                 ret, lit = self._update_literal(vs, value, cc, truth)
                 if not ret:
                     return False
@@ -1041,6 +1045,10 @@ class State(object):
                 truth = num_guess > adjust and None
                 diff = slack+co*vs.upper_bound
                 value = -(diff//-co)
+                assert value <= vs.upper_bound
+                # Note: all order literals below the lower bound are false already
+                if value <= vs.lower_bound:
+                    continue
                 ret, lit = self._update_literal(vs, value-1, cc, truth)
                 if not ret:
                     return False
