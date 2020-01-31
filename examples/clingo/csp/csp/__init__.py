@@ -545,11 +545,8 @@ class State(object):
                          associated with the constraint.
     _todo             -- Set of constraints that have to be propagated on the
                          current decision level.
-    _facts_integrated -- A list of integer triples. Stores for each decision
-                         level, how many true/false facts have already been
-                         integrated. Unlike with `_levels`, such triples are
-                         only introduced if necessary.
-                         `check_full`.
+    _facts_integrated -- A tuple of integers storing how many true/false facts
+                         have already been integrated on the top level.
     _lerp_last        -- Offset to speed up `check_full`.
     _trail_offset     -- Offset to speed up `simplify`.
     _minimize_bound   -- Current bound of the minimize constraint (if any).
@@ -573,7 +570,7 @@ class State(object):
         self._vu2c = vu2c
         self._l2c = l2c
         self._todo = TodoList()
-        self._facts_integrated = [(0, 0, 0)]
+        self._facts_integrated = (0, 0)
         self._lerp_last = 0
         self._trail_offset = 0
         self._minimize_bound = None
@@ -731,7 +728,7 @@ class State(object):
         Additionally, if the the order literal is updated (`old` is not
         `None`), then the replaced value is also removed from `_litmap`.
         """
-        if truth is None:
+        if truth is None or cc.assignment.decision_level > 0:
             return True, self._get_literal(vs, value, cc)
         lit = TRUE_LIT if truth else -TRUE_LIT
         if value < vs.min_bound or value >= vs.max_bound:
@@ -889,7 +886,7 @@ class State(object):
 
         # update and propagate upper bound
         if lit in self._litmap:
-            start = self._get_integrated(ass.decision_level)[0] if lit == TRUE_LIT else None
+            start = self._facts_integrated[0] if lit == TRUE_LIT else None
             for vs, value in self._litmap[lit][start:]:
                 # update upper bound
                 if vs.upper_bound > value:
@@ -912,7 +909,7 @@ class State(object):
 
         # update and propagate lower bound
         if -lit in self._litmap:
-            start = self._get_integrated(ass.decision_level)[1] if lit == TRUE_LIT else None
+            start = self._facts_integrated[1] if lit == TRUE_LIT else None
             for vs, value in self._litmap[-lit][start:]:
                 # update lower bound
                 if vs.lower_bound < value+1:
@@ -1186,7 +1183,6 @@ class State(object):
                 assert co*diff < 0
                 self._cstate[constraint].upper_bound -= co*diff
 
-        lvl.undo_lower.clear()
         for vs in lvl.undo_upper:
             value = vs.upper_bound
             vs.pop_upper()
@@ -1214,35 +1210,6 @@ class State(object):
         f = len(self._litmap.get(-TRUE_LIT, []))
         return t, f
 
-    def _get_integrated(self, level):
-        """
-        Returns the a pair of intergers corresponding to the numbers of order
-        literals associated with the true and false literal that have already
-        been propagated on the given level.
-        """
-        assert level >= 0 and self._facts_integrated and self._facts_integrated[0][0] == 0
-        while self._facts_integrated[-1][0] > level:
-            self._facts_integrated.pop()
-        _, t, f = self._facts_integrated[-1]
-        return t, f
-
-    def _set_integrated(self, level, num):
-        """
-        Sets the a pair of intergers corresponding to the numbers of order
-        literals associated with the true and false literal that have already
-        been propagated on the given level.
-        """
-        old = self._get_integrated(level)
-        if old != num:
-            if self._facts_integrated[-1][0] < level:
-                # Note: this case can only happen if facts are learned on
-                # levels above 0. This can only happen if the propagator is
-                # extended.
-                self._facts_integrated.append((level, num[0], num[1]))
-            else:
-                assert self._facts_integrated[-1][0] == level
-                self._facts_integrated[-1] = (level, num[0], num[1])
-
     @measure_time("time_check")
     def check(self, cc):
         """
@@ -1256,11 +1223,12 @@ class State(object):
         # literals do not fire again.
         while True:
             # Note: This integrates any facts that have not been integrated yet
-            # on the current decision level.
-            if not self._update_domain(cc, 1):
-                return False
-            num_facts = self._num_facts
-            self._set_integrated(ass.decision_level, num_facts)
+            # on the top level.
+            if self._facts_integrated != self._num_facts:
+                assert ass.decision_level == 0
+                if not self._update_domain(cc, 1):
+                    return False
+                self._facts_integrated = self._num_facts
 
             # propagate affected constraints
             todo, self._todo = self._todo, TodoList()
@@ -1270,7 +1238,7 @@ class State(object):
                     if not self.propagate_constraint(c, cc):
                         return False
 
-            if num_facts == self._num_facts:
+            if self._facts_integrated == self._num_facts:
                 return True
 
     def _check_constraint(self, c):
@@ -1365,11 +1333,11 @@ class State(object):
 
             # adjust the number of facts that have been integrated
             idx = 0 if lit == TRUE_LIT else 1
-            nums = list(self._get_integrated(0))
+            nums = list(self._facts_integrated)
             for x in variables[:nums[idx]]:
                 if pred(x):
                     nums[idx] -= 1
-            self._set_integrated(0, nums)
+            self._facts_integrated = tuple(nums)
 
             # remove values matching pred
             i = remove_if(variables, pred)
@@ -1443,7 +1411,7 @@ class State(object):
         # pylint: disable=protected-access
 
         # adjust integrated facts
-        self._set_integrated(0, master._get_integrated(0))
+        self._facts_integrated = master._facts_integrated
 
         # make sure we have an empty var state for each variable
         for vs in master._vars[len(self._vars):]:
