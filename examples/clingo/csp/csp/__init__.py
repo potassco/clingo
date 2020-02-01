@@ -474,7 +474,7 @@ class ConstraintState(object):
     """
     Capture the lower and upper bound of constraints.
     """
-    def __init__(self, constraint, lower_bound, upper_bound, inactive_level=0):
+    def __init__(self, constraint, lower_bound=0, upper_bound=0, inactive_level=0):
         self.constraint = constraint
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
@@ -625,10 +625,10 @@ class State(object):
         if self._minimize_bound is None or bound < self._minimize_bound:
             self._minimize_bound = bound
             self._minimize_level = dl
-            self._todo.add(minimize)
+            self._todo.add(self._cstate[minimize])
         elif dl < self._minimize_level:
             self._minimize_level = dl
-            self._todo.add(minimize)
+            self._todo.add(self._cstate[minimize])
 
     def get_assignment(self):
         """
@@ -799,7 +799,7 @@ class State(object):
         Adds the given constraint to the propagation queue and initializes its
         state.
         """
-        cs = ConstraintState(constraint, 0, 0)
+        cs = ConstraintState(constraint)
         for co, var in constraint.elements:
             vs = self._state(var)
             if co > 0:
@@ -812,7 +812,7 @@ class State(object):
                 cs.upper_bound += vs.lower_bound*co
         self._cstate[constraint] = cs
 
-        self._todo.add(constraint)
+        self._todo.add(cs)
 
     def remove_constraint(self, constraint):
         """
@@ -875,7 +875,7 @@ class State(object):
 
         # propagate order literals that became true/false
         for lit in changes:
-            self._todo.extend(self._l2c.get(lit, []))
+            self._todo.extend(map(self._cstate.get, self._l2c.get(lit, [])))
             if not self._update_domain(cc, lit):
                 return False
 
@@ -939,7 +939,7 @@ class State(object):
                 else:
                     assert co*diff > 0
                     cs.lower_bound += co*diff
-                    self._todo.add(cs.constraint)
+                    self._todo.add(cs)
                 if i < j:
                     l[i], l[j] = l[j], l[i]
                 i += 1
@@ -997,16 +997,16 @@ class State(object):
 
         return True
 
-    def _generate_reason(self, c, cc):
+    def _generate_reason(self, cs, cc):
         """
         Generate a reason for a constraint and count the guessed literals in
         it.
         """
-        clit = c.literal
+        clit = cs.constraint.literal
         ass = cc.assignment
-        lbs = []                          # lower bound literals
-        num_guess = 1 if c.tagged else 0  # number of assignments above level 0
-        for co, var in c.elements:
+        lbs = []                                      # lower bound literals
+        num_guess = 1 if cs.constraint.tagged else 0  # number of assignments above level 0
+        for co, var in cs.constraint.elements:
             vs = self._state(var)
             if co > 0:
                 # note that any literal associated with a value smaller than
@@ -1028,9 +1028,9 @@ class State(object):
 
         return num_guess, lbs
 
-    def _check_state(self, c):
+    def _check_state(self, cs):
         lower = upper = 0
-        for co, var in c.elements:
+        for co, var in cs.constraint.elements:
             vs = self._state(var)
             if co > 0:
                 lower += co*vs.lower_bound
@@ -1040,21 +1040,19 @@ class State(object):
                 upper += co*vs.lower_bound
 
         assert lower <= upper
-        assert lower == self._cstate[c].lower_bound
-        assert upper == self._cstate[c].upper_bound
+        assert lower == cs.lower_bound
+        assert upper == cs.upper_bound
 
-    def _remove_inactive(self, c):
+    def _remove_inactive(self, cs):
         """
         Mark the given constraint inactive on the current level.
         """
         lvl = self._level
-        if c.removable:
-            cs = self._cstate[c]
-            if not cs.marked_inactive:
-                cs.marked_inactive = lvl.level
-                lvl.inactive.append(cs)
+        if cs.constraint.removable and not cs.marked_inactive:
+            cs.marked_inactive = lvl.level
+            lvl.inactive.append(cs)
 
-    def propagate_constraint(self, c, cc):
+    def propagate_constraint(self, cs, cc):
         """
         This function propagates a constraint that became active because its
         associated literal became true or because the bound of one of its
@@ -1071,32 +1069,32 @@ class State(object):
         The function returns False if propagation fails, True otherwise.
         """
         ass = cc.assignment
-        rhs = c.rhs(self)
+        rhs = cs.constraint.rhs(self)
 
         # Note: this has a noticible cost because of the shortcuts below
-        if CHECK_STATE and not self._cstate[c].marked_inactive:
-            self._check_state(c)
-        assert not ass.is_false(c.literal)
+        if CHECK_STATE and not cs.marked_inactive:
+            self._check_state(cs)
+        assert not ass.is_false(cs.constraint.literal)
 
         # skip constraints that cannot become false
-        if rhs is None or self._cstate[c].upper_bound <= rhs:
-            self._remove_inactive(c)
+        if rhs is None or cs.upper_bound <= rhs:
+            self._remove_inactive(cs)
             return True
-        slack = rhs-self._cstate[c].lower_bound
+        slack = rhs-cs.lower_bound
 
         # this is necessary to correctly handle empty constraints (and do
         # propagation of false constraints)
         if slack < 0:
-            self._remove_inactive(c)
-            _, lbs = self._generate_reason(c, cc)
-            return cc.add_clause(lbs, tag=c.tagged)
+            self._remove_inactive(cs)
+            _, lbs = self._generate_reason(cs, cc)
+            return cc.add_clause(lbs, tag=cs.constraint.tagged)
 
-        if not ass.is_true(c.literal):
+        if not ass.is_true(cs.constraint.literal):
             return True
 
-        num_guess, lbs = self._generate_reason(c, cc)
+        num_guess, lbs = self._generate_reason(cs, cc)
 
-        for i, (co, var) in enumerate(c.elements):
+        for i, (co, var) in enumerate(cs.constraint.elements):
             vs = self._state(var)
 
             # adjust the number of guesses if the current literal is a guess
@@ -1136,7 +1134,7 @@ class State(object):
 
             if not ass.is_true(lit):
                 lbs[i], lit = lit, lbs[i]
-                if not cc.add_clause(lbs, tag=c.tagged):
+                if not cc.add_clause(lbs, tag=cs.constraint.tagged):
                     return False
                 lbs[i] = lit
 
@@ -1317,12 +1315,12 @@ class State(object):
 
             # propagate affected constraints
             todo, self._todo = self._todo, TodoList()
-            for c in todo:
-                if not ass.is_false(c.literal):
-                    if not self.propagate_constraint(c, cc):
+            for cs in todo:
+                if not ass.is_false(cs.constraint.literal):
+                    if not self.propagate_constraint(cs, cc):
                         return False
                 else:
-                    self._remove_inactive(c)
+                    self._remove_inactive(cs)
 
             if self._facts_integrated == self._num_facts:
                 return True
