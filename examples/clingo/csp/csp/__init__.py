@@ -515,13 +515,15 @@ class Level(object):
 
     Members
     =======
-    level      -- The decision level.
-    undo_upper -- Set of `VarState` objects that have been assigned an upper
-                  bound.
-    undo_lower -- Set of `VarState` objects that have been assigned a lower
-                  bound.
-    inactive   -- List of constraints that are inactive on the next level.
-    removed    -- List of variable/constraint pairs that have been removed.
+    level         -- The decision level.
+    undo_upper    -- Set of `VarState` objects that have been assigned an upper
+                     bound.
+    undo_lower    -- Set of `VarState` objects that have been assigned a lower
+                     bound.
+    inactive      -- List of constraints that are inactive on the next level.
+    removed_vl2cs -- List of variable/coefficient/constraint triples that have
+                     been removed from the State._vl2cs map.
+    removed_vu2cs -- Similar to removed_vl2cs but for the State._vu2cs map.
     """
     def __init__(self, level):
         """
