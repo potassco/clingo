@@ -70,6 +70,8 @@ class ThreadStatistics(object):
         self.time_propagate = 0
         self.time_check = 0
         self.time_undo = 0
+        self.traversed = 0
+        self.inactive = 0
 
     def reset(self):
         """
@@ -78,6 +80,8 @@ class ThreadStatistics(object):
         self.time_propagate = 0
         self.time_check = 0
         self.time_undo = 0
+        self.traversed = 0
+        self.inactive = 0
 
     def accu(self, stat):
         """
@@ -86,6 +90,8 @@ class ThreadStatistics(object):
         self.time_propagate += stat.time_propagate
         self.time_check += stat.time_check
         self.time_undo += stat.time_undo
+        self.traversed += stat.traversed
+        self.inactive += stat.inactive
 
 
 class Statistics(object):
@@ -565,14 +571,14 @@ class State(object):
                          where `vs` is the VarState of `var`.
     _levels           -- For each decision level propagated, there is a `Level`
                          object in this list until `undo` is called.
-    _vl2c             -- Map from variable names to a list of constraints. The
-                         map contains a variable/constraint pair if increasing
-                         the lower bound of the variable, increases the slack
-                         of the constraint.
-    _vu2c             -- Map from variable names to a list of constraints. The
-                         map contains a variable/constraint pair if decreasing
-                         the upper bound of the variable, increases the slack
-                         of the constraint.
+    _vl2cs            -- Map from variable names to a list of
+                         coefficient/constraint state pairs. The map contains a
+                         pair if increasing the lower bound of the variable,
+                         increases the slack of the constraint.
+    _vu2cs            -- Map from variable names to a list of
+                         coefficient/constraint state pairs. The map contains a
+                         pair if decreasing the upper bound of the variable,
+                         increases the slack of the constraint.
     _l2c              -- Map from literals to a list of constraints. The map
                          contains a literal/constraint pair if the literal is
                          associated with the constraint.
@@ -587,20 +593,17 @@ class State(object):
                          propagated below this level. See `update_minimize`.
     _cstate           -- A dictionary mapping constraints to their states.
     """
-    def __init__(self, l2c, vl2c, vu2c):
+    def __init__(self, l2c):
         """
-        Construct an empty state initialising `_lc2` with `l2c`, `_vl2c` with
-        `vl2c`, and `_vu2c` with `vu2c`.
-
-        The state is ready to propagate decision level zero after a call to
-        `init_domain`.
+        A newly inititialized state is ready to propagate decision level zero
+        after a call to `init_domain`.
         """
         self._vars = []
         self._var_state = {}
         self._litmap = {}
         self._levels = [Level(0)]
-        self._vl2c = vl2c
-        self._vu2c = vu2c
+        self._vl2cs = {}
+        self._vu2cs = {}
         self._l2c = l2c
         self._todo = TodoList()
         self._facts_integrated = (0, 0)
@@ -799,18 +802,32 @@ class State(object):
         Adds the given constraint to the propagation queue and initializes its
         state.
         """
-        lower = upper = 0
+        cs = ConstraintState(constraint, 0, 0)
         for co, var in constraint.elements:
             vs = self._state(var)
             if co > 0:
-                lower += vs.lower_bound*co
-                upper += vs.upper_bound*co
+                self._vl2cs.setdefault(var, []).append((co, cs))
+                cs.lower_bound += vs.lower_bound*co
+                cs.upper_bound += vs.upper_bound*co
             else:
-                lower += vs.upper_bound*co
-                upper += vs.lower_bound*co
-        self._cstate[constraint] = ConstraintState(constraint, lower, upper)
+                self._vu2cs.setdefault(var, []).append((co, cs))
+                cs.lower_bound += vs.upper_bound*co
+                cs.upper_bound += vs.lower_bound*co
+        self._cstate[constraint] = cs
 
         self._todo.add(constraint)
+
+    def remove_constraint(self, constraint):
+        """
+        Removes the minimize constraint from the lookup lists.
+        """
+        cs = self._cstate[constraint]
+        for co, var in constraint.elements:
+            if co > 0:
+                self._vl2cs.setdefault(var, []).remove((co, cs))
+            else:
+                self._vu2cs.setdefault(var, []).remove((co, cs))
+        del self._cstate[constraint]
 
     def simplify(self, init):
         """
@@ -905,6 +922,23 @@ class State(object):
 
         return True
 
+    def _update_constraints(self, var, diff, u2, l2):
+        # TODO: this function should actually remove inactive constraints
+        lvl = self._level
+        for co, cs in u2.get(var, []):
+            self.statistics.traversed += 1
+            if cs.removable(lvl.level):
+                self.statistics.inactive += 1
+            assert co*diff < 0
+            cs.upper_bound += co*diff
+        for co, cs in l2.get(var, []):
+            self.statistics.traversed += 1
+            if cs.removable(lvl.level):
+                self.statistics.inactive += 1
+            assert co*diff > 0
+            cs.lower_bound += co*diff
+            self._todo.add(cs.constraint)
+
     def _update_domain(self, cc, lit):
         """
         If `lit` is an order literal, this function updates the lower or upper
@@ -927,13 +961,7 @@ class State(object):
                     if lvl.undo_upper.add(vs):
                         vs.push_upper()
                     vs.upper_bound = value
-                    for co, constraint in self._vl2c.get(vs.var, []):
-                        assert co*diff < 0
-                        self._cstate[constraint].upper_bound += co*diff
-                    for co, constraint in self._vu2c.get(vs.var, []):
-                        assert co*diff > 0
-                        self._cstate[constraint].lower_bound += co*diff
-                        self._todo.add(constraint)
+                    self._update_constraints(vs.var, diff, self._vl2cs, self._vu2cs)
 
                 # make succeeding literal true
                 succ = vs.succ_value(value)
@@ -950,13 +978,7 @@ class State(object):
                     if lvl.undo_lower.add(vs):
                         vs.push_lower()
                     vs.lower_bound = value+1
-                    for co, constraint in self._vu2c.get(vs.var, []):
-                        assert co*diff < 0
-                        self._cstate[constraint].upper_bound += co*diff
-                    for co, constraint in self._vl2c.get(vs.var, []):
-                        assert co*diff > 0
-                        self._cstate[constraint].lower_bound += co*diff
-                        self._todo.add(constraint)
+                    self._update_constraints(vs.var, diff, self._vu2cs, self._vl2cs)
 
                 # make preceeding literal false
                 prev = vs.prev_value(value)
@@ -1222,26 +1244,28 @@ class State(object):
             value = vs.lower_bound
             vs.pop_lower()
             diff = value - vs.lower_bound
-            for co, constraint in self._vl2c.get(vs.var, []):
+            for co, cs in self._vl2cs.get(vs.var, []):
                 assert co*diff > 0
-                self._cstate[constraint].lower_bound -= co*diff
-            for co, constraint in self._vu2c.get(vs.var, []):
+                cs.lower_bound -= co*diff
+            for co, cs in self._vu2cs.get(vs.var, []):
                 assert co*diff < 0
-                self._cstate[constraint].upper_bound -= co*diff
+                cs.upper_bound -= co*diff
 
         for vs in lvl.undo_upper:
             value = vs.upper_bound
             vs.pop_upper()
             diff = value - vs.upper_bound
-            for co, constraint in self._vu2c.get(vs.var, []):
+            for co, cs in self._vu2cs.get(vs.var, []):
                 assert co*diff > 0
-                self._cstate[constraint].lower_bound -= co*diff
-            for co, constraint in self._vl2c.get(vs.var, []):
+                cs.lower_bound -= co*diff
+            for co, cs in self._vl2cs.get(vs.var, []):
                 assert co*diff < 0
-                self._cstate[constraint].upper_bound -= co*diff
+                cs.upper_bound -= co*diff
 
         for cs in lvl.inactive:
             cs.mark_active()
+
+        # TODO: reinsert removed constraints here!!!
 
         self._pop_level()
         # Note: To make sure that the todo list is cleared when there is
@@ -1486,6 +1510,14 @@ class State(object):
         for c, cs in master._cstate.items():
             self._cstate[c] = ConstraintState(c, cs.lower_bound, cs.upper_bound, cs.inactive_level)
 
+        # copy lookup maps
+        self._vl2cs.clear()
+        for var, css in master._vl2cs.items():
+            self._vl2cs[var] = [(co, self._cstate[cs.constraint]) for co, cs in css]
+        self._vu2cs.clear()
+        for var, css in master._vu2cs.items():
+            self._vu2cs[var] = [(co, self._cstate[cs.constraint]) for co, cs in css]
+
         # adjust levels
         lvl, lvl_master = self._level, master._level
         lvl.clear()
@@ -1654,8 +1686,6 @@ class Propagator(object):
         self._l2c = {}                   # map literals to constraints
         self._states = []                # map thread id to states
         self._vars = TodoList()          # list of variables
-        self._vl2c = {}                  # map variables affecting lower bound of constraints
-        self._vu2c = {}                  # map variables affecting upper bound of constraints
         self._minimize = None            # minimize constraint
         self._minimize_bound = None      # bound of the minimize constraint
         self._stats_step = Statistics()  # statistics of the current call
@@ -1666,7 +1696,7 @@ class Propagator(object):
         Get the state associated with the given `thread_id`.
         """
         while len(self._states) <= thread_id:
-            self._states.append(State(self._l2c, self._vl2c, self._vu2c))
+            self._states.append(State(self._l2c))
         return self._states[thread_id]
 
     @property
@@ -1694,6 +1724,8 @@ class Propagator(object):
         def thread_stats(tstat):
             p, c, u = tstat.time_propagate, tstat.time_check, tstat.time_undo
             return OrderedDict([
+                ("Cost", tstat.traversed),
+                ("Remove", tstat.inactive),
                 ("Time total(s)", p+c+u),
                 ("Time propagation(s)", p),
                 ("Time check(s)", c),
@@ -1733,10 +1765,6 @@ class Propagator(object):
         self._l2c.setdefault(lit, []).append(constraint)
         for co, var in constraint.elements:
             self.add_variable(var)
-            if co > 0:
-                self._vl2c.setdefault(var, []).append((co, constraint))
-            else:
-                self._vu2c.setdefault(var, []).append((co, constraint))
 
         self._state(0).add_constraint(constraint)
         self._stats_step.num_constraints += 1
@@ -1867,12 +1895,8 @@ class Propagator(object):
         minimize, self._minimize = self._minimize, None
         if minimize is not None:
             lit = minimize.literal
-            self._l2c.setdefault(lit, []).remove(minimize)
-            for co, var in minimize.elements:
-                if co > 0:
-                    self._vl2c.setdefault(var, []).remove((co, minimize))
-                else:
-                    self._vu2c.setdefault(var, []).remove((co, minimize))
+            self._l2c[lit].remove(minimize)
+            self._state(0).remove_constraint(minimize)
         return minimize
 
     def get_minimize_value(self, thread_id):
