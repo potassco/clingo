@@ -232,11 +232,9 @@ class Constraint(object):
     """
 
     tagged = False
+    is_removable = True
 
     def __init__(self, literal, elements, rhs):
-        """
-        Create a constraint and initialize all members.
-        """
         self.literal = literal
         self.elements = elements
         self._rhs = rhs
@@ -267,6 +265,7 @@ class Minimize(object):
     """
 
     tagged = True
+    is_removable = False
 
     def __init__(self):
         self.literal = TRUE_LIT
@@ -475,9 +474,39 @@ class ConstraintState(object):
     """
     Capture the lower and upper bound of constraints.
     """
-    def __init__(self, lower_bound, upper_bound):
+    def __init__(self, constraint, lower_bound, upper_bound, removable=0):
+        self.constraint = constraint
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+        self.removable = removable
+
+    @property
+    def marked_removable(self):
+        """
+        Returns true if the constraint is marked for removal.
+        """
+        return self.removable > 0
+
+    @marked_removable.setter
+    def marked_removable(self, level):
+        """
+        Mark a constraint removable on the given level.
+        """
+        assert not self.marked_removable
+        self.removable = level+1
+
+    def unmark_removable(self):
+        """
+        Unmark a constraint.
+        """
+        self.removable = 0
+
+    def is_removable(self, level):
+        """
+        A constraint is removable if it has been marked removable on a lower
+        level.
+        """
+        return self.marked_removable and self.removable <= level
 
 
 class Level(object):
@@ -491,12 +520,16 @@ class Level(object):
                   bound.
     undo_lower -- Set of `VarState` objects that have been assigned a lower
                   bound.
+    removable  -- List of constraints that are removable on the next level.
+    removed    -- List of variable/constraint pairs that have been removed.
     """
     def __init__(self, level):
         """
         Construct an empty state for the given decision `level`.
         """
         self.level = level
+        self.removable = []
+        self.removed = []
         # Note: A trail-like data structure would also be possible but then
         # assignments would have to be undone.
         self.undo_upper = TodoList()
@@ -775,7 +808,7 @@ class State(object):
             else:
                 lower += vs.upper_bound*co
                 upper += vs.lower_bound*co
-        self._cstate[constraint] = ConstraintState(lower, upper)
+        self._cstate[constraint] = ConstraintState(constraint, lower, upper)
 
         self._todo.add(constraint)
 
@@ -978,6 +1011,17 @@ class State(object):
         assert lower == self._cstate[c].lower_bound
         assert upper == self._cstate[c].upper_bound
 
+    def _remove_inactive(self, c):
+        """
+        Mark the given constraint removable on the current level.
+        """
+        lvl = self._level
+        if c.is_removable:
+            cs = self._cstate[c]
+            if not cs.marked_removable:
+                cs.marked_removable = lvl.level
+                lvl.removable.append(cs)
+
     def propagate_constraint(self, c, cc):
         """
         This function propagates a constraint that became active because its
@@ -1004,12 +1048,14 @@ class State(object):
 
         # skip constraints that cannot become false
         if rhs is None or self._cstate[c].upper_bound <= rhs:
+            self._remove_inactive(c)
             return True
         slack = rhs-self._cstate[c].lower_bound
 
         # this is necessary to correctly handle empty constraints (and do
         # propagation of false constraints)
         if slack < 0:
+            self._remove_inactive(c)
             _, lbs = self._generate_reason(c, cc)
             return cc.add_clause(lbs, tag=c.tagged)
 
@@ -1194,6 +1240,9 @@ class State(object):
                 assert co*diff < 0
                 self._cstate[constraint].upper_bound -= co*diff
 
+        for cs in lvl.removable:
+            cs.unmark_removable()
+
         self._pop_level()
         # Note: To make sure that the todo list is cleared when there is
         #       already a conflict during propagate.
@@ -1216,7 +1265,6 @@ class State(object):
         This functions propagates facts that have not been integrated on the
         current level and propagates constraints gathered during `propagate`.
         """
-
         ass = cc.assignment
 
         # Note: We have to loop here because watches for the true/false
@@ -1233,10 +1281,11 @@ class State(object):
             # propagate affected constraints
             todo, self._todo = self._todo, TodoList()
             for c in todo:
-                lit = c.literal
-                if not ass.is_false(lit):
+                if not ass.is_false(c.literal):
                     if not self.propagate_constraint(c, cc):
                         return False
+                else:
+                    self._remove_inactive(c)
 
             if self._facts_integrated == self._num_facts:
                 return True
@@ -1435,7 +1484,7 @@ class State(object):
 
         # copy constraint state
         for c, cs in master._cstate.items():
-            self._cstate[c] = ConstraintState(cs.lower_bound, cs.upper_bound)
+            self._cstate[c] = ConstraintState(c, cs.lower_bound, cs.upper_bound, cs.removable)
 
         # adjust levels
         lvl, lvl_master = self._level, master._level
@@ -1444,6 +1493,8 @@ class State(object):
             lvl.undo_lower.add(self._state(vs.var))
         for vs in lvl_master.undo_upper:
             lvl.undo_upper.add(self._state(vs.var))
+        for cs in lvl_master.removable:
+            lvl.removable.append(self._cstate[cs.constraint])
 
 
 class CSPBuilder(object):
