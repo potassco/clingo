@@ -1043,7 +1043,7 @@ class State(object):
         assert lower == cs.lower_bound
         assert upper == cs.upper_bound
 
-    def _remove_inactive(self, cs):
+    def _mark_inactive(self, cs):
         """
         Mark the given constraint inactive on the current level.
         """
@@ -1078,14 +1078,14 @@ class State(object):
 
         # skip constraints that cannot become false
         if rhs is None or cs.upper_bound <= rhs:
-            self._remove_inactive(cs)
+            self._mark_inactive(cs)
             return True
         slack = rhs-cs.lower_bound
 
         # this is necessary to correctly handle empty constraints (and do
         # propagation of false constraints)
         if slack < 0:
-            self._remove_inactive(cs)
+            self._mark_inactive(cs)
             _, lbs = self._generate_reason(cs, cc)
             return cc.add_clause(lbs, tag=cs.constraint.tagged)
 
@@ -1320,7 +1320,7 @@ class State(object):
                     if not self.propagate_constraint(cs, cc):
                         return False
                 else:
-                    self._remove_inactive(cs)
+                    self._mark_inactive(cs)
 
             if self._facts_integrated == self._num_facts:
                 return True
