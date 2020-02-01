@@ -232,7 +232,7 @@ class Constraint(object):
     """
 
     tagged = False
-    is_removable = True
+    removable = True
 
     def __init__(self, literal, elements, rhs):
         self.literal = literal
@@ -265,7 +265,7 @@ class Minimize(object):
     """
 
     tagged = True
-    is_removable = False
+    removable = False
 
     def __init__(self):
         self.literal = TRUE_LIT
@@ -474,18 +474,18 @@ class ConstraintState(object):
     """
     Capture the lower and upper bound of constraints.
     """
-    def __init__(self, constraint, lower_bound, upper_bound, removable=0):
+    def __init__(self, constraint, lower_bound, upper_bound, inactive_level=0):
         self.constraint = constraint
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
-        self.removable = removable
+        self.inactive_level = inactive_level
 
     @property
     def marked_inactive(self):
         """
         Returns true if the constraint is marked inactive.
         """
-        return self.removable > 0
+        return self.inactive_level > 0
 
     @marked_inactive.setter
     def marked_inactive(self, level):
@@ -493,20 +493,20 @@ class ConstraintState(object):
         Mark a constraint as inactive on the given level.
         """
         assert not self.marked_inactive
-        self.removable = level+1
+        self.inactive_level = level+1
 
     def mark_active(self):
         """
         Mark a constraint as active.
         """
-        self.removable = 0
+        self.inactive_level = 0
 
-    def is_removable(self, level):
+    def removable(self, level):
         """
         A constraint is removable if it has been marked inactive on a lower
         level.
         """
-        return self.marked_inactive and self.removable <= level
+        return self.marked_inactive and self.inactive_level <= level
 
 
 class Level(object):
@@ -1016,7 +1016,7 @@ class State(object):
         Mark the given constraint inactive on the current level.
         """
         lvl = self._level
-        if c.is_removable:
+        if c.removable:
             cs = self._cstate[c]
             if not cs.marked_inactive:
                 cs.marked_inactive = lvl.level
@@ -1484,7 +1484,7 @@ class State(object):
 
         # copy constraint state
         for c, cs in master._cstate.items():
-            self._cstate[c] = ConstraintState(c, cs.lower_bound, cs.upper_bound, cs.removable)
+            self._cstate[c] = ConstraintState(c, cs.lower_bound, cs.upper_bound, cs.inactive_level)
 
         # adjust levels
         lvl, lvl_master = self._level, master._level
