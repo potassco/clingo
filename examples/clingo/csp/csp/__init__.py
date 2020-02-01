@@ -481,32 +481,32 @@ class ConstraintState(object):
         self.removable = removable
 
     @property
-    def marked_removable(self):
+    def marked_inactive(self):
         """
-        Returns true if the constraint is marked for removal.
+        Returns true if the constraint is marked inactive.
         """
         return self.removable > 0
 
-    @marked_removable.setter
-    def marked_removable(self, level):
+    @marked_inactive.setter
+    def marked_inactive(self, level):
         """
-        Mark a constraint removable on the given level.
+        Mark a constraint as inactive on the given level.
         """
-        assert not self.marked_removable
+        assert not self.marked_inactive
         self.removable = level+1
 
-    def unmark_removable(self):
+    def mark_active(self):
         """
-        Unmark a constraint.
+        Mark a constraint as active.
         """
         self.removable = 0
 
     def is_removable(self, level):
         """
-        A constraint is removable if it has been marked removable on a lower
+        A constraint is removable if it has been marked inactive on a lower
         level.
         """
-        return self.marked_removable and self.removable <= level
+        return self.marked_inactive and self.removable <= level
 
 
 class Level(object):
@@ -520,7 +520,7 @@ class Level(object):
                   bound.
     undo_lower -- Set of `VarState` objects that have been assigned a lower
                   bound.
-    removable  -- List of constraints that are removable on the next level.
+    inactive   -- List of constraints that are inactive on the next level.
     removed    -- List of variable/constraint pairs that have been removed.
     """
     def __init__(self, level):
@@ -528,7 +528,7 @@ class Level(object):
         Construct an empty state for the given decision `level`.
         """
         self.level = level
-        self.removable = []
+        self.inactive = []
         self.removed = []
         # Note: A trail-like data structure would also be possible but then
         # assignments would have to be undone.
@@ -1013,14 +1013,14 @@ class State(object):
 
     def _remove_inactive(self, c):
         """
-        Mark the given constraint removable on the current level.
+        Mark the given constraint inactive on the current level.
         """
         lvl = self._level
         if c.is_removable:
             cs = self._cstate[c]
-            if not cs.marked_removable:
-                cs.marked_removable = lvl.level
-                lvl.removable.append(cs)
+            if not cs.marked_inactive:
+                cs.marked_inactive = lvl.level
+                lvl.inactive.append(cs)
 
     def propagate_constraint(self, c, cc):
         """
@@ -1240,8 +1240,8 @@ class State(object):
                 assert co*diff < 0
                 self._cstate[constraint].upper_bound -= co*diff
 
-        for cs in lvl.removable:
-            cs.unmark_removable()
+        for cs in lvl.inactive:
+            cs.mark_active()
 
         self._pop_level()
         # Note: To make sure that the todo list is cleared when there is
@@ -1493,8 +1493,8 @@ class State(object):
             lvl.undo_lower.add(self._state(vs.var))
         for vs in lvl_master.undo_upper:
             lvl.undo_upper.add(self._state(vs.var))
-        for cs in lvl_master.removable:
-            lvl.removable.append(self._cstate[cs.constraint])
+        for cs in lvl_master.inactive:
+            lvl.inactive.append(self._cstate[cs.constraint])
 
 
 class CSPBuilder(object):
