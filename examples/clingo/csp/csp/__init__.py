@@ -70,8 +70,6 @@ class ThreadStatistics(object):
         self.time_propagate = 0
         self.time_check = 0
         self.time_undo = 0
-        self.traversed = 0
-        self.inactive = 0
 
     def reset(self):
         """
@@ -80,8 +78,6 @@ class ThreadStatistics(object):
         self.time_propagate = 0
         self.time_check = 0
         self.time_undo = 0
-        self.traversed = 0
-        self.inactive = 0
 
     def accu(self, stat):
         """
@@ -90,8 +86,6 @@ class ThreadStatistics(object):
         self.time_propagate += stat.time_propagate
         self.time_check += stat.time_check
         self.time_undo += stat.time_undo
-        self.traversed += stat.traversed
-        self.inactive += stat.inactive
 
 
 class Statistics(object):
@@ -535,7 +529,8 @@ class Level(object):
         """
         self.level = level
         self.inactive = []
-        self.removed = []
+        self.removed_vl2cs = []
+        self.removed_vu2cs = []
         # Note: A trail-like data structure would also be possible but then
         # assignments would have to be undone.
         self.undo_upper = TodoList()
@@ -922,22 +917,33 @@ class State(object):
 
         return True
 
-    def _update_constraints(self, var, diff, u2, l2):
-        # TODO: this function should actually remove inactive constraints
-        lvl = self._level
-        for co, cs in u2.get(var, []):
-            self.statistics.traversed += 1
-            if cs.removable(lvl.level):
-                self.statistics.inactive += 1
-            assert co*diff < 0
-            cs.upper_bound += co*diff
-        for co, cs in l2.get(var, []):
-            self.statistics.traversed += 1
-            if cs.removable(lvl.level):
-                self.statistics.inactive += 1
-            assert co*diff > 0
-            cs.lower_bound += co*diff
-            self._todo.add(cs.constraint)
+    def _update_constraints(self, var, diff, m, r, upper):
+        """
+        Traverses the lookup tables for constraints removing inactive
+        constraints.
+
+        The parameters determine whether the lookup tables for lower or upper
+        bounds are used.
+        """
+        level = self._level.level
+
+        l = m.get(var, [])
+        i = 0
+        for j, (co, cs) in enumerate(l):
+            if not cs.removable(level):
+                if upper:
+                    assert co*diff < 0
+                    cs.upper_bound += co*diff
+                else:
+                    assert co*diff > 0
+                    cs.lower_bound += co*diff
+                    self._todo.add(cs.constraint)
+                if i < j:
+                    l[i], l[j] = l[j], l[i]
+                i += 1
+            else:
+                r.append((var, co, cs))
+        del l[i:]
 
     def _update_domain(self, cc, lit):
         """
@@ -961,7 +967,8 @@ class State(object):
                     if lvl.undo_upper.add(vs):
                         vs.push_upper()
                     vs.upper_bound = value
-                    self._update_constraints(vs.var, diff, self._vl2cs, self._vu2cs)
+                    self._update_constraints(vs.var, diff, self._vl2cs, lvl.removed_vl2cs, True)
+                    self._update_constraints(vs.var, diff, self._vu2cs, lvl.removed_vu2cs, False)
 
                 # make succeeding literal true
                 succ = vs.succ_value(value)
@@ -978,7 +985,8 @@ class State(object):
                     if lvl.undo_lower.add(vs):
                         vs.push_lower()
                     vs.lower_bound = value+1
-                    self._update_constraints(vs.var, diff, self._vu2cs, self._vl2cs)
+                    self._update_constraints(vs.var, diff, self._vu2cs, lvl.removed_vu2cs, True)
+                    self._update_constraints(vs.var, diff, self._vl2cs, lvl.removed_vl2cs, False)
 
                 # make preceeding literal false
                 prev = vs.prev_value(value)
@@ -1064,7 +1072,7 @@ class State(object):
         rhs = c.rhs(self)
 
         # Note: this has a noticible cost because of the shortcuts below
-        if CHECK_STATE:
+        if CHECK_STATE and not self._cstate[c].marked_inactive:
             self._check_state(c)
         assert not ass.is_false(c.literal)
 
@@ -1265,7 +1273,10 @@ class State(object):
         for cs in lvl.inactive:
             cs.mark_active()
 
-        # TODO: reinsert removed constraints here!!!
+        for var, co, cs in lvl.removed_vl2cs:
+            self._vl2cs[var].append((co, cs))
+        for var, co, cs in lvl.removed_vu2cs:
+            self._vu2cs[var].append((co, cs))
 
         self._pop_level()
         # Note: To make sure that the todo list is cleared when there is
@@ -1724,8 +1735,6 @@ class Propagator(object):
         def thread_stats(tstat):
             p, c, u = tstat.time_propagate, tstat.time_check, tstat.time_undo
             return OrderedDict([
-                ("Cost", tstat.traversed),
-                ("Remove", tstat.inactive),
                 ("Time total(s)", p+c+u),
                 ("Time propagation(s)", p),
                 ("Time check(s)", c),
@@ -1763,7 +1772,7 @@ class Propagator(object):
         lit = constraint.literal
         init.add_watch(lit)
         self._l2c.setdefault(lit, []).append(constraint)
-        for co, var in constraint.elements:
+        for _, var in constraint.elements:
             self.add_variable(var)
 
         self._state(0).add_constraint(constraint)
