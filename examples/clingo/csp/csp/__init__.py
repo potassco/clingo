@@ -514,6 +514,93 @@ class ConstraintState(object):
         """
         return self.marked_inactive and self.inactive_level <= level
 
+    def copy(self):
+        return ConstraintState(self.constraint, self.lower_bound, self.upper_bound, self.inactive_level)
+
+    @property
+    def literal(self):
+        return self.constraint.literal
+
+    @property
+    def tagged_removable(self):
+        return self.constraint.removable
+
+    def undo(self, diff):
+        if diff > 0:
+            self.lower_bound -= diff
+        else:
+            self.upper_bound -= diff
+
+    def update(self, diff):
+        assert diff != 0
+        if diff < 0:
+            self.upper_bound += diff
+            return False
+        else:
+            self.lower_bound += diff
+            return True
+
+    def propagate(self, state, cc):
+        # default for constraints
+        return state.propagate_constraint(self, cc)
+
+
+class DistinctState(object):
+    """
+    Capture the lower and upper bound of constraints.
+    """
+    def __init__(self, constraint, inactive_level=0):
+        self.constraint = constraint
+        self.inactive_level = inactive_level
+
+    @property
+    def marked_inactive(self):
+        """
+        Returns true if the distinct is marked inactive.
+        """
+        return self.inactive_level > 0
+
+    @marked_inactive.setter
+    def marked_inactive(self, level):
+        """
+        Mark a distinct constraint as inactive on the given level.
+        """
+        assert not self.marked_inactive
+        self.inactive_level = level+1
+
+    def mark_active(self):
+        """
+        Mark a distinct constraint as active.
+        """
+        self.inactive_level = 0
+
+    def removable(self, level):
+        """
+        A distinct constraint is removable if it has been marked inactive on a
+        lower level.
+        """
+        return self.marked_inactive and self.inactive_level <= level
+
+    def copy(self):
+        return DistinctState(self.constraint, self.inactive_level)
+
+    @property
+    def literal(self):
+        return self.constraint.literal
+
+    @property
+    def tagged_removable(self):
+        return True
+
+    def update(self, diff):
+        return True
+
+    def undo(self, diff):
+        pass
+
+    def propagate(self, state, cc):
+        return state.propagate_distinct(self, cc)
+
 
 class Level(object):
     """
@@ -834,7 +921,17 @@ class State(object):
         del self._cstate[constraint]
 
     def add_distinct(self, distinct):
-        self._distincts.append(distinct)
+        ds = DistinctState(distinct)
+        vs = set()
+        for _, elements in distinct.elements:
+            for co, var in elements:
+                vs.add(var)
+        for var in vs:
+            self._vl2cs.setdefault(var, []).append((1, ds))
+            self._vu2cs.setdefault(var, []).append((-1, ds))
+        self._cstate[distinct] = ds
+
+        self._todo.add(ds)
 
     def simplify(self, init):
         """
@@ -929,7 +1026,7 @@ class State(object):
 
         return True
 
-    def _update_constraints(self, var, diff, m, r, upper):
+    def _update_constraints(self, var, diff, m, r):
         """
         Traverses the lookup tables for constraints removing inactive
         constraints.
@@ -943,12 +1040,7 @@ class State(object):
         i = 0
         for j, (co, cs) in enumerate(l):
             if not cs.removable(level):
-                if upper:
-                    assert co*diff < 0
-                    cs.upper_bound += co*diff
-                else:
-                    assert co*diff > 0
-                    cs.lower_bound += co*diff
+                if cs.update(co*diff):
                     self._todo.add(cs)
                 if i < j:
                     l[i], l[j] = l[j], l[i]
@@ -979,8 +1071,8 @@ class State(object):
                     if lvl.undo_upper.add(vs):
                         vs.push_upper()
                     vs.upper_bound = value
-                    self._update_constraints(vs.var, diff, self._vl2cs, lvl.removed_vl2cs, True)
-                    self._update_constraints(vs.var, diff, self._vu2cs, lvl.removed_vu2cs, False)
+                    self._update_constraints(vs.var, diff, self._vl2cs, lvl.removed_vl2cs)
+                    self._update_constraints(vs.var, diff, self._vu2cs, lvl.removed_vu2cs)
 
                 # make succeeding literal true
                 succ = vs.succ_value(value)
@@ -997,8 +1089,8 @@ class State(object):
                     if lvl.undo_lower.add(vs):
                         vs.push_lower()
                     vs.lower_bound = value+1
-                    self._update_constraints(vs.var, diff, self._vu2cs, lvl.removed_vu2cs, True)
-                    self._update_constraints(vs.var, diff, self._vl2cs, lvl.removed_vl2cs, False)
+                    self._update_constraints(vs.var, diff, self._vu2cs, lvl.removed_vu2cs)
+                    self._update_constraints(vs.var, diff, self._vl2cs, lvl.removed_vl2cs)
 
                 # make preceeding literal false
                 prev = vs.prev_value(value)
@@ -1058,7 +1150,7 @@ class State(object):
         Mark the given constraint inactive on the current level.
         """
         lvl = self._level
-        if cs.constraint.removable and not cs.marked_inactive:
+        if cs.tagged_removable and not cs.marked_inactive:
             cs.marked_inactive = lvl.level
             lvl.inactive.append(cs)
 
@@ -1150,9 +1242,10 @@ class State(object):
 
         return True
 
-    def propagate_distinct(self, distinct, cc):
+    def propagate_distinct(self, ds, cc):
         # TODO: this state has to be updated incrementally
         # Note: a sorted set would be better
+        distinct = ds.constraint
         map_upper = SortedDict()
         map_lower = SortedDict()
         for i, term in enumerate(distinct.elements):
@@ -1347,22 +1440,18 @@ class State(object):
             vs.pop_lower()
             diff = value - vs.lower_bound
             for co, cs in self._vl2cs.get(vs.var, []):
-                assert co*diff > 0
-                cs.lower_bound -= co*diff
+                cs.undo(co*diff)
             for co, cs in self._vu2cs.get(vs.var, []):
-                assert co*diff < 0
-                cs.upper_bound -= co*diff
+                cs.undo(co*diff)
 
         for vs in lvl.undo_upper:
             value = vs.upper_bound
             vs.pop_upper()
             diff = value - vs.upper_bound
             for co, cs in self._vu2cs.get(vs.var, []):
-                assert co*diff > 0
-                cs.lower_bound -= co*diff
+                cs.undo(co*diff)
             for co, cs in self._vl2cs.get(vs.var, []):
-                assert co*diff < 0
-                cs.upper_bound -= co*diff
+                cs.undo(co*diff)
 
         for cs in lvl.inactive:
             cs.mark_active()
@@ -1410,8 +1499,8 @@ class State(object):
             # propagate affected constraints
             todo, self._todo = self._todo, TodoList()
             for cs in todo:
-                if not ass.is_false(cs.constraint.literal):
-                    if not self.propagate_constraint(cs, cc):
+                if not ass.is_false(cs.literal):
+                    if not cs.propagate(self, cc):
                         return False
                 else:
                     self._mark_inactive(cs)
@@ -1619,7 +1708,7 @@ class State(object):
 
         # copy constraint state
         for c, cs in master._cstate.items():
-            self._cstate[c] = ConstraintState(c, cs.lower_bound, cs.upper_bound, cs.inactive_level)
+            self._cstate[c] = cs.copy()
 
         # copy lookup maps
         self._vl2cs.clear()
