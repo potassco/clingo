@@ -279,6 +279,12 @@ class Minimize(object):
         return state.minimize_bound
 
 
+class Distinct:
+    def __init__(self, literal, elements):
+        self.literal = literal
+        self.elements = elements
+
+
 class VarState(object):
     """
     Class to facilitate handling order literals associated with an integer
@@ -610,6 +616,7 @@ class State(object):
         self._minimize_level = 0
         self.statistics = ThreadStatistics()
         self._cstate = {}
+        self._distincts = []
 
     @property
     def minimize_bound(self):
@@ -825,6 +832,9 @@ class State(object):
             else:
                 self._vu2cs.setdefault(var, []).remove((co, cs))
         del self._cstate[constraint]
+
+    def add_distinct(self, distinct):
+        self._distincts.append(distinct)
 
     def simplify(self, init):
         """
@@ -1140,6 +1150,90 @@ class State(object):
 
         return True
 
+    def propagate_distinct(self, distinct, cc):
+        # TODO: this state has to be updated incrementally
+        # Note: a sorted set would be better
+        map_upper = SortedDict()
+        map_lower = SortedDict()
+        for i, term in enumerate(distinct.elements):
+            upper = term[0]
+            lower = term[0]
+            for co, var in term[1]:
+                if co > 0:
+                    upper += co*self._state(var).upper_bound
+                    lower += co*self._state(var).lower_bound
+                else:
+                    upper += co*self._state(var).lower_bound
+                    lower += co*self._state(var).upper_bound
+            map_upper[(upper, i)] = None
+            map_lower[(lower, i)] = None
+
+        for upper, i in map_upper:
+            if (upper, i) in map_lower:
+                for it in range(map_upper.bisect_left((upper, 0)), len(map_upper)):
+                    (value, j), _ = map_upper.peekitem(it)
+                    if value != upper:
+                        break
+                    if i != j:
+                        # example: x != y+z
+                        # x <= 10 & not x <= 9 & y <= 5 & z <= 5 => y <= 4 | z <= 4
+                        # example: x != -y
+                        # x <= 9 & not x <= 8 &     y >= -9  =>     y >= -8
+                        # x <= 9 & not x <= 8 & not y <= -10 => not y <= -9
+                        reason = []
+                        for _, var in distinct.elements[i][1]:
+                            vs = self._state(var)
+                            reason.append(-self._get_literal(vs, vs.upper_bound, cc))
+                            reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
+                        for co, var in distinct.elements[j][1]:
+                            vs = self._state(var)
+                            if co > 0:
+                                reason.append(-self._get_literal(vs, vs.upper_bound, cc))
+                                # Note: This literal does not necessarily exist.
+                                reason.append(self._get_literal(vs, vs.upper_bound-1, cc))
+                            else:
+                                reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
+                                # Note: This literal does not necessarily exist.
+                                reason.append(-self._get_literal(vs, vs.lower_bound, cc))
+                        # Note: A reason generated like this is not necessarily
+                        #       unit. Implementing proper unit propagation for
+                        #       arbitrary linear terms would be quite involved.
+                        #       This implementation still works because it
+                        #       guarantees conflict detection. The whole
+                        #       situation could be simplified by restricting
+                        #       the syntax of distinct constraints.
+                        if not cc.add_clause(reason):
+                            return False
+                for it in range(map_lower.bisect_left((upper, 0)), len(map_lower)):
+                    # example: x != y
+                    # x = 9 & y >= 9 => y >= 10
+                    # x <= 9 & not x <= 8 & not y <= 8 => not y <= 9
+                    # example: x != -y
+                    # x <= 9 & not x <= 8 & y <= -9 => y <= -10
+                    (value, j), _ = map_lower.peekitem(it)
+                    if value != upper:
+                        break
+                    if i != j:
+                        reason = []
+                        for _, var in distinct.elements[i][1]:
+                            vs = self._state(var)
+                            reason.append(-self._get_literal(vs, vs.upper_bound, cc))
+                            reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
+                        for co, var in distinct.elements[j][1]:
+                            vs = self._state(var)
+                            if co > 0:
+                                reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
+                                # Note: This literal does not necessarily exist.
+                                reason.append(-self._get_literal(vs, vs.lower_bound, cc))
+                            else:
+                                reason.append(-self._get_literal(vs, vs.upper_bound, cc))
+                                # Note: This literal does not necessarily exist.
+                                reason.append(self._get_literal(vs, vs.upper_bound-1, cc))
+                        if not cc.add_clause(reason):
+                            return False
+
+        return True
+
     def integrate_domain(self, cc, literal, var, domain):
         """
         Integrates the given domain for varibale var.
@@ -1321,6 +1415,12 @@ class State(object):
                         return False
                 else:
                     self._mark_inactive(cs)
+
+            if self._level.level == ass.decision_level:
+                for distinct in self._distincts:
+                    if not ass.is_false(distinct.literal):
+                        if not self.propagate_distinct(distinct, cc):
+                            return False
 
             if self._facts_integrated == self._num_facts:
                 return True
@@ -1539,6 +1639,9 @@ class State(object):
         for cs in lvl_master.inactive:
             lvl.inactive.append(self._cstate[cs.constraint])
 
+        # copy distincts
+        self._distincts = master._distincts
+
 
 class CSPBuilder(object):
     """
@@ -1633,6 +1736,14 @@ class CSPBuilder(object):
           `term - rhs`.
         """
         if self.assignment.is_false(literal):
+            return
+
+        if len(elems) > 2:
+            for term in elems:
+                for _, var in term[1]:
+                    self._propagator.add_variable(var)
+
+            self._propagator.add_distinct(Distinct(literal, elems))
             return
 
         for i, (rhs_i, elems_i) in enumerate(elems):
@@ -1777,6 +1888,9 @@ class Propagator(object):
 
         self._state(0).add_constraint(constraint)
         self._stats_step.num_constraints += 1
+
+    def add_distinct(self, distinct):
+        self._state(0).add_distinct(distinct)
 
     @measure_time("time_init")
     def init(self, init):
