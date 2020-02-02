@@ -552,6 +552,11 @@ class DistinctState(object):
     def __init__(self, constraint, inactive_level=0):
         self.constraint = constraint
         self.inactive_level = inactive_level
+        self.dirty = set()
+        self.todo = TodoList()
+        self.map_upper = {}
+        self.map_lower = {}
+        self.assigned = {}
 
     @property
     def marked_inactive(self):
@@ -582,7 +587,13 @@ class DistinctState(object):
         return self.marked_inactive and self.inactive_level <= level
 
     def copy(self):
-        return DistinctState(self.constraint, self.inactive_level)
+        ds = DistinctState(self.constraint, self.inactive_level)
+        for value, indices in self.map_upper.items():
+            ds.map_upper[value] = indices[:]
+        for value, indices in self.map_lower.items():
+            ds.map_lower[value] = indices[:]
+        ds.assigned = self.assigned.copy()
+        return ds
 
     @property
     def literal(self):
@@ -592,11 +603,38 @@ class DistinctState(object):
     def tagged_removable(self):
         return True
 
-    def update(self, co, diff):
+    def init(self, state, i):
+        # calculate new values
+        value, elements = self.constraint.elements[i]
+        upper = lower = value
+        for co, var in elements:
+            if co > 0:
+                upper += co*state._state(var).upper_bound
+                lower += co*state._state(var).lower_bound
+            else:
+                upper += co*state._state(var).lower_bound
+                lower += co*state._state(var).upper_bound
+        # set new values
+        self.assigned[i] = (lower, upper)
+        self.map_upper.setdefault(upper, []).append(i)
+        self.map_lower.setdefault(lower, []).append(i)
+
+    def _update(self, state):
+        for i in self.dirty:
+            lower, upper = self.assigned[i]
+            self.map_lower[lower].remove(i)
+            self.map_upper[upper].remove(i)
+            self.init(state, i)
+        self.dirty.clear()
+
+    def update(self, i, _):
+        self.dirty.add(abs(i))
+        self.todo.add(i)
         return True
 
-    def undo(self, co, diff):
-        pass
+    def undo(self, i, _):
+        self.dirty.add(abs(i))
+        self.todo.clear()
 
     def propagate(self, state, cc):
         return state.propagate_distinct(self, cc)
@@ -921,13 +959,13 @@ class State(object):
 
     def add_distinct(self, distinct):
         ds = DistinctState(distinct)
-        vs = set()
-        for _, elements in distinct.elements:
+        for i, (_, elements) in enumerate(distinct.elements):
+            ds.init(self, i)
             for co, var in elements:
-                vs.add(var)
-        for var in vs:
-            self._vl2cs.setdefault(var, []).append((1, ds))
-            self._vu2cs.setdefault(var, []).append((-1, ds))
+                if co > 0:
+                    self._vl2cs.setdefault(var, []).append((i, ds))
+                else:
+                    self._vu2cs.setdefault(var, []).append((-i, ds))
         self._cstate[distinct] = ds
 
         self._todo.add(ds)
@@ -1241,86 +1279,76 @@ class State(object):
 
         return True
 
-    def propagate_distinct(self, ds, cc):
-        # TODO: this state has to be updated incrementally
-        # Note: a sorted set would be better
-        distinct = ds.constraint
-        map_upper = {}
-        map_lower = {}
-        assigned = []
-        for i, term in enumerate(distinct.elements):
-            upper = term[0]
-            lower = term[0]
-            for co, var in term[1]:
-                if co > 0:
-                    upper += co*self._state(var).upper_bound
-                    lower += co*self._state(var).lower_bound
-                else:
-                    upper += co*self._state(var).lower_bound
-                    lower += co*self._state(var).upper_bound
-            map_upper.setdefault(upper, []).append(i)
-            map_lower.setdefault(lower, []).append(i)
-            if upper == lower:
-                assigned.append((upper, i))
+    def _propagate_distinct(self, cc, distinct, s, i, j):
+        # case s > 0:
+        #   example: x != y+z
+        #     x <= 10 & not x <= 9 & y <= 5 & z <= 5 => y <= 4 | z <= 4
+        #   example: x != -y
+        #     x <= 9 & not x <= 8 &     y >= -9  =>     y >= -8
+        #     x <= 9 & not x <= 8 & not y <= -10 => not y <= -9
+        # case s < 0:
+        #   example: x != y
+        #     x = 9 & y >= 9 => y >= 10
+        #     x <= 9 & not x <= 8 & not y <= 8 => not y <= 9
+        #   example: x != -y
+        #     x <= 9 & not x <= 8 & y <= -9 => y <= -10
+        reason = []
+        for _, var in distinct.elements[i][1]:
+            vs = self._state(var)
+            assert vs.upper_bound == vs.lower_bound
+            reason.append(-self._get_literal(vs, vs.upper_bound, cc))
+            reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
+        for co, var in distinct.elements[j][1]:
+            vs = self._state(var)
+            if s*co > 0:
+                reason.append(-self._get_literal(vs, vs.upper_bound, cc))
+                # Note: This literal does not necessarily exist.
+                reason.append(self._get_literal(vs, vs.upper_bound-1, cc))
+            else:
+                reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
+                # Note: This literal does not necessarily exist.
+                reason.append(-self._get_literal(vs, vs.lower_bound, cc))
+        # Note: A reason generated like this is not necessarily
+        #       unit. Implementing proper unit propagation for
+        #       arbitrary linear terms would be quite involved.
+        #       This implementation still works because it
+        #       guarantees conflict detection. The whole
+        #       situation could be simplified by restricting
+        #       the syntax of distinct constraints.
+        return cc.add_clause(reason)
 
-        for value, i in assigned:
-            for j in map_upper[value]:
-                if i == j:
-                    continue
-                # example: x != y+z
-                # x <= 10 & not x <= 9 & y <= 5 & z <= 5 => y <= 4 | z <= 4
-                # example: x != -y
-                # x <= 9 & not x <= 8 &     y >= -9  =>     y >= -8
-                # x <= 9 & not x <= 8 & not y <= -10 => not y <= -9
-                reason = []
-                for _, var in distinct.elements[i][1]:
-                    vs = self._state(var)
-                    reason.append(-self._get_literal(vs, vs.upper_bound, cc))
-                    reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
-                for co, var in distinct.elements[j][1]:
-                    vs = self._state(var)
-                    if co > 0:
-                        reason.append(-self._get_literal(vs, vs.upper_bound, cc))
-                        # Note: This literal does not necessarily exist.
-                        reason.append(self._get_literal(vs, vs.upper_bound-1, cc))
-                    else:
-                        reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
-                        # Note: This literal does not necessarily exist.
-                        reason.append(-self._get_literal(vs, vs.lower_bound, cc))
-                # Note: A reason generated like this is not necessarily
-                #       unit. Implementing proper unit propagation for
-                #       arbitrary linear terms would be quite involved.
-                #       This implementation still works because it
-                #       guarantees conflict detection. The whole
-                #       situation could be simplified by restricting
-                #       the syntax of distinct constraints.
-                if not cc.add_clause(reason):
-                    return False
-            for j in map_lower[value]:
-                # example: x != y
-                # x = 9 & y >= 9 => y >= 10
-                # x <= 9 & not x <= 8 & not y <= 8 => not y <= 9
-                # example: x != -y
-                # x <= 9 & not x <= 8 & y <= -9 => y <= -10
-                if i == j:
-                    continue
-                reason = []
-                for _, var in distinct.elements[i][1]:
-                    vs = self._state(var)
-                    reason.append(-self._get_literal(vs, vs.upper_bound, cc))
-                    reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
-                for co, var in distinct.elements[j][1]:
-                    vs = self._state(var)
-                    if co > 0:
-                        reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
-                        # Note: This literal does not necessarily exist.
-                        reason.append(-self._get_literal(vs, vs.lower_bound, cc))
-                    else:
-                        reason.append(-self._get_literal(vs, vs.upper_bound, cc))
-                        # Note: This literal does not necessarily exist.
-                        reason.append(self._get_literal(vs, vs.upper_bound-1, cc))
-                if not cc.add_clause(reason):
-                    return False
+    def propagate_distinct(self, ds, cc):
+        distinct = ds.constraint
+
+        ds._update(self)
+
+        for i in ds.todo:
+            j = abs(i)
+            lower, upper = ds.assigned[j]
+            if lower == upper:
+                for k in ds.map_upper[upper]:
+                    if j != k and not self._propagate_distinct(cc, distinct, 1, j, k):
+                        return False
+                for k in ds.map_lower[lower]:
+                    if j != k and not self._propagate_distinct(cc, distinct, -1, j, k):
+                        return False
+            elif i < 0:
+                for k in ds.map_upper[upper]:
+                    if ds.assigned[k][0] == ds.assigned[k][1]:
+                        if k in ds.todo or -k in ds.todo:
+                            break
+                        if not self._propagate_distinct(cc, distinct, 1, k, j):
+                            return False
+                        break
+            else:
+                for k in ds.map_lower[lower]:
+                    if ds.assigned[k][0] == ds.assigned[k][1]:
+                        if k in ds.todo or -k in ds.todo:
+                            break
+                        if not self._propagate_distinct(cc, distinct, -1, k, j):
+                            return False
+                        break
+        ds.todo.clear()
 
         return True
 
@@ -1968,6 +1996,7 @@ class Propagator(object):
 
     def add_distinct(self, distinct):
         self._state(0).add_distinct(distinct)
+        self._stats_step.num_constraints += 1
 
     @measure_time("time_init")
     def init(self, init):
