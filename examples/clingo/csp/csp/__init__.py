@@ -967,6 +967,8 @@ class State(object):
     _minimize_level   -- The minimize constraint might not have been fully
                          propagated below this level. See `update_minimize`.
     _cstate           -- A dictionary mapping constraints to their states.
+    _udiff, _ldiff    -- Changes to upper and lower bounds since the last call
+                         to check.
     """
     def __init__(self, l2c):
         """
