@@ -662,6 +662,7 @@ class Level(object):
         """
         self.level = level
         self.inactive = []
+        # TODO: can be combined with the latest set of patches!!!
         self.removed_vl2cs = []
         self.removed_vu2cs = []
         # Note: A trail-like data structure would also be possible but then
@@ -730,6 +731,7 @@ class State(object):
         self._var_state = {}
         self._litmap = {}
         self._levels = [Level(0)]
+        # TODO: can be combined with the latest set of patches!!!
         self._vl2cs = {}
         self._vu2cs = {}
         self._l2c = l2c
@@ -1294,17 +1296,21 @@ class State(object):
         #     x <= 9 & not x <= 8 & y <= -9 => y <= -10
         reason = []
         for _, var in distinct.elements[i][1]:
+            # TODO: assert assigned
             vs = self._state(var)
             assert vs.upper_bound == vs.lower_bound
             reason.append(-self._get_literal(vs, vs.upper_bound, cc))
             reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
         for co, var in distinct.elements[j][1]:
+            # TODO: use update_literal if possible and do not add sat clauses
             vs = self._state(var)
             if s*co > 0:
+                # TODO: assert assigned
                 reason.append(-self._get_literal(vs, vs.upper_bound, cc))
                 # Note: This literal does not necessarily exist.
                 reason.append(self._get_literal(vs, vs.upper_bound-1, cc))
             else:
+                # TODO: assert assigned
                 reason.append(self._get_literal(vs, vs.lower_bound-1, cc))
                 # Note: This literal does not necessarily exist.
                 reason.append(-self._get_literal(vs, vs.lower_bound, cc))
