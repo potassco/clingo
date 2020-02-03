@@ -56,14 +56,14 @@ def simplify(seq, drop_zero):
     elements = []
     seen = {}
     rhs = 0
-    for i, (co, var) in enumerate(seq):
+    for co, var in seq:
         if co == 0:
             continue
 
         if var is None:
             rhs -= co
         elif var not in seen:
-            seen[var] = i
+            seen[var] = len(elements)
             elements.append((co, var))
         else:
             co_old, var_old = elements[seen[var]]
