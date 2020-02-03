@@ -739,7 +739,7 @@ class DistinctState(AbstractConstraintState):
     def __init__(self, constraint):
         AbstractConstraintState.__init__(self)
         self.constraint = constraint
-        self.dirty = set()
+        self.dirty = TodoList()
         self.todo = TodoList()
         self.map_upper = {}
         self.map_lower = {}
