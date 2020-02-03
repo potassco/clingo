@@ -920,8 +920,6 @@ class Level(object):
         # assignments would have to be undone.
         self.undo_upper = TodoList()
         self.undo_lower = TodoList()
-        self.udiff = OrderedDict()
-        self.ldiff = OrderedDict()
 
     def clear(self):
         """
@@ -989,6 +987,8 @@ class State(object):
         self._minimize_level = 0
         self.statistics = ThreadStatistics()
         self._cstate = {}
+        self._udiff = OrderedDict()
+        self._ldiff = OrderedDict()
 
     @property
     def minimize_bound(self):
@@ -1355,8 +1355,8 @@ class State(object):
                     if lvl.undo_upper.add(vs):
                         vs.push_upper()
                     vs.upper_bound = value
-                    lvl.udiff.setdefault(vs.var, 0)
-                    lvl.udiff[vs.var] += diff
+                    self._udiff.setdefault(vs.var, 0)
+                    self._udiff[vs.var] += diff
 
                 # make succeeding literal true
                 succ = vs.succ_value(value)
@@ -1373,8 +1373,8 @@ class State(object):
                     if lvl.undo_lower.add(vs):
                         vs.push_lower()
                     vs.lower_bound = value+1
-                    lvl.ldiff.setdefault(vs.var, 0)
-                    lvl.ldiff[vs.var] += diff
+                    self._ldiff.setdefault(vs.var, 0)
+                    self._ldiff[vs.var] += diff
 
                 # make preceeding literal false
                 prev = vs.prev_value(value)
@@ -1503,18 +1503,20 @@ class State(object):
         for vs in lvl.undo_lower:
             value = vs.lower_bound
             vs.pop_lower()
-            diff = value - vs.lower_bound - lvl.ldiff.get(vs.var, 0)
+            diff = value - vs.lower_bound - self._ldiff.get(vs.var, 0)
             if diff != 0:
                 for co, cs in self._v2cs.get(vs.var, []):
                     cs.undo(co, diff)
+        self._ldiff.clear()
 
         for vs in lvl.undo_upper:
             value = vs.upper_bound
             vs.pop_upper()
-            diff = value - vs.upper_bound - lvl.udiff.get(vs.var, 0)
+            diff = value - vs.upper_bound - self._udiff.get(vs.var, 0)
             if diff != 0:
                 for co, cs in self._v2cs.get(vs.var, []):
                     cs.undo(co, diff)
+        self._udiff.clear()
 
         for cs in lvl.inactive:
             cs.mark_active()
@@ -1561,12 +1563,12 @@ class State(object):
                 self._facts_integrated = self._num_facts
 
             # update the bounds of the constraints
-            for var, diff in lvl.udiff.items():
+            for var, diff in self._udiff.items():
                 self._update_constraints(var, diff)
-            lvl.udiff.clear()
-            for var, diff in lvl.ldiff.items():
+            self._udiff.clear()
+            for var, diff in self._ldiff.items():
                 self._update_constraints(var, diff)
-            lvl.ldiff.clear()
+            self._ldiff.clear()
 
             # propagate affected constraints
             todo, self._todo = self._todo, TodoList()
