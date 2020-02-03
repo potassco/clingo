@@ -628,12 +628,12 @@ class DistinctState(object):
         self.dirty.clear()
 
     def update(self, i, _):
-        self.dirty.add(abs(i))
+        self.dirty.add(abs(i)-1)
         self.todo.add(i)
         return True
 
     def undo(self, i, _):
-        self.dirty.add(abs(i))
+        self.dirty.add(abs(i)-1)
         self.todo.clear()
 
     def propagate(self, state, cc):
@@ -963,9 +963,9 @@ class State(object):
             ds.init(self, i)
             for co, var in elements:
                 if co > 0:
-                    self._vl2cs.setdefault(var, []).append((i, ds))
+                    self._vl2cs.setdefault(var, []).append((i+1, ds))
                 else:
-                    self._vu2cs.setdefault(var, []).append((-i, ds))
+                    self._vu2cs.setdefault(var, []).append((-i-1, ds))
         self._cstate[distinct] = ds
 
         self._todo.add(ds)
@@ -1323,7 +1323,7 @@ class State(object):
         ds._update(self)
 
         for i in ds.todo:
-            j = abs(i)
+            j = abs(i)-1
             lower, upper = ds.assigned[j]
             if lower == upper:
                 for k in ds.map_upper[upper]:
@@ -1335,7 +1335,7 @@ class State(object):
             elif i < 0:
                 for k in ds.map_upper[upper]:
                     if ds.assigned[k][0] == ds.assigned[k][1]:
-                        if k in ds.todo or -k in ds.todo:
+                        if k+1 in ds.todo or -k-1 in ds.todo:
                             break
                         if not self._propagate_distinct(cc, distinct, 1, k, j):
                             return False
@@ -1343,7 +1343,7 @@ class State(object):
             else:
                 for k in ds.map_lower[lower]:
                     if ds.assigned[k][0] == ds.assigned[k][1]:
-                        if k in ds.todo or -k in ds.todo:
+                        if k+1 in ds.todo or -k-1 in ds.todo:
                             break
                         if not self._propagate_distinct(cc, distinct, -1, k, j):
                             return False
