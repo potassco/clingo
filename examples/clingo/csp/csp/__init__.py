@@ -2069,18 +2069,17 @@ class Propagator(object):
         for state in self._states:
             state.update(cc)
 
+        # add constraints
+        builder = CSPBuilder(init, self, minimize)
+        if not parse_theory(builder, init.theory_atoms).finalize():
+            return
+        self._stats_step.num_variables = len(self._vars)
+
         # gather bounds of states in master
         master = self._state(0)
         for state in self._states[1:]:
             if not master.update_bounds(cc, state):
                 return
-
-        # add constraints
-        builder = CSPBuilder(init, self, minimize)
-        if not parse_theory(builder, init.theory_atoms).finalize():
-            return
-
-        self._stats_step.num_variables = len(self._vars)
 
         # propagate the newly added constraints
         if not master.simplify(cc):
