@@ -120,6 +120,8 @@ class TestMain(unittest.TestCase):
             [('x', 1), ('y', 1)],
             ['c', ('x', 0), ('y', 1)],
             ['c', ('x', 1), ('y', 0)]])
+        self.assertEqual(solve("&dom{1..1}=x. &dom{1..2}=y. &dom{1..3}=z. &distinct{x;y;z}."), [[('x', 1), ('y', 2), ('z', 3)]])
+        self.assertEqual(solve("&dom{1..3}=x. &dom{2..3}=y. &dom{3..3}=z. &distinct{x;y;z}."), [[('x', 1), ('y', 2), ('z', 3)]])
 
     def test_dom(self):
         self.assertEqual(solve("&dom { 0;1..2;2..3;5 } = x.", -10, 10), [[('x', 0)], [('x', 1)], [('x', 2)], [('x', 3)], [('x', 5)]])
