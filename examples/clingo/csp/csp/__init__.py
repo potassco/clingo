@@ -476,15 +476,12 @@ class VarState(object):
         return "{}=[{},{}]".format(self.var, self.lower_bound, self.upper_bound)
 
 
-class ConstraintState(object):
+class AbstractConstraintState(object):
     """
-    Capture the lower and upper bound of constraints.
+    Abstract class to capture the state of constraints.
     """
-    def __init__(self, constraint, lower_bound=0, upper_bound=0, inactive_level=0):
-        self.constraint = constraint
-        self.lower_bound = lower_bound
-        self.upper_bound = upper_bound
-        self.inactive_level = inactive_level
+    def __init__(self):
+        self.inactive_level = 0
 
     @property
     def marked_inactive(self):
@@ -514,80 +511,87 @@ class ConstraintState(object):
         """
         return self.marked_inactive and self.inactive_level <= level
 
-    def copy(self):
-        return ConstraintState(self.constraint, self.lower_bound, self.upper_bound, self.inactive_level)
+
+class ConstraintState(AbstractConstraintState):
+    """
+    Capture the lower and upper bound of constraints.
+    """
+    def __init__(self, constraint):
+        AbstractConstraintState.__init__(self)
+        self.constraint = constraint
+        self.lower_bound = 0
+        self.upper_bound = 0
 
     @property
     def literal(self):
+        """
+        Return the literal of the associated constraint.
+        """
         return self.constraint.literal
 
     @property
     def tagged_removable(self):
+        """
+        True if the constraint can be temporarily removed.
+
+        This property will only be false if the constraint state is associated
+        with a minimize constraint.
+        """
         return self.constraint.removable
 
     def undo(self, co, diff):
+        """
+        Undo the last updates of the bounds of the constraint by the given
+        difference.
+        """
         if co*diff > 0:
             self.lower_bound -= co*diff
         else:
             self.upper_bound -= co*diff
-
     def update(self, co, diff):
+        """
+        Update the bounds of the constraint by the given difference.
+        """
         assert co*diff != 0
         if co*diff < 0:
             self.upper_bound += co*diff
             return False
-        else:
-            self.lower_bound += co*diff
-            return True
+        self.lower_bound += co*diff
+        return True
 
     def propagate(self, state, cc):
-        # default for constraints
+        # TODO: maybe move the propagation code here
         return state.propagate_constraint(self, cc)
 
+    def copy(self):
+        """
+        Return a copy of the constraint state to be used with another state.
+        """
+        cs = ConstraintState(self.constraint)
+        cs.inactive_level = self.inactive_level
+        cs.lower_bound = self.lower_bound
+        cs.upper_bound = self.upper_bound
+        return cs
 
-class DistinctState(object):
+class DistinctState(AbstractConstraintState):
     """
-    Capture the lower and upper bound of constraints.
+    Capture the state of a distinct constraint.
     """
-    def __init__(self, constraint, inactive_level=0):
+    def __init__(self, constraint):
+        AbstractConstraintState.__init__(self)
         self.constraint = constraint
-        self.inactive_level = inactive_level
         self.dirty = set()
         self.todo = TodoList()
         self.map_upper = {}
         self.map_lower = {}
         self.assigned = {}
 
-    @property
-    def marked_inactive(self):
-        """
-        Returns true if the distinct is marked inactive.
-        """
-        return self.inactive_level > 0
-
-    @marked_inactive.setter
-    def marked_inactive(self, level):
-        """
-        Mark a distinct constraint as inactive on the given level.
-        """
-        assert not self.marked_inactive
-        self.inactive_level = level+1
-
-    def mark_active(self):
-        """
-        Mark a distinct constraint as active.
-        """
-        self.inactive_level = 0
-
-    def removable(self, level):
-        """
-        A distinct constraint is removable if it has been marked inactive on a
-        lower level.
-        """
-        return self.marked_inactive and self.inactive_level <= level
-
     def copy(self):
-        ds = DistinctState(self.constraint, self.inactive_level)
+        """
+        Return a copy of the constraint state to be used with another state.
+        """
+        ds = DistinctState(self.constraint)
+        ds.inactive_level = self.inactive_level
         for value, indices in self.map_upper.items():
             ds.map_upper[value] = indices[:]
         for value, indices in self.map_lower.items():
@@ -597,13 +601,25 @@ class DistinctState(object):
 
     @property
     def literal(self):
+        """
+        Return the literal of the associated constraint.
+        """
         return self.constraint.literal
 
     @property
     def tagged_removable(self):
+        """
+        Distinct constraints are removable.
+
+        Currently, they are only removed if the constraint is false.
+        """
         return True
 
     def init(self, state, i):
+        """
+        Recalculates the bounds of the i-th element of the constraint assuming
+        that the bounds of this element are not currently in the bound maps.
+        """
         # calculate new values
         value, elements = self.constraint.elements[i]
         upper = lower = value
@@ -620,6 +636,9 @@ class DistinctState(object):
         self.map_lower.setdefault(lower, []).append(i)
 
     def _update(self, state):
+        """
+        Recalculate all elements marked dirty.
+        """
         for i in self.dirty:
             lower, upper = self.assigned[i]
             self.map_lower[lower].remove(i)
@@ -628,15 +647,26 @@ class DistinctState(object):
         self.dirty.clear()
 
     def update(self, i, _):
+        """
+        Add an element whose bound has changed to the todo list and mark it as
+        dirty.
+
+        If i is greater zero, than the lower bound changed; otherwise the upper
+        bound.
+        """
         self.dirty.add(abs(i)-1)
         self.todo.add(i)
         return True
 
     def undo(self, i, _):
+        """
+        Clear the todo list and mark the given element as dirty.
+        """
         self.dirty.add(abs(i)-1)
         self.todo.clear()
 
     def propagate(self, state, cc):
+        # TODO: possibly move propagation code here
         return state.propagate_distinct(self, cc)
 
 
@@ -661,7 +691,6 @@ class Level(object):
         """
         self.level = level
         self.inactive = []
-        # TODO: can be combined with the latest set of patches!!!
         self.removed_v2cs = []
         # Note: A trail-like data structure would also be possible but then
         # assignments would have to be undone.
