@@ -708,7 +708,15 @@ class ConstraintState(AbstractConstraintState):
 
         lhs = 0
         for co, var in self.constraint.elements:
-            lhs += co*state.get_value(var)
+            vs = state.var_state(var)
+            assert vs.is_assigned
+            lhs += co*vs.lower_bound
+
+        if self.marked_inactive:
+            assert lhs <= self.upper_bound
+        else:
+            assert lhs == self.lower_bound
+            assert lhs == self.upper_bound
 
         return lhs <= self.constraint.rhs(state)
 
@@ -1203,7 +1211,7 @@ class State(object):
         """
         cs = self._cstate[constraint]
         for co, var in constraint.elements:
-            self._v2cs.setdefault(var, []).remove((co, cs))
+            self._v2cs[var].remove((co, cs))
         del self._cstate[constraint]
 
     def add_distinct(self, distinct):
@@ -1550,7 +1558,10 @@ class State(object):
         """
         ass = cc.assignment
         lvl = self._level
-        if ass.decision_level != lvl.level:
+        # Note: Most of the time check has to be called only for levels that
+        # have also been propagated. The exception is if a minimize constraint
+        # has to be integrated when backtracking from a bound update.
+        if ass.decision_level != lvl.level and lvl.level >= self._minimize_level:
             return True
 
         # Note: We have to loop here because watches for the true/false
@@ -1778,6 +1789,10 @@ class State(object):
             lvl.undo_upper.add(self.var_state(vs.var))
         for cs in lvl_master.inactive:
             lvl.inactive.append(self._cstate[cs.constraint])
+
+        # copy todo queues
+        for cs in master._todo:
+            self._todo.add(self._cstate[cs.constraint])
 
 
 class CSPBuilder(object):
@@ -2148,12 +2163,12 @@ class Propagator(object):
         """
         return self._minimize is not None
 
-    def add_minimize(self, init, minimize):
+    def add_minimize(self, cc, minimize):
         """
         Add a minimize constraint to the program.
         """
         self._minimize = minimize
-        self.add_constraint(init, minimize)
+        self.add_constraint(cc, minimize)
 
     def remove_minimize(self):
         """
