@@ -920,6 +920,8 @@ class Level(object):
         # assignments would have to be undone.
         self.undo_upper = TodoList()
         self.undo_lower = TodoList()
+        self.udiff = OrderedDict()
+        self.ldiff = OrderedDict()
 
     def clear(self):
         """
@@ -1308,7 +1310,7 @@ class State(object):
 
         return True
 
-    def _update_constraints(self, var, diff, m, r):
+    def _update_constraints(self, var, diff):
         """
         Traverses the lookup tables for constraints removing inactive
         constraints.
@@ -1316,19 +1318,19 @@ class State(object):
         The parameters determine whether the lookup tables for lower or upper
         bounds are used.
         """
-        level = self._level.level
+        lvl = self._level
 
-        l = m.get(var, [])
+        l = self._v2cs.get(var, [])
         i = 0
         for j, (co, cs) in enumerate(l):
-            if not cs.removable(level):
+            if not cs.removable(lvl.level):
                 if cs.update(co, diff):
                     self._todo.add(cs)
                 if i < j:
                     l[i], l[j] = l[j], l[i]
                 i += 1
             else:
-                r.append((var, co, cs))
+                lvl.removed_v2cs.append((var, co, cs))
         del l[i:]
 
     def _update_domain(self, cc, lit):
@@ -1353,7 +1355,8 @@ class State(object):
                     if lvl.undo_upper.add(vs):
                         vs.push_upper()
                     vs.upper_bound = value
-                    self._update_constraints(vs.var, diff, self._v2cs, lvl.removed_v2cs)
+                    lvl.udiff.setdefault(vs.var, 0)
+                    lvl.udiff[vs.var] += diff
 
                 # make succeeding literal true
                 succ = vs.succ_value(value)
@@ -1370,7 +1373,8 @@ class State(object):
                     if lvl.undo_lower.add(vs):
                         vs.push_lower()
                     vs.lower_bound = value+1
-                    self._update_constraints(vs.var, diff, self._v2cs, lvl.removed_v2cs)
+                    lvl.ldiff.setdefault(vs.var, 0)
+                    lvl.ldiff[vs.var] += diff
 
                 # make preceeding literal false
                 prev = vs.prev_value(value)
@@ -1499,16 +1503,18 @@ class State(object):
         for vs in lvl.undo_lower:
             value = vs.lower_bound
             vs.pop_lower()
-            diff = value - vs.lower_bound
-            for co, cs in self._v2cs.get(vs.var, []):
-                cs.undo(co, diff)
+            diff = value - vs.lower_bound - lvl.ldiff.get(vs.var, 0)
+            if diff != 0:
+                for co, cs in self._v2cs.get(vs.var, []):
+                    cs.undo(co, diff)
 
         for vs in lvl.undo_upper:
             value = vs.upper_bound
             vs.pop_upper()
-            diff = value - vs.upper_bound
-            for co, cs in self._v2cs.get(vs.var, []):
-                cs.undo(co, diff)
+            diff = value - vs.upper_bound - lvl.udiff.get(vs.var, 0)
+            if diff != 0:
+                for co, cs in self._v2cs.get(vs.var, []):
+                    cs.undo(co, diff)
 
         for cs in lvl.inactive:
             cs.mark_active()
@@ -1539,6 +1545,9 @@ class State(object):
         current level and propagates constraints gathered during `propagate`.
         """
         ass = cc.assignment
+        lvl = self._level
+        if ass.decision_level != lvl.level:
+            return True
 
         # Note: We have to loop here because watches for the true/false
         # literals do not fire again.
@@ -1550,6 +1559,14 @@ class State(object):
                 if not self._update_domain(cc, 1):
                     return False
                 self._facts_integrated = self._num_facts
+
+            # update the bounds of the constraints
+            for var, diff in lvl.udiff.items():
+                self._update_constraints(var, diff)
+            lvl.udiff.clear()
+            for var, diff in lvl.ldiff.items():
+                self._update_constraints(var, diff)
+            lvl.ldiff.clear()
 
             # propagate affected constraints
             todo, self._todo = self._todo, TodoList()
