@@ -646,15 +646,14 @@ class Level(object):
 
     Members
     =======
-    level         -- The decision level.
-    undo_upper    -- Set of `VarState` objects that have been assigned an upper
-                     bound.
-    undo_lower    -- Set of `VarState` objects that have been assigned a lower
-                     bound.
-    inactive      -- List of constraints that are inactive on the next level.
-    removed_vl2cs -- List of variable/coefficient/constraint triples that have
-                     been removed from the State._vl2cs map.
-    removed_vu2cs -- Similar to removed_vl2cs but for the State._vu2cs map.
+    level        -- The decision level.
+    undo_upper   -- Set of `VarState` objects that have been assigned an upper
+                    bound.
+    undo_lower   -- Set of `VarState` objects that have been assigned a lower
+                    bound.
+    inactive     -- List of constraints that are inactive on the next level.
+    removed_v2cs -- List of variable/coefficient/constraint triples that have
+                    been removed from the State._v2cs map.
     """
     def __init__(self, level):
         """
@@ -663,8 +662,7 @@ class Level(object):
         self.level = level
         self.inactive = []
         # TODO: can be combined with the latest set of patches!!!
-        self.removed_vl2cs = []
-        self.removed_vu2cs = []
+        self.removed_v2cs = []
         # Note: A trail-like data structure would also be possible but then
         # assignments would have to be undone.
         self.undo_upper = TodoList()
@@ -700,14 +698,9 @@ class State(object):
                          where `vs` is the VarState of `var`.
     _levels           -- For each decision level propagated, there is a `Level`
                          object in this list until `undo` is called.
-    _vl2cs            -- Map from variable names to a list of
-                         coefficient/constraint state pairs. The map contains a
-                         pair if increasing the lower bound of the variable,
-                         increases the slack of the constraint.
-    _vu2cs            -- Map from variable names to a list of
-                         coefficient/constraint state pairs. The map contains a
-                         pair if decreasing the upper bound of the variable,
-                         increases the slack of the constraint.
+    _v2cs             -- Map from variable names to a list of
+                         integer/constraint state pairs. The meaning of the
+                         integer depends on the type of constraint.
     _l2c              -- Map from literals to a list of constraints. The map
                          contains a literal/constraint pair if the literal is
                          associated with the constraint.
@@ -731,9 +724,7 @@ class State(object):
         self._var_state = {}
         self._litmap = {}
         self._levels = [Level(0)]
-        # TODO: can be combined with the latest set of patches!!!
-        self._vl2cs = {}
-        self._vu2cs = {}
+        self._v2cs = {}
         self._l2c = l2c
         self._todo = TodoList()
         self._facts_integrated = (0, 0)
@@ -935,12 +926,11 @@ class State(object):
         cs = ConstraintState(constraint)
         for co, var in constraint.elements:
             vs = self._state(var)
+            self._v2cs.setdefault(var, []).append((co, cs))
             if co > 0:
-                self._vl2cs.setdefault(var, []).append((co, cs))
                 cs.lower_bound += vs.lower_bound*co
                 cs.upper_bound += vs.upper_bound*co
             else:
-                self._vu2cs.setdefault(var, []).append((co, cs))
                 cs.lower_bound += vs.upper_bound*co
                 cs.upper_bound += vs.lower_bound*co
         self._cstate[constraint] = cs
@@ -953,10 +943,7 @@ class State(object):
         """
         cs = self._cstate[constraint]
         for co, var in constraint.elements:
-            if co > 0:
-                self._vl2cs.setdefault(var, []).remove((co, cs))
-            else:
-                self._vu2cs.setdefault(var, []).remove((co, cs))
+            self._v2cs.setdefault(var, []).remove((co, cs))
         del self._cstate[constraint]
 
     def add_distinct(self, distinct):
@@ -964,10 +951,7 @@ class State(object):
         for i, (_, elements) in enumerate(distinct.elements):
             ds.init(self, i)
             for co, var in elements:
-                if co > 0:
-                    self._vl2cs.setdefault(var, []).append((i+1, ds))
-                else:
-                    self._vu2cs.setdefault(var, []).append((-i-1, ds))
+                self._v2cs.setdefault(var, []).append((i+1 if co > 0 else -i-1, ds))
         self._cstate[distinct] = ds
 
         self._todo.add(ds)
@@ -1110,8 +1094,7 @@ class State(object):
                     if lvl.undo_upper.add(vs):
                         vs.push_upper()
                     vs.upper_bound = value
-                    self._update_constraints(vs.var, diff, self._vl2cs, lvl.removed_vl2cs)
-                    self._update_constraints(vs.var, diff, self._vu2cs, lvl.removed_vu2cs)
+                    self._update_constraints(vs.var, diff, self._v2cs, lvl.removed_v2cs)
 
                 # make succeeding literal true
                 succ = vs.succ_value(value)
@@ -1128,8 +1111,7 @@ class State(object):
                     if lvl.undo_lower.add(vs):
                         vs.push_lower()
                     vs.lower_bound = value+1
-                    self._update_constraints(vs.var, diff, self._vu2cs, lvl.removed_vu2cs)
-                    self._update_constraints(vs.var, diff, self._vl2cs, lvl.removed_vl2cs)
+                    self._update_constraints(vs.var, diff, self._v2cs, lvl.removed_v2cs)
 
                 # make preceeding literal false
                 prev = vs.prev_value(value)
@@ -1470,27 +1452,21 @@ class State(object):
             value = vs.lower_bound
             vs.pop_lower()
             diff = value - vs.lower_bound
-            for co, cs in self._vl2cs.get(vs.var, []):
-                cs.undo(co, diff)
-            for co, cs in self._vu2cs.get(vs.var, []):
+            for co, cs in self._v2cs.get(vs.var, []):
                 cs.undo(co, diff)
 
         for vs in lvl.undo_upper:
             value = vs.upper_bound
             vs.pop_upper()
             diff = value - vs.upper_bound
-            for co, cs in self._vu2cs.get(vs.var, []):
-                cs.undo(co, diff)
-            for co, cs in self._vl2cs.get(vs.var, []):
+            for co, cs in self._v2cs.get(vs.var, []):
                 cs.undo(co, diff)
 
         for cs in lvl.inactive:
             cs.mark_active()
 
-        for var, co, cs in lvl.removed_vl2cs:
-            self._vl2cs[var].append((co, cs))
-        for var, co, cs in lvl.removed_vu2cs:
-            self._vu2cs[var].append((co, cs))
+        for var, co, cs in lvl.removed_v2cs:
+            self._v2cs[var].append((co, cs))
 
         self._pop_level()
         # Note: To make sure that the todo list is cleared when there is
@@ -1736,12 +1712,9 @@ class State(object):
             self._cstate[c] = cs.copy()
 
         # copy lookup maps
-        self._vl2cs.clear()
-        for var, css in master._vl2cs.items():
-            self._vl2cs[var] = [(co, self._cstate[cs.constraint]) for co, cs in css]
-        self._vu2cs.clear()
-        for var, css in master._vu2cs.items():
-            self._vu2cs[var] = [(co, self._cstate[cs.constraint]) for co, cs in css]
+        self._v2cs.clear()
+        for var, css in master._v2cs.items():
+            self._v2cs[var] = [(co, self._cstate[cs.constraint]) for co, cs in css]
 
         # adjust levels
         lvl, lvl_master = self._level, master._level
