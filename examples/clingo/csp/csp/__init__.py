@@ -696,6 +696,21 @@ class ConstraintState(AbstractConstraintState):
 
         return True
 
+    def check_full(self, state):
+        """
+        This function checks if a constraint is satisfied w.r.t. the final
+        values of its integer variables.
+
+        This function should only be called total assignments.
+        """
+        if self.constraint.rhs(state) is None:
+            return True
+
+        lhs = 0
+        for co, var in self.constraint.elements:
+            lhs += co*state.get_value(var)
+
+        return lhs <= self.constraint.rhs(state)
 
     def copy(self):
         """
@@ -873,6 +888,11 @@ class DistinctState(AbstractConstraintState):
         self.todo.clear()
 
         return True
+
+    def check_full(self, state):
+        # this function should check if the distinct constraint is satisfied
+        return True
+
 
 class Level(object):
     """
@@ -1172,7 +1192,10 @@ class State(object):
 
     def remove_constraint(self, constraint):
         """
-        Removes the minimize constraint from the lookup lists.
+        Remove a constraint from the lookup lists.
+
+        For now only minimize constraints are removed but in principle the
+        function should also work for sum constraints.
         """
         cs = self._cstate[constraint]
         for co, var in constraint.elements:
@@ -1180,6 +1203,9 @@ class State(object):
         del self._cstate[constraint]
 
     def add_distinct(self, distinct):
+        """
+        Add a distinct constraint to the state.
+        """
         ds = DistinctState(distinct)
         for i, (_, elements) in enumerate(distinct.elements):
             ds.init(self, i)
@@ -1537,22 +1563,6 @@ class State(object):
             if self._facts_integrated == self._num_facts:
                 return True
 
-    def _check_constraint(self, c):
-        """
-        This function checks if a constraint is satisfied w.r.t. the final
-        values of its integer variables.
-
-        This function should only be called total assignments.
-        """
-        if c.rhs(self) is None:
-            return True
-
-        lhs = 0
-        for co, var in c.elements:
-            lhs += co*self.get_value(var)
-
-        return lhs <= c.rhs(self)
-
     def check_full(self, control):
         """
         This function selects a variable that is not fully assigned w.r.t. the
@@ -1574,7 +1584,7 @@ class State(object):
             for lit, constraints in self._l2c.items():
                 if control.assignment.is_true(lit):
                     for c in constraints:
-                        assert self._check_constraint(c)
+                        assert self._cstate[c].check_full(self)
 
     # reinitialization
     def update(self, cc):
@@ -1849,7 +1859,7 @@ class CSPBuilder(object):
                 for _, var in term[1]:
                     self._propagator.add_variable(var)
 
-            self._propagator.add_distinct(Distinct(literal, elems))
+            self._propagator.add_distinct(self, Distinct(literal, elems))
             return
 
         for i, (rhs_i, elems_i) in enumerate(elems):
@@ -1982,12 +1992,12 @@ class Propagator(object):
         """
         return self._state(0).integrate_simple(cc, constraint, strict)
 
-    def add_constraint(self, init, constraint):
+    def add_constraint(self, cc, constraint):
         """
         Add a constraint to the program.
         """
         lit = constraint.literal
-        init.add_watch(lit)
+        cc.add_watch(lit)
         self._l2c.setdefault(lit, []).append(constraint)
         for _, var in constraint.elements:
             self.add_variable(var)
@@ -1995,7 +2005,13 @@ class Propagator(object):
         self._state(0).add_constraint(constraint)
         self._stats_step.num_constraints += 1
 
-    def add_distinct(self, distinct):
+    def add_distinct(self, cc, distinct):
+        """
+        Add a distinct constraint to the propagator.
+        """
+        lit = distinct.literal
+        cc.add_watch(lit)
+        self._l2c.setdefault(lit, []).append(distinct)
         self._state(0).add_distinct(distinct)
         self._stats_step.num_constraints += 1
 
