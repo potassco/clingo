@@ -73,7 +73,7 @@ class ThreadStatistics(object):
 
     def reset(self):
         """
-        Reset all statistics to they starting values.
+        Reset all statistics to their starting values.
         """
         self.time_propagate = 0
         self.time_check = 0
@@ -100,7 +100,7 @@ class Statistics(object):
 
     def reset(self):
         """
-        Reset all statistics to they starting values.
+        Reset all statistics to their starting values.
         """
         self.num_variables = 0
         self.num_constraints = 0
