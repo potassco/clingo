@@ -542,7 +542,31 @@ class ConstraintState(AbstractConstraintState):
         """
         return self.constraint.removable
 
+    def _estimate(self, state):
+        """
+        Estimate the size of the translation in terms of the number of literals
+        necessary for the weight constraint.
+        """
+        estimate = 0
+        slack = self.constraint.rhs(state)-self.lower_bound
+        for co, var in self.constraint.elements:
+            vs = state.var_state(var)
+            if co > 0:
+                diff = slack+co*vs.lower_bound
+                value = diff//co
+                assert value >= vs.lower_bound
+                estimate += min(value+1, vs.upper_bound)-vs.lower_bound
+            else:
+                diff = slack+co*vs.upper_bound
+                value = -(diff//-co)
+                assert value <= vs.upper_bound
+                estimate += vs.upper_bound-max(value-1, vs.lower_bound)
+        return estimate
+
     def translate(self, cc, state):
+        """
+        Translate small enough constraints to weight constraints.
+        """
         ass = cc.assignment
 
         if self.constraint.tagged:
@@ -558,71 +582,30 @@ class ConstraintState(AbstractConstraintState):
         # Note: otherwise propagation is broken
         assert slack >= 0
 
-        estimate = 0
-        for i, (co, var) in enumerate(self.constraint.elements):
-            vs = state.var_state(var)
-            if co > 0:
-                diff = slack+co*vs.lower_bound
-                value = diff//co
-                assert value >= vs.lower_bound
-                estimate += min(value, vs.upper_bound)-vs.lower_bound
-            else:
-                diff = slack+co*vs.upper_bound
-                value = -(diff//-co)
-                assert value <= vs.upper_bound
-                estimate += vs.upper_bound-max(value, vs.lower_bound)
-        if estimate < 1000:
-            '''
+        # translate small enough constraint
+        if self._estimate(state) < 1000:
             wlits = []
-            rep = []
             for co, var in self.constraint.elements:
                 vs = state.var_state(var)
                 if co > 0:
                     diff = slack+co*vs.lower_bound
                     value = diff//co
                     assert value >= vs.lower_bound
-                    print(var, value)
                     for i in range(vs.lower_bound, min(value+1, vs.upper_bound)):
                         wlits.append((-state.get_literal(vs, i, cc), co))
-                        rep.append("~{}<={}".format(vs.var, i))
                 else:
                     diff = slack+co*vs.upper_bound
                     value = -(diff//-co)
                     assert value <= vs.upper_bound
                     for i in range(max(value-1, vs.lower_bound), vs.upper_bound):
                         wlits.append((state.get_literal(vs, i, cc), -co))
-                        rep.append("{}<={}".format(vs.var, i))
 
             if ass.is_true(self.literal):
                 lit = self.literal
             else:
                 lit = cc.add_literal()
                 cc.add_clause([-self.literal, lit])
-            cc._solver.add_weight_constraint(lit, wlits, slack)
-
-            print()
-            print("constraint", ["{}*{}".format(co, var) for co, var in self.constraint.elements], "<=", rhs)
-            print("litmap", state._litmap)
-            print("constraint", lit, "==", wlits, "<=", slack)
-            print("rep", rep, "<=", slack)
-            '''
-            # FIXME: Let's do it dumb first!!!
-            wlits = []
-            for co, var in self.constraint.elements:
-                vs = state.var_state(var)
-                for i in range(vs.lower_bound, vs.upper_bound+1):
-                    w = co*vs.lower_bound if i == vs.lower_bound else co
-                    wlits.append((-state.get_literal(vs, i-1, cc), w))
-
-            if ass.is_true(self.literal):
-                lit = self.literal
-            else:
-                # Note: something has to be done about this!!!
-                lit = cc.add_literal()
-                cc.add_clause([-self.literal, lit])
-
-            # TODO: the function should be able to indicate error
-            cc._solver.add_weight_constraint(-lit, wlits, rhs+1)
+            cc._solver.add_weight_constraint(-lit, wlits, slack+1)
 
             state.remove_constraint(self.constraint)
             return True
