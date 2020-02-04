@@ -542,6 +542,127 @@ class ConstraintState(AbstractConstraintState):
         """
         return self.constraint.removable
 
+    def translate(self, cc, state):
+        # TODO: small constraints should be translated to weight
+        #       constraints
+        ass = cc.assignment
+
+        if self.constraint.tagged:
+            return False
+
+        rhs = self.constraint.rhs(state)
+        if ass.is_false(self.literal) or self.upper_bound <= rhs:
+            state.remove_constraint(self.constraint)
+            return True
+
+        slack = rhs-self.lower_bound
+
+        # Note: otherwise propagation is broken
+        assert slack >= 0
+
+        estimate = 0
+        for i, (co, var) in enumerate(self.constraint.elements):
+            vs = state.var_state(var)
+            if co > 0:
+                diff = slack+co*vs.lower_bound
+                value = diff//co
+                assert value >= vs.lower_bound
+                estimate += min(value, vs.upper_bound)-vs.lower_bound
+            else:
+                diff = slack+co*vs.upper_bound
+                value = -(diff//-co)
+                assert value <= vs.upper_bound
+                estimate += vs.upper_bound-max(value, vs.lower_bound)
+        if estimate < 1000:
+            '''
+            wlits = []
+            rep = []
+            for co, var in self.constraint.elements:
+                vs = state.var_state(var)
+                if co > 0:
+                    diff = slack+co*vs.lower_bound
+                    value = diff//co
+                    assert value >= vs.lower_bound
+                    print(var, value)
+                    for i in range(vs.lower_bound, min(value+1, vs.upper_bound)):
+                        wlits.append((-state.get_literal(vs, i, cc), co))
+                        rep.append("~{}<={}".format(vs.var, i))
+                else:
+                    diff = slack+co*vs.upper_bound
+                    value = -(diff//-co)
+                    assert value <= vs.upper_bound
+                    for i in range(max(value-1, vs.lower_bound), vs.upper_bound):
+                        wlits.append((state.get_literal(vs, i, cc), -co))
+                        rep.append("{}<={}".format(vs.var, i))
+
+            if ass.is_true(self.literal):
+                lit = self.literal
+            else:
+                lit = cc.add_literal()
+                cc.add_clause([-self.literal, lit])
+            cc._solver.add_weight_constraint(lit, wlits, slack)
+
+            print()
+            print("constraint", ["{}*{}".format(co, var) for co, var in self.constraint.elements], "<=", rhs)
+            print("litmap", state._litmap)
+            print("constraint", lit, "==", wlits, "<=", slack)
+            print("rep", rep, "<=", slack)
+            '''
+            # Let's do it dumb!!!
+            wlits = []
+            rep = []
+            for co, var in self.constraint.elements:
+                vs = state.var_state(var)
+                for i in range(vs.lower_bound, vs.upper_bound+1):
+                    w = co*vs.lower_bound if i == vs.lower_bound else co
+                    wlits.append((-state.get_literal(vs, i-1, cc), w))
+                    rep.append("{}>={}@{}".format(vs.var, i, w))
+
+            # FIXME: if clasp does not do it, clingo has to!!!
+            fixed = []
+            for lit, co in wlits:
+                if ass.is_false(lit):
+                    continue
+                if ass.is_true(lit):
+                    rhs -= co
+                elif co > 0:
+                    fixed.append((lit, co))
+                elif co < 0:
+                    fixed.append((-lit, -co))
+                    rhs -= co
+
+            if ass.is_true(self.literal):
+                lit = self.literal
+            else:
+                # Note: something has to be done about this!!!
+                lit = cc.add_literal()
+                cc.add_clause([-self.literal, lit])
+
+            # FIXME: if clasp does not do it, clingo has to!!!
+            if rhs <= 0:
+                c = [lit]
+                for l, _ in fixed:
+                    c.append(l)
+                    cc.add_clause([-lit, -l])
+                cc.add_clause(c)
+            else:
+                # FIXME: this function is fishy, it behaves strange on a lot of
+                #        inputs. For example:
+                # &dom{ 2..3 } = x.
+                # &dom{ 2..3 } = y.
+                # &distinct { 2*x; 3*y }.
+                cc._solver.add_weight_constraint(lit, fixed, rhs)
+
+            print()
+            print("constraint", ["{}*{}".format(co, var) for co, var in self.constraint.elements], "<=", rhs)
+            print(rep, "<=", self.constraint.rhs(state))
+            print("litmap", state._litmap)
+            print("constraint", lit, "==", fixed, "<=", rhs)
+            state.remove_constraint(self.constraint)
+            return True
+
+        return False
+
     def undo(self, co, diff):
         """
         Undo the last updates of the bounds of the constraint by the given
@@ -823,6 +944,11 @@ class DistinctState(AbstractConstraintState):
             self.map_upper[upper].remove(i)
             self.init(state, i)
         self.dirty.clear()
+
+    def translate(self, cc, state):
+        # TODO: small distinct constraints should be translated to weight
+        #       constraints
+        return False
 
     def _propagate(self, cc, state, s, i, j):
         """
@@ -1169,6 +1295,8 @@ class State(object):
             return TRUE_LIT
         if not vs.has_literal(value):
             lit = cc.add_literal()
+            # TODO: workaround for add_watch
+            cc.add_clause([lit, -lit])
             # Note: By default clasp's heuristic makes literals false. By
             # flipping the literal for non-negative values, assignments close
             # to zero are preferred. This way, we might get solutions with
@@ -1288,6 +1416,8 @@ class State(object):
         for co, var in constraint.elements:
             self._v2cs[var].remove((co, cs))
         del self._cstate[constraint]
+        if cs in self._level.inactive:
+            self._level.inactive.remove(cs)
 
     def add_distinct(self, distinct):
         """
@@ -2158,6 +2288,11 @@ class Propagator(object):
         # remove unnecessary literals after simplification
         if not master.cleanup_literals(cc):
             return
+
+        # translate (simple enough) constraints
+        for lit in sorted(self._l2c):
+            constraints = self._l2c[lit]
+            del constraints[remove_if(constraints, lambda c: master.constraint_state(c).translate(cc, master)):]
 
         # add minimize constraint
         # Note: the constraint is added in the end to avoid propagating tagged
