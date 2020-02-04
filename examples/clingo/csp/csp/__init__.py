@@ -1845,6 +1845,8 @@ class State(object):
             lvl.undo_upper.add(self.var_state(vs.var))
         for cs in lvl_master.inactive:
             lvl.inactive.append(self._cstate[cs.constraint])
+        for var, co, cs in lvl_master.removed_v2cs:
+            lvl.removed_v2cs.append((var, co, self._cstate[cs.constraint]))
 
         # copy todo queues
         for cs in master._todo:
