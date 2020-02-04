@@ -983,12 +983,27 @@ class Level(object):
         self.undo_upper = TodoList()
         self.undo_lower = TodoList()
 
-    def clear(self):
+    def copy_state(self, state, lvl):
         """
-        Clear upper and lower bound stacks.
+        Copy level from given state.
         """
-        self.undo_upper.clear()
+        assert self.level == lvl.level
+
         self.undo_lower.clear()
+        for vs in lvl.undo_lower:
+            self.undo_lower.add(state.var_state(vs.var))
+
+        self.undo_upper.clear()
+        for vs in lvl.undo_upper:
+            self.undo_upper.add(state.var_state(vs.var))
+
+        del self.inactive[:]
+        for cs in lvl.inactive:
+            self.inactive.append(state.constraint_state(cs.constraint))
+
+        del self.removed_v2cs[:]
+        for var, co, cs in lvl.removed_v2cs:
+            self.removed_v2cs.append((var, co, state.constraint_state(cs.constraint)))
 
     def __repr__(self):
         return "{}:l={}/u={}".format(self.level, self.undo_lower, self.undo_upper)
@@ -1117,6 +1132,12 @@ class State(object):
         Get the state associated with variable `var`.
         """
         return self._var_state[var]
+
+    def constraint_state(self, constraint):
+        """
+        Get the state associated with a constraint.
+        """
+        return self._cstate[constraint]
 
     @property
     def _level(self):
@@ -1330,7 +1351,7 @@ class State(object):
 
         # propagate order literals that became true/false
         for lit in changes:
-            self._todo.extend(map(self._cstate.get, self._l2c.get(lit, [])))
+            self._todo.extend(map(self.constraint_state, self._l2c.get(lit, [])))
             if not self._update_domain(cc, lit):
                 return False
 
@@ -1670,7 +1691,7 @@ class State(object):
             for lit, constraints in self._l2c.items():
                 if control.assignment.is_true(lit):
                     for c in constraints:
-                        assert self._cstate[c].check_full(self)
+                        assert self.constraint_state(c).check_full(self)
 
     # reinitialization
     def update(self, cc):
@@ -1834,23 +1855,14 @@ class State(object):
         # copy lookup maps
         self._v2cs.clear()
         for var, css in master._v2cs.items():
-            self._v2cs[var] = [(co, self._cstate[cs.constraint]) for co, cs in css]
+            self._v2cs[var] = [(co, self.constraint_state(cs.constraint)) for co, cs in css]
 
         # adjust levels
-        lvl, lvl_master = self._level, master._level
-        lvl.clear()
-        for vs in lvl_master.undo_lower:
-            lvl.undo_lower.add(self.var_state(vs.var))
-        for vs in lvl_master.undo_upper:
-            lvl.undo_upper.add(self.var_state(vs.var))
-        for cs in lvl_master.inactive:
-            lvl.inactive.append(self._cstate[cs.constraint])
-        for var, co, cs in lvl_master.removed_v2cs:
-            lvl.removed_v2cs.append((var, co, self._cstate[cs.constraint]))
+        self._level.copy_state(self, master._level)
 
         # copy todo queues
         for cs in master._todo:
-            self._todo.add(self._cstate[cs.constraint])
+            self._todo.add(self.constraint_state(cs.constraint))
 
 
 class CSPBuilder(object):
