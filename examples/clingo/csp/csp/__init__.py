@@ -543,8 +543,6 @@ class ConstraintState(AbstractConstraintState):
         return self.constraint.removable
 
     def translate(self, cc, state):
-        # TODO: small constraints should be translated to weight
-        #       constraints
         ass = cc.assignment
 
         if self.constraint.tagged:
@@ -608,28 +606,13 @@ class ConstraintState(AbstractConstraintState):
             print("constraint", lit, "==", wlits, "<=", slack)
             print("rep", rep, "<=", slack)
             '''
-            # Let's do it dumb!!!
+            # FIXME: Let's do it dumb first!!!
             wlits = []
-            rep = []
             for co, var in self.constraint.elements:
                 vs = state.var_state(var)
                 for i in range(vs.lower_bound, vs.upper_bound+1):
                     w = co*vs.lower_bound if i == vs.lower_bound else co
                     wlits.append((-state.get_literal(vs, i-1, cc), w))
-                    rep.append("{}>={}@{}".format(vs.var, i, w))
-
-            # FIXME: if clasp does not do it, clingo has to!!!
-            fixed = []
-            for lit, co in wlits:
-                if ass.is_false(lit):
-                    continue
-                if ass.is_true(lit):
-                    rhs -= co
-                elif co > 0:
-                    fixed.append((lit, co))
-                elif co < 0:
-                    fixed.append((-lit, -co))
-                    rhs -= co
 
             if ass.is_true(self.literal):
                 lit = self.literal
@@ -638,26 +621,9 @@ class ConstraintState(AbstractConstraintState):
                 lit = cc.add_literal()
                 cc.add_clause([-self.literal, lit])
 
-            # FIXME: if clasp does not do it, clingo has to!!!
-            if rhs <= 0:
-                c = [lit]
-                for l, _ in fixed:
-                    c.append(l)
-                    cc.add_clause([-lit, -l])
-                cc.add_clause(c)
-            else:
-                # FIXME: this function is fishy, it behaves strange on a lot of
-                #        inputs. For example:
-                # &dom{ 2..3 } = x.
-                # &dom{ 2..3 } = y.
-                # &distinct { 2*x; 3*y }.
-                cc._solver.add_weight_constraint(lit, fixed, rhs)
+            # TODO: the function should be able to indicate error
+            cc._solver.add_weight_constraint(-lit, wlits, rhs+1)
 
-            print()
-            print("constraint", ["{}*{}".format(co, var) for co, var in self.constraint.elements], "<=", rhs)
-            print(rep, "<=", self.constraint.rhs(state))
-            print("litmap", state._litmap)
-            print("constraint", lit, "==", fixed, "<=", rhs)
             state.remove_constraint(self.constraint)
             return True
 
