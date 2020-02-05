@@ -142,6 +142,8 @@ class InitClauseCreator(object):
         """
         Watch the given solver literal.
         """
+        # TODO: workaround until add watch is fixed
+        self._solver.add_clause([lit, -lit])
         self._solver.add_watch(lit)
 
     def propagate(self):
@@ -573,15 +575,20 @@ class ConstraintState(AbstractConstraintState):
         """
         Translate small enough constraints to weight constraints.
         """
+        # Note: Currently this implements a translation to weight constraints
+        # only. As long as the number of clauses introduced is low, we can also
+        # do Max's translation to clauses here. The clauses have the advantage
+        # that they provide more direct reasons because they contain only the
+        # last literal in a chain.
         ass = cc.assignment
 
         if self.constraint.tagged:
-            return False
+            return True, False
 
         rhs = self.constraint.rhs(state)
         if ass.is_false(self.literal) or self.upper_bound <= rhs:
             state.remove_constraint(self.constraint)
-            return True
+            return True, True
 
         slack = rhs-self.lower_bound
 
@@ -618,11 +625,14 @@ class ConstraintState(AbstractConstraintState):
             # Note: For strict constraints, we can actually use the equivalence
             # here and only add one weight constraint instead of two. In the
             # current system design, this requires storing the weight
-            # constraints and detect complementary constraints.
-            cc.add_weight_constraint(lit, wlits, slack)
+            # constraints and detect complementary constraints. It might be a
+            # good idea in general to add translation constraints later because
+            # we can run into the problem of successivly adding variables and
+            # constraints here.
+            ret = cc.add_weight_constraint(lit, wlits, slack)
 
             state.remove_constraint(self.constraint)
-            return True
+            return ret, True
 
         return False
 
@@ -911,7 +921,7 @@ class DistinctState(AbstractConstraintState):
     def translate(self, cc, state):
         # TODO: small distinct constraints should be translated to weight
         #       constraints
-        return False
+        return True, False
 
     def _propagate(self, cc, state, s, i, j):
         """
@@ -1258,8 +1268,6 @@ class State(object):
             return TRUE_LIT
         if not vs.has_literal(value):
             lit = cc.add_literal()
-            # TODO: workaround for add_watch
-            cc.add_clause([lit, -lit])
             # Note: By default clasp's heuristic makes literals false. By
             # flipping the literal for non-negative values, assignments close
             # to zero are preferred. This way, we might get solutions with
@@ -2260,7 +2268,17 @@ class Propagator(object):
         # translate (simple enough) constraints
         for lit in sorted(self._l2c):
             constraints = self._l2c[lit]
-            del constraints[remove_if(constraints, lambda c: master.constraint_state(c).translate(cc, master)):]
+            j = 0
+            for i, c in enumerate(constraints):
+                ret, rem = master.constraint_state(c).translate(cc, master)
+                if not ret:
+                    return
+                if rem:
+                    continue
+                if i != j:
+                    constraints[i], constraints[j] = constraints[j], constraints[i]
+                j += 1
+            del constraints[j:]
 
         # add minimize constraint
         # Note: the constraint is added in the end to avoid propagating tagged
