@@ -2550,7 +2550,9 @@ struct PropagateInit : Object<PropagateInit> {
         luaL_checknumber(L, 2);
         luaL_checktype(L, 3, LUA_TTABLE);
         luaL_checknumber(L, 4);
-        bool eq{!lua_isnone(L, 5) && lua_toboolean(L, 5)};
+        clingo_weight_constraint_type_t type = clingo_weight_constraint_type_equivalence;
+        if (!lua_isnone(L, 5)) { type = luaL_checknumber(L, 4); }
+        bool eq{!lua_isnone(L, 6) && lua_toboolean(L, 6)};
         clingo_literal_t lit;
         clingo_weight_t bound;
         auto lits{AnyWrap::new_<std::vector<clingo_weighted_literal_t>>(L)};
@@ -2558,7 +2560,7 @@ struct PropagateInit : Object<PropagateInit> {
         luaToCpp(L, 2, lit);
         luaToCpp(L, 3, *lits);
         luaToCpp(L, 4, bound);
-        lua_pushboolean(L, call_c(L, clingo_propagate_init_add_weight_constraint, self.init, lit, lits->data(), lits->size(), bound, eq));
+        lua_pushboolean(L, call_c(L, clingo_propagate_init_add_weight_constraint, self.init, lit, lits->data(), lits->size(), bound, type, eq));
                                     // +1
         lua_replace(L, -2);         // -1
         return 1;

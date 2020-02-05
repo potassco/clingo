@@ -804,7 +804,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
                 auto b = get_literal(init, "b");
                 REQUIRE(init.add_clause({t}));
                 auto l = init.add_literal();
-                REQUIRE(init.add_weight_constraint(t, {{a,1}, {b,1}, {l,1}}, 2, true));
+                REQUIRE(init.add_weight_constraint(t, {{a,1}, {b,1}, {l,1}}, 2, Clingo::WeightConstraintType::Equivalence, true));
             })};
             ctl.register_propagator(p, false);
             test_solve(ctl.solve(), models);

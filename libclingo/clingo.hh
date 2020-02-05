@@ -906,6 +906,12 @@ enum PropagatorCheckMode : clingo_propagator_check_mode_t {
     Partial = clingo_propagator_check_mode_fixpoint,
 };
 
+enum WeightConstraintType : clingo_weight_constraint_type_t {
+    LeftImplication  = clingo_weight_constraint_type_implication_left,
+    RightImplication = clingo_weight_constraint_type_implication_right,
+    Equivalence      = clingo_weight_constraint_type_equivalence,
+};
+
 class PropagateInit {
 public:
     explicit PropagateInit(clingo_propagate_init_t *init)
@@ -921,7 +927,7 @@ public:
     void set_check_mode(PropagatorCheckMode mode);
     literal_t add_literal();
     bool add_clause(LiteralSpan clause);
-    bool add_weight_constraint(literal_t literal, WeightedLiteralSpan literals, weight_t bound, bool compare_equal = false);
+    bool add_weight_constraint(literal_t literal, WeightedLiteralSpan literals, weight_t bound, WeightConstraintType type, bool compare_equal = false);
     void add_minimize(literal_t literal, weight_t weight, weight_t priority = 0);
     bool propagate();
     clingo_propagate_init_t *to_c() const { return init_; }
@@ -2863,9 +2869,9 @@ inline bool PropagateInit::add_clause(LiteralSpan clause) {
     return ret;
 }
 
-inline bool PropagateInit::add_weight_constraint(literal_t literal, WeightedLiteralSpan literals, weight_t bound, bool compare_equal) {
+inline bool PropagateInit::add_weight_constraint(literal_t literal, WeightedLiteralSpan literals, weight_t bound, WeightConstraintType type, bool compare_equal) {
     bool ret;
-    Detail::handle_error(clingo_propagate_init_add_weight_constraint(init_, literal, reinterpret_cast<clingo_weighted_literal_t const *>(literals.begin()), literals.size(), bound, compare_equal, &ret));
+    Detail::handle_error(clingo_propagate_init_add_weight_constraint(init_, literal, reinterpret_cast<clingo_weighted_literal_t const *>(literals.begin()), literals.size(), bound, type, compare_equal, &ret));
     return ret;
 }
 
