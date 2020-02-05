@@ -408,6 +408,9 @@ class HeadBodyTransformer(Transformer):
         Visit rules adding a parameter indicating whether the head or body is
         being visited.
         """
+        # TODO: To add less constraints, we should shift sum constraints in
+        # integrity constraints from the body to the head. If there are
+        # multiple constraints in the body, we can shift an arbitrary one.
         rule.head = self.visit(rule.head, loc="head")
         rule.body = self.visit(rule.body, loc="body")
         return rule

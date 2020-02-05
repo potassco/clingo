@@ -163,6 +163,12 @@ class InitClauseCreator(object):
 
         return self._solver.add_clause(clause) and self.propagate()
 
+    def add_weight_constraint(self, lit, wlits, bound):
+        """
+        Add a weight constraint of form `lit == (wlits <= bound)`.
+        """
+        return self._solver.add_weight_constraint(-lit, wlits, bound+1)
+
     @property
     def assignment(self):
         """
@@ -583,6 +589,8 @@ class ConstraintState(AbstractConstraintState):
         assert slack >= 0
 
         # translate small enough constraint
+        # Note: this magic number can be dangerous if there is a huge number of
+        # variables.
         if self._estimate(state) < 1000:
             wlits = []
             for co, var in self.constraint.elements:
@@ -603,9 +611,15 @@ class ConstraintState(AbstractConstraintState):
             if ass.is_true(self.literal):
                 lit = self.literal
             else:
+                # TODO: clasp offers adding an implication, which has to be
+                # made available via the interface.
                 lit = cc.add_literal()
                 cc.add_clause([-self.literal, lit])
-            cc._solver.add_weight_constraint(-lit, wlits, slack+1)
+            # Note: For strict constraints, we can actually use the equivalence
+            # here and only add one weight constraint instead of two. In the
+            # current system design, this requires storing the weight
+            # constraints and detect complementary constraints.
+            cc.add_weight_constraint(lit, wlits, slack)
 
             state.remove_constraint(self.constraint)
             return True
@@ -1423,6 +1437,11 @@ class State(object):
         Constraints that became true are added to the todo list and bounds of
         variables are adjusted according to the truth of order literals.
         """
+        # Note: This function has to be as fast as possible. In C++ we can try
+        # to put all relevant data into the litmap to make the function as
+        # cache-friendly as possible. Max also noted that it might help to
+        # propagate all order literals affected by an assignment and not just
+        # the neighboring one to avoid "rippling" propagate calls.
         ass = cc.assignment
 
         # open a new decision level if necessary
