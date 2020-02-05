@@ -2270,8 +2270,8 @@ class Propagator(object):
         size = len(control.assignment)
         state = self._state(control.thread_id)
         dl = control.assignment.decision_level
-        if self.has_minimize:
-            bound = self._minimize_bound + self._minimize.adjust if self._minimize_bound else None
+        if self.has_minimize and self._minimize_bound is not None:
+            bound = self._minimize_bound + self._minimize.adjust
             state.update_minimize(self._minimize, dl, bound)
 
         if not state.check(ControlClauseCreator(control)):
