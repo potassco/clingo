@@ -634,7 +634,7 @@ class ConstraintState(AbstractConstraintState):
             state.remove_constraint(self.constraint)
             return ret, True
 
-        return False
+        return True, False
 
     def undo(self, co, diff):
         """
