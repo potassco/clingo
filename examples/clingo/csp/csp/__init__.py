@@ -130,6 +130,9 @@ class InitClauseCreator(object):
 
     def __init__(self, init):
         self._solver = init
+        self._watches = []
+        self._clauses = []
+        self._weight_constraints = []
 
     def add_literal(self):
         """
@@ -142,15 +145,31 @@ class InitClauseCreator(object):
         """
         Watch the given solver literal.
         """
-        # TODO: workaround until add watch is fixed
-        self._solver.add_clause([lit, -lit])
-        self._solver.add_watch(lit)
+        self._watches.append(lit)
+
+    def commit(self):
+        """
+        Commit accumulated constraints.
+        """
+        for lit in self._watches:
+            # TODO: remove
+            self._solver.add_clause([lit, -lit])
+            self._solver.add_watch(lit)
+        for clause in self._clauses:
+            self._solver.add_clause(clause)
+        for clause in self._clauses:
+            if not self._solver.add_clause(clause):
+                return False
+        for lit, wlits, bound in self._weight_constraints:
+            if not self._solver.add_weight_constraint(-lit, wlits, bound+1):
+                return False
+        return True
 
     def propagate(self):
         """
         Call unit propagation on the solver.
         """
-        return self._solver.propagate()
+        return self.commit() and self._solver.propagate()
 
     def add_clause(self, clause, tag=False, lock=False):
         """
@@ -163,13 +182,30 @@ class InitClauseCreator(object):
         # pylint: disable=unused-argument
         assert not tag
 
-        return self._solver.add_clause(clause) and self.propagate()
+        self._clauses.append(clause[:])
+        return True
 
-    def add_weight_constraint(self, lit, wlits, bound):
+    def add_weight_constraint(self, lit, wlits, bound, type_):
         """
         Add a weight constraint of form `lit == (wlits <= bound)`.
         """
-        return self._solver.add_weight_constraint(-lit, wlits, bound+1)
+        # Note: The hope is that all this business here can be taken care off
+        # by clasp.
+        if self.assignment.is_true(lit):
+            if type_ < 0:
+                return True
+        elif self.assignment.is_false(lit):
+            if type_ > 0:
+                return True
+        elif type_ != 0:
+            # Note: the literal could also be fiddeled into the wlits
+            old = lit
+            lit = self.add_literal()
+            self.add_clause([-old, lit])
+            if type_ < 0:
+                lit = -lit
+        self._weight_constraints.append((lit, wlits[:], bound))
+        return True
 
     @property
     def assignment(self):
@@ -615,13 +651,6 @@ class ConstraintState(AbstractConstraintState):
                     for i in range(max(value-1, vs.lower_bound), vs.upper_bound):
                         wlits.append((state.get_literal(vs, i, cc), -co))
 
-            if ass.is_true(self.literal):
-                lit = self.literal
-            else:
-                # TODO: clasp offers adding an implication, which has to be
-                # made available via the interface.
-                lit = cc.add_literal()
-                cc.add_clause([-self.literal, lit])
             # Note: For strict constraints, we can actually use the equivalence
             # here and only add one weight constraint instead of two. In the
             # current system design, this requires storing the weight
@@ -629,7 +658,7 @@ class ConstraintState(AbstractConstraintState):
             # good idea in general to add translation constraints later because
             # we can run into the problem of successivly adding variables and
             # constraints here.
-            ret = cc.add_weight_constraint(lit, wlits, slack)
+            ret = cc.add_weight_constraint(self.literal, wlits, slack, 1)
 
             state.remove_constraint(self.constraint)
             return ret, True
@@ -1403,7 +1432,7 @@ class State(object):
 
         self._todo.add(ds)
 
-    def simplify(self, init):
+    def simplify(self, cc):
         """
         Simplify the state using fixed literals in the trail up to the given
         offset and the enqued constraints in the todo list.
@@ -1416,24 +1445,24 @@ class State(object):
         # might change in the multi-shot case when order literals have
         # been added in a previous step which are then implied by the
         # newly added constraints.
-        ass = init.assignment
+        ass = cc.assignment
         trail = ass.trail
 
         # Note: The initial propagation below, will not introduce any order
         # literals other than true or false.
         while True:
-            if not init.propagate():
+            if not cc.propagate():
                 return False
 
             trail_offset = len(trail)
             if self._trail_offset == trail_offset and not self._todo:
                 return True
 
-            if not self.propagate(init, trail[self._trail_offset:trail_offset]):
+            if not self.propagate(cc, trail[self._trail_offset:trail_offset]):
                 return False
             self._trail_offset = trail_offset
 
-            if not self.check(init):
+            if not self.check(cc):
                 return False
 
     # propagation
@@ -2279,6 +2308,7 @@ class Propagator(object):
                     constraints[i], constraints[j] = constraints[j], constraints[i]
                 j += 1
             del constraints[j:]
+        cc.commit()
 
         # add minimize constraint
         # Note: the constraint is added in the end to avoid propagating tagged

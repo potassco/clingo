@@ -26,11 +26,11 @@ disable=too-few-public-methods,no-self-use,invalid-unary-operand-type,locally-di
 
 # Regular expression matching correct argument names. Overrides argument-
 # naming-style.
-argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
+argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?_?$
 
 # Regular expression matching correct variable names. Overrides variable-
 # naming-style.
-variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
+variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?_?$
 
 [TYPECHECK]
 
