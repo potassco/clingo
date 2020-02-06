@@ -198,12 +198,10 @@ class InitClauseCreator(object):
             if type_ > 0:
                 return True
         elif type_ != 0:
-            # Note: the literal could also be fiddeled into the wlits
-            old = lit
-            lit = self.add_literal()
-            self.add_clause([-old, lit])
-            if type_ < 0:
-                lit = -lit
+            m = bound-sum(co for _, co in wlits if co > 0)
+            s = 1 if type_ > 0 else -1
+            wlits.append((-s*lit, m))
+            lit = s*TRUE_LIT
         self._weight_constraints.append((lit, wlits[:], bound))
         return True
 
