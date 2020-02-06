@@ -129,6 +129,12 @@ Python development packages are installed.
   Python support is detected; otherwise, Python support will simply be disabled
   if not detected.
   (Default: `OFF`)
+- The variable `CLINGO_PYTHON_VERSION` can be used to select a specific python
+  version. For example, passing `-DCLINGO_PYTHON_VERSION:LIST="3.6;EXACT"` to
+  cmake requires python version 3.6 to be available. Starting with cmake 3.15,
+  variable `Python_ROOT` can be used to specify where to search for a python
+  installation (the documentation of cmake's `FindPython` module has further
+  information).
 - If option `PYCLINGO_USER_INSTALL` is enabled, the clingo Python module is
   installed in the users home directory; otherwise it is installed in the
   system's Python library directory.
@@ -152,6 +158,9 @@ development packages are installed.
 - If option `CLINGO_REQUIRE_LUA` is enabled, configuration will fail if no Lua
   support is detected; otherwise, Lua support will simply be disabled if not
   detected. (Default: `OFF`)
+- The variable `CLINGO_LUA_VERSION` can be used to select a specific Lua
+  version. For example, passing `-DCLINGO_LUA_VERSION:LIST="5.2;EXACT"` to only
+  find Lua 5.2.
 - If variable `LUACLINGO_INSTALL_DIR` is set, the clingo lua module will be
   installed there.
   (Default: not set)
