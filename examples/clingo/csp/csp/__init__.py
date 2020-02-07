@@ -10,6 +10,8 @@ import clingo
 from .parsing import parse_theory, simplify
 from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
 
+# NOTE: We should probably benchmark this or make it an option.
+PROPAGATE_PREV_LIT = False
 CHECK_SOLUTION = True
 CHECK_STATE = False
 MAX_INT = 2**32
@@ -465,31 +467,31 @@ class VarState(object):
         assert MIN_INT <= value < MAX_INT
         return self._literals[value]
 
-    def prev_value(self, value):
+    def prev_values(self, value):
         """
-        Get the the first value preceeding `value` that is associated with a
-        literal or None if there is no such value.
+        Get the the preceeding value/literal pairs of the given value in
+        descending order.
 
         The value must be associated with a literal.
         """
         assert self.has_literal(value)
         i = self._literals.bisect_left(value)
-        if i > 0:
-            return self._literals.peekitem(i-1)[0]
-        return None
+        while i > 0:
+            yield self._literals.peekitem(i-1)
+            i -= 1
 
-    def succ_value(self, value):
+    def succ_values(self, value):
         """
-        Get the the first value succeeding `value` that is associated with a
-        literal or None if there is no such value.
+        Get the the succeeding value/literal pairs of the given value in
+        ascending order.
 
         The value must be associated with a literal.
         """
         assert self.has_literal(value)
         i = self._literals.bisect_right(value)
-        if i < len(self._literals):
-            return self._literals.peekitem(i)[0]
-        return None
+        while i < len(self._literals):
+            yield self._literals.peekitem(i)
+            i += 1
 
     def set_literal(self, value, lit):
         """
@@ -1528,6 +1530,17 @@ class State(object):
 
         return True
 
+    def _propagate_variables(self, cc, vs, reason_lit, consequences, sign):
+        for value, lit in consequences:
+            if cc.assignment.is_true(sign*lit):
+                break
+            if not self._propagate_variable(cc, vs, value, reason_lit, sign):
+                return False
+            if PROPAGATE_PREV_LIT:
+                reason_lit = lit
+
+        return True
+
     def _update_constraints(self, var, diff):
         """
         Traverses the lookup tables for constraints removing inactive
@@ -1576,9 +1589,8 @@ class State(object):
                     self._udiff.setdefault(vs.var, 0)
                     self._udiff[vs.var] += diff
 
-                # make succeeding literal true
-                succ = vs.succ_value(value)
-                if succ is not None and not self._propagate_variable(cc, vs, succ, lit, 1):
+                # make succeeding literals true
+                if not self._propagate_variables(cc, vs, lit, vs.succ_values(value), 1):
                     return False
 
         # update and propagate lower bound
@@ -1595,8 +1607,7 @@ class State(object):
                     self._ldiff[vs.var] += diff
 
                 # make preceeding literal false
-                prev = vs.prev_value(value)
-                if prev is not None and not self._propagate_variable(cc, vs, prev, lit, -1):
+                if not self._propagate_variables(cc, vs, lit, vs.prev_values(value), -1):
                     return False
 
         return True
