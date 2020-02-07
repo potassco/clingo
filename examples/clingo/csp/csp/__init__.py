@@ -1606,7 +1606,7 @@ class State(object):
                     self._ldiff.setdefault(vs.var, 0)
                     self._ldiff[vs.var] += diff
 
-                # make preceeding literal false
+                # make preceeding literals false
                 if not self._propagate_variables(cc, vs, lit, vs.prev_values(value), -1):
                     return False
 
