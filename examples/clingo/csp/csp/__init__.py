@@ -1537,7 +1537,7 @@ class State(object):
             if not self._propagate_variable(cc, vs, value, reason_lit, sign):
                 return False
             if PROPAGATE_PREV_LIT:
-                reason_lit = lit
+                reason_lit = sign*lit
 
         return True
 
