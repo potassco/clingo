@@ -396,6 +396,22 @@ class Transformer(object):
         raise TypeError("unexpected type")
 
 
+def _negate_relation(name):
+    if name == "=":
+        return "!="
+    if name == "!=":
+        return "="
+    if name == "<":
+        return ">="
+    if name == "<=":
+        return ">"
+    if name == ">=":
+        return "<"
+    if name == ">":
+        return "<="
+    raise RuntimeError("unknown relation")
+
+
 class HeadBodyTransformer(Transformer):
     """
     Transforms sum/diff theory atoms in heads and bodies of rules by turning
@@ -408,11 +424,26 @@ class HeadBodyTransformer(Transformer):
         Visit rules adding a parameter indicating whether the head or body is
         being visited.
         """
-        # TODO: To add less constraints, we should shift sum constraints in
-        # integrity constraints from the body to the head. If there are
-        # multiple constraints in the body, we can shift an arbitrary one.
+        # Note: This implements clingcon's don't care propagation. We can shift
+        # one constraint from the body of an integrity constraint to the head
+        # of a rule. This way the constraint is no longer strict and can be
+        # represented internally with less constraints.
+        if rule.head.type == ast.ASTType.Literal and rule.head.atom.type == ast.ASTType.BooleanConstant and not rule.head.atom.value:
+            for literal in rule.body:
+                if literal.type == ast.ASTType.Literal and literal.atom.type == ast.ASTType.TheoryAtom:
+                    atom = literal.atom
+                    term = atom.term
+                    if term.name in ["sum", "diff"] and term.arguments == []:
+                        rule.body.remove(literal)
+                        if literal.sign != ast.Sign.Negation:
+                            atom.guard.operator_name = _negate_relation(atom.guard.operator_name)
+                        rule.head = atom
+                        break
+
+        # tag heads and bodies
         rule.head = self.visit(rule.head, loc="head")
         rule.body = self.visit(rule.body, loc="body")
+
         return rule
 
     def visit_TheoryAtom(self, atom, loc="body"):

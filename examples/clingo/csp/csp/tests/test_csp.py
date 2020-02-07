@@ -149,6 +149,9 @@ class TestMain(unittest.TestCase):
         self.assertEqual(solve("&minimize { x }. &sum{ x } <= 0 :- a. {a}. ", -3, 3), [[('x', -3)], [('a'), ('x', -3)]])
         self.assertEqual(solve("&minimize { x }. a :- &sum{ x } <= 0. ", -3, 3), [[('a'), ('x', -3)]])
 
+    def test_shift(self):
+        self.assertEqual(solve("{a}. :- a, &sum { x } < 3. :- not a, &sum { x } > 0.", 0, 3), [[('x', 0)], ['a', ('x', 3)]])
+
     def test_optimize_bound(self):
         sol = [[('x', 0), ('y', 2), ('z', 0)],
                [('x', 1), ('y', 1), ('z', 1)],
