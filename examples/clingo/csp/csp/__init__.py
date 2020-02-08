@@ -586,7 +586,7 @@ class ConstraintState(AbstractConstraintState):
         """
         return self.constraint.removable
 
-    def _estimate(self, state):
+    def _weight_estimate(self, state):
         """
         Estimate the size of the translation in terms of the number of literals
         necessary for the weight constraint.
@@ -607,15 +607,124 @@ class ConstraintState(AbstractConstraintState):
                 estimate += vs.upper_bound-max(value-1, vs.lower_bound)
         return estimate
 
+    def _weight_translate(self, cc, state, slack):
+        """
+        Translate the constraint to weight a constraint.
+        """
+        # translate small enough constraint
+        # Note: this magic number can be dangerous if there is a huge number of
+        # variables.
+        wlits = []
+        for co, var in self.constraint.elements:
+            vs = state.var_state(var)
+            if co > 0:
+                diff = slack+co*vs.lower_bound
+                value = diff//co
+                assert value >= vs.lower_bound
+                for i in range(vs.lower_bound, min(value+1, vs.upper_bound)):
+                    wlits.append((-state.get_literal(vs, i, cc), co))
+            else:
+                diff = slack+co*vs.upper_bound
+                value = -(diff//-co)
+                assert value <= vs.upper_bound
+                for i in range(max(value-1, vs.lower_bound), vs.upper_bound):
+                    wlits.append((state.get_literal(vs, i, cc), -co))
+
+        # Note: For strict constraints, we can actually use the equivalence
+        # here and only add one weight constraint instead of two. In the
+        # current system design, this requires storing the weight
+        # constraints and detect complementary constraints. It might be a
+        # good idea in general to add translation constraints later because
+        # we can run into the problem of successivly adding variables and
+        # constraints here.
+        ret = cc.add_weight_constraint(self.literal, wlits, slack, 1)
+
+        state.remove_constraint(self.constraint)
+        return ret, True
+
+    def _rec_estimate(self, cc, state, elements, estimate, i, lower, upper, rhs):
+        if estimate >= 1000:
+            return 1000
+        if lower > rhs:
+            return estimate+1
+        assert upper > rhs
+        assert i < len(elements)
+        co, var = elements[i]
+        vs = state.var_state(var)
+        if co > 0:
+            diff_upper = rhs-lower+co*vs.lower_bound
+            diff_lower = rhs-upper+co*vs.upper_bound
+            value_upper = min(vs.upper_bound, diff_upper//co+1)
+            value_lower = max(vs.lower_bound-1, diff_lower//co)
+            assert vs.lower_bound <= value_upper
+            assert value_lower <= vs.upper_bound
+            estimate = estimate+value_upper-value_lower
+            for next_value in range(value_upper, value_lower, -1):
+                next_upper = upper-co*(vs.upper_bound-next_value)
+                next_lower = lower+co*(next_value-vs.lower_bound)
+                # Note: It should be possible to tune this further. In each
+                # step we relax the constraint by decreasing var. Hence, the
+                # following estimate call will count at least as many clauses
+                # as the previous one.
+                estimate = self._rec_estimate(cc, state, elements, estimate-1, i+1, next_lower, next_upper, rhs)
+        else:
+            diff_upper = rhs-upper+co*vs.lower_bound
+            diff_lower = rhs-lower+co*vs.upper_bound
+            value_upper = min(vs.upper_bound+1, -(diff_upper//-co))
+            value_lower = max(vs.lower_bound, -(diff_lower//-co)-1)
+            assert value_lower <= vs.upper_bound
+            assert vs.lower_bound <= value_upper
+            estimate = estimate+value_upper-value_lower
+            for next_value in range(value_lower, value_upper):
+                next_upper = upper-co*(vs.lower_bound-next_value)
+                next_lower = lower+co*(next_value-vs.upper_bound)
+                estimate = self._rec_estimate(cc, state, elements, estimate-1, i+1, next_lower, next_upper, rhs)
+
+        return estimate
+
+    def _rec_translate(self, cc, state, elements, clause, i, lower, upper, rhs):
+        if lower > rhs:
+            return cc.add_clause(clause)
+        assert upper > rhs
+        assert i < len(elements)
+        co, var = elements[i]
+        vs = state.var_state(var)
+        if co > 0:
+            diff_upper = rhs-lower+co*vs.lower_bound
+            diff_lower = rhs-upper+co*vs.upper_bound
+            value_upper = diff_upper//co
+            value_lower = diff_lower//co
+            assert vs.lower_bound <= value_upper
+            assert value_lower <= vs.upper_bound
+            for next_value in range(min(vs.upper_bound, value_upper+1), max(vs.lower_bound-1, value_lower), -1):
+                next_upper = upper-co*(vs.upper_bound-next_value)
+                next_lower = lower+co*(next_value-vs.lower_bound)
+                clause.append(state.get_literal(vs, next_value-1, cc))
+                if not self._rec_translate(cc, state, elements, clause, i+1, next_lower, next_upper, rhs):
+                    return False
+                clause.pop()
+        else:
+            diff_upper = rhs-upper+co*vs.lower_bound
+            diff_lower = rhs-lower+co*vs.upper_bound
+            value_upper = -(diff_upper//-co)
+            value_lower = -(diff_lower//-co)
+            assert value_lower <= vs.upper_bound
+            assert vs.lower_bound <= value_upper
+            for next_value in range(max(vs.lower_bound, value_lower-1), min(vs.upper_bound+1, value_upper)):
+                next_upper = upper-co*(vs.lower_bound-next_value)
+                next_lower = lower+co*(next_value-vs.upper_bound)
+                clause.append(-state.get_literal(vs, next_value, cc))
+                if not self._rec_translate(cc, state, elements, clause, i+1, next_lower, next_upper, rhs):
+                    return False
+                clause.pop()
+
+        return True
+
     def translate(self, cc, state):
         """
-        Translate small enough constraints to weight constraints.
+        Translate a constraint to clauses or weight constraints.
         """
-        # Note: Currently this implements a translation to weight constraints
-        # only. As long as the number of clauses introduced is low, we can also
-        # do Max's translation to clauses here. The clauses have the advantage
-        # that they provide more direct reasons because they contain only the
-        # last literal in a chain.
+        # TODO: refactor!!!
         ass = cc.assignment
 
         if self.constraint.tagged:
@@ -631,37 +740,16 @@ class ConstraintState(AbstractConstraintState):
         # Note: otherwise propagation is broken
         assert slack >= 0
 
-        # translate small enough constraint
-        # Note: this magic number can be dangerous if there is a huge number of
-        # variables.
-        if self._estimate(state) < 1000:
-            wlits = []
-            for co, var in self.constraint.elements:
-                vs = state.var_state(var)
-                if co > 0:
-                    diff = slack+co*vs.lower_bound
-                    value = diff//co
-                    assert value >= vs.lower_bound
-                    for i in range(vs.lower_bound, min(value+1, vs.upper_bound)):
-                        wlits.append((-state.get_literal(vs, i, cc), co))
-                else:
-                    diff = slack+co*vs.upper_bound
-                    value = -(diff//-co)
-                    assert value <= vs.upper_bound
-                    for i in range(max(value-1, vs.lower_bound), vs.upper_bound):
-                        wlits.append((state.get_literal(vs, i, cc), -co))
-
-            # Note: For strict constraints, we can actually use the equivalence
-            # here and only add one weight constraint instead of two. In the
-            # current system design, this requires storing the weight
-            # constraints and detect complementary constraints. It might be a
-            # good idea in general to add translation constraints later because
-            # we can run into the problem of successivly adding variables and
-            # constraints here.
-            ret = cc.add_weight_constraint(self.literal, wlits, slack, 1)
-
+        # translation to clauses
+        elements = sorted(self.constraint.elements, key=lambda x: -abs(x[0]))
+        if self._rec_estimate(cc, state, elements, 0, 0, self.lower_bound, self.upper_bound, self.constraint.rhs(state)) < 1000:
+            ret = self._rec_translate(cc, state, elements, [-self.literal], 0, self.lower_bound, self.upper_bound, self.constraint.rhs(state))
             state.remove_constraint(self.constraint)
             return ret, True
+
+        # translation to weight constraints
+        if self._weight_estimate(state) < 1000:
+            return self._weight_translate(cc, state, slack)
 
         return True, False
 
