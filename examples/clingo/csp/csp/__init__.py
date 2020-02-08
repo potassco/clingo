@@ -12,6 +12,8 @@ from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
 
 # NOTE: We should probably benchmark this or make it an option.
 PROPAGATE_PREV_LIT = False
+MAGIC_CLAUSE = 1000
+MAGIC_WEIGHT_CONSTRAINT = 1000
 CHECK_SOLUTION = True
 CHECK_STATE = False
 MAX_INT = 2**32
@@ -642,79 +644,77 @@ class ConstraintState(AbstractConstraintState):
         state.remove_constraint(self.constraint)
         return ret, True
 
-    def _rec_estimate(self, cc, state, elements, estimate, i, lower, upper, rhs):
-        if estimate >= 1000:
-            return 1000
-        if lower > rhs:
+    def _rec_estimate(self, cc, state, elements, estimate, i, lower, upper):
+        if estimate >= 0:
+            return 0
+        if lower < 0:
             return estimate+1
-        assert upper > rhs
-        assert i < len(elements)
+        assert upper < 0 and i < len(elements)
         co, var = elements[i]
         vs = state.var_state(var)
         if co > 0:
-            diff_upper = rhs-lower+co*vs.lower_bound
-            diff_lower = rhs-upper+co*vs.upper_bound
-            value_upper = min(vs.upper_bound, diff_upper//co+1)
+            diff_upper = lower+co*vs.lower_bound
+            diff_lower = upper+co*vs.upper_bound
+            value_upper = min(vs.upper_bound-1, diff_upper//co)
             value_lower = max(vs.lower_bound-1, diff_lower//co)
-            assert vs.lower_bound <= value_upper
+            assert vs.lower_bound <= value_upper+1
             assert value_lower <= vs.upper_bound
             estimate = estimate+value_upper-value_lower
-            for next_value in range(value_upper, value_lower, -1):
-                next_upper = upper-co*(vs.upper_bound-next_value)
-                next_lower = lower+co*(next_value-vs.lower_bound)
+            for next_value in range(value_upper+1, value_lower, -1):
+                next_upper = upper+co*(vs.upper_bound-next_value)
+                next_lower = lower-co*(next_value-vs.lower_bound)
                 # Note: It should be possible to tune this further. In each
                 # step we relax the constraint by decreasing var. Hence, the
                 # following estimate call will count at least as many clauses
                 # as the previous one.
-                estimate = self._rec_estimate(cc, state, elements, estimate-1, i+1, next_lower, next_upper, rhs)
+                estimate = self._rec_estimate(cc, state, elements, estimate-1, i+1, next_lower, next_upper)
         else:
-            diff_upper = rhs-upper+co*vs.lower_bound
-            diff_lower = rhs-lower+co*vs.upper_bound
-            value_upper = min(vs.upper_bound+1, -(diff_upper//-co))
+            diff_upper = upper+co*vs.lower_bound
+            diff_lower = lower+co*vs.upper_bound
+            value_upper = min(vs.upper_bound, -(diff_upper//-co)-1)
             value_lower = max(vs.lower_bound, -(diff_lower//-co)-1)
             assert value_lower <= vs.upper_bound
-            assert vs.lower_bound <= value_upper
+            assert vs.lower_bound <= value_upper+1
             estimate = estimate+value_upper-value_lower
-            for next_value in range(value_lower, value_upper):
-                next_upper = upper-co*(vs.lower_bound-next_value)
-                next_lower = lower+co*(next_value-vs.upper_bound)
-                estimate = self._rec_estimate(cc, state, elements, estimate-1, i+1, next_lower, next_upper, rhs)
+            for next_value in range(value_lower, value_upper+1):
+                next_upper = upper+co*(vs.lower_bound-next_value)
+                next_lower = lower-co*(next_value-vs.upper_bound)
+                estimate = self._rec_estimate(cc, state, elements, estimate-1, i+1, next_lower, next_upper)
 
         return estimate
 
-    def _rec_translate(self, cc, state, elements, clause, i, lower, upper, rhs):
-        if lower > rhs:
+    def _rec_translate(self, cc, state, elements, clause, i, lower, upper):
+        if lower < 0:
             return cc.add_clause(clause)
-        assert upper > rhs
-        assert i < len(elements)
+        assert upper < 0 and i < len(elements)
         co, var = elements[i]
         vs = state.var_state(var)
         if co > 0:
-            diff_upper = rhs-lower+co*vs.lower_bound
-            diff_lower = rhs-upper+co*vs.upper_bound
-            value_upper = diff_upper//co
-            value_lower = diff_lower//co
-            assert vs.lower_bound <= value_upper
+            diff_upper = lower+co*vs.lower_bound
+            diff_lower = upper+co*vs.upper_bound
+            value_upper = min(vs.upper_bound-1, diff_upper//co)
+            value_lower = max(vs.lower_bound-1, diff_lower//co)
+            assert vs.lower_bound <= value_upper+1
             assert value_lower <= vs.upper_bound
-            for next_value in range(min(vs.upper_bound, value_upper+1), max(vs.lower_bound-1, value_lower), -1):
-                next_upper = upper-co*(vs.upper_bound-next_value)
-                next_lower = lower+co*(next_value-vs.lower_bound)
+            for next_value in range(value_upper+1, value_lower, -1):
+                next_upper = upper+co*(vs.upper_bound-next_value)
+                next_lower = lower-co*(next_value-vs.lower_bound)
                 clause.append(state.get_literal(vs, next_value-1, cc))
-                if not self._rec_translate(cc, state, elements, clause, i+1, next_lower, next_upper, rhs):
+                if not self._rec_translate(cc, state, elements, clause, i+1, next_lower, next_upper):
                     return False
                 clause.pop()
         else:
-            diff_upper = rhs-upper+co*vs.lower_bound
-            diff_lower = rhs-lower+co*vs.upper_bound
-            value_upper = -(diff_upper//-co)
-            value_lower = -(diff_lower//-co)
+            diff_upper = upper+co*vs.lower_bound
+            diff_lower = lower+co*vs.upper_bound
+            value_upper = min(vs.upper_bound, -(diff_upper//-co)-1)
+            value_lower = max(vs.lower_bound, -(diff_lower//-co)-1)
             assert value_lower <= vs.upper_bound
-            assert vs.lower_bound <= value_upper
-            for next_value in range(max(vs.lower_bound, value_lower-1), min(vs.upper_bound+1, value_upper)):
-                next_upper = upper-co*(vs.lower_bound-next_value)
-                next_lower = lower+co*(next_value-vs.upper_bound)
+            assert vs.lower_bound <= value_upper+1
+            for next_value in range(value_lower, value_upper+1):
+                next_upper = upper+co*(vs.lower_bound-next_value)
+                next_lower = lower-co*(next_value-vs.upper_bound)
                 clause.append(-state.get_literal(vs, next_value, cc))
-                if not self._rec_translate(cc, state, elements, clause, i+1, next_lower, next_upper, rhs):
+                if not self._rec_translate(cc, state, elements, clause, i+1, next_lower, next_upper):
                     return False
                 clause.pop()
 
@@ -724,7 +724,6 @@ class ConstraintState(AbstractConstraintState):
         """
         Translate a constraint to clauses or weight constraints.
         """
-        # TODO: refactor!!!
         ass = cc.assignment
 
         if self.constraint.tagged:
@@ -735,21 +734,22 @@ class ConstraintState(AbstractConstraintState):
             state.remove_constraint(self.constraint)
             return True, True
 
-        slack = rhs-self.lower_bound
+        lower = rhs-self.lower_bound
+        upper = rhs-self.upper_bound
 
         # Note: otherwise propagation is broken
-        assert slack >= 0
+        assert lower >= 0
 
         # translation to clauses
         elements = sorted(self.constraint.elements, key=lambda x: -abs(x[0]))
-        if self._rec_estimate(cc, state, elements, 0, 0, self.lower_bound, self.upper_bound, self.constraint.rhs(state)) < 1000:
-            ret = self._rec_translate(cc, state, elements, [-self.literal], 0, self.lower_bound, self.upper_bound, self.constraint.rhs(state))
+        if self._rec_estimate(cc, state, elements, -MAGIC_CLAUSE, 0, lower, upper) < 0:
+            ret = self._rec_translate(cc, state, elements, [-self.literal], 0, lower, upper)
             state.remove_constraint(self.constraint)
             return ret, True
 
         # translation to weight constraints
-        if self._weight_estimate(state) < 1000:
-            return self._weight_translate(cc, state, slack)
+        if self._weight_estimate(state) < MAGIC_WEIGHT_CONSTRAINT:
+            return self._weight_translate(cc, state, lower)
 
         return True, False
 
