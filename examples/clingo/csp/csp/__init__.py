@@ -156,8 +156,6 @@ class InitClauseCreator(object):
         Commit accumulated constraints.
         """
         for lit in self._watches:
-            # TODO: remove
-            self._solver.add_clause([lit, -lit])
             self._solver.add_watch(lit)
         for clause in self._clauses:
             self._solver.add_clause(clause)
