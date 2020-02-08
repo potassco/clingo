@@ -134,7 +134,6 @@ class InitClauseCreator(object):
 
     def __init__(self, init):
         self._solver = init
-        self._watches = []
         self._clauses = []
         self._weight_constraints = []
 
@@ -149,14 +148,12 @@ class InitClauseCreator(object):
         """
         Watch the given solver literal.
         """
-        self._watches.append(lit)
+        self._solver.add_watch(lit)
 
     def commit(self):
         """
         Commit accumulated constraints.
         """
-        for lit in self._watches:
-            self._solver.add_watch(lit)
         for clause in self._clauses:
             self._solver.add_clause(clause)
         for clause in self._clauses:
