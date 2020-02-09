@@ -11,9 +11,11 @@ from .parsing import parse_theory, simplify
 from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
 
 # NOTE: We should probably benchmark this or make it an option.
-PROPAGATE_PREV_LIT = False
-MAGIC_CLAUSE = 1000
-MAGIC_WEIGHT_CONSTRAINT = 1000
+REFINE_REASONS = True
+SORT_ELEMENTS = True
+PROPAGATE_PREV_LIT = True
+MAGIC_CLAUSE = 0
+MAGIC_WEIGHT_CONSTRAINT = 0
 CHECK_SOLUTION = True
 CHECK_STATE = False
 MAX_INT = 2**32
@@ -74,6 +76,7 @@ class ThreadStatistics(object):
         self.time_propagate = 0
         self.time_check = 0
         self.time_undo = 0
+        self.refined_reason = 0
 
     def reset(self):
         """
@@ -82,6 +85,7 @@ class ThreadStatistics(object):
         self.time_propagate = 0
         self.time_check = 0
         self.time_undo = 0
+        self.refined_reason = 0
 
     def accu(self, stat):
         """
@@ -90,6 +94,7 @@ class ThreadStatistics(object):
         self.time_propagate += stat.time_propagate
         self.time_check += stat.time_check
         self.time_undo += stat.time_undo
+        self.refined_reason += stat.refined_reason
 
 
 class Statistics(object):
@@ -736,7 +741,10 @@ class ConstraintState(AbstractConstraintState):
         assert lower >= 0
 
         # translation to clauses
-        elements = sorted(self.constraint.elements, key=lambda x: -abs(x[0]))
+        if not SORT_ELEMENTS:
+            elements = sorted(self.constraint.elements, key=lambda x: -abs(x[0]))
+        else:
+            elements = self.constraint.elements
         if self._rec_estimate(cc, state, elements, -MAGIC_CLAUSE, 0, lower, upper) < 0:
             ret = self._rec_translate(cc, state, elements, [-self.literal], 0, lower, upper)
             state.remove_constraint(self.constraint)
@@ -784,36 +792,46 @@ class ConstraintState(AbstractConstraintState):
         assert lower == self.lower_bound
         assert upper == self.upper_bound
 
-    def _generate_reason(self, state, cc):
-        """
-        Generate a reason for a constraint and count the guessed literals in
-        it.
-        """
-        clit = self.literal
+    def _calculate_reason(self, state, cc, slack, vs, co):
         ass = cc.assignment
-        lbs = []                                        # lower bound literals
-        num_guess = 1 if self.constraint.tagged else 0  # number of assignments above level 0
-        for co, var in self.constraint.elements:
-            vs = state.var_state(var)
-            if co > 0:
-                # note that any literal associated with a value smaller than
-                # the lower bound is false
-                lit = state.get_literal(vs, vs.lower_bound-1, cc)
-            else:
-                # note that any literal associated with a value greater or
-                # equal than the upper bound is true
-                lit = -state.get_literal(vs, vs.upper_bound, cc)
+        ret = True
 
-            assert ass.is_false(lit)
-            if not ass.is_fixed(lit):
-                num_guess += 1
-            lbs.append(lit)
+        # calculate and refine reason literals
+        if co > 0:
+            lit = state.get_literal(vs, vs.lower_bound-1, cc)
+            # refine the reason literal
+            if REFINE_REASONS and slack+co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
+                delta = -((slack+1)//-co)
+                value = vs.lower_bound+delta
+                value = max(value, vs.min_bound)
+                if value < vs.lower_bound:
+                    state.statistics.refined_reason += 1
+                    slack -= co*(value-vs.lower_bound)
+                    assert slack < 0
+                    refined = state.get_literal(vs, value-1, cc)
+                    # TODO: Introducing a literal here is not a good idea. If the literal is
+                    # on a lower decision level, this can lead to excessive
+                    # backtracking. But we can also take the smallest value
+                    # between the calculated value and the lower bound.
+                    ret = ass.is_true(-refined) or cc.add_clause([lit, -refined])
+                    lit = refined
+        else:
+            lit = -state.get_literal(vs, vs.upper_bound, cc)
+            # refine the reason literal
+            if REFINE_REASONS and slack-co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
+                delta = (slack+1)//co
+                value = vs.upper_bound+delta
+                value = min(value, vs.max_bound)
+                if value > vs.upper_bound:
+                    state.statistics.refined_reason += 1
+                    slack -= co*(value-vs.upper_bound)
+                    assert slack < 0
+                    # TODO: same as above
+                    refined = -state.get_literal(vs, value, cc)
+                    ret = ass.is_true(-refined) or cc.add_clause([lit, -refined])
+                    lit = refined
 
-        if not ass.is_fixed(clit):
-            num_guess += 1
-        lbs.append(-clit)
-
-        return num_guess, lbs
+        return ret, slack, lit
 
     def propagate(self, state, cc):
         """
@@ -848,58 +866,94 @@ class ConstraintState(AbstractConstraintState):
         # this is necessary to correctly handle empty constraints (and do
         # propagation of false constraints)
         if slack < 0:
+            reason = []
+
+            # add reason literals
+            for co, var in self.constraint.elements:
+                vs = state.var_state(var)
+
+                # calculate reason literal
+                ret, slack, lit = self._calculate_reason(state, cc, slack, vs, co)
+                if not ret:
+                    return False
+
+                # append the reason literal
+                if not ass.is_fixed(lit):
+                    reason.append(lit)
+
+            # append the consequence
+            reason.append(-self.literal)
+
             state.mark_inactive(self)
-            _, lbs = self._generate_reason(state, cc)
-            return cc.add_clause(lbs, tag=self.constraint.tagged)
+            return cc.add_clause(reason, tag=self.constraint.tagged)
 
         if not ass.is_true(self.literal):
             return True
 
-        num_guess, lbs = self._generate_reason(state, cc)
+        for co_r, var_r in self.constraint.elements:
+            vs_r = state.var_state(var_r)
+            lit_r = 0
 
-        for i, (co, var) in enumerate(self.constraint.elements):
-            vs = state.var_state(var)
-
-            # adjust the number of guesses if the current literal is a guess
-            adjust = 1 if not ass.is_fixed(lbs[i]) else 0
-
-            # if all literals are assigned on level 0 then we can associate the
-            # value with a true/false literal, taken care of by the extra
-            # argument truth to update_literal
-            if co > 0:
-                truth = num_guess == adjust or None
-                diff = slack+co*vs.lower_bound
-                value = diff//co
-                assert value >= vs.lower_bound
-                # Note: all order literals above the upper bound are true already
-                if value >= vs.upper_bound:
+            # calculate the firet value that would violate the constraint
+            if co_r > 0:
+                delta_r = -((slack+1)//-co_r)
+                value_r = vs_r.lower_bound+delta_r
+                assert slack-co_r*delta_r < 0 <= slack-co_r*(delta_r-1)
+                # values above the upper bound are already true
+                if value_r > vs_r.upper_bound:
                     continue
-                ret, lit = state.update_literal(vs, value, cc, truth)
-                if not ret:
-                    return False
+                # get the literal of the value
+                if vs_r.has_literal(value_r-1):
+                    lit_r = state.get_literal(vs_r, value_r-1, cc)
             else:
-                truth = num_guess > adjust and None
-                diff = slack+co*vs.upper_bound
-                value = -(diff//-co)
-                assert value <= vs.upper_bound
-                # Note: all order literals below the lower bound are false already
-                if value <= vs.lower_bound:
+                delta_r = (slack+1)//co_r
+                value_r = vs_r.upper_bound+delta_r
+                assert slack-co_r*delta_r < 0 <= slack-co_r*(delta_r+1)
+                # values below the lower bound are already false
+                if value_r < vs_r.lower_bound:
                     continue
-                ret, lit = state.update_literal(vs, value-1, cc, truth)
-                if not ret:
-                    return False
-                lit = -lit
+                # get the literal of the value
+                if vs_r.has_literal(value_r):
+                    lit_r = -state.get_literal(vs_r, value_r, cc)
 
-            # the value is chosen in a way that the slack is greater or equal
-            # than 0 but also so that it does not exceed the coefficient (in
-            # which case the propagation would not be strong enough)
-            assert diff - co*value >= 0 and diff - co*value < abs(co)
+            # build the reason if the literal has not already been propagated
+            if lit_r == 0 or not ass.is_true(lit_r):
+                slack_r = slack-co_r*delta_r
+                assert slack_r < 0
+                reason = []
+                # add the constraint itself
+                if not ass.is_fixed(-self.literal):
+                    reason.append(-self.literal)
+                for co_a, var_a in self.constraint.elements:
+                    if var_a == var_r:
+                        continue
+                    vs_a = state.var_state(var_a)
 
-            if not ass.is_true(lit):
-                lbs[i], lit = lit, lbs[i]
-                if not cc.add_clause(lbs, tag=self.constraint.tagged):
+                    # calculate reason literal
+                    ret, slack_r, lit_a = self._calculate_reason(state, cc, slack_r, vs_a, co_a)
+                    if not ret:
+                        return False
+
+                    # append the reason literal
+                    if not ass.is_fixed(lit_a):
+                        reason.append(lit_a)
+
+                # append the consequence
+                guess = reason or self.constraint.tagged
+                if co_r > 0:
+                    ret, lit_r = state.update_literal(vs_r, value_r-1, cc, not guess or None)
+                    if not ret:
+                        return False
+                else:
+                    ret, lit_r = state.update_literal(vs_r, value_r, cc, guess and None)
+                    if not ret:
+                        return False
+                    lit_r = -lit_r
+                reason.append(lit_r)
+
+                # propagate the clause
+                if not cc.add_clause(reason, tag=self.constraint.tagged):
                     return False
-                lbs[i] = lit
 
         return True
 
@@ -2298,7 +2352,8 @@ class Propagator(object):
                 ("Time total(s)", p+c+u),
                 ("Time propagation(s)", p),
                 ("Time check(s)", c),
-                ("Time undo(s)", u)])
+                ("Time undo(s)", u),
+                ("Refined reason", tstat.refined_reason)])
         stats_map["Clingcon"] = OrderedDict([
             ("Time init(s)", stats.time_init),
             ("Variables", stats.num_variables),
@@ -2332,6 +2387,8 @@ class Propagator(object):
         lit = constraint.literal
         cc.add_watch(lit)
         self._l2c.setdefault(lit, []).append(constraint)
+        if SORT_ELEMENTS:
+            constraint.elements.sort(key=lambda cv: -abs(cv[0]))
         for _, var in constraint.elements:
             self.add_variable(var)
 
