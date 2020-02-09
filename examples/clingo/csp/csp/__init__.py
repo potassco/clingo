@@ -16,6 +16,7 @@ REFINE_INTRODUCE = True
 SORT_ELEMENTS = True
 PROPAGATE_PREV_LIT = True
 MAGIC_CLAUSE = 1000
+LITERALS_ONLY = False
 MAGIC_WEIGHT_CONSTRAINT = 0  # careful needs a not yet uploaded clingo version
 CHECK_SOLUTION = True
 CHECK_STATE = False
@@ -699,7 +700,7 @@ class ConstraintState(AbstractConstraintState):
 
     def _rec_translate(self, cc, state, elements, clause, i, lower, upper):
         if lower < 0:
-            return cc.add_clause(clause)
+            return True if LITERALS_ONLY else cc.add_clause(clause)
         assert upper < 0 and i < len(elements)
         co, var = elements[i]
         vs = state.var_state(var)
@@ -762,6 +763,8 @@ class ConstraintState(AbstractConstraintState):
 
         if self._rec_estimate(cc, state, elements, -MAGIC_CLAUSE, 0, lower, upper) < 0:
             ret = self._rec_translate(cc, state, elements, [-self.literal], 0, lower, upper)
+            if LITERALS_ONLY:
+                return ret, False
             state.remove_constraint(self.constraint)
             return ret, True
 
