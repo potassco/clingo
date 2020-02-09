@@ -16,7 +16,7 @@ REFINE_INTRODUCE = True
 SORT_ELEMENTS = True
 PROPAGATE_PREV_LIT = True
 MAGIC_CLAUSE = 1000
-MAGIC_WEIGHT_CONSTRAINT = 0
+MAGIC_WEIGHT_CONSTRAINT = 0  # careful needs a not yet uploaded clingo version
 CHECK_SOLUTION = True
 CHECK_STATE = False
 SHIFT_CONSTRAINTS = True
@@ -169,8 +169,8 @@ class InitClauseCreator(object):
         for clause in self._clauses:
             if not self._solver.add_clause(clause):
                 return False
-        for lit, wlits, bound in self._weight_constraints:
-            if not self._solver.add_weight_constraint(-lit, wlits, bound+1):
+        for lit, wlits, bound, type_ in self._weight_constraints:
+            if not self._solver.add_weight_constraint(-lit, wlits, bound+1, -type_):
                 return False
         return True
 
@@ -206,12 +206,7 @@ class InitClauseCreator(object):
         elif self.assignment.is_false(lit):
             if type_ > 0:
                 return True
-        elif type_ != 0:
-            m = bound-sum(co for _, co in wlits if co > 0)
-            s = 1 if type_ > 0 else -1
-            wlits.append((-s*lit, m))
-            lit = s*TRUE_LIT
-        self._weight_constraints.append((lit, wlits[:], bound))
+        self._weight_constraints.append((lit, wlits[:], bound, type_))
         return True
 
     @property
