@@ -82,7 +82,7 @@ class Application(object):
 
         with prg.builder() as b:
             for f in files:
-                transform(b, open(f).read())
+                transform(b, open(f).read(), csp.SHIFT_CONSTRAINTS)
 
         prg.ground([("base", [])])
 

@@ -419,6 +419,9 @@ class HeadBodyTransformer(Transformer):
     """
     # pylint: disable=invalid-name
 
+    def __init__(self, shift):
+        self._shift = shift
+
     def visit_Rule(self, rule):
         """
         Visit rules adding a parameter indicating whether the head or body is
@@ -428,7 +431,7 @@ class HeadBodyTransformer(Transformer):
         # one constraint from the body of an integrity constraint to the head
         # of a rule. This way the constraint is no longer strict and can be
         # represented internally with less constraints.
-        if rule.head.type == ast.ASTType.Literal and rule.head.atom.type == ast.ASTType.BooleanConstant and not rule.head.atom.value:
+        if self._shift and rule.head.type == ast.ASTType.Literal and rule.head.atom.type == ast.ASTType.BooleanConstant and not rule.head.atom.value:
             for literal in rule.body:
                 if literal.type == ast.ASTType.Literal and literal.atom.type == ast.ASTType.TheoryAtom:
                     atom = literal.atom
@@ -457,9 +460,9 @@ class HeadBodyTransformer(Transformer):
         return atom
 
 
-def transform(builder, s):
+def transform(builder, s, shift):
     """
     Transform the program with csp constraints in the given file and path it to the builder.
     """
-    t = HeadBodyTransformer()
+    t = HeadBodyTransformer(shift)
     clingo.parse_program(s, lambda stm: builder.add(t.visit(stm)))

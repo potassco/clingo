@@ -60,7 +60,7 @@ class Solver(object):
         step = "step{}".format(self.step)
 
         with self.prg.builder() as b:
-            transform(b, "#program {}.\n{}".format(step, s))
+            transform(b, "#program {}.\n{}".format(step, s), csp.SHIFT_CONSTRAINTS)
         self.prg.ground([(step, [])])
 
         self.bound = bound

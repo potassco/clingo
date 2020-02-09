@@ -10,14 +10,16 @@ import clingo
 from .parsing import parse_theory, simplify
 from .util import lerp, remove_if, TodoList, SortedDict, IntervalSet
 
-# NOTE: We should probably benchmark this or make it an option.
+# TODO: These have to become options!
 REFINE_REASONS = True
+REFINE_INTRODUCE = True
 SORT_ELEMENTS = True
 PROPAGATE_PREV_LIT = True
-MAGIC_CLAUSE = 0
+MAGIC_CLAUSE = 1000
 MAGIC_WEIGHT_CONSTRAINT = 0
 CHECK_SOLUTION = True
 CHECK_STATE = False
+SHIFT_CONSTRAINTS = True
 MAX_INT = 2**32
 MIN_INT = -(2**32)
 TRUE_LIT = 1
@@ -77,6 +79,7 @@ class ThreadStatistics(object):
         self.time_check = 0
         self.time_undo = 0
         self.refined_reason = 0
+        self.introduced_reason = 0
 
     def reset(self):
         """
@@ -86,6 +89,7 @@ class ThreadStatistics(object):
         self.time_check = 0
         self.time_undo = 0
         self.refined_reason = 0
+        self.introduced_reason = 0
 
     def accu(self, stat):
         """
@@ -95,6 +99,7 @@ class ThreadStatistics(object):
         self.time_check += stat.time_check
         self.time_undo += stat.time_undo
         self.refined_reason += stat.refined_reason
+        self.introduced_reason += stat.introduced_reason
 
 
 class Statistics(object):
@@ -495,6 +500,20 @@ class VarState(object):
             yield self._literals.peekitem(i)
             i += 1
 
+    def value_le(self, value):
+        """
+        Find a value less than or equal to value.
+        """
+        i = self._literals.bisect_right(value)
+        return self._literals.peekitem(i-1) if i > 0 else None
+
+    def value_ge(self, value):
+        """
+        Find a value greater than or equal to value.
+        """
+        i = self._literals.bisect_left(value)
+        return self._literals.peekitem(i) if i < len(self._literals) else None
+
     def set_literal(self, value, lit):
         """
         Set the literal of the given `value`.
@@ -659,7 +678,7 @@ class ConstraintState(AbstractConstraintState):
             value_lower = max(vs.lower_bound-1, diff_lower//co)
             assert vs.lower_bound <= value_upper+1
             assert value_lower <= vs.upper_bound
-            estimate = estimate+value_upper-value_lower
+            estimate += value_upper-value_lower+1
             for next_value in range(value_upper+1, value_lower, -1):
                 next_upper = upper+co*(vs.upper_bound-next_value)
                 next_lower = lower-co*(next_value-vs.lower_bound)
@@ -675,7 +694,7 @@ class ConstraintState(AbstractConstraintState):
             value_lower = max(vs.lower_bound, -(diff_lower//-co)-1)
             assert value_lower <= vs.upper_bound
             assert vs.lower_bound <= value_upper+1
-            estimate = estimate+value_upper-value_lower
+            estimate += value_upper-value_lower+1
             for next_value in range(value_lower, value_upper+1):
                 next_upper = upper+co*(vs.lower_bound-next_value)
                 next_lower = lower-co*(next_value-vs.upper_bound)
@@ -745,6 +764,7 @@ class ConstraintState(AbstractConstraintState):
             elements = sorted(self.constraint.elements, key=lambda x: -abs(x[0]))
         else:
             elements = self.constraint.elements
+
         if self._rec_estimate(cc, state, elements, -MAGIC_CLAUSE, 0, lower, upper) < 0:
             ret = self._rec_translate(cc, state, elements, [-self.literal], 0, lower, upper)
             state.remove_constraint(self.constraint)
@@ -795,42 +815,71 @@ class ConstraintState(AbstractConstraintState):
     def _calculate_reason(self, state, cc, slack, vs, co):
         ass = cc.assignment
         ret = True
+        found = 0
 
-        # calculate and refine reason literals
         if co > 0:
-            lit = state.get_literal(vs, vs.lower_bound-1, cc)
-            # refine the reason literal
+            current = vs.lower_bound
+            # the direct reason literal
+            lit = state.get_literal(vs, current-1, cc)
+            assert ass.is_false(lit)
             if REFINE_REASONS and slack+co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
                 delta = -((slack+1)//-co)
-                value = vs.lower_bound+delta
-                value = max(value, vs.min_bound)
-                if value < vs.lower_bound:
-                    state.statistics.refined_reason += 1
-                    slack -= co*(value-vs.lower_bound)
-                    assert slack < 0
-                    refined = state.get_literal(vs, value-1, cc)
-                    # TODO: Introducing a literal here is not a good idea. If the literal is
-                    # on a lower decision level, this can lead to excessive
-                    # backtracking. But we can also take the smallest value
-                    # between the calculated value and the lower bound.
-                    ret = ass.is_true(-refined) or cc.add_clause([lit, -refined])
-                    lit = refined
+                value = max(current+delta, vs.min_bound)
+                if value < current:
+                    # refine reason literal
+                    vl = vs.value_ge(value-1)
+                    if vl is not None and vl[0]+1 < current:
+                        found = 1
+                        slack -= co*(vl[0]+1-current)
+                        current = vl[0]+1
+                        assert slack < 0
+                        lit = vl[1]
+                        assert ass.is_false(lit)
+
+                    # introduce reason literal
+                    # Note: It is important to imply literals by the smallest
+                    # available literal to keep the state consistent.
+                    # Furthermore, we only introduce literals implied on the
+                    # current decision level to avoid backtracking.
+                    if REFINE_INTRODUCE and ass.level(lit) == ass.decision_level and value < current:
+                        state.statistics.introduced_reason += 1
+                        found = 1
+                        slack -= co*(value-current)
+                        assert slack < 0
+                        refined = state.get_literal(vs, value-1, cc)
+                        assert not ass.is_true(refined)
+                        ret = ass.is_false(refined) or cc.add_clause([lit, -refined])
+                        lit = refined
         else:
-            lit = -state.get_literal(vs, vs.upper_bound, cc)
-            # refine the reason literal
+            # symmetric case
+            current = vs.upper_bound
+            lit = -state.get_literal(vs, current, cc)
+            assert ass.is_false(lit)
             if REFINE_REASONS and slack-co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
                 delta = (slack+1)//co
-                value = vs.upper_bound+delta
-                value = min(value, vs.max_bound)
-                if value > vs.upper_bound:
-                    state.statistics.refined_reason += 1
-                    slack -= co*(value-vs.upper_bound)
-                    assert slack < 0
-                    # TODO: same as above
-                    refined = -state.get_literal(vs, value, cc)
-                    ret = ass.is_true(-refined) or cc.add_clause([lit, -refined])
-                    lit = refined
+                value = min(current+delta, vs.max_bound)
+                if value > current:
+                    vl = vs.value_le(value)
+                    if vl is not None and vl[0] > current:
+                        found = 1
+                        slack -= co*(vl[0]-current)
+                        current = vl[0]
+                        assert slack < 0
+                        lit = -vl[1]
+                        assert ass.is_false(lit)
 
+                    if REFINE_INTRODUCE and ass.level(lit) == ass.decision_level and value > current:
+                        state.statistics.introduced_reason += 1
+                        found = 1
+                        slack -= co*(value-current)
+                        assert slack < 0
+                        refined = -state.get_literal(vs, value, cc)
+                        assert not ass.is_true(refined)
+                        ret = ass.is_false(refined) or cc.add_clause([lit, -refined])
+                        lit = refined
+
+        state.statistics.refined_reason += found
+        assert not ret or ass.is_false(lit)
         return ret, slack, lit
 
     def propagate(self, state, cc):
@@ -954,6 +1003,9 @@ class ConstraintState(AbstractConstraintState):
                 # propagate the clause
                 if not cc.add_clause(reason, tag=self.constraint.tagged):
                     return False
+
+                # minimize constraints cannot be propagated on decision level 0
+                assert ass.is_true(lit_r) or self.constraint.tagged and ass.decision_level == 0
 
         return True
 
@@ -1651,14 +1703,14 @@ class State(object):
 
         # get the literal to propagate
         # Note: this explicetly does not use get_literal
-        con = sign * vs.get_literal(value)
+        con = sign*vs.get_literal(value)
 
         # on-the-fly simplify
         if ass.is_fixed(lit) and not ass.is_fixed(con):
             ret, con = self.update_literal(vs, value, cc, sign > 0)
             if not ret:
                 return False
-            con = sign * con
+            con = sign*con
 
         # propagate the literal
         if not ass.is_true(con):
@@ -1673,7 +1725,9 @@ class State(object):
                 break
             if not self._propagate_variable(cc, vs, value, reason_lit, sign):
                 return False
-            if PROPAGATE_PREV_LIT:
+            # Note: Literals might be uppdated on level 0 and the reason_lit is
+            # already guaranteed to be a fact on level 0.
+            if PROPAGATE_PREV_LIT and cc.assignment.decision_level > 0:
                 reason_lit = sign*lit
 
         return True
@@ -1720,7 +1774,7 @@ class State(object):
                 # update upper bound
                 if vs.upper_bound > value:
                     diff = value - vs.upper_bound
-                    if lvl.undo_upper.add(vs):
+                    if ass.decision_level > 0 and lvl.undo_upper.add(vs):
                         vs.push_upper()
                     vs.upper_bound = value
                     self._udiff.setdefault(vs.var, 0)
@@ -1737,7 +1791,7 @@ class State(object):
                 # update lower bound
                 if vs.lower_bound < value+1:
                     diff = value+1-vs.lower_bound
-                    if lvl.undo_lower.add(vs):
+                    if ass.decision_level > 0 and lvl.undo_lower.add(vs):
                         vs.push_lower()
                     vs.lower_bound = value+1
                     self._ldiff.setdefault(vs.var, 0)
@@ -2353,7 +2407,8 @@ class Propagator(object):
                 ("Time propagation(s)", p),
                 ("Time check(s)", c),
                 ("Time undo(s)", u),
-                ("Refined reason", tstat.refined_reason)])
+                ("Refined reason", tstat.refined_reason),
+                ("Introduced reason", tstat.introduced_reason)])
         stats_map["Clingcon"] = OrderedDict([
             ("Time init(s)", stats.time_init),
             ("Variables", stats.num_variables),
