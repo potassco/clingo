@@ -698,8 +698,8 @@ extern "C" bool clingo_propagate_init_add_clause(clingo_propagate_init_t *init, 
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_propagate_init_add_weight_constraint(clingo_propagate_init_t *init, clingo_literal_t literal, clingo_weighted_literal_t const *literals, size_t size, clingo_weight_t bound, bool compare_equal, bool *ret) {
-    GRINGO_CLINGO_TRY { *ret = init->addWeightConstraint(literal, Potassco::WeightLitSpan{reinterpret_cast<Potassco::WeightLit_t const *>(literals), size}, bound, compare_equal); }
+extern "C" bool clingo_propagate_init_add_weight_constraint(clingo_propagate_init_t *init, clingo_literal_t literal, clingo_weighted_literal_t const *literals, size_t size, clingo_weight_t bound, clingo_weight_constraint_type_t type, bool compare_equal, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = init->addWeightConstraint(literal, Potassco::WeightLitSpan{reinterpret_cast<Potassco::WeightLit_t const *>(literals), size}, bound, type, compare_equal); }
     GRINGO_CLINGO_CATCH;
 }
 

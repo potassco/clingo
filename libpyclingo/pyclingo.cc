@@ -3733,15 +3733,17 @@ Control.register_propagator
     }
 
     Object addWeightConstraint(Reference pyargs, Reference pykwds) {
-        static char const *kwlist[] = {"literal", "literals", "bound", "compare_equal", nullptr};
+        static char const *kwlist[] = {"literal", "literals", "bound", "type", "compare_equal", nullptr};
         Reference pyLit, pyLits, pyBound, pyEq{Py_False};
-        ParseTupleAndKeywords(pyargs, pykwds, "OOO|O", kwlist, pyLit, pyLits, pyBound, pyEq);
+        Object pyType{cppToPy(0)};
+        ParseTupleAndKeywords(pyargs, pykwds, "OOO|OO", kwlist, pyLit, pyLits, pyBound, pyType, pyEq);
         auto lit = pyToCpp<clingo_literal_t>(pyLit);
         auto lits = pyToCpp<std::vector<clingo_weighted_literal_t>>(pyLits);
         auto bound = pyToCpp<clingo_weight_t>(pyBound);
         auto eq = pyToCpp<bool>(pyEq);
+        clingo_weight_constraint_type_t type = pyToCpp<clingo_weight_constraint_type_t>(pyType);
         bool ret;
-        handle_c_error(clingo_propagate_init_add_weight_constraint(init, lit, lits.data(), lits.size(), bound, eq, &ret));
+        handle_c_error(clingo_propagate_init_add_weight_constraint(init, lit, lits.data(), lits.size(), bound, type, eq, &ret));
         return cppToPy(ret);
     }
 
@@ -3840,9 +3842,17 @@ Notes
 If this function returns false, initialization should be stopped and no further
 functions of the `PropagateInit` and related objects should be called.
 )"},
-    {"add_weight_constraint", to_function<&PropagateInit::addWeightConstraint>(), METH_KEYWORDS | METH_VARARGS, R"(add_weight_constraint(self, literal: int, literals: List[Tuple[int,int]], bound: int, compare_equal: bool=False) -> bool
+    {"add_weight_constraint", to_function<&PropagateInit::addWeightConstraint>(), METH_KEYWORDS | METH_VARARGS, R"(add_weight_constraint(self, literal: int, literals: List[Tuple[int,int]], bound: int, type: int=0, compare_equal: bool=False) -> bool
 
-Statically adds a constraint of form `literal == { l=w | (l, w) in literals } <= bound` to the solver.
+Statically adds a constraint of form
+
+    literal <=> { l=w | (l, w) in literals } >= bound
+
+to the solver.
+
+- If `type < 0`, then `<=>` is a left implication.
+- If `type > 0`, then `<=>` is a right implication.
+- Otherwise, `<=>` is an equivalence.
 
 Parameters
 ----------
@@ -3852,6 +3862,8 @@ literals : List[Tuple[int,int]]
     The weighted literals of the constrain.
 bound : int
     The bound of the constraint.
+type : int
+    Add a weight constraint of the given type.
 compare_equal : bool=False
     A Boolean indicating whether to compare equal or less than equal.
 

@@ -403,7 +403,7 @@ public:
         for (auto &lit : lits) { cc.add(Clasp::decodeLit(lit)); }
         return cc.end(Clasp::ClauseCreator::clause_force_simplify).ok();
     }
-    bool addWeightConstraint(Potassco::Lit_t lit, Potassco::WeightLitSpan lits, Potassco::Weight_t bound, bool eq) override {
+    bool addWeightConstraint(Potassco::Lit_t lit, Potassco::WeightLitSpan lits, Potassco::Weight_t bound, int type, bool eq) override {
         auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
         auto &master = *ctx.master();
         if (master.hasConflict()) { return false; }
@@ -412,7 +412,17 @@ public:
         for (auto &x : lits) {
             claspLits.push_back({Clasp::decodeLit(x.lit), x.weight});
         }
-        return Clasp::WeightConstraint::create(*ctx.master(), Clasp::decodeLit(lit), claspLits, bound, eq ? Clasp::WeightConstraint::create_eq_bound : 0).ok();
+        uint32_t creationFlags = 0;
+        if (eq) {
+            creationFlags |= Clasp::WeightConstraint::create_eq_bound;
+        }
+        if (type < 0) {
+            creationFlags |= Clasp::WeightConstraint::create_only_bfb;
+        }
+        else if (type > 0) {
+            creationFlags |= Clasp::WeightConstraint::create_only_btb;
+        }
+        return Clasp::WeightConstraint::create(*ctx.master(), Clasp::decodeLit(lit), claspLits, bound, creationFlags).ok();
     }
     void addMinimize(Potassco::Lit_t literal, Potassco::Weight_t weight, Potassco::Weight_t priority) override {
         auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;

@@ -1061,6 +1061,15 @@ enum clingo_propagator_check_mode {
 //! Corresponding type to ::clingo_propagator_check_mode.
 typedef int clingo_propagator_check_mode_t;
 
+//! Enumeration of weight_constraint_types.
+enum clingo_weight_constraint_type {
+    clingo_weight_constraint_type_implication_left  = -1, //!< the weight constraint implies the literal
+    clingo_weight_constraint_type_implication_right =  1, //!< the literal implies the weight constraint
+    clingo_weight_constraint_type_equivalence       =  0, //!< the weight constraint is equivalent to the literal
+};
+//! Corresponding type to ::clingo_weight_constraint_type.
+typedef int clingo_weight_constraint_type_t;
+
 //! Object to initialize a user-defined propagator before each solving step.
 //!
 //! Each @link SymbolicAtoms symbolic@endlink or @link TheoryAtoms theory atom@endlink is uniquely associated with an aspif atom in form of a positive integer (@ref ::clingo_literal_t).
@@ -1153,7 +1162,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_literal(clingo_propagat
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate_init_t *init, clingo_literal_t const *clause, size_t size, bool *result);
 //! Add the given weight constraint to the solver.
 //!
-//! This function adds a constraint of form `literal == { lit=weight | (lit, weight) in literals } <= bound` to the solver.
+//! This function adds a constraint of form `literal <=> { lit=weight | (lit, weight) in literals } >= bound` to the solver.
+//! Depending on the type the `<=>` connective can be either a left implication, right implication, or equivalence.
 //!
 //! @attention No further calls on the init object or functions on the assignment should be called when the result of this method is false.
 //!
@@ -1162,11 +1172,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate
 //! @param[in] literals the weighted literals
 //! @param[in] size the number of weighted literals
 //! @param[in] bound the bound of the constraint
+//! @param[in] type the type of the weight constraint
 //! @param[in] compare_equal if true compare equal instead of less than equal
 //! @param[out] result result indicating whether the problem became unsatisfiable
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_weight_constraint(clingo_propagate_init_t *init, clingo_literal_t literal, clingo_weighted_literal_t const *literals, size_t size, clingo_weight_t bound, bool compare_equal, bool *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_weight_constraint(clingo_propagate_init_t *init, clingo_literal_t literal, clingo_weighted_literal_t const *literals, size_t size, clingo_weight_t bound, clingo_weight_constraint_type_t type, bool compare_equal, bool *result);
 //! Add the given literal to minimize to the solver.
 //!
 //! This corresponds to a weak constraint of form `:~ literal. [weight@priority]`.
