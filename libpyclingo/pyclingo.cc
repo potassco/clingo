@@ -3846,7 +3846,7 @@ functions of the `PropagateInit` and related objects should be called.
 
 Statically adds a constraint of form
 
-    literal <=> { l=w | (l, w) in literals } <= bound
+    literal <=> { l=w | (l, w) in literals } >= bound
 
 to the solver.
 

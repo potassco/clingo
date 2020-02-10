@@ -1162,8 +1162,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_literal(clingo_propagat
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate_init_t *init, clingo_literal_t const *clause, size_t size, bool *result);
 //! Add the given weight constraint to the solver.
 //!
-//! This function adds a constraint of form `literal <=> { lit=weight | (lit, weight) in literals } <= bound` to the solver.
-//! Depending on the type the `<=>` connective can be either left implication, right implication, or equivalence.
+//! This function adds a constraint of form `literal <=> { lit=weight | (lit, weight) in literals } >= bound` to the solver.
+//! Depending on the type the `<=>` connective can be either a left implication, right implication, or equivalence.
 //!
 //! @attention No further calls on the init object or functions on the assignment should be called when the result of this method is false.
 //!
