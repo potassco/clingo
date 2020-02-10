@@ -1,6 +1,6 @@
 # Changes
 
-## clingo 5.4.1
+## clingo 5.5.0
   * rename `max_size` to `size` in APIs and remove previous `size` method
     (breaks backward compatibility but makes things consistent)
   * improve assignment providing trail and iteration methods (#187)
@@ -9,6 +9,8 @@
   * improve getting description of configuration entries (#174)
   * improve propagate init interfaces with methods to add weight constraints,
     minimize constraints, and perform propagation (#183)
+  * add options to select specific Lua/Python versions
+    (see installation istructinos)
   * fix propagator initialization (#166)
   * fix cleanup function and handling of theory (#169)
   * fix shifting of disjunctions (in clasp) (#173)

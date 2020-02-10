@@ -53,7 +53,7 @@ target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
 else()
-    set_target_properties(libclingo PROPERTIES SOVERSION 3 VERSION 3.0)
+    set_target_properties(libclingo PROPERTIES SOVERSION 4 VERSION 4.0)
     install(TARGETS libclingo
         EXPORT ClingoTargets
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
