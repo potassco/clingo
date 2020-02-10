@@ -10,7 +10,7 @@
   * improve propagate init interfaces with methods to add weight constraints,
     minimize constraints, and perform propagation (#183)
   * add options to select specific Lua/Python versions
-    (see installation istructinos)
+    (see installation instructions)
   * fix propagator initialization (#166)
   * fix cleanup function and handling of theory (#169)
   * fix shifting of disjunctions (in clasp) (#173)
