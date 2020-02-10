@@ -2551,7 +2551,7 @@ struct PropagateInit : Object<PropagateInit> {
         luaL_checktype(L, 3, LUA_TTABLE);
         luaL_checknumber(L, 4);
         clingo_weight_constraint_type_t type = clingo_weight_constraint_type_equivalence;
-        if (!lua_isnone(L, 5)) { type = luaL_checknumber(L, 4); }
+        if (!lua_isnone(L, 5)) { type = luaL_checknumber(L, 5); }
         bool eq{!lua_isnone(L, 6) && lua_toboolean(L, 6)};
         clingo_literal_t lit;
         clingo_weight_t bound;
