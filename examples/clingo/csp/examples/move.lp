@@ -3,7 +3,7 @@
 step(0..end).
 
 % domain knowledge
-%&dom { 0..T*stepsize } = at(T) :- step(T).
+&dom { 0..T*stepsize } = at(T) :- step(T).
 
 % initial state
 &sum {at(0)} = 0.

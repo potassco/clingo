@@ -166,13 +166,13 @@ class InitClauseCreator(object):
         Commit accumulated constraints.
         """
         for clause in self._clauses:
-            self._solver.add_clause(clause)
-        for clause in self._clauses:
             if not self._solver.add_clause(clause):
                 return False
+        del self._clauses[:]
         for lit, wlits, bound, type_ in self._weight_constraints:
             if not self._solver.add_weight_constraint(-lit, wlits, bound+1, -type_):
                 return False
+        del self._weight_constraints[:]
         return True
 
     def propagate(self):
@@ -673,6 +673,8 @@ class ConstraintState(AbstractConstraintState):
             assert vs.lower_bound <= value_upper+1
             assert value_lower <= vs.upper_bound
             estimate += value_upper-value_lower+1
+            if estimate >= 0:
+                return estimate
             for next_value in range(value_upper+1, value_lower, -1):
                 next_upper = upper+co*(vs.upper_bound-next_value)
                 next_lower = lower-co*(next_value-vs.lower_bound)
@@ -691,6 +693,8 @@ class ConstraintState(AbstractConstraintState):
             assert value_lower <= vs.upper_bound
             assert vs.lower_bound <= value_upper+1
             estimate += value_upper-value_lower+1
+            if estimate >= 0:
+                return estimate
             for next_value in range(value_lower, value_upper+1):
                 next_upper = upper+co*(vs.lower_bound-next_value)
                 next_lower = lower-co*(next_value-vs.upper_bound)
