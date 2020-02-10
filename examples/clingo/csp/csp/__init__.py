@@ -660,8 +660,6 @@ class ConstraintState(AbstractConstraintState):
         return ret, True
 
     def _rec_estimate(self, cc, state, elements, estimate, i, lower, upper):
-        if estimate >= 0:
-            return 0
         if lower < 0:
             return estimate+1
         assert upper < 0 and i < len(elements)
@@ -683,6 +681,8 @@ class ConstraintState(AbstractConstraintState):
                 # following estimate call will count at least as many clauses
                 # as the previous one.
                 estimate = self._rec_estimate(cc, state, elements, estimate-1, i+1, next_lower, next_upper)
+                if estimate >= 0:
+                    return estimate
         else:
             diff_upper = upper+co*vs.lower_bound
             diff_lower = lower+co*vs.upper_bound
@@ -695,6 +695,8 @@ class ConstraintState(AbstractConstraintState):
                 next_upper = upper+co*(vs.lower_bound-next_value)
                 next_lower = lower-co*(next_value-vs.upper_bound)
                 estimate = self._rec_estimate(cc, state, elements, estimate-1, i+1, next_lower, next_upper)
+                if estimate >= 0:
+                    return estimate
 
         return estimate
 
