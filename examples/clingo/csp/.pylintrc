@@ -26,11 +26,14 @@ disable=too-few-public-methods,no-self-use,invalid-unary-operand-type,locally-di
 
 # Regular expression matching correct argument names. Overrides argument-
 # naming-style.
-argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?_?$
+argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 
 # Regular expression matching correct variable names. Overrides variable-
 # naming-style.
-variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?_?$
+variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
+
+# Good variable names which should always be accepted, separated by a comma.
+good-names=cc, type_, _
 
 [TYPECHECK]
 
@@ -59,7 +62,7 @@ max-attributes=20
 max-branches=30
 
 # Maximum number of locals for function / method body.
-max-locals=20
+max-locals=30
 
 # Maximum number of return / yield for function / method body.
 max-returns=10
@@ -68,4 +71,4 @@ max-returns=10
 max-statements=100
 
 # Maximum number of public methods for a class (see R0904).
-max-public-methods=25
+max-public-methods=30

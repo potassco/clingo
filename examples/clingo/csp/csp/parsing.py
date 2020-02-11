@@ -36,8 +36,6 @@ def parse_theory(builder, theory_atoms):
         elif match(atom.term, "maximize", 0):
             _parse_objective(builder, atom, -1)
 
-    return builder
-
 
 def _parse_objective(builder, atom, factor):
     """
@@ -88,7 +86,7 @@ def _parse_dom(builder, atom):
     if var.type == clingo.SymbolType.Number:
         raise RuntimeError("Invalid Syntax")
 
-    builder.add_dom(builder.solver_literal(atom.literal), var, elements)
+    builder.add_dom(builder.cc.solver_literal(atom.literal), var, elements)
 
 
 def _parse_dom_elem(term):
@@ -123,7 +121,7 @@ def _parse_distinct(builder, atom):
         else:
             raise RuntimeError("Invalid Syntax")
 
-    builder.add_distinct(builder.solver_literal(atom.literal), elements)
+    builder.add_distinct(builder.cc.solver_literal(atom.literal), elements)
 
 
 def _parse_constraint(builder, atom, is_sum, strict):
@@ -141,7 +139,7 @@ def _parse_constraint(builder, atom, is_sum, strict):
     rhs = 0
 
     # map literal
-    literal = builder.solver_literal(atom.literal)
+    literal = builder.cc.solver_literal(atom.literal)
 
     # combine coefficients
     rhs, elements = simplify(_parse_constraint_elems(atom.elements, atom.guard[1], is_sum), True)
@@ -178,16 +176,16 @@ def _normalize_constraint(builder, literal, elements, op, rhs, strict):
 
     elif op == "=":
         if strict:
-            if builder.assignment.is_true(literal):
+            if builder.cc.assignment.is_true(literal):
                 a = b = 1
             else:
-                a = builder.add_literal()
-                b = builder.add_literal()
+                a = builder.cc.add_literal()
+                b = builder.cc.add_literal()
 
             # Note: this cannot fail because constraint normalization does not propagate
-            builder.add_clause([-literal, a])
-            builder.add_clause([-literal, b])
-            builder.add_clause([-a, -b, literal])
+            builder.cc.add_clause([-literal, a])
+            builder.cc.add_clause([-literal, b])
+            builder.cc.add_clause([-a, -b, literal])
         else:
             a = b = literal
 
@@ -202,12 +200,12 @@ def _normalize_constraint(builder, literal, elements, op, rhs, strict):
             _normalize_constraint(builder, -literal, elements, "=", rhs, True)
             return
 
-        a = builder.add_literal()
-        b = builder.add_literal()
+        a = builder.cc.add_literal()
+        b = builder.cc.add_literal()
 
         # Note: this cannot fail
-        builder.add_clause([a, b, -literal])
-        builder.add_clause([-a, -b])
+        builder.cc.add_clause([a, b, -literal])
+        builder.cc.add_clause([-a, -b])
 
         _normalize_constraint(builder, a, elements, "<", rhs, False)
         _normalize_constraint(builder, b, elements, ">", rhs, False)

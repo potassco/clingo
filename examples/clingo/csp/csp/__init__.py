@@ -18,7 +18,7 @@ SORT_ELEMENTS = True
 PROPAGATE_PREV_LIT = True
 MAGIC_CLAUSE = 1000
 LITERALS_ONLY = False
-MAGIC_WEIGHT_CONSTRAINT = 0  # careful needs a not yet uploaded clingo version
+MAGIC_WEIGHT_CONSTRAINT = 0
 CHECK_SOLUTION = True
 CHECK_STATE = False
 SHIFT_CONSTRAINTS = True
@@ -148,6 +148,12 @@ class InitClauseCreator(object):
         self._solver = init
         self._clauses = []
         self._weight_constraints = []
+
+    def solver_literal(self, literal):
+        """
+        Map the literal to a solver literal.
+        """
+        return self._solver.solver_literal(literal)
 
     def add_literal(self):
         """
@@ -1542,9 +1548,8 @@ class Propagator(object):
             state.update(cc)
 
         # add constraints
-        builder = ConstraintBuilder(init, self, minimize)
-        if not parse_theory(builder, init.theory_atoms).finalize():
-            return
+        builder = ConstraintBuilder(cc, self, minimize)
+        parse_theory(builder, init.theory_atoms)
         self._stats_step.num_variables = len(self._vars)
 
         # gather bounds of states in master
@@ -1568,9 +1573,9 @@ class Propagator(object):
         # add minimize constraint
         # Note: the constraint is added in the end to avoid propagating tagged
         # clauses, which is not supported at the moment.
-        if builder.minimize is not None:
-            self._stats_step.num_constraints += 1
-            self.add_minimize(cc, builder.minimize)
+        minimize = builder.prepare_minimize()
+        if minimize is not None:
+            self.add_minimize(cc, minimize)
 
         # copy order literals from master to other states
         del self._states[init.number_of_threads:]

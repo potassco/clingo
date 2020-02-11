@@ -867,79 +867,37 @@ class ConstraintBuilder(object):
     """
     CSP builder to use with the parse_theory function.
     """
-    def __init__(self, init, propagator, minimize):
-        self._init = init
+    def __init__(self, cc, propagator, minimize):
+        self.cc = cc
         self._propagator = propagator
-        self._clauses = []
-        self.minimize = minimize
-
-    def solver_literal(self, literal):
-        """
-        Map the literal to a solver literal.
-        """
-        return self._init.solver_literal(literal)
-
-    def add_clause(self, clause):
-        """
-        Add a clause to be added later.
-
-        Note that the clause is added later because adding clauses and
-        variables alternatingly is inefficient in clasp.
-        """
-        self._clauses.append(clause)
-        return True
-
-    def add_literal(self):
-        """
-        Adds a new literal.
-        """
-        return self._init.add_literal()
-
-    def add_watch(self, lit):
-        """
-        Watch the given solver literal.
-        """
-        self._init.add_watch(lit)
-
-    def propagate(self):
-        """
-        (Pretend to) call unit propagation on the solver.
-        """
-        return True
-
-    @property
-    def assignment(self):
-        """
-        Return the current assignment.
-        """
-        return self._init.assignment
+        self._minimize = minimize
 
     def add_constraint(self, lit, elems, rhs, strict):
         """
         Add a constraint.
         """
-        if not strict and self.assignment.is_false(lit):
+        if not strict and self.cc.assignment.is_false(lit):
             return
 
         constraint = Constraint(lit, elems, rhs)
         if len(elems) == 1:
             _, var = elems[0]
             self._propagator.add_variable(var)
-            self._propagator.add_simple(self, constraint, strict)
+            self._propagator.add_simple(self.cc, constraint, strict)
         else:
             assert not strict
             if csp.SORT_ELEMENTS:
                 constraint.elements.sort(key=lambda cv: -abs(cv[0]))
             for _, var in constraint.elements:
                 self._propagator.add_variable(var)
-            self._propagator.add_constraint(self, constraint)
+            self._propagator.add_constraint(self.cc, constraint)
 
     def add_minimize(self, co, var):
         """
         Add a term to the minimize constraint.
         """
-        if self.minimize is None:
-            self.minimize = Minimize()
+        if self._minimize is None:
+            self._minimize = Minimize()
 
         if var is not None:
             self._propagator.add_variable(var)
@@ -947,7 +905,7 @@ class ConstraintBuilder(object):
         if co == 0:
             return
 
-        self.minimize.elements.append((co, var))
+        self._minimize.elements.append((co, var))
 
     def add_distinct(self, literal, elems):
         """
@@ -959,7 +917,7 @@ class ConstraintBuilder(object):
         coefficients and variables; x_i corresponds to the linear term
           `term - rhs`.
         """
-        if self.assignment.is_false(literal):
+        if self.cc.assignment.is_false(literal):
             return
 
         if len(elems) > 2:
@@ -967,7 +925,7 @@ class ConstraintBuilder(object):
                 for _, var in term[1]:
                     self._propagator.add_variable(var)
 
-            self._propagator.add_constraint(self, Distinct(literal, elems))
+            self._propagator.add_constraint(self.cc, Distinct(literal, elems))
             return
 
         for i, (rhs_i, elems_i) in enumerate(elems):
@@ -980,15 +938,15 @@ class ConstraintBuilder(object):
 
                 if not celems:
                     if rhs == 0:
-                        self.add_clause([-literal])
+                        self.cc.add_clause([-literal])
                         return
                     continue
 
-                a = self.add_literal()
-                b = self.add_literal()
+                a = self.cc.add_literal()
+                b = self.cc.add_literal()
 
-                self.add_clause([a, b, -literal])
-                self.add_clause([-a, -b])
+                self.cc.add_clause([a, b, -literal])
+                self.cc.add_clause([-a, -b])
 
                 self.add_constraint(a, celems, rhs-1, False)
                 self.add_constraint(b, [(-co, var) for co, var in celems], -rhs-1, False)
@@ -999,28 +957,23 @@ class ConstraintBuilder(object):
 
         The domain is represented as a set of left-closed intervals.
         """
-        if self.assignment.is_false(literal):
+        if self.cc.assignment.is_false(literal):
             return
 
         self._propagator.add_variable(var)
         intervals = IntervalSet(elements)
-        self._propagator.add_dom(self, literal, var, list(intervals.items()))
+        self._propagator.add_dom(self.cc, literal, var, list(intervals.items()))
 
-    def finalize(self):
+    def prepare_minimize(self):
         """
-        Finish constraint translation.
+        Prepare the minimize constraint.
         """
 
         # simplify minimize
-        if self.minimize is not None:
-            adjust, self.minimize.elements = simplify(self.minimize.elements, True)
-            self.minimize.adjust += adjust
+        if self._minimize is not None:
+            adjust, self._minimize.elements = simplify(self._minimize.elements, True)
+            self._minimize.adjust += adjust
             if csp.SORT_ELEMENTS:
-                self.minimize.elements.sort(key=lambda cv: -abs(cv[0]))
+                self._minimize.elements.sort(key=lambda cv: -abs(cv[0]))
 
-        # add clauses
-        for clause in self._clauses:
-            if not self._init.add_clause(clause) or not self._init.propagate():
-                return False
-
-        return True
+        return self._minimize
