@@ -268,40 +268,62 @@ class ConstraintState(AbstractConstraintState):
 
         return estimate
 
-    def _rec_translate(self, cc, state, elements, clause, i, lower, upper):
-        if lower < 0:
-            return True if csp.LITERALS_ONLY else cc.add_clause(clause)
-        assert upper < 0 and i < len(elements)
-        co, var = elements[i]
-        vs = state.var_state(var)
-        if co > 0:
-            diff_upper = lower+co*vs.lower_bound
-            diff_lower = upper+co*vs.upper_bound
-            value_upper = min(vs.upper_bound-1, diff_upper//co)
-            value_lower = max(vs.lower_bound-1, diff_lower//co)
+    def _clause_translate(self, cc, state, lower, upper):
+        todo = [(0, 0, 0, 0, lower, upper)]
+        clause = [0] * (len(self.constraint.elements) + 1)
+
+        while todo:
+            i, j, value_lower, value_upper, lower, upper = todo[-1]
+
+            if value_lower > value_upper:
+                todo.pop()
+                continue
+
+            if i > 0:
+                co, var = self.constraint.elements[i-1]
+                vs = state.var_state(var)
+                if co > 0:
+                    todo[-1] = (i, j, value_lower, value_upper-1, lower+co, upper+co)
+                    lit = state.get_literal(vs, value_upper, cc)
+                else:
+                    todo[-1] = (i, j, value_lower+1, value_upper, lower-co, upper-co)
+                    lit = -state.get_literal(vs, value_lower, cc)
+            else:
+                todo.pop()
+                lit = -csp.TRUE_LIT if cc.assignment.is_false(-self.literal) else -self.literal
+
+            if lit != -csp.TRUE_LIT:
+                clause[j] = lit
+                j += 1
+
+            if lower < 0:
+                if not csp.LITERALS_ONLY and not cc.add_clause(clause[:j]):
+                    return False
+                continue
+
+            assert upper < 0 and i < len(self.constraint.elements)
+
+            co, var = self.constraint.elements[i]
+            vs = state.var_state(var)
+
+            if co > 0:
+                diff_lower = upper+co*vs.upper_bound
+                diff_upper = lower+co*vs.lower_bound
+                value_lower = max(vs.lower_bound-1, diff_lower//co)
+                value_upper = min(vs.upper_bound-1, diff_upper//co)
+                lower = lower-co*(value_upper-vs.lower_bound+1)
+                upper = upper+co*(vs.upper_bound-value_upper-1)
+            else:
+                diff_lower = lower+co*vs.upper_bound
+                diff_upper = upper+co*vs.lower_bound
+                value_lower = max(vs.lower_bound, -(diff_lower//-co)-1)
+                value_upper = min(vs.upper_bound, -(diff_upper//-co)-1)
+                upper = upper+co*(vs.lower_bound-value_lower)
+                lower = lower-co*(value_lower-vs.upper_bound)
+
             assert vs.lower_bound <= value_upper+1
             assert value_lower <= vs.upper_bound
-            for next_value in range(value_upper+1, value_lower, -1):
-                next_upper = upper+co*(vs.upper_bound-next_value)
-                next_lower = lower-co*(next_value-vs.lower_bound)
-                clause.append(state.get_literal(vs, next_value-1, cc))
-                if not self._rec_translate(cc, state, elements, clause, i+1, next_lower, next_upper):
-                    return False
-                clause.pop()
-        else:
-            diff_upper = upper+co*vs.lower_bound
-            diff_lower = lower+co*vs.upper_bound
-            value_upper = min(vs.upper_bound, -(diff_upper//-co)-1)
-            value_lower = max(vs.lower_bound, -(diff_lower//-co)-1)
-            assert value_lower <= vs.upper_bound
-            assert vs.lower_bound <= value_upper+1
-            for next_value in range(value_lower, value_upper+1):
-                next_upper = upper+co*(vs.lower_bound-next_value)
-                next_lower = lower-co*(next_value-vs.upper_bound)
-                clause.append(-state.get_literal(vs, next_value, cc))
-                if not self._rec_translate(cc, state, elements, clause, i+1, next_lower, next_upper):
-                    return False
-                clause.pop()
+            todo.append((i+1, j, value_lower, value_upper, lower, upper))
 
         return True
 
@@ -331,7 +353,7 @@ class ConstraintState(AbstractConstraintState):
             elements = self.constraint.elements
 
         if self._rec_estimate(cc, state, elements, -csp.MAGIC_CLAUSE, 0, lower, upper) < 0:
-            ret = self._rec_translate(cc, state, elements, [-self.literal], 0, lower, upper)
+            ret = self._clause_translate(cc, state, lower, upper)
             if csp.LITERALS_ONLY:
                 return ret, False
             return ret, True
