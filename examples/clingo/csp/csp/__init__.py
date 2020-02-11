@@ -801,15 +801,60 @@ class State(object):
         """
         Remove a constraint from the lookup lists.
 
-        For now only minimize constraints are removed but in principle the
-        function should also work for sum constraints.
+        The delay parameter should be used if a large number of constraints is
+        removed. In this case a call to `remove_constraints` must follow.
         """
         cs = self._cstate[constraint]
-        # TODO: this is too expensive!!!
         cs.detach(self)
-        del self._cstate[constraint]
         if cs in self._level.inactive:
             self._level.inactive.remove(cs)
+        del self._cstate[constraint]
+
+    def translate(self, cc, l2c):
+        """
+        Translate constraints in the map l2c.
+
+        This functions removes translated constraints from the map and the
+        state.
+        """
+        remove_cs = set()
+
+        for lit in sorted(l2c):
+            constraints = l2c[lit]
+            j = 0
+            for i, c in enumerate(constraints):
+                ret, rem = self.constraint_state(c).translate(cc, self)
+                if not ret:
+                    return False
+                if rem:
+                    remove_cs.add(self.constraint_state(c))
+                    continue
+                if i != j:
+                    constraints[i], constraints[j] = constraints[j], constraints[i]
+                j += 1
+            del constraints[j:]
+
+        # Note: Constraints are removed by traversing the whole lookup table to
+        # avoid potentially quadratic overhead if a large number of constraints
+        # has to be removed.
+        if remove_cs:
+            remove_vars = []
+            for var, css in self._v2cs.items():
+                i = remove_if(css, lambda cs: cs[1] in remove_cs)
+                del css[i:]
+                if not css:
+                    remove_vars.append(var)
+            for var in remove_vars:
+                del self._v2cs[var]
+
+            # Note: In theory all inactive constraints should be remove on level 0.
+            i = remove_if(self._level.inactive, lambda cs: cs in remove_cs)
+            del self._level.inactive[i:]
+
+            for cs in remove_cs:
+                del self._cstate[cs.constraint]
+
+        return cc.commit()
 
     def simplify(self, cc):
         """
@@ -1517,21 +1562,8 @@ class Propagator(object):
             return
 
         # translate (simple enough) constraints
-        for lit in sorted(self._l2c):
-            constraints = self._l2c[lit]
-            j = 0
-            for i, c in enumerate(constraints):
-                ret, rem = master.constraint_state(c).translate(cc, master)
-                if not ret:
-                    return
-                if rem:
-                    master.remove_constraint(c)
-                    continue
-                if i != j:
-                    constraints[i], constraints[j] = constraints[j], constraints[i]
-                j += 1
-            del constraints[j:]
-        cc.commit()
+        if not master.translate(cc, self._l2c):
+            return
 
         # add minimize constraint
         # Note: the constraint is added in the end to avoid propagating tagged
