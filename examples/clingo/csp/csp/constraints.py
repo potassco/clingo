@@ -73,12 +73,11 @@ class Constraint(object):
         """
         return self._rhs
 
-    def attach(self, state):
+    def create_state(self):
         """
-        Attache the constraint to a state.
+        Create thread specific state for the constraint.
         """
-        # TODO: move the code in the state here
-        state.add_constraint(self)
+        return ConstraintState(self)
 
     def __str__(self):
         return "{} <= {}".format(self.elements, self._rhs)
@@ -113,12 +112,11 @@ class Minimize(object):
         """
         return state.minimize_bound
 
-    def attach(self, state):
+    def create_state(self):
         """
-        Attache the constraint to a state.
+        Create thread specific state for the constraint.
         """
-        # TODO: move the code in the state here
-        state.add_constraint(self)
+        return ConstraintState(self)
 
 
 class ConstraintState(AbstractConstraintState):
@@ -130,6 +128,28 @@ class ConstraintState(AbstractConstraintState):
         self.constraint = constraint
         self.lower_bound = 0
         self.upper_bound = 0
+
+    def attach(self, state):
+        """
+        Attach the constraint state to the given state.
+        """
+        self.lower_bound = self.upper_bound = 0
+        for co, var in self.constraint.elements:
+            vs = state.var_state(var)
+            state.add_var_watch(var, co, self)
+            if co > 0:
+                self.lower_bound += vs.lower_bound*co
+                self.upper_bound += vs.upper_bound*co
+            else:
+                self.lower_bound += vs.upper_bound*co
+                self.upper_bound += vs.lower_bound*co
+
+    def detach(self, state):
+        """
+        Detach the constraint frow the given state.
+        """
+        for co, var in self.constraint.elements:
+            state.remove_var_watch(var, co, self)
 
     @property
     def literal(self):
@@ -201,7 +221,6 @@ class ConstraintState(AbstractConstraintState):
         # constraints here.
         ret = cc.add_weight_constraint(self.literal, wlits, slack, 1)
 
-        state.remove_constraint(self.constraint)
         return ret, True
 
     def _rec_estimate(self, cc, state, elements, estimate, i, lower, upper):
@@ -297,7 +316,6 @@ class ConstraintState(AbstractConstraintState):
 
         rhs = self.constraint.rhs(state)
         if ass.is_false(self.literal) or self.upper_bound <= rhs:
-            state.remove_constraint(self.constraint)
             return True, True
 
         lower = rhs-self.lower_bound
@@ -316,7 +334,6 @@ class ConstraintState(AbstractConstraintState):
             ret = self._rec_translate(cc, state, elements, [-self.literal], 0, lower, upper)
             if csp.LITERALS_ONLY:
                 return ret, False
-            state.remove_constraint(self.constraint)
             return ret, True
 
         # translation to weight constraints
@@ -601,12 +618,11 @@ class Distinct(object):
         self.literal = literal
         self.elements = elements
 
-    def attach(self, state):
+    def create_state(self):
         """
-        Attach the distinct constraint to a state.
+        Create thread specific state for the constraint.
         """
-        # TODO: move the code in the state here
-        state.add_distinct(self)
+        return DistinctState(self)
 
 
 class DistinctState(AbstractConstraintState):
@@ -621,6 +637,15 @@ class DistinctState(AbstractConstraintState):
         self.map_upper = {}
         self.map_lower = {}
         self.assigned = {}
+
+    def attach(self, state):
+        """
+        Attach the distinct constraint to the state.
+        """
+        for i, (_, elements) in enumerate(self.constraint.elements):
+            self.init(state, i)
+            for co, var in elements:
+                state.add_var_watch(var, i+1 if co > 0 else -i-1, self)
 
     def copy(self):
         """
@@ -838,7 +863,7 @@ class DistinctState(AbstractConstraintState):
         return True
 
 
-class CSPBuilder(object):
+class ConstraintBuilder(object):
     """
     CSP builder to use with the parse_theory function.
     """

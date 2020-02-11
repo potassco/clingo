@@ -9,7 +9,7 @@ from timeit import default_timer as timer
 import clingo
 from .parsing import parse_theory
 from .util import lerp, remove_if, TodoList, SortedDict
-from .constraints import ConstraintState, DistinctState, CSPBuilder
+from .constraints import ConstraintBuilder
 
 # TODO: These have to become options!
 REFINE_REASONS = True
@@ -770,24 +770,31 @@ class State(object):
         self._var_state[var] = vs
         self._vars.append(vs)
 
+    def add_var_watch(self, var, co, cs):
+        """
+        Watch the given variable `var` notifying the given constraint state
+        `cs` on changes.
+
+        The integer `co` is additional information passed to the constraint
+        state upon notification.
+        """
+        self._v2cs.setdefault(var, []).append((co, cs))
+
+    def remove_var_watch(self, var, co, cs):
+        """
+        Removes a previously added variable watch (see `add_var_watch`).
+        """
+        self._v2cs[var].remove((co, cs))
+
     def add_constraint(self, constraint):
         """
-        Adds the given constraint to the propagation queue and initializes its
+        Add the given constraint to the propagation queue and initialize its
         state.
         """
-        # TODO: move into constraints
-        cs = ConstraintState(constraint)
-        for co, var in constraint.elements:
-            vs = self.var_state(var)
-            self._v2cs.setdefault(var, []).append((co, cs))
-            if co > 0:
-                cs.lower_bound += vs.lower_bound*co
-                cs.upper_bound += vs.upper_bound*co
-            else:
-                cs.lower_bound += vs.upper_bound*co
-                cs.upper_bound += vs.lower_bound*co
-        self._cstate[constraint] = cs
+        cs = constraint.create_state()
 
+        self._cstate[constraint] = cs
+        cs.attach(self)
         self._todo.add(cs)
 
     def remove_constraint(self, constraint):
@@ -797,27 +804,12 @@ class State(object):
         For now only minimize constraints are removed but in principle the
         function should also work for sum constraints.
         """
-        # TODO: move into constraints and call detach
         cs = self._cstate[constraint]
-        for co, var in constraint.elements:
-            self._v2cs[var].remove((co, cs))
+        # TODO: this is too expensive!!!
+        cs.detach(self)
         del self._cstate[constraint]
         if cs in self._level.inactive:
             self._level.inactive.remove(cs)
-
-    def add_distinct(self, distinct):
-        """
-        Add a distinct constraint to the state.
-        """
-        # TODO: move into constraints
-        ds = DistinctState(distinct)
-        for i, (_, elements) in enumerate(distinct.elements):
-            ds.init(self, i)
-            for co, var in elements:
-                self._v2cs.setdefault(var, []).append((i+1 if co > 0 else -i-1, ds))
-        self._cstate[distinct] = ds
-
-        self._todo.add(ds)
 
     def simplify(self, cc):
         """
@@ -1484,8 +1476,7 @@ class Propagator(object):
         cc.add_watch(lit)
         self._l2c.setdefault(lit, []).append(constraint)
         self._stats_step.num_constraints += 1
-
-        constraint.attach(self._state(0))
+        self._state(0).add_constraint(constraint)
 
     @measure_time("time_init")
     def init(self, init):
@@ -1506,7 +1497,7 @@ class Propagator(object):
             state.update(cc)
 
         # add constraints
-        builder = CSPBuilder(init, self, minimize)
+        builder = ConstraintBuilder(init, self, minimize)
         if not parse_theory(builder, init.theory_atoms).finalize():
             return
         self._stats_step.num_variables = len(self._vars)
@@ -1534,6 +1525,7 @@ class Propagator(object):
                 if not ret:
                     return
                 if rem:
+                    master.remove_constraint(c)
                     continue
                 if i != j:
                     constraints[i], constraints[j] = constraints[j], constraints[i]
