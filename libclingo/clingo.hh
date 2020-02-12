@@ -3088,7 +3088,7 @@ inline SolveResult SolveHandle::get() {
 }
 
 inline void SolveHandle::cancel() {
-    Detail::handle_error(clingo_solve_handle_close(iter_), *exception_);
+    Detail::handle_error(clingo_solve_handle_cancel(iter_), *exception_);
 }
 
 inline SolveHandle::~SolveHandle() {
