@@ -9009,7 +9009,7 @@ struct ApplicationOptions : ObjectBase<ApplicationOptions> {
 };
 
 PyMethodDef ApplicationOptions::tp_methods[] = {
-    {"add", to_function<&ApplicationOptions::add>(), METH_VARARGS | METH_KEYWORDS, R"(add_flag(self, group: str, option: str, description: str, parser: Callback[[str], bool], multi: bool=False, argument: str=None) -> None
+    {"add", to_function<&ApplicationOptions::add>(), METH_VARARGS | METH_KEYWORDS, R"(add(self, group: str, option: str, description: str, parser: Callback[[str], bool], multi: bool=False, argument: str=None) -> None
 
 Add an option that is processed with a custom parser.
 
@@ -9031,7 +9031,7 @@ parser : Callback[[str], bool]
 multi : bool=False
     Whether the option can appear multiple times on the command-line.
 argument : str=None
-    Otional string to change the value name in the generated help.
+    Optional string to change the value name in the generated help.
 
 Returns
 -------
