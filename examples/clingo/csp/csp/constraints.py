@@ -223,54 +223,67 @@ class ConstraintState(AbstractConstraintState):
 
         return ret, True
 
-    def _rec_estimate(self, cc, state, elements, estimate, i, lower, upper):
-        if lower < 0:
-            return estimate+1
-        assert upper < 0 and i < len(elements)
-        co, var = elements[i]
-        vs = state.var_state(var)
-        if co > 0:
-            diff_upper = lower+co*vs.lower_bound
-            diff_lower = upper+co*vs.upper_bound
-            value_upper = min(vs.upper_bound-1, diff_upper//co)
-            value_lower = max(vs.lower_bound-1, diff_lower//co)
-            assert vs.lower_bound <= value_upper+1
-            assert value_lower <= vs.upper_bound
-            estimate += value_upper-value_lower+1
-            if estimate >= 0:
-                return estimate
-            for next_value in range(value_upper+1, value_lower, -1):
-                next_upper = upper+co*(vs.upper_bound-next_value)
-                next_lower = lower-co*(next_value-vs.lower_bound)
-                # Note: It should be possible to tune this further. In each
-                # step we relax the constraint by decreasing var. Hence, the
-                # following estimate call will count at least as many clauses
-                # as the previous one.
-                estimate = self._rec_estimate(cc, state, elements, estimate-1, i+1, next_lower, next_upper)
-                if estimate >= 0:
-                    return estimate
-        else:
-            diff_upper = upper+co*vs.lower_bound
-            diff_lower = lower+co*vs.upper_bound
-            value_upper = min(vs.upper_bound, -(diff_upper//-co)-1)
-            value_lower = max(vs.lower_bound, -(diff_lower//-co)-1)
-            assert value_lower <= vs.upper_bound
-            assert vs.lower_bound <= value_upper+1
-            estimate += value_upper-value_lower+1
-            if estimate >= 0:
-                return estimate
-            for next_value in range(value_lower, value_upper+1):
-                next_upper = upper+co*(vs.lower_bound-next_value)
-                next_lower = lower-co*(next_value-vs.upper_bound)
-                estimate = self._rec_estimate(cc, state, elements, estimate-1, i+1, next_lower, next_upper)
-                if estimate >= 0:
-                    return estimate
+    def _clause_estimate(self, state, elements, lower, upper, maximum):
+        todo = [(0, 1, lower, upper)]
+        estimate = 0
 
-        return estimate
+        while todo:
+            i, n, lower, upper = todo[-1]
 
-    def _clause_translate(self, cc, state, lower, upper):
+            if n <= 0:
+                todo.pop()
+                continue
+
+            if i > 0:
+                co, var = elements[i-1]
+
+                if co > 0:
+                    todo[-1] = (i, n-1, lower+co, upper+co)
+                else:
+                    todo[-1] = (i, n-1, lower-co, upper-co)
+
+                estimate -= 1
+            else:
+                todo.pop()
+
+            if lower < 0:
+                estimate += 1
+                if estimate >= maximum:
+                    return False
+                continue
+
+            assert upper < 0 and i < len(elements)
+
+            co, var = elements[i]
+            vs = state.var_state(var)
+
+            if co > 0:
+                diff_lower = upper+co*vs.upper_bound
+                diff_upper = lower+co*vs.lower_bound
+                value_lower = max(vs.lower_bound, diff_lower//co+1)
+                value_upper = min(vs.upper_bound, diff_upper//co+1)
+                lower = lower-co*(value_upper-vs.lower_bound)
+                upper = upper+co*(vs.upper_bound-value_upper)
+            else:
+                diff_upper = upper+co*vs.lower_bound
+                diff_lower = lower+co*vs.upper_bound
+                value_lower = max(vs.lower_bound, -(diff_lower//-co)-1)
+                value_upper = min(vs.upper_bound, -(diff_upper//-co)-1)
+                lower = lower-co*(value_lower-vs.upper_bound)
+                upper = upper+co*(vs.lower_bound-value_lower)
+
+            n = value_upper-value_lower+1
+            estimate += n
+            if estimate >= maximum:
+                return False
+            todo.append((i+1, n, lower, upper))
+
+        return True
+
+
+    def _clause_translate(self, cc, state, elements, lower, upper):
         todo = [(0, 0, 0, 0, lower, upper)]
-        clause = [0] * (len(self.constraint.elements) + 1)
+        clause = [0] * (len(elements) + 1)
 
         while todo:
             i, j, value_lower, value_upper, lower, upper = todo[-1]
@@ -280,7 +293,7 @@ class ConstraintState(AbstractConstraintState):
                 continue
 
             if i > 0:
-                co, var = self.constraint.elements[i-1]
+                co, var = elements[i-1]
                 vs = state.var_state(var)
                 if co > 0:
                     todo[-1] = (i, j, value_lower, value_upper-1, lower+co, upper+co)
@@ -301,9 +314,9 @@ class ConstraintState(AbstractConstraintState):
                     return False
                 continue
 
-            assert upper < 0 and i < len(self.constraint.elements)
+            assert upper < 0 and i < len(elements)
 
-            co, var = self.constraint.elements[i]
+            co, var = elements[i]
             vs = state.var_state(var)
 
             if co > 0:
@@ -352,8 +365,8 @@ class ConstraintState(AbstractConstraintState):
         else:
             elements = self.constraint.elements
 
-        if self._rec_estimate(cc, state, elements, -csp.MAGIC_CLAUSE, 0, lower, upper) < 0:
-            ret = self._clause_translate(cc, state, lower, upper)
+        if self._clause_estimate(state, elements, lower, upper, csp.MAGIC_CLAUSE):
+            ret = self._clause_translate(cc, state, elements, lower, upper)
             if csp.LITERALS_ONLY:
                 return ret, False
             return ret, True
