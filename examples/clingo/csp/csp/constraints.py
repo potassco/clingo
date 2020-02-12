@@ -280,7 +280,6 @@ class ConstraintState(AbstractConstraintState):
 
         return True
 
-
     def _clause_translate(self, cc, state, elements, lower, upper):
         todo = [(0, 0, 0, 0, lower, upper)]
         clause = [0] * (len(elements) + 1)
@@ -764,6 +763,26 @@ class DistinctState(AbstractConstraintState):
     def translate(self, cc, state):
         # TODO: small distinct constraints should be translated to weight
         #       constraints
+        # - This is probably best solved using intervals capturing the bounds
+        #   of the terms.
+        # - The intersection of the intervals gives a good estimate for the
+        #   size of the constraint.
+        # - Like this, we might overestimate if the absolute values of
+        #   coefficients are larger than one.
+        # - A term can be translated into implications defining hidden integer
+        #   variables:
+        #   - hi = x + y
+        #   - x<=1 & y<=1 => hi<=2
+        #   - x>=1 & y>=1 => hi>=2  where x>=1 == not x<=0
+        # - This is the same as the translation for constraints above but care
+        #   has to be taken if the bounds of `x + y` exceed the
+        #   minimum/maximum integer (in which case we can also opt for not
+        #   translating the constraint).
+        # - The final translation corresponds then to the cardinality
+        #   constraints:
+        #   - { h1=j, ..., hn=j } <= 1   where hi=j == hi<=j & ~hi<=j-1
+        # - The translation of the constraints for terms should reuse existing
+        #   code but hidden integer variables should be handled cleverly.
         return True, False
 
     def _propagate(self, cc, state, s, i, j):
@@ -834,6 +853,7 @@ class DistinctState(AbstractConstraintState):
                 if not ret:
                     return False
                 reason.append(-lit)
+
                 if ass.is_true(reason[-1]):
                     return True
 
