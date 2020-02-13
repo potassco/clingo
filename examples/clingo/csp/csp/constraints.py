@@ -3,6 +3,7 @@ Module implementing constraints.
 """
 
 import csp
+import clingo
 from .util import TodoList, IntervalSet
 from .parsing import simplify
 
@@ -928,6 +929,13 @@ class ConstraintBuilder(object):
         self._propagator = propagator
         self._minimize = minimize
 
+    def add_variable(self, var):
+        """
+        Get the integer representing a variable.
+        """
+        assert isinstance(var, clingo.Symbol)
+        return self._propagator.add_variable(var)
+
     def add_constraint(self, lit, elems, rhs, strict):
         """
         Add a constraint.
@@ -935,17 +943,14 @@ class ConstraintBuilder(object):
         if not strict and self.cc.assignment.is_false(lit):
             return
 
-        elems = [(co, self._propagator.add_variable(var)) for co, var in elems]
-
-        constraint = Constraint(lit, elems, rhs)
         if len(elems) == 1:
-            _, var = elems[0]
-            self._propagator.add_simple(self.cc, constraint, strict)
+            co, var = elems[0]
+            self._propagator.add_simple(self.cc, lit, co, var, rhs, strict)
         else:
             assert not strict
             if csp.SORT_ELEMENTS:
-                constraint.elements.sort(key=lambda cv: -abs(cv[0]))
-            self._propagator.add_constraint(self.cc, constraint)
+                elems.sort(key=lambda cv: -abs(cv[0]))
+            self._propagator.add_constraint(self.cc, Constraint(lit, elems, rhs))
 
     def add_minimize(self, co, var):
         """
@@ -953,9 +958,6 @@ class ConstraintBuilder(object):
         """
         if self._minimize is None:
             self._minimize = Minimize()
-
-        if var is not None:
-            var = self._propagator.add_variable(var)
 
         if co == 0:
             return
@@ -976,7 +978,6 @@ class ConstraintBuilder(object):
             return
 
         if len(elems) > 2:
-            elems = [(rhs, [(co, self._propagator.add_variable(var)) for co, var in term]) for rhs, term in elems]
             self._propagator.add_constraint(self.cc, Distinct(literal, elems))
             return
 
@@ -1013,7 +1014,7 @@ class ConstraintBuilder(object):
             return
 
         intervals = IntervalSet(elements)
-        self._propagator.add_dom(self.cc, literal, self._propagator.add_variable(var), list(intervals.items()))
+        self._propagator.add_dom(self.cc, literal, var, list(intervals.items()))
 
     def prepare_minimize(self):
         """

@@ -42,7 +42,7 @@ def _parse_objective(builder, atom, factor):
     Parses minimize and maximize directives.
     """
     assert factor in (1, -1)
-    for co, var in _parse_constraint_elems(atom.elements, None, True):
+    for co, var in _parse_constraint_elems(builder, atom.elements, None, True):
         builder.add_minimize(factor * co, var)
 
 
@@ -86,7 +86,7 @@ def _parse_dom(builder, atom):
     if var.type == clingo.SymbolType.Number:
         raise RuntimeError("Invalid Syntax")
 
-    builder.add_dom(builder.cc.solver_literal(atom.literal), var, elements)
+    builder.add_dom(builder.cc.solver_literal(atom.literal), builder.add_variable(var), elements)
 
 
 def _parse_dom_elem(term):
@@ -117,7 +117,7 @@ def _parse_distinct(builder, atom):
     elements = []
     for elem in atom.elements:
         if len(elem.terms) == 1 and not elem.condition:
-            elements.append(simplify(_parse_constraint_elem(elem.terms[0], True), False))
+            elements.append(simplify(_parse_constraint_elem(builder, elem.terms[0], True), False))
         else:
             raise RuntimeError("Invalid Syntax")
 
@@ -142,7 +142,7 @@ def _parse_constraint(builder, atom, is_sum, strict):
     literal = builder.cc.solver_literal(atom.literal)
 
     # combine coefficients
-    rhs, elements = simplify(_parse_constraint_elems(atom.elements, atom.guard[1], is_sum), True)
+    rhs, elements = simplify(_parse_constraint_elems(builder, atom.elements, atom.guard[1], is_sum), True)
 
     # divide by gcd
     d = reduce(lambda a, b: gcd(a, b[0]), elements, rhs)
@@ -219,20 +219,20 @@ def _normalize_constraint(builder, literal, elements, op, rhs, strict):
         _normalize_constraint(builder, -literal, elements, op, rhs, False)
 
 
-def _parse_constraint_elems(elems, rhs, is_sum):
+def _parse_constraint_elems(builder, elems, rhs, is_sum):
     if not is_sum and len(elems) != 1:
         raise RuntimeError("Invalid Syntax")
 
     for elem in elems:
         if len(elem.terms) == 1 and not elem.condition:
-            for co, var in _parse_constraint_elem(elem.terms[0], is_sum):
+            for co, var in _parse_constraint_elem(builder, elem.terms[0], is_sum):
                 yield co, var
         else:
             raise RuntimeError("Invalid Syntax")
 
     if is_sum:
         if rhs is not None:
-            for co, var in _parse_constraint_elem(rhs, is_sum):
+            for co, var in _parse_constraint_elem(builder, rhs, is_sum):
                 yield -co, var
     else:
         term = _evaluate_term(rhs)
@@ -242,7 +242,7 @@ def _parse_constraint_elems(elems, rhs, is_sum):
             raise RuntimeError("Invalid Syntax")
 
 
-def _parse_constraint_elem(term, is_sum):
+def _parse_constraint_elem(builder, term, is_sum):
     assert term is not None
     if not is_sum:
         if match(term, "-", 2):
@@ -250,33 +250,33 @@ def _parse_constraint_elem(term, is_sum):
             if a.type == clingo.SymbolType.Number:
                 yield a.number, None
             else:
-                yield 1, a
+                yield 1, builder.add_variable(a)
 
             b = _evaluate_term(term.arguments[1])
             if b.type == clingo.SymbolType.Number:
                 yield -b.number, None
             else:
-                yield -1, b
+                yield -1, builder.add_variable(b)
 
         else:
             raise RuntimeError("Invalid Syntax for difference constraint")
 
     else:
         if match(term, "+", 2):
-            for co, var in _parse_constraint_elem(term.arguments[0], True):
+            for co, var in _parse_constraint_elem(builder, term.arguments[0], True):
                 yield co, var
-            for co, var in _parse_constraint_elem(term.arguments[1], True):
+            for co, var in _parse_constraint_elem(builder, term.arguments[1], True):
                 yield co, var
 
         elif match(term, "-", 2):
-            for co, var in _parse_constraint_elem(term.arguments[0], True):
+            for co, var in _parse_constraint_elem(builder, term.arguments[0], True):
                 yield co, var
-            for co, var in _parse_constraint_elem(term.arguments[1], True):
+            for co, var in _parse_constraint_elem(builder, term.arguments[1], True):
                 yield -co, var
 
         elif match(term, "*", 2):
-            lhs = list(_parse_constraint_elem(term.arguments[0], True))
-            for co_prime, var_prime in _parse_constraint_elem(term.arguments[1], True):
+            lhs = list(_parse_constraint_elem(builder, term.arguments[0], True))
+            for co_prime, var_prime in _parse_constraint_elem(builder, term.arguments[1], True):
                 for co, var in lhs:
                     if var is None:
                         yield co*co_prime, var_prime
@@ -286,18 +286,18 @@ def _parse_constraint_elem(term, is_sum):
                         raise RuntimeError("Invalid Syntax, only linear constraints allowed")
 
         elif match(term, "-", 1):
-            for co, var in _parse_constraint_elem(term.arguments[0], True):
+            for co, var in _parse_constraint_elem(builder, term.arguments[0], True):
                 yield -co, var
 
         elif match(term, "+", 1):
-            for co, var in _parse_constraint_elem(term.arguments[0], True):
+            for co, var in _parse_constraint_elem(builder, term.arguments[0], True):
                 yield co, var
 
         elif term.type == clingo.TheoryTermType.Number:
             yield term.number, None
 
         elif term.type in (clingo.TheoryTermType.Symbol, clingo.TheoryTermType.Function, clingo.TheoryTermType.Tuple):
-            yield 1, _evaluate_term(term)
+            yield 1, builder.add_variable(_evaluate_term(term))
 
         else:
             raise RuntimeError("Invalid Syntax for linear constraint")

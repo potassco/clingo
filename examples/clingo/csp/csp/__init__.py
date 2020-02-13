@@ -1049,7 +1049,7 @@ class State(object):
             cs.marked_inactive = lvl.level
             lvl.inactive.append(cs)
 
-    def integrate_domain(self, cc, literal, var, domain):
+    def add_dom(self, cc, literal, var, domain):
         """
         Integrates the given domain for varibale var.
 
@@ -1091,7 +1091,7 @@ class State(object):
 
         return True
 
-    def integrate_simple(self, cc, constraint, strict):
+    def add_simple(self, cc, clit, co, var, rhs, strict):
         """
         This function integrates singleton constraints into the state.
 
@@ -1101,22 +1101,19 @@ class State(object):
         # pylint: disable=protected-access
 
         ass = cc.assignment
-        clit = constraint.literal
 
         # the constraint is never propagated
         if not strict and ass.is_false(clit):
             return True
 
-        assert len(constraint.elements) == 1
-        co, var = constraint.elements[0]
         vs = self.var_state(var)
 
         if co > 0:
             truth = ass.value(clit)
-            value = constraint.rhs(self)//co
+            value = rhs//co
         else:
             truth = ass.value(-clit)
-            value = -(constraint.rhs(self)//-co)-1
+            value = -(rhs//-co)-1
 
         # in this case we can use the literal of the constraint as order variable
         if strict and vs.min_bound <= value < vs.max_bound and not vs.has_literal(value):
@@ -1510,13 +1507,13 @@ class Propagator(object):
         """
         Add a domain for the given variable.
         """
-        return self._state(0).integrate_domain(cc, literal, var, domain)
+        return self._state(0).add_dom(cc, literal, var, domain)
 
-    def add_simple(self, cc, constraint, strict):
+    def add_simple(self, cc, clit, co, var, rhs, strict):
         """
         Add a constraint that can be represented by an order literal.
         """
-        return self._state(0).integrate_simple(cc, constraint, strict)
+        return self._state(0).add_simple(cc, clit, co, var, rhs, strict)
 
     def add_constraint(self, cc, constraint):
         """
