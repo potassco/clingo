@@ -145,15 +145,15 @@ void ClingoApp::addOption(char const *group, char const *option, char const *des
     using namespace Potassco::ProgramOptions;
     optionParsers_.emplace_front(parse);
     std::unique_ptr<Value> value{notify(&optionParsers_.front(), [](OptionParser *p, std::string const &, std::string const &value){ return (*p)(value.c_str()); })};
-    if (argument) { value->arg(argument); }
+    if (argument) { value->arg(String(argument).c_str()); }
     if (multi) { value->composing(); }
-    addGroup_(group).addOptions()(option, value.release(), description);
+    addGroup_(group).addOptions()(String(option).c_str(), value.release(), String(description).c_str());
 }
 
 void ClingoApp::addFlag(char const *group, char const *option, char const *description, bool &target) {
     using namespace Potassco::ProgramOptions;
     std::unique_ptr<Value> value{flag(target)};
-    addGroup_(group).addOptions()(option, value.release(), description);
+    addGroup_(group).addOptions()(String(option).c_str(), value.release(), String(description).c_str());
 }
 
 Clasp::ProblemType ClingoApp::getProblemType() {
