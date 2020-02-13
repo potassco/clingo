@@ -783,6 +783,7 @@ class DistinctState(AbstractConstraintState):
         #   - { h1=j, ..., hn=j } <= 1   where hi=j == hi<=j & ~hi<=j-1
         # - The translation of the constraints for terms should reuse existing
         #   code but hidden integer variables should be handled cleverly.
+
         return True, False
 
     def _propagate(self, cc, state, s, i, j):
@@ -934,17 +935,16 @@ class ConstraintBuilder(object):
         if not strict and self.cc.assignment.is_false(lit):
             return
 
+        elems = [(co, self._propagator.add_variable(var)) for co, var in elems]
+
         constraint = Constraint(lit, elems, rhs)
         if len(elems) == 1:
             _, var = elems[0]
-            self._propagator.add_variable(var)
             self._propagator.add_simple(self.cc, constraint, strict)
         else:
             assert not strict
             if csp.SORT_ELEMENTS:
                 constraint.elements.sort(key=lambda cv: -abs(cv[0]))
-            for _, var in constraint.elements:
-                self._propagator.add_variable(var)
             self._propagator.add_constraint(self.cc, constraint)
 
     def add_minimize(self, co, var):
@@ -955,7 +955,7 @@ class ConstraintBuilder(object):
             self._minimize = Minimize()
 
         if var is not None:
-            self._propagator.add_variable(var)
+            var = self._propagator.add_variable(var)
 
         if co == 0:
             return
@@ -976,10 +976,7 @@ class ConstraintBuilder(object):
             return
 
         if len(elems) > 2:
-            for term in elems:
-                for _, var in term[1]:
-                    self._propagator.add_variable(var)
-
+            elems = [(rhs, [(co, self._propagator.add_variable(var)) for co, var in term]) for rhs, term in elems]
             self._propagator.add_constraint(self.cc, Distinct(literal, elems))
             return
 
@@ -1015,9 +1012,8 @@ class ConstraintBuilder(object):
         if self.cc.assignment.is_false(literal):
             return
 
-        self._propagator.add_variable(var)
         intervals = IntervalSet(elements)
-        self._propagator.add_dom(self.cc, literal, var, list(intervals.items()))
+        self._propagator.add_dom(self.cc, literal, self._propagator.add_variable(var), list(intervals.items()))
 
     def prepare_minimize(self):
         """

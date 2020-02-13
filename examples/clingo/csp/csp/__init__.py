@@ -537,9 +537,7 @@ class State(object):
 
     Private Members
     ===============
-    _vars             -- List of VarState objects for variables occurring in
-                         constraints.
-    _var_state        -- Map from variable names to `VarState` objects.
+    _var_state        -- List of `VarState` objects.
     _litmap           -- Map from order literals to a list of `VarState/value`
                          pairs. If there is an order literal for `var<=value`,
                          then the pair `(vs,value)` is contained in the map
@@ -570,8 +568,7 @@ class State(object):
         A newly inititialized state is ready to propagate decision level zero
         after a call to `init_domain`.
         """
-        self._vars = []
-        self._var_state = {}
+        self._var_state = []
         self._litmap = {}
         self._levels = [Level(0)]
         self._v2cs = {}
@@ -606,14 +603,14 @@ class State(object):
             self._minimize_level = dl
             self._todo.add(self._cstate[minimize])
 
-    def get_assignment(self):
+    def get_assignment(self, var_map):
         """
         Get the current assignment to all variables.
 
         This function should be called on the state corresponding to the thread
         where a model has been found.
         """
-        return [(vs.var, vs.lower_bound) for vs in self._vars]
+        return [(var, self._var_state[idx].lower_bound) for var, idx in var_map.items()]
 
     def get_value(self, var):
         """
@@ -622,9 +619,8 @@ class State(object):
         This function should be called on the state corresponding to the thread
         where a model has been found.
         """
-        return (self._var_state[var].lower_bound
-                if var in self._var_state else
-                MIN_INT)
+        assert isinstance(var, int)
+        return self._var_state[var].lower_bound
 
     def _push_level(self, level):
         """
@@ -768,13 +764,13 @@ class State(object):
         return cc.add_clause([old if truth else -old]), lit
 
     # initialization
-    def add_variable(self, var):
+    def add_variable(self):
         """
         Adds `VarState` objects for each variable in `variables`.
         """
-        vs = VarState(var)
-        self._var_state[var] = vs
-        self._vars.append(vs)
+        idx = len(self._var_state)
+        self._var_state.append(VarState(idx))
+        return idx
 
     def add_var_watch(self, var, co, cs):
         """
@@ -1253,10 +1249,10 @@ class State(object):
 
         This function should only be called total assignments.
         """
-        post = range(self._lerp_last, len(self._vars))
+        post = range(self._lerp_last, len(self._var_state))
         pre = range(0, self._lerp_last)
         for i in chain(post, pre):
-            vs = self._vars[i]
+            vs = self._var_state[i]
             if not vs.is_assigned:
                 self._lerp_last = i
                 value = lerp(vs.lower_bound, vs.upper_bound)
@@ -1405,9 +1401,9 @@ class State(object):
         self._facts_integrated = master._facts_integrated
 
         # make sure we have an empty var state for each variable
-        for vs in master._vars[len(self._vars):]:
-            self.add_variable(vs.var)
-        for vs, vs_master in zip(self._vars, master._vars):
+        for vs in master._var_state[len(self._var_state):]:
+            self.add_variable()
+        for vs, vs_master in zip(self._var_state, master._var_state):
             assert vs.var == vs_master.var
             vs.clear()
 
@@ -1420,7 +1416,7 @@ class State(object):
                 self._litmap.setdefault(lit, []).append((vs, value))
 
         # adjust the bounds
-        for vs, vs_master in zip(self._vars, master._vars):
+        for vs, vs_master in zip(self._var_state, master._var_state):
             vs.lower_bound = vs_master.lower_bound
             vs.upper_bound = vs_master.upper_bound
 
@@ -1448,7 +1444,7 @@ class Propagator(object):
     def __init__(self):
         self._l2c = {}                   # map literals to constraints
         self._states = []                # map thread id to states
-        self._vars = TodoList()          # list of variables
+        self._var_map = OrderedDict()    # map from variable names to indices
         self._minimize = None            # minimize constraint
         self._minimize_bound = None      # bound of the minimize constraint
         self._stats_step = Statistics()  # statistics of the current call
@@ -1503,9 +1499,12 @@ class Propagator(object):
         """
         Add a variable to the program.
         """
-        if var not in self._vars:
-            self._vars.add(var)
-            self._state(0).add_variable(var)
+        assert isinstance(var, clingo.Symbol)
+        if var not in self._var_map:
+            idx = self._state(0).add_variable()
+            self._var_map[var] = idx
+            self._stats_step.num_variables += 1
+        return self._var_map[var]
 
     def add_dom(self, cc, literal, var, domain):
         """
@@ -1550,7 +1549,6 @@ class Propagator(object):
         # add constraints
         builder = ConstraintBuilder(cc, self, minimize)
         parse_theory(builder, init.theory_atoms)
-        self._stats_step.num_variables = len(self._vars)
 
         # gather bounds of states in master
         master = self._state(0)
@@ -1625,16 +1623,16 @@ class Propagator(object):
 
         Should be called on total assignments.
         """
-        return self._state(thread_id).get_assignment()
+        return self._state(thread_id).get_assignment(self._var_map)
 
-    def get_value(self, symbol, thread_id):
+    def get_value(self, var, thread_id):
         """
         Get the value of the given variable in the state associated with
         `thread_id`.
 
         Should be called on total assignments.
         """
-        return self._state(thread_id).get_value(symbol)
+        return self._state(thread_id).get_value(self._var_map[var])
 
     @property
     def has_minimize(self):
