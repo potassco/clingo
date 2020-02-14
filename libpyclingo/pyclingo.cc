@@ -9020,7 +9020,7 @@ group : str
 option : str
     Parameter option specifies the name(s) of the option. For example,
     `"ping,p"` adds the short option `-p` and its long form `--ping`. It is
-    also possible to associate an option with a help level by adding `"@l"` to
+    also possible to associate an option with a help level by adding `",@l"` to
     the option specification. Options with a level greater than zero are only
     shown if the argument to help is greater or equal to `l`.
 description : str
