@@ -273,7 +273,7 @@ public:
         }
     }
 
-    void undo(PropagateControl const &ctl , LiteralSpan) override {
+    void undo(PropagateControl const &ctl , LiteralSpan) noexcept override {
         auto &state = states_[ctl.thread_id()];
         int sid = state.trail.back().stack_index;
         auto ib = state.stack.begin() + sid, ie = state.stack.end();
@@ -366,7 +366,7 @@ public:
             }
         }
     }
-    void undo(PropagateControl const &ctl, LiteralSpan undo) override {
+    void undo(PropagateControl const &ctl, LiteralSpan undo) noexcept override {
         assert(ctl.thread_id() < state_.size());
         Hole2Lit& holes = state_[ctl.thread_id()];
         for (literal_t lit : undo) {
@@ -461,7 +461,7 @@ public:
             REQUIRE(ass.is_true(b_));
         }
     }
-    void undo(PropagateControl const &, LiteralSpan undo) override {
+    void undo(PropagateControl const &, LiteralSpan undo) noexcept override {
         count_-= undo.size();
     }
 private:
@@ -504,7 +504,7 @@ public:
         count_+= changes.size();
         REQUIRE_FALSE((enable && count_ == 2 && ctl.add_clause({-a_, -b_}, type) && ctl.propagate()));
     }
-    void undo(PropagateControl const &, LiteralSpan undo) override {
+    void undo(PropagateControl const &, LiteralSpan undo) noexcept override {
         count_-= undo.size();
     }
 public:

@@ -186,7 +186,7 @@ public:
         }
     }
 
-    void undo(Clingo::PropagateControl const &ctl, Clingo::LiteralSpan changes) override {
+    void undo(Clingo::PropagateControl const &ctl, Clingo::LiteralSpan changes) noexcept override {
         auto &&state = states_[ctl.thread_id()];
         for (auto &&l : changes) {
             for (auto &&u : assign_[l]) {

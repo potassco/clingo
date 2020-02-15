@@ -1304,7 +1304,7 @@ typedef bool (*clingo_propagator_init_callback_t) (clingo_propagate_init_t *, vo
 typedef bool (*clingo_propagator_propagate_callback_t) (clingo_propagate_control_t *, clingo_literal_t const *, size_t, void *);
 
 //! Typedef for @ref ::clingo_propagator::undo().
-typedef bool (*clingo_propagator_undo_callback_t) (clingo_propagate_control_t const *, clingo_literal_t const *, size_t, void *);
+typedef void (*clingo_propagator_undo_callback_t) (clingo_propagate_control_t const *, clingo_literal_t const *, size_t, void *);
 
 //! Typedef for @ref ::clingo_propagator::check().
 typedef bool (*clingo_propagator_check_callback_t) (clingo_propagate_control_t *, void *);
@@ -1369,7 +1369,7 @@ typedef struct clingo_propagator {
     //!
     //! This callback is meant to update assignment dependent state in the propagator.
     //!
-    //! @note No clauses must be propagated in this callback.
+    //! @note No clauses must be propagated in this callback and no errors should be set.
     //!
     //! @param[in] control control object for the target solver
     //! @param[in] changes the change set
@@ -1377,7 +1377,7 @@ typedef struct clingo_propagator {
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
     //! @see ::clingo_propagator_undo_callback_t
-    bool (*undo) (clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data);
+    void (*undo) (clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data);
     //! This function is similar to @ref clingo_propagate_control_propagate() but is called without a change set on propagation fixpoints.
     //!
     //! When exactly this function is called, can be configured using the @ref clingo_propagate_init_set_check_mode() function.

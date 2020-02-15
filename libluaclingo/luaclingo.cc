@@ -2890,12 +2890,13 @@ public:
         }
         return 0;
     }
-    static bool undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data) {
+    static void undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data) {
         auto *self = static_cast<Propagator*>(data);
         lua_State *L = self->threads[clingo_propagate_control_thread_id(control)];
         if (!lua_checkstack(L, 6)) {
-            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
-            return false;
+            char const *msg = lua_tostring(L, -1);
+            std::cerr << "propagator: error in undo going to abort:\n" << "lua stack size exceeded" << std::endl;
+            std::abort();
         }
         LuaClear ll(self->T), lt(L);
         lua_pushcfunction(L, luaTraceback);
@@ -2905,7 +2906,11 @@ public:
         lua_pushlightuserdata(L, const_cast<clingo_literal_t*>(changes));
         lua_pushinteger(L, size);
         auto ret = lua_pcall(L, 4, 0, -6);
-        return handle_lua_error(L, "Propagator::undo", "undo failed", ret);
+        if (ret != 0) {
+            char const *msg = lua_tostring(L, -1);
+            std::cerr << "propagator: error in undo going to abort:\n" << msg << std::endl;
+            std::abort();
+        }
     }
     static int check_(lua_State *L) {
         auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
@@ -3283,8 +3288,8 @@ static int lua_logger_callback(lua_State *L) {
 static void logger_callback(clingo_warning_t code, char const *message, void *data) {
     lua_State *L = static_cast<lua_State*>(data);
     if (!lua_checkstack(L, 4)) {
-        std::cerr << "logger: stack size exceeded going to terminate" << std::endl;
-        std::terminate();
+        std::cerr << "logger: stack size exceeded going to abort" << std::endl;
+        std::abort();
     }
     lua_pushcfunction(L, luaTraceback);        // +1
     lua_pushcfunction(L, lua_logger_callback); // +1
@@ -3293,10 +3298,9 @@ static void logger_callback(clingo_warning_t code, char const *message, void *da
     lua_pushlightuserdata(L, &message);        // +1
     auto ret = lua_pcall(L, 3, 0, -5);         // -4
     if (ret != 0) {
-        std::string loc, desc;
         char const *msg = lua_tostring(L, -1);
-        std::cerr << "logger: error in logger going to terminate:\n" << msg << std::endl;
-        std::terminate();
+        std::cerr << "logger: error in logger going to abort:\n" << msg << std::endl;
+        std::abort();
     }
     lua_pop(L, 1);                             // -1
 }

@@ -977,7 +977,7 @@ class Propagator {
 public:
     virtual void init(PropagateInit &init);
     virtual void propagate(PropagateControl &ctl, LiteralSpan changes);
-    virtual void undo(PropagateControl const &ctl, LiteralSpan changes);
+    virtual void undo(PropagateControl const &ctl, LiteralSpan changes) noexcept;
     virtual void check(PropagateControl &ctl);
     virtual ~Propagator() noexcept = default;
 };
@@ -2929,7 +2929,7 @@ inline bool PropagateControl::propagate() {
 
 inline void Propagator::init(PropagateInit &) { }
 inline void Propagator::propagate(PropagateControl &, LiteralSpan) { }
-inline void Propagator::undo(PropagateControl const &, LiteralSpan) { }
+inline void Propagator::undo(PropagateControl const &, LiteralSpan) noexcept { }
 inline void Propagator::check(PropagateControl &) { }
 inline literal_t Heuristic::decide(id_t, Assignment const &, literal_t) { return 0; }
 
@@ -4187,13 +4187,10 @@ inline static bool g_propagate(clingo_propagate_control_t *ctl, clingo_literal_t
     CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline static bool g_undo(clingo_propagate_control_t const *ctl, clingo_literal_t const *changes, size_t n, void *pdata) {
+inline static void g_undo(clingo_propagate_control_t const *ctl, clingo_literal_t const *changes, size_t n, void *pdata) {
     PropagatorData &data = *static_cast<PropagatorData*>(pdata);
-    CLINGO_CALLBACK_TRY {
-        PropagateControl pc(const_cast<clingo_propagate_control_t*>(ctl));
-        data.first.undo(pc, {changes, n});
-    }
-    CLINGO_CALLBACK_CATCH(data.second);
+    PropagateControl pc(const_cast<clingo_propagate_control_t*>(ctl));
+    data.first.undo(pc, {changes, n});
 }
 
 inline static bool g_check(clingo_propagate_control_t *ctl, void *pdata) {

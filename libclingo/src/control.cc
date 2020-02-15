@@ -1335,7 +1335,7 @@ public:
     }
 
     void undo(Potassco::AbstractSolver const &solver, ChangeList const &undo) override {
-        if (prop_.undo && !prop_.undo(static_cast<clingo_propagate_control_t const *>(&solver), undo.first, undo.size, data_)) { throw ClingoError(); }
+        if (prop_.undo) { prop_.undo(static_cast<clingo_propagate_control_t const *>(&solver), undo.first, undo.size, data_); }
     }
 
     void check(Potassco::AbstractSolver& solver) override {

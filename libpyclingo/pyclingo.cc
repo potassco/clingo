@@ -4166,7 +4166,7 @@ static bool propagator_propagate(clingo_propagate_control_t *control, clingo_lit
     }
 }
 
-bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *prop) {
+void propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *prop) {
     PyBlock block;
     try {
         Object i = cppToPy(clingo_propagate_control_thread_id(control));
@@ -4174,11 +4174,11 @@ bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t
         Object l = cppRngToPy(changes, changes + size);
         Object n = PyString_FromString("undo");
         Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(prop), n.toPy(), i.toPy(), a.toPy(), l.toPy(), nullptr);
-        return true;
     }
     catch (...) {
         handle_cxx_error("Propagator::undo", "error during undo");
-        return false;
+        std::cerr << clingo_error_message() << std::endl;
+        std::terminate();
     }
 }
 
@@ -8734,6 +8734,7 @@ class Propagator:
         -----
         This function is meant to update assignment dependent state in a
         propagator but not to modify the current state of the solver.
+        Furthermore, errors raised in the function lead to program termination.
         """
 
     def check(self, control: PropagateControl) -> None:
