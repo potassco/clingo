@@ -207,6 +207,7 @@ typedef int clingo_truth_value_t;
 //!
 //! @note Not all locations refer to physical files.
 //! By convention, such locations use a name put in angular brackets as filename.
+//! The string members of a location object are internalized and valid for the duration of the process.
 typedef struct clingo_location {
     char const *begin_file; //!< the file where the location begins
     char const *end_file;   //!< the file where the location ends
@@ -266,6 +267,9 @@ typedef uint64_t clingo_signature_t;
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_signature_create(char const *name, uint32_t arity, bool positive, clingo_signature_t *signature);
 //! Get the name of a signature.
+//!
+//! @note
+//! The string is internalized and valid for the duration of the process.
 //!
 //! @param[in] signature the target signature
 //! @return the name of the signature
@@ -386,12 +390,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(char const *name, c
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_number(clingo_symbol_t symbol, int *number);
 //! Get the name of a symbol.
 //!
+//! @note
+//! The string is internalized and valid for the duration of the process.
+//!
 //! @param[in] symbol the target symbol
 //! @param[out] name the resulting name
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_name(clingo_symbol_t symbol, char const **name);
 //! Get the string of a symbol.
+//!
+//! @note
+//! The string is internalized and valid for the duration of the process.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
@@ -475,8 +485,7 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_symbol_hash(clingo_symbol_t symbol);
 //! Internalize a string.
 //!
 //! This functions takes a string as input and returns an equal unique string
-//! that is (at the moment) not freed until the program is closed.  All strings
-//! returned from clingo API functions are internalized and must not be freed.
+//! that is (at the moment) not freed until the program is closed.
 //!
 //! @param[in] string the string to internalize
 //! @param[out] result the internalized string
@@ -736,6 +745,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_theory_atoms_term_type(clingo_theory_atoms
 CLINGO_VISIBILITY_DEFAULT bool clingo_theory_atoms_term_number(clingo_theory_atoms_t const *atoms, clingo_id_t term, int *number);
 //! Get the name of the given constant or function theory term.
 //!
+//! @note
+//! The lifetime of the string is tied to the current solve step.
+//!
 //! @pre The term must be of type ::clingo_theory_term_type_function or ::clingo_theory_term_type_symbol.
 //! @param[in] atoms container where the term is stored
 //! @param[in] term id of the term
@@ -856,6 +868,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_theory_atoms_atom_elements(clingo_theory_a
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_theory_atoms_atom_has_guard(clingo_theory_atoms_t const *atoms, clingo_id_t atom, bool *has_guard);
 //! Get the guard consisting of a theory operator and a theory term of the given theory atom.
+//!
+//! @note
+//! The lifetime of the string is tied to the current solve step.
 //!
 //! @param[in] atoms container where the atom is stored
 //! @param[in] atom id of the atom
@@ -2269,6 +2284,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 
 //! @defgroup AST Abstract Syntax Trees
 //! Functions and data structures to work with program ASTs.
+//!
+//! @note
+//! The lifetime of the ast objects and its members is limited to the duration of the callback.
 //!
 //! @warning There might still be changes to this part of the API and there is not much documentation yet.
 //! In its current form the interface is rather large
