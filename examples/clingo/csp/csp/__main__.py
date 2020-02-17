@@ -72,6 +72,12 @@ class Application(object):
     def _on_statistics(self, step, akku):
         self._propagator.on_statistics(step, akku)
 
+    def _read(self, path):
+        if path == "-":
+            return sys.stdin.read()
+        with open(path) as file_:
+            return file_.read()
+
     def main(self, prg, files):
         """
         Entry point of the application registering the propagator and
@@ -80,11 +86,12 @@ class Application(object):
         prg.register_propagator(self._propagator)
         prg.add("base", [], csp.THEORY)
 
+        if not files:
+            files = ["-"]
+
         with prg.builder() as b:
-            for f in files:
-                transform(b, open(f).read(), csp.SHIFT_CONSTRAINTS)
-            if not files:
-                transform(b, sys.stdin.read(), csp.SHIFT_CONSTRAINTS)
+            for path in files:
+                transform(b, self._read(path), csp.SHIFT_CONSTRAINTS)
 
         prg.ground([("base", [])])
 
