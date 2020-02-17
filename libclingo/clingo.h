@@ -3392,6 +3392,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t co
 //! The default level zero only provides basic statistics,
 //! level one provides extended and accumulated statistics,
 //! and level two provides per-thread statistics.
+//! Furthermore, the statistics object is best accessed right after solving.
+//! Otherwise, not all of its entries have valid values.
 //!
 //! @param[in] control the target
 //! @param[out] statistics the statistics object

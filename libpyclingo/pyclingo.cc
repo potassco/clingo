@@ -7627,6 +7627,7 @@ struct ControlWrap : ObjectBase<ControlWrap> {
     PyObject         *logger;
     Objects           objects;
     bool              blocked;
+    double            stats_call;
 
     static PyGetSetDef tp_getset[];
     static PyMethodDef tp_methods[];
@@ -7669,20 +7670,22 @@ active; you must not call any member function during search.
     static Object construct(clingo_control_t *ctl) {
         auto self = new_();
         self->ctl = ctl;
-        self->freeCtl = nullptr;
-        self->stats   = nullptr;
-        self->logger  = nullptr;
-        self->blocked = false;
+        self->freeCtl    = nullptr;
+        self->stats      = nullptr;
+        self->stats_call = -1;
+        self->logger     = nullptr;
+        self->blocked    = false;
         new (&self->objects) Objects();
         return self;
     }
     static Object tp_new(PyTypeObject *type) {
         auto self = new_(type);
-        self->ctl     = nullptr;
-        self->freeCtl = nullptr;
-        self->stats   = nullptr;
-        self->logger  = nullptr;
-        self->blocked = false;
+        self->ctl        = nullptr;
+        self->freeCtl    = nullptr;
+        self->stats      = nullptr;
+        self->stats_call = -1;
+        self->logger     = nullptr;
+        self->blocked    = false;
         new (&self->objects) Objects();
         return self;
     }
@@ -7843,11 +7846,20 @@ active; you must not call any member function during search.
     }
     Object getStats() {
         CHECK_BLOCKED("statistics");
+        clingo_statistics_t const *s;
+        handle_c_error(clingo_control_statistics(ctl, &s));
+        uint64_t root, key_summary, key_calls;
+        handle_c_error(clingo_statistics_root(s, &root));
+        handle_c_error(clingo_statistics_map_at(s, root, "summary", &key_summary));
+        handle_c_error(clingo_statistics_map_at(s, key_summary, "call", &key_calls));
+        double call;
+        handle_c_error(clingo_statistics_value_get(s, key_calls, &call));
+        if (stats && call != stats_call) {
+            Py_XDECREF(stats);
+            stats = nullptr;
+        }
         if (!stats) {
-            clingo_statistics_t const *s;
-            handle_c_error(clingo_control_statistics(ctl, &s));
-            uint64_t root;
-            handle_c_error(clingo_statistics_root(s, &root));
+            stats_call = call;
             stats = getStatistics(s, root).release();
         }
         Py_XINCREF(stats);
@@ -8869,7 +8881,10 @@ A `dict` containing solve statistics of the last solve call.
 Notes
 -----
 The statistics correspond to the `--stats` output of clingo. The detail of the
-statistics depends on what level is requested on the command line.
+statistics depends on what level is requested on the command line. Furthermore,
+there are some functions like `Control.release_external` that start a new
+solving step resetting the current step statistics. It is best to access the
+statistics right after solving.
 
 This property is only available in clingo.
 
