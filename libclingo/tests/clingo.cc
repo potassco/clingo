@@ -450,6 +450,22 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(atom.guard().second.number() == 42);
             REQUIRE(atom.literal() == 0);
         }
+        SECTION("theory-not") {
+            char const *theory =
+                "#theory t {\n"
+                "  term {\n"
+                "    not : 0, unary;\n"
+                "    not : 1, binary, left\n"
+                "  };\n"
+                "  &atom/0 : term, directive\n"
+                "}.\n"
+                "&atom { not (1 not 2) }.\n";
+            ctl.add("base", {}, theory);
+            ctl.ground({{"base", {}}});
+            auto atoms = ctl.theory_atoms();
+            REQUIRE(atoms.size() == 1);
+            REQUIRE(atoms.begin()->to_string() == "&atom{(not (1 not 2))}");
+        }
         SECTION("symbolic atoms") {
             ctl.add("base", {}, "p(1). {p(2)}. #external p(3). q.");
             ctl.ground({{"base", {}}});

@@ -737,17 +737,27 @@ void TheoryData::printTerm(std::ostream &out, Potassco::Id_t termId) const {
         case Potassco::Theory_t::Compound: {
             auto parens = Potassco::toString(term.isTuple() ? term.tuple() : Potassco::Tuple_t::Paren);
             bool isOp = false;
+            char const *op = ",";
             if (term.isFunction()) {
-                auto &name = data_.getTerm(term.function());
-                char buf[2] = { *name.symbol(), 0 };
-                isOp = term.size() <= 2 && std::strpbrk(buf, "/!<=>+-*\\?&@|:;~^.");
-                if (!isOp) { printTerm(out, term.function()); }
+                if (term.size() <= 2) {
+                    auto &name = data_.getTerm(term.function());
+                    char buf[2] = { *name.symbol(), 0 };
+                    if ((isOp = std::strpbrk(buf, "/!<=>+-*\\?&@|:;~^."))) {
+                        op = name.symbol();
+                    }
+                    else if ((isOp = strcmp(name.symbol(), "not") == 0)) {
+                        op = term.size() == 1 ? "not " : " not ";
+                    }
+                }
+                if (!isOp) {
+                    printTerm(out, term.function());
+                }
             }
             out << parens[0];
             if (isOp && term.size() <= 1) {
-                printTerm(out, term.function());
+                out << op;
             }
-            print_comma(out, term, isOp ? data_.getTerm(term.function()).symbol() : ",", [this](std::ostream &out, Potassco::Id_t termId){ printTerm(out, termId); });
+            print_comma(out, term, op, [this](std::ostream &out, Potassco::Id_t termId){ printTerm(out, termId); });
             if (term.isTuple() && term.tuple() == Potassco::Tuple_t::Paren && term.size() == 1) { out << ","; }
             out << parens[1];
             break;

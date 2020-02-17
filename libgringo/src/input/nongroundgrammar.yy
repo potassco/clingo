@@ -193,7 +193,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 %type <body>            bodycomma bodydot bodyconddot optimizelitvec optimizecond
 %type <head>            head
 %type <uid>             lubodyaggregate luheadaggregate
-%type <str>             identifier theory_definition_identifier
+%type <str>             identifier theory_definition_identifier theory_op
 %type <fun>             aggregatefunction
 %type <aggr>            bodyaggregate headaggregate
 %type <rel>             cmp csp_rel
@@ -885,11 +885,16 @@ statement
 
 // {{{1 theory
 
+theory_op
+    : THEORY_OP[op]  { $$ = $op; }
+    | NOT[not]       { $$ = $not; }
+    ;
+
 // {{{2 theory atoms
 
 theory_op_list
-    : theory_op_list[ops] THEORY_OP[op] { $$ = BUILDER.theoryops($ops, String::fromRep($op)); }
-    | THEORY_OP[op]                     { $$ = BUILDER.theoryops(BUILDER.theoryops(), String::fromRep($op)); }
+    : theory_op_list[ops] theory_op[op] { $$ = BUILDER.theoryops($ops, String::fromRep($op)); }
+    | theory_op[op]                     { $$ = BUILDER.theoryops(BUILDER.theoryops(), String::fromRep($op)); }
     ;
 
 theory_term
@@ -946,14 +951,14 @@ theory_atom_name
 theory_atom
     : AND theory_atom_name[name] { $$ = BUILDER.theoryatom($name, BUILDER.theoryelems()); }
     | AND theory_atom_name[name] enable_theory_lexing LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE                                     disable_theory_lexing { $$ = BUILDER.theoryatom($name, $elems); }
-    | AND theory_atom_name[name] enable_theory_lexing LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE THEORY_OP[op] theory_opterm[opterm] disable_theory_lexing { $$ = BUILDER.theoryatom($name, $elems, String::fromRep($op), @opterm, $opterm); }
+    | AND theory_atom_name[name] enable_theory_lexing LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE theory_op[op] theory_opterm[opterm] disable_theory_lexing { $$ = BUILDER.theoryatom($name, $elems, String::fromRep($op), @opterm, $opterm); }
     ;
 
 // {{{2 theory definition
 
 theory_operator_nlist
-    : THEORY_OP[op]                                  { $$ = BUILDER.theoryops(BUILDER.theoryops(), String::fromRep($op)); }
-    | theory_operator_nlist[ops] COMMA THEORY_OP[op] { $$ = BUILDER.theoryops($ops, String::fromRep($op)); }
+    : theory_op[op]                                  { $$ = BUILDER.theoryops(BUILDER.theoryops(), String::fromRep($op)); }
+    | theory_operator_nlist[ops] COMMA theory_op[op] { $$ = BUILDER.theoryops($ops, String::fromRep($op)); }
     ;
 
 theory_operator_list
@@ -962,9 +967,9 @@ theory_operator_list
     ;
 
 theory_operator_definition
-    : THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA UNARY              { $$ = BUILDER.theoryopdef(@$, String::fromRep($op), $arity, TheoryOperatorType::Unary); }
-    | THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA BINARY COMMA LEFT  { $$ = BUILDER.theoryopdef(@$, String::fromRep($op), $arity, TheoryOperatorType::BinaryLeft); }
-    | THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA BINARY COMMA RIGHT { $$ = BUILDER.theoryopdef(@$, String::fromRep($op), $arity, TheoryOperatorType::BinaryRight); }
+    : theory_op[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA UNARY              { $$ = BUILDER.theoryopdef(@$, String::fromRep($op), $arity, TheoryOperatorType::Unary); }
+    | theory_op[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA BINARY COMMA LEFT  { $$ = BUILDER.theoryopdef(@$, String::fromRep($op), $arity, TheoryOperatorType::BinaryLeft); }
+    | theory_op[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA BINARY COMMA RIGHT { $$ = BUILDER.theoryopdef(@$, String::fromRep($op), $arity, TheoryOperatorType::BinaryRight); }
     ;
 
 theory_operator_definition_nlist
