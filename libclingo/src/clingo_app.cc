@@ -153,7 +153,7 @@ void ClingoApp::addOption(char const *group, char const *option, char const *des
 void ClingoApp::addFlag(char const *group, char const *option, char const *description, bool &target) {
     using namespace Potassco::ProgramOptions;
     std::unique_ptr<Value> value{flag(target)};
-    addGroup_(group).addOptions()(String(option).c_str(), value.release(), String(description).c_str());
+    addGroup_(group).addOptions()(String(option).c_str(), value.release()->negatable(), String(description).c_str());
 }
 
 Clasp::ProblemType ClingoApp::getProblemType() {
