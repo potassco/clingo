@@ -1508,7 +1508,7 @@ class Propagator(object):
                 ("Time undo(s)", u),
                 ("Refined reason", tstat.refined_reason),
                 ("Introduced reason", tstat.introduced_reason),
-                ("Literals introduced ", tstat.literals)]),
+                ("Literals introduced ", tstat.literals)])
         stats_map["Clingcon"] = OrderedDict([
             ("Time init(s)", stats.time_init),
             ("Time translate(s)", stats.time_translate),
