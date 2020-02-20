@@ -5,10 +5,9 @@ stand-alone application.
 
 from collections import OrderedDict
 from itertools import chain
-from timeit import default_timer as timer
 import clingo
 from .parsing import parse_theory
-from .util import lerp, remove_if, TodoList, SortedDict
+from .util import lerp, remove_if, TodoList, SortedDict, measure_time, measure_time_decorator
 from .constraints import ConstraintBuilder
 
 # TODO: These have to become options!
@@ -57,21 +56,6 @@ THEORY = """\
 """
 
 
-def measure_time(attribute):
-    """
-    Decorator to time function calls for propagator statistics.
-    """
-    def time_wrapper(func):
-        def wrapper(self, *args, **kwargs):
-            start = timer()
-            ret = func(self, *args, **kwargs)
-            value = getattr(self.statistics, attribute)
-            setattr(self.statistics, attribute, value + timer() - start)
-            return ret
-        return wrapper
-    return time_wrapper
-
-
 class ThreadStatistics(object):
     """
     Thread specific statistics.
@@ -82,6 +66,7 @@ class ThreadStatistics(object):
         self.time_undo = 0
         self.refined_reason = 0
         self.introduced_reason = 0
+        self.literals = 0
 
     def reset(self):
         """
@@ -92,6 +77,7 @@ class ThreadStatistics(object):
         self.time_undo = 0
         self.refined_reason = 0
         self.introduced_reason = 0
+        self.literals = 0
 
     def accu(self, stat):
         """
@@ -102,6 +88,7 @@ class ThreadStatistics(object):
         self.time_undo += stat.time_undo
         self.refined_reason += stat.refined_reason
         self.introduced_reason += stat.introduced_reason
+        self.literals += stat.literals
 
 
 class Statistics(object):
@@ -112,6 +99,11 @@ class Statistics(object):
         self.num_variables = 0
         self.num_constraints = 0
         self.time_init = 0
+        self.time_translate = 0
+        self.translate_clauses = 0
+        self.translate_wcs = 0
+        self.translate_literals = 0
+        self.init_literals = 0
         self.tstats = []
 
     def reset(self):
@@ -121,6 +113,11 @@ class Statistics(object):
         self.num_variables = 0
         self.num_constraints = 0
         self.time_init = 0
+        self.time_translate = 0
+        self.translate_clauses = 0
+        self.translate_wcs = 0
+        self.translate_literals = 0
+        self.init_literals = 0
         for s in self.tstats:
             s.reset()
 
@@ -131,6 +128,11 @@ class Statistics(object):
         self.num_variables = max(self.num_variables, stats.num_variables)
         self.num_constraints = max(self.num_constraints, stats.num_constraints)
         self.time_init += stats.time_init
+        self.time_translate += stats.time_translate
+        self.translate_clauses += stats.translate_clauses
+        self.translate_wcs += stats.translate_wcs
+        self.translate_literals += stats.translate_literals
+        self.init_literals += stats.init_literals
 
         for _ in range(len(self.tstats), len(stats.tstats)):
             self.tstats.append(ThreadStatistics())
@@ -143,11 +145,21 @@ class InitClauseCreator(object):
     Class to add solver literals, create clauses, and access the current
     assignment using the `PropagateInit` object.
     """
+    StateInit = 0
+    StateTranslate = 1
 
-    def __init__(self, init):
+    def __init__(self, init, stats):
         self._solver = init
         self._clauses = []
         self._weight_constraints = []
+        self._state = InitClauseCreator.StateInit
+        self._stats = stats
+
+    def set_state(self, state):
+        """
+        Set the state to log either init literals or additionally translation literals
+        """
+        self._state = state
 
     def solver_literal(self, literal):
         """
@@ -160,6 +172,9 @@ class InitClauseCreator(object):
         Adds a new literal.
         """
         x = self._solver.add_literal()
+        self._stats.init_literals += 1
+        if self._state == InitClauseCreator.StateTranslate:
+            self._stats.translate_literals += 1
         return x
 
     def add_watch(self, lit):
@@ -198,6 +213,8 @@ class InitClauseCreator(object):
         """
         # pylint: disable=unused-argument
         assert not tag
+        if self._state == InitClauseCreator.StateTranslate:
+            self._stats.translate_clauses += 1
 
         self._clauses.append(clause[:])
         return True
@@ -214,6 +231,9 @@ class InitClauseCreator(object):
         elif self.assignment.is_false(lit):
             if type_ > 0:
                 return True
+
+        if self._state == InitClauseCreator.StateTranslate:
+            self._stats.translate_wcs += 1
         self._weight_constraints.append((lit, wlits[:], bound, type_))
         return True
 
@@ -231,13 +251,15 @@ class ControlClauseCreator(object):
     assignment using the `PropagateControl` object.
     """
 
-    def __init__(self, control):
+    def __init__(self, control, stats):
         self._solver = control
+        self._stats = stats
 
     def add_literal(self):
         """
         Adds a new literal.
         """
+        self._stats.literals += 1
         return self._solver.add_literal()
 
     def add_watch(self, lit):
@@ -892,7 +914,7 @@ class State(object):
                 return False
 
     # propagation
-    @measure_time("time_propagate")
+    @measure_time_decorator("statistics.time_propagate")
     def propagate(self, cc, changes):
         """
         Propagates constraints and order literals.
@@ -1144,7 +1166,7 @@ class State(object):
 
         return True
 
-    @measure_time("time_undo")
+    @measure_time_decorator("statistics.time_undo")
     def undo(self):
         """
         This function undos decision level specific state.
@@ -1194,7 +1216,7 @@ class State(object):
         f = len(self._litmap.get(-TRUE_LIT, []))
         return t, f
 
-    @measure_time("time_check")
+    @measure_time_decorator("statistics.time_check")
     def check(self, cc):
         """
         This functions propagates facts that have not been integrated on the
@@ -1485,11 +1507,17 @@ class Propagator(object):
                 ("Time check(s)", c),
                 ("Time undo(s)", u),
                 ("Refined reason", tstat.refined_reason),
-                ("Introduced reason", tstat.introduced_reason)])
+                ("Introduced reason", tstat.introduced_reason),
+                ("Literals introduced ", tstat.literals)]),
         stats_map["Clingcon"] = OrderedDict([
             ("Time init(s)", stats.time_init),
+            ("Time translate(s)", stats.time_translate),
             ("Variables", stats.num_variables),
             ("Constraints", stats.num_constraints),
+            ("Clauses in translate", stats.translate_clauses),
+            ("Weight constraints in translate", stats.translate_wcs),
+            ("Literals in translate", stats.translate_literals),
+            ("Literals in init", stats.init_literals),
             ("Thread", map(thread_stats, stats.tstats[:len(self._states)]))])
 
     def add_variable(self, var):
@@ -1525,7 +1553,7 @@ class Propagator(object):
         self._stats_step.num_constraints += 1
         self._state(0).add_constraint(constraint)
 
-    @measure_time("time_init")
+    @measure_time_decorator("statistics.time_init")
     def init(self, init):
         """
         Initializes the propagator extracting constraints from the theory data.
@@ -1534,7 +1562,7 @@ class Propagator(object):
         multi-threaded solving.
         """
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
-        cc = InitClauseCreator(init)
+        cc = InitClauseCreator(init, self.statistics)
 
         # remove minimize constraint
         minimize = self.remove_minimize()
@@ -1562,8 +1590,10 @@ class Propagator(object):
             return
 
         # translate (simple enough) constraints
-        if not master.translate(cc, self._l2c):
+        cc.set_state(InitClauseCreator.StateTranslate)
+        if not measure_time(self.statistics, "time_translate", master.translate, cc, self._l2c):
             return
+        cc.set_state(InitClauseCreator.StateInit)
 
         # add minimize constraint
         # Note: the constraint is added in the end to avoid propagating tagged
@@ -1582,7 +1612,7 @@ class Propagator(object):
         Delegates propagation to the respective state.
         """
         state = self._state(control.thread_id)
-        state.propagate(ControlClauseCreator(control), changes)
+        state.propagate(ControlClauseCreator(control, state.statistics), changes)
 
     def check(self, control):
         """
@@ -1596,7 +1626,7 @@ class Propagator(object):
             bound = self._minimize_bound + self._minimize.adjust
             state.update_minimize(self._minimize, dl, bound)
 
-        if not state.check(ControlClauseCreator(control)):
+        if not state.check(ControlClauseCreator(control, state.statistics)):
             return
 
         # Note: Makes sure that all variables are assigned in the end. But even

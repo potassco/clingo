@@ -3,6 +3,8 @@ Utility functions.
 """
 
 import math
+from timeit import default_timer as timer
+from functools import reduce
 
 try:
     # Note: Can be installed to play with realistic domain sizes.
@@ -25,6 +27,36 @@ else:
         while y:
             x, y = y, x % y
         return x
+
+
+def measure_time(target, attribute, func, *args, **kwargs):
+    """
+    Call function func with the given arguments and measure its runtime.
+
+    The runtime will be added to the given attribute of target where argument
+    is a `.` separated string of arguments.
+    """
+    attributes = attribute.split(".")
+    attribute = attributes.pop()
+    target = reduce(getattr, attributes, target)
+    start = timer()
+    try:
+        return func(*args, **kwargs)
+    finally:
+        value = getattr(target, attribute)
+        setattr(target, attribute, value + timer() - start)
+
+
+def measure_time_decorator(attribute):
+    """
+    Decorator to time function calls for propagator statistics.
+
+    The runtime will be added to the given attribute of the class where
+    argument is a `.` separated string of arguments.
+    """
+    def wrapper(func):
+        return lambda self, *args, **kwargs: measure_time(self, attribute, func, self, *args, **kwargs)
+    return wrapper
 
 
 def lerp(x, y):
