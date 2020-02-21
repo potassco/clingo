@@ -41,30 +41,29 @@
 #pragma warning (disable : 4800) // forcing value to bool 'true' or 'false'
 #endif
 #if PY_MAJOR_VERSION >= 3
-#define PyString_FromString PyUnicode_FromString
-#if PY_MINOR_VERSION >= 3
-#define PyString_AsString PyUnicode_AsUTF8
+#  define PyString_FromString PyUnicode_FromString
+#  if PY_MINOR_VERSION >= 3
+#    define PyString_AsString PyUnicode_AsUTF8
+#  else
+#    define PyString_AsString _PyUnicode_AsString
+#  endif
+#  define PyString_FromStringAndSize PyUnicode_FromStringAndSize
+#  define PyString_FromFormat PyUnicode_FromFormat
+#  define PyString_Check PyUnicode_Check
+#  define OBBASE(x) (&(x)->ob_base)
 #else
-#define PyString_AsString _PyUnicode_AsString
-#endif
-#define PyString_FromStringAndSize PyUnicode_FromStringAndSize
-#define PyString_FromFormat PyUnicode_FromFormat
-#define PyString_Check PyUnicode_Check
-#define OBBASE(x) (&(x)->ob_base)
-#else
-#define OBBASE(x) x
-#define Py_hash_t long
+#  define OBBASE(x) x
+#  define Py_hash_t long
 #endif
 
 #ifndef PyVarObject_HEAD_INIT
-    #define PyVarObject_HEAD_INIT(type, size) \
-        PyObject_HEAD_INIT(type) size,
+#  define PyVarObject_HEAD_INIT(type, size) PyObject_HEAD_INIT(type) size,
 #endif
 
 #if defined(__clang__) || defined(__GNUC__)
-#define CLINGO_ATTRIBUTE_UNUSED __attribute__ ((unused))
+#  define CLINGO_ATTRIBUTE_UNUSED __attribute__ ((unused))
 #else
-#define CLINGO_ATTRIBUTE_UNUSED
+#  define CLINGO_ATTRIBUTE_UNUSED
 #endif
 namespace {
 
@@ -1096,6 +1095,106 @@ END_PROTOCOL(sq_inplace_repeat, tp_as_sequence, PySequenceMethods) {{
     Get_sq_inplace_repeat<B>::value,
 }};
 
+// number protocol
+
+BEGIN_PROTOCOL(nb_bool)
+    static int value(PyObject *self) {
+        PY_TRY { return reinterpret_cast<B*>(self)->nb_bool() ? 1 : 0; }
+        PY_CATCH(-1);
+    };
+NEXT_PROTOCOL(nb_bool, nb_int)
+    static PyObject* value(PyObject *self) {
+        PY_TRY { return reinterpret_cast<B*>(self)->nb_int().release(); }
+        PY_CATCH(nullptr);
+    };
+END_PROTOCOL(nb_int, tp_as_number, PyNumberMethods) {{
+#if PY_MAJOR_VERSION >= 3
+     nullptr,               // binaryfunc nb_add;
+     nullptr,               // binaryfunc nb_subtract;
+     nullptr,               // binaryfunc nb_multiply;
+     nullptr,               // binaryfunc nb_remainder;
+     nullptr,               // binaryfunc nb_divmod;
+     nullptr,               // ternaryfunc nb_power;
+     nullptr,               // unaryfunc nb_negative;
+     nullptr,               // unaryfunc nb_positive;
+     nullptr,               // unaryfunc nb_absolute;
+     Get_nb_bool<B>::value, // inquiry nb_bool;
+     nullptr,               // unaryfunc nb_invert;
+     nullptr,               // binaryfunc nb_lshift;
+     nullptr,               // binaryfunc nb_rshift;
+     nullptr,               // binaryfunc nb_and;
+     nullptr,               // binaryfunc nb_xor;
+     nullptr,               // binaryfunc nb_or;
+     Get_nb_int<B>::value,  // unaryfunc nb_int;
+     nullptr,               // void *nb_reserved;
+     nullptr,               // unaryfunc nb_float;
+
+     nullptr,               // binaryfunc nb_inplace_add;
+     nullptr,               // binaryfunc nb_inplace_subtract;
+     nullptr,               // binaryfunc nb_inplace_multiply;
+     nullptr,               // binaryfunc nb_inplace_remainder;
+     nullptr,               // ternaryfunc nb_inplace_power;
+     nullptr,               // binaryfunc nb_inplace_lshift;
+     nullptr,               // binaryfunc nb_inplace_rshift;
+     nullptr,               // binaryfunc nb_inplace_and;
+     nullptr,               // binaryfunc nb_inplace_xor;
+     nullptr,               // binaryfunc nb_inplace_or;
+
+     nullptr,               // binaryfunc nb_floor_divide;
+     nullptr,               // binaryfunc nb_true_divide;
+     nullptr,               // binaryfunc nb_inplace_floor_divide;
+     nullptr,               // binaryfunc nb_inplace_true_divide;
+
+     nullptr,               // unaryfunc nb_index;
+
+     nullptr,               // binaryfunc nb_matrix_multiply;
+     nullptr,               // binaryfunc nb_inplace_matrix_multiply;
+#else
+     nullptr,               // binaryfunc nb_add;
+     nullptr,               // binaryfunc nb_subtract;
+     nullptr,               // binaryfunc nb_multiply;
+     nullptr,               // binaryfunc nb_divide;
+     nullptr,               // binaryfunc nb_remainder;
+     nullptr,               // binaryfunc nb_divmod;
+     nullptr,               // ternaryfunc nb_power;
+     nullptr,               // unaryfunc nb_negative;
+     nullptr,               // unaryfunc nb_positive;
+     nullptr,               // unaryfunc nb_absolute;
+     Get_nb_bool<B>::value, // inquiry nb_nonzero;
+     nullptr,               // unaryfunc nb_invert;
+     nullptr,               // binaryfunc nb_lshift;
+     nullptr,               // binaryfunc nb_rshift;
+     nullptr,               // binaryfunc nb_and;
+     nullptr,               // binaryfunc nb_xor;
+     nullptr,               // binaryfunc nb_or;
+     nullptr,               // coercion nb_coerce;
+     Get_nb_int<B>::value,  // unaryfunc nb_int;
+     Get_nb_int<B>::value,  // unaryfunc nb_long;
+     nullptr,               // unaryfunc nb_float;
+     nullptr,               // unaryfunc nb_oct;
+     nullptr,               // unaryfunc nb_hex;
+
+     nullptr,               // binaryfunc nb_inplace_add;
+     nullptr,               // binaryfunc nb_inplace_subtract;
+     nullptr,               // binaryfunc nb_inplace_multiply;
+     nullptr,               // binaryfunc nb_inplace_divide;
+     nullptr,               // binaryfunc nb_inplace_remainder;
+     nullptr,               // ternaryfunc nb_inplace_power;
+     nullptr,               // binaryfunc nb_inplace_lshift;
+     nullptr,               // binaryfunc nb_inplace_rshift;
+     nullptr,               // binaryfunc nb_inplace_and;
+     nullptr,               // binaryfunc nb_inplace_xor;
+     nullptr,               // binaryfunc nb_inplace_or;
+
+     nullptr,               // binaryfunc nb_floor_divide;
+     nullptr,               // binaryfunc nb_true_divide;
+     nullptr,               // binaryfunc nb_inplace_floor_divide;
+     nullptr,               // binaryfunc nb_inplace_true_divide;
+
+     nullptr,               // unaryfunc nb_index;
+#endif
+}};
+
 } // namespace PythonDetail
 
 template <class T>
@@ -1185,7 +1284,7 @@ PyTypeObject ObjectBase<T>::type = {
     nullptr,                                    // tp_setattr
     nullptr,                                    // tp_compare
     PythonDetail::Get_tp_repr<T>::value,        // tp_repr
-    nullptr,                                    // tp_as_number
+    PythonDetail::Get_tp_as_number<T>::value,   // tp_as_number
     PythonDetail::Get_tp_as_sequence<T>::value, // tp_as_sequence
     PythonDetail::Get_tp_as_mapping<T>::value,  // tp_as_mapping
     PythonDetail::Get_tp_hash<T>::value,        // tp_hash
@@ -8948,6 +9047,12 @@ value : bool=False
         static char const *kwlist[] = {"value", nullptr};
         ParseTupleAndKeywords(args, kwargs, "|O", kwlist, pyValue);
         flag = pyValue.isTrue();
+    }
+    bool nb_bool() {
+        return flag;
+    }
+    Object nb_int() {
+        return cppToPy(static_cast<int>(flag));
     }
     Object get_value() {
         return cppToPy(flag);
