@@ -281,7 +281,7 @@ class ConstraintState(AbstractConstraintState):
 
         return True
 
-    def _clause_translate(self, cc, state, elements, lower, upper):
+    def _clause_translate(self, cc, state, elements, lower, upper, config):
         todo = [(0, 0, 0, 0, lower, upper)]
         clause = [0] * (len(elements) + 1)
 
@@ -310,7 +310,7 @@ class ConstraintState(AbstractConstraintState):
                 j += 1
 
             if lower < 0:
-                if not csp.LITERALS_ONLY and not cc.add_clause(clause[:j]):
+                if not config.literals_only and not cc.add_clause(clause[:j]):
                     return False
                 continue
 
@@ -340,7 +340,7 @@ class ConstraintState(AbstractConstraintState):
 
         return True
 
-    def translate(self, cc, state):
+    def translate(self, cc, state, config):
         """
         Translate a constraint to clauses or weight constraints.
         """
@@ -360,19 +360,17 @@ class ConstraintState(AbstractConstraintState):
         assert lower >= 0
 
         # translation to clauses
-        if not csp.SORT_ELEMENTS:
+        if not config.sort_constraints:
             elements = sorted(self.constraint.elements, key=lambda x: -abs(x[0]))
         else:
             elements = self.constraint.elements
 
-        if self._clause_estimate(state, elements, lower, upper, csp.MAGIC_CLAUSE):
-            ret = self._clause_translate(cc, state, elements, lower, upper)
-            if csp.LITERALS_ONLY:
-                return ret, False
-            return ret, True
+        if self._clause_estimate(state, elements, lower, upper, config.clause_limit):
+            ret = self._clause_translate(cc, state, elements, lower, upper, config)
+            return ret, not config.literals_only
 
         # translation to weight constraints
-        if self._weight_estimate(state) < csp.MAGIC_WEIGHT_CONSTRAINT:
+        if self._weight_estimate(state) < config.weight_constraint_limit:
             return self._weight_translate(cc, state, lower)
 
         return True, False
@@ -413,7 +411,7 @@ class ConstraintState(AbstractConstraintState):
         assert lower == self.lower_bound
         assert upper == self.upper_bound
 
-    def _calculate_reason(self, state, cc, slack, vs, co):
+    def _calculate_reason(self, state, cc, slack, vs, co, config):
         ass = cc.assignment
         ret = True
         found = 0
@@ -423,7 +421,7 @@ class ConstraintState(AbstractConstraintState):
             # the direct reason literal
             lit = state.get_literal(vs, current-1, cc)
             assert ass.is_false(lit)
-            if csp.REFINE_REASONS and slack+co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
+            if config.refine_reasons and slack+co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
                 delta = -((slack+1)//-co)
                 value = max(current+delta, vs.min_bound)
                 if value < current:
@@ -442,7 +440,7 @@ class ConstraintState(AbstractConstraintState):
                     # available literal to keep the state consistent.
                     # Furthermore, we only introduce literals implied on the
                     # current decision level to avoid backtracking.
-                    if csp.REFINE_INTRODUCE and ass.level(lit) == ass.decision_level and value < current:
+                    if config.refine_introduce and ass.level(lit) == ass.decision_level and value < current:
                         state.statistics.introduced_reason += 1
                         found = 1
                         slack -= co*(value-current)
@@ -456,7 +454,7 @@ class ConstraintState(AbstractConstraintState):
             current = vs.upper_bound
             lit = -state.get_literal(vs, current, cc)
             assert ass.is_false(lit)
-            if csp.REFINE_REASONS and slack-co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
+            if config.refine_reasons and slack-co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
                 delta = (slack+1)//co
                 value = min(current+delta, vs.max_bound)
                 if value > current:
@@ -469,7 +467,7 @@ class ConstraintState(AbstractConstraintState):
                         lit = -vl[1]
                         assert ass.is_false(lit)
 
-                    if csp.REFINE_INTRODUCE and ass.level(lit) == ass.decision_level and value > current:
+                    if config.refine_introduce and ass.level(lit) == ass.decision_level and value > current:
                         state.statistics.introduced_reason += 1
                         found = 1
                         slack -= co*(value-current)
@@ -483,7 +481,7 @@ class ConstraintState(AbstractConstraintState):
         assert not ret or ass.is_false(lit)
         return ret, slack, lit
 
-    def propagate(self, state, cc):
+    def propagate(self, state, cc, config, check_state):
         """
         This function propagates a constraint that became active because its
         associated literal became true or because the bound of one of its
@@ -503,7 +501,7 @@ class ConstraintState(AbstractConstraintState):
         rhs = self.constraint.rhs(state)
 
         # Note: this has a noticible cost because of the shortcuts below
-        if csp.CHECK_STATE and not self.marked_inactive:
+        if check_state and not self.marked_inactive:
             self._check_state(state)
         assert not ass.is_false(self.literal)
 
@@ -523,7 +521,7 @@ class ConstraintState(AbstractConstraintState):
                 vs = state.var_state(var)
 
                 # calculate reason literal
-                ret, slack, lit = self._calculate_reason(state, cc, slack, vs, co)
+                ret, slack, lit = self._calculate_reason(state, cc, slack, vs, co, config)
                 if not ret:
                     return False
 
@@ -580,7 +578,7 @@ class ConstraintState(AbstractConstraintState):
                     vs_a = state.var_state(var_a)
 
                     # calculate reason literal
-                    ret, slack_r, lit_a = self._calculate_reason(state, cc, slack_r, vs_a, co_a)
+                    ret, slack_r, lit_a = self._calculate_reason(state, cc, slack_r, vs_a, co_a, config)
                     if not ret:
                         return False
 
@@ -761,7 +759,11 @@ class DistinctState(AbstractConstraintState):
             self.init(state, i)
         self.dirty.clear()
 
-    def translate(self, cc, state):
+    def translate(self, cc, state, config):
+        """
+        Currently no translation available
+        """
+        # pylint: disable=unused-argument
         # TODO: small distinct constraints should be translated to weight
         #       constraints
         # - This is probably best solved using intervals capturing the bounds
@@ -861,12 +863,13 @@ class DistinctState(AbstractConstraintState):
 
         return cc.add_clause(reason)
 
-    def propagate(self, state, cc):
+    def propagate(self, state, cc, config, check_state):
         """
         Prepagates the distinct constraint.
 
         See `_propagate` for exmamples what is propagated.
         """
+        # pylint: disable=unused-argument
         self._update(state)
 
         for i in self.todo:
@@ -948,7 +951,7 @@ class ConstraintBuilder(object):
             self._propagator.add_simple(self.cc, lit, co, var, rhs, strict)
         else:
             assert not strict
-            if csp.SORT_ELEMENTS:
+            if self._propagator.config.sort_constraints:
                 elems.sort(key=lambda cv: -abs(cv[0]))
             self._propagator.add_constraint(self.cc, Constraint(lit, elems, rhs))
 
@@ -1025,7 +1028,7 @@ class ConstraintBuilder(object):
         if self._minimize is not None:
             adjust, self._minimize.elements = simplify(self._minimize.elements, True)
             self._minimize.adjust += adjust
-            if csp.SORT_ELEMENTS:
+            if self._propagator.config.sort_constraints:
                 self._minimize.elements.sort(key=lambda cv: -abs(cv[0]))
 
         return self._minimize

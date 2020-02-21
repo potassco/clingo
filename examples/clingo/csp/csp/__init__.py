@@ -10,19 +10,6 @@ from .parsing import parse_theory
 from .util import lerp, remove_if, TodoList, SortedDict, measure_time, measure_time_decorator
 from .constraints import ConstraintBuilder
 
-# TODO: These have to become options!
-REFINE_REASONS = True
-REFINE_INTRODUCE = True
-SORT_ELEMENTS = True
-PROPAGATE_PREV_LIT = True
-MAGIC_CLAUSE = 1000
-LITERALS_ONLY = False
-MAGIC_WEIGHT_CONSTRAINT = 0
-CHECK_SOLUTION = True
-CHECK_STATE = False
-SHIFT_CONSTRAINTS = True
-MAX_INT = 2**32
-MIN_INT = -(2**32)
 TRUE_LIT = 1
 THEORY = """\
 #theory cp {
@@ -138,6 +125,51 @@ class Statistics(object):
             self.tstats.append(ThreadStatistics())
         for stats_a, stats_b in zip(self.tstats, stats.tstats):
             stats_a.accu(stats_b)
+
+
+class StateConfig(object):
+    """
+    Per state configuration.
+    """
+    def __init__(self):
+        self.propagate_chain = True
+        self.refine_reasons = True
+        self.refine_introduce = True
+
+    def copy(self):
+        """
+        Copy the config.
+        """
+        cfg = StateConfig()
+        cfg.propagate_chain = self.propagate_chain
+        cfg.refine_reasons = self.refine_reasons
+        cfg.refine_introduce = self.refine_introduce
+        return cfg
+
+
+class Config(object):
+    """
+    Global configuration.
+    """
+    def __init__(self):
+        self.min_int = -(2**32)
+        self.max_int = 2**32
+        self.sort_constraints = clingo.Flag(True)
+        self.clause_limit = 1000
+        self.literals_only = clingo.Flag(False)
+        self.weight_constraint_limit = 0
+        self.check_solution = clingo.Flag(True)
+        self.check_state = clingo.Flag(False)
+        self.default_state_config = StateConfig()
+        self.states = []
+
+    def state_config(self, thread_id):
+        """
+        Get state specific configuration.
+        """
+        while len(self.states) <= thread_id:
+            self.states.append(self.default_state_config.copy())
+        return self.states[thread_id]
 
 
 class InitClauseCreator(object):
@@ -304,16 +336,16 @@ class VarState(object):
     =======
     var -- The name of the integer variable.
     """
-    def __init__(self, var):
+    def __init__(self, var, min_int, max_int):
         """
         Create an initial state for the given variable.
 
-        Initially, the state has a lower bound of `MIN_INT` and an upper bound
-        of `MAX_INT` and is associated with no variables.
+        Initially, the state has a lower bound of `config.min_int` and an upper bound
+        of `config.max_int` and is associated with no variables.
         """
         self.var = var
-        self._upper_bound = [MAX_INT]
-        self._lower_bound = [MIN_INT]
+        self._upper_bound = [max_int]
+        self._lower_bound = [min_int]
         self._literals = SortedDict()
 
     def push_lower(self):
@@ -411,10 +443,7 @@ class VarState(object):
     def has_literal(self, value):
         """
         Determine if the given `value` is associated with an order literal.
-
-        The value must lie in the range `[MIN_INT,MAX_INT)`.
         """
-        assert MIN_INT <= value < MAX_INT
         return value in self._literals
 
     def get_literal(self, value):
@@ -423,7 +452,6 @@ class VarState(object):
 
         The value must be associated with a literal.
         """
-        assert MIN_INT <= value < MAX_INT
         return self._literals[value]
 
     def prev_values(self, value):
@@ -469,27 +497,21 @@ class VarState(object):
     def set_literal(self, value, lit):
         """
         Set the literal of the given `value`.
-
-        The value must lie in the range `[MIN_INT,MAX_INT)`.
         """
-        assert MIN_INT <= value < MAX_INT
         self._literals[value] = lit
 
     def unset_literal(self, value):
         """
         Unset the literal of the given `value`.
-
-        The value must lie in the range `[MIN_INT,MAX_INT)`.
         """
-        assert MIN_INT <= value < MAX_INT
         del self._literals[value]
 
-    def clear(self):
+    def reset(self, min_int, max_int):
         """
         Remove all literals associated with this state.
         """
-        self._upper_bound = [MAX_INT]
-        self._lower_bound = [MIN_INT]
+        self._upper_bound = [max_int]
+        self._lower_bound = [min_int]
         self._literals.clear()
 
     def __repr__(self):
@@ -556,6 +578,7 @@ class State(object):
     Public Members
     ==============
     statistics        -- A ThreadStatistics object holding statistics.
+    config            -- A StateConfig object holding thread specific configuration.
 
     Private Members
     ===============
@@ -585,7 +608,7 @@ class State(object):
     _udiff, _ldiff    -- Changes to upper and lower bounds since the last call
                          to check.
     """
-    def __init__(self, l2c):
+    def __init__(self, l2c, config):
         """
         A newly inititialized state is ready to propagate decision level zero
         after a call to `init_domain`.
@@ -605,6 +628,7 @@ class State(object):
         self._cstate = {}
         self._udiff = OrderedDict()
         self._ldiff = OrderedDict()
+        self.config = config
 
     @property
     def minimize_bound(self):
@@ -786,12 +810,12 @@ class State(object):
         return cc.add_clause([old if truth else -old]), lit
 
     # initialization
-    def add_variable(self):
+    def add_variable(self, min_int, max_int):
         """
         Adds `VarState` objects for each variable in `variables`.
         """
         idx = len(self._var_state)
-        self._var_state.append(VarState(idx))
+        self._var_state.append(VarState(idx, min_int, max_int))
         return idx
 
     def add_var_watch(self, var, co, cs):
@@ -834,7 +858,7 @@ class State(object):
             self._level.inactive.remove(cs)
         del self._cstate[constraint]
 
-    def translate(self, cc, l2c):
+    def translate(self, cc, l2c, config):
         """
         Translate constraints in the map l2c.
 
@@ -847,7 +871,7 @@ class State(object):
             constraints = l2c[lit]
             j = 0
             for i, c in enumerate(constraints):
-                ret, rem = self.constraint_state(c).translate(cc, self)
+                ret, rem = self.constraint_state(c).translate(cc, self, config)
                 if not ret:
                     return False
                 if rem:
@@ -880,7 +904,7 @@ class State(object):
 
         return cc.commit()
 
-    def simplify(self, cc):
+    def simplify(self, cc, check_state):
         """
         Simplify the state using fixed literals in the trail up to the given
         offset and the enqued constraints in the todo list.
@@ -910,7 +934,7 @@ class State(object):
                 return False
             self._trail_offset = trail_offset
 
-            if not self.check(cc):
+            if not self.check(cc, check_state):
                 return False
 
     # propagation
@@ -986,7 +1010,7 @@ class State(object):
                 return False
             # Note: Literals might be uppdated on level 0 and the reason_lit is
             # already guaranteed to be a fact on level 0.
-            if PROPAGATE_PREV_LIT and cc.assignment.decision_level > 0:
+            if self.config.propagate_chain and cc.assignment.decision_level > 0:
                 reason_lit = sign*lit
 
         return True
@@ -1217,7 +1241,7 @@ class State(object):
         return t, f
 
     @measure_time_decorator("statistics.time_check")
-    def check(self, cc):
+    def check(self, cc, check_state):
         """
         This functions propagates facts that have not been integrated on the
         current level and propagates constraints gathered during `propagate`.
@@ -1253,7 +1277,7 @@ class State(object):
             todo, self._todo = self._todo, TodoList()
             for cs in todo:
                 if not ass.is_false(cs.literal):
-                    if not cs.propagate(self, cc):
+                    if not cs.propagate(self, cc, self.config, check_state):
                         return False
                 else:
                     self.mark_inactive(cs)
@@ -1261,7 +1285,7 @@ class State(object):
             if self._facts_integrated == self._num_facts:
                 return True
 
-    def check_full(self, control):
+    def check_full(self, control, check_solution):
         """
         This function selects a variable that is not fully assigned w.r.t. the
         current assignment and introduces an additional order literal for it.
@@ -1278,7 +1302,7 @@ class State(object):
                 self.get_literal(vs, value, control)
                 return
 
-        if CHECK_SOLUTION:
+        if check_solution:
             for lit, constraints in self._l2c.items():
                 if control.assignment.is_true(lit):
                     for c in constraints:
@@ -1421,10 +1445,10 @@ class State(object):
 
         # make sure we have an empty var state for each variable
         for vs in master._var_state[len(self._var_state):]:
-            self.add_variable()
+            self.add_variable(vs.min_bound, vs.max_bound)
         for vs, vs_master in zip(self._var_state, master._var_state):
             assert vs.var == vs_master.var
-            vs.clear()
+            vs.reset(vs_master.min_bound, vs_master.max_bound)
 
         # copy the map from literals to var states
         self._litmap.clear()
@@ -1433,11 +1457,6 @@ class State(object):
                 vs = self.var_state(vs_master.var)
                 vs.set_literal(value, lit)
                 self._litmap.setdefault(lit, []).append((vs, value))
-
-        # adjust the bounds
-        for vs, vs_master in zip(self._var_state, master._var_state):
-            vs.lower_bound = vs_master.lower_bound
-            vs.upper_bound = vs_master.upper_bound
 
         # copy constraint state
         for c, cs in master._cstate.items():
@@ -1468,13 +1487,14 @@ class Propagator(object):
         self._minimize_bound = None      # bound of the minimize constraint
         self._stats_step = Statistics()  # statistics of the current call
         self._stats_accu = Statistics()  # accumulated statistics
+        self.config = Config()           # configuration
 
     def _state(self, thread_id):
         """
         Get the state associated with the given `thread_id`.
         """
         while len(self._states) <= thread_id:
-            self._states.append(State(self._l2c))
+            self._states.append(State(self._l2c, self.config.state_config(thread_id)))
         return self._states[thread_id]
 
     @property
@@ -1526,7 +1546,7 @@ class Propagator(object):
         """
         assert isinstance(var, clingo.Symbol)
         if var not in self._var_map:
-            idx = self._state(0).add_variable()
+            idx = self._state(0).add_variable(self.config.min_int, self.config.max_int)
             self._var_map[var] = idx
             self._stats_step.num_variables += 1
         return self._var_map[var]
@@ -1582,7 +1602,7 @@ class Propagator(object):
                 return
 
         # propagate the newly added constraints
-        if not master.simplify(cc):
+        if not master.simplify(cc, self.config.check_state):
             return
 
         # remove unnecessary literals after simplification
@@ -1591,7 +1611,7 @@ class Propagator(object):
 
         # translate (simple enough) constraints
         cc.set_state(InitClauseCreator.StateTranslate)
-        if not measure_time(self.statistics, "time_translate", master.translate, cc, self._l2c):
+        if not measure_time(self.statistics, "time_translate", master.translate, cc, self._l2c, self.config):
             return
         cc.set_state(InitClauseCreator.StateInit)
 
@@ -1626,7 +1646,7 @@ class Propagator(object):
             bound = self._minimize_bound + self._minimize.adjust
             state.update_minimize(self._minimize, dl, bound)
 
-        if not state.check(ControlClauseCreator(control, state.statistics)):
+        if not state.check(ControlClauseCreator(control, state.statistics), self.config.check_state):
             return
 
         # Note: Makes sure that all variables are assigned in the end. But even
@@ -1635,7 +1655,7 @@ class Propagator(object):
         # case, there is a guaranteed follow-up propagate call because all
         # newly introduced variables are watched.
         if size == len(control.assignment) and control.assignment.is_total:
-            state.check_full(control)
+            state.check_full(control, self.config.check_solution)
 
     def undo(self, thread_id, assign, changes):
         # pylint: disable=unused-argument

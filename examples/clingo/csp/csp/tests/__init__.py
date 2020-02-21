@@ -53,14 +53,14 @@ class Solver(object):
         Extend the current program with the program in the given string and
         then return its models in sorted list.
         """
-        csp.MIN_INT = self.minint
-        csp.MAX_INT = self.maxint
+        self.prp.config.min_int = self.minint
+        self.prp.config.max_int = self.maxint
         csp.CHECK_STATE = True
         csp.CHECK_SOLUTION = True
         step = "step{}".format(self.step)
 
         with self.prg.builder() as b:
-            transform(b, "#program {}.\n{}".format(step, s), csp.SHIFT_CONSTRAINTS)
+            transform(b, "#program {}.\n{}".format(step, s), True)
         self.prg.ground([(step, [])])
 
         self.bound = bound
