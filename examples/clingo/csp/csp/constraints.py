@@ -691,6 +691,7 @@ class DistinctState(AbstractConstraintState):
         for value, indices in self.map_lower.items():
             ds.map_lower[value] = indices[:]
         ds.assigned = self.assigned.copy()
+        ds.dirty = self.dirty.copy()
         return ds
 
     @property

@@ -129,6 +129,14 @@ class TodoList(object):
         for x in i:
             self.add(x)
 
+    def copy(self):
+        """
+        Returns a shallow copy of the container.
+        """
+        ret = TodoList()
+        ret.extend(self)
+        return ret
+
     def clear(self):
         """
         Clears the container.

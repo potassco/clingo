@@ -48,7 +48,7 @@ class Solver(object):
                 self.bound = value
                 self.prp.update_minimize(self.bound-1)
 
-        return list(sorted(m)), list(sorted(a))
+        return sorted(m), sorted(a)
 
     def solve(self, s, optimize=True, bound=None):
         """
@@ -67,9 +67,23 @@ class Solver(object):
 
         ret = []
         self.prg.solve(on_model=lambda m: ret.append(self._parse_model(m, optimize)))
+        ret.sort()
+
+        if not self.prp.has_minimize:
+            for propagate_chain in (True, False):
+                for refine_introduce in (True, False):
+                    for refine_reasons in (True, False):
+                        self.prp.config.default_state_config.refine_reasons = refine_reasons
+                        self.prp.config.default_state_config.refine_introduce = refine_introduce
+                        self.prp.config.default_state_config.propagate_chain = propagate_chain
+                        self.prp.config.threads = []
+                        ret_alt = []
+                        self.prg.solve(on_model=lambda m: ret_alt.append(self._parse_model(m, optimize)))
+                        ret_alt.sort()
+                        assert ret == ret_alt
 
         self.step += 1
-        return [a + b for a, b in list(sorted(ret))]
+        return [m + a for m, a in ret]
 
 
 def solve(s, minint=-20, maxint=20, threads=8, options=()):
@@ -84,22 +98,16 @@ def solve(s, minint=-20, maxint=20, threads=8, options=()):
     budgets = ((0, 0, False), (1000, 0, False), (0, 1000, True), (0, 1000, False))
     for weight_constraint_limit, clause_limit, literals_only in budgets:
         for sort_constraints in (True, False):
-            for propagate_chain in (True, False):
-                for refine_introduce in (True, False):
-                    for refine_reasons in (True, False):
-                        solver = Solver(minint, maxint, threads, options)
-                        solver.prp.config.weight_constraint_limit = weight_constraint_limit
-                        solver.prp.config.clause_limit = clause_limit
-                        solver.prp.config.literals_only = literals_only
-                        solver.prp.config.sort_constraints = sort_constraints
-                        solver.prp.config.default_state_config.refine_reasons = refine_reasons
-                        solver.prp.config.default_state_config.refine_introduce = refine_introduce
-                        solver.prp.config.default_state_config.propagate_chain = propagate_chain
-                        ret_alt = solver.solve(s)
-                        if solver.bound is not None:
-                            ret_alt = solver.solve("", False, solver.bound)
-                        msg = "weight_constraint_limit={}, clause_limit={}, literals_only={}, sort_constraints={}, propagate_chain={}, refine_introduce={}, refine_reasons={}".format(
-                            weight_constraint_limit, clause_limit, literals_only, sort_constraints, propagate_chain, refine_introduce, refine_reasons)
-                        assert set(frozenset(m) for m in ret) == set(frozenset(m) for m in ret_alt), msg
+            solver = Solver(minint, maxint, threads, options)
+            solver.prp.config.weight_constraint_limit = weight_constraint_limit
+            solver.prp.config.clause_limit = clause_limit
+            solver.prp.config.literals_only = literals_only
+            solver.prp.config.sort_constraints = sort_constraints
+            ret_alt = solver.solve(s)
+            if solver.bound is not None:
+                ret_alt = solver.solve("", False, solver.bound)
+            msg = "weight_constraint_limit={}, clause_limit={}, literals_only={}, sort_constraints={}".format(
+                weight_constraint_limit, clause_limit, literals_only, sort_constraints)
+            assert ret == ret_alt, msg
 
     return ret
