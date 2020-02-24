@@ -1437,8 +1437,6 @@ class State(object):
         to the current state.
         """
         # pylint: disable=protected-access
-        assert not self._ldiff and not master._ldiff
-        assert not self._udiff and not master._udiff
 
         # adjust integrated facts
         self._facts_integrated = master._facts_integrated
@@ -1469,6 +1467,8 @@ class State(object):
 
         # adjust levels
         self._level.copy_state(self, master._level)
+        self._ldiff = master._ldiff.copy()
+        self._udiff = master._udiff.copy()
 
         # copy todo queues
         for cs in master._todo:
