@@ -2,9 +2,33 @@
 Basic functions to run tests.
 """
 
+import collections
 import clingo
 import csp
 from csp.parsing import transform
+
+
+ConfGlobalEntry = collections.namedtuple(
+    'ConfGlobalEntry',
+    ['weight_constraint_limit',
+     'clause_limit',
+     'literals_only',
+     'sort_constraints',
+     'translate_minimize'])
+CONF_GLOBAL = [
+    ConfGlobalEntry(0, 0, False, False, False),     # basic
+    ConfGlobalEntry(0, 0, False, True, False),      # sort constraints
+    ConfGlobalEntry(0, 0, False, False, True),      # translate minimize
+    ConfGlobalEntry(1000, 0, False, False, False),  # translate to clauses
+    ConfGlobalEntry(0, 1000, False, False, False)]  # translate to weight constraints
+
+ConfLocalEntry = collections.namedtuple(
+    'ConfLocalEntry',
+    ['refine_reasons',
+     'refine_introduce',
+     'propagate_chain'])
+# Note: this should simply contain the opposite of the default config
+CONF_LOCAL = [ConfLocalEntry(False, False, False)]
 
 
 class Solver(object):
@@ -48,6 +72,9 @@ class Solver(object):
                 self.bound = value
                 self.prp.update_minimize(self.bound-1)
 
+        if model.cost:
+            self.bound = model.cost[0]
+
         return sorted(m), sorted(a)
 
     def solve(self, s, optimize=True, bound=None):
@@ -55,6 +82,8 @@ class Solver(object):
         Extend the current program with the program in the given string and
         then return its models in sorted list.
         """
+        # pylint: disable=unsubscriptable-object,cell-var-from-loop,no-member
+
         step = "step{}".format(self.step)
 
         with self.prg.builder() as b:
@@ -62,28 +91,43 @@ class Solver(object):
         self.prg.ground([(step, [])])
 
         self.bound = bound
+        old_mode = None
         if bound is not None:
-            self.prp.update_minimize(bound)
+            if self.prp.config.translate_minimize:
+                old_mode = self.prg.configuration.solve.opt_mode
+                mode = "opt" if optimize else "enum"
+                self.prg.configuration.solve.opt_mode = "{},{}".format(mode, bound)
+            else:
+                self.prp.update_minimize(bound)
 
         ret = []
         self.prg.solve(on_model=lambda m: ret.append(self._parse_model(m, optimize)))
         ret.sort()
 
-        if not self.prp.has_minimize:
-            for propagate_chain in (True, False):
-                for refine_introduce in (True, False):
-                    for refine_reasons in (True, False):
-                        self.prp.config.default_state_config.refine_reasons = refine_reasons
-                        self.prp.config.default_state_config.refine_introduce = refine_introduce
-                        self.prp.config.default_state_config.propagate_chain = propagate_chain
-                        self.prp.config.threads = []
-                        ret_alt = []
-                        self.prg.solve(on_model=lambda m: ret_alt.append(self._parse_model(m, optimize)))
-                        ret_alt.sort()
-                        assert ret == ret_alt
+        opt = self.prg.statistics["summary"]["models"]["optimal"]
+        if not self.prp.has_minimize and not opt == 1:
+            for conf in CONF_LOCAL:
+                self.prp.config.default_state_config.refine_reasons = conf.refine_reasons
+                self.prp.config.default_state_config.refine_introduce = conf.refine_introduce
+                self.prp.config.default_state_config.propagate_chain = conf.propagate_chain
+                self.prp.config.threads = []
+                ret_alt = []
+                self.prg.solve(on_model=lambda m: ret_alt.append(self._parse_model(m, optimize)))
+                ret_alt.sort()
+                assert ret == ret_alt
+
+        if old_mode is not None:
+            self.prg.configuration.solve.opt_mode = mode
 
         self.step += 1
         return [m + a for m, a in ret]
+
+
+def _solve(solver, s):
+    ret = solver.solve(s)
+    if solver.bound is not None:
+        ret = solver.solve("", False, solver.bound)
+    return ret
 
 
 def solve(s, minint=-20, maxint=20, threads=8, options=()):
@@ -91,23 +135,22 @@ def solve(s, minint=-20, maxint=20, threads=8, options=()):
     Return the (optimal) models/assignments of the program in the given string.
     """
     solver = Solver(minint, maxint, threads, options)
-    ret = solver.solve(s)
-    if solver.bound is not None:
-        ret = solver.solve("", False, solver.bound)
+    ret = _solve(solver, s)
 
-    budgets = ((0, 0, False), (1000, 0, False), (0, 1000, True), (0, 1000, False))
-    for weight_constraint_limit, clause_limit, literals_only in budgets:
-        for sort_constraints in (True, False):
-            solver = Solver(minint, maxint, threads, options)
-            solver.prp.config.weight_constraint_limit = weight_constraint_limit
-            solver.prp.config.clause_limit = clause_limit
-            solver.prp.config.literals_only = literals_only
-            solver.prp.config.sort_constraints = sort_constraints
-            ret_alt = solver.solve(s)
-            if solver.bound is not None:
-                ret_alt = solver.solve("", False, solver.bound)
-            msg = "weight_constraint_limit={}, clause_limit={}, literals_only={}, sort_constraints={}".format(
-                weight_constraint_limit, clause_limit, literals_only, sort_constraints)
-            assert ret == ret_alt, msg
+    has_minimize = solver.prp.has_minimize
+
+    for conf in CONF_GLOBAL:
+        if conf.translate_minimize and not has_minimize:
+            continue
+        solver = Solver(minint, maxint, threads, options)
+        solver.prp.config.weight_constraint_limit = conf.weight_constraint_limit
+        solver.prp.config.clause_limit = conf.clause_limit
+        solver.prp.config.literals_only.value = conf.literals_only
+        solver.prp.config.sort_constraints.value = conf.sort_constraints
+        solver.prp.config.translate_minimize.value = conf.translate_minimize
+        ret_alt = _solve(solver, s)
+        msg = "weight_constraint_limit={}, clause_limit={}, literals_only={}, sort_constraints={}, translate_minimize={}".format(
+            conf.weight_constraint_limit, conf.clause_limit, conf.literals_only, conf.sort_constraints, conf.translate_minimize)
+        assert ret == ret_alt, msg
 
     return ret

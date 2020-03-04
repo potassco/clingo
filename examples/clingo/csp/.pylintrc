@@ -20,7 +20,7 @@ jobs=0
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
-disable=too-few-public-methods,no-self-use,invalid-unary-operand-type,locally-disabled,useless-object-inheritance
+disable=too-few-public-methods,no-self-use,invalid-unary-operand-type,locally-disabled,useless-object-inheritance,invalid-overridden-method
 
 [BASIC]
 
@@ -33,7 +33,7 @@ argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 
 # Good variable names which should always be accepted, separated by a comma.
-good-names=cc, type_, _
+good-names=cc, type_, file_, _
 
 [TYPECHECK]
 

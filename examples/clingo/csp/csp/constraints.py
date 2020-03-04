@@ -2,10 +2,84 @@
 Module implementing constraints.
 """
 
-import csp
+import sys
+from abc import abstractmethod, abstractproperty
+
 import clingo
+import csp
 from .util import TodoList, IntervalSet
 from .parsing import simplify
+
+
+def abstract_property(func):
+    """
+    Define abstract properties for both python 2 and 3.
+    """
+    if sys.version_info > (3, 3):
+        return property(abstractmethod(func))
+    return abstractproperty(func)
+
+
+class SumConstraint(object):
+    """
+    Class to capture sum constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
+
+    Members
+    =======
+    literal  -- Solver literal associated with the constraint.
+    elements -- List of integer/string pairs representing coefficient and
+                variable.
+    rhs      -- Integer bound of the constraint.
+    """
+
+    def __init__(self, literal, elements, rhs):
+        self.literal = literal
+        self.elements = elements
+        self.rhs = rhs
+
+    def create_state(self):
+        """
+        Create thread specific state for the constraint.
+        """
+        return SumConstraintState(self)
+
+
+class MinimizeConstraint(object):
+    """
+    Class to capture minimize constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
+
+    Members
+    =======
+    literal  -- Solver literal associated with the constraint.
+    elements -- List of integer/string pairs representing coefficient and
+                variable.
+    """
+
+    def __init__(self):
+        self.literal = csp.TRUE_LIT
+        self.elements = []
+        self.adjust = 0
+
+    def create_state(self):
+        """
+        Create thread specific state for the constraint.
+        """
+        return MinimizeConstraintState(self)
+
+
+class DistinctConstraint(object):
+    """
+    Record holding a distinct constraint.
+    """
+    def __init__(self, literal, elements):
+        self.literal = literal
+        self.elements = elements
+
+    def create_state(self):
+        """
+        Create thread specific state for the constraint.
+        """
+        return DistinctState(self)
 
 
 class AbstractConstraintState(object):
@@ -44,98 +118,45 @@ class AbstractConstraintState(object):
         return self.marked_inactive and self.inactive_level <= level
 
 
-class Constraint(object):
+class AbstractSumConstraintState(AbstractConstraintState):
     """
-    Class to capture sum constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
-
-    Members
-    =======
-    literal  -- Solver literal associated with the constraint.
-    elements -- List of integer/string pairs representing coefficient and
-                variable.
-    rhs      -- Integer bound of the constraint.
-
-    Class Variables
-    ======
-    tagged   -- True if constraint applies only during current solving step.
+    Implements propagation for sum and minimize constraints.
     """
-
-    tagged = False
-    removable = True
-
-    def __init__(self, literal, elements, rhs):
-        self.literal = literal
-        self.elements = elements
-        self._rhs = rhs
-
-    def rhs(self, state):  # pylint: disable=unused-argument
-        """
-        Returns the rhs.
-        """
-        return self._rhs
-
-    def create_state(self):
-        """
-        Create thread specific state for the constraint.
-        """
-        return ConstraintState(self)
-
-    def __str__(self):
-        return "{} <= {}".format(self.elements, self._rhs)
-
-
-class Minimize(object):
-    """
-    Class to capture minimize constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
-
-    Members
-    =======
-    literal  -- Solver literal associated with the constraint.
-    elements -- List of integer/string pairs representing coefficient and
-                variable.
-
-    Class Variables
-    ======
-    tagged   -- True if constraint applies only during current solving step.
-    """
-
-    tagged = True
-    removable = False
-
     def __init__(self):
-        self.literal = csp.TRUE_LIT
-        self.elements = []
-        self.adjust = 0
-
-    def rhs(self, state):
-        """
-        Returns the current lower bound of the `state` or None.
-        """
-        return state.minimize_bound
-
-    def create_state(self):
-        """
-        Create thread specific state for the constraint.
-        """
-        return ConstraintState(self)
-
-
-class ConstraintState(AbstractConstraintState):
-    """
-    Capture the lower and upper bound of constraints.
-    """
-    def __init__(self, constraint):
         AbstractConstraintState.__init__(self)
-        self.constraint = constraint
         self.lower_bound = 0
         self.upper_bound = 0
+
+    @abstract_property
+    def elements(self):
+        """
+        The elements of the constraint.
+        """
+
+    @abstract_property
+    def literal(self):
+        """
+        The literal of the constraint.
+        """
+
+    @abstract_property
+    def tagged(self):
+        """
+        Whether clauses have to be tagged.
+        """
+
+    @abstractmethod
+    def rhs(self, state):
+        """
+        The bound of the constraint.
+        """
 
     def attach(self, state):
         """
         Attach the constraint state to the given state.
         """
         self.lower_bound = self.upper_bound = 0
-        for co, var in self.constraint.elements:
+        for co, var in self.elements:
             vs = state.var_state(var)
             state.add_var_watch(var, co, self)
             if co > 0:
@@ -149,8 +170,295 @@ class ConstraintState(AbstractConstraintState):
         """
         Detach the constraint frow the given state.
         """
-        for co, var in self.constraint.elements:
+        for co, var in self.elements:
             state.remove_var_watch(var, co, self)
+
+    def undo(self, co, diff):
+        """
+        Undo the last updates of the bounds of the constraint by the given
+        difference.
+        """
+        if co*diff > 0:
+            self.lower_bound -= co*diff
+        else:
+            self.upper_bound -= co*diff
+
+    def update(self, co, diff):
+        """
+        Update the bounds of the constraint by the given difference.
+        """
+        assert co*diff != 0
+        if co*diff < 0:
+            self.upper_bound += co*diff
+            return False
+        self.lower_bound += co*diff
+        return True
+
+    def _check_state(self, state):
+        lower = upper = 0
+        for co, var in self.elements:
+            vs = state.var_state(var)
+            if co > 0:
+                lower += co*vs.lower_bound
+                upper += co*vs.upper_bound
+            else:
+                lower += co*vs.upper_bound
+                upper += co*vs.lower_bound
+
+        assert lower <= upper
+        assert lower == self.lower_bound
+        assert upper == self.upper_bound
+
+    def _calculate_reason(self, state, cc, slack, vs, co, config):
+        ass = cc.assignment
+        ret = True
+        found = 0
+
+        if co > 0:
+            current = vs.lower_bound
+            # the direct reason literal
+            lit = state.get_literal(vs, current-1, cc)
+            assert ass.is_false(lit)
+            if config.refine_reasons and slack+co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
+                delta = -((slack+1)//-co)
+                value = max(current+delta, vs.min_bound)
+                if value < current:
+                    # refine reason literal
+                    vl = vs.value_ge(value-1)
+                    if vl is not None and vl[0]+1 < current:
+                        found = 1
+                        slack -= co*(vl[0]+1-current)
+                        current = vl[0]+1
+                        assert slack < 0
+                        lit = vl[1]
+                        assert ass.is_false(lit)
+
+                    # introduce reason literal
+                    # Note: It is important to imply literals by the smallest
+                    # available literal to keep the state consistent.
+                    # Furthermore, we only introduce literals implied on the
+                    # current decision level to avoid backtracking.
+                    if config.refine_introduce and ass.level(lit) == ass.decision_level and value < current:
+                        state.statistics.introduced_reason += 1
+                        found = 1
+                        slack -= co*(value-current)
+                        assert slack < 0
+                        refined = state.get_literal(vs, value-1, cc)
+                        assert not ass.is_true(refined)
+                        ret = ass.is_false(refined) or cc.add_clause([lit, -refined])
+                        lit = refined
+        else:
+            # symmetric case
+            current = vs.upper_bound
+            lit = -state.get_literal(vs, current, cc)
+            assert ass.is_false(lit)
+            if config.refine_reasons and slack-co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
+                delta = (slack+1)//co
+                value = min(current+delta, vs.max_bound)
+                if value > current:
+                    vl = vs.value_le(value)
+                    if vl is not None and vl[0] > current:
+                        found = 1
+                        slack -= co*(vl[0]-current)
+                        current = vl[0]
+                        assert slack < 0
+                        lit = -vl[1]
+                        assert ass.is_false(lit)
+
+                    if config.refine_introduce and ass.level(lit) == ass.decision_level and value > current:
+                        state.statistics.introduced_reason += 1
+                        found = 1
+                        slack -= co*(value-current)
+                        assert slack < 0
+                        refined = -state.get_literal(vs, value, cc)
+                        assert not ass.is_true(refined)
+                        ret = ass.is_false(refined) or cc.add_clause([lit, -refined])
+                        lit = refined
+
+        state.statistics.refined_reason += found
+        assert not ret or ass.is_false(lit)
+        return ret, slack, lit
+
+    def propagate(self, state, cc, config, check_state):
+        """
+        This function propagates a constraint that became active because its
+        associated literal became true or because the bound of one of its
+        variables changed.
+
+        The function calculates the slack of the constraint w.r.t. to the
+        lower/upper bounds of its values. The order values are then propagated
+        in such a way that the slack is non-negative. The trick here is that we
+        can use the ordering of variables to restrict the number of
+        propagations. For example, for positive coefficients, we just have to
+        enforce the smallest order variable that would make the slack
+        non-negative.
+
+        The function returns False if propagation fails, True otherwise.
+        """
+        ass = cc.assignment
+        rhs = self.rhs(state)
+
+        # Note: this has a noticible cost because of the shortcuts below
+        if check_state and not self.marked_inactive:
+            self._check_state(state)
+        assert not ass.is_false(self.literal)
+
+        # skip constraints that cannot become false
+        if rhs is None or self.upper_bound <= rhs:
+            state.mark_inactive(self)
+            return True
+        slack = rhs-self.lower_bound
+
+        # this is necessary to correctly handle empty constraints (and do
+        # propagation of false constraints)
+        if slack < 0:
+            reason = []
+
+            # add reason literals
+            for co, var in self.elements:
+                vs = state.var_state(var)
+
+                # calculate reason literal
+                ret, slack, lit = self._calculate_reason(state, cc, slack, vs, co, config)
+                if not ret:
+                    return False
+
+                # append the reason literal
+                if not ass.is_fixed(lit):
+                    reason.append(lit)
+
+            # append the consequence
+            reason.append(-self.literal)
+
+            state.mark_inactive(self)
+            return cc.add_clause(reason, tag=self.tagged)
+
+        if not ass.is_true(self.literal):
+            return True
+
+        for co_r, var_r in self.elements:
+            vs_r = state.var_state(var_r)
+            lit_r = 0
+
+            # calculate the firet value that would violate the constraint
+            if co_r > 0:
+                delta_r = -((slack+1)//-co_r)
+                value_r = vs_r.lower_bound+delta_r
+                assert slack-co_r*delta_r < 0 <= slack-co_r*(delta_r-1)
+                # values above the upper bound are already true
+                if value_r > vs_r.upper_bound:
+                    continue
+                # get the literal of the value
+                if vs_r.has_literal(value_r-1):
+                    lit_r = state.get_literal(vs_r, value_r-1, cc)
+            else:
+                delta_r = (slack+1)//co_r
+                value_r = vs_r.upper_bound+delta_r
+                assert slack-co_r*delta_r < 0 <= slack-co_r*(delta_r+1)
+                # values below the lower bound are already false
+                if value_r < vs_r.lower_bound:
+                    continue
+                # get the literal of the value
+                if vs_r.has_literal(value_r):
+                    lit_r = -state.get_literal(vs_r, value_r, cc)
+
+            # build the reason if the literal has not already been propagated
+            if lit_r == 0 or not ass.is_true(lit_r):
+                slack_r = slack-co_r*delta_r
+                assert slack_r < 0
+                reason = []
+                # add the constraint itself
+                if not ass.is_fixed(-self.literal):
+                    reason.append(-self.literal)
+                for co_a, var_a in self.elements:
+                    if var_a == var_r:
+                        continue
+                    vs_a = state.var_state(var_a)
+
+                    # calculate reason literal
+                    ret, slack_r, lit_a = self._calculate_reason(state, cc, slack_r, vs_a, co_a, config)
+                    if not ret:
+                        return False
+
+                    # append the reason literal
+                    if not ass.is_fixed(lit_a):
+                        reason.append(lit_a)
+
+                # append the consequence
+                guess = reason or self.tagged
+                if co_r > 0:
+                    ret, lit_r = state.update_literal(vs_r, value_r-1, cc, not guess or None)
+                    if not ret:
+                        return False
+                else:
+                    ret, lit_r = state.update_literal(vs_r, value_r, cc, guess and None)
+                    if not ret:
+                        return False
+                    lit_r = -lit_r
+                reason.append(lit_r)
+
+                # propagate the clause
+                if not cc.add_clause(reason, tag=self.tagged):
+                    return False
+
+                # minimize constraints cannot be propagated on decision level 0
+                assert ass.is_true(lit_r) or self.tagged and ass.decision_level == 0
+
+        return True
+
+    def check_full(self, state):
+        """
+        This function checks if a constraint is satisfied w.r.t. the final
+        values of its integer variables.
+
+        This function should only be called total assignments.
+        """
+        rhs = self.rhs(state)
+
+        if rhs is None:
+            return True
+
+        lhs = 0
+        for co, var in self.elements:
+            vs = state.var_state(var)
+            assert vs.is_assigned
+            lhs += co*vs.lower_bound
+
+        if self.marked_inactive:
+            assert lhs <= self.upper_bound
+        else:
+            assert lhs == self.lower_bound
+            assert lhs == self.upper_bound
+
+        return lhs <= rhs
+
+
+class SumConstraintState(AbstractSumConstraintState):
+    """
+    A translateable constraint state.
+
+    Class Variables
+    ======
+    tagged           -- True if constraint applies only during current solving step.
+    tagged_removable -- True if the constraint can be temporarily removed.
+    """
+
+    tagged = False
+    tagged_removable = True
+
+    def __init__(self, constraint):
+        AbstractSumConstraintState.__init__(self)
+        self.constraint = constraint
+
+    def copy(self):
+        """
+        Return a copy of the constraint state to be used with another state.
+        """
+        cs = SumConstraintState(self.constraint)
+        cs.inactive_level = self.inactive_level
+        cs.lower_bound = self.lower_bound
+        cs.upper_bound = self.upper_bound
+        return cs
 
     @property
     def literal(self):
@@ -160,14 +468,18 @@ class ConstraintState(AbstractConstraintState):
         return self.constraint.literal
 
     @property
-    def tagged_removable(self):
+    def elements(self):
         """
-        True if the constraint can be temporarily removed.
+        Return the elements of the constraint.
+        """
+        return self.constraint.elements
 
-        This property will only be false if the constraint state is associated
-        with a minimize constraint.
+    def rhs(self, state):
+        # pylint: disable=unused-argument
         """
-        return self.constraint.removable
+        Return the bound of the constraint
+        """
+        return self.constraint.rhs
 
     def _weight_estimate(self, state):
         """
@@ -175,8 +487,8 @@ class ConstraintState(AbstractConstraintState):
         necessary for the weight constraint.
         """
         estimate = 0
-        slack = self.constraint.rhs(state)-self.lower_bound
-        for co, var in self.constraint.elements:
+        slack = self.rhs(state)-self.lower_bound
+        for co, var in self.elements:
             vs = state.var_state(var)
             if co > 0:
                 diff = slack+co*vs.lower_bound
@@ -198,7 +510,7 @@ class ConstraintState(AbstractConstraintState):
         # Note: this magic number can be dangerous if there is a huge number of
         # variables.
         wlits = []
-        for co, var in self.constraint.elements:
+        for co, var in self.elements:
             vs = state.var_state(var)
             if co > 0:
                 diff = slack+co*vs.lower_bound
@@ -346,10 +658,10 @@ class ConstraintState(AbstractConstraintState):
         """
         ass = cc.assignment
 
-        if self.constraint.tagged:
+        if self.tagged:
             return True, False
 
-        rhs = self.constraint.rhs(state)
+        rhs = self.rhs(state)
         if ass.is_false(self.literal) or self.upper_bound <= rhs:
             return True, True
 
@@ -361,9 +673,9 @@ class ConstraintState(AbstractConstraintState):
 
         # translation to clauses
         if not config.sort_constraints:
-            elements = sorted(self.constraint.elements, key=lambda x: -abs(x[0]))
+            elements = sorted(self.elements, key=lambda x: -abs(x[0]))
         else:
-            elements = self.constraint.elements
+            elements = self.elements
 
         if self._clause_estimate(state, elements, lower, upper, config.clause_limit):
             ret = self._clause_translate(cc, state, elements, lower, upper, config)
@@ -375,293 +687,81 @@ class ConstraintState(AbstractConstraintState):
 
         return True, False
 
-    def undo(self, co, diff):
-        """
-        Undo the last updates of the bounds of the constraint by the given
-        difference.
-        """
-        if co*diff > 0:
-            self.lower_bound -= co*diff
-        else:
-            self.upper_bound -= co*diff
 
-    def update(self, co, diff):
-        """
-        Update the bounds of the constraint by the given difference.
-        """
-        assert co*diff != 0
-        if co*diff < 0:
-            self.upper_bound += co*diff
-            return False
-        self.lower_bound += co*diff
-        return True
+class MinimizeConstraintState(AbstractSumConstraintState):
+    """
+    A translateable minimize constraint state.
 
-    def _check_state(self, state):
-        lower = upper = 0
-        for co, var in self.constraint.elements:
-            vs = state.var_state(var)
-            if co > 0:
-                lower += co*vs.lower_bound
-                upper += co*vs.upper_bound
-            else:
-                lower += co*vs.upper_bound
-                upper += co*vs.lower_bound
+    Class Variables
+    ======
+    tagged           -- True if constraint applies only during current solving step.
+    tagged_removable -- True if the constraint can be temporarily removed.
+    """
 
-        assert lower <= upper
-        assert lower == self.lower_bound
-        assert upper == self.upper_bound
+    tagged = True
+    tagged_removable = False
 
-    def _calculate_reason(self, state, cc, slack, vs, co, config):
-        ass = cc.assignment
-        ret = True
-        found = 0
-
-        if co > 0:
-            current = vs.lower_bound
-            # the direct reason literal
-            lit = state.get_literal(vs, current-1, cc)
-            assert ass.is_false(lit)
-            if config.refine_reasons and slack+co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
-                delta = -((slack+1)//-co)
-                value = max(current+delta, vs.min_bound)
-                if value < current:
-                    # refine reason literal
-                    vl = vs.value_ge(value-1)
-                    if vl is not None and vl[0]+1 < current:
-                        found = 1
-                        slack -= co*(vl[0]+1-current)
-                        current = vl[0]+1
-                        assert slack < 0
-                        lit = vl[1]
-                        assert ass.is_false(lit)
-
-                    # introduce reason literal
-                    # Note: It is important to imply literals by the smallest
-                    # available literal to keep the state consistent.
-                    # Furthermore, we only introduce literals implied on the
-                    # current decision level to avoid backtracking.
-                    if config.refine_introduce and ass.level(lit) == ass.decision_level and value < current:
-                        state.statistics.introduced_reason += 1
-                        found = 1
-                        slack -= co*(value-current)
-                        assert slack < 0
-                        refined = state.get_literal(vs, value-1, cc)
-                        assert not ass.is_true(refined)
-                        ret = ass.is_false(refined) or cc.add_clause([lit, -refined])
-                        lit = refined
-        else:
-            # symmetric case
-            current = vs.upper_bound
-            lit = -state.get_literal(vs, current, cc)
-            assert ass.is_false(lit)
-            if config.refine_reasons and slack-co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
-                delta = (slack+1)//co
-                value = min(current+delta, vs.max_bound)
-                if value > current:
-                    vl = vs.value_le(value)
-                    if vl is not None and vl[0] > current:
-                        found = 1
-                        slack -= co*(vl[0]-current)
-                        current = vl[0]
-                        assert slack < 0
-                        lit = -vl[1]
-                        assert ass.is_false(lit)
-
-                    if config.refine_introduce and ass.level(lit) == ass.decision_level and value > current:
-                        state.statistics.introduced_reason += 1
-                        found = 1
-                        slack -= co*(value-current)
-                        assert slack < 0
-                        refined = -state.get_literal(vs, value, cc)
-                        assert not ass.is_true(refined)
-                        ret = ass.is_false(refined) or cc.add_clause([lit, -refined])
-                        lit = refined
-
-        state.statistics.refined_reason += found
-        assert not ret or ass.is_false(lit)
-        return ret, slack, lit
-
-    def propagate(self, state, cc, config, check_state):
-        """
-        This function propagates a constraint that became active because its
-        associated literal became true or because the bound of one of its
-        variables changed.
-
-        The function calculates the slack of the constraint w.r.t. to the
-        lower/upper bounds of its values. The order values are then propagated
-        in such a way that the slack is non-negative. The trick here is that we
-        can use the ordering of variables to restrict the number of
-        propagations. For example, for positive coefficients, we just have to
-        enforce the smallest order variable that would make the slack
-        non-negative.
-
-        The function returns False if propagation fails, True otherwise.
-        """
-        ass = cc.assignment
-        rhs = self.constraint.rhs(state)
-
-        # Note: this has a noticible cost because of the shortcuts below
-        if check_state and not self.marked_inactive:
-            self._check_state(state)
-        assert not ass.is_false(self.literal)
-
-        # skip constraints that cannot become false
-        if rhs is None or self.upper_bound <= rhs:
-            state.mark_inactive(self)
-            return True
-        slack = rhs-self.lower_bound
-
-        # this is necessary to correctly handle empty constraints (and do
-        # propagation of false constraints)
-        if slack < 0:
-            reason = []
-
-            # add reason literals
-            for co, var in self.constraint.elements:
-                vs = state.var_state(var)
-
-                # calculate reason literal
-                ret, slack, lit = self._calculate_reason(state, cc, slack, vs, co, config)
-                if not ret:
-                    return False
-
-                # append the reason literal
-                if not ass.is_fixed(lit):
-                    reason.append(lit)
-
-            # append the consequence
-            reason.append(-self.literal)
-
-            state.mark_inactive(self)
-            return cc.add_clause(reason, tag=self.constraint.tagged)
-
-        if not ass.is_true(self.literal):
-            return True
-
-        for co_r, var_r in self.constraint.elements:
-            vs_r = state.var_state(var_r)
-            lit_r = 0
-
-            # calculate the firet value that would violate the constraint
-            if co_r > 0:
-                delta_r = -((slack+1)//-co_r)
-                value_r = vs_r.lower_bound+delta_r
-                assert slack-co_r*delta_r < 0 <= slack-co_r*(delta_r-1)
-                # values above the upper bound are already true
-                if value_r > vs_r.upper_bound:
-                    continue
-                # get the literal of the value
-                if vs_r.has_literal(value_r-1):
-                    lit_r = state.get_literal(vs_r, value_r-1, cc)
-            else:
-                delta_r = (slack+1)//co_r
-                value_r = vs_r.upper_bound+delta_r
-                assert slack-co_r*delta_r < 0 <= slack-co_r*(delta_r+1)
-                # values below the lower bound are already false
-                if value_r < vs_r.lower_bound:
-                    continue
-                # get the literal of the value
-                if vs_r.has_literal(value_r):
-                    lit_r = -state.get_literal(vs_r, value_r, cc)
-
-            # build the reason if the literal has not already been propagated
-            if lit_r == 0 or not ass.is_true(lit_r):
-                slack_r = slack-co_r*delta_r
-                assert slack_r < 0
-                reason = []
-                # add the constraint itself
-                if not ass.is_fixed(-self.literal):
-                    reason.append(-self.literal)
-                for co_a, var_a in self.constraint.elements:
-                    if var_a == var_r:
-                        continue
-                    vs_a = state.var_state(var_a)
-
-                    # calculate reason literal
-                    ret, slack_r, lit_a = self._calculate_reason(state, cc, slack_r, vs_a, co_a, config)
-                    if not ret:
-                        return False
-
-                    # append the reason literal
-                    if not ass.is_fixed(lit_a):
-                        reason.append(lit_a)
-
-                # append the consequence
-                guess = reason or self.constraint.tagged
-                if co_r > 0:
-                    ret, lit_r = state.update_literal(vs_r, value_r-1, cc, not guess or None)
-                    if not ret:
-                        return False
-                else:
-                    ret, lit_r = state.update_literal(vs_r, value_r, cc, guess and None)
-                    if not ret:
-                        return False
-                    lit_r = -lit_r
-                reason.append(lit_r)
-
-                # propagate the clause
-                if not cc.add_clause(reason, tag=self.constraint.tagged):
-                    return False
-
-                # minimize constraints cannot be propagated on decision level 0
-                assert ass.is_true(lit_r) or self.constraint.tagged and ass.decision_level == 0
-
-        return True
-
-    def check_full(self, state):
-        """
-        This function checks if a constraint is satisfied w.r.t. the final
-        values of its integer variables.
-
-        This function should only be called total assignments.
-        """
-        if self.constraint.rhs(state) is None:
-            return True
-
-        lhs = 0
-        for co, var in self.constraint.elements:
-            vs = state.var_state(var)
-            assert vs.is_assigned
-            lhs += co*vs.lower_bound
-
-        if self.marked_inactive:
-            assert lhs <= self.upper_bound
-        else:
-            assert lhs == self.lower_bound
-            assert lhs == self.upper_bound
-
-        return lhs <= self.constraint.rhs(state)
+    def __init__(self, constraint):
+        AbstractSumConstraintState.__init__(self)
+        self.constraint = constraint
 
     def copy(self):
         """
         Return a copy of the constraint state to be used with another state.
         """
-        cs = ConstraintState(self.constraint)
+        cs = MinimizeConstraintState(self.constraint)
         cs.inactive_level = self.inactive_level
         cs.lower_bound = self.lower_bound
         cs.upper_bound = self.upper_bound
         return cs
 
-
-class Distinct(object):
-    """
-    Record holding a distinct constraint.
-    """
-    def __init__(self, literal, elements):
-        self.literal = literal
-        self.elements = elements
-
-    def create_state(self):
+    @property
+    def literal(self):
         """
-        Create thread specific state for the constraint.
+        Return the literal of the associated constraint.
         """
-        return DistinctState(self)
+        return self.constraint.literal
+
+    @property
+    def elements(self):
+        """
+        Return the elements of the constraint.
+        """
+        return self.constraint.elements
+
+    def rhs(self, state):
+        """
+        Return the bound of the constraint
+        """
+        return state.minimize_bound
+
+    def translate(self, cc, state, config):
+        """
+        Translate the minimize constraint into clasp's minimize constraint.
+        """
+        if not config.translate_minimize:
+            return True, False
+
+        cc.add_minimize(csp.TRUE_LIT, -self.constraint.adjust, 0)
+        for co, var in self.constraint.elements:
+            vs = state.var_state(var)
+            cc.add_minimize(csp.TRUE_LIT, co*vs.min_bound, 0)
+            for v in range(vs.min_bound, vs.max_bound):
+                cc.add_minimize(-state.get_literal(vs, v, cc), co, 0)
+        return True, True
 
 
 class DistinctState(AbstractConstraintState):
     """
     Capture the state of a distinct constraint.
+
+    Class Variables
+    ======
+    tagged_removable -- True if the constraint can be temporarily removed.
     """
+
+    tagged_removable = True
+
     def __init__(self, constraint):
         AbstractConstraintState.__init__(self)
         self.constraint = constraint
@@ -670,15 +770,6 @@ class DistinctState(AbstractConstraintState):
         self.map_upper = {}
         self.map_lower = {}
         self.assigned = {}
-
-    def attach(self, state):
-        """
-        Attach the distinct constraint to the state.
-        """
-        for i, (_, elements) in enumerate(self.constraint.elements):
-            self.init(state, i)
-            for co, var in elements:
-                state.add_var_watch(var, i+1 if co > 0 else -i-1, self)
 
     def copy(self):
         """
@@ -701,16 +792,7 @@ class DistinctState(AbstractConstraintState):
         """
         return self.constraint.literal
 
-    @property
-    def tagged_removable(self):
-        """
-        Distinct constraints are removable.
-
-        Currently, they are only removed if the constraint is false.
-        """
-        return True
-
-    def init(self, state, i):
+    def _init(self, state, i):
         """
         Recalculates the bounds of the i-th element of the constraint assuming
         that the bounds of this element are not currently in the bound maps.
@@ -729,6 +811,15 @@ class DistinctState(AbstractConstraintState):
         self.assigned[i] = (lower, upper)
         self.map_upper.setdefault(upper, []).append(i)
         self.map_lower.setdefault(lower, []).append(i)
+
+    def attach(self, state):
+        """
+        Attach the distinct constraint to the state.
+        """
+        for i, (_, elements) in enumerate(self.constraint.elements):
+            self._init(state, i)
+            for co, var in elements:
+                state.add_var_watch(var, i+1 if co > 0 else -i-1, self)
 
     def update(self, i, _):
         """
@@ -757,7 +848,7 @@ class DistinctState(AbstractConstraintState):
             lower, upper = self.assigned[i]
             self.map_lower[lower].remove(i)
             self.map_upper[upper].remove(i)
-            self.init(state, i)
+            self._init(state, i)
         self.dirty.clear()
 
     def translate(self, cc, state, config):
@@ -954,14 +1045,14 @@ class ConstraintBuilder(object):
             assert not strict
             if self._propagator.config.sort_constraints:
                 elems.sort(key=lambda cv: -abs(cv[0]))
-            self._propagator.add_constraint(self.cc, Constraint(lit, elems, rhs))
+            self._propagator.add_constraint(self.cc, SumConstraint(lit, elems, rhs))
 
     def add_minimize(self, co, var):
         """
         Add a term to the minimize constraint.
         """
         if self._minimize is None:
-            self._minimize = Minimize()
+            self._minimize = MinimizeConstraint()
 
         if co == 0:
             return
@@ -982,7 +1073,7 @@ class ConstraintBuilder(object):
             return
 
         if len(elems) > 2:
-            self._propagator.add_constraint(self.cc, Distinct(literal, elems))
+            self._propagator.add_constraint(self.cc, DistinctConstraint(literal, elems))
             return
 
         for i, (rhs_i, elems_i) in enumerate(elems):

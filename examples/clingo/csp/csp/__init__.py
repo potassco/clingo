@@ -160,6 +160,7 @@ class Config(object):
         self.weight_constraint_limit = 0
         self.check_solution = clingo.Flag(True)
         self.check_state = clingo.Flag(False)
+        self.translate_minimize = clingo.Flag(False)
         self.default_state_config = StateConfig()
         self.states = []
 
@@ -268,6 +269,12 @@ class InitClauseCreator(object):
             self._stats.translate_wcs += 1
         self._weight_constraints.append((lit, wlits[:], bound, type_))
         return True
+
+    def add_minimize(self, lit, weight, level):
+        """
+        Add a literal to the objective function.
+        """
+        self._solver.add_minimize(lit, weight, level)
 
     @property
     def assignment(self):
@@ -902,6 +909,8 @@ class State(object):
             for cs in remove_cs:
                 del self._cstate[cs.constraint]
 
+            self._todo = TodoList(cs for cs in self._todo if cs not in remove_cs)
+
         return cc.commit()
 
     def simplify(self, cc, check_state):
@@ -1480,14 +1489,15 @@ class Propagator(object):
     A propagator for CSP constraints.
     """
     def __init__(self):
-        self._l2c = {}                   # map literals to constraints
-        self._states = []                # map thread id to states
-        self._var_map = OrderedDict()    # map from variable names to indices
-        self._minimize = None            # minimize constraint
-        self._minimize_bound = None      # bound of the minimize constraint
-        self._stats_step = Statistics()  # statistics of the current call
-        self._stats_accu = Statistics()  # accumulated statistics
-        self.config = Config()           # configuration
+        self._l2c = {}                     # map literals to constraints
+        self._states = []                  # map thread id to states
+        self._var_map = OrderedDict()      # map from variable names to indices
+        self._minimize = None              # minimize constraint
+        self._minimize_bound = None        # bound of the minimize constraint
+        self._stats_step = Statistics()    # statistics of the current call
+        self._stats_accu = Statistics()    # accumulated statistics
+        self._translated_minimize = False  # whether a minimize constraint has been translated
+        self.config = Config()             # configuration
 
     def _state(self, thread_id):
         """
@@ -1609,18 +1619,25 @@ class Propagator(object):
         if not master.cleanup_literals(cc):
             return
 
+        # add minimize constraint
+        # Note: the constraint is added in the end to avoid propagating tagged
+        # clauses, which is not supported at the moment.
+        minimize = builder.prepare_minimize()
+        if minimize is not None:
+            # Note: force translation if necessary
+            if self._translated_minimize and not self.config.translate_minimize:
+                raise RuntimeError("translation of minimize constraints is disabled but was enabled before")
+            self.add_minimize(cc, minimize)
+
         # translate (simple enough) constraints
         cc.set_state(InitClauseCreator.StateTranslate)
         if not measure_time(self.statistics, "time_translate", master.translate, cc, self._l2c, self.config):
             return
         cc.set_state(InitClauseCreator.StateInit)
 
-        # add minimize constraint
-        # Note: the constraint is added in the end to avoid propagating tagged
-        # clauses, which is not supported at the moment.
-        minimize = builder.prepare_minimize()
-        if minimize is not None:
-            self.add_minimize(cc, minimize)
+        if self.config.translate_minimize and self._minimize is not None:
+            self._translated_minimize = True
+            self._minimize = None
 
         # copy order literals from master to other states
         del self._states[init.number_of_threads:]

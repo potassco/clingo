@@ -91,12 +91,14 @@ class TodoList(object):
 
     The container is similar to Python's set but maintains insertion order.
     """
-    def __init__(self):
+    def __init__(self, iterable=None):
         """
         Construct an empty container.
         """
         self._seen = set()
         self._list = []
+        if iterable is not None:
+            self.extend(iterable)
 
     def __len__(self):
         return len(self._list)
@@ -133,9 +135,7 @@ class TodoList(object):
         """
         Returns a shallow copy of the container.
         """
-        ret = TodoList()
-        ret.extend(self)
-        return ret
+        return TodoList(self)
 
     def clear(self):
         """

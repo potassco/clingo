@@ -156,10 +156,12 @@ class TestMain(unittest.TestCase):
         sol = [[('x', 0), ('y', 2), ('z', 0)],
                [('x', 1), ('y', 1), ('z', 1)],
                [('x', 2), ('y', 0), ('z', 2)]]
-        s = Solver(0, 3)
-        s.solve("&minimize { x + 2 * y + z + 5 }. &sum{ x + y } >= 2. &sum { y + z } >= 2.")
-        self.assertEqual(s.bound, 9)
-        self.assertEqual(s.solve("", optimize=False, bound=9), sol)
-        self.assertEqual(s.solve("", optimize=False, bound=9), sol)
-        self.assertEqual(s.solve("&minimize { 6 }.", optimize=False, bound=9), [])
-        self.assertEqual(s.solve("", optimize=False, bound=15), sol)
+        for translate_minimize in (True, False):
+            s = Solver(0, 3)
+            s.prp.config.translate_minimize.value = translate_minimize
+            s.solve("&minimize { x + 2 * y + z + 5 }. &sum{ x + y } >= 2. &sum { y + z } >= 2.")
+            self.assertEqual(s.bound, 9)
+            self.assertEqual(s.solve("", optimize=False, bound=9), sol)
+            self.assertEqual(s.solve("", optimize=False, bound=9), sol)
+            self.assertEqual(s.solve("&minimize { 6 }.", optimize=False, bound=9), [])
+            self.assertEqual(s.solve("", optimize=False, bound=15), sol)
