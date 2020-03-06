@@ -3,15 +3,16 @@ Propagator for CSP constraints.
 """
 
 from collections import OrderedDict
+
 import clingo
-from .parsing import simplify, parse_theory
+from .parsing import AbstractConstraintBuilder, simplify, parse_theory
 from .util import measure_time_decorator, IntervalSet
 from .base import Config, Statistics, InitClauseCreator, ControlClauseCreator
 from .solver import State
 from .constraints import SumConstraint, DistinctConstraint, MinimizeConstraint
 
 
-class ConstraintBuilder(object):
+class ConstraintBuilder(AbstractConstraintBuilder):
     """
     CSP builder to use with the parse_theory function.
     """
@@ -75,13 +76,9 @@ class ConstraintBuilder(object):
 
     def add_distinct(self, literal, elems):
         """
-        Adds a simplistic translation for a distinct constraint.
+        Add a distinct constraint.
 
-        For each x_i, x_j with i < j in elems add
-          `literal => &sum { x_i } != x_j`
-        where each x_i is of form (rhs_i, term_i) and term_i is a list of
-        coefficients and variables; x_i corresponds to the linear term
-          `term - rhs`.
+        Binary distinct constraints will be represented with a sum constraint.
         """
         if self.cc.assignment.is_false(literal):
             return

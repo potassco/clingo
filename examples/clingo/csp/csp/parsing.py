@@ -2,10 +2,12 @@
 This module contains functions for parsing and normalizing constraints.
 """
 
+from abc import abstractmethod
 from functools import reduce  # pylint: disable=redefined-builtin
+
 import clingo
 from clingo import ast
-from csp.util import gcd
+from csp.util import gcd, ABC
 
 
 THEORY = """\
@@ -48,6 +50,60 @@ def match(term, name, arity):
     return (term.type in (clingo.TheoryTermType.Function, clingo.TheoryTermType.Symbol) and
             term.name == name and
             len(term.arguments) == arity)
+
+
+class AbstractConstraintBuilder(ABC):
+    """
+    CSP builder to use with the parse_theory function.
+    """
+
+    @abstractmethod
+    def add_show(self):
+        """
+        Inform the builder that there is a show statement.
+        """
+
+    @abstractmethod
+    def show_signature(self, name, arity):
+        """
+        Show variables with the given signature.
+        """
+
+    @abstractmethod
+    def show_variable(self, var):
+        """
+        Show the given variable.
+        """
+
+    @abstractmethod
+    def add_variable(self, var):
+        """
+        Get the integer representing a variable.
+        """
+
+    @abstractmethod
+    def add_constraint(self, lit, elems, rhs, strict):
+        """
+        Add a constraint.
+        """
+
+    @abstractmethod
+    def add_minimize(self, co, var):
+        """
+        Add a term to the minimize constraint.
+        """
+
+    @abstractmethod
+    def add_distinct(self, literal, elems):
+        """
+        Add a distinct constraint.
+        """
+
+    @abstractmethod
+    def add_dom(self, literal, var, elements):
+        """
+        Add a domain for the given variable.
+        """
 
 
 def parse_theory(builder, theory_atoms):
