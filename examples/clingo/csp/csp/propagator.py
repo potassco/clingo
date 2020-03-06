@@ -4,11 +4,140 @@ Propagator for CSP constraints.
 
 from collections import OrderedDict
 import clingo
-from .parsing import parse_theory
-from .util import measure_time_decorator
+from .parsing import simplify, parse_theory
+from .util import measure_time_decorator, IntervalSet
 from .base import Config, Statistics, InitClauseCreator, ControlClauseCreator
 from .solver import State
-from .constraints import ConstraintBuilder
+from .constraints import SumConstraint, DistinctConstraint, MinimizeConstraint
+
+
+class ConstraintBuilder(object):
+    """
+    CSP builder to use with the parse_theory function.
+    """
+    def __init__(self, cc, propagator, minimize):
+        self.cc = cc
+        self._propagator = propagator
+        self._minimize = minimize
+
+    def add_show(self):
+        """
+        Inform the builder that there is a show statement.
+        """
+        self._propagator.show()
+
+    def show_signature(self, name, arity):
+        """
+        Show variables with the given signature.
+        """
+        self._propagator.show_signature(name, arity)
+
+    def show_variable(self, var):
+        """
+        Show the given variable.
+        """
+        self._propagator.show_variable(var)
+
+    def add_variable(self, var):
+        """
+        Get the integer representing a variable.
+        """
+        assert isinstance(var, clingo.Symbol)
+        return self._propagator.add_variable(var)
+
+    def add_constraint(self, lit, elems, rhs, strict):
+        """
+        Add a constraint.
+        """
+        if not strict and self.cc.assignment.is_false(lit):
+            return
+
+        if len(elems) == 1:
+            co, var = elems[0]
+            self._propagator.add_simple(self.cc, lit, co, var, rhs, strict)
+        else:
+            assert not strict
+            if self._propagator.config.sort_constraints:
+                elems.sort(key=lambda cv: -abs(cv[0]))
+            self._propagator.add_constraint(self.cc, SumConstraint(lit, elems, rhs))
+
+    def add_minimize(self, co, var):
+        """
+        Add a term to the minimize constraint.
+        """
+        if self._minimize is None:
+            self._minimize = MinimizeConstraint()
+
+        if co == 0:
+            return
+
+        self._minimize.elements.append((co, var))
+
+    def add_distinct(self, literal, elems):
+        """
+        Adds a simplistic translation for a distinct constraint.
+
+        For each x_i, x_j with i < j in elems add
+          `literal => &sum { x_i } != x_j`
+        where each x_i is of form (rhs_i, term_i) and term_i is a list of
+        coefficients and variables; x_i corresponds to the linear term
+          `term - rhs`.
+        """
+        if self.cc.assignment.is_false(literal):
+            return
+
+        if len(elems) > 2:
+            self._propagator.add_constraint(self.cc, DistinctConstraint(literal, elems))
+            return
+
+        for i, (rhs_i, elems_i) in enumerate(elems):
+            for rhs_j, elems_j in elems[i+1:]:
+                rhs = rhs_i - rhs_j
+
+                celems = []
+                celems.extend(elems_i)
+                celems.extend((-co_j, var_j) for co_j, var_j in elems_j)
+
+                if not celems:
+                    if rhs == 0:
+                        self.cc.add_clause([-literal])
+                        return
+                    continue
+
+                a = self.cc.add_literal()
+                b = self.cc.add_literal()
+
+                self.cc.add_clause([a, b, -literal])
+                self.cc.add_clause([-a, -b])
+
+                self.add_constraint(a, celems, rhs-1, False)
+                self.add_constraint(b, [(-co, var) for co, var in celems], -rhs-1, False)
+
+    def add_dom(self, literal, var, elements):
+        """
+        Add a domain for the given variable.
+
+        The domain is represented as a set of left-closed intervals.
+        """
+        if self.cc.assignment.is_false(literal):
+            return
+
+        intervals = IntervalSet(elements)
+        self._propagator.add_dom(self.cc, literal, var, list(intervals))
+
+    def prepare_minimize(self):
+        """
+        Prepare the minimize constraint.
+        """
+
+        # simplify minimize
+        if self._minimize is not None:
+            adjust, self._minimize.elements = simplify(self._minimize.elements, True)
+            self._minimize.adjust += adjust
+            if self._propagator.config.sort_constraints:
+                self._minimize.elements.sort(key=lambda cv: -abs(cv[0]))
+
+        return self._minimize
 
 
 class Propagator(object):
