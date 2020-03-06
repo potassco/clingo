@@ -4,23 +4,23 @@ Basic functions to run tests.
 
 import collections
 import clingo
-import csp
-from csp.parsing import transform
+from csp import Propagator, transform, THEORY
 
 
 ConfGlobalEntry = collections.namedtuple(
     'ConfGlobalEntry',
-    ['weight_constraint_limit',
+    ['distinct_limit',
+     'weight_constraint_limit',
      'clause_limit',
      'literals_only',
      'sort_constraints',
      'translate_minimize'])
 CONF_GLOBAL = [
-    ConfGlobalEntry(0, 0, False, False, False),     # basic
-    ConfGlobalEntry(0, 0, False, True, False),      # sort constraints
-    ConfGlobalEntry(0, 0, False, False, True),      # translate minimize
-    ConfGlobalEntry(1000, 0, False, False, False),  # translate to clauses
-    ConfGlobalEntry(0, 1000, False, False, False)]  # translate to weight constraints
+    ConfGlobalEntry(0, 0, 0, False, False, False),       # basic
+    ConfGlobalEntry(0, 0, 0, False, True, False),        # sort constraints
+    ConfGlobalEntry(1000, 1000, 0, False, False, True),  # translate
+    ConfGlobalEntry(1000, 1000, 0, True, False, True),   # translate literals only
+    ConfGlobalEntry(1000, 0, 1000, False, False, True)]  # translate to weight constraints
 
 ConfLocalEntry = collections.namedtuple(
     'ConfLocalEntry',
@@ -36,7 +36,7 @@ class Solver(object):
     Simplistic solver for multi-shot solving.
     """
     def __init__(self, minint=-20, maxint=20, threads=8, options=()):
-        self.prp = csp.Propagator()
+        self.prp = Propagator()
         self.prp.config.min_int = minint
         self.prp.config.max_int = maxint
         self.prp.config.check_solution = True
@@ -47,7 +47,7 @@ class Solver(object):
         self.bound = None
 
         self.prg.register_propagator(self.prp)
-        self.prg.add("base", [], csp.THEORY)
+        self.prg.add("base", [], THEORY)
 
     def _parse_model(self, model, optimize):
         """

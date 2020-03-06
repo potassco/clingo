@@ -2,9 +2,11 @@
 Utility functions.
 """
 
+import sys
+import abc
 import math
 from timeit import default_timer as timer
-from functools import reduce
+from functools import reduce  # pylint: disable=redefined-builtin
 
 try:
     # Note: Can be installed to play with realistic domain sizes.
@@ -16,7 +18,7 @@ except ImportError:
 
 
 if hasattr(math, "gcd"):
-    # pylint: disable=invalid-name
+    # pylint: disable=no-member,invalid-name
     gcd = math.gcd
 else:
     def gcd(x, y):
@@ -27,6 +29,27 @@ else:
         while y:
             x, y = y, x % y
         return x
+
+
+def abstractproperty(func):
+    """
+    Define abstract properties for both python 2 and 3.
+    """
+    if sys.version_info > (3, 3):
+        return property(abc.abstractmethod(func))
+    return abc.abstractproperty(func)
+
+
+if sys.version_info > (3, 3):
+    # pylint: disable=no-member
+    ABC = abc.ABC
+else:
+    class ABC:
+        # pylint: disable=no-init
+        """Helper class that provides a standard way to create an ABC using
+        inheritance.
+        """
+        __metaclass__ = abc.ABCMeta
 
 
 def measure_time(target, attribute, func, *args, **kwargs):
@@ -54,7 +77,7 @@ def measure_time_decorator(attribute):
     The runtime will be added to the given attribute of the class where
     argument is a `.` separated string of arguments.
     """
-    def wrapper(func):
+    def wrapper(func):  # pylint: disable=missing-docstring
         return lambda self, *args, **kwargs: measure_time(self, attribute, func, self, *args, **kwargs)
     return wrapper
 
@@ -123,6 +146,13 @@ class TodoList(object):
             self._list.append(x)
             return True
         return False
+
+    def remove(self, x):
+        """
+        Remove x from the container.
+        """
+        self._seen.remove(x)
+        self._list.remove(x)
 
     def extend(self, i):
         """
@@ -238,7 +268,32 @@ class IntervalSet(object):
             del self._items[y2]
         self._items[y1] = x1
 
-    def items(self):
+    def extend(self, other):
+        """
+        Inplace union with given interval set.
+        """
+        for x, y in other:
+            self.add(x, y)
+
+    def copy(self):
+        """
+        Return a shallow copy the interval set.
+        """
+        return IntervalSet(self)
+
+    def enum(self):
+        """
+        Enumerate values in interval set.
+        """
+        for l, u in self:
+            for i in range(l, u):
+                yield i
+
+    def __contains__(self, x):
+        i = self._items.bisect_right(x)
+        return i < len(self) and x >= self._items.peekitem(i)[1]
+
+    def __iter__(self):
         """
         Return the intervals in the set.
         """
@@ -248,4 +303,4 @@ class IntervalSet(object):
         return len(self._items)
 
     def __repr__(self):
-        return " ".join("[{},{})".format(x, y) for x, y in self.items())
+        return " ".join("[{},{})".format(x, y) for x, y in self)

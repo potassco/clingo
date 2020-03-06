@@ -6,8 +6,7 @@ import sys
 from textwrap import dedent
 from collections import OrderedDict
 import clingo
-import csp
-from .parsing import transform
+from csp import transform, THEORY, Propagator
 
 
 _FALSE = ["0", "no", "false"]
@@ -30,7 +29,7 @@ class Application(object):
     def __init__(self):
         self.program_name = "csp"
         self.version = "1.0"
-        self._propagator = csp.Propagator()
+        self._propagator = Propagator()
         self.config = AppConfig()
         self.occurrences = OrderedDict()
         self.todo = []
@@ -123,6 +122,10 @@ class Application(object):
             group, "translate-pb",
             "Restrict translation to <n> literals per pb constraint [{}]".format(conf.weight_constraint_limit),
             self._parse_int(conf, "weight_constraint_limit", min_value=0), argument="<n>")
+        options.add(
+            group, "translate-distinct",
+            "Restrict translation of distinct constraint to <n> pb constraints [{}]".format(conf.distinct_limit),
+            self._parse_int(conf, "distinct_limit", min_value=0), argument="<n>")
         options.add_flag(
             group, "translate-opt",
             "Translate minimize constraint into clasp's minimize constraint [{}]\n".format(self._flag_str(conf.translate_minimize)),
@@ -204,7 +207,7 @@ class Application(object):
         implementing the standard ground and solve functionality.
         """
         prg.register_propagator(self._propagator)
-        prg.add("base", [], csp.THEORY)
+        prg.add("base", [], THEORY)
 
         if not files:
             files = ["-"]

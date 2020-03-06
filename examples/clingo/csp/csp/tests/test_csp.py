@@ -109,7 +109,7 @@ class TestMain(unittest.TestCase):
         self.assertEqual(solve("&distinct { x; y }.", 0, 1), [[('x', 0), ('y', 1)], [('x', 1), ('y', 0)]])
         self.assertEqual(solve("&distinct { 2*x; 3*y }.", 2, 3), [[('x', 2), ('y', 2)], [('x', 2), ('y', 3)], [('x', 3), ('y', 3)]])
         self.assertEqual(solve("&distinct { 0*x; 0*y }.", 0, 1), [])
-        # Note: gringo uses sets/maybe I should change that to also support such ugly semantics.
+        # TODO: gringo uses sets/maybe I should change that to also support such ugly semantics.
         self.assertEqual(solve("&distinct { 0 }.", 0, 1), [[]])
         self.assertEqual(solve("&distinct { 0; 0+0 }.", 0, 1), [])
         self.assertEqual(solve("&distinct { 0; 1 }.", 0, 1), [[]])
@@ -122,6 +122,29 @@ class TestMain(unittest.TestCase):
             ['c', ('x', 1), ('y', 0)]])
         self.assertEqual(solve("&dom{1..1}=x. &dom{1..2}=y. &dom{1..3}=z. &distinct{x;y;z}."), [[('x', 1), ('y', 2), ('z', 3)]])
         self.assertEqual(solve("&dom{1..3}=x. &dom{2..3}=y. &dom{3..3}=z. &distinct{x;y;z}."), [[('x', 1), ('y', 2), ('z', 3)]])
+        self.assertEqual(
+            solve("""\
+            &dom { 1..2 } = x.
+            &dom { 1..2 } = y.
+            &dom { 1..2 } = z.
+            &distinct { 2*x+3*y+5*z; 5*x+2*y+3*z; 3*x+5*y+2*z }.
+            """),
+            [[('x', 1), ('y', 1), ('z', 2)],
+             [('x', 1), ('y', 2), ('z', 1)],
+             [('x', 1), ('y', 2), ('z', 2)],
+             [('x', 2), ('y', 1), ('z', 1)],
+             [('x', 2), ('y', 1), ('z', 2)],
+             [('x', 2), ('y', 2), ('z', 1)]])
+        self.assertEqual(
+            solve("""\
+            &dom { 1..2 } = x.
+            &dom { 1..2 } = y.
+            &dom { 1..2 } = z.
+            &distinct { 2*x+3*y+5*z+1; 5*x+2*y+3*z; 3*x+5*y+2*z-1 }.
+            """),
+            [[('x', 1), ('y', 2), ('z', 2)],
+             [('x', 2), ('y', 1), ('z', 1)],
+             [('x', 2), ('y', 2), ('z', 1)]])
 
     def test_dom(self):
         self.assertEqual(solve("&dom { 0;1..2;2..3;5 } = x.", -10, 10), [[('x', 0)], [('x', 1)], [('x', 2)], [('x', 3)], [('x', 5)]])

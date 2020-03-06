@@ -2,25 +2,16 @@
 Module implementing constraints.
 """
 
-import sys
-from abc import abstractmethod, abstractproperty
+import abc
 
 import clingo
-import csp
-from .util import TodoList, IntervalSet
+from .solver import AbstractConstraint, AbstractConstraintState
+from .base import TRUE_LIT
+from .util import TodoList, IntervalSet, abstractproperty
 from .parsing import simplify
 
 
-def abstract_property(func):
-    """
-    Define abstract properties for both python 2 and 3.
-    """
-    if sys.version_info > (3, 3):
-        return property(abstractmethod(func))
-    return abstractproperty(func)
-
-
-class SumConstraint(object):
+class SumConstraint(AbstractConstraint):
     """
     Class to capture sum constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
 
@@ -44,7 +35,7 @@ class SumConstraint(object):
         return SumConstraintState(self)
 
 
-class MinimizeConstraint(object):
+class MinimizeConstraint(AbstractConstraint):
     """
     Class to capture minimize constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
 
@@ -56,7 +47,7 @@ class MinimizeConstraint(object):
     """
 
     def __init__(self):
-        self.literal = csp.TRUE_LIT
+        self.literal = TRUE_LIT
         self.elements = []
         self.adjust = 0
 
@@ -67,7 +58,7 @@ class MinimizeConstraint(object):
         return MinimizeConstraintState(self)
 
 
-class DistinctConstraint(object):
+class DistinctConstraint(AbstractConstraint):
     """
     Record holding a distinct constraint.
     """
@@ -82,42 +73,6 @@ class DistinctConstraint(object):
         return DistinctState(self)
 
 
-class AbstractConstraintState(object):
-    """
-    Abstract class to capture the state of constraints.
-    """
-    def __init__(self):
-        self.inactive_level = 0
-
-    @property
-    def marked_inactive(self):
-        """
-        Returns true if the constraint is marked inactive.
-        """
-        return self.inactive_level > 0
-
-    @marked_inactive.setter
-    def marked_inactive(self, level):
-        """
-        Mark a constraint as inactive on the given level.
-        """
-        assert not self.marked_inactive
-        self.inactive_level = level+1
-
-    def mark_active(self):
-        """
-        Mark a constraint as active.
-        """
-        self.inactive_level = 0
-
-    def removable(self, level):
-        """
-        A constraint is removable if it has been marked inactive on a lower
-        level.
-        """
-        return self.marked_inactive and self.inactive_level <= level
-
-
 class AbstractSumConstraintState(AbstractConstraintState):
     """
     Implements propagation for sum and minimize constraints.
@@ -127,25 +82,25 @@ class AbstractSumConstraintState(AbstractConstraintState):
         self.lower_bound = 0
         self.upper_bound = 0
 
-    @abstract_property
+    @abstractproperty
     def elements(self):
         """
         The elements of the constraint.
         """
 
-    @abstract_property
+    @abstractproperty
     def literal(self):
         """
         The literal of the constraint.
         """
 
-    @abstract_property
+    @abstractproperty
     def tagged(self):
         """
         Whether clauses have to be tagged.
         """
 
-    @abstractmethod
+    @abc.abstractmethod
     def rhs(self, state):
         """
         The bound of the constraint.
@@ -173,25 +128,25 @@ class AbstractSumConstraintState(AbstractConstraintState):
         for co, var in self.elements:
             state.remove_var_watch(var, co, self)
 
-    def undo(self, co, diff):
+    def undo(self, i, diff):
         """
         Undo the last updates of the bounds of the constraint by the given
         difference.
         """
-        if co*diff > 0:
-            self.lower_bound -= co*diff
+        if i*diff > 0:
+            self.lower_bound -= i*diff
         else:
-            self.upper_bound -= co*diff
+            self.upper_bound -= i*diff
 
-    def update(self, co, diff):
+    def update(self, i, diff):
         """
         Update the bounds of the constraint by the given difference.
         """
-        assert co*diff != 0
-        if co*diff < 0:
-            self.upper_bound += co*diff
+        assert i*diff != 0
+        if i*diff < 0:
+            self.upper_bound += i*diff
             return False
-        self.lower_bound += co*diff
+        self.lower_bound += i*diff
         return True
 
     def _check_state(self, state):
@@ -210,6 +165,7 @@ class AbstractSumConstraintState(AbstractConstraintState):
         assert upper == self.upper_bound
 
     def _calculate_reason(self, state, cc, slack, vs, co, config):
+        # pylint: disable=bad-option-value,chained-comparison
         ass = cc.assignment
         ret = True
         found = 0
@@ -219,7 +175,7 @@ class AbstractSumConstraintState(AbstractConstraintState):
             # the direct reason literal
             lit = state.get_literal(vs, current-1, cc)
             assert ass.is_false(lit)
-            if config.refine_reasons and slack+co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
+            if config.refine_reasons and slack+co < 0 and ass.decision_level > 0:
                 delta = -((slack+1)//-co)
                 value = max(current+delta, vs.min_bound)
                 if value < current:
@@ -252,7 +208,7 @@ class AbstractSumConstraintState(AbstractConstraintState):
             current = vs.upper_bound
             lit = -state.get_literal(vs, current, cc)
             assert ass.is_false(lit)
-            if config.refine_reasons and slack-co < 0 and ass.decision_level > 0:  # pylint: disable=chained-comparison
+            if config.refine_reasons and slack-co < 0 and ass.decision_level > 0:
                 delta = (slack+1)//co
                 value = min(current+delta, vs.max_bound)
                 if value > current:
@@ -475,7 +431,6 @@ class SumConstraintState(AbstractSumConstraintState):
         return self.constraint.elements
 
     def rhs(self, state):
-        # pylint: disable=unused-argument
         """
         Return the bound of the constraint
         """
@@ -615,9 +570,9 @@ class SumConstraintState(AbstractSumConstraintState):
                     lit = -state.get_literal(vs, value_lower, cc)
             else:
                 todo.pop()
-                lit = -csp.TRUE_LIT if cc.assignment.is_false(-self.literal) else -self.literal
+                lit = -TRUE_LIT if cc.assignment.is_false(-self.literal) else -self.literal
 
-            if lit != -csp.TRUE_LIT:
+            if lit != -TRUE_LIT:
                 clause[j] = lit
                 j += 1
 
@@ -652,7 +607,7 @@ class SumConstraintState(AbstractSumConstraintState):
 
         return True
 
-    def translate(self, cc, state, config):
+    def translate(self, cc, state, config, added):
         """
         Translate a constraint to clauses or weight constraints.
         """
@@ -735,17 +690,17 @@ class MinimizeConstraintState(AbstractSumConstraintState):
         """
         return state.minimize_bound
 
-    def translate(self, cc, state, config):
+    def translate(self, cc, state, config, added):
         """
         Translate the minimize constraint into clasp's minimize constraint.
         """
         if not config.translate_minimize:
             return True, False
 
-        cc.add_minimize(csp.TRUE_LIT, -self.constraint.adjust, 0)
+        cc.add_minimize(TRUE_LIT, -self.constraint.adjust, 0)
         for co, var in self.constraint.elements:
             vs = state.var_state(var)
-            cc.add_minimize(csp.TRUE_LIT, co*vs.min_bound, 0)
+            cc.add_minimize(TRUE_LIT, co*vs.min_bound, 0)
             for v in range(vs.min_bound, vs.max_bound):
                 cc.add_minimize(-state.get_literal(vs, v, cc), co, 0)
         return True, True
@@ -821,6 +776,14 @@ class DistinctState(AbstractConstraintState):
             for co, var in elements:
                 state.add_var_watch(var, i+1 if co > 0 else -i-1, self)
 
+    def detach(self, state):
+        """
+        Detach the constraint frow the given state.
+        """
+        for i, (_, elements) in enumerate(self.constraint.elements):
+            for co, var in elements:
+                state.remove_var_watch(var, i+1 if co > 0 else -i-1, self)
+
     def update(self, i, _):
         """
         Add an element whose bound has changed to the todo list and mark it as
@@ -851,35 +814,114 @@ class DistinctState(AbstractConstraintState):
             self._init(state, i)
         self.dirty.clear()
 
-    def translate(self, cc, state, config):
+    def _estimate(self):
         """
-        Currently no translation available
+        Estimate the translation cost of the constraint in terms of the
+        required number of weight constraints.
         """
-        # pylint: disable=unused-argument
-        # TODO: small distinct constraints should be translated to weight
-        #       constraints
-        # - This is probably best solved using intervals capturing the bounds
-        #   of the terms.
-        # - The intersection of the intervals gives a good estimate for the
-        #   size of the constraint.
-        # - Like this, we might overestimate if the absolute values of
-        #   coefficients are larger than one.
-        # - A term can be translated into implications defining hidden integer
-        #   variables:
-        #   - hi = x + y
-        #   - x<=1 & y<=1 => hi<=2
-        #   - x>=1 & y>=1 => hi>=2  where x>=1 == not x<=0
-        # - This is the same as the translation for constraints above but care
-        #   has to be taken if the bounds of `x + y` exceed the
-        #   minimum/maximum integer (in which case we can also opt for not
-        #   translating the constraint).
-        # - The final translation corresponds then to the cardinality
-        #   constraints:
-        #   - { h1=j, ..., hn=j } <= 1   where hi=j == hi<=j & ~hi<=j-1
-        # - The translation of the constraints for terms should reuse existing
-        #   code but hidden integer variables should be handled cleverly.
+        cost = 0
 
-        return True, False
+        intervals = IntervalSet()
+        for lower, upper in self.assigned.values():
+            intervals.add(lower, upper+1)
+        for lower, upper in intervals:
+            cost += upper - lower
+
+        return cost
+
+    def _domain(self, state, lower, elements):
+        """
+        Calculate the domain of a term.
+        """
+        values = IntervalSet()
+
+        values.add(lower, lower+1)
+        for co, var in elements:
+            current = values.copy()
+            cs = state.var_state(var)
+            add = abs(co)
+            for _ in range(cs.lower_bound, cs.upper_bound):
+                for l, u in current:
+                    values.add(l+add, u+add)
+                add += abs(co)
+
+        return values
+
+    def _var(self, state, lower, upper, elements, added):
+        """
+        Introduce a variable and make it equal to the term.
+        """
+        assert elements
+
+        if len(elements) == 1:
+            return elements[0][1]
+
+        var = state.add_variable(lower, upper)
+        elems = [(-1, var)] + elements
+        added.append(SumConstraint(TRUE_LIT, elems, 0))
+        added.append(SumConstraint(TRUE_LIT, [(-c, v) for c, v in elems], 0))
+        return var
+
+    def translate(self, cc, state, config, added):
+        """
+        Translate small enough distinct constraints to weight constraints.
+        """
+        if self._estimate() >= config.distinct_limit:
+            return True, False
+
+        # compute domain of terms and identify values involved in at least two terms
+        union = set()
+        counts = {}
+        elem_values = []
+        for i, (_, elements) in enumerate(self.constraint.elements):
+            elem_values.append(self._domain(state, self.assigned[i][0], elements))
+            for value in elem_values[-1].enum():
+                if value not in counts:
+                    counts[value] = 0
+                counts[value] += 1
+                if counts[value] > 1:
+                    union.add(value)
+
+        # calculate variables for terms avoiding unnecessary variables
+        elem_vars = []
+        for (fixed, elements), (lower, upper), values in zip(self.constraint.elements, self.assigned.values(), elem_values):
+            var = None
+            for value in values.enum():
+                if value not in union:
+                    continue
+                var = self._var(state, lower, upper, elements, added)
+                break
+            elem_vars.append((fixed, var))
+
+        # add weight constraints
+        for value in sorted(union):
+            # variables that have to be different
+            wlits = []
+            for (fixed, var), values in zip(elem_vars, elem_values):
+                if value not in values:
+                    continue
+                lit = TRUE_LIT
+                if var is not None:
+                    # lit == var<=value && var>=value
+                    #     == var<=value && not var<=value-1
+                    vs = state.var_state(var)
+                    a = state.get_literal(vs, value-fixed, cc)
+                    b = -state.get_literal(vs, value-fixed-1, cc)
+                    if a == TRUE_LIT:
+                        lit = b
+                    elif b == -TRUE_LIT:
+                        lit = a
+                    else:
+                        lit = cc.add_literal()
+                        cc.add_clause([-a, -b, lit])
+                        cc.add_clause([a, -lit])
+                        cc.add_clause([b, -lit])
+                wlits.append((lit, 1))
+
+            assert len(wlits) > 1
+            cc.add_weight_constraint(self.literal, wlits, 1, 1)
+
+        return True, True
 
     def _propagate(self, cc, state, s, i, j):
         """
@@ -961,7 +1003,6 @@ class DistinctState(AbstractConstraintState):
 
         See `_propagate` for exmamples what is propagated.
         """
-        # pylint: disable=unused-argument
         self._update(state)
 
         for i in self.todo:
@@ -1109,7 +1150,7 @@ class ConstraintBuilder(object):
             return
 
         intervals = IntervalSet(elements)
-        self._propagator.add_dom(self.cc, literal, var, list(intervals.items()))
+        self._propagator.add_dom(self.cc, literal, var, list(intervals))
 
     def prepare_minimize(self):
         """

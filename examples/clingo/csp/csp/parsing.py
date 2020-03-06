@@ -2,10 +2,42 @@
 This module contains functions for parsing and normalizing constraints.
 """
 
-from functools import reduce
+from functools import reduce  # pylint: disable=redefined-builtin
 import clingo
 from clingo import ast
 from csp.util import gcd
+
+
+THEORY = """\
+#theory cp {
+    var_term  { };
+    sum_term {
+    -  : 3, unary;
+    ** : 2, binary, right;
+    *  : 1, binary, left;
+    /  : 1, binary, left;
+    \\ : 1, binary, left;
+    +  : 0, binary, left;
+    -  : 0, binary, left
+    };
+    dom_term {
+    -  : 4, unary;
+    ** : 3, binary, right;
+    *  : 2, binary, left;
+    /  : 2, binary, left;
+    \\ : 2, binary, left;
+    +  : 1, binary, left;
+    -  : 1, binary, left;
+    .. : 0, binary, left
+    };
+    &sum/1 : sum_term, {<=,=,!=,<,>,>=}, sum_term, any;
+    &diff/1 : sum_term, {<=}, sum_term, any;
+    &minimize/0 : sum_term, directive;
+    &maximize/0 : sum_term, directive;
+    &distinct/0 : sum_term, head;
+    &dom/0 : dom_term, {=}, var_term, head
+}.
+"""
 
 
 def match(term, name, arity):
