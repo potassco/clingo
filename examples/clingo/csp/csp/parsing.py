@@ -7,7 +7,7 @@ from functools import reduce  # pylint: disable=redefined-builtin
 
 import clingo
 from clingo import ast
-from csp.util import gcd, ABC
+from csp.util import gcd, ABC, abstractproperty
 
 
 THEORY = """\
@@ -56,6 +56,12 @@ class AbstractConstraintBuilder(ABC):
     """
     CSP builder to use with the parse_theory function.
     """
+
+    @abstractproperty
+    def cc(self):
+        """
+        Return a ClauseCreator.
+        """
 
     @abstractmethod
     def add_show(self):

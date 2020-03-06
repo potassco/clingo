@@ -17,9 +17,16 @@ class ConstraintBuilder(AbstractConstraintBuilder):
     CSP builder to use with the parse_theory function.
     """
     def __init__(self, cc, propagator, minimize):
-        self.cc = cc
+        self._cc = cc
         self._propagator = propagator
         self._minimize = minimize
+
+    @property
+    def cc(self):
+        """
+        Return a ClauseCreator.
+        """
+        return self._cc
 
     def add_show(self):
         """

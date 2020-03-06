@@ -2,7 +2,10 @@
 Module for basic data types.
 """
 
+from abc import abstractmethod
+
 import clingo
+from .util import ABC, abstractproperty
 
 
 TRUE_LIT = 1
@@ -151,10 +154,50 @@ class Config(object):
         return self.states[thread_id]
 
 
-class InitClauseCreator(object):
+class AbstractClauseCreator(ABC):
     """
     Class to add solver literals, create clauses, and access the current
-    assignment using the `PropagateInit` object.
+    assignment.
+    """
+
+    @abstractmethod
+    def add_literal(self):
+        """
+        Add a new solver literal.
+        """
+
+    @abstractmethod
+    def add_watch(self, lit):
+        """
+        Watch the given solver literal.
+        """
+
+    @abstractmethod
+    def propagate(self):
+        """
+        Call unit propagation on the solver.
+        """
+
+    @abstractmethod
+    def add_clause(self, clause, tag=False, lock=False):
+        """
+        Add the given clause to the sovler.
+
+        If tag is True, the clause applies only in the current solving step. If
+        lock is True, the clause is excluded from the from clause deletion.
+        """
+
+    @abstractproperty
+    def assignment(self):
+        """
+        Get the assignment.
+        """
+
+
+class InitClauseCreator(AbstractClauseCreator):
+    """
+    Class to add solver literals, create clauses, access the current
+    assignment, and further methods, using the `PropagateInit` object.
     """
     StateInit = 0
     StateTranslate = 1
@@ -169,14 +212,15 @@ class InitClauseCreator(object):
 
     def set_state(self, state):
         """
-        Set the state to log either init literals or additionally translation literals
+        Set the state to log either init literals or additionally translation
+        literals.
         """
         self._state = state
 
     @property
     def assignment(self):
         """
-        Get he assignment.
+        Get the assignment.
         """
         return self._solver.assignment
 
@@ -188,7 +232,7 @@ class InitClauseCreator(object):
 
     def add_literal(self):
         """
-        Adds a new literal.
+        Add a new literal.
         """
         x = self._solver.add_literal()
         self._stats.num_literals += 1
@@ -270,7 +314,7 @@ class InitClauseCreator(object):
         return True
 
 
-class ControlClauseCreator(object):
+class ControlClauseCreator(AbstractClauseCreator):
     """
     Class to add solver literals, create clauses, and access the current
     assignment using the `PropagateControl` object.
