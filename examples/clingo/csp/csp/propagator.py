@@ -178,7 +178,8 @@ class Propagator(object):
                 return
 
         # propagate the newly added constraints
-        self._simplify(cc, master)
+        if not self._simplify(cc, master):
+            return
 
         # remove unnecessary literals after simplification
         if not master.cleanup_literals(cc):
