@@ -25,6 +25,9 @@ class Propagator(object):
         self._stats_accu = Statistics()    # accumulated statistics
         self._translated_minimize = False  # whether a minimize constraint has been translated
         self.config = Config()             # configuration
+        self._show = False                 # whether there is a show statement
+        self._show_variable = set()        # variables to show
+        self._show_signature = set()       # signatures to show
 
     def _state(self, thread_id):
         """
@@ -95,6 +98,27 @@ class Propagator(object):
             self._var_map[var] = idx
             self._stats_step.num_variables += 1
         return self._var_map[var]
+
+    def show(self):
+        """
+        Enable show statement.
+
+        If the show statement has not been enabled, then all variables are
+        shown.
+        """
+        self._show = True
+
+    def show_variable(self, var):
+        """
+        Show the given variable.
+        """
+        self._show_variable.add(var)
+
+    def show_signature(self, name, arity):
+        """
+        Show variables with the given signature.
+        """
+        self._show_signature.add((name, arity))
 
     def add_dom(self, cc, literal, var, domain):
         """
@@ -250,13 +274,28 @@ class Propagator(object):
         """
         self._state(thread_id).undo()
 
-    def get_assignment(self, thread_id):
+    def _shown(self, var):
+        """
+        Determine if the given variable should be shown.
+        """
+        if not self._show:
+            return True
+
+        if var in self._show_variable:
+            return True
+
+        if var.type == clingo.SymbolType.Function and (var.name, len(var.arguments)) in self._show_signature:
+            return True
+
+        return False
+
+    def get_assignment(self, thread_id, show_all=False):
         """
         Get the assigment from the state associated with `thread_id`.
 
         Should be called on total assignments.
         """
-        return self._state(thread_id).get_assignment(self._var_map)
+        return self._state(thread_id).get_assignment((var, idx) for var, idx in self._var_map.items() if show_all or self._shown(var))
 
     def get_value(self, var, thread_id):
         """

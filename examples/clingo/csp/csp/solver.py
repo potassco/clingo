@@ -478,7 +478,7 @@ class State(object):
         This function should be called on the state corresponding to the thread
         where a model has been found.
         """
-        return [(var, self._var_state[idx].lower_bound) for var, idx in var_map.items()]
+        return [(var, self._var_state[idx].lower_bound) for var, idx in var_map]
 
     def get_value(self, var):
         """

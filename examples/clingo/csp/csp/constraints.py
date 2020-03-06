@@ -1065,6 +1065,24 @@ class ConstraintBuilder(object):
         self._propagator = propagator
         self._minimize = minimize
 
+    def add_show(self):
+        """
+        Inform the builder that there is a show statement.
+        """
+        self._propagator.show()
+
+    def show_signature(self, name, arity):
+        """
+        Show variables with the given signature.
+        """
+        self._propagator.show_signature(name, arity)
+
+    def show_variable(self, var):
+        """
+        Show the given variable.
+        """
+        self._propagator.show_variable(var)
+
     def add_variable(self, var):
         """
         Get the integer representing a variable.

@@ -34,6 +34,7 @@ THEORY = """\
     &diff/1 : sum_term, {<=}, sum_term, any;
     &minimize/0 : sum_term, directive;
     &maximize/0 : sum_term, directive;
+    &show/0 : sum_term, directive;
     &distinct/0 : sum_term, head;
     &dom/0 : dom_term, {=}, var_term, head
 }.
@@ -61,6 +62,8 @@ def parse_theory(builder, theory_atoms):
             _parse_constraint(builder, atom, is_sum, body)
         elif match(atom.term, "distinct", 0):
             _parse_distinct(builder, atom)
+        elif match(atom.term, "show", 0):
+            _parse_show(builder, atom)
         elif match(atom.term, "dom", 0):
             _parse_dom(builder, atom)
         elif match(atom.term, "minimize", 0):
@@ -104,6 +107,35 @@ def simplify(seq, drop_zero):
         elements = [(co, var) for co, var in elements if co != 0]
 
     return rhs, elements
+
+
+def _parse_show(builder, atom):
+    builder.add_show()
+
+    for elem in atom.elements:
+        if len(elem.terms) == 1 and not elem.condition:
+            _parse_show_elem(builder, elem.terms[0])
+        else:
+            raise RuntimeError("Invalid Syntax")
+
+
+def _parse_show_elem(builder, term):
+    if match(term, "/", 2):
+        a = _evaluate_term(term.arguments[0])
+        if a.type != clingo.SymbolType.Function or a.arguments:
+            raise RuntimeError("Invalid Syntax")
+
+        b = _evaluate_term(term.arguments[1])
+        if b.type != clingo.SymbolType.Number:
+            raise RuntimeError("Invalid Syntax")
+
+        builder.show_signature(a.name, b.number)
+    else:
+        a = _evaluate_term(term)
+        if a.type == clingo.SymbolType.Number:
+            raise RuntimeError("Invalid Syntax")
+
+        builder.show_variable(a)
 
 
 def _parse_dom(builder, atom):

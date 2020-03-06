@@ -188,3 +188,17 @@ class TestMain(unittest.TestCase):
             self.assertEqual(s.solve("", optimize=False, bound=9), sol)
             self.assertEqual(s.solve("&minimize { 6 }.", optimize=False, bound=9), [])
             self.assertEqual(s.solve("", optimize=False, bound=15), sol)
+
+    def test_show(self):
+        self.assertEqual(
+            solve("&sum { p(X) } = 0 :- X=1..3. &sum { q(X) } = 0 :- X=1..3. &show { }."),
+            [[]])
+        self.assertEqual(
+            solve("&sum { p(X) } = 0 :- X=1..3. &sum { q(X) } = 0 :- X=1..3. &show { p/1 }."),
+            [[('p(1)', 0), ('p(2)', 0), ('p(3)', 0)]])
+        self.assertEqual(
+            solve("&sum { p(X) } = 0 :- X=1..3. &sum { q(X) } = 0 :- X=1..3. &show { p(1); p(2); q(1) }."),
+            [[('p(1)', 0), ('p(2)', 0), ('q(1)', 0)]])
+        self.assertEqual(
+            solve("&sum { p(X) } = 0 :- X=1..3. &sum { q(X) } = 0 :- X=1..3. &show { p/1; q(1) }."),
+            [[('p(1)', 0), ('p(2)', 0), ('p(3)', 0), ('q(1)', 0)]])

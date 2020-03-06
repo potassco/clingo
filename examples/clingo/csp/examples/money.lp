@@ -9,4 +9,4 @@ letter(s;e;n;d;m;o;r;y).
 
 &distinct {X : letter(X)}.
 
-%&show {X : letter(X)}.
+&show {X : letter(X)}.
