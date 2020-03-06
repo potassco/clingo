@@ -54,6 +54,7 @@ class Statistics(object):
         self.num_literals = 0
         self.time_init = 0
         self.time_translate = 0
+        self.time_simplify = 0
         self.translate_removed = 0
         self.translate_added = 0
         self.translate_clauses = 0
@@ -71,6 +72,7 @@ class Statistics(object):
         self.num_literals = 0
         self.time_init = 0
         self.time_translate = 0
+        self.time_simplify = 0
         self.translate_removed = 0
         self.translate_added = 0
         self.translate_clauses = 0
@@ -89,6 +91,7 @@ class Statistics(object):
         self.num_literals += stats.num_literals
         self.time_init += stats.time_init
         self.time_translate += stats.time_translate
+        self.time_simplify += stats.time_simplify
         self.translate_removed += stats.translate_removed
         self.translate_added += stats.translate_added
         self.translate_clauses += stats.translate_clauses

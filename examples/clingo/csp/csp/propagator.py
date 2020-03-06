@@ -5,7 +5,7 @@ Propagator for CSP constraints.
 from collections import OrderedDict
 import clingo
 from .parsing import parse_theory
-from .util import measure_time, measure_time_decorator
+from .util import measure_time_decorator
 from .base import Config, Statistics, InitClauseCreator, ControlClauseCreator
 from .solver import State
 from .constraints import ConstraintBuilder
@@ -70,6 +70,7 @@ class Propagator(object):
         stats_map["Clingcon"] = OrderedDict([
             ("Init time in seconds", OrderedDict([
                 ("Total", stats.time_init),
+                ("Simplify", stats.time_simplify),
                 ("Translate", stats.time_translate)])),
             ("Problem", OrderedDict([
                 ("Constraints", stats.num_constraints),
@@ -153,15 +154,14 @@ class Propagator(object):
                 return
 
         # propagate the newly added constraints
-        if not master.simplify(cc, self.config.check_state):
-            return
+        self._simplify(cc, master)
 
         # remove unnecessary literals after simplification
         if not master.cleanup_literals(cc):
             return
 
         # translate (simple enough) constraints
-        if not self._translate(cc, builder.prepare_minimize()):
+        if not self._translate(cc, master, builder.prepare_minimize()):
             return
 
         # copy order literals from master to other states
@@ -169,7 +169,21 @@ class Propagator(object):
         for i in range(1, init.number_of_threads):
             self._state(i).copy_state(master)
 
-    def _translate(self, cc, minimize):
+    @measure_time_decorator("statistics.time_simplify")
+    def _simplify(self, cc, master):
+        """
+        Propagate constraints refining bounds.
+        """
+        try:
+            return master.simplify(cc, self.config.check_state)
+        finally:
+            # Note: During simplify propagate and check are called, which can
+            # produce large timings for the master thread.
+            master.statistics.time_propagate = 0
+            master.statistics.time_check = 0
+
+    @measure_time_decorator("statistics.time_translate")
+    def _translate(self, cc, master, minimize):
         """
         Translates constraints and take care of handling the minimize
         constraint.
@@ -185,7 +199,7 @@ class Propagator(object):
 
         # translate (simple enough) constraints
         cc.set_state(InitClauseCreator.StateTranslate)
-        ret, added = measure_time(self.statistics, "time_translate", self._state(0).translate, cc, self._l2c, self.statistics, self.config)
+        ret, added = master.translate(cc, self._l2c, self.statistics, self.config)
         if not ret:
             return False
         for constraint in added:
