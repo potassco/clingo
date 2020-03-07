@@ -560,7 +560,7 @@ class HeadBodyTransformer(Transformer):
                 if literal.type == ast.ASTType.Literal and literal.atom.type == ast.ASTType.TheoryAtom:
                     atom = literal.atom
                     term = atom.term
-                    if term.name in ["sum", "diff"] and term.arguments == []:
+                    if term.name in ["sum", "diff"] and not term.arguments:
                         rule.body.remove(literal)
                         if literal.sign != ast.Sign.Negation:
                             atom.guard.operator_name = _negate_relation(atom.guard.operator_name)
@@ -579,14 +579,16 @@ class HeadBodyTransformer(Transformer):
         name of theory atom.
         """
         t = atom.term
-        if t.name in ["sum", "diff"] and t.arguments == []:
+        if t.name in ["sum", "diff"] and not t.arguments:
             atom.term = ast.Function(t.location, t.name, [ast.Function(t.location, loc, [], False)], False)
+            # TODO: visit conditions unpool and then add necessary variables to the tuple
         return atom
 
 
 def transform(builder, s, shift):
     """
-    Transform the program with csp constraints in the given file and path it to the builder.
+    Transform the program with csp constraints in the given file and pass it to
+    the builder.
     """
     t = HeadBodyTransformer(shift)
     clingo.parse_program(s, lambda stm: builder.add(t.visit(stm)))
