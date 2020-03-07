@@ -109,7 +109,6 @@ class TestMain(unittest.TestCase):
         self.assertEqual(solve("&distinct { x; y }.", 0, 1), [[('x', 0), ('y', 1)], [('x', 1), ('y', 0)]])
         self.assertEqual(solve("&distinct { 2*x; 3*y }.", 2, 3), [[('x', 2), ('y', 2)], [('x', 2), ('y', 3)], [('x', 3), ('y', 3)]])
         self.assertEqual(solve("&distinct { 0*x; 0*y }.", 0, 1), [])
-        # TODO: gringo uses sets/maybe I should change that to also support such ugly semantics.
         self.assertEqual(solve("&distinct { 0 }.", 0, 1), [[]])
         self.assertEqual(solve("&distinct { 0; 0+0 }.", 0, 1), [])
         self.assertEqual(solve("&distinct { 0; 1 }.", 0, 1), [[]])
