@@ -5542,6 +5542,14 @@ given in the [grammar](.) above.
         self->type_ = t;
         return self;
     }
+    Object copy() {
+        auto self = new_();
+        new (&self->fields_) Dict();
+        new (&self->children) List(nullptr);
+        self->type_ = type_;
+        self->fields_ = Dict{PyDict_Copy(fields_.toPy())};
+        return self;
+    }
     static Object construct(ASTType::T type, char const **kwlist, PyObject **vals) {
         Object ret = construct(type);
         auto jt = vals;
@@ -6002,6 +6010,15 @@ The list of items of the AST node.
 Returns
 -------
 List[Tuple[str,AST]]
+)"},
+    {"__copy__", to_function<&AST::copy>(), METH_NOARGS,
+R"(__copy__(self) -> AST
+
+Return a copy of the node.
+
+Returns
+-------
+AST
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
