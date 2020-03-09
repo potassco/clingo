@@ -110,6 +110,7 @@ class TestMain(unittest.TestCase):
         self.assertEqual(solve("&distinct { 2*x; 3*y }.", 2, 3), [[('x', 2), ('y', 2)], [('x', 2), ('y', 3)], [('x', 3), ('y', 3)]])
         self.assertEqual(solve("&distinct { 0*x; 0*y }.", 0, 1), [])
         self.assertEqual(solve("&distinct { 0 }.", 0, 1), [[]])
+        self.assertEqual(solve("&distinct { 0; 0 }.", 0, 1), [])
         self.assertEqual(solve("&distinct { 0; 0+0 }.", 0, 1), [])
         self.assertEqual(solve("&distinct { 0; 1 }.", 0, 1), [[]])
         self.assertEqual(solve("&distinct { 2*x; (1+1)*x }.", 0, 1), [])
@@ -201,3 +202,12 @@ class TestMain(unittest.TestCase):
         self.assertEqual(
             solve("&sum { p(X) } = 0 :- X=1..3. &sum { q(X) } = 0 :- X=1..3. &show { p/1; q(1) }."),
             [[('p(1)', 0), ('p(2)', 0), ('p(3)', 0), ('q(1)', 0)]])
+
+    def test_set(self):
+        self.assertEqual(solve("&sum { 1;1 } = x."), [[('x', 2)]])
+        self.assertEqual(solve("&sum { 1 : X=1..3 } = x."), [[('x', 3)]])
+        self.assertEqual(solve("&sum { 1 : X=(1;2;3) } = x."), [[('x', 3)]])
+        self.assertEqual(solve("&sum { 1 : 1=(X;Y;Z) } = x."), [[('x', 3)]])
+        self.assertEqual(
+            solve("&sum { v(X) } = X :- X=1..3. &sum { v(X) : X=1..2; v(X) : X=2..3 } = x."),
+            [[('v(1)', 1), ('v(2)', 2), ('v(3)', 3), ('x', 8)]])

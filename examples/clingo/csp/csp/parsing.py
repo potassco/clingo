@@ -2,12 +2,14 @@
 This module contains functions for parsing and normalizing constraints.
 """
 
+from copy import copy
 from abc import abstractmethod
 from functools import reduce  # pylint: disable=redefined-builtin
 
 import clingo
 from clingo import ast
 from csp.util import gcd, ABC, abstractproperty
+from csp.astutil import match, Transformer, unpool_theory_atom, collect_variables
 
 
 THEORY = """\
@@ -41,15 +43,6 @@ THEORY = """\
     &dom/0 : dom_term, {=}, var_term, head
 }.
 """
-
-
-def match(term, name, arity):
-    """
-    Match the given term if it is a function with signature `name/arity`.
-    """
-    return (term.type in (clingo.TheoryTermType.Function, clingo.TheoryTermType.Symbol) and
-            term.name == name and
-            len(term.arguments) == arity)
 
 
 class AbstractConstraintBuilder(ABC):
@@ -242,7 +235,7 @@ def _parse_distinct(builder, atom):
 
     elements = []
     for elem in atom.elements:
-        if len(elem.terms) == 1 and not elem.condition:
+        if elem.terms and not elem.condition:
             elements.append(simplify(_parse_constraint_elem(builder, elem.terms[0], True), False))
         else:
             raise RuntimeError("Invalid Syntax")
@@ -350,7 +343,7 @@ def _parse_constraint_elems(builder, elems, rhs, is_sum):
         raise RuntimeError("Invalid Syntax")
 
     for elem in elems:
-        if len(elem.terms) == 1 and not elem.condition:
+        if elem.terms and not elem.condition:
             for co, var in _parse_constraint_elem(builder, elem.terms[0], is_sum):
                 yield co, var
         else:
@@ -489,37 +482,6 @@ def _evaluate_term(term):
     raise RuntimeError("Invalid Syntax")
 
 
-class Transformer(object):
-    """
-    Transforms `clingo.ast.AST` objects by visiting all child nodes.
-
-    Implement `visit_<type>` where `<type>` is the type of the nodes to be
-    visited.
-    """
-    def visit_children(self, x, *args, **kwargs):
-        """
-        Visit all child nodes of the current node.
-        """
-        for key in x.child_keys:
-            setattr(x, key, self.visit(getattr(x, key), *args, **kwargs))
-        return x
-
-    def visit(self, x, *args, **kwargs):
-        """
-        Default visit method to dispatch calls to child nodes.
-        """
-        if isinstance(x, ast.AST):
-            attr = "visit_" + str(x.type)
-            if hasattr(self, attr):
-                return getattr(self, attr)(x, *args, **kwargs)
-            return self.visit_children(x, *args, **kwargs)
-        if isinstance(x, list):
-            return [self.visit(y, *args, **kwargs) for y in x]
-        if x is None:
-            return x
-        raise TypeError("unexpected type")
-
-
 def _negate_relation(name):
     if name == "=":
         return "!="
@@ -540,6 +502,8 @@ class HeadBodyTransformer(Transformer):
     """
     Transforms sum/diff theory atoms in heads and bodies of rules by turning
     the name of each theory atom into a function with head or body as argument.
+    Shift constraints into heads of integrity constraints. And make sure that
+    diff, sum, and distinct constraints are treated as multisets.
     """
     # pylint: disable=invalid-name
 
@@ -548,40 +512,125 @@ class HeadBodyTransformer(Transformer):
 
     def visit_Rule(self, rule):
         """
-        Visit rules adding a parameter indicating whether the head or body is
-        being visited.
+        Shift constraints in integrity constraints and visit head/body
+        literals.
         """
         # Note: This implements clingcon's don't care propagation. We can shift
         # one constraint from the body of an integrity constraint to the head
         # of a rule. This way the constraint is no longer strict and can be
         # represented internally with less constraints.
-        if self._shift and rule.head.type == ast.ASTType.Literal and rule.head.atom.type == ast.ASTType.BooleanConstant and not rule.head.atom.value:
-            for literal in rule.body:
+        head = rule.head
+        body = rule.body
+        if self._shift and head.type == ast.ASTType.Literal and head.atom.type == ast.ASTType.BooleanConstant and not head.atom.value:
+            for literal in body:
                 if literal.type == ast.ASTType.Literal and literal.atom.type == ast.ASTType.TheoryAtom:
                     atom = literal.atom
                     term = atom.term
                     if term.name in ["sum", "diff"] and not term.arguments:
-                        rule.body.remove(literal)
+                        body = copy(body)
+                        body.remove(literal)
                         if literal.sign != ast.Sign.Negation:
+                            atom = copy(atom)
+                            atom.guard = copy(atom.guard)
                             atom.guard.operator_name = _negate_relation(atom.guard.operator_name)
-                        rule.head = atom
+                        head = atom
                         break
 
         # tag heads and bodies
-        rule.head = self.visit(rule.head, loc="head")
-        rule.body = self.visit(rule.body, loc="body")
+        head = self.visit(head, loc="head")
+        body = self.visit(body, loc="body")
 
-        return rule
+        return ast.Rule(rule.location, head, body)
+
+    def _rewrite_body(self, x):
+        """
+        Rewrite the body of the given statement.
+        """
+        body = self.visit(x.body, loc="body")
+        if x.body is not body:
+            x = copy(x)
+            x.body = body
+        return x
+
+    def visit_ShowTerm(self, x):
+        """
+        Rewrite statements with a body.
+        """
+        return self._rewrite_body(x)
+
+    def visit_Minimize(self, x):
+        """
+        Rewrite statements with a body.
+        """
+        return self._rewrite_body(x)
+
+    def visit_External(self, x):
+        """
+        Rewrite statements with a body.
+        """
+        return self._rewrite_body(x)
+
+    def visit_Edge(self, x):
+        """
+        Rewrite statements with a body.
+        """
+        return self._rewrite_body(x)
+
+    def visit_Heuristic(self, x):
+        """
+        Rewrite statements with a body.
+        """
+        return self._rewrite_body(x)
+
+    def visit_ProjectAtom(self, x):
+        """
+        Rewrite statements with a body.
+        """
+        return self._rewrite_body(x)
+
+    def _rewrite_tuple(self, element, number):
+        """
+        Add variables to tuple to ensure multiset semantics.
+        """
+        if len(element.tuple) != 1:
+            raise RuntimeError("Invalid Syntax")
+
+        in_condition = collect_variables(element.condition)
+        for name in collect_variables(element.tuple):
+            if name in in_condition:
+                del in_condition[name]
+
+        element.tuple = list(element.tuple)
+        if number is not None:
+            element.tuple.append(ast.Symbol(element.tuple[0].location, clingo.Number(number)))
+        element.tuple.extend(in_condition[name] for name in sorted(in_condition))
+
+        return element
+
+    def _rewrite_tuples(self, elements):
+        """
+        Add variables to tuples of elements to ensure multiset semantics.
+        """
+        if len(elements) == 1:
+            return [self._rewrite_tuple(elements[0], None)]
+
+        return [self._rewrite_tuple(element, n) for n, element in enumerate(elements)]
 
     def visit_TheoryAtom(self, atom, loc="body"):
         """
-        Modify sum and diff in theory atoms by adding loc as parameter to the
-        name of theory atom.
+        Mark head/body literals and ensure multiset semantics for theory atoms.
         """
-        t = atom.term
-        if t.name in ["sum", "diff"] and not t.arguments:
-            atom.term = ast.Function(t.location, t.name, [ast.Function(t.location, loc, [], False)], False)
-            # TODO: visit conditions unpool and then add necessary variables to the tuple
+        term = atom.term
+
+        # ensure multi set semantics for theory atoms
+        if term.name in ["sum", "diff", "distinct", "minimize", "maximize"] and not term.arguments:
+            atom = unpool_theory_atom(atom)
+            atom.elements = self._rewrite_tuples(atom.elements)
+
+        # annotate theory atoms in heads and bodies
+        if term.name in ["sum", "diff"] and not term.arguments:
+            atom.term = ast.Function(term.location, term.name, [ast.Function(term.location, loc, [], False)], False)
+
         return atom
 
 
