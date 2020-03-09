@@ -26,9 +26,10 @@ ConfLocalEntry = collections.namedtuple(
     'ConfLocalEntry',
     ['refine_reasons',
      'refine_introduce',
-     'propagate_chain'])
+     'propagate_chain',
+     'split_all'])
 # Note: this should simply contain the opposite of the default config
-CONF_LOCAL = [ConfLocalEntry(False, False, False)]
+CONF_LOCAL = [ConfLocalEntry(False, False, False, True)]
 
 
 class Solver(object):
@@ -110,6 +111,7 @@ class Solver(object):
                 self.prp.config.default_state_config.refine_reasons = conf.refine_reasons
                 self.prp.config.default_state_config.refine_introduce = conf.refine_introduce
                 self.prp.config.default_state_config.propagate_chain = conf.propagate_chain
+                self.prp.config.default_state_config.split_all = conf.split_all
                 self.prp.config.threads = []
                 ret_alt = []
                 self.prg.solve(on_model=lambda m: ret_alt.append(self._parse_model(m, optimize)))

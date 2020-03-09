@@ -156,6 +156,10 @@ class Application(object):
                   <i>: Only enable for thread <i>\
             """.format(self._flag_str(conf.default_state_config.propagate_chain))),
             self._parse_bool_thread("propagate_chain"), True)
+        options.add(
+            group, "split-all",
+            "Split domains of all incomplete variables on complete assignment [{}]".format(self._flag_str(conf.default_state_config.split_all)),
+            self._parse_bool_thread("split_all"), True)
 
         # hidden/debug
         options.add(

@@ -1132,17 +1132,25 @@ class State(object):
 
         This function should only be called total assignments.
         """
-        post = range(self._lerp_last, len(self._var_state))
-        pre = range(0, self._lerp_last)
-        for i in chain(post, pre):
-            vs = self._var_state[i]
-            if not vs.is_assigned:
-                self._lerp_last = i
-                value = lerp(vs.lower_bound, vs.upper_bound)
-                self.get_literal(vs, value, control)
-                return
+        found = False
+        if self.config.split_all:
+            for vs in self._var_state:
+                if not vs.is_assigned:
+                    value = lerp(vs.lower_bound, vs.upper_bound)
+                    self.get_literal(vs, value, control)
+                    found = True
+        else:
+            post = range(self._lerp_last, len(self._var_state))
+            pre = range(0, self._lerp_last)
+            for i in chain(post, pre):
+                vs = self._var_state[i]
+                if not vs.is_assigned:
+                    self._lerp_last = i
+                    value = lerp(vs.lower_bound, vs.upper_bound)
+                    self.get_literal(vs, value, control)
+                    return
 
-        if check_solution:
+        if not found and check_solution:
             for lit, constraints in self._l2c.items():
                 if control.assignment.is_true(lit):
                     for c in constraints:

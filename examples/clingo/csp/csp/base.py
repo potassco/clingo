@@ -115,6 +115,7 @@ class StateConfig(object):
         self.propagate_chain = True
         self.refine_reasons = True
         self.refine_introduce = True
+        self.split_all = False
 
     def copy(self):
         """
@@ -124,6 +125,7 @@ class StateConfig(object):
         cfg.propagate_chain = self.propagate_chain
         cfg.refine_reasons = self.refine_reasons
         cfg.refine_introduce = self.refine_introduce
+        cfg.split_all = self.split_all
         return cfg
 
 
