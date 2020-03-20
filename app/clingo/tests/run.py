@@ -57,19 +57,6 @@ if clingo is None:
     print ("no usable clingo version found")
     exit(1)
 
-def reorder(out):
-    return out
-    res = []
-    current = []
-    for line in out.splitlines():
-        if line.startswith("Step: ") or line.startswith("SAT") or line.startswith("UNSAT") or line.startswith("UNKNOWN") or line.startswith("OPTIMUM FOUND"):
-            res.extend(sorted(current))
-            res.append(line)
-            current = []
-        else:
-            current.append(" ".join(sorted(line.split(" "))))
-    return "\n".join(res)
-
 def normalize(out):
     state=0
     current=[]
@@ -154,7 +141,7 @@ if parse_ret.action == "run":
                 out, err = sp.Popen(args, stderr=sp.PIPE, stdout=sp.PIPE, universal_newlines=True).communicate()
                 norm = normalize(out)
                 with open(b + ".sol", 'rU') as sol_file:
-                    sol  = reorder(sol_file.read())
+                    sol  = sol_file.read()
                 if norm != sol:
                     failed+= 1
                     print

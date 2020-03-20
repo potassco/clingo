@@ -104,12 +104,13 @@ int main(int argc, char const **argv) {
   if (!clingo_control_solve(ctl, clingo_solve_mode_async | clingo_solve_mode_yield, NULL, 0, on_event, &running, &handle)) { goto error; }
 
   // let's approximate pi
-  while (atomic_flag_test_and_set(&running)) {
+  do {
     ++samples;
     x = rand();
     y = rand();
     if (x * x + y * y <= (uint64_t)RAND_MAX * RAND_MAX) { incircle+= 1; }
   }
+  while (atomic_flag_test_and_set(&running));
   printf("pi = %g\n", 4.0*incircle/samples);
 
   // get the solve result
