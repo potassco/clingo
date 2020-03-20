@@ -2609,14 +2609,15 @@ solving:
     }
     Object atoms(Reference pyargs, Reference pykwds) {
         clingo_show_type_bitset_t atomset = 0;
-        static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "complement", nullptr};
-        Reference pyAtoms = Py_False, pyTerms = Py_False, pyShown = Py_False, pyCSP = Py_False, pyComp = Py_False;
-        ParseTupleAndKeywords(pyargs, pykwds, "|OOOOO", const_cast<char**>(kwlist), pyAtoms, pyTerms, pyShown, pyCSP, pyComp);
-        if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
-        if (pyToCpp<bool>(pyTerms)) { atomset |= clingo_show_type_terms; }
-        if (pyToCpp<bool>(pyShown)) { atomset |= clingo_show_type_shown; }
-        if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
-        if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_complement; }
+        static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "theory", "complement", nullptr};
+        Reference pyAtoms = Py_False, pyTerms = Py_False, pyShown = Py_False, pyCSP = Py_False, pyTheory = Py_False, pyComp = Py_False;
+        ParseTupleAndKeywords(pyargs, pykwds, "|OOOOOO", const_cast<char**>(kwlist), pyAtoms, pyTerms, pyShown, pyCSP, pyTheory, pyComp);
+        if (pyToCpp<bool>(pyAtoms))  { atomset |= clingo_show_type_atoms; }
+        if (pyToCpp<bool>(pyTerms))  { atomset |= clingo_show_type_terms; }
+        if (pyToCpp<bool>(pyShown))  { atomset |= clingo_show_type_shown; }
+        if (pyToCpp<bool>(pyCSP))    { atomset |= clingo_show_type_csp; }
+        if (pyToCpp<bool>(pyTheory)) { atomset |= clingo_show_type_theory; }
+        if (pyToCpp<bool>(pyComp))   { atomset |= clingo_show_type_complement; }
         size_t size;
         handle_c_error(clingo_model_symbols_size(model, atomset, &size));
         std::vector<symbol_wrapper> ret(size);
@@ -2744,7 +2745,7 @@ An int representing the pointer to the underlying C `clingo_model_t` struct.
 
 PyMethodDef Model::tp_methods[] = {
     {"symbols", to_function<&Model::atoms>(), METH_VARARGS | METH_KEYWORDS,
-R"(symbols(self, atoms: bool=False, terms: bool=False, shown: bool=False, csp: bool=False, complement: bool=False) -> List[Symbol]
+R"(symbols(self, atoms: bool=False, terms: bool=False, shown: bool=False, csp: bool=False, theory: bool=False, complement: bool=False) -> List[Symbol]
 
 Return the list of atoms, terms, or CSP assignments in the model.
 
@@ -2754,11 +2755,13 @@ atoms : bool=False
     Select all atoms in the model (independent of `#show` statements).
 terms : bool=False
     Select all terms displayed with `#show` statements in the model.
-shown : bool
+shown : bool=False
     Select all atoms and terms as outputted by clingo.
-csp : bool
+csp : bool=False
     Select all csp assignments (independent of `#show` statements).
-complement : bool
+theory : bool=False
+    Select atoms added with `Model.extend`.
+complement : bool=False
     Return the complement of the answer set w.r.t. to the atoms known to the
     grounder. (Does not affect csp assignments.)
 

@@ -205,9 +205,11 @@ class TheoryOutput : public Clasp::OutputTable::Theory {
 public:
     char const * first(const Clasp::Model&) override;
     char const * next() override;
-
     void add(Potassco::Span<Symbol> symbols) {
         symbols_.insert(symbols_.end(), begin(symbols), end(symbols));
+    }
+    void copy_symbols(std::vector<Symbol> &symbols) {
+        symbols.insert(symbols.end(), symbols_.begin(), symbols_.end());
     }
     void reset() {
         symbols_.clear();
@@ -398,6 +400,9 @@ public:
     }
     SymSpan atoms(unsigned atomset) const override {
         atms_ = out().atoms(atomset, [this](unsigned uid) { return model_->isTrue(lp().getLiteral(uid)); });
+        if (atomset & clingo_show_type_theory) {
+            ctl_.theory_.copy_symbols(atms_);
+        }
         return Potassco::toSpan(atms_);
     }
     Int64Vec optimization() const override {

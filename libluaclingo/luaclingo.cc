@@ -1544,6 +1544,9 @@ struct Model : Object<Model> {
         lua_getfield(L, 2, "csp");
         if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_csp; }
         lua_pop(L, 1);
+        lua_getfield(L, 2, "theory");
+        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_theory; }
+        lua_pop(L, 1);
         lua_getfield(L, 2, "complement");
         if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_complement; }
         lua_pop(L, 1);
@@ -2894,7 +2897,6 @@ public:
         auto *self = static_cast<Propagator*>(data);
         lua_State *L = self->threads[clingo_propagate_control_thread_id(control)];
         if (!lua_checkstack(L, 6)) {
-            char const *msg = lua_tostring(L, -1);
             std::cerr << "propagator: error in undo going to abort:\n" << "lua stack size exceeded" << std::endl;
             std::abort();
         }
@@ -3442,9 +3444,16 @@ struct ControlWrap : Object<ControlWrap> {
             lua_getfield(L, 2, "on_finish");   // +1
             handle->hasFH = !lua_isnil(L, -1);
             lua_rawset(L, handleIdx);          // -2
+
         }
 
-        if (handle->mode & clingo_solve_mode_async) { return luaL_error(L, "asynchronous solving not supported"); }
+        // Note: this is fixable but unfortunately quite involved
+        if ((handle->hasFH || handle->hasMH) && (handle->mode & clingo_solve_mode_yield)) {
+            return luaL_error(L, "callbacks and iterative solving cannot be used together at the moment.");
+        }
+        if (handle->mode & clingo_solve_mode_async) {
+            return luaL_error(L, "asynchronous solving not supported");
+        }
 
         lua_settop(L, handleIdx + 1);
 

@@ -3,12 +3,17 @@
 import clingo
 import sys
 
+symbols = [clingo.Number(17)]
+
 def on_model(m):
-    m.extend([clingo.Number(17)])
+    m.extend(symbols)
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve(on_model=on_model)
+    with prg.solve(on_model=on_model, yield_=True) as handle:
+        for m in handle:
+            assert m.symbols(theory=True) == symbols
+        handle.get()
 
 #end.
 

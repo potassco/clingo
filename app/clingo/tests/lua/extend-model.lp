@@ -2,8 +2,23 @@
 
 clingo = require("clingo")
 
+symbols = {clingo.Number(17)}
+
+function compare(a, b)
+    if #a ~= #b then
+        return false
+    end
+    for i=1, #a do
+        if a[i] ~= b[i] then
+            return false
+        end
+    end
+    return true
+end
+
 function on_model(m)
-    m:extend{clingo.Number(17)}
+    m:extend(symbols)
+    assert(compare(m:symbols{theory=true}, symbols))
 end
 
 function main(prg)
