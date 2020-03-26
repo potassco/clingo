@@ -168,6 +168,7 @@ public:
     template <class... Args>
     Optional(Args&&... x) : data_(new T{std::forward<Args>(x)...}) { }
     Optional(Optional &&opt) noexcept : data_(opt.data_.release()) { }
+    Optional(Optional &opt) noexcept : data_(opt.data_.release()) { }
     Optional(Optional const &opt) : data_(opt ? new T(*opt.get()) : nullptr) { }
     Optional &operator=(T const &x) {
         clear();
