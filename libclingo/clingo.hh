@@ -830,13 +830,13 @@ public:
     }
     IndexIterator& operator+=(difference_type n) { index_ += n; return *this; }
     IndexIterator& operator-=(difference_type n) { index_ -= n; return *this; }
-    friend IndexIterator operator+(IndexIterator it, difference_type n) { return IndexIterator{it.ass_, it.index_ + n}; }
-    friend IndexIterator operator+(difference_type n, IndexIterator it) { return IndexIterator{it.ass_, it.index_ + n}; }
-    friend IndexIterator operator-(IndexIterator it, difference_type n) { return IndexIterator{it.ass_, it.index_ - n}; }
+    friend IndexIterator operator+(IndexIterator it, difference_type n) { return IndexIterator{it.con_, it.index_ + n}; }
+    friend IndexIterator operator+(difference_type n, IndexIterator it) { return IndexIterator{it.con_, it.index_ + n}; }
+    friend IndexIterator operator-(IndexIterator it, difference_type n) { return IndexIterator{it.con_, it.index_ - n}; }
     friend difference_type operator-(IndexIterator a, IndexIterator b)  { return a.index_ - b.index_; }
     value_type operator*() { return con_->at(index_); }
     friend void swap(IndexIterator& lhs, IndexIterator& rhs) {
-        std::swap(lhs.ass_, rhs.ass_);
+        std::swap(lhs.con_, rhs.con_);
         std::swap(lhs.index_, rhs.index_);
     }
     friend bool operator==(IndexIterator lhs, IndexIterator rhs) { return lhs.index_ == rhs.index_; }
