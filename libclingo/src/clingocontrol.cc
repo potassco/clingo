@@ -379,7 +379,7 @@ class ClingoPropagateInit : public PropagateInit {
 public:
     using Lit_t = Potassco::Lit_t;
     ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p)
-    : c_{c}, p_{p}, a_{*facade_().ctx.solver(0)} {
+    : c_{c}, p_{p}, a_{*facade_().ctx.master()}, cc_{facade_().ctx.master()} {
         p_.enableHistory(false);
     }
     Output::DomainData const &theory() const override { return c_.theory(); }
@@ -398,10 +398,9 @@ public:
     bool addClause(Potassco::LitSpan lits) override {
         auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
         if (ctx.master()->hasConflict()) { return false; }
-        Clasp::ClauseCreator cc{ctx.master()};
-        cc.start();
-        for (auto &lit : lits) { cc.add(Clasp::decodeLit(lit)); }
-        return cc.end(Clasp::ClauseCreator::clause_force_simplify).ok();
+        cc_.start();
+        for (auto &lit : lits) { cc_.add(Clasp::decodeLit(lit)); }
+        return cc_.end(Clasp::ClauseCreator::clause_force_simplify).ok();
     }
     bool addWeightConstraint(Potassco::Lit_t lit, Potassco::WeightLitSpan lits, Potassco::Weight_t bound, int type, bool eq) override {
         auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
@@ -445,6 +444,7 @@ private:
     Control &c_;
     Clasp::ClingoPropagatorInit &p_;
     Clasp::ClingoAssignment a_;
+    Clasp::ClauseCreator cc_;
 };
 
 } // namespace
