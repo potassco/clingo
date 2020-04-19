@@ -1154,6 +1154,14 @@ extern "C" bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_
     }
     GRINGO_CLINGO_CATCH;
 }
+extern "C" bool clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_literal_t const **core, size_t *size) {
+    GRINGO_CLINGO_TRY {
+        auto core_span = handle->unsatCore();
+        *core = core_span.first;
+        *size = core_span.size;
+    }
+    GRINGO_CLINGO_CATCH;
+}
 extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_TRY { handle->resume(); }
     GRINGO_CLINGO_CATCH;

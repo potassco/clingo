@@ -450,14 +450,16 @@ private:
 SolveResult convert(Clasp::ClaspFacade::Result res);
 class ClingoSolveFuture : public Gringo::SolveFuture {
 public:
-    ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode);
+    ClingoSolveFuture(Potassco::LitSpan ass, ClingoControl &ctl, Clasp::SolveMode_t mode);
 
     SolveResult  get()  override;
     Model const *model() override;
+    Potassco::LitSpan unsatCore() override;
     bool wait(double timeout) override;
     void resume() override;
     void cancel() override;
 private:
+    Potassco::LitVec                ass_;
     ClingoModel                     model_;
     Clasp::ClaspFacade::SolveHandle handle_;
 };

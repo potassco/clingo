@@ -30,7 +30,7 @@
 #include <clasp/clause.h>
 #include <clasp/weight_constraint.h>
 #include "clingo.h"
-#include <signal.h>
+#include <csignal>
 #include <clingo/script.h>
 #include <clingo/incmode.hh>
 
@@ -360,7 +360,9 @@ USolveFuture ClingoControl::solve(Assumptions ass, clingo_solve_mode_bitset_t mo
             accu_stats_.init(clasp_->getStats(), "user_accu");
         }
         eventHandler_ = std::move(cb);
-        return gringo_make_unique<ClingoSolveFuture>(*this, static_cast<Clasp::SolveMode_t>(mode));
+        // FIXME: assumptions can also be added via the backend, such
+        // assumptions are not included at the moment
+        return gringo_make_unique<ClingoSolveFuture>(ass, *this, static_cast<Clasp::SolveMode_t>(mode));
     }
     else {
         return gringo_make_unique<DefaultSolveFuture>(std::move(cb));
@@ -756,8 +758,9 @@ SolveResult convert(Clasp::ClaspFacade::Result res) {
     return {sat, res.exhausted(), res.interrupted()};
 }
 
-ClingoSolveFuture::ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode)
-: model_{ctl}
+ClingoSolveFuture::ClingoSolveFuture(Potassco::LitSpan ass, ClingoControl &ctl, Clasp::SolveMode_t mode)
+: ass_{ass.first, ass.first + ass.size}
+, model_{ctl}
 , handle_{model_.context().clasp_->solve(mode)} { }
 
 SolveResult ClingoSolveFuture::get() {
@@ -773,6 +776,23 @@ Model const *ClingoSolveFuture::model() {
         return &model_;
     }
     else { return nullptr; }
+}
+Potassco::LitSpan ClingoSolveFuture::unsatCore() {
+    auto core_ptr = handle_.unsatCore();
+    if (!core_ptr) {
+        ass_.clear();
+    }
+    else if (core_ptr->size() < ass_.size()) {
+        auto *prg = static_cast<Clasp::Asp::LogicProgram*>(model_.context().clasp_->program());
+        Clasp::LitVec core = *core_ptr;
+        std::sort(core.begin(), core.end());
+        ass_.erase(std::remove_if(ass_.begin(), ass_.end(), [prg, &core](auto lit){
+            // TODO: this might not work in all situations
+            auto slit = prg->getLiteral(lit, Clasp::Asp::MapLit_t::Refined);
+            return !std::binary_search(core.begin(), core.end(), slit);
+        }), ass_.end());
+    }
+    return Potassco::toSpan(ass_);
 }
 bool ClingoSolveFuture::wait(double timeout) {
     if (timeout == 0)      { return handle_.ready(); }
