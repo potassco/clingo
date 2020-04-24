@@ -5652,6 +5652,7 @@ given in the [grammar](.) above.
     void tp_clear();
 
     Object to_c();
+    static PyObject *from_c(PyObject *self, PyObject *value);
 
     void tp_dealloc() {
         tp_clear();
@@ -6015,6 +6016,20 @@ List[Tuple[str,AST]]
 R"(__copy__(self) -> AST
 
 Return a copy of the node.
+
+Returns
+-------
+AST
+)"},
+    {"_from_c", &AST::from_c, METH_O | METH_STATIC,
+R"(_from_c(statement: int) -> AST
+
+Corresponding method to `AST._to_c`.
+
+Parameters
+----------
+statement : int
+    Integer representing c pointer to clingo_ast_statement.
 
 Returns
 -------
@@ -7179,6 +7194,14 @@ Object AST::to_c() {
             throw std::runtime_error("only statements can be converted");
         }
     }
+}
+
+PyObject *AST::from_c(PyObject *self, PyObject *value) {
+    PY_TRY {
+        static_cast<void>(self);
+        return cppToPy(static_cast<clingo_ast_statement_t*>(PyLong_AsVoidPtr(value))).release();
+    }
+    PY_CATCH(nullptr);
 }
 
 // }}}2
