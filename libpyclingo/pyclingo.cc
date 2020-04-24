@@ -5491,10 +5491,13 @@ constexpr const char * const ScriptType::strings[];
 
 // }}}3
 
+struct ASTToC;
+
 struct AST : ObjectBase<AST> {
     ASTType::T type_;
     Dict fields_;
     List children;
+    std::unique_ptr<ASTToC> crep_;
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "AST";
@@ -5522,12 +5525,15 @@ It is also possible to create AST nodes using one of the functions provided in
 this module. The parameters of the functions correspond to the nonterminals as
 given in the [grammar](.) above.
 )";
-    static Object tp_new(PyTypeObject *type) {
-        auto self = new_(type);
-        new (&self->fields_) Dict();
-        new (&self->children) List(nullptr);
-        return self;
+    static SharedObject<AST> construct(PyTypeObject *type);
+    static SharedObject<AST> construct() {
+        return construct(&type);
     }
+
+    static Object tp_new(PyTypeObject *type) {
+        return construct(type);
+    }
+
     void tp_init(Reference args, Reference kwargs) {
         Reference pyType;
         ParseTuple(args, "O", pyType);
@@ -5538,28 +5544,20 @@ given in the [grammar](.) above.
             }
         }
     }
-    static Object construct(ASTType::T t) {
-        auto self = new_();
-        new (&self->fields_) Dict();
-        new (&self->children) List(nullptr);
-        self->type_ = t;
-        return self;
-    }
     Object copy() {
-        auto self = new_();
-        new (&self->fields_) Dict();
-        new (&self->children) List(nullptr);
+        auto self = construct();
         self->type_ = type_;
         self->fields_ = Dict{PyDict_Copy(fields_.toPy())};
         return self;
     }
-    static Object construct(ASTType::T type, char const **kwlist, PyObject **vals) {
-        Object ret = construct(type);
+    static Object construct(ASTType::T t, char const **kwlist, PyObject **vals) {
+        auto self = construct();
+        self->type_ = t;
         auto jt = vals;
         for (auto it = kwlist; *it; ++it) {
-            ret.setAttr(*it, *jt++);
+            self.setAttr(*it, *jt++);
         }
-        return ret;
+        return self;
     }
     Object childKeys_() {
         auto ret = [](std::initializer_list<char const *> l) { return cppToPy(l); };
@@ -5651,10 +5649,9 @@ given in the [grammar](.) above.
         visit(children);
     }
 
-    void tp_clear() {
-        fields_.clear();
-        children.clear();
-    }
+    void tp_clear();
+
+    Object to_c();
 
     void tp_dealloc() {
         tp_clear();
@@ -6034,6 +6031,19 @@ List of names of all AST child nodes.
     {(char*)"type", to_getter<&AST::getType>(), to_setter<&AST::setType>(), (char*)R"(type: ASTType
 
 The type of the node.
+)", nullptr},
+    {(char *)"_to_c", to_getter<&AST::to_c>(), nullptr, (char *)R"(_to_c: int
+
+An int representing the pointer to the underlying C `clingo_ast_statement_t`
+struct.
+
+The pointer will stay valid until the next call to this function or the AST
+node is deleted.
+
+Note that only statements can be converted. This is a limitation of current
+data structure and could only be changed by changing the whole layout of the
+data structure. This might happen in a future release before the AST leaves the
+experimental state.
 )", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
@@ -7131,6 +7141,45 @@ struct ASTToC {
 
     // }}}3
 };
+
+SharedObject<AST> AST::construct(PyTypeObject *type) {
+    auto self = new_(type);
+    new (&self->fields_) Dict();
+    new (&self->children) List(nullptr);
+    new (&self->crep_) std::unique_ptr<ASTToC>();
+    return self;
+}
+
+void AST::tp_clear() {
+    fields_.clear();
+    children.clear();
+    crep_.reset();
+}
+
+Object AST::to_c() {
+    crep_ = std::unique_ptr<ASTToC>(new ASTToC());
+    switch (enumValue<ASTType>(getAttr("type"))) {
+        case ASTType::TheoryDefinition:
+        case ASTType::Rule:
+        case ASTType::Definition:
+        case ASTType::ShowSignature:
+        case ASTType::ShowTerm:
+        case ASTType::Minimize:
+        case ASTType::Script:
+        case ASTType::Program:
+        case ASTType::External:
+        case ASTType::Edge:
+        case ASTType::Heuristic:
+        case ASTType::ProjectAtom:
+        case ASTType::ProjectSignature:
+        case ASTType::Defined: {
+            return PyLong_FromVoidPtr(crep_->create_(crep_->convStatement(*this)));
+        }
+        default: {
+            throw std::runtime_error("only statements can be converted");
+        }
+    }
+}
 
 // }}}2
 
