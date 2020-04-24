@@ -7199,7 +7199,7 @@ Object AST::to_c() {
 PyObject *AST::from_c(PyObject *self, PyObject *value) {
     PY_TRY {
         static_cast<void>(self);
-        return cppToPy(static_cast<clingo_ast_statement_t*>(PyLong_AsVoidPtr(value))).release();
+        return cppToPy(*static_cast<clingo_ast_statement_t*>(PyLong_AsVoidPtr(value))).release();
     }
     PY_CATCH(nullptr);
 }
