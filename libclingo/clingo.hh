@@ -169,8 +169,8 @@ public:
     template <class... Args>
     Optional(Args&&... x) : data_(new T{std::forward<Args>(x)...}) { }
     Optional(Optional &&opt) noexcept : data_(opt.data_.release()) { }
-    Optional(Optional &opt) : data_(opt ? new T(*opt.get()) : nullptr) { }
-    Optional(Optional const &opt) : data_(opt ? new T(*opt.get()) : nullptr) { }
+    Optional(Optional &opt) : data_(opt ? new T(*opt) : nullptr) { }
+    Optional(Optional const &opt) : data_(opt ? new T(*opt) : nullptr) { }
     Optional &operator=(T const &x) {
         clear();
         data_.reset(new T(x));
@@ -192,7 +192,7 @@ public:
     }
     Optional &operator=(Optional const &opt) {
         clear();
-        data_.reset(opt ? new T(*opt.get()) : nullptr);
+        data_.reset(opt ? new T(*opt) : nullptr);
         return *this;
     }
     T *get() { return data_.get(); }
@@ -4921,7 +4921,7 @@ CLINGO_ARRAY(clingo_ast_theory_operator_definition_t, TheoryOperatorDefinition)
 
 inline Optional<TheoryGuardDefinition> convTheoryGuardDefinition(clingo_ast_theory_guard_definition_t const *def) {
     return def != nullptr
-        ? Optional<TheoryGuardDefinition>{def->term, std::vector<char const *>{def->operators, def->operators + def->size}}
+        ? Optional<TheoryGuardDefinition>{TheoryGuardDefinition{def->term, std::vector<char const *>{def->operators, def->operators + def->size}}}
         : Optional<TheoryGuardDefinition>{};
 }
 
