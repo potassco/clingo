@@ -371,7 +371,7 @@ public:
     : Span(c.size() > 0 ? &*c.begin() : nullptr, c.size(), to_it) { }
     template <class U>
     Span(U const &c, I to_it = I())
-    : Span(!empty() ? &*c.begin() : nullptr, c.size(), to_it) { }
+    : Span(c.size() > 0 ? &*c.begin() : nullptr, c.size(), to_it) { }
     Span(T const *begin, T const *end, I to_it = I())
     : I(to_it)
     , begin_(begin)
