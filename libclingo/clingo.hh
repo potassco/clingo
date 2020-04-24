@@ -161,10 +161,11 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
 template <class T>
 class Optional {
 public:
-    Optional() { }
+    Optional() = default;
+    ~Optional() = default;
     Optional(T const &x) : data_(new T(x)) { }
     Optional(T &x) : data_(new T(x)) { }
-    Optional(T &&x) : data_(new T(std::move(x))) { }
+    Optional(T &&x) noexcept : data_(new T(std::move(x))) { }
     template <class... Args>
     Optional(Args&&... x) : data_(new T{std::forward<Args>(x)...}) { }
     Optional(Optional &&opt) noexcept : data_(opt.data_.release()) { }
@@ -208,7 +209,7 @@ public:
         data_(new T{std::forward<Args>(x)...});
     }
     void clear() { data_.reset(nullptr); }
-    explicit operator bool() const { return data_.get() != nullptr; }
+    explicit operator bool() const { return data_ != nullptr; }
 private:
     std::unique_ptr<T> data_;
 };
@@ -282,7 +283,7 @@ public:
     }
 
 private:
-    Variant() { }
+    Variant() = default;
     Variant(Holder const &data) {
         data_.copy(data);
     }
@@ -307,7 +308,6 @@ private:
         data_.swap(x.data_);
     }
 
-private:
     Holder data_;
 };
 
@@ -371,7 +371,7 @@ public:
     : Span(c.size() > 0 ? &*c.begin() : nullptr, c.size(), to_it) { }
     template <class U>
     Span(U const &c, I to_it = I())
-    : Span(c.size() > 0 ? &*c.begin() : nullptr, c.size(), to_it) { }
+    : Span(!empty() ? &*c.begin() : nullptr, c.size(), to_it) { }
     Span(T const *begin, T const *end, I to_it = I())
     : I(to_it)
     , begin_(begin)
@@ -529,7 +529,7 @@ Symbol Number(int num);
 Symbol Supremum();
 Symbol Infimum();
 Symbol String(char const *str);
-Symbol Id(char const *str, bool positive = true);
+Symbol Id(char const *id, bool positive = true);
 Symbol Function(char const *name, SymbolSpan args, bool positive = true);
 
 std::ostream &operator<<(std::ostream &out, Symbol sym);
@@ -597,7 +597,7 @@ public:
     std::vector<Signature> signatures() const;
     size_t length() const;
     clingo_symbolic_atoms_t const *to_c() const { return atoms_; }
-    SymbolicAtom operator[](Symbol atom) { return *find(atom); }
+    SymbolicAtom operator[](Symbol atom) const { return *find(atom); }
 private:
     clingo_symbolic_atoms_t const *atoms_;
 };
@@ -651,9 +651,10 @@ public:
     friend bool operator> (TheoryIterator lhs, TheoryIterator rhs) { return rhs < lhs; }
     friend bool operator<=(TheoryIterator lhs, TheoryIterator rhs) { return !(lhs > rhs); }
     friend bool operator>=(TheoryIterator lhs, TheoryIterator rhs) { return !(lhs < rhs); }
+
 private:
     clingo_theory_atoms_t const *&atoms() { return elem_.atoms_; }
-private:
+
     T                  elem_;
     clingo_id_t const *id_;
 };
@@ -693,7 +694,7 @@ private:
         id_ = id;
         return *this;
     }
-private:
+
     clingo_theory_atoms_t const *atoms_;
     clingo_id_t id_;
 };
@@ -722,7 +723,7 @@ private:
         id_ = id;
         return *this;
     }
-private:
+
     clingo_theory_atoms_t const *atoms_;
     clingo_id_t id_;
 };
@@ -748,7 +749,7 @@ private:
         id_ = id;
         return *this;
     }
-private:
+
     clingo_theory_atoms_t const *atoms_;
     clingo_id_t id_;
 };
@@ -863,7 +864,7 @@ public:
     iterator end() const { return iterator{this, size()}; }
     iterator end(uint32_t level) const { return iterator{this, end_offset(level)}; }
     literal_t at(uint32_t offset) const;
-    literal_t operator[](uint32_t offset) { return at(offset); }
+    literal_t operator[](uint32_t offset) const { return at(offset); }
     clingo_assignment_t const *to_c() const { return ass_; }
 private:
     clingo_assignment_t const *ass_;
@@ -890,7 +891,7 @@ public:
     size_t size() const;
     bool is_total() const;
     literal_t at(size_t offset) const;
-    literal_t operator[](size_t offset) { return at(offset); }
+    literal_t operator[](size_t offset) const { return at(offset); }
     iterator begin() const { return iterator{this, 0}; }
     iterator end() const { return iterator{this, size()}; }
     Trail trail() const { return Trail{ass_}; }
@@ -976,17 +977,27 @@ private:
 
 class Propagator {
 public:
+    Propagator() = default;
+    Propagator(Propagator const &) = default;
+    Propagator(Propagator &&) noexcept = default;
+    Propagator &operator=(Propagator const &) = default;
+    Propagator &operator=(Propagator &&) noexcept = default;
     virtual void init(PropagateInit &init);
     virtual void propagate(PropagateControl &ctl, LiteralSpan changes);
     virtual void undo(PropagateControl const &ctl, LiteralSpan changes) noexcept;
     virtual void check(PropagateControl &ctl);
-    virtual ~Propagator() noexcept = default;
+    virtual ~Propagator() = default;
 };
 
 class Heuristic : public Propagator {
 public:
+    Heuristic() = default;
+    Heuristic(Heuristic const &) = default;
+    Heuristic(Heuristic &&) noexcept = default;
+    Heuristic &operator=(Heuristic const &) = default;
+    Heuristic &operator=(Heuristic &&) noexcept = default;
     virtual literal_t decide(id_t thread_id, Assignment const &assign, literal_t fallback);
-    virtual ~Heuristic() noexcept = default;
+    ~Heuristic() override = default;
 };
 
 // {{{1 ground program observer
@@ -1034,6 +1045,12 @@ inline std::ostream &operator<<(std::ostream &out, ExternalType t) {
 
 class GroundProgramObserver {
 public:
+    GroundProgramObserver() = default;
+    GroundProgramObserver(GroundProgramObserver const &) = default;
+    GroundProgramObserver(GroundProgramObserver &&) noexcept = default;
+    GroundProgramObserver &operator=(GroundProgramObserver const &) = default;
+    GroundProgramObserver &operator=(GroundProgramObserver &&) noexcept = default;
+
     virtual void init_program(bool incremental);
     virtual void begin_step();
     virtual void end_step();
@@ -1056,7 +1073,7 @@ public:
     virtual void theory_element(id_t element_id, IdSpan terms, LiteralSpan condition);
     virtual void theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements);
     virtual void theory_atom_with_guard(id_t atom_id_or_zero, id_t term_id, IdSpan elements, id_t operator_id, id_t right_hand_side_id);
-    virtual ~GroundProgramObserver() noexcept = default;
+    virtual ~GroundProgramObserver() = default;
 };
 
 inline void GroundProgramObserver::init_program(bool) { }
@@ -1107,7 +1124,7 @@ inline std::ostream &operator<<(std::ostream &out, SymbolicLiteral sym) {
 inline bool operator==(SymbolicLiteral a, SymbolicLiteral b) { return a.is_negative() == b.is_negative() && a.symbol() == b.symbol(); }
 inline bool operator!=(SymbolicLiteral a, SymbolicLiteral b) { return !(a == b); }
 inline bool operator< (SymbolicLiteral a, SymbolicLiteral b) {
-    if (a.is_negative() != b.is_negative()) { return a.is_negative() < b.is_negative(); }
+    if (a.is_negative() != b.is_negative()) { return !a.is_negative() && b.is_negative(); }
     return a.symbol() < b.symbol();
 }
 inline bool operator<=(SymbolicLiteral a, SymbolicLiteral b) { return !(b < a); }
@@ -1159,7 +1176,10 @@ class Model {
 public:
     explicit Model(clingo_model_t *model);
     Model(Model const &) = delete;
-    Model(Model &&) = delete;
+    Model(Model &&) noexcept = delete;
+    Model &operator=(Model const &) = delete;
+    Model &operator=(Model &&) = delete;
+    ~Model() = default;
     bool contains(Symbol atom) const;
     bool is_true(literal_t literal) const;
     bool optimality_proven() const;
@@ -1185,10 +1205,10 @@ inline std::ostream &operator<<(std::ostream &out, Model const &m) {
 
 class SolveResult {
 public:
-    SolveResult() : res_(0) { }
+    SolveResult() = default;
     explicit SolveResult(clingo_solve_result_bitset_t res)
     : res_(res) { }
-    bool is_satisfiable() const { return res_ & clingo_solve_result_satisfiable; }
+    bool is_satisfiable() const { return (res_ & clingo_solve_result_satisfiable) != 0; }
     bool is_unsatisfiable() const { return (res_ & clingo_solve_result_unsatisfiable) != 0; }
     bool is_unknown() const { return (res_ & 3) == 0; }
     bool is_exhausted() const { return (res_ & clingo_solve_result_exhausted) != 0; }
@@ -1198,7 +1218,7 @@ public:
     friend bool operator==(SolveResult a, SolveResult b) { return a.res_ == b.res_; }
     friend bool operator!=(SolveResult a, SolveResult b) { return a.res_ != b.res_; }
 private:
-    clingo_solve_result_bitset_t res_;
+    clingo_solve_result_bitset_t res_{0};
 };
 
 inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
@@ -1235,7 +1255,7 @@ inline std::ostream &operator<<(std::ostream &out, Location loc) {
     eq = eq && (loc.begin_line() == loc.end_line());
     if (!eq) { out << (dash ? "-" : ":") << loc.end_line(); dash = false; }
     eq = eq && (loc.begin_column() == loc.end_column());
-    if (!eq) { out << (dash ? "-" : ":") << loc.end_column(); dash = false; }
+    if (!eq) { out << (dash ? "-" : ":") << loc.end_column(); }
     return out;
 }
 
@@ -1294,7 +1314,7 @@ struct Term {
     Location location;
     Variant<Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
 };
-std::ostream &operator<<(std::ostream &out, Term const &term);
+std::ostream &operator<<(std::ostream &out, Term const &x);
 
 // Variable
 
@@ -1323,7 +1343,7 @@ inline char const *left_hand_side(UnaryOperator op) {
 inline char const *right_hand_side(UnaryOperator op) {
     switch (op) {
         case UnaryOperator::Absolute: { return "|"; }
-        case UnaryOperator::Minus:    { return ""; }
+        case UnaryOperator::Minus:
         case UnaryOperator::Negation: { return ""; }
     }
     return "";
@@ -1849,7 +1869,9 @@ class Backend {
 public:
     explicit Backend(clingo_backend_t *backend);
     Backend(Backend const &) = delete;
-    Backend(Backend &&);
+    Backend(Backend &&) noexcept;
+    Backend &operator=(Backend const &) = delete;
+    Backend &operator=(Backend &&) noexcept;
     ~Backend();
 
     void rule(bool choice, AtomSpan head, LiteralSpan body);
@@ -2007,6 +2029,11 @@ using UserStatisticCallback = std::function<void (UserStatistics &)>;
 
 class SolveEventHandler {
 public:
+    SolveEventHandler() = default;
+    SolveEventHandler(SolveEventHandler const &) = default;
+    SolveEventHandler(SolveEventHandler &&) noexcept = default;
+    SolveEventHandler &operator=(SolveEventHandler const &) = default;
+    SolveEventHandler &operator=(SolveEventHandler &&) noexcept = default;
     virtual bool on_model(Model &model);
     virtual void on_statistics(UserStatistics step, UserStatistics accu);
     virtual void on_finish(SolveResult result);
@@ -2025,11 +2052,11 @@ class AssignOnce;
 
 class SolveHandle {
 public:
-    SolveHandle();
+    SolveHandle() = default;
     explicit SolveHandle(clingo_solve_handle_t *it, Detail::AssignOnce &ptr);
-    SolveHandle(SolveHandle &&it);
+    SolveHandle(SolveHandle &&it) noexcept;
     SolveHandle(SolveHandle const &) = delete;
-    SolveHandle &operator=(SolveHandle &&it);
+    SolveHandle &operator=(SolveHandle &&it) noexcept;
     SolveHandle &operator=(SolveHandle const &) = delete;
     clingo_solve_handle_t *to_c() const { return iter_; }
     void resume();
@@ -2041,17 +2068,16 @@ public:
     void cancel();
     ~SolveHandle();
 private:
-    Model model_;
-    clingo_solve_handle_t *iter_;
-    Detail::AssignOnce *exception_;
+    Model model_{nullptr};
+    clingo_solve_handle_t *iter_{nullptr};
+    Detail::AssignOnce *exception_{nullptr};
 };
 
 class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
 public:
     explicit ModelIterator(SolveHandle &iter)
     : iter_(&iter) { }
-    ModelIterator()
-    : iter_(nullptr) { }
+    ModelIterator() = default;
     ModelIterator &operator++() {
         iter_->next();
         return *this;
@@ -2066,11 +2092,13 @@ public:
     Model const &operator*() { return iter_->model(); }
     Model const *operator->() { return &iter_->model(); }
     friend bool operator==(ModelIterator a, ModelIterator b) {
-        return (a.iter_ ? a.iter_->model().to_c() : nullptr) == (b.iter_ ? b.iter_->model().to_c() : nullptr);
+        auto *ap = (a.iter_ != nullptr ? a.iter_->model().to_c() : nullptr);
+        auto *bp = (b.iter_ != nullptr ? b.iter_->model().to_c() : nullptr);
+        return ap == bp;
     }
     friend bool operator!=(ModelIterator a, ModelIterator b) { return !(a == b); }
 private:
-    SolveHandle *iter_;
+    SolveHandle *iter_{nullptr};
 };
 
 inline ModelIterator begin(SolveHandle &it) { return ModelIterator(it); }
@@ -2122,8 +2150,11 @@ private:
 class ProgramBuilder {
 public:
     explicit ProgramBuilder(clingo_program_builder_t *builder);
+    ProgramBuilder() = delete;
     ProgramBuilder(ProgramBuilder const &) = delete;
-    ProgramBuilder(ProgramBuilder &&);
+    ProgramBuilder(ProgramBuilder &&) noexcept;
+    ProgramBuilder &operator=(ProgramBuilder const &) = delete;
+    ProgramBuilder &operator=(ProgramBuilder &&) noexcept;
     ~ProgramBuilder();
 
     void add(AST::Statement const &stm);
@@ -2186,9 +2217,9 @@ class Control {
 public:
     Control(StringSpan args = {}, Logger logger = nullptr, unsigned message_limit = 20);
     explicit Control(clingo_control_t *ctl, bool owns = true);
-    Control(Control &&c);
+    Control(Control &&c) noexcept;
     Control(Control const &) = delete;
-    Control &operator=(Control &&c);
+    Control &operator=(Control &&c) noexcept;
     Control &operator=(Control const &c) = delete;
     ~Control() noexcept;
     void add(char const *name, StringSpan params, char const *part);
@@ -2251,6 +2282,11 @@ private:
 };
 
 struct Application {
+    Application() = default;
+    Application(Application const &) = default;
+    Application(Application &&) noexcept = default;
+    Application &operator=(Application const &) = default;
+    Application &operator=(Application &&) noexcept = default;
     virtual unsigned message_limit() const noexcept;
     virtual char const *program_name() const noexcept;
     virtual char const *version() const noexcept;
@@ -2294,12 +2330,12 @@ namespace Detail {
 inline void handle_error(bool ret) {
     if (!ret) {
         char const *msg = clingo_error_message();
-        if (!msg) { msg = "no message"; }
+        if (msg == nullptr) { msg = "no message"; }
         switch (static_cast<clingo_error>(clingo_error_code())) {
             case clingo_error_runtime:   { throw std::runtime_error(msg); }
             case clingo_error_logic:     { throw std::logic_error(msg); }
             case clingo_error_bad_alloc: { throw std::bad_alloc(); }
-            case clingo_error_unknown:   { throw std::runtime_error(msg); }
+            case clingo_error_unknown:
             case clingo_error_success:   { throw std::runtime_error(msg); }
         }
     }
@@ -2323,7 +2359,7 @@ public:
     AssignOnce &operator=(std::exception_ptr x) {
         auto ua = AssignState::Unassigned;
         if (state_.compare_exchange_strong(ua, AssignState::Writing)) {
-            val_ = x;
+            val_ = std::move(x);
             state_ = AssignState::Assigned;
         }
         return *this;
@@ -2339,7 +2375,7 @@ public:
         val_ = nullptr;
     }
 private:
-    std::atomic<AssignState> state_;
+    std::atomic<AssignState> state_{AssignState::Unassigned};
     std::exception_ptr val_ = nullptr;
 };
 
@@ -2946,7 +2982,7 @@ inline SymbolicAtoms SolveControl::symbolic_atoms() const {
 inline void SolveControl::add_clause(SymbolicLiteralSpan clause) {
     std::vector<literal_t> lits;
     auto atoms = symbolic_atoms();
-    for (auto &x : clause) {
+    for (auto const &x : clause) {
         auto it = atoms.find(x.symbol());
         if (it != atoms.end()) {
             auto lit = it->literal();
@@ -3036,24 +3072,16 @@ namespace Detail {
 
 } // namespace Detail
 
-inline SolveHandle::SolveHandle()
-: model_(nullptr)
-, iter_(nullptr)
-, exception_(nullptr) { }
-
 inline SolveHandle::SolveHandle(clingo_solve_handle_t *it, Detail::AssignOnce &ptr)
-: model_(nullptr)
-, iter_(it)
+: iter_(it)
 , exception_(&ptr) { }
 
-inline SolveHandle::SolveHandle(SolveHandle &&it)
+inline SolveHandle::SolveHandle(SolveHandle &&it) noexcept
 : SolveHandle() { *this = std::move(it); }
 
-inline SolveHandle &SolveHandle::operator=(SolveHandle &&it) {
-    iter_         = it.iter_;
-    it.iter_      = nullptr;
-    exception_    = it.exception_;
-    it.exception_ = nullptr;
+inline SolveHandle &SolveHandle::operator=(SolveHandle &&it) noexcept {
+    std::swap(iter_, it.iter_);
+    std::swap(exception_, it.exception_);
     return *this;
 }
 
@@ -3094,14 +3122,19 @@ inline void SolveHandle::cancel() {
 }
 
 inline SolveHandle::~SolveHandle() {
-    if (iter_) { Detail::handle_error(clingo_solve_handle_close(iter_), *exception_); }
+    if (iter_ != nullptr) { Detail::handle_error(clingo_solve_handle_close(iter_), *exception_); }
 }
 
 // {{{2 backend
 
-inline Backend::Backend(Backend &&backend)
+inline Backend::Backend(Backend &&backend) noexcept
 : backend_{nullptr} {
+    *this = std::move(backend);
+}
+
+inline Backend &Backend::operator=(Backend &&backend) noexcept {
     std::swap(backend_, backend.backend_);
+    return *this;
 }
 
 inline Backend::Backend(clingo_backend_t *backend)
@@ -3110,7 +3143,7 @@ inline Backend::Backend(clingo_backend_t *backend)
 }
 
 inline Backend::~Backend() {
-    if (backend_) {
+    if (backend_ != nullptr) {
         Detail::handle_error(clingo_backend_end(backend_));
     }
 }
@@ -3294,7 +3327,7 @@ inline ConfigurationKeyRange Configuration::keys() const {
 inline bool Configuration::is_value() const {
     clingo_configuration_type_bitset_t type;
     Detail::handle_error(clingo_configuration_type(conf_, key_, &type));
-    return type & clingo_configuration_type_value;
+    return (type & clingo_configuration_type_value) != 0;
 }
 
 inline bool Configuration::is_array() const {
@@ -3346,6 +3379,11 @@ namespace AST { namespace Detail {
 
 struct ASTToC {
     // {{{3 term
+    ASTToC() = default;
+    ASTToC(ASTToC const &) = delete;
+    ASTToC(ASTToC &&) noexcept = delete;
+    ASTToC &operator=(ASTToC const &) = delete;
+    ASTToC &operator=(ASTToC &&) noexcept = delete;
 
     clingo_ast_id_t convId(Id const &id) {
         return {id.location, id.id};
@@ -3366,7 +3404,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_term_t visit(UnaryOperation const &x, TermTag) {
-        auto unary_operation = create_<clingo_ast_unary_operation_t>();
+        auto *unary_operation = create_<clingo_ast_unary_operation_t>();
         unary_operation->unary_operator = static_cast<clingo_ast_unary_operator_t>(x.unary_operator);
         unary_operation->argument       = convTerm(x.argument);
         clingo_ast_term_t ret;
@@ -3375,7 +3413,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_term_t visit(BinaryOperation const &x, TermTag) {
-        auto binary_operation = create_<clingo_ast_binary_operation_t>();
+        auto *binary_operation = create_<clingo_ast_binary_operation_t>();
         binary_operation->binary_operator = static_cast<clingo_ast_binary_operator_t>(x.binary_operator);
         binary_operation->left            = convTerm(x.left);
         binary_operation->right           = convTerm(x.right);
@@ -3385,7 +3423,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_term_t visit(Interval const &x, TermTag) {
-        auto interval = create_<clingo_ast_interval_t>();
+        auto *interval = create_<clingo_ast_interval_t>();
         interval->left  = convTerm(x.left);
         interval->right = convTerm(x.right);
         clingo_ast_term_t ret;
@@ -3394,7 +3432,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_term_t visit(Function const &x, TermTag) {
-        auto function = create_<clingo_ast_function_t>();
+        auto *function = create_<clingo_ast_function_t>();
         function->name      = x.name;
         function->arguments = convTermVec(x.arguments);
         function->size      = x.arguments.size();
@@ -3404,7 +3442,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_term_t visit(Pool const &x, TermTag) {
-        auto pool = create_<clingo_ast_pool_t>();
+        auto *pool = create_<clingo_ast_pool_t>();
         pool->arguments = convTermVec(x.arguments);
         pool->size      = x.arguments.size();
         clingo_ast_term_t ret;
@@ -3418,7 +3456,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_term_t *convTerm(Optional<Term> const &x) {
-        return x ? create_(convTerm(*x.get())) : nullptr;
+        return x ? create_(convTerm(*x)) : nullptr;
     }
     clingo_ast_term_t *convTermVec(std::vector<Term> const &x) {
         return createArray_(x, static_cast<clingo_ast_term_t (ASTToC::*)(Term const &)>(&ASTToC::convTerm));
@@ -3462,7 +3500,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_theory_term_t visit(TheoryTermSequence const &term, TheoryTermTag) {
-        auto sequence = create_<clingo_ast_theory_term_array_t>();
+        auto *sequence = create_<clingo_ast_theory_term_array_t>();
         sequence->terms = convTheoryTermVec(term.terms);
         sequence->size  = term.terms.size();
         clingo_ast_theory_term_t ret;
@@ -3475,7 +3513,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_theory_term_t visit(TheoryFunction const &term, TheoryTermTag) {
-        auto function = create_<clingo_ast_theory_function_t>();
+        auto *function = create_<clingo_ast_theory_function_t>();
         function->name      = term.name;
         function->arguments = convTheoryTermVec(term.arguments);
         function->size      = term.arguments.size();
@@ -3485,7 +3523,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_theory_term_t visit(TheoryUnparsedTerm const &term, TheoryTermTag) {
-        auto unparsed_term = create_<clingo_ast_theory_unparsed_term>();
+        auto *unparsed_term = create_<clingo_ast_theory_unparsed_term>();
         unparsed_term->elements = createArray_(term.elements, &ASTToC::convTheoryUnparsedTermElement);
         unparsed_term->size     = term.elements.size();
         clingo_ast_theory_term_t ret;
@@ -3524,7 +3562,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_literal_t visit(Comparison const &x) {
-        auto comparison = create_<clingo_ast_comparison_t>();
+        auto *comparison = create_<clingo_ast_comparison_t>();
         comparison->comparison = static_cast<clingo_ast_comparison_operator_t>(x.comparison);
         comparison->left       = convTerm(x.left);
         comparison->right      = convTerm(x.right);
@@ -3534,7 +3572,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_literal_t visit(CSPLiteral const &x) {
-        auto csp = create_<clingo_ast_csp_literal_t>();
+        auto *csp = create_<clingo_ast_csp_literal_t>();
         csp->term   = convCSPAdd(x.term);
         csp->guards = createArray_(x.guards, &ASTToC::convCSPGuard);
         csp->size   = x.guards.size();
@@ -3641,7 +3679,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_head_literal_t visit(Disjunction const &x, HeadLiteralTag) {
-        auto disjunction = create_<clingo_ast_disjunction_t>();
+        auto *disjunction = create_<clingo_ast_disjunction_t>();
         disjunction->size     = x.elements.size();
         disjunction->elements = createArray_(x.elements, &ASTToC::convConditionalLiteral);
         clingo_ast_head_literal_t ret;
@@ -3656,7 +3694,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_head_literal_t visit(HeadAggregate const &x, HeadLiteralTag) {
-        auto head_aggregate = create_<clingo_ast_head_aggregate_t>();
+        auto *head_aggregate = create_<clingo_ast_head_aggregate_t>();
         head_aggregate->left_guard  = convAggregateGuard(x.left_guard);
         head_aggregate->right_guard = convAggregateGuard(x.right_guard);
         head_aggregate->function    = static_cast<clingo_ast_aggregate_function_t>(x.function);
@@ -3702,7 +3740,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_body_literal_t visit(BodyAggregate const &x, BodyLiteralTag) {
-        auto body_aggregate = create_<clingo_ast_body_aggregate_t>();
+        auto *body_aggregate = create_<clingo_ast_body_aggregate_t>();
         body_aggregate->left_guard  = convAggregateGuard(x.left_guard);
         body_aggregate->right_guard = convAggregateGuard(x.right_guard);
         body_aggregate->function    = static_cast<clingo_ast_aggregate_function_t>(x.function);
@@ -3720,7 +3758,7 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_body_literal_t visit(Disjoint const &x, BodyLiteralTag) {
-        auto disjoint = create_<clingo_ast_disjoint_t>();
+        auto *disjoint = create_<clingo_ast_disjoint_t>();
         disjoint->size     = x.elements.size();
         disjoint->elements = createArray_(x.elements, &ASTToC::convDisjointElement);
         clingo_ast_body_literal_t ret;
@@ -3775,7 +3813,7 @@ struct ASTToC {
         ret.location = x.location;
         ret.type     = static_cast<clingo_ast_theory_atom_definition_type_t>(x.type);
         ret.elements = x.elements;
-        ret.guard    = x.guard ? create_<clingo_ast_theory_guard_definition_t>(convTheoryGuardDefinition(*x.guard.get())) : nullptr;
+        ret.guard    = x.guard ? create_<clingo_ast_theory_guard_definition_t>(convTheoryGuardDefinition(*x.guard)) : nullptr;
         return ret;
     }
 
@@ -3949,7 +3987,8 @@ struct ASTToC {
     template <class T, class F>
     auto createArray_(std::vector<T> const &vec, F f) -> decltype((this->*f)(std::declval<T>()))* {
         using U = decltype((this->*f)(std::declval<T>()));
-        auto r = createArray_<U>(vec.size()), jt = r;
+        auto *r = createArray_<U>(vec.size());
+        auto *jt = r;
         for (auto it = vec.begin(), ie = vec.end(); it != ie; ++it, ++jt) { *jt = (this->*f)(*it); }
         return r;
     }
@@ -3974,13 +4013,13 @@ inline ProgramBuilder::ProgramBuilder(clingo_program_builder_t *builder)
     Detail::handle_error(clingo_program_builder_begin(builder_));
 }
 
-inline ProgramBuilder::ProgramBuilder(ProgramBuilder &&builder)
+inline ProgramBuilder::ProgramBuilder(ProgramBuilder &&builder) noexcept
 : builder_{nullptr} {
     std::swap(builder_, builder.builder_);
 }
 
 inline ProgramBuilder::~ProgramBuilder() {
-    if (builder_) {
+    if (builder_ != nullptr) {
         Detail::handle_error(clingo_program_builder_end(builder_));
     }
 }
@@ -3995,19 +4034,24 @@ inline void ProgramBuilder::add(AST::Statement const &stm) {
 // {{{2 control
 
 struct Control::Impl {
+    Impl() = delete;
+    Impl(Impl const &) = delete;
+    Impl(Impl &&) noexcept = delete;
+    Impl &operator=(Impl const &) = delete;
+    Impl &operator=(Impl &&) noexcept = delete;
     Impl(Logger logger)
     : ctl(nullptr)
     , handler(nullptr)
-    , logger(logger)
+    , logger(std::move(logger))
     , owns(true) { }
     Impl(clingo_control_t *ctl, bool owns)
     : ctl(ctl)
     , handler(nullptr)
     , owns(owns) { }
-    ~Impl() noexcept {
-        if (ctl && owns) { clingo_control_free(ctl); }
+    ~Impl() {
+        if (ctl != nullptr && owns) { clingo_control_free(ctl); }
     }
-    operator clingo_control_t *() { return ctl; }
+    operator clingo_control_t *() const { return ctl; }
     clingo_control_t *ctl;
     SolveEventHandler *handler;
     Detail::AssignOnce ptr;
@@ -4018,26 +4062,24 @@ struct Control::Impl {
 };
 
 inline Clingo::Control::Control(StringSpan args, Logger logger, unsigned message_limit)
-: impl_(new Clingo::Control::Impl(logger))
+: impl_(new Clingo::Control::Impl(std::move(logger)))
 {
     clingo_logger_t f = [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
     };
-    Detail::handle_error(clingo_control_new(args.begin(), args.size(), logger ? f : nullptr, logger ? &impl_->logger : nullptr, message_limit, &impl_->ctl));
+    Detail::handle_error(clingo_control_new(args.begin(), args.size(), impl_->logger ? f : nullptr, impl_->logger ? &impl_->logger : nullptr, message_limit, &impl_->ctl));
 }
 
 inline Control::Control(clingo_control_t *ctl, bool owns)
     : impl_(new Impl(ctl, owns)) { }
 
-inline Control::Control(Control &&c)
-    : impl_(nullptr) {
-    std::swap(impl_, c.impl_);
+inline Control::Control(Control &&c) noexcept
+: impl_(nullptr) {
+    *this = std::move(c);
 }
 
-inline Control &Control::operator=(Control &&c) {
-    delete impl_;
-    impl_ = nullptr;
+inline Control &Control::operator=(Control &&c) noexcept {
     std::swap(impl_, c.impl_);
     return *this;
 }
@@ -4077,7 +4119,7 @@ inline clingo_control_t *Control::to_c() const { return *impl_; }
 inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, SolveEventHandler *handler, bool asynchronous, bool yield) {
     std::vector<literal_t> lits;
     auto atoms = symbolic_atoms();
-    for (auto &x : assumptions) {
+    for (auto const &x : assumptions) {
         auto it = atoms.find(x.symbol());
         if (it != atoms.end()) {
             auto lit = it->literal();
@@ -4110,7 +4152,7 @@ inline SolveHandle Control::solve(LiteralSpan assumptions, SolveEventHandler *ha
             }
             case clingo_solve_event_type_statistics: {
                 CLINGO_CALLBACK_TRY {
-                    auto stats = static_cast<clingo_statistics_t**>(event);
+                    auto **stats = static_cast<clingo_statistics_t**>(event);
                     uint64_t step_root, accu_root;
                     Detail::handle_error(clingo_statistics_root(stats[0], &step_root));
                     Detail::handle_error(clingo_statistics_root(stats[1], &accu_root));
@@ -4131,7 +4173,7 @@ inline SolveHandle Control::solve(LiteralSpan assumptions, SolveEventHandler *ha
         }
         return false;
     };
-    Detail::handle_error(clingo_control_solve(*impl_, mode, assumptions.begin(), assumptions.size(), handler ? on_event : nullptr, impl_, &it), impl_->ptr);
+    Detail::handle_error(clingo_control_solve(*impl_, mode, assumptions.begin(), assumptions.size(), handler != nullptr ? on_event : nullptr, impl_, &it), impl_->ptr);
     return SolveHandle{it, impl_->ptr};
 }
 
@@ -4459,7 +4501,7 @@ inline ProgramBuilder Control::builder() {
 // {{{2 clingo application
 
 inline void ClingoOptions::add(char const *group, char const *option, char const *description, std::function<bool (char const *value)> parse, bool multi, char const *argument) {
-    parsers_.emplace_front(parse);
+    parsers_.emplace_front(std::move(parse));
     Detail::handle_error(clingo_options_add(to_c(), group, option, description, [](char const *value, void *data) {
         auto& p = *static_cast<Detail::ParserList::value_type*>(data);
         try         { return p(value); }
@@ -4591,7 +4633,8 @@ struct PrintWrapper {
     bool empty;
     friend std::ostream &operator<<(std::ostream &out, PrintWrapper x) {
         using namespace std;
-        auto it = std::begin(x.vec), ie = std::end(x.vec);
+        auto it = std::begin(x.vec);
+        auto ie = std::end(x.vec);
         if (it != ie) {
             out << x.pre;
             out << *it;
@@ -4648,27 +4691,27 @@ inline Term convTerm(clingo_ast_term_t const &term) {
             return {Location{term.location}, Variable{term.variable}};
         }
         case clingo_ast_term_type_unary_operation: {
-            auto &op = *term.unary_operation;
+            auto const &op = *term.unary_operation;
             return {Location{term.location}, UnaryOperation{static_cast<UnaryOperator>(op.unary_operator), convTerm(op.argument)}};
         }
         case clingo_ast_term_type_binary_operation: {
-            auto &op = *term.binary_operation;
+            auto const &op = *term.binary_operation;
             return {Location{term.location}, BinaryOperation{static_cast<BinaryOperator>(op.binary_operator), convTerm(op.left), convTerm(op.right)}};
         }
         case clingo_ast_term_type_interval: {
-            auto &x = *term.interval;
+            auto const &x = *term.interval;
             return {Location{term.location}, Interval{convTerm(x.left), convTerm(x.right)}};
         }
         case clingo_ast_term_type_function: {
-            auto &x = *term.function;
+            auto const &x = *term.function;
             return {Location{term.location}, Function{x.name, convTermVec(x.arguments, x.size), false}};
         }
         case clingo_ast_term_type_external_function: {
-            auto &x = *term.external_function;
+            auto const &x = *term.external_function;
             return {Location{term.location}, Function{x.name, convTermVec(x.arguments, x.size), true}};
         }
         case clingo_ast_term_type_pool: {
-            auto &x = *term.pool;
+            auto const &x = *term.pool;
             return {Location{term.location}, Pool{convTermVec(x.arguments, x.size)}};
         }
     }
@@ -4676,7 +4719,7 @@ inline Term convTerm(clingo_ast_term_t const &term) {
 }
 
 inline Optional<Term> convTerm(clingo_ast_term_t const *term) {
-    return term ? Optional<Term>{convTerm(*term)} : Optional<Term>{};
+    return term != nullptr ? Optional<Term>{convTerm(*term)} : Optional<Term>{};
 }
 
 // csp
@@ -4709,23 +4752,23 @@ inline TheoryTerm convTheoryTerm(clingo_ast_theory_term_t const &term) {
             return {Location{term.location}, Variable{term.variable}};
         }
         case clingo_ast_theory_term_type_list: {
-            auto &x = *term.list;
+            auto const &x = *term.list;
             return {Location{term.location}, TheoryTermSequence{TheoryTermSequenceType::List, convTheoryTermVec(x.terms, x.size)}};
         }
         case clingo_ast_theory_term_type_set: {
-            auto &x = *term.list;
+            auto const &x = *term.list;
             return {Location{term.location}, TheoryTermSequence{TheoryTermSequenceType::Set, convTheoryTermVec(x.terms, x.size)}};
         }
         case clingo_ast_theory_term_type_tuple: {
-            auto &x = *term.list;
+            auto const &x = *term.list;
             return {Location{term.location}, TheoryTermSequence{TheoryTermSequenceType::Tuple, convTheoryTermVec(x.terms, x.size)}};
         }
         case clingo_ast_theory_term_type_function: {
-            auto &x = *term.function;
+            auto const &x = *term.function;
             return {Location{term.location}, TheoryFunction{x.name, convTheoryTermVec(x.arguments, x.size)}};
         }
         case clingo_ast_theory_term_type_unparsed_term: {
-            auto &x = *term.unparsed_term;
+            auto const &x = *term.unparsed_term;
             return {Location{term.location}, TheoryUnparsedTerm{convTheoryUnparsedTermElementVec(x.elements, x.size)}};
         }
     }
@@ -4748,11 +4791,11 @@ inline Literal convLiteral(clingo_ast_literal_t const &lit) {
             return {Location(lit.location), static_cast<Sign>(lit.sign), convTerm(*lit.symbol)};
         }
         case clingo_ast_literal_type_comparison: {
-            auto &c = *lit.comparison;
+            auto const &c = *lit.comparison;
             return {Location(lit.location), static_cast<Sign>(lit.sign), Comparison{static_cast<ComparisonOperator>(c.comparison), convTerm(c.left), convTerm(c.right)}};
         }
         case clingo_ast_literal_type_csp: {
-            auto &c = *lit.csp_literal;
+            auto const &c = *lit.csp_literal;
             return {Location(lit.location), static_cast<Sign>(lit.sign), CSPLiteral{convCSPAdd(c.term), convCSPGuardVec(c.guards, c.size)}};
         }
     }
@@ -4763,7 +4806,7 @@ CLINGO_ARRAY(clingo_ast_literal_t, Literal)
 // {{{4 aggregates
 
 inline Optional<AggregateGuard> convAggregateGuard(clingo_ast_aggregate_guard_t const *guard) {
-    return guard
+    return guard != nullptr
         ? Optional<AggregateGuard>{AggregateGuard{static_cast<ComparisonOperator>(guard->comparison), convTerm(guard->term)}}
         : Optional<AggregateGuard>{};
 }
@@ -4780,7 +4823,7 @@ inline Aggregate convAggregate(clingo_ast_aggregate_t const &aggr) {
 // theory atom
 
 inline Optional<TheoryGuard> convTheoryGuard(clingo_ast_theory_guard_t const *guard) {
-    return guard
+    return guard != nullptr
         ? Optional<TheoryGuard>{TheoryGuard{guard->operator_name, convTheoryTerm(guard->term)}}
         : Optional<TheoryGuard>{};
 }
@@ -4823,14 +4866,14 @@ inline HeadLiteral convHeadLiteral(clingo_ast_head_literal_t const &head) {
             return {Location{head.location}, convLiteral(*head.literal)};
         }
         case clingo_ast_head_literal_type_disjunction: {
-            auto &d = *head.disjunction;
+            auto const &d = *head.disjunction;
             return {Location{head.location}, Disjunction{convConditionalLiteralVec(d.elements, d.size)}};
         }
         case clingo_ast_head_literal_type_aggregate: {
             return {Location{head.location}, convAggregate(*head.aggregate)};
         }
         case clingo_ast_head_literal_type_head_aggregate: {
-            auto &a = *head.head_aggregate;
+            auto const &a = *head.head_aggregate;
             return {Location{head.location}, HeadAggregate{static_cast<AggregateFunction>(a.function), convHeadAggregateElementVec(a.elements, a.size), convAggregateGuard(a.left_guard), convAggregateGuard(a.right_guard)}};
         }
         case clingo_ast_head_literal_type_theory_atom: {
@@ -4854,14 +4897,14 @@ inline BodyLiteral convBodyLiteral(clingo_ast_body_literal_t const &body) {
             return {Location{body.location}, static_cast<Sign>(body.sign), convAggregate(*body.aggregate)};
         }
         case clingo_ast_body_literal_type_body_aggregate: {
-            auto &a = *body.body_aggregate;
+            auto const &a = *body.body_aggregate;
             return {Location{body.location}, static_cast<Sign>(body.sign), BodyAggregate{static_cast<AggregateFunction>(a.function), convBodyAggregateElementVec(a.elements, a.size), convAggregateGuard(a.left_guard), convAggregateGuard(a.right_guard)}};
         }
         case clingo_ast_body_literal_type_theory_atom: {
             return {Location{body.location}, static_cast<Sign>(body.sign), convTheoryAtom(*body.theory_atom)};
         }
         case clingo_ast_body_literal_type_disjoint: {
-            auto &d = *body.disjoint;
+            auto const &d = *body.disjoint;
             return {Location{body.location}, static_cast<Sign>(body.sign), Disjoint{convDisjointElementVec(d.elements, d.size)}};
         }
     }
@@ -4877,7 +4920,7 @@ inline TheoryOperatorDefinition convTheoryOperatorDefinition(clingo_ast_theory_o
 CLINGO_ARRAY(clingo_ast_theory_operator_definition_t, TheoryOperatorDefinition)
 
 inline Optional<TheoryGuardDefinition> convTheoryGuardDefinition(clingo_ast_theory_guard_definition_t const *def) {
-    return def
+    return def != nullptr
         ? Optional<TheoryGuardDefinition>{def->term, std::vector<char const *>{def->operators, def->operators + def->size}}
         : Optional<TheoryGuardDefinition>{};
 }
@@ -4912,7 +4955,7 @@ inline void convStatement(clingo_ast_statement_t const *stm, StatementCallback &
             break;
         }
         case clingo_ast_statement_type_minimize: {
-            auto &min = *stm->minimize;
+            auto const &min = *stm->minimize;
             cb({Location(stm->location), Minimize{convTerm(min.weight), convTerm(min.priority), convTermVec(min.tuple, min.tuple_size), convBodyLiteralVec(min.body, min.body_size)}});
             break;
         }
@@ -4933,7 +4976,7 @@ inline void convStatement(clingo_ast_statement_t const *stm, StatementCallback &
             break;
         }
         case clingo_ast_statement_type_heuristic: {
-            auto &heu = *stm->heuristic;
+            auto const &heu = *stm->heuristic;
             cb({Location(stm->location), Heuristic{convTerm(heu.atom), convBodyLiteralVec(heu.body, heu.size), convTerm(heu.bias), convTerm(heu.priority), convTerm(heu.modifier)}});
             break;
         }
@@ -4946,7 +4989,7 @@ inline void convStatement(clingo_ast_statement_t const *stm, StatementCallback &
             break;
         }
         case clingo_ast_statement_type_theory_definition: {
-            auto &def = *stm->theory_definition;
+            auto const &def = *stm->theory_definition;
             cb({Location(stm->location), TheoryDefinition{def.name, convTheoryTermDefinitionVec(def.terms, def.terms_size), convTheoryAtomDefinitionVec(def.atoms, def.atoms_size)}});
             break;
         }
@@ -4972,12 +5015,12 @@ inline void convStatement(clingo_ast_statement_t const *stm, StatementCallback &
 inline std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x) {
     out << "#theory " << x.name << " {\n";
     bool comma = false;
-    for (auto &y : x.terms) {
+    for (auto const &y : x.terms) {
         if (comma) { out << ";\n"; }
         else       { comma = true; }
         out << "  " << y.name << " {\n" << Detail::print(y.operators, "    ", ";\n", "\n", true) << "  }";
     }
-    for (auto &y : x.atoms) {
+    for (auto const &y : x.atoms) {
         if (comma) { out << ";\n"; }
         else       { comma = true; }
         out << "  " << y;
@@ -4989,7 +5032,7 @@ inline std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x) {
 
 inline std::ostream &operator<<(std::ostream &out, TheoryAtomDefinition const &x) {
     out << "&" << x.name << "/" << x.arity << " : " << x.elements;
-    if (x.guard) { out << ", " << *x.guard.get(); }
+    if (x.guard) { out << ", " << *x.guard; }
     out << ", " << x.type;
     return out;
 }
@@ -5021,7 +5064,7 @@ inline std::ostream &operator<<(std::ostream &out, HeadLiteral const &x) {
 
 inline std::ostream &operator<<(std::ostream &out, TheoryAtom const &x) {
     out << "&" << x.term << " { " << Detail::print(x.elements, "", "; ", "", false) << " }";
-    if (x.guard) { out << " " << *x.guard.get(); }
+    if (x.guard) { out << " " << *x.guard; }
     return out;
 }
 
@@ -5138,7 +5181,7 @@ inline std::ostream &operator<<(std::ostream &out, Id const &x) {
 
 inline std::ostream &operator<<(std::ostream &out, CSPLiteral const &x) {
     out << x.term;
-    for (auto &y : x.guards) { out << y; }
+    for (auto const &y : x.guards) { out << y; }
     return out;
 }
 
@@ -5154,23 +5197,23 @@ inline std::ostream &operator<<(std::ostream &out, CSPSum const &x) {
 }
 
 inline std::ostream &operator<<(std::ostream &out, CSPProduct const &x) {
-    if (x.variable) { out << x.coefficient << "$*$" << *x.variable.get(); }
+    if (x.variable) { out << x.coefficient << "$*$" << *x.variable; }
     else            { out << x.coefficient; }
     return out;
 }
 
 inline std::ostream &operator<<(std::ostream &out, Pool const &x) {
     // NOTE: there is no representation for an empty pool
-    auto &args = x.arguments;
+    auto const &args = x.arguments;
     if (args.empty()) { out << "(1/0)"; }
     if (args.size() == 1) { out << args[0]; }
     else {
         bool equal{true};
         Function const *old{nullptr};
-        for (auto &arg : args) {
+        for (auto const &arg : args) {
             if (arg.data.is<Function>()) {
-                auto &fun = arg.data.get<Function>();
-                if (!old) { old = &fun; }
+                auto const &fun = arg.data.get<Function>();
+                if (old == nullptr) { old = &fun; }
                 else if (strcmp(fun.name, old->name) != 0 || fun.external != old->external) {
                     equal = false;
                     break;
@@ -5181,13 +5224,13 @@ inline std::ostream &operator<<(std::ostream &out, Pool const &x) {
                 break;
             }
         }
-        if (equal) {
+        if (old != nullptr && equal) {
             out << (old->external ? "@" : "") << old->name << "(";
             bool sem = false;
-            for (auto &arg : args) {
+            for (auto const &arg : args) {
                 if (sem) { out << ";"; }
                 else { sem = true; }
-                auto &pargs = arg.data.get<Function>().arguments;
+                auto const &pargs = arg.data.get<Function>().arguments;
                 bool tc = old->name[0] == '\0' && pargs.size() == 1;
                 out << Detail::print(pargs, "", ",", tc ? "," : "", true);
             }
