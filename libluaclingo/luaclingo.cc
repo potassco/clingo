@@ -476,6 +476,21 @@ void luaToCpp(lua_State *L, int index, clingo_weighted_literal_t &x) {
     luaToCpp(L, index, y);
 }
 
+template <class T>
+typename std::enable_if<std::is_integral<T>::value, void>::type cppToLua(lua_State *L, T value) {
+    lua_pushnumber(L, value);
+}
+
+template <class T>
+void cppToLua(lua_State *L, T *values, size_t size) {
+    lua_createtable(L, size, 0);
+    int i = 1;
+    for (auto it = values, ie = it + size; it != ie; ++it) {
+        cppToLua(L, *it);
+        lua_rawseti(L, -2, i++);
+    }
+}
+
 // replaces the table at index idx with a pointer holding a vector
 std::vector<clingo_symbol_t> *luaToVals(lua_State *L, int idx) {
     idx = lua_absindex(L, idx);
@@ -1811,6 +1826,16 @@ struct SolveHandle : Object<SolveHandle> {
         *goon = lua_isnil(L, -1) || lua_toboolean(L, -1);
         return 0;
     }
+    static int core(lua_State *L) {
+        auto core = call_c(L, clingo_solve_handle_core, get_self(L).handle);
+        if (core.first == nullptr) {
+            lua_pushnil(L);                       // +1
+        }
+        else {
+            cppToLua(L, core.first, core.second); // +1
+        }
+        return 1;
+    }
     static int on_finish_(lua_State *L) {
         lua_pushstring(L, "on_model");
         lua_rawget(L, 1);
@@ -1885,6 +1910,7 @@ luaL_Reg const SolveHandle::meta[] = {
     {"iter",  iter},
     {"close", close},
     {"get", get},
+    {"core", core},
     {"resume", resume},
     {"cancel", cancel},
     {nullptr, nullptr}

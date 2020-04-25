@@ -132,6 +132,7 @@ inline void SolveEventHandler::on_finish(SolveResult, Potassco::AbstractStatisti
 struct SolveFuture {
     virtual SolveResult get() = 0;
     virtual Model const *model() = 0;
+    virtual Potassco::LitSpan unsatCore() = 0;
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
     virtual void resume() = 0;
@@ -143,6 +144,9 @@ struct DefaultSolveFuture : SolveFuture {
     DefaultSolveFuture(USolveEventHandler cb) : cb_(std::move(cb)) { }
     SolveResult get() override { resume(); return {SolveResult::Unknown, false, false}; }
     Model const *model() override { resume(); return nullptr; }
+    Potassco::LitSpan unsatCore() override {
+        throw std::runtime_error("no core available");
+    }
     bool wait(double) override { resume(); return true; }
     void cancel() override { resume(); }
     void resume() override {

@@ -2841,6 +2841,7 @@ struct SolveHandle : ObjectBase<SolveHandle> {
     Object on_model;
     Object on_finish;
     Object on_statistics;
+    Object on_core;
 
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
@@ -2866,12 +2867,13 @@ Blocking functions in this object release the GIL. They are not thread-safe
 though.
 )";
 
-    static SharedObject<SolveHandle> construct() {
+    static SharedObject<SolveHandle> construct(Reference on_core) {
         auto ret = new_();
         ret->handle = nullptr;
-        new (&ret->on_model) Object{};
-        new (&ret->on_finish) Object{};
-        new (&ret->on_statistics) Object{};
+        new (&ret->on_model) Object{Py_None};
+        new (&ret->on_finish) Object{Py_None};
+        new (&ret->on_statistics) Object{Py_None};
+        new (&ret->on_core) Object{on_core};
         return ret;
     }
 
@@ -2879,6 +2881,7 @@ though.
         visit(on_model);
         visit(on_finish);
         visit(on_statistics);
+        visit(on_core);
     }
 
     void tp_clear() {
@@ -2891,6 +2894,7 @@ though.
         on_model.clear();
         on_finish.clear();
         on_statistics.clear();
+        on_core.clear();
     }
 
     void tp_dealloc() {
@@ -2898,10 +2902,10 @@ though.
     }
 
     clingo_solve_event_callback_t notify(clingo_solve_event_callback_t event, Reference mh, Reference sh, Reference fh) {
-        on_model      = !mh.is_none() ? mh : Reference{};
-        on_statistics = !sh.is_none() ? sh : Reference{};
-        on_finish     = !fh.is_none() ? fh : Reference{};
-        return on_model.valid() || on_finish.valid() || on_statistics.valid() ? event : nullptr;
+        on_model      = mh;
+        on_statistics = sh;
+        on_finish     = fh;
+        return !on_model.is_none() || !on_finish.is_none() || !on_statistics.is_none() ? event : nullptr;
     }
 
     Reference tp_iter() { return *this; }
@@ -2929,19 +2933,37 @@ though.
             catch (...) { except = std::current_exception(); }
             handle = nullptr;
         }
-        on_model = nullptr;
-        on_finish = nullptr;
-        on_statistics = nullptr;
+        on_model = Py_None;
+        on_finish = Py_None;
+        on_statistics = Py_None;
+        on_core = Py_None;
         if (except) { std::rethrow_exception(except); }
         Py_RETURN_FALSE;
     }
 
     Object get() {
-        return SolveResult::construct(doUnblocked([this]() {
+        auto ret = doUnblocked([this]() {
             clingo_solve_result_bitset_t result;
             handle_c_error(clingo_solve_handle_get(handle, &result));
             return result;
-        }));
+        });
+        if (!on_core.is_none()) {
+            clingo_literal_t const *core;
+            size_t size;
+            handle_c_error(clingo_solve_handle_core(handle, &core, &size));
+            if (core != nullptr) {
+                on_core(cppRngToPy(core, core + size));
+            }
+            on_core = Py_None;
+        }
+        return SolveResult::construct(ret);
+    }
+
+    Object core() {
+        clingo_literal_t const *core;
+        size_t size;
+        handle_c_error(clingo_solve_handle_core(handle, &core, &size));
+        return core != nullptr ? cppRngToPy(core, core + size) : None();
     }
 
     Object user_statistics_(clingo_statistics_t *stats) {
@@ -2977,7 +2999,7 @@ though.
         auto &handle = *static_cast<SolveHandle*>(data);
         switch (type) {
             case clingo_solve_event_type_model: {
-                if (handle.on_model.valid()) {
+                if (!handle.on_model.is_none()) {
                     PyBlock block;
                     try {
                         auto pyModel = Model::construct(static_cast<clingo_model_t*>(event));
@@ -2992,21 +3014,21 @@ though.
                 return true;
             }
             case clingo_solve_event_type_statistics: {
-                if (handle.on_statistics.valid()) {
+                if (!handle.on_statistics.is_none()) {
                     PyBlock block;
                     try {
                         auto stats = static_cast<clingo_statistics_t **>(event);
                         handle.on_statistics(handle.user_statistics_(stats[0]), handle.user_statistics_(stats[1]));
                     }
                     catch (...) {
-                        handle_cxx_error("<on_finish>", "error in finish callback");
+                        handle_cxx_error("<on_statistics>", "error in statistics callback");
                         return false;
                     }
                 }
                 return true;
             }
             case clingo_solve_event_type_finish: {
-                if (handle.on_finish.valid()) {
+                if (!handle.on_finish.is_none()) {
                     PyBlock block;
                     try {
                         auto ret = SolveResult::construct(*static_cast<clingo_solve_result_bitset_t*>(event));
@@ -3042,6 +3064,15 @@ ready.
 Returns
 -------
 SolveResult
+)"},
+    {"core", to_function<&SolveHandle::core>(), METH_NOARGS,
+R"(core(self) -> List[int]
+
+The subset of assumptions that made the problem unsatisfiable.
+
+Returns
+-------
+List[int]
 )"},
     {"wait", to_function<&SolveHandle::wait>(),  METH_VARARGS,
 R"(wait(self, timeout: Optional[float]=None) -> Optional[bool]
@@ -7980,9 +8011,9 @@ active; you must not call any member function during search.
         CHECK_BLOCKED("solve");
         Py_XDECREF(stats);
         stats = nullptr;
-        static char const *kwlist[] = {"assumptions", "on_model", "on_statistics", "on_finish", "yield_", "async", "async_", nullptr};
-        Reference pyAss = Py_None, pyM = Py_None, pyS = Py_None, pyF = Py_None, pyYield = Py_False, pyAsync = Py_False, pyAsync_ = Py_False;
-        ParseTupleAndKeywords(args, kwds, "|OOOOOOO", kwlist, pyAss, pyM, pyS, pyF, pyYield, pyAsync, pyAsync_);
+        static char const *kwlist[] = {"assumptions", "on_model", "on_statistics", "on_finish", "on_core", "yield_", "async", "async_", nullptr};
+        Reference pyAss = Py_None, pyM = Py_None, pyS = Py_None, pyF = Py_None, pyC = Py_None, pyYield = Py_False, pyAsync = Py_False, pyAsync_ = Py_False;
+        ParseTupleAndKeywords(args, kwds, "|OOOOOOOO", kwlist, pyAss, pyM, pyS, pyF, pyC, pyYield, pyAsync, pyAsync_);
         std::vector<clingo_literal_t> ass;
         if (!pyAss.is_none()) {
             clingo_symbolic_atoms_t const *atoms;
@@ -7993,10 +8024,12 @@ active; you must not call any member function during search.
         clingo_solve_mode_bitset_t mode = 0;
         if (pyYield.isTrue()) { mode |= clingo_solve_mode_yield; }
         if (async) { mode |= clingo_solve_mode_async; }
-        auto handle = SolveHandle::construct();
+        auto handle = SolveHandle::construct(pyC);
         auto notify = handle->notify(&SolveHandle::on_event, pyM, pyS, pyF);
         doUnblocked([&](){ handle_c_error(clingo_control_solve(ctl, mode, ass.data(), ass.size(), notify, handle.obj, &handle->handle)); });
-        if (!pyYield.isTrue() && !async) { return handle->get(); }
+        if (!pyYield.isTrue() && !async) {
+            return handle->get();
+        }
         else { return handle; }
     }
     Object cleanup() {
@@ -8275,6 +8308,9 @@ on_finish : Callback[[SolveResult],None]=None
     Optional callback called once search has finished.
     A `SolveResult` also indicating whether the solve call has been intrrupted
     is passed to the callback.
+on_core : Callback[List[int],None]=None
+    Optional callback called with the assumptions that made a problem
+    unsatisfiable.
 yield_ : bool=False
     The resulting `SolveHandle` is iterable yielding `Model` objects.
 async_ : bool=False

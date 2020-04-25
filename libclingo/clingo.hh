@@ -2064,6 +2064,7 @@ public:
     bool wait(double timeout);
     Model const &model();
     Model const &next();
+    LiteralSpan core();
     SolveResult get();
     void cancel();
     ~SolveHandle();
@@ -3104,6 +3105,13 @@ inline Model const &SolveHandle::model() {
     Detail::handle_error(clingo_solve_handle_model(iter_, &m), *exception_);
     new (&model_) Model{const_cast<clingo_model_t*>(m)};
     return model_;
+}
+
+inline LiteralSpan SolveHandle::core() {
+    literal_t const *core;
+    size_t size;
+    Detail::handle_error(clingo_solve_handle_core(iter_, &core, &size), *exception_);
+    return {core, size};
 }
 
 inline Model const &SolveHandle::next() {

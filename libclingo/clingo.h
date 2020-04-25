@@ -2233,6 +2233,16 @@ CLINGO_VISIBILITY_DEFAULT void clingo_solve_handle_wait(clingo_solve_handle_t *h
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model);
+//! When a problem is unsatisfiable, get a subset of the assumptions that made the problem unsatisfiable.
+//!
+//! If the program is not unsatisfiable, core is set to NULL and size to zero.
+//!
+//! @param[in] handle the target
+//! @param[out] core pointer where to store the core
+//! @param[out] size size of the given array
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_literal_t const **core, size_t *size);
 //! Discards the last model and starts the search for the next one.
 //!
 //! If the search has been started asynchronously, this function continues the search in the background.

@@ -30,7 +30,7 @@
 #include <clasp/clause.h>
 #include <clasp/weight_constraint.h>
 #include "clingo.h"
-#include <signal.h>
+#include <csignal>
 #include <clingo/script.h>
 #include <clingo/incmode.hh>
 
@@ -773,6 +773,26 @@ Model const *ClingoSolveFuture::model() {
         return &model_;
     }
     else { return nullptr; }
+}
+Potassco::LitSpan ClingoSolveFuture::unsatCore() {
+    auto &facade = *model_.context().clasp_;
+    auto &summary = facade.summary();
+    if (!summary.unsat()) {
+        return {nullptr, 0};
+    }
+    auto core = summary.unsatCore();
+    if (core == nullptr) {
+        return {nullptr, 0};
+    }
+    auto *prg = static_cast<Clasp::Asp::LogicProgram*>(facade.program());
+    prg->extractCore(*core, core_);
+    // Note: this is just to make writing library code easier, a user probably
+    // never has to worry about this.
+    if (core_.empty()) {
+        static Potassco::Lit_t sentinel{0};
+        return Potassco::toSpan(&sentinel, 0);
+    }
+    return Potassco::toSpan(core_);
 }
 bool ClingoSolveFuture::wait(double timeout) {
     if (timeout == 0)      { return handle_.ready(); }

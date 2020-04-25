@@ -454,10 +454,12 @@ public:
 
     SolveResult  get()  override;
     Model const *model() override;
+    Potassco::LitSpan unsatCore() override;
     bool wait(double timeout) override;
     void resume() override;
     void cancel() override;
 private:
+    Potassco::LitVec                core_;
     ClingoModel                     model_;
     Clasp::ClaspFacade::SolveHandle handle_;
 };
