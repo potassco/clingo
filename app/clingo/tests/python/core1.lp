@@ -11,7 +11,7 @@ def main(prg):
     with prg.backend() as backend:
         for lit in cores[-1]:
             backend.add_rule([], [-lit])
-    cores.clear()
+    cores = []
     prg.solve(on_core=lambda core: cores.append(core))
     assert not cores[-1]
 
