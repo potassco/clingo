@@ -2948,10 +2948,10 @@ though.
             return result;
         });
         if (!on_core.is_none()) {
-            if (ret & clingo_solve_result_unsatisfiable) {
-                clingo_literal_t const *core;
-                size_t size;
-                handle_c_error(clingo_solve_handle_core(handle, &core, &size));
+            clingo_literal_t const *core;
+            size_t size;
+            handle_c_error(clingo_solve_handle_core(handle, &core, &size));
+            if (core != nullptr) {
                 on_core(cppRngToPy(core, core + size));
             }
             on_core = Py_None;
@@ -2963,7 +2963,7 @@ though.
         clingo_literal_t const *core;
         size_t size;
         handle_c_error(clingo_solve_handle_core(handle, &core, &size));
-        return cppRngToPy(core, core + size);
+        return core != nullptr ? cppRngToPy(core, core + size) : None();
     }
 
     Object user_statistics_(clingo_statistics_t *stats) {

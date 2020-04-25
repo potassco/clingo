@@ -1,5 +1,6 @@
 *.swp
 build
+install
 *.pyc
 doc/api/html
 doc/api/latex

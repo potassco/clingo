@@ -1828,7 +1828,12 @@ struct SolveHandle : Object<SolveHandle> {
     }
     static int core(lua_State *L) {
         auto core = call_c(L, clingo_solve_handle_core, get_self(L).handle);
-        cppToLua(L, core.first, core.second); // +1
+        if (core.first == nullptr) {
+            lua_pushnil(L);                       // +1
+        }
+        else {
+            cppToLua(L, core.first, core.second); // +1
+        }
         return 1;
     }
     static int on_finish_(lua_State *L) {

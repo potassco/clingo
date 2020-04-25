@@ -360,9 +360,7 @@ USolveFuture ClingoControl::solve(Assumptions ass, clingo_solve_mode_bitset_t mo
             accu_stats_.init(clasp_->getStats(), "user_accu");
         }
         eventHandler_ = std::move(cb);
-        // FIXME: assumptions can also be added via the backend, such
-        // assumptions are not included at the moment
-        return gringo_make_unique<ClingoSolveFuture>(ass, *this, static_cast<Clasp::SolveMode_t>(mode));
+        return gringo_make_unique<ClingoSolveFuture>(*this, static_cast<Clasp::SolveMode_t>(mode));
     }
     else {
         return gringo_make_unique<DefaultSolveFuture>(std::move(cb));
@@ -758,9 +756,8 @@ SolveResult convert(Clasp::ClaspFacade::Result res) {
     return {sat, res.exhausted(), res.interrupted()};
 }
 
-ClingoSolveFuture::ClingoSolveFuture(Potassco::LitSpan ass, ClingoControl &ctl, Clasp::SolveMode_t mode)
-: ass_{ass.first, ass.first + ass.size}
-, model_{ctl}
+ClingoSolveFuture::ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode)
+: model_{ctl}
 , handle_{model_.context().clasp_->solve(mode)} { }
 
 SolveResult ClingoSolveFuture::get() {
@@ -778,21 +775,24 @@ Model const *ClingoSolveFuture::model() {
     else { return nullptr; }
 }
 Potassco::LitSpan ClingoSolveFuture::unsatCore() {
-    auto core_ptr = handle_.unsatCore();
-    if (!core_ptr) {
-        ass_.clear();
+    auto &facade = *model_.context().clasp_;
+    auto &summary = facade.summary();
+    if (!summary.unsat()) {
+        return {nullptr, 0};
     }
-    else if (core_ptr->size() < ass_.size()) {
-        auto *prg = static_cast<Clasp::Asp::LogicProgram*>(model_.context().clasp_->program());
-        Clasp::LitVec core = *core_ptr;
-        std::sort(core.begin(), core.end());
-        ass_.erase(std::remove_if(ass_.begin(), ass_.end(), [prg, &core](auto lit){
-            // TODO: this might not work in all situations
-            auto slit = prg->getLiteral(lit, Clasp::Asp::MapLit_t::Refined);
-            return !std::binary_search(core.begin(), core.end(), slit);
-        }), ass_.end());
+    auto core = summary.unsatCore();
+    if (core == nullptr) {
+        return {nullptr, 0};
     }
-    return Potassco::toSpan(ass_);
+    auto *prg = static_cast<Clasp::Asp::LogicProgram*>(facade.program());
+    prg->extractCore(*core, core_);
+    // Note: this is just to make writing library code easier, a user probably
+    // never has to worry about this.
+    if (core_.empty()) {
+        static Potassco::Lit_t sentinel{0};
+        return Potassco::toSpan(&sentinel, 0);
+    }
+    return Potassco::toSpan(core_);
 }
 bool ClingoSolveFuture::wait(double timeout) {
     if (timeout == 0)      { return handle_.ready(); }
