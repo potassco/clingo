@@ -16,6 +16,7 @@ function Propagator:init(init)
         local sym = atom.symbol
         self.lits[#self.lits+1] = init:solver_literal(atom.literal)
     end
+    print(init.check_mode, clingo.PropagatorCheckMode.Total)
     assert(init.check_mode == clingo.PropagatorCheckMode.Total)
     assert(init.check_mode ~= clingo.PropagatorCheckMode.Fixpoint)
     assert(init.check_mode ~= clingo.PropagatorCheckMode.Off)

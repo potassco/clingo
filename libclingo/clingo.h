@@ -1068,10 +1068,14 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_at(clingo_assignment_t co
 //! @}
 
 //! Supported check modes for propagators.
+//!
+//! Note that total checks are subject to the lock when a model is found.
+//! This means that information from previously found models can be used to discard assignments in check calls.
 enum clingo_propagator_check_mode {
     clingo_propagator_check_mode_none     = 0, //!< do not call @ref ::clingo_propagator::check() at all
-    clingo_propagator_check_mode_total    = 1, //!< call @ref ::clingo_propagator::check() on total assignment
+    clingo_propagator_check_mode_total    = 1, //!< call @ref ::clingo_propagator::check() on total assignments
     clingo_propagator_check_mode_fixpoint = 2, //!< call @ref ::clingo_propagator::check() on propagation fixpoints
+    clingo_propagator_check_mode_both     = 3, //!< call @ref ::clingo_propagator::check() on propagation fixpoints and total assignments
 };
 //! Corresponding type to ::clingo_propagator_check_mode.
 typedef int clingo_propagator_check_mode_t;

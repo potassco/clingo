@@ -3758,6 +3758,10 @@ struct PropagatorCheckMode : EnumType<PropagatorCheckMode> {
     static constexpr char const *tp_doc =
 R"(Enumeration of supported check modes for propagators.
 
+Note that total checks are subject to the lock when a model is found. This
+means that information from previously found models can be used to discard
+assignments in check calls.
+
 `PropagatorCheckMode` objects have a readable string representation, implement
 Python's rich comparison operators, and can be used as dictionary keys.
 
@@ -3772,17 +3776,21 @@ Total : PropagatorCheckMode
     Call `Propagator.check` on total assignments.
 Fixpoint : PropagatorCheckMode
     Call `Propagator.check` on propagation fixpoints.
+Both : PropagatorCheckMode
+    Call `Propagator.check` on propagation fixpoints and total assignments.
 )";
 
     static constexpr Type const values[] = {
         clingo_propagator_check_mode_none,
         clingo_propagator_check_mode_total,
         clingo_propagator_check_mode_fixpoint,
+        clingo_propagator_check_mode_both,
     };
     static constexpr const char * const strings[] = {
         "Off",
         "Total",
         "Fixpoint",
+        "Both",
     };
 };
 

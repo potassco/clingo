@@ -2492,8 +2492,8 @@ struct PropagatorCheckMode : Object<PropagatorCheckMode> {
     PropagatorCheckMode(clingo_propagator_check_mode type) : type(type) { }
     clingo_propagator_check_mode cmpKey() { return type; }
     static int addToRegistry(lua_State *L) {
-        lua_createtable(L, 0, 5);
-        for (auto t : {clingo_propagator_check_mode_none, clingo_propagator_check_mode_total, clingo_propagator_check_mode_fixpoint}) {
+        lua_createtable(L, 0, 4);
+        for (auto t : {clingo_propagator_check_mode_none, clingo_propagator_check_mode_total, clingo_propagator_check_mode_fixpoint, clingo_propagator_check_mode_both}) {
             new_(L, t);
             lua_setfield(L, -2, field_(t));
         }
@@ -2505,6 +2505,7 @@ struct PropagatorCheckMode : Object<PropagatorCheckMode> {
             case clingo_propagator_check_mode_none:     { return "Off"; }
             case clingo_propagator_check_mode_total:    { return "Total"; }
             case clingo_propagator_check_mode_fixpoint: { return "Fixpoint"; }
+            case clingo_propagator_check_mode_both:     { return "Both"; }
         }
         return "";
     }

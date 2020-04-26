@@ -906,6 +906,7 @@ enum PropagatorCheckMode : clingo_propagator_check_mode_t {
     None    = clingo_propagator_check_mode_none,
     Total   = clingo_propagator_check_mode_total,
     Partial = clingo_propagator_check_mode_fixpoint,
+    Both    = clingo_propagator_check_mode_both,
 };
 
 enum WeightConstraintType : clingo_weight_constraint_type_t {
