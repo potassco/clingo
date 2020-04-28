@@ -94,7 +94,7 @@ class Function:
         Generate stub for function.
         """
         if self.value.__doc__ is None:
-            return "def {}(*args: List[Any], **kwargs: Mapping[str,Any]) -> Any: ...".format(self.name)
+            return "def {}(*args: Any, **kwargs: Any) -> Any: ...".format(self.name)
         return "def {}: ...".format(get_sig(self.value))
 
 
