@@ -1402,6 +1402,7 @@ struct TheoryTermType : EnumType<TheoryTermType> {
     static constexpr char const *tp_type = "TheoryTermType";
     static constexpr char const *tp_name = "clingo.TheoryTermType";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Enumeration of the different types of theory terms.
 
 `TheoryTermType` objects have a readable string representation, implement
@@ -1454,6 +1455,7 @@ struct TheoryTerm : ObjectBase<TheoryTerm> {
     static constexpr char const *tp_type = "TheoryTerm";
     static constexpr char const *tp_name = "clingo.TheoryTerm";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(`TheoryTerm` objects represent theory terms.
 
 Theory terms have a readable string representation, implement Python's rich
@@ -1533,6 +1535,7 @@ struct TheoryElement : ObjectBase<TheoryElement> {
     static constexpr char const *tp_type = "TheoryElement";
     static constexpr char const *tp_name = "clingo.TheoryElement";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Class to represent theory elements.
 
 Theory elements have a readable string representation, implement Python's rich
@@ -1696,7 +1699,7 @@ struct TheoryAtomIter : ObjectBase<TheoryAtomIter> {
     static constexpr char const *tp_type = "TheoryAtomIter";
     static constexpr char const *tp_name = "clingo.TheoryAtomIter";
     static constexpr char const *tp_doc =
-R"(Implements `Iterator[SymbolicAtom]`.)";
+R"(Implements: `Iterator[TheoryAtom]`.)";
     static Object construct(clingo_theory_atoms_t const *atoms, clingo_id_t offset) {
         auto self = new_();
         self->atoms = atoms;
@@ -1724,6 +1727,7 @@ struct SymbolType : EnumType<SymbolType> {
     static constexpr char const *tp_type = "SymbolType";
     static constexpr char const *tp_name = "clingo.SymbolType";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Enumeration of the different types of symbols.
 
 `SymbolType` objects have a readable string representation, implement Python's
@@ -1768,6 +1772,7 @@ struct Symbol : ObjectBase<Symbol> {
     static constexpr char const *tp_type = "Symbol";
     static constexpr char const *tp_name = "clingo.Symbol";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Represents a gringo symbol.
 
 This includes numbers, strings, functions (including constants with
@@ -2189,7 +2194,7 @@ struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
 
     static constexpr char const *tp_type = "SymbolicAtomIter";
     static constexpr char const *tp_name = "clingo.SymbolicAtomIter";
-    static constexpr char const *tp_doc = R"(Implements `Iterator[SymbolicAtom]`.
+    static constexpr char const *tp_doc = R"(Implements: `Iterator[SymbolicAtom]`.
 
 See Also
 --------
@@ -2230,7 +2235,7 @@ struct SymbolicAtoms : ObjectBase<SymbolicAtoms> {
     static constexpr char const *tp_doc =
 R"(This class provides read-only access to the atom base of the grounder.
 
-It implements `Sequence[SymbolicAtom]` and `Mapping[Symbol,SymbolicAtom]`.
+Implements: `Sequence[SymbolicAtom]`, `Mapping[Symbol,SymbolicAtom]`.
 
 Examples
 --------
@@ -2511,6 +2516,7 @@ struct ModelType : EnumType<ModelType> {
     static constexpr char const *tp_type = "ModelType";
     static constexpr char const *tp_name = "clingo.ModelType";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Enumeration of the different types of models.
 
 `ModelType` objects have a readable string representation, implement Python's
@@ -2853,6 +2859,8 @@ R"(Handle for solve calls.
 `SolveHandle` objects cannot be created from Python. Instead they are returned
 by `Control.solve`. They can be used to control solving, like, retrieving
 models or cancelling a search.
+
+Implements: `ContextManager[SolveHandle]`.
 
 See Also
 --------
@@ -3428,7 +3436,7 @@ literals with same level are implied by this decision literal. Each decision
 level up to and including the current decision level has a valid offset in the
 trail.
 
-This class implements `ImmutableSequence[int]` to access the literals in the trail.
+Implements: `ImmutableSequence[int]`.
 )";
     static PyMethodDef tp_methods[];
 
@@ -3518,7 +3526,8 @@ struct Assignment : ObjectBase<Assignment> {
     clingo_assignment_t const *assign;
     static constexpr char const *tp_type = "Assignment";
     static constexpr char const *tp_name = "clingo.Assignment";
-    static constexpr char const *tp_doc = R"(Object to inspect the (parital) assignment of an associated solver.
+    static constexpr char const *tp_doc = R"(
+Object to inspect the (parital) assignment of an associated solver.
 
 Assigns truth values to solver literals.  Each solver literal is either true,
 false, or undefined, represented by the Python constants `True`, `False`, or
@@ -3526,6 +3535,8 @@ false, or undefined, represented by the Python constants `True`, `False`, or
 
 This class implements `ImmutableSequence[int]` to access the (positive)
 literals in the assignment.
+
+Implements: `ImmutableSequence[int]`.
 )";
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
@@ -3756,6 +3767,7 @@ struct PropagatorCheckMode : EnumType<PropagatorCheckMode> {
     static constexpr char const *tp_type = "PropagatorCheckMode";
     static constexpr char const *tp_name = "clingo.PropagatorCheckMode";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Enumeration of supported check modes for propagators.
 
 Note that total checks are subject to the lock when a model is found. This
@@ -4361,6 +4373,7 @@ struct TruthValue : EnumType<TruthValue> {
     static constexpr char const *tp_type = "TruthValue";
     static constexpr char const *tp_name = "clingo.TruthValue";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Enumeration of the different truth values.
 
 `TruthValue` objects have a readable string representation, implement Python's
@@ -4403,6 +4416,7 @@ struct HeuristicType : EnumType<HeuristicType> {
     static constexpr char const *tp_type = "HeuristicType";
     static constexpr char const *tp_name = "clingo.HeuristicType";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Enumeration of the different heuristic types.
 
 `HeuristicType` objects have a readable string representation, implement
@@ -4556,6 +4570,8 @@ struct Backend : ObjectBase<Backend> {
     R"(Backend object providing a low level interface to extend a logic program.
 
 This class allows for adding statements in ASPIF format.
+
+Implements: `ContextManager[Backend]`.
 
 See Also
 --------
@@ -4986,6 +5002,7 @@ struct AggregateFunction : EnumType<AggregateFunction> {
     static constexpr char const *tp_type = "AggregateFunction";
     static constexpr char const *tp_name = "clingo.ast.AggregateFunction";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Enumeration of aggegate functions.
 
 `AggregateFunction` objects have a readable string representation, implement
@@ -5041,6 +5058,7 @@ struct ComparisonOperator : EnumType<ComparisonOperator> {
     static constexpr char const *tp_type = "ComparisonOperator";
     static constexpr char const *tp_name = "clingo.ast.ComparisonOperator";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Enumeration of comparison operators.
 
 `ComparisonOperator` objects have a readable string representation, implement
@@ -5542,7 +5560,6 @@ struct AST : ObjectBase<AST> {
     static constexpr char const *tp_type = "AST";
     static constexpr char const *tp_name = "clingo.ast.AST";
     static constexpr char const *tp_doc = R"(AST(type: ASTType, **arguments: Mapping[str,Any]) -> AST
-
 Represents a node in the abstract syntax tree.
 
 AST nodes implement Python's rich comparison operators and are ordered
@@ -7258,6 +7275,8 @@ struct ProgramBuilder : ObjectBase<ProgramBuilder> {
     static constexpr char const *tp_doc =
 R"(Object to build non-ground programs.
 
+Implements: `ContextManager[ProgramBuilder]`.
+
 See Also
 --------
 Control.builder, parse_program
@@ -7360,6 +7379,7 @@ struct MessageCode : EnumType<MessageCode> {
     static constexpr char const *tp_type = "MessageCode";
     static constexpr char const *tp_name = "clingo.MessageCode";
     static constexpr char const *tp_doc =
+// TODO: add implements
 R"(Enumeration of the different types of messages.
 
 `MessageCode` objects have a readable string representation, implement Python's
@@ -7470,10 +7490,11 @@ struct StatisticsArray : ObjectBase<StatisticsArray> {
     static constexpr char const *tp_type = "StatisticsArray";
     static constexpr char const *tp_name = "clingo.StatisticsArray";
     static constexpr char const *tp_doc =
-    R"(Object to modify statistics stored in an array.
+R"(Object to modify statistics stored in an array.
 
-This class implements `Sequence[Union[StatisticsArray,StatisticsMap,float]]`
-but only supports inplace concatenation and does not support deletion.
+Note that only inplace concatenation and no deletion is supported.
+
+Implements: `Sequence[Union[StatisticsArray,StatisticsMap,float]]`.
 
 See Also
 --------
@@ -7612,10 +7633,11 @@ struct StatisticsMap : ObjectBase<StatisticsMap> {
     static constexpr char const *tp_type = "StatisticsMap";
     static constexpr char const *tp_name = "clingo.StatisticsMap";
     static constexpr char const *tp_doc =
-    R"(Object to capture statistics stored in a map.
+R"(Object to capture statistics stored in a map.
 
-This class implements `Mapping[str,Union[StatisticsArray,StatisticsMap,float]]`
-but does not support item deletion.
+This class does not support item deletion.
+
+Implements: `Mapping[str,Union[StatisticsArray,StatisticsMap,float]]`.
 
 See Also
 --------

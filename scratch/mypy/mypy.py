@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Simple script to generate stub files for the clingo python module.
 
@@ -7,6 +8,7 @@ TODO:
 - compare with hand-written stub file
 """
 
+import re
 import types
 import sys
 import inspect
@@ -16,13 +18,16 @@ import clingo
 
 
 CLASS_TEMPLATE = """\
-class ${name}:
+class ${sig}:
 % for x in functions:
     ${x.stub()}
 % endfor
 % for x in variables:
     ${x.stub()}
 % endfor
+% if not functions and not variables:
+    pass
+% endif
 """
 
 
@@ -111,6 +116,15 @@ class Class:
         """
         Generate stub for class.
         """
+        sig = self.name
+        doc = self.value.__doc__.strip()
+        match = re.search(r"Implements: `[^`]*`(, `[^`]*`)*", doc)
+        if match is not None:
+            print("Implements:", match)
+            anc = []
+            for match in re.finditer(r"`([^`]*)`", match.group(0)):
+                anc.append(match.group(1))
+            sig += "({})".format(",".join(anc))
 
         functions = []
         variables = []
@@ -125,7 +139,7 @@ class Class:
                 variables.append(Variable(name, value))
 
         return Template(CLASS_TEMPLATE).render(
-            name=self.name,
+            sig=sig,
             variables=variables,
             functions=functions)
 
