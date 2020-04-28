@@ -7576,7 +7576,7 @@ None
 )"},
     // extend
     {"extend", to_function<&StatisticsArray::extend>(), METH_O,
-R"(extend(self, values: Sequence[Any]) -> None
+R"(extend(self, values: Iterable[Any]) -> None
 
 Extend the statistics array with the given values.
 
@@ -7734,7 +7734,7 @@ and modify a statistics map.
 PyMethodDef StatisticsMap::tp_methods[] = {
     // keys
     {"keys", to_function<&StatisticsMap::keys>(), METH_NOARGS,
-R"(keys(self) -> List[str]
+R"(keys(self) -> AbstractSet[str]
 
 Return the keys of the map.
 
@@ -7745,7 +7745,7 @@ List[str]
 )"},
     // values
     {"values", to_function<&StatisticsMap::values>(), METH_NOARGS,
-R"(values(self) -> List[Union[StatisticsArray,StatisticsMap,float]]
+R"(values(self) -> ValuesView[Union[StatisticsArray,StatisticsMap,float]]
 
 Return the values of the map.
 
@@ -7756,7 +7756,7 @@ List[Union[StatisticsArray,StatisticsMap,float]]
 )"},
     // items
     {"items", to_function<&StatisticsMap::items>(), METH_NOARGS,
-R"(items(self) -> List[Tuple[str, Union[StatisticsArray,StatisticsMap,float]]]
+R"(items(self) -> AbstractSet[Tuple[str, Union[StatisticsArray,StatisticsMap,float]]]
 
 Return the items of the map.
 
