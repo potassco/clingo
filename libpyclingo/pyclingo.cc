@@ -2235,7 +2235,7 @@ struct SymbolicAtoms : ObjectBase<SymbolicAtoms> {
     static constexpr char const *tp_doc =
 R"(This class provides read-only access to the atom base of the grounder.
 
-Implements: `Sequence[SymbolicAtom]`, `Mapping[Symbol,SymbolicAtom]`.
+Implements: `Mapping[Union[Symbol,int],SymbolicAtom]`.
 
 Examples
 --------
@@ -3436,7 +3436,7 @@ literals with same level are implied by this decision literal. Each decision
 level up to and including the current decision level has a valid offset in the
 trail.
 
-Implements: `ImmutableSequence[int]`.
+Implements: `Sequence[int]`.
 )";
     static PyMethodDef tp_methods[];
 
@@ -3489,7 +3489,7 @@ Implements: `ImmutableSequence[int]`.
 };
 
 PyMethodDef Trail::tp_methods[] = {
-    {"begin", to_function<&Trail::begin>(), METH_O, R"(begin(self, level : int) -> int
+    {"begin", to_function<&Trail::begin>(), METH_O, R"(begin(self, level: int) -> int
 
 Returns the offset of the decision literal with the given decision level in the
 trail.
@@ -3503,7 +3503,7 @@ Returns
 -------
 int
 )"},
-    {"end", to_function<&Trail::end>(), METH_O, R"(end(self, level : int) -> int
+    {"end", to_function<&Trail::end>(), METH_O, R"(end(self, level: int) -> int
 
 Returns the offset following the last literal with the given decision literal
 in the trail.
@@ -3533,10 +3533,10 @@ Assigns truth values to solver literals.  Each solver literal is either true,
 false, or undefined, represented by the Python constants `True`, `False`, or
 `None`, respectively.
 
-This class implements `ImmutableSequence[int]` to access the (positive)
+This class implements `Sequence[int]` to access the (positive)
 literals in the assignment.
 
-Implements: `ImmutableSequence[int]`.
+Implements: `Sequence[int]`.
 )";
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
@@ -7494,7 +7494,7 @@ R"(Object to modify statistics stored in an array.
 
 Note that only inplace concatenation and no deletion is supported.
 
-Implements: `Sequence[Union[StatisticsArray,StatisticsMap,float]]`.
+Implements: `MutableSequence[Union[StatisticsArray,StatisticsMap,float]]`.
 
 See Also
 --------
@@ -7767,7 +7767,7 @@ List[Tuple[str, Union[StatisticsArray,StatisticsMap,float]]]
 )"},
     // update
     {"update", to_function<&StatisticsMap::update>(), METH_O,
-R"(update(self, values: Mappping[str,Any]) -> None
+R"(update(self, values: Mapping[str,Any]) -> None
 
 Update the map with the given values.
 
@@ -7887,7 +7887,7 @@ struct ControlWrap : ObjectBase<ControlWrap> {
     static constexpr char const *tp_type = "Control";
     static constexpr char const *tp_name = "clingo.Control";
     static constexpr char const *tp_doc =
-    R"(Control(arguments: List[str]=[], logger: Callback[[MessageCode,str],None]=None, message_limit: int=20) -> Control
+    R"(Control(arguments: List[str]=[], logger: Callable[[MessageCode,str],None]=None, message_limit: int=20) -> Control
 
 Control object for the grounding/solving process.
 
@@ -7895,7 +7895,7 @@ Parameters
 ----------
 arguments : List[str]
     Arguments to the grounder and solver.
-logger : Callback[[MessageCode,str],None]=None
+logger : Callable[[MessageCode,str],None]=None
     Function to intercept messages normally printed to standard error.
 message_limit : int
     The maximum number of messages passed to the logger.
@@ -8315,7 +8315,7 @@ None
 )"},
     // solve
     {"solve", to_function<&ControlWrap::solve>(), METH_KEYWORDS | METH_VARARGS,
-R"(solve(self, assumptions: List[Union[Tuple[Symbol,bool],int]]=[], on_model: Callback[[Model],Optional[bool]]=None, on_statistics : Callback[[StatisticsMap,StatisticsMap],None]=None, on_finish: Callback[[SolveResult],None]=None, yield_: bool=False, async_: bool=False) -> Union[SolveHandle,SolveResult]
+R"(solve(self, assumptions: List[Union[Tuple[Symbol,bool],int]]=[], on_model: Callable[[Model],Optional[bool]]=None, on_statistics : Callable[[StatisticsMap,StatisticsMap],None]=None, on_finish: Callable[[SolveResult],None]=None, yield_: bool=False, async_: bool=False) -> Union[SolveHandle,SolveResult]
 
 Starts a search.
 
@@ -8326,19 +8326,19 @@ assumptions : List[Union[Tuple[Symbol,bool],int]]=[]
     as assumptions for the solve call, e.g., solving under
     assumptions `[(Function("a"), True)]` only admits answer sets
     that contain atom `a`.
-on_model : Callback[[Model],Optional[bool]]=None
+on_model : Callable[[Model],Optional[bool]]=None
     Optional callback for intercepting models.
     A `Model` object is passed to the callback.
     The search can be interruped from the model callback by
     returning False.
-on_statistics : Callback[[StatisticsMap,StatisticsMap],None]=None
+on_statistics : Callable[[StatisticsMap,StatisticsMap],None]=None
     Optional callback to update statistics.
     The step and accumulated statistics are passed as arguments.
-on_finish : Callback[[SolveResult],None]=None
+on_finish : Callable[[SolveResult],None]=None
     Optional callback called once search has finished.
     A `SolveResult` also indicating whether the solve call has been intrrupted
     is passed to the callback.
-on_core : Callback[List[int],None]=None
+on_core : Callable[List[int],None]=None
     Optional callback called with the assumptions that made a problem
     unsatisfiable.
 yield_ : bool=False
@@ -9288,7 +9288,7 @@ struct ApplicationOptions : ObjectBase<ApplicationOptions> {
 };
 
 PyMethodDef ApplicationOptions::tp_methods[] = {
-    {"add", to_function<&ApplicationOptions::add>(), METH_VARARGS | METH_KEYWORDS, R"(add(self, group: str, option: str, description: str, parser: Callback[[str], bool], multi: bool=False, argument: str=None) -> None
+    {"add", to_function<&ApplicationOptions::add>(), METH_VARARGS | METH_KEYWORDS, R"(add(self, group: str, option: str, description: str, parser: Callable[[str], bool], multi: bool=False, argument: str=None) -> None
 
 Add an option that is processed with a custom parser.
 
@@ -9304,7 +9304,7 @@ option : str
     shown if the argument to help is greater or equal to `l`.
 description : str
     The description of the option shown in the help output.
-parser : Callback[[str], bool]
+parser : Callable[[str], bool]
     An option parser is a function that takes a string as input and returns
     true or false depending on whether the option was parsed successively.
 multi : bool=False
@@ -9900,7 +9900,7 @@ statement = Rule
 
 static PyMethodDef clingoModuleMethods[] = {
     {"parse_term", to_function<parseTerm>(), METH_VARARGS | METH_KEYWORDS,
-R"(parse_term(string: str, logger: Callback[[MessageCode,str],None]=None, message_limit: int=20) -> Symbol
+R"(parse_term(string: str, logger: Callable[[MessageCode,str],None]=None, message_limit: int=20) -> Symbol
 
 Parse the given string using gringo's term parser for ground terms.
 
@@ -9910,7 +9910,7 @@ Parameters
 ----------
 string : str
     The string to be parsed.
-logger : Callback[[MessageCode,str],None] = None
+logger : Callable[[MessageCode,str],None] = None
     Function to intercept messages normally printed to standard error.
 message_limit : int = 20
     Maximum number of messages passed to the logger.
@@ -10061,7 +10061,7 @@ Parameters
 program : str
     String representation of the program.
 callback : Callable[[ast.AST], None]
-    Callback taking an ast as argument.
+    Callable taking an ast as argument.
 
 Returns
 -------
@@ -10092,7 +10092,7 @@ Returns
 -------
 Symbol
 )"},
-    {"Tuple", to_function<Symbol::new_tuple>(), METH_O, R"(Tuple(arguments: List[Symbol]) -> Symbol
+    {"Tuple_", to_function<Symbol::new_tuple>(), METH_O, R"(Tuple_(arguments: List[Symbol]) -> Symbol
 
 A shortcut for `Function("", arguments)`.
 
