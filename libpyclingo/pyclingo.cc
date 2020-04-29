@@ -8546,7 +8546,7 @@ An observer should be a class of the form below. Not all functions have to be
 implemented and can be omitted if not needed.
 
 ```python
-class Observer(Protocol):
+class Observer(metaclass=ABCMeta):
     def init_program(self, incremental: bool) -> None:
         """
         Called once in the beginning.
@@ -8932,7 +8932,7 @@ A propagator should be a class of the form below. Not all functions have to be
 implemented and can be omitted if not needed.
 
 ```python
-class Propagator(Protocol):
+class Propagator(metaclass=ABCMeta):
     def init(self, init: PropagateInit) -> None:
         """
         This function is called once before each solving step.
@@ -9964,7 +9964,7 @@ The application object must implement a main function and additionally can
 override the other functions.
 
 ```python
-class Application(Protocol):
+class Application(metaclass=ABCMeta):
     """
     Interface that has to be implemented to customize clingo.
 
@@ -10294,6 +10294,14 @@ PyObject *initclingoast_() {
     PY_CATCH(nullptr);
 }
 
+void addEmptyClass(Reference module, char const *name) {
+    Object bases = PyTuple_Pack(0);
+    Object dict = PyDict_New();
+    Object cls = PyObject_CallFunction(reinterpret_cast<PyObject*>(&PyType_Type), "sOO", name, bases.toPy(), dict.toPy());
+
+    if (PyModule_AddObject(module.toPy(), name, cls.release()) < 0) { throw PyException(); }
+}
+
 PyObject *initclingo_() {
     PY_TRY {
         if (!PyEval_ThreadsInitialized()) { PyEval_InitThreads(); }
@@ -10316,6 +10324,11 @@ PyObject *initclingo_() {
             !Trail::initType(m)               || !Slice::initType(m)            ||
             PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
+
+        addEmptyClass(m, "Application");
+        addEmptyClass(m, "Observer");
+        addEmptyClass(m, "Propagator");
+
         Reference a{initclingoast_()};
         Py_XINCREF(a.toPy());
         if (PyModule_AddObject(m.toPy(), "ast", a.toPy()) < 0) { return nullptr; }

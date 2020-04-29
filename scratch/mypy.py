@@ -218,6 +218,8 @@ class Module:
             if name.startswith("_") and name != "__version__":
                 continue
             if isinstance(value, type):
+                if value.__doc__ is None:
+                    continue
                 classes.append(Class(name, value))
             elif isinstance(value, types.BuiltinFunctionType):
                 functions.append(Function(name, value))
@@ -248,21 +250,16 @@ def parse_class(name, doc):
     end = doc.find('"""', start)
     attributes = doc[start:end]
     for match in re.finditer(r"^    ([^ :]*): (.*)$", attributes, flags=re.MULTILINE):
-        # FIXME: As long as Python does not provide a way to have obtional
-        # Protocol members, we simply ignore anything not abstract.
-        # variables.append(Other(match.group(1), "{}: {}".format(match.group(1), match.group(2))))
-        pass
+        variables.append(Other(match.group(1), "{}: {}".format(match.group(1), match.group(2))))
 
     functions = []
     for match in re.finditer(r"(@abstractmethod.*?)?(def .*? -> .*?:)", doc, flags=re.MULTILINE | re.DOTALL):
         fsig = match.group(2)
         fun = re.match(r"def ([^(]*)", fsig).group(1)
         fsig = re.sub("\n *", " ", fsig, flags=re.MULTILINE)
-        # FIXME: As long as Python does not provide a way to have obtional
-        # Protocol members, we simply ignore anything not abstract.
         if match.group(1) is not None:
-            # fsig = "@abstractmethod\n{}".format(fsig)
-            functions.append(Other(fun, "{} ...".format(fsig)))
+            fsig = "@abstractmethod\n{}".format(fsig)
+        functions.append(Other(fun, "{} ...".format(fsig)))
 
     return CLASS_TEMPLATE.render(
         indent=indent,
