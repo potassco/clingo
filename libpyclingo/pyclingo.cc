@@ -8546,7 +8546,7 @@ An observer should be a class of the form below. Not all functions have to be
 implemented and can be omitted if not needed.
 
 ```python
-class Observer:
+class Observer(Protocol):
     def init_program(self, incremental: bool) -> None:
         """
         Called once in the beginning.
@@ -8932,7 +8932,7 @@ A propagator should be a class of the form below. Not all functions have to be
 implemented and can be omitted if not needed.
 
 ```python
-class Propagator:
+class Propagator(Protocol):
     def init(self, init: PropagateInit) -> None:
         """
         This function is called once before each solving step.
@@ -9964,7 +9964,7 @@ The application object must implement a main function and additionally can
 override the other functions.
 
 ```python
-class Application(metaclass=ABCMeta):
+class Application(Protocol):
     """
     Interface that has to be implemented to customize clingo.
 
