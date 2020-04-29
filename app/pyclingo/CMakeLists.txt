@@ -55,4 +55,9 @@ if (PYCLINGO_INSTALL_DIR)
     install(TARGETS pyclingo
         RUNTIME DESTINATION ${PYCLINGO_INSTALL_DIR}
         LIBRARY DESTINATION ${PYCLINGO_INSTALL_DIR})
+    install(DIRECTORY ${CMAKE_SOURCE_DIR}/libpyclingo/clingo/
+        DESTINATION ${PYCLINGO_INSTALL_DIR}/clingo
+        FILES_MATCHING
+        PATTERN "*.pyi"
+        PATTERN "*.typed")
 endif()
