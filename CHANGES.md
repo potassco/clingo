@@ -1,6 +1,8 @@
 # Changes
 
 ## clingo 5.5.0
+  * improve type annotations and add stub files for type checkers (#212)
+  * allow for using `not` as a theory operator (#193)
   * rename `max_size` to `size` in APIs and remove previous `size` method
     (breaks backward compatibility but makes things consistent)
   * improve assignment providing trail and iteration methods (#187)
@@ -11,11 +13,16 @@
     minimize constraints, and perform propagation (#183)
   * add options to select specific Lua/Python versions
     (see installation instructions)
+  * rename `clingo.Tuple` to `clingo.Tuple_`
+    (to avoid name clashes with `typing.Tuple`)
   * fix propagator initialization (#166)
   * fix cleanup function and handling of theory (#169)
   * fix shifting of disjunctions (in clasp) (#173)
   * fix handling of pools in externals (#179)
   * fix logger in Python API (#175)
+  * fix memory bugs regarding strings (#196)
+  * fix undo function (#191)
+  * fix adding literals in propagate init (#192)
   * update to clasp version 3.3.6 fixing various issues
 ## clingo 5.4.0
   * add extension to implement custom heuristics
