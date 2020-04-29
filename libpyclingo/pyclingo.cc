@@ -2478,13 +2478,13 @@ available via `Model.context`.)";
 PyMethodDef SolveControl::tp_methods[] = {
     // add_clause
     {"add_clause", to_function<&SolveControl::add_clause>(), METH_O,
-R"(add_clause(self, literals: List[Union[Tuple[Symbol,bool],int]]) -> None
+R"(add_clause(self, literals: Iterable[Union[Tuple[Symbol,bool],int]]) -> None
 
 Add a clause that applies to the current solving step during the search.
 
 Parameters
 ----------
-literals : List[Union[Tuple[Symbol,bool],int]]
+literals : Iterable[Union[Tuple[Symbol,bool],int]]
     List of literals either represented as pairs of symbolic atoms and Booleans
     or as program literals.
 
@@ -2495,7 +2495,7 @@ using a `SolveHandle`.
 )"},
     // add_nogood
     {"add_nogood", to_function<&SolveControl::add_nogood>(), METH_O,
-R"(add_nogood(self, literals: List[Union[Tuple[Symbol,bool],int]]) -> None
+R"(add_nogood(self, literals: Iterable[Union[Tuple[Symbol,bool],int]]) -> None
 
 Equivalent to `SolveControl.add_clause` with the literals inverted.
 )"},
@@ -2823,13 +2823,13 @@ bool
     Whether the given program literal is true.
 )"},
     {"extend", to_function<&Model::extend>(), METH_O,
-R"(extend(self, symbols: List[Symbol]) -> None
+R"(extend(self, symbols: Iterable[Symbol]) -> None
 
 Extend a model with the given symbols.
 
 Parameters
 ----------
-symbols : List[Symbol]
+symbols : Iterable[Symbol]
     The symbols to add to the model.
 
 Returns
@@ -3983,13 +3983,13 @@ Notes
 If literals are added to the solver, subsequent calls to `add_clause` and
 `propagate` are expensive. It is best to add literals in batches.
 )"},
-    {"add_clause", to_function<&PropagateInit::addClause>(), METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause: List[int]) -> bool
+    {"add_clause", to_function<&PropagateInit::addClause>(), METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause: Iterable[int]) -> bool
 
 Statically adds the given clause to the problem.
 
 Parameters
 ----------
-clause : List[int]
+clause : Iterable[int]
     The clause over solver literals to add.
 
 Returns
@@ -4002,7 +4002,7 @@ Notes
 If this function returns false, initialization should be stopped and no further
 functions of the `PropagateInit` and related objects should be called.
 )"},
-    {"add_weight_constraint", to_function<&PropagateInit::addWeightConstraint>(), METH_KEYWORDS | METH_VARARGS, R"(add_weight_constraint(self, literal: int, literals: List[Tuple[int,int]], bound: int, type: int=0, compare_equal: bool=False) -> bool
+    {"add_weight_constraint", to_function<&PropagateInit::addWeightConstraint>(), METH_KEYWORDS | METH_VARARGS, R"(add_weight_constraint(self, literal: int, literals: Iterable[Tuple[int,int]], bound: int, type: int=0, compare_equal: bool=False) -> bool
 
 Statically adds a constraint of form
 
@@ -4018,7 +4018,7 @@ Parameters
 ----------
 literal : int
     The literal associated with the constraint.
-literals : List[Tuple[int,int]]
+literals : Iterable[Tuple[int,int]]
     The weighted literals of the constrain.
 bound : int
     The bound of the constraint.
@@ -4244,13 +4244,13 @@ Returns
 -------
 None
 )"},
-    {"add_clause", to_function<&PropagateControl::addClause>(), METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause: List[int], tag: bool=False, lock: bool=False) -> bool
+    {"add_clause", to_function<&PropagateControl::addClause>(), METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause: Iterable[int], tag: bool=False, lock: bool=False) -> bool
 
 Add the given clause to the solver.
 
 Parameters
 ----------
-clause : List[int]
+clause : Iterable[int]
     List of solver literals forming the clause.
 tag : bool=False
     If true, the clause applies only in the current solving step.
@@ -4262,7 +4262,7 @@ Returns
 bool
     This method returns false if the current propagation must be stopped.
 )"},
-    {"add_nogood", to_function<&PropagateControl::addNogood>(), METH_KEYWORDS | METH_VARARGS, R"(add_nogood(self, clause: List[int], tag: bool=False, lock: bool=False) -> bool
+    {"add_nogood", to_function<&PropagateControl::addNogood>(), METH_KEYWORDS | METH_VARARGS, R"(add_nogood(self, clause: Iterable[int], tag: bool=False, lock: bool=False) -> bool
 
 Equivalent to `self.add_clause([-lit for lit in clause], tag, lock)`.
 )"},
@@ -4811,15 +4811,15 @@ Can also be used to release an external atom using `TruthValue.Release`.
 )"},
     // add_rule
     {"add_rule", to_function<&Backend::addRule>(), METH_VARARGS | METH_KEYWORDS,
-R"(add_rule(self, head: List[int], body: List[int]=[], choice: bool=False) -> None
+R"(add_rule(self, head: Iterable[int], body: Iterable[int]=[], choice: bool=False) -> None
 
 Add a disjuntive or choice rule to the program.
 
 Parameters
 ----------
-head : List[int]
+head : Iterable[int]
     The program atoms forming the rule head.
-body : List[int]=[]
+body : Iterable[int]=[]
     The program literals forming the rule body.
 choice : bool=False
     Whether to add a disjunctive or choice rule.
@@ -4835,18 +4835,18 @@ singleton head list, respectively.
 )"},
     // add_weight_rule
     {"add_weight_rule", to_function<&Backend::addWeightRule>(), METH_VARARGS | METH_KEYWORDS,
-R"(add_weight_rule(self, head: List[int], lower: int, body: List[Tuple[int,int]], choice: bool=False) -> None
+R"(add_weight_rule(self, head: Iterable[int], lower: int, body: Iterable[Tuple[int,int]], choice: bool=False) -> None
 
 Add a disjuntive or choice rule with one weight constraint with a lower bound
 in the body to the program.
 
 Parameters
 ----------
-head : List[int]
+head : Iterable[int]
     The program atoms forming the rule head.
 lower : int
     The lower bound.
-body : List[Tuple[int,int]]
+body : Iterable[Tuple[int,int]]
     The pairs of program literals and weights forming the elements of the
     weight constraint.
 choice : bool=False
@@ -4858,7 +4858,7 @@ None
 )"},
     // add_minimize
     {"add_minimize", to_function<&Backend::addMinimize>(), METH_VARARGS | METH_KEYWORDS,
-R"(add_minimize(self, priority: int, literals: List[Tuple[int,int]]) -> None
+R"(add_minimize(self, priority: int, literals: Iterable[Tuple[int,int]]) -> None
 
 Add a minimize constraint to the program.
 
@@ -4866,7 +4866,7 @@ Parameters
 ----------
 priority : int
     Integer for the priority.
-literals : List[Tuple[int,int]]
+literals : Iterable[Tuple[int,int]]
     List of pairs of program literals and weights.
 
 Returns
@@ -4875,13 +4875,13 @@ None
 )"},
     // add_project
     {"add_project", to_function<&Backend::addProject>(), METH_VARARGS | METH_KEYWORDS,
-R"(add_project(self, atoms: List[int]) -> None
+R"(add_project(self, atoms: Iterable[int]) -> None
 
 Add a project statement to the program.
 
 Parameters
 ----------
-atoms : List[int]
+atoms : Iterable[int]
     List of program atoms to project on.
 
 Returns
@@ -4890,13 +4890,13 @@ None
 )"},
     // add_assume
     {"add_assume", to_function<&Backend::addAssume>(), METH_VARARGS | METH_KEYWORDS,
-R"(add_assume(self, literals: List[int]) -> None
+R"(add_assume(self, literals: Iterable[int]) -> None
 
 Add assumptions to the program.
 
 Parameters
 ----------
-literals : List[int]
+literals : Iterable[int]
     The list of literals to assume true.
 
 Returns
@@ -4905,7 +4905,7 @@ None
 )"},
     // add_heuristic
     {"add_heuristic", to_function<&Backend::addHeuristic>(), METH_VARARGS | METH_KEYWORDS,
-R"(add_heuristic(self, atom: int, type: HeuristicType, bias: int, priority: int, condition: List[int]) -> None
+R"(add_heuristic(self, atom: int, type: HeuristicType, bias: int, priority: int, condition: Iterable[int]) -> None
 
 Add a heuristic directive to the program.
 
@@ -4919,7 +4919,7 @@ bias : int
     A signed integer.
 priority : int
     An unsigned integer.
-condition : List[int]
+condition : Iterable[int]
     List of program literals.
 
 Returns
@@ -4928,7 +4928,7 @@ None
 )"},
     // add_acyc_edge
     {"add_acyc_edge", to_function<&Backend::addAcycEdge>(), METH_VARARGS | METH_KEYWORDS,
-R"(add_acyc_edge(self, node_u: int, node_v: int, condition: List[int]) -> None
+R"(add_acyc_edge(self, node_u: int, node_v: int, condition: Iterable[int]) -> None
 
 Add an edge directive to the program.
 
@@ -4938,7 +4938,7 @@ node_u : int
     The start node represented as an unsigned integer.
 node_v : int
     The end node represented as an unsigned integer.
-condition : List[int]
+condition : Iterable[int]
     List of program literals.
 
 Returns
@@ -7752,7 +7752,7 @@ Return the keys of the map.
 
 Returns
 -------
-List[str]
+AbstractSet[str]
     The keys of the map.
 )"},
     // values
@@ -7763,7 +7763,7 @@ Return the values of the map.
 
 Returns
 -------
-List[Union[StatisticsArray,StatisticsMap,float]]
+ValuesView[Union[StatisticsArray,StatisticsMap,float]]
     The values of the map.
 )"},
     // items
@@ -7774,7 +7774,7 @@ Return the items of the map.
 
 Returns
 -------
-List[Tuple[str, Union[StatisticsArray,StatisticsMap,float]]]
+AbstractSet[Tuple[str, Union[StatisticsArray,StatisticsMap,float]]]
     The items of the map.
 )"},
     // update
@@ -7899,13 +7899,13 @@ struct ControlWrap : ObjectBase<ControlWrap> {
     static constexpr char const *tp_type = "Control";
     static constexpr char const *tp_name = "clingo.Control";
     static constexpr char const *tp_doc =
-    R"(Control(arguments: List[str]=[], logger: Callable[[MessageCode,str],None]=None, message_limit: int=20) -> Control
+    R"(Control(arguments: Iterable[str]=[], logger: Callable[[MessageCode,str],None]=None, message_limit: int=20) -> Control
 
 Control object for the grounding/solving process.
 
 Parameters
 ----------
-arguments : List[str]
+arguments : Iterable[str]
     Arguments to the grounder and solver.
 logger : Callable[[MessageCode,str],None]=None
     Function to intercept messages normally printed to standard error.
@@ -8240,13 +8240,13 @@ ProgramBuilder
 )"},
     // ground
     {"ground", to_function<&ControlWrap::ground>(), METH_KEYWORDS | METH_VARARGS,
-R"(ground(self, parts: List[Tuple[str,List[Symbol]]], context: Any=None) -> None
+R"(ground(self, parts: Iterable[Tuple[str,Iterable[Symbol]]], context: Any=None) -> None
 
 Ground the given list of program parts specified by tuples of names and arguments.
 
 Parameters
 ----------
-parts : List[Tuple[str,List[Symbol]]]
+parts : Iterable[Tuple[str,Iterable[Symbol]]]
     List of tuples of program names and program arguments to ground.
 context : Any=None
     A context object whose methods are called during grounding using the
@@ -8289,7 +8289,7 @@ Optional[Symbol]
 )"},
     // add
     {"add", to_function<&ControlWrap::add>(), METH_VARARGS,
-R"(add(self, name: str, parameters: List[str], program: str) -> None
+R"(add(self, name: str, parameters: Iterable[str], program: str) -> None
 
 Extend the logic program with the given non-ground logic program in string form.
 
@@ -8297,7 +8297,7 @@ Parameters
 ----------
 name : str
     The name of program block to add.
-parameters : List[str]
+parameters : Iterable[str]
     The parameters of the program block to add.
 program : str
     The non-ground program in string form.
@@ -8327,13 +8327,13 @@ None
 )"},
     // solve
     {"solve", to_function<&ControlWrap::solve>(), METH_KEYWORDS | METH_VARARGS,
-R"(solve(self, assumptions: List[Union[Tuple[Symbol,bool],int]]=[], on_model: Callable[[Model],Optional[bool]]=None, on_statistics : Callable[[StatisticsMap,StatisticsMap],None]=None, on_finish: Callable[[SolveResult],None]=None, yield_: bool=False, async_: bool=False) -> Union[SolveHandle,SolveResult]
+R"(solve(self, assumptions: Iterable[Union[Tuple[Symbol,bool],int]]=[], on_model: Callable[[Model],Optional[bool]]=None, on_statistics : Callable[[StatisticsMap,StatisticsMap],None]=None, on_finish: Callable[[SolveResult],None]=None, on_core: Callable[[Sequence[int]],None]=None, yield_: bool=False, async_: bool=False) -> Union[SolveHandle,SolveResult]
 
 Starts a search.
 
 Parameters
 ----------
-assumptions : List[Union[Tuple[Symbol,bool],int]]=[]
+assumptions : Iterable[Union[Tuple[Symbol,bool],int]]=[]
     List of (atom, boolean) tuples or program literals that serve
     as assumptions for the solve call, e.g., solving under
     assumptions `[(Function("a"), True)]` only admits answer sets
@@ -8350,7 +8350,7 @@ on_finish : Callable[[SolveResult],None]=None
     Optional callback called once search has finished.
     A `SolveResult` also indicating whether the solve call has been intrrupted
     is passed to the callback.
-on_core : Callable[List[int],None]=None
+on_core : Callable[[Sequence[int]],None]=None
     Optional callback called with the assumptions that made a problem
     unsatisfiable.
 yield_ : bool=False
@@ -8571,7 +8571,7 @@ class Observer:
         None
         """
 
-    def rule(self, choice: bool, head: List[int], body: List[int]) -> None:
+    def rule(self, choice: bool, head: Sequence[int], body: Sequence[int]) -> None:
         """
         Observe rules passed to the solver.
 
@@ -8579,9 +8579,9 @@ class Observer:
         ----------
         choice : bool
             Determines if the head is a choice or a disjunction.
-        head : List[int]
+        head : Sequence[int]
             List of program atoms forming the rule head.
-        body : List[int]
+        body : Sequence[int]
             List of program literals forming the rule body.
 
         Returns
@@ -8589,8 +8589,8 @@ class Observer:
         None
         """
 
-    def weight_rule(self, choice: bool, head: List[int], lower_bound: int,
-                    body: List[Tuple[int,int]]) -> None:
+    def weight_rule(self, choice: bool, head: Sequence[int], lower_bound: int,
+                    body: Sequence[Tuple[int,int]]) -> None:
         """
         Observe rules with one weight constraint in the body passed to the
         solver.
@@ -8599,11 +8599,11 @@ class Observer:
         ----------
         choice : bool
             Determines if the head is a choice or a disjunction.
-        head : List[int]
+        head : Sequence[int]
             List of program atoms forming the head of the rule.
         lower_bound:
             The lower bound of the weight constraint in the rule body.
-        body : List[Tuple[int,int]]
+        body : Sequence[Tuple[int,int]]
             List of weighted literals (pairs of literal and weight) forming the
             elements of the weight constraint.
 
@@ -8612,7 +8612,7 @@ class Observer:
         None
         """
 
-    def minimize(self, priority: int, literals: List[Tuple[int,int]]) -> None:
+    def minimize(self, priority: int, literals: Sequence[Tuple[int,int]]) -> None:
         """
         Observe minimize directives (or weak constraints) passed to the
         solver.
@@ -8621,7 +8621,7 @@ class Observer:
         ----------
         priority : int
             The priority of the directive.
-        literals : List[Tuple[int,int]]
+        literals : Sequence[Tuple[int,int]]
             List of weighted literals whose sum to minimize (pairs of literal
             and weight).
 
@@ -8630,13 +8630,13 @@ class Observer:
         None
         """
 
-    def project(self, atoms: List[int]) -> None:
+    def project(self, atoms: Sequence[int]) -> None:
         """
         Observe projection directives passed to the solver.
 
         Parameters
         ----------
-        atoms : List[int]
+        atoms : Sequence[int]
             The program atoms to project on.
 
         Returns
@@ -8661,7 +8661,7 @@ class Observer:
         None
         """
 
-    def output_term(self, symbol: Symbol, condition: List[int]) -> None:
+    def output_term(self, symbol: Symbol, condition: Sequence[int]) -> None:
         """
         Observe shown terms passed to the solver.
 
@@ -8669,7 +8669,7 @@ class Observer:
         ----------
         symbol : Symbol
             The symbolic representation of the term.
-        condition : List[int]
+        condition : Sequence[int]
             List of program literals forming the condition when to show the
             term.
 
@@ -8679,7 +8679,7 @@ class Observer:
         """
 
     def output_csp(self, symbol: Symbol, value: int,
-                   condition: List[int]) -> None:
+                   condition: Sequence[int]) -> None:
         """
         Observe shown csp variables passed to the solver.
 
@@ -8689,7 +8689,7 @@ class Observer:
             The symbolic representation of the variable.
         value : int
             The integer value of the variable.
-        condition : List[int]
+        condition : Sequence[int]
             List of program literals forming the condition when to show the
             variable with its value.
 
@@ -8714,13 +8714,13 @@ class Observer:
         None
         """
 
-    def assume(self, literals: List[int]) -> None:
+    def assume(self, literals: Sequence[int]) -> None:
         """
         Observe assumption directives passed to the solver.
 
         Parameters
         ----------
-        literals : List[int]
+        literals : Sequence[int]
             The program literals to assume (positive literals are true and
             negative literals false for the next solve call).
 
@@ -8730,7 +8730,7 @@ class Observer:
         """
 
     def heuristic(self, atom: int, type: HeuristicType, bias: int,
-                  priority: int, condition: List[int]) -> None:
+                  priority: int, condition: Sequence[int]) -> None:
         """
         Observe heuristic directives passed to the solver.
 
@@ -8744,7 +8744,7 @@ class Observer:
             A signed integer.
         priority : int
             An unsigned integer.
-        condition : List[int]
+        condition : Sequence[int]
             List of program literals.
 
         Returns
@@ -8753,7 +8753,7 @@ class Observer:
         """
 
     def acyc_edge(self, node_u: int, node_v: int,
-                  condition: List[int]) -> None:
+                  condition: Sequence[int]) -> None:
         """
         Observe edge directives passed to the solver.
 
@@ -8763,7 +8763,7 @@ class Observer:
             The start vertex of the edge (in form of an integer).
         node_v : int
             Тhe end vertex of the edge (in form of an integer).
-        condition : List[int]
+        condition : Sequence[int]
             The list of program literals forming th condition under which to
             add the edge.
 
@@ -8805,7 +8805,7 @@ class Observer:
         """
 
     def theory_term_compound(self, term_id: int, name_id_or_type: int,
-                             arguments: List[int]) -> None:
+                             arguments: Sequence[int]) -> None:
         """
         Observe compound theory terms.
 
@@ -8820,7 +8820,7 @@ class Observer:
             - if it is -3, then it is a list
             - otherwise, it is a function and name_id_or_type refers to the id
             of the name (in form of a string term)
-        arguments : List[int]
+        arguments : Sequence[int]
             The arguments of the term in form of a list of term ids.
 
         Returns
@@ -8828,8 +8828,8 @@ class Observer:
         None
         """
 
-    def theory_element(self, element_id: int, terms: List[int],
-                       condition: List[int]) -> None:
+    def theory_element(self, element_id: int, terms: Sequence[int],
+                       condition: Sequence[int]) -> None:
         """
         Observe theory elements.
 
@@ -8837,9 +8837,9 @@ class Observer:
         ----------
         element_id : int
             The id of the element.
-        terms : List[int]
+        terms : Sequence[int]
             The term tuple of the element in form of a list of term ids.
-        condition : List[int]
+        condition : Sequence[int]
             The list of program literals forming the condition.
 
         Returns
@@ -8848,7 +8848,7 @@ class Observer:
         """
 
     def theory_atom(self, atom_id_or_zero: int, term_id: int,
-                    elements: List[int]) -> None:
+                    elements: Sequence[int]) -> None:
         """
         Observe theory atoms without guard.
 
@@ -8858,7 +8858,7 @@ class Observer:
             The id of the atom or zero for directives.
         term_id : int
             The term associated with the atom.
-        elements : List[int]
+        elements : Sequence[int]
             The elements of the atom in form of a list of element ids.
 
         Returns
@@ -8867,7 +8867,7 @@ class Observer:
         """
 
     def theory_atom_with_guard(self, atom_id_or_zero: int, term_id: int,
-                               elements: List[int], operator_id: int,
+                               elements: Sequence[int], operator_id: int,
                                right_hand_side_id: int) -> None:
         """
         Observe theory atoms with guard.
@@ -8878,7 +8878,7 @@ class Observer:
             The id of the atom or zero for directives.
         term_id : int
             The term associated with the atom.
-        elements : List[int]
+        elements : Sequence[int]
             The elements of the atom in form of a list of element ids.
         operator_id : int
             The id of the operator (a string term).
@@ -8956,7 +8956,7 @@ class Propagator:
         started, they are no longer accessible.
         """
 
-    def propagate(self, control: PropagateControl, changes: List[int]) -> None:
+    def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
         """
         Can be used to propagate solver literals given a partial assignment.
 
@@ -8964,7 +8964,7 @@ class Propagator:
         ----------
         control : PropagateControl
             Object to control propagation.
-        changes : List[int]
+        changes : Sequence[int]
             List of watched solver literals assigned to true.
 
         Returns
@@ -8993,7 +8993,7 @@ class Propagator:
         """
 
     def undo(self, thread_id: int, assignment: Assignment,
-             changes: List[int]) -> None:
+             changes: Sequence[int]) -> None:
         """
         Called whenever a solver with the given id undos assignments to watched
         solver literals.
@@ -9004,7 +9004,7 @@ class Propagator:
             The solver thread id.
         assignment : Assignment
             Object for inspecting the partial assignment of the solver.
-        changes : List[int]
+        changes : Sequence[int]
             The list of watched solver literals whose assignment is undone.
 
         Returns
@@ -9940,7 +9940,7 @@ Examples
     p(3)
 )"},
     {"clingo_main", to_function<clingoMain>(), METH_VARARGS | METH_KEYWORDS,
-R"(clingo_main(application: Application, files: List[str]=[]) -> int
+R"(clingo_main(application: Application, files: Iterable[str]=[]) -> int
 
 Runs the given application using clingo's default output and signal handling.
 
@@ -9951,7 +9951,7 @@ Parameters
 ----------
 application : Application
     The Application object (see notes).
-files : List[str]
+files : Iterable[str]
     The files to pass to the main function of the application.
 
 Returns
@@ -9978,7 +9978,7 @@ class Application(metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def main(self, control: Control, files: List[str]) -> None:
+    def main(self, control: Control, files: Sequence[str]) -> None:
         """
         Function to replace clingo's default main function.
 
@@ -9986,7 +9986,7 @@ class Application(metaclass=ABCMeta):
         ----------
         control : Control
             The main control object.
-        files : List[str]
+        files : Sequence[str]
             The files passed to clingo_main.
 
         Returns
@@ -10087,7 +10087,7 @@ See Also
 --------
 ProgramBuilder
 )"},
-    {"Function", to_function<Symbol::new_function>(), METH_VARARGS | METH_KEYWORDS, R"(Function(name: str, arguments: List[Symbol]=[], positive: bool=True) -> Symbol
+    {"Function", to_function<Symbol::new_function>(), METH_VARARGS | METH_KEYWORDS, R"(Function(name: str, arguments: Iterable[Symbol]=[], positive: bool=True) -> Symbol
 
 Construct a function symbol.
 
@@ -10099,7 +10099,7 @@ Parameters
 ----------
 name : str
     The name of the function (empty for tuples).
-arguments: List[Symbol] = []
+arguments: Iterable[Symbol] = []
     The arguments in form of a list of symbols.
 positive: bool = True
     The sign of the function (tuples must not have signs).
@@ -10108,13 +10108,13 @@ Returns
 -------
 Symbol
 )"},
-    {"Tuple_", to_function<Symbol::new_tuple>(), METH_O, R"(Tuple_(arguments: List[Symbol]) -> Symbol
+    {"Tuple_", to_function<Symbol::new_tuple>(), METH_O, R"(Tuple_(arguments: Iterable[Symbol]) -> Symbol
 
 A shortcut for `Function("", arguments)`.
 
 Parameters
 ----------
-arguments: List[Symbol]
+arguments: Iterable[Symbol]
     The arguments in form of a list of symbols.
 
 Returns
