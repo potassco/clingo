@@ -1402,7 +1402,6 @@ struct TheoryTermType : EnumType<TheoryTermType> {
     static constexpr char const *tp_type = "TheoryTermType";
     static constexpr char const *tp_name = "clingo.TheoryTermType";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Enumeration of the different types of theory terms.
 
 `TheoryTermType` objects have a readable string representation, implement
@@ -1410,6 +1409,8 @@ Python's rich comparison operators, and can be used as dictionary keys.
 
 Furthermore, they cannot be constructed from Python. Instead the following
 preconstructed objects are available:
+
+Implements: `Hashable`, `Comparable`.
 
 Attributes
 ----------
@@ -1455,11 +1456,12 @@ struct TheoryTerm : ObjectBase<TheoryTerm> {
     static constexpr char const *tp_type = "TheoryTerm";
     static constexpr char const *tp_name = "clingo.TheoryTerm";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(`TheoryTerm` objects represent theory terms.
 
 Theory terms have a readable string representation, implement Python's rich
 comparison operators, and can be used as dictionary keys.
+
+Implements: `Hashable`, `Comparable`.
 )";
 
     static Object construct(clingo_theory_atoms_t const *atoms, clingo_id_t value) {
@@ -1535,11 +1537,12 @@ struct TheoryElement : ObjectBase<TheoryElement> {
     static constexpr char const *tp_type = "TheoryElement";
     static constexpr char const *tp_name = "clingo.TheoryElement";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Class to represent theory elements.
 
 Theory elements have a readable string representation, implement Python's rich
 comparison operators, and can be used as dictionary keys.
+
+Implements: `Hashable`, `Comparable`.
 )";
     static PyGetSetDef tp_getset[];
     static Object construct(clingo_theory_atoms const *atoms, clingo_id_t value) {
@@ -1727,7 +1730,6 @@ struct SymbolType : EnumType<SymbolType> {
     static constexpr char const *tp_type = "SymbolType";
     static constexpr char const *tp_name = "clingo.SymbolType";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Enumeration of the different types of symbols.
 
 `SymbolType` objects have a readable string representation, implement Python's
@@ -1735,6 +1737,8 @@ rich comparison operators, and can be used as dictionary keys.
 
 Furthermore, they cannot be constructed from Python. Instead the following
 preconstructed objects are available:
+
+Implements: `Hashable`, `Comparable`.
 
 Attributes
 ----------
@@ -1772,7 +1776,6 @@ struct Symbol : ObjectBase<Symbol> {
     static constexpr char const *tp_type = "Symbol";
     static constexpr char const *tp_name = "clingo.Symbol";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Represents a gringo symbol.
 
 This includes numbers, strings, functions (including constants with
@@ -1781,6 +1784,8 @@ This includes numbers, strings, functions (including constants with
 Symbol objects implemente Python's rich comparison operators and are ordered
 like in gringo. They can also be used as keys in dictionaries. Their string
 representation corresponds to their gringo representation.
+
+Implements: `Hashable`, `Comparable`.
 
 Notes
 -----
@@ -2516,7 +2521,6 @@ struct ModelType : EnumType<ModelType> {
     static constexpr char const *tp_type = "ModelType";
     static constexpr char const *tp_name = "clingo.ModelType";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Enumeration of the different types of models.
 
 `ModelType` objects have a readable string representation, implement Python's
@@ -2524,6 +2528,8 @@ rich comparison operators, and can be used as dictionary keys.
 
 Furthermore, they cannot be constructed from Python. Instead the following
 preconstructed class attributes are available:
+
+Implements: `Hashable`, `Comparable`.
 
 Attributes
 ----------
@@ -3354,8 +3360,8 @@ struct Slice : ObjectBase<Slice> {
     Py_ssize_t start, stop, step;
 #endif
 
-    static constexpr char const *tp_type = "Slice";
-    static constexpr char const *tp_name = "clingo.Slice";
+    static constexpr char const *tp_type = "_Slice";
+    static constexpr char const *tp_name = "clingo._Slice";
     static constexpr char const *tp_doc = R"(
 Helper object for slicing support.
 )";
@@ -3767,7 +3773,6 @@ struct PropagatorCheckMode : EnumType<PropagatorCheckMode> {
     static constexpr char const *tp_type = "PropagatorCheckMode";
     static constexpr char const *tp_name = "clingo.PropagatorCheckMode";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Enumeration of supported check modes for propagators.
 
 Note that total checks are subject to the lock when a model is found. This
@@ -3779,6 +3784,8 @@ Python's rich comparison operators, and can be used as dictionary keys.
 
 Furthermore, they cannot be constructed from Python. Instead the following
 preconstructed class attributes are available:
+
+Implements: `Hashable`, `Comparable`.
 
 Attributes
 ----------
@@ -4373,7 +4380,6 @@ struct TruthValue : EnumType<TruthValue> {
     static constexpr char const *tp_type = "TruthValue";
     static constexpr char const *tp_name = "clingo.TruthValue";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Enumeration of the different truth values.
 
 `TruthValue` objects have a readable string representation, implement Python's
@@ -4381,6 +4387,8 @@ rich comparison operators, and can be used as dictionary keys.
 
 Furthermore, they cannot be constructed from Python. Instead the following
 preconstructed class attributes are available:
+
+Implements: `Hashable`, `Comparable`.
 
 Attributes
 ----------
@@ -4416,7 +4424,6 @@ struct HeuristicType : EnumType<HeuristicType> {
     static constexpr char const *tp_type = "HeuristicType";
     static constexpr char const *tp_name = "clingo.HeuristicType";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Enumeration of the different heuristic types.
 
 `HeuristicType` objects have a readable string representation, implement
@@ -4424,6 +4431,8 @@ Python's rich comparison operators, and can be used as dictionary keys.
 
 Furthermore, they cannot be constructed from Python. Instead the following
 preconstructed class attributes  are available:
+
+Implements: `Hashable`, `Comparable`.
 
 Attributes
 ----------
@@ -5002,7 +5011,6 @@ struct AggregateFunction : EnumType<AggregateFunction> {
     static constexpr char const *tp_type = "AggregateFunction";
     static constexpr char const *tp_name = "clingo.ast.AggregateFunction";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Enumeration of aggegate functions.
 
 `AggregateFunction` objects have a readable string representation, implement
@@ -5010,6 +5018,8 @@ Python's rich comparison operators, and can be used as dictionary keys.
 
 Furthermore, they cannot be constructed from Python. Instead the following
 preconstructed class attributes are available:
+
+Implements: `Hashable`, `Comparable`.
 
 Attributes
 ----------
@@ -5058,7 +5068,6 @@ struct ComparisonOperator : EnumType<ComparisonOperator> {
     static constexpr char const *tp_type = "ComparisonOperator";
     static constexpr char const *tp_name = "clingo.ast.ComparisonOperator";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Enumeration of comparison operators.
 
 `ComparisonOperator` objects have a readable string representation, implement
@@ -5066,6 +5075,8 @@ Python's rich comparison operators, and can be used as dictionary keys.
 
 Furthermore, they cannot be constructed from Python. Instead the following
 preconstructed class attributes are available:
+
+Implements: `Hashable`, `Comparable`.
 
 Attributes
 ----------
@@ -7379,7 +7390,6 @@ struct MessageCode : EnumType<MessageCode> {
     static constexpr char const *tp_type = "MessageCode";
     static constexpr char const *tp_name = "clingo.MessageCode";
     static constexpr char const *tp_doc =
-// TODO: add implements
 R"(Enumeration of the different types of messages.
 
 `MessageCode` objects have a readable string representation, implement Python's
@@ -7387,6 +7397,8 @@ rich comparison operators, and can be used as dictionary keys.
 
 Furthermore, they cannot be constructed from Python. Instead the following
 preconstructed class attributes are available:
+
+Implements: `Hashable`, `Comparable`.
 
 Attributes
 ----------
@@ -9806,6 +9818,7 @@ theory = TheoryDefinition
                         , arity     : int
                         , elements  : str*
                         , guard     : TheoryGuardDefinition
+
                                        ( operators : str*
                                        , term      : str
                                        )?
@@ -9950,82 +9963,85 @@ Notes
 The application object must implement a main function and additionally can
 override the other functions.
 
-    class Application(object):
-        """
-        Interface that has to be implemented to customize clingo.
+```python
+class Application(metaclass=ABCMeta):
+    """
+    Interface that has to be implemented to customize clingo.
 
-        Attributes
+    Attributes
+    ----------
+    program_name: str = 'clingo'
+        Optional program name to be used in the help output.
+
+    message_limit: int = 20
+        Maximum number of messages passed to the logger.
+    """
+
+    @abstractmethod
+    def main(self, control: Control, files: List[str]) -> None:
+        """
+        Function to replace clingo's default main function.
+
+        Parameters
         ----------
-        program_name: str = 'clingo'
-            Optional program name to be used in the help output.
+        control : Control
+            The main control object.
+        files : List[str]
+            The files passed to clingo_main.
 
-        message_limit: int = 20
-            Maximum number of messages passed to the logger.
+        Returns
+        -------
+        None
         """
 
-        def main(self, control: Control, files: List[str]) -> None:
-            """
-            Function to replace clingo's default main function.
+    def register_options(self, options: ApplicationOptions) -> None:
+        """
+        Function to register custom options.
 
-            Parameters
-            ----------
-            control : Control
-                The main control object.
-            files : List[str]
-                The files passed to clingo_main.
+        Parameters
+        ----------
+        options : ApplicationOptions
+            Object to register additional options
 
-            Returns
-            -------
-            None
-            """
+        Returns
+        -------
+        None
+        """
 
-        def register_options(self, options: ApplicationOptions) -> None:
-            """
-            Function to register custom options.
+    def validate_options(self) -> bool:
+        """
+        Function to validate custom options.
 
-            Parameters
-            ----------
-            options : ApplicationOptions
-                Object to register additional options
+        This function should return false or throw an exception if option
+        validation fails.
 
-            Returns
-            -------
-            None
-            """
+        Returns
+        -------
+        bool
+        """
 
-        def validate_options(self) -> bool:
-            """
-            Function to validate custom options.
+    def logger(self, code: MessageCode, message: str) -> None:
+        """
+        Function to intercept messages normally printed to standard error.
 
-            This function should return false or throw an exception if option
-            validation fails.
+        By default, messages are printed to stdandard error.
 
-            Returns
-            -------
-            bool
-            """
+        Parameters
+        ----------
+        code : MessageCode
+            The message code.
+        message : str
+            The message string.
 
-        def logger(self, code: MessageCode, message: str) -> None:
-            """
-            Function to intercept messages normally printed to standard error.
+        Returns
+        -------
+        None
 
-            By default, messages are printed to stdandard error.
-
-            Parameters
-            ----------
-            code : MessageCode
-                The message code.
-            message : str
-                The message string.
-
-            Returns
-            -------
-            None
-
-            Notes
-            -----
-            This function should not raise exceptions.
-            """
+        Notes
+        -----
+        This function should not raise exceptions.
+        """
+```
 
 Examples
 --------

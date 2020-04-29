@@ -1,5 +1,8 @@
-from typing import Any, List, Mapping, Tuple
-from abc import ABCMeta
+from typing import *
+from abc import *
+
+from .types import Comparable
+from . import ast
 
 
 
@@ -118,7 +121,7 @@ class ASTType(metaclass=ABCMeta):
     UnaryOperation: ASTType
     Variable: ASTType
 
-class AggregateFunction(metaclass=ABCMeta):
+class AggregateFunction(Hashable, Comparable, metaclass=ABCMeta):
     Count: AggregateFunction
     Max: AggregateFunction
     Min: AggregateFunction
@@ -136,7 +139,7 @@ class BinaryOperator(metaclass=ABCMeta):
     Power: BinaryOperator
     XOr: BinaryOperator
 
-class ComparisonOperator(metaclass=ABCMeta):
+class ComparisonOperator(Hashable, Comparable, metaclass=ABCMeta):
     Equal: ComparisonOperator
     GreaterEqual: ComparisonOperator
     GreaterThan: ComparisonOperator

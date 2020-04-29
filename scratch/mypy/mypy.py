@@ -7,18 +7,40 @@ import re
 import types
 import inspect
 import os.path
+from textwrap import indent
 
-from mako.lookup import TemplateLookup
 from mako.template import Template
 import clingo
 
+
 BASE = os.path.dirname(__file__)
-LOOKUP = TemplateLookup(directories=[BASE], input_encoding="utf-8")
+
+TYPES_TEMPLATE = Template("""\
+from typing import Any, Protocol, TypeVar
+from abc import abstractmethod
+
+
+C = TypeVar("C", bound="Comparable")
+
+
+class Comparable(Protocol):
+    @abstractmethod
+    def __eq__(self, other: Any) -> bool: ...
+
+    @abstractmethod
+    def __lt__(self: C, other: C) -> bool: ...
+
+    def __gt__(self: C, other: C) -> bool: ...
+
+    def __le__(self: C, other: C) -> bool: ...
+
+    def __ge__(self: C, other: C) -> bool: ...
+""")
 
 CLASS_TEMPLATE = Template("""\
 class ${sig}:
 % for x in functions:
-    ${x.stub()}
+${indent(x.stub(), "    ")}
 % endfor
 % for x in variables:
     ${x.stub()}
@@ -26,16 +48,15 @@ class ${sig}:
 % if not functions and not variables:
     pass
 % endif
-""", lookup=LOOKUP)
+""")
 
+MODULE_TEMPLATE = Template("""\
+from typing import *
+from abc import *
 
-CLINGO_TEMPLATE = Template('''\
-from typing import AbstractSet, Any, Callable, ContextManager, Iterable, Iterator, List, Mapping, MutableSequence, Optional, Sequence, Tuple, ValuesView, Union
-from abc import ABC, ABCMeta, abstractmethod
-
+from .types import Comparable
 from . import ast
 
-<%include file="abc.py"/>
 
 % for x in variables:
 ${x.stub()}
@@ -50,28 +71,7 @@ ${x.stub()}
 % for x in classes:
 ${x.stub()}
 % endfor
-''', lookup=LOOKUP)
-
-
-AST_TEMPLATE = Template('''\
-from typing import Any, List, Mapping, Tuple
-from abc import ABCMeta
-
-
-% for x in variables:
-${x.stub()}
-% endfor
-
-
-% for x in functions:
-${x.stub()}
-% endfor
-
-
-% for x in classes:
-${x.stub()}
-% endfor
-''', lookup=LOOKUP)
+""")
 
 
 def get_sig(value):
@@ -194,6 +194,7 @@ class Class:
                 variables.append(Variable(name, value))
 
         return CLASS_TEMPLATE.render(
+            indent=indent,
             sig=sig,
             variables=variables,
             functions=functions)
@@ -203,17 +204,17 @@ class Module:
     """
     Something that resembles a module.
     """
-    def __init__(self, template, name, value):
-        self.template = template
+    def __init__(self, name, value, classes=()):
         self.name = name
         self.value = value
+        self.classes = classes
 
     def stub(self):
         """
         Print stub for module.
         """
         functions = []
-        classes = []
+        classes = list(self.classes)
         modules = []
         variables = []
 
@@ -229,15 +230,66 @@ class Module:
             else:
                 variables.append(Variable(name, value))
 
-        return self.template.render(
+        return MODULE_TEMPLATE.render(
             classes=classes,
             functions=functions,
             variables=variables).rstrip() + "\n"
 
 
-if __name__ == "__main__":
+def parse_class(name, doc):
+    """
+    Extract a class declaration from a docstring.
+    """
+    match = re.search(r"class ({}(\([^)]*\))?):".format(name), doc)
+    csig = match.group(1)
+
+    start = match.start()
+    end = doc.find("```", start)
+    doc = doc[start:end]
+
+    variables = []
+    start = doc.find("Attributes")
+    end = doc.find('"""', start)
+    attributes = doc[start:end]
+    for match in re.finditer(r"^    ([^ :]*): (.*)$", attributes, flags=re.MULTILINE):
+        variables.append(Other(match.group(1), "{}: {}".format(match.group(1), match.group(2))))
+
+    functions = []
+    for match in re.finditer(r"(@abstractmethod.*?)?(def .*? -> .*?:)", doc, flags=re.MULTILINE | re.DOTALL):
+        fsig = match.group(2)
+        fun = re.match(r"def ([^(]*)", fsig).group(1)
+        fsig = re.sub("\n *", " ", fsig, flags=re.MULTILINE)
+        if match.group(1) is not None:
+            fsig = "@abstractmethod\n{}".format(fsig)
+        functions.append(Other(fun, "{} ...".format(fsig)))
+
+    return CLASS_TEMPLATE.render(
+        indent=indent,
+        sig=csig,
+        functions=functions,
+        variables=variables)
+
+
+def main():
+    """
+    Write the types.pyi, __init__.pyi, ast.pyi files for the clingo module.
+
+    The files are completely generated from the docstrings.
+    """
+    classes = [
+        Other("Application", parse_class("Application", clingo.clingo_main.__doc__)),
+        Other("Propagator", parse_class("Propagator", clingo.Control.register_propagator.__doc__)),
+        Other("Observer", parse_class("Observer", clingo.Control.register_observer.__doc__))]
+
+    with open(os.path.join(BASE, "..", "..", "libpyclingo", "clingo", "types.pyi"), "w") as handle:
+        handle.write(TYPES_TEMPLATE.render())
+
     with open(os.path.join(BASE, "..", "..", "libpyclingo", "clingo", "__init__.pyi"), "w") as handle:
-        handle.write(Module(CLINGO_TEMPLATE, "clingo", clingo).stub())
+        handle.write(Module("clingo", clingo, classes).stub())
 
     with open(os.path.join(BASE, "..", "..", "libpyclingo", "clingo", "ast.pyi"), "w") as handle:
-        handle.write(Module(AST_TEMPLATE, "clingo.ast", clingo.ast).stub())
+        handle.write(Module("clingo.ast", clingo.ast).stub())
+
+
+if __name__ == "__main__":
+    main()
