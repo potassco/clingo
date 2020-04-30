@@ -8547,6 +8547,10 @@ omitted if not needed.
 
 ```python
 class Observer(metaclass=ABCMeta):
+    """
+    Interface that has to be implemented to inspect rules produced during
+    grounding.
+    """
     def init_program(self, incremental: bool) -> None:
         """
         Called once in the beginning.
