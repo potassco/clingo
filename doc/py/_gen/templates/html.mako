@@ -16,7 +16,8 @@
   identifier = pp.Word(pp.alphas, pp.alphanums + '_')
 
   def str_a(s, l, t):
-    return to_html("`" + (".".join(x.replace("Tuple", "Tuple_") for x in t[0])) + "`")[3:-4].replace("Tuple_", "Tuple")
+    # return to_html("`" + (".".join(x.replace("Tuple", "Tuple_") for x in t[0])) + "`")[3:-4].replace("Tuple_", "Tuple")
+    return to_html("`" + (".".join(t[0])) + "`")[3:-4]
 
   identifier_q = pp.Group(pp.delimitedList(identifier, delim=".")).setParseAction(str_a)
 
@@ -122,10 +123,20 @@
 
   def parse_fun_docstring(x):
     try:
-      lines = x.docstring.splitlines()
-      line = lines[0]
-      sig = function.parseString(lines[0], parseAll=True).asDict()
-      return "\n".join(lines[1:]).strip(), p_function(x.funcdef(), sig)
+      if x.source:
+        line = re.search("def (.*? -> [^:]*?):", x.source, flags=re.MULTILINE | re.DOTALL).group(1)
+        doc = x.docstring
+        if x.source.startswith("@abstractmethod"):
+          fdef = "@abstractmethod " + x.funcdef()
+        else:
+          fdef = x.funcdef()
+      else:
+        lines = x.docstring.splitlines()
+        line = lines[0]
+        doc = "\n".join(lines[1:]).strip()
+        fdef = x.funcdef()
+      sig = function.parseString(line, parseAll=True).asDict()
+      return doc, p_function(fdef, sig)
     except Exception as e:
       return x.docstring, p_function(x.funcdef(), {"name": x.name, "arguments": [], "type": None, "default": None})
 

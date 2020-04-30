@@ -8542,8 +8542,8 @@ None
 
 Notes
 -----
-An observer should be a class of the form below. Not all functions have to be
-implemented and can be omitted if not needed.
+Not all functions the `Observer` interface have to be implemented and can be
+omitted if not needed.
 
 ```python
 class Observer(metaclass=ABCMeta):
@@ -8928,8 +8928,8 @@ All methods called during propagation use solver literals whereas
 function `PropagateInit.solver_literal` can be used to map program literals or
 condition ids to solver literals.
 
-A propagator should be a class of the form below. Not all functions have to be
-implemented and can be omitted if not needed.
+Not all functions of the `Propagator` interface have to be implemented and can
+be omitted if not needed.
 
 ```python
 class Propagator(metaclass=ABCMeta):
@@ -8989,7 +8989,7 @@ class Propagator(metaclass=ABCMeta):
 
         Note that this function can be called from different solving threads.
         Each thread has its own assignment and id, which can be obtained using
-        `PropagateControl.id`.
+        `PropagateControl.thread_id`.
         """
 
     def undo(self, thread_id: int, assignment: Assignment,
@@ -9960,8 +9960,8 @@ int
     The exit code of the application.
 Notes
 -----
-The application object must implement a main function and additionally can
-override the other functions.
+The main function of the `Application` interface has to be implemented. All
+other members are optional.
 
 ```python
 class Application(metaclass=ABCMeta):
@@ -10051,7 +10051,7 @@ The following example reproduces the default clingo application:
     import sys
     import clingo
 
-    class Application:
+    class Application(clingo.Application):
         def __init__(self, name):
             self.program_name = name
 
