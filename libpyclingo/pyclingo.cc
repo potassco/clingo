@@ -2240,7 +2240,7 @@ struct SymbolicAtoms : ObjectBase<SymbolicAtoms> {
     static constexpr char const *tp_doc =
 R"(This class provides read-only access to the atom base of the grounder.
 
-Implements: `Mapping[Union[Symbol,int],SymbolicAtom]`.
+Implements: `Lookup[Union[Symbol,int],SymbolicAtom]`.
 
 Examples
 --------
@@ -5576,6 +5576,8 @@ Represents a node in the abstract syntax tree.
 AST nodes implement Python's rich comparison operators and are ordered
 structurally ignoring the location. They can also be used as dictionary keys.
 Their string representation corresponds to their gringo representation.
+
+Implements: `Any`.
 
 Parameters
 ----------

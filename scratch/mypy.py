@@ -29,6 +29,12 @@ class Comparable(Protocol):
     def __gt__(self, other: C) -> bool: ...
     def __le__(self, other: C) -> bool: ...
     def __ge__(self, other: C) -> bool: ...
+
+
+Key = TypeVar('Key')
+Value = TypeVar('Value')
+class Lookup(Generic[Key], Collection[Value]):
+    def __getitem__(self, key: Key) -> Optional[Value]: ...
 """)
 
 CLASS_TEMPLATE = Template("""\
@@ -50,7 +56,7 @@ MODULE_TEMPLATE = Template("""\
 from typing import *
 from abc import *
 
-from .types import Comparable
+from .types import Comparable, Lookup
 from . import ast
 
 

@@ -3,7 +3,7 @@
 from typing import *
 from abc import *
 
-from .types import Comparable
+from .types import Comparable, Lookup
 from . import ast
 
 

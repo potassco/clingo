@@ -3,7 +3,7 @@
 from typing import *
 from abc import *
 
-from .types import Comparable
+from .types import Comparable, Lookup
 from . import ast
 
 
@@ -243,7 +243,7 @@ class SymbolicAtom(metaclass=ABCMeta):
 class SymbolicAtomIter(Iterator[SymbolicAtom], metaclass=ABCMeta):
     pass
 
-class SymbolicAtoms(Mapping[Union[Symbol,int],SymbolicAtom], metaclass=ABCMeta):
+class SymbolicAtoms(Lookup[Union[Symbol,int],SymbolicAtom], metaclass=ABCMeta):
     def by_signature(self, name: str, arity: int, positive: bool=True) -> Iterator[Symbol]: ...
     signatures: List[Tuple[str,int,bool]]
 
