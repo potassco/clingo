@@ -67,6 +67,7 @@ flags = [
 '-I/home/wv/bin/linux/64/gcc-4.9/include/c++/v1',
 '-I/usr/lib/llvm-10/include/c++/v1',
 '-Ilibgringo/tests',
+'-I/usr/include/python3.8',
 '-I/usr/include/python3.6m',
 '-I/usr/include/python2.7',
 '-I/usr/include/lua5.1',
