@@ -50,11 +50,20 @@ target_include_directories(libclingo
     PRIVATE
     "$<BUILD_INTERFACE:${CLASP_SOURCE_DIR}/app>")
 target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
+
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
-else()
-    set_target_properties(libclingo PROPERTIES SOVERSION 4 VERSION 4.0)
-    install(TARGETS libclingo
+endif()
+
+if (CLINGO_INSTALL_LIB)
+    set(clingo_targets libclingo)
+    if (CLINGO_BUILD_SHARED)
+        set_target_properties(libclingo PROPERTIES SOVERSION 4 VERSION 4.0)
+    else()
+        list(APPEND clingo_targets libgringo libreify)
+    endif()
+
+    install(TARGETS ${clingo_targets}
         EXPORT ClingoTargets
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -79,6 +88,7 @@ else()
         ${CMAKE_CURRENT_BINARY_DIR}/ClingoConfigVersion.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Clingo)
 endif()
+
 if (MSVC)
     target_compile_definitions(libclingo PRIVATE _SCL_SECURE_NO_WARNINGS)
 endif()
