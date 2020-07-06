@@ -269,7 +269,7 @@ void TheoryAtom::check(Location const &loc, Printable const &p, ChkLvlVec &level
 }
 
 bool TheoryAtom::simplify(Projections &project, SimplifyState &state, Logger &log) {
-    if (name_->simplify(state, false, false, log).update(name_).undefined()) {
+    if (name_->simplify(state, false, false, log).update(name_, false).undefined()) {
         return false;
     }
     for (auto &elem : elems_) {

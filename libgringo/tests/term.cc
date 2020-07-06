@@ -58,14 +58,14 @@ TEST_CASE("term", "[base]") {
 
     auto rewriteDots = [&](UTerm &&x) -> std::tuple<UTerm, SimplifyState::DotsMap, SimplifyState::ScriptMap>  {
         SimplifyState state;
-        x->simplify(state, true, false, log).update(x);
+        x->simplify(state, true, false, log).update(x, false);
         return std::make_tuple(std::move(x), std::move(state.dots), std::move(state.scripts));
     };
 
     auto rewriteProject = [&](UTerm &&x) -> std::string {
         UTerm sig{make_locatable<ValTerm>(x->loc(), Symbol::createId("#p"))};
         SimplifyState state;
-        x->simplify(state, true, false, log).update(x);
+        x->simplify(state, true, false, log).update(x, false);
         auto ret(x->project(sig.get() != nullptr, state.gen));
         Term::replace(x, std::move(std::get<0>(ret)));
         auto projected(std::move(std::get<1>(ret)));
@@ -86,7 +86,7 @@ TEST_CASE("term", "[base]") {
 
     auto simplify = [&](UTerm &&x) -> UTerm {
         SimplifyState state;
-        if (x->simplify(state, true, false, log).update(x).undefined()) {
+        if (x->simplify(state, true, false, log).update(x, false).undefined()) {
             return make_locatable<ValTerm>(x->loc(), Symbol::createId("#undefined"));
         }
         else {
@@ -101,7 +101,7 @@ TEST_CASE("term", "[base]") {
             SimplifyState elemState(state);
             Term::ArithmeticsMap arith;
             arith.emplace_back(gringo_make_unique<Term::LevelMap>());
-            term->simplify(elemState, true, false, log).update(term);
+            term->simplify(elemState, true, false, log).update(term, false);
             Term::replace(term, term->rewriteArithmetics(arith, elemState.gen));
             res.emplace_back(std::move(term), std::move(elemState.dots), std::move(arith));
         }
@@ -113,7 +113,7 @@ TEST_CASE("term", "[base]") {
         Term::ArithmeticsMap arith;
         Term::VarSet set;
         arith.emplace_back(gringo_make_unique<Term::LevelMap>());
-        x->simplify(state, true, false, log).update(x);
+        x->simplify(state, true, false, log).update(x, false);
         Term::replace(x, x->rewriteArithmetics(arith, state.gen));
         x->bind(set);
         return std::move(x);
@@ -220,11 +220,11 @@ TEST_CASE("term", "[base]") {
     }
 
     SECTION("rewriteDots") {
-        REQUIRE("(#Range0,[(#Range0,X,Y)],[])" == to_string(rewriteDots(dots(var("X"), var("Y")))));
-        REQUIRE("(#Range0,[(#Range0,1,2)],[])" == to_string(rewriteDots(dots(val(NUM(1)), val(NUM(2))))));
-        REQUIRE("(f(#Range0,3),[(#Range0,g(1),2)],[])" == to_string(rewriteDots(fun("f", dots(fun("g", val(NUM(1))), val(NUM(2))), val(NUM(3))))));
-        REQUIRE("(#Script2,[(#Range1,#Script0,2)],[(#Script0,g,[X]),(#Script2,f,[#Range1,3])])" == to_string(rewriteDots(lua("f", dots(lua("g", var("X")), val(NUM(2))), val(NUM(3))))));
-        REQUIRE("((1*#Range0+4),[(#Range0,3,3)],[])" == to_string(rewriteDots(binop(BinOp::ADD, dots(binop(BinOp::ADD, val(NUM(1)), val(NUM(2))), val(NUM(3))), val(NUM(4))))));
+        REQUIRE("((#Range0+0),[(#Range0,X,Y)],[])" == to_string(rewriteDots(dots(var("X"), var("Y")))));
+        REQUIRE("((#Range0+0),[(#Range0,1,2)],[])" == to_string(rewriteDots(dots(val(NUM(1)), val(NUM(2))))));
+        REQUIRE("(f((#Range0+0),3),[(#Range0,g(1),2)],[])" == to_string(rewriteDots(fun("f", dots(fun("g", val(NUM(1))), val(NUM(2))), val(NUM(3))))));
+        REQUIRE("(#Script2,[(#Range1,#Script0,2)],[(#Script0,g,[X]),(#Script2,f,[(#Range1+0),3])])" == to_string(rewriteDots(lua("f", dots(lua("g", var("X")), val(NUM(2))), val(NUM(3))))));
+        REQUIRE("((#Range0+4),[(#Range0,3,3)],[])" == to_string(rewriteDots(binop(BinOp::ADD, dots(binop(BinOp::ADD, val(NUM(1)), val(NUM(2))), val(NUM(3))), val(NUM(4))))));
         REQUIRE("(|#Range0|,[(#Range0,1,2)],[])" == to_string(rewriteDots(unop(UnOp::ABS, dots(unop(UnOp::ABS, val(NUM(1))), val(NUM(2)))))));
     }
 
@@ -239,24 +239,24 @@ TEST_CASE("term", "[base]") {
     }
 
     SECTION("simplify") {
-        REQUIRE("(1*X+1)" == to_string(simplify(binop(BinOp::ADD, val(NUM(1)), var("X")))));
-        REQUIRE("(1*X+1)" == to_string(simplify(binop(BinOp::ADD, var("X"), val(NUM(1))))));
+        REQUIRE("(X+1)" == to_string(simplify(binop(BinOp::ADD, val(NUM(1)), var("X")))));
+        REQUIRE("(X+1)" == to_string(simplify(binop(BinOp::ADD, var("X"), val(NUM(1))))));
         REQUIRE("(-1*X+1)" == to_string(simplify(binop(BinOp::SUB, val(NUM(1)), var("X")))));
-        REQUIRE("(2*X+0)" == to_string(simplify(binop(BinOp::MUL, val(NUM(2)), var("X")))));
+        REQUIRE("(2*X)" == to_string(simplify(binop(BinOp::MUL, val(NUM(2)), var("X")))));
         REQUIRE("(0*X)" == to_string(simplify(binop(BinOp::MUL, val(NUM(0)), var("X")))));
         REQUIRE("#undefined" == to_string(simplify(binop(BinOp::ADD, fun("f", val(NUM(1))), var("X")))));
         REQUIRE("#undefined" == to_string(simplify(fun("f", binop(BinOp::ADD, val(NUM(1)), val(ID("a")))))));
         REQUIRE("#undefined" == to_string(simplify(fun("f", binop(BinOp::MOD, val(NUM(1)), val(NUM(0)))))));
         REQUIRE("#undefined" == to_string(simplify(fun("f", binop(BinOp::DIV, val(NUM(1)), val(NUM(0)))))));
-        REQUIRE("X" == to_string(simplify(binop(BinOp::SUB, val(NUM(1)), binop(BinOp::SUB, val(NUM(1)), var("X"))))));
-        REQUIRE("(1*X+1)" == to_string(simplify(binop(BinOp::SUB, val(NUM(1)), unop(UnOp::NEG, var("X"))))));
+        REQUIRE("(X+0)" == to_string(simplify(binop(BinOp::SUB, val(NUM(1)), binop(BinOp::SUB, val(NUM(1)), var("X"))))));
+        REQUIRE("(X+1)" == to_string(simplify(binop(BinOp::SUB, val(NUM(1)), unop(UnOp::NEG, var("X"))))));
         REQUIRE("3" == to_string(simplify(binop(BinOp::ADD, val(NUM(1)), val(NUM(2))))));
         REQUIRE("1" == to_string(simplify(unop(UnOp::NEG, val(NUM(-1))))));
-        REQUIRE("f((1*X+1))" == to_string(simplify(fun("f", binop(BinOp::ADD, val(NUM(1)), var("X"))))));
+        REQUIRE("f((X+1))" == to_string(simplify(fun("f", binop(BinOp::ADD, val(NUM(1)), var("X"))))));
     }
 
     SECTION("rewrite()") {
-        REQUIRE("[(f((1*#Range1+1)),[(#Range0,2,3),(#Range1,1,#Range0)],[{}]),(f((1*#Range3+1)),[(#Range2,2,4),(#Range3,1,#Range2)],[{}]),(f((-1*X+1)),[],[{}])]" == to_string(rewrite(fun("f", pool(binop(BinOp::ADD, dots(val(NUM(1)), dots(val(NUM(2)), pool(val(NUM(3)), val(NUM(4))))), val(NUM(1))), binop(BinOp::SUB, val(NUM(1)), var("X")))))));
+        REQUIRE("[(f((#Range1+1)),[(#Range0,2,3),(#Range1,1,#Range0)],[{}]),(f((#Range3+1)),[(#Range2,2,4),(#Range3,1,#Range2)],[{}]),(f((-1*X+1)),[],[{}])]" == to_string(rewrite(fun("f", pool(binop(BinOp::ADD, dots(val(NUM(1)), dots(val(NUM(2)), pool(val(NUM(3)), val(NUM(4))))), val(NUM(1))), binop(BinOp::SUB, val(NUM(1)), var("X")))))));
     }
 
     SECTION("undefined") {
@@ -287,8 +287,8 @@ TEST_CASE("term", "[base]") {
         REQUIRE("(#p_p(#b(X),#p),#p_p(#b(#X0),#p),p(#X0,#P1))" == to_string(rewriteProject(fun("p", var("X"), var("_")))));
         REQUIRE("(#p_p(g(#p)),#p_p(g(#p)),p(g(#P0)))" == to_string(rewriteProject(fun("p", fun("g", var("_"))))));
         REQUIRE("(#p_p(#p,f(#b(X),#p),g(#p)),#p_p(#p,f(#b(#X1),#p),g(#p)),p(#P0,f(#X1,#P2),g(#P3)))" == to_string(rewriteProject(fun("p", var("_"), fun("f", var("X"), var("_")), fun("g", var("_"))))));
-        REQUIRE("(#p_p(#p,f(h(#p),#b((1*X+2)),#p),g(#p)),#p_p(#p,f(h(#p),#b(#X2),#p),g(#p)),p(#P0,f(h(#P1),#X2,#P3),g(#P4)))" == to_string(rewriteProject(fun("p", var("_"), fun("f", fun("h", var("_")), binop(BinOp::ADD, var("X"), val(NUM(2))), var("_")), fun("g", var("_"))))));
-        REQUIRE("(#p_p(#b((1*#Anon0+1))),#p_p(#b(#X1)),p(#X1))" == to_string(rewriteProject(fun("p", binop(BinOp::ADD, var("_"), val(NUM(1)))))));
+        REQUIRE("(#p_p(#p,f(h(#p),#b((X+2)),#p),g(#p)),#p_p(#p,f(h(#p),#b(#X2),#p),g(#p)),p(#P0,f(h(#P1),#X2,#P3),g(#P4)))" == to_string(rewriteProject(fun("p", var("_"), fun("f", fun("h", var("_")), binop(BinOp::ADD, var("X"), val(NUM(2))), var("_")), fun("g", var("_"))))));
+        REQUIRE("(#p_p(#b((#Anon0+1))),#p_p(#b(#X1)),p(#X1))" == to_string(rewriteProject(fun("p", binop(BinOp::ADD, var("_"), val(NUM(1)))))));
     }
 
     SECTION("match") {

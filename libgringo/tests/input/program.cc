@@ -98,7 +98,7 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("p(1):-q(3).p(2):-q(3).p(1):-q(4).p(2):-q(4)." == rewrite(parse("p(1;2):-q(3;4).")));
         REQUIRE("p((X+Y)):-q(#Arith0);#Arith0=(X+Y)." == rewrite(parse("p(X+Y):-q(X+Y).")));
         REQUIRE("#Arith0<=#count{(X+Y):q((X+Y)):r(#Arith0),s(#Arith1),#Arith1=(A+B)}:-t(#Arith0);#Arith0=(X+Y);1<=#count{(X+Y):u(#Arith0),v(#Arith2),#Arith2=(A+B)}." == rewrite(parse("X+Y#count{X+Y:q(X+Y):r(X+Y),s(A+B)}:-t(X+Y),1#count{X+Y:u(X+Y),v(A+B)}.")));
-        REQUIRE("p(#Range0):-q(#Range1);#range(#Range1,A,B);#range(#Range0,X,Y)." == rewrite(parse("p(X..Y):-q(A..B).")));
+        REQUIRE("p((#Range0+0)):-q((#Range1+0));#range(#Range1,A,B);#range(#Range0,X,Y)." == rewrite(parse("p(X..Y):-q(A..B).")));
         REQUIRE("p(1):-q.p(2):-q.p(3):-q.p:-q." == rewrite(parse("p(1;2;3;):-q.")));
         REQUIRE("p(Z):-p(A,B);Y=#count{0,q(B):q(B)};X=#count{0,q(A):q(A)};Z=#count{0,r(X,Y):r(X,Y)}." == rewrite(parse("p(Z):-p(A,B),X={q(A)},Y={q(B)},Z={r(X,Y)}.")));
         REQUIRE("p(Z):-Z=#count{0,p(X):p(X)};Z>0." == rewrite(parse("p(Z):-Z={p(X)},Z>0.")));
@@ -107,12 +107,12 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("#project p(X):-[p(X)].#project p(Y):-[p(Y)]." == rewrite(parse("#project p(X;Y).")));
         REQUIRE("#edge(a,b).#edge(c,d)." == rewrite(parse("#edge (a,b;c,d).")));
         REQUIRE("#edge((X+X),b)." == rewrite(parse("#edge (X+X,b).")));
-        REQUIRE("#edge(#Range0,b):-#range(#Range0,1,10)." == rewrite(parse("#edge (1..10,b).")));
+        REQUIRE("#edge((#Range0+0),b):-#range(#Range0,1,10)." == rewrite(parse("#edge (1..10,b).")));
         REQUIRE("#heuristic a(#Arith0)[1@0,sign]:-[a(#Arith0)];#Arith0=(X+X)." == rewrite(parse("#heuristic a(X+X). [1@0,sign]")));
         REQUIRE("#heuristic a[(X+X)@2,sign]:-[a]." == rewrite(parse("#heuristic a. [X+X@2,sign]")));
-        REQUIRE("#heuristic a(#Range0)[2@0,sign]:-[a(#Range0)];#range(#Range0,1,2)." == rewrite(parse("#heuristic a(1..2). [2,sign]")));
+        REQUIRE("#heuristic a((#Range0+0))[2@0,sign]:-[a((#Range0+0))];#range(#Range0,1,2)." == rewrite(parse("#heuristic a(1..2). [2,sign]")));
         REQUIRE("#theory x{node{};&edge/1:node,head}.#false:-p(Z);not &edge((Z+Z)){(z),(Y): p(Y,#Arith1),#Arith1=(Y+Y)}." == rewrite(parse("#theory x{ node{}; &edge/1: node, head }.&edge(Z+Z) { z, Y : p(Y,Y+Y)} :- p(Z).")));
-        REQUIRE("#theory x{node{};&edge/1:node,head}.#false:-p(Z);#range(#Range0,Z,Z);not &edge(#Range0){(z),(Y): p(Y,#Range1),#range(#Range1,Y,Y)}." == rewrite(parse("#theory x{ node{}; &edge/1: node, head }.&edge(Z..Z) { z, Y : p(Y,Y..Y)} :- p(Z).")));
+        REQUIRE("#theory x{node{};&edge/1:node,head}.#false:-p(Z);#range(#Range0,Z,Z);not &edge((#Range0+0)){(z),(Y): p(Y,(#Range1+0)),#range(#Range1,Y,Y)}." == rewrite(parse("#theory x{ node{}; &edge/1: node, head }.&edge(Z..Z) { z, Y : p(Y,Y..Y)} :- p(Z).")));
     }
 
     SECTION("defines") {

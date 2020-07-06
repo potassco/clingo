@@ -231,7 +231,7 @@ bool TupleBodyAggregate::simplify(Projections &project, SimplifyState &state, bo
     elems.erase(std::remove_if(elems.begin(), elems.end(), [&](BodyAggrElemVec::value_type &elem) {
         SimplifyState elemState(state);
         for (auto &term : std::get<0>(elem)) {
-            if (term->simplify(elemState, false, false, log).update(term).undefined()) { return true; }
+            if (term->simplify(elemState, false, false, log).update(term, false).undefined()) { return true; }
         }
         for (auto &lit : std::get<1>(elem)) {
             // NOTE: projection disabled with singelton=true
@@ -974,7 +974,7 @@ bool TupleHeadAggregate::simplify(Projections &project, SimplifyState &state, Lo
     elems.erase(std::remove_if(elems.begin(), elems.end(), [&](HeadAggrElemVec::value_type &elem) {
         SimplifyState elemState(state);
         for (auto &term : std::get<0>(elem)) {
-            if (term->simplify(elemState, false, false, log).update(term).undefined()) { return true; }
+            if (term->simplify(elemState, false, false, log).update(term, false).undefined()) { return true; }
         }
         if (!std::get<1>(elem)->simplify(log, project, elemState, false)) {
             return true;
@@ -1714,7 +1714,7 @@ bool DisjointAggregate::simplify(Projections &project, SimplifyState &state, boo
     elems.erase(std::remove_if(elems.begin(), elems.end(), [&](CSPElemVec::value_type &elem) {
         SimplifyState elemState(state);
         for (auto &term : elem.tuple) {
-            if (term->simplify(elemState, false, false, log).update(term).undefined()) { return true; }
+            if (term->simplify(elemState, false, false, log).update(term, false).undefined()) { return true; }
         }
         if (!elem.value.simplify(elemState, log)) { return true; }
         for (auto &lit : elem.cond) {
@@ -1871,7 +1871,7 @@ UHeadAggr MinimizeHeadLiteral::rewriteAggregates(UBodyAggrVec &) {
 
 bool MinimizeHeadLiteral::simplify(Projections &, SimplifyState &state, Logger &log) {
     for (auto &term : tuple_) {
-        if (term->simplify(state, false, false, log).update(term).undefined()) {
+        if (term->simplify(state, false, false, log).update(term, false).undefined()) {
             return false;
         }
     }
@@ -1979,8 +1979,8 @@ UHeadAggr EdgeHeadAtom::rewriteAggregates(UBodyAggrVec &) {
 }
 
 bool EdgeHeadAtom::simplify(Projections &, SimplifyState &state, Logger &log) {
-    return !u_->simplify(state, false, false, log).update(u_).undefined() &&
-           !v_->simplify(state, false, false, log).update(v_).undefined();
+    return !u_->simplify(state, false, false, log).update(u_, false).undefined() &&
+           !v_->simplify(state, false, false, log).update(v_, false).undefined();
 }
 
 void EdgeHeadAtom::rewriteArithmetics(Term::ArithmeticsMap &, AuxGen &) {
@@ -2063,7 +2063,7 @@ UHeadAggr ProjectHeadAtom::rewriteAggregates(UBodyAggrVec &body) {
 }
 
 bool ProjectHeadAtom::simplify(Projections &, SimplifyState &state, Logger &log) {
-    return !atom_->simplify(state, false, false, log).update(atom_).undefined();
+    return !atom_->simplify(state, false, false, log).update(atom_, false).undefined();
 }
 
 void ProjectHeadAtom::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxgen) {
@@ -2158,7 +2158,7 @@ UHeadAggr ExternalHeadAtom::rewriteAggregates(UBodyAggrVec &) {
 }
 
 bool ExternalHeadAtom::simplify(Projections &, SimplifyState &state, Logger &log) {
-    return !atom_->simplify(state, false, false, log).update(atom_).undefined() && !type_->simplify(state, false, false, log).update(type_).undefined();
+    return !atom_->simplify(state, false, false, log).update(atom_, false).undefined() && !type_->simplify(state, false, false, log).update(type_, false).undefined();
 }
 
 void ExternalHeadAtom::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxgen) {
@@ -2266,10 +2266,10 @@ UHeadAggr HeuristicHeadAtom::rewriteAggregates(UBodyAggrVec &body) {
 
 bool HeuristicHeadAtom::simplify(Projections &, SimplifyState &state, Logger &log) {
     return
-        !atom_->simplify(state, false, false, log).update(atom_).undefined() &&
-        !value_->simplify(state, false, false, log).update(value_).undefined() &&
-        !priority_->simplify(state, false, false, log).update(priority_).undefined() &&
-        !mod_->simplify(state, false, false, log).update(mod_).undefined();
+        !atom_->simplify(state, false, false, log).update(atom_, false).undefined() &&
+        !value_->simplify(state, false, false, log).update(value_, false).undefined() &&
+        !priority_->simplify(state, false, false, log).update(priority_, false).undefined() &&
+        !mod_->simplify(state, false, false, log).update(mod_, false).undefined();
 }
 
 void HeuristicHeadAtom::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxgen) {
@@ -2351,7 +2351,7 @@ UHeadAggr ShowHeadLiteral::rewriteAggregates(UBodyAggrVec &) {
 }
 
 bool ShowHeadLiteral::simplify(Projections &, SimplifyState &state, Logger &log) {
-    return !term_->simplify(state, false, false, log).update(term_).undefined();
+    return !term_->simplify(state, false, false, log).update(term_, false).undefined();
 }
 
 void ShowHeadLiteral::rewriteArithmetics(Term::ArithmeticsMap &, AuxGen &) {

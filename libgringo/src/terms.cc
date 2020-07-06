@@ -404,8 +404,8 @@ bool CSPMulTerm::operator==(CSPMulTerm const &x) const {
     else { return !var && !x.var && is_value_equal_to(coe, x.coe); }
 }
 bool CSPMulTerm::simplify(SimplifyState &state, Logger &log) {
-    if (var && var->simplify(state, false, false, log).update(var).undefined()) { return false;}
-    return !coe->simplify(state, false, false, log).update(coe).undefined();
+    if (var && var->simplify(state, false, false, log).update(var, false).undefined()) { return false;}
+    return !coe->simplify(state, false, false, log).update(coe, false).undefined();
 }
 void CSPMulTerm::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) {
     if (var) { Term::replace(var, var->rewriteArithmetics(arith, auxGen)); }
