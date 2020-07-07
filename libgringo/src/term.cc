@@ -590,9 +590,14 @@ UTerm AuxGen::uniqueVar(Location const &loc, unsigned level, const char *prefix)
 
 // {{{1 definition of SimplifyState
 
-std::unique_ptr<LinearTerm> SimplifyState::createScript(Location const &loc, String name, UTermVec &&args) {
+SimplifyState::SimplifyRet SimplifyState::createScript(Location const &loc, String name, UTermVec &&args, bool arith) {
     scripts.emplace_back(gen.uniqueVar(loc, level, "#Script"), name, std::move(args));
-    return make_locatable<LinearTerm>(loc, static_cast<VarTerm&>(*std::get<0>(scripts.back())), 1, 0);
+    if (arith) {
+        return make_locatable<LinearTerm>(loc, static_cast<VarTerm&>(*std::get<0>(scripts.back())), 1, 0);
+    }
+    else {
+        return UTerm{std::get<0>(scripts.back())->clone()};
+    }
 }
 
 std::unique_ptr<LinearTerm> SimplifyState::createDots(Location const &loc, UTerm &&left, UTerm &&right) {
@@ -601,9 +606,9 @@ std::unique_ptr<LinearTerm> SimplifyState::createDots(Location const &loc, UTerm
 }
 
 
-// {{{1 definition of Term::SimplifyRet
+// {{{1 definition of SimplifyState::SimplifyRet
 
-Term::SimplifyRet::SimplifyRet(SimplifyRet &&x) : type(x.type) {
+SimplifyState::SimplifyRet::SimplifyRet(SimplifyRet &&x) : type(x.type) {
     switch(type) {
         case LINEAR:
         case REPLACE:   { x.type = UNTOUCHED; }
@@ -619,15 +624,15 @@ Term::SimplifyRet::SimplifyRet(SimplifyRet &&x) : type(x.type) {
     }
 }
 //! Reference to untouched term.
-Term::SimplifyRet::SimplifyRet(Term &x, bool project) : type(UNTOUCHED), project(project), term(&x) { }
+SimplifyState::SimplifyRet::SimplifyRet(Term &x, bool project) : type(UNTOUCHED), project(project), term(&x) { }
 //! Indicate replacement with linear term.
-Term::SimplifyRet::SimplifyRet(std::unique_ptr<LinearTerm> &&x) : type(LINEAR), project(false), term(x.release()) { }
+SimplifyState::SimplifyRet::SimplifyRet(std::unique_ptr<LinearTerm> &&x) : type(LINEAR), project(false), term(x.release()) { }
 //! Indicate replacement with arbitrary term.
-Term::SimplifyRet::SimplifyRet(UTerm &&x) : type(REPLACE), project(false), term(x.release()) { }
+SimplifyState::SimplifyRet::SimplifyRet(UTerm &&x) : type(REPLACE), project(false), term(x.release()) { }
 //! Indicate replacement with value.
-Term::SimplifyRet::SimplifyRet(Symbol const &x) : type(CONSTANT), project(false), val(x) { }
-Term::SimplifyRet::SimplifyRet() : type(UNDEFINED), project(false) { }
-bool Term::SimplifyRet::notNumeric() const {
+SimplifyState::SimplifyRet::SimplifyRet(Symbol const &x) : type(CONSTANT), project(false), val(x) { }
+SimplifyState::SimplifyRet::SimplifyRet() : type(UNDEFINED), project(false) { }
+bool SimplifyState::SimplifyRet::notNumeric() const {
     switch (type) {
         case UNDEFINED: { return true; }
         case LINEAR:    { return false; }
@@ -638,17 +643,19 @@ bool Term::SimplifyRet::notNumeric() const {
     assert(false);
     return false;
 }
-bool Term::SimplifyRet::constant() const  { return type == CONSTANT; }
-bool Term::SimplifyRet::isZero() const    { return constant() && val.type() == SymbolType::Num && val.num() == 0; }
-LinearTerm &Term::SimplifyRet::lin()      { return static_cast<LinearTerm&>(*term); }
-Term::SimplifyRet &Term::SimplifyRet::update(UTerm &x) {
+bool SimplifyState::SimplifyRet::constant() const  { return type == CONSTANT; }
+bool SimplifyState::SimplifyRet::isZero() const    { return constant() && val.type() == SymbolType::Num && val.num() == 0; }
+LinearTerm &SimplifyState::SimplifyRet::lin()      { return static_cast<LinearTerm&>(*term); }
+SimplifyState::SimplifyRet &SimplifyState::SimplifyRet::update(UTerm &x, bool arith) {
     switch (type) {
         case CONSTANT: {
             x = make_locatable<ValTerm>(x->loc(), val);
             return *this;
         }
         case LINEAR: {
-            if (lin().m == 1 && lin().n == 0) {
+            // we do not need a trivial linear if its context already requires
+            // integers
+            if (arith && lin().m == 1 && lin().n == 0) {
                 type = UNTOUCHED;
                 x = std::move(lin().var);
                 delete term;
@@ -663,12 +670,12 @@ Term::SimplifyRet &Term::SimplifyRet::update(UTerm &x) {
         case UNDEFINED:
         case UNTOUCHED: { return *this; }
     }
-    throw std::logic_error("Term::SimplifyRet::update: must not happen");
+    throw std::logic_error("SimplifyState::SimplifyRet::update: must not happen");
 }
-bool Term::SimplifyRet::undefined() const {
+bool SimplifyState::SimplifyRet::undefined() const {
     return type == UNDEFINED;
 }
-bool Term::SimplifyRet::notFunction() const {
+bool SimplifyState::SimplifyRet::notFunction() const {
     switch (type) {
         case UNDEFINED: { return true; }
         case LINEAR:    { return true; }
@@ -679,7 +686,7 @@ bool Term::SimplifyRet::notFunction() const {
     assert(false);
     return false;
 }
-Term::SimplifyRet::~SimplifyRet() {
+SimplifyState::SimplifyRet::~SimplifyRet() {
     if (type == LINEAR || type == REPLACE) { delete term; }
 }
 
@@ -1054,7 +1061,17 @@ bool LinearTerm::isNotFunction() const   { return true; }
 
 Term::Invertibility LinearTerm::getInvertibility() const   { return Term::INVERTIBLE; }
 
-void LinearTerm::print(std::ostream &out) const  { out << "(" << m << "*" << *var << "+" << n << ")"; }
+void LinearTerm::print(std::ostream &out) const  {
+    if (m == 1) {
+        out << "(" << *var << "+" << n << ")";
+    }
+    else if (n == 0) {
+        out << "(" << m << "*" << *var << ")";
+    }
+    else {
+        out << "(" << m << "*" << *var << "+" << n << ")";
+    }
+}
 
 Term::SimplifyRet LinearTerm::simplify(SimplifyState &, bool, bool, Logger &) { return {*this, false}; }
 
@@ -1177,7 +1194,6 @@ Term::SimplifyRet UnOpTerm::simplify(SimplifyState &state, bool, bool arithmetic
         return {};
     }
     else if ((multiNeg && ret.notNumeric() && ret.notFunction()) || (!multiNeg && ret.notNumeric())) {
-        ret.update(arg);
         GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
@@ -1201,7 +1217,7 @@ Term::SimplifyRet UnOpTerm::simplify(SimplifyState &state, bool, bool arithmetic
             }
         }
         default: {
-            ret.update(arg);
+            ret.update(arg, !multiNeg);
             return {*this, false};
         }
     }
@@ -1358,7 +1374,7 @@ Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool, Logger &
         return {};
     }
     else if (retLeft.notNumeric() || retRight.notNumeric() || ((op == BinOp::DIV || op == BinOp::MOD) && retRight.isZero())) {
-        retLeft.update(left); retRight.update(right);
+        retLeft.update(left, true); retRight.update(right, true);
         GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
@@ -1409,8 +1425,8 @@ Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool, Logger &
             return retLeft;
         }
     }
-    retLeft.update(left);
-    retRight.update(right);
+    retLeft.update(left, true);
+    retRight.update(right, true);
     return {*this, false};
 }
 
@@ -1538,7 +1554,7 @@ void DotsTerm::print(std::ostream &out) const {
 }
 
 Term::SimplifyRet DotsTerm::simplify(SimplifyState &state, bool, bool, Logger &log) {
-    if (!left->simplify(state, false, false, log).update(left).undefined() && !right->simplify(state, false, false, log).update(right).undefined()) {
+    if (!left->simplify(state, false, false, log).update(left, true).undefined() && !right->simplify(state, false, false, log).update(right, true).undefined()) {
         return { state.createDots(loc(), std::move(left), std::move(right)) };
     }
     else {
@@ -1651,13 +1667,13 @@ void LuaTerm::print(std::ostream &out) const {
     out << ")";
 }
 
-Term::SimplifyRet LuaTerm::simplify(SimplifyState &state, bool, bool, Logger &log) {
+Term::SimplifyRet LuaTerm::simplify(SimplifyState &state, bool, bool arith, Logger &log) {
     for (auto &arg : args) {
-        if (arg->simplify(state, false, false, log).update(arg).undefined()) {
+        if (arg->simplify(state, false, false, log).update(arg, false).undefined()) {
             return {};
         }
     }
-    return { state.createScript(loc(), std::move(name), std::move(args)) };
+    return state.createScript(loc(), std::move(name), std::move(args), arith);
 }
 
 Term::ProjectRet LuaTerm::project(bool rename, AuxGen &auxGen) {
@@ -1786,7 +1802,7 @@ Term::SimplifyRet FunctionTerm::simplify(SimplifyState &state, bool positional, 
         }
         constant  = constant  && ret.constant();
         projected = projected || ret.project;
-        ret.update(arg);
+        ret.update(arg, false);
     }
     if (constant) {
         bool undefined = false;

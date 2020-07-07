@@ -1120,6 +1120,12 @@ TEST_CASE("output-lparse", "[output]") {
 
     SECTION("undefinedRule") {
         REQUIRE(
+            "([[q(1)]],[-:3:3-4: info: operation undefined:\n  (A+0)\n])" ==
+            IO::to_string(solve(
+                "a(a).\n"
+                "a(1).\n"
+                "q(A+0) :- a(A).\n", {"q("})));
+        REQUIRE(
             "([[q(2)]],[-:4:3-6: info: operation undefined:\n  (A+B)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
@@ -1163,7 +1169,7 @@ TEST_CASE("output-lparse", "[output]") {
                 "b(1).\n"
                 ":- a(A), b(B), A $< B.\n")));
         REQUIRE(
-            "([[a(1),a(2)=1,a(a),b(1)]],[-:5:19-20: info: operation undefined:\n  (1*A+1)\n])" ==
+            "([[a(1),a(2)=1,a(a),b(1)]],[-:5:19-20: info: operation undefined:\n  (A+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
@@ -1180,7 +1186,7 @@ TEST_CASE("output-lparse", "[output]") {
                 "a(1).\n"
                 "#disjoint { X : X : a(X) }.\n")));
         REQUIRE(
-            "([[a(1),a(1)=1,a(a)]],[-:4:20-21: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[a(1),a(1)=1,a(a)]],[-:4:20-21: info: operation undefined:\n  (X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
@@ -1190,19 +1196,19 @@ TEST_CASE("output-lparse", "[output]") {
 
     SECTION("undefinedBodyAggregate") {
         REQUIRE(
-            "([[a(1),a(a),h]],[-:3:15-16: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[a(1),a(a),h]],[-:3:15-16: info: operation undefined:\n  (X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "h :- #count { X+1 : a(X) } < 2.\n")));
         REQUIRE(
-            "([[a(1),a(a),h]],[-:3:14-15: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[a(1),a(a),h]],[-:3:14-15: info: operation undefined:\n  (X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "h :- { not a(X+1) : a(X) } < 2.\n")));
         REQUIRE(
-            "([[a(1),a(a),g(1)]],[-:4:30-31: info: operation undefined:\n  (1*X+1)\n,-:3:30-31: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[a(1),a(a),g(1)]],[-:4:30-31: info: operation undefined:\n  (X+1)\n,-:3:30-31: info: operation undefined:\n  (X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
@@ -1212,13 +1218,13 @@ TEST_CASE("output-lparse", "[output]") {
 
     SECTION("undefinedAssignmentAggregate") {
         REQUIRE(
-            "([[a(1),a(a),h(1)]],[-:3:22-23: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[a(1),a(a),h(1)]],[-:3:22-23: info: operation undefined:\n  (X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "h(C) :- C = #count { X+1 : a(X) }.\n")));
         REQUIRE(
-            "([[a(1),a(a),h(1)]],[-:3:21-22: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[a(1),a(a),h(1)]],[-:3:21-22: info: operation undefined:\n  (X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
@@ -1231,31 +1237,31 @@ TEST_CASE("output-lparse", "[output]") {
 
     SECTION("undefinedHeadAggregate") {
         REQUIRE(
-            "([[a(1),a(a)],[a(1),a(a),p(1)]],[-:3:10-11: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[a(1),a(a)],[a(1),a(a),p(1)]],[-:3:10-11: info: operation undefined:\n  (X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "#count { X+1 : p(X) : a(X) }.\n")));
         REQUIRE(
-            "([[a(1),a(a)],[a(1),a(a),p(2)]],[-:3:16-17: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[a(1),a(a)],[a(1),a(a),p(2)]],[-:3:16-17: info: operation undefined:\n  (X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "#count { X : p(X+1) : a(X) }.\n")));
         REQUIRE(
-            "([[a(1),a(a)],[a(1),a(a),p(2)]],[-:3:5-6: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[a(1),a(a)],[a(1),a(a),p(2)]],[-:3:5-6: info: operation undefined:\n  (X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "{ p(X+1) : a(X) }.\n")));
         REQUIRE(
-            "([[p(1)]],[-:3:17-18: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[p(1)]],[-:3:17-18: info: operation undefined:\n  (X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "X <= { p(X) } < X+1 :- a(X).\n", { "p(" })));
         REQUIRE(
-            "([[p(1)]],[-:3:1-2: info: operation undefined:\n  (1*X+-1)\n])" ==
+            "([[p(1)]],[-:3:1-2: info: operation undefined:\n  (X+-1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
@@ -1264,21 +1270,21 @@ TEST_CASE("output-lparse", "[output]") {
 
     SECTION("undefinedConjunction") {
         REQUIRE(
-            "([[a(a)],[h]],[-:4:10-11: info: operation undefined:\n  (1*A+1)\n])" ==
+            "([[a(a)],[h]],[-:4:10-11: info: operation undefined:\n  (A+1)\n])" ==
             IO::to_string(solve(
                 "{a(a)}.\n"
                 "a(1..2).\n"
                 "p(2..3).\n"
                 "h :- p(1+A):a(A).\n", {"h", "a(a)"})));
         REQUIRE(
-            "([[a(a)],[a(a),p(2),p(3)],[h],[p(2),p(3)]],[-:4:14-15: info: operation undefined:\n  (1*A+1)\n])" ==
+            "([[a(a)],[a(a),p(2),p(3)],[h],[p(2),p(3)]],[-:4:14-15: info: operation undefined:\n  (A+1)\n])" ==
             IO::to_string(solve(
                 "{a(a)}.\n"
                 "a(1..2).\n"
                 "{p(2..3)} != 1.\n"
                 "h :- not p(1+A):a(A).\n", {"h", "a(a)", "p("})));
         REQUIRE(
-            "([[a(a),h],[a(a),p(2),p(3)],[h],[p(2),p(3)]],[-:4:24-25: info: operation undefined:\n  (1*A+1)\n])" ==
+            "([[a(a),h],[a(a),p(2),p(3)],[h],[p(2),p(3)]],[-:4:24-25: info: operation undefined:\n  (A+1)\n])" ==
             IO::to_string(solve(
                 "{a(a)}.\n"
                 "a(1..2).\n"
@@ -1288,13 +1294,13 @@ TEST_CASE("output-lparse", "[output]") {
 
     SECTION("undefinedDisjunction") {
         REQUIRE(
-            "([[]],[-:3:5-6: info: operation undefined:\n  (1*A+1)\n])" ==
+            "([[]],[-:3:5-6: info: operation undefined:\n  (A+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1..2).\n"
                 "p(1+A):a(A).\n", {"p("})));
         REQUIRE(
-            "([[p(2)],[p(3)]],[-:3:15-16: info: operation undefined:\n  (1*A+1)\n])" ==
+            "([[p(2)],[p(3)]],[-:3:15-16: info: operation undefined:\n  (A+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1..2).\n"

@@ -131,6 +131,9 @@ struct AuxGen {
 };
 
 struct SimplifyState {
+    //! Somewhat complex result type of simplify.
+    struct SimplifyRet;
+
     //! Type that stores for each rewritten DotsTerm the associated variable and the lower and upper bound.
     using DotsMap = std::vector<std::tuple<UTerm, UTerm, UTerm>>;
     using ScriptMap = std::vector<std::tuple<UTerm, String, UTermVec>>;
@@ -142,7 +145,7 @@ struct SimplifyState {
     SimplifyState(SimplifyState &&)      = default;
 
     std::unique_ptr<LinearTerm> createDots(Location const &loc, UTerm &&left, UTerm &&right);
-    std::unique_ptr<LinearTerm> createScript(Location const &loc, String name, UTermVec &&args);
+    SimplifyRet createScript(Location const &loc, String name, UTermVec &&args, bool arith);
 
     DotsMap dots;
     ScriptMap scripts;
@@ -160,6 +163,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     using VarSet       = std::unordered_set<String>;
     using RenameMap    = std::unordered_map<String, std::pair<String, SVal>>;
     using ReferenceMap = std::unordered_map<Term*, SGRef, value_hash<Term*>, value_equal_to<Term*>>;
+    using SimplifyRet  = SimplifyState::SimplifyRet;
     //! Type that stores for each rewritten arithmetic term (UnopTerm, BinopTerm, LuaTerm) the associated variable and the term itself.
     //! The indices of the vector correspond to the level of the term.
     using LevelMap = std::unordered_map<UTerm, UTerm, value_hash<UTerm>, value_equal_to<UTerm>>;
@@ -181,8 +185,6 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     //! \note The term becomes unusable after the method returns.
     //! \post The pool does not contain PoolTerm instances.
     virtual void unpool(UTermVec &x) const = 0;
-    //! Somewhat complex result type of simplify.
-    struct SimplifyRet;
     //! Removes all occurrences of DotsTerm instances, simplifies the term and sets the invertibility.
     //! To reduce the number of cases in later algorithms moves invertible terms to the left:
     //! - 1+X -> X+1
@@ -281,7 +283,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
 UTermVec unpool(UTerm const &x);
 
 struct LinearTerm;
-struct Term::SimplifyRet {
+struct SimplifyState::SimplifyRet {
     enum Type { UNTOUCHED, CONSTANT, LINEAR, REPLACE, UNDEFINED };
     SimplifyRet(SimplifyRet const &) = delete;
     SimplifyRet(SimplifyRet &&x);
@@ -301,7 +303,7 @@ struct Term::SimplifyRet {
     bool isZero() const;
     bool undefined() const;
     LinearTerm &lin();
-    SimplifyRet &update(UTerm &x);
+    SimplifyRet &update(UTerm &x, bool arith);
     ~SimplifyRet();
     Type  type;
     bool  project = false;

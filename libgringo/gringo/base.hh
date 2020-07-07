@@ -249,7 +249,7 @@ inline BoundVec Bound::unpool() {
 }
 
 inline bool Bound::simplify(SimplifyState &state, Logger &log) {
-    return !bound->simplify(state, false, false, log).update(bound).undefined();
+    return !bound->simplify(state, false, false, log).update(bound, false).undefined();
 }
 
 inline void Bound::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) {

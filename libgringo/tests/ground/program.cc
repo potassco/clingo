@@ -83,7 +83,7 @@ TEST_CASE("ground-program", "[ground]") {
             toString(parse("p(X):-q(X).")));
         REQUIRE(
             "% positive component\n"
-            "p(#Range0):-#Range0=1..2." ==
+            "p((#Range0+0)):-#Range0=1..2." ==
             toString(parse("p(1..2).")));
         REQUIRE(
             "% positive component\n"
