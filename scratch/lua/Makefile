@@ -1,7 +1,8 @@
 VERSION=5.3.5
+SHELL=/bin/bash
 
 all: source/CMakeLists.txt
-	source "$$(which emsdk_env.sh)" && emcmake cmake -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX=${HOME}/local/opt/lua-js -S source -B build
+	source "$$(which emsdk)_env.sh" && emcmake cmake -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX=${HOME}/local/opt/lua-js -Hsource -Bbuild
 	$(MAKE) -C build
 	$(MAKE) -C build install
 

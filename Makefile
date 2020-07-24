@@ -32,7 +32,7 @@ test: build/$(BUILD_TYPE)
 
 web:
 	mkdir -p build/web
-	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && source $$(which emsdk_env.sh) && emcmake cmake \
+	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && source $$(which emsdk)_env.sh && emcmake cmake \
 		-DCLINGO_BUILD_WEB=On \
 		-DCLINGO_BUILD_WITH_PYTHON=Off \
 		-DCLINGO_BUILD_WITH_LUA=On \
