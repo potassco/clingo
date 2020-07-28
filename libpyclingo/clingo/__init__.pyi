@@ -108,11 +108,12 @@ class Control:
     def release_external(self, symbol: Union[Symbol,int]) -> None: ...
     def solve(self, assumptions: Iterable[Union[Tuple[Symbol,bool],int]]=[], on_model: Callable[[Model],Optional[bool]]=None, on_statistics : Callable[[StatisticsMap,StatisticsMap],None]=None, on_finish: Callable[[SolveResult],None]=None, on_core: Callable[[Sequence[int]],None]=None, yield_: bool=False, async_: bool=False) -> Union[SolveHandle,SolveResult]: ...
     configuration: Configuration
+    enable_cleanup: bool
+    enable_enumeration_assumption: bool
     is_conflicting: bool
     statistics: dict
     symbolic_atoms: SymbolicAtoms
     theory_atoms: TheoryAtomIter
-    set_use_enumeration_assumption: bool
 
 class Flag:
     def __init__(self, value: bool=False): ...
