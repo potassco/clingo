@@ -114,7 +114,6 @@ def imain(prg):
         if step > 0:
             prg.release_external(clingo.Function("finally", [step-1]))
             parts.append(("dynamic", [step]))
-            prg.cleanup()
         else:
             parts.append(("initial", [0]))
         prg.ground(parts)

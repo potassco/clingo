@@ -80,7 +80,6 @@ struct Incmode {
             parts.push_back({"check", {Symbol::createNum(step)}});
             if (step > 0) {
                 assign_external_(Symbol::createFun("query", {Symbol::createNum(step - 1)}), Potassco::Value_t::Release);
-                ctl_.cleanupDomains();
                 parts.push_back({"step", {Symbol::createNum(step)}});
             }
             else {

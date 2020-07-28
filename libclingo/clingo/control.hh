@@ -239,8 +239,10 @@ struct clingo_control {
     virtual bool isConflicting() const noexcept = 0;
     virtual Potassco::AbstractStatistics const *statistics() const = 0;
     virtual void useEnumAssumption(bool enable) = 0;
-    virtual bool useEnumAssumption() = 0;
-    virtual void cleanupDomains() = 0;
+    virtual bool useEnumAssumption() const = 0;
+    virtual void cleanup() = 0;
+    virtual void enableCleanup(bool enable) = 0;
+    virtual bool enableCleanup() const = 0;
     virtual Gringo::Output::DomainData const &theory() const = 0;
     virtual void registerPropagator(Gringo::UProp p, bool sequential) = 0;
     virtual void registerObserver(Gringo::UBackend program, bool replace) = 0;

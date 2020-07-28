@@ -195,6 +195,8 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
 
 bool ClingoControl::update() {
     if (clingoMode_) {
+        if (enableCleanup_) { cleanup(); }
+        else                { canClean_ = false; }
         clasp_->update(configUpdate_);
         configUpdate_ = false;
         if (!clasp_->ok()) { return false; }
@@ -351,7 +353,9 @@ ConfigProxy &ClingoControl::getConf() {
     return *this;
 }
 USolveFuture ClingoControl::solve(Assumptions ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) {
+    canClean_ = false;
     prepare(ass);
+    canClean_ = true;
     if (clingoMode_) {
         static_assert(clingo_solve_mode_yield == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Yield), "");
         static_assert(clingo_solve_mode_async == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Async), "");
@@ -513,25 +517,27 @@ void ClingoControl::registerPropagator(UProp p, bool sequential) {
     }
 }
 
-void ClingoControl::cleanupDomains() {
-    if (clingoMode_) {
-        Clasp::Asp::LogicProgram &prg = static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program());
-        Clasp::Solver &solver = *clasp_->ctx.master();
-        auto assignment = [&prg, &solver](unsigned uid) {
-            Potassco::Value_t truth{Potassco::Value_t::Free};
-            bool external{false};
-            if (prg.validAtom(uid)) {
-                external = prg.isExternal(uid);
-                Clasp::Literal lit = prg.getLiteral(uid);
-                if (solver.isTrue(lit)) { truth = Potassco::Value_t::True; }
-                else if (solver.isFalse(lit)) { truth = Potassco::Value_t::False; }
-            }
-            return std::make_pair(external, truth);
-        };
-        auto stats = out_->simplify(assignment);
-        LOG << stats.first << " atom" << (stats.first == 1 ? "" : "s") << " became facts" << std::endl;
-        LOG << stats.second << " atom" << (stats.second == 1 ? "" : "s") << " deleted" << std::endl;
+void ClingoControl::cleanup() {
+    if (!clingoMode_ || !canClean_) {
+        return;
     }
+    canClean_ = false;
+    Clasp::Asp::LogicProgram &prg = static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program());
+    Clasp::Solver &solver = *clasp_->ctx.master();
+    auto assignment = [&prg, &solver](unsigned uid) {
+        Potassco::Value_t truth{Potassco::Value_t::Free};
+        bool external{false};
+        if (prg.validAtom(uid)) {
+            external = prg.isExternal(uid);
+            Clasp::Literal lit = prg.getLiteral(uid);
+            if (solver.isTrue(lit)) { truth = Potassco::Value_t::True; }
+            else if (solver.isFalse(lit)) { truth = Potassco::Value_t::False; }
+        }
+        return std::make_pair(external, truth);
+    };
+    auto stats = out_->simplify(assignment);
+    LOG << stats.first << " atom" << (stats.first == 1 ? "" : "s") << " became facts" << std::endl;
+    LOG << stats.second << " atom" << (stats.second == 1 ? "" : "s") << " deleted" << std::endl;
 }
 
 std::string ClingoControl::str() {
@@ -558,8 +564,16 @@ void ClingoControl::useEnumAssumption(bool enable) {
     enableEnumAssupmption_ = enable;
 }
 
-bool ClingoControl::useEnumAssumption() {
+bool ClingoControl::useEnumAssumption() const {
     return enableEnumAssupmption_;
+}
+
+void ClingoControl::enableCleanup(bool enable) {
+    enableCleanup_ = enable;
+}
+
+bool ClingoControl::enableCleanup() const {
+    return enableCleanup_;
 }
 
 SymbolicAtoms const &ClingoControl::getDomain() const {

@@ -216,10 +216,12 @@ struct IncrementalControl : Control {
     ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
     void registerPropagator(UProp, bool) override { throw std::runtime_error("theory propagators not supported"); }
     void useEnumAssumption(bool) override { }
-    bool useEnumAssumption() override { return false; }
+    bool useEnumAssumption() const override { return false; }
+    void cleanup() override { }
+    void enableCleanup(bool) override { }
+    bool enableCleanup() const override { return false; }
     virtual ~IncrementalControl() { }
     Output::DomainData const &theory() const override { return out.data; }
-    void cleanupDomains() override { }
     bool beginAddBackend() override {
         backend_ = out.backend(logger());
         return backend_ != nullptr;

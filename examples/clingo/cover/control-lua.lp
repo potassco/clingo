@@ -64,7 +64,6 @@ function State:run(prg)
     local k = 0
     while ret.satisfiable do
         k = k + 1
-        pre:cleanup()
         pre:ground({{"step", {k}}}, self)
         ret = pre:solve{on_model=function(...) self:on_model(...) end}
     end

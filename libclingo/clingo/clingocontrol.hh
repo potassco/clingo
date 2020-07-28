@@ -324,8 +324,10 @@ public:
     Potassco::AbstractStatistics const *statistics() const override;
     ConfigProxy &getConf() override;
     void useEnumAssumption(bool enable) override;
-    bool useEnumAssumption() override;
-    void cleanupDomains() override;
+    bool useEnumAssumption() const override;
+    void cleanup() override;
+    void enableCleanup(bool enable) override;
+    bool enableCleanup() const override;
     USolveFuture solve(Assumptions ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) override;
     Output::DomainData const &theory() const override { return out_->data; }
     void registerPropagator(UProp p, bool sequential) override;
@@ -376,6 +378,7 @@ public:
     UserStatistics                                             step_stats_;
     UserStatistics                                             accu_stats_;
     bool                                                       enableEnumAssupmption_ = true;
+    bool                                                       enableCleanup_         = true;
     bool                                                       clingoMode_;
     bool                                                       verbose_               = false;
     bool                                                       parsed                 = false;
@@ -384,6 +387,7 @@ public:
     bool                                                       configUpdate_          = false;
     bool                                                       initialized_           = false;
     bool                                                       incmode_               = false;
+    bool                                                       canClean_              = false;
 
 };
 
