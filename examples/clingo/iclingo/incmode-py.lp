@@ -21,7 +21,6 @@ def main(prg):
         if step > 0:
             prg.release_external(clingo.Function("query", [step-1]))
             parts.append(("step", [step]))
-            prg.cleanup()
         else:
             parts.append(("base", []))
         prg.ground(parts)

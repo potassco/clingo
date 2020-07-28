@@ -8081,6 +8081,15 @@ active; you must not call any member function during search.
         handle_c_error(clingo_control_cleanup(ctl));
         Py_RETURN_NONE;
     }
+    void set_enable_cleanup(Reference pyEnable) {
+        CHECK_BLOCKED("enable_cleanup");
+        int enable = pyEnable.isTrue();
+        handle_c_error(clingo_control_set_enable_cleanup(ctl, enable));
+    }
+    Object get_enable_cleanup() {
+        CHECK_BLOCKED("enable_cleanup");
+        return cppToPy(clingo_control_get_enable_cleanup(ctl));
+    }
     Object assign_external(Reference args) {
         CHECK_BLOCKED("assign_external");
         Reference pyExt, pyVal;
@@ -8133,10 +8142,14 @@ active; you must not call any member function during search.
         Py_XINCREF(stats);
         return stats;
     }
-    void set_use_enumeration_assumption(Reference pyEnable) {
-        CHECK_BLOCKED("use_enumeration_assumption");
+    void set_enable_enumeration_assumption(Reference pyEnable) {
+        CHECK_BLOCKED("enable_enumeration_assumption");
         int enable = pyEnable.isTrue();
-        handle_c_error(clingo_control_use_enumeration_assumption(ctl, enable));
+        handle_c_error(clingo_control_set_enable_enumeration_assumption(ctl, enable));
+    }
+    Object get_enable_enumeration_assumption() {
+        CHECK_BLOCKED("enable_enumeration_assumption");
+        return cppToPy(clingo_control_get_enable_enumeration_assumption(ctl));
     }
     Object conf() {
         CHECK_BLOCKED("configuration");
@@ -8445,10 +8458,20 @@ Returns
 -------
 None
 
+See Also
+--------
+Control.enable_cleanup
+
 Notes
 -----
 Any atoms falsified are completely removed from the logic program. Hence, a
 definition for such an atom in a successive step introduces a fresh atom.
+
+With the current implementation, the function only has an effect if called
+after solving and before any function is called that starts a new step.
+
+Typically, it is not necessary to call this function manually because automatic
+cleanups are enabled by default.
 )"},
     // assign_external
     {"assign_external", to_function<&ControlWrap::assign_external>(), METH_VARARGS,
@@ -9114,8 +9137,8 @@ PyGetSetDef ControlWrap::tp_getset[] = {
 
 `SymbolicAtoms` object to inspect the symbolic atoms.
 )", nullptr},
-    {(char*)"use_enumeration_assumption", nullptr, to_setter<&ControlWrap::set_use_enumeration_assumption>(),
-(char*)R"(set_use_enumeration_assumption: bool
+    {(char*)"enable_enumeration_assumption", to_getter<&ControlWrap::get_enable_enumeration_assumption>(), to_setter<&ControlWrap::set_enable_enumeration_assumption>(),
+(char*)R"(enable_enumeration_assumption: bool
 
 Whether do discard or keep learnt information from enumeration modes.
 
@@ -9134,6 +9157,11 @@ multiple calls to solve. Otherwise, the behavior of the solver will be
 unpredictable because there are no guarantees which information exactly is
 kept. There might be small speed benefits when disabling the enumeration
 assumption for single shot solving.
+)", nullptr},
+    {(char*)"enable_cleanup", to_getter<&ControlWrap::get_enable_cleanup>(), to_setter<&ControlWrap::set_enable_cleanup>(),
+(char*)R"(enable_cleanup: bool
+
+Whether to enable automatic calls to `Control.cleanup`.
 )", nullptr},
     {(char*)"is_conflicting", to_getter<&ControlWrap::isConflicting>(), nullptr, (char*)R"(is_conflicting: bool
 

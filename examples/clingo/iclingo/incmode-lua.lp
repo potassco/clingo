@@ -24,7 +24,6 @@ function main(prg)
         if step > 0 then
             prg:release_external(clingo.Function("query", {step-1}))
             table.insert(parts, {"step", {step}})
-            prg:cleanup()
         else
             table.insert(parts, {"base", {}})
         end

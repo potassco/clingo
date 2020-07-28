@@ -3349,7 +3349,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_literal_t const *assumptions, size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle);
-//! Clean up the domains of clingo's grounding component using the solving
+//! Clean up the domains of the grounding component using the solving
 //! component's top level assignment.
 //!
 //! This function removes atoms from domains that are false and marks atoms as
@@ -3357,9 +3357,15 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, c
 //! groundings because less rules have to be instantiated and more
 //! simplifications can be applied.
 //!
+//! @note It is typically not necessary to call this function manually because
+//! automatic cleanups at the right time are enabled by default.
+//
 //! @param[in] control the target
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
+//!
+//! @see clingo_control_get_enable_cleanup()
+//! @see clingo_control_set_enable_cleanup()
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_cleanup(clingo_control_t *control);
 //! Assign a truth value to an external atom.
 //!
@@ -3463,6 +3469,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_clasp_facade(clingo_control_t *con
 //! @param[out] configuration the configuration object
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_configuration(clingo_control_t *control, clingo_configuration_t **configuration);
+
 //! Configure how learnt constraints are handled during enumeration.
 //!
 //! If the enumeration assumption is enabled, then all information learnt from
@@ -3478,7 +3485,35 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_configuration(clingo_control_t *co
 //! @param[in] control the target
 //! @param[in] enable whether to enable the assumption
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_use_enumeration_assumption(clingo_control_t *control, bool enable);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_enable_enumeration_assumption(clingo_control_t *control, bool enable);
+//! Check whether the enumeration assumption is enabled.
+//!
+//! See ::clingo_control_set_enable_enumeration_assumption().
+//! @param[in] control the target
+//! @return whether using the enumeration assumption is enabled
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_get_enable_enumeration_assumption(clingo_control_t *control);
+
+//! Enable automatic cleanup after solving.
+//!
+//! @note Cleanup is enabled by default.
+//!
+//! @param[in] control the target
+//! @param[in] enable whether to enable cleanups
+//! @return whether the call was successful
+//!
+//! @see clingo_control_cleanup()
+//! @see clingo_control_get_enable_cleanup()
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_enable_cleanup(clingo_control_t *control, bool enable);
+//! Check whether automatic cleanup is enabled.
+//!
+//! See ::clingo_control_set_enable_cleanup().
+//!
+//! @param[in] control the target
+//!
+//! @see clingo_control_cleanup()
+//! @see clingo_control_set_enable_cleanup()
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_get_enable_cleanup(clingo_control_t *control);
+
 //! @}
 
 //! @name Program Inspection Functions

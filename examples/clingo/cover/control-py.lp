@@ -45,7 +45,6 @@ class State:
         k = 0
         while ret.satisfiable:
             k = k + 1
-            pre.cleanup()
             pre.ground([("step", [k])], self)
             ret = pre.solve(on_model=self.on_model)
         self.prepare_instance(k)

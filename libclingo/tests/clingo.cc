@@ -532,7 +532,7 @@ TEST_CASE("solving", "[clingo]") {
         SECTION("use_enumeration_assumption") {
             ctl.add("base", {}, "{p;q}.");
             ctl.ground({{"base", {}}});
-            ctl.use_enumeration_assumption(false);
+            ctl.enable_enumeration_assumption(false);
             REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
             REQUIRE(models.size() == 4);
             REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
@@ -541,7 +541,7 @@ TEST_CASE("solving", "[clingo]") {
         SECTION("use_enumeration_assumption") {
             ctl.add("base", {}, "{p;q}.");
             ctl.ground({{"base", {}}});
-            ctl.use_enumeration_assumption(false);
+            ctl.enable_enumeration_assumption(false);
             REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
             REQUIRE(models.size() == 4);
             REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
@@ -558,6 +558,29 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(dom.find(Id("a")) == dom.end());
             REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
             REQUIRE(models.size() == 1);
+        }
+        SECTION("cleanup again") {
+            ctl.add("base", {}, R"(
+                p(X) :- not q(X), X=2..3.
+                q(X) :- not p(X), X=1..2.
+
+                a :- not p(3).
+                b :- not q(1).)");
+
+            ctl.ground({{"base", {}}});
+            ctl.cleanup(); // no cleanup with current implementation
+            auto sas = ctl.symbolic_atoms();
+            auto itA = sas.find(Clingo::Id("a"));
+            auto itB = sas.find(Clingo::Id("b"));
+            REQUIRE((itA != sas.end() || itB != sas.end()));
+            REQUIRE((itA == sas.end() || itB == sas.end()));
+
+            ctl.configuration()["solve"]["solve_limit"] = "1";
+            ctl.solve();
+            ctl.cleanup();
+            itA = sas.find(Clingo::Id("a"));
+            itB = sas.find(Clingo::Id("b"));
+            REQUIRE((itA == sas.end() && itB == sas.end()));
         }
         SECTION("const") {
             ctl.add("base", {}, "#const a=10.");

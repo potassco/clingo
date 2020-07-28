@@ -1371,11 +1371,6 @@ extern "C" bool clingo_control_register_propagator(clingo_control_t *ctl, clingo
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_cleanup(clingo_control_t *ctl) {
-    GRINGO_CLINGO_TRY { ctl->cleanupDomains(); }
-    GRINGO_CLINGO_CATCH;
-}
-
 extern "C" bool clingo_control_has_const(clingo_control_t const *ctl, char const *name, bool *ret) {
     GRINGO_CLINGO_TRY {
         auto sym = ctl->getConst(name);
@@ -1401,9 +1396,27 @@ extern "C" bool clingo_control_load(clingo_control_t *ctl, char const *file) {
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_use_enumeration_assumption(clingo_control_t *ctl, bool value) {
+extern "C" bool clingo_control_set_enable_enumeration_assumption(clingo_control_t *ctl, bool value) {
     GRINGO_CLINGO_TRY { ctl->useEnumAssumption(value); }
     GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_control_get_enable_enumeration_assumption(clingo_control_t *ctl) {
+    return ctl->useEnumAssumption();
+}
+
+extern "C" bool clingo_control_cleanup(clingo_control_t *ctl) {
+    GRINGO_CLINGO_TRY { ctl->cleanup(); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_control_set_enable_cleanup(clingo_control_t *ctl, bool value) {
+    GRINGO_CLINGO_TRY { ctl->enableCleanup(value); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_control_get_enable_cleanup(clingo_control_t *ctl) {
+    return ctl->enableCleanup();
 }
 
 extern "C" bool clingo_control_backend(clingo_control_t *ctl, clingo_backend_t **ret) {

@@ -2237,14 +2237,17 @@ public:
     void register_propagator(Propagator &propagator, bool sequential = false);
     void register_propagator(Heuristic &propagator, bool sequential = false);
     void register_observer(GroundProgramObserver &observer, bool replace = false);
-    void cleanup();
     bool is_conflicting() const noexcept;
     bool has_const(char const *name) const;
     Symbol get_const(char const *name) const;
     void interrupt() noexcept;
     void *claspFacade();
     void load(char const *file);
-    void use_enumeration_assumption(bool value);
+    void enable_enumeration_assumption(bool value);
+    bool enable_enumeration_assumption() const;
+    void cleanup();
+    void enable_cleanup(bool value);
+    bool enable_cleanup() const;
     ProgramBuilder builder();
     template <class F>
     void with_builder(F f) {
@@ -4441,10 +4444,6 @@ inline void Control::register_observer(GroundProgramObserver &observer, bool rep
     Detail::handle_error(clingo_control_register_observer(*impl_, &g_observer, replace, &impl_->observers_.front()));
 }
 
-inline void Control::cleanup() {
-    Detail::handle_error(clingo_control_cleanup(*impl_));
-}
-
 inline bool Control::is_conflicting() const noexcept {
     return clingo_control_is_conflicting(*impl_);
 }
@@ -4475,8 +4474,24 @@ inline void Control::load(char const *file) {
     Detail::handle_error(clingo_control_load(*impl_, file));
 }
 
-inline void Control::use_enumeration_assumption(bool value) {
-    Detail::handle_error(clingo_control_use_enumeration_assumption(*impl_, value));
+inline void Control::enable_enumeration_assumption(bool value) {
+    Detail::handle_error(clingo_control_set_enable_enumeration_assumption(*impl_, value));
+}
+
+inline bool Control::enable_enumeration_assumption() const {
+    return clingo_control_get_enable_enumeration_assumption(*impl_);
+}
+
+inline void Control::cleanup() {
+    Detail::handle_error(clingo_control_cleanup(*impl_));
+}
+
+inline void Control::enable_cleanup(bool value) {
+    Detail::handle_error(clingo_control_set_enable_cleanup(*impl_, value));
+}
+
+inline bool Control::enable_cleanup() const {
+    return clingo_control_get_enable_cleanup(*impl_);
 }
 
 inline Backend Control::backend() {

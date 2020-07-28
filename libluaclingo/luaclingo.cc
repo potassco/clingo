@@ -3527,9 +3527,14 @@ struct ControlWrap : Object<ControlWrap> {
     static int newindex(lua_State *L) {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "use_enumeration_assumption") == 0) {
+        if (strcmp(name, "enable_enumeration_assumption") == 0) {
             bool enabled = lua_toboolean(L, 3) != 0;
-            handle_c_error(L, clingo_control_use_enumeration_assumption(self.ctl, enabled));
+            handle_c_error(L, clingo_control_set_enable_enumeration_assumption(self.ctl, enabled));
+            return 0;
+        }
+        else if (strcmp(name, "enable_cleanup") == 0) {
+            bool enabled = lua_toboolean(L, 3) != 0;
+            handle_c_error(L, clingo_control_set_enable_cleanup(self.ctl, enabled));
             return 0;
         }
         return luaL_error(L, "unknown field: %s", name);
@@ -3567,6 +3572,14 @@ struct ControlWrap : Object<ControlWrap> {
         }
         else if (strcmp(name, "is_conflicting") == 0) {
             lua_pushboolean(L, clingo_control_is_conflicting(self.ctl));
+            return 1;
+        }
+        else if (strcmp(name, "enable_enumeration_assumption") == 0) {
+            lua_pushboolean(L, clingo_control_get_enable_enumeration_assumption(self.ctl));
+            return 1;
+        }
+        else if (strcmp(name, "enable_cleanup") == 0) {
+            lua_pushboolean(L, clingo_control_get_enable_cleanup(self.ctl));
             return 1;
         }
         else {
