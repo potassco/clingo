@@ -2561,7 +2561,8 @@ struct PropagateInit : Object<PropagateInit> {
 
     static int addLiteral(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushinteger(L, call_c(L, clingo_propagate_init_add_literal, self.init));
+        bool freeze = lua_isnoneornil(L, 1) || lua_toboolean(L, 1);
+        lua_pushinteger(L, call_c(L, clingo_propagate_init_add_literal, self.init, freeze));
         return 1;
     }
 

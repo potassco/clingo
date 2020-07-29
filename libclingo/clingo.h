@@ -1160,14 +1160,18 @@ CLINGO_VISIBILITY_DEFAULT clingo_propagator_check_mode_t clingo_propagate_init_g
 CLINGO_VISIBILITY_DEFAULT clingo_assignment_t const *clingo_propagate_init_assignment(clingo_propagate_init_t const *init);
 //! Add a literal to the solver.
 //!
+//! To be able to use the variable in clauses during propagation or add watches to it, it has to be frozen.
+//! Otherwise, it might be removed during preprocessing.
+//!
 //! @attention If varibales were added, subsequent calls to functions adding constraints or ::clingo_propagate_init_propagate() are expensive.
 //! It is best to add varables in batches.
 //!
 //! @param[in] init the target
+//! @param[in] freeze whether to freeze the literal
 //! @param[out] result the added literal
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_literal(clingo_propagate_init_t *init, clingo_literal_t *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_literal(clingo_propagate_init_t *init, bool freeze, clingo_literal_t *result);
 //! Add the given clause to the solver.
 //!
 //! @attention No further calls on the init object or functions on the assignment should be called when the result of this method is false.

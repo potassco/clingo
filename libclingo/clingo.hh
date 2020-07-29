@@ -928,7 +928,7 @@ public:
     TheoryAtoms theory_atoms() const;
     PropagatorCheckMode get_check_mode() const;
     void set_check_mode(PropagatorCheckMode mode);
-    literal_t add_literal();
+    literal_t add_literal(bool freeze = true);
     bool add_clause(LiteralSpan clause);
     bool add_weight_constraint(literal_t literal, WeightedLiteralSpan literals, weight_t bound, WeightConstraintType type, bool compare_equal = false);
     void add_minimize(literal_t literal, weight_t weight, weight_t priority = 0);
@@ -2900,9 +2900,9 @@ inline void PropagateInit::set_check_mode(PropagatorCheckMode mode) {
     clingo_propagate_init_set_check_mode(init_, mode);
 }
 
-inline literal_t PropagateInit::add_literal() {
+inline literal_t PropagateInit::add_literal(bool freeze) {
     literal_t ret;
-    Detail::handle_error(clingo_propagate_init_add_literal(init_, &ret));
+    Detail::handle_error(clingo_propagate_init_add_literal(init_, freeze, &ret));
     return ret;
 }
 

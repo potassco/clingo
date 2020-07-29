@@ -396,8 +396,13 @@ public:
     void addWatch(Lit_t lit) override { p_.addWatch(Clasp::decodeLit(lit)); }
     void addWatch(uint32_t solverId, Lit_t lit) override { p_.addWatch(solverId, Clasp::decodeLit(lit)); }
     void enableHistory(bool b) override { p_.enableHistory(b); };
-    Potassco::Lit_t addLiteral() override {
-        return Clasp::encodeLit(Clasp::Literal(facade_().ctx.addVar(Clasp::Var_t::Atom), false));
+    Potassco::Lit_t addLiteral(bool freeze) override {
+        auto &ctx = facade_().ctx;
+        auto var = ctx.addVar(Clasp::Var_t::Atom);
+        if (freeze) {
+            ctx.setFrozen(var, true);
+        }
+        return Clasp::encodeLit(Clasp::Literal(var, false));
     }
     bool addClause(Potassco::LitSpan lits) override {
         auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
