@@ -3876,9 +3876,13 @@ Control.register_propagator
         Py_RETURN_NONE;
     }
 
-    Object addLiteral() {
+    Object addLiteral(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"freeze", nullptr};
+        Reference pyFreeze = Py_True;
+        ParseTupleAndKeywords(pyargs, pykwds, "|O", kwlist, pyFreeze);
+
         clingo_literal_t ret;
-        handle_c_error(clingo_propagate_init_add_literal(init, &ret));
+        handle_c_error(clingo_propagate_init_add_literal(init, pyToCpp<bool>(pyFreeze), &ret));
         return cppToPy(ret);
     }
 
@@ -3969,9 +3973,17 @@ Returns
 int
     A solver literal.
 )"},
-    {"add_literal", to_function<&PropagateInit::addLiteral>(), METH_NOARGS, R"(add_literal(self) -> int
+    {"add_literal", to_function<&PropagateInit::addLiteral>(), METH_KEYWORDS | METH_VARARGS, R"(add_literal(self, freeze: bool=True) -> int
 
 Statically adds a literal to the solver.
+
+To be able to use the variable in clauses during propagation or add watches to
+it, it has to be frozen. Otherwise, it might be removed during preprocessing.
+
+Parameters
+----------
+freeze : bool=True
+    Whether to freeze the variable.
 
 Returns
 -------

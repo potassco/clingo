@@ -184,7 +184,7 @@ using PropagateInit = clingo_propagate_init;
 } // namespace Gringo
 
 struct clingo_propagate_init {
-    virtual Potassco::Lit_t addLiteral() = 0;
+    virtual Potassco::Lit_t addLiteral(bool freeze) = 0;
     virtual bool addClause(Potassco::LitSpan lits) = 0;
     virtual bool addWeightConstraint(Potassco::Lit_t lit, Potassco::WeightLitSpan lits, Potassco::Weight_t bound, int type, bool eq) = 0;
     virtual void addMinimize(Potassco::Lit_t literal, Potassco::Weight_t weight, Potassco::Weight_t priority) = 0;

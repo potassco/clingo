@@ -688,8 +688,8 @@ extern "C" clingo_assignment_t const *clingo_propagate_init_assignment(clingo_pr
     return static_cast<clingo_assignment_t const *>(&init->assignment());
 }
 
-extern "C" bool clingo_propagate_init_add_literal(clingo_propagate_init_t *init, clingo_literal_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = init->addLiteral(); }
+extern "C" bool clingo_propagate_init_add_literal(clingo_propagate_init_t *init, bool freeze, clingo_literal_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = init->addLiteral(freeze); }
     GRINGO_CLINGO_CATCH;
 }
 
