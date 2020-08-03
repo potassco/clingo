@@ -5,7 +5,6 @@ set(source-group
     "${CMAKE_CURRENT_SOURCE_DIR}/graph.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/intervals.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/python.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/safetycheck.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/symbol.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/term.cc"

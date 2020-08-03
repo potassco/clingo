@@ -19,7 +19,12 @@ build/$(BUILD_TYPE):
 		-DCLASP_BUILD_TESTS=On \
 		-DLIB_POTASSCO_BUILD_TESTS=On \
 		-DCLINGO_BUILD_EXAMPLES=On \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=On \
 		"$${current}"
+
+# compdb can be installed with pip
+compdb: build/$(BUILD_TYPE)
+	compdb -p "build/$(BUILD_TYPE)" list -1 > compile_commands.json
 
 %:: build/$(BUILD_TYPE) FORCE
 	cd build/$(BUILD_TYPE) && cd $$(pwd -P) && cmake .
