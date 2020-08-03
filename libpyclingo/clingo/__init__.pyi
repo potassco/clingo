@@ -245,7 +245,7 @@ class SymbolicAtomIter(Iterator[SymbolicAtom], metaclass=ABCMeta):
     pass
 
 class SymbolicAtoms(Lookup[Union[Symbol,int],SymbolicAtom], metaclass=ABCMeta):
-    def by_signature(self, name: str, arity: int, positive: bool=True) -> Iterator[Symbol]: ...
+    def by_signature(self, name: str, arity: int, positive: bool=True) -> Iterator[SymbolicAtom]: ...
     signatures: List[Tuple[str,int,bool]]
 
 class TheoryAtom(metaclass=ABCMeta):

@@ -26,6 +26,9 @@ build/$(BUILD_TYPE):
 compdb: build/$(BUILD_TYPE)
 	compdb -p "build/$(BUILD_TYPE)" list -1 > compile_commands.json
 
+stubs: all
+	PYTHONPATH=build/$(BUILD_TYPE)/bin/python python scratch/mypy.py
+
 %:: build/$(BUILD_TYPE) FORCE
 	cd build/$(BUILD_TYPE) && cd $$(pwd -P) && cmake .
 	$(MAKE) -C build/$(BUILD_TYPE) $@
