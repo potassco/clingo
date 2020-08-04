@@ -2884,9 +2884,9 @@ though.
     static SharedObject<SolveHandle> construct(Reference on_core) {
         auto ret = new_();
         ret->handle = nullptr;
-        new (&ret->on_model) Object{Py_None};
-        new (&ret->on_finish) Object{Py_None};
-        new (&ret->on_statistics) Object{Py_None};
+        new (&ret->on_model) Object{None()};
+        new (&ret->on_finish) Object{None()};
+        new (&ret->on_statistics) Object{None()};
         new (&ret->on_core) Object{on_core};
         return ret;
     }
@@ -2947,10 +2947,10 @@ though.
             catch (...) { except = std::current_exception(); }
             handle = nullptr;
         }
-        on_model = Py_None;
-        on_finish = Py_None;
-        on_statistics = Py_None;
-        on_core = Py_None;
+        on_model = None();
+        on_finish = None();
+        on_statistics = None();
+        on_core = None();
         if (except) { std::rethrow_exception(except); }
         Py_RETURN_FALSE;
     }
@@ -2968,7 +2968,7 @@ though.
             if (core != nullptr) {
                 on_core(cppRngToPy(core, core + size));
             }
-            on_core = Py_None;
+            on_core = None();
         }
         return SolveResult::construct(ret);
     }
