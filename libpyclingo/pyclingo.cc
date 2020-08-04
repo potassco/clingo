@@ -2997,6 +2997,17 @@ though.
         }));
     }
 
+    Object model() {
+        if (clingo_model_t const *m = doUnblocked([this]() {
+            clingo_model_t const *ret;
+            handle_c_error(clingo_solve_handle_model(handle, &ret));
+            return ret;
+        })) {
+            return Model::construct(m);
+        }
+        return None();
+    }
+
     Object resume() {
         doUnblocked([this](){
             handle_c_error(clingo_solve_handle_resume(handle));
@@ -3064,8 +3075,6 @@ though.
     }
 };
 
-#define CLINGO_PY_NEXT "__next__"
-
 PyMethodDef SolveHandle::tp_methods[] = {
     {"get", to_function<&SolveHandle::get>(), METH_NOARGS,
 R"(get(self) -> SolveResult
@@ -3089,9 +3098,9 @@ Returns
 List[int]
 )"},
     {"wait", to_function<&SolveHandle::wait>(),  METH_VARARGS,
-R"(wait(self, timeout: Optional[float]=None) -> Optional[bool]
+R"(wait(self, timeout: Optional[float]=None) -> bool
 
-Wait for solve call to finish with an optional timeout.
+Wait for solve call to finish or the next result with an optional timeout.
 
 Parameters
 ----------
@@ -3100,10 +3109,9 @@ timeout : Optional[float]=None
 
 Returns
 -------
-Optional[bool]
-    If a timout is given, returns a Boolean indicating whether the search has
-    finished. Otherwise, the function blocks until the search is finished and
-    returns nothing.
+bool
+    Returns a Boolean indicating whether the solve call has finished or the
+    next result is ready.
 )"},
     {"cancel", to_function<&SolveHandle::cancel>(), METH_NOARGS,
 R"(cancel(self) -> None
@@ -3125,9 +3133,37 @@ Discards the last model and starts searching for the next one.
 
 Notes
 -----
-If the search has been started asynchronously, this function also starts the
-search in the background. A model that was not yet retrieved by calling `)"
-CLINGO_PY_NEXT R"(` is not discared.)"},
+If the search has been started asynchronously, this function starts the search
+in the background.)"},
+    {"model", to_function<&SolveHandle::model>(), METH_NOARGS,
+R"(model(self) -> Optional[Model]
+
+Get the current model if there is any.
+
+Examples
+--------
+The following example shows how to implement a custom solve loop. While more
+cumbersome than using a for loop, this kind of loop allows for fine grained
+timeout handling between models:
+
+    >>> import clingo
+    >>> ctl = clingo.Control()
+    >>> ctl.configuration.solve.models = 0
+    >>> ctl.add("base", [], "1 {a;b}.")
+    >>> ctl.ground([("base", [])])
+    >>> with prg.solve(yield_=True, async_=True) as hnd:
+    ...     while True:
+    ...         hnd.resume()
+    ...         _ = hnd.wait()
+    ...         m = hnd.model()
+    ...         print(m)
+    ...         if m is None:
+    ...             break
+    b
+    a
+    a b
+    None
+)"},
     {"__enter__", to_function<&SolveHandle::enter>(), METH_NOARGS,
 R"(__enter__(self) -> SolveHandle
 

@@ -3475,10 +3475,13 @@ struct ControlWrap : Object<ControlWrap> {
 
         }
 
-        // Note: this is fixable but unfortunately quite involved
+        // Note: This is fixable but unfortunately quite involved.
         if ((handle->hasFH || handle->hasMH) && (handle->mode & clingo_solve_mode_yield)) {
             return luaL_error(L, "callbacks and iterative solving cannot be used together at the moment.");
         }
+
+        // Note: Asynchronous solving is possible; only callbacks are
+        // troublesome. For simplicity it is disabled for now.
         if (handle->mode & clingo_solve_mode_async) {
             return luaL_error(L, "asynchronous solving not supported");
         }
