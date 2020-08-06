@@ -4122,7 +4122,7 @@ PyGetSetDef PropagateInit::tp_getset[] = {
 
 The symbolic atoms captured by a `SymbolicAtoms` object.
 )", nullptr},
-    {(char *)"theory_atoms", to_getter<&PropagateInit::theoryIter>(), nullptr, (char *)R"(theory_atom: TheoryAtomIter
+    {(char *)"theory_atoms", to_getter<&PropagateInit::theoryIter>(), nullptr, (char *)R"(theory_atoms: TheoryAtomIter
 
 A `TheoryAtomIter` object to iterate over all theory atoms.
 )", nullptr},

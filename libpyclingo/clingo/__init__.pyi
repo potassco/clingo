@@ -179,7 +179,7 @@ class PropagateInit(metaclass=ABCMeta):
     check_mode: PropagatorCheckMode
     number_of_threads: int
     symbolic_atoms: SymbolicAtoms
-    theory_atom: TheoryAtomIter
+    theory_atoms: TheoryAtomIter
 
 class PropagatorCheckMode(Hashable, Comparable, metaclass=ABCMeta):
     Both: PropagatorCheckMode
