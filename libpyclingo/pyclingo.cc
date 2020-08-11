@@ -2726,7 +2726,7 @@ PyGetSetDef Model::tp_getset[] = {
 The id of the thread which found the model.
 )", nullptr},
     {(char *)"context", to_getter<&Model::getContext>(), nullptr, (char*)R"(
-context: SolveControl
+context : SolveControl
 
 Object that allows for controlling the running search.
 )", nullptr},
@@ -7409,7 +7409,7 @@ Adds a statement in form of an `ast.AST` node to the program.
 
 Parameters
 ----------
-statement: ast.AST
+statement : ast.AST
     The statement to add.
 
 Returns
@@ -7629,7 +7629,7 @@ Append a value.
 
 Parameters
 ----------
-value: Any
+value : Any
     A nested structure composed of floats, sequences, and mappings.
 
 Returns
@@ -7644,7 +7644,7 @@ Extend the statistics array with the given values.
 
 Paremeters
 ----------
-values: Sequence[Any]
+values : Sequence[Any]
     A sequence of nested structures composed of floats, sequences, and
     mappings.
 
@@ -7664,7 +7664,7 @@ Update a statistics array.
 
 Parameters
 ----------
-values: Sequence[Any]
+values : Sequence[Any]
     A sequence of nested structures composed of floats, callable, sequences,
     and mappings. A callable can be used to update an existing value, it
     receives the previous numeric value (or None if absent) as argument and
@@ -7835,7 +7835,7 @@ Update the map with the given values.
 
 Parameters
 ----------
-values: Mapping[Any]
+values : Mapping[Any]
     A mapping of nested structures composed of floats, callable, sequences,
     and mappings. A callable can be used to update an existing value, it
     receives the previous numeric value (or None if absent) as argument and
@@ -9398,7 +9398,7 @@ option : str
     shown if the argument to help is greater or equal to `l`.
 description : str
     The description of the option shown in the help output.
-parser : Callable[[str], bool]
+parser : Callable[[str],bool]
     An option parser is a function that takes a string as input and returns
     true or false depending on whether the option was parsed successively.
 multi : bool=False
@@ -10002,9 +10002,9 @@ Parameters
 ----------
 string : str
     The string to be parsed.
-logger : Callable[[MessageCode,str],None] = None
+logger : Callable[[MessageCode,str],None]=None
     Function to intercept messages normally printed to standard error.
-message_limit : int = 20
+message_limit : int=20
     Maximum number of messages passed to the logger.
 
 Returns
@@ -10155,7 +10155,7 @@ Parameters
 ----------
 program : str
     String representation of the program.
-callback : Callable[[ast.AST], None]
+callback : Callable[[ast.AST],None]
     Callable taking an ast as argument.
 
 Returns
@@ -10178,9 +10178,9 @@ Parameters
 ----------
 name : str
     The name of the function (empty for tuples).
-arguments: Iterable[Symbol] = []
+arguments : Iterable[Symbol]=[]
     The arguments in form of a list of symbols.
-positive: bool = True
+positive : bool=True
     The sign of the function (tuples must not have signs).
 
 Returns
@@ -10193,7 +10193,7 @@ A shortcut for `Function("", arguments)`.
 
 Parameters
 ----------
-arguments: Iterable[Symbol]
+arguments : Iterable[Symbol]
     The arguments in form of a list of symbols.
 
 Returns

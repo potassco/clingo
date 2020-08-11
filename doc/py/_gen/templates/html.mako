@@ -104,7 +104,10 @@
     text = text.replace('Answer:', 'AnswerDUMMY')
     text = _re_returns.sub(_sub_returns, text)
 
-    md = to_markdown(text, module=module, link=link, _code_refs=re.compile(r'(?<![\\])`(?!])(?:[^`]|(?<=\\)`)+`').sub)
+    # TODO: this kills links in the type lists 
+    #md = to_markdown(text, module=module, link=link, _code_refs=re.compile(r'(?<![\\])`(?!])(?:[^`]|(?<=\\)`)+`').sub)
+    # TODO: regex `is_type_annotation` in `pdoc/html_helpers.py` needs an `=` now
+    md = to_markdown(text, module=module, link=link)
     text = pdoc.html_helpers._md.reset().convert(md)
 
     text = text.replace('<dd>DUMMY DESRIPTION TO REMOVE</dd>', '')
