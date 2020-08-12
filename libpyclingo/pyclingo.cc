@@ -2726,7 +2726,7 @@ PyGetSetDef Model::tp_getset[] = {
 The id of the thread which found the model.
 )", nullptr},
     {(char *)"context", to_getter<&Model::getContext>(), nullptr, (char*)R"(
-context : SolveControl
+context: SolveControl
 
 Object that allows for controlling the running search.
 )", nullptr},
