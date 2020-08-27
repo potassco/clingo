@@ -15,14 +15,14 @@ import clingo
 
 TYPING_TYPES = [
     'AbstractSet', 'Any', 'AnyStr', 'AsyncContextManager', 'AsyncGenerator', 'AsyncIterable', 'AsyncIterator',
-    'Awaitable', 'AwaitableGenerator', 'BinaryIO', 'ByteString', 'ChainMap', 'Collection', 'Container',
-    'ContextManager', 'Coroutine', 'Counter', 'DefaultDict', 'Deque', 'Dict', 'FrozenSet',
-    'Generator', 'Generic', 'GenericMeta', 'Hashable', 'IO', 'ItemsView', 'Iterable',
-    'Iterator', 'KeysView', 'List', 'Mapping', 'MappingView', 'Match', 'MutableMapping',
-    'MutableSequence', 'MutableSet', 'NamedTuple', 'NoReturn', 'Optional', 'Pattern', 'Protocol',
-    'Reversible', 'Sequence', 'Set', 'Sized', 'SupportsAbs', 'SupportsBytes', 'SupportsComplex',
-    'SupportsFloat', 'SupportsIndex', 'SupportsInt', 'SupportsRound', 'Text', 'TextIO', 'Tuple',
-    'TypeAlias', 'TypeVar', 'Union', 'ValuesView']
+    'Awaitable', 'AwaitableGenerator', 'BinaryIO', 'ByteString', 'Callable', 'ChainMap', 'Collection',
+    'Container', 'ContextManager', 'Coroutine', 'Counter', 'DefaultDict', 'Deque', 'Dict',
+    'FrozenSet', 'Generator', 'Generic', 'GenericMeta', 'Hashable', 'IO', 'ItemsView',
+    'Iterable', 'Iterator', 'KeysView', 'List', 'Mapping', 'MappingView', 'Match',
+    'MutableMapping', 'MutableSequence', 'MutableSet', 'NamedTuple', 'NoReturn', 'Optional', 'Pattern',
+    'Protocol', 'Reversible', 'Sequence', 'Set', 'Sized', 'SupportsAbs', 'SupportsBytes',
+    'SupportsComplex', 'SupportsFloat', 'SupportsIndex', 'SupportsInt', 'SupportsRound', 'Text', 'TextIO',
+    'Tuple', 'TypeAlias', 'TypeVar', 'Union', 'ValuesView']
 
 
 class TypeTemplate(Template):
