@@ -10099,6 +10099,22 @@ class Application(metaclass=ABCMeta):
         bool
         """
 
+    def print_model(self, model: Model, printer: Callable[[Model], None]) -> None:
+        """
+        Function to print additional information when the text output is used.
+
+        Parameters
+        ----------
+        model : model
+            The current model
+        printer : Callable[[Model], None]
+            The default printer as used in clingo.
+
+        Returns
+        -------
+        None
+        """
+
     def logger(self, code: MessageCode, message: str) -> None:
         """
         Function to intercept messages normally printed to standard error.
