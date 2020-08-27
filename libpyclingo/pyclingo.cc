@@ -10099,7 +10099,7 @@ class Application(metaclass=ABCMeta):
         bool
         """
 
-    def print_model(self, model: Model, printer: Callable[[Model], None]) -> None:
+    def print_model(self, model: Model, printer: Callable[[], None]) -> None:
         """
         Function to print additional information when the text output is used.
 
@@ -10107,7 +10107,7 @@ class Application(metaclass=ABCMeta):
         ----------
         model : model
             The current model
-        printer : Callable[[Model], None]
+        printer : Callable[[], None]
             The default printer as used in clingo.
 
         Returns
