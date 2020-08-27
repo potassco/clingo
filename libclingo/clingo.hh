@@ -2308,6 +2308,7 @@ struct Application {
 using StatementCallback = std::function<void (AST::Statement &&)>;
 
 void parse_program(char const *program, StatementCallback cb, Logger logger = nullptr, unsigned message_limit = 20);
+void parse_program(StringSpan files, StatementCallback cb, Logger logger = nullptr, unsigned message_limit = 20);
 Symbol parse_term(char const *str, Logger logger = nullptr, unsigned message_limit = 20);
 char const *add_string(char const *str);
 std::tuple<int, int, int> version();
@@ -5384,6 +5385,19 @@ inline void parse_program(char const *program, StatementCallback cb, Logger logg
     using Data = std::pair<StatementCallback &, std::exception_ptr>;
     Data data(cb, nullptr);
     Detail::handle_error(clingo_parse_program(program, [](clingo_ast_statement_t const *stm, void *data) -> bool {
+        auto &d = *static_cast<Data*>(data);
+        CLINGO_CALLBACK_TRY { AST::Detail::convStatement(stm, d.first); }
+        CLINGO_CALLBACK_CATCH(d.second);
+    }, &data, [](clingo_warning_t code, char const *msg, void *data) {
+        try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
+        catch (...) { }
+    }, &logger, message_limit), data.second);
+}
+
+inline void parse_program(StringSpan files, StatementCallback cb, Logger logger, unsigned message_limit) {
+    using Data = std::pair<StatementCallback &, std::exception_ptr>;
+    Data data(cb, nullptr);
+    Detail::handle_error(clingo_parse_files(files.begin(), files.size(), [](clingo_ast_statement_t const *stm, void *data) -> bool {
         auto &d = *static_cast<Data*>(data);
         CLINGO_CALLBACK_TRY { AST::Detail::convStatement(stm, d.first); }
         CLINGO_CALLBACK_CATCH(d.second);
