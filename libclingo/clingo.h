@@ -2914,6 +2914,22 @@ typedef bool (*clingo_ast_callback_t) (clingo_ast_statement_t const *, void *);
 //! - ::clingo_error_runtime if parsing fails
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_parse_program(char const *program, clingo_ast_callback_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
+//! Parse the programs in the given list of files and return an abstract syntax tree for each statement via a callback.
+//!
+//! The function follows clingo's handling of files on the command line.
+//! Filename "-" is treated as STDIN and if an empty list is given, then the parser will read from STDIN.
+//!
+//! @param[in] files the beginning of the file name array
+//! @param[in] size the number of file names
+//! @param[in] callback the callback reporting statements
+//! @param[in] callback_data user data for the callback
+//! @param[in] logger callback to report messages during parsing
+//! @param[in] logger_data user data for the logger
+//! @param[in] message_limit the maximum number of times the logger is called
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime if parsing fails
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_parse_files(char const * const *files, size_t size, clingo_ast_callback_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
 
 //! @}
 

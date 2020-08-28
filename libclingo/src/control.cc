@@ -1044,6 +1044,26 @@ extern "C" bool clingo_parse_program(char const *program, clingo_ast_callback_t 
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_parse_files(char const * const *file, size_t n, clingo_ast_callback_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
+    GRINGO_CLINGO_TRY {
+        Input::ASTBuilder builder([cb, cb_data](clingo_ast_statement_t const &stm) { handleCError(cb(&stm, cb_data)); });
+        bool incmode = false;
+        Input::NonGroundParser parser(builder, incmode);
+        Logger::Printer printer;
+        if (logger) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
+        Logger log(printer, message_limit);
+        for (auto it = file, ie = file + n; it != ie; ++it) {
+            parser.pushFile(std::string{*it}, log);
+        }
+        if (n == 0) {
+            parser.pushFile("-", log);
+        }
+        parser.parse(log);
+        if (log.hasError()) { throw std::runtime_error("syntax error"); }
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_add_string(char const *str, char const **ret) {
     GRINGO_CLINGO_TRY { *ret = String(str).c_str(); }
     GRINGO_CLINGO_CATCH;
