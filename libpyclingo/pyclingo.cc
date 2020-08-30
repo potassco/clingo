@@ -10215,7 +10215,7 @@ See Also
 ProgramBuilder
 )"},
     {"parse_files", to_function<parseFiles>(), METH_VARARGS | METH_KEYWORDS,
-R"(parse_files(Iterable[str] files, callback: Callable[[ast.AST], None], logger: Callable[[MessageCode,str],None]=None, message_limit: int=20) -> None
+R"(parse_files(files: Iterable[str], callback: Callable[[ast.AST], None], logger: Callable[[MessageCode,str],None]=None, message_limit: int=20) -> None
 
 Parse the programs in the given files and return an abstract syntax tree for
 each statement via a callback.
