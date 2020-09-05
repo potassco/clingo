@@ -10007,7 +10007,7 @@ statement = Rule
                            , atom_type : TheoryAtomType
                            , name      : str
                            , arity     : int
-                           , elements  : str*
+                           , elements  : str
                            , guard     : TheoryGuardDefinition
 
                                           ( operators : str*
