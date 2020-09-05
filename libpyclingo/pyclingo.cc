@@ -9778,7 +9778,7 @@ theory_term = Symbol
                ( location : Location
                , name     : str
                )
-            | TheoryTermSequence
+            | TheorySequence
                ( location : Location
                , sequence_type : TheorySequenceType
                , terms         : theory_term*
