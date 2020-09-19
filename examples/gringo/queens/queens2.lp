@@ -1,5 +1,7 @@
+#const n = 10.
+
 num(1).
-num(X+1) :- num(X), X < 10.
+num(X+1) :- num(X), X < n.
 
 queen(X,Y) :- not free(X,Y), num(X), num(Y).
 free(X,Y) :- not queen(X,Y), num(X), num(Y).
@@ -15,4 +17,3 @@ fail :- queen(X,Y), queen(U,Y), X < U, not fail.
 
 fail :- queen(X,Y), queen(U,V), X-Y == U-V, f(X,Y) < f(U,V), not fail.
 fail :- queen(X,Y), queen(U,V), X+Y == U+V, f(X,Y) < f(U,V), not fail.
-
