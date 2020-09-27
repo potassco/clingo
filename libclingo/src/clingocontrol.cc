@@ -727,6 +727,7 @@ size_t ClingoControl::length() const {
 }
 
 bool ClingoControl::beginAddBackend() {
+    update();
     backend_ = out_->backend(logger());
     return backend_ != nullptr;
 }
