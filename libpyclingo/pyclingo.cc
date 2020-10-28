@@ -5565,7 +5565,10 @@ constexpr clingo_ast_theory_atom_definition_type_t const TheoryAtomType::values[
 constexpr const char * const TheoryAtomType::strings[];
 
 struct ScriptType : EnumType<ScriptType> {
-    enum T { Python, Lua };
+    enum T {
+        Lua = clingo_ast_script_type_lua,
+        Python = clingo_ast_script_type_python
+    };
     static constexpr char const *tp_type = "ScriptType";
     static constexpr char const *tp_name = "clingo.ast.ScriptType";
     static constexpr char const *tp_doc =
