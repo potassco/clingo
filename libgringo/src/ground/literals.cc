@@ -242,7 +242,12 @@ UGTerm PredicateLiteral::getRepr() const          { return repr->gterm(); }
 bool PredicateLiteral::isPositive() const         { return naf == NAF::POS; }
 bool PredicateLiteral::isNegative() const         { return naf != NAF::POS; }
 void PredicateLiteral::setType(OccurrenceType x)  { type = x; }
-OccurrenceType PredicateLiteral::getType() const  { return type; }
+OccurrenceType PredicateLiteral::getType() const  {
+    if (type == OccurrenceType::POSITIVELY_STRATIFIED && domain.hasChoice()) {
+        return OccurrenceType::STRATIFIED;
+    }
+    return type;
+}
 BodyOcc::DefinedBy &PredicateLiteral::definedBy() { return defs; }
 void PredicateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
     if (!auxiliary_ && defs.empty() && done.find(repr->loc()) == done.end() && edb.find(repr->getSig()) == edb.end() && domain.empty()) {

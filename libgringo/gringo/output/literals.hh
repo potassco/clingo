@@ -761,6 +761,16 @@ public:
         return showOffset_;
     }
 
+    // Return true if there is an atom that is not a fact in the domain.
+    bool hasChoice() const {
+        for (auto it = atoms_.begin() + choiceIndex_, ie = atoms_.end(); it != ie; ++it, ++choiceIndex_) {
+            if (!it->fact() && it->defined()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void showNext() {
         showOffset_ = size();
     }
