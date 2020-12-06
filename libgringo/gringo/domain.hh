@@ -499,6 +499,7 @@ public:
                 f(*it);
             }
         }
+        choiceIndex_ = 0;
         importedDelayed = static_cast<SizeType>(delayed_.size());
         return ret;
     }
@@ -598,6 +599,7 @@ protected:
     Id_t        initOffset_ = 0;
     Id_t        initDelayedOffset_ = 0;
     Id_t        domainOffset_ = InvalidId;
+    Id_t mutable choiceIndex_ = 0;
 };
 
 // }}}

@@ -699,6 +699,16 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(m == (goon ? 2 : 1));
             REQUIRE(f == 1);
         }
+        SECTION("pos_strat") {
+            ctl.with_backend([](Clingo::Backend &b){
+                b.rule(true, {b.add_atom(Clingo::Function("a", {Clingo::Number(1)}))}, {});
+                b.rule(true, {b.add_atom(Clingo::Function("a", {Clingo::Number(2)}))}, {});
+            });
+            ctl.add("base", {}, ":- a(X).");
+            ctl.ground({{"base", {}}});
+            REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
+            REQUIRE(models == ModelVec({{}}));
+        }
     }
 }
 
