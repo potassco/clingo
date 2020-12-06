@@ -32,7 +32,6 @@ namespace Gringo { namespace Input {
 
 class AST;
 class Value;
-using SValue = std::shared_ptr<Value>;
 using SAST = std::shared_ptr<AST>;
 
 enum class ValueType : int {
@@ -55,91 +54,35 @@ class Value {
 public:
     using SStrVec = std::shared_ptr<std::vector<String>>;
     using SASTVec = std::shared_ptr<std::vector<SAST>>;
-    Value(int num)
-    : type_{ValueType::Num}
-    , num_{num} { }
-    Value(Symbol sym)
-    : type_{ValueType::Sym}
-    , sym_{sym} { }
-    Value(String str)
-    : type_{ValueType::Str}
-    , str_{str} { }
-    Value(SStrVec strs)
-    : type_{ValueType::StrVec} {
-        new (&strs_) SStrVec{std::move(strs)};
-    }
-    Value(SASTVec asts)
-    : type_{ValueType::ASTVec} {
-        new (&asts_) SASTVec{std::move(asts)};
-    }
+
+    Value(int num);
+    Value(Symbol sym);
+    Value(String str);
+    Value(SAST ast);
+    Value(SStrVec strs);
+    Value(SASTVec asts);
     Value(Value const &val);
     Value(Value &&val) noexcept;
     Value &operator=(Value const &val);
     Value &operator=(Value &&val) noexcept;
     ~Value();
+
     ValueType type() const;
-    int &num() {
-        if (type_ != ValueType::Num) {
-            throw std::runtime_error("invalid attribute");
-        }
-        return num_;
-    }
-    int const &num() const {
-        if (type_ != ValueType::Num) {
-            throw std::runtime_error("invalid attribute");
-        }
-        return num_;
-    }
-    String &str() {
-        if (type_ != ValueType::Str) {
-            throw std::runtime_error("invalid attribute");
-        }
-        return str_;
-    }
-    String const &str() const {
-        if (type_ != ValueType::Str) {
-            throw std::runtime_error("invalid attribute");
-        }
-        return str_;
-    }
-    SAST &ast() {
-        if (type_ != ValueType::AST) {
-            throw std::runtime_error("invalid attribute");
-        }
-        return ast_;
-    }
-    SAST const &ast() const {
-        if (type_ != ValueType::AST) {
-            throw std::runtime_error("invalid attribute");
-        }
-        return ast_;
-    }
-    SASTVec &asts() {
-        if (type_ != ValueType::ASTVec) {
-            throw std::runtime_error("invalid attribute");
-        }
-        return asts_;
-    }
-    SASTVec const &asts() const {
-        if (type_ != ValueType::ASTVec) {
-            throw std::runtime_error("invalid attribute");
-        }
-        return asts_;
-    }
-    SStrVec &strs() {
-        if (type_ != ValueType::StrVec) {
-            throw std::runtime_error("invalid attribute");
-        }
-        return strs_;
-    }
-    SStrVec const &strs() const {
-        if (type_ != ValueType::StrVec) {
-            throw std::runtime_error("invalid attribute");
-        }
-        return strs_;
-    }
+    int &num();
+    int num() const;
+    String &str();
+    String str() const;
+    SAST &ast();
+    SAST const &ast() const;
+    SASTVec &asts();
+    SASTVec const &asts() const;
+    SStrVec &strs();
+    SStrVec const &strs() const;
 
 private:
+    void clear_();
+    void require_(ValueType type) const;
+
     ValueType type_;
     union {
         int num_;
