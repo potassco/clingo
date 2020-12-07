@@ -133,7 +133,7 @@ private:
         return false;
     }
 
-    ASTValue *getOpt(AST &ast, char const *value) {
+    static ASTValue *getOpt(AST &ast, char const *value) {
         if (!ast.hasValue(value)) {
             return nullptr;
         }
@@ -155,7 +155,7 @@ private:
         return uid;
     }
 
-    UnOp parseUnOp(int num) {
+    static UnOp parseUnOp(int num) {
         switch (num) {
             case static_cast<int>(BinOp::XOR): {
                 return UnOp::NEG;
@@ -172,7 +172,7 @@ private:
         }
     }
 
-    BinOp parseBinOp(int num) {
+    static BinOp parseBinOp(int num) {
         switch (num) {
             case static_cast<int>(BinOp::XOR): {
                 return BinOp::XOR;
@@ -379,7 +379,7 @@ private:
         return parseTerm(*ast.value("term").ast());
     }
 
-    NAF parseSign(int sign) {
+    static NAF parseSign(int sign) {
         switch (sign) {
             case clingo_ast_sign_none: {
                 return NAF::POS;
@@ -396,7 +396,7 @@ private:
         }
     }
 
-    Relation parseRelation(int relation) {
+    static Relation parseRelation(int relation) {
         switch (relation) {
             case clingo_ast_comparison_operator_less_equal: {
                 return Relation::LEQ;
@@ -483,7 +483,7 @@ private:
 
     // {{{2 aggregates
 
-    AggregateFunction parseAggregateFunction(int fun) {
+    static AggregateFunction parseAggregateFunction(int fun) {
         switch (fun) {
             case static_cast<int>(AggregateFunction::COUNT): {
                 return AggregateFunction::COUNT;
@@ -548,14 +548,14 @@ private:
     }
 
     BdAggrElemVecUid parseBdAggrElemVec(ASTValue::ASTVec &asts) {
-        throw std::runtime_error("implement me!!!");
-        /*
-        uid ret = prg_.bodyaggrelemvec();
-        for (auto it = vec, ie = it + size; it != ie; ++it) {
-            uid = prg_.bodyaggrelemvec(uid, parseTermVec(it->tuple, it->tuple_size), parseLiteralVec(it->condition, it->condition_size));
+        auto uid = prg_.bodyaggrelemvec();
+        for (auto &ast : asts) {
+            require_(ast->type() == clingo_ast_type_body_aggregate_element, "invalid ast: body aggregate element expected");
+            uid = prg_.bodyaggrelemvec(uid,
+                                       parseTermVec(ast->value("tuple").asts()),
+                                       parseLiteralVec(ast->value("condition").asts()));
         }
         return uid;
-        */
     }
 
     TheoryElemVecUid parseTheoryElemVec(ASTValue::ASTVec &asts) {
@@ -569,14 +569,16 @@ private:
     }
 
     CSPElemVecUid parseCSPElemVec(ASTValue::ASTVec &asts) {
-        throw std::runtime_error("implement me!!!");
-        /*
         auto ret = prg_.cspelemvec();
-        for (auto it = vec, ie = it + size; it != ie; ++it) {
-            ret = prg_.cspelemvec(ret, parseLocation(it->location), parseTermVec(it->tuple, it->tuple_size), parseCSPAddTerm(it->term), parseLiteralVec(it->condition, it->condition_size));
+        for (auto &ast  : asts) {
+            require_(ast->type() == clingo_ast_type_body_aggregate_element, "invalid ast: body aggregate element expected");
+            ret = prg_.cspelemvec(ret,
+                                  ast->value("location").loc(),
+                                  parseTermVec(ast->value("tuple").asts()),
+                                  parseCSPAddTerm(*ast->value("term").ast()),
+                                  parseLiteralVec(ast->value("condition").asts()));
         }
         return ret;
-        */
     }
 
     TheoryAtomUid parseTheoryAtom(AST &ast) {
@@ -631,49 +633,56 @@ private:
 
     // {{{2 bodies
 
-    // TODO
     BdLitVecUid parseBodyLiteralVec(ASTValue::ASTVec &asts) {
-        throw std::runtime_error("implement me!!!");
-        /*
-        auto ret = prg_.body();
-        for (auto it = lit, ie = lit + size; it != ie; ++it) {
-            switch (static_cast<enum clingo_ast_body_literal_type>(it->type)) {
-                case clingo_ast_body_literal_type_literal: {
-                    ret = prg_.bodylit(ret, parseLiteral(*it->literal, static_cast<enum clingo_ast_sign>(it->sign)));
+        auto uid = prg_.body();
+        for (auto &lit : asts) {
+            switch (lit->type()) {
+                case clingo_ast_type_literal: {
+                    auto &loc = lit->value("location").loc();
+                    auto sign = parseSign(lit->value("sign").num());
+                    auto &atom = *lit->value("atom").ast();
+                    switch (atom.type()) {
+                        case clingo_ast_type_aggregate: {
+                            uid = prg_.bodyaggr(uid, loc, sign, AggregateFunction::COUNT,
+                                                parseBounds(atom),
+                                                parseCondLitVec(atom.value("elements").asts()));
+                            break;
+                        }
+                        case clingo_ast_type_body_aggregate: {
+                            uid = prg_.bodyaggr(uid, loc, sign,
+                                                parseAggregateFunction(atom.value("function").num()),
+                                                parseBounds(atom),
+                                                parseBdAggrElemVec(atom.value("elements").asts()));
+                            break;
+                        }
+                        case clingo_ast_type_theory_atom: {
+                            uid = prg_.bodyaggr(uid, loc, sign, parseTheoryAtom(atom));
+                            break;
+                        }
+                        case clingo_ast_type_disjoint: {
+                            uid = prg_.disjoint(uid, loc, sign,
+                                                parseCSPElemVec(atom.value("elements").asts()));
+                            break;
+                        }
+                        default: {
+                            uid = prg_.bodylit(uid, parseLiteral(*lit));
+                            break;
+                        }
+                    }
+                }
+                case clingo_ast_type_conditional_literal: {
+                    uid = prg_.conjunction(uid,
+                                           lit->value("location").loc(),
+                                           parseLiteral(*lit->value("literal").ast()),
+                                           parseLiteralVec(lit->value("condition").asts()));
                     break;
                 }
-                case clingo_ast_body_literal_type_conditional: {
-                    require_(static_cast<NAF>(it->sign) == NAF::POS, "conditional literals must hot have a sign");
-                    auto &y = *it->conditional;
-                    ret = prg_.conjunction(ret, parseLocation(it->location), parseLiteral(y.literal), parseLiteralVec(y.condition, y.size));
-                    break;
-                }
-                case clingo_ast_body_literal_type_aggregate: {
-                    auto &y = *it->aggregate;
-                    ret = prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), AggregateFunction::COUNT, parseBounds(y.left_guard, y.right_guard), parseCondLitVec(y.elements, y.size));
-                    break;
-                }
-                case clingo_ast_body_literal_type_body_aggregate: {
-                    auto &y = *it->body_aggregate;
-                    ret = prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), static_cast<AggregateFunction>(y.function), parseBounds(y.left_guard, y.right_guard), parseBdAggrElemVec(y.elements, y.size));
-                    break;
-                }
-                case clingo_ast_body_literal_type_theory_atom: {
-                    auto &y = *it->theory_atom;
-                    ret = y.guard
-                        ? prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), prg_.theoryatom(parseTerm(y.term), parseTheoryElemVec(y.elements, y.size), y.guard->operator_name, parseLocation(it->location), parseTheoryOpterm(y.guard->term)))
-                        : prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), prg_.theoryatom(parseTerm(y.term), parseTheoryElemVec(y.elements, y.size)));
-                    break;
-                }
-                case clingo_ast_body_literal_type_disjoint: {
-                    auto &y = *it->disjoint;
-                    ret = prg_.disjoint(ret, parseLocation(it->location), static_cast<NAF>(it->sign), parseCSPElemVec(y.elements, y.size));
-                    break;
+                default: {
+                    throw std::runtime_error("invalid ast: body literal expected");
                 }
             }
         }
-        return ret;
-        */
+        return uid;
     }
 
     // {{{2 theory definitions
@@ -711,7 +720,7 @@ private:
         return uid;
     }
 
-    TheoryAtomType parseTheoryAtomType(int num) {
+    static TheoryAtomType parseTheoryAtomType(int num) {
         switch (num) {
             case static_cast<int>(TheoryAtomType::Head): {
                 return TheoryAtomType::Head;
@@ -769,12 +778,44 @@ private:
     }
 
     // }}}2
-private:
+
     Logger &log_;
     INongroundProgramBuilder &prg_;
 };
 
+} // namespace
+
+void parseStatement(INongroundProgramBuilder &prg, Logger &log, AST &ast) {
+    ASTParser{log, prg}.parseStatement(ast);
 }
+
+/////////////////////////// AST //////////////////////////////////
+
+bool AST::hasValue(char const *name) const {
+    return values_.find(name) != values_.end();
+}
+
+ASTValue const &AST::value(char const *name) const {
+    auto it = values_.find(name);
+    if (it == values_.end()) {
+        throw std::runtime_error("ast does not contain the given key");
+    }
+    return it->second;
+}
+
+ASTValue &AST::value(char const *name) {
+    auto it = values_.find(name);
+    if (it == values_.end()) {
+        throw std::runtime_error("ast does not contain the given key");
+    }
+    return it->second;
+}
+
+clingo_ast_type AST::type() const {
+    return type_;
+}
+
+/////////////////////////// ASTValue //////////////////////////////////
 
 ASTValue::ASTValue(int num)
 : type_{ASTValueType::Num}

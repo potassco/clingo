@@ -104,13 +104,16 @@ class ASTValue;
 class AST {
 public:
     bool hasValue(char const *name) const;
-    ASTValue &value(char const *name) const;
+    ASTValue &value(char const *name);
+    ASTValue const &value(char const *name) const;
     clingo_ast_type type() const;
 
 private:
     clingo_ast_type type_;
     std::map<String, ASTValue> values_;
 };
+
+void parseStatement(INongroundProgramBuilder &prg, Logger &log, AST &ast);
 
 using SAST = std::shared_ptr<AST>;
 
