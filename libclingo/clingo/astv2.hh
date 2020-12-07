@@ -30,67 +30,150 @@
 
 namespace Gringo { namespace Input {
 
-class AST;
-class Value;
-using SAST = std::shared_ptr<AST>;
-
-enum class ValueType : int {
-    Num = 0,
-    Sym = 1,
-    Str = 2,
-    AST = 3,
-    StrVec = 4,
-    ASTVec = 5
+enum clingo_ast_type {
+    // ids
+    clingo_ast_type_id,
+    // terms
+    clingo_ast_type_variable,
+    clingo_ast_type_symbol,
+    clingo_ast_type_unary_operation,
+    clingo_ast_type_binary_operation,
+    clingo_ast_type_interval,
+    clingo_ast_type_function,
+    clingo_ast_type_pool,
+    // csp terms
+    clingo_ast_type_csp_product,
+    clingo_ast_type_csp_sum,
+    clingo_ast_type_csp_guard,
+    // simple literals
+    clingo_ast_type_boolean_constant,
+    clingo_ast_type_symbolic_atom,
+    clingo_ast_type_comparison,
+    clingo_ast_type_csp_literal,
+    // aggregates
+    clingo_ast_type_aggregate_guard,
+    clingo_ast_type_conditional_literal,
+    clingo_ast_type_aggregate,
+    clingo_ast_type_body_aggregate_element,
+    clingo_ast_type_body_aggregate,
+    clingo_ast_type_head_aggregate_element,
+    clingo_ast_type_head_aggregate,
+    clingo_ast_type_disjunction,
+    clingo_ast_type_disjoint_element,
+    clingo_ast_type_disjoint,
+    // theory atoms
+    clingo_ast_type_theory_sequence,
+    clingo_ast_type_theory_function,
+    clingo_ast_type_theory_unparsed_term_element,
+    clingo_ast_type_theory_unparsed_term,
+    clingo_ast_type_theory_guard,
+    clingo_ast_type_theory_atom_element,
+    clingo_ast_type_theory_atom,
+    // literals
+    clingo_ast_type_literal,
+    // theory definition
+    clingo_ast_type_theory_operator_definition,
+    clingo_ast_type_theory_term_definition,
+    clingo_ast_type_theory_guard_definition,
+    clingo_ast_type_theory_atom_definition,
+    // statements
+    clingo_ast_type_rule,
+    clingo_ast_type_definition,
+    clingo_ast_type_show_signature,
+    clingo_ast_type_show_term,
+    clingo_ast_type_minimize,
+    clingo_ast_type_script,
+    clingo_ast_type_program,
+    clingo_ast_type_external,
+    clingo_ast_type_edge,
+    clingo_ast_type_heuristic,
+    clingo_ast_type_project_atom,
+    clingo_ast_type_project_signature,
+    clingo_ast_type_defined,
+    clingo_ast_type_theory_definition
 };
+
+enum clingo_ast_theory_sequence_type {
+    clingo_ast_theory_sequence_type_tuple,
+    clingo_ast_theory_sequence_type_list,
+    clingo_ast_theory_sequence_type_set
+};
+
+class ASTValue;
 
 class AST {
 public:
+    bool hasValue(char const *name) const;
+    ASTValue &value(char const *name) const;
+    clingo_ast_type type() const;
 
 private:
-    std::map<String, Value> values_;
+    clingo_ast_type type_;
+    std::map<String, ASTValue> values_;
 };
 
-class Value {
+using SAST = std::shared_ptr<AST>;
+
+enum class ASTValueType : int {
+    Num = 0,
+    Sym = 1,
+    Loc = 2,
+    Str = 3,
+    AST = 4,
+    StrVec = 5,
+    ASTVec = 6,
+    Empty = 7
+};
+
+class ASTValue {
 public:
-    using SStrVec = std::shared_ptr<std::vector<String>>;
-    using SASTVec = std::shared_ptr<std::vector<SAST>>;
+    using StrVec = std::vector<String>;
+    using ASTVec = std::vector<SAST>;
 
-    Value(int num);
-    Value(Symbol sym);
-    Value(String str);
-    Value(SAST ast);
-    Value(SStrVec strs);
-    Value(SASTVec asts);
-    Value(Value const &val);
-    Value(Value &&val) noexcept;
-    Value &operator=(Value const &val);
-    Value &operator=(Value &&val) noexcept;
-    ~Value();
+    ASTValue();
+    ASTValue(int num);
+    ASTValue(Symbol sym);
+    ASTValue(Location loc);
+    ASTValue(String str);
+    ASTValue(SAST ast);
+    ASTValue(StrVec strs);
+    ASTValue(ASTVec asts);
+    ASTValue(ASTValue const &val);
+    ASTValue(ASTValue &&val) noexcept;
+    ASTValue &operator=(ASTValue const &val);
+    ASTValue &operator=(ASTValue &&val) noexcept;
+    ~ASTValue();
 
-    ValueType type() const;
+    ASTValueType type() const;
     int &num();
     int num() const;
     String &str();
     String str() const;
+    Symbol &sym();
+    Symbol sym() const;
+    Location &loc();
+    Location const &loc() const;
     SAST &ast();
     SAST const &ast() const;
-    SASTVec &asts();
-    SASTVec const &asts() const;
-    SStrVec &strs();
-    SStrVec const &strs() const;
+    ASTVec &asts();
+    ASTVec const &asts() const;
+    StrVec &strs();
+    StrVec const &strs() const;
+    bool empty() const;
 
 private:
     void clear_();
-    void require_(ValueType type) const;
+    void require_(ASTValueType type) const;
 
-    ValueType type_;
+    ASTValueType type_;
     union {
         int num_;
         Symbol sym_;
+        Location loc_;
         String str_;
         SAST ast_;
-        SStrVec strs_;
-        SASTVec asts_;
+        StrVec strs_;
+        ASTVec asts_;
     };
 };
 
