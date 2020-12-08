@@ -52,6 +52,8 @@ public:
     using ASTVec = std::vector<SAST>;
     using Value = mpark::variant<mpark::monostate, int, Symbol, Location, String, SAST, StrVec, ASTVec>;
 
+    AST(clingo_ast_type type);
+
     bool hasValue(char const *name) const;
     Value &value(char const *name);
     Value const &value(char const *name) const;
