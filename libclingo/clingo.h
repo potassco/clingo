@@ -2932,6 +2932,78 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_parse_program(char const *program, clingo_
 CLINGO_VISIBILITY_DEFAULT bool clingo_parse_files(char const * const *files, size_t size, clingo_ast_callback_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
 
 //! @}
+// {{1 ast v2
+
+enum clingo_ast_type {
+    // ids
+    clingo_ast_type_id,
+    // terms
+    clingo_ast_type_variable,
+    clingo_ast_type_symbol,
+    clingo_ast_type_unary_operation,
+    clingo_ast_type_binary_operation,
+    clingo_ast_type_interval,
+    clingo_ast_type_function,
+    clingo_ast_type_pool,
+    // csp terms
+    clingo_ast_type_csp_product,
+    clingo_ast_type_csp_sum,
+    clingo_ast_type_csp_guard,
+    // simple atoms
+    clingo_ast_type_boolean_constant,
+    clingo_ast_type_symbolic_atom,
+    clingo_ast_type_comparison,
+    clingo_ast_type_csp_literal,
+    // aggregates
+    clingo_ast_type_aggregate_guard,
+    clingo_ast_type_conditional_literal,
+    clingo_ast_type_aggregate,
+    clingo_ast_type_body_aggregate_element,
+    clingo_ast_type_body_aggregate,
+    clingo_ast_type_head_aggregate_element,
+    clingo_ast_type_head_aggregate,
+    clingo_ast_type_disjunction,
+    clingo_ast_type_disjoint_element,
+    clingo_ast_type_disjoint,
+    // theory atoms
+    clingo_ast_type_theory_sequence,
+    clingo_ast_type_theory_function,
+    clingo_ast_type_theory_unparsed_term_element,
+    clingo_ast_type_theory_unparsed_term,
+    clingo_ast_type_theory_guard,
+    clingo_ast_type_theory_atom_element,
+    clingo_ast_type_theory_atom,
+    // literals
+    clingo_ast_type_literal,
+    // theory definition
+    clingo_ast_type_theory_operator_definition,
+    clingo_ast_type_theory_term_definition,
+    clingo_ast_type_theory_guard_definition,
+    clingo_ast_type_theory_atom_definition,
+    // statements
+    clingo_ast_type_rule,
+    clingo_ast_type_definition,
+    clingo_ast_type_show_signature,
+    clingo_ast_type_show_term,
+    clingo_ast_type_minimize,
+    clingo_ast_type_script,
+    clingo_ast_type_program,
+    clingo_ast_type_external,
+    clingo_ast_type_edge,
+    clingo_ast_type_heuristic,
+    clingo_ast_type_project_atom,
+    clingo_ast_type_project_signature,
+    clingo_ast_type_defined,
+    clingo_ast_type_theory_definition
+};
+typedef int clingo_ast_type_t;
+
+enum clingo_ast_theory_sequence_type {
+    clingo_ast_theory_sequence_type_tuple,
+    clingo_ast_theory_sequence_type_list,
+    clingo_ast_theory_sequence_type_set
+};
+typedef int clingo_ast_theory_sequence_type_t;
 
 // {{{1 program builder
 

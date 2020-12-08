@@ -30,6 +30,23 @@ namespace Gringo { namespace Input {
 
 namespace {
 
+template <class T>
+T &get(AST &ast, char const *name) {
+    return mpark::get<T>(ast.value(name));
+}
+
+template <class T>
+T *getOpt(AST &ast, char const *name) {
+    if (!ast.hasValue(name)) {
+        return nullptr;
+    }
+    auto &value = ast.value(name);
+    if (value.index() == 0) {
+        return nullptr;
+    }
+    return &mpark::get<T>(value);
+}
+
 struct ASTParser {
 public:
     ASTParser(Logger &log, INongroundProgramBuilder &prg)
@@ -40,81 +57,90 @@ public:
     void parseStatement(AST &ast) {
         switch (ast.type()) {
             case clingo_ast_type_rule: {
-                return prg_.rule(ast.value("location").loc(),
-                                 parseHeadLiteral(*ast.value("head").ast()),
-                                 parseBodyLiteralVec(ast.value("body").asts()));
+                return prg_.rule(get<Location>(ast, "location"),
+                                 parseHeadLiteral(*get<SAST>(ast, "head")),
+                                 parseBodyLiteralVec(get<AST::ASTVec>(ast, "body")));
             }
             case clingo_ast_type_definition: {
-                return prg_.define(ast.value("location").loc(),
-                                   ast.value("name").str(), parseTerm(*ast.value("value").ast()),
-                                   ast.value("is_default").num() != 0, log_);
+                return prg_.define(get<Location>(ast, "location"),
+                                   get<String>(ast, "name"), parseTerm(*get<SAST>(ast, "value")),
+                                   get<int>(ast, "is_default") != 0, log_);
             }
             case clingo_ast_type_show_signature: {
-                return prg_.showsig(ast.value("location").loc(),
-                                    Sig(ast.value("name").str(), ast.value("arity").num(), ast.value("sign").num() != 0),
-                                    ast.hasValue("csp") && ast.value("csp").num() != 0);
+                return prg_.showsig(get<Location>(ast, "location"),
+                                    Sig(get<String>(ast, "name"),
+                                        get<int>(ast, "arity"),
+                                        get<int>(ast, "sign") != 0),
+                                    ast.hasValue("csp") && get<int>(ast, "csp") != 0);
             }
             case clingo_ast_type_show_term: {
-                return prg_.show(ast.value("location").loc(),
-                                 parseTerm(*ast.value("term").ast()),
-                                 parseBodyLiteralVec(ast.value("body").asts()),
-                                 ast.hasValue("csp") && ast.value("csp").num() != 0);
+                return prg_.show(get<Location>(ast, "location"),
+                                 parseTerm(*get<SAST>(ast, "term")),
+                                 parseBodyLiteralVec(get<AST::ASTVec>(ast, "body")),
+                                 ast.hasValue("csp") && get<int>(ast, "csp") != 0);
             }
             case clingo_ast_type_minimize: {
-                return prg_.optimize(ast.value("location").loc(),
-                                     parseTerm(*ast.value("weight").ast()),
-                                     parseTerm(*ast.value("priority").ast()),
-                                     parseTermVec(ast.value("tuple").asts()),
-                                     parseBodyLiteralVec(ast.value("body").asts()));
+                return prg_.optimize(get<Location>(ast, "location"),
+                                     parseTerm(*get<SAST>(ast, "weight")),
+                                     parseTerm(*get<SAST>(ast, "priority")),
+                                     parseTermVec(get<AST::ASTVec>(ast, "tuple")),
+                                     parseBodyLiteralVec(get<AST::ASTVec>(ast, "body")));
             }
             case clingo_ast_type_script: {
-                switch (ast.value("type").num()) {
-                    case clingo_ast_script_type_python: { return prg_.python(ast.value("location").loc(), ast.value("code").str()); }
-                    case clingo_ast_script_type_lua:    { return prg_.lua(ast.value("location").loc(), ast.value("code").str()); }
+                switch (get<int>(ast, "type")) {
+                    case clingo_ast_script_type_python: { return prg_.python(get<Location>(ast, "location"),
+                                                                             get<String>(ast, "code")); }
+                    case clingo_ast_script_type_lua:    { return prg_.lua(get<Location>(ast, "location"),
+                                                                          get<String>(ast, "code")); }
                 }
                 break;
             }
             case clingo_ast_type_program: {
-                return prg_.block(ast.value("location").loc(),
-                                  ast.value("name").str(),
-                                  parseIdVec(ast.value("parameters").asts()));
+                return prg_.block(get<Location>(ast, "location"),
+                                  get<String>(ast, "name"),
+                                  parseIdVec(get<AST::ASTVec>(ast, "parameters")));
             }
             case clingo_ast_type_external: {
-                return prg_.external(ast.value("location").loc(),
-                                     parseAtom(*ast.value("atom").ast()),
-                                     parseBodyLiteralVec(ast.value("body").asts()),
-                                     parseTerm(*ast.value("type").ast()));
+                return prg_.external(get<Location>(ast, "location"),
+                                     parseAtom(*get<SAST>(ast, "atom")),
+                                     parseBodyLiteralVec(get<AST::ASTVec>(ast, "body")),
+                                     parseTerm(*get<SAST>(ast, "type")));
             }
             case clingo_ast_type_edge: {
-                return prg_.edge(ast.value("location").loc(),
-                                 prg_.termvecvec(prg_.termvecvec(), prg_.termvec(prg_.termvec(prg_.termvec(), parseTerm(*ast.value("u").ast())), parseTerm(*ast.value("v").ast()))),
-                                 parseBodyLiteralVec(ast.value("body").asts()));
+                return prg_.edge(get<Location>(ast, "location"),
+                                 prg_.termvecvec(prg_.termvecvec(),
+                                                 prg_.termvec(prg_.termvec(prg_.termvec(),
+                                                                           parseTerm(*get<SAST>(ast, "u"))),
+                                                              parseTerm(*get<SAST>(ast, "v")))),
+                                 parseBodyLiteralVec(get<AST::ASTVec>(ast, "body")));
             }
             case clingo_ast_type_heuristic: {
-                return prg_.heuristic(ast.value("location").loc(),
-                                      parseAtom(*ast.value("atom").ast()),
-                                      parseBodyLiteralVec(ast.value("body").asts()),
-                                      parseTerm(*ast.value("bias").ast()),
-                                      parseTerm(*ast.value("priority").ast()),
-                                      parseTerm(*ast.value("modifier").ast()));
+                return prg_.heuristic(get<Location>(ast, "location"),
+                                      parseAtom(*get<SAST>(ast, "atom")),
+                                      parseBodyLiteralVec(get<AST::ASTVec>(ast, "body")),
+                                      parseTerm(*get<SAST>(ast, "bias")),
+                                      parseTerm(*get<SAST>(ast, "priority")),
+                                      parseTerm(*get<SAST>(ast, "modifier")));
             }
             case clingo_ast_type_project_atom: {
-                return prg_.project(ast.value("location").loc(),
-                                    parseAtom(*ast.value("atom").ast()),
-                                    parseBodyLiteralVec(ast.value("body").asts()));
+                return prg_.project(get<Location>(ast, "location"),
+                                    parseAtom(*get<SAST>(ast, "atom")),
+                                    parseBodyLiteralVec(get<AST::ASTVec>(ast, "body")));
             }
             case clingo_ast_type_project_signature: {
-                return prg_.project(ast.value("location").loc(),
-                                    Sig(ast.value("name").str(), ast.value("arity").num(), ast.value("sign").num() != 0));
+                return prg_.project(get<Location>(ast, "location"),
+                                    Sig(get<String>(ast, "name"), get<int>(ast, "arity"), get<int>(ast, "sign") != 0));
             }
             case clingo_ast_type_defined: {
-                return prg_.defined(ast.value("location").loc(),
-                                    Sig(ast.value("name").str(), ast.value("arity").num(), ast.value("sign").num() != 0));
+                return prg_.defined(get<Location>(ast, "location"),
+                                    Sig(get<String>(ast, "name"), get<int>(ast, "arity"), get<int>(ast, "sign") != 0));
             }
             case clingo_ast_type_theory_definition: {
-                return prg_.theorydef(ast.value("location").loc(),
-                                      ast.value("name").str(),
-                                      parseTheoryAtomDefinitionVec(parseTheoryTermDefinitionVec(ast.value("terms").asts()), ast.value("atoms").asts()), log_);
+                return prg_.theorydef(get<Location>(ast, "location"),
+                                      get<String>(ast, "name"),
+                                      parseTheoryAtomDefinitionVec(parseTheoryTermDefinitionVec(get<AST::ASTVec>(ast, "terms")),
+                                                                   get<AST::ASTVec>(ast, "atoms")),
+                                      log_);
             }
             default: {
                 throw std::runtime_error("invalid ast: statement expected");
@@ -133,37 +159,26 @@ private:
         return false;
     }
 
-    static ASTValue *getOpt(AST &ast, char const *value) {
-        if (!ast.hasValue(value)) {
-            return nullptr;
-        }
-        auto &val = ast.value(value);
-        if (val.empty()) {
-            return nullptr;
-        }
-        return &val;
-    }
-
     // {{{2 terms
 
-    IdVecUid parseIdVec(ASTValue::ASTVec &asts) {
+    IdVecUid parseIdVec(AST::ASTVec &asts) {
         auto uid = prg_.idvec();
         for (auto &ast : asts) {
             require_(ast->type() == clingo_ast_type_id, "invalid ast: id required");
-            prg_.idvec(uid, ast->value("location").loc(), ast->value("id").str());
+            prg_.idvec(uid, get<Location>(*ast, "location"), get<String>(*ast, "id"));
         }
         return uid;
     }
 
     static UnOp parseUnOp(int num) {
         switch (num) {
-            case static_cast<int>(BinOp::XOR): {
+            case clingo_ast_unary_operator_minus: {
                 return UnOp::NEG;
             }
-            case static_cast<int>(BinOp::OR): {
+            case clingo_ast_unary_operator_negation: {
                 return UnOp::NOT;
             }
-            case static_cast<int>(BinOp::AND): {
+            case clingo_ast_unary_operator_absolute: {
                 return UnOp::ABS;
             }
             default: {
@@ -174,31 +189,31 @@ private:
 
     static BinOp parseBinOp(int num) {
         switch (num) {
-            case static_cast<int>(BinOp::XOR): {
+            case clingo_ast_binary_operator_xor: {
                 return BinOp::XOR;
             }
-            case static_cast<int>(BinOp::OR): {
+            case clingo_ast_binary_operator_or: {
                 return BinOp::OR;
             }
-            case static_cast<int>(BinOp::AND): {
+            case clingo_ast_binary_operator_and: {
                 return BinOp::AND;
             }
-            case static_cast<int>(BinOp::ADD): {
+            case clingo_ast_binary_operator_plus: {
                 return BinOp::ADD;
             }
-            case static_cast<int>(BinOp::SUB): {
+            case clingo_ast_binary_operator_minus: {
                 return BinOp::SUB;
             }
-            case static_cast<int>(BinOp::MUL): {
+            case clingo_ast_binary_operator_multiplication: {
                 return BinOp::MUL;
             }
-            case static_cast<int>(BinOp::DIV): {
+            case clingo_ast_binary_operator_division: {
                 return BinOp::DIV;
             }
-            case static_cast<int>(BinOp::MOD): {
+            case clingo_ast_binary_operator_modulo: {
                 return BinOp::MOD;
             }
-            case static_cast<int>(BinOp::POW): {
+            case clingo_ast_binary_operator_power: {
                 return BinOp::POW;
             }
             default: {
@@ -210,45 +225,46 @@ private:
     TermUid parseTerm(AST &ast) {
         switch (ast.type()) {
             case clingo_ast_type_variable: {
-                return prg_.term(ast.value("location").loc(),
-                                 ast.value("name").str());
+                return prg_.term(get<Location>(ast, "location"),
+                                 get<String>(ast, "name"));
             }
             case clingo_ast_type_symbol: {
-                return prg_.term(ast.value("location").loc(),
-                                 ast.value("symbol").sym());
+                return prg_.term(get<Location>(ast, "location"),
+                                 get<Symbol>(ast, "symbol"));
             }
             case clingo_ast_type_unary_operation: {
-                return prg_.term(ast.value("location").loc(),
-                                 parseUnOp(ast.value("unary_operator").num()),
-                                 parseTerm(*ast.value("argument").ast()));
+                return prg_.term(get<Location>(ast, "location"),
+                                 parseUnOp(get<int>(ast, "unary_operator")),
+                                 parseTerm(*get<SAST>(ast, "argument")));
             }
             case clingo_ast_type_binary_operation: {
-                return prg_.term(ast.value("location").loc(),
-                                 parseBinOp(ast.value("binary_operator").num()),
-                                 parseTerm(*ast.value("left").ast()),
-                                 parseTerm(*ast.value("right").ast()));
+                return prg_.term(get<Location>(ast, "location"),
+                                 parseBinOp(get<int>(ast, "binary_operator")),
+                                 parseTerm(*get<SAST>(ast, "left")),
+                                 parseTerm(*get<SAST>(ast, "right")));
             }
             case clingo_ast_type_interval: {
-                return prg_.term(ast.value("location").loc(),
-                                 parseTerm(*ast.value("left").ast()),
-                                 parseTerm(*ast.value("right").ast()));
+                return prg_.term(get<Location>(ast, "location"),
+                                 parseTerm(*get<SAST>(ast, "left")),
+                                 parseTerm(*get<SAST>(ast, "right")));
             }
             case clingo_ast_type_function: {
-                auto external = ast.hasValue("external") && ast.value("external").num() != 0;
-                auto name = ast.value("name").str();
+                auto external = ast.hasValue("external") && get<int>(ast, "external") != 0;
+                auto name = get<String>(ast, "name");
                 require_(!name.empty() || !external, "invalid ast: external functions must have a name");
                 return !name.empty()
-                    ? prg_.term(ast.value("location").loc(),
+                    ? prg_.term(get<Location>(ast, "location"),
                                 name,
-                                prg_.termvecvec(prg_.termvecvec(), parseTermVec(ast.value("arguments").asts())),
+                                prg_.termvecvec(prg_.termvecvec(),
+                                                parseTermVec(get<AST::ASTVec>(ast, "arguments"))),
                                 external)
-                    : prg_.term(ast.value("location").loc(),
-                                parseTermVec(ast.value("arguments").asts()),
+                    : prg_.term(get<Location>(ast, "location"),
+                                parseTermVec(get<AST::ASTVec>(ast, "arguments")),
                                 true);
             }
             case clingo_ast_type_pool: {
-                return prg_.pool(ast.value("location").loc(),
-                                 parseTermVec(ast.value("arguments").asts()));
+                return prg_.pool(get<Location>(ast, "location"),
+                                 parseTermVec(get<AST::ASTVec>(ast, "arguments")));
             }
             default: {
                 throw std::runtime_error("invalid ast: term expected");
@@ -256,7 +272,7 @@ private:
         }
     }
 
-    TermVecUid parseTermVec(ASTValue::ASTVec &asts) {
+    TermVecUid parseTermVec(AST::ASTVec &asts) {
         TermVecUid uid = prg_.termvec();
         for (auto &ast : asts) {
             prg_.termvec(uid, parseTerm(*ast));
@@ -266,25 +282,25 @@ private:
 
     CSPMulTermUid parseCSPMulTerm(AST &ast) {
         require_(ast.type() == clingo_ast_type_csp_product, "invalid ast: csp product required");
-        auto &variable = ast.value("variable");
-        return !variable.empty()
-            ? prg_.cspmulterm(ast.value("location").loc(),
-                              parseTerm(*ast.value("coefficient").ast()),
-                              parseTerm(*variable.ast()))
-            : prg_.cspmulterm(ast.value("location").loc(),
-                              parseTerm(*ast.value("coefficient").ast()));
+        auto *variable = getOpt<SAST>(ast, "variable");
+        return variable != nullptr
+            ? prg_.cspmulterm(get<Location>(ast, "location"),
+                              parseTerm(*get<SAST>(ast, "coefficient")),
+                              parseTerm(**variable))
+            : prg_.cspmulterm(get<Location>(ast, "location"),
+                              parseTerm(*get<SAST>(ast, "coefficient")));
     }
 
     CSPAddTermUid parseCSPAddTerm(AST &ast) {
         require_(ast.type() == clingo_ast_type_csp_sum, "invalid ast: csp sum required");
-        auto &terms = ast.value("terms").asts();
+        auto &terms = get<AST::ASTVec>(ast, "terms");
         require_(!terms.empty(), "invalid ast: csp sums terms must not be empty");
         auto it = terms.begin();
         auto ie = terms.end();
-        auto uid = prg_.cspaddterm((*it)->value("location").loc(),
+        auto uid = prg_.cspaddterm(get<Location>(**it, "location"),
                                    parseCSPMulTerm(**it));
         for (++it; it != ie; ++it) {
-            uid = prg_.cspaddterm((*it)->value("location").loc(),
+            uid = prg_.cspaddterm(get<Location>(**it, "location"),
                                   uid,
                                   parseCSPMulTerm(**it), true);
 
@@ -295,21 +311,24 @@ private:
     TheoryTermUid parseTheoryTerm(AST &ast) {
         switch (ast.type()) {
             case clingo_ast_type_symbol : {
-                return prg_.theorytermvalue(ast.value("location").loc(), ast.value("symbol").sym());
+                return prg_.theorytermvalue(get<Location>(ast, "location"), get<Symbol>(ast, "symbol"));
             }
             case clingo_ast_type_variable: {
-                return prg_.theorytermvar(ast.value("location").loc(), ast.value("variable").str());
+                return prg_.theorytermvar(get<Location>(ast, "location"), get<String>(ast, "variable"));
             }
             case clingo_ast_type_theory_sequence: {
-                switch (ast.value("sequence_type").num()) {
+                switch (get<int>(ast, "sequence_type")) {
                     case clingo_ast_theory_sequence_type_tuple: {
-                        return prg_.theorytermtuple(ast.value("location").loc(), parseTheoryOptermVec(ast.value("terms").asts()));
+                        return prg_.theorytermtuple(get<Location>(ast, "location"),
+                                                    parseTheoryOptermVec(get<AST::ASTVec>(ast, "terms")));
                     }
                     case clingo_ast_theory_sequence_type_list: {
-                        return prg_.theoryoptermlist(ast.value("location").loc(), parseTheoryOptermVec(ast.value("terms").asts()));
+                        return prg_.theoryoptermlist(get<Location>(ast, "location"),
+                                                     parseTheoryOptermVec(get<AST::ASTVec>(ast, "terms")));
                     }
                     case clingo_ast_theory_sequence_type_set: {
-                        return prg_.theorytermset(ast.value("location").loc(), parseTheoryOptermVec(ast.value("terms").asts()));
+                        return prg_.theorytermset(get<Location>(ast, "location"),
+                                                  parseTheoryOptermVec(get<AST::ASTVec>(ast, "terms")));
                     }
                     default: {
                         throw std::runtime_error("invalid ast: invalid theory sequence type");
@@ -318,13 +337,13 @@ private:
                 }
             }
             case clingo_ast_type_theory_function: {
-                return prg_.theorytermfun(ast.value("location").loc(),
-                                          ast.value("name").str(),
-                                          parseTheoryOptermVec(ast.value("arguments").asts()));
+                return prg_.theorytermfun(get<Location>(ast, "location"),
+                                          get<String>(ast, "name"),
+                                          parseTheoryOptermVec(get<AST::ASTVec>(ast, "arguments")));
             }
             case clingo_ast_type_theory_unparsed_term: {
-                return prg_.theorytermopterm(ast.value("location").loc(),
-                                             parseTheoryUnparsedTermElements(ast.value("elements").asts()));
+                return prg_.theorytermopterm(get<Location>(ast, "location"),
+                                             parseTheoryUnparsedTermElements(get<AST::ASTVec>(ast, "elements")));
             }
             default: {
                 throw std::runtime_error("invalid ast: theory term expected");
@@ -333,15 +352,15 @@ private:
     }
 
 
-    TheoryOptermVecUid parseTheoryOptermVec(ASTValue::ASTVec &asts) {
+    TheoryOptermVecUid parseTheoryOptermVec(AST::ASTVec &asts) {
         auto uid = prg_.theoryopterms();
         for (auto &ast : asts) {
-            uid = prg_.theoryopterms(uid, ast->value("location").loc(), parseTheoryOpterm(*ast));
+            uid = prg_.theoryopterms(uid, get<Location>(*ast, "location"), parseTheoryOpterm(*ast));
         }
         return uid;
     }
 
-    TheoryOpVecUid parseTheoryOpVec(ASTValue::StrVec &strs) {
+    TheoryOpVecUid parseTheoryOpVec(AST::StrVec &strs) {
         auto uid = prg_.theoryops();
         for (auto &str : strs) {
             uid = prg_.theoryops(uid, str);
@@ -351,23 +370,23 @@ private:
 
     TheoryOptermUid parseTheoryOpterm(AST &ast) {
         if (ast.type() == clingo_ast_type_theory_unparsed_term) {
-            return parseTheoryUnparsedTermElements(ast.value("elements").asts());
+            return parseTheoryUnparsedTermElements(get<AST::ASTVec>(ast, "elements"));
         }
         return prg_.theoryopterm(prg_.theoryops(), parseTheoryTerm(ast));
     }
 
-    TheoryOptermUid parseTheoryUnparsedTermElements(ASTValue::ASTVec &asts) {
+    TheoryOptermUid parseTheoryUnparsedTermElements(AST::ASTVec &asts) {
         require_(!asts.empty(), "invalid ast: unparsed term list must not be empty");
         auto it = asts.begin();
         auto ie = asts.end();
-        auto uid = prg_.theoryopterm(parseTheoryOpVec((*it)->value("operators").strs()),
-                                     parseTheoryTerm(*(*it)->value("term").ast()));
+        auto uid = prg_.theoryopterm(parseTheoryOpVec(get<AST::StrVec>(**it, "operators")),
+                                     parseTheoryTerm(*get<SAST>(**it, "term")));
         for (++it; it != ie; ++it) {
-            auto &operators = (*it)->value("operators").strs();
+            auto &operators = get<AST::StrVec>(**it, "operators");
             require_(!operators.empty(), "invalid ast: at least one operator necessary on right-hand-side of unparsed theory term");
             uid = prg_.theoryopterm(uid,
                                     parseTheoryOpVec(operators),
-                                    parseTheoryTerm(*(*it)->value("term").ast()));
+                                    parseTheoryTerm(*get<SAST>(**it, "term")));
         }
         return uid;
     }
@@ -376,7 +395,7 @@ private:
 
     TermUid parseAtom(AST &ast) {
         require_(ast.type() == clingo_ast_type_symbolic_atom, "invalid ast: symbolic atom expected");
-        return parseTerm(*ast.value("term").ast());
+        return parseTerm(*get<SAST>(ast, "term"));
     }
 
     static NAF parseSign(int sign) {
@@ -426,24 +445,24 @@ private:
         require_(ast.type() == clingo_ast_type_literal, "invalid ast: literal expected");
         switch (ast.type()) {
             case clingo_ast_type_literal: {
-                auto sign = parseSign(ast.value("sign").num());
-                auto &atom = *ast.value("atom").ast();
+                auto sign = parseSign(get<int>(ast, "sign"));
+                auto &atom = *get<SAST>(ast, "atom");
 
                 switch (atom.type()) {
                     case clingo_ast_type_boolean_constant: {
-                        return prg_.boollit(ast.value("location").loc(), ast.value("value").num() != 0);
+                        return prg_.boollit(get<Location>(ast, "location"), get<int>(ast, "value") != 0);
                     }
                     case clingo_ast_type_comparison: {
-                        return prg_.predlit(ast.value("location").loc(),
-                                            parseSign(ast.value("sign").num()),
-                                            parseAtom(*ast.value("symbol").ast()));
+                        return prg_.predlit(get<Location>(ast, "location"),
+                                            parseSign(get<int>(ast, "sign")),
+                                            parseAtom(*get<SAST>(ast, "symbol")));
                     }
                     case clingo_ast_type_symbolic_atom: {
-                        auto rel = parseRelation(atom.value("comparison").num());
-                        return prg_.rellit(ast.value("location").loc(),
+                        auto rel = parseRelation(get<int>(atom, "comparison"));
+                        return prg_.rellit(get<Location>(ast, "location"),
                                            sign != NAF::NOT ? rel : neg(rel),
-                                           parseTerm(*atom.value("left").ast()),
-                                           parseTerm(*atom.value("right").ast()));
+                                           parseTerm(*get<SAST>(atom, "left")),
+                                           parseTerm(*get<SAST>(atom, "right")));
                     }
                     default: {
                         throw std::runtime_error("invalid ast: atom expected");
@@ -451,19 +470,19 @@ private:
                 }
             }
             case clingo_ast_type_csp_literal: {
-                auto &guards = ast.value("guard").asts();
+                auto &guards = get<AST::ASTVec>(ast, "guard");
                 require_(!guards.empty(), "invalid ast: csp literals need at least one guard");
                 auto it = guards.begin();
                 auto ie = guards.end();
-                auto uid = prg_.csplit(ast.value("location").loc(),
-                                       parseCSPAddTerm(*ast.value("term").ast()),
-                                       parseRelation((*it)->value("comparison").num()),
-                                       parseCSPAddTerm(*(*it)->value("term").ast()));
+                auto uid = prg_.csplit(get<Location>(ast, "location"),
+                                       parseCSPAddTerm(*get<SAST>(ast, "term")),
+                                       parseRelation(get<int>(**it, "comparison")),
+                                       parseCSPAddTerm(*get<SAST>(**it, "term")));
                 for (++it; it != ie; ++it) {
-                    uid = prg_.csplit(ast.value("location").loc(),
+                    uid = prg_.csplit(get<Location>(ast, "location"),
                                       uid,
-                                      parseRelation((*it)->value("comparison").num()),
-                                      parseCSPAddTerm(*(*it)->value("term").ast()));
+                                      parseRelation(get<int>(**it, "comparison")),
+                                      parseCSPAddTerm(*get<SAST>(**it, "term")));
                 }
                 return prg_.csplit(uid);
             }
@@ -473,7 +492,7 @@ private:
         }
     }
 
-    LitVecUid parseLiteralVec(ASTValue::ASTVec &asts) {
+    LitVecUid parseLiteralVec(AST::ASTVec &asts) {
         auto uid = prg_.litvec();
         for (auto &ast : asts) {
             uid = prg_.litvec(uid, parseLiteral(*ast));
@@ -485,19 +504,19 @@ private:
 
     static AggregateFunction parseAggregateFunction(int fun) {
         switch (fun) {
-            case static_cast<int>(AggregateFunction::COUNT): {
+            case clingo_ast_aggregate_function_count: {
                 return AggregateFunction::COUNT;
             }
-            case static_cast<int>(AggregateFunction::SUM): {
+            case clingo_ast_aggregate_function_sum: {
                 return AggregateFunction::SUM;
             }
-            case static_cast<int>(AggregateFunction::SUMP): {
+            case clingo_ast_aggregate_function_sump: {
                 return AggregateFunction::SUMP;
             }
-            case static_cast<int>(AggregateFunction::MIN): {
+            case clingo_ast_aggregate_function_min: {
                 return AggregateFunction::MIN;
             }
-            case static_cast<int>(AggregateFunction::MAX): {
+            case clingo_ast_aggregate_function_max: {
                 return AggregateFunction::MAX;
             }
             default: {
@@ -508,91 +527,91 @@ private:
 
     BoundVecUid parseBounds(AST &ast) {
         auto ret = prg_.boundvec();
-        auto *right = getOpt(ast, "right_guard");
+        auto *right = getOpt<SAST>(ast, "right_guard");
         if (right != nullptr) {
             ret = prg_.boundvec(ret,
-                                parseRelation(right->ast()->value("comparison").num()),
-                                parseTerm(*right->ast()->value("term").ast()));
+                                parseRelation(get<int>(**right, "comparison")),
+                                parseTerm(*get<SAST>(**right, "term")));
         }
-        auto *left = getOpt(ast, "left_guard");
+        auto *left = getOpt<SAST>(ast, "left_guard");
         if (left != nullptr) {
             ret = prg_.boundvec(ret,
-                                inv(parseRelation(left->ast()->value("comparison").num())),
-                                parseTerm(*left->ast()->value("term").ast()));
+                                inv(parseRelation(get<int>(**left, "comparison"))),
+                                parseTerm(*get<SAST>(**left, "term")));
         }
         return ret;
     }
 
-    CondLitVecUid parseCondLitVec(ASTValue::ASTVec &asts) {
+    CondLitVecUid parseCondLitVec(AST::ASTVec &asts) {
         auto uid = prg_.condlitvec();
         for (auto &ast : asts) {
             uid = prg_.condlitvec(uid,
-                                  parseLiteral(*ast->value("literal").ast()),
-                                  parseLiteralVec(ast->value("condition").asts()));
+                                  parseLiteral(*get<SAST>(*ast, "literal")),
+                                  parseLiteralVec(get<AST::ASTVec>(*ast, "condition")));
         }
         return uid;
     }
 
-    HdAggrElemVecUid parseHdAggrElemVec(ASTValue::ASTVec &asts) {
+    HdAggrElemVecUid parseHdAggrElemVec(AST::ASTVec &asts) {
         auto uid = prg_.headaggrelemvec();
         for (auto &ast : asts) {
             require_(ast->type() == clingo_ast_type_head_aggregate_element, "invalid ast: head aggregate element expected");
-            auto &clit = ast->value("condition").ast();
+            auto &clit = get<SAST>(*ast, "condition");
             require_(clit->type() == clingo_ast_type_conditional_literal, "invalid ast: conditional literal expected");
             uid = prg_.headaggrelemvec(uid,
-                                       parseTermVec(ast->value("tuple").asts()),
-                                       parseLiteral(*clit->value("literal").ast()),
-                                       parseLiteralVec(clit->value("condition").asts()));
+                                       parseTermVec(get<AST::ASTVec>(*ast, "tuple")),
+                                       parseLiteral(*get<SAST>(*clit, "literal")),
+                                       parseLiteralVec(get<AST::ASTVec>(*clit, "condition")));
         }
         return uid;
     }
 
-    BdAggrElemVecUid parseBdAggrElemVec(ASTValue::ASTVec &asts) {
+    BdAggrElemVecUid parseBdAggrElemVec(AST::ASTVec &asts) {
         auto uid = prg_.bodyaggrelemvec();
         for (auto &ast : asts) {
             require_(ast->type() == clingo_ast_type_body_aggregate_element, "invalid ast: body aggregate element expected");
             uid = prg_.bodyaggrelemvec(uid,
-                                       parseTermVec(ast->value("tuple").asts()),
-                                       parseLiteralVec(ast->value("condition").asts()));
+                                       parseTermVec(get<AST::ASTVec>(*ast, "tuple")),
+                                       parseLiteralVec(get<AST::ASTVec>(*ast, "condition")));
         }
         return uid;
     }
 
-    TheoryElemVecUid parseTheoryElemVec(ASTValue::ASTVec &asts) {
+    TheoryElemVecUid parseTheoryElemVec(AST::ASTVec &asts) {
         auto uid = prg_.theoryelems();
         for (auto &ast : asts) {
             uid = prg_.theoryelems(uid,
-                                   parseTheoryOptermVec(ast->value("tuple").asts()),
-                                   parseLiteralVec(ast->value("condition").asts()));
+                                   parseTheoryOptermVec(get<AST::ASTVec>(*ast, "tuple")),
+                                   parseLiteralVec(get<AST::ASTVec>(*ast, "condition")));
         }
         return uid;
     }
 
-    CSPElemVecUid parseCSPElemVec(ASTValue::ASTVec &asts) {
+    CSPElemVecUid parseCSPElemVec(AST::ASTVec &asts) {
         auto ret = prg_.cspelemvec();
         for (auto &ast  : asts) {
             require_(ast->type() == clingo_ast_type_body_aggregate_element, "invalid ast: body aggregate element expected");
             ret = prg_.cspelemvec(ret,
-                                  ast->value("location").loc(),
-                                  parseTermVec(ast->value("tuple").asts()),
-                                  parseCSPAddTerm(*ast->value("term").ast()),
-                                  parseLiteralVec(ast->value("condition").asts()));
+                                  get<Location>(*ast, "location"),
+                                  parseTermVec(get<AST::ASTVec>(*ast, "tuple")),
+                                  parseCSPAddTerm(*get<SAST>(*ast, "term")),
+                                  parseLiteralVec(get<AST::ASTVec>(*ast, "condition")));
         }
         return ret;
     }
 
     TheoryAtomUid parseTheoryAtom(AST &ast) {
         require_(ast.type() == clingo_ast_type_theory_atom, "invalid ast: theory atom expected");
-        Location &loc = ast.value("location").loc();
-        ASTValue *guard = getOpt(ast, "guard");
-        auto term = parseTerm(*ast.value("term").ast());
-        auto elements = parseTheoryElemVec(ast.value("elements").asts());
+        auto &loc = get<Location>(ast, "location");
+        auto *guard = getOpt<SAST>(ast, "guard");
+        auto term = parseTerm(*get<SAST>(ast, "term"));
+        auto elements = parseTheoryElemVec(get<AST::ASTVec>(ast, "elements"));
         return guard != nullptr
             ? prg_.theoryatom(term,
                               elements,
-                              guard->ast()->value("operator_name").str(),
+                              get<String>(**guard, "operator_name"),
                               loc,
-                              parseTheoryOpterm(*guard->ast()->value("term").ast()))
+                              parseTheoryOpterm(*get<SAST>(**guard, "term")))
             : prg_.theoryatom(term, elements);
 
     }
@@ -606,23 +625,23 @@ private:
                 return prg_.headlit(parseLiteral(ast));
             }
             case clingo_ast_type_disjunction: {
-                return prg_.disjunction(ast.value("location").loc(),
-                                        parseCondLitVec(ast.value("elements").asts()));
+                return prg_.disjunction(get<Location>(ast, "location"),
+                                        parseCondLitVec(get<AST::ASTVec>(ast, "elements")));
             }
             case clingo_ast_type_aggregate: {
-                return prg_.headaggr(ast.value("location").loc(),
+                return prg_.headaggr(get<Location>(ast, "location"),
                                      AggregateFunction::COUNT,
                                      parseBounds(ast),
-                                     parseCondLitVec(ast.value("elements").asts()));
+                                     parseCondLitVec(get<AST::ASTVec>(ast, "elements")));
             }
             case clingo_ast_type_head_aggregate: {
-                return prg_.headaggr(ast.value("location").loc(),
-                                     parseAggregateFunction(ast.value("function").num()),
+                return prg_.headaggr(get<Location>(ast, "location"),
+                                     parseAggregateFunction(get<int>(ast, "function")),
                                      parseBounds(ast),
-                                     parseHdAggrElemVec(ast.value("elements").asts()));
+                                     parseHdAggrElemVec(get<AST::ASTVec>(ast, "elements")));
             }
             case clingo_ast_type_theory_atom: {
-                Location &loc = ast.value("location").loc();
+                auto &loc = get<Location>(ast, "location");
                 return prg_.headaggr(loc, parseTheoryAtom(ast));
             }
             default: {
@@ -633,26 +652,26 @@ private:
 
     // {{{2 bodies
 
-    BdLitVecUid parseBodyLiteralVec(ASTValue::ASTVec &asts) {
+    BdLitVecUid parseBodyLiteralVec(AST::ASTVec &asts) {
         auto uid = prg_.body();
         for (auto &lit : asts) {
             switch (lit->type()) {
                 case clingo_ast_type_literal: {
-                    auto &loc = lit->value("location").loc();
-                    auto sign = parseSign(lit->value("sign").num());
-                    auto &atom = *lit->value("atom").ast();
+                    auto &loc = get<Location>(*lit, "location");
+                    auto sign = parseSign(get<int>(*lit, "sign"));
+                    auto &atom = *get<SAST>(*lit, "atom");
                     switch (atom.type()) {
                         case clingo_ast_type_aggregate: {
                             uid = prg_.bodyaggr(uid, loc, sign, AggregateFunction::COUNT,
                                                 parseBounds(atom),
-                                                parseCondLitVec(atom.value("elements").asts()));
+                                                parseCondLitVec(get<AST::ASTVec>(atom, "elements")));
                             break;
                         }
                         case clingo_ast_type_body_aggregate: {
                             uid = prg_.bodyaggr(uid, loc, sign,
-                                                parseAggregateFunction(atom.value("function").num()),
+                                                parseAggregateFunction(get<int>(atom, "function")),
                                                 parseBounds(atom),
-                                                parseBdAggrElemVec(atom.value("elements").asts()));
+                                                parseBdAggrElemVec(get<AST::ASTVec>(atom, "elements")));
                             break;
                         }
                         case clingo_ast_type_theory_atom: {
@@ -661,7 +680,7 @@ private:
                         }
                         case clingo_ast_type_disjoint: {
                             uid = prg_.disjoint(uid, loc, sign,
-                                                parseCSPElemVec(atom.value("elements").asts()));
+                                                parseCSPElemVec(get<AST::ASTVec>(atom, "elements")));
                             break;
                         }
                         default: {
@@ -672,9 +691,9 @@ private:
                 }
                 case clingo_ast_type_conditional_literal: {
                     uid = prg_.conjunction(uid,
-                                           lit->value("location").loc(),
-                                           parseLiteral(*lit->value("literal").ast()),
-                                           parseLiteralVec(lit->value("condition").asts()));
+                                           get<Location>(*lit, "location"),
+                                           parseLiteral(*get<SAST>(*lit, "literal")),
+                                           parseLiteralVec(get<AST::ASTVec>(*lit, "condition")));
                     break;
                 }
                 default: {
@@ -689,13 +708,13 @@ private:
 
     static TheoryOperatorType parseTheoryOperatorType(int num) {
         switch (num) {
-            case static_cast<int>(TheoryOperatorType::Unary): {
+            case clingo_ast_theory_operator_type_unary: {
                 return TheoryOperatorType::Unary;
             }
-            case static_cast<int>(TheoryOperatorType::BinaryLeft): {
+            case clingo_ast_theory_operator_type_binary_left: {
                 return TheoryOperatorType::BinaryLeft;
             }
-            case static_cast<int>(TheoryOperatorType::BinaryRight): {
+            case clingo_ast_theory_operator_type_binary_right: {
                 return TheoryOperatorType::BinaryRight;
             }
             default: {
@@ -706,13 +725,13 @@ private:
 
     TheoryOpDefUid parseTheoryOpDef(AST &ast) {
         require_(ast.type() == clingo_ast_type_theory_operator_definition, "invalid ast: theory operator definition expected");
-        return prg_.theoryopdef(ast.value("location").loc(),
-                                ast.value("name").str(),
-                                ast.value("priority").num(),
-                                parseTheoryOperatorType(ast.value("operator_type").num()));
+        return prg_.theoryopdef(get<Location>(ast, "location"),
+                                get<String>(ast, "name"),
+                                get<int>(ast, "priority"),
+                                parseTheoryOperatorType(get<int>(ast, "operator_type")));
     }
 
-    TheoryOpDefVecUid parseTheoryOpDefVec(ASTValue::ASTVec &asts) {
+    TheoryOpDefVecUid parseTheoryOpDefVec(AST::ASTVec &asts) {
         auto uid = prg_.theoryopdefs();
         for (auto &ast : asts) {
             prg_.theoryopdefs(uid, parseTheoryOpDef(*ast));
@@ -722,16 +741,16 @@ private:
 
     static TheoryAtomType parseTheoryAtomType(int num) {
         switch (num) {
-            case static_cast<int>(TheoryAtomType::Head): {
+            case clingo_ast_theory_atom_definition_type_head: {
                 return TheoryAtomType::Head;
             }
-            case static_cast<int>(TheoryAtomType::Body): {
+            case clingo_ast_theory_atom_definition_type_body: {
                 return TheoryAtomType::Body;
             }
-            case static_cast<int>(TheoryAtomType::Any): {
+            case clingo_ast_theory_atom_definition_type_any: {
                 return TheoryAtomType::Any;
             }
-            case static_cast<int>(TheoryAtomType::Directive): {
+            case clingo_ast_theory_atom_definition_type_directive: {
                 return TheoryAtomType::Directive;
             }
             default: {
@@ -742,20 +761,20 @@ private:
 
     TheoryAtomDefUid parseTheoryAtomDefinition(AST &ast) {
         require_(ast.type() == clingo_ast_type_theory_atom_definition, "invalid ast: theory atom definition expected");
-        ASTValue *guard = getOpt(ast, "guard");
-        auto &loc = ast.value("location").loc();
-        auto name = ast.value("name").str();
-        auto arity = ast.value("arity").num();
-        auto elements = ast.value("elements").str();
-        auto type = parseTheoryAtomType(ast.value("atom_type").num());
+        auto *guard = getOpt<SAST>(ast, "guard");
+        auto &loc = get<Location>(ast, "location");
+        auto name = get<String>(ast, "name");
+        auto arity = get<int>(ast, "arity");
+        auto elements = get<String>(ast, "elements");
+        auto type = parseTheoryAtomType(get<int>(ast, "atom_type"));
         return guard != nullptr
             ? prg_.theoryatomdef(loc, name, arity, elements, type,
-                                 parseTheoryOpVec(guard->ast()->value("operators").strs()),
-                                 guard->ast()->value("term").str())
+                                 parseTheoryOpVec(get<AST::StrVec>(**guard, "operators")),
+                                 get<String>(**guard, "term"))
             : prg_.theoryatomdef(loc, name, arity, elements, type);
     }
 
-    TheoryDefVecUid parseTheoryAtomDefinitionVec(TheoryDefVecUid uid, ASTValue::ASTVec &asts) {
+    TheoryDefVecUid parseTheoryAtomDefinitionVec(TheoryDefVecUid uid, AST::ASTVec &asts) {
         for (auto &ast : asts) {
             prg_.theorydefs(uid, parseTheoryAtomDefinition(*ast));
         }
@@ -763,13 +782,13 @@ private:
     }
 
     TheoryTermDefUid parseTheoryTermDefinition(AST &ast) {
-        return prg_.theorytermdef(ast.value("location").loc(),
-                                  ast.value("name").str(),
-                                  parseTheoryOpDefVec(ast.value("operators").asts()),
+        return prg_.theorytermdef(get<Location>(ast, "location"),
+                                  get<String>(ast, "name"),
+                                  parseTheoryOpDefVec(get<AST::ASTVec>(ast, "operators")),
                                   log_);
     }
 
-    TheoryDefVecUid parseTheoryTermDefinitionVec(ASTValue::ASTVec &asts) {
+    TheoryDefVecUid parseTheoryTermDefinitionVec(AST::ASTVec &asts) {
         auto uid = prg_.theorydefs();
         for (auto &ast : asts) {
             prg_.theorydefs(uid, parseTheoryTermDefinition(*ast));
@@ -795,7 +814,7 @@ bool AST::hasValue(char const *name) const {
     return values_.find(name) != values_.end();
 }
 
-ASTValue const &AST::value(char const *name) const {
+AST::Value const &AST::value(char const *name) const {
     auto it = values_.find(name);
     if (it == values_.end()) {
         throw std::runtime_error("ast does not contain the given key");
@@ -803,7 +822,7 @@ ASTValue const &AST::value(char const *name) const {
     return it->second;
 }
 
-ASTValue &AST::value(char const *name) {
+AST::Value &AST::value(char const *name) {
     auto it = values_.find(name);
     if (it == values_.end()) {
         throw std::runtime_error("ast does not contain the given key");
@@ -813,235 +832,6 @@ ASTValue &AST::value(char const *name) {
 
 clingo_ast_type AST::type() const {
     return type_;
-}
-
-/////////////////////////// ASTValue //////////////////////////////////
-
-ASTValue::ASTValue(int num)
-: type_{ASTValueType::Num}
-, num_{num} { }
-
-ASTValue::ASTValue(Symbol sym)
-: type_{ASTValueType::Sym}
-, sym_{sym} { }
-
-ASTValue::ASTValue(Location loc)
-: type_{ASTValueType::Loc}
-, loc_{loc} { }
-
-ASTValue::ASTValue(String str)
-: type_{ASTValueType::Str}
-, str_{str} { }
-
-ASTValue::ASTValue(StrVec strs)
-: type_{ASTValueType::StrVec} {
-    new (&strs_) StrVec{};
-    strs_ = std::move(strs);
-}
-ASTValue::ASTValue(ASTVec asts)
-: type_{ASTValueType::ASTVec} {
-    new (&asts_) ASTVec{};
-    asts_ = std::move(asts);
-}
-
-ASTValue::ASTValue(ASTValue const &val)
-: type_{val.type_} {
-    switch (val.type_) {
-        case ASTValueType::Empty: {
-            break;
-        }
-        case ASTValueType::Num: {
-            num_ = val.num_;
-            break;
-        }
-        case ASTValueType::Loc: {
-            loc_ = val.loc_;
-            break;
-        }
-        case ASTValueType::Str: {
-            str_ = val.str_;
-            break;
-        }
-        case ASTValueType::Sym: {
-            sym_ = val.sym_;
-            break;
-        }
-        case ASTValueType::AST: {
-            new (&ast_) SAST{val.ast_};
-            break;
-        }
-        case ASTValueType::StrVec: {
-            new (&strs_) StrVec{};
-            strs_ = val.strs_;
-            break;
-        }
-        case ASTValueType::ASTVec: {
-            new (&asts_) ASTVec{};
-            asts_ = val.asts_;
-            break;
-        }
-    }
-}
-
-ASTValue::ASTValue(ASTValue &&val) noexcept
-: type_{val.type_} {
-    switch (val.type_) {
-        case ASTValueType::Empty: {
-            break;
-        }
-        case ASTValueType::Num: {
-            num_ = val.num_;
-            break;
-        }
-        case ASTValueType::Loc: {
-            loc_ = val.loc_;
-            break;
-        }
-        case ASTValueType::Str: {
-            str_ = val.str_;
-            break;
-        }
-        case ASTValueType::Sym: {
-            sym_ = val.sym_;
-            break;
-        }
-        case ASTValueType::AST: {
-            new (&ast_) SAST{std::move(val.ast_)};
-            break;
-        }
-        case ASTValueType::StrVec: {
-            new (&strs_) StrVec{};
-            strs_ = std::move(val.strs_);
-        }
-        case ASTValueType::ASTVec: {
-            new (&asts_) ASTVec{};
-            asts_ = std::move(val.asts_);
-            break;
-        }
-    }
-}
-
-ASTValue &ASTValue::operator=(ASTValue const &val) {
-    clear_();
-    new (this) ASTValue(val);
-    return *this;
-}
-
-ASTValue &ASTValue::operator=(ASTValue &&val) noexcept {
-    clear_();
-    new (this) ASTValue(std::move(val));
-    return *this;
-}
-
-ASTValue::~ASTValue() {
-    clear_();
-}
-
-void ASTValue::clear_() {
-    switch (type_) {
-        case ASTValueType::AST: {
-            ast_.~SAST();
-            type_ = ASTValueType::Num;
-            break;
-        }
-        case ASTValueType::StrVec: {
-            strs_.~StrVec();
-            type_ = ASTValueType::Num;
-            break;
-        }
-        case ASTValueType::ASTVec: {
-            asts_.~ASTVec();
-            type_ = ASTValueType::Num;
-            break;
-        }
-        default: {
-            break;
-        }
-    }
-}
-
-void ASTValue::require_(ASTValueType type) const {
-    if (type_ != type) {
-        throw std::runtime_error("invalid attribute");
-    }
-}
-
-ASTValueType ASTValue::type() const {
-    return type_;
-}
-
-bool ASTValue::empty() const {
-    return type_ == ASTValueType::Empty;
-}
-
-int &ASTValue::num() {
-    require_(ASTValueType::Num);
-    return num_;
-}
-
-int ASTValue::num() const {
-    require_(ASTValueType::Num);
-    return num_;
-}
-
-String &ASTValue::str() {
-    require_(ASTValueType::Str);
-    return str_;
-}
-
-String ASTValue::str() const {
-    require_(ASTValueType::Str);
-    return str_;
-}
-
-Location &ASTValue::loc() {
-    require_(ASTValueType::Sym);
-    return loc_;
-}
-
-Location const &ASTValue::loc() const {
-    require_(ASTValueType::Sym);
-    return loc_;
-}
-
-Symbol &ASTValue::sym() {
-    require_(ASTValueType::Sym);
-    return sym_;
-}
-
-Symbol ASTValue::sym() const {
-    require_(ASTValueType::Sym);
-    return sym_;
-}
-
-SAST &ASTValue::ast() {
-    require_(ASTValueType::AST);
-    return ast_;
-}
-
-SAST const &ASTValue::ast() const {
-    require_(ASTValueType::AST);
-    return ast_;
-}
-
-ASTValue::ASTVec &ASTValue::asts() {
-    require_(ASTValueType::ASTVec);
-    return asts_;
-}
-
-ASTValue::ASTVec const &ASTValue::asts() const {
-    require_(ASTValueType::ASTVec);
-    return asts_;
-}
-
-ASTValue::StrVec &ASTValue::strs() {
-    require_(ASTValueType::StrVec);
-    return strs_;
-}
-
-ASTValue::StrVec const &ASTValue::strs() const {
-    require_(ASTValueType::StrVec);
-    return strs_;
 }
 
 } } // namespace Input Gringo
