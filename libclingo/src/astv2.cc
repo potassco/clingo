@@ -26,8 +26,6 @@
 
 namespace Gringo { namespace Input {
 
-// {{{1 ast parsing
-
 namespace {
 
 template <class T>
@@ -46,6 +44,8 @@ T *getOpt(AST &ast, char const *name) {
     }
     return &mpark::get<T>(value);
 }
+
+// {{{1 ast building
 
 class ast {
 public:
@@ -72,6 +72,7 @@ private:
 
 class ASTBuilder : public Gringo::Input::INongroundProgramBuilder {
 public:
+    using Callback = std::function<void (SAST ast)>;
     // {{{2 terms
 
     TermUid term(Location const &loc, Symbol val) override {
@@ -214,582 +215,424 @@ public:
         return a;
     }
 
-    /*
     // {{{2 literals
 
-    LitUid boollit(Location const &loc, bool type) {
-        clingo_ast_literal_t lit;
-        lit.location = convertLoc(loc);
-        lit.sign     = clingo_ast_sign_none;
-        lit.type     = clingo_ast_literal_type_boolean;
-        lit.boolean  = type;
-        return lits_.insert(std::move(lit));
+    SAST symbolicatom(TermUid termUid) {
+        auto &loc = get<Location>(*terms_[termUid], "location");
+        return ast(clingo_ast_type_symbolic_atom, loc)
+                .set("symbol", terms_.erase(termUid));
     }
 
-    LitUid predlit(Location const &loc, NAF naf, TermUid termUid) {
-        clingo_ast_literal_t lit;
-        lit.location = convertLoc(loc);
-        lit.sign     = static_cast<clingo_ast_sign_t>(naf);
-        lit.type     = clingo_ast_literal_type_symbolic;
-        lit.symbol   = create_(terms_.erase(termUid));
-        return lits_.insert(std::move(lit));
+    LitUid boollit(Location const &loc, bool type) override {
+        return lits_.insert(ast(clingo_ast_type_literal, loc)
+            .set("sign", static_cast<int>(clingo_ast_sign_none))
+            .set("atom", ast(clingo_ast_type_boolean_constant, loc)
+                .set("value", static_cast<int>(type))));
     }
 
-    LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) {
-        auto comp = create_<clingo_ast_comparison_t>();
-        comp->comparison = static_cast<clingo_ast_comparison_operator_t>(rel);
-        comp->left       = terms_.erase(termUidLeft);
-        comp->right      = terms_.erase(termUidRight);
-        clingo_ast_literal_t lit;
-        lit.location   = convertLoc(loc);
-        lit.sign       = clingo_ast_sign_none;
-        lit.type       = clingo_ast_literal_type_comparison;
-        lit.comparison = comp;
-        return lits_.insert(std::move(lit));
+    LitUid predlit(Location const &loc, NAF naf, TermUid termUid) override {
+        return lits_.insert(ast(clingo_ast_type_literal, loc)
+            .set("sign", static_cast<int>(naf))
+            .set("atom", symbolicatom(termUid)));
     }
 
-    LitUid csplit(CSPLitUid a) {
-        auto rep = csplits_.erase(a);
-        assert(rep.second.size() > 1);
-        auto guards = createArray_<clingo_ast_csp_guard_t>(rep.second.size()-1);
-        auto guardsit = guards;
-        for (auto it = rep.second.begin() + 1, ie = rep.second.end(); it != ie; ++it, ++guardsit) {
-            guardsit->comparison = static_cast<clingo_ast_comparison_operator_t>(it->first);
-            guardsit->term = it->second;
-        }
-        auto csp = create_<clingo_ast_csp_literal_t>();
-        csp->term   = rep.second.front().second;
-        csp->size   = rep.second.size() - 1;
-        csp->guards = guards;
-        clingo_ast_literal_t lit;
-        lit.location = convertLoc(rep.first);
-        lit.sign        = clingo_ast_sign_none;
-        lit.type        = clingo_ast_literal_type_csp;
-        lit.csp_literal = csp;
-        return lits_.insert(std::move(lit));
+    LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override {
+        return lits_.insert(ast(clingo_ast_type_literal, loc)
+            .set("sign", static_cast<int>(clingo_ast_sign_none))
+            .set("atom", ast(clingo_ast_type_comparison, loc)
+                .set("comparison", static_cast<int>(rel))
+                .set("left", terms_.erase(termUidLeft))
+                .set("right", terms_.erase(termUidRight))));
     }
 
-    LitVecUid litvec() {
+    LitUid csplit(CSPLitUid a) override {
+        auto &loc = get<Location>(*csplits_[a], "location");
+        return lits_.insert(ast(clingo_ast_type_literal, loc)
+            .set("sign", static_cast<int>(clingo_ast_sign_none))
+            .set("atom", csplits_.erase(a)));
+    }
+
+    LitVecUid litvec() override {
         return litvecs_.emplace();
     }
 
-    LitVecUid litvec(LitVecUid uid, LitUid literalUid) {
+    LitVecUid litvec(LitVecUid uid, LitUid literalUid) override {
         litvecs_[uid].emplace_back(lits_.erase(literalUid));
         return uid;
     }
 
-    // {{{2 conditional literals
+    // {{{2 aggregates
 
-    CondLitVecUid condlitvec() {
+    CondLitVecUid condlitvec() override {
         return condlitvecs_.emplace();
     }
 
-    CondLitVecUid condlitvec(CondLitVecUid uid, LitUid litUid, LitVecUid litvecUid) {
-        auto cond = litvecs_.erase(litvecUid);
-        clingo_ast_conditional_literal_t lit;
-        lit.size      = cond.size();
-        lit.condition = createArray_(cond);
-        lit.literal   = lits_.erase(litUid);
-        condlitvecs_[uid].emplace_back(lit);
+    SAST condlit(LitUid litUid, LitVecUid litvecUid, Location const *oloc=nullptr) {
+        auto const &loc = oloc != nullptr
+            ? *oloc
+            : get<Location>(*lits_[litUid], "location");
+        return ast(clingo_ast_type_conditional_literal, loc)
+            .set("literal", lits_.erase(litUid))
+            .set("condition", litvecs_.erase(litvecUid));
+    }
+
+    CondLitVecUid condlitvec(CondLitVecUid uid, LitUid litUid, LitVecUid litvecUid) override {
+        condlitvecs_[uid].emplace_back(condlit(litUid, litvecUid));
         return uid;
     }
 
-    // {{{2 body aggregate elements
-
-    BdAggrElemVecUid bodyaggrelemvec() {
-        return bodyaggrelemvecs_.emplace();
+    BdAggrElemVecUid bodyaggrelemvec() override {
+        return bdaggrelemvecs_.emplace();
     }
 
-    BdAggrElemVecUid bodyaggrelemvec(BdAggrElemVecUid uid, TermVecUid termvec, LitVecUid litvec) {
-        clingo_ast_body_aggregate_element_t elem;
-        auto cond = litvecs_.erase(litvec);
-        auto tuple = termvecs_.erase(termvec);
-        elem.condition_size = cond.size();
-        elem.condition      = createArray_(cond);
-        elem.tuple_size     = tuple.size();
-        elem.tuple          = createArray_(tuple);
-        bodyaggrelemvecs_[uid].emplace_back(elem);
+    BdAggrElemVecUid bodyaggrelemvec(BdAggrElemVecUid uid, TermVecUid termvec, LitVecUid litvec) override {
+        bdaggrelemvecs_[uid].emplace_back(ast(clingo_ast_type_body_aggregate_element)
+            .set("tuple", termvecs_.erase(termvec))
+            .set("condition", litvecs_.erase(litvec)));
         return uid;
     }
 
-    // {{{2 head aggregate elements
-
-    HdAggrElemVecUid headaggrelemvec() {
-        return headaggrelemvecs_.emplace();
+    HdAggrElemVecUid headaggrelemvec() override {
+        return hdaggrelemvecs_.emplace();
     }
 
-    HdAggrElemVecUid headaggrelemvec(HdAggrElemVecUid uid, TermVecUid termvec, LitUid litUid, LitVecUid litvec) {
-        clingo_ast_head_aggregate_element_t elem;
-        auto cond = litvecs_.erase(litvec);
-        clingo_ast_conditional_literal_t lit;
-        lit.size      = cond.size();
-        lit.condition = createArray_(cond);
-        lit.literal   = lits_.erase(litUid);
-        auto tuple = termvecs_.erase(termvec);
-        elem.conditional_literal = lit;
-        elem.tuple_size          = tuple.size();
-        elem.tuple               = createArray_(tuple);
-        headaggrelemvecs_[uid].emplace_back(elem);
+    HdAggrElemVecUid headaggrelemvec(HdAggrElemVecUid uid, TermVecUid termvec, LitUid litUid, LitVecUid litvec) override {
+        auto &loc = get<Location>(*lits_[litUid], "location");
+        hdaggrelemvecs_[uid].emplace_back(ast(clingo_ast_type_body_aggregate_element)
+            .set("tuple", termvecs_.erase(termvec))
+            .set("condition", condlit(litUid, litvec)));
         return uid;
     }
 
-    // {{{2 bounds
-
-    BoundVecUid boundvec() {
-        return bounds_.emplace();
+    BoundVecUid boundvec() override {
+        return boundvecs_.emplace();
     }
 
-    BoundVecUid boundvec(BoundVecUid uid, Relation rel, TermUid term) {
-        clingo_ast_aggregate_guard_t guard;
-        guard.term = terms_.erase(term);
-        guard.comparison = static_cast<clingo_ast_comparison_operator_t>(rel);
-        bounds_[uid].emplace_back(guard);
+    BoundVecUid boundvec(BoundVecUid uid, Relation rel, TermUid term) override {
+        boundvecs_[uid].emplace_back(ast(clingo_ast_type_aggregate_guard)
+            .set("comparison", static_cast<int>(rel))
+            .set("term", terms_.erase(term)));
+        return uid;
+    }
+
+    CSPElemVecUid cspelemvec() override {
+        return cspelems_.emplace();
+    }
+
+    CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) override {
+        cspelems_[uid].emplace_back(ast(clingo_ast_type_disjoint, loc)
+            .set("tuple", termvecs_.erase(termvec))
+            .set("term", cspaddterms_.erase(addterm))
+            .set("condition", litvecs_.erase(litvec)));
         return uid;
     }
 
     // {{{2 heads
 
-    HdLitUid headlit(LitUid litUid) {
-        clingo_ast_head_literal_t head;
-        head.type     = clingo_ast_head_literal_type_literal;
-        head.literal  = create_(lits_.erase(litUid));
-        head.location = head.literal->location;
-        return heads_.insert(std::move(head));
+    HdLitUid headlit(LitUid litUid) override {
+        return heads_.insert(lits_.erase(litUid));
     }
 
-    HdLitUid headaggr(Location const &loc, TheoryAtomUid atomUid) {
-        clingo_ast_head_literal_t head;
-        head.location    = convertLoc(loc);
-        head.type        = clingo_ast_head_literal_type_theory_atom;
-        head.theory_atom = create_(theoryAtoms_.erase(atomUid));
-        return heads_.insert(std::move(head));
+    HdLitUid headaggr(Location const &loc, TheoryAtomUid atomUid) override {
+        return heads_.insert(theoryatoms_.erase(atomUid));
     }
 
-    HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, HdAggrElemVecUid headaggrelemvec) {
-        auto guards = bounds_.erase(bounds);
-        auto elems = headaggrelemvecs_.erase(headaggrelemvec);
+    std::pair<AST::Value, AST::Value> guards_(BoundVecUid bounds) {
+        AST::Value leftGuard = mpark::monostate();
+        AST::Value rightGuard = mpark::monostate();
+        auto guards = boundvecs_.erase(bounds);
         assert(guards.size() < 3);
         if (!guards.empty()) {
-            guards.front().comparison = static_cast<clingo_ast_comparison_operator_t>(inv(static_cast<Relation>(guards.front().comparison)));
+            auto &rel = get<int>(*guards.front(), "comparison");
+            rel = static_cast<int>(inv(static_cast<Relation>(rel)));
+            leftGuard = std::move(guards.front());
         }
-        clingo_ast_head_aggregate_t aggr;
-        aggr.function    = static_cast<clingo_ast_aggregate_function>(fun);
-        aggr.size        = elems.size();
-        aggr.elements    = createArray_(elems);
-        aggr.left_guard  = guards.size() > 0 ? create_(guards[0]) : nullptr;
-        aggr.right_guard = guards.size() > 1 ? create_(guards[1]) : nullptr;
-        clingo_ast_head_literal_t head;
-        head.location       = convertLoc(loc);
-        head.type           = clingo_ast_head_literal_type_head_aggregate;
-        head.head_aggregate = create_(aggr);
-        return heads_.insert(std::move(head));
+        if (guards.size() > 1) {
+            rightGuard = std::move(guards.back());
+        }
+        return {std::move(leftGuard), std::move(rightGuard)};
     }
 
-    HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid headaggrelemvec) {
+    SAST aggr(Location const &loc, BoundVecUid bounds, CondLitVecUid elems) {
+        auto guards = guards_(bounds);
+        return ast(clingo_ast_type_aggregate, loc)
+            .set("left_guard", std::move(guards.first))
+            .set("elements", condlitvecs_.erase(elems))
+            .set("right_guard", std::move(guards.second));
+    }
+
+    HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, HdAggrElemVecUid headaggrelemvec) override {
+        auto guards = guards_(bounds);
+        return heads_.insert(ast(clingo_ast_type_head_aggregate, loc)
+            .set("left_guard", std::move(guards.first))
+            .set("function", static_cast<int>(fun))
+            .set("elements", hdaggrelemvecs_.erase(headaggrelemvec))
+            .set("right_guard", std::move(guards.second)));
+    }
+
+    HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid headaggrelemvec) override {
         (void)fun;
         assert(fun == AggregateFunction::COUNT);
-        auto guards = bounds_.erase(bounds);
-        auto elems = condlitvecs_.erase(headaggrelemvec);
-        assert(guards.size() < 3);
-        if (!guards.empty()) {
-            guards.front().comparison = static_cast<clingo_ast_comparison_operator_t>(inv(static_cast<Relation>(guards.front().comparison)));
-        }
-        clingo_ast_aggregate_t aggr;
-        aggr.size        = elems.size();
-        aggr.elements    = createArray_(elems);
-        aggr.left_guard  = guards.size() > 0 ? create_(guards[0]) : nullptr;
-        aggr.right_guard = guards.size() > 1 ? create_(guards[1]) : nullptr;
-        clingo_ast_head_literal_t head;
-        head.location  = convertLoc(loc);
-        head.type      = clingo_ast_head_literal_type_aggregate;
-        head.aggregate = create_(aggr);
-        return heads_.insert(std::move(head));
+        return heads_.insert(aggr(loc, bounds, headaggrelemvec));
     }
 
-    HdLitUid disjunction(Location const &loc, CondLitVecUid condlitvec) {
-        auto elems = condlitvecs_.erase(condlitvec);
-        clingo_ast_disjunction_t disj;
-        disj.size     = elems.size();
-        disj.elements = createArray_(elems);
-        clingo_ast_head_literal_t head;
-        head.location    = convertLoc(loc);
-        head.type        = clingo_ast_head_literal_type_disjunction;
-        head.disjunction = create_(disj);
-        return heads_.insert(std::move(head));
+    HdLitUid disjunction(Location const &loc, CondLitVecUid condlitvec) override {
+        return heads_.insert(ast(clingo_ast_type_head_aggregate, loc)
+            .set("elements", condlitvecs_.erase(condlitvec)));
     }
 
     // {{{2 bodies
 
-    BdLitVecUid body() {
-        return bodies_.emplace();
+    BdLitVecUid body() override {
+        return bodylitvecs_.emplace();
     }
 
-    BdLitVecUid bodylit(BdLitVecUid body, LitUid bodylit) {
-        auto lit = lits_.erase(bodylit);
-        clingo_ast_body_literal_t bd;
-        bd.location = lit.location;
-        bd.sign     = static_cast<clingo_ast_sign_t>(clingo_ast_sign_none);
-        bd.type     = clingo_ast_body_literal_type_literal;;
-        bd.literal  = create_(lit);
-        bodies_[body].emplace_back(bd);
+    BdLitVecUid bodylit(BdLitVecUid body, LitUid bodylit) override {
+        bodylitvecs_[body].emplace_back(lits_.erase(bodylit));
         return body;
     }
 
-    BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, TheoryAtomUid atomUid) {
-        clingo_ast_body_literal_t bd;
-        bd.location    = convertLoc(loc);
-        bd.sign        = static_cast<clingo_ast_sign_t>(naf);
-        bd.type        = clingo_ast_body_literal_type_theory_atom;;
-        bd.theory_atom = create_(theoryAtoms_.erase(atomUid));
-        bodies_[body].emplace_back(bd);
+    BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, TheoryAtomUid atomUid) override {
+        bodylitvecs_[body].emplace_back(ast(clingo_ast_type_literal, loc)
+            .set("sign", static_cast<int>(naf))
+            .set("atom", theoryatoms_.erase(atomUid)));
         return body;
     }
 
-    BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, BdAggrElemVecUid bodyaggrelemvec) {
-        auto guards = bounds_.erase(bounds);
-        auto elems = bodyaggrelemvecs_.erase(bodyaggrelemvec);
-        assert(guards.size() < 3);
-        if (!guards.empty()) {
-            guards.front().comparison = static_cast<clingo_ast_comparison_operator_t>(inv(static_cast<Relation>(guards.front().comparison)));
-        }
-        clingo_ast_body_aggregate_t aggr;
-        aggr.function    = static_cast<clingo_ast_aggregate_function>(fun);
-        aggr.size        = elems.size();
-        aggr.elements    = createArray_(elems);
-        aggr.left_guard  = guards.size() > 0 ? create_(guards[0]) : nullptr;
-        aggr.right_guard = guards.size() > 1 ? create_(guards[1]) : nullptr;
-        clingo_ast_body_literal_t bd;
-        bd.location       = convertLoc(loc);
-        bd.sign           = static_cast<clingo_ast_sign_t>(naf);
-        bd.type           = clingo_ast_body_literal_type_body_aggregate;
-        bd.body_aggregate = create_(aggr);
-        bodies_[body].emplace_back(bd);
+    BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, BdAggrElemVecUid bodyaggrelemvec) override {
+        auto guards = guards_(bounds);
+        bodylitvecs_[body].emplace_back(ast(clingo_ast_type_literal, loc)
+            .set("sign", static_cast<int>(naf))
+            .set("atom", ast(clingo_ast_type_body_aggregate, loc)
+                .set("left_guard", std::move(guards.first))
+                .set("function", static_cast<int>(fun))
+                .set("elements", bdaggrelemvecs_.erase(bodyaggrelemvec))
+                .set("right_guard", std::move(guards.second))));
         return body;
     }
 
-    BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid bodyaggrelemvec) {
-        (void)fun;
-        assert(fun == AggregateFunction::COUNT);
-        auto guards = bounds_.erase(bounds);
-        auto elems = condlitvecs_.erase(bodyaggrelemvec);
-        assert(guards.size() < 3);
-        if (!guards.empty()) {
-            guards.front().comparison = static_cast<clingo_ast_comparison_operator_t>(inv(static_cast<Relation>(guards.front().comparison)));
-        }
-        clingo_ast_aggregate_t aggr;
-        aggr.size        = elems.size();
-        aggr.elements    = createArray_(elems);
-        aggr.left_guard  = guards.size() > 0 ? create_(guards[0]) : nullptr;
-        aggr.right_guard = guards.size() > 1 ? create_(guards[1]) : nullptr;
-        clingo_ast_body_literal_t bd;
-        bd.location  = convertLoc(loc);
-        bd.sign      = static_cast<clingo_ast_sign_t>(naf);
-        bd.type      = clingo_ast_body_literal_type_aggregate;
-        bd.aggregate = create_(aggr);
-        bodies_[body].emplace_back(bd);
+    BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid bodyaggrelemvec) override {
+        bodylitvecs_[body].emplace_back(ast(clingo_ast_type_literal, loc)
+            .set("sign", static_cast<int>(naf))
+            .set("atom", aggr(loc, bounds, bodyaggrelemvec)));
         return body;
     }
 
-    BdLitVecUid conjunction(BdLitVecUid body, Location const &loc, LitUid head, LitVecUid litvec) {
-        auto cond = litvecs_.erase(litvec);
-        clingo_ast_conditional_literal_t lit;
-        lit.literal   = lits_.erase(head);
-        lit.size      = cond.size();
-        lit.condition = createArray_(cond);
-        clingo_ast_body_literal_t bd;
-        bd.location    = convertLoc(loc);
-        bd.sign        = clingo_ast_sign_none;
-        bd.type        = clingo_ast_body_literal_type_conditional;
-        bd.conditional = create_(lit);
-        bodies_[body].emplace_back(bd);
+    BdLitVecUid conjunction(BdLitVecUid body, Location const &loc, LitUid head, LitVecUid litvec) override {
+        bodylitvecs_[body].emplace_back(condlit(head, litvec, &loc));
         return body;
     }
 
-    BdLitVecUid disjoint(BdLitVecUid body, Location const &loc, NAF naf, CSPElemVecUid elem) {
-        auto elems = cspelems_.erase(elem);
-        clingo_ast_disjoint_t disj;
-        disj.size     = elems.size();
-        disj.elements = createArray_(elems);
-        clingo_ast_body_literal_t bd;
-        bd.location    = convertLoc(loc);
-        bd.sign        = static_cast<clingo_ast_sign_t>(naf);
-        bd.type        = clingo_ast_body_literal_type_disjoint;
-        bd.disjoint    = create_(disj);
-        bodies_[body].emplace_back(bd);
+    BdLitVecUid disjoint(BdLitVecUid body, Location const &loc, NAF naf, CSPElemVecUid elem) override {
+        bodylitvecs_[body].emplace_back(ast(clingo_ast_type_literal, loc)
+            .set("sign", static_cast<int>(naf))
+            .set("atom", ast(clingo_ast_type_disjoint, loc)
+                .set("elements", cspelems_.erase(elem))));
         return body;
-    }
-
-    // {{{2 csp constraint elements
-
-    CSPElemVecUid cspelemvec() {
-        return cspelems_.emplace();
-    }
-
-    CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) {
-        auto tuple = termvecs_.erase(termvec);
-        auto rep = cspaddterms_.erase(addterm);
-        auto cond = litvecs_.erase(litvec);
-        clingo_ast_csp_sum_term_t term;
-        term.size     = rep.second.size();
-        term.location = convertLoc(rep.first);
-        term.terms    = createArray_(rep.second);
-        clingo_ast_disjoint_element_t elem;
-        elem.term           = term;
-        elem.location       = convertLoc(loc);
-        elem.tuple          = createArray_(tuple);
-        elem.tuple_size     = tuple.size();
-        elem.condition      = createArray_(cond);
-        elem.condition_size = cond.size();
-        cspelems_[uid].emplace_back(elem);
-        return uid;
     }
 
     // {{{2 statements
 
-    void rule(Location const &loc, HdLitUid head) {
+    void rule(Location const &loc, HdLitUid head) override {
         rule(loc, head, body());
     }
 
-    void rule(Location const &loc, HdLitUid head, BdLitVecUid body) {
-        auto lits = bodies_.erase(body);
-        clingo_ast_rule_t rule;
-        rule.head = heads_.erase(head);
-        rule.size = lits.size();
-        rule.body = createArray_(lits);
-        clingo_ast_statement stm;
-        stm.rule = create_(rule);
-        statement_(loc, clingo_ast_statement_type_rule, stm);
+    void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override {
+        cb_(ast(clingo_ast_type_rule, loc)
+            .set("head", heads_.erase(head))
+            .set("body", bodylitvecs_.erase(body)));
     }
 
-    void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &) {
-        clingo_ast_definition_t def;
-        def.name = name.c_str();
-        def.value = terms_.erase(value);
-        def.is_default = defaultDef;
-        clingo_ast_statement stm;
-        stm.definition = create_(def);
-        statement_(loc, clingo_ast_statement_type_const, stm);
+    void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &logger) override {
+        static_cast<void>(logger);
+        cb_(ast(clingo_ast_type_definition, loc)
+            .set("name", name)
+            .set("value", terms_.erase(value))
+            .set("is_default", static_cast<int>(defaultDef)));
     }
 
-    void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) {
-        auto bd = bodies_.erase(body);
-        auto tuple = termvecs_.erase(cond);
-        clingo_ast_minimize_t min;
-        min.weight     = terms_.erase(weight);
-        min.priority   = terms_.erase(priority);
-        min.body_size  = bd.size();
-        min.body       = createArray_(bd);
-        min.tuple_size = tuple.size();
-        min.tuple      = createArray_(tuple);
-        clingo_ast_statement stm;
-        stm.minimize = create_(min);
-        statement_(loc, clingo_ast_statement_type_minimize, stm);
+    void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override {
+        cb_(ast(clingo_ast_type_minimize, loc)
+            .set("weight", terms_.erase(weight))
+            .set("priority", terms_.erase(priority))
+            .set("tuple", termvecs_.erase(cond))
+            .set("body", bodylitvecs_.erase(body)));
     }
 
-    void showsig(Location const &loc, Sig sig, bool csp) {
-        clingo_ast_show_signature_t show;
-        show.signature = sig.rep();
-        show.csp = csp;
-        clingo_ast_statement stm;
-        stm.show_signature = create_(show);
-        statement_(loc, clingo_ast_statement_type_show_signature, stm);
+    void showsig(Location const &loc, Sig sig, bool csp) override {
+        cb_(ast(clingo_ast_type_show_signature, loc)
+            .set("name", sig.name())
+            .set("arity", static_cast<int>(sig.arity()))
+            .set("sign", static_cast<int>(sig.sign()))
+            .set("is_default", static_cast<int>(csp)));
     }
 
-    void defined(Location const &loc, Sig sig) {
-        clingo_ast_defined_t defined;
-        defined.signature = sig.rep();
-        clingo_ast_statement stm;
-        stm.defined = create_(defined);
-        statement_(loc, clingo_ast_statement_type_defined, stm);
+    void defined(Location const &loc, Sig sig) override {
+        cb_(ast(clingo_ast_type_defined, loc)
+            .set("name", sig.name())
+            .set("arity", static_cast<int>(sig.arity()))
+            .set("sign", static_cast<int>(sig.sign())));
     }
 
-    void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) {
-        auto bd = bodies_.erase(body);
-        clingo_ast_show_term_t show;
-        show.term = terms_.erase(t);
-        show.csp  = csp;
-        show.body = createArray_(bd);
-        show.size = bd.size();
-        clingo_ast_statement stm;
-        stm.show_term = create_(show);
-        statement_(loc, clingo_ast_statement_type_show_term, stm);
+    void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override {
+        cb_(ast(clingo_ast_type_show_term, loc)
+            .set("term", terms_.erase(t))
+            .set("body", bodylitvecs_.erase(body))
+            .set("csp", static_cast<int>(csp)));
     }
 
-    void python(Location const &loc, String code) {
-        clingo_ast_script_t script;
-        script.code = code.c_str();
-        script.type = clingo_ast_script_type_python;
-        clingo_ast_statement stm;
-        stm.script = create_(script);
-        statement_(loc, clingo_ast_statement_type_script, stm);
+    void python(Location const &loc, String code) override {
+        cb_(ast(clingo_ast_type_script, loc)
+            .set("script_type", static_cast<int>(clingo_ast_script_type_python))
+            .set("code", code));
     }
 
-    void lua(Location const &loc, String code) {
-        clingo_ast_script_t script;
-        script.code = code.c_str();
-        script.type = clingo_ast_script_type_lua;
-        clingo_ast_statement stm;
-        stm.script = create_(script);
-        statement_(loc, clingo_ast_statement_type_script, stm);
+    void lua(Location const &loc, String code) override {
+        cb_(ast(clingo_ast_type_script, loc)
+            .set("script_type", static_cast<int>(clingo_ast_script_type_lua))
+            .set("code", code));
     }
 
-    void block(Location const &loc, String name, IdVecUid args) {
-        auto params = idvecs_.erase(args);
-        clingo_ast_program_t program;
-        program.name       = name.c_str();
-        program.parameters = createArray_(params);
-        program.size       = params.size();
-        clingo_ast_statement stm;
-        stm.program = create_(program);
-        statement_(loc, clingo_ast_statement_type_program, stm);
+    void block(Location const &loc, String name, IdVecUid args) override {
+        cb_(ast(clingo_ast_type_program, loc)
+            .set("name", name)
+            .set("parameters", idvecs_.erase(args)));
     }
 
-    void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) {
-        auto bd = bodies_.erase(body);
-        clingo_ast_external_t ext;
-        ext.atom = terms_.erase(head);
-        ext.body = createArray_(bd);
-        ext.size = bd.size();
-        ext.type = terms_.erase(type);
-        clingo_ast_statement stm;
-        stm.external = create_(ext);
-        statement_(loc, clingo_ast_statement_type_external, stm);
+    void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) override {
+        cb_(ast(clingo_ast_type_external, loc)
+            .set("atom", symbolicatom(head))
+            .set("body", bodylitvecs_.erase(body))
+            .set("type", terms_.erase(type)));
     }
 
-    void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) {
-        auto bd = bodies_.erase(body);
+    void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override {
+        auto bd = bodylitvecs_.erase(body);
         for (auto &x : termvecvecs_.erase(edges)) {
             assert(x.size() == 2);
-            clingo_ast_edge_t edge;
-            edge.u = x[0];
-            edge.v = x[1];
-            edge.size = bd.size();
-            edge.body = createArray_(bd);
-            clingo_ast_statement stm;
-            stm.location = convertLoc(loc);
-            stm.type     = clingo_ast_statement_type_edge;
-            stm.edge     = create_(edge);
-            cb_(stm);
+            cb_(ast(clingo_ast_type_edge, loc)
+                .set("u", std::move(x.front()))
+                .set("v", std::move(x.back()))
+                .set("body", bd));
         }
-        clear_();
     }
 
-    void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
-        auto bd = bodies_.erase(body);
-        clingo_ast_heuristic_t heu;
-        heu.atom     = terms_.erase(termUid);
-        heu.bias     = terms_.erase(a);
-        heu.priority = terms_.erase(b);
-        heu.modifier = terms_.erase(mod);
-        heu.body     = createArray_(bd);
-        heu.size     = bd.size();
-        clingo_ast_statement stm;
-        stm.heuristic = create_(heu);
-        statement_(loc, clingo_ast_statement_type_heuristic, stm);
+    void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override {
+        cb_(ast(clingo_ast_type_heuristic, loc)
+            .set("atom", symbolicatom(termUid))
+            .set("body", bodylitvecs_.erase(body))
+            .set("bias", symbolicatom(a))
+            .set("priority", symbolicatom(b))
+            .set("modifier", symbolicatom(mod)));
     }
 
-    void project(Location const &loc, TermUid termUid, BdLitVecUid body) {
-        auto bd = bodies_.erase(body);
-        clingo_ast_project_t proj;
-        proj.size = bd.size();
-        proj.body = createArray_(bd);
-        proj.atom = terms_.erase(termUid);
-        clingo_ast_statement stm;
-        stm.project_atom = create_(proj);
-        statement_(loc, clingo_ast_statement_type_project_atom, stm);
+    void project(Location const &loc, TermUid termUid, BdLitVecUid body) override {
+        cb_(ast(clingo_ast_type_project_atom, loc)
+            .set("atom", symbolicatom(termUid))
+            .set("body", bodylitvecs_.erase(body)));
     }
 
-    void project(Location const &loc, Sig sig) {
-        clingo_ast_statement stm;
-        stm.project_signature = sig.rep();
-        statement_(loc, clingo_ast_statement_type_project_atom_signature, stm);
+    void project(Location const &loc, Sig sig) override {
+        cb_(ast(clingo_ast_type_project_signature, loc)
+            .set("name", sig.name())
+            .set("arity", static_cast<int>(sig.arity()))
+            .set("sign", static_cast<int>(sig.sign())));
     }
 
     // {{{2 theory atoms
 
-    TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) {
-        return theorytermarr_(loc, args, clingo_ast_theory_term_type_set);
+    TheoryTermUid theorytermseq(Location const &loc, TheoryOptermVecUid args, clingo_ast_theory_sequence_type type) {
+        return theoryterms_.insert(ast(clingo_ast_type_theory_sequence, loc)
+            .set("sequence_type", type)
+            .set("terms", theoryoptermvecs_.erase(args)));
     }
 
-    TheoryTermUid theoryoptermlist(Location const &loc, TheoryOptermVecUid args) {
-        return theorytermarr_(loc, args, clingo_ast_theory_term_type_list);
+    TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) override {
+        return theorytermseq(loc, args, clingo_ast_theory_sequence_type_set);
     }
 
-    TheoryTermUid theorytermtuple(Location const &loc, TheoryOptermVecUid args) {
-        return theorytermarr_(loc, args, clingo_ast_theory_term_type_tuple);
+    TheoryTermUid theoryoptermlist(Location const &loc, TheoryOptermVecUid args) override {
+        return theorytermseq(loc, args, clingo_ast_theory_sequence_type_list);
     }
 
-    TheoryTermUid theorytermopterm(Location const &loc, TheoryOptermUid opterm) {
-        return theoryTerms_.insert(opterm_(loc, opterm));
+    TheoryTermUid theorytermtuple(Location const &loc, TheoryOptermVecUid args) override {
+        return theorytermseq(loc, args, clingo_ast_theory_sequence_type_tuple);
     }
 
-    TheoryTermUid theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) {
-        auto a = theoryOptermVecs_.erase(args);
-        clingo_ast_theory_function_t fun;
-        fun.name      = name.c_str();
-        fun.size      = a.size();
-        fun.arguments = createArray_(a);
-        clingo_ast_theory_term_t term;
-        term.type     = clingo_ast_theory_term_type_function;
-        term.location = convertLoc(loc);
-        term.function = create_(fun);
-        return theoryTerms_.insert(std::move(term));
+    SAST unparsedterm(Location const &loc, TheoryOptermUid opterm) {
+        auto elems = theoryopterms_.erase(opterm);
+        if (elems.size() == 1 && get<AST::ASTVec>(*elems.front(), "operators").empty()) {
+            return std::move(get<SAST>(*elems.front(), "term"));
+        }
+        return ast(clingo_ast_type_theory_unparsed_term, loc)
+            .set("elements", std::move(elems));
     }
 
-    TheoryTermUid theorytermvalue(Location const &loc, Symbol val) {
-        clingo_ast_theory_term_t term;
-        term.type     = clingo_ast_theory_term_type_symbol;
-        term.location = convertLoc(loc);
-        term.symbol   = val.rep();
-        return theoryTerms_.insert(std::move(term));
+    TheoryTermUid theorytermopterm(Location const &loc, TheoryOptermUid opterm) override {
+        return theoryterms_.insert(unparsedterm(loc, opterm));
     }
 
-    TheoryTermUid theorytermvar(Location const &loc, String var) {
-        clingo_ast_theory_term_t term;
-        term.type     = clingo_ast_theory_term_type_variable;
-        term.location = convertLoc(loc);
-        term.variable = var.c_str();
-        return theoryTerms_.insert(std::move(term));
+    TheoryTermUid theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) override {
+        return theoryterms_.insert(ast(clingo_ast_type_theory_function, loc)
+            .set("name", name)
+            .set("arguments", theoryoptermvecs_.erase(args)));
     }
 
-    TheoryOptermUid theoryopterm(TheoryOpVecUid ops, TheoryTermUid term) {
-        return theoryOpterms_.insert({opterm_(ops, term)});
+    TheoryTermUid theorytermvalue(Location const &loc, Symbol val) override {
+        return theoryterms_.insert(ast(clingo_ast_type_symbol, loc)
+            .set("symbol", val));
     }
 
-    TheoryOptermUid theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) {
-        theoryOpterms_[opterm].emplace_back(opterm_(ops, term));
+    TheoryTermUid theorytermvar(Location const &loc, String var) override {
+        return theoryterms_.insert(ast(clingo_ast_type_symbol, loc)
+            .set("symbol", var));
+    }
+
+    SAST theoryunparsedelem(TheoryOpVecUid ops, TheoryTermUid term) {
+        return ast(clingo_ast_type_theory_unparsed_term_element)
+            .set("operators", theoryopvecs_.erase(ops))
+            .set("term", theoryterms_.erase(term));
+    }
+
+    TheoryOptermUid theoryopterm(TheoryOpVecUid ops, TheoryTermUid term) override {
+        return theoryopterms_.insert({theoryunparsedelem(ops, term)});
+    }
+
+    TheoryOptermUid theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) override {
+        theoryopterms_[opterm].emplace_back(theoryunparsedelem(ops, term));
         return opterm;
     }
 
-    TheoryOpVecUid theoryops() {
-        return theoryOpVecs_.emplace();
+    TheoryOpVecUid theoryops() override {
+        return theoryopvecs_.emplace();
     }
 
-    TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) {
-        theoryOpVecs_[ops].emplace_back(op.c_str());
+    TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) override {
+        theoryopvecs_[ops].emplace_back(op);
         return ops;
     }
 
-    TheoryOptermVecUid theoryopterms() {
-        return theoryOptermVecs_.emplace();
+    TheoryOptermVecUid theoryopterms() override {
+        return theoryoptermvecs_.emplace();
     }
 
-    TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, Location const &loc, TheoryOptermUid opterm) {
-        theoryOptermVecs_[opterms].emplace_back(opterm_(loc, opterm));
+    TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, Location const &loc, TheoryOptermUid opterm) override {
+        theoryoptermvecs_[opterms].emplace_back(unparsedterm(loc, opterm));
         return opterms;
     }
 
-    TheoryOptermVecUid theoryopterms(Location const &loc, TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
-        theoryOptermVecs_[opterms].emplace(theoryOptermVecs_[opterms].begin(), opterm_(loc, opterm));
+    TheoryOptermVecUid theoryopterms(Location const &loc, TheoryOptermUid opterm, TheoryOptermVecUid opterms) override {
+        theoryoptermvecs_[opterms].emplace(theoryoptermvecs_[opterms].begin(), unparsedterm(loc, opterm));
         return opterms;
     }
 
+    /*
     TheoryElemVecUid theoryelems() {
         return theoryElems_.emplace();
     }
 
     TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) {
-        auto ops = theoryOptermVecs_.erase(opterms);
+        auto ops = theoryoptermvecs_.erase(opterms);
         auto cnd = litvecs_.erase(cond);
         clingo_ast_theory_atom_element_t elem;
         elem.tuple_size     = ops.size();
@@ -909,155 +752,10 @@ public:
 
     // }}}2
 
-private:
-    TermUid pool_(Location const &loc, TermVec &&vec) {
-        if (vec.size() == 1) {
-            return terms_.insert(std::move(vec.front()));
-        }
-        else {
-            auto pool = create_<clingo_ast_pool_t>();
-            pool->size      = vec.size();
-            pool->arguments = createArray_(vec);
-            clingo_ast_term_t term;
-            term.location = convertLoc(loc);
-            term.type     = clingo_ast_term_type_pool;
-            term.pool     = pool;
-            return terms_.insert(std::move(term));
-        }
-    }
-
-    clingo_ast_term_t fun_(Location const &loc, String name, TermVec &&vec, bool external) {
-        auto fun = create_<clingo_ast_function_t>();
-        fun->name      = name.c_str();
-        fun->size      = vec.size();
-        fun->arguments = createArray_(vec);
-        clingo_ast_term_t term;
-        term.location = convertLoc(loc);
-        term.type     = external ? clingo_ast_term_type_external_function : clingo_ast_term_type_function;
-        term.function = fun;
-        return term;
-    }
-
-    TheoryTermUid theorytermarr_(Location const &loc, TheoryOptermVecUid args, clingo_ast_theory_term_type_t type) {
-        auto a = theoryOptermVecs_.erase(args);
-        clingo_ast_theory_term_array_t arr;
-        arr.size  = a.size();
-        arr.terms = createArray_(a);
-        clingo_ast_theory_term_t term;
-        term.type     = type;
-        term.location = convertLoc(loc);
-        term.set      = create_(arr);
-        return theoryTerms_.insert(std::move(term));
-    }
-
-    clingo_ast_theory_term_t opterm_(Location const &loc, TheoryOptermUid opterm) {
-        auto terms = theoryOpterms_.erase(opterm);
-        clingo_ast_theory_unparsed_term arr;
-        arr.size     = terms.size();
-        arr.elements = createArray_(terms);
-        clingo_ast_theory_term_t term;
-        term.location      = convertLoc(loc);
-        term.type          = clingo_ast_theory_term_type_unparsed_term;
-        term.unparsed_term = create_(arr);
-        return term;
-    }
-
-    clingo_ast_theory_unparsed_term_element_t opterm_(TheoryOpVecUid ops, TheoryTermUid term) {
-        auto o = theoryOpVecs_.erase(ops);
-        clingo_ast_theory_unparsed_term_element_t t;
-        t.size      = o.size();
-        t.operators = createArray_(o);
-        t.term      = theoryTerms_.erase(term);
-        return t;
-    }
-
-    template <class T>
-    T *create_() {
-        data_.emplace_back(operator new(sizeof(T)));
-        return reinterpret_cast<T*>(data_.back());
-    }
-    template <class T>
-    T *create_(T x) {
-        auto *r = create_<T>();
-        *r = x;
-        return r;
-    }
-    template <class T>
-    T *createArray_(size_t size) {
-        arrdata_.emplace_back(operator new[](sizeof(T) * size));
-        return reinterpret_cast<T*>(arrdata_.back());
-    }
-    template <class T>
-    T *createArray_(std::vector<T> const &vec) {
-        auto *r = createArray_<T>(vec.size());
-        std::copy(vec.begin(), vec.end(), reinterpret_cast<T*>(r));
-        return r;
-    }
-
-    void clear_() noexcept {
-        for (auto &x : data_) { operator delete(x); }
-        for (auto &x : arrdata_) { operator delete[](x); }
-        data_.clear();
-        arrdata_.clear();
-    }
-
-    void statement_(Location loc, clingo_ast_statement_type_t type, clingo_ast_statement_t &stm) {
-        stm.location = convertLoc(loc);
-        stm.type = type;
-        cb_(stm);
-        clear_();
-    }
-
-    using Terms             = Indexed<clingo_ast_term_t, TermUid>;
-    using TermVecs          = Indexed<TermVec, TermVecUid>;
-    using TermVecVecs       = Indexed<TermVecVec, TermVecVecUid>;
-    using CSPAddTerms       = Indexed<std::pair<Location, std::vector<clingo_ast_csp_product_term_t>>, CSPAddTermUid>;
-    using CSPMulTerms       = Indexed<clingo_ast_csp_product_term_t, CSPMulTermUid>;
-    using CSPLits           = Indexed<std::pair<Location, std::vector<std::pair<Relation, clingo_ast_csp_sum_term_t>>>, CSPLitUid>;
-    using IdVecs            = Indexed<std::vector<clingo_ast_id_t>, IdVecUid>;
-    using Lits              = Indexed<clingo_ast_literal_t, LitUid>;
-    using LitVecs           = Indexed<std::vector<clingo_ast_literal_t>, LitVecUid>;
-    using CondLitVecs       = Indexed<std::vector<clingo_ast_conditional_literal_t>, CondLitVecUid>;
-    using BodyAggrElemVecs  = Indexed<std::vector<clingo_ast_body_aggregate_element_t>, BdAggrElemVecUid>;
-    using HeadAggrElemVecs  = Indexed<std::vector<clingo_ast_head_aggregate_element_t>, HdAggrElemVecUid>;
-    using Bounds            = Indexed<std::vector<clingo_ast_aggregate_guard_t>, BoundVecUid>;
-    using Bodies            = Indexed<std::vector<clingo_ast_body_literal_t>, BdLitVecUid>;
-    using Heads             = Indexed<clingo_ast_head_literal_t, HdLitUid>;
-    using TheoryAtoms       = Indexed<clingo_ast_theory_atom_t, TheoryAtomUid>;
-    using CSPElems          = Indexed<std::vector<clingo_ast_disjoint_element_t>, CSPElemVecUid>;
-    using TheoryOpVecs      = Indexed<std::vector<char const *>, TheoryOpVecUid>;
-    using TheoryTerms       = Indexed<clingo_ast_theory_term_t, TheoryTermUid>;
-    using RawTheoryTerms    = Indexed<std::vector<clingo_ast_theory_unparsed_term_element_t>, TheoryOptermUid>;
-    using RawTheoryTermVecs = Indexed<std::vector<clingo_ast_theory_term_t>, TheoryOptermVecUid>;
-    using TheoryElementVecs = Indexed<std::vector<clingo_ast_theory_atom_element>, TheoryElemVecUid>;
-    using TheoryOpDefs      = Indexed<clingo_ast_theory_operator_definition_t, TheoryOpDefUid>;
-    using TheoryOpDefVecs   = Indexed<std::vector<clingo_ast_theory_operator_definition_t>, TheoryOpDefVecUid>;
-    using TheoryTermDefs    = Indexed<clingo_ast_theory_term_definition_t, TheoryTermDefUid>;
-    using TheoryAtomDefs    = Indexed<clingo_ast_theory_atom_definition_t, TheoryAtomDefUid>;
-    using TheoryDefVecs     = Indexed<std::pair<std::vector<clingo_ast_theory_term_definition_t>, std::vector<clingo_ast_theory_atom_definition_t>>, TheoryDefVecUid>;
-
-    Callback            cb_;
-    Terms               terms_;
-    TermVecs            termvecs_;
-    TermVecVecs         termvecvecs_;
-    CSPAddTerms         cspaddterms_;
-    CSPMulTerms         cspmulterms_;
-    CSPLits             csplits_;
-    IdVecs              idvecs_;
-    Lits                lits_;
-    LitVecs             litvecs_;
-    CondLitVecs         condlitvecs_;
-    BodyAggrElemVecs    bodyaggrelemvecs_;
-    HeadAggrElemVecs    headaggrelemvecs_;
-    Bounds              bounds_;
-    Bodies              bodies_;
-    Heads               heads_;
-    TheoryAtoms         theoryAtoms_;
-    CSPElems            cspelems_;
     TheoryOpVecs        theoryOpVecs_;
     TheoryTerms         theoryTerms_;
     RawTheoryTerms      theoryOpterms_;
-    RawTheoryTermVecs   theoryOptermVecs_;
+    RawTheoryTermVecs   theoryoptermvecs_;
     TheoryElementVecs   theoryElems_;
     TheoryOpDefs        theoryOpDefs_;
     TheoryOpDefVecs     theoryOpDefVecs_;
@@ -1068,6 +766,7 @@ private:
     std::vector<void *> arrdata_;
     */
 private:
+    Callback            cb_;
     Indexed<SAST, TermUid> terms_;
     Indexed<AST::ASTVec, TermVecUid> termvecs_;
     Indexed<std::vector<AST::ASTVec>, TermVecVecUid> termvecvecs_;
@@ -1077,7 +776,21 @@ private:
     Indexed<SAST, CSPMulTermUid> cspmulterms_;
     Indexed<SAST, CSPAddTermUid> cspaddterms_;
     Indexed<SAST, CSPLitUid> csplits_;
+    Indexed<AST::ASTVec, CondLitVecUid> condlitvecs_;
+    Indexed<AST::ASTVec, BdAggrElemVecUid> bdaggrelemvecs_;
+    Indexed<AST::ASTVec, HdAggrElemVecUid> hdaggrelemvecs_;
+    Indexed<AST::ASTVec, BoundVecUid> boundvecs_;
+    Indexed<AST::ASTVec, BdLitVecUid> bodylitvecs_;
+    Indexed<SAST, HdLitUid> heads_;
+    Indexed<SAST, TheoryAtomUid> theoryatoms_;
+    Indexed<AST::ASTVec, CSPElemVecUid> cspelems_;
+    Indexed<SAST, TheoryTermUid> theoryterms_;
+    Indexed<AST::ASTVec, TheoryOptermUid> theoryopterms_;
+    Indexed<AST::ASTVec, TheoryOptermVecUid> theoryoptermvecs_;
+    Indexed<AST::StrVec, TheoryOpVecUid> theoryopvecs_;
 };
+
+// {{{1 ast parsing
 
 struct ASTParser {
 public:
@@ -1484,12 +1197,12 @@ private:
                     case clingo_ast_type_boolean_constant: {
                         return prg_.boollit(get<Location>(ast, "location"), get<int>(ast, "value") != 0);
                     }
-                    case clingo_ast_type_comparison: {
+                    case clingo_ast_type_symbolic_atom: {
                         return prg_.predlit(get<Location>(ast, "location"),
                                             parseSign(get<int>(ast, "sign")),
                                             parseAtom(*get<SAST>(ast, "symbol")));
                     }
-                    case clingo_ast_type_symbolic_atom: {
+                    case clingo_ast_type_comparison: {
                         auto rel = parseRelation(get<int>(atom, "comparison"));
                         return prg_.rellit(get<Location>(ast, "location"),
                                            sign != NAF::NOT ? rel : neg(rel),
@@ -1834,13 +1547,15 @@ private:
     INongroundProgramBuilder &prg_;
 };
 
+// 1}}}
+
 } // namespace
 
 void parseStatement(INongroundProgramBuilder &prg, Logger &log, AST &ast) {
     ASTParser{log, prg}.parseStatement(ast);
 }
 
-/////////////////////////// AST //////////////////////////////////
+// {{{1 AST
 
 AST::AST(clingo_ast_type type)
 : type_{type} { }
@@ -1868,5 +1583,7 @@ AST::Value &AST::value(char const *name) {
 clingo_ast_type AST::type() const {
     return type_;
 }
+
+// 1}}}
 
 } } // namespace Input Gringo
