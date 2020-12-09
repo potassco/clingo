@@ -45,6 +45,7 @@ typedef int clingo_ast_value_type_t;
 
 class AST;
 using SAST = std::shared_ptr<AST>;
+using SASTCallback = std::function<void (SAST ast)>;
 
 class AST {
 public:
@@ -57,14 +58,18 @@ public:
     bool hasValue(char const *name) const;
     Value &value(char const *name);
     Value const &value(char const *name) const;
+    void value(char const *name, Value value);
     clingo_ast_type type() const;
+    SAST copy();
+    SAST deepcopy();
 
 private:
     clingo_ast_type type_;
     std::map<String, Value> values_;
 };
 
-void parseStatement(INongroundProgramBuilder &prg, Logger &log, AST &ast);
+std::unique_ptr<INongroundProgramBuilder> build(SASTCallback cb);
+void parse(INongroundProgramBuilder &prg, Logger &log, AST &ast);
 
 } } // namespace Input Gringo
 

@@ -24,6 +24,13 @@
 
 #include <clingo/astv2.hh>
 
+// TODO:
+// - replace strings by integer constants
+// - C binding
+// - !!!TEST!!!
+// - string representation
+// - unpooling
+
 namespace Gringo { namespace Input {
 
 namespace {
@@ -45,6 +52,24 @@ T *getOpt(AST &ast, char const *name) {
     return &mpark::get<T>(value);
 }
 
+struct Deepcopy {
+    template <typename T>
+    AST::Value operator()(T const &val) {
+        return val;
+    }
+    AST::Value operator()(SAST &ast) {
+        return ast->deepcopy();
+    }
+    AST::Value operator()(AST::ASTVec &asts) {
+        AST::ASTVec ret;
+        ret.reserve(asts.size());
+        for (auto &ast : asts) {
+            ret.emplace_back(ast->deepcopy());
+        }
+        return AST::Value{std::move(ret)};
+    }
+};
+
 // {{{1 ast building
 
 class ast {
@@ -57,7 +82,7 @@ public:
     : ast_{std::make_shared<AST>(type)} { }
     template <typename T>
     ast &set(char const *name, T &&value) {
-        ast_->value(name) = std::forward<T>(value);
+        ast_->value(name, std::forward<T>(value));
         return *this;
     }
     SAST move() {
@@ -72,7 +97,8 @@ private:
 
 class ASTBuilder : public Gringo::Input::INongroundProgramBuilder {
 public:
-    using Callback = std::function<void (SAST ast)>;
+    ASTBuilder(SASTCallback cb)
+    : cb_{std::move(cb)} { }
     // {{{2 terms
 
     TermUid term(Location const &loc, Symbol val) override {
@@ -169,7 +195,8 @@ public:
         return uid;
     }
 
-    // {{{2 csp
+
+   // {{{2 csp
 
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe, TermUid var) override {
         return cspmulterms_.insert(ast(clingo_ast_type_csp_product, loc)
@@ -509,6 +536,11 @@ public:
     void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override {
         auto bd = bodylitvecs_.erase(body);
         for (auto &x : termvecvecs_.erase(edges)) {
+            for (auto &x : bd) {
+                if (x.use_count() > 1) {
+                    x = x->deepcopy();
+                }
+            }
             assert(x.size() == 2);
             cb_(ast(clingo_ast_type_edge, loc)
                 .set("u", std::move(x.front()))
@@ -626,147 +658,105 @@ public:
         return opterms;
     }
 
-    /*
-    TheoryElemVecUid theoryelems() {
-        return theoryElems_.emplace();
+    TheoryElemVecUid theoryelems() override {
+        return theoryelemvecs_.emplace();
     }
 
-    TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) {
-        auto ops = theoryoptermvecs_.erase(opterms);
-        auto cnd = litvecs_.erase(cond);
-        clingo_ast_theory_atom_element_t elem;
-        elem.tuple_size     = ops.size();
-        elem.tuple          = createArray_(ops);
-        elem.condition_size = cnd.size();
-        elem.condition      = createArray_(cnd);
-        theoryElems_[elems].emplace_back(elem);
+    TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) override {
+        theoryelemvecs_[elems].emplace_back(ast(clingo_ast_type_theory_atom_element)
+            .set("tuple", theoryoptermvecs_.erase(opterms))
+            .set("elements", litvecs_.erase(cond)));
         return elems;
     }
 
-    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) {
-        auto elms = theoryElems_.erase(elems);
-        clingo_ast_theory_atom_t atom;
-        atom.term     = terms_.erase(term);
-        atom.elements = createArray_(elms);
-        atom.size     = elms.size();
-        atom.guard    = nullptr;
-        return theoryAtoms_.insert(std::move(atom));
+    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) override {
+        auto &loc = get<Location>(*terms_[term], "location");
+        return theoryatoms_.insert(ast(clingo_ast_type_theory_atom, loc)
+            .set("term", terms_.erase(term))
+            .set("elements", theoryelemvecs_.erase(elems))
+            .set("guard", mpark::monostate()));
     }
 
-    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) {
-        auto elms = theoryElems_.erase(elems);
-        clingo_ast_theory_guard_t guard;
-        guard.term          = opterm_(loc, opterm);
-        guard.operator_name = op.c_str();
-        clingo_ast_theory_atom_t atom;
-        atom.term     = terms_.erase(term);
-        atom.elements = createArray_(elms);
-        atom.size     = elms.size();
-        atom.guard    = create_(guard);
-        return theoryAtoms_.insert(std::move(atom));
+    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) override {
+        auto &aloc = get<Location>(*terms_[term], "location");
+        return theoryatoms_.insert(ast(clingo_ast_type_theory_atom, aloc)
+            .set("term", terms_.erase(term))
+            .set("elements", theoryelemvecs_.erase(elems))
+            .set("guard", ast(clingo_ast_type_theory_guard)
+                .set("operator_name", op)
+                .set("term", unparsedterm(loc, opterm))));
     }
 
     // {{{2 theory definitions
 
-    TheoryOpDefUid theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) {
-        clingo_ast_theory_operator_definition_t def;
-        def.location = convertLoc(loc);
-        def.priority = priority;
-        def.name     = op.c_str();
-        def.type     = static_cast<clingo_ast_theory_operator_type_t>(type);
-        return theoryOpDefs_.insert(std::move(def));
+    TheoryOpDefUid theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) override {
+        return theoryopdefs_.insert(ast(clingo_ast_type_theory_operator_definition, loc)
+            .set("name", op)
+            .set("priority", static_cast<int>(priority))
+            .set("operator_type", static_cast<int>(type)));
     }
 
-    TheoryOpDefVecUid theoryopdefs() {
-        return theoryOpDefVecs_.emplace();
+    TheoryOpDefVecUid theoryopdefs() override {
+        return theoryopdefvecs_.emplace();
     }
 
-    TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) {
-        theoryOpDefVecs_[defs].emplace_back(theoryOpDefs_.erase(def));
+    TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) override {
+        theoryopdefvecs_[defs].emplace_back(theoryopdefs_.erase(def));
         return defs;
     }
 
-    TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, Logger &) {
-        auto dfs = theoryOpDefVecs_.erase(defs);
-        clingo_ast_theory_term_definition_t def;
-        def.location  = convertLoc(loc);
-        def.name      = name.c_str();
-        def.operators = createArray_(dfs);
-        def.size      = dfs.size();
-        return theoryTermDefs_.insert(std::move(def));
+    TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, Logger &logger) override {
+        static_cast<void>(logger);
+        return theorytermdefs_.insert(ast(clingo_ast_type_theory_term_definition, loc)
+            .set("name", name)
+            .set("operators", theoryopdefvecs_.erase(defs)));
     }
 
-    TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) {
-        clingo_ast_theory_atom_definition_t def;
-        def.location = convertLoc(loc);
-        def.name     = name.c_str();
-        def.arity    = arity;
-        def.elements = termDef.c_str();
-        def.type     = static_cast<clingo_ast_theory_atom_definition_type_t>(type);
-        def.guard    = nullptr;
-        return theoryAtomDefs_.insert(std::move(def));
+    TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, AST::Value guard) {
+        return theoryatomdefs_.insert(ast(clingo_ast_type_theory_atom_definition, loc)
+            .set("atom_type", static_cast<int>(type))
+            .set("name", name)
+            .set("arity", static_cast<int>(arity))
+            .set("elements", termDef)
+            .set("guard", std::move(guard)));
     }
 
-    TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) {
-        auto o = theoryOpVecs_.erase(ops);
-        clingo_ast_theory_guard_definition_t guard;
-        guard.term      = guardDef.c_str();
-        guard.operators = createArray_(o);
-        guard.size      = o.size();
-        clingo_ast_theory_atom_definition_t def;
-        def.location = convertLoc(loc);
-        def.name     = name.c_str();
-        def.arity    = arity;
-        def.elements = termDef.c_str();
-        def.type     = static_cast<clingo_ast_theory_atom_definition_type_t>(type);
-        def.guard    = create_(guard);
-        return theoryAtomDefs_.insert(std::move(def));
+    TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) override {
+        return theoryatomdef(loc, name, arity, termDef, type, mpark::monostate());
     }
 
-    TheoryDefVecUid theorydefs() {
-        return theoryDefVecs_.emplace();
+    TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) override {
+        return theoryatomdef(loc, name, arity, termDef, type, ast(clingo_ast_type_theory_guard_definition)
+            .set("operators", theoryopvecs_.erase(ops))
+            .set("term", guardDef));
     }
 
-    TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) {
-        theoryDefVecs_[defs].first.emplace_back(theoryTermDefs_.erase(def));
+    TheoryDefVecUid theorydefs() override {
+        return theorydefvecs_.emplace();
+    }
+
+    TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) override {
+        theorydefvecs_[defs].first.emplace_back(theorytermdefs_.erase(def));
         return defs;
     }
 
-    TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) {
-        theoryDefVecs_[defs].second.emplace_back(theoryAtomDefs_.erase(def));
+    TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) override {
+        theorydefvecs_[defs].second.emplace_back(theoryatomdefs_.erase(def));
         return defs;
     }
 
-    void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &) {
-        auto d = theoryDefVecs_.erase(defs);
-        clingo_ast_theory_definition_t def;
-        def.name = name.c_str();
-        def.terms_size = d.first.size();
-        def.terms      = createArray_(d.first);
-        def.atoms_size = d.second.size();
-        def.atoms      = createArray_(d.second);
-        clingo_ast_statement stm;
-        stm.theory_definition = create_(def);
-        statement_(loc, clingo_ast_statement_type_theory_definition, stm);
+    void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &logger) override {
+        static_cast<void>(logger);
+        auto x = theorydefvecs_.erase(defs);
+        cb_(ast(clingo_ast_type_theory_definition, loc)
+            .set("name", name)
+            .set("terms", std::move(x.first))
+            .set("atoms", std::move(x.second)));
     }
 
     // }}}2
-
-    TheoryOpVecs        theoryOpVecs_;
-    TheoryTerms         theoryTerms_;
-    RawTheoryTerms      theoryOpterms_;
-    RawTheoryTermVecs   theoryoptermvecs_;
-    TheoryElementVecs   theoryElems_;
-    TheoryOpDefs        theoryOpDefs_;
-    TheoryOpDefVecs     theoryOpDefVecs_;
-    TheoryTermDefs      theoryTermDefs_;
-    TheoryAtomDefs      theoryAtomDefs_;
-    TheoryDefVecs       theoryDefVecs_;
-    std::vector<void *> data_;
-    std::vector<void *> arrdata_;
-    */
 private:
-    Callback            cb_;
+    SASTCallback cb_;
     Indexed<SAST, TermUid> terms_;
     Indexed<AST::ASTVec, TermVecUid> termvecs_;
     Indexed<std::vector<AST::ASTVec>, TermVecVecUid> termvecvecs_;
@@ -788,6 +778,12 @@ private:
     Indexed<AST::ASTVec, TheoryOptermUid> theoryopterms_;
     Indexed<AST::ASTVec, TheoryOptermVecUid> theoryoptermvecs_;
     Indexed<AST::StrVec, TheoryOpVecUid> theoryopvecs_;
+    Indexed<AST::ASTVec, TheoryElemVecUid> theoryelemvecs_;
+    Indexed<SAST, TheoryOpDefUid> theoryopdefs_;
+    Indexed<AST::ASTVec, TheoryOpDefVecUid> theoryopdefvecs_;
+    Indexed<SAST, TheoryTermDefUid> theorytermdefs_;
+    Indexed<SAST, TheoryAtomDefUid> theoryatomdefs_;
+    Indexed<std::pair<AST::ASTVec, AST::ASTVec>, TheoryDefVecUid> theorydefvecs_;
 };
 
 // {{{1 ast parsing
@@ -1551,7 +1547,11 @@ private:
 
 } // namespace
 
-void parseStatement(INongroundProgramBuilder &prg, Logger &log, AST &ast) {
+std::unique_ptr<INongroundProgramBuilder> build(SASTCallback cb) {
+    return std::make_unique<ASTBuilder>(std::move(cb));
+}
+
+void parse(INongroundProgramBuilder &prg, Logger &log, AST &ast) {
     ASTParser{log, prg}.parseStatement(ast);
 }
 
@@ -1578,6 +1578,22 @@ AST::Value &AST::value(char const *name) {
         throw std::runtime_error("ast does not contain the given key");
     }
     return it->second;
+}
+
+void AST::value(char const *name, Value value) {
+    values_[name] = std::move(value);
+}
+
+SAST AST::copy() {
+    return std::make_shared<AST>(*this);
+}
+
+SAST AST::deepcopy() {
+    auto ast = std::make_shared<AST>(type_);
+    for (auto &val : values_) {
+        ast->values_.emplace(val.first, mpark::visit(Deepcopy{}, val.second));
+    }
+    return ast;
 }
 
 clingo_ast_type AST::type() const {
