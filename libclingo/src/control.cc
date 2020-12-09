@@ -35,6 +35,7 @@
 #include <gringo/input/groundtermparser.hh>
 #include <gringo/input/programbuilder.hh>
 #include <gringo/input/nongroundparser.hh>
+#include <clingo/astv2.hh>
 
 #if defined CLINGO_NO_THREAD_LOCAL && ! defined EMSCRIPTEN
 #   include <thread>
@@ -1187,20 +1188,65 @@ extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_CATCH;
 }
 
+// {{{1 ast
+
+struct clingo_ast {
+    Input::SAST ast;
+};
+
+extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
+    GRINGO_CLINGO_TRY {
+        auto builder = Input::build([cb, cb_data](Input::SAST ast) {
+            handleCError(cb(reinterpret_cast<clingo_ast_t*>(&ast), cb_data));
+        });
+        bool incmode = false;
+        Input::NonGroundParser parser{*builder, incmode};
+        Logger::Printer printer;
+        if (logger) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
+        Logger log(printer, message_limit);
+        parser.pushStream("<string>", gringo_make_unique<std::istringstream>(program), log);
+        parser.parse(log);
+        if (log.hasError()) { throw std::runtime_error("syntax error"); }
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
+    GRINGO_CLINGO_TRY {
+        auto builder = Input::build([cb, cb_data](Input::SAST ast) {
+            handleCError(cb(reinterpret_cast<clingo_ast_t*>(&ast), cb_data));
+        });
+        bool incmode = false;
+        Input::NonGroundParser parser(*builder, incmode);
+        Logger::Printer printer;
+        if (logger) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
+        Logger log(printer, message_limit);
+        for (auto it = file, ie = file + n; it != ie; ++it) {
+            parser.pushFile(std::string{*it}, log);
+        }
+        if (n == 0) {
+            parser.pushFile("-", log);
+        }
+        parser.parse(log);
+        if (log.hasError()) { throw std::runtime_error("syntax error"); }
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
 // {{{1 control
 
 struct clingo_program_builder : clingo_control_t { };
-bool clingo_program_builder_begin(clingo_program_builder_t *bld) {
+extern "C" bool clingo_program_builder_begin(clingo_program_builder_t *bld) {
     GRINGO_CLINGO_TRY { bld->beginAdd(); }
     GRINGO_CLINGO_CATCH;
 }
 
-bool clingo_program_builder_add(clingo_program_builder_t *bld, clingo_ast_statement_t const *stm) {
+extern "C" bool clingo_program_builder_add(clingo_program_builder_t *bld, clingo_ast_statement_t const *stm) {
     GRINGO_CLINGO_TRY { bld->add(*stm); }
     GRINGO_CLINGO_CATCH;
 }
 
-bool clingo_program_builder_end(clingo_program_builder_t *bld) {
+extern "C" bool clingo_program_builder_end(clingo_program_builder_t *bld) {
     GRINGO_CLINGO_TRY { bld->endAdd(); }
     GRINGO_CLINGO_CATCH;
 }

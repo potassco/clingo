@@ -2998,12 +2998,84 @@ enum clingo_ast_type {
 };
 typedef int clingo_ast_type_t;
 
+enum clingo_ast_value_type {
+    clingo_ast_value_type_empty = 0,
+    clingo_ast_value_type_number = 1,
+    clingo_ast_value_type_symbol = 2,
+    clingo_ast_value_type_location = 3,
+    clingo_ast_value_type_string = 4,
+    clingo_ast_value_type_ast = 5,
+    clingo_ast_value_type_string_array = 6,
+    clingo_ast_value_type_ast_array = 7,
+};
+typedef int clingo_ast_value_type_t;
+
+enum clingo_ast_attribute {
+    clingo_ast_attribute_argument,
+    clingo_ast_attribute_arguments,
+    clingo_ast_attribute_arity,
+    clingo_ast_attribute_atom,
+    clingo_ast_attribute_atoms,
+    clingo_ast_attribute_atom_type,
+    clingo_ast_attribute_bias,
+    clingo_ast_attribute_body,
+    clingo_ast_attribute_code,
+    clingo_ast_attribute_coefficient,
+    clingo_ast_attribute_comparison,
+    clingo_ast_attribute_condition,
+    clingo_ast_attribute_csp,
+    clingo_ast_attribute_elements,
+    clingo_ast_attribute_external,
+    clingo_ast_attribute_external_type,
+    clingo_ast_attribute_function,
+    clingo_ast_attribute_guard,
+    clingo_ast_attribute_guards,
+    clingo_ast_attribute_head,
+    clingo_ast_attribute_id,
+    clingo_ast_attribute_is_default,
+    clingo_ast_attribute_left,
+    clingo_ast_attribute_left_guard,
+    clingo_ast_attribute_literal,
+    clingo_ast_attribute_location,
+    clingo_ast_attribute_modifier,
+    clingo_ast_attribute_name,
+    clingo_ast_attribute_node_u,
+    clingo_ast_attribute_node_v,
+    clingo_ast_attribute_operator,
+    clingo_ast_attribute_operator_name,
+    clingo_ast_attribute_operator_type,
+    clingo_ast_attribute_operators,
+    clingo_ast_attribute_parameters,
+    clingo_ast_attribute_priority,
+    clingo_ast_attribute_right,
+    clingo_ast_attribute_right_guard,
+    clingo_ast_attribute_script_type,
+    clingo_ast_attribute_sequence_type,
+    clingo_ast_attribute_sign,
+    clingo_ast_attribute_symbol,
+    clingo_ast_attribute_term,
+    clingo_ast_attribute_terms,
+    clingo_ast_attribute_tuple,
+    clingo_ast_attribute_value,
+    clingo_ast_attribute_var,
+    clingo_ast_attribute_variable,
+    clingo_ast_attribute_weight,
+};
+typedef int clingo_ast_attribute_t;
+
 enum clingo_ast_theory_sequence_type {
     clingo_ast_theory_sequence_type_tuple,
     clingo_ast_theory_sequence_type_list,
     clingo_ast_theory_sequence_type_set
 };
 typedef int clingo_ast_theory_sequence_type_t;
+
+typedef struct clingo_ast clingo_ast_t;
+
+typedef bool (*clingo_ast_callback_v2_t) (clingo_ast_t const *, void *);
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(char const *program, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
 
 // {{{1 program builder
 
