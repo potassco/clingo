@@ -3073,6 +3073,8 @@ typedef int clingo_ast_theory_sequence_type_t;
 typedef struct clingo_ast clingo_ast_t;
 
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_acquire(clingo_ast_t *ast);
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_release(clingo_ast_t *ast);
 
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_has_attribute(clingo_ast_t *ast, clingo_ast_attribute_t attribute, bool *has_attribute);
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_type(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_attribute_type_t *type);

@@ -1216,6 +1216,13 @@ extern "C" bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) 
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" void clingo_ast_acquire(clingo_ast_t *ast) {
+    ast->ast.incRef();
+}
+extern "C" void clingo_ast_release(clingo_ast_t *ast) {
+    ast->ast.decRef();
+}
+
 template <class T>
 T &get_attr(clingo_ast_t *ast, clingo_ast_attribute_t attribute) {
     return mpark::get<T>(ast->ast.value(static_cast<clingo_ast_attribute>(attribute)));
@@ -1360,7 +1367,7 @@ extern "C" bool clingo_ast_attribute_delete_ast_at(clingo_ast_t *ast, clingo_ast
 
 extern "C" bool clingo_ast_attribute_size_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t *size) {
     GRINGO_CLINGO_TRY {
-        *size = get_attr<Input::AST::StrVec>(ast, attribute).size();
+        *size = get_attr<Input::AST::ASTVec>(ast, attribute).size();
     }
     GRINGO_CLINGO_CATCH;
 }
