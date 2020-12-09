@@ -2998,17 +2998,17 @@ enum clingo_ast_type {
 };
 typedef int clingo_ast_type_t;
 
-enum clingo_ast_value_type {
-    clingo_ast_value_type_empty = 0,
-    clingo_ast_value_type_number = 1,
-    clingo_ast_value_type_symbol = 2,
-    clingo_ast_value_type_location = 3,
-    clingo_ast_value_type_string = 4,
-    clingo_ast_value_type_ast = 5,
-    clingo_ast_value_type_string_array = 6,
-    clingo_ast_value_type_ast_array = 7,
+enum clingo_ast_attribute_type {
+    clingo_ast_attribute_type_empty = 0,
+    clingo_ast_attribute_type_number = 1,
+    clingo_ast_attribute_type_symbol = 2,
+    clingo_ast_attribute_type_location = 3,
+    clingo_ast_attribute_type_string = 4,
+    clingo_ast_attribute_type_ast = 5,
+    clingo_ast_attribute_type_string_array = 6,
+    clingo_ast_attribute_type_ast_array = 7,
 };
-typedef int clingo_ast_value_type_t;
+typedef int clingo_ast_attribute_type_t;
 
 enum clingo_ast_attribute {
     clingo_ast_attribute_argument,
@@ -3072,7 +3072,31 @@ typedef int clingo_ast_theory_sequence_type_t;
 
 typedef struct clingo_ast clingo_ast_t;
 
-typedef bool (*clingo_ast_callback_v2_t) (clingo_ast_t const *, void *);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_has_attribute(clingo_ast_t *ast, clingo_ast_attribute_t attribute, bool *has_attribute);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_type(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_attribute_type_t *type);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_clear(clingo_ast_t *ast, clingo_ast_attribute_t attribute);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int *value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_location_t *value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_location_t const *value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute, char const **value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute, char const *value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t *value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, char const **value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, char const *value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_delete_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_size_string_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t *size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_insert_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, char const *value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t **value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t *value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_delete_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_size_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t *size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_insert_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t *value);
+
+typedef bool (*clingo_ast_callback_v2_t) (clingo_ast_t *, void *);
 
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(char const *program, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);

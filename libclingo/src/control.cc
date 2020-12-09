@@ -172,7 +172,22 @@ void clingo_terminate(char const *loc) {
 }
 
 // }}}1
+// {{{1
 
+clingo_location_t conv(Location const &loc) {
+    return {loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
+}
+
+Location conv(clingo_location_t const &loc) {
+    return { loc.begin_file,
+             static_cast<unsigned int>(loc.begin_line),
+             static_cast<unsigned int>(loc.begin_column),
+             loc.end_file,
+             static_cast<unsigned int>(loc.end_line),
+             static_cast<unsigned int>(loc.end_column)};
+}
+
+// 1}}}
 } // namespace
 
 // c interface
@@ -1191,18 +1206,182 @@ extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
 // {{{1 ast
 
 struct clingo_ast {
-    Input::SAST ast;
+    Input::AST ast;
 };
+
+extern "C" bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) {
+    GRINGO_CLINGO_TRY {
+        *type = ast->ast.type();
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+template <class T>
+T &get_attr(clingo_ast_t *ast, clingo_ast_attribute_t attribute) {
+    return mpark::get<T>(ast->ast.value(static_cast<clingo_ast_attribute>(attribute)));
+}
+
+extern "C" bool clingo_ast_has_attribute(clingo_ast_t *ast, clingo_ast_attribute_t attribute, bool *has_attribute) {
+    GRINGO_CLINGO_TRY {
+        *has_attribute = ast->ast.hasValue(static_cast<clingo_ast_attribute>(attribute));
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_type(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_attribute_type_t *type) {
+    GRINGO_CLINGO_TRY {
+        *type = static_cast<clingo_ast_attribute_type_t>(ast->ast.value(static_cast<clingo_ast_attribute>(attribute)).index());
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_clear(clingo_ast_t *ast, clingo_ast_attribute_t attribute) {
+    GRINGO_CLINGO_TRY {
+        get_attr<mpark::monostate>(ast, attribute) = mpark::monostate{};
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int *value) {
+    GRINGO_CLINGO_TRY {
+        *value = get_attr<int>(ast, attribute);
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_set_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int value) {
+    GRINGO_CLINGO_TRY {
+        get_attr<int>(ast, attribute) = value;
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_location_t *value) {
+    GRINGO_CLINGO_TRY {
+        *value = conv(get_attr<Location>(ast, attribute));
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_set_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_location_t const *value) {
+    GRINGO_CLINGO_TRY {
+        get_attr<Location>(ast, attribute) = conv(*value);
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute, char const **value) {
+    GRINGO_CLINGO_TRY {
+        *value = get_attr<String>(ast, attribute).c_str();
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_set_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute, char const *value) {
+    GRINGO_CLINGO_TRY {
+        get_attr<String>(ast, attribute) = value;
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value) {
+    GRINGO_CLINGO_TRY {
+        *value = reinterpret_cast<clingo_ast_t*>(get_attr<Input::SAST>(ast, attribute).get());
+        (*value)->ast.incRef();
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_set_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t *value) {
+    GRINGO_CLINGO_TRY {
+        get_attr<Input::SAST>(ast, attribute) = Input::SAST{reinterpret_cast<Input::AST*>(value)};
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_get_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, char const **value) {
+    GRINGO_CLINGO_TRY {
+        *value = get_attr<Input::AST::StrVec>(ast, attribute).at(index).c_str();
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_set_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, char const *value) {
+    GRINGO_CLINGO_TRY {
+        get_attr<Input::AST::StrVec>(ast, attribute).assign(index, value);
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_delete_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index) {
+    GRINGO_CLINGO_TRY {
+        auto &arr = get_attr<Input::AST::StrVec>(ast, attribute);
+        arr.erase(arr.begin() + index);
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_size_string_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t *size) {
+    GRINGO_CLINGO_TRY {
+        *size = get_attr<Input::AST::StrVec>(ast, attribute).size();
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_insert_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, char const *value) {
+    GRINGO_CLINGO_TRY {
+        auto &arr = get_attr<Input::AST::StrVec>(ast, attribute);
+        arr.insert(arr.begin() + index, value);
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_get_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t **value) {
+    GRINGO_CLINGO_TRY {
+        *value = reinterpret_cast<clingo_ast_t*>(get_attr<Input::AST::ASTVec>(ast, attribute).at(index).get());
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_set_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t *value) {
+    GRINGO_CLINGO_TRY {
+        get_attr<Input::AST::ASTVec>(ast, attribute).assign(index, Input::SAST{reinterpret_cast<Input::AST*>(value)});
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_delete_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index) {
+    GRINGO_CLINGO_TRY {
+        auto &arr = get_attr<Input::AST::ASTVec>(ast, attribute);
+        arr.erase(arr.begin() + index);
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_size_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t *size) {
+    GRINGO_CLINGO_TRY {
+        *size = get_attr<Input::AST::StrVec>(ast, attribute).size();
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_insert_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t *value) {
+    GRINGO_CLINGO_TRY {
+        auto &arr = get_attr<Input::AST::ASTVec>(ast, attribute);
+        arr.insert(arr.begin() + index, Input::SAST{reinterpret_cast<Input::AST*>(value)});
+    }
+    GRINGO_CLINGO_CATCH;
+}
 
 extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         auto builder = Input::build([cb, cb_data](Input::SAST ast) {
-            handleCError(cb(reinterpret_cast<clingo_ast_t*>(&ast), cb_data));
+            handleCError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
         });
         bool incmode = false;
         Input::NonGroundParser parser{*builder, incmode};
         Logger::Printer printer;
-        if (logger) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
+        if (logger != nullptr) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
         Logger log(printer, message_limit);
         parser.pushStream("<string>", gringo_make_unique<std::istringstream>(program), log);
         parser.parse(log);
@@ -1214,12 +1393,12 @@ extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback
 extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         auto builder = Input::build([cb, cb_data](Input::SAST ast) {
-            handleCError(cb(reinterpret_cast<clingo_ast_t*>(&ast), cb_data));
+            handleCError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
         });
         bool incmode = false;
         Input::NonGroundParser parser(*builder, incmode);
         Logger::Printer printer;
-        if (logger) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
+        if (logger != nullptr) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
         Logger log(printer, message_limit);
         for (auto it = file, ie = file + n; it != ie; ++it) {
             parser.pushFile(std::string{*it}, log);
@@ -1614,9 +1793,6 @@ public:
         if (script_.free) { script_.free(data_); }
     }
 private:
-    clingo_location_t conv(Location const &loc) {
-        return {loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
-    }
     void exec(ScriptType, Location loc, String code) override {
         if (script_.execute) {
             auto l = conv(loc);

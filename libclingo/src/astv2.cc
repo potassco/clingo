@@ -74,11 +74,11 @@ struct Deepcopy {
 class ast {
 public:
     ast(clingo_ast_type type, Location const &loc)
-    : ast_{std::make_shared<AST>(type)} {
+    : ast_{SAST{type}} {
         set(clingo_ast_attribute_location, loc);
     }
     ast(clingo_ast_type type)
-    : ast_{std::make_shared<AST>(type)} { }
+    : ast_{SAST{type}} { }
     template <typename T>
     ast &set(clingo_ast_attribute name, T &&value) {
         ast_->value(name, std::forward<T>(value));
@@ -1584,19 +1584,120 @@ void AST::value(clingo_ast_attribute name, Value value) {
 }
 
 SAST AST::copy() {
-    return std::make_shared<AST>(*this);
+    return SAST{*this};
 }
 
 SAST AST::deepcopy() {
-    auto ast = std::make_shared<AST>(type_);
+    auto ast = SAST{type_};
     for (auto &val : values_) {
         ast->values_.emplace(val.first, mpark::visit(Deepcopy{}, val.second));
     }
     return ast;
 }
 
+void AST::incRef() {
+    ++refCount_;
+}
+
+void AST::decRef() {
+    --refCount_;
+}
+
+unsigned AST::refCount() const {
+    return refCount_;
+}
+
+bool AST::unique() const {
+    return refCount_ == 1;
+}
+
 clingo_ast_type AST::type() const {
     return type_;
+}
+
+SAST::SAST()
+: ast_{nullptr} { }
+
+SAST::SAST(AST *ast)
+: ast_{ast} {
+    if (ast_ != nullptr) {
+        ast_->incRef();
+    }
+}
+
+SAST::SAST(clingo_ast_type type)
+: ast_{new AST{type}} {
+    ast_->incRef();
+}
+
+SAST::SAST(AST const &ast)
+: ast_{new AST{ast}} {
+    ast_->incRef();
+}
+
+SAST::SAST(SAST const &ast)
+: ast_{ast.ast_} {
+    if (ast_ != nullptr) {
+        ast_->incRef();
+    }
+}
+
+SAST::SAST(SAST &&ast) noexcept
+: ast_{nullptr} {
+    std::swap(ast_, ast.ast_);
+}
+
+SAST &SAST::operator=(SAST const &ast) {
+    if (this != &ast) {
+        clear();
+        if (ast.ast_ != nullptr) {
+            ast_ = ast.ast_;
+            ast_->incRef();
+        }
+    }
+    return *this;
+}
+
+SAST &SAST::operator=(SAST &&ast) noexcept {
+    std::swap(ast_, ast.ast_);
+    return *this;
+}
+
+AST *SAST::operator->() {
+    return ast_;
+}
+
+AST *SAST::operator->() const {
+    return ast_;
+}
+
+unsigned SAST::use_count() const {
+    return ast_->refCount();
+}
+
+AST *SAST::get() {
+    return ast_;
+}
+
+void SAST::clear() {
+    if (ast_ != nullptr) {
+        ast_->decRef();
+        if (ast_->refCount() == 0) {
+            delete ast_;
+        }
+    }
+}
+
+AST &SAST::operator*() {
+    return *ast_;
+}
+
+AST &SAST::operator*() const {
+    return *ast_;
+}
+
+SAST::~SAST() {
+    clear();
 }
 
 // 1}}}
