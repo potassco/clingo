@@ -3070,8 +3070,28 @@ enum clingo_ast_theory_sequence_type {
 };
 typedef int clingo_ast_theory_sequence_type_t;
 
+typedef struct clingo_ast_argument {
+    clingo_ast_attribute_t attribute;
+    clingo_ast_attribute_type_t type;
+} clingo_ast_argument_t;
+
+typedef struct clingo_ast_constructor {
+    clingo_ast_argument_t const *arguments;
+    size_t size;
+} clingo_ast_constructor_t;
+
+//extern clingo_ast_constructor_t const clingo_ast_constructor_list[];
+
+typedef struct clingo_ast_constructors {
+    clingo_ast_constructor_t const *constructors;
+    size_t size;
+} clingo_ast_constructors_t;
+
+extern clingo_ast_constructors_t g_clingo_ast_constructors;
+
 typedef struct clingo_ast clingo_ast_t;
 
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...);
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_acquire(clingo_ast_t *ast);
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_release(clingo_ast_t *ast);

@@ -36,6 +36,7 @@
 #include <gringo/input/programbuilder.hh>
 #include <gringo/input/nongroundparser.hh>
 #include <clingo/astv2.hh>
+#include <cstdarg>
 
 #if defined CLINGO_NO_THREAD_LOCAL && ! defined EMSCRIPTEN
 #   include <thread>
@@ -1209,6 +1210,140 @@ struct clingo_ast {
     Input::AST ast;
 };
 
+#define C(name) clingo_ast_argument clingo_ast_argument_##name[] =
+#define A(name, type) { clingo_ast_attribute_##name, clingo_ast_attribute_type_##type }
+#define E(name) { clingo_ast_argument_##name, sizeof(clingo_ast_argument_##name) }
+
+C(id) { A(location, location), A(id, string) };
+C(variable) { A(location, location), A(name, string) };
+C(symbol) { A(location, location), A(symbol, symbol) };
+C(unary_operation) { A(location, location), A(operator, number), A(argument, ast) };
+C(binary_operation) { A(location, location), A(operator, number), A(left, ast), A(right, ast) };
+C(interval) { A(location, location), A(left, ast), A(right, ast) };
+C(function) { A(location, location), A(name, string), A(arguments, ast_array), A(external, number) };
+C(pool) { A(location, location), A(arguments, ast_array) };
+    /*
+    // csp terms
+    clingo_ast_type_csp_product,
+    clingo_ast_type_csp_sum,
+    clingo_ast_type_csp_guard,
+    // simple atoms
+    clingo_ast_type_boolean_constant,
+    clingo_ast_type_symbolic_atom,
+    clingo_ast_type_comparison,
+    clingo_ast_type_csp_literal,
+    // aggregates
+    clingo_ast_type_aggregate_guard,
+    clingo_ast_type_conditional_literal,
+    clingo_ast_type_aggregate,
+    clingo_ast_type_body_aggregate_element,
+    clingo_ast_type_body_aggregate,
+    clingo_ast_type_head_aggregate_element,
+    clingo_ast_type_head_aggregate,
+    clingo_ast_type_disjunction,
+    clingo_ast_type_disjoint_element,
+    clingo_ast_type_disjoint,
+    // theory atoms
+    clingo_ast_type_theory_sequence,
+    clingo_ast_type_theory_function,
+    clingo_ast_type_theory_unparsed_term_element,
+    clingo_ast_type_theory_unparsed_term,
+    clingo_ast_type_theory_guard,
+    clingo_ast_type_theory_atom_element,
+    clingo_ast_type_theory_atom,
+    // literals
+    clingo_ast_type_literal,
+    // theory definition
+    clingo_ast_type_theory_operator_definition,
+    clingo_ast_type_theory_term_definition,
+    clingo_ast_type_theory_guard_definition,
+    clingo_ast_type_theory_atom_definition,
+    // statements
+    clingo_ast_type_rule,
+    clingo_ast_type_definition,
+    clingo_ast_type_show_signature,
+    clingo_ast_type_show_term,
+    clingo_ast_type_minimize,
+    clingo_ast_type_script,
+    clingo_ast_type_program,
+    clingo_ast_type_external,
+    clingo_ast_type_edge,
+    clingo_ast_type_heuristic,
+    clingo_ast_type_project_atom,
+    clingo_ast_type_project_signature,
+    clingo_ast_type_defined,
+    clingo_ast_type_theory_definition
+    */
+
+clingo_ast_constructor_t const clingo_ast_constructor_list[] = {
+    E(id),
+    E(variable),
+    E(symbol),
+    E(unary_operation),
+    E(binary_operation),
+    E(interval),
+    E(function),
+    E(pool),
+};
+
+clingo_ast_constructors_t g_clingo_ast_constructors = {
+    clingo_ast_constructor_list, sizeof(clingo_ast_constructor_list)
+};
+
+#undef E
+#undef A
+#undef C
+
+extern "C" bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...) {
+    GRINGO_CLINGO_TRY {
+        va_list args;
+        va_start(args, ast);
+
+        Input::SAST sast{static_cast<clingo_ast_type>(type)};
+
+        auto const &cons = g_clingo_ast_constructors.constructors[type];
+        for (auto it = cons.arguments, ie = it + cons.size; it != ie; ++it) {
+            auto attribute = static_cast<clingo_ast_attribute>(it->attribute);
+            switch (it->type) {
+                case clingo_ast_attribute_type_empty: {
+                    sast->value(attribute, mpark::monostate{});
+                    break;
+                }
+                case clingo_ast_attribute_type_number: {
+                    sast->value(attribute, va_arg(args, int));
+                    break;
+                }
+                case clingo_ast_attribute_type_symbol: {
+                    sast->value(attribute, Symbol{va_arg(args, clingo_symbol_t)});
+                    break;
+                }
+                case clingo_ast_attribute_type_location: {
+                    sast->value(attribute, conv(*va_arg(args, clingo_location_t*)));
+                    break;
+                }
+                case clingo_ast_attribute_type_string: {
+                    sast->value(attribute, String{va_arg(args, char const*)});
+                    break;
+                }
+                case clingo_ast_attribute_type_string_array: {
+                    auto *data = va_arg(args, char const**);
+                    sast->value(attribute, Input::AST::StrVec{data, data + va_arg(args, size_t)});
+                    break;
+                }
+                case clingo_ast_attribute_type_ast_array: {
+                    auto *data = va_arg(args, Input::AST**);
+                    sast->value(attribute, Input::AST::ASTVec{data, data + va_arg(args, size_t)});
+                    break;
+                }
+            }
+        }
+
+        sast->incRef();
+        *ast = reinterpret_cast<clingo_ast_t*>(sast.get());
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) {
     GRINGO_CLINGO_TRY {
         *type = ast->ast.type();
@@ -1219,6 +1354,7 @@ extern "C" bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) 
 extern "C" void clingo_ast_acquire(clingo_ast_t *ast) {
     ast->ast.incRef();
 }
+
 extern "C" void clingo_ast_release(clingo_ast_t *ast) {
     ast->ast.decRef();
 }
