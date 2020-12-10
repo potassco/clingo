@@ -1210,11 +1210,14 @@ struct clingo_ast {
     Input::AST ast;
 };
 
-#define C(name) clingo_ast_argument clingo_ast_argument_##name[] =
+#define C(name) \
+    static_assert(clingo_ast_type_##name >= 0, "no matching type existis"); \
+    clingo_ast_argument clingo_ast_argument_##name[] =
 #define A(name, type) { clingo_ast_attribute_##name, clingo_ast_attribute_type_##type }
-#define E(name) { clingo_ast_argument_##name, sizeof(clingo_ast_argument_##name) }
+#define E(name) { #name, clingo_ast_argument_##name, sizeof(clingo_ast_argument_##name) / sizeof(clingo_ast_argument_t) }
 
-C(id) { A(location, location), A(id, string) };
+// terms
+C(id) { A(location, location), A(name, string) };
 C(variable) { A(location, location), A(name, string) };
 C(symbol) { A(location, location), A(symbol, symbol) };
 C(unary_operation) { A(location, location), A(operator, number), A(argument, ast) };
@@ -1222,60 +1225,59 @@ C(binary_operation) { A(location, location), A(operator, number), A(left, ast), 
 C(interval) { A(location, location), A(left, ast), A(right, ast) };
 C(function) { A(location, location), A(name, string), A(arguments, ast_array), A(external, number) };
 C(pool) { A(location, location), A(arguments, ast_array) };
-    /*
-    // csp terms
-    clingo_ast_type_csp_product,
-    clingo_ast_type_csp_sum,
-    clingo_ast_type_csp_guard,
-    // simple atoms
-    clingo_ast_type_boolean_constant,
-    clingo_ast_type_symbolic_atom,
-    clingo_ast_type_comparison,
-    clingo_ast_type_csp_literal,
-    // aggregates
-    clingo_ast_type_aggregate_guard,
-    clingo_ast_type_conditional_literal,
-    clingo_ast_type_aggregate,
-    clingo_ast_type_body_aggregate_element,
-    clingo_ast_type_body_aggregate,
-    clingo_ast_type_head_aggregate_element,
-    clingo_ast_type_head_aggregate,
-    clingo_ast_type_disjunction,
-    clingo_ast_type_disjoint_element,
-    clingo_ast_type_disjoint,
-    // theory atoms
-    clingo_ast_type_theory_sequence,
-    clingo_ast_type_theory_function,
-    clingo_ast_type_theory_unparsed_term_element,
-    clingo_ast_type_theory_unparsed_term,
-    clingo_ast_type_theory_guard,
-    clingo_ast_type_theory_atom_element,
-    clingo_ast_type_theory_atom,
-    // literals
-    clingo_ast_type_literal,
-    // theory definition
-    clingo_ast_type_theory_operator_definition,
-    clingo_ast_type_theory_term_definition,
-    clingo_ast_type_theory_guard_definition,
-    clingo_ast_type_theory_atom_definition,
-    // statements
-    clingo_ast_type_rule,
-    clingo_ast_type_definition,
-    clingo_ast_type_show_signature,
-    clingo_ast_type_show_term,
-    clingo_ast_type_minimize,
-    clingo_ast_type_script,
-    clingo_ast_type_program,
-    clingo_ast_type_external,
-    clingo_ast_type_edge,
-    clingo_ast_type_heuristic,
-    clingo_ast_type_project_atom,
-    clingo_ast_type_project_signature,
-    clingo_ast_type_defined,
-    clingo_ast_type_theory_definition
-    */
+// csp terms
+C(csp_product) { A(location, location), A(coefficient, ast), A(variable, ast) };
+C(csp_sum) { A(location, location), A(coefficient, ast), A(variable, ast) };
+C(csp_guard) { A(location, location), A(comparison, number), A(term, ast) };
+// simple atoms
+C(boolean_constant) { A(location, location), A(value, number) };
+C(symbolic_atom) { A(term, ast) };
+C(comparison) { A(comparison, number), A(left, ast), A(right, ast) };
+C(csp_literal) { A(location, location), A(term, ast), A(guards, ast_array) };
+// aggregates
+C(aggregate_guard) { A(comparison, number), A(term, ast) };
+C(conditional_literal) { A(location, location), A(literal, ast), A(condition, ast_array) };
+C(aggregate) { A(location, location), A(left_guard, optional_ast), A(elements, ast_array), A(right_guard, optional_ast) };
+C(body_aggregate_element) { A(tuple, ast_array), A(condition, ast_array) };
+C(body_aggregate) { A(location, location), A(left_guard, optional_ast), A(function, number), A(elements, ast_array), A(right_guard, optional_ast) };
+C(head_aggregate_element) { A(tuple, ast_array), A(condition, ast_array) };
+C(head_aggregate) { A(location, location), A(left_guard, optional_ast), A(function, number), A(elements, ast_array), A(right_guard, optional_ast) };
+C(disjunction) { A(location, location), A(elements, ast_array) };
+C(disjoint_element) { A(location, location), A(tuple, ast_array), A(term, ast), A(condition, ast_array) };
+C(disjoint) { A(location, location), A(elements, ast_array) };
+// theory atoms
+C(theory_sequence) { A(location, location), A(sequence_type, number), A(terms, ast_array) };
+C(theory_function) { A(location, location), A(name, string), A(terms, ast_array) };
+C(theory_unparsed_term_element) { A(operators, string_array), A(term, ast) };
+C(theory_unparsed_term) { A(location, location), A(elements, ast_array) };
+C(theory_guard) { A(operator_name, string), A(term, ast) };
+C(theory_atom_element) { A(tuple, ast_array), A(condition, ast_array) };
+C(theory_atom) { A(tuple, ast_array), A(term, ast), A(elements, ast_array), A(guard, ast_array) };
+// literals
+C(literal) { A(location, location), A(sign, number), A(atom, ast) };
+// theory definition
+C(theory_operator_definition) { A(location, location), A(name, string), A(priority, number), A(operator_type, number) };
+C(theory_term_definition) { A(location, location), A(name, string), A(operators, ast_array) };
+C(theory_guard_definition) { A(operators, string_array), A(term, string) };
+C(theory_atom_definition) { A(location, location), A(atom_type, number), A(name, string), A(arity, number), A(elements, string_array), A(guard, optional_ast) };
+// statemets
+C(rule) { A(location, location), A(head, ast), A(body, ast_array) };
+C(definition) { A(location, location), A(name, string), A(value, ast), A(is_default, number) };
+C(show_signature) { A(location, location), A(name, string), A(arity, number), A(sign, number), A(csp, number) };
+C(show_term) { A(location, location), A(term, ast), A(body, ast_array), A(csp, number) };
+C(minimize) { A(location, location), A(weight, ast), A(priority, number), A(tuple, ast_array), A(body, ast_array) };
+C(script) { A(location, location), A(script_type, number), A(code, string) };
+C(program) { A(location, location), A(name, string), A(parameters, ast_array) };
+C(external) { A(location, location), A(atom, ast), A(body, ast_array), A(external_type, ast) };
+C(edge) { A(location, location), A(node_u, ast), A(node_v, ast), A(body, ast_array) };
+C(heuristic) { A(location, location), A(atom, ast), A(body, ast_array), A(bias, ast), A(priority, ast), A(modifier, ast) };
+C(project_atom) { A(location, location), A(atom, ast), A(body, ast_array) };
+C(project_signature) { A(location, location), A(name, string), A(arity, number), A(sign, number) };
+C(defined) { A(location, location), A(name, string), A(arity, number), A(sign, number) };
+C(theory_definition) { A(location, location), A(name, string), A(terms, ast_array), A(atoms, ast_array) };
 
 clingo_ast_constructor_t const clingo_ast_constructor_list[] = {
+    // terms
     E(id),
     E(variable),
     E(symbol),
@@ -1284,10 +1286,116 @@ clingo_ast_constructor_t const clingo_ast_constructor_list[] = {
     E(interval),
     E(function),
     E(pool),
+    // csp terms
+    E(csp_product),
+    E(csp_sum),
+    E(csp_guard),
+    // simple atoms
+    E(boolean_constant),
+    E(symbolic_atom),
+    E(comparison),
+    E(csp_literal),
+    // aggregates
+    E(aggregate_guard),
+    E(conditional_literal),
+    E(aggregate),
+    E(body_aggregate_element),
+    E(body_aggregate),
+    E(head_aggregate_element),
+    E(head_aggregate),
+    E(disjunction),
+    E(disjoint_element),
+    E(disjoint),
+    // theory atoms
+    E(theory_sequence),
+    E(theory_function),
+    E(theory_unparsed_term_element),
+    E(theory_unparsed_term),
+    E(theory_guard),
+    E(theory_atom_element),
+    E(theory_atom),
+    // literals
+    E(literal),
+    // theory definition
+    E(theory_operator_definition),
+    E(theory_term_definition),
+    E(theory_guard_definition),
+    E(theory_atom_definition),
+    // statemets
+    E(rule),
+    E(definition),
+    E(show_signature),
+    E(show_term),
+    E(minimize),
+    E(script),
+    E(program),
+    E(external),
+    E(edge),
+    E(heuristic),
+    E(project_atom),
+    E(project_signature),
+    E(defined),
+    E(theory_definition)
 };
 
 clingo_ast_constructors_t g_clingo_ast_constructors = {
-    clingo_ast_constructor_list, sizeof(clingo_ast_constructor_list)
+    clingo_ast_constructor_list, sizeof(clingo_ast_constructor_list) / sizeof(clingo_ast_constructor_t)
+};
+
+char const * attribute_list[] = {
+    "argument",
+    "arguments",
+    "arity",
+    "atom",
+    "atoms",
+    "atom_type",
+    "bias",
+    "body",
+    "code",
+    "coefficient",
+    "comparison",
+    "condition",
+    "csp",
+    "elements",
+    "external",
+    "external_type",
+    "function",
+    "guard",
+    "guards",
+    "head",
+    "is_default",
+    "left",
+    "left_guard",
+    "literal",
+    "location",
+    "modifier",
+    "name",
+    "node_u",
+    "node_v",
+    "operator",
+    "operator_name",
+    "operator_type",
+    "operators",
+    "parameters",
+    "priority",
+    "right",
+    "right_guard",
+    "script_type",
+    "sequence_type",
+    "sign",
+    "symbol",
+    "term",
+    "terms",
+    "tuple",
+    "value",
+    "var",
+    "variable",
+    "weight",
+};
+
+clingo_ast_attribute_names_t g_clingo_ast_attribute_names = {
+    attribute_list,
+    sizeof(attribute_list) / sizeof(char const *)
 };
 
 #undef E
@@ -1304,11 +1412,7 @@ extern "C" bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...
         auto const &cons = g_clingo_ast_constructors.constructors[type];
         for (auto it = cons.arguments, ie = it + cons.size; it != ie; ++it) {
             auto attribute = static_cast<clingo_ast_attribute>(it->attribute);
-            switch (it->type) {
-                case clingo_ast_attribute_type_empty: {
-                    sast->value(attribute, mpark::monostate{});
-                    break;
-                }
+            switch (static_cast<enum clingo_ast_attribute_type>(it->type)) {
                 case clingo_ast_attribute_type_number: {
                     sast->value(attribute, va_arg(args, int));
                     break;
@@ -1323,6 +1427,14 @@ extern "C" bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...
                 }
                 case clingo_ast_attribute_type_string: {
                     sast->value(attribute, String{va_arg(args, char const*)});
+                    break;
+                }
+                case clingo_ast_attribute_type_ast: {
+                    sast->value(attribute, Input::OAST{Input::SAST{va_arg(args, Input::AST*)}});
+                    break;
+                }
+                case clingo_ast_attribute_type_optional_ast: {
+                    sast->value(attribute, Input::SAST{va_arg(args, Input::AST*)});
                     break;
                 }
                 case clingo_ast_attribute_type_string_array: {
@@ -1378,13 +1490,6 @@ extern "C" bool clingo_ast_attribute_type(clingo_ast_t *ast, clingo_ast_attribut
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_ast_attribute_clear(clingo_ast_t *ast, clingo_ast_attribute_t attribute) {
-    GRINGO_CLINGO_TRY {
-        get_attr<mpark::monostate>(ast, attribute) = mpark::monostate{};
-    }
-    GRINGO_CLINGO_CATCH;
-}
-
 extern "C" bool clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int *value) {
     GRINGO_CLINGO_TRY {
         *value = get_attr<int>(ast, attribute);
@@ -1427,6 +1532,23 @@ extern "C" bool clingo_ast_attribute_set_string(clingo_ast_t *ast, clingo_ast_at
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_ast_attribute_get_optional_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value) {
+    GRINGO_CLINGO_TRY {
+        *value = reinterpret_cast<clingo_ast_t*>(get_attr<Input::OAST>(ast, attribute).ast.get());
+        if (*value != nullptr) {
+            (*value)->ast.incRef();
+        }
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_set_optional_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t *value) {
+    GRINGO_CLINGO_TRY {
+        get_attr<Input::OAST>(ast, attribute).ast = Input::SAST{reinterpret_cast<Input::AST*>(value)};
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value) {
     GRINGO_CLINGO_TRY {
         *value = reinterpret_cast<clingo_ast_t*>(get_attr<Input::SAST>(ast, attribute).get());
@@ -1437,6 +1559,9 @@ extern "C" bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attri
 
 extern "C" bool clingo_ast_attribute_set_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t *value) {
     GRINGO_CLINGO_TRY {
+        if (value == nullptr) {
+            throw std::runtime_error("ast must not be null");
+        }
         get_attr<Input::SAST>(ast, attribute) = Input::SAST{reinterpret_cast<Input::AST*>(value)};
     }
     GRINGO_CLINGO_CATCH;
@@ -1488,6 +1613,9 @@ extern "C" bool clingo_ast_attribute_get_ast_at(clingo_ast_t *ast, clingo_ast_at
 
 extern "C" bool clingo_ast_attribute_set_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t *value) {
     GRINGO_CLINGO_TRY {
+        if (value == nullptr) {
+            throw std::runtime_error("ast must not be null");
+        }
         get_attr<Input::AST::ASTVec>(ast, attribute).assign(index, Input::SAST{reinterpret_cast<Input::AST*>(value)});
     }
     GRINGO_CLINGO_CATCH;
@@ -1510,6 +1638,9 @@ extern "C" bool clingo_ast_attribute_size_ast_array(clingo_ast_t *ast, clingo_as
 
 extern "C" bool clingo_ast_attribute_insert_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t *value) {
     GRINGO_CLINGO_TRY {
+        if (value == nullptr) {
+            throw std::runtime_error("ast must not be null");
+        }
         auto &arr = get_attr<Input::AST::ASTVec>(ast, attribute);
         arr.insert(arr.begin() + index, Input::SAST{reinterpret_cast<Input::AST*>(value)});
     }

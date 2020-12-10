@@ -172,7 +172,7 @@ public:
 
     IdVecUid idvec(IdVecUid uid, Location const &loc, String id) override {
         idvecs_[uid].emplace_back(ast(clingo_ast_type_id, loc)
-            .set(clingo_ast_attribute_id, id));
+            .set(clingo_ast_attribute_name, id));
         return uid;
     }
 
@@ -200,13 +200,13 @@ public:
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe, TermUid var) override {
         return cspmulterms_.insert(ast(clingo_ast_type_csp_product, loc)
             .set(clingo_ast_attribute_coefficient, terms_.erase(coe))
-            .set(clingo_ast_attribute_var, terms_.erase(var)));
+            .set(clingo_ast_attribute_var, OAST{terms_.erase(var)}));
     }
 
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe) override {
         return cspmulterms_.insert(ast(clingo_ast_type_csp_product, loc)
             .set(clingo_ast_attribute_coefficient, terms_.erase(coe))
-            .set(clingo_ast_attribute_var, mpark::monostate()));
+            .set(clingo_ast_attribute_var, OAST{SAST{nullptr}}));
     }
 
     CSPAddTermUid cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) override {
@@ -244,8 +244,7 @@ public:
     // {{{2 literals
 
     SAST symbolicatom(TermUid termUid) {
-        auto &loc = get<Location>(*terms_[termUid], clingo_ast_attribute_location);
-        return ast(clingo_ast_type_symbolic_atom, loc)
+        return ast(clingo_ast_type_symbolic_atom)
                 .set(clingo_ast_attribute_symbol, terms_.erase(termUid));
     }
 
@@ -265,7 +264,7 @@ public:
     LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override {
         return lits_.insert(ast(clingo_ast_type_literal, loc)
             .set(clingo_ast_attribute_sign, static_cast<int>(clingo_ast_sign_none))
-            .set(clingo_ast_attribute_atom, ast(clingo_ast_type_comparison, loc)
+            .set(clingo_ast_attribute_atom, ast(clingo_ast_type_comparison)
                 .set(clingo_ast_attribute_comparison, static_cast<int>(rel))
                 .set(clingo_ast_attribute_left, terms_.erase(termUidLeft))
                 .set(clingo_ast_attribute_right, terms_.erase(termUidRight))));
@@ -364,17 +363,17 @@ public:
     }
 
     std::pair<AST::Value, AST::Value> guards_(BoundVecUid bounds) {
-        AST::Value leftGuard = mpark::monostate();
-        AST::Value rightGuard = mpark::monostate();
+        AST::Value leftGuard = OAST{SAST{nullptr}};
+        AST::Value rightGuard = OAST{SAST{nullptr}};
         auto guards = boundvecs_.erase(bounds);
         assert(guards.size() < 3);
         if (!guards.empty()) {
             auto &rel = get<int>(*guards.front(), clingo_ast_attribute_comparison);
             rel = static_cast<int>(inv(static_cast<Relation>(rel)));
-            leftGuard = std::move(guards.front());
+            leftGuard = OAST{std::move(guards.front())};
         }
         if (guards.size() > 1) {
-            rightGuard = std::move(guards.back());
+            rightGuard = OAST{std::move(guards.back())};
         }
         return {std::move(leftGuard), std::move(rightGuard)};
     }
@@ -673,7 +672,7 @@ public:
         return theoryatoms_.insert(ast(clingo_ast_type_theory_atom, loc)
             .set(clingo_ast_attribute_term, terms_.erase(term))
             .set(clingo_ast_attribute_elements, theoryelemvecs_.erase(elems))
-            .set(clingo_ast_attribute_guard, mpark::monostate()));
+            .set(clingo_ast_attribute_guard, OAST{SAST{nullptr}}));
     }
 
     TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) override {
@@ -681,9 +680,9 @@ public:
         return theoryatoms_.insert(ast(clingo_ast_type_theory_atom, aloc)
             .set(clingo_ast_attribute_term, terms_.erase(term))
             .set(clingo_ast_attribute_elements, theoryelemvecs_.erase(elems))
-            .set(clingo_ast_attribute_guard, ast(clingo_ast_type_theory_guard)
+            .set(clingo_ast_attribute_guard, OAST{ast(clingo_ast_type_theory_guard)
                 .set(clingo_ast_attribute_operator_name, op)
-                .set(clingo_ast_attribute_term, unparsedterm(loc, opterm))));
+                .set(clingo_ast_attribute_term, unparsedterm(loc, opterm))}));
     }
 
     // {{{2 theory definitions
@@ -721,13 +720,13 @@ public:
     }
 
     TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) override {
-        return theoryatomdef(loc, name, arity, termDef, type, mpark::monostate());
+        return theoryatomdef(loc, name, arity, termDef, type, OAST{SAST{nullptr}});
     }
 
     TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) override {
-        return theoryatomdef(loc, name, arity, termDef, type, ast(clingo_ast_type_theory_guard_definition)
+        return theoryatomdef(loc, name, arity, termDef, type, OAST{ast(clingo_ast_type_theory_guard_definition)
             .set(clingo_ast_attribute_operators, theoryopvecs_.erase(ops))
-            .set(clingo_ast_attribute_term, guardDef));
+            .set(clingo_ast_attribute_term, guardDef)});
     }
 
     TheoryDefVecUid theorydefs() override {
@@ -905,7 +904,7 @@ private:
         auto uid = prg_.idvec();
         for (auto &ast : asts) {
             require_(ast->type() == clingo_ast_type_id, "invalid ast: id required");
-            prg_.idvec(uid, get<Location>(*ast, clingo_ast_attribute_location), get<String>(*ast, clingo_ast_attribute_id));
+            prg_.idvec(uid, get<Location>(*ast, clingo_ast_attribute_location), get<String>(*ast, clingo_ast_attribute_name));
         }
         return uid;
     }
@@ -1022,11 +1021,11 @@ private:
 
     CSPMulTermUid parseCSPMulTerm(AST &ast) {
         require_(ast.type() == clingo_ast_type_csp_product, "invalid ast: csp product required");
-        auto *variable = getOpt<SAST>(ast, clingo_ast_attribute_variable);
-        return variable != nullptr
+        auto *variable = getOpt<OAST>(ast, clingo_ast_attribute_variable);
+        return variable->ast.get() != nullptr
             ? prg_.cspmulterm(get<Location>(ast, clingo_ast_attribute_location),
                               parseTerm(*get<SAST>(ast, clingo_ast_attribute_coefficient)),
-                              parseTerm(**variable))
+                              parseTerm(*variable->ast))
             : prg_.cspmulterm(get<Location>(ast, clingo_ast_attribute_location),
                               parseTerm(*get<SAST>(ast, clingo_ast_attribute_coefficient)));
     }
@@ -1267,17 +1266,17 @@ private:
 
     BoundVecUid parseBounds(AST &ast) {
         auto ret = prg_.boundvec();
-        auto *right = getOpt<SAST>(ast, clingo_ast_attribute_right_guard);
-        if (right != nullptr) {
+        auto *right = getOpt<OAST>(ast, clingo_ast_attribute_right_guard);
+        if (right->ast.get() != nullptr) {
             ret = prg_.boundvec(ret,
-                                parseRelation(get<int>(**right, clingo_ast_attribute_comparison)),
-                                parseTerm(*get<SAST>(**right, clingo_ast_attribute_term)));
+                                parseRelation(get<int>(*right->ast, clingo_ast_attribute_comparison)),
+                                parseTerm(*get<SAST>(*right->ast, clingo_ast_attribute_term)));
         }
-        auto *left = getOpt<SAST>(ast, clingo_ast_attribute_left_guard);
-        if (left != nullptr) {
+        auto *left = getOpt<OAST>(ast, clingo_ast_attribute_left_guard);
+        if (left->ast.get() != nullptr) {
             ret = prg_.boundvec(ret,
-                                inv(parseRelation(get<int>(**left, clingo_ast_attribute_comparison))),
-                                parseTerm(*get<SAST>(**left, clingo_ast_attribute_term)));
+                                inv(parseRelation(get<int>(*left->ast, clingo_ast_attribute_comparison))),
+                                parseTerm(*get<SAST>(*left->ast, clingo_ast_attribute_term)));
         }
         return ret;
     }
@@ -1343,15 +1342,15 @@ private:
     TheoryAtomUid parseTheoryAtom(AST &ast) {
         require_(ast.type() == clingo_ast_type_theory_atom, "invalid ast: theory atom expected");
         auto &loc = get<Location>(ast, clingo_ast_attribute_location);
-        auto *guard = getOpt<SAST>(ast, clingo_ast_attribute_guard);
+        auto *guard = getOpt<OAST>(ast, clingo_ast_attribute_guard);
         auto term = parseTerm(*get<SAST>(ast, clingo_ast_attribute_term));
         auto elements = parseTheoryElemVec(get<AST::ASTVec>(ast, clingo_ast_attribute_elements));
-        return guard != nullptr
+        return guard->ast.get() != nullptr
             ? prg_.theoryatom(term,
                               elements,
-                              get<String>(**guard, clingo_ast_attribute_operator_name),
+                              get<String>(*guard->ast, clingo_ast_attribute_operator_name),
                               loc,
-                              parseTheoryOpterm(*get<SAST>(**guard, clingo_ast_attribute_term)))
+                              parseTheoryOpterm(*get<SAST>(*guard->ast, clingo_ast_attribute_term)))
             : prg_.theoryatom(term, elements);
 
     }
@@ -1501,16 +1500,16 @@ private:
 
     TheoryAtomDefUid parseTheoryAtomDefinition(AST &ast) {
         require_(ast.type() == clingo_ast_type_theory_atom_definition, "invalid ast: theory atom definition expected");
-        auto *guard = getOpt<SAST>(ast, clingo_ast_attribute_guard);
+        auto *guard = getOpt<OAST>(ast, clingo_ast_attribute_guard);
         auto &loc = get<Location>(ast, clingo_ast_attribute_location);
         auto name = get<String>(ast, clingo_ast_attribute_name);
         auto arity = get<int>(ast, clingo_ast_attribute_arity);
         auto elements = get<String>(ast, clingo_ast_attribute_elements);
         auto type = parseTheoryAtomType(get<int>(ast, clingo_ast_attribute_atom_type));
-        return guard != nullptr
+        return guard->ast.get() != nullptr
             ? prg_.theoryatomdef(loc, name, arity, elements, type,
-                                 parseTheoryOpVec(get<AST::StrVec>(**guard, clingo_ast_attribute_operators)),
-                                 get<String>(**guard, clingo_ast_attribute_term))
+                                 parseTheoryOpVec(get<AST::StrVec>(*guard->ast, clingo_ast_attribute_operators)),
+                                 get<String>(*guard->ast, clingo_ast_attribute_term))
             : prg_.theoryatomdef(loc, name, arity, elements, type);
     }
 

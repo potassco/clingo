@@ -32,13 +32,14 @@
 namespace Gringo { namespace Input {
 
 class SAST;
+class OAST;
 using SASTCallback = std::function<void (SAST ast)>;
 
 class AST {
 public:
     using StrVec = std::vector<String>;
     using ASTVec = std::vector<SAST>;
-    using Value = mpark::variant<mpark::monostate, int, Symbol, Location, String, SAST, StrVec, ASTVec>;
+    using Value = mpark::variant<int, Symbol, Location, String, SAST, OAST, StrVec, ASTVec>;
 
     AST(clingo_ast_type type);
 
@@ -83,6 +84,10 @@ public:
     ~SAST();
 private:
     AST *ast_;
+};
+
+struct OAST {
+    SAST ast;
 };
 
 std::unique_ptr<INongroundProgramBuilder> build(SASTCallback cb);
