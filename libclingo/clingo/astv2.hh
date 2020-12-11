@@ -61,6 +61,8 @@ private:
     std::map<clingo_ast_attribute, Value> values_;
 };
 
+std::ostream &operator<<(std::ostream &out, AST const &ast);
+
 // Note: we do not need all the shared pointer functionality and also want to
 //       have control about the refcount without.
 class SAST {
@@ -70,15 +72,13 @@ public:
     SAST(SAST &&ast) noexcept;
     SAST &operator=(SAST const &ast);
     SAST &operator=(SAST &&ast) noexcept;
-    AST *operator->();
     AST *operator->() const;
-    AST &operator*();
     AST &operator*() const;
 
     explicit SAST(clingo_ast_type type);
     explicit SAST(AST const &ast);
     explicit SAST(AST *ast);
-    AST *get();
+    AST *get() const;
     unsigned use_count() const;
     void clear();
     ~SAST();

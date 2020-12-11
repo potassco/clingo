@@ -1662,10 +1662,6 @@ SAST &SAST::operator=(SAST &&ast) noexcept {
     return *this;
 }
 
-AST *SAST::operator->() {
-    return ast_;
-}
-
 AST *SAST::operator->() const {
     return ast_;
 }
@@ -1674,7 +1670,7 @@ unsigned SAST::use_count() const {
     return ast_->refCount();
 }
 
-AST *SAST::get() {
+AST *SAST::get() const {
     return ast_;
 }
 
@@ -1687,10 +1683,6 @@ void SAST::clear() {
     }
 }
 
-AST &SAST::operator*() {
-    return *ast_;
-}
-
 AST &SAST::operator*() const {
     return *ast_;
 }
@@ -1700,5 +1692,371 @@ SAST::~SAST() {
 }
 
 // 1}}}
+
+struct PrintValue {
+    void operator()(int num) {
+        out << num;
+    }
+
+    void operator()(Symbol sym) {
+        out << sym;
+    }
+
+    void operator()(Location const &loc) {
+        out << loc;
+    }
+
+    void operator()(String str) {
+        out << str;
+    }
+
+    void operator()(SAST const &ast) {
+        out << *ast;
+    }
+
+    void operator()(OAST const &ast) {
+        if (ast.ast.get() != nullptr) {
+            out << *ast.ast;
+        }
+    }
+
+    void operator()(AST::ASTVec const &asts) {
+        bool comma = false;
+        for (auto const &ast : asts) {
+            if (comma) {
+                out << ",";
+            }
+            out << *ast;
+            comma = true;
+        }
+    }
+
+    void operator()(AST::StrVec const &strs) {
+        bool comma = false;
+        for (auto const &str : strs) {
+            if (comma) {
+                out << ",";
+            }
+            out << str;
+            comma = true;
+        }
+    }
+
+    std::ostream &out;
+};
+
+struct print {
+    print(AST const &ast, clingo_ast_attribute attr)
+    : ast{ast}
+    , attr{attr} { }
+    AST const &ast;
+    clingo_ast_attribute attr;
+};
+
+std::ostream &operator<<(std::ostream &out, print &&value) {
+    mpark::visit(PrintValue{out}, value.ast.value(value.attr));
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, AST const &ast) {
+    switch (ast.type()) {
+        // {{{1 term
+        case clingo_ast_type_id:
+        case clingo_ast_type_variable: {
+            out << print(ast, clingo_ast_attribute_name);
+            break;
+        }
+        case clingo_ast_type_symbol: {
+            out << print(ast, clingo_ast_attribute_symbol);
+            break;
+        }
+        /*
+        case clingo_ast_type_unary_operation: {
+            Object unop = fields_.getItem("operator");
+            out << unop.getAttr("left_hand_side") << fields_.getItem("argument") << unop.getAttr("right_hand_side");
+            break;
+        }
+        case clingo_ast_type_binary_operation: {
+            out << "(" << fields_.getItem("left") << fields_.getItem("operator") << fields_.getItem("right") << ")";
+            break;
+        }
+        case clingo_ast_type_interval: {
+            out << "(" << fields_.getItem("left") << ".." << fields_.getItem("right") << ")";
+            break;
+        }
+        case clingo_ast_type_function: {
+            Object name = fields_.getItem("name"), args = fields_.getItem("arguments");
+            bool tc = name.size() == 0 && args.size() == 1;
+            bool ey = name.size() == 0 && args.empty();
+            out << (fields_.getItem("external").isTrue() ? "@" : "") << name << printList(args, "(", ",", tc ? ",)" : ")", ey);
+            break;
+        }
+        case clingo_ast_type_pool: {
+            Object args = fields_.getItem("arguments");
+            if (args.empty()) { out << "(1/0)"; }
+            if (args.size() == 1) { out << args.getItem(0); }
+            else {
+                bool equal = true, old_ext = false;
+                Object old_name;
+                for (auto arg : args.iter()) {
+                    if (arg.getAttr("type") == clingo_ast_type_get_attr(clingo_ast_type_function)) {
+                        auto name = arg.getAttr("name");
+                        auto ext = pyToCpp<bool>(arg.getAttr("external"));
+                        if (!old_name.valid()) {
+                            old_name = name;
+                            old_ext = ext;
+                        }
+                        else if (name != old_name || ext != old_ext) {
+                            equal = false;
+                            break;
+                        }
+                    }
+                    else {
+                        equal = false;
+                        break;
+                    }
+                }
+                if (equal) {
+                    out << (old_ext ? "@" : "") << old_name << "(";
+                    bool sem = false;
+                    for (auto arg : args.iter()) {
+                        if (sem) { out << ";"; }
+                        else { sem = true; }
+                        auto pargs = arg.getAttr("arguments");
+                        bool tc = old_name.size() == 0 && pargs.size() == 1;
+                        out << printList(pargs, "", ",", tc ? "," : "", true);
+                    }
+                    out << ")";
+                }
+                else {
+                    out << printList(args, "(", ";", ")", true);
+                }
+            }
+            break;
+        }
+        case clingo_ast_type_csp_product: {
+            auto var = fields_.getItem("variable");
+            auto coe = fields_.getItem("coefficient");
+            if (!var.is_none()) { out << coe << "$*" << "$" << var; }
+            else             { out << coe; }
+            break;
+        }
+        case clingo_ast_type_csp_sum: {
+            auto terms = fields_.getItem("terms");
+            if (terms.empty()) { out << "0"; }
+            else               { out << printList(terms, "", "$+", "", false); }
+            break;
+        }
+        // {{{1 literal
+        case clingo_ast_type_literal: {
+            out << fields_.getItem("sign") << fields_.getItem("atom");
+            break;
+        }
+        case clingo_ast_type_boolean_constant: {
+            out << (fields_.getItem("value").isTrue() ? "#true" : "#false");
+            break;
+        }
+        case clingo_ast_type_symbolic_atom: {
+            out << fields_.getItem("term");
+            break;
+        }
+        case clingo_ast_type_comparison: {
+            out << fields_.getItem("left") << fields_.getItem("comparison") << fields_.getItem("right");
+            break;
+        }
+        case clingo_ast_type_csp_guard: {
+            out << "$" << fields_.getItem("comparison") << fields_.getItem("term");
+            break;
+        }
+        case clingo_ast_type_csp_literal: {
+            out << fields_.getItem("term") << printList(fields_.getItem("guards"), "", "", "", false);
+            break;
+        }
+        // {{{1 aggregate
+        case clingo_ast_type_aggregate_guard: {
+            out << "AggregateGuard(" << fields_.getItem("comparison") << ", " << fields_.getItem("term") << ")";
+            break;
+        }
+        case clingo_ast_type_conditional_literal: {
+            out << fields_.getItem("literal") << printList(fields_.getItem("condition"), " : ", ", ", "", true);
+            break;
+        }
+        case clingo_ast_type_aggregate: {
+            auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
+            if (!left.is_none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+            out << "{ " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
+            if (!right.is_none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+            break;
+        }
+        case clingo_ast_type_body_aggregate_element: {
+            out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << printList(fields_.getItem("condition"), "", ", ", "", false);
+            break;
+        }
+        case clingo_ast_type_body_aggregate: {
+            auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
+            if (!left.is_none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+            out << fields_.getItem("function") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
+            if (!right.is_none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+            break;
+        }
+        case clingo_ast_type_head_aggregate_element: {
+            out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << fields_.getItem("condition");
+            break;
+        }
+        case clingo_ast_type_head_aggregate: {
+            auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
+            if (!left.is_none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+            out << fields_.getItem("function") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
+            if (!right.is_none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+            break;
+        }
+        case clingo_ast_type_disjunction: {
+            out << printList(fields_.getItem("elements"), "", "; ", "", false);
+            break;
+        }
+        case clingo_ast_type_disjoint_element: {
+            out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << fields_.getItem("term") << " : " << printList(fields_.getItem("condition"), "", ",", "", false);
+            break;
+        }
+        case clingo_ast_type_disjoint: {
+            out << "#disjoint { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
+            break;
+        }
+        // {{{1 theory atom
+        case clingo_ast_type_theory_sequence: {
+            auto type = fields_.getItem("sequence_type"), terms = fields_.getItem("terms");
+            bool tc = terms.size() == 1 && type == TheorySequenceType::getAttr(TheorySequenceType::Tuple);
+            out << type.getAttr("left_hand_side") << printList(terms, "", ",", "", true) << (tc ? "," : "") << type.getAttr("right_hand_side");
+            break;
+        }
+        case clingo_ast_type_theory_function: {
+            auto args = fields_.getItem("arguments");
+            out << fields_.getItem("name") << printList(args, "(", ",", ")", !args.empty());
+            break;
+        }
+        case clingo_ast_type_theory_unparsed_term_element: {
+            out << printList(fields_.getItem("operators"), "", " ", " ", false) << fields_.getItem("term");
+            break;
+        }
+        case clingo_ast_type_theory_unparsed_term: {
+            auto elems = fields_.getItem("elements");
+            bool pp = elems.size() != 1 || !elems.getItem(0).getAttr("operators").empty();
+            out << (pp ? "(" : "") << printList(elems, "", " ", "", false) << (pp ? ")" : "");
+            break;
+        }
+        case clingo_ast_type_theory_guard: {
+            out << fields_.getItem("operator_name") << " " << fields_.getItem("term");
+            break;
+        }
+        case clingo_ast_type_theory_atom_element: {
+            out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << printList(fields_.getItem("condition"), "", ",", "", false);
+            break;
+        }
+        case clingo_ast_type_theory_atom: {
+            auto guard = fields_.getItem("guard");
+            out << "&" << fields_.getItem("term") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
+            if (!guard.is_none()) { out << " " << guard; }
+            break;
+        }
+        // {{{1 theory definition
+        case clingo_ast_type_theory_operator_definition: {
+            out << fields_.getItem("name") << " : " << fields_.getItem("priority") << ", " << fields_.getItem("operator_type");
+            break;
+        }
+        case clingo_ast_type_theory_term_definition: {
+            out << fields_.getItem("name") << " {\n" << printList(fields_.getItem("operators"), "  ", ";\n", "\n", true) << "}";
+            break;
+        }
+        case clingo_ast_type_theory_guard_definition: {
+            out << "{ " << printList(fields_.getItem("operators"), "", ", ", "", false) << " }, " << fields_.getItem("term");
+            break;
+        }
+        case clingo_ast_type_theory_atom_definition: {
+            auto guard = fields_.getItem("guard");
+            out << "&" << fields_.getItem("name") << "/" << fields_.getItem("arity") << " : " << fields_.getItem("elements");
+            if (!guard.is_none()) { out << ", " << guard; }
+            out << ", " << fields_.getItem("atom_type");
+            break;
+        }
+        case clingo_ast_type_theory_definition: {
+            out << "#theory " << fields_.getItem("name") << " {\n";
+            bool comma = false;
+            for (auto y : fields_.getItem("terms").iter()) {
+                if (comma) { out << ";\n"; }
+                else       { comma = true; }
+                out << "  " << y.getAttr("name") << " {\n" << printList(y.getAttr("operators"), "    ", ";\n", "\n", true) << "  }";
+            }
+            for (auto y : fields_.getItem("atoms").iter()) {
+                if (comma) { out << ";\n"; }
+                else       { comma = true; }
+                out << "  " << y;
+            }
+            if (comma) { out << "\n"; }
+            out << "}.";
+            break;
+        }
+        // {{{1 statement
+        case clingo_ast_type_rule: {
+            out << fields_.getItem("head") << printBody(fields_.getItem("body"), " :- ");
+            break;
+        }
+        case clingo_ast_type_definition: {
+            out << "#const " << fields_.getItem("name") << " = " << fields_.getItem("value") << ".";
+            if (!fields_.getItem("is_default").isTrue()) { out << " [override]"; }
+            break;
+        }
+        case clingo_ast_type_show_signature: {
+            out << "#show " << (fields_.getItem("csp").isTrue() ? "$" : "") << (fields_.getItem("positive").isTrue() ? "" : "-") << fields_.getItem("name") << "/" << fields_.getItem("arity") << ".";
+            break;
+        }
+        case clingo_ast_type_defined: {
+            out << "#defined " << (fields_.getItem("positive").isTrue() ? "" : "-") << fields_.getItem("name") << "/" << fields_.getItem("arity") << ".";
+            break;
+        }
+        case clingo_ast_type_show_term: {
+            out << "#show " << (fields_.getItem("csp").isTrue() ? "$" : "") << fields_.getItem("term") << printBody(fields_.getItem("body"));
+            break;
+        }
+        case clingo_ast_type_minimize: {
+            out << printBody(fields_.getItem("body"), ":~ ") << " [" << fields_.getItem("weight") << "@" << fields_.getItem("priority") << printList(fields_.getItem("tuple"), ",", ",", "", false) << "]";
+            break;
+        }
+        case clingo_ast_type_script: {
+            auto s = pyToCpp<std::string>(fields_.getItem("code"));
+            if (!s.empty() && s.back() == '\n') {
+                s.back() = '.';
+            }
+            out << s;
+            break;
+        }
+        case clingo_ast_type_program: {
+            out << "#program " << fields_.getItem("name") << printList(fields_.getItem("parameters"), "(", ",", ")", false) << ".";
+            break;
+        }
+        case clingo_ast_type_external: {
+            out << "#external " << fields_.getItem("atom") << printBody(fields_.getItem("body")) << " [" << fields_.getItem("external_type") << "]";
+            break;
+        }
+        case clingo_ast_type_edge: {
+            out << "#edge (" << fields_.getItem("u") << "," << fields_.getItem("v") << ")" << printBody(fields_.getItem("body"));
+            break;
+        }
+        case clingo_ast_type_heuristic: {
+            out << "#heuristic " << fields_.getItem("atom") << printBody(fields_.getItem("body")) << " [" << fields_.getItem("bias")<< "@" << fields_.getItem("priority") << "," << fields_.getItem("modifier") << "]";
+            break;
+        }
+        case clingo_ast_type_project_atom: {
+            out << "#project " << fields_.getItem("atom") << printBody(fields_.getItem("body"));
+            break;
+        }
+        case clingo_ast_type_project_signature: {
+            out << "#project " << (fields_.getItem("positive").isTrue() ? "" : "-") << fields_.getItem("name") << "/" << fields_.getItem("arity") << ".";
+            break;
+        }
+        // 1}}}
+        */
+    }
+    return out;
+}
 
 } } // namespace Input Gringo
