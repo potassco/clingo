@@ -29,6 +29,10 @@
 #include <clingo.h>
 #include <clingo/variant.hh>
 
+// TODO:
+// - unpooling
+// - the way OAST and SAST are handled is really realy ugly
+
 namespace Gringo { namespace Input {
 
 class SAST;
@@ -64,7 +68,7 @@ private:
 std::ostream &operator<<(std::ostream &out, AST const &ast);
 
 // Note: we do not need all the shared pointer functionality and also want to
-//       have control about the refcount without.
+//       have control about the refcount for the C binding.
 class SAST {
 public:
     SAST();

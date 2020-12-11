@@ -1259,7 +1259,7 @@ C(literal) { A(location, location), A(sign, number), A(atom, ast) };
 C(theory_operator_definition) { A(location, location), A(name, string), A(priority, number), A(operator_type, number) };
 C(theory_term_definition) { A(location, location), A(name, string), A(operators, ast_array) };
 C(theory_guard_definition) { A(operators, string_array), A(term, string) };
-C(theory_atom_definition) { A(location, location), A(atom_type, number), A(name, string), A(arity, number), A(elements, string_array), A(guard, optional_ast) };
+C(theory_atom_definition) { A(location, location), A(atom_type, number), A(name, string), A(arity, number), A(term, string), A(guard, optional_ast) };
 // statemets
 C(rule) { A(location, location), A(head, ast), A(body, ast_array) };
 C(definition) { A(location, location), A(name, string), A(value, ast), A(is_default, number) };
@@ -1460,6 +1460,16 @@ extern "C" bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) 
     GRINGO_CLINGO_TRY {
         *type = ast->ast.type();
     }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_to_string_size(clingo_ast_t *ast, size_t *size) {
+    GRINGO_CLINGO_TRY { *size = print_size([&ast](std::ostream &out) { out << ast->ast; }); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t size) {
+    GRINGO_CLINGO_TRY { print(string, size, [&ast](std::ostream &out) { out << ast->ast; }); }
     GRINGO_CLINGO_CATCH;
 }
 

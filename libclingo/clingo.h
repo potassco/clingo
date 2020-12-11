@@ -2396,7 +2396,6 @@ enum clingo_ast_binary_operator {
     clingo_ast_binary_operator_division       = 6,
     clingo_ast_binary_operator_modulo         = 7,
     clingo_ast_binary_operator_power          = 8
-
 };
 typedef int clingo_ast_binary_operator_t;
 
@@ -3098,6 +3097,9 @@ typedef struct clingo_ast clingo_ast_t;
 
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...);
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string_size(clingo_ast_t *ast, size_t *size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t size);
+
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_acquire(clingo_ast_t *ast);
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_release(clingo_ast_t *ast);
 
