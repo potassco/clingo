@@ -578,7 +578,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         }
         case clingo_ast_type_theory_term_definition: {
             out << print(ast, clingo_ast_attribute_name)
-                << " {\n" << print_list<AST::StrVec>(ast, clingo_ast_attribute_operators, "  ", ";\n", "\n", true) << "}";
+                << " {\n" << print_list<AST::ASTVec>(ast, clingo_ast_attribute_operators, "  ", ";\n", "\n", true) << "}";
             break;
         }
         case clingo_ast_type_theory_guard_definition: {

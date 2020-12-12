@@ -55,6 +55,10 @@ public:
     SAST copy();
     SAST deepcopy();
 
+    size_t hash() const;
+    friend bool operator<(AST const &a, AST const &b);
+    friend bool operator==(AST const &a, AST const &b);
+
     void incRef();
     void decRef();
     unsigned refCount() const;
@@ -83,6 +87,7 @@ public:
     explicit SAST(AST const &ast);
     explicit SAST(AST *ast);
     AST *get() const;
+    AST *release();
     unsigned use_count() const;
     void clear();
     ~SAST();

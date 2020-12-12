@@ -1240,19 +1240,19 @@ C(conditional_literal) { A(location, location), A(literal, ast), A(condition, as
 C(aggregate) { A(location, location), A(left_guard, optional_ast), A(elements, ast_array), A(right_guard, optional_ast) };
 C(body_aggregate_element) { A(terms, ast_array), A(condition, ast_array) };
 C(body_aggregate) { A(location, location), A(left_guard, optional_ast), A(function, number), A(elements, ast_array), A(right_guard, optional_ast) };
-C(head_aggregate_element) { A(terms, ast_array), A(condition, ast_array) };
+C(head_aggregate_element) { A(terms, ast_array), A(condition, ast) };
 C(head_aggregate) { A(location, location), A(left_guard, optional_ast), A(function, number), A(elements, ast_array), A(right_guard, optional_ast) };
 C(disjunction) { A(location, location), A(elements, ast_array) };
 C(disjoint_element) { A(location, location), A(terms, ast_array), A(term, ast), A(condition, ast_array) };
 C(disjoint) { A(location, location), A(elements, ast_array) };
 // theory atoms
 C(theory_sequence) { A(location, location), A(sequence_type, number), A(terms, ast_array) };
-C(theory_function) { A(location, location), A(name, string), A(terms, ast_array) };
+C(theory_function) { A(location, location), A(name, string), A(arguments, ast_array) };
 C(theory_unparsed_term_element) { A(operators, string_array), A(term, ast) };
 C(theory_unparsed_term) { A(location, location), A(elements, ast_array) };
 C(theory_guard) { A(operator_name, string), A(term, ast) };
 C(theory_atom_element) { A(terms, ast_array), A(condition, ast_array) };
-C(theory_atom) { A(terms, ast_array), A(term, ast), A(elements, ast_array), A(guard, ast_array) };
+C(theory_atom) { A(location, location), A(term, ast), A(elements, ast_array), A(guard, optional_ast) };
 // literals
 C(literal) { A(location, location), A(sign, number), A(atom, ast) };
 // theory definition
@@ -1265,7 +1265,7 @@ C(rule) { A(location, location), A(head, ast), A(body, ast_array) };
 C(definition) { A(location, location), A(name, string), A(value, ast), A(is_default, number) };
 C(show_signature) { A(location, location), A(name, string), A(arity, number), A(positive, number), A(csp, number) };
 C(show_term) { A(location, location), A(term, ast), A(body, ast_array), A(csp, number) };
-C(minimize) { A(location, location), A(weight, ast), A(priority, number), A(terms, ast_array), A(body, ast_array) };
+C(minimize) { A(location, location), A(weight, ast), A(priority, ast), A(terms, ast_array), A(body, ast_array) };
 C(script) { A(location, location), A(script_type, number), A(code, string) };
 C(program) { A(location, location), A(name, string), A(parameters, ast_array) };
 C(external) { A(location, location), A(atom, ast), A(body, ast_array), A(external_type, ast) };
@@ -1429,11 +1429,11 @@ extern "C" bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...
                     break;
                 }
                 case clingo_ast_attribute_type_ast: {
-                    sast->value(attribute, Input::OAST{Input::SAST{va_arg(args, Input::AST*)}});
+                    sast->value(attribute, Input::SAST{va_arg(args, Input::AST*)});
                     break;
                 }
                 case clingo_ast_attribute_type_optional_ast: {
-                    sast->value(attribute, Input::SAST{va_arg(args, Input::AST*)});
+                    sast->value(attribute, Input::OAST{Input::SAST{va_arg(args, Input::AST*)}});
                     break;
                 }
                 case clingo_ast_attribute_type_string_array: {
@@ -1449,8 +1449,7 @@ extern "C" bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...
             }
         }
 
-        sast->incRef();
-        *ast = reinterpret_cast<clingo_ast_t*>(sast.get());
+        *ast = reinterpret_cast<clingo_ast_t*>(sast.release());
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -1460,6 +1459,32 @@ extern "C" bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) 
         *type = ast->ast.type();
     }
     GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) {
+    GRINGO_CLINGO_TRY {
+        *copy = reinterpret_cast<clingo_ast_t*>(ast->ast.copy().release());
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_deep_copy(clingo_ast_t *ast, clingo_ast_t **copy) {
+    GRINGO_CLINGO_TRY {
+        *copy = reinterpret_cast<clingo_ast_t*>(ast->ast.deepcopy().release());
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_less_than(clingo_ast_t *a, clingo_ast_t *b) {
+    return a->ast < b->ast;
+}
+
+extern "C" bool clingo_ast_equal(clingo_ast_t *a, clingo_ast_t *b) {
+    return a->ast == b->ast;
+}
+
+extern "C" size_t clingo_ast_hash(clingo_ast_t *a) {
+    return a->ast.hash();
 }
 
 extern "C" bool clingo_ast_to_string_size(clingo_ast_t *ast, size_t *size) {
@@ -1509,6 +1534,20 @@ extern "C" bool clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_at
 extern "C" bool clingo_ast_attribute_set_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int value) {
     GRINGO_CLINGO_TRY {
         get_attr<int>(ast, attribute) = value;
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_symbol_t *value) {
+    GRINGO_CLINGO_TRY {
+        *value = get_attr<Symbol>(ast, attribute).rep();
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_attribute_set_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_symbol_t value) {
+    GRINGO_CLINGO_TRY {
+        get_attr<Symbol>(ast, attribute) = Symbol{value};
     }
     GRINGO_CLINGO_CATCH;
 }
