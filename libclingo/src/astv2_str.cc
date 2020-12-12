@@ -28,6 +28,101 @@ namespace Gringo { namespace Input {
 
 namespace {
 
+#define BEGIN_ENUM(name, type) \
+char const *name(type x) { \
+    switch (x) {
+#define END_ENUM \
+    } \
+    return ""; \
+}
+#define CASE(value, string) \
+        case value: { \
+            return string; \
+        }
+// { {
+#define END_DEFAULT(string) \
+        default: { \
+            break; \
+        } \
+    } \
+    return string; \
+}
+
+BEGIN_ENUM(to_string_left, clingo_ast_unary_operator)
+    CASE(clingo_ast_unary_operator_minus, "-")
+    CASE(clingo_ast_unary_operator_absolute, "|")
+    CASE(clingo_ast_unary_operator_negation, "~")
+END_ENUM
+
+BEGIN_ENUM(to_string_right, clingo_ast_unary_operator)
+    CASE(clingo_ast_unary_operator_absolute, "|")
+END_DEFAULT("")
+
+BEGIN_ENUM(to_string, clingo_ast_binary_operator)
+    CASE(clingo_ast_binary_operator_xor, "^")
+    CASE(clingo_ast_binary_operator_or, "?")
+    CASE(clingo_ast_binary_operator_and, "&")
+    CASE(clingo_ast_binary_operator_plus, "+")
+    CASE(clingo_ast_binary_operator_minus, "-")
+    CASE(clingo_ast_binary_operator_multiplication, "*")
+    CASE(clingo_ast_binary_operator_division, "/")
+    CASE(clingo_ast_binary_operator_modulo, "\\")
+    CASE(clingo_ast_binary_operator_power, "**")
+END_ENUM
+
+BEGIN_ENUM(to_string, clingo_ast_sign)
+    CASE(clingo_ast_sign_no_sign, "")
+    CASE(clingo_ast_sign_negation, "not ")
+    CASE(clingo_ast_sign_double_negation, "not not ")
+END_ENUM
+
+BEGIN_ENUM(to_string, clingo_ast_comparison_operator)
+    CASE(clingo_ast_comparison_operator_greater_than, ">")
+    CASE(clingo_ast_comparison_operator_less_than, "<")
+    CASE(clingo_ast_comparison_operator_less_equal, "<=")
+    CASE(clingo_ast_comparison_operator_greater_equal, ">=")
+    CASE(clingo_ast_comparison_operator_not_equal, "!=")
+    CASE(clingo_ast_comparison_operator_equal, "=")
+END_ENUM
+
+BEGIN_ENUM(to_string, clingo_ast_aggregate_function)
+    CASE(clingo_ast_aggregate_function_count, "#count")
+    CASE(clingo_ast_aggregate_function_sum, "#sum")
+    CASE(clingo_ast_aggregate_function_sump, "#sum+")
+    CASE(clingo_ast_aggregate_function_min, "#min")
+    CASE(clingo_ast_aggregate_function_max, "#max")
+END_ENUM
+
+BEGIN_ENUM(to_string_left, clingo_ast_theory_sequence_type)
+    CASE(clingo_ast_theory_sequence_type_tuple, "(")
+    CASE(clingo_ast_theory_sequence_type_list, "[")
+    CASE(clingo_ast_theory_sequence_type_set, "{")
+END_ENUM
+
+BEGIN_ENUM(to_string_right, clingo_ast_theory_sequence_type)
+    CASE(clingo_ast_theory_sequence_type_tuple, ")")
+    CASE(clingo_ast_theory_sequence_type_list, "]")
+    CASE(clingo_ast_theory_sequence_type_set, "}")
+END_ENUM
+
+BEGIN_ENUM(to_string, clingo_ast_theory_operator_type)
+     CASE(clingo_ast_theory_operator_type_unary, "unary")
+     CASE(clingo_ast_theory_operator_type_binary_left, "binary, left")
+     CASE(clingo_ast_theory_operator_type_binary_right, "binary, right")
+END_ENUM
+
+BEGIN_ENUM(to_string, clingo_ast_theory_atom_definition_type)
+    CASE(clingo_ast_theory_atom_definition_type_head, "head")
+    CASE(clingo_ast_theory_atom_definition_type_body, "body")
+    CASE(clingo_ast_theory_atom_definition_type_any, "any")
+    CASE(clingo_ast_theory_atom_definition_type_directive, "directive")
+END_ENUM
+
+#undef BEGIN_ENUM
+#undef CASE
+#undef END_ENUM
+#undef END_DEFAULT
+
 template <class T>
 T const &get(AST const &ast, clingo_ast_attribute name) {
     return mpark::get<T>(ast.value(name));
@@ -47,6 +142,11 @@ AST const *get_opt_ast(AST const &ast, clingo_ast_attribute name) {
         return nullptr;
     }
     return mpark::get<OAST>(ast.value(name)).ast.get();
+}
+
+template <class T>
+char const *enum_to_string(AST const &ast, clingo_ast_attribute attribute) {
+    return to_string(get_enum<T>(ast, attribute));
 }
 
 struct PrintValue {
@@ -190,7 +290,7 @@ public:
         auto const *left = get_opt_ast(self.ast_, self.attr_);
         if (left != nullptr) {
             out << print(*left, clingo_ast_attribute_term) << " "
-                << print(*left, clingo_ast_attribute_comparison) << " ";
+                << enum_to_string<clingo_ast_comparison_operator>(*left, clingo_ast_attribute_comparison) << " ";
         }
         return out;
     }
@@ -209,7 +309,7 @@ public:
     friend std::ostream &operator<<(std::ostream &out, print_right_guard const &self) {
         auto const *left = get_opt_ast(self.ast_, self.attr_);
         if (left != nullptr) {
-            out << " " << print(*left, clingo_ast_attribute_comparison)
+            out << " " << enum_to_string<clingo_ast_comparison_operator>(*left, clingo_ast_attribute_comparison)
                 << " " << print(*left, clingo_ast_attribute_term);
         }
         return out;
@@ -219,107 +319,6 @@ private:
     AST const &ast_;
     clingo_ast_attribute attr_;
 };
-
-
-#define BEGIN_ENUM(name, type) \
-char const *name(type x) { \
-    switch (x) {
-#define END_ENUM \
-    } \
-    return ""; \
-}
-#define CASE(value, string) \
-        case value: { \
-            return string; \
-        }
-// { {
-#define END_DEFAULT(string) \
-        default: { \
-            break; \
-        } \
-    } \
-    return string; \
-}
-
-BEGIN_ENUM(to_string_left, clingo_ast_unary_operator)
-    CASE(clingo_ast_unary_operator_minus, "-")
-    CASE(clingo_ast_unary_operator_absolute, "|")
-    CASE(clingo_ast_unary_operator_negation, "~")
-END_ENUM
-
-BEGIN_ENUM(to_string_right, clingo_ast_unary_operator)
-    CASE(clingo_ast_unary_operator_absolute, "|")
-END_DEFAULT("")
-
-BEGIN_ENUM(to_string, clingo_ast_binary_operator)
-    CASE(clingo_ast_binary_operator_xor, "^")
-    CASE(clingo_ast_binary_operator_or, "|")
-    CASE(clingo_ast_binary_operator_and, "&")
-    CASE(clingo_ast_binary_operator_plus, "+")
-    CASE(clingo_ast_binary_operator_minus, "-")
-    CASE(clingo_ast_binary_operator_multiplication, "*")
-    CASE(clingo_ast_binary_operator_division, "/")
-    CASE(clingo_ast_binary_operator_modulo, "\\")
-    CASE(clingo_ast_binary_operator_power, "**")
-END_ENUM
-
-BEGIN_ENUM(to_string, clingo_ast_sign)
-    CASE(clingo_ast_sign_no_sign, "")
-    CASE(clingo_ast_sign_negation, "not ")
-    CASE(clingo_ast_sign_double_negation, "not not ")
-END_ENUM
-
-BEGIN_ENUM(to_string, clingo_ast_comparison_operator)
-    CASE(clingo_ast_comparison_operator_greater_than, ">=")
-    CASE(clingo_ast_comparison_operator_less_than, "<")
-    CASE(clingo_ast_comparison_operator_less_equal, "<=")
-    CASE(clingo_ast_comparison_operator_greater_equal, ">=")
-    CASE(clingo_ast_comparison_operator_not_equal, "!=")
-    CASE(clingo_ast_comparison_operator_equal, "=")
-END_ENUM
-
-BEGIN_ENUM(to_string, clingo_ast_aggregate_function)
-    CASE(clingo_ast_aggregate_function_count, "#count")
-    CASE(clingo_ast_aggregate_function_sum, "#sum")
-    CASE(clingo_ast_aggregate_function_sump, "#sum+")
-    CASE(clingo_ast_aggregate_function_min, "#min")
-    CASE(clingo_ast_aggregate_function_max, "#max")
-END_ENUM
-
-BEGIN_ENUM(to_string_left, clingo_ast_theory_sequence_type)
-    CASE(clingo_ast_theory_sequence_type_tuple, "(")
-    CASE(clingo_ast_theory_sequence_type_list, "[")
-    CASE(clingo_ast_theory_sequence_type_set, "{")
-END_ENUM
-
-BEGIN_ENUM(to_string_right, clingo_ast_theory_sequence_type)
-    CASE(clingo_ast_theory_sequence_type_tuple, ")")
-    CASE(clingo_ast_theory_sequence_type_list, "]")
-    CASE(clingo_ast_theory_sequence_type_set, "}")
-END_ENUM
-
-BEGIN_ENUM(to_string, clingo_ast_theory_operator_type)
-     CASE(clingo_ast_theory_operator_type_unary, "unary")
-     CASE(clingo_ast_theory_operator_type_binary_left, "binary, left")
-     CASE(clingo_ast_theory_operator_type_binary_right, "binary, right")
-END_ENUM
-
-BEGIN_ENUM(to_string, clingo_ast_theory_atom_definition_type)
-    CASE(clingo_ast_theory_atom_definition_type_head, "head")
-    CASE(clingo_ast_theory_atom_definition_type_body, "body")
-    CASE(clingo_ast_theory_atom_definition_type_any, "any")
-    CASE(clingo_ast_theory_atom_definition_type_directive, "directive")
-END_ENUM
-
-#undef BEGIN_ENUM
-#undef CASE
-#undef END_ENUM
-#undef END_DEFAULT
-
-template <class T>
-char const *enum_to_string(AST const &ast, clingo_ast_attribute attribute) {
-    return to_string(get_enum<T>(ast, attribute));
-}
 
 } // namespace
 
@@ -331,7 +330,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             out << print(ast, clingo_ast_attribute_name);
             break;
         }
-        case clingo_ast_type_symbol: {
+        case clingo_ast_type_symbolic_term: {
             out << print(ast, clingo_ast_attribute_symbol);
             break;
         }
@@ -341,9 +340,11 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             break;
         }
         case clingo_ast_type_binary_operation: {
-            out << "(" << print(ast, clingo_ast_attribute_left)
-                << enum_to_string<clingo_ast_binary_operator>(ast, clingo_ast_attribute_operator)
-                << print(ast, clingo_ast_attribute_right) << ")";
+            out << "("
+                << print(ast, clingo_ast_attribute_left)
+                << enum_to_string<clingo_ast_binary_operator>(ast, clingo_ast_attribute_operator_type)
+                << print(ast, clingo_ast_attribute_right)
+                << ")";
             break;
         }
         case clingo_ast_type_interval: {
@@ -437,12 +438,14 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             break;
         }
         case clingo_ast_type_symbolic_atom: {
-            out << print(ast, clingo_ast_attribute_term);
+            out << print(ast, clingo_ast_attribute_symbol);
             break;
         }
         case clingo_ast_type_comparison: {
             out << print(ast, clingo_ast_attribute_left)
+                << " "
                 << enum_to_string<clingo_ast_comparison_operator>(ast, clingo_ast_attribute_comparison)
+                << " "
                 << print(ast, clingo_ast_attribute_right);
             break;
         }
@@ -467,38 +470,38 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         }
         case clingo_ast_type_conditional_literal: {
             out << print(ast, clingo_ast_attribute_literal)
-                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, " : ", ", ", "", true);
+                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, ": ", ", ", "", false);
             break;
         }
         case clingo_ast_type_aggregate: {
-            out << "{ "
-                << print_left_guard(ast, clingo_ast_attribute_left_guard)
-                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, "", "; ", "", false) << " }"
+            out << print_left_guard(ast, clingo_ast_attribute_left_guard)
+                << "{"
+                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, " ", "; ", "", false)
+                << " }"
                 << print_right_guard(ast, clingo_ast_attribute_right_guard);
             break;
         }
         case clingo_ast_type_body_aggregate_element: {
-            out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_tuple, "", ",", "", false)
-                << ": "
-                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, "", ", ", "", false);
+            out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_terms, "", ",", "", false)
+                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, ": ", ", ", "", false);
             break;
         }
         case clingo_ast_type_body_aggregate: {
             out << print_left_guard(ast, clingo_ast_attribute_left_guard)
                 << enum_to_string<clingo_ast_aggregate_function>(ast, clingo_ast_attribute_function)
-                << " { " << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, "", "; ", "", false) << " }"
+                << " {" << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, " ", "; ", "", false) << " }"
                 << print_right_guard(ast, clingo_ast_attribute_right_guard);
             break;
         }
         case clingo_ast_type_head_aggregate_element: {
-            out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_tuple, "", ",", "", false)
-                << " : " << print(ast, clingo_ast_attribute_condition);
+            out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_terms, "", ",", "", false)
+                << ": " << print(ast, clingo_ast_attribute_condition);
             break;
         }
         case clingo_ast_type_head_aggregate: {
             out << print_left_guard(ast, clingo_ast_attribute_left_guard)
                 << enum_to_string<clingo_ast_aggregate_function>(ast, clingo_ast_attribute_function)
-                << " { " << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, "", "; ", "", false) << " }"
+                << " {" << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, " ", "; ", "", false) << " }"
                 << print_right_guard(ast, clingo_ast_attribute_right_guard);
             break;
         }
@@ -507,7 +510,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             break;
         }
         case clingo_ast_type_disjoint_element: {
-            out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_tuple, "", ",", "", false)
+            out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_terms, "", ",", "", false)
                 << ": " << print(ast, clingo_ast_attribute_term)
                 << ": " << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, "", ",", "", false);
             break;
@@ -553,14 +556,14 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             break;
         }
         case clingo_ast_type_theory_atom_element: {
-            out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_tuple, "", ",", "", false)
-                << ": " << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, "", ",", "", false);
+            out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_terms, "", ",", "", false)
+                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, ": ", ", ", "", false);
             break;
         }
         case clingo_ast_type_theory_atom: {
             auto const *guard = get_opt_ast(ast, clingo_ast_attribute_guard);
             out << "&" << print(ast, clingo_ast_attribute_term)
-                << " { " << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, "", "; ", "", false) << " }";
+                << " {" << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, " ", "; ", "", false) << " }";
             if (guard != nullptr) {
                 out << " " << *guard;
             }
@@ -579,7 +582,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             break;
         }
         case clingo_ast_type_theory_guard_definition: {
-            out << "{ " << print_list<AST::StrVec>(ast, clingo_ast_attribute_operators, "", ", ", "", false) << " }, "
+            out << "{" << print_list<AST::StrVec>(ast, clingo_ast_attribute_operators, " ", ", ", "", false) << " }, "
                 << print(ast, clingo_ast_attribute_term);
             break;
         }
@@ -603,7 +606,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
                     comma = true;
                 }
                 out << "  " << print(*y, clingo_ast_attribute_name)
-                    << " {\n" << print_list<AST::ASTVec>(*y, clingo_ast_attribute_operators, "    ", ";\n", "\n", true) << "  }";
+                    << " {\n" << print_list<AST::ASTVec>(*y, clingo_ast_attribute_operators, "    ", ";\n    ", "\n", true) << "  }";
             }
             for (auto const &y : get<AST::ASTVec>(ast, clingo_ast_attribute_atoms)) {
                 if (comma) {
@@ -641,7 +644,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         case clingo_ast_type_show_signature: {
             out << "#show "
                 << (get_bool(ast, clingo_ast_attribute_csp) ? "$" : "")
-                << (get_bool(ast, clingo_ast_attribute_sign) ? "" : "-")
+                << (get_bool(ast, clingo_ast_attribute_positive) ? "" : "-")
                 << print(ast, clingo_ast_attribute_name)
                 << "/"
                 << print(ast, clingo_ast_attribute_arity)
@@ -650,7 +653,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         }
         case clingo_ast_type_defined: {
             out << "#defined "
-                << (get_bool(ast, clingo_ast_attribute_sign) ? "" : "-")
+                << (get_bool(ast, clingo_ast_attribute_positive) ? "" : "-")
                 << print(ast, clingo_ast_attribute_name) << "/"
                 << print(ast, clingo_ast_attribute_arity) << ".";
             break;
@@ -662,22 +665,30 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             break;
         }
         case clingo_ast_type_minimize: {
-            out << print_body(ast, clingo_ast_attribute_body, ":~ ")
+            out << ":~ "
+                << print_body(ast, clingo_ast_attribute_body, "")
                 << " ["
                 << print(ast, clingo_ast_attribute_weight)
                 << "@"
                 << print(ast, clingo_ast_attribute_priority)
-                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_tuple, ",", ",", "", false)
+                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_terms, ",", ",", "", false)
                 << "]";
             break;
         }
         case clingo_ast_type_script: {
             auto s = get<String>(ast, clingo_ast_attribute_code);
+            auto t = get_enum<clingo_ast_script_type>(ast, clingo_ast_attribute_script_type);
+            if (t == clingo_ast_script_type_lua) {
+                out << "#script(lua)";
+            }
             for (auto const *it = s.c_str(); *it != '\0'; ++it) {
                 if (*it == '\n' && *(it + 1) == 0) {
                     break;
                 }
                 out << *it;
+            }
+            if (t == clingo_ast_script_type_lua) {
+                out << "#end";
             }
             out << ".";
             break;
@@ -685,7 +696,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         case clingo_ast_type_program: {
             out << "#program "
                 << print(ast, clingo_ast_attribute_name)
-                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_parameters, "(", ",", ")", false)
+                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_parameters, "(", ", ", ")", false)
                 << ".";
             break;
         }
@@ -728,7 +739,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         }
         case clingo_ast_type_project_signature: {
             out << "#project "
-                << (get_bool(ast, clingo_ast_attribute_sign) ? "" : "-")
+                << (get_bool(ast, clingo_ast_attribute_positive) ? "" : "-")
                 << print(ast, clingo_ast_attribute_name)
                 << "/"
                 << print(ast, clingo_ast_attribute_arity)

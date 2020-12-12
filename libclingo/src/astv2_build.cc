@@ -68,7 +68,7 @@ public:
     // {{{1 terms
 
     TermUid term(Location const &loc, Symbol val) override {
-        return terms_.insert(ast(clingo_ast_type_symbol, loc)
+        return terms_.insert(ast(clingo_ast_type_symbolic_term, loc)
             .set(clingo_ast_attribute_symbol, val));
     }
 
@@ -79,7 +79,7 @@ public:
 
     TermUid term(Location const &loc, UnOp op, TermUid a) override {
         return terms_.insert(ast(clingo_ast_type_unary_operation, loc)
-            .set(clingo_ast_attribute_operator, static_cast<int>(op))
+            .set(clingo_ast_attribute_operator_type, static_cast<int>(op))
             .set(clingo_ast_attribute_argument, terms_.erase(a)));
     }
 
@@ -97,7 +97,7 @@ public:
 
     TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) override {
         return terms_.insert(ast(clingo_ast_type_binary_operation, loc)
-            .set(clingo_ast_attribute_operator, static_cast<int>(op))
+            .set(clingo_ast_attribute_operator_type, static_cast<int>(op))
             .set(clingo_ast_attribute_left, terms_.erase(a))
             .set(clingo_ast_attribute_right, terms_.erase(b)));
     }
@@ -180,7 +180,7 @@ public:
         if (!add) {
             auto &pos = get<SAST>(*cspmulterms_[b], clingo_ast_attribute_coefficient);
             pos = ast(clingo_ast_type_unary_operation, loc)
-                .set(clingo_ast_attribute_operator, static_cast<int>(clingo_ast_unary_operator_minus))
+                .set(clingo_ast_attribute_operator_type, static_cast<int>(clingo_ast_unary_operator_minus))
                 .set(clingo_ast_attribute_argument, std::move(pos));
         }
         auto &addterm = cspaddterms_[a];
@@ -212,7 +212,7 @@ public:
 
     SAST symbolicatom(TermUid termUid) {
         return ast(clingo_ast_type_symbolic_atom)
-                .set(clingo_ast_attribute_term, terms_.erase(termUid));
+                .set(clingo_ast_attribute_symbol, terms_.erase(termUid));
     }
 
     LitUid boollit(Location const &loc, bool type) override {
@@ -279,7 +279,7 @@ public:
 
     BdAggrElemVecUid bodyaggrelemvec(BdAggrElemVecUid uid, TermVecUid termvec, LitVecUid litvec) override {
         bdaggrelemvecs_[uid].emplace_back(ast(clingo_ast_type_body_aggregate_element)
-            .set(clingo_ast_attribute_tuple, termvecs_.erase(termvec))
+            .set(clingo_ast_attribute_terms, termvecs_.erase(termvec))
             .set(clingo_ast_attribute_condition, litvecs_.erase(litvec)));
         return uid;
     }
@@ -290,8 +290,8 @@ public:
 
     HdAggrElemVecUid headaggrelemvec(HdAggrElemVecUid uid, TermVecUid termvec, LitUid litUid, LitVecUid litvec) override {
         auto &loc = get<Location>(*lits_[litUid], clingo_ast_attribute_location);
-        hdaggrelemvecs_[uid].emplace_back(ast(clingo_ast_type_body_aggregate_element)
-            .set(clingo_ast_attribute_tuple, termvecs_.erase(termvec))
+        hdaggrelemvecs_[uid].emplace_back(ast(clingo_ast_type_head_aggregate_element)
+            .set(clingo_ast_attribute_terms, termvecs_.erase(termvec))
             .set(clingo_ast_attribute_condition, condlit(litUid, litvec)));
         return uid;
     }
@@ -313,7 +313,7 @@ public:
 
     CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) override {
         cspelems_[uid].emplace_back(ast(clingo_ast_type_disjoint, loc)
-            .set(clingo_ast_attribute_tuple, termvecs_.erase(termvec))
+            .set(clingo_ast_attribute_terms, termvecs_.erase(termvec))
             .set(clingo_ast_attribute_term, cspaddterms_.erase(addterm))
             .set(clingo_ast_attribute_condition, litvecs_.erase(litvec)));
         return uid;
@@ -369,7 +369,7 @@ public:
     }
 
     HdLitUid disjunction(Location const &loc, CondLitVecUid condlitvec) override {
-        return heads_.insert(ast(clingo_ast_type_head_aggregate, loc)
+        return heads_.insert(ast(clingo_ast_type_disjunction, loc)
             .set(clingo_ast_attribute_elements, condlitvecs_.erase(condlitvec)));
     }
 
@@ -447,7 +447,7 @@ public:
         cb_(ast(clingo_ast_type_minimize, loc)
             .set(clingo_ast_attribute_weight, terms_.erase(weight))
             .set(clingo_ast_attribute_priority, terms_.erase(priority))
-            .set(clingo_ast_attribute_tuple, termvecs_.erase(cond))
+            .set(clingo_ast_attribute_terms, termvecs_.erase(cond))
             .set(clingo_ast_attribute_body, bodylitvecs_.erase(body)));
     }
 
@@ -455,15 +455,15 @@ public:
         cb_(ast(clingo_ast_type_show_signature, loc)
             .set(clingo_ast_attribute_name, sig.name())
             .set(clingo_ast_attribute_arity, static_cast<int>(sig.arity()))
-            .set(clingo_ast_attribute_sign, static_cast<int>(sig.sign()))
-            .set(clingo_ast_attribute_is_default, static_cast<int>(csp)));
+            .set(clingo_ast_attribute_positive, static_cast<int>(!sig.sign()))
+            .set(clingo_ast_attribute_csp, static_cast<int>(csp)));
     }
 
     void defined(Location const &loc, Sig sig) override {
         cb_(ast(clingo_ast_type_defined, loc)
             .set(clingo_ast_attribute_name, sig.name())
             .set(clingo_ast_attribute_arity, static_cast<int>(sig.arity()))
-            .set(clingo_ast_attribute_sign, static_cast<int>(sig.sign())));
+            .set(clingo_ast_attribute_positive, static_cast<int>(!sig.sign())));
     }
 
     void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override {
@@ -533,7 +533,7 @@ public:
         cb_(ast(clingo_ast_type_project_signature, loc)
             .set(clingo_ast_attribute_name, sig.name())
             .set(clingo_ast_attribute_arity, static_cast<int>(sig.arity()))
-            .set(clingo_ast_attribute_sign, static_cast<int>(sig.sign())));
+            .set(clingo_ast_attribute_positive, static_cast<int>(!sig.sign())));
     }
 
     // {{{1 theory atoms
@@ -558,7 +558,7 @@ public:
 
     SAST unparsedterm(Location const &loc, TheoryOptermUid opterm) {
         auto elems = theoryopterms_.erase(opterm);
-        if (elems.size() == 1 && get<AST::ASTVec>(*elems.front(), clingo_ast_attribute_operators).empty()) {
+        if (elems.size() == 1 && get<AST::StrVec>(*elems.front(), clingo_ast_attribute_operators).empty()) {
             return std::move(get<SAST>(*elems.front(), clingo_ast_attribute_term));
         }
         return ast(clingo_ast_type_theory_unparsed_term, loc)
@@ -576,13 +576,13 @@ public:
     }
 
     TheoryTermUid theorytermvalue(Location const &loc, Symbol val) override {
-        return theoryterms_.insert(ast(clingo_ast_type_symbol, loc)
+        return theoryterms_.insert(ast(clingo_ast_type_symbolic_term, loc)
             .set(clingo_ast_attribute_symbol, val));
     }
 
     TheoryTermUid theorytermvar(Location const &loc, String var) override {
-        return theoryterms_.insert(ast(clingo_ast_type_symbol, loc)
-            .set(clingo_ast_attribute_symbol, var));
+        return theoryterms_.insert(ast(clingo_ast_type_variable, loc)
+            .set(clingo_ast_attribute_name, var));
     }
 
     SAST theoryunparsedelem(TheoryOpVecUid ops, TheoryTermUid term) {
@@ -629,8 +629,8 @@ public:
 
     TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) override {
         theoryelemvecs_[elems].emplace_back(ast(clingo_ast_type_theory_atom_element)
-            .set(clingo_ast_attribute_tuple, theoryoptermvecs_.erase(opterms))
-            .set(clingo_ast_attribute_elements, litvecs_.erase(cond)));
+            .set(clingo_ast_attribute_terms, theoryoptermvecs_.erase(opterms))
+            .set(clingo_ast_attribute_condition, litvecs_.erase(cond)));
         return elems;
     }
 

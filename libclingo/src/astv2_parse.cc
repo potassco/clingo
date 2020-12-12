@@ -68,7 +68,7 @@ public:
                 return prg_.showsig(get<Location>(ast, clingo_ast_attribute_location),
                                     Sig(get<String>(ast, clingo_ast_attribute_name),
                                         get<int>(ast, clingo_ast_attribute_arity),
-                                        get<int>(ast, clingo_ast_attribute_sign) != 0),
+                                        get<int>(ast, clingo_ast_attribute_positive) == 0),
                                     ast.hasValue(clingo_ast_attribute_csp) && get<int>(ast, clingo_ast_attribute_csp) != 0);
             }
             case clingo_ast_type_show_term: {
@@ -81,7 +81,7 @@ public:
                 return prg_.optimize(get<Location>(ast, clingo_ast_attribute_location),
                                      parseTerm(*get<SAST>(ast, clingo_ast_attribute_weight)),
                                      parseTerm(*get<SAST>(ast, clingo_ast_attribute_priority)),
-                                     parseTermVec(get<AST::ASTVec>(ast, clingo_ast_attribute_tuple)),
+                                     parseTermVec(get<AST::ASTVec>(ast, clingo_ast_attribute_terms)),
                                      parseBodyLiteralVec(get<AST::ASTVec>(ast, clingo_ast_attribute_body)));
             }
             case clingo_ast_type_script: {
@@ -127,11 +127,15 @@ public:
             }
             case clingo_ast_type_project_signature: {
                 return prg_.project(get<Location>(ast, clingo_ast_attribute_location),
-                                    Sig(get<String>(ast, clingo_ast_attribute_name), get<int>(ast, clingo_ast_attribute_arity), get<int>(ast, clingo_ast_attribute_sign) != 0));
+                                    Sig(get<String>(ast, clingo_ast_attribute_name),
+                                        get<int>(ast, clingo_ast_attribute_arity),
+                                        get<int>(ast, clingo_ast_attribute_positive) == 0));
             }
             case clingo_ast_type_defined: {
                 return prg_.defined(get<Location>(ast, clingo_ast_attribute_location),
-                                    Sig(get<String>(ast, clingo_ast_attribute_name), get<int>(ast, clingo_ast_attribute_arity), get<int>(ast, clingo_ast_attribute_sign) != 0));
+                                    Sig(get<String>(ast, clingo_ast_attribute_name),
+                                        get<int>(ast, clingo_ast_attribute_arity),
+                                        get<int>(ast, clingo_ast_attribute_positive) == 0));
             }
             case clingo_ast_type_theory_definition: {
                 return prg_.theorydef(get<Location>(ast, clingo_ast_attribute_location),
@@ -226,18 +230,18 @@ private:
                 return prg_.term(get<Location>(ast, clingo_ast_attribute_location),
                                  get<String>(ast, clingo_ast_attribute_name));
             }
-            case clingo_ast_type_symbol: {
+            case clingo_ast_type_symbolic_term: {
                 return prg_.term(get<Location>(ast, clingo_ast_attribute_location),
                                  get<Symbol>(ast, clingo_ast_attribute_symbol));
             }
             case clingo_ast_type_unary_operation: {
                 return prg_.term(get<Location>(ast, clingo_ast_attribute_location),
-                                 parseUnOp(get<int>(ast, clingo_ast_attribute_operator)),
+                                 parseUnOp(get<int>(ast, clingo_ast_attribute_operator_type)),
                                  parseTerm(*get<SAST>(ast, clingo_ast_attribute_argument)));
             }
             case clingo_ast_type_binary_operation: {
                 return prg_.term(get<Location>(ast, clingo_ast_attribute_location),
-                                 parseBinOp(get<int>(ast, clingo_ast_attribute_operator)),
+                                 parseBinOp(get<int>(ast, clingo_ast_attribute_operator_type)),
                                  parseTerm(*get<SAST>(ast, clingo_ast_attribute_left)),
                                  parseTerm(*get<SAST>(ast, clingo_ast_attribute_right)));
             }
@@ -308,7 +312,7 @@ private:
 
     TheoryTermUid parseTheoryTerm(AST &ast) {
         switch (ast.type()) {
-            case clingo_ast_type_symbol : {
+            case clingo_ast_type_symbolic_term : {
                 return prg_.theorytermvalue(get<Location>(ast, clingo_ast_attribute_location), get<Symbol>(ast, clingo_ast_attribute_symbol));
             }
             case clingo_ast_type_variable: {
@@ -393,7 +397,7 @@ private:
 
     TermUid parseAtom(AST &ast) {
         require_(ast.type() == clingo_ast_type_symbolic_atom, "invalid ast: symbolic atom expected");
-        return parseTerm(*get<SAST>(ast, clingo_ast_attribute_term));
+        return parseTerm(*get<SAST>(ast, clingo_ast_attribute_symbol));
     }
 
     static NAF parseSign(int sign) {
@@ -453,7 +457,7 @@ private:
                     case clingo_ast_type_symbolic_atom: {
                         return prg_.predlit(get<Location>(ast, clingo_ast_attribute_location),
                                             parseSign(get<int>(ast, clingo_ast_attribute_sign)),
-                                            parseAtom(*get<SAST>(ast, clingo_ast_attribute_symbol)));
+                                            parseAtom(*get<SAST>(ast, clingo_ast_attribute_atom)));
                     }
                     case clingo_ast_type_comparison: {
                         auto rel = parseRelation(get<int>(atom, clingo_ast_attribute_comparison));
@@ -557,7 +561,7 @@ private:
             auto &clit = get<SAST>(*ast, clingo_ast_attribute_condition);
             require_(clit->type() == clingo_ast_type_conditional_literal, "invalid ast: conditional literal expected");
             uid = prg_.headaggrelemvec(uid,
-                                       parseTermVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_tuple)),
+                                       parseTermVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_terms)),
                                        parseLiteral(*get<SAST>(*clit, clingo_ast_attribute_literal)),
                                        parseLiteralVec(get<AST::ASTVec>(*clit, clingo_ast_attribute_condition)));
         }
@@ -569,7 +573,7 @@ private:
         for (auto &ast : asts) {
             require_(ast->type() == clingo_ast_type_body_aggregate_element, "invalid ast: body aggregate element expected");
             uid = prg_.bodyaggrelemvec(uid,
-                                       parseTermVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_tuple)),
+                                       parseTermVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_terms)),
                                        parseLiteralVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_condition)));
         }
         return uid;
@@ -579,7 +583,7 @@ private:
         auto uid = prg_.theoryelems();
         for (auto &ast : asts) {
             uid = prg_.theoryelems(uid,
-                                   parseTheoryOptermVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_tuple)),
+                                   parseTheoryOptermVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_terms)),
                                    parseLiteralVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_condition)));
         }
         return uid;
@@ -591,7 +595,7 @@ private:
             require_(ast->type() == clingo_ast_type_body_aggregate_element, "invalid ast: body aggregate element expected");
             ret = prg_.cspelemvec(ret,
                                   get<Location>(*ast, clingo_ast_attribute_location),
-                                  parseTermVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_tuple)),
+                                  parseTermVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_terms)),
                                   parseCSPAddTerm(*get<SAST>(*ast, clingo_ast_attribute_term)),
                                   parseLiteralVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_condition)));
         }
