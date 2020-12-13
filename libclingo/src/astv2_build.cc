@@ -518,9 +518,9 @@ public:
         cb_(ast(clingo_ast_type_heuristic, loc)
             .set(clingo_ast_attribute_atom, symbolicatom(termUid))
             .set(clingo_ast_attribute_body, bodylitvecs_.erase(body))
-            .set(clingo_ast_attribute_bias, symbolicatom(a))
-            .set(clingo_ast_attribute_priority, symbolicatom(b))
-            .set(clingo_ast_attribute_modifier, symbolicatom(mod)));
+            .set(clingo_ast_attribute_bias, terms_.erase(a))
+            .set(clingo_ast_attribute_priority, terms_.erase(b))
+            .set(clingo_ast_attribute_modifier, terms_.erase(mod)));
     }
 
     void project(Location const &loc, TermUid termUid, BdLitVecUid body) override {

@@ -316,7 +316,7 @@ private:
                 return prg_.theorytermvalue(get<Location>(ast, clingo_ast_attribute_location), get<Symbol>(ast, clingo_ast_attribute_symbol));
             }
             case clingo_ast_type_variable: {
-                return prg_.theorytermvar(get<Location>(ast, clingo_ast_attribute_location), get<String>(ast, clingo_ast_attribute_variable));
+                return prg_.theorytermvar(get<Location>(ast, clingo_ast_attribute_location), get<String>(ast, clingo_ast_attribute_name));
             }
             case clingo_ast_type_theory_sequence: {
                 switch (get<int>(ast, clingo_ast_attribute_sequence_type)) {
@@ -452,7 +452,7 @@ private:
 
                 switch (atom.type()) {
                     case clingo_ast_type_boolean_constant: {
-                        return prg_.boollit(get<Location>(ast, clingo_ast_attribute_location), get<int>(ast, clingo_ast_attribute_value) != 0);
+                        return prg_.boollit(get<Location>(ast, clingo_ast_attribute_location), get<int>(atom, clingo_ast_attribute_value) != 0);
                     }
                     case clingo_ast_type_symbolic_atom: {
                         return prg_.predlit(get<Location>(ast, clingo_ast_attribute_location),
@@ -690,6 +690,7 @@ private:
                             break;
                         }
                     }
+                    break;
                 }
                 case clingo_ast_type_conditional_literal: {
                     uid = prg_.conjunction(uid,
