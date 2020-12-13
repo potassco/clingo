@@ -28,6 +28,7 @@
 #include <clingo/control.hh>
 #include <clingo/scripts.hh>
 #include <clingo/ast.hh>
+#include <clingo/astv2.hh>
 #include <gringo/output/output.hh>
 #include <gringo/input/program.hh>
 #include <gringo/input/programbuilder.hh>
@@ -345,6 +346,7 @@ public:
     Logger &logger() override { return logger_; }
     void beginAdd() override { parse(); }
     void add(clingo_ast_statement_t const &stm) override { Input::parseStatement(*pb_, logger_, stm); }
+    void add(clingo_ast_t const &ast) override { Input::parse(*pb_, logger_, ast.ast); }
     void endAdd() override { defs_.init(logger_); parsed = true; }
     void registerObserver(UBackend obs, bool replace) override {
         if (replace) { clingoMode_ = false; }

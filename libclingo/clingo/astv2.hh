@@ -100,8 +100,12 @@ struct OAST {
 };
 
 std::unique_ptr<INongroundProgramBuilder> build(SASTCallback cb);
-void parse(INongroundProgramBuilder &prg, Logger &log, AST &ast);
+void parse(INongroundProgramBuilder &prg, Logger &log, AST const &ast);
 
 } } // namespace Input Gringo
+
+struct clingo_ast {
+    Gringo::Input::AST ast;
+};
 
 #endif // CLINGO_AST_HH

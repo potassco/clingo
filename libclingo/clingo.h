@@ -3168,6 +3168,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_add(clingo_program_builder
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_end(clingo_program_builder_t *builder);
 
+// TODO: document
+CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_add_ast(clingo_program_builder_t *bld, clingo_ast_t *ast);
+
 //! @}
 
 // {{{1 ground program observer

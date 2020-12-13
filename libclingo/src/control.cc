@@ -1206,10 +1206,6 @@ extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
 
 // {{{1 ast
 
-struct clingo_ast {
-    Input::AST ast;
-};
-
 #define C(name) \
     static_assert(clingo_ast_type_##name >= 0, "no matching type existis"); \
     clingo_ast_argument clingo_ast_argument_##name[] =
@@ -1745,6 +1741,11 @@ extern "C" bool clingo_program_builder_begin(clingo_program_builder_t *bld) {
 
 extern "C" bool clingo_program_builder_add(clingo_program_builder_t *bld, clingo_ast_statement_t const *stm) {
     GRINGO_CLINGO_TRY { bld->add(*stm); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_program_builder_add_ast(clingo_program_builder_t *bld, clingo_ast_t *ast) {
+    GRINGO_CLINGO_TRY { bld->add(*ast); }
     GRINGO_CLINGO_CATCH;
 }
 
