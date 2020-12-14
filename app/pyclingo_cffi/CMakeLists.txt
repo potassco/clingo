@@ -56,9 +56,15 @@ if (PYCLINGO_INSTALL_DIR)
     install(TARGETS pyclingo
         RUNTIME DESTINATION ${_PYCLINGO_INSTALL_DIR}
         LIBRARY DESTINATION ${_PYCLINGO_INSTALL_DIR})
-    install(DIRECTORY ${CMAKE_SOURCE_DIR}/libpyclingo/clingo/
+    install(DIRECTORY ${CMAKE_SOURCE_DIR}/libpyclingo_cffi/clingo/
         DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
         FILES_MATCHING
-        PATTERN "*.pyi"
-        PATTERN "*.typed")
+        PATTERN "*.py")
+endif()
+
+if (Python_EXECUTABLE)
+    add_test(NAME test_pyclingo
+             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/libpyclingo_cffi"
+             COMMAND ${Python_EXECUTABLE} -m unittest)
+    set_property(TEST test_pyclingo APPEND PROPERTY ENVIRONMENT "PYTHONPATH=$<TARGET_FILE_DIR:pyclingo>")
 endif()
