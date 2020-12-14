@@ -1,14 +1,15 @@
 #script (python)
 
-import clingo
+from clingo import Control, String, Tuple_
 
 messages = []
 
 def log(code, message):
-    messages.append((str(code), message.replace(" ", "_")))
+    messages.append(Tuple_((String(str(code).replace('MessageCode.', '')),
+                            String(message.replace(" ", "_")))))
 
 def main(prg):
-    ctl = clingo.Control(logger=log, message_limit=2)
+    ctl = Control(logger=log, message_limit=2)
     ctl.add("base", [], ":- a. :- b. :- c.")
     ctl.ground([("base", [])])
 

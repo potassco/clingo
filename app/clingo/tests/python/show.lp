@@ -20,7 +20,6 @@ def on_model(model):
     models.append(fun("shown", sorted(model.symbols(shown=True))))
     models.append(fun("atoms", sorted(model.symbols(atoms=True))))
     models.append(fun("terms", sorted(model.symbols(terms=True))))
-    models.append(fun("csp",   sorted(model.symbols(csp=True))))
 
 def main(prg):
     prg.ground([("base", [])])
@@ -30,20 +29,10 @@ def main(prg):
 
 #end.
 
-$1 $= 11.
 { b }.
 c.
-$x $= 42.
-$y(1) $= 13.
-$y(2) $= 23.
-$z $= 7.
-#show $1.
 #show c/0.
 #show a : b.
-#show $x/0.
-#show $y(1) : b.
-#show $y(2) : not b.
-#show $y(3) : b.
 
 #program result.
 res(X) :- X = @getModels(). 

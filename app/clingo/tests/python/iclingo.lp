@@ -6,14 +6,14 @@ p(k).
 
 #script (python)
 
-from clingo import *
+from clingo import Number, Function
 
 def main(prg):
     step = 0
     while True:
-        if step > 0: prg.release_external(Function("vol", [step-1]))
-        prg.ground([("step", [step])])
-        prg.assign_external(Function("vol", [step]), True)
+        if step > 0: prg.release_external(Function("vol", [Number(step-1)]))
+        prg.ground([("step", [Number(step)])])
+        prg.assign_external(Function("vol", [Number(step)]), True)
         ret = prg.solve()
         if ret.satisfiable is True:
             break
