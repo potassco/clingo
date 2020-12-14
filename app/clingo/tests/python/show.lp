@@ -1,7 +1,7 @@
 #script (python)
 
 import clingo
-from clingo import Function, Model
+from clingo import Function, String, Model
 import sys
 
 models = []
@@ -10,7 +10,7 @@ def getModels():
     return models
 
 def split(model):
-    return sorted(str(model).split(" "))
+    return [String(x) for x in sorted(str(model).split(" "))]
 
 def fun(name, model):
     return Function(name, model) if len(model) > 0 else Function(name)
