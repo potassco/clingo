@@ -124,8 +124,8 @@ class ApplicationOptions(metaclass=ABCMeta):
             self._rep, group.encode(), option.encode(), description.encode(),
             target._flag))
 
-@_ffi.def_extern(onerror=_cb_error_panic)
-def pyclingo_application_options_parse(value, data):
+@_ffi.def_extern(onerror=_cb_error_panic, name='pyclingo_application_options_parse')
+def _pyclingo_application_options_parse(value, data):
     return _ffi.from_handle(data)(_to_str(value))
 
 class Application(metaclass=ABCMeta):
@@ -298,49 +298,49 @@ def clingo_main(application: Application, arguments: Optional[Sequence[str]]=Non
         [ _ffi.new('char[]', arg.encode()) for arg in arguments ], len(arguments),
         c_data)
 
-@_ffi.def_extern(onerror=_cb_error_panic)
-def pyclingo_application_program_name(data):
+@_ffi.def_extern(onerror=_cb_error_panic, name='pyclingo_application_program_name')
+def _pyclingo_application_program_name(data):
     app, mem = _ffi.from_handle(data)
     mem.append(_ffi.new('char[]', app.program_name.encode()))
     return mem[-1]
 
-@_ffi.def_extern(onerror=_cb_error_panic)
-def pyclingo_application_version(data):
+@_ffi.def_extern(onerror=_cb_error_panic, name='pyclingo_application_version')
+def _pyclingo_application_version(data):
     app, mem = _ffi.from_handle(data)
     mem.append(_ffi.new('char[]', app.version.encode()))
     return mem[-1]
 
-@_ffi.def_extern(onerror=_cb_error_panic)
-def pyclingo_application_message_limit(data):
+@_ffi.def_extern(onerror=_cb_error_panic, name='pyclingo_application_message_limit')
+def _pyclingo_application_message_limit(data):
     app = _ffi.from_handle(data)[0]
     return app.message_limit
 
-@_ffi.def_extern(onerror=_cb_error_panic)
-def pyclingo_application_logger(code, message, data):
+@_ffi.def_extern(onerror=_cb_error_panic, name='pyclingo_application_logger')
+def _pyclingo_application_logger(code, message, data):
     app = _ffi.from_handle(data)[0]
     return app.logger(MessageCode(code), _to_str(message))
 
-@_ffi.def_extern(onerror=_cb_error_print)
-def pyclingo_application_main(control, files, size, data):
+@_ffi.def_extern(onerror=_cb_error_print, name='pyclingo_application_main')
+def _pyclingo_application_main(control, files, size, data):
     app = _ffi.from_handle(data)[0]
     app.main(Control(control), [ _to_str(files[i]) for i in range(size) ])
     return True
 
-@_ffi.def_extern(onerror=_cb_error_print)
-def pyclingo_application_print_model(model, printer, printer_data, data):
+@_ffi.def_extern(onerror=_cb_error_print, name='pyclingo_application_print_model')
+def _pyclingo_application_print_model(model, printer, printer_data, data):
     def py_printer():
         _handle_error(printer(printer_data))
     app = _ffi.from_handle(data)[0]
     app.print_model(Model(model), py_printer)
     return True
 
-@_ffi.def_extern(onerror=_cb_error_panic)
-def pyclingo_application_register_options(options, data):
+@_ffi.def_extern(onerror=_cb_error_panic, name='pyclingo_application_register_options')
+def _pyclingo_application_register_options(options, data):
     app, mem = _ffi.from_handle(data)
     app.register_options(ApplicationOptions(options, mem))
     return True
 
-@_ffi.def_extern(onerror=_cb_error_panic)
-def pyclingo_application_validate_options(data):
+@_ffi.def_extern(onerror=_cb_error_panic, name='pyclingo_application_validate_options')
+def _pyclingo_application_validate_options(data):
     app = _ffi.from_handle(data)[0]
     return app.validate_options()
