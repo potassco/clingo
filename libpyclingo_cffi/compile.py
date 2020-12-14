@@ -201,7 +201,6 @@ bool pyclingo_main_(void *ctl, void *data);
         ffi.embedding_init_code(f"""\
 from collections.abc import Iterable
 from traceback import format_exception
-import sys
 import __main__
 from clingo._internal import _ffi, _handle_error, _lib
 from clingo.control import Control

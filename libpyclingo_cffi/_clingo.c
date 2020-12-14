@@ -545,8 +545,6 @@ static const char _CFFI_PYTHON_STARTUP_CODE[] = {
 // from traceback import format_exception
 102,114,111,109,32,116,114,97,99,101,98,97,99,107,32,105,109,112,111,114,116,
 32,102,111,114,109,97,116,95,101,120,99,101,112,116,105,111,110,10,
-// import sys
-105,109,112,111,114,116,32,115,121,115,10,
 // import __main__
 105,109,112,111,114,116,32,95,95,109,97,105,110,95,95,10,
 // from clingo._internal import _ffi, _handle_error, _lib
