@@ -36,7 +36,7 @@ bool clingo_register_python_() {
         pyclingo_callable_,
         pyclingo_main_,
         pyclingo_free_,
-        PYCLINGO_PYTHON_VERSION
+        PYCLINGO_PYTHON_VERSION " (CFFI)"
     };
     return clingo_register_script_(clingo_ast_script_type_python, &script, NULL);
 }
