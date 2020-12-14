@@ -203,8 +203,6 @@ from collections.abc import Iterable
 from traceback import format_exception
 import sys
 import __main__
-
-sys.path.insert(0, '{clingo_dir}/libpyclingo_cffi')
 from clingo._internal import _ffi, _handle_error, _lib
 from clingo.control import Control
 from clingo.symbol import Symbol
