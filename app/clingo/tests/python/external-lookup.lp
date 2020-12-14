@@ -1,17 +1,19 @@
 #script (python)
 
+from clingo import Number
+
 def foo(x):
-    return bar(x) + 1
+    return Number(bar(x).number + 1)
 
 def main(prg):
     global bar
     def bar(x):
-        return 42 + x.number
+        return Number(42 + x.number)
     prg.ground([("base", [])])
     prg.solve()
     global foobar
     def foobar(x):
-        return x.number
+        return Number(x.number)
     prg.ground([("test", [])])
     prg.solve()
 

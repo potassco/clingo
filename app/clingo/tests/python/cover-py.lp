@@ -1,6 +1,6 @@
 #script (python)
 
-import clingo
+from clingo import Control, Number, Tuple_
 import sys
 
 class State:
@@ -23,10 +23,10 @@ class State:
         cover = []
         vertices = set()
         for atom in self.last:
-            if atom.name == "edge":
+            if atom.name == "edge" and len(atom.arguments) == 3:
                 args = atom.arguments
                 if args[0].number == k-1:
-                    edges.append((args[1], args[2]))
+                    edges.append(Tuple_((args[1], args[2])))
                     vertices.add(args[1])
                     vertices.add(args[2])
             if atom.name == "cover":
@@ -37,7 +37,7 @@ class State:
         setattr(self, "vertex", lambda: vertices)
 
     def run(self, prg):
-        pre = clingo.Control()
+        pre = Control()
         pre.add("base", [], """
 edge(a,(b;c)).
 edge(b,(c;d)).
@@ -67,7 +67,7 @@ edge(k,X,Y) :- edge(k-1,X,Y), not cover(k,X), not cover(k,Y).
         while ret.satisfiable is True:
             k = k + 1
             pre.cleanup()
-            pre.ground([("step", [k])], self)
+            pre.ground([("step", [Number(k)])], self)
             ret = pre.solve(on_model = self.on_model)
         self.prepare_instance(k)
         prg.add("base", [], """

@@ -1226,7 +1226,7 @@ C(csp_product) { A(location, location), A(coefficient, ast), A(variable, ast) };
 C(csp_sum) { A(location, location), A(coefficient, ast), A(variable, ast) };
 C(csp_guard) { A(location, location), A(comparison, number), A(term, ast) };
 // simple atoms
-C(boolean_constant) { A(location, location), A(value, number) };
+C(boolean_constant) { A(value, number) };
 C(symbolic_atom) { A(symbol, ast) };
 C(comparison) { A(comparison, number), A(left, ast), A(right, ast) };
 C(csp_literal) { A(location, location), A(term, ast), A(guards, ast_array) };

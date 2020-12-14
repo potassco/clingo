@@ -218,7 +218,7 @@ public:
     LitUid boollit(Location const &loc, bool type) override {
         return lits_.insert(ast(clingo_ast_type_literal, loc)
             .set(clingo_ast_attribute_sign, static_cast<int>(clingo_ast_sign_none))
-            .set(clingo_ast_attribute_atom, ast(clingo_ast_type_boolean_constant, loc)
+            .set(clingo_ast_attribute_atom, ast(clingo_ast_type_boolean_constant)
                 .set(clingo_ast_attribute_value, static_cast<int>(type))));
     }
 
