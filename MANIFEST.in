@@ -1,0 +1,15 @@
+include setup.py
+include pyproject.toml
+include CMakeLists.txt
+include LICENSE.md
+include README.md
+recursive-include app *
+recursive-include clasp *
+recursive-include cmake *
+recursive-include libclingo  *
+recursive-include libgringo *
+recursive-include libluaclingo *
+recursive-include libpyclingo *
+recursive-include libpyclingo_cffi *
+recursive-include libreify *
+prune _skbuild

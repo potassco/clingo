@@ -6,8 +6,8 @@ if not site.ENABLE_USER_SITE and "--user" in sys.argv[1:]:
     site.ENABLE_USER_SITE = True
 
 setup(
-    version = '5.5.0',
-    name = 'clingo',
+    version = '5.5.0-post1',
+    name = 'clingo-cffi',
     description = 'A grounder and solver for logic programs.',
     author = 'Roland Kaminski',
     license = 'MIT',
@@ -21,6 +21,7 @@ setup(
                  '-DPYCLINGO_USE_CFFI=ON',
                  '-DPYCLINGO_USER_INSTALL=OFF',
                  '-DPYCLINGO_USE_INSTALL_PREFIX=ON',
-                 '-DPYCLINGO_INSTALL_DIR=.' ],
-    packages=['clingo'],
+                 '-DPYCLINGO_INSTALL_DIR=libpyclingo_cffi' ],
+    packages=[ 'clingo' ],
+    package_dir={ '': 'libpyclingo_cffi' }
 )
