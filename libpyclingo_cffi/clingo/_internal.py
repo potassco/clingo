@@ -5,7 +5,11 @@ Internal functions and classes of the clingo module.
 from os import _exit
 from traceback import print_exception
 import sys
-from _clingo import ffi as _ffi, lib as _lib # type: ignore # pylint: disable=no-name-in-module
+try:
+    # Note: imported first to correctly handle the embedded case
+    from _clingo import ffi as _ffi, lib as _lib # type: ignore # pylint: disable=no-name-in-module
+except ImportError:
+    from ._clingo import ffi as _ffi, lib as _lib # type: ignore # pylint: disable=no-name-in-module
 
 def _str(f_size, f_str, *args, handler=None):
     p_size = _ffi.new('size_t*')
