@@ -44,7 +44,7 @@ class TestApp(Application):
         return True
 
     def logger(self, code: MessageCode, message: str) -> None:
-        self._queue.put((code, re.sub('^[^:]*:', '', message)))
+        self._queue.put((code, re.sub('^.*:(?=[0-9]+:)', '', message)))
 
     def main(self, control, files):
         self._queue.put('main')
