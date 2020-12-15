@@ -36,7 +36,7 @@
 namespace Gringo { namespace Input {
 
 class SAST;
-class OAST;
+struct OAST;
 using SASTCallback = std::function<void (SAST ast)>;
 
 class AST {
