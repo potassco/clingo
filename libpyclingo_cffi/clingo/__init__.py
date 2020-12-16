@@ -1,22 +1,45 @@
 '''
-The clingo module.
-
-This module provides functions and classes to control the grounding and solving
+Module providing functions and classes to control the grounding and solving
 process.
 
+Next follow some concepts used throughout the modules of the clingo package.
+
+Terms
+-----
+Terms without variables and interpreted functions are called symbols in the
+following. They are wrapped in the `clingo.symbol.Symbol` class.
+
+Atoms and Literals
+------------------
+Atoms are also captured using the `clingo.symbol.Symbol` class. They must be of
+type `clingo.symbol.SymbolType.Function`. Some functions accept literals in
+form of pairs of symbols and Booleans. The Boolean stands for the sign of the
+literal (`True` for positive and `False` for negative).
+
+Program Literals
+----------------
+*Program literals* are non-zero integers associated with symbolic atoms, theory
+atoms, and also without any association if they are used to translate complex
+language constructs. The sign of a program literal is used to represent default
+negation. Symbolic atoms can be mapped to program literals using the
+`clingo.symbolic_atoms` module, theory atoms using the `clingo.theory_atoms`
+module, and the `clingo.backend` can also be used to introduce fresh program
+literals.
+
+Solver Literals
+---------------
+Furthermore, there are non-zero integer *solver literals*. There is a
+surjective mapping from program atoms to solver literals. The
+`clingo.propagator.PropagateInit.solver_literal` function can be used to map
+program literals to solver literals.
+
+Embedded Python Code
+--------------------
 If the clingo application is build with Python support, clingo will also be
 able to execute Python code embedded in logic programs.  Functions defined in a
 Python script block are callable during the instantiation process using
 `@`-syntax.  The default grounding/solving process can be customized if a main
 function is provided.
-
-Note that gringo's precomputed terms (terms without variables and interpreted
-functions), called symbols in the following, are wrapped in the Symbol class.
-Furthermore, strings, numbers, and tuples can be passed wherever a symbol is
-expected - they are automatically converted into a Symbol object.  Functions
-called during the grounding process from the logic program must either return a
-symbol or a sequence of symbols.  If a sequence is returned, the corresponding
-`@`-term is successively substituted by the values in the sequence.
 
 ## Examples
 

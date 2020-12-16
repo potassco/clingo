@@ -1,5 +1,28 @@
 '''
 This module contains functions and classes related to statistics.
+
+Examples
+--------
+The following example shows how to dump the solving statistics in json format:
+
+    >>> import json
+    >>> import clingo
+    >>> ctl = clingo.Control()
+    >>> ctl.add("base", [], "{a}.")
+    >>> ctl.ground([("base", [])])
+    >>> ctl.solve()
+    SAT
+    >>> print(json.dumps(ctl.statistics['solving'], sort_keys=True, indent=4,
+    ... separators=(',', ': ')))
+    {
+        "solvers": {
+            "choices": 1.0,
+            "conflicts": 0.0,
+            "conflicts_analyzed": 0.0,
+            "restarts": 0.0,
+            "restarts_last": 0.0
+        }
+    }
 '''
 from typing import (AbstractSet, Any, Iterable, KeysView, Sequence, Tuple, MutableMapping, MutableSequence, Union,
                     ValuesView,

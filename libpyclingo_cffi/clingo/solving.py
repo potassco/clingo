@@ -1,5 +1,68 @@
 '''
 This modules contains functions and classes related to solving.
+
+Examples
+--------
+
+The following example shows how to intercept models with a callback:
+
+    >>> import clingo
+    >>> ctl = clingo.Control("0")
+    >>> ctl.add("p", [], "1 { a; b } 1.")
+    >>> ctl.ground([("p", [])])
+    >>> ctl.solve(on_model=lambda m: print("Answer: {}".format(m)))
+    Answer: a
+    Answer: b
+    SAT
+
+The following example shows how to yield models:
+
+    >>> import clingo
+    >>> ctl = clingo.Control("0")
+    >>> ctl.add("p", [], "1 { a; b } 1.")
+    >>> ctl.ground([("p", [])])
+    >>> with ctl.solve(yield_=True) as handle:
+    ...     for m in handle: print("Answer: {}".format(m))
+    ...     handle.get()
+    ...
+    Answer: a
+    Answer: b
+    SAT
+
+The following example shows how to solve asynchronously:
+
+    >>> import clingo
+    >>> ctl = clingo.Control("0")
+    >>> ctl.add("p", [], "1 { a; b } 1.")
+    >>> ctl.ground([("p", [])])
+    >>> with ctl.solve(on_model=lambda m: print("Answer: {}".format(m)), async_=True) as handle:
+    ...     while not handle.wait(0): pass
+    ...     handle.get()
+    ...
+    Answer: a
+    Answer: b
+    SAT
+
+
+This example shows how to solve both iteratively and asynchronously:
+
+    >>> import clingo
+    >>> ctl = clingo.Control()
+    >>> ctl.configuration.solve.models = 0
+    >>> ctl.add("base", [], "1 {a;b}.")
+    >>> ctl.ground([("base", [])])
+    >>> with prg.solve(yield_=True, async_=True) as hnd:
+    ...     while True:
+    ...         hnd.resume()
+    ...         _ = hnd.wait()
+    ...         m = hnd.model()
+    ...         print(m)
+    ...         if m is None:
+    ...             break
+    b
+    a
+    a b
+    None
 '''
 
 from typing import Iterator, List, Optional, Sequence, Tuple, Union
@@ -165,24 +228,6 @@ class Model:
     during solving (see `Control.solve`). Furthermore, the lifetime of a model
     object is limited to the scope of the callback it was passed to or until the
     search for the next model is started. They must not be stored for later use.
-
-    Examples
-    --------
-    The following example shows how to store atoms in a model for usage after
-    solving:
-
-        >>> import clingo
-        >>> ctl = clingo.Control()
-        >>> ctl.add("base", [], "{a;b}.")
-        >>> ctl.ground([("base", [])])
-        >>> ctl.configuration.solve.models="0"
-        >>> models = []
-        >>> with ctl.solve(yield_=True) as handle:
-        ...     for model in handle:
-        ...         models.append(model.symbols(atoms=True))
-        ...
-        >>> sorted(models)
-        [[], [a], [a, b], [b]]
     '''
     def __init__(self, rep):
         self._rep = rep
@@ -447,24 +492,6 @@ class SolveHandle:
         The following example shows how to implement a custom solve loop. While more
         cumbersome than using a for loop, this kind of loop allows for fine grained
         timeout handling between models:
-
-            >>> import clingo
-            >>> ctl = clingo.Control()
-            >>> ctl.configuration.solve.models = 0
-            >>> ctl.add("base", [], "1 {a;b}.")
-            >>> ctl.ground([("base", [])])
-            >>> with prg.solve(yield_=True, async_=True) as hnd:
-            ...     while True:
-            ...         hnd.resume()
-            ...         _ = hnd.wait()
-            ...         m = hnd.model()
-            ...         print(m)
-            ...         if m is None:
-            ...             break
-            b
-            a
-            a b
-            None
         '''
         p_model = _ffi.new('clingo_model_t**')
         _handle_error(

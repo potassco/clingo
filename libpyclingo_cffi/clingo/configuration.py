@@ -1,5 +1,5 @@
 '''
-This module contains functions and classes related to configuration.
+Module providing functions and classes related to configuration.
 
 Examples
 --------

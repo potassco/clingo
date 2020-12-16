@@ -641,6 +641,11 @@ class PropagateControl(metaclass=ABCMeta):
 class Propagator(metaclass=ABCMeta):
     '''
     Propagator interface for custom constraints.
+
+    Notes
+    -----
+    Not all functions of the `Propagator` interface have to be implemented and
+    can be omitted if not needed.
     '''
     def init(self, init: PropagateInit) -> None:
         '''

@@ -77,6 +77,11 @@ class Observer(metaclass=ABCMeta):
     See Also
     --------
     clingo.control.Control.register_observer
+
+    Notes
+    -----
+    Not all functions the `Observer` interface have to be implemented and can
+    be omitted if not needed.
     '''
     def init_program(self, incremental: bool) -> None:
         '''

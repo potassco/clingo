@@ -1,14 +1,38 @@
 '''
-This modules provides the `clingo.control.Control` class responsible for
-controling grounding and solving.
+Module providing the `clingo.control.Control` class responsible for controling
+grounding and solving.
+
+Examples
+--------
+The following example shows basic (multishot) grounding and solving.
+
+    >>> from clingo.symbol import Number
+    >>> from clingo.control import Control
+    >>>
+    >>> ctl = Control()
+    >>> ctl.add("base", [], "q.")
+    >>> ctl.add("p", ["t"], "q(t).")
+    >>>
+    >>> ctl.ground([("base", [])])
+    >>> print(ctl.solve(on_model=print))
+    q
+    SAT
+    >>> ctl.ground([("p", [Number(1)]), ("p", [Number(2)])])
+    >>> print(ctl.solve(on_model=print))
+    q q(1) q(2)
+    SAT
+    >>> ctl.ground([("p", [Number(3)])])
+    >>> print(ctl.solve(on_model=print))
+    q q(1) q(2) q(3)
+    SAT
 '''
 
-from typing import Any, Callable, Iterator, Optional, Sequence, Tuple, Union, cast, overload
+from typing import Any, Callable, Iterator, Optional, Sequence, Tuple, Union, cast
 from collections import abc
 import sys
 
 from ._internal import _CBData, _Error, _cb_error_handler, _c_call, _ffi, _handle_error, _lib, _overwritten
-from .core import MessageCode
+from .core import Logger
 from .symbol import Symbol
 from .symbolic_atoms import SymbolicAtoms
 from .theory_atoms import TheoryAtom
@@ -90,30 +114,21 @@ class Control:
 
     Parameters
     ----------
-    arguments : Sequence[str]
+    arguments
         Arguments to the grounder and solver.
-    logger : Callable[[MessageCode,str],None]=None
+    logger
         Function to intercept messages normally printed to standard error.
-    message_limit : int=20
+    message_limit
         The maximum number of messages passed to the logger.
 
     Notes
     -----
-    Note that only gringo options (without `--text`) and clasp's search options are
-    supported. Furthermore, a `Control` object is blocked while a search call is
-    active; you must not call any member function during search.
-
-    The second overload is for internal purposes.
+    Note that only gringo options (without `--text`) and clasp's search options
+    are supported. Furthermore, you must not call any functions of a `Control`
+    object while a solve call is active.
     '''
-    @overload
-    def __init__(self, arguments: Union[Sequence[str],Any]=[],
-                 logger: Callable[[MessageCode,str],None]=None, message_limit: int=20):
-        # pylint: disable=dangerous-default-value
-        ...
-    @overload
-    def __init__(self, rep: Any):
-        ...
-    def __init__(self, arguments=[], logger=None, message_limit=20):
+    def __init__(self, arguments: Sequence[str]=[],
+                 logger: Optional[Logger]=None, message_limit: int=20):
         # pylint: disable=protected-access,dangerous-default-value
         self._free = False
         self._mem = []
@@ -151,16 +166,12 @@ class Control:
 
         Parameters
         ----------
-        name : str
+        name
             The name of program block to add.
-        parameters : Sequence[str]
+        parameters
             The parameters of the program block to add.
-        program : str
+        program
             The non-ground program in string form.
-
-        Returns
-        -------
-        None
 
         See Also
         --------
@@ -185,11 +196,11 @@ class Control:
 
         Parameters
         ----------
-        external : Union[Symbol,int]
+        external
             A symbol or program literal representing the external atom.
-        truth : Optional[bool]
-            A Boolean fixes the external to the respective truth value; and None leaves
-            its truth value open.
+        truth
+            A Boolean fixes the external to the respective truth value; and
+            None leaves its truth value open.
 
         Returns
         -------
@@ -202,14 +213,15 @@ class Control:
 
         Notes
         -----
-        The truth value of an external atom can be changed before each solve call. An
-        atom is treated as external if it has been declared using an `#external`
-        directive, and has not been released by calling release_external() or defined
-        in a logic program with some rule. If the given atom is not external, then the
-        function has no effect.
+        The truth value of an external atom can be changed before each solve
+        call. An atom is treated as external if it has been declared using an
+        `#external` directive, and has not been released by calling
+        `Control.release_external` or defined in a logic program with some
+        rule. If the given atom is not external, then the function has no
+        effect.
 
-        For convenience, the truth assigned to atoms over negative program literals is
-        inverted.
+        For convenience, the truth assigned to atoms over negative program
+        literals is inverted.
         '''
 
         if truth is None:
@@ -222,28 +234,24 @@ class Control:
 
     def backend(self) -> Backend:
         '''
-        Returns a `Backend` object providing a low level interface to extend a logic
-        program.
+        Returns a `Backend` object providing a low level interface to extend a
+        logic program.
 
-        Returns
-        -------
-        Backend
+        See Also
+        --------
+        clingo.backend
         '''
         return Backend(_c_call('clingo_backend_t*', _lib.clingo_control_backend, self._rep), self._error)
 
     def cleanup(self) -> None:
         '''
-        Cleanup the domain used for grounding by incorporating information from the
-        solver.
+        Cleanup the domain used for grounding by incorporating information from
+        the solver.
 
-        This function cleans up the domain used for grounding.  This is done by first
-        simplifying the current program representation (falsifying released external
-        atoms).  Afterwards, the top-level implications are used to either remove atoms
-        from the domain or mark them as facts.
-
-        Returns
-        -------
-        None
+        This function cleans up the domain used for grounding.  This is done by
+        first simplifying the current program representation (falsifying
+        released external atoms).  Afterwards, the top-level implications are
+        used to either remove atoms from the domain or mark them as facts.
 
         See Also
         --------
@@ -251,30 +259,33 @@ class Control:
 
         Notes
         -----
-        Any atoms falsified are completely removed from the logic program. Hence, a
-        definition for such an atom in a successive step introduces a fresh atom.
+        Any atoms falsified are completely removed from the logic program.
+        Hence, a definition for such an atom in a successive step introduces a
+        fresh atom.
 
-        With the current implementation, the function only has an effect if called
-        after solving and before any function is called that starts a new step.
+        With the current implementation, the function only has an effect if
+        called after solving and before any function is called that starts a
+        new step.
 
-        Typically, it is not necessary to call this function manually because automatic
-        cleanups are enabled by default.
+        Typically, it is not necessary to call this function manually because
+        automatic cleanups are enabled by default.
         '''
         _handle_error(_lib.clingo_control_cleanup(self._rep))
 
     def get_const(self, name: str) -> Optional[Symbol]:
         '''
-        Return the symbol for a constant definition of form: `#const name = symbol.`
+        Return the symbol for a constant definition of form:
+
+            #const name = symbol.
 
         Parameters
         ----------
-        name : str
+        name
             The name of the constant to retrieve.
 
         Returns
         -------
-        Optional[Symbol]
-            The function returns `None` if no matching constant definition exists.
+        The function returns `None` if no matching constant definition exists.
         '''
         if not _c_call('bool', _lib.clingo_control_has_const, self._rep, name.encode()):
             return None
@@ -283,34 +294,22 @@ class Control:
 
     def ground(self, parts: Sequence[Tuple[str,Sequence[Symbol]]], context: Any=None) -> None:
         '''
-        Ground the given list of program parts specified by tuples of names and arguments.
+        Ground the given list of program parts specified by tuples of names and
+        arguments.
 
         Parameters
         ----------
-        parts : Sequence[Tuple[str,Sequence[Symbol]]]
+        parts
             List of tuples of program names and program arguments to ground.
-        context : Any=None
-            A context object whose methods are called during grounding using the
-            `@`-syntax (if omitted methods, those from the main module are used).
+        context
+            A context object whose methods are called during grounding using
+            the `@`-syntax (if omitted, those from the main module are used).
 
         Notes
         -----
-        Note that parts of a logic program without an explicit `#program` specification
-        are by default put into a program called `base` without arguments.
-
-        Examples
-        --------
-
-            >>> import clingo
-            >>> ctl = clingo.Control()
-            >>> ctl.add("p", ["t"], "q(t).")
-            >>> parts = []
-            >>> parts.append(("p", [1]))
-            >>> parts.append(("p", [2]))
-            >>> ctl.ground(parts)
-            >>> ctl.solve(on_model=lambda m: print("Answer: {}".format(m)))
-            Answer: q(1) q(2)
-            SAT
+        Note that parts of a logic program without an explicit `#program`
+        specification are by default put into a program called `base` without
+        arguments.
         '''
         # pylint: disable=protected-access,dangerous-default-value
         self._error.clear()
@@ -335,10 +334,6 @@ class Control:
         '''
         Interrupt the active solve call.
 
-        Returns
-        -------
-        None
-
         Notes
         -----
         This function is thread-safe and can be called from a signal handler. If no
@@ -354,12 +349,8 @@ class Control:
 
         Parameters
         ----------
-        path : str
+        path
             The path of the file to load.
-
-        Returns
-        -------
-        None
         '''
         _handle_error(_lib.clingo_control_load(self._rep, path.encode()))
 
@@ -369,21 +360,16 @@ class Control:
 
         Parameters
         ----------
-        observer : Observer
+        observer
             The observer to register. See below for a description of the requirede
             interface.
-        replace : bool=False
+        replace
             If set to true, the output is just passed to the observer and nolonger to
             the underlying solver (or any previously registered observers).
 
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        Not all functions the `Observer` interface have to be implemented and can be
-        omitted if not needed.
+        See Also
+        --------
+        clingo.backend
         '''
         # pylint: disable=protected-access,line-too-long
         c_observer = _ffi.new('clingo_ground_program_observer_t*', (
@@ -417,27 +403,12 @@ class Control:
 
         Parameters
         ----------
-        propagator : Propagator
+        propagator
             The propagator to register.
 
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        Each symbolic or theory atom is uniquely associated with a positive program
-        atom in form of a positive integer. Program literals additionally have a sign
-        to represent default negation. Furthermore, there are non-zero integer solver
-        literals. There is a surjective mapping from program atoms to solver literals.
-
-        All methods called during propagation use solver literals whereas
-        `SymbolicAtom.literal` and `TheoryAtom.literal` return program literals. The
-        function `PropagateInit.solver_literal` can be used to map program literals or
-        condition ids to solver literals.
-
-        Not all functions of the `Propagator` interface have to be implemented and can
-        be omitted if not needed.
+        See Also
+        --------
+        clingo.propagator
         '''
         # pylint: disable=protected-access
         c_propagator = _ffi.new('clingo_propagator_t*', (
@@ -452,20 +423,17 @@ class Control:
 
     def release_external(self, external: Union[Symbol,int]) -> None:
         '''
-        Release an external atom represented by the given symbol or program literal.
+        Release an external atom represented by the given symbol or program
+        literal.
 
-        This function causes the corresponding atom to become permanently false if
-        there is no definition for the atom in the program. Otherwise, the function has
-        no effect.
+        This function causes the corresponding atom to become permanently false
+        if there is no definition for the atom in the program. Otherwise, the
+        function has no effect.
 
         Parameters
         ----------
-        external : Union[Symbol,int]
+        external
             The symbolic atom or program atom to release.
-
-        Returns
-        -------
-        None
 
         Notes
         -----
@@ -476,17 +444,19 @@ class Control:
         The following example shows the effect of assigning and releasing and external
         atom.
 
-            >>> import clingo
-            >>> ctl = clingo.Control()
+            >>> from clingo.symbol import Function
+            >>> from clingo.control import Control
+            >>>
+            >>> ctl = Control()
             >>> ctl.add("base", [], "a. #external b.")
             >>> ctl.ground([("base", [])])
-            >>> ctl.assign_external(clingo.Function("b"), True)
-            >>> ctl.solve(on_model=lambda m: print("Answer: {}".format(m)))
-            Answer: b a
+            >>> ctl.assign_external(Function("b"), True)
+            >>> print(ctl.solve(on_model=print))
+            b a
             SAT
-            >>> ctl.release_external(clingo.Function("b"))
-            >>> ctl.solve(on_model=lambda m: print("Answer: {}".format(m)))
-            Answer: a
+            >>> ctl.release_external(Function("b"))
+            >>> print(ctl.solve(on_model=print))
+            a
             SAT
         '''
         _handle_error(_lib.clingo_control_release_external(self._rep, self._program_atom(external)))
@@ -504,30 +474,30 @@ class Control:
 
         Parameters
         ----------
-        assumptions : Sequence[Union[Tuple[Symbol,bool],int]]=[]
-            List of (atom, boolean) tuples or program literals that serve
-            as assumptions for the solve call, e.g., solving under
-            assumptions `[(Function("a"), True)]` only admits answer sets
-            that contain atom `a`.
-        on_model : Callable[[Model],Optional[bool]]=None
+        assumptions
+            List of (atom, boolean) tuples or program literals (see
+            `clingo.symbolic_atoms.SymbolicAtom.literal`) that serve as
+            assumptions for the solve call, e.g., solving under assumptions
+            `[(Function("a"), True)]` only admits answer sets that contain atom `a`.
+        on_model
             Optional callback for intercepting models.
             A `clingo.solving.Model` object is passed to the callback. The
             search can be interruped from the model callback by returning
             False.
-        on_statistics : Callable[[StatisticsMap,StatisticsMap],None]=None
+        on_statistics
             Optional callback to update statistics.
             The step and accumulated statistics are passed as arguments.
-        on_finish : Callable[[SolveResult],None]=None
+        on_finish
             Optional callback called once search has finished.
             A `clingo.solving.SolveResult` also indicating whether the solve
             call has been intrrupted is passed to the callback.
-        on_core : Callable[[Sequence[int]],None]=None
+        on_core
             Optional callback called with the assumptions that made a problem
             unsatisfiable.
-        yield_ : bool=False
+        yield_
             The resulting `clingo.solving.SolveHandle` is iterable yielding
             `clingo.solving.Model` objects.
-        async_ : bool=False
+        async_
             The solve call and the method `clingo.solving.SolveHandle.resume`
             of the returned handle are non-blocking.
 
@@ -538,67 +508,29 @@ class Control:
             is true, then a handle is returned. Otherwise, a
             `clingo.solving.SolveResult` is returned.
 
+        See Also
+        --------
+        clingo.solving
+
         Notes
         -----
         If neither `yield_` nor `async_` is set, the function returns a
         `clingo.solving.SolveResult` right away.
 
-        Note that in gringo or in clingo with lparse or text output enabled
-        this function just grounds and returns a `clingo.solving.SolveResult`
-        where `clingo.solving.SolveResult.unknown` is true.
+        In gringo or in clingo with lparse or text output enabled, this
+        function just grounds and returns a `clingo.solving.SolveResult` where
+        `clingo.solving.SolveResult.unknown` is true.
 
         If this function is used in embedded Python code, you might want to start
         clingo using the `--outf=3` option to disable all output from clingo.
 
-        Note that asynchronous solving is only available in clingo with thread support
-        enabled. Furthermore, the on_model and on_finish callbacks are called from
-        another thread. To ensure that the methods can be called, make sure to not use
-        any functions that block Python's GIL indefinitely.
+        Asynchronous solving is only available in clingo with thread support
+        enabled. Furthermore, the on_model and on_finish callbacks are called
+        from another thread. To ensure that the methods can be called, make
+        sure to not use any functions that block Python's GIL indefinitely.
 
         This function as well as blocking functions on the
         `clingo.solving.SolveHandle` release the GIL but are not thread-safe.
-
-        Examples
-        --------
-
-        The following example shows how to intercept models with a callback:
-
-            >>> import clingo
-            >>> ctl = clingo.Control("0")
-            >>> ctl.add("p", [], "1 { a; b } 1.")
-            >>> ctl.ground([("p", [])])
-            >>> ctl.solve(on_model=lambda m: print("Answer: {}".format(m)))
-            Answer: a
-            Answer: b
-            SAT
-
-        The following example shows how to yield models:
-
-            >>> import clingo
-            >>> ctl = clingo.Control("0")
-            >>> ctl.add("p", [], "1 { a; b } 1.")
-            >>> ctl.ground([("p", [])])
-            >>> with ctl.solve(yield_=True) as handle:
-            ...     for m in handle: print("Answer: {}".format(m))
-            ...     handle.get()
-            ...
-            Answer: a
-            Answer: b
-            SAT
-
-        The following example shows how to solve asynchronously:
-
-            >>> import clingo
-            >>> ctl = clingo.Control("0")
-            >>> ctl.add("p", [], "1 { a; b } 1.")
-            >>> ctl.ground([("p", [])])
-            >>> with ctl.solve(on_model=lambda m: print("Answer: {}".format(m)), async_=True) as handle:
-            ...     while not handle.wait(0): pass
-            ...     handle.get()
-            ...
-            Answer: a
-            Answer: b
-            SAT
         '''
         # pylint: disable=protected-access,dangerous-default-value
         self._error.clear()
@@ -710,6 +642,10 @@ class Control:
         '''
         A `dict` containing solve statistics of the last solve call.
 
+        See Also
+        --------
+        clingo.statistics
+
         Notes
         -----
         The statistics correspond to the `--stats` output of clingo. The detail of the
@@ -719,30 +655,6 @@ class Control:
         statistics right after solving.
 
         This property is only available in clingo.
-
-        Examples
-        --------
-        The following example shows how to dump the solving statistics in json format:
-
-            >>> import json
-            >>> import clingo
-            >>> ctl = clingo.Control()
-            >>> ctl.add("base", [], "{a}.")
-            >>> ctl.ground([("base", [])])
-            >>> ctl.solve()
-            SAT
-            >>> print(json.dumps(ctl.statistics['solving'], sort_keys=True, indent=4,
-            ... separators=(',', ': ')))
-            {
-                "solvers": {
-                    "choices": 1.0,
-                    "conflicts": 0.0,
-                    "conflicts_analyzed": 0.0,
-                    "restarts": 0.0,
-                    "restarts_last": 0.0
-                }
-            }
-
         '''
         stats = _c_call('clingo_statistics_t*', _lib.clingo_control_statistics, self._rep)
 
@@ -764,14 +676,22 @@ class Control:
     @property
     def symbolic_atoms(self) -> SymbolicAtoms:
         '''
-        `SymbolicAtoms` object to inspect the symbolic atoms.
+        An object to inspect the symbolic atoms.
+
+        See Also
+        --------
+        clingo.symbolic_atoms
         '''
         return SymbolicAtoms(_c_call('clingo_symbolic_atoms_t*', _lib.clingo_control_symbolic_atoms, self._rep))
 
     @property
     def theory_atoms(self) -> Iterator[TheoryAtom]:
         '''
-        An iterator over the theory atoms.
+        An iterator over the theory atoms in a program.
+
+        See Also
+        --------
+        clingo.theory_atoms
         '''
         atoms = _c_call('clingo_theory_atoms_t*', _lib.clingo_control_theory_atoms, self._rep)
         size = _c_call('size_t', _lib.clingo_theory_atoms_size, atoms)

@@ -1,5 +1,5 @@
 '''
-This modules defines core functionality used throught the clingo module.
+Module providing core functionality used throught the clingo package.
 '''
 
 from typing import Callable, Tuple
@@ -11,7 +11,7 @@ __all__ = [ 'Logger', 'MessageCode', 'TruthValue', 'version' ]
 
 def version() -> Tuple[int, int, int]:
     '''
-    Return clingo's version as a tuple `(major, minor, revision)`.
+    Clingo's version as a tuple `(major, minor, revision)`.
     '''
     p_major = _ffi.new('int*')
     p_minor = _ffi.new('int*')
@@ -21,33 +21,37 @@ def version() -> Tuple[int, int, int]:
 
 class MessageCode(Enum):
     '''
-    Enumeration of the different types of messages.
-
-    Attributes
-    ----------
-    OperationUndefined : MessageCode
-        Inform about an undefined arithmetic operation or unsupported weight of an
-        aggregate.
-    RuntimeError : MessageCode
-        To report multiple errors; a corresponding runtime error is raised later.
-    AtomUndefined : MessageCode
-        Informs about an undefined atom in program.
-    FileIncluded : MessageCode
-        Indicates that the same file was included multiple times.
-    VariableUnbounded : MessageCode
-        Informs about a CSP variable with an unbounded domain.
-    GlobalVariable : MessageCode
-        Informs about a global variable in a tuple of an aggregate element.
-    Other : MessageCode
-        Reports other kinds of messages.
+    Enumeration of messages codes.
     '''
     AtomUndefined = _lib.clingo_warning_atom_undefined
+    '''
+    Informs about an undefined atom in program.
+    '''
     FileIncluded = _lib.clingo_warning_file_included
+    '''
+    Indicates that the same file was included multiple times.
+    '''
     GlobalVariable = _lib.clingo_warning_global_variable
+    '''
+    Informs about a global variable in a tuple of an aggregate element.
+    '''
     OperationUndefined = _lib.clingo_warning_operation_undefined
+    '''
+    Inform about an undefined arithmetic operation or unsupported weight of an
+    aggregate.
+    '''
     Other = _lib.clingo_warning_atom_undefined
+    '''
+    Reports other kinds of messages.
+    '''
     RuntimeError = _lib.clingo_warning_runtime_error
+    '''
+    To report multiple errors; a corresponding runtime error is raised later.
+    '''
     VariableUnbounded = _lib.clingo_warning_variable_unbounded
+    '''
+    Informs about a CSP variable with an unbounded domain.
+    '''
 
 Logger = Callable[[MessageCode, str], None]
 
@@ -62,19 +66,20 @@ def _pyclingo_logger_callback(code, message, data):
 class TruthValue(Enum):
     '''
     Enumeration of the different truth values.
-
-    Attributes
-    ----------
-    True_ : TruthValue
-        Represents truth value true.
-    False_ : TruthValue
-        Represents truth value true.
-    Free : TruthValue
-        Represents absence of a truth value.
-    Release : TruthValue
-        Indicates that an atom is to be released.
     '''
     False_ = _lib.clingo_external_type_false
+    '''
+    Represents truth value true.
+    '''
     Free = _lib.clingo_external_type_free
+    '''
+    Represents absence of a truth value.
+    '''
     True_ = _lib.clingo_external_type_true
+    '''
+    Represents truth value true.
+    '''
     Release = _lib.clingo_external_type_release
+    '''
+    Indicates that an atom is to be released.
+    '''
