@@ -1,6 +1,6 @@
 '''
-Module providing the `clingo.control.Control` class responsible for controling
-grounding and solving.
+This module contains the `clingo.control.Control` class responsible for
+controling grounding and solving.
 
 Examples
 --------

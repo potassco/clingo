@@ -1,5 +1,6 @@
 '''
-This modules contains functions and classes related to propagation.
+Functions and classes to implement custom propagators.
+
 ```python
 >>> from clingo.symbol import Function
 >>> from clingo.propagator import Propagator

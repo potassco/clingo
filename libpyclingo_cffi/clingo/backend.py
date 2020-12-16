@@ -1,5 +1,5 @@
 '''
-Module with functions and classes to observe or add ground statements.
+Functions and classes to observe or add ground statements.
 
 Examples
 --------

@@ -1,6 +1,5 @@
 '''
-Module providing functions and classes to implement applications based on
-clingo.
+Functions and classes to implement applications based on clingo.
 
 Examples
 --------

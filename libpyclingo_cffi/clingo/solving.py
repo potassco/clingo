@@ -1,29 +1,32 @@
 '''
-This modules contains functions and classes related to solving.
+Functions and classes related to solving.
 
 Examples
 --------
 
 The following example shows how to intercept models with a callback:
 
-    >>> import clingo
-    >>> ctl = clingo.Control("0")
-    >>> ctl.add("p", [], "1 { a; b } 1.")
-    >>> ctl.ground([("p", [])])
-    >>> ctl.solve(on_model=lambda m: print("Answer: {}".format(m)))
+    >>> from clingo import Control
+    >>>
+    >>> ctl = Control(["0"])
+    >>> ctl.add("base", [], "1 { a; b } 1.")
+    >>> ctl.ground([("base", [])])
+    >>> print(ctl.solve(on_model=print))
     Answer: a
     Answer: b
     SAT
 
 The following example shows how to yield models:
 
-    >>> import clingo
-    >>> ctl = clingo.Control("0")
-    >>> ctl.add("p", [], "1 { a; b } 1.")
-    >>> ctl.ground([("p", [])])
-    >>> with ctl.solve(yield_=True) as handle:
-    ...     for m in handle: print("Answer: {}".format(m))
-    ...     handle.get()
+    >>> from clingo import Control
+    >>>
+    >>> ctl = Control(["0"])
+    >>> ctl.add("base", [], "1 { a; b } 1.")
+    >>> ctl.ground([("base", [])])
+    >>> with ctl.solve(yield_=True) as hnd:
+    ...     for m in hnd:
+    ...         print(m)
+    ...     print(hnd.get())
     ...
     Answer: a
     Answer: b
@@ -31,41 +34,46 @@ The following example shows how to yield models:
 
 The following example shows how to solve asynchronously:
 
-    >>> import clingo
+    >>> from clingo import Control
+    >>>
+    >>> ctl = Control(["0"])
     >>> ctl = clingo.Control("0")
-    >>> ctl.add("p", [], "1 { a; b } 1.")
-    >>> ctl.ground([("p", [])])
-    >>> with ctl.solve(on_model=lambda m: print("Answer: {}".format(m)), async_=True) as handle:
-    ...     while not handle.wait(0): pass
-    ...     handle.get()
+    >>> ctl.add("base", [], "1 { a; b } 1.")
+    >>> ctl.ground([("base", [])])
+    >>> with ctl.solve(on_model=print, async_=True) as hnd:
+    ...     # some computation here
+    ...     hnd.wait():
+    ...     print(hnd.get())
     ...
     Answer: a
     Answer: b
     SAT
 
-
 This example shows how to solve both iteratively and asynchronously:
 
-    >>> import clingo
-    >>> ctl = clingo.Control()
+    >>> from clingo import Control
+    >>>
+    >>> ctl = Control(["0"])
     >>> ctl.configuration.solve.models = 0
-    >>> ctl.add("base", [], "1 {a;b}.")
+    >>> ctl.add("base", [], "1 { a; b } 1.")
     >>> ctl.ground([("base", [])])
-    >>> with prg.solve(yield_=True, async_=True) as hnd:
+    >>> with ctl.solve(yield_=True, async_=True) as hnd:
     ...     while True:
     ...         hnd.resume()
+    ...         # some computation here
     ...         _ = hnd.wait()
     ...         m = hnd.model()
-    ...         print(m)
     ...         if m is None:
+    ...             print(hnd.get())
     ...             break
+    ...         print(m)
     b
     a
     a b
     None
 '''
 
-from typing import Iterator, List, Optional, Sequence, Tuple, Union
+from typing import ContextManager, Iterator, List, Optional, Sequence, Tuple, Union
 from enum import Enum
 
 from ._internal import _c_call, _c_call2, _ffi, _handle_error, _lib
@@ -77,9 +85,6 @@ __all__ = [ 'Model', 'ModelType', 'SolveControl', 'SolveHandle', 'SolveResult' ]
 class SolveResult:
     '''
     Captures the result of a solve call.
-
-    `SolveResult` objects cannot be constructed from Python. Instead they are
-    returned by the solve methods of the Control object.
     '''
     def __init__(self, rep):
         self._rep = rep
@@ -87,22 +92,22 @@ class SolveResult:
     @property
     def exhausted(self) -> bool:
         '''
-        True if the search space was exhausted.
+        Determine if the search space was exhausted.
         '''
         return (_lib.clingo_solve_result_exhausted & self._rep) != 0
 
     @property
     def interrupted(self) -> bool:
         '''
-        True if the search was interrupted.
+        Determine if the search was interrupted.
         '''
         return (_lib.clingo_solve_result_interrupted & self._rep) != 0
 
     @property
     def satisfiable(self) -> Optional[bool]:
         '''
-        True if the problem is satisfiable, False if the problem is unsatisfiable, or
-        None if the satisfiablity is not known.
+        `True` if the problem is satisfiable, `False` if the problem is
+        unsatisfiable, or `None` if the satisfiablity is not known.
         '''
         if (_lib.clingo_solve_result_satisfiable & self._rep) != 0:
             return True
@@ -113,7 +118,7 @@ class SolveResult:
     @property
     def unknown(self) -> bool:
         '''
-        True if the satisfiablity is not known.
+        Determine if the satisfiablity is not known.
 
         This is equivalent to satisfiable is None.
         '''
@@ -122,8 +127,8 @@ class SolveResult:
     @property
     def unsatisfiable(self) -> Optional[bool]:
         '''
-        True if the problem is unsatisfiable, false if the problem is satisfiable, or
-        `None` if the satisfiablity is not known.
+        `True` if the problem is unsatisfiable, `False` if the problem is
+        satisfiable, or `None` if the satisfiablity is not known.
         '''
         if (_lib.clingo_solve_result_unsatisfiable & self._rep) != 0:
             return True
@@ -141,9 +146,6 @@ class SolveResult:
 class SolveControl:
     '''
     Object that allows for controlling a running search.
-
-    `SolveControl` objects cannot be constructed from Python. Instead they are
-    available via `Model.context`.
     '''
     def __init__(self, rep):
         self._rep = rep
@@ -154,14 +156,14 @@ class SolveControl:
 
         Parameters
         ----------
-        literals : Sequence[Union[Tuple[Symbol,bool],int]]
-            List of literals either represented as pairs of symbolic atoms and Booleans
-            or as program literals.
+        literals
+            List of literals either represented as pairs of symbolic atoms and
+            Booleans or as program literals.
 
         Notes
         -----
-        This function can only be called in a model callback or while iterating when
-        using a `SolveHandle`.
+        This function can only be called in a model callback or while iterating
+        when using a `SolveHandle`.
         '''
         atoms = self.symbolic_atoms
         p_lits = _ffi.new('clingo_literal_t[]', len(literals))
@@ -192,7 +194,7 @@ class SolveControl:
     @property
     def symbolic_atoms(self) -> SymbolicAtoms:
         '''
-        `SymbolicAtoms` object to inspect the symbolic atoms.
+        `clingo.symbolic_atoms.SymbolicAtoms` object to inspect the symbolic atoms.
         '''
         atoms = _c_call('clingo_symbolic_atoms_t*', _lib.clingo_solve_control_symbolic_atoms, self._rep)
         return SymbolicAtoms(atoms)
@@ -200,34 +202,35 @@ class SolveControl:
 class ModelType(Enum):
     '''
     Enumeration of the different types of models.
-
-    Attributes
-    ----------
-    StableModel : ModelType
-        The model captures a stable model.
-    BraveConsequences : ModelType
-        The model stores the set of brave consequences.
-    CautiousConsequences : ModelType
-        The model stores the set of cautious consequences.
     '''
     BraveConsequences = _lib.clingo_model_type_brave_consequences
+    '''
+    The model stores the set of brave consequences.
+    '''
     CautiousConsequences = _lib.clingo_model_type_cautious_consequences
+    '''
+    The model stores the set of cautious consequences.
+    '''
     StableModel = _lib.clingo_model_type_stable_model
+    '''
+    The model captures a stable model.
+    '''
 
 class Model:
     '''
-    Provides access to a model during a solve call and provides a `SolveContext`
-    object to provided limited support to influence the running search.
+    Provides access to a model during a solve call and provides a
+    `SolveContext` object to influence the running search.
 
     Notes
     -----
-    The string representation of a model object is similar to the output of models
-    by clingo using the default output.
+    The string representation of a model object is similar to the output of
+    models by clingo using the default output.
 
     `Model` objects cannot be constructed from Python. Instead they are obained
     during solving (see `Control.solve`). Furthermore, the lifetime of a model
-    object is limited to the scope of the callback it was passed to or until the
-    search for the next model is started. They must not be stored for later use.
+    object is limited to the scope of the callback it was passed to or until
+    the search for the next model is started. They must not be stored for later
+    use.
     '''
     def __init__(self, rep):
         self._rep = rep
@@ -238,13 +241,12 @@ class Model:
 
         Parameters
         ----------
-        atom : Symbol
+        atom
             The atom to lookup.
 
         Returns
         -------
-        bool
-            Whether the given atom is contained in the model.
+        Whether the given atom is contained in the model.
 
         Notes
         -----
@@ -259,17 +261,13 @@ class Model:
 
         Parameters
         ----------
-        symbols : Sequence[Symbol]
+        symbols
             The symbols to add to the model.
-
-        Returns
-        -------
-        None
 
         Notes
         -----
-        This only has an effect if there is an underlying clingo application, which
-        will print the added symbols.
+        This only has an effect if there is an underlying clingo application,
+        which will print the added symbols.
         '''
         # pylint: disable=protected-access
         c_symbols = _ffi.new('clingo_symbol_t[]', len(symbols))
@@ -283,13 +281,12 @@ class Model:
 
         Parameters
         ----------
-        literal : int
+        literal
             The given program literal.
 
         Returns
         -------
-        bool
-            Whether the given program literal is true.
+        Whether the given program literal is true.
         '''
         return _c_call('bool', _lib.clingo_model_is_true, self._rep, literal)
 
@@ -300,30 +297,30 @@ class Model:
 
         Parameters
         ----------
-        atoms : bool=False
+        atoms
             Select all atoms in the model (independent of `#show` statements).
-        terms : bool=False
+        terms
             Select all terms displayed with `#show` statements in the model.
-        shown : bool=False
+        shown
             Select all atoms and terms as outputted by clingo.
-        csp : bool=False
+        csp
             Select all csp assignments (independent of `#show` statements).
-        theory : bool=False
+        theory
             Select atoms added with `Model.extend`.
-        complement : bool=False
-            Return the complement of the answer set w.r.t. to the atoms known to the
-            grounder. (Does not affect csp assignments.)
+        complement
+            Return the complement of the answer set w.r.t. to the atoms known
+            to the grounder. (Does not affect csp assignments.)
 
         Returns
         -------
-        List[Symbol]
-            The selected symbols.
+        The selected symbols.
 
         Notes
         -----
-        Atoms are represented using functions (`Symbol` objects), and CSP assignments
-        are represented using functions with name `"$"` where the first argument is the
-        name of the CSP variable and the second its value.
+        Atoms are represented using functions (`Symbol` objects), and CSP
+        assignments are represented using functions with name `"$"` where the
+        first argument is the name of the CSP variable and the second its
+        value.
         '''
         show = 0
         if atoms:
@@ -402,15 +399,12 @@ class Model:
         '''
         return ModelType(_c_call('clingo_model_type_t', _lib.clingo_model_type, self._rep))
 
-class SolveHandle:
+class SolveHandle(ContextManager['SolveHandle']):
     '''
     Handle for solve calls.
 
-    `SolveHandle` objects cannot be created from Python. Instead they are returned
-    by `Control.solve`. They can be used to control solving, like, retrieving
-    models or cancelling a search.
-
-    Implements: `ContextManager[SolveHandle]`.
+    They can be used to control solving, like, retrieving models or cancelling
+    a search.
 
     See Also
     --------
@@ -447,23 +441,15 @@ class SolveHandle:
         '''
         Cancel the running search.
 
-        Returns
-        -------
-        None
-
         See Also
         --------
-        Control.interrupt
+        clingo.control.Control.interrupt
         '''
         _handle_error(_lib.clingo_solve_handle_cancel(self._rep), self._handler)
 
     def core(self) -> List[int]:
         '''
         The subset of assumptions that made the problem unsatisfiable.
-
-        Returns
-        -------
-        List[int]
         '''
         core, size = _c_call2('clingo_literal_t*', 'size_t', _lib.clingo_solve_handle_core,
                               self._rep, handler=self._handler)
@@ -473,12 +459,8 @@ class SolveHandle:
         '''
         Get the result of a solve call.
 
-        If the search is not completed yet, the function blocks until the result is
-        ready.
-
-        Returns
-        -------
-        SolveResult
+        If the search is not completed yet, the function blocks until the
+        result is ready.
         '''
         res = _c_call('clingo_solve_result_bitset_t', _lib.clingo_solve_handle_get, self._rep, handler=self._handler)
         return SolveResult(res)
@@ -486,12 +468,6 @@ class SolveHandle:
     def model(self) -> Optional[Model]:
         '''
         Get the current model if there is any.
-
-        Examples
-        --------
-        The following example shows how to implement a custom solve loop. While more
-        cumbersome than using a for loop, this kind of loop allows for fine grained
-        timeout handling between models:
         '''
         p_model = _ffi.new('clingo_model_t**')
         _handle_error(
@@ -507,8 +483,8 @@ class SolveHandle:
 
         Notes
         -----
-        If the search has been started asynchronously, this function starts the search
-        in the background.
+        If the search has been started asynchronously, this function starts the
+        search in the background.
         '''
         _handle_error(_lib.clingo_solve_handle_resume(self._rep), self._handler)
 
@@ -518,14 +494,12 @@ class SolveHandle:
 
         Parameters
         ----------
-        timeout : Optional[float]=None
+        timeout
             If a timeout is given, the function blocks for at most timeout seconds.
 
         Returns
         -------
-        bool
-            Returns a Boolean indicating whether the solve call has finished or the
-            next result is ready.
+        Indicates whether the solve call has finished or the next result is ready.
         '''
         p_res = _ffi.new('bool*')
         _lib.clingo_solve_handle_wait(self._rep, 0 if timeout is None else timeout, p_res)

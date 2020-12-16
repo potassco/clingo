@@ -1,5 +1,5 @@
 '''
-Module providing core functionality used throught the clingo package.
+Core functionality used throught the clingo package.
 '''
 
 from typing import Callable, Tuple
