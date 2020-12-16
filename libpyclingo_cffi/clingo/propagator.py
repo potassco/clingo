@@ -1,5 +1,39 @@
 '''
 This modules contains functions and classes related to propagation.
+```python
+>>> from clingo.symbol import Function
+>>> from clingo.propagator import Propagator
+>>> from clingo.control import Control
+>>>
+>>> class AIFFB(Propagator):
+...     # add watches for atoms `a` and `b`
+...     def init(self, init):
+...         # get program literals for atoms `a` and `b`
+...         plit_a = init.symbolic_atoms[Function("a")].literal
+...         plit_b = init.symbolic_atoms[Function("b")].literal
+...         # get solver literals for program literals `a` and `b`
+...         self.slit_a = init.solver_literal(plit_a)
+...         self.slit_b = init.solver_literal(plit_b)
+...         # add watches for solver literals `a` and `b`
+...         init.add_watch(self.slit_a)
+...         init.add_watch(self.slit_b)
+...     # propagate solver literals `a` and `b`
+...     def propagate(self, ctl, changes):
+...         # if `a` is true imply `b`
+...         if self.slit_a in changes:
+...             ctl.add_clause([-self.slit_a, self.slit_b])
+...         # if `b` is true imply `a`
+...         if self.slit_b in changes:
+...             ctl.add_clause([-self.slit_b, self.slit_a])
+...
+>>> ctl = Control(["0"])
+>>> ctl.register_propagator(AIFFB())
+>>> ctl.add("base", [], "1 { a; b }.")
+>>> ctl.ground([("base", [])])
+>>> print(ctl.solve(on_model=print))
+a b
+SAT
+```
 '''
 
 from typing import Iterable, Iterator, Optional, Sequence, Tuple
@@ -16,13 +50,13 @@ __all__ = [ 'Assignment', 'PropagateControl', 'PropagateInit', 'Propagator',
 
 class Trail(Sequence[int]):
     '''
-    Object to access literals assigned by the solver in chronological order.
+    Class to access literals assigned by the solver in chronological order.
 
-    Literals in the trail are ordered by decision levels, where the first literal
-    with a larger level than the previous literals is a decision; the following
-    literals with same level are implied by this decision literal. Each decision
-    level up to and including the current decision level has a valid offset in the
-    trail.
+    Literals in the trail are ordered by decision levels, where the first
+    literal with a larger level than the previous literals is a decision; the
+    following literals with same level are implied by this decision literal.
+    Each decision level up to and including the current decision level has a
+    valid offset in the trail.
     '''
     def __init__(self, rep):
         self._rep = rep
@@ -45,43 +79,35 @@ class Trail(Sequence[int]):
 
     def begin(self, level: int) -> int:
         '''
-        Returns the offset of the decision literal with the given decision level in the
-        trail.
+        Returns the offset of the decision literal with the given decision
+        level in the trail.
 
         Parameters
         ----------
-        level : int
+        level
             The decision level.
-
-        Returns
-        -------
-        int
         '''
         return _c_call('uint32_t', _lib.clingo_assignment_trail_begin, self._rep, level)
 
     def end(self, level: int) -> int:
         '''
-        Returns the offset following the last literal with the given decision literal
-        in the trail.
+        Returns the offset following the last literal with the given decision
+        literal in the trail.
 
         Parameters
         ----------
-        level : int
+        level
             The decision level.
-
-        Returns
-        -------
-        int
         '''
         return _c_call('uint32_t', _lib.clingo_assignment_trail_end, self._rep, level)
 
 class Assignment(Sequence[int]):
     '''
-    Object to inspect the (parital) assignment of an associated solver.
+    Class to inspect the (parital) assignment of an associated solver.
 
-    Assigns truth values to solver literals.  Each solver literal is either true,
-    false, or undefined, represented by the Python constants `True`, `False`, or
-    `None`, respectively.
+    Assigns truth values to solver literals.  Each solver literal is either
+    true, false, or undefined, represented by the Python constants `True`,
+    `False`, or `None`, respectively.
 
     This class implements `Sequence[int]` to access the (positive)
     literals in the assignment.
@@ -111,12 +137,8 @@ class Assignment(Sequence[int]):
 
         Parameters
         ----------
-        level : int
+        level
             The decision level.
-
-        Returns
-        -------
-        int
         '''
         return _c_call('clingo_literal_t', _lib.clingo_assignment_decision, self._rep, level)
 
@@ -126,12 +148,8 @@ class Assignment(Sequence[int]):
 
         Parameters
         ----------
-        literal : int
+        literal
             The solver literal.
-
-        Returns
-        -------
-        bool
         '''
         return _lib.clingo_assignment_has_literal(self._rep, literal)
 
@@ -141,12 +159,8 @@ class Assignment(Sequence[int]):
 
         Parameters
         ----------
-        literal : int
+        literal
             The solver literal.
-
-        Returns
-        -------
-        bool
         '''
         return _c_call('bool', _lib.clingo_assignment_is_false, self._rep, literal)
 
@@ -156,12 +170,8 @@ class Assignment(Sequence[int]):
 
         Parameters
         ----------
-        literal : int
+        literal
             The solver literal.
-
-        Returns
-        -------
-        bool
         '''
         return _c_call('bool', _lib.clingo_assignment_is_fixed, self._rep, literal)
 
@@ -171,12 +181,8 @@ class Assignment(Sequence[int]):
 
         Parameters
         ----------
-        literal : int
+        literal
             The solver literal.
-
-        Returns
-        -------
-        bool
         '''
         return _c_call('bool', _lib.clingo_assignment_is_true, self._rep, literal)
 
@@ -186,12 +192,8 @@ class Assignment(Sequence[int]):
 
         Parameters
         ----------
-        literal : int
+        literal
             The solver literal.
-
-        Returns
-        -------
-        bool
         '''
         value = _c_call('clingo_truth_value_t', _lib.clingo_assignment_truth_value, self._rep, literal)
         return value == _lib.clingo_truth_value_free
@@ -202,17 +204,13 @@ class Assignment(Sequence[int]):
 
         Parameters
         ----------
-        literal : int
+        literal
             The solver literal.
-
-        Returns
-        -------
-        int
 
         Notes
         -----
-        Note that the returned value is only meaningful if the literal is assigned -
-        i.e., `value(lit) is not None`.
+        Note that the returned value is only meaningful if the literal is
+        assigned - i.e., `value(lit) is not None`.
         '''
         return _c_call('uint32_t', _lib.clingo_assignment_level, self._rep, literal)
 
@@ -222,12 +220,8 @@ class Assignment(Sequence[int]):
 
         Parameters
         ----------
-        literal : int
+        literal
             The solver literal.
-
-        Returns
-        -------
-        Optional[bool]
         '''
         value = _c_call('clingo_truth_value_t', _lib.clingo_assignment_truth_value, self._rep, literal)
         if value == _lib.clingo_truth_value_true:
@@ -279,30 +273,27 @@ class PropagatorCheckMode(Enum):
     Note that total checks are subject to the lock when a model is found. This
     means that information from previously found models can be used to discard
     assignments in check calls.
-
-    Attributes
-    ----------
-    Off : PropagatorCheckMode
-        Do not call `Propagator.check` at all.
-    Total : PropagatorCheckMode
-        Call `Propagator.check` on total assignments.
-    Fixpoint : PropagatorCheckMode
-        Call `Propagator.check` on propagation fixpoints.
-    Both : PropagatorCheckMode
-        Call `Propagator.check` on propagation fixpoints and total assignments.
     '''
     Both = _lib.clingo_propagator_check_mode_both
+    '''
+    Call `Propagator.check` on propagation fixpoints and total assignments.
+    '''
     Fixpoint = _lib.clingo_propagator_check_mode_fixpoint
+    '''
+    Call `Propagator.check` on propagation fixpoints.
+    '''
     Off = _lib.clingo_propagator_check_mode_none
+    '''
+    Do not call `Propagator.check` at all.
+    '''
     Total = _lib.clingo_propagator_check_mode_total
+    '''
+    Call `Propagator.check` on total assignments.
+    '''
 
 class PropagateInit:
     '''
     Object that is used to initialize a propagator before each solving step.
-
-    See Also
-    --------
-    Control.register_propagator
     '''
     def __init__(self, rep):
         self._rep = rep
@@ -313,18 +304,18 @@ class PropagateInit:
 
         Parameters
         ----------
-        clause : Sequence[int]
+        clause
             The clause over solver literals to add.
 
         Returns
         -------
-        bool
-            Returns false if the program becomes unsatisfiable.
+        Returns false if the program becomes unsatisfiable.
 
         Notes
         -----
-        If this function returns false, initialization should be stopped and no further
-        functions of the `PropagateInit` and related objects should be called.
+        If this function returns false, initialization should be stopped and no
+        further functions of the `PropagateInit` and related objects should be
+        called.
         '''
         return _c_call('bool', _lib.clingo_propagate_init_add_clause, self._rep, clause, len(clause))
 
@@ -332,18 +323,18 @@ class PropagateInit:
         '''
         Statically adds a literal to the solver.
 
-        To be able to use the variable in clauses during propagation or add watches to
-        it, it has to be frozen. Otherwise, it might be removed during preprocessing.
+        To be able to use the variable in clauses during propagation or add
+        watches to it, it has to be frozen. Otherwise, it might be removed
+        during preprocessing.
 
         Parameters
         ----------
-        freeze : bool=True
+        freeze
             Whether to freeze the variable.
 
         Returns
         -------
-        int
-            Returns the added literal.
+        Returns the added literal.
 
         Notes
         -----
@@ -354,15 +345,16 @@ class PropagateInit:
 
     def add_minimize(self, literal: int, weight: int, priority: int=0) -> None:
         '''
-        Extends the solver's minimize constraint with the given weighted literal.
+        Extends the solver's minimize constraint with the given weighted
+        literal.
 
         Parameters
         ----------
-        literal : int
+        literal
             The literal to add.
-        weight : int
+        weight
             The weight of the literal.
-        priority : int=0
+        priority
             The priority of the literal.
         '''
         _handle_error(_lib.clingo_propagate_init_add_minimize(self._rep, literal, weight, priority))
@@ -373,15 +365,11 @@ class PropagateInit:
 
         Parameters
         ----------
-        literal : int
+        literal
             The solver literal to watch.
-        thread_id : Optional[int]
-            The id of the thread to watch the literal. If the is `None` then all active
-            threads will watch the literal.
-
-        Returns
-        -------
-        None
+        thread_id
+            The id of the thread to watch the literal. If the is `None` then
+            all active threads will watch the literal.
         '''
         if thread_id is None:
             _handle_error(_lib.clingo_propagate_init_add_watch(self._rep, literal))
@@ -403,21 +391,20 @@ class PropagateInit:
 
         Parameters
         ----------
-        literal : int
+        literal
             The literal associated with the constraint.
-        literals : Sequence[Tuple[int,int]]
-            The weighted literals of the constrain.
-        bound : int
+        literals
+            The weighted literals of the constraint.
+        bound
             The bound of the constraint.
-        type_ : int
+        type_
             Add a weight constraint of the given type_.
-        compare_equal : bool=False
+        compare_equal
             A Boolean indicating whether to compare equal or less than equal.
 
         Returns
         -------
-        bool
-            Returns false if the program becomes unsatisfiable.
+        Returns false if the program became unsatisfiable.
 
         Notes
         -----
@@ -429,19 +416,20 @@ class PropagateInit:
 
     def propagate(self) -> bool:
         '''
-        Propagates consequences of the underlying problem excluding registered propagators.
+        Propagates consequences of the underlying problem excluding registered
+        propagators.
 
         Returns
         -------
-        bool
-            Returns false if the program becomes unsatisfiable.
+        Returns false if the program becomes unsatisfiable.
 
         Notes
         -----
         This function has no effect if SAT-preprocessing is enabled.
 
-        If this function returns false, initialization should be stopped and no further
-        functions of the `PropagateInit` and related objects should be called.
+        If this function returns false, initialization should be stopped and no
+        further functions of the `PropagateInit` and related objects should be
+        called.
         '''
         return _c_call('bool', _lib.clingo_propagate_init_propagate, self._rep)
 
@@ -451,13 +439,12 @@ class PropagateInit:
 
         Parameters
         ----------
-        literal : int
+        literal
             A program literal or condition id.
 
         Returns
         -------
-        int
-            A solver literal.
+        A solver literal.
         '''
         return _c_call('clingo_literal_t', _lib.clingo_propagate_init_solver_literal, self._rep, literal)
 
@@ -505,13 +492,9 @@ class PropagateInit:
         for idx in range(size):
             yield TheoryAtom(atoms, idx)
 
-class PropagateControl(metaclass=ABCMeta):
+class PropagateControl:
     '''
     This object can be used to add clauses and to propagate them.
-
-    See Also
-    --------
-    Control.register_propagator
     '''
     def __init__(self, rep):
         self._rep = rep
@@ -522,17 +505,17 @@ class PropagateControl(metaclass=ABCMeta):
 
         Parameters
         ----------
-        clause : Sequence[int]
+        clause
             List of solver literals forming the clause.
-        tag : bool=False
+        tag
             If true, the clause applies only in the current solving step.
-        lock : bool=False
-            If true, exclude clause from the solver's regular clause deletion policy.
+        lock
+            If true, exclude clause from the solver's regular clause deletion
+            policy.
 
         Returns
         -------
-        bool
-            This method returns false if the current propagation must be stopped.
+        This method returns false if the current propagation must be stopped.
         '''
         type_ = 0
         if tag:
@@ -545,14 +528,13 @@ class PropagateControl(metaclass=ABCMeta):
         '''
         Adds a new positive volatile literal to the underlying solver thread.
 
-        The literal is only valid within the current solving step and solver thread.
-        All volatile literals and clauses involving a volatile literal are deleted
-        after the current search.
+        The literal is only valid within the current solving step and solver
+        thread. All volatile literals and clauses involving a volatile literal
+        are deleted after the current search.
 
         Returns
         -------
-        int
-            The added solver literal.
+        The added solver literal.
         '''
         return _c_call('clingo_literal_t', _lib.clingo_propagate_control_add_literal, self._rep)
 
@@ -568,7 +550,7 @@ class PropagateControl(metaclass=ABCMeta):
 
         Parameters
         ----------
-        literal : int
+        literal
             The target solver literal.
 
         Returns
@@ -577,8 +559,8 @@ class PropagateControl(metaclass=ABCMeta):
 
         Notes
         -----
-        Unlike `PropagateInit.add_watch` this does not add a watch to all solver
-        threads but just the current one.
+        Unlike `PropagateInit.add_watch` this does not add a watch to all
+        solver threads but just the current one.
         '''
         _handle_error(_lib.clingo_propagate_control_add_watch(self._rep, literal))
 
@@ -588,13 +570,12 @@ class PropagateControl(metaclass=ABCMeta):
 
         Parameters
         ----------
-        literal : int
+        literal
             The target solver literal.
 
         Returns
         -------
-        bool
-            Whether the literal is watched.
+        Whether the literal is watched.
         '''
         return _lib.clingo_propagate_control_has_watch(self._rep, literal)
 
@@ -604,8 +585,7 @@ class PropagateControl(metaclass=ABCMeta):
 
         Returns
         -------
-        bool
-            This method returns false if the current propagation must be stopped.
+        This method returns false if the current propagation must be stopped.
         '''
         return _c_call('bool', _lib.clingo_propagate_control_propagate, self._rep)
 
@@ -615,12 +595,8 @@ class PropagateControl(metaclass=ABCMeta):
 
         Parameters
         ----------
-        literal : int
+        literal
             The target solver literal.
-
-        Returns
-        -------
-        None
         '''
         _lib.clingo_propagate_control_remove_watch(self._rep, literal)
 
@@ -642,6 +618,10 @@ class Propagator(metaclass=ABCMeta):
     '''
     Propagator interface for custom constraints.
 
+    See Also
+    --------
+    clingo.control.Control.register_propagator
+
     Notes
     -----
     Not all functions of the `Propagator` interface have to be implemented and
@@ -657,12 +637,8 @@ class Propagator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        init : PropagateInit
+        init
             Object to initialize the propagator.
-
-        Returns
-        -------
-        None
 
         Notes
         -----
@@ -676,14 +652,10 @@ class Propagator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        control : PropagateControl
+        control
             Object to control propagation.
-        changes : Sequence[int]
+        changes
             List of watched solver literals assigned to true.
-
-        Returns
-        -------
-        None
 
         Notes
         -----
@@ -714,16 +686,12 @@ class Propagator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        thread_id : int
+        thread_id
             The solver thread id.
-        assignment : Assignment
+        assignment
             Object for inspecting the partial assignment of the solver.
-        changes : Sequence[int]
+        changes
             The list of watched solver literals whose assignment is undone.
-
-        Returns
-        -------
-        None
 
         Notes
         -----
@@ -742,12 +710,8 @@ class Propagator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        control : PropagateControl
+        control
             Object to control propagation.
-
-        Returns
-        -------
-        None
 
         Notes
         -----
@@ -763,17 +727,16 @@ class Propagator(metaclass=ABCMeta):
 
         Parameters
         ----------
-        thread_id : int
+        thread_id
             The solver thread id.
-        assignment : Assignment
+        assignment
             Object for inspecting the partial assignment of the solver.
-        fallback : int
+        fallback
             The literal choosen by the solver's heuristic.
 
         Returns
         -------
-        int
-            Тhe next solver literal to make true.
+        Тhe next solver literal to make true.
 
         Notes
         -----

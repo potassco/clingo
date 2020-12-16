@@ -6,20 +6,27 @@ Examples
 The following example shows how to modify the configuration to enumerate all
 models:
 
-    >>> from clingo.control import Control
-    >>>
-    >>> prg = Control()
-    >>> prg.configuration.solve.description("models")
-    'Compute at most %A models (0 for all)'
-    >>> prg.configuration.solve.models = 0
-    >>> prg.add("base", [], "{a;b}.")
-    >>> prg.ground([("base", [])])
-    >>> prg.solve(on_model=lambda m: print("Answer: {}".format(m)))
-    Answer:
-    Answer: a
-    Answer: b
-    Answer: a b
-    SAT
+```python
+>>> from clingo.control import Control
+>>>
+>>> ctl = Control()
+>>> ctl.configuration.keys
+['tester', 'solve', 'asp', 'solver', 'configuration', 'share',
+ 'learn_explicit', 'sat_prepro', 'stats', 'parse_ext', 'parse_maxsat']
+>>> ctl.configuration.solve.keys
+['solve_limit', 'parallel_mode', 'global_restarts', 'distribute',
+ 'integrate', 'enum_mode', 'project', 'models', 'opt_mode']
+>>> ctl.configuration.solve.description("models")
+'Compute at most %A models (0 for all)\\n'
+>>> ctl.configuration.solve.models = 0
+>>> ctl.add("base", [], "1 {a; b}.")
+>>> ctl.ground([("base", [])])
+>>> print(ctl.solve(on_model=print))
+b
+a
+a b
+SAT
+```
 '''
 
 from typing import List, Optional, Union
@@ -113,7 +120,7 @@ class Configuration:
 
     def description(self, name: str) -> str:
         '''
-        Get a description for a option or option group.
+        Get a description for an option or option group.
 
         Parameters
         ----------
