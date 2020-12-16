@@ -22,35 +22,37 @@ symbol or a sequence of symbols.  If a sequence is returned, the corresponding
 
 The first example shows how to use the clingo module from Python.
 
-    >>> import clingo
+    >>> from clingo.symbol import Number
+    >>> from clingo.control import Control
+    >>>
     >>> class Context:
-    ...     def id(self, x):
-    ...         return x
+    ...     def inc(self, x):
+    ...         return Number(x.number + 1)
     ...     def seq(self, x, y):
     ...         return [x, y]
     ...
     >>> def on_model(m):
     ...     print (m)
     ...
-    >>> ctl = clingo.Control()
-    >>> ctl.add("base", [], """\
-    ... p(@id(10)).
+    >>> ctl = Control()
+    >>> ctl.add("base", [], """\\
+    ... p(@inc(10)).
     ... q(@seq(1,2)).
     ... """)
     >>> ctl.ground([("base", [])], context=Context())
-    >>> ctl.solve(on_model=on_model)
-    p(10) q(1) q(2)
+    >>> print(ctl.solve(on_model=on_model))
+    p(11) q(1) q(2)
     SAT
 
 The second example shows how to use Python code from clingo.
 
     #script (python)
 
-    import clingo
+    from clingo.symbol import Number
 
     class Context:
-        def id(x):
-            return x
+        def inc(x):
+            return Number(x.number)
 
         def seq(x, y):
             return [x, y]
@@ -61,7 +63,7 @@ The second example shows how to use Python code from clingo.
 
     #end.
 
-    p(@id(10)).
+    p(@inc(10)).
     q(@seq(1,2)).
 '''
 

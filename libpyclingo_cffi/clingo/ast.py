@@ -307,16 +307,19 @@ The following example parses a program from a string and passes the resulting
 
     >>> from clingo import Control, ast
     >>> from clingo.ast import Location, ProgramBuilder, Position, parse_string
+    >>>
     >>> ctl = Control()
-    >>> prg = "a."
+    >>>
     >>> with ProgramBuilder(ctl) as bld:
-    ...    parse_string(prg, lambda stm: bld.add(stm))
-    ...    pos = Position('<string>', 1, 1)
-    ...    loc = Location(pos, pos)
-    ...    fun = ast.Function(loc, "b", [], False)
-    ...    atm = ast.SymbolicAtom(fun)
-    ...    lit = ast.Literal(loc, ast.Sign.NoSign, atm)
-    ...    bld.add(ast.Rule(loc, lit, []))
+    ...     # parse from string
+    ...     parse_string("a.", lambda stm: bld.add(stm))
+    ...     # build rule manually
+    ...     pos = Position('<string>', 1, 1)
+    ...     loc = Location(pos, pos)
+    ...     fun = ast.Function(loc, "b", [], False)
+    ...     atm = ast.SymbolicAtom(fun)
+    ...     lit = ast.Literal(loc, ast.Sign.NoSign, atm)
+    ...     bld.add(ast.Rule(loc, lit, []))
     ...
     >>> ctl.ground([("base", [])])
     >>> print(ctl.solve(on_model=lambda m: print("Answer: {}".format(m))))

@@ -1,12 +1,40 @@
 '''
-This module contains functions and classes to inspect or add ground statements.
+Module with functions and classes to observe or add ground statements.
+
+Examples
+--------
+The following example shows how to add a fact to a program via the backend and
+observe the corresponding rule passed to the backend:
+
+    >>> from clingo.symbol import Function
+    >>> from clingo.control import Control
+    >>>
+    >>> class Observer:
+    ...     def rule(self, choice, head, body):
+    ...         print("rule:", choice, head, body)
+    ...
+    >>> ctl = Control()
+    >>> ctl.register_observer(Observer())
+    >>>
+    >>> sym_a = Function("a")
+    >>> with ctl.backend() as backend:
+    ...     atm_a = backend.add_atom(sym_a)
+    ...     backend.add_rule([atm_a])
+    ...
+    rule: False [1] []
+    >>> ctl.symbolic_atoms[sym_a].is_fact
+    True
+    >>>
+    >>> print(ctl.solve(on_model=lambda m: print("Answer: {}".format(m))))
+    Answer: a
+    SAT
 '''
 
 from typing import ContextManager, Sequence, Optional, Tuple
 from enum import Enum
 from abc import ABCMeta
 
-from ._internal import _Error, _c_call, _cb_error_handler, _ffi, _handle_error, _lib, _to_str
+from ._internal import _c_call, _cb_error_handler, _ffi, _handle_error, _lib, _to_str
 from .core import TruthValue
 from .symbol import Symbol
 
@@ -15,33 +43,40 @@ __all__ = [ 'Backend', 'HeuristicType', 'Observer' ]
 class HeuristicType(Enum):
     '''
     Enumeration of the different heuristic types.
-
-    Attributes
-    ----------
-    Level : HeuristicType
-        Heuristic modification to set the level of an atom.
-    Sign : HeuristicType
-        Heuristic modification to set the sign of an atom.
-    Factor : HeuristicType
-        Heuristic modification to set the decaying factor of an atom.
-    Init : HeuristicType
-        Heuristic modification to set the inital score of an atom.
-    True_ : HeuristicType
-        Heuristic modification to make an atom true.
-    False_ : HeuristicType
-        Heuristic modification to make an atom false.
     '''
     Factor = _lib.clingo_heuristic_type_factor
+    '''
+    Heuristic modification to set the decaying factor of an atom.
+    '''
     False_ = _lib.clingo_heuristic_type_false
+    '''
+    Heuristic modification to make an atom false.
+    '''
     Init = _lib.clingo_heuristic_type_init
+    '''
+    Heuristic modification to set the inital score of an atom.
+    '''
     Level = _lib.clingo_heuristic_type_level
+    '''
+    Heuristic modification to set the level of an atom.
+    '''
     Sign = _lib.clingo_heuristic_type_sign
+    '''
+    Heuristic modification to set the sign of an atom.
+    '''
     True_ = _lib.clingo_heuristic_type_true
+    '''
+    Heuristic modification to make an atom true.
+    '''
 
 class Observer(metaclass=ABCMeta):
     '''
     Interface that has to be implemented to inspect rules produced during
     grounding.
+
+    See Also
+    --------
+    clingo.control.Control.register_observer
     '''
     def init_program(self, incremental: bool) -> None:
         '''
@@ -49,22 +84,14 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        incremental : bool
+        incremental
             Whether the program is incremental. If the incremental flag is
-            true, there can be multiple calls to `Control.solve`.
-
-        Returns
-        -------
-        None
+            true, there can be multiple calls to `clingo.control.Control.solve`.
         '''
 
     def begin_step(self) -> None:
         '''
         Marks the beginning of a block of directives passed to the solver.
-
-        Returns
-        -------
-        None
         '''
 
     def rule(self, choice: bool, head: Sequence[int], body: Sequence[int]) -> None:
@@ -73,16 +100,12 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        choice : bool
+        choice
             Determines if the head is a choice or a disjunction.
-        head : Sequence[int]
+        head
             List of program atoms forming the rule head.
-        body : Sequence[int]
+        body
             List of program literals forming the rule body.
-
-        Returns
-        -------
-        None
         '''
 
     def weight_rule(self, choice: bool, head: Sequence[int], lower_bound: int,
@@ -93,19 +116,15 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        choice : bool
+        choice
             Determines if the head is a choice or a disjunction.
-        head : Sequence[int]
+        head
             List of program atoms forming the head of the rule.
-        lower_bound:
+        lower_bound
             The lower bound of the weight constraint in the rule body.
-        body : Sequence[Tuple[int,int]]
+        body
             List of weighted literals (pairs of literal and weight) forming the
             elements of the weight constraint.
-
-        Returns
-        -------
-        None
         '''
 
     def minimize(self, priority: int, literals: Sequence[Tuple[int,int]]) -> None:
@@ -115,15 +134,11 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        priority : int
+        priority
             The priority of the directive.
-        literals : Sequence[Tuple[int,int]]
+        literals
             List of weighted literals whose sum to minimize (pairs of literal
             and weight).
-
-        Returns
-        -------
-        None
         '''
 
     def project(self, atoms: Sequence[int]) -> None:
@@ -132,12 +147,8 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        atoms : Sequence[int]
+        atoms
             The program atoms to project on.
-
-        Returns
-        -------
-        None
         '''
 
     def output_atom(self, symbol: Symbol, atom: int) -> None:
@@ -147,14 +158,10 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        symbol : Symbolic
+        symbol
             The symbolic representation of the atom.
-        atom : int
-            The associated program atom (0 for facts).
-
-        Returns
-        -------
-        None
+        atom
+            The associated program atom (`0` for facts).
         '''
 
     def output_term(self, symbol: Symbol, condition: Sequence[int]) -> None:
@@ -163,15 +170,11 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        symbol : Symbol
+        symbol
             The symbolic representation of the term.
-        condition : Sequence[int]
+        condition
             List of program literals forming the condition when to show the
             term.
-
-        Returns
-        -------
-        None
         '''
 
     def output_csp(self, symbol: Symbol, value: int,
@@ -181,17 +184,13 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        symbol : Symbol
+        symbol
             The symbolic representation of the variable.
-        value : int
+        value
             The integer value of the variable.
-        condition : Sequence[int]
+        condition
             List of program literals forming the condition when to show the
             variable with its value.
-
-        Returns
-        -------
-        None
         '''
 
     def external(self, atom: int, value: TruthValue) -> None:
@@ -200,14 +199,10 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        atom : int
+        atom
             The external atom in form of a program literal.
-        value : TruthValue
+        value
             The truth value of the external statement.
-
-        Returns
-        -------
-        None
         '''
 
     def assume(self, literals: Sequence[int]) -> None:
@@ -216,13 +211,9 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        literals : Sequence[int]
+        literals
             The program literals to assume (positive literals are true and
             negative literals false for the next solve call).
-
-        Returns
-        -------
-        None
         '''
 
     def heuristic(self, atom: int, type_: HeuristicType, bias: int,
@@ -232,20 +223,16 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        atom : int
+        atom
             The program atom heuristically modified.
-        type_ : HeuristicType
+        type_
             The type of the modification.
-        bias : int
+        bias
             A signed integer.
-        priority : int
+        priority
             An unsigned integer.
-        condition : Sequence[int]
+        condition
             List of program literals.
-
-        Returns
-        -------
-        None
         '''
 
     def acyc_edge(self, node_u: int, node_v: int,
@@ -255,17 +242,13 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        node_u : int
+        node_u
             The start vertex of the edge (in form of an integer).
-        node_v : int
+        node_v
             Тhe end vertex of the edge (in form of an integer).
-        condition : Sequence[int]
+        condition
             The list of program literals forming th condition under which to
             add the edge.
-
-        Returns
-        -------
-        None
         '''
 
     def theory_term_number(self, term_id: int, number: int) -> None:
@@ -274,14 +257,10 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        term_id : int
+        term_id
             The id of the term.
-        number : int
+        number
             The value of the term.
-
-        Returns
-        -------
-        None
         '''
 
     def theory_term_string(self, term_id : int, name : str) -> None:
@@ -290,14 +269,10 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        term_id : int
+        term_id
             The id of the term.
-        name : str
+        name
             The string value of the term.
-
-        Returns
-        -------
-        None
         '''
 
     def theory_term_compound(self, term_id: int, name_id_or_type: int,
@@ -307,21 +282,14 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        term_id : int
+        term_id
             The id of the term.
-        name_id_or_type : int
-            The name or type of the term where
-            - if it is -1, then it is a tuple
-            - if it is -2, then it is a set
-            - if it is -3, then it is a list
-            - otherwise, it is a function and name_id_or_type refers to the id
-            of the name (in form of a string term)
-        arguments : Sequence[int]
+        name_id_or_type
+            The name id or type of the term where the value `-1` stands for
+            tuples, `-2` for sets, `-3` for lists, or otherwise for the id of
+            the name (in form of a string term).
+        arguments
             The arguments of the term in form of a list of term ids.
-
-        Returns
-        -------
-        None
         '''
 
     def theory_element(self, element_id: int, terms: Sequence[int],
@@ -331,16 +299,12 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        element_id : int
+        element_id
             The id of the element.
-        terms : Sequence[int]
+        terms
             The term tuple of the element in form of a list of term ids.
-        condition : Sequence[int]
+        condition
             The list of program literals forming the condition.
-
-        Returns
-        -------
-        None
         '''
 
     def theory_atom(self, atom_id_or_zero: int, term_id: int,
@@ -350,16 +314,12 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        atom_id_or_zero : int
+        atom_id_or_zero
             The id of the atom or zero for directives.
-        term_id : int
+        term_id
             The term associated with the atom.
-        elements : Sequence[int]
+        elements
             The elements of the atom in form of a list of element ids.
-
-        Returns
-        -------
-        None
         '''
 
     def theory_atom_with_guard(self, atom_id_or_zero: int, term_id: int,
@@ -370,20 +330,16 @@ class Observer(metaclass=ABCMeta):
 
         Parameters
         ----------
-        atom_id_or_zero : int
+        atom_id_or_zero
             The id of the atom or zero for directives.
         term_id : int
             The term associated with the atom.
-        elements : Sequence[int]
+        elements
             The elements of the atom in form of a list of element ids.
-        operator_id : int
+        operator_id
             The id of the operator (a string term).
-        right_hand_side_id : int
+        right_hand_side_id
             The id of the term on the right hand side of the atom.
-
-        Returns
-        -------
-        None
         '''
 
     def end_step(self) -> None:
@@ -391,10 +347,6 @@ class Observer(metaclass=ABCMeta):
         Marks the end of a block of directives passed to the solver.
 
         This function is called right before solving starts.
-
-        Returns
-        -------
-        None
         '''
 
 @_ffi.def_extern(onerror=_cb_error_handler('data'), name='pyclingo_observer_init_program')
@@ -545,25 +497,8 @@ class Backend(ContextManager['Backend']):
     -----
     The `Backend` is a context manager and must be used with Python's `with`
     statement.
-
-    Examples
-    --------
-    The following example shows how to add a fact to a program:
-
-        >>> import clingo
-        >>> ctl = clingo.Control()
-        >>> sym_a = clingo.Function("a")
-        >>> with ctl.backend() as backend:
-        ...     atm_a = backend.add_atom(sym_a)
-        ...     backend.add_rule([atm_a])
-        ...
-        >>> ctl.symbolic_atoms[sym_a].is_fact
-        True
-        >>> ctl.solve(on_model=lambda m: print("Answer: {}".format(m)))
-        Answer: a
-        SAT
     '''
-    def __init__(self, rep, error: _Error):
+    def __init__(self, rep, error):
         self._rep = rep
         self._error = error
 
@@ -583,16 +518,12 @@ class Backend(ContextManager['Backend']):
 
         Parameters
         ----------
-        node_u : int
+        node_u
             The start node represented as an unsigned integer.
-        node_v : int
+        node_v
             The end node represented as an unsigned integer.
-        condition : Sequence[int]
+        condition
             List of program literals.
-
-        Returns
-        -------
-        None
         '''
         _handle_error(_lib.clingo_backend_acyc_edge(self._rep, node_u, node_v, condition, len(condition)))
 
@@ -602,12 +533,8 @@ class Backend(ContextManager['Backend']):
 
         Parameters
         ----------
-        literals : Sequence[int]
+        literals
             The list of literals to assume true.
-
-        Returns
-        -------
-        None
         '''
         _handle_error(_lib.clingo_backend_assume(self._rep, literals, len(literals)))
 
@@ -620,13 +547,11 @@ class Backend(ContextManager['Backend']):
 
         Parameters
         ----------
-        symbol : Optional[Symbol]=None
+        symbol
             The symbol associated with the atom.
-
         Returns
         -------
-        int
-            The program atom representing the atom.
+        The program atom representing the atom.
         '''
         # pylint: disable=protected-access
         if symbol is None:
@@ -643,14 +568,10 @@ class Backend(ContextManager['Backend']):
 
         Parameters
         ----------
-        atom : int
+        atom
             The program atom to mark as external.
-        value : TruthValue=TruthValue.False_
+        value
             Optional truth value.
-
-        Returns
-        -------
-        None
 
         Notes
         -----
@@ -665,20 +586,16 @@ class Backend(ContextManager['Backend']):
 
         Parameters
         ----------
-        atom : int
+        atom
             Program atom to heuristically modify.
-        type_ : HeuristicType
+        type_
             The type of modification.
-        bias : int
+        bias
             A signed integer.
-        priority : int
+        priority
             An unsigned integer.
-        condition : Sequence[int]
+        condition
             List of program literals.
-
-        Returns
-        -------
-        None
         '''
         _handle_error(_lib.clingo_backend_heuristic(self._rep, atom, type_.value, bias, priority,
                       condition, len(condition)))
@@ -689,14 +606,10 @@ class Backend(ContextManager['Backend']):
 
         Parameters
         ----------
-        priority : int
+        priority
             Integer for the priority.
-        literals : Sequence[Tuple[int,int]]
+        literals
             List of pairs of program literals and weights.
-
-        Returns
-        -------
-        None
         '''
         _handle_error(_lib.clingo_backend_minimize(self._rep, priority, literals, len(literals)))
 
@@ -706,12 +619,8 @@ class Backend(ContextManager['Backend']):
 
         Parameters
         ----------
-        atoms : Sequence[int]
+        atoms
             List of program atoms to project on.
-
-        Returns
-        -------
-        None
         '''
         _handle_error(_lib.clingo_backend_project(self._rep, atoms, len(atoms)))
 
@@ -721,16 +630,12 @@ class Backend(ContextManager['Backend']):
 
         Parameters
         ----------
-        head : Sequence[int]
+        head
             The program atoms forming the rule head.
-        body : Sequence[int]=[]
+        body
             The program literals forming the rule body.
-        choice : bool=False
+        choice
             Whether to add a disjunctive or choice rule.
-
-        Returns
-        -------
-        None
 
         Notes
         -----
@@ -748,18 +653,14 @@ class Backend(ContextManager['Backend']):
 
         Parameters
         ----------
-        head : Sequence[int]
+        head
             The program atoms forming the rule head.
-        lower : int
+        lower
             The lower bound.
-        body : Sequence[Tuple[int,int]]
+        body
             The pairs of program literals and weights forming the elements of the
             weight constraint.
-        choice : bool=False
+        choice
             Whether to add a disjunctive or choice rule.
-
-        Returns
-        -------
-        None
         '''
         _handle_error(_lib.clingo_backend_weight_rule(self._rep, choice, head, len(head), lower, body, len(body)))
