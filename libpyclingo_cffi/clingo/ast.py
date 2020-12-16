@@ -314,7 +314,7 @@ The following example parses a program from a string and passes the resulting
     >>>
     >>> with ProgramBuilder(ctl) as bld:
     ...     # parse from string
-    ...     parse_string("a.", lambda stm: bld.add(stm))
+    ...     parse_string("a.", bld.add)
     ...     # build rule manually
     ...     pos = Position('<string>', 1, 1)
     ...     loc = Location(pos, pos)
@@ -324,8 +324,8 @@ The following example parses a program from a string and passes the resulting
     ...     bld.add(ast.Rule(loc, lit, []))
     ...
     >>> ctl.ground([("base", [])])
-    >>> print(ctl.solve(on_model=lambda m: print("Answer: {}".format(m))))
-    Answer: a b
+    >>> print(ctl.solve(on_model=print))
+    a b
     SAT
 '''
 

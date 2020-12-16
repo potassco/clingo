@@ -25,8 +25,8 @@ observe the corresponding rule passed to the backend:
     >>> ctl.symbolic_atoms[sym_a].is_fact
     True
     >>>
-    >>> print(ctl.solve(on_model=lambda m: print("Answer: {}".format(m))))
-    Answer: a
+    >>> print(ctl.solve(on_model=print))
+    a
     SAT
 '''
 
