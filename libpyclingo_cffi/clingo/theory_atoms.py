@@ -1,5 +1,26 @@
 '''
-This modules contains functions and classes to work with theory atoms.
+Functions and classes to work with theory atoms.
+
+Examples
+--------
+    >>> from clingo.control import Control
+    >>>
+    >>> ctl = Control()
+    >>> ctl.add('base', [], """\\
+    ... #theory example {
+    ...     t { };
+    ...     &a/0 : t, head
+    ... }.
+    ... {c}.
+    ... &a { t: c }.
+    ... """)
+    >>> ctl.ground([('base', [])])
+    >>> atm = next(ctl.theory_atoms)
+    >>> print(atm)
+    &a{t: c}
+    >>> elm = atm.elements[0]
+    >>> print(elm)
+    t: c
 '''
 
 from typing import List, Optional, Tuple
@@ -12,29 +33,32 @@ __all__ = [ 'TheoryAtom', 'TheoryElement', 'TheoryTerm', 'TheoryTermType' ]
 
 class TheoryTermType(Enum):
     '''
-    Enumeration of the different types of theory terms.
-
-    Attributes
-    ----------
-    Function : TheoryTermType
-        For a function theory terms.
-    Number : TheoryTermType
-        For numeric theory terms.
-    Symbol : TheoryTermType
-        For symbolic theory terms (symbol here means the term is a string).
-    List : TheoryTermType
-        For list theory terms.
-    Tuple : TheoryTermType
-        For tuple theory terms.
-    Set : TheoryTermType
-        For set theory terms.
+    Enumeration of theory term types.
     '''
     Function = _lib.clingo_theory_term_type_function
+    '''
+    For a function theory terms.
+    '''
     List = _lib.clingo_theory_term_type_list
+    '''
+    For list theory terms.
+    '''
     Number = _lib.clingo_theory_term_type_number
+    '''
+    For numeric theory terms.
+    '''
     Set = _lib.clingo_theory_term_type_set
+    '''
+    For set theory terms.
+    '''
     Symbol = _lib.clingo_theory_term_type_symbol
+    '''
+    For symbolic theory terms (symbol here means the term is a string).
+    '''
     Tuple = _lib.clingo_theory_term_type_tuple
+    '''
+    For tuple theory terms.
+    '''
 
 @total_ordering
 class TheoryTerm:
@@ -121,7 +145,7 @@ class TheoryElement:
     @property
     def condition(self) -> List[int]:
         '''
-        The condition of the element.
+        The condition of the element in form of a list of program literals.
         '''
         cond, size = _c_call2('clingo_literal_t*', 'size_t', _lib.clingo_theory_atoms_element_condition,
                               self._rep, self._idx)
@@ -130,9 +154,9 @@ class TheoryElement:
     @property
     def condition_id(self) -> int:
         '''
-        Each condition has an id. This id can be passed to
-        `PropagateInit.solver_literal` to obtain a solver literal equivalent to
-        the condition.
+        Each condition has an id, which is a temporary program literal. This id
+        can be passed to `clingo.propagator.PropagateInit.solver_literal` to
+        obtain a corresponding solver literal.
         '''
         return _c_call('clingo_literal_t', _lib.clingo_theory_atoms_element_condition_id, self._rep, self._idx)
 

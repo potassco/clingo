@@ -1,5 +1,5 @@
 """
-Helper modules with utility functions and classes.
+Utility functions and classes.
 """
 
 from typing import Collection, Generic, MutableSequence, Sequence, Optional, TypeVar

@@ -1,5 +1,23 @@
 '''
-This modules contains functions and classes for symbol manipulation.
+Functions and classes for symbol manipulation.
+
+Examples
+--------
+
+    >>> from clingo.symbol import Function, Number, parse_term
+    >>>
+    >>> num = Number(42)
+    >>> num.number
+    42
+    >>> fun = Function("f", [num])
+    >>> fun.name
+    'f'
+    >>> [ str(arg) for arg in fun.arguments ]
+    ['42']
+    >>> parse_term(str(fun)) == fun
+    True
+    >>> clingo.parse_term('p(1+2)')
+    p(3)
 '''
 
 from typing import Callable, List, Sequence
@@ -15,26 +33,28 @@ __all__ = [ 'Function', 'Infimum', 'Number', 'String', 'Supremum', 'Symbol',
 
 class SymbolType(Enum):
     '''
-    Enumeration of the different types of symbols.
-
-    Attributes
-    ----------
-    Number : SymbolType
-        A numeric symbol, e.g., `1`.
-    String : SymbolType
-        A string symbol, e.g., `"a"`.
-    Function : SymbolType
-        A function symbol, e.g., `c`, `(1, "a")`, or `f(1,"a")`.
-    Infimum : SymbolType
-        The `#inf` symbol.
-    Supremum : SymbolType
-        The `#sup` symbol
+    Enumeration of symbols types.
     '''
     Function = _lib.clingo_symbol_type_function
+    '''
+    A function symbol, e.g., `c`, `(1,"a")`, or `f(1,"a")`.
+    '''
     Infimum  = _lib.clingo_symbol_type_infimum
+    '''
+    The `#inf` symbol.
+    '''
     Number  = _lib.clingo_symbol_type_number
+    '''
+    A numeric symbol, e.g., `1`.
+    '''
     String  = _lib.clingo_symbol_type_string
+    '''
+    A string symbol, e.g., `"a"`.
+    '''
     Supremum  = _lib.clingo_symbol_type_supremum
+    '''
+    The `#sup` symbol
+    '''
 
 @total_ordering
 class Symbol:
@@ -51,8 +71,8 @@ class Symbol:
     Notes
     -----
     Note that this class does not have a constructor. Instead there are the
-    functions `Number`, `String`, and `Function` to construct symbol objects or the
-    preconstructed symbols `Infimum` and `Supremum`.
+    functions `Number`, `String`, `Tuple_`, and `Function` to construct symbol
+    objects or the preconstructed symbols `Infimum` and `Supremum`.
     '''
     __slots__ = ('_rep',)
 
@@ -81,19 +101,18 @@ class Symbol:
 
         Parameters
         ----------
-        name : str
+        name
             The name of the function.
 
-        arity : int
+        arity
             The arity of the function.
 
-        positive : bool
+        positive
             Whether to match positive or negative signatures.
 
         Returns
         -------
-        bool
-            Whether the function matches.
+        Whether the function matches.
         '''
         return (self.type == SymbolType.Function and
                 self.positive == positive and
@@ -154,22 +173,18 @@ def Function(name: str, arguments: Sequence[Symbol]=[], positive: bool=True) -> 
     '''
     Construct a function symbol.
 
-    This includes constants and tuples. Constants have an empty argument list and
-    tuples have an empty name. Functions can represent classically negated atoms.
-    Argument `positive` has to be set to false to represent such atoms.
+    This includes constants and tuples. Constants have an empty argument list
+    and tuples have an empty name. Functions can represent classically negated
+    atoms. Argument `positive` has to be set to false to represent such atoms.
 
     Parameters
     ----------
-    name : str
+    name
         The name of the function (empty for tuples).
-    arguments : Sequence[Symbol]=[]
+    arguments
         The arguments in form of a list of symbols.
-    positive : bool=True
+    positive
         The sign of the function (tuples must not have signs).
-
-    Returns
-    -------
-    Symbol
     '''
     # pylint: disable=protected-access,invalid-name,dangerous-default-value
     c_args = _ffi.new('clingo_symbol_t[]', len(arguments))
@@ -185,12 +200,8 @@ def Number(number: int) -> Symbol:
 
     Parameters
     ----------
-    number : int
+    number
         The given number.
-
-    Returns
-    -------
-    Symbol
     '''
     # pylint: disable=invalid-name
     p_rep = _ffi.new('clingo_symbol_t*')
@@ -203,12 +214,8 @@ def String(string: str) -> Symbol:
 
     Parameters
     ----------
-    string : str
+    string
         The given string.
-
-    Returns
-    -------
-    Symbol
     '''
     # pylint: disable=invalid-name
     return Symbol(_c_call('clingo_symbol_t', _lib.clingo_symbol_create_string, string.encode()))
@@ -219,12 +226,8 @@ def Tuple_(arguments: Sequence[Symbol]) -> Symbol:
 
     Parameters
     ----------
-    arguments : Sequence[Symbol]
+    arguments
         The arguments in form of a list of symbols.
-
-    Returns
-    -------
-    Symbol
 
     See Also
     --------
@@ -249,22 +252,12 @@ def parse_term(string: str, logger: Callable[[MessageCode,str],None]=None, messa
 
     Parameters
     ----------
-    string : str
+    string
         The string to be parsed.
-    logger : Callable[[MessageCode,str],None]=None
+    logger
         Function to intercept messages normally printed to standard error.
-    message_limit : int=20
+    message_limit
         Maximum number of messages passed to the logger.
-
-    Returns
-    -------
-    Symbol
-
-    Examples
-    --------
-        >>> import clingo
-        >>> clingo.parse_term('p(1+2)')
-        p(3)
     '''
     if logger is not None:
         # pylint: disable=protected-access

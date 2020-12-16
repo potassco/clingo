@@ -1,5 +1,31 @@
 '''
-This modules contains functions and classes to work with symbolic atoms.
+Functions and classes to work with symbolic atoms.
+
+Examples
+--------
+
+    >>> from clingo.symbol import Function, Number
+    >>> from clingo.control import Control
+    >>> ctl = Control()
+    >>> ctl.add('base', [], """\
+    ... p(1).
+    ... { p(3) }.
+    ... #external p(1..3).
+    ...
+    ... q(X) :- p(X).
+    ... """)
+    >>> ctl.ground([("base", [])])
+    >>> len(ctl.symbolic_atoms)
+    6
+    >>> ctl.symbolic_atoms[Function("p", [Number(2)])] is not None
+    True
+    >>> ctl.symbolic_atoms[Function("p", [Number(4)])] is None
+    True
+    >>> ctl.symbolic_atoms.signatures
+    [('p', 1, True), ('q', 1, True)]
+    >>> [(str(x.symbol), x.is_fact, x.is_external)
+    ...  for x in ctl.symbolic_atoms.by_signature("p", 1)]
+    [('p(1)', True, False), ('p(3)', False, False), ('p(2)', False, True)]
 '''
 
 from typing import Iterator, List, Optional, Tuple
@@ -24,23 +50,22 @@ class SymbolicAtom:
 
         Parameters
         ----------
-        name : str
+        name
             The name of the function.
 
-        arity : int
+        arity
             The arity of the function.
 
-        positive : bool
+        positive
             Whether to match positive or negative signatures.
 
         Returns
         -------
-        bool
-            Whether the function matches.
+        Whether the atom matches.
 
         See Also
         --------
-        Symbol.match
+        clingo.symbol.Symbol.match
         '''
         return self.symbol.match(name, arity, positive)
 
@@ -75,33 +100,6 @@ class SymbolicAtom:
 class SymbolicAtoms(Lookup[Symbol,SymbolicAtom]):
     '''
     This class provides read-only access to the atom base of the grounder.
-
-    Implements: `Lookup[Symbol,SymbolicAtom]`.
-
-    Examples
-    --------
-
-        >>> import clingo
-        >>> prg = clingo.Control()
-        >>> prg.add('base', [], """\
-        ... p(1).
-        ... { p(3) }.
-        ... #external p(1..3).
-        ...
-        ... q(X) :- p(X).
-        ... """)
-        >>> prg.ground([("base", [])])
-        >>> len(prg.symbolic_atoms)
-        6
-        >>> prg.symbolic_atoms[clingo.Function("p", [2])] is not None
-        True
-        >>> prg.symbolic_atoms[clingo.Function("p", [4])] is None
-        True
-        >>> prg.symbolic_atoms.signatures
-        [('p', 1L, True), ('q', 1L, True)]
-        >>> [(x.symbol, x.is_fact, x.is_external)
-        ...  for x in prg.symbolic_atoms.by_signature("p", 1)]
-        [(p(1), True, False), (p(3), False, False), (p(2), False, True)]
     '''
     def __init__(self, rep):
         self._rep = rep
@@ -142,16 +140,12 @@ class SymbolicAtoms(Lookup[Symbol,SymbolicAtom]):
 
         Arguments
         ---------
-        name : str
+        name
             The name of the signature.
-        arity : int
+        arity
             The arity of the signature.
-        positive : bool=True
+        positive
             The sign of the signature.
-
-        Returns
-        -------
-        Iterator[SymbolicAtom]
         '''
         p_sig = _ffi.new('clingo_signature_t*')
         _handle_error(_lib.clingo_signature_create(name.encode(), arity, positive, p_sig))
