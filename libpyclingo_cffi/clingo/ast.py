@@ -1,5 +1,5 @@
 '''
-The clingo.ast-5.5.0 module.
+Module to work with clingo's non-ground program representation.
 
 The grammar below defines valid ASTs. For each upper case identifier there is a
 matching function in the module. Arguments follow in parenthesis: each having a

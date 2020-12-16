@@ -1,6 +1,27 @@
 '''
 Module providing functions and classes to implement applications based on
 clingo.
+
+Examples
+--------
+The following example reproduces the default clingo application:
+
+    import sys
+    from clingo.application import Application, clingo_main
+
+    class ClingoApp(Application):
+        def __init__(self, name):
+            self.program_name = name
+
+        def main(self, ctl, files):
+            for f in files:
+                ctl.load(f)
+            if not files:
+                ctl.load("-")
+            ctl.ground([("base", [])])
+            ctl.solve()
+
+    clingo_main(ClingoApp(sys.argv[0]), sys.argv[1:])
 '''
 
 from typing import Any, Callable, List, Optional, Sequence
@@ -20,7 +41,7 @@ class Flag:
 
     Parameters
     ----------
-    value : bool=False
+    value
         The initial value of the flag.
     '''
     def __init__(self, value: bool=False):
@@ -55,37 +76,28 @@ class ApplicationOptions(metaclass=ABCMeta):
 
         Parameters
         ----------
-        group : str
+        group
             Options are grouped into sections as given by this string.
-        option : str
+        option
             Parameter option specifies the name(s) of the option. For example,
             `"ping,p"` adds the short option `-p` and its long form `--ping`. It is
             also possible to associate an option with a help level by adding `",@l"` to
             the option specification. Options with a level greater than zero are only
             shown if the argument to help is greater or equal to `l`.
-        description : str
+        description
             The description of the option shown in the help output.
-        parser : Callable[[str],bool]
+        parser
             An option parser is a function that takes a string as input and returns
             true or false depending on whether the option was parsed successively.
-        multi : bool=False
+        multi
             Whether the option can appear multiple times on the command-line.
-        argument : Optional[str]=None
+        argument
             Optional string to change the value name in the generated help.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        RuntimeError
-            An error is raised if an option with the same name already exists.
 
         Notes
         -----
-        The parser also has to take care of storing the semantic value of the option
-        somewhere.
+        The parser callback has to take care of storing the semantic value of
+        the option somewhere.
         '''
         # pylint: disable=protected-access
         c_data = _ffi.new_handle(parser)
@@ -107,18 +119,14 @@ class ApplicationOptions(metaclass=ABCMeta):
 
         Parameters
         ----------
-        group : str
+        group
             Options are grouped into sections as given by this string.
-        option : str
+        option
             Same as for `ApplicationOptions.add`.
-        description : str
+        description
             The description of the option shown in the help output.
-        target : Flag
+        target
             The object that receives the value.
-
-        Returns
-        -------
-        None
         '''
         # pylint: disable=protected-access
         self._mem.append(target)
@@ -133,37 +141,33 @@ def _pyclingo_application_options_parse(value, data):
 class Application(metaclass=ABCMeta):
     '''
     Interface that has to be implemented to customize clingo.
-
-    Attributes
-    ----------
-    program_name: str = 'clingo'
-        Optional program name to be used in the help output.
-
-    version: str
-        Version string defaulting to clingo's version.
-
-    message_limit: int = 20
-        Maximum number of messages passed to the logger.
     '''
     program_name: str
+    '''
+    Program name defaulting to `'clingo'` used in the help output.
+    '''
     version: str
+    '''
+    Version string defaulting to clingo's version.
+    '''
     message_limit: int
+    '''
+    Maximum number of messages defaulting to `20` passed to the logger.
+    '''
 
     @abstractmethod
     def main(self, control: Control, files: Sequence[str]) -> None:
         '''
         Function to replace clingo's default main function.
 
+        This function must be implemented.
+
         Parameters
         ----------
-        control : Control
+        control
             The main control object.
-        files : Sequence[str]
+        files
             The files passed to clingo_main.
-
-        Returns
-        -------
-        None
         '''
 
     def register_options(self, options: ApplicationOptions) -> None:
@@ -172,24 +176,17 @@ class Application(metaclass=ABCMeta):
 
         Parameters
         ----------
-        options : ApplicationOptions
+        options
             Object to register additional options
-
-        Returns
-        -------
-        None
         '''
 
     def validate_options(self) -> bool:
         '''
         Function to validate custom options.
 
-        This function should return false or throw an exception if option
-        validation fails.
-
         Returns
         -------
-        bool
+        This function should return false if option validation fails.
         '''
 
     def print_model(self, model: Model, printer: Callable[[], None]) -> None:
@@ -198,14 +195,10 @@ class Application(metaclass=ABCMeta):
 
         Parameters
         ----------
-        model : model
+        model
             The current model
-        printer : Callable[[], None]
+        printer
             The default printer as used in clingo.
-
-        Returns
-        -------
-        None
         '''
 
     def logger(self, code: MessageCode, message: str) -> None:
@@ -216,14 +209,10 @@ class Application(metaclass=ABCMeta):
 
         Parameters
         ----------
-        code : MessageCode
+        code
             The message code.
-        message : str
+        message
             The message string.
-
-        Returns
-        -------
-        None
 
         Notes
         -----
@@ -239,44 +228,21 @@ def clingo_main(application: Application, arguments: Optional[Sequence[str]]=Non
 
     Parameters
     ----------
-    application : Application
-        The Application object (see notes).
-    arguments : Optional[Sequence[str]] = None
+    application
+        The application object.
+    arguments
         The command line arguments excluding the program name.
 
         If omitted, then `sys.argv[1:]` is used.
 
     Returns
     -------
-    int
-        The exit code of the application.
+    The exit code of the application.
 
     Notes
     -----
     The main function of the `Application` interface has to be implemented. All
     other members are optional.
-
-    Examples
-    --------
-    The following example reproduces the default clingo application:
-
-        import sys
-        import clingo
-
-        class Application(clingo.Application):
-            def __init__(self, name):
-                self.program_name = name
-
-            def main(self, ctl, files):
-                if len(files) > 0:
-                    for f in files:
-                        ctl.load(f)
-                else:
-                    ctl.load("-")
-                ctl.ground([("base", [])])
-                ctl.solve()
-
-        clingo.clingo_main(Application(sys.argv[0]), sys.argv[1:])
     '''
     if arguments is None:
         arguments = sys.argv[1:]
