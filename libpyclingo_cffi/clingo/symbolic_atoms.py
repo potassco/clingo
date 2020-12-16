@@ -2,10 +2,10 @@
 This modules contains functions and classes to work with symbolic atoms.
 '''
 
-from typing import Collection, Generic, Iterator, List, Optional, Tuple, TypeVar
-from abc import abstractmethod
+from typing import Iterator, List, Optional, Tuple
 
 from ._internal import _c_call, _ffi, _handle_error, _lib, _to_str
+from .util import Lookup
 from .symbol import Symbol
 
 class SymbolicAtom:
@@ -69,16 +69,6 @@ class SymbolicAtom:
         The representation of the atom in form of a symbol.
         '''
         return Symbol(_c_call('clingo_symbol_t', _lib.clingo_symbolic_atoms_symbol, self._rep, self._it))
-
-Key = TypeVar('Key')
-Value = TypeVar('Value')
-class Lookup(Generic[Key, Value], Collection[Value]):
-    '''
-    A collection of values with additional lookup by key.
-    '''
-    @abstractmethod
-    def __getitem__(self, key: Key) -> Optional[Value]:
-        pass
 
 class SymbolicAtoms(Lookup[Symbol,SymbolicAtom]):
     '''

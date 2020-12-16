@@ -41,8 +41,8 @@ class _SolveEventHandler:
         if self._on_statistics is not None:
             self._on_statistics(_mutable_statistics(step), _mutable_statistics(accu))
 
-@_ffi.def_extern(onerror=_cb_error_handler('data'))
-def pyclingo_solve_event_callback(type_, event, data, goon):
+@_ffi.def_extern(onerror=_cb_error_handler('data'), name='pyclingo_solve_event_callback')
+def _pyclingo_solve_event_callback(type_, event, data, goon):
     '''
     Low-level solve event handler.
     '''
@@ -59,8 +59,8 @@ def pyclingo_solve_event_callback(type_, event, data, goon):
 
     return True
 
-@_ffi.def_extern(onerror=_cb_error_handler('data'))
-def pyclingo_ground_callback(location, name, arguments, arguments_size, data, symbol_callback, symbol_callback_data):
+@_ffi.def_extern(onerror=_cb_error_handler('data'), name='pyclingo_ground_callback')
+def _pyclingo_ground_callback(location, name, arguments, arguments_size, data, symbol_callback, symbol_callback_data):
     '''
     Low-level ground callback.
     '''

@@ -2,10 +2,21 @@
 Helper modules with utility functions and classes.
 """
 
-from typing import MutableSequence, Sequence, Optional
+from typing import Collection, Generic, MutableSequence, Sequence, Optional, TypeVar
+from abc import abstractmethod
 from collections import abc
 
 # pylint: disable=too-many-ancestors
+
+Key = TypeVar('Key')
+Value = TypeVar('Value')
+class Lookup(Generic[Key, Value], Collection[Value]):
+    '''
+    A collection of values with additional lookup by key.
+    '''
+    @abstractmethod
+    def __getitem__(self, key: Key) -> Optional[Value]:
+        pass
 
 class Slice:
     '''

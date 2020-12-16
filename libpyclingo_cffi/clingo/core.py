@@ -47,8 +47,8 @@ class MessageCode(Enum):
     RuntimeError = _lib.clingo_warning_runtime_error
     VariableUnbounded = _lib.clingo_warning_variable_unbounded
 
-@_ffi.def_extern(onerror=_cb_error_panic)
-def pyclingo_logger_callback(code, message, data):
+@_ffi.def_extern(onerror=_cb_error_panic, name='pyclingo_logger_callback')
+def _pyclingo_logger_callback(code, message, data):
     '''
     Low-level logger callback.
     '''
