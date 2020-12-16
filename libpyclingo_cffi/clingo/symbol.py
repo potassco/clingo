@@ -10,6 +10,9 @@ from functools import total_ordering
 from ._internal import _c_call, _c_call2, _ffi, _lib, _str, _to_str
 from .core import MessageCode
 
+__all__ = [ 'Function', 'Infimum', 'Number', 'String', 'Supremum', 'Symbol',
+            'SymbolType', 'Tuple_', 'parse_term']
+
 class SymbolType(Enum):
     '''
     Enumeration of the different types of symbols.

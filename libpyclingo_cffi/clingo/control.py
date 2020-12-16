@@ -18,7 +18,7 @@ from .backend import Backend, Observer
 from .configuration import Configuration
 from .statistics import StatisticsMap, _mutable_statistics, _statistics
 
-# {{{1 control [90%]
+__all__ = [ 'Control' ]
 
 class _SolveEventHandler:
     # pylint: disable=missing-function-docstring

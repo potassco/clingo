@@ -2,10 +2,12 @@
 This modules defines core functionality used throught the clingo module.
 '''
 
-from typing import Tuple
+from typing import Callable, Tuple
 from enum import Enum
 
 from ._internal import _cb_error_panic, _ffi, _lib, _to_str
+
+__all__ = [ 'Logger', 'MessageCode', 'TruthValue', 'version' ]
 
 def version() -> Tuple[int, int, int]:
     '''
@@ -46,6 +48,8 @@ class MessageCode(Enum):
     Other = _lib.clingo_warning_atom_undefined
     RuntimeError = _lib.clingo_warning_runtime_error
     VariableUnbounded = _lib.clingo_warning_variable_unbounded
+
+Logger = Callable[[MessageCode, str], None]
 
 @_ffi.def_extern(onerror=_cb_error_panic, name='pyclingo_logger_callback')
 def _pyclingo_logger_callback(code, message, data):

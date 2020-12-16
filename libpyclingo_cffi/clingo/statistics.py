@@ -8,6 +8,8 @@ from collections import abc
 
 from ._internal import _c_call, _handle_error, _lib, _to_str
 
+__all__ = [ 'StatisticsArray', 'StatisticsMap', 'StatisticsValue' ]
+
 StatisticsValue = Union['StatisticsArray', 'StatisticsMap', float]
 
 def _statistics_type(stats, key):

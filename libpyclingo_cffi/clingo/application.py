@@ -12,6 +12,8 @@ from .core import MessageCode
 from .solving import Model
 from .control import Control
 
+__all__ = [ 'Application', 'ApplicationOptions', 'Flag', 'clingo_main' ]
+
 class Flag:
     '''
     Helper object to parse command-line flags.

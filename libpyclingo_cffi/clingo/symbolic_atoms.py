@@ -8,6 +8,8 @@ from ._internal import _c_call, _ffi, _handle_error, _lib, _to_str
 from .util import Lookup
 from .symbol import Symbol
 
+__all__ = [ 'SymbolicAtom', 'SymbolicAtoms' ]
+
 class SymbolicAtom:
     '''
     Captures a symbolic atom and provides properties to inspect its state.

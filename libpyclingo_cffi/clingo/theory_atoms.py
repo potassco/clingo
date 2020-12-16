@@ -8,6 +8,8 @@ from functools import total_ordering
 
 from ._internal import _c_call, _c_call2, _lib, _str, _to_str
 
+__all__ = [ 'TheoryAtom', 'TheoryElement', 'TheoryTerm', 'TheoryTermType' ]
+
 class TheoryTermType(Enum):
     '''
     Enumeration of the different types of theory terms.

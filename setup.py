@@ -6,7 +6,7 @@ if not site.ENABLE_USER_SITE and "--user" in sys.argv[1:]:
     site.ENABLE_USER_SITE = True
 
 setup(
-    version = '5.5.0-post1',
+    version = '5.5.0.post2',
     name = 'clingo-cffi',
     description = 'A grounder and solver for logic programs.',
     author = 'Roland Kaminski',

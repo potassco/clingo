@@ -9,6 +9,8 @@ from ._internal import _c_call, _c_call2, _ffi, _handle_error, _lib
 from .symbol import Symbol
 from .symbolic_atoms import SymbolicAtoms
 
+__all__ = [ 'Model', 'ModelType', 'SolveControl', 'SolveHandle', 'SolveResult' ]
+
 class SolveResult:
     '''
     Captures the result of a solve call.
@@ -65,6 +67,13 @@ class SolveResult:
         if (_lib.clingo_solve_result_satisfiable & self._rep) != 0:
             return False
         return None
+
+    def __str__(self):
+        if self.satisfiable:
+            return "SAT"
+        if self.unsatisfiable:
+            return "UNSAT"
+        return "UNKNOWN"
 
 class SolveControl:
     '''

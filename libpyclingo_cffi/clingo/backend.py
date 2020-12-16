@@ -10,6 +10,8 @@ from ._internal import _Error, _c_call, _cb_error_handler, _ffi, _handle_error, 
 from .core import TruthValue
 from .symbol import Symbol
 
+__all__ = [ 'Backend', 'HeuristicType', 'Observer' ]
+
 class HeuristicType(Enum):
     '''
     Enumeration of the different heuristic types.

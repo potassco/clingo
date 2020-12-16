@@ -11,6 +11,8 @@ from .util import Slice, SlicedSequence
 from .symbolic_atoms import SymbolicAtoms
 from .theory_atoms import TheoryAtom
 
+__all__ = [ 'Assignment', 'PropagateControl', 'PropagateInit', 'Propagator',
+            'PropagatorCheckMode', 'Trail' ]
 
 class Trail(Sequence[int]):
     '''

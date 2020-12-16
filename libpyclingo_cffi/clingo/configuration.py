@@ -6,6 +6,8 @@ from typing import List, Optional, Union
 
 from ._internal import _c_call, _ffi, _handle_error, _lib, _to_str
 
+__all__ = [ 'Configuration' ]
+
 class Configuration:
     '''
     Allows for changing the configuration of the underlying solver.

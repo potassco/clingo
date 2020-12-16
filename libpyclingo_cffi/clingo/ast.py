@@ -299,19 +299,61 @@ statement = Rule
                            )*
              )
 ```
+
+Examples
+--------
+The following example parses a program from a string and passes the resulting
+`AST` to the builder:
+
+    >>> from clingo import Control, ast
+    >>> from clingo.ast import Location, ProgramBuilder, Position, parse_string
+    >>> ctl = Control()
+    >>> prg = "a."
+    >>> with ProgramBuilder(ctl) as bld:
+    ...    parse_string(prg, lambda stm: bld.add(stm))
+    ...    pos = Position('<string>', 1, 1)
+    ...    loc = Location(pos, pos)
+    ...    fun = ast.Function(loc, "b", [], False)
+    ...    atm = ast.SymbolicAtom(fun)
+    ...    lit = ast.Literal(loc, ast.Sign.NoSign, atm)
+    ...    bld.add(ast.Rule(loc, lit, []))
+    ...
+    >>> ctl.ground([("base", [])])
+    >>> print(ctl.solve(on_model=lambda m: print("Answer: {}".format(m))))
+    Answer: a b
+    SAT
 '''
 
 from enum import Enum, IntEnum
-from typing import Any, Callable, ContextManager, Iterable, List, NamedTuple, Optional, Sequence, Tuple
+from typing import Callable, ContextManager, Iterable, List, NamedTuple, Optional, Sequence, Tuple, Union
 from collections import abc
 from functools import total_ordering
 
 from ._internal import (_CBData, _Error,
                         _cb_error_handler, _c_call, _ffi, _handle_error, _lib, _str, _to_str)
 from .util import Slice, SlicedMutableSequence
-from .core import MessageCode
+from .core import Logger
 from .control import Control
 from .symbol import Symbol
+
+__all__ = [ 'AST', 'ASTSequence', 'ASTType', 'ASTValue', 'Aggregate',
+            'AggregateFunction', 'AggregateGuard', 'BinaryOperation',
+            'BinaryOperator', 'BodyAggregate', 'BodyAggregateElement',
+            'BooleanConstant', 'Comparison', 'ComparisonOperator',
+            'ConditionalLiteral', 'CspGuard', 'CspLiteral', 'CspProduct',
+            'CspSum', 'Defined', 'Definition', 'Disjoint', 'DisjointElement',
+            'Disjunction', 'Edge', 'External', 'Function', 'HeadAggregate',
+            'HeadAggregateElement', 'Heuristic', 'Id', 'Interval', 'Literal',
+            'Location', 'Minimize', 'Pool', 'Program', 'ProgramBuilder',
+            'ProjectAtom', 'ProjectSignature', 'Rule', 'Script', 'ScriptType',
+            'ShowSignature', 'ShowTerm', 'Sign', 'StrSequence', 'SymbolicTerm',
+            'TheoryAtom', 'TheoryAtomDefinition', 'TheoryAtomElement',
+            'TheoryAtomType', 'TheoryDefinition', 'TheoryFunction',
+            'TheoryGuard', 'TheoryGuardDefinition', 'TheoryOperatorDefinition',
+            'TheoryOperatorType', 'TheorySequence', 'TheorySequenceType',
+            'TheoryTermDefinition', 'TheoryUnparsedTerm',
+            'TheoryUnparsedTermElement', 'UnaryOperation', 'UnaryOperator',
+            'Variable', 'parse_files', 'parse_string' ]
 
 # pylint: disable=protected-access,invalid-name,too-many-lines,too-many-ancestors
 
@@ -374,216 +416,203 @@ class ASTType(Enum):
 class AggregateFunction(IntEnum):
     '''
     Enumeration of aggegate functions.
-
-    Attributes
-    ----------
-    Count : AggregateFunction
-        The `#count` function.
-    Sum : AggregateFunction
-        The `#sum` function.
-    SumPlus : AggregateFunction
-        The `#sum+` function.
-    Min : AggregateFunction
-        The `#min` function.
-    Max : AggregateFunction
-        The `#max` function.
     '''
     Count = _lib.clingo_ast_aggregate_function_count
+    '''
+    The `#count` function.
+    '''
     Max = _lib.clingo_ast_aggregate_function_max
+    '''
+    The `#max` function.
+    '''
     Min = _lib.clingo_ast_aggregate_function_min
+    '''
+    The `#min` function.
+    '''
     Sum = _lib.clingo_ast_aggregate_function_sum
+    '''
+    The `#sum` function.
+    '''
     SumPlus = _lib.clingo_ast_aggregate_function_sump
+    '''
+    The `#sum+` function.
+    '''
 
 class BinaryOperator(IntEnum):
     '''
     Enumeration of binary operators.
-
-    Attributes
-    ----------
-    XOr : BinaryOperator
-        For bitwise exclusive or.
-    Or : BinaryOperator
-        For bitwise or.
-    And : BinaryOperator
-        For bitwise and.
-    Plus : BinaryOperator
-        For arithmetic addition.
-    Minus : BinaryOperator
-        For arithmetic subtraction.
-    Multiplication : BinaryOperator
-        For arithmetic multipilcation.
-    Division : BinaryOperator
-        For arithmetic division.
-    Modulo : BinaryOperator
-        For arithmetic modulo.
-    Power : BinaryOperator
-        For arithmetic exponentiation.
     '''
     And = _lib.clingo_ast_binary_operator_and
+    '''
+    For bitwise and.
+    '''
     Division = _lib.clingo_ast_binary_operator_division
+    '''
+    For arithmetic division.
+    '''
     Minus = _lib.clingo_ast_binary_operator_minus
+    '''
+    For arithmetic subtraction.
+    '''
     Modulo = _lib.clingo_ast_binary_operator_modulo
+    '''
+    For arithmetic modulo.
+    '''
     Multiplication = _lib.clingo_ast_binary_operator_multiplication
+    '''
+    For arithmetic multipilcation.
+    '''
     Or = _lib.clingo_ast_binary_operator_or
+    '''
+    For bitwise or.
+    '''
     Plus = _lib.clingo_ast_binary_operator_plus
+    '''
+    For arithmetic addition.
+    '''
     Power = _lib.clingo_ast_binary_operator_power
+    '''
+    For arithmetic exponentiation.
+    '''
     XOr = _lib.clingo_ast_binary_operator_xor
+    '''
+    For bitwise exclusive or.
+    '''
 
 class ComparisonOperator(IntEnum):
     '''
     Enumeration of comparison operators.
-
-    Attributes
-    ----------
-    GreaterThan : ComparisonOperator
-        The `>` operator.
-    LessThan : ComparisonOperator
-        The `<` operator.
-    LessEqual : ComparisonOperator
-        The `<=` operator.
-    GreaterEqual : ComparisonOperator
-        The `>=` operator.
-    NotEqual : ComparisonOperator
-        The `!=` operator.
-    Equal : ComparisonOperator
-        The `=` operator
     '''
     Equal = _lib.clingo_ast_comparison_operator_equal
+    '''
+    The `=` operator
+    '''
     GreaterEqual = _lib.clingo_ast_comparison_operator_greater_equal
+    '''
+    The `>=` operator.
+    '''
     GreaterThan = _lib.clingo_ast_comparison_operator_greater_than
+    '''
+    The `>` operator.
+    '''
     LessEqual = _lib.clingo_ast_comparison_operator_less_equal
+    '''
+    The `<=` operator.
+    '''
     LessThan = _lib.clingo_ast_comparison_operator_less_than
+    '''
+    The `<` operator.
+    '''
     NotEqual = _lib.clingo_ast_comparison_operator_not_equal
+    '''
+    The `!=` operator.
+    '''
 
 class ScriptType(IntEnum):
     '''
     Enumeration of theory atom types.
-
-    Attributes
-    ----------
-    Python : ScriptType
-        For Python code.
-    Lua : ScriptType
-        For Lua code.
     '''
     Lua = _lib.clingo_ast_script_type_lua
+    '''
+    For Lua code.
+    '''
     Python = _lib.clingo_ast_script_type_python
+    '''
+    For Python code.
+    '''
 
 class Sign(IntEnum):
     '''
     Enumeration of signs for literals.
-
-    Attributes
-    ----------
-    NoSign : Sign
-        For positive literals.
-    Negation : Sign
-        For negative literals (with prefix `not`).
-    DoubleNegation : Sign
-        For double negated literals (with prefix `not not`)
     '''
     DoubleNegation = _lib.clingo_ast_sign_double_negation
+    '''
+    For double negated literals (with prefix `not not`)
+    '''
     Negation = _lib.clingo_ast_sign_negation
+    '''
+    For negative literals (with prefix `not`).
+    '''
     NoSign = _lib.clingo_ast_sign_no_sign
+    '''
+    For positive literals.
+    '''
 
 class TheoryAtomType(IntEnum):
     '''
     Enumeration of theory atom types.
-
-    `TheoryAtomType` objects have a readable string representation, implement
-    Python's rich comparison operators, and can be used as dictionary keys.
-
-    Furthermore, they cannot be constructed from Python. Instead the following
-    preconstructed class attributes are available:
-
-    Attributes
-    ----------
-    Any : TheoryAtomType
-        For atoms that can occur anywhere.
-    Body : TheoryAtomType
-        For atoms that can only occur in rule bodies.
-    Head : TheoryAtomType
-        For atoms that can only occur in rule heads.
-    Directive : TheoryAtomType
-        For atoms that can only occur in facts.
     '''
     Any = _lib.clingo_ast_theory_atom_definition_type_any
+    '''
+    For atoms that can occur anywhere in a rule.
+    '''
     Body = _lib.clingo_ast_theory_atom_definition_type_body
+    '''
+    For atoms that can only occur in rule bodies.
+    '''
     Directive = _lib.clingo_ast_theory_atom_definition_type_directive
+    '''
+    For atoms that can only occur in facts.
+    '''
     Head = _lib.clingo_ast_theory_atom_definition_type_head
+    '''
+    For atoms that can only occur in rule heads.
+    '''
 
 class TheoryOperatorType(IntEnum):
     '''
     Enumeration of operator types.
-
-    `TheoryOperatorType` objects have a readable string representation, implement
-    Python's rich comparison operators, and can be used as dictionary keys.
-
-    Furthermore, they cannot be constructed from Python. Instead the following
-    preconstructed class attributes are available:
-
-    Attributes
-    ----------
-    Unary : TheoryOperatorType
-        For unary operators.
-    BinaryLeft : TheoryOperatorType
-        For binary left associative operators.
-    BinaryRight : TheoryOperatorType
-        For binary right associative operator.
     '''
     BinaryLeft = _lib.clingo_ast_theory_operator_type_binary_left
+    '''
+    For binary left associative operators.
+    '''
     BinaryRight = _lib.clingo_ast_theory_operator_type_binary_right
+    '''
+    For binary right associative operator.
+    '''
     Unary = _lib.clingo_ast_theory_operator_type_unary
+    '''
+    For unary operators.
+    '''
 
 class TheorySequenceType(IntEnum):
     '''
     Enumeration of theory term sequence types.
-
-    `TheorySequenceType` objects have a readable string representation, implement
-    Python's rich comparison operators, and can be used as dictionary keys.
-
-    Furthermore, they cannot be constructed from Python. Instead the following
-    preconstructed class attributes are available:
-
-    Attributes
-    ----------
-    Tuple : TheorySequenceType
-        For sequences enclosed in parenthesis.
-    List : TheorySequenceType
-        For sequences enclosed in brackets.
-    Set : TheorySequenceType
-        For sequences enclosed in braces.
     '''
     List = _lib.clingo_ast_theory_sequence_type_list
+    '''
+    For sequences enclosed in brackets.
+    '''
     Set = _lib.clingo_ast_theory_sequence_type_set
+    '''
+    For sequences enclosed in braces.
+    '''
     Tuple = _lib.clingo_ast_theory_sequence_type_tuple
+    '''
+    For sequences enclosed in parenthesis.
+    '''
 
 class UnaryOperator(IntEnum):
     '''
     Enumeration of signs for literals.
-
-    `UnaryOperator` objects have a readable string representation, implement
-    Python's rich comparison operators, and can be used as dictionary keys.
-
-    Furthermore, they cannot be constructed from Python. Instead the following
-    preconstructed class attributes are available:
-
-    Attributes
-    ----------
-    Negation : UnaryOperator
-        For bitwise negation.
-    Minus : UnaryOperator
-        For unary minus and classical negation.
-    Absolute : UnaryOperator
-        For taking the absolute value.
     '''
     Absolute = _lib.clingo_ast_unary_operator_absolute
+    '''
+    For taking the absolute value.
+    '''
     Minus = _lib.clingo_ast_unary_operator_minus
+    '''
+    For unary minus and classical negation.
+    '''
     Negation = _lib.clingo_ast_unary_operator_negation
+    '''
+    For bitwise negation.
+    '''
 
 class ASTSequence(abc.MutableSequence):
     '''
-    A sequence holding ASTs.
+    A sequence holding `AST` nodes.
     '''
     def __init__(self, rep, attribute):
         self._rep = rep
@@ -692,15 +721,30 @@ class Position(NamedTuple):
     Class to point to a position in a text file.
     '''
     filename: str
+    '''
+    The file name.
+    '''
     line: int
+    '''
+    The line number in the file.
+    '''
     column: int
+    '''
+    The column number in the line.
+    '''
 
 class Location(NamedTuple):
     '''
     Class to point to a range in a text file.
     '''
     begin: Position
+    '''
+    The beginning of the range.
+    '''
     end: Position
+    '''
+    The end of the range.
+    '''
 
 def _c_location(loc: Location):
     mema = _ffi.new('char[]', loc.begin.filename.encode())
@@ -720,20 +764,23 @@ def _py_location(rep):
 _attribute_names = { _to_str(_lib.g_clingo_ast_attribute_names.names[i]): i
                      for i in range(_lib.g_clingo_ast_attribute_names.size) }
 
+ASTValue = Union[str, int, Symbol, None, 'AST', StrSequence, ASTSequence]
+
 @total_ordering
 class AST:
     '''
     Represents a node in the abstract syntax tree.
 
-    AST nodes implement Python's rich comparison operators and are ordered
-    structurally ignoring the location. They can also be used as dictionary keys.
-    Their string representation corresponds to their gringo representation.
+    The attributes of an `AST` are tied to its type. They correspond to the
+    grammar in the description of the `clingo.ast` module. `AST` nodes can be
+    constructed using one of the functions provided in this module.
 
-    Notes
-    -----
-    AST nodes using can be constructed using one of the functions provided in
-    this module. The parameters of the functions correspond to the types given
-    in the description of the `clingo.ast` module.
+    Furthermore, AST nodes implement Python's rich comparison operators and are
+    ordered structurally ignoring the location. They can also be used as
+    dictionary keys. Their string representation corresponds to their gringo
+    representation. In fact, the string representation of any AST obtained from
+    `parse_files` and `parse_string` can be parsed again. Note that it is
+    possible to construct ASTs that are not parsable, though.
     '''
     def __init__(self, rep):
         super().__setattr__("_rep", rep)
@@ -824,52 +871,32 @@ class AST:
     def __copy__(self) -> 'AST':
         """
         Return a shallow copy of the ast.
-
-        Returns
-        -------
-        AST
         """
         return AST(_c_call('clingo_ast_t*', _lib.clingo_ast_copy, self._rep))
 
     def __deepcopy__(self, memo) -> 'AST':
         """
         Return a deep copy of the ast.
-
-        Returns
-        -------
-        AST
         """
         return AST(_c_call('clingo_ast_t*', _lib.clingo_ast_deep_copy, self._rep))
 
-    def items(self) -> List[Tuple[str, Any]]:
+    def items(self) -> List[Tuple[str, ASTValue]]:
         '''
         The list of items of the AST node.
-
-        Returns
-        -------
-        List[Tuple[str, Any]]
         '''
         return [ (name, getattr(self, name)) for name in self.keys() ]
 
     def keys(self) -> List[str]:
         '''
         The list of keys of the AST node.
-
-        Returns
-        -------
-        List[str]
         '''
         cons = _lib.g_clingo_ast_constructors.constructors[self.ast_type.value]
         names = _lib.g_clingo_ast_attribute_names.names
         return [ _to_str(names[cons.arguments[j].attribute]) for j in range(cons.size) ]
 
-    def values(self) -> List[Any]:
+    def values(self) -> List[ASTValue]:
         '''
         The list of values of the AST node.
-
-        Returns
-        -------
-        List[Any]
         '''
         return [ (getattr(self, name)) for name in self.keys() ]
 
@@ -893,8 +920,8 @@ class AST:
                                                _lib.clingo_ast_attribute_type_optional_ast,
                                                _lib.clingo_ast_attribute_type_ast_array) ]
 
-@_ffi.def_extern(onerror=_cb_error_handler('data'))
-def pyclingo_ast_callback(ast, data):
+@_ffi.def_extern(onerror=_cb_error_handler('data'), name='pyclingo_ast_callback')
+def _pyclingo_ast_callback(ast, data):
     '''
     Low-level ast callback.
     '''
@@ -905,29 +932,25 @@ def pyclingo_ast_callback(ast, data):
     return True
 
 def parse_files(files: Iterable[str], callback: Callable[[AST], None],
-                logger: Callable[[MessageCode,str],None]=None, message_limit: int=20) -> None:
+                logger: Optional[Logger], message_limit: int=20) -> None:
     '''
     Parse the programs in the given files and return an abstract syntax tree for
     each statement via a callback.
 
     The function follows clingo's handling of files on the command line. Filename
-    "-" is treated as stdin and if an empty list is given, then the parser will
+    `"-"` is treated as stdin and if an empty list is given, then the parser will
     read from stdin.
 
     Parameters
     ----------
-    files : Iterable[str]
+    files
         List of file names.
-    callback : Callable[[AST],None]
+    callback
         Callable taking an ast as argument.
-    logger : Callable[[MessageCode,str],None]=None
+    logger
         Function to intercept messages normally printed to standard error.
-    message_limit : int=20
+    message_limit
         The maximum number of messages passed to the logger.
-
-    Returns
-    -------
-    None
 
     See Also
     --------
@@ -950,25 +973,21 @@ def parse_files(files: Iterable[str], callback: Callable[[AST], None],
                                               message_limit))
 
 def parse_string(program: str, callback: Callable[[AST], None],
-                 logger: Callable[[MessageCode,str],None]=None, message_limit: int=20) -> None:
+                 logger: Optional[Logger]=None, message_limit: int=20) -> None:
     '''
-    Parse the given program and return an abstract syntax tree for each statement
-    via a callback.
+    Parse the given program and return an abstract syntax tree for each
+    statement via a callback.
 
     Parameters
     ----------
-    program : str
+    program
         String representation of the program.
-    callback : Callable[[AST],None]
+    callback
         Callable taking an ast as argument.
-    logger : Callable[[MessageCode,str],None]=None
+    logger
         Function to intercept messages normally printed to standard error.
-    message_limit : int=20
+    message_limit
         The maximum number of messages passed to the logger.
-
-    Returns
-    -------
-    None
 
     See Also
     --------
@@ -994,32 +1013,19 @@ class ProgramBuilder(ContextManager['ProgramBuilder']):
     '''
     Object to build non-ground programs.
 
-    Implements: `ContextManager[ProgramBuilder]`.
+    Parameters
+    ----------
+    control
+        The `clingo.control.Control` object to attach the builder to.
 
     See Also
     --------
-    Control.builder, parse_program
+    parse_string, parse_files
 
     Notes
     -----
-    A `ProgramBuilder` is a context manager and must be used with Python's `with`
+    This class is a context manager and must be used with Python's `with`
     statement.
-
-    Examples
-    --------
-    The following example parses a program from a string and passes the resulting
-    `AST` to the builder:
-
-        >>> import clingo
-        >>> ctl = clingo.Control()
-        >>> prg = "a."
-        >>> with ProgramBuilder(ctl) as bld:
-        ...    clingo.parse_program(prg, lambda stm: bld.add(stm))
-        ...
-        >>> ctl.ground([("base", [])])
-        >>> ctl.solve(on_model=lambda m: print("Answer: {}".format(m)))
-        Answer: a
-        SAT
     '''
     def __init__(self, control: Control):
         self._rep = _c_call('clingo_program_builder_t*', _lib.clingo_control_program_builder, control._rep)
@@ -1034,18 +1040,12 @@ class ProgramBuilder(ContextManager['ProgramBuilder']):
 
     def add(self, statement: AST) -> None:
         '''
-        add(self, statement: ast.AST) -> None
-
-        Adds a statement in form of an `ast.AST` node to the program.
+        Adds a statement in form of an `AST` node to the program.
 
         Parameters
         ----------
-        statement : ast.AST
+        statement
             The statement to add.
-
-        Returns
-        -------
-        None
         '''
         _handle_error(_lib.clingo_program_builder_add_ast(self._rep, statement._rep))
 
