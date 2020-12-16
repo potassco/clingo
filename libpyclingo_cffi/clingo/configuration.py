@@ -1,5 +1,25 @@
 '''
 This module contains functions and classes related to configuration.
+
+Examples
+--------
+The following example shows how to modify the configuration to enumerate all
+models:
+
+    >>> from clingo.control import Control
+    >>>
+    >>> prg = Control()
+    >>> prg.configuration.solve.description("models")
+    'Compute at most %A models (0 for all)'
+    >>> prg.configuration.solve.models = 0
+    >>> prg.add("base", [], "{a;b}.")
+    >>> prg.ground([("base", [])])
+    >>> prg.solve(on_model=lambda m: print("Answer: {}".format(m)))
+    Answer:
+    Answer: a
+    Answer: b
+    Answer: a b
+    SAT
 '''
 
 from typing import List, Optional, Union
@@ -27,31 +47,16 @@ class Configuration:
     Array option groups, like solver, have a non-negative length and can be
     iterated. Furthermore, there are meta options having key `configuration`.
     Assigning a meta option sets a number of related options.  To get further
-    information about an option or option group `<opt>`, call `description(<opt>)`.
+    information about an option or option group, use `Configuration.description`.
 
     Notes
     -----
-    When integers are assigned to options, they are automatically converted to
-    strings. The value of an option is always a string.
+    The value of an option is always a string and any value assigned to an
+    option is automatically converted into a string.
 
-    Examples
+    See Also
     --------
-    The following example shows how to modify the configuration to enumerate all
-    models:
-
-        >>> import clingo
-        >>> prg = clingo.Control()
-        >>> prg.configuration.solve.description("models")
-        'Compute at most %A models (0 for all)'
-        >>> prg.configuration.solve.models = 0
-        >>> prg.add("base", [], "{a;b}.")
-        >>> prg.ground([("base", [])])
-        >>> prg.solve(on_model=lambda m: print("Answer: {}".format(m)))
-        Answer:
-        Answer: a
-        Answer: b
-        Answer: a b
-        SAT
+    clingo.control.Control.configuration
     '''
     def __init__(self, rep, key):
         # Note: we have to bypass __setattr__ to avoid infinite recursion
@@ -99,12 +104,12 @@ class Configuration:
 
         return Configuration(self._rep, key)
 
-    def __setattr__(self, name: str, val: str) -> None:
+    def __setattr__(self, name: str, val) -> None:
         key = self._get_subkey(name)
         if key is None:
             super().__setattr__(name, val)
         else:
-            _handle_error(_lib.clingo_configuration_value_set(self._rep, key, val.encode()))
+            _handle_error(_lib.clingo_configuration_value_set(self._rep, key, str(val).encode()))
 
     def description(self, name: str) -> str:
         '''
@@ -112,12 +117,8 @@ class Configuration:
 
         Parameters
         ----------
-        name : str
+        name
             The name of the option.
-
-        Returns
-        -------
-        str
         '''
         key = self._get_subkey(name)
         if key is None:

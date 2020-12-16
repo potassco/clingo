@@ -2,6 +2,7 @@
 Tests for the ast module.
 '''
 from unittest import TestCase
+from typing import cast
 from textwrap import dedent
 from collections.abc import Sequence
 from copy import copy, deepcopy
@@ -17,7 +18,7 @@ class TestAST(TestCase):
     '''
     Tests for the ast module.
     '''
-    def _deepcopy(self, node: AST):
+    def _deepcopy(self, node: AST) -> AST:
         '''
         This functions tests manual deep copying of ast nodes using all the
         constructor functions in the ast module.
@@ -27,7 +28,7 @@ class TestAST(TestCase):
         '''
         cons_name = str(node.ast_type).split(".")[1]
         cons = getattr(ast, cons_name)
-        args = dict(node.items())
+        args = cast(dict, dict(node.items()))
 
         def to_list(val):
             return list(val) if isinstance(val, Sequence) else val
@@ -38,9 +39,9 @@ class TestAST(TestCase):
 
         for key in node.child_keys:
             if isinstance(args[key], Sequence):
-                args[key] = [ self._deepcopy(child) for child in args[key] ]
+                args[key] = [ self._deepcopy(cast(AST, child)) for child in args[key] ]
             elif isinstance(args[key], AST):
-                args[key] = self._deepcopy(args[key])
+                args[key] = self._deepcopy(cast(AST, args[key]))
 
         cpy = cons(**args)
         self.assertEqual(cpy, node)
