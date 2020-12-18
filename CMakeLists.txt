@@ -166,6 +166,13 @@ if (CLINGO_BUILD_WITH_LUA)
 endif()
 find_package(BISON "2.5")
 find_package(RE2C "0.13")
+if (PYCLINGO_USE_CFFI AND Python_Development_FOUND)
+    # When using CFFI the clingo module has to be compiled with -pthread to
+    # avoid linker errors
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+endif()
+
 
 if (POLICY CMP0063 AND (CLINGO_BUILD_SHARED OR Python_Development_FOUND OR LUA_FOUND))
     set(CMAKE_CXX_VISIBILITY_PRESET hidden)

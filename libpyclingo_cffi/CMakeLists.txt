@@ -11,7 +11,7 @@ set(source
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/version.h")
 add_library(libpyclingo STATIC ${source})
-target_link_libraries(libpyclingo PUBLIC libclingo PRIVATE Python::Python)
+target_link_libraries(libpyclingo PUBLIC libclingo PRIVATE Python::Python Threads::Threads)
 target_include_directories(libpyclingo
     PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
