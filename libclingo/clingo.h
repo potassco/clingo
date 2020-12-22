@@ -2548,6 +2548,9 @@ CLINGO_VISIBILITY_DEFAULT extern clingo_ast_constructors_t g_clingo_ast_construc
 //! This struct provides a view to nodes in the AST.
 typedef struct clingo_ast clingo_ast_t;
 
+//! @name Functions to construct ASTs
+//! @{
+
 //! Construct an AST of the given type.
 //!
 //! @note The arguments corresponding to the given type can be inspected using "g_clingo_ast_constructors.constructors[type]".
@@ -2558,6 +2561,30 @@ typedef struct clingo_ast clingo_ast_t;
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if one of the arguments is incompatible with the type
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...);
+
+//! @}
+
+//! @name Functions to manage life time of ASTs
+//! @{
+
+//! Increment the reference count of an AST node.
+//!
+//! @note All functions that return AST nodes already increment the reference count.
+//! The reference count of callback arguments is not incremented.
+//!
+//! @param[in] ast the target AST
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_acquire(clingo_ast_t *ast);
+//! Decrement the reference count of an AST node.
+//!
+//! @note The node is deleted if the reference count reaches zero.
+//!
+//! @param[in] ast the target AST
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_release(clingo_ast_t *ast);
+
+//! @}
+
+//! @name Functions to copy ASTs
+//! @{
 
 //! Deep copy an AST node.
 //!
@@ -2573,6 +2600,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t *
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_deep_copy(clingo_ast_t *ast, clingo_ast_t **copy);
+
+//! @}
+
+//! @name Functions to compare ASTs
+//! @{
 
 //! Less than compare two AST nodes.
 //!
@@ -2592,13 +2624,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_equal(clingo_ast_t *a, clingo_ast_t *b
 //! @return the resulting hash code
 CLINGO_VISIBILITY_DEFAULT size_t clingo_ast_hash(clingo_ast_t *ast);
 
-//! Get the type of an AST node.
-//!
-//! @param[in] ast the target AST
-//! @param[out] type the resulting type
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
+//! @}
+
+//! @name Functions to get convert ASTs to strings
+//! @{
+
 //! Get the size of the string representation of an AST node.
 //!
 //! @param[in] ast the target AST
@@ -2615,59 +2645,320 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string_size(clingo_ast_t *ast, size
 //! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t size);
 
-//! Increment the reference count of an AST node.
-//!
-//! @note All functions that return AST nodes already increment the reference count.
-//! The reference count of callback arguments is not incremented.
-//!
-//! @param[in] ast the target AST
-CLINGO_VISIBILITY_DEFAULT void clingo_ast_acquire(clingo_ast_t *ast);
-//! Decrement the reference count of an AST node.
-//!
-//! @note The node is deleted if the reference count reaches zero.
-//!
-//! @param[in] ast the target AST
-CLINGO_VISIBILITY_DEFAULT void clingo_ast_release(clingo_ast_t *ast);
+//! @}
 
+//! @name Functions to inspect ASTs
+//! @{
+
+//! Get the type of an AST node.
+//!
+//! @param[in] ast the target AST
+//! @param[out] type the resulting type
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
 //! Check if an AST has the given attribute.
 //!
 //! @param[in] ast the target AST
 //! @param[in] attribute the attribute to check
-//! @param[in] has_attribute the result
+//! @param[out] has_attribute the result
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_has_attribute(clingo_ast_t *ast, clingo_ast_attribute_t attribute, bool *has_attribute);
+//! Get the type of the given AST.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] type the resulting type
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_type(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_attribute_type_t *type);
+
+//! @}
+
+//! @name Functions to get/set numeric attributes of ASTs
+//! @{
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_number".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int *value);
+//! Set the value of an attribute of type "clingo_ast_attribute_type_number".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] value the value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int value);
+
+//! @}
+
+//! @name Functions to get/set symbolic attributes of ASTs
+//! @{
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_symbol".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_symbol_t *value);
+//! Set the value of an attribute of type "clingo_ast_attribute_type_symbol".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] value the value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_symbol_t value);
+
+//! @}
+
+//! @name Functions to get/set location attributes of ASTs
+//! @{
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_location".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_location_t *value);
+//! Set the value of an attribute of type "clingo_ast_attribute_type_location".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] value the value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_location_t const *value);
+
+//! @}
+
+//! @name Functions to get/set string attributes of ASTs
+//! @{
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_string".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute, char const **value);
+//! Set the value of an attribute of type "clingo_ast_attribute_type_string".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] value the value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute, char const *value);
+
+//! @}
+
+//! @name Functions to get/set AST attributes of ASTs
+//! @{
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_ast".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value);
+//! Set the value of an attribute of type "clingo_ast_attribute_type_ast".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] value the value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t *value);
+
+//! @}
+
+//! @name Functions to get/set optional AST attributes of ASTs
+//! @{
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_optional_ast".
+//!
+//! @note The value might be "NULL".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_optional_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value);
+//! Set the value of an attribute of type "clingo_ast_attribute_type_optional_ast".
+//!
+//! @note The value might be "NULL".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] value the value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_optional_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t *value);
+
+//! @}
+
+//! @name Functions to get/set string array attributes of ASTs
+//! @{
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_string_array" at the given index.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] index the target index
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, char const **value);
+//! Set the value of an attribute of type "clingo_ast_attribute_type_string_array" at the given index.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] index the target index
+//! @param[in] value the value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+//! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, char const *value);
+//! Remove an element from an attribute of type "clingo_ast_attribute_type_string_array" at the given index.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] index the target index
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_delete_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index);
+//! Get the size of an attribute of type "clingo_ast_attribute_type_string_array".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] size the resulting size
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_size_string_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t *size);
+//! Insert a value into an attribute of type "clingo_ast_attribute_type_string_array" at the given index.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] index the target index
+//! @param[in] value the value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+//! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_insert_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, char const *value);
+
+//! @}
+
+//! @name Functions to get/set AST array attributes of ASTs
+//! @{
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_ast_array" at the given index.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] index the target index
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t **value);
+//! Set the value of an attribute of type "clingo_ast_attribute_type_ast_array" at the given index.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] index the target index
+//! @param[in] value the value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+//! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_set_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t *value);
+//! Remove an element from an attribute of type "clingo_ast_attribute_type_ast_array" at the given index.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] index the target index
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_delete_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index);
+//! Get the size of an attribute of type "clingo_ast_attribute_type_ast_array".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] size the resulting size
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_size_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t *size);
+//! Insert a value into an attribute of type "clingo_ast_attribute_type_ast_array" at the given index.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[in] index the target index
+//! @param[in] value the value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+//! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_insert_ast_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, clingo_ast_t *value);
 
-typedef bool (*clingo_ast_callback_v2_t) (clingo_ast_t *, void *);
+//! @}
 
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(char const *program, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
+//! @name Functions to construct ASTs from strings
+//! @{
+
+//! Callback function to intercept AST nodes.
+//!
+//! @param[in] ast the AST
+//! @param[in] data a user data pointer
+//! @return whether the call was successful
+typedef bool (*clingo_ast_callback_v2_t) (clingo_ast_t *ast, void *data);
+//! Parse the given program and return an abstract syntax tree for each statement via a callback.
+//!
+//! @param[in] program the program in gringo syntax
+//! @param[in] callback the callback reporting statements
+//! @param[in] callback_data user data for the callback
+//! @param[in] logger callback to report messages during parsing
+//! @param[in] logger_data user data for the logger
+//! @param[in] message_limit the maximum number of times the logger is called
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime if parsing fails
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(char const *program, clingo_ast_callback_v2_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
+//! Parse the programs in the given list of files and return an abstract syntax tree for each statement via a callback.
+//!
+//! The function follows clingo's handling of files on the command line.
+//! Filename "-" is treated as "STDIN" and if an empty list is given, then the parser will read from "STDIN".
+//!
+//! @param[in] files the beginning of the file name array
+//! @param[in] size the number of file names
+//! @param[in] callback the callback reporting statements
+//! @param[in] callback_data user data for the callback
+//! @param[in] logger callback to report messages during parsing
+//! @param[in] logger_data user data for the logger
+//! @param[in] message_limit the maximum number of times the logger is called
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime if parsing fails
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const * const *files, size_t size, clingo_ast_callback_v2_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
+
+//! @}
 
 //! Object to build non-ground programs.
 typedef struct clingo_program_builder clingo_program_builder_t;
+
+//! @name Functions to add ASTs to logic programs
+//! @{
 
 //! Begin building a program.
 //!
@@ -2688,6 +2979,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_end(clingo_program_builder
 //! - ::clingo_error_runtime for statements of invalid form or AST nodes that do not represent statements
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_add_ast(clingo_program_builder_t *builder, clingo_ast_t *ast);
+
+//! @}
 
 //! @}
 
