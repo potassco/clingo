@@ -1864,6 +1864,250 @@ std::ostream &operator<<(std::ostream &out, Statement const &x);
 
 } // namespace AST
 
+// {{{1 ast v2
+
+namespace ASTv2 {
+
+enum class TheorySequenceType {
+    Tuple = clingo_ast_theory_sequence_type_tuple,
+    List = clingo_ast_theory_sequence_type_list,
+    Set = clingo_ast_theory_sequence_type_set,
+};
+
+enum class ComparisonOperator {
+    GreaterThan = clingo_ast_comparison_operator_greater_than,
+    LessThan = clingo_ast_comparison_operator_less_than,
+    LessEqual = clingo_ast_comparison_operator_less_equal,
+    GreaterEqual = clingo_ast_comparison_operator_greater_equal,
+    NotEqual = clingo_ast_comparison_operator_not_equal,
+    Equal = clingo_ast_comparison_operator_equal,
+};
+
+enum class Sign {
+    NoSign = clingo_ast_sign_no_sign,
+    Negation = clingo_ast_sign_negation,
+    DoubleNegation = clingo_ast_sign_double_negation,
+};
+
+enum class UnaryOperator {
+    Minus = clingo_ast_unary_operator_minus,
+    Negation = clingo_ast_unary_operator_negation,
+    Absolute = clingo_ast_unary_operator_absolute,
+};
+
+enum class BinaryOperator {
+    Xor = clingo_ast_binary_operator_xor,
+    Or = clingo_ast_binary_operator_or,
+    And = clingo_ast_binary_operator_and,
+    Plus = clingo_ast_binary_operator_plus,
+    Minus = clingo_ast_binary_operator_minus,
+    Multiplication = clingo_ast_binary_operator_multiplication,
+    Division = clingo_ast_binary_operator_division,
+    Modulo = clingo_ast_binary_operator_modulo,
+    Power = clingo_ast_binary_operator_power,
+};
+
+enum class AggregateFunction {
+    Count = clingo_ast_aggregate_function_count,
+    Sum = clingo_ast_aggregate_function_sum,
+    Sump = clingo_ast_aggregate_function_sump,
+    Min = clingo_ast_aggregate_function_min,
+    Max = clingo_ast_aggregate_function_max,
+};
+
+enum class TheoryOperatorType {
+     Unary = clingo_ast_theory_operator_type_unary,
+     BinaryLeft = clingo_ast_theory_operator_type_binary_left,
+     BinaryRight = clingo_ast_theory_operator_type_binary_right,
+};
+
+enum class TheoryAtomDefinitionType {
+    Head = clingo_ast_theory_atom_definition_type_head,
+    Body = clingo_ast_theory_atom_definition_type_body,
+    Any = clingo_ast_theory_atom_definition_type_any,
+    Directive = clingo_ast_theory_atom_definition_type_directive,
+};
+
+enum class ScriptType {
+    Lua = clingo_ast_script_type_lua,
+    Python = clingo_ast_script_type_python,
+};
+
+enum class Type {
+    // terms
+    Id = clingo_ast_type_id,
+    Variable = clingo_ast_type_variable,
+    SymbolicTerm = clingo_ast_type_symbolic_term,
+    UnaryOperation = clingo_ast_type_unary_operation,
+    BinaryOperation = clingo_ast_type_binary_operation,
+    Interval = clingo_ast_type_interval,
+    Function = clingo_ast_type_function,
+    Pool = clingo_ast_type_pool,
+    // csp terms
+    CspProduct = clingo_ast_type_csp_product,
+    CspSum = clingo_ast_type_csp_sum,
+    CspGuard = clingo_ast_type_csp_guard,
+    // simple atoms
+    BooleanConstant = clingo_ast_type_boolean_constant,
+    SymbolicAtom = clingo_ast_type_symbolic_atom,
+    Comparison = clingo_ast_type_comparison,
+    CspLiteral = clingo_ast_type_csp_literal,
+    // aggregates
+    AggregateGuard = clingo_ast_type_aggregate_guard,
+    ConditionalLiteral = clingo_ast_type_conditional_literal,
+    Aggregate = clingo_ast_type_aggregate,
+    BodyAggregateElement = clingo_ast_type_body_aggregate_element,
+    BodyAggregate = clingo_ast_type_body_aggregate,
+    HeadAggregateElement = clingo_ast_type_head_aggregate_element,
+    HeadAggregate = clingo_ast_type_head_aggregate,
+    Disjunction = clingo_ast_type_disjunction,
+    DisjointElement = clingo_ast_type_disjoint_element,
+    Disjoint = clingo_ast_type_disjoint,
+    // theory atoms
+    TheorySequence = clingo_ast_type_theory_sequence,
+    TheoryFunction = clingo_ast_type_theory_function,
+    TheoryUnparsedTermElement = clingo_ast_type_theory_unparsed_term_element,
+    TheoryUnparsedTerm = clingo_ast_type_theory_unparsed_term,
+    TheoryGuard = clingo_ast_type_theory_guard,
+    TheoryAtomElement = clingo_ast_type_theory_atom_element,
+    TheoryAtom = clingo_ast_type_theory_atom,
+    // literals
+    Literal = clingo_ast_type_literal,
+    // theory definition
+    TheoryOperatorDefinition = clingo_ast_type_theory_operator_definition,
+    TheoryTermDefinition = clingo_ast_type_theory_term_definition,
+    TheoryGuardDefinition = clingo_ast_type_theory_guard_definition,
+    TheoryAtomDefinition = clingo_ast_type_theory_atom_definition,
+    // statements
+    Rule = clingo_ast_type_rule,
+    Definition = clingo_ast_type_definition,
+    ShowSignature = clingo_ast_type_show_signature,
+    ShowTerm = clingo_ast_type_show_term,
+    Minimize = clingo_ast_type_minimize,
+    Script = clingo_ast_type_script,
+    Program = clingo_ast_type_program,
+    External = clingo_ast_type_external,
+    Edge = clingo_ast_type_edge,
+    Heuristic = clingo_ast_type_heuristic,
+    ProjectAtom = clingo_ast_type_project_atom,
+    ProjectSignature = clingo_ast_type_project_signature,
+    Defined = clingo_ast_type_defined,
+    TheoryDefinition = clingo_ast_type_theory_definition,
+};
+
+enum class Attribute {
+    Argument = clingo_ast_attribute_argument,
+    Arguments = clingo_ast_attribute_arguments,
+    Arity = clingo_ast_attribute_arity,
+    Atom = clingo_ast_attribute_atom,
+    Atoms = clingo_ast_attribute_atoms,
+    AtomType = clingo_ast_attribute_atom_type,
+    Bias = clingo_ast_attribute_bias,
+    Body = clingo_ast_attribute_body,
+    Code = clingo_ast_attribute_code,
+    Coefficient = clingo_ast_attribute_coefficient,
+    Comparison = clingo_ast_attribute_comparison,
+    Condition = clingo_ast_attribute_condition,
+    Csp = clingo_ast_attribute_csp,
+    Elements = clingo_ast_attribute_elements,
+    External = clingo_ast_attribute_external,
+    ExternalType = clingo_ast_attribute_external_type,
+    Function = clingo_ast_attribute_function,
+    Guard = clingo_ast_attribute_guard,
+    Guards = clingo_ast_attribute_guards,
+    Head = clingo_ast_attribute_head,
+    IsDefault = clingo_ast_attribute_is_default,
+    Left = clingo_ast_attribute_left,
+    LeftGuard = clingo_ast_attribute_left_guard,
+    Literal = clingo_ast_attribute_literal,
+    Location = clingo_ast_attribute_location,
+    Modifier = clingo_ast_attribute_modifier,
+    Name = clingo_ast_attribute_name,
+    NodeU = clingo_ast_attribute_node_u,
+    NodeV = clingo_ast_attribute_node_v,
+    OperatorName = clingo_ast_attribute_operator_name,
+    OperatorType = clingo_ast_attribute_operator_type,
+    Operators = clingo_ast_attribute_operators,
+    Parameters = clingo_ast_attribute_parameters,
+    Positive = clingo_ast_attribute_positive,
+    Priority = clingo_ast_attribute_priority,
+    Right = clingo_ast_attribute_right,
+    RightGuard = clingo_ast_attribute_right_guard,
+    ScriptType = clingo_ast_attribute_script_type,
+    SequenceType = clingo_ast_attribute_sequence_type,
+    Sign = clingo_ast_attribute_sign,
+    Symbol = clingo_ast_attribute_symbol,
+    Term = clingo_ast_attribute_term,
+    Terms = clingo_ast_attribute_terms,
+    Value = clingo_ast_attribute_value,
+    Var = clingo_ast_attribute_var,
+    Variable = clingo_ast_attribute_variable,
+    Weight = clingo_ast_attribute_weight,
+};
+
+class AST;
+class ASTVector;
+class StringVector;
+
+using ASTValue = Variant<int, Symbol, Location, char const *, AST, Optional<AST>, StringVector, ASTVector>;
+
+class AST {
+public:
+    // TODO: add a constructor!!!
+    AST(clingo_ast_t *ast);
+    AST(AST const &ast);
+    AST(AST &&ast) noexcept;
+    AST &operator=(AST const &ast);
+    AST &operator=(AST &&ast) noexcept;
+    ~AST();
+    AST copy() const;
+    AST deep_copy() const;
+    Type type() const;
+    ASTValue get(Attribute attribute) const;
+    void set(Attribute attribute, ASTValue value);
+    template <class Visitor>
+    void visit(Visitor &&visitor);
+    friend bool operator<(AST const &a, AST const &b);
+    friend bool operator>(AST const &a, AST const &b);
+    friend bool operator<=(AST const &a, AST const &b);
+    friend bool operator>=(AST const &a, AST const &b);
+    friend bool operator==(AST const &a, AST const &b);
+    friend bool operator!=(AST const &a, AST const &b);
+    size_t hash() const;
+private:
+    clingo_ast_t *ast_;
+};
+
+class ASTVector {
+public:
+    ASTVector(AST const &ast, clingo_ast_attribute_t attr);
+private:
+    AST ast_;
+    clingo_ast_attribute_t attr_;
+};
+
+class StringVector {
+public:
+    StringVector(AST const &ast, clingo_ast_attribute_t attr);
+private:
+    AST ast_;
+    clingo_ast_attribute_t attr_;
+};
+
+template <class Visitor>
+void visit_ast(Visitor &&visitor, AST &ast);
+
+} // namespace ASTv2
+
+} namespace std {
+
+template<>
+struct hash<Clingo::ASTv2::AST> {
+    size_t operator()(Clingo::ASTv2::AST const &ast) const { return ast.hash(); }
+};
+
+} namespace Clingo {
+
 // {{{1 backend
 
 class Backend {
@@ -3385,6 +3629,173 @@ inline char const *Configuration::key_name(size_t index) const {
     Detail::handle_error(clingo_configuration_map_subkey_name(conf_, key_, index, &ret));
     return ret;
 }
+
+
+// {{{2 ast v2
+
+namespace ASTv2 {
+
+inline AST::AST(clingo_ast_t *ast)
+: ast_{ast} { }
+
+inline AST::AST(AST const &ast)
+: ast_{ast.ast_} {
+    clingo_ast_acquire(ast_);
+}
+
+inline AST::AST(AST &&ast) noexcept
+: ast_{ast.ast_} {
+    ast.ast_ = nullptr;
+}
+
+inline AST &AST::operator=(AST const &ast) {
+    if (ast_ != ast.ast_) {
+        if (ast_ != nullptr) {
+            clingo_ast_release(ast_);
+        }
+        ast_ = ast.ast_;
+        if (ast_ != nullptr) {
+            clingo_ast_acquire(ast_);
+        }
+    }
+    return *this;
+}
+
+inline AST AST::copy() const {
+    clingo_ast_t *ast;
+    Detail::handle_error(clingo_ast_copy(ast_, &ast));
+    return AST{ast};
+}
+
+inline AST AST::deep_copy() const {
+    clingo_ast_t *ast;
+    Detail::handle_error(clingo_ast_deep_copy(ast_, &ast));
+    return AST{ast};
+}
+
+inline Type AST::type() const {
+    clingo_ast_type_t type;
+    Detail::handle_error(clingo_ast_get_type(ast_, &type));
+    return static_cast<Type>(type);
+}
+
+inline ASTValue AST::get(Attribute attribute) const {
+    bool has_attribute;
+    clingo_ast_attribute_t attr = static_cast<clingo_ast_attribute_t>(attribute);
+    Detail::handle_error(clingo_ast_has_attribute(ast_, attr, &has_attribute));
+    if (!has_attribute) {
+        throw std::runtime_error("unknow attribute");
+    }
+    clingo_ast_attribute_type_t type;
+    Detail::handle_error(clingo_ast_attribute_type(ast_, attr, &type));
+    switch (static_cast<enum clingo_ast_attribute_type>(type)) {
+        case clingo_ast_attribute_type_number: {
+            int ret;
+            Detail::handle_error(clingo_ast_attribute_get_number(ast_, attr, &ret));
+            return {ret};
+        }
+        case clingo_ast_attribute_type_symbol: {
+            clingo_symbol_t ret;
+            Detail::handle_error(clingo_ast_attribute_get_symbol(ast_, attr, &ret));
+            return {Clingo::Symbol{ret}};
+        }
+        case clingo_ast_attribute_type_location: {
+            clingo_location_t ret;
+            Detail::handle_error(clingo_ast_attribute_get_location(ast_, attr, &ret));
+            return {Clingo::Location{ret}};
+        }
+        case clingo_ast_attribute_type_string: {
+            char const *ret;
+            Detail::handle_error(clingo_ast_attribute_get_string(ast_, attr, &ret));
+            return {ret};
+        }
+        case clingo_ast_attribute_type_ast: {
+            clingo_ast_t *ret;
+            Detail::handle_error(clingo_ast_attribute_get_ast(ast_, attr, &ret));
+            return {AST{ret}};
+        }
+        case clingo_ast_attribute_type_optional_ast: {
+            clingo_ast_t *ret;
+            Detail::handle_error(clingo_ast_attribute_get_optional_ast(ast_, attr, &ret));
+            return ret == nullptr ? Optional<AST>{} : Optional<AST>{AST{ret}};
+        }
+        case clingo_ast_attribute_type_string_array: {
+            clingo_ast_t *ret;
+            Detail::handle_error(clingo_ast_attribute_get_optional_ast(ast_, attr, &ret));
+            return {ASTVector{ast_, attr}};
+        }
+        case clingo_ast_attribute_type_ast_array: {
+            break;
+        }
+    }
+    return {StringVector{ast_, attr}};
+}
+
+inline void AST::set(Attribute attribute, ASTValue value) {
+    throw std::logic_error("implement me!!!");
+}
+
+template <class Visitor>
+inline void AST::visit(Visitor &&visitor) {
+    // this is meant to visit the attributes of an AST
+    throw std::logic_error("implement me!!!");
+}
+
+inline AST &AST::operator=(AST &&ast) noexcept {
+    std::swap(ast_, ast.ast_);
+    return *this;
+}
+
+inline AST::~AST() {
+    if (ast_ != nullptr) {
+        clingo_ast_release(ast_);
+    }
+}
+
+inline bool operator<(AST const &a, AST const &b) {
+    if (a.ast_ == nullptr || b.ast_ == nullptr) {
+        throw std::runtime_error("invalid AST");
+    }
+    return clingo_ast_less_than(a.ast_, b.ast_);
+}
+
+inline bool operator>(AST const &a, AST const &b) {
+    return b < a;
+}
+
+inline bool operator<=(AST const &a, AST const &b) {
+    return !(b < a);
+}
+
+inline bool operator>=(AST const &a, AST const &b) {
+    return !(a < b);
+}
+
+inline bool operator==(AST const &a, AST const &b) {
+    if (a.ast_ == nullptr || b.ast_ == nullptr) {
+        throw std::runtime_error("invalid AST");
+    }
+    return clingo_ast_equal(a.ast_, b.ast_);
+}
+
+inline bool operator!=(AST const &a, AST const &b) {
+    return !(a == b);
+}
+
+template <class Visitor>
+inline void visit_ast(Visitor &&visitor, AST &ast) {
+    throw std::logic_error("implement me!!!");
+}
+
+inline ASTVector::ASTVector(AST const &ast, clingo_ast_attribute_t attr)
+: ast_{ast}
+, attr_{attr} { }
+
+inline StringVector::StringVector(AST const &ast, clingo_ast_attribute_t attr)
+: ast_{ast}
+, attr_{attr} { }
+
+} // namespace ASTv2
 
 // {{{2 program builder
 
