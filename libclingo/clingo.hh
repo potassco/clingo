@@ -2067,6 +2067,8 @@ public:
     void set(Attribute attribute, ASTValue value);
     template <class Visitor>
     void visit(Visitor &&visitor);
+    std::string to_string() const;
+    friend std::ostream &operator<<(std::ostream &out, AST const &ast);
     friend bool operator<(AST const &a, AST const &b);
     friend bool operator>(AST const &a, AST const &b);
     friend bool operator<=(AST const &a, AST const &b);
@@ -3684,7 +3686,7 @@ inline ASTValue AST::get(Attribute attribute) const {
     clingo_ast_attribute_t attr = static_cast<clingo_ast_attribute_t>(attribute);
     Detail::handle_error(clingo_ast_has_attribute(ast_, attr, &has_attribute));
     if (!has_attribute) {
-        throw std::runtime_error("unknow attribute");
+        throw std::runtime_error("unknown attribute");
     }
     clingo_ast_attribute_type_t type;
     Detail::handle_error(clingo_ast_attribute_type(ast_, attr, &type));
@@ -3732,13 +3734,56 @@ inline ASTValue AST::get(Attribute attribute) const {
 }
 
 inline void AST::set(Attribute attribute, ASTValue value) {
-    throw std::logic_error("implement me!!!");
+    bool has_attribute;
+    clingo_ast_attribute_t attr = static_cast<clingo_ast_attribute_t>(attribute);
+    Detail::handle_error(clingo_ast_has_attribute(ast_, attr, &has_attribute));
+    if (!has_attribute) {
+        throw std::runtime_error("unknow attribute");
+    }
+    clingo_ast_attribute_type_t type;
+    Detail::handle_error(clingo_ast_attribute_type(ast_, attr, &type));
+    switch (static_cast<enum clingo_ast_attribute_type>(type)) {
+        case clingo_ast_attribute_type_number: {
+            return Detail::handle_error(clingo_ast_attribute_set_number(ast_, attr, value.get<int>()));
+        }
+        case clingo_ast_attribute_type_symbol: {
+            return Detail::handle_error(clingo_ast_attribute_set_symbol(ast_, attr, value.get<Symbol>().to_c()));
+        }
+        case clingo_ast_attribute_type_location: {
+            return Detail::handle_error(clingo_ast_attribute_set_location(ast_, attr, &value.get<Location>()));
+        }
+        case clingo_ast_attribute_type_string: {
+            return Detail::handle_error(clingo_ast_attribute_set_string(ast_, attr, value.get<char const*>()));
+        }
+        case clingo_ast_attribute_type_ast: {
+            return Detail::handle_error(clingo_ast_attribute_set_ast(ast_, attr, value.get<AST>().ast_));
+        }
+        case clingo_ast_attribute_type_optional_ast: {
+            auto *ast = value.get<Optional<AST>>().get();
+            return Detail::handle_error(clingo_ast_attribute_set_optional_ast(ast_, attr, ast != nullptr ? ast->ast_ : nullptr));
+        }
+        case clingo_ast_attribute_type_string_array: {
+            throw std::logic_error("implement me!!!");
+        }
+        case clingo_ast_attribute_type_ast_array: {
+            throw std::logic_error("implement me!!!");
+        }
+    }
 }
 
 template <class Visitor>
 inline void AST::visit(Visitor &&visitor) {
     // this is meant to visit the attributes of an AST
     throw std::logic_error("implement me!!!");
+}
+
+inline std::string AST::to_string() const {
+    return Detail::to_string(clingo_ast_to_string_size, clingo_ast_to_string, ast_);
+}
+
+inline std::ostream &operator<<(std::ostream &out, AST const &ast) {
+    out << ast.to_string();
+    return out;
 }
 
 inline AST &AST::operator=(AST &&ast) noexcept {
