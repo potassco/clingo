@@ -253,6 +253,7 @@ void AST::incRef() {
 }
 
 void AST::decRef() {
+    assert(refCount_ > 0);
     --refCount_;
 }
 
@@ -340,6 +341,7 @@ void SAST::clear() {
         if (ast_->refCount() == 0) {
             delete ast_;
         }
+        ast_ = nullptr;
     }
 }
 

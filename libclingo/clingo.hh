@@ -2460,7 +2460,7 @@ using ASTValue = Variant<int, Symbol, Location, char const *, AST, Optional<AST>
 
 class AST {
 public:
-    AST(clingo_ast_t *ast);
+    explicit AST(clingo_ast_t *ast);
     template <class... Args>
     AST(Type type, Args&& ...args);
     AST(AST const &ast);
@@ -3826,17 +3826,17 @@ struct ASTVisitor {
 inline AST::AST(clingo_ast_t *ast)
 : ast_{ast} { }
 
-inline AST::AST(AST const &ast)
-: ast_{ast.ast_} {
-    clingo_ast_acquire(ast_);
-}
-
 template <class... Args>
 AST::AST(Type type, Args&& ...args)
 : ast_{ASTDetail::construct_ast<sizeof...(Args)>::template construct<0>(
     static_cast<clingo_ast_type_t>(type),
     g_clingo_ast_constructors.constructors[static_cast<size_t>(type)],
     std::forward<Args>(args)...)} {
+}
+
+inline AST::AST(AST const &ast)
+: ast_{ast.ast_} {
+    clingo_ast_acquire(ast_);
 }
 
 inline AST::AST(AST &&ast) noexcept
@@ -3855,6 +3855,23 @@ inline AST &AST::operator=(AST const &ast) {
         }
     }
     return *this;
+}
+
+inline AST &AST::operator=(AST &&ast) noexcept {
+    if (ast_ != ast.ast_) {
+        if (ast_ != nullptr) {
+            clingo_ast_release(ast_);
+            ast_ = nullptr;
+        }
+        std::swap(ast_, ast.ast_);
+    }
+    return *this;
+}
+
+inline AST::~AST() {
+    if (ast_ != nullptr) {
+        clingo_ast_release(ast_);
+    }
 }
 
 inline AST AST::copy() const {
@@ -3916,13 +3933,13 @@ inline ASTValue AST::get(Attribute attribute) const {
             return ret == nullptr ? Optional<AST>{} : Optional<AST>{AST{ret}};
         }
         case clingo_ast_attribute_type_string_array: {
-            return {StringVector{ast_, attr}};
+            return {StringVector{*this, attr}};
         }
         case clingo_ast_attribute_type_ast_array: {
             break;
         }
     }
-    return {ASTVector{ast_, attr}};
+    return {ASTVector{*this, attr}};
 }
 
 inline void AST::set(Attribute attribute, ASTValue value) {
@@ -4005,17 +4022,6 @@ inline std::ostream &operator<<(std::ostream &out, AST const &ast) {
     return out;
 }
 
-inline AST &AST::operator=(AST &&ast) noexcept {
-    std::swap(ast_, ast.ast_);
-    return *this;
-}
-
-inline AST::~AST() {
-    if (ast_ != nullptr) {
-        clingo_ast_release(ast_);
-    }
-}
-
 inline bool operator<(AST const &a, AST const &b) {
     if (a.ast_ == nullptr || b.ast_ == nullptr) {
         throw std::runtime_error("invalid AST");
@@ -4091,7 +4097,7 @@ inline ASTVector::iterator ASTVector::erase(iterator it) {
 inline AST ASTVector::at(size_t idx) const {
     clingo_ast_t *ret;
     Detail::handle_error(clingo_ast_attribute_get_ast_at(ast_.to_c(), attr_, idx, &ret));
-    return {ret};
+    return AST{ret};
 }
 
 inline void ASTVector::push_back(AST const &ast) {

@@ -1498,6 +1498,9 @@ extern "C" void clingo_ast_acquire(clingo_ast_t *ast) {
 
 extern "C" void clingo_ast_release(clingo_ast_t *ast) {
     ast->ast.decRef();
+    if (ast->ast.refCount() == 0) {
+        delete ast;
+    }
 }
 
 template <class T>
