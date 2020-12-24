@@ -444,7 +444,6 @@ private:
     }
 
     LitUid parseLiteral(AST const &ast) {
-        require_(ast.type() == clingo_ast_type_literal, "invalid ast: literal expected");
         switch (ast.type()) {
             case clingo_ast_type_literal: {
                 auto sign = parseSign(get<int>(ast, clingo_ast_attribute_sign));
@@ -472,7 +471,7 @@ private:
                 }
             }
             case clingo_ast_type_csp_literal: {
-                auto const &guards = get<AST::ASTVec>(ast, clingo_ast_attribute_guard);
+                auto const &guards = get<AST::ASTVec>(ast, clingo_ast_attribute_guards);
                 require_(!guards.empty(), "invalid ast: csp literals need at least one guard");
                 auto it = guards.begin();
                 auto ie = guards.end();
@@ -592,7 +591,7 @@ private:
     CSPElemVecUid parseCSPElemVec(AST::ASTVec const &asts) {
         auto ret = prg_.cspelemvec();
         for (auto const &ast  : asts) {
-            require_(ast->type() == clingo_ast_type_body_aggregate_element, "invalid ast: body aggregate element expected");
+            require_(ast->type() == clingo_ast_type_disjoint_element, "invalid ast: disjoint element expected");
             ret = prg_.cspelemvec(ret,
                                   get<Location>(*ast, clingo_ast_attribute_location),
                                   parseTermVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_terms)),

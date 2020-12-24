@@ -413,7 +413,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             auto coe = print(ast, clingo_ast_attribute_coefficient);
             out << coe;
             if (var != nullptr) {
-                out << "$*" << "$" << var;
+                out << "$*" << "$" << *var;
             }
             break;
         }
@@ -512,7 +512,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         case clingo_ast_type_disjoint_element: {
             out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_terms, "", ",", "", false)
                 << ": " << print(ast, clingo_ast_attribute_term)
-                << ": " << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, "", ",", "", false);
+                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, ": ", ", ", "", false);
             break;
         }
         case clingo_ast_type_disjoint: {

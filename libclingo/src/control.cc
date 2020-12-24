@@ -1383,7 +1383,6 @@ char const * attribute_list[] = {
     "term",
     "terms",
     "value",
-    "var",
     "variable",
     "weight",
 };

@@ -2505,7 +2505,6 @@ enum clingo_ast_attribute {
     clingo_ast_attribute_term,
     clingo_ast_attribute_terms,
     clingo_ast_attribute_value,
-    clingo_ast_attribute_var,
     clingo_ast_attribute_variable,
     clingo_ast_attribute_weight,
 };

@@ -3110,13 +3110,6 @@ static int _cffi_const_clingo_ast_attribute_value(unsigned long long *o)
   return n;
 }
 
-static int _cffi_const_clingo_ast_attribute_var(unsigned long long *o)
-{
-  int n = (clingo_ast_attribute_var) <= 0;
-  *o = (unsigned long long)((clingo_ast_attribute_var) | 0);  /* check that clingo_ast_attribute_var is an integer */
-  return n;
-}
-
 static int _cffi_const_clingo_ast_attribute_variable(unsigned long long *o)
 {
   int n = (clingo_ast_attribute_variable) <= 0;
@@ -19027,7 +19020,6 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_ast_attribute_type_string_array", (void *)_cffi_const_clingo_ast_attribute_type_string_array, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_type_symbol", (void *)_cffi_const_clingo_ast_attribute_type_symbol, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_value", (void *)_cffi_const_clingo_ast_attribute_value, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_attribute_var", (void *)_cffi_const_clingo_ast_attribute_var, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_variable", (void *)_cffi_const_clingo_ast_attribute_variable, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_weight", (void *)_cffi_const_clingo_ast_attribute_weight, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_binary_operator_and", (void *)_cffi_const_clingo_ast_binary_operator_and, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
@@ -20405,7 +20397,7 @@ static const struct _cffi_enum_s _cffi_enums[] = {
   { "clingo_ast_aggregate_function", 1289, _cffi_prim_int(sizeof(enum clingo_ast_aggregate_function), ((enum clingo_ast_aggregate_function)-1) <= 0),
     "clingo_ast_aggregate_function_count,clingo_ast_aggregate_function_sum,clingo_ast_aggregate_function_sump,clingo_ast_aggregate_function_min,clingo_ast_aggregate_function_max" },
   { "clingo_ast_attribute", 1290, _cffi_prim_int(sizeof(enum clingo_ast_attribute), ((enum clingo_ast_attribute)-1) <= 0),
-    "clingo_ast_attribute_argument,clingo_ast_attribute_arguments,clingo_ast_attribute_arity,clingo_ast_attribute_atom,clingo_ast_attribute_atoms,clingo_ast_attribute_atom_type,clingo_ast_attribute_bias,clingo_ast_attribute_body,clingo_ast_attribute_code,clingo_ast_attribute_coefficient,clingo_ast_attribute_comparison,clingo_ast_attribute_condition,clingo_ast_attribute_csp,clingo_ast_attribute_elements,clingo_ast_attribute_external,clingo_ast_attribute_external_type,clingo_ast_attribute_function,clingo_ast_attribute_guard,clingo_ast_attribute_guards,clingo_ast_attribute_head,clingo_ast_attribute_is_default,clingo_ast_attribute_left,clingo_ast_attribute_left_guard,clingo_ast_attribute_literal,clingo_ast_attribute_location,clingo_ast_attribute_modifier,clingo_ast_attribute_name,clingo_ast_attribute_node_u,clingo_ast_attribute_node_v,clingo_ast_attribute_operator_name,clingo_ast_attribute_operator_type,clingo_ast_attribute_operators,clingo_ast_attribute_parameters,clingo_ast_attribute_positive,clingo_ast_attribute_priority,clingo_ast_attribute_right,clingo_ast_attribute_right_guard,clingo_ast_attribute_script_type,clingo_ast_attribute_sequence_type,clingo_ast_attribute_sign,clingo_ast_attribute_symbol,clingo_ast_attribute_term,clingo_ast_attribute_terms,clingo_ast_attribute_value,clingo_ast_attribute_var,clingo_ast_attribute_variable,clingo_ast_attribute_weight" },
+    "clingo_ast_attribute_argument,clingo_ast_attribute_arguments,clingo_ast_attribute_arity,clingo_ast_attribute_atom,clingo_ast_attribute_atoms,clingo_ast_attribute_atom_type,clingo_ast_attribute_bias,clingo_ast_attribute_body,clingo_ast_attribute_code,clingo_ast_attribute_coefficient,clingo_ast_attribute_comparison,clingo_ast_attribute_condition,clingo_ast_attribute_csp,clingo_ast_attribute_elements,clingo_ast_attribute_external,clingo_ast_attribute_external_type,clingo_ast_attribute_function,clingo_ast_attribute_guard,clingo_ast_attribute_guards,clingo_ast_attribute_head,clingo_ast_attribute_is_default,clingo_ast_attribute_left,clingo_ast_attribute_left_guard,clingo_ast_attribute_literal,clingo_ast_attribute_location,clingo_ast_attribute_modifier,clingo_ast_attribute_name,clingo_ast_attribute_node_u,clingo_ast_attribute_node_v,clingo_ast_attribute_operator_name,clingo_ast_attribute_operator_type,clingo_ast_attribute_operators,clingo_ast_attribute_parameters,clingo_ast_attribute_positive,clingo_ast_attribute_priority,clingo_ast_attribute_right,clingo_ast_attribute_right_guard,clingo_ast_attribute_script_type,clingo_ast_attribute_sequence_type,clingo_ast_attribute_sign,clingo_ast_attribute_symbol,clingo_ast_attribute_term,clingo_ast_attribute_terms,clingo_ast_attribute_value,clingo_ast_attribute_variable,clingo_ast_attribute_weight" },
   { "clingo_ast_attribute_type", 1291, _cffi_prim_int(sizeof(enum clingo_ast_attribute_type), ((enum clingo_ast_attribute_type)-1) <= 0),
     "clingo_ast_attribute_type_number,clingo_ast_attribute_type_symbol,clingo_ast_attribute_type_location,clingo_ast_attribute_type_string,clingo_ast_attribute_type_ast,clingo_ast_attribute_type_optional_ast,clingo_ast_attribute_type_string_array,clingo_ast_attribute_type_ast_array" },
   { "clingo_ast_binary_operator", 1292, _cffi_prim_int(sizeof(enum clingo_ast_binary_operator), ((enum clingo_ast_binary_operator)-1) <= 0),
@@ -20615,7 +20607,7 @@ static const struct _cffi_type_context_s _cffi_type_context = {
   _cffi_struct_unions,
   _cffi_enums,
   _cffi_typenames,
-  539,  /* num_globals */
+  538,  /* num_globals */
   76,  /* num_struct_unions */
   35,  /* num_enums */
   131,  /* num_typenames */

@@ -167,13 +167,13 @@ public:
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe, TermUid var) override {
         return cspmulterms_.insert(ast(clingo_ast_type_csp_product, loc)
             .set(clingo_ast_attribute_coefficient, terms_.erase(coe))
-            .set(clingo_ast_attribute_var, OAST{terms_.erase(var)}));
+            .set(clingo_ast_attribute_variable, OAST{terms_.erase(var)}));
     }
 
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe) override {
         return cspmulterms_.insert(ast(clingo_ast_type_csp_product, loc)
             .set(clingo_ast_attribute_coefficient, terms_.erase(coe))
-            .set(clingo_ast_attribute_var, OAST{SAST{nullptr}}));
+            .set(clingo_ast_attribute_variable, OAST{SAST{nullptr}}));
     }
 
     CSPAddTermUid cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) override {
@@ -204,7 +204,9 @@ public:
 
     CSPLitUid csplit(Location const &loc, CSPLitUid a, Relation rel, CSPAddTermUid b) override {
         auto &lit = csplits_[a];
-        get<AST::ASTVec>(*lit, clingo_ast_attribute_terms).emplace_back(cspaddterms_.erase(b));
+        get<AST::ASTVec>(*lit, clingo_ast_attribute_guards).emplace_back(ast(clingo_ast_type_csp_guard)
+            .set(clingo_ast_attribute_comparison, static_cast<int>(rel))
+            .set(clingo_ast_attribute_term, cspaddterms_.erase(b)));
         return a;
     }
 
@@ -238,10 +240,7 @@ public:
     }
 
     LitUid csplit(CSPLitUid a) override {
-        auto &loc = get<Location>(*csplits_[a], clingo_ast_attribute_location);
-        return lits_.insert(ast(clingo_ast_type_literal, loc)
-            .set(clingo_ast_attribute_sign, static_cast<int>(clingo_ast_sign_none))
-            .set(clingo_ast_attribute_atom, csplits_.erase(a)));
+        return lits_.insert(csplits_.erase(a));
     }
 
     LitVecUid litvec() override {
@@ -312,7 +311,7 @@ public:
     }
 
     CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) override {
-        cspelems_[uid].emplace_back(ast(clingo_ast_type_disjoint, loc)
+        cspelems_[uid].emplace_back(ast(clingo_ast_type_disjoint_element, loc)
             .set(clingo_ast_attribute_terms, termvecs_.erase(termvec))
             .set(clingo_ast_attribute_term, cspaddterms_.erase(addterm))
             .set(clingo_ast_attribute_condition, litvecs_.erase(litvec)));
