@@ -128,12 +128,20 @@ struct CompareEqual {
 AST::AST(clingo_ast_type type)
 : type_{type} { }
 
+AST::AttributeVector::iterator AST::find_(clingo_ast_attribute name) {
+    return std::find_if(values_.begin(), values_.end(), [name](auto const &x) { return x.first == name; });
+}
+
+AST::AttributeVector::const_iterator AST::find_(clingo_ast_attribute name) const {
+    return std::find_if(values_.begin(), values_.end(), [name](auto const &x) { return x.first == name; });
+}
+
 bool AST::hasValue(clingo_ast_attribute name) const {
-    return values_.find(name) != values_.end();
+    return find_(name) != values_.end();
 }
 
 AST::Value const &AST::value(clingo_ast_attribute name) const {
-    auto it = values_.find(name);
+    auto it = find_(name);
     if (it == values_.end()) {
         std::ostringstream oss;
         oss << "ast "
@@ -146,7 +154,7 @@ AST::Value const &AST::value(clingo_ast_attribute name) const {
 }
 
 AST::Value &AST::value(clingo_ast_attribute name) {
-    auto it = values_.find(name);
+    auto it = find_(name);
     if (it == values_.end()) {
         std::ostringstream oss;
         oss << "ast "
@@ -159,17 +167,20 @@ AST::Value &AST::value(clingo_ast_attribute name) {
 }
 
 void AST::value(clingo_ast_attribute name, Value value) {
-    values_[name] = std::move(value);
+    assert(find_(name) == values_.end());
+    values_.emplace_back(name, std::move(value));
 }
 
 SAST AST::copy() {
-    return SAST{*this};
+    auto ast = SAST{type_};
+    ast->values_ = values_;
+    return ast;
 }
 
 SAST AST::deepcopy() {
     auto ast = SAST{type_};
     for (auto &val : values_) {
-        ast->values_.emplace(val.first, mpark::visit(Deepcopy{}, val.second));
+        ast->values_.emplace_back(val.first, mpark::visit(Deepcopy{}, val.second));
     }
     return ast;
 }
@@ -281,11 +292,6 @@ SAST::SAST(AST *ast)
 
 SAST::SAST(clingo_ast_type type)
 : ast_{new AST{type}} {
-    ast_->incRef();
-}
-
-SAST::SAST(AST const &ast)
-: ast_{new AST{ast}} {
     ast_->incRef();
 }
 
