@@ -31,10 +31,26 @@ namespace Clingo { namespace Test {
 
 namespace {
 
+template <class V>
+std::vector<typename V::value_type> vec(V const &vec) {
+    std::vector<typename V::value_type> ret;
+    for (auto &&x : vec) {
+        ret.emplace_back(x);
+    }
+    return ret;
+}
+
+template <class V, class W>
+bool cmp(V const &a, W const &b) {
+    return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](auto &&x, auto &&y) {
+        return std::strcmp(x, y) == 0;
+    });
+}
+
 struct CB {
     CB(std::string &ret)
     : ret(ret) { ret.clear(); }
-    void operator()(ASTv2::AST x) {
+    void operator()(ASTv2::AST const &x) {
         std::ostringstream oss;
         oss << x;
         if (first) {
@@ -59,7 +75,7 @@ std::string parse(char const *prg) {
 ModelVec solve(char const *prg, PartSpan parts = {{"base", {}}}) {
     MessageVec messages;
     ModelVec models;
-    Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }, 20};
+    Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }};
 
     ASTv2::with_builder(ctl, [prg](ASTv2::ProgramBuilder &b){
         ASTv2::parse_string(prg, [&b](ASTv2::AST const &stm) { b.add(stm); });
@@ -73,7 +89,7 @@ using StringVec = std::vector<std::string>;
 StringVec parse_theory(char const *prg, char const *theory) {
     MessageVec messages;
     ModelVec models;
-    Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }, 20};
+    Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }};
     ASTv2::with_builder(ctl, [prg, theory](ASTv2::ProgramBuilder &b){
         ASTv2::parse_string(theory, [&b](ASTv2::AST const &ast) { b.add(ast); });
         ASTv2::parse_string(prg, [&b](ASTv2::AST const &ast) { b.add(ast); });
@@ -241,7 +257,7 @@ TEST_CASE("add-ast-v2", "[clingo]") {
         auto t = [](char const *s) { return ModelVec({{parse_term(s)}}); };
         auto tt = [](std::initializer_list<char const *> l) {
             SymbolVector ret;
-            for (auto &s : l) { ret.emplace_back(parse_term(s)); }
+            for (auto const &s : l) { ret.emplace_back(parse_term(s)); }
             return ModelVec{ret};
         };
         REQUIRE(solve("p(a).") == t("p(a)"));
@@ -294,8 +310,8 @@ TEST_CASE("add-ast-v2", "[clingo]") {
 }
 
 TEST_CASE("build-ast-v2", "[clingo]") {
+    Location loc{"<string>", "<string>", 1, 1, 1, 1};
     SECTION("string array") {
-        Location loc{"<string>", "<string>", 1, 1, 1, 1};
         auto sym = ASTv2::AST{ASTv2::Type::SymbolicTerm, loc, Function("a", {})};
         auto lst = std::vector<char const *>{"x", "y", "z"};
         auto tue = ASTv2::AST{ASTv2::Type::TheoryUnparsedTermElement, lst, sym};
@@ -303,11 +319,7 @@ TEST_CASE("build-ast-v2", "[clingo]") {
         auto seq = tue.get(ASTv2::Attribute::Operators).get<ASTv2::StringVector>();
         REQUIRE(!seq.empty());
         REQUIRE(seq.size() == 3);
-        size_t i = 0;
-        for (auto x : seq) {
-            REQUIRE(std::strcmp(x, lst[i]) == 0);
-            ++i;
-        }
+        REQUIRE(cmp(seq, lst));
         seq.insert(seq.begin(), "i");
         REQUIRE(std::strcmp(seq[0], "i") == 0);
         REQUIRE(seq.size() == 4);
@@ -315,23 +327,53 @@ TEST_CASE("build-ast-v2", "[clingo]") {
         REQUIRE(std::strcmp(seq[0], "z") == 0);
         seq.erase(seq.begin());
         seq.erase(seq.begin());
-        i = 0;
-        for (auto x : seq) {
-            REQUIRE(std::strcmp(x, lst[i]) == 0);
-            ++i;
-        }
+        REQUIRE(cmp(seq, lst));
         tue.set(ASTv2::Attribute::Operators, seq);
-        i = 0;
-        for (auto x : seq) {
-            REQUIRE(std::strcmp(x, lst[i]) == 0);
-            ++i;
-        }
+        REQUIRE(cmp(seq, lst));
         tue.set(ASTv2::Attribute::Operators, tue.deep_copy().get(ASTv2::Attribute::Operators));
-        i = 0;
-        for (auto x : seq) {
-            REQUIRE(std::strcmp(x, lst[i]) == 0);
-            ++i;
-        }
+        REQUIRE(cmp(seq, lst));
+        tue.set(ASTv2::Attribute::Operators, tue.copy().get(ASTv2::Attribute::Operators));
+        REQUIRE(cmp(seq, lst));
+    }
+    SECTION("ast array") {
+        auto lst = std::vector<ASTv2::AST>{
+            ASTv2::AST(ASTv2::Type::Id, loc, "x"),
+            ASTv2::AST(ASTv2::Type::Id, loc, "y"),
+            ASTv2::AST(ASTv2::Type::Id, loc, "z")};
+        auto prg = ASTv2::AST(ASTv2::Type::Program, loc, "p", lst);
+        auto seq = prg.get(ASTv2::Attribute::Parameters).get<ASTv2::ASTVector>();
+        REQUIRE(seq.size() == 3);
+        REQUIRE(vec(seq) == lst);
+        REQUIRE(seq[0] == lst[0]);
+        seq.insert(seq.begin(), ASTv2::AST(ASTv2::Type::Id, loc, "i"));
+        lst.insert(lst.begin(), ASTv2::AST(ASTv2::Type::Id, loc, "i"));
+        REQUIRE(vec(seq) == lst);
+        seq.insert(seq.begin(), seq[3]);
+        lst.insert(lst.begin(), lst[3]);
+        REQUIRE(vec(seq) == lst);
+        seq.erase(seq.begin() + 2);
+        lst.erase(lst.begin() + 2);
+        REQUIRE(vec(seq) == lst);
+    }
+    SECTION("ast compare") {
+        Location alt{"<string>", "<string>", 1, 1, 1, 2};
+        auto x = ASTv2::AST(ASTv2::Type::Id, loc, "x");
+        auto y = ASTv2::AST(ASTv2::Type::Id, alt, "x");
+        auto z = ASTv2::AST(ASTv2::Type::Id, loc, "z");
+        REQUIRE(x == y);
+        REQUIRE(x == x);
+        REQUIRE(x != z);
+        REQUIRE(x.hash() == x.hash());
+        REQUIRE(x.hash() == y.hash());
+        REQUIRE(x.hash() != z.hash());
+        REQUIRE(x < z);
+        REQUIRE(x <= z);
+        REQUIRE(z > x);
+        REQUIRE(z >= x);
+        REQUIRE(y <= x);
+        REQUIRE(y >= x);
+        REQUIRE(x <= y);
+        REQUIRE(x >= y);
     }
 }
 

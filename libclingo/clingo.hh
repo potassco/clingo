@@ -2493,6 +2493,7 @@ private:
 
 class ASTVector {
 public:
+    using value_type = AST;
     using iterator = ArrayIterator<AST, ASTVector*>;
     using const_iterator = ArrayIterator<AST const, ASTVector const *>;
 
@@ -2506,6 +2507,7 @@ public:
     iterator insert(iterator it, AST const &ast);
     iterator erase(iterator it);
     AST at(size_t idx) const;
+    AST operator[](size_t idx) const { return at(idx); }
     void push_back(AST const &ast);
     void pop_back();
     void clear();
@@ -2531,6 +2533,7 @@ private:
 
 class StringVector {
 public:
+    using value_type = char const *;
     using iterator = ArrayIterator<StringRef, StringVector*>;
     using const_iterator = ArrayIterator<char const *, StringVector const *>;
 
@@ -4050,6 +4053,10 @@ inline bool operator==(AST const &a, AST const &b) {
 
 inline bool operator!=(AST const &a, AST const &b) {
     return !(a == b);
+}
+
+inline size_t AST::hash() const {
+    return clingo_ast_hash(ast_);
 }
 
 // ASTVector
