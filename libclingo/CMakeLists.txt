@@ -27,6 +27,7 @@ set(source-group
     "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2_build.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2_parse.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2_str.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2_unpool.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/clingo_app.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/clingocontrol.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/control.cc"
