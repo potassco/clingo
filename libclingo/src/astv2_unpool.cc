@@ -82,13 +82,14 @@ tl::optional<std::vector<AST::ASTVec>> unpool(AST::ASTVec &vec, clingo_ast_unpoo
     product.emplace_back();
     for (auto &pool : pools) {
         for (auto jt = product.begin(), je = product.end(); jt != je; ++jt) {
+            assert(!pool->empty());
             auto kt = pool->begin();
             auto ke = pool->end();
             for (++kt; kt != ke; ++kt) {
                 product.emplace_back(*jt);
                 product.back().emplace_back(*kt);
             }
-            jt->emplace_back(*kt);
+            jt->emplace_back(*pool->begin());
         }
     }
     return product;
@@ -104,10 +105,10 @@ struct unpool_cross_ {
         }
         else {
             if (!ret.has_value()) {
-                ret = AST::ASTVec();
+                ret = AST::ASTVec{};
             }
             for (auto &unpooled : *pool) {
-                unpool_cross_<i-1, cond>::apply(ret, ast, std::forward<Args>(args)..., name, AST::Value{std::move(unpooled)});
+                unpool_cross_<i-1, cond>::apply(ret, ast, args..., name, AST::Value{std::move(unpooled)});
             }
         }
     }
@@ -115,6 +116,7 @@ struct unpool_cross_ {
     static void apply(tl::optional<AST::ASTVec> &ret, AST &ast, clingo_ast_attribute name, Args&&... args) {
         auto &val = ast.value(name);
         if (mpark::holds_alternative<SAST>(val)) {
+            assert(mpark::get<SAST>(val).get() != nullptr);
             apply_(mpark::get<SAST>(val), ret, ast, name, std::forward<Args>(args)...);
         }
         else if (mpark::holds_alternative<OAST>(val)) {

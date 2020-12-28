@@ -389,7 +389,33 @@ TEST_CASE("build-ast-v2", "[clingo]") {
 }
 
 TEST_CASE("unpool-ast-v2", "[clingo]") {
-    REQUIRE(unpool("a(1;2).") == "a(1).\na(2).");
+    SECTION("terms") {
+        REQUIRE(unpool("a(f(1;2)).") == "a(f(1)).\na(f(2)).");
+        REQUIRE(unpool("a((1,;2,)).") == "a((1,)).\na((2,)).");
+        REQUIRE(unpool("a((1;2)).") == "a(1).\na(2).");
+        REQUIRE(unpool("a((X;1)).") == "a(X).\na(1).");
+        REQUIRE(unpool("a((1;2;3;4;5)).") == "a(1).\na(2).\na(3).\na(4).\na(5).");
+        REQUIRE(unpool("a(|X;Y|).") == "a(|X|).\na(|Y|).");
+        REQUIRE(unpool("a(1+(2;3)).") == "a((1+2)).\na((1+3)).");
+        REQUIRE(unpool("a((1;2)+3).") == "a((1+3)).\na((2+3)).");
+        REQUIRE(unpool("a((1;2)+(3;4)).") == "a((1+3)).\na((1+4)).\na((2+3)).\na((2+4)).");
+        REQUIRE(unpool("a((1;2)..(3;4)).") == "a((1..3)).\na((1..4)).\na((2..3)).\na((2..4)).");
+    }
+    SECTION("csp") {
+        // TODO
+    }
+    SECTION("theory") {
+        // TODO
+    }
+    SECTION("head literal") {
+        REQUIRE(unpool("a(1;2).") == "a(1).\na(2).");
+    }
+    SECTION("body literal") {
+        // TODO
+    }
+    SECTION("statements") {
+        // TODO
+    }
 }
 
 } } // namespace Test Clingo
