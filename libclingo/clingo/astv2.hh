@@ -28,9 +28,9 @@
 #include <gringo/input/programbuilder.hh>
 #include <clingo.h>
 #include <clingo/variant.hh>
+#include <clingo/optional.hh>
 
 // TODO:
-// - unpooling
 // - the way OAST and SAST are handled is really realy ugly
 
 namespace Gringo { namespace Input {
@@ -87,6 +87,14 @@ public:
     void value(clingo_ast_attribute name, Value value);
     clingo_ast_type type() const;
     SAST copy();
+    template <class... Args>
+    SAST update(Args&&... args) {
+        auto ast = SAST{type_};
+        for (auto &val : values_) {
+            ast->values_.emplace_back(update_(val, std::forward<Args>(args)...));
+        }
+        return ast;
+    }
     SAST deepcopy();
 
     size_t hash() const;
@@ -100,6 +108,16 @@ public:
 private:
     AttributeVector::iterator find_(clingo_ast_attribute name);
     AttributeVector::const_iterator find_(clingo_ast_attribute name) const;
+    AttributeVector::value_type update_(AttributeVector::value_type const &x) {
+        return x;
+    }
+    template <class V, class... Args>
+    AttributeVector::value_type update_(AttributeVector::value_type const &x, clingo_ast_attribute name, V &&value, Args&&... args) {
+        if (x.first == name) {
+            return {name, std::forward<V>(value)};
+        }
+        return update_(x, std::forward<Args>(args)...);
+    }
 
     clingo_ast_type type_;
     unsigned refCount_{0};
@@ -110,6 +128,8 @@ std::ostream &operator<<(std::ostream &out, AST const &ast);
 
 std::unique_ptr<INongroundProgramBuilder> build(SASTCallback cb);
 void parse(INongroundProgramBuilder &prg, Logger &log, AST const &ast);
+
+tl::optional<AST::ASTVec> unpool(SAST &ast, clingo_ast_unpool_type_bitset_t type=clingo_ast_unpool_type_all);
 
 } } // namespace Input Gringo
 

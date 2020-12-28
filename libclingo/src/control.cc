@@ -1733,6 +1733,22 @@ extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, cling
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bitset_t unpool_type, clingo_ast_callback_v2_t callback, void *callback_data) {
+    GRINGO_CLINGO_TRY {
+        Input::SAST sast{&ast->ast};
+        auto pool = Input::unpool(sast);
+        if (pool.has_value()) {
+            for (auto &unpooled : *pool) {
+                handleCError(callback(reinterpret_cast<clingo_ast_t*>(unpooled.get()), callback_data));
+            }
+        }
+        else {
+            handleCError(callback(ast, callback_data));
+        }
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
 // {{{1 control
 
 struct clingo_program_builder : clingo_control_t { };

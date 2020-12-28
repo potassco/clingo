@@ -72,6 +72,17 @@ std::string parse(char const *prg) {
     return ret;
 }
 
+std::string unpool(char const *prg) {
+    std::string ret;
+    auto cb = CB(ret);
+    ASTv2::parse_string(prg, [&](ASTv2::AST const &ast) {
+        for (auto &unpooled : ast.unpool()) {
+            cb(unpooled);
+        }
+    });
+    return ret;
+}
+
 ModelVec solve(char const *prg, PartSpan parts = {{"base", {}}}) {
     MessageVec messages;
     ModelVec models;
@@ -375,6 +386,10 @@ TEST_CASE("build-ast-v2", "[clingo]") {
         REQUIRE(x <= y);
         REQUIRE(x >= y);
     }
+}
+
+TEST_CASE("unpool-ast-v2", "[clingo]") {
+    REQUIRE(unpool("a(1;2).") == "a(1).\na(2).");
 }
 
 } } // namespace Test Clingo

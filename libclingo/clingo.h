@@ -2981,6 +2981,20 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_add_ast(clingo_program_bui
 
 //! @}
 
+//! @name Functions to unpool ASts
+//! @{
+
+enum clingo_ast_unpool_type {
+    clingo_ast_unpool_type_condition = 1,
+    clingo_ast_unpool_type_other = 2,
+    clingo_ast_unpool_type_all = 3,
+};
+typedef int clingo_ast_unpool_type_bitset_t;
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bitset_t unpool_type, clingo_ast_callback_v2_t callback, void *callback_data);
+
+//! @}
+
 //! @}
 
 // {{{1 ast

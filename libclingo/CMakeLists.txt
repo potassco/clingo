@@ -11,6 +11,7 @@ set(header-group-clingo
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/clingocontrol.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/control.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/incmode.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/optional.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/script.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/scripts.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/variant.hh")

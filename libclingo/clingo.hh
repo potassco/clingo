@@ -2478,6 +2478,7 @@ public:
     template <class Visitor>
     void visit_ast(Visitor &&visitor);
     std::string to_string() const;
+    std::vector<AST> unpool(bool other=true, bool condition=true) const;
     clingo_ast_t *to_c() const { return ast_; }
     friend std::ostream &operator<<(std::ostream &out, AST const &ast);
     friend bool operator<(AST const &a, AST const &b);
@@ -4018,6 +4019,25 @@ inline void AST::visit_ast(Visitor &&visitor) {
 
 inline std::string AST::to_string() const {
     return Detail::to_string(clingo_ast_to_string_size, clingo_ast_to_string, ast_);
+}
+
+inline std::vector<AST> AST::unpool(bool other, bool condition) const {
+    clingo_ast_unpool_type_bitset_t type = 0;
+    if (other) {
+        type |= clingo_ast_unpool_type_other;
+    }
+    if (condition) {
+        type |= clingo_ast_unpool_type_condition;
+    }
+    using Data = std::pair<std::vector<AST>, std::exception_ptr>;
+    Data data({}, nullptr);
+    Detail::handle_error(clingo_ast_unpool(ast_, type, [](clingo_ast_t *ast, void *data) -> bool {
+        auto &d = *static_cast<Data*>(data);
+        clingo_ast_acquire(ast);
+        CLINGO_CALLBACK_TRY { d.first.emplace_back(AST{ast}); }
+        CLINGO_CALLBACK_CATCH(d.second);
+    }, &data));
+    return std::move(data.first);
 }
 
 inline std::ostream &operator<<(std::ostream &out, AST const &ast) {
