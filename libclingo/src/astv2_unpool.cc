@@ -141,44 +141,6 @@ struct unpool_cross_<0, cond> {
     }
 };
 
-template <int i, int j, bool cond>
-struct unpool_chain_cross_ {
-    template <class... Args>
-    static void apply(tl::optional<AST::ASTVec> &ret, AST &ast, clingo_ast_attribute name, Args&&... args) {
-        auto &val = mpark::get<AST::ASTVec>(ast.value(name));
-        AST::ASTVec chain;
-        chain.reserve(val.size());
-        bool has_pool = false;
-        for (auto &elem : val) {
-            auto pool = cond ? unpool(elem, clingo_ast_unpool_type_condition) : unpool(elem);
-            if (pool.has_value()) {
-                has_pool = true;
-                std::move(pool->begin(), pool->end(), std::back_inserter(chain));
-            }
-            else {
-                chain.emplace_back(elem);
-            }
-        }
-        if (!has_pool) {
-            unpool_chain_cross_<i-1, j, cond>::apply(ret, ast, std::forward<Args>(args)...);
-        }
-        else {
-            if (!ret.has_value()) {
-                ret = AST::ASTVec();
-            }
-            unpool_chain_cross_<i-1, j, cond>::apply(ret, ast, std::forward<Args>(args)..., name, AST::Value{std::move(chain)});
-        }
-    }
-};
-
-template <int j, bool cond>
-struct unpool_chain_cross_<0, j, cond> {
-    template <class... Args>
-    static void apply(tl::optional<AST::ASTVec> &ret, AST &ast, Args&&... args) {
-        unpool_cross_<j, cond>::apply(ret, ast, std::forward<Args>(args)...);
-    }
-};
-
 template <class... Args>
 tl::optional<AST::ASTVec> unpool_cross(AST &ast, Args&&... args) {
     tl::optional<AST::ASTVec> ret;
@@ -186,17 +148,39 @@ tl::optional<AST::ASTVec> unpool_cross(AST &ast, Args&&... args) {
     return ret;
 }
 
-template <class... Args>
-tl::optional<AST::ASTVec> unpool_chain(AST &ast, Args&&... args) {
-    tl::optional<AST::ASTVec> ret;
-    unpool_chain_cross_<sizeof...(Args), 0, false>::apply(ret, ast, std::forward<Args>(args)...);
-    return ret;
+template <bool cond=false>
+tl::optional<SAST> unpool_chain(AST &ast, clingo_ast_attribute name) {
+    auto &val = mpark::get<AST::ASTVec>(ast.value(name));
+    AST::ASTVec chain;
+    chain.reserve(val.size());
+    bool has_pool = false;
+    for (auto &elem : val) {
+        auto pool = cond ? unpool(elem, clingo_ast_unpool_type_condition) : unpool(elem);
+        if (pool.has_value()) {
+            has_pool = true;
+            std::move(pool->begin(), pool->end(), std::back_inserter(chain));
+        }
+        else {
+            chain.emplace_back(elem);
+        }
+    }
+    if (has_pool) {
+        return ast.update(name, AST::Value{std::move(chain)});
+    }
+    return {};
 }
 
-template <int i, bool cond=false, class... Args>
-tl::optional<AST::ASTVec> unpool_chain_cross(AST &ast, Args&&... args) {
+template <bool cond, class... Args>
+tl::optional<AST::ASTVec> unpool_chain_cross(AST &ast, clingo_ast_attribute name, Args&&... args) {
+    auto chain = unpool_chain<cond>(ast, name);
     tl::optional<AST::ASTVec> ret;
-    unpool_chain_cross_<i, sizeof...(Args) - i, cond>::apply(ret, ast, std::forward<Args>(args)...);
+    if (chain.has_value()) {
+        ret = AST::ASTVec{};
+        unpool_cross_<sizeof...(Args), cond>::apply(ret, **chain, std::forward<Args>(args)...);
+    }
+    else {
+        unpool_cross_<sizeof...(Args), cond>::apply(ret, ast, std::forward<Args>(args)...);
+    }
     return ret;
 }
 
@@ -294,43 +278,47 @@ tl::optional<AST::ASTVec> unpool(SAST &ast, clingo_ast_unpool_type_bitset_t type
         case clingo_ast_type_body_aggregate:
         case clingo_ast_type_head_aggregate:
         case clingo_ast_type_aggregate: {
-            return unpool_chain_cross<1>(*ast, clingo_ast_attribute_elements, clingo_ast_attribute_left_guard, clingo_ast_attribute_right_guard);
+            return unpool_chain_cross<false>(*ast, clingo_ast_attribute_elements, clingo_ast_attribute_left_guard, clingo_ast_attribute_right_guard);
         }
         case clingo_ast_type_disjunction: {
-            return unpool_chain_cross<1, true>(*ast, clingo_ast_attribute_elements, clingo_ast_attribute_elements);
+            return unpool_chain_cross<true>(*ast, clingo_ast_attribute_elements, clingo_ast_attribute_elements);
         }
         case clingo_ast_type_theory_atom_element: {
-            return unpool_chain(*ast, clingo_ast_attribute_condition);
+            auto ret = unpool_chain(*ast, clingo_ast_attribute_condition);
+            if (ret.has_value()) {
+                return AST::ASTVec{std::move(*ret)};
+            }
+            return {};
         }
         case clingo_ast_type_theory_atom: {
-            return unpool_chain_cross<1>(*ast, clingo_ast_attribute_elements, clingo_ast_attribute_term);
+            return unpool_chain_cross<false>(*ast, clingo_ast_attribute_elements, clingo_ast_attribute_term);
         }
         case clingo_ast_type_literal: {
             return unpool_cross(*ast, clingo_ast_attribute_atom);
         }
         case clingo_ast_type_rule: {
-            return unpool_chain_cross<1, true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_head);
+            return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_head);
         }
         case clingo_ast_type_show_term: {
-            return unpool_chain_cross<1, true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_term);
+            return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_term);
         }
         case clingo_ast_type_minimize: {
-            return unpool_chain_cross<1, true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_weight, clingo_ast_attribute_priority, clingo_ast_attribute_terms);
+            return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_weight, clingo_ast_attribute_priority, clingo_ast_attribute_terms);
         }
         case clingo_ast_type_external: {
-            return unpool_chain_cross<1, true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_head, clingo_ast_attribute_external_type);
+            return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_head, clingo_ast_attribute_external_type);
         }
         case clingo_ast_type_edge: {
-            return unpool_chain_cross<1, true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_node_u, clingo_ast_attribute_node_v);
+            return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_node_u, clingo_ast_attribute_node_v);
         }
         case clingo_ast_type_heuristic: {
-            return unpool_chain_cross<1, true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_atom, clingo_ast_attribute_bias, clingo_ast_attribute_priority, clingo_ast_attribute_modifier);
+            return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_atom, clingo_ast_attribute_bias, clingo_ast_attribute_priority, clingo_ast_attribute_modifier);
         }
         case clingo_ast_type_project_atom: {
             break;
         }
     }
-    return unpool_chain_cross<1, true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_head);
+    return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_head);
 }
 
 } } //namespace Input Gringo

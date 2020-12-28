@@ -404,16 +404,40 @@ TEST_CASE("unpool-ast-v2", "[clingo]") {
     SECTION("csp") {
         // TODO
     }
-    SECTION("theory") {
-        // TODO
-    }
     SECTION("head literal") {
         REQUIRE(unpool("a(1;2).") == "a(1).\na(2).");
+        REQUIRE(unpool("a(1;2):a(3).") == "a(1): a(3).\na(2): a(3).");
+        // Note: I hope that this one matches what clingo currently does
+        //       (in any case, it won't affect existing programs)
+        REQUIRE(unpool("a(1):a(2;3).") == "a(1): a(2); a(1): a(3).");
+        REQUIRE(unpool("a(1;2):a(3;4).") == "a(1): a(3); a(1): a(4).\na(2): a(3); a(1): a(4).\na(1): a(3); a(2): a(4).\na(2): a(3); a(2): a(4).");
+        REQUIRE(unpool("(1;2) { a(2;3): a(4;5) } (6;7).") ==
+            "1 <= { a(2): a(4); a(2): a(5); a(3): a(4); a(3): a(5) } <= 6.\n"
+            "1 <= { a(2): a(4); a(2): a(5); a(3): a(4); a(3): a(5) } <= 7.\n"
+            "2 <= { a(2): a(4); a(2): a(5); a(3): a(4); a(3): a(5) } <= 6.\n"
+            "2 <= { a(2): a(4); a(2): a(5); a(3): a(4); a(3): a(5) } <= 7.");
+        REQUIRE(unpool("(1;2) #min { (2;3): a(4;5): a(6;7) } (8;9).") ==
+            "1 <= #min { 2: a(4): a(6); 2: a(4): a(7); 2: a(5): a(6); 2: a(5): a(7); 3: a(4): a(6); 3: a(4): a(7); 3: a(5): a(6); 3: a(5): a(7) } <= 8.\n"
+            "1 <= #min { 2: a(4): a(6); 2: a(4): a(7); 2: a(5): a(6); 2: a(5): a(7); 3: a(4): a(6); 3: a(4): a(7); 3: a(5): a(6); 3: a(5): a(7) } <= 9.\n"
+            "2 <= #min { 2: a(4): a(6); 2: a(4): a(7); 2: a(5): a(6); 2: a(5): a(7); 3: a(4): a(6); 3: a(4): a(7); 3: a(5): a(6); 3: a(5): a(7) } <= 8.\n"
+            "2 <= #min { 2: a(4): a(6); 2: a(4): a(7); 2: a(5): a(6); 2: a(5): a(7); 3: a(4): a(6); 3: a(4): a(7); 3: a(5): a(6); 3: a(5): a(7) } <= 9.");
+        REQUIRE(unpool("&a(1;2) { 1 : a(3;4), a(5;6) }.") ==
+            "&a(1) { 1: a(3), a(4), a(5), a(6) }.\n"
+            "&a(2) { 1: a(3), a(4), a(5), a(6) }.");
     }
     SECTION("body literal") {
         // TODO
     }
     SECTION("statements") {
+        REQUIRE(unpool("a(1;2) :- a(3;4); a(5;6).") ==
+            "a(1) :- a(3); a(5).\n"
+            "a(2) :- a(3); a(5).\n"
+            "a(1) :- a(4); a(5).\n"
+            "a(2) :- a(4); a(5).\n"
+            "a(1) :- a(3); a(6).\n"
+            "a(2) :- a(3); a(6).\n"
+            "a(1) :- a(4); a(6).\n"
+            "a(2) :- a(4); a(6).");
         // TODO
     }
 }
