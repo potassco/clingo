@@ -175,8 +175,8 @@ TEST_CASE("parse-ast-v2", "[clingo]") {
         REQUIRE(parse("not a.") == "not a.");
         REQUIRE(parse("not not a.") == "not not a.");
         REQUIRE(parse("1 != 3.") == "1 != 3.");
-        REQUIRE(parse("1 $< 2 $< 3.") == "1$<2$<3.");
-        REQUIRE(parse("1 $< 2 $< 3.") == "1$<2$<3.");
+        REQUIRE(parse("1 $< 2 $< 3.") == "1 $< 2 $< 3.");
+        REQUIRE(parse("1 $< 2 $< 3.") == "1 $< 2 $< 3.");
     }
     SECTION("terms") {
         REQUIRE(parse("p(a).") == "p(a).");
@@ -197,7 +197,7 @@ TEST_CASE("parse-ast-v2", "[clingo]") {
         REQUIRE(parse("p(a;b).") == "p(a;b).");
         REQUIRE(parse("p((a,;b)).") == "p(((a,);b)).");
         REQUIRE(parse("p(((a,);b)).") == "p(((a,);b)).");
-        REQUIRE(parse("1 $+ 3 $* $x $+ 7 $< 2 $< 3.") == "1$+3$*$x$+7$<2$<3.");
+        REQUIRE(parse("1 $+ 3 $* $x $+ 7 $< 2 $< 3.") == "1$+3$*$x$+7 $< 2 $< 3.");
     }
     SECTION("theory terms") {
         REQUIRE(parse("&p{ } !! a.") == "&p { } !! a.");
@@ -429,7 +429,26 @@ TEST_CASE("unpool-ast-v2", "[clingo]") {
             "a((2..4)).");
     }
     SECTION("csp") {
-        // TODO
+        REQUIRE(unpool("$a(1;2) $< a(3;4)$*$b(5;6).") ==
+            "1$*$a(1) $< a(3)$*$b(5).\n"
+            "1$*$a(1) $< a(3)$*$b(6).\n"
+            "1$*$a(1) $< a(4)$*$b(5).\n"
+            "1$*$a(1) $< a(4)$*$b(6).\n"
+            "1$*$a(2) $< a(3)$*$b(5).\n"
+            "1$*$a(2) $< a(3)$*$b(6).\n"
+            "1$*$a(2) $< a(4)$*$b(5).\n"
+            "1$*$a(2) $< a(4)$*$b(6).");
+        REQUIRE(unpool("#disjoint { a(1;2): $a(3;4): a(5;6) }.") ==
+            "#false :- not #disjoint { "
+            "a(1): 1$*$a(3): a(5); "
+            "a(1): 1$*$a(3): a(6); "
+            "a(1): 1$*$a(4): a(5); "
+            "a(1): 1$*$a(4): a(6); "
+            "a(2): 1$*$a(3): a(5); "
+            "a(2): 1$*$a(3): a(6); "
+            "a(2): 1$*$a(4): a(5); "
+            "a(2): 1$*$a(4): a(6) "
+            "}.");
     }
     SECTION("head literal") {
         REQUIRE(unpool("a(1;2).") ==

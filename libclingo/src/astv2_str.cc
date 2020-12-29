@@ -450,8 +450,9 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             break;
         }
         case clingo_ast_type_csp_guard: {
-            out << "$"
+            out << " $"
                 << enum_to_string<clingo_ast_comparison_operator>(ast, clingo_ast_attribute_comparison)
+                << " "
                 << print(ast, clingo_ast_attribute_term);
             break;
         }
