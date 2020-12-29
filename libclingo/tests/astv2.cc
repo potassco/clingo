@@ -390,27 +390,62 @@ TEST_CASE("build-ast-v2", "[clingo]") {
 
 TEST_CASE("unpool-ast-v2", "[clingo]") {
     SECTION("terms") {
-        REQUIRE(unpool("a(f(1;2)).") == "a(f(1)).\na(f(2)).");
-        REQUIRE(unpool("a((1,;2,)).") == "a((1,)).\na((2,)).");
-        REQUIRE(unpool("a((1;2)).") == "a(1).\na(2).");
-        REQUIRE(unpool("a((X;1)).") == "a(X).\na(1).");
-        REQUIRE(unpool("a((1;2;3;4;5)).") == "a(1).\na(2).\na(3).\na(4).\na(5).");
-        REQUIRE(unpool("a(|X;Y|).") == "a(|X|).\na(|Y|).");
-        REQUIRE(unpool("a(1+(2;3)).") == "a((1+2)).\na((1+3)).");
-        REQUIRE(unpool("a((1;2)+3).") == "a((1+3)).\na((2+3)).");
-        REQUIRE(unpool("a((1;2)+(3;4)).") == "a((1+3)).\na((1+4)).\na((2+3)).\na((2+4)).");
-        REQUIRE(unpool("a((1;2)..(3;4)).") == "a((1..3)).\na((1..4)).\na((2..3)).\na((2..4)).");
+        REQUIRE(unpool("a(f(1;2)).") ==
+            "a(f(1)).\n"
+            "a(f(2)).");
+        REQUIRE(unpool("a((1,;2,)).") ==
+            "a((1,)).\n"
+            "a((2,)).");
+        REQUIRE(unpool("a((1;2)).") ==
+            "a(1).\n"
+            "a(2).");
+        REQUIRE(unpool("a((X;1)).") ==
+            "a(X).\n"
+            "a(1).");
+        REQUIRE(unpool("a((1;2;3;4;5)).") ==
+            "a(1).\n"
+            "a(2).\n"
+            "a(3).\n"
+            "a(4).\n"
+            "a(5).");
+        REQUIRE(unpool("a(|X;Y|).") ==
+            "a(|X|).\n"
+            "a(|Y|).");
+        REQUIRE(unpool("a(1+(2;3)).") ==
+            "a((1+2)).\n"
+            "a((1+3)).");
+        REQUIRE(unpool("a((1;2)+3).") ==
+            "a((1+3)).\n"
+            "a((2+3)).");
+        REQUIRE(unpool("a((1;2)+(3;4)).") ==
+            "a((1+3)).\n"
+            "a((1+4)).\n"
+            "a((2+3)).\n"
+            "a((2+4)).");
+        REQUIRE(unpool("a((1;2)..(3;4)).") ==
+            "a((1..3)).\n"
+            "a((1..4)).\n"
+            "a((2..3)).\n"
+            "a((2..4)).");
     }
     SECTION("csp") {
         // TODO
     }
     SECTION("head literal") {
-        REQUIRE(unpool("a(1;2).") == "a(1).\na(2).");
-        REQUIRE(unpool("a(1;2):a(3).") == "a(1): a(3).\na(2): a(3).");
+        REQUIRE(unpool("a(1;2).") ==
+            "a(1).\n"
+            "a(2).");
+        REQUIRE(unpool("a(1;2):a(3).") ==
+            "a(1): a(3).\n"
+            "a(2): a(3).");
         // Note: I hope that this one matches what clingo currently does
         //       (in any case, it won't affect existing programs)
         REQUIRE(unpool("a(1):a(2;3).") == "a(1): a(2); a(1): a(3).");
-        REQUIRE(unpool("a(1;2):a(3;4).") == "a(1): a(3); a(1): a(4).\na(2): a(3); a(1): a(4).\na(1): a(3); a(2): a(4).\na(2): a(3); a(2): a(4).");
+        REQUIRE(unpool("a(1;2):a(3;4).") ==
+            "a(1): a(3); a(1): a(4).\n"
+            "a(2): a(3); a(1): a(4).\n"
+            "a(1): a(3); a(2): a(4).\n"
+            "a(2): a(3); a(2): a(4).");
         REQUIRE(unpool("(1;2) { a(2;3): a(4;5) } (6;7).") ==
             "1 <= { a(2): a(4); a(2): a(5); a(3): a(4); a(3): a(5) } <= 6.\n"
             "1 <= { a(2): a(4); a(2): a(5); a(3): a(4); a(3): a(5) } <= 7.\n"
@@ -424,9 +459,44 @@ TEST_CASE("unpool-ast-v2", "[clingo]") {
         REQUIRE(unpool("&a(1;2) { 1 : a(3;4), a(5;6) }.") ==
             "&a(1) { 1: a(3), a(4), a(5), a(6) }.\n"
             "&a(2) { 1: a(3), a(4), a(5), a(6) }.");
+        REQUIRE(unpool("(1;2) < (3;4).") ==
+            "1 < 3.\n"
+            "1 < 4.\n"
+            "2 < 3.\n"
+            "2 < 4.");
     }
     SECTION("body literal") {
-        // TODO
+        REQUIRE(unpool(":- a(1;2).") ==
+            "#false :- a(1).\n"
+            "#false :- a(2).");
+        REQUIRE(unpool(":- a(1;2):a(3).") ==
+            "#false :- a(1): a(3).\n"
+            "#false :- a(2): a(3).");
+        REQUIRE(unpool(":- a(1):a(2;3).") ==
+            "#false :- a(1): a(2); a(1): a(3).");
+        REQUIRE(unpool(":- a(1;2):a(3;4).") ==
+            "#false :- a(1): a(3); a(1): a(4).\n"
+            "#false :- a(2): a(3); a(1): a(4).\n"
+            "#false :- a(1): a(3); a(2): a(4).\n"
+            "#false :- a(2): a(3); a(2): a(4).");
+        REQUIRE(unpool(":- (1;2) { a(2;3): a(4;5) } (6;7).") ==
+            "#false :- 1 <= { a(2): a(4); a(2): a(5); a(3): a(4); a(3): a(5) } <= 6.\n"
+            "#false :- 1 <= { a(2): a(4); a(2): a(5); a(3): a(4); a(3): a(5) } <= 7.\n"
+            "#false :- 2 <= { a(2): a(4); a(2): a(5); a(3): a(4); a(3): a(5) } <= 6.\n"
+            "#false :- 2 <= { a(2): a(4); a(2): a(5); a(3): a(4); a(3): a(5) } <= 7.");
+        REQUIRE(unpool(":- (1;2) #min { (2;3): a(4;5), a(6;7) } (8;9).") ==
+            "#false :- 1 <= #min { 2: a(4), a(6); 2: a(5), a(6); 2: a(4), a(7); 2: a(5), a(7); 3: a(4), a(6); 3: a(5), a(6); 3: a(4), a(7); 3: a(5), a(7) } <= 8.\n"
+            "#false :- 1 <= #min { 2: a(4), a(6); 2: a(5), a(6); 2: a(4), a(7); 2: a(5), a(7); 3: a(4), a(6); 3: a(5), a(6); 3: a(4), a(7); 3: a(5), a(7) } <= 9.\n"
+            "#false :- 2 <= #min { 2: a(4), a(6); 2: a(5), a(6); 2: a(4), a(7); 2: a(5), a(7); 3: a(4), a(6); 3: a(5), a(6); 3: a(4), a(7); 3: a(5), a(7) } <= 8.\n"
+            "#false :- 2 <= #min { 2: a(4), a(6); 2: a(5), a(6); 2: a(4), a(7); 2: a(5), a(7); 3: a(4), a(6); 3: a(5), a(6); 3: a(4), a(7); 3: a(5), a(7) } <= 9.");
+        REQUIRE(unpool(":- &a(1;2) { 1 : a(3;4), a(5;6) }.") ==
+            "#false :- &a(1) { 1: a(3), a(4), a(5), a(6) }.\n"
+            "#false :- &a(2) { 1: a(3), a(4), a(5), a(6) }.");
+        REQUIRE(unpool(":- (1;2) < (3;4).") ==
+            "#false :- 1 < 3.\n"
+            "#false :- 1 < 4.\n"
+            "#false :- 2 < 3.\n"
+            "#false :- 2 < 4.");
     }
     SECTION("statements") {
         REQUIRE(unpool("a(1;2) :- a(3;4); a(5;6).") ==
@@ -438,7 +508,84 @@ TEST_CASE("unpool-ast-v2", "[clingo]") {
             "a(2) :- a(3); a(6).\n"
             "a(1) :- a(4); a(6).\n"
             "a(2) :- a(4); a(6).");
-        // TODO
+        REQUIRE(unpool("#show a(1;2) : a(3;4).") ==
+            "#show a(1) : a(3).\n"
+            "#show a(2) : a(3).\n"
+            "#show a(1) : a(4).\n"
+            "#show a(2) : a(4).");
+        REQUIRE(unpool(":~ a(1;2). [(3;4)@(5;6),(7;8)]") ==
+            ":~ a(1). [3@5,7]\n"
+            ":~ a(1). [3@5,8]\n"
+            ":~ a(1). [3@6,7]\n"
+            ":~ a(1). [3@6,8]\n"
+            ":~ a(1). [4@5,7]\n"
+            ":~ a(1). [4@5,8]\n"
+            ":~ a(1). [4@6,7]\n"
+            ":~ a(1). [4@6,8]\n"
+            ":~ a(2). [3@5,7]\n"
+            ":~ a(2). [3@5,8]\n"
+            ":~ a(2). [3@6,7]\n"
+            ":~ a(2). [3@6,8]\n"
+            ":~ a(2). [4@5,7]\n"
+            ":~ a(2). [4@5,8]\n"
+            ":~ a(2). [4@6,7]\n"
+            ":~ a(2). [4@6,8]");
+        REQUIRE(unpool("#external a(1;2) : a(3;4). [(5;6)]") ==
+            "#external a(1) : a(3). [5]\n"
+            "#external a(1) : a(3). [6]\n"
+            "#external a(2) : a(3). [5]\n"
+            "#external a(2) : a(3). [6]\n"
+            "#external a(1) : a(4). [5]\n"
+            "#external a(1) : a(4). [6]\n"
+            "#external a(2) : a(4). [5]\n"
+            "#external a(2) : a(4). [6]");
+        REQUIRE(unpool("#edge ((1;2),(3;4)) : a(5;6).") ==
+            "#edge (1,3) : a(5).\n"
+            "#edge (1,4) : a(5).\n"
+            "#edge (2,3) : a(5).\n"
+            "#edge (2,4) : a(5).\n"
+            "#edge (1,3) : a(6).\n"
+            "#edge (1,4) : a(6).\n"
+            "#edge (2,3) : a(6).\n"
+            "#edge (2,4) : a(6).");
+        REQUIRE(unpool("#heuristic a(1;2) : a(3;4). [a(5;6)@a(7;8),a(9;10)]") ==
+            "#heuristic a(1) : a(3). [a(5)@a(7),a(9)]\n"
+            "#heuristic a(1) : a(3). [a(5)@a(7),a(10)]\n"
+            "#heuristic a(1) : a(3). [a(5)@a(8),a(9)]\n"
+            "#heuristic a(1) : a(3). [a(5)@a(8),a(10)]\n"
+            "#heuristic a(1) : a(3). [a(6)@a(7),a(9)]\n"
+            "#heuristic a(1) : a(3). [a(6)@a(7),a(10)]\n"
+            "#heuristic a(1) : a(3). [a(6)@a(8),a(9)]\n"
+            "#heuristic a(1) : a(3). [a(6)@a(8),a(10)]\n"
+            "#heuristic a(2) : a(3). [a(5)@a(7),a(9)]\n"
+            "#heuristic a(2) : a(3). [a(5)@a(7),a(10)]\n"
+            "#heuristic a(2) : a(3). [a(5)@a(8),a(9)]\n"
+            "#heuristic a(2) : a(3). [a(5)@a(8),a(10)]\n"
+            "#heuristic a(2) : a(3). [a(6)@a(7),a(9)]\n"
+            "#heuristic a(2) : a(3). [a(6)@a(7),a(10)]\n"
+            "#heuristic a(2) : a(3). [a(6)@a(8),a(9)]\n"
+            "#heuristic a(2) : a(3). [a(6)@a(8),a(10)]\n"
+            "#heuristic a(1) : a(4). [a(5)@a(7),a(9)]\n"
+            "#heuristic a(1) : a(4). [a(5)@a(7),a(10)]\n"
+            "#heuristic a(1) : a(4). [a(5)@a(8),a(9)]\n"
+            "#heuristic a(1) : a(4). [a(5)@a(8),a(10)]\n"
+            "#heuristic a(1) : a(4). [a(6)@a(7),a(9)]\n"
+            "#heuristic a(1) : a(4). [a(6)@a(7),a(10)]\n"
+            "#heuristic a(1) : a(4). [a(6)@a(8),a(9)]\n"
+            "#heuristic a(1) : a(4). [a(6)@a(8),a(10)]\n"
+            "#heuristic a(2) : a(4). [a(5)@a(7),a(9)]\n"
+            "#heuristic a(2) : a(4). [a(5)@a(7),a(10)]\n"
+            "#heuristic a(2) : a(4). [a(5)@a(8),a(9)]\n"
+            "#heuristic a(2) : a(4). [a(5)@a(8),a(10)]\n"
+            "#heuristic a(2) : a(4). [a(6)@a(7),a(9)]\n"
+            "#heuristic a(2) : a(4). [a(6)@a(7),a(10)]\n"
+            "#heuristic a(2) : a(4). [a(6)@a(8),a(9)]\n"
+            "#heuristic a(2) : a(4). [a(6)@a(8),a(10)]");
+        REQUIRE(unpool("#project a(1;2) : a(3;4).") ==
+            "#project a(1) : a(3).\n"
+            "#project a(2) : a(3).\n"
+            "#project a(1) : a(4).\n"
+            "#project a(2) : a(4).");
     }
 }
 

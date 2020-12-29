@@ -306,7 +306,7 @@ tl::optional<AST::ASTVec> unpool(SAST &ast, clingo_ast_unpool_type_bitset_t type
             return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_weight, clingo_ast_attribute_priority, clingo_ast_attribute_terms);
         }
         case clingo_ast_type_external: {
-            return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_head, clingo_ast_attribute_external_type);
+            return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_atom, clingo_ast_attribute_external_type);
         }
         case clingo_ast_type_edge: {
             return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_node_u, clingo_ast_attribute_node_v);
@@ -318,7 +318,7 @@ tl::optional<AST::ASTVec> unpool(SAST &ast, clingo_ast_unpool_type_bitset_t type
             break;
         }
     }
-    return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_head);
+    return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_atom);
 }
 
 } } //namespace Input Gringo
