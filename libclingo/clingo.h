@@ -2984,13 +2984,23 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_add_ast(clingo_program_bui
 //! @name Functions to unpool ASts
 //! @{
 
+//! Enum to configure unpooling.
 enum clingo_ast_unpool_type {
-    clingo_ast_unpool_type_condition = 1,
-    clingo_ast_unpool_type_other = 2,
-    clingo_ast_unpool_type_all = 3,
+    clingo_ast_unpool_type_condition = 1, //!< To only unpool conditions of conditional literals.
+    clingo_ast_unpool_type_other = 2,     //!< To unpool everything except conditions of conditional literals.
+    clingo_ast_unpool_type_all = 3,       //!< To only unpool everytihng.
 };
+//! Corresponding type to ::clingo_ast_unpool_type.
 typedef int clingo_ast_unpool_type_bitset_t;
 
+//! Unpool the given AST.
+//!
+//! @param[in] ast the target AST
+//! @param[in] unpool_type what to unpool
+//! @param[in] callback the callback to report ASTs
+//! @param[in] callback_data user data for the callback
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bitset_t unpool_type, clingo_ast_callback_v2_t callback, void *callback_data);
 
 //! @}
