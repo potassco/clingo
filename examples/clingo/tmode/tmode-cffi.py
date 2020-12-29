@@ -1,13 +1,24 @@
-import sys
-
+from sys import stdout, exit
+from copy import copy
 from collections.abc import Sequence
+
 from clingo.application import Application
 from clingo import SymbolType, Number, String, Function, ast, clingo_main
 
 class Transformer:
     def visit_children(self, x, *args, **kwargs):
+        update = []
         for key in x.child_keys:
-            setattr(x, key, self.visit(getattr(x, key), *args, **kwargs))
+            old = getattr(x, key)
+            new = self.visit(old, *args, **kwargs)
+            if new is not old:
+                update.append((key, new))
+        if update:
+            ret = copy(x)
+            for key, new in update:
+                setattr(ret, key, new)
+        else:
+            ret = x
         return x
 
     def visit(self, x, *args, **kwargs):
@@ -18,7 +29,12 @@ class Transformer:
             else:
                 return self.visit_children(x, *args, **kwargs)
         elif isinstance(x, Sequence):
-            return [self.visit(y, *args, **kwargs) for y in x]
+            ret, lst = x, []
+            for old in x:
+                lst.append(self.visit(old, *args, **kwargs))
+                if lst[-1] is not old:
+                    ret = lst
+            return ret
         elif x is None:
             return x
         else:
@@ -54,9 +70,9 @@ class ProgramTransformer(Transformer):
 
     def visit(self, x, *args, **kwargs):
         ret = Transformer.visit(self, x, *args, **kwargs)
-        if self.final and isinstance(x, ast.AST) and hasattr(x, "body"):
-            loc = x.location
-            x.body.append(ast.Literal(loc, ast.Sign.NoSign, ast.SymbolicAtom(ast.Function(loc, "finally", [ast.SymbolicTerm(loc, self.parameter)], False))));
+        if self.final and isinstance(ret, ast.AST) and hasattr(ret, "body"):
+            loc = ret.location
+            ret.body.append(ast.Literal(loc, ast.Sign.NoSign, ast.SymbolicAtom(ast.Function(loc, "finally", [ast.SymbolicTerm(loc, self.parameter)], False))));
         return ret
 
     def visit_SymbolicAtom(self, atom):
@@ -111,14 +127,14 @@ class TModeApp(Application):
             if sym.type == SymbolType.Function and len(sym.arguments) > 0:
                 table.setdefault(sym.arguments[-1], []).append(Function(sym.name, sym.arguments[:-1]))
         for step, symbols in sorted(table.items()):
-            sys.stdout.write(" State {}:".format(step))
+            stdout.write(" State {}:".format(step))
             sig = None
             for sym in sorted(symbols):
                 if (sym.name, len(sym.arguments)) != sig:
-                    sys.stdout.write("\n ")
+                    stdout.write("\n ")
                     sig = (sym.name, len(sym.arguments))
-                sys.stdout.write(" {}".format(sym))
-            sys.stdout.write("\n")
+                stdout.write(" {}".format(sym))
+            stdout.write("\n")
 
     def main(self, ctl, files):
         with ast.ProgramBuilder(ctl) as bld:
@@ -128,4 +144,4 @@ class TModeApp(Application):
         ctl.add("static", ["t"], "#external finally(t).")
         imain(ctl)
 
-sys.exit(clingo_main(TModeApp()))
+exit(clingo_main(TModeApp()))
