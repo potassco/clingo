@@ -2586,7 +2586,7 @@ struct PropagateInit : Object<PropagateInit> {
         bool eq{!lua_isnone(L, 6) && lua_toboolean(L, 6)};
         clingo_literal_t lit;
         clingo_weight_t bound;
-        auto lits{AnyWrap::new_<std::vector<clingo_weighted_literal_t>>(L)};
+        auto lits = AnyWrap::new_<std::vector<clingo_weighted_literal_t>>(L);
                                     // +1
         luaToCpp(L, 2, lit);
         luaToCpp(L, 3, *lits);

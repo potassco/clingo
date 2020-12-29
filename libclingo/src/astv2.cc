@@ -191,7 +191,7 @@ size_t AST::hash() const {
         if (val.first == clingo_ast_attribute_location) {
             continue;
         }
-        Gringo::hash_combine(combine.seed, val.first);
+        Gringo::hash_combine(combine.seed, static_cast<int>(val.first));
         mpark::visit(combine, val.second);
     }
     return combine.seed;
