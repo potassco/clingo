@@ -57,7 +57,7 @@ tl::optional<std::vector<AST::ASTVec>> unpool(AST::ASTVec &vec, clingo_ast_unpoo
         if (pools.back().has_value()) {
             has_pool = true;
             if (pools.back()->empty()) {
-                return {{}};
+                return std::vector<AST::ASTVec>{};
             }
         }
     }
