@@ -932,7 +932,8 @@ class AST:
         Parameters
         ----------
         other
-            Only all pools except those in conditions of conditional literals.
+            Remove all pools except those in conditions of conditional
+            literals.
         condition
             Only remove pools from conditions of conditional literals.
         '''
