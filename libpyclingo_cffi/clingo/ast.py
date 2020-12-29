@@ -1000,7 +1000,7 @@ def parse_files(files: Sequence[str], callback: Callable[[AST], None],
     _handle_error(_lib.clingo_ast_parse_files([ _ffi.new("char[]", f.encode()) for f in files ], len(files),
                                               _lib.pyclingo_ast_callback, c_cb_data,
                                               c_logger, c_logger_data,
-                                              message_limit))
+                                              message_limit), cb_data)
 
 def parse_string(program: str, callback: Callable[[AST], None],
                  logger: Optional[Logger]=None, message_limit: int=20) -> None:
@@ -1037,7 +1037,7 @@ def parse_string(program: str, callback: Callable[[AST], None],
     _handle_error(_lib.clingo_ast_parse_string(program.encode(),
                                                _lib.pyclingo_ast_callback, c_cb_data,
                                                c_logger, c_logger_data,
-                                               message_limit))
+                                               message_limit), cb_data)
 
 class ProgramBuilder(ContextManager['ProgramBuilder']):
     '''

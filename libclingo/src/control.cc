@@ -144,7 +144,7 @@ void handleCError(bool ret, std::exception_ptr *exc) {
     }
 }
 
-void forwardCError(bool ret, std::exception_ptr *exc) {
+void forwardCError(bool ret, std::exception_ptr *exc=nullptr) {
     if (!ret) {
         if (exc && *exc) { std::rethrow_exception(*exc); }
         else             { throw ClingoError(); }
@@ -1048,7 +1048,9 @@ extern "C" bool clingo_parse_term(char const *str, clingo_logger_t logger, void 
 
 extern "C" bool clingo_parse_program(char const *program, clingo_ast_callback_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
-        Input::ASTBuilder builder([cb, cb_data](clingo_ast_statement_t const &stm) { handleCError(cb(&stm, cb_data)); });
+        Input::ASTBuilder builder([cb, cb_data](clingo_ast_statement_t const &stm) {
+            forwardCError(cb(&stm, cb_data));
+        });
         bool incmode = false;
         Input::NonGroundParser parser(builder, incmode);
         Logger::Printer printer;
@@ -1063,7 +1065,9 @@ extern "C" bool clingo_parse_program(char const *program, clingo_ast_callback_t 
 
 extern "C" bool clingo_parse_files(char const * const *file, size_t n, clingo_ast_callback_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
-        Input::ASTBuilder builder([cb, cb_data](clingo_ast_statement_t const &stm) { handleCError(cb(&stm, cb_data)); });
+        Input::ASTBuilder builder([cb, cb_data](clingo_ast_statement_t const &stm) {
+            forwardCError(cb(&stm, cb_data));
+        });
         bool incmode = false;
         Input::NonGroundParser parser(builder, incmode);
         Logger::Printer printer;
@@ -1697,7 +1701,7 @@ extern "C" bool clingo_ast_attribute_insert_ast_at(clingo_ast_t *ast, clingo_ast
 extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         auto builder = Input::build([cb, cb_data](Input::SAST ast) {
-            handleCError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
+            forwardCError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
         });
         bool incmode = false;
         Input::NonGroundParser parser{*builder, incmode};
@@ -1714,7 +1718,7 @@ extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback
 extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         auto builder = Input::build([cb, cb_data](Input::SAST ast) {
-            handleCError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
+            forwardCError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
         });
         bool incmode = false;
         Input::NonGroundParser parser(*builder, incmode);
@@ -1739,11 +1743,11 @@ extern "C" bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bits
         auto pool = Input::unpool(sast, unpool_type);
         if (pool.has_value()) {
             for (auto &unpooled : *pool) {
-                handleCError(callback(reinterpret_cast<clingo_ast_t*>(unpooled.get()), callback_data));
+                forwardCError(callback(reinterpret_cast<clingo_ast_t*>(unpooled.get()), callback_data));
             }
         }
         else {
-            handleCError(callback(ast, callback_data));
+            forwardCError(callback(ast, callback_data));
         }
     }
     GRINGO_CLINGO_CATCH;
@@ -2138,7 +2142,7 @@ private:
     void exec(ScriptType, Location loc, String code) override {
         if (script_.execute) {
             auto l = conv(loc);
-            handleCError(script_.execute(&l, code.c_str(), data_));
+            forwardCError(script_.execute(&l, code.c_str(), data_));
         }
     }
     SymVec call(Location const &loc, String name, SymSpan args, Logger &) override {
@@ -2161,11 +2165,11 @@ private:
     }
     bool callable(String name) override {
         bool ret;
-        handleCError(script_.callable(name.c_str(), &ret, data_));
+        forwardCError(script_.callable(name.c_str(), &ret, data_));
         return ret;
     }
     void main(Control &ctl) override {
-        handleCError(script_.main(&ctl, data_));
+        forwardCError(script_.main(&ctl, data_));
     }
     char const *version() override {
         return script_.version;
@@ -2232,7 +2236,7 @@ public:
         for (auto &x : files) {
             c_files.emplace_back(x.c_str());
         }
-        handleCError(app_.main(&ctl, c_files.data(), c_files.size(), data_));
+        forwardCError(app_.main(&ctl, c_files.data(), c_files.size(), data_));
     }
     bool has_log() const override { return app_.logger; }
     void log(Gringo::Warnings code, char const *message) noexcept override {
@@ -2241,7 +2245,7 @@ public:
     }
     bool has_printer() const override { return app_.printer; }
     void print_model(Model *model, std::function<void()> printer) override {
-        handleCError(app_.printer(model, [](void *data) {
+        forwardCError(app_.printer(model, [](void *data) {
             GRINGO_CLINGO_TRY {
                 (*static_cast<std::function<void()>*>(data))();
             }
@@ -2251,12 +2255,12 @@ public:
 
     void register_options(ClingoApp &app) override {
         if (app_.register_options) {
-            handleCError(app_.register_options(static_cast<clingo_options_t*>(&app), data_));
+            forwardCError(app_.register_options(static_cast<clingo_options_t*>(&app), data_));
         }
     }
     void validate_options() override {
         if (app_.validate_options) {
-            handleCError(app_.validate_options(data_));
+            forwardCError(app_.validate_options(data_));
         }
     }
 private:
