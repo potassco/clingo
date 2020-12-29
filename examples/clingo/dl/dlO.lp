@@ -10,10 +10,14 @@
 
 #script (python)
 
-import clingo, difference_logic as dl
+import sys
+sys.path.append('.')
+
+from clingo import Number
+from difference_logic import Propagator
 
 def main(prg):
-    p = dl.Propagator()
+    p = Propagator()
     prg.register_propagator(p)
     prg.ground([("base", [])])
     while True:
@@ -32,5 +36,5 @@ def main(prg):
                 print ("Optimum found")
                 break
         print ("Found new bound: {}".format(bound))
-        prg.ground([("bound", [bound-1])])
+        prg.ground([("bound", [Number(bound-1)])])
 #end.

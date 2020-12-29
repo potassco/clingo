@@ -1,11 +1,13 @@
 #script (python) 
 
+from clingo import Number
+
 class State:
     def __init__(self, value):
         self.value = value
 
     def test(self, value):
-        return self.value + value.number
+        return Number(self.value + value.number)
     
     def __on_model(self, m):
         print (m)

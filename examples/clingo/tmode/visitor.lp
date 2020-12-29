@@ -121,6 +121,8 @@ def imain(prg):
         ret, step = prg.solve(on_model=on_model), step+1
 
 def main(prg):
+    if not hasattr(prg, "builder"):
+        raise RuntimeError("this example is not compatible with clingo's cffi module")
     with prg.builder() as b:
         t = ProgramTransformer(clingo.Function("__t"))
         clingo.parse_program(

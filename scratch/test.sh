@@ -24,13 +24,13 @@ clingo=$(realpath ../build/${target}/bin/clingo)
 python=python
 export PYTHONPATH=$(realpath ../build/${target}/bin/python)
 
+check clingo/cannot "${clingo}" cannot-py.lp example.lp
+check clingo/cannot "${clingo}" cannot-lua.lp example.lp
+
 check clingo/addclause "${clingo}" addclause-py.lp 0
 check clingo/addclause "${clingo}" addclause-lua.lp 0
 
 check clingo/blocksworld cat control_01.lua \| "${clingo}" lua.lp blocks_01.lp world.lp lua_interpret.lp 0
-
-check clingo/commit "${clingo}" commit-lua.lp encoding.lp
-check clingo/commit "${clingo}" commit-py.lp encoding.lp
 
 check clingo/consequences "${clingo}" brave-py.lp example.lp
 check clingo/consequences "${clingo}" brave-lua.lp example.lp

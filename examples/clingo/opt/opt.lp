@@ -4,7 +4,7 @@
 
 #script (python)
 
-import clingo
+from clingo import SymbolType, Number
 
 def main(prg):
     prg.ground([("base", [])])
@@ -16,13 +16,13 @@ def main(prg):
                     if (atom.name == "_minimize"
                     and len(atom.arguments) > 0
                     and atom.arguments[0].type
-                    is  clingo.SymbolType.Number):
+                    is  SymbolType.Number):
                         bound += atom.arguments[0].number
                 break
             else:
                 print ("Optimum found")
                 break
         print ("Found new bound: {}".format(bound))
-        prg.ground([("bound", [bound])])
+        prg.ground([("bound", [Number(bound)])])
 
 #end.

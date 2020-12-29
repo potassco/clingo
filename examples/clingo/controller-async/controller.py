@@ -4,8 +4,8 @@ import os
 import readline
 import atexit
 import signal
-import clingo
 from threading import Condition
+from clingo import Control, Number, Function
 
 class Controller:
     def __init__(self):
@@ -88,10 +88,10 @@ class Controller:
 class Solver:
     def __init__(self):
         self.k   = 0
-        self.prg = clingo.Control()
+        self.prg = Control()
         self.prg.load("client.lp")
-        self.prg.ground([("pigeon", []), ("sleep",  [self.k])])
-        self.prg.assign_external(clingo.Function("sleep", [self.k]), True)
+        self.prg.ground([("pigeon", []), ("sleep",  [Number(self.k)])])
+        self.prg.assign_external(Function("sleep", [Number(self.k)]), True)
         self.ret = None
         self.models = []
 
@@ -102,8 +102,8 @@ class Solver:
         if self.ret is not None and not self.ret.unknown():
             self.k = self.k + 1
             self.prg.ground([("sleep", [self.k])])
-            self.prg.release_external(clingo.Function("sleep", [self.k-1]))
-            self.prg.assign_external(clingo.Function("sleep", [self.k]), True)
+            self.prg.release_external(Function("sleep", [Number(self.k-1)]))
+            self.prg.assign_external(Function("sleep", [Number(self.k)]), True)
         self.future = self.prg.solve(on_model=self.on_model, on_finish=on_finish, async_=True)
 
     def stop(self):
@@ -114,7 +114,7 @@ class Solver:
         return ret
 
     def set_more_pigeon(self, more):
-        self.prg.assign_external(clingo.Function("p"), more)
+        self.prg.assign_external(Function("p"), more)
 
 st = Solver()
 ct = Controller()

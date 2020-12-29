@@ -330,7 +330,7 @@ The following example parses a program from a string and passes the resulting
 '''
 
 from enum import Enum, IntEnum
-from typing import Callable, ContextManager, Iterable, List, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import Callable, ContextManager, List, NamedTuple, Optional, Sequence, Tuple, Union
 from collections import abc
 from functools import total_ordering
 
@@ -961,8 +961,8 @@ def _pyclingo_ast_callback(ast, data):
 
     return True
 
-def parse_files(files: Iterable[str], callback: Callable[[AST], None],
-                logger: Optional[Logger], message_limit: int=20) -> None:
+def parse_files(files: Sequence[str], callback: Callable[[AST], None],
+                logger: Optional[Logger]=None, message_limit: int=20) -> None:
     '''
     Parse the programs in the given files and return an abstract syntax tree for
     each statement via a callback.
@@ -997,7 +997,7 @@ def parse_files(files: Iterable[str], callback: Callable[[AST], None],
     cb_data = _CBData(callback, error)
     c_cb_data = _ffi.new_handle(cb_data)
 
-    _handle_error(_lib.clingo_ast_parse_files([ _ffi.new("char[]", f.encode()) for f in files ],
+    _handle_error(_lib.clingo_ast_parse_files([ _ffi.new("char[]", f.encode()) for f in files ], len(files),
                                               _lib.pyclingo_ast_callback, c_cb_data,
                                               c_logger, c_logger_data,
                                               message_limit))

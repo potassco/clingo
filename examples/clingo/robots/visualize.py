@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import clingo
+from clingo import SymbolType, Number, Function, Control
 try:
     import Tkinter
 except ImportError:
@@ -19,7 +19,7 @@ class Board:
         self.current_target = None
         self.solution       = None
 
-        ctl = clingo.Control()
+        ctl = Control()
         ctl.load("board.lp")
         ctl.ground([("base", [])])
         ctl.solve(on_model=self.__on_model)
@@ -39,10 +39,10 @@ class Board:
             elif atom.name == "dim" and len(atom.arguments) == 1:
                 self.size = max(self.size, atom.arguments[0].number)
             elif atom.name == "available_target" and len(atom.arguments) == 4:
-                c, s, x, y = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
+                c, s, x, y = [(n.number if n.type == SymbolType.Number else str(n)) for n in atom.arguments]
                 self.targets.add((c, s, x - 1, y - 1))
             elif atom.name == "initial_pos" and len(atom.arguments) == 3:
-                c, x, y = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
+                c, x, y = [(n.number if n.type == SymbolType.Number else str(n)) for n in atom.arguments]
                 self.pos[c] = (x - 1, y - 1)
         for d in range(0, self.size):
             self.blocked.add((d            ,             0,  0, -1))
@@ -78,7 +78,7 @@ class Board:
 class Solver:
     def __init__(self, horizon=0):
         self.__horizon = horizon
-        self.__prg = clingo.Control(['-t4'])
+        self.__prg = Control(['-t4'])
         self.__future = None
         self.__solution = None
         self.__assign = []
@@ -86,35 +86,35 @@ class Solver:
         self.__prg.load("board.lp")
         self.__prg.load("robots.lp")
         parts = [ ("base", [])
-                , ("check", [0])
-                , ("state", [0])
+                , ("check", [Number(0)])
+                , ("state", [Number(0)])
                 ]
         for t in range(1, self.__horizon+1):
-            parts.extend([ ("trans", [t])
-                         , ("check", [t])
-                         , ("state", [t])
+            parts.extend([ ("trans", [Number(t)])
+                         , ("check", [Number(t)])
+                         , ("state", [Number(t)])
                          ])
         self.__prg.ground(parts)
-        self.__prg.assign_external(clingo.Function("horizon", [self.__horizon]), True)
+        self.__prg.assign_external(Function("horizon", [Number(self.__horizon)]), True)
 
     def __next(self):
         assert(self.__horizon < 30)
-        self.__prg.assign_external(clingo.Function("horizon", [self.__horizon]), False)
+        self.__prg.assign_external(Function("horizon", [Number(self.__horizon)]), False)
         self.__horizon += 1
-        self.__prg.ground([ ("trans", [self.__horizon])
-                          , ("check", [self.__horizon])
-                          , ("state", [self.__horizon])
+        self.__prg.ground([ ("trans", [Number(self.__horizon)])
+                          , ("check", [Number(self.__horizon)])
+                          , ("state", [Number(self.__horizon)])
                           ])
-        self.__prg.assign_external(clingo.Function("horizon", [self.__horizon]), True)
+        self.__prg.assign_external(Function("horizon", [Number(self.__horizon)]), True)
 
     def start(self, board):
         self.__assign = []
         for robot, (x, y) in board.pos.items():
-            self.__assign.append(clingo.Function("pos", [clingo.Function(robot), x+1, y+1, 0]))
-        self.__assign.append(clingo.Function("target",
-            [ clingo.Function(board.current_target[0])
-            , board.current_target[2] + 1
-            , board.current_target[3] + 1
+            self.__assign.append(Function("pos", [Function(robot), Number(x+1), Number(y+1), Number(0)]))
+        self.__assign.append(Function("target",
+            [ Function(board.current_target[0])
+            , Number(board.current_target[2] + 1)
+            , Number(board.current_target[3] + 1)
             ]))
         for x in self.__assign:
             self.__prg.assign_external(x, True)
@@ -153,7 +153,7 @@ class Solver:
         self.__solution = []
         for atom in m.symbols(atoms=True):
             if atom.name == "move" and len(atom.arguments) == 4:
-                c, x, y, t = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
+                c, x, y, t = [(n.number if n.type == SymbolType.Number else str(n)) for n in atom.arguments]
                 self.__solution.append((c, x, y, t))
         self.__solution.sort(key=lambda x: x[3])
         p = None

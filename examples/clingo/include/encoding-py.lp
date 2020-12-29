@@ -1,7 +1,9 @@
 #script (python)
 
+from clingo import Number
+
 def main(prg):
-    prg.ground([("base", []), ("p", [42])])
+    prg.ground([("base", []), ("p", [Number(42)])])
     prg.solve()
 
 #end.
