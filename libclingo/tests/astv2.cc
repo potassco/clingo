@@ -606,6 +606,32 @@ TEST_CASE("unpool-ast-v2", "[clingo]") {
             "#project a(1) : a(4).\n"
             "#project a(2) : a(4).");
     }
+    SECTION("options") {
+        std::vector<ASTv2::AST> prg;
+        ASTv2::parse_string(":- a(1;2): a(3;4).", [&prg](ASTv2::AST &&ast) { prg.emplace_back(std::move(ast)); });
+        auto lit = *prg.back().get(ASTv2::Attribute::Body).get<ASTv2::ASTVector>().begin();
+        auto unpool = [&lit](bool other, bool condition) {
+            std::vector<std::string> ret;
+            for (auto &ast : lit.unpool(other, condition)) {
+                ret.emplace_back(ast.to_string());
+            }
+            return ret;
+        };
+
+        REQUIRE(unpool(true, true) == std::vector<std::string>{
+            "a(1): a(3)",
+            "a(1): a(4)",
+            "a(2): a(3)",
+            "a(2): a(4)"});
+        REQUIRE(unpool(false, true) == std::vector<std::string>{
+            "a(1;2): a(3)",
+            "a(1;2): a(4)"});
+        REQUIRE(unpool(true, false) == std::vector<std::string>{
+            "a(1): a(3;4)",
+            "a(2): a(3;4)"});
+        REQUIRE(unpool(false, false) == std::vector<std::string>{
+            "a(1;2): a(3;4)"});
+    }
 }
 
 } } // namespace Test Clingo

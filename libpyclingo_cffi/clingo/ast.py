@@ -925,6 +925,30 @@ class AST:
                                                _lib.clingo_ast_attribute_type_optional_ast,
                                                _lib.clingo_ast_attribute_type_ast_array) ]
 
+    def unpool(self, other: bool=True, condition: bool=True) -> List['AST']:
+        '''
+        Unpool the AST returning a list of ASTs without pool terms.
+
+        Parameters
+        ----------
+        other
+            Only all pools except those in conditions of conditional literals.
+        condition
+            Only remove pools from conditions of conditional literals.
+        '''
+        unpool_type = 0
+        if other:
+            unpool_type |= _lib.clingo_ast_unpool_type_other
+        if condition:
+            unpool_type |= _lib.clingo_ast_unpool_type_condition
+
+        ret: List[AST] = []
+        error = _Error()
+        cb_data = _CBData(ret.append, error)
+        c_cb_data = _ffi.new_handle(cb_data)
+        _handle_error(_lib.clingo_ast_unpool(self._rep, unpool_type, _lib.pyclingo_ast_callback, c_cb_data))
+        return ret
+
 @_ffi.def_extern(onerror=_cb_error_handler('data'), name='pyclingo_ast_callback')
 def _pyclingo_ast_callback(ast, data):
     '''

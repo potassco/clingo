@@ -343,3 +343,27 @@ class TestAST(TestCase):
         self.assertEqual(list(seq), ["z", "i"] + lst)
         del seq[2]
         self.assertEqual(list(seq), ["z", "i"] + lst[1:])
+
+    def test_unpool(self):
+        """
+        Test unpooling.
+        """
+        prg = []
+        parse_string(":- a(1;2): a(3;4).", prg.append)
+        lit = prg[-1].body[0]
+        def unpool(other=True, condition=True):
+            return [ str(x) for x in lit.unpool(other, condition) ]
+
+        self.assertEqual(unpool(),
+                         ['a(1): a(3)',
+                          'a(1): a(4)',
+                          'a(2): a(3)',
+                          'a(2): a(4)'])
+        self.assertEqual(unpool(other=False),
+                         ['a(1;2): a(3)',
+                          'a(1;2): a(4)'])
+        self.assertEqual(unpool(condition=False),
+                         ['a(1): a(3;4)',
+                          'a(2): a(3;4)'])
+        self.assertEqual(unpool(other=False, condition=False),
+                         ['a(1;2): a(3;4)'])
