@@ -1,7 +1,7 @@
 import socket
 import os
 import errno
-import clingo
+from clingo import Control, Function, Number
 
 class Receiver:
     def __init__(self, conn):
@@ -36,8 +36,8 @@ def main(prg):
         recv  = Receiver(conn)
         state = States.IDLE
         k     = 0
-        prg.ground([("pigeon", []), ("sleep",  [k])])
-        prg.assign_external(clingo.Function("sleep", [k]), True)
+        prg.ground([("pigeon", []), ("sleep",  [Number(k)])])
+        prg.assign_external(Function("sleep", [Number(k)]), True)
         while True:
             if state == States.SOLVE:
                 f = prg.solve(
@@ -54,23 +54,23 @@ def main(prg):
             elif msg == "exit":
                 return
             elif msg == "less_pigeon_please":
-                prg.assign_external(clingo.Function("p"), False)
+                prg.assign_external(Function("p"), False)
                 state = States.IDLE
             elif msg == "more_pigeon_please":
-                prg.assign_external(clingo.Function("p"), True)
+                prg.assign_external(Function("p"), True)
                 state = States.IDLE
             elif msg == "solve":
                 state = States.SOLVE
             else: raise(RuntimeError("unexpected message: " + msg))
             if ret is not None and not ret.unknown:
                 k = k + 1
-                prg.ground([("sleep", [k])])
-                prg.release_external(clingo.Function("sleep", [k-1]))
-                prg.assign_external(clingo.Function("sleep", [k]), True)
+                prg.ground([("sleep", [Number(k)])])
+                prg.release_external(Function("sleep", [Number(k-1)]))
+                prg.assign_external(Function("sleep", [Number(k)]), True)
     finally:
         conn.close()
 
-prg = clingo.Control()
+prg = Control()
 prg.load("client.lp")
 main(prg)
 

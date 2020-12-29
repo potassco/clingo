@@ -6,12 +6,15 @@ set(header-group
 source_group("${ide_header_group}" FILES ${header-group})
 set(header-group-clingo
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/ast.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/astv2.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/clingo_app.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/clingocontrol.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/control.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/incmode.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/optional.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/script.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/scripts.hh")
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/scripts.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/variant.hh")
 source_group("${ide_header_group}\\clingo" FILES ${header-group-clingo})
 set(header
     ${header-group}
@@ -21,6 +24,11 @@ set(header
 set(ide_source_group "Source Files")
 set(source-group
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ast.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2_build.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2_parse.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2_str.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2_unpool.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/clingo_app.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/clingocontrol.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/control.cc"

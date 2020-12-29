@@ -1,21 +1,21 @@
 #script(python)
 
-from clingo import Function, SolveResult
+from clingo import Function, Number, SolveResult
 from sys import stderr
 
 def main(prg):
     prg.configuration.solve.opt_mode = "optN"
-    prg.configuration.solve.models  = 0
+    prg.configuration.solve.models  = "0"
     t = 0
     e = 2
     parts = []
     parts.append(("base", []))
-    parts.append(("state", [t]))
+    parts.append(("state", [Number(t)]))
     while True:
         prg.ground(parts)
-        prg.release_external(Function("volatile", [t-1]))
+        prg.release_external(Function("volatile", [Number(t-1)]))
         prg.cleanup()
-        prg.assign_external(Function("volatile", [t]), True)
+        prg.assign_external(Function("volatile", [Number(t)]), True)
         ret = prg.solve()
         if ret.satisfiable is False and t > 20: break
         if ret.satisfiable is True:
@@ -23,8 +23,8 @@ def main(prg):
             if e == 0: break
         t += 1
         parts = []
-        parts.append(("trans", [t]))
-        parts.append(("state", [t]))
+        parts.append(("trans", [Number(t)]))
+        parts.append(("state", [Number(t)]))
 
 #end.
 

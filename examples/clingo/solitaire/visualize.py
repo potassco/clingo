@@ -2,7 +2,7 @@
 
 import urwid
 import sys
-import clingo
+from clingo import SymbolType, Number, Function, clingo_main
 
 class Board:
 
@@ -153,7 +153,7 @@ class Application:
                 x, y = (n.number for n in atom.arguments)
                 init.append((x, y))
             elif atom.name == "jump" and len(atom.arguments) == 4:
-                ox, oy, d, t = ((n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments)
+                ox, oy, d, t = ((n.number if n.type == SymbolType.Number else str(n)) for n in atom.arguments)
                 jumps.setdefault(t, []).append((ox, oy, ox + sx[d], oy + sy[d]))
 
         try:
@@ -172,10 +172,10 @@ class Application:
         prg.ground([("base", [])])
         while not sat:
             t += 1
-            prg.ground([("step", [t])])
-            prg.ground([("check", [t])])
-            prg.release_external(clingo.Function("query", [t-1]))
-            prg.assign_external(clingo.Function("query", [t]), True)
+            prg.ground([("step", [Number(t)])])
+            prg.ground([("check", [Number(t)])])
+            prg.release_external(Function("query", [Number(t-1)]))
+            prg.assign_external(Function("query", [Number(t)]), True)
             sat = prg.solve(on_model=self.__on_model).satisfiable
 
-sys.exit(int(clingo.clingo_main(Application("visualize"), sys.argv[1:])))
+sys.exit(int(clingo_main(Application("visualize"), sys.argv[1:])))

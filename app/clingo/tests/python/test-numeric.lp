@@ -3,7 +3,7 @@
 import clingo
 
 def p(n):
-    return clingo.Function("p", [n])
+    return clingo.Function("p", [clingo.Number(n)])
 
 def main(prg):
     bot = 100

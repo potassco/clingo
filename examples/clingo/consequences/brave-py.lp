@@ -1,6 +1,6 @@
 #script(python)
 
-import clingo
+from clingo import Number
 
 brave = set()
 
@@ -8,7 +8,8 @@ def on_model(m):
     for x in m.symbols(atoms=True):
         if x.name == "holds": brave.add(x.arguments[0])
 
-def is_brave(x): return x in brave
+def is_brave(x):
+    return Number(x in brave)
 
 def main(prg):
     prg.ground([("base", [])])

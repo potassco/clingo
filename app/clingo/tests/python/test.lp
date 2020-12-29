@@ -12,7 +12,7 @@ def on_model(x):
     writeln("Answer: 42")
     writeln(
           "hasA(" +        str(x.contains(clingo.Function("a"))).lower() + ") "
-        + "hasVolatile(" + str(x.contains(clingo.Function("volatile", [9]))).lower() + ") "
+        + "hasVolatile(" + str(x.contains(clingo.Function("volatile", [clingo.Number(9)]))).lower() + ") "
         + "model(" +       ",".join(sorted(map(str, x.symbols(shown=True)))) + ") ")
 
 def on_finish(ret):
@@ -26,16 +26,21 @@ def main (prg):
     prg.ground(parts)
     prg.solve()
     prg.add("test", ["x"], "test(x).")
-    parts.append(("test", [clingo.Function("f", [1,2])]))
+    parts.append(("test", [clingo.Function("f", [clingo.Number(1),clingo.Number(2)])]))
     for i in range(1,n+1):
-        parts.append(("cumulative", [i]))
+        parts.append(("cumulative", [clingo.Number(i)]))
         prg.ground(parts)
         parts = []
         with prg.solve(on_model=on_model, on_finish=on_finish, async_=True) as handle:
             handle.wait(0)
             ret = handle.get()
         writeln("Answer: 42")
-        writeln(ret)
+        if ret.satisfiable:
+            writeln("SAT")
+        elif ret.unsatisfiable:
+            writeln("UNSAT")
+        else:
+            writeln("UNKNOWN")
 
 #end.
 

@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
-import clingo
 import json
 import sys
 import argparse
 
+from clingo import Control, Number
+
 class App:
     def __init__(self, args):
-        self.control = clingo.Control()
+        self.control = Control()
         self.args = args
         self.horizon = 0
         self.objects = 0
@@ -19,13 +20,13 @@ class App:
 
     def ground(self, kind):
         count = self.objects + self.horizon + 1
-        parts = [("expand", [count])]
+        parts = [("expand", [Number(count)])]
 
         if self.args.scratch and count > 1:
-            self.control = clingo.Control()
+            self.control = Control()
             for source in self.args.file: self.control.load(source)
-            for i in range(0, self.objects): parts.append(("object", [i + 1, count]))
-            for i in range(0, self.horizon): parts.append(("horizon", [i + 1, count]))
+            for i in range(0, self.objects): parts.append(("object", [Number(i + 1, count)]))
+            for i in range(0, self.horizon): parts.append(("horizon", [Number(i + 1, count)]))
 
         if self.args.scratch or count == 1:
             for option in self.args.option:
@@ -34,15 +35,15 @@ class App:
 
         if kind:
             self.objects += 1
-            parts.append(("object", [self.objects, count]))
+            parts.append(("object", [Number(self.objects), Number(count)]))
         else:
             self.horizon += 1
-            parts.append(("horizon", [self.horizon, count]))
+            parts.append(("horizon", [Number(self.horizon), Number(count)]))
 
         if self.args.verbose:
              print("")
-             print("Objects: {}".format(self.objects))
-             print("Horizon: {}".format(self.horizon))
+             print("Objects: {}".format(Number(self.objects)))
+             print("Horizon: {}".format(Number(self.horizon)))
 
         self.control.ground(parts)
 

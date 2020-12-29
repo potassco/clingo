@@ -255,6 +255,7 @@ struct clingo_control {
     virtual Gringo::Logger &logger() = 0;
     virtual void beginAdd() = 0;
     virtual void add(clingo_ast_statement_t const &stm) = 0;
+    virtual void add(clingo_ast_t const &ast) = 0;
     virtual void endAdd() = 0;
     virtual ~clingo_control() noexcept = default;
 };

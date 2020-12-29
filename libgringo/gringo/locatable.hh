@@ -46,6 +46,7 @@ struct Location {
 
     Location operator+(Location const &other) const;
     bool operator<(Location const &other) const;
+    bool operator==(Location const &other) const;
 };
 
 std::ostream &operator<<(std::ostream &out, Location const &loc);
@@ -104,6 +105,15 @@ inline bool Location::operator<(Location const &x) const {
     if (endLine != x.endLine) { return endLine < x.endLine; }
     if (beginColumn != x.beginColumn) { return beginColumn < x.beginColumn; }
     return endColumn < x.endColumn;
+}
+
+inline bool Location::operator==(Location const &x) const {
+    return beginFilename == x.beginFilename &&
+           endFilename == x.endFilename &&
+           beginLine == x.beginLine &&
+           endLine == x.endLine &&
+           beginColumn == x.beginColumn &&
+           endColumn == x.endColumn;
 }
 
 inline std::ostream &operator<<(std::ostream &out, Location const &loc) {

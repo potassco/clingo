@@ -1,5 +1,7 @@
 #script(python)
 
+from clingo import Number
+
 def main(prg):
     n = 0
     parts = []
@@ -8,7 +10,7 @@ def main(prg):
         upper = arg.arguments[1].number
         while n < upper:
             n += 1
-            parts.append(("board", [n]))
+            parts.append(("board", [Number(n)]))
             if n >= lower:
                 prg.ground(parts)
                 parts = []

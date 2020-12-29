@@ -117,6 +117,7 @@ if parse_ret.action == "run":
     with_python  = out.find("with Python") > 0
     with_lua     = out.find("with Lua") > 0
     with_threads = out.find("WITH_THREADS=1") > 0
+    with_cffi    = out.find("(CFFI)") > 0
     for root, dirs, files in os.walk(wd):
         for f in sorted(files):
             if f.endswith(".lp"):
@@ -124,6 +125,7 @@ if parse_ret.action == "run":
                 with open(b + ".lp", 'rU') as inst_file:
                     inst = inst_file.read()
                     if (not with_python and re.search(r"#script[ ]*\(python\)", inst)) or \
+                       (with_cffi and re.search(r"ast[0-9]$", b)) or \
                        (not with_lua and re.search(r"#script[ ]*\(lua\)", inst)) or \
                        (not with_threads and re.search("async_=", inst)) or \
                        (not with_threads and re.search("solve_async", inst)):

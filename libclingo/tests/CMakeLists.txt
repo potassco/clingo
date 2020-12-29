@@ -2,6 +2,7 @@
 set(ide_source_group "Source Files")
 set(source-group
     "${CMAKE_CURRENT_SOURCE_DIR}/ast.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/astv2.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"

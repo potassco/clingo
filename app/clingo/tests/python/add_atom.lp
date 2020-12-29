@@ -1,17 +1,17 @@
 #script (python)
 
-import clingo
+from clingo import Number, Function
 
 def main(ctl):
     with ctl.backend() as backend:
-        a = backend.add_atom(clingo.Function("a", [2]))
-        b = backend.add_atom(clingo.Function("b", [1]))
+        a = backend.add_atom(Function("a", [Number(2)]))
+        b = backend.add_atom(Function("b", [Number(1)]))
         backend.add_rule([a], [], True)
         backend.add_rule([b], [], True)
 
     ctl.ground([("base", [])])
     with ctl.backend() as backend:
-        e = backend.add_atom(clingo.Function("e", [3]))
+        e = backend.add_atom(Function("e", [Number(3)]))
         backend.add_rule([e], [], False)
     ctl.solve()
     ctl.ground([("multi", [])])

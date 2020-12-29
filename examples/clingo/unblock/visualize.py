@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
-import clingo
 import urwid
 import sys
+
+from clingo import SymbolType, Number, Function, Control
 
 class Plan:
     def __init__(self, field, stone, target, move):
@@ -142,7 +143,7 @@ class MainWindow:
         self.loop = urwid.MainLoop(f, palette)
         self.loop.run()
 
-c = clingo.Control()
+c = Control()
 c.add("check", ["k"], "#external query(k).")
 for f in sys.argv[1:]: c.load(f)
 def make_on_model(field, stone, move, target):
@@ -152,13 +153,13 @@ def make_on_model(field, stone, move, target):
                 x, y = [n.number for n in atom.arguments]
                 field.append((x, y))
             elif atom.name == "stone" and len(atom.arguments) == 5:
-                s, d, x, y, l = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
+                s, d, x, y, l = [(n.number if n.type == SymbolType.Number else str(n)) for n in atom.arguments]
                 stone.append((s, d, x, y, l))
             elif atom.name == "move" and len(atom.arguments) == 4:
-                t, s, d, xy = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
+                t, s, d, xy = [(n.number if n.type == SymbolType.Number else str(n)) for n in atom.arguments]
                 move.setdefault(t, []).append((s, d, xy))
             elif atom.name == "target" and len(atom.arguments) == 3:
-                s, x, y = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
+                s, x, y = [(n.number if n.type == SymbolType.Number else str(n)) for n in atom.arguments]
                 target.append((s, x, y))
         return False
     return on_model
@@ -168,10 +169,10 @@ on_model = make_on_model(field, stone, move, target)
 c.ground([("base", [])])
 while True:
     t += 1
-    c.ground([("step", [t])])
-    c.ground([("check", [t])])
-    c.release_external(clingo.Function("query", [t-1]))
-    c.assign_external(clingo.Function("query", [t]), True)
+    c.ground([("step", [Number(t)])])
+    c.ground([("check", [Number(t)])])
+    c.release_external(Function("query", [Number(t-1)]))
+    c.assign_external(Function("query", [Number(t)]), True)
     if c.solve(on_model=on_model).satisfiable:
         break
 

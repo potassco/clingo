@@ -1,15 +1,15 @@
 #script (python)
 
-import clingo
+from clingo import Function, Number
 
 def main(prg):
     step = 1
     stop = 10
     while True:
         if step > 1:
-            prg.release_external(clingo.Function("volatile", [step-1]))
-        prg.ground([("cumulative", [step])])
-        prg.assign_external(clingo.Function("volatile", [step]), True)
+            prg.release_external(Function("volatile", [Number(step-1)]))
+        prg.ground([("cumulative", [Number(step)])])
+        prg.assign_external(Function("volatile", [Number(step)]), True)
         ret = prg.solve()
         if step == stop:
             break

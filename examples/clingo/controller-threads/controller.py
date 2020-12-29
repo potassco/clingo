@@ -4,7 +4,7 @@ import os
 import readline
 import atexit
 import signal
-import clingo
+from clingo import Control, Function, Number
 from threading import Thread, Condition
 
 class Connection:
@@ -97,10 +97,10 @@ class SolveThread(Thread):
     def __init__(self, connection):
         Thread.__init__(self)
         self.k   = 0
-        self.prg = clingo.Control()
+        self.prg = Control()
         self.prg.load("client.lp")
-        self.prg.ground([("pigeon", []), ("sleep",  [self.k])])
-        self.prg.assign_external(clingo.Function("sleep", [self.k]), True)
+        self.prg.ground([("pigeon", []), ("sleep",  [Number(self.k)])])
+        self.prg.assign_external(Function("sleep", [Number(self.k)]), True)
         self.state = SolveThread.STATE_IDLE
         self.input = Connection()
         self.output = connection
@@ -117,10 +117,10 @@ class SolveThread(Thread):
         elif msg == "exit":
             self.state = SolveThread.STATE_EXIT
         elif msg == "less_pigeon_please":
-            self.prg.assign_external(clingo.Function("p"), False)
+            self.prg.assign_external(Function("p"), False)
             self.state = SolveThread.STATE_IDLE
         elif msg == "more_pigeon_please":
-            self.prg.assign_external(clingo.Function("p"), True)
+            self.prg.assign_external(Function("p"), True)
             self.state = SolveThread.STATE_IDLE
         elif msg == "solve":
             self.state = SolveThread.STATE_SOLVE
@@ -141,9 +141,9 @@ class SolveThread(Thread):
                 return
             elif ret is not None and not ret.unknown:
                 self.k = self.k + 1
-                self.prg.ground([("sleep", [self.k])])
-                self.prg.release_external(clingo.Function("sleep", [self.k-1]))
-                self.prg.assign_external(clingo.Function("sleep", [self.k]), True)
+                self.prg.ground([("sleep", [Number(self.k)])])
+                self.prg.release_external(Function("sleep", [Number(self.k-1)]))
+                self.prg.assign_external(Function("sleep", [Number(self.k)]), True)
 
 ct = Controller()
 st = SolveThread(ct.input)

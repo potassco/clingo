@@ -727,26 +727,26 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         ctl.add("base", {}, "{a; b}. c. :- a, b.");
         ctl.ground({{"base", {}}}, nullptr);
         SECTION("conflict") {
-            auto p{make_init([](Clingo::PropagateInit &init){
+            auto p = make_init([](Clingo::PropagateInit &init){
                 REQUIRE_FALSE(init.add_clause({-get_literal(init, "c")}));
-            })};
+            });
             ctl.register_propagator(p, false);
             test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 0);
         }
         SECTION("propagate") {
-            auto p{make_init([](Clingo::PropagateInit &init){
+            auto p = make_init([](Clingo::PropagateInit &init){
                 REQUIRE(init.add_clause({get_literal(init, "a")}));
                 REQUIRE(init.assignment().is_true(get_literal(init, "a")));
                 REQUIRE(init.propagate());
                 REQUIRE(init.assignment().is_false(get_literal(init, "b")));
-            })};
+            });
             ctl.register_propagator(p, false);
             test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 1);
         }
         SECTION("propagate") {
-            auto p{make_init([](Clingo::PropagateInit &init){
+            auto p = make_init([](Clingo::PropagateInit &init){
                 auto ass = init.assignment();
                 auto lit = init.add_literal();
                 auto a = get_literal(init, "a");
@@ -756,13 +756,13 @@ TEST_CASE("propagator", "[clingo][propagator]") {
                 REQUIRE(ass.is_true(a));
                 REQUIRE(init.propagate());
                 REQUIRE(init.assignment().is_false(get_literal(init, "b")));
-            })};
+            });
             ctl.register_propagator(p, false);
             test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 1);
         }
         SECTION("propagate") {
-            auto p{make_init([](Clingo::PropagateInit &init){
+            auto p = make_init([](Clingo::PropagateInit &init){
                 auto ass = init.assignment();
                 auto lit = init.add_literal();
                 auto a = get_literal(init, "a");
@@ -772,13 +772,13 @@ TEST_CASE("propagator", "[clingo][propagator]") {
                 REQUIRE(init.propagate());
                 REQUIRE(ass.is_true(a));
                 REQUIRE(init.assignment().is_false(get_literal(init, "b")));
-            })};
+            });
             ctl.register_propagator(p, false);
             test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 1);
         }
         SECTION("propagate") {
-            auto p{make_init([](Clingo::PropagateInit &init){
+            auto p = make_init([](Clingo::PropagateInit &init){
                 auto ass = init.assignment();
                 auto lit = init.add_literal();
                 auto a = get_literal(init, "a");
@@ -788,7 +788,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
                 REQUIRE(init.add_clause({-lit, a}));
                 REQUIRE(init.add_clause({-lit, b}));
                 REQUIRE_FALSE(init.propagate());
-            })};
+            });
             ctl.register_propagator(p, false);
             test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 0);
@@ -798,14 +798,14 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         ctl.add("base", {}, "{a; b}.");
         ctl.ground({{"base", {}}}, nullptr);
         SECTION("equal") {
-            auto p{make_init([](Clingo::PropagateInit &init){
+            auto p = make_init([](Clingo::PropagateInit &init){
                 auto t = init.add_literal();
                 auto a = get_literal(init, "a");
                 auto b = get_literal(init, "b");
                 REQUIRE(init.add_clause({t}));
                 auto l = init.add_literal();
                 REQUIRE(init.add_weight_constraint(t, {{a,1}, {b,1}, {l,1}}, 2, Clingo::WeightConstraintType::Equivalence, true));
-            })};
+            });
             ctl.register_propagator(p, false);
             test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 3);
@@ -816,12 +816,12 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         ctl.ground({{"base", {}}}, nullptr);
         ctl.configuration()["solve"]["opt_mode"] = "optN";
             SECTION("minimize") {
-            auto p{make_init([](Clingo::PropagateInit &init){
+            auto p = make_init([](Clingo::PropagateInit &init){
                 init.add_minimize(get_literal(init, "a"), 1, 0);
                 init.add_minimize(get_literal(init, "b"), 1, 0);
                 init.add_minimize(get_literal(init, "c"), 1, 0);
                 init.add_minimize(get_literal(init, "d"), 1, 0);
-            })};
+            });
             ctl.register_propagator(p, false);
             {
                 MCB mcb{models};

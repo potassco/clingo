@@ -130,64 +130,66 @@ target(0,t) :- change(1,0,t), not change(-1,0,t).
 
 #script (python)
 
+from clingo import Number
+
 def main(prg):
     parts = []
-    parts.append(("init", [1,0]))
-    parts.append(("state", [1,0]))
+    parts.append(("init", [Number(1),Number(0)]))
+    parts.append(("state", [Number(1),Number(0)]))
     prg.ground(parts)
     prg.solve()
 
     parts = []
     parts.append(("base_2", []))
-    parts.append(("init", [2,0]))
-    parts.append(("state", [2,0]))
+    parts.append(("init", [Number(2),Number(0)]))
+    parts.append(("state", [Number(2),Number(0)]))
     for i in range(1, 3):
-        parts.append(("table", [i]))
+        parts.append(("table", [Number(i)]))
         for j in range(1, 3):
-            parts.append(("state", [j,i]))
-            parts.append(("move", [j,i]))
+            parts.append(("state", [Number(j),Number(i)]))
+            parts.append(("move", [Number(j),Number(i)]))
     prg.ground(parts)
     prg.solve()
 
     parts = []
     parts.append(("base_3", []))
-    parts.append(("init", [3,0]))
-    parts.append(("state", [3,0]))
+    parts.append(("init", [Number(3),Number(0)]))
+    parts.append(("state", [Number(3),Number(0)]))
     for i in range(1, 4):
-        parts.append(("state", [3,i]))
-        parts.append(("move", [3,i]))
+        parts.append(("state", [Number(3),Number(i)]))
+        parts.append(("move", [Number(3),Number(i)]))
     for j in range(1, 3):
-        parts.append(("state", [j,3]))
-        parts.append(("move", [j,3]))
-    parts.append(("table", [3]))
+        parts.append(("state", [Number(j),Number(3)]))
+        parts.append(("move", [Number(j),Number(3)]))
+    parts.append(("table", [Number(3)]))
     prg.ground(parts)
     prg.solve()
 
     parts = []
     parts.append(("base_4", []))
-    parts.append(("init", [4,0]))
-    parts.append(("state", [4,0]))
+    parts.append(("init", [Number(4),Number(0)]))
+    parts.append(("state", [Number(4),Number(0)]))
     for i in range(1, 5):
-        parts.append(("state", [4,i]))
-        parts.append(("move", [4,i]))
+        parts.append(("state", [Number(4),Number(i)]))
+        parts.append(("move", [Number(4),Number(i)]))
     for j in range(1, 4):
-        parts.append(("state", [j,4]))
-        parts.append(("move", [j,4]))
-    parts.append(("table", [4]))
+        parts.append(("state", [Number(j),Number(4)]))
+        parts.append(("move", [Number(j),Number(4)]))
+    parts.append(("table", [Number(4)]))
     prg.ground(parts)
     prg.solve()
 
     parts = []
     parts.append(("base_5", []))
-    parts.append(("init", [5,1]))
+    parts.append(("init", [Number(5),Number(1)]))
     for i in range(1, 8):
-        parts.append(("state", [5,i]))
-        parts.append(("move", [5,i]))
+        parts.append(("state", [Number(5),Number(i)]))
+        parts.append(("move", [Number(5),Number(i)]))
     for i in range(5, 8):
-        parts.append(("table", [i]))
+        parts.append(("table", [Number(i)]))
         for j in range(1, 5):
-            parts.append(("state", [j,i]))
-            parts.append(("move", [j,i]))
+            parts.append(("state", [Number(j),Number(i)]))
+            parts.append(("move", [Number(j),Number(i)]))
     prg.ground(parts)
     prg.solve()
 #end.

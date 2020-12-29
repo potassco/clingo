@@ -8,7 +8,7 @@ symb(S) :- th { seq(P,S) }, S=1..nbs.
 
 #script(python)
 import sys, os
-from clingo import *
+from clingo import Number
 if sys.version_info[0] >= 3:
     import io as StringIO
 else:
@@ -85,7 +85,7 @@ def main(prg):
     theseq = readsequence("we_cmp.seq.minepi")
     genASPsequence(theseq, prg)
     prg.configuration.solve.project = "auto"
-    prg.configuration.solve.models  = 0
+    prg.configuration.solve.models  = "0"
     d = prg.get_const("ml")
     if d is None:
         d=4
@@ -96,7 +96,7 @@ def main(prg):
     prg.solve()
 
     for k in range(2,d+1):
-        prg.ground([("incr",[k])])
+        prg.ground([("incr",[Number(k)])])
         prg.solve()
 #end.
 

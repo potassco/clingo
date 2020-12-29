@@ -28,7 +28,7 @@ def tosymbol(x):
     if isinstance(x, dict):
         ret = []
         for key in sorted(x):
-            ret.append(clingo.Tuple_([key, tosymbol(x[key])]))
+            ret.append(clingo.Tuple_([clingo.String(key), tosymbol(x[key])]))
         return clingo.Function("dict", ret)
     elif isinstance(x, list):
         ret = []

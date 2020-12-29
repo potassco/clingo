@@ -21,3 +21,7 @@ doc/py/clingo
 doc/py/Gemfile.lock
 .mypy_cache/
 compile_commands.json
+_skbuild/
+dist
+*.egg-info/
+MANIFEST

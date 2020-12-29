@@ -1,16 +1,16 @@
 #script (python)
 
-import clingo
+from clingo import Control, Number, Tuple_
 
-ctl = clingo.Control()
+ctl = Control()
 def a():
-    return (1,2,3)
+    return Tuple_([Number(1), Number(2), Number(3)])
 
 def b():
-    return [1,2,3]
+    return [Number(1), Number(2), Number(3)]
 
 def c():
-    return iter([1,2,3])
+    return iter([Number(1), Number(2), Number(3)])
 
 ctl.ground([("base", [])])
 ctl.solve()
