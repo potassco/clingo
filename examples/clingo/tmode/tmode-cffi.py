@@ -1,9 +1,8 @@
 from sys import stdout, exit
-from copy import copy
-from collections.abc import Sequence
+from textwrap import dedent
 
 from clingo.application import Application
-from clingo import SymbolType, Number, String, Function, ast, clingo_main
+from clingo import SymbolType, Number, Function, ast, clingo_main
 
 class TermTransformer(ast.Transformer):
     def __init__(self, parameter):
@@ -59,33 +58,42 @@ class ProgramTransformer(ast.Transformer):
         sig.arity += 1
         return sig
 
-def get(val, default):
-    return val if val != None else default
-
-def imain(prg):
-    imin   = get(prg.get_const("imin"), Number(0))
-    imax   = prg.get_const("imax")
-    istop  = get(prg.get_const("istop"), String("SAT"))
-
-    step, ret = 0, None
-    while ((imax is None or step < imax.number) and
-           (step == 0 or step < imin.number or (
-              (istop.string == "SAT"     and not ret.satisfiable) or
-              (istop.string == "UNSAT"   and not ret.unsatisfiable) or
-              (istop.string == "UNKNOWN" and not ret.unknown)))):
-        parts = []
-        parts.append(("base", [Number(step)]))
-        parts.append(("static", [Number(step)]))
-        if step > 0:
-            prg.release_external(Function("finally", [Number(step-1)]))
-            parts.append(("dynamic", [Number(step)]))
-        else:
-            parts.append(("initial", [Number(0)]))
-        prg.ground(parts)
-        prg.assign_external(Function("finally", [Number(step)]), True)
-        ret, step = prg.solve(), step+1
-
 class TModeApp(Application):
+    def __init__(self):
+        self._imin = 0
+        self._imax = None
+        self._istop = "SAT"
+        self._horizon = 0
+
+    def _parse_imin(self, value):
+        try:
+            self._imin = int(value)
+        except ValueError:
+            return False
+        return self._imin >= 0
+
+    def _parse_imax(self, value):
+        if len(value) > 0:
+            try:
+                self._imax = int(value)
+            except ValueError:
+                return False
+            return self._imax >= 0
+        self._imax = None
+        return True
+
+    def _parse_istop(self, value):
+        self._istop = value.upper()
+        return self._istop in ["SAT", "UNSAT", "UNKNOWN"]
+
+    def register_options(self, options):
+        group = "Incremental Options"
+        options.add(group, "imin", "Minimum number of solving steps [0]", self._parse_imin, argument="<n>")
+        options.add(group, "imax", "Maximum number of solving steps []", self._parse_imax, argument="<n>")
+        options.add(group, "istop", dedent("""\
+            Stop criterion [sat]
+                  <arg>: {sat|unsat|unknown}"""), self._parse_istop)
+
     def print_model(self, model, printer):
         table = {}
         for sym in model.symbols(shown=True):
@@ -101,12 +109,31 @@ class TModeApp(Application):
                 stdout.write(" {}".format(sym))
             stdout.write("\n")
 
+    def _main(self, ctl):
+        step, ret = 0, None
+        while ((self._imax is None or step < self._imax) and
+               (step == 0 or step < self._imin or (
+                  (self._istop == "SAT"     and not ret.satisfiable) or
+                  (self._istop == "UNSAT"   and not ret.unsatisfiable) or
+                  (self._istop == "UNKNOWN" and not ret.unknown)))):
+            parts = []
+            parts.append(("base", [Number(step)]))
+            parts.append(("static", [Number(step)]))
+            if step > 0:
+                ctl.release_external(Function("finally", [Number(step-1)]))
+                parts.append(("dynamic", [Number(step)]))
+            else:
+                parts.append(("initial", [Number(0)]))
+            ctl.ground(parts)
+            ctl.assign_external(Function("finally", [Number(step)]), True)
+            ret, step = ctl.solve(), step+1
+
     def main(self, ctl, files):
         with ast.ProgramBuilder(ctl) as bld:
             ptf = ProgramTransformer(Function("__t"))
             ast.parse_files(files, lambda stm: bld.add(ptf(stm)))
         ctl.add("initial", ["t"], "initially(t).")
         ctl.add("static", ["t"], "#external finally(t).")
-        imain(ctl)
+        self._main(ctl)
 
 exit(clingo_main(TModeApp()))
