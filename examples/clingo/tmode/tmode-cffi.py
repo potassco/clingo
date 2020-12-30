@@ -5,42 +5,7 @@ from collections.abc import Sequence
 from clingo.application import Application
 from clingo import SymbolType, Number, String, Function, ast, clingo_main
 
-class Transformer:
-    def visit_children(self, x, *args, **kwargs):
-        update = []
-        for key in x.child_keys:
-            old = getattr(x, key)
-            new = self.visit(old, *args, **kwargs)
-            if new is not old:
-                update.append((key, new))
-        if update:
-            ret = copy(x)
-            for key, new in update:
-                setattr(ret, key, new)
-        else:
-            ret = x
-        return x
-
-    def visit(self, x, *args, **kwargs):
-        if isinstance(x, ast.AST):
-            attr = "visit_" + str(x.ast_type).replace('ASTType.', '')
-            if hasattr(self, attr):
-                return getattr(self, attr)(x, *args, **kwargs)
-            else:
-                return self.visit_children(x, *args, **kwargs)
-        elif isinstance(x, Sequence):
-            ret, lst = x, []
-            for old in x:
-                lst.append(self.visit(old, *args, **kwargs))
-                if lst[-1] is not old:
-                    ret = lst
-            return ret
-        elif x is None:
-            return x
-        else:
-            raise TypeError("unexpected type")
-
-class TermTransformer(Transformer):
+class TermTransformer(ast.Transformer):
     def __init__(self, parameter):
         self.parameter = parameter
 
@@ -62,21 +27,21 @@ class TermTransformer(Transformer):
         # but this case could occur in a valid AST
         raise RuntimeError("not implemented")
 
-class ProgramTransformer(Transformer):
+class ProgramTransformer(ast.Transformer):
     def __init__(self, parameter):
         self.final = False
         self.parameter = parameter
         self.term_transformer = TermTransformer(parameter)
 
     def visit(self, x, *args, **kwargs):
-        ret = Transformer.visit(self, x, *args, **kwargs)
+        ret = super().visit(x, *args, **kwargs)
         if self.final and isinstance(ret, ast.AST) and hasattr(ret, "body"):
             loc = ret.location
             ret.body.append(ast.Literal(loc, ast.Sign.NoSign, ast.SymbolicAtom(ast.Function(loc, "finally", [ast.SymbolicTerm(loc, self.parameter)], False))));
         return ret
 
     def visit_SymbolicAtom(self, atom):
-        atom.symbol = self.term_transformer.visit(atom.symbol)
+        atom.symbol = self.term_transformer(atom.symbol)
         return atom
 
     def visit_Program(self, prg):
@@ -139,7 +104,7 @@ class TModeApp(Application):
     def main(self, ctl, files):
         with ast.ProgramBuilder(ctl) as bld:
             ptf = ProgramTransformer(Function("__t"))
-            ast.parse_files(files, lambda stm: bld.add(ptf.visit(stm)))
+            ast.parse_files(files, lambda stm: bld.add(ptf(stm)))
         ctl.add("initial", ["t"], "initially(t).")
         ctl.add("static", ["t"], "#external finally(t).")
         imain(ctl)

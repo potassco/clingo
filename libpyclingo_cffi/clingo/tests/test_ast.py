@@ -14,6 +14,16 @@ from ..ast import (AST, ASTSequence, Id, Location, Program, ProgramBuilder, Posi
 from ..symbol import Function
 from ..control import Control
 
+class VariableRenamer(ast.Transformer):
+    '''
+    Add an underscore to all names of variables in an ast.
+    '''
+    def visit_Variable(self, node): #pylint: disable=no-self-use,invalid-name
+        '''
+        Rename a variable.
+        '''
+        return ast.Variable(node.location, '_' + node.name)
+
 class TestAST(TestCase):
     '''
     Tests for the ast module.
@@ -26,7 +36,7 @@ class TestAST(TestCase):
         Since this functions visits all possible AST nodes, further
         functionality of the AST is tested here.
         '''
-        cons_name = str(node.ast_type).split(".")[1]
+        cons_name = str(node.ast_type).split('.')[1]
         cons = getattr(ast, cons_name)
         args = cast(dict, dict(node.items()))
 
@@ -367,3 +377,12 @@ class TestAST(TestCase):
                           'a(2): a(3;4)'])
         self.assertEqual(unpool(other=False, condition=False),
                          ['a(1;2): a(3;4)'])
+
+    def test_transformer(self):
+        '''
+        Test the transformer class.
+        '''
+        prg = []
+        vrt = VariableRenamer()
+        parse_string('p(X) :- q(X).', lambda stm: prg.append(str(vrt(stm))))
+        self.assertEqual(prg[-1], 'p(_X) :- q(_X).')

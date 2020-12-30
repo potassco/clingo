@@ -314,23 +314,36 @@ The following example parses a program from a string and passes the resulting
     >>>
     >>> with ProgramBuilder(ctl) as bld:
     ...     # parse from string
-    ...     parse_string("a.", bld.add)
+    ...     parse_string('a.', bld.add)
     ...     # build rule manually
     ...     pos = Position('<string>', 1, 1)
     ...     loc = Location(pos, pos)
-    ...     fun = ast.Function(loc, "b", [], False)
+    ...     fun = ast.Function(loc, 'b', [], False)
     ...     atm = ast.SymbolicAtom(fun)
     ...     lit = ast.Literal(loc, ast.Sign.NoSign, atm)
     ...     bld.add(ast.Rule(loc, lit, []))
     ...
-    >>> ctl.ground([("base", [])])
+    >>> ctl.ground([('base', [])])
     >>> print(ctl.solve(on_model=print))
     a b
     SAT
+
+The next example shows how to transform ASTs using the `Transformer` class:
+
+    >>> from clingo.ast import Transformer, Variable, parse_string
+    >>>
+    >>> class VariableRenamer(Transformer):
+    ...     def visit_Variable(self, node):
+    ...         return Variable(node.location, '_' + node.name)
+    ...
+    >>> vrt = VariableRenamer()
+    >>> parse_string('p(X) :- q(X).', lambda stm: print(str(vrt(stm))))
+    #program base.
+    p(_X) :- q(_X).
 '''
 
 from enum import Enum, IntEnum
-from typing import Callable, ContextManager, List, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, ContextManager, List, NamedTuple, Optional, Sequence, Tuple, TypeVar, Union
 from collections import abc
 from functools import total_ordering
 
@@ -788,7 +801,7 @@ class AST:
     possible to construct ASTs that are not parsable, though.
     '''
     def __init__(self, rep):
-        super().__setattr__("_rep", rep)
+        super().__setattr__('_rep', rep)
 
     def __eq__(self, other):
         if not isinstance(other, AST):
@@ -874,16 +887,36 @@ class AST:
         return _str(_lib.clingo_ast_to_string_size, _lib.clingo_ast_to_string, self._rep)
 
     def __copy__(self) -> 'AST':
-        """
+        '''
         Return a shallow copy of the ast.
-        """
+        '''
         return AST(_c_call('clingo_ast_t*', _lib.clingo_ast_copy, self._rep))
 
     def __deepcopy__(self, memo) -> 'AST':
-        """
+        '''
         Return a deep copy of the ast.
-        """
+        '''
         return AST(_c_call('clingo_ast_t*', _lib.clingo_ast_deep_copy, self._rep))
+
+    def update(self, **kwargs: ASTValue) -> 'AST':
+        '''
+        Return a copy of the AST also updating the given attributes.
+
+        Note that this function returns a reference to self if no arguments are
+        given.
+        '''
+        if not kwargs:
+            return self
+
+        args = []
+        for key in self.keys():
+            if key in kwargs:
+                args.append(kwargs[key])
+            else:
+                args.append(getattr(self, key))
+
+        cons = globals()[str(self.ast_type).replace('ASTType.', '')]
+        return cons(*args)
 
     def items(self) -> List[Tuple[str, ASTValue]]:
         '''
@@ -997,7 +1030,7 @@ def parse_files(files: Sequence[str], callback: Callable[[AST], None],
     cb_data = _CBData(callback, error)
     c_cb_data = _ffi.new_handle(cb_data)
 
-    _handle_error(_lib.clingo_ast_parse_files([ _ffi.new("char[]", f.encode()) for f in files ], len(files),
+    _handle_error(_lib.clingo_ast_parse_files([ _ffi.new('char[]', f.encode()) for f in files ], len(files),
                                               _lib.pyclingo_ast_callback, c_cb_data,
                                               c_logger, c_logger_data,
                                               message_limit), cb_data)
@@ -1078,6 +1111,62 @@ class ProgramBuilder(ContextManager['ProgramBuilder']):
             The statement to add.
         '''
         _handle_error(_lib.clingo_program_builder_add_ast(self._rep, statement._rep))
+
+T = TypeVar('T', AST, Union[ASTSequence, List[AST]], None)
+
+class Transformer:
+    '''
+    Utility class to transform ASTs.
+
+    Classes should inherit from this class and implement functions with name
+    `visit_<ast_type>` where `<ast_type>` is the type of the ASTs to visit and
+    modify. Such a function should return an updated AST or the same AST if no
+    change is necessary. The transformer will take care to copy all parent ASTs
+    involving a modified child. Note that the class works like a visitor if
+    only self references are returned from such functions.
+
+    Any extra arguments passed to the visit method are passed on to child ASTs.
+    '''
+    def visit_children(self, ast: AST, *args: Any, **kwargs: Any) -> AST:
+        '''
+        Visit and transform all children of the given ast that contain ASTs.
+        '''
+        update = dict()
+        for key in ast.child_keys:
+            old = getattr(ast, key)
+            new = self.visit(old, *args, **kwargs)
+            if new is not old:
+                update[key] = new
+        return ast.update(**update)
+
+    def visit(self, ast: T, *args: Any, **kwargs: Any) -> T:
+        '''
+        Visit and transform an (optional) AST or a sequence of ASTs.
+        '''
+        if isinstance(ast, AST):
+            attr = 'visit_' + str(ast.ast_type).replace('ASTType.', '')
+            if hasattr(self, attr):
+                return getattr(self, attr)(ast, *args, **kwargs)
+            return self.visit_children(ast, *args, **kwargs)
+
+        if isinstance(ast, Sequence):
+            ret, lst = ast, []
+            for old in ast:
+                lst.append(self.visit(old, *args, **kwargs))
+                if lst[-1] is not old:
+                    ret = lst
+            return ret
+
+        if ast is None:
+            return ast
+
+        raise TypeError('unexpected type')
+
+    def __call__(self, ast: T, *args: Any, **kwargs: Any) -> T:
+        '''
+        Alternative way to call `Transformer.visit`.
+        '''
+        return self.visit(ast, *args, **kwargs)
 
 def Id(location: Location, name: str) -> AST:
     '''
