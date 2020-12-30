@@ -334,7 +334,7 @@ The next example shows how to transform ASTs using the `Transformer` class:
     >>>
     >>> class VariableRenamer(Transformer):
     ...     def visit_Variable(self, node):
-    ...         return Variable(node.location, '_' + node.name)
+    ...         return node.update(name='_' + node.name)
     ...
     >>> vrt = VariableRenamer()
     >>> parse_string('p(X) :- q(X).', lambda stm: print(str(vrt(stm))))
@@ -370,8 +370,8 @@ __all__ = [ 'AST', 'ASTSequence', 'ASTType', 'ASTValue', 'Aggregate',
             'TheoryGuard', 'TheoryGuardDefinition', 'TheoryOperatorDefinition',
             'TheoryOperatorType', 'TheorySequence', 'TheorySequenceType',
             'TheoryTermDefinition', 'TheoryUnparsedTerm',
-            'TheoryUnparsedTermElement', 'UnaryOperation', 'UnaryOperator',
-            'Variable', 'parse_files', 'parse_string' ]
+            'TheoryUnparsedTermElement', 'Transformer', 'UnaryOperation',
+            'UnaryOperator', 'Variable', 'parse_files', 'parse_string' ]
 
 # pylint: disable=protected-access,invalid-name,too-many-lines,too-many-ancestors
 
