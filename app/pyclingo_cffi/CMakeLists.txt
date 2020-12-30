@@ -60,6 +60,7 @@ if (PYCLINGO_INSTALL_DIR)
         DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
         FILES_MATCHING
         PATTERN "*.py"
+        PATTERN "*.typed"
         PATTERN "tests" EXCLUDE)
 endif()
 
