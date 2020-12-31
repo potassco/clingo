@@ -78,14 +78,14 @@ class TModeApp(Application):
         return self._imin >= 0
 
     def _parse_imax(self, value):
-        if len(value) > 0:
-            try:
-                self._imax = int(value)
-            except ValueError:
-                return False
-            return self._imax >= 0
-        self._imax = None
-        return True
+        if value.upper() in ("INF", "INFINITY"):
+            self._imax = None
+            return True
+        try:
+            self._imax = int(value)
+        except ValueError:
+            return False
+        return self._imax >= 0
 
     def _parse_istop(self, value):
         self._istop = value.upper()
@@ -93,8 +93,10 @@ class TModeApp(Application):
 
     def register_options(self, options):
         group = "Incremental Options"
-        options.add(group, "imin", "Minimum number of solving steps [0]", self._parse_imin, argument="<n>")
-        options.add(group, "imax", "Maximum number of solving steps []", self._parse_imax, argument="<n>")
+        options.add(group, "imin", "Minimum number of solving steps [0]",
+                    self._parse_imin, argument="<n>")
+        options.add(group, "imax", "Maximum number of solving steps [infinity]",
+                    self._parse_imax, argument="<n>")
         options.add(group, "istop", dedent("""\
             Stop criterion [sat]
                   <arg>: {sat|unsat|unknown}"""), self._parse_istop)
