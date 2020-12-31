@@ -343,7 +343,7 @@ The next example shows how to transform ASTs using the `Transformer` class:
 '''
 
 from enum import Enum, IntEnum
-from typing import Any, Callable, ContextManager, List, NamedTuple, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, Callable, ContextManager, Dict, List, NamedTuple, Optional, Sequence, Tuple, TypeVar, Union
 from collections import abc
 from functools import total_ordering
 
@@ -783,6 +783,7 @@ _attribute_names = { _to_str(_lib.g_clingo_ast_attribute_names.names[i]): i
                      for i in range(_lib.g_clingo_ast_attribute_names.size) }
 
 ASTValue = Union[str, int, Symbol, None, 'AST', StrSequence, ASTSequence]
+ASTUpdate = Union[str, int, Symbol, None, 'AST', Sequence[str], Sequence['AST']]
 
 @total_ordering
 class AST:
@@ -898,7 +899,7 @@ class AST:
         '''
         return AST(_c_call('clingo_ast_t*', _lib.clingo_ast_deep_copy, self._rep))
 
-    def update(self, **kwargs: ASTValue) -> 'AST':
+    def update(self, **kwargs: ASTUpdate) -> 'AST':
         '''
         Return a copy of the AST also updating the given attributes.
 
@@ -1127,27 +1128,42 @@ class Transformer:
 
     Any extra arguments passed to the visit method are passed on to child ASTs.
     '''
-    def visit_children(self, ast: AST, *args: Any, **kwargs: Any) -> AST:
+    def visit(self, ast: AST, *args: Any, **kwargs: Any) -> AST:
         '''
-        Visit and transform all children of the given ast that contain ASTs.
+        Dispatch to a visit method in a base class or visit and transform the
+        children of the given AST if it is missing.
+        '''
+        attr = 'visit_' + str(ast.ast_type).replace('ASTType.', '')
+        if hasattr(self, attr):
+            return getattr(self, attr)(ast, *args, **kwargs)
+        return ast.update(**self.visit_children(ast, *args, **kwargs))
+
+    def visit_children(self, ast: AST, *args: Any, **kwargs: Any) -> Dict[str, ASTUpdate]:
+        '''
+        Visit and transform the children of the given AST.
+
+        Returns
+        -------
+        This function returns a dictionary with the attributes and values that
+        have been transformed. The dictionary can be passed to `AST.update`.
         '''
         update = dict()
         for key in ast.child_keys:
             old = getattr(ast, key)
-            new = self.visit(old, *args, **kwargs)
+            new = self._visit(old, *args, **kwargs)
             if new is not old:
                 update[key] = new
-        return ast.update(**update)
+        return update
 
-    def visit(self, ast: T, *args: Any, **kwargs: Any) -> T:
+    def _visit(self, ast: T, *args: Any, **kwargs: Any) -> T:
         '''
         Visit and transform an (optional) AST or a sequence of ASTs.
         '''
+        if ast is None:
+            return ast
+
         if isinstance(ast, AST):
-            attr = 'visit_' + str(ast.ast_type).replace('ASTType.', '')
-            if hasattr(self, attr):
-                return getattr(self, attr)(ast, *args, **kwargs)
-            return self.visit_children(ast, *args, **kwargs)
+            return self.visit(ast, *args, **kwargs) # type: ignore
 
         if isinstance(ast, Sequence):
             ret, lst = ast, []
@@ -1157,12 +1173,9 @@ class Transformer:
                     ret = lst
             return ret
 
-        if ast is None:
-            return ast
-
         raise TypeError('unexpected type')
 
-    def __call__(self, ast: T, *args: Any, **kwargs: Any) -> T:
+    def __call__(self, ast: AST, *args: Any, **kwargs: Any) -> AST:
         '''
         Alternative way to call `Transformer.visit`.
         '''

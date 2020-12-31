@@ -1,5 +1,6 @@
 from sys import stdout, exit
 from textwrap import dedent
+from copy import copy
 
 from clingo.application import Application
 from clingo import SymbolType, Number, Function, ast, clingo_main
@@ -14,10 +15,11 @@ class TermTransformer(ast.Transformer):
         param = ast.SymbolicTerm(location, self.parameter)
         if primes > 0:
             param = ast.BinaryOperation(location, ast.BinaryOperator.Minus, param, ast.SymbolicTerm(location, Number(primes)))
-        return (n, param)
+        return n, param
 
     def visit_Function(self, term):
-        term.name, param = self.__get_param(term.name, term.location)
+        name, param = self.__get_param(term.name, term.location)
+        term = term.update(name=name)
         term.arguments.append(param)
         return term
 
@@ -34,29 +36,32 @@ class ProgramTransformer(ast.Transformer):
 
     def visit(self, x, *args, **kwargs):
         ret = super().visit(x, *args, **kwargs)
-        if self.final and isinstance(ret, ast.AST) and hasattr(ret, "body"):
+        if self.final and hasattr(ret, "body"):
+            if x is ret:
+                ret = copy(x)
             loc = ret.location
-            ret.body.append(ast.Literal(loc, ast.Sign.NoSign, ast.SymbolicAtom(ast.Function(loc, "finally", [ast.SymbolicTerm(loc, self.parameter)], False))));
+            fun = ast.Function(loc, "finally", [ast.SymbolicTerm(loc, self.parameter)], False)
+            atm = ast.SymbolicAtom(fun)
+            lit = ast.Literal(loc, ast.Sign.NoSign, atm)
+            ret.body.append(lit)
         return ret
 
     def visit_SymbolicAtom(self, atom):
-        atom.symbol = self.term_transformer(atom.symbol)
-        return atom
+        return atom.update(symbol=self.term_transformer(atom.symbol))
 
     def visit_Program(self, prg):
         self.final = prg.name == "final"
+        prg = copy(prg)
         if self.final:
             prg.name = "static"
         prg.parameters.append(ast.Id(prg.location, self.parameter.name))
         return prg
 
     def visit_ShowSignature(self, sig):
-        sig.arity += 1
-        return sig
+        return sig.update(arity=sig.arity + 1)
 
     def visit_ProjectSignature(self, sig):
-        sig.arity += 1
-        return sig
+        return sig.update(arity=sig.arity + 1)
 
 class TModeApp(Application):
     def __init__(self):

@@ -7,7 +7,7 @@ Examples
     >>> from clingo.symbol import Function, Number
     >>> from clingo.control import Control
     >>> ctl = Control()
-    >>> ctl.add('base', [], """\
+    >>> ctl.add('base', [], """\\
     ... p(1).
     ... { p(3) }.
     ... #external p(1..3).
