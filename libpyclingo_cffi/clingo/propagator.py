@@ -554,10 +554,6 @@ class PropagateControl:
         literal
             The target solver literal.
 
-        Returns
-        -------
-        None
-
         Notes
         -----
         Unlike `PropagateInit.add_watch` this does not add a watch to all

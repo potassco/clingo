@@ -1144,8 +1144,8 @@ class Transformer:
 
         Returns
         -------
-        This function returns a dictionary with the attributes and values that
-        have been transformed. The dictionary can be passed to `AST.update`.
+        The functions returns a dictionary that can be passed to `AST.update`.
+        It contains the attributes and values that have been transformed.
         '''
         update = dict()
         for key in ast.child_keys:

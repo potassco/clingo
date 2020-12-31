@@ -202,10 +202,6 @@ class Control:
             A Boolean fixes the external to the respective truth value; and
             None leaves its truth value open.
 
-        Returns
-        -------
-        None
-
         See Also
         --------
         Control.release_external, clingo.solving.SolveControl.symbolic_atoms,
@@ -503,10 +499,9 @@ class Control:
 
         Returns
         -------
-        Union[SolveHandle,SolveResult]
-            The return value depends on the parameters. If either `yield_` or `async_`
-            is true, then a handle is returned. Otherwise, a
-            `clingo.solving.SolveResult` is returned.
+        The return value depends on the parameters. If either `yield_` or
+        `async_` is true, then a handle is returned. Otherwise, a
+        `clingo.solving.SolveResult` is returned.
 
         See Also
         --------
