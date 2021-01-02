@@ -1,4 +1,4 @@
-VERSION=$(shell head clingo/debian/changelog | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[0-9]\+\)\?')
+VERSION=$(shell head -n 1 clingo/debian/changelog | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[0-9]\+\)\?')
 
 sync:
 	rsync -av ../../app ../../clasp ../../libgringo ../../libclingo ../../libluaclingo ../../libpyclingo ../../libpyclingo_cffi ../../libreify ../../cmake ../../CMakeLists.txt ../../CHANGES.md ../../README.md ../../INSTALL.md ../../LICENSE.md clingo/

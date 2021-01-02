@@ -64,7 +64,7 @@ if (PYCLINGO_INSTALL_DIR)
         PATTERN "tests" EXCLUDE)
 endif()
 
-if (Python_EXECUTABLE)
+if (Python_EXECUTABLE AND CLINGO_BUILD_TESTS)
     add_test(NAME test_pyclingo
              WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/libpyclingo_cffi"
              COMMAND ${Python_EXECUTABLE} -m unittest)
