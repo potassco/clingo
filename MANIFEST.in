@@ -14,7 +14,7 @@ include libpyclingo_cffi/*.c
 include libpyclingo_cffi/*.h
 include libpyclingo_cffi/*.h.in
 include libpyclingo_cffi/CMakeLists.txt
-recursive-include libpyclingo_cffi/clingo *
+recursive-include libpyclingo_cffi/clingo *.py *.typed
 recursive-include libreify *
 prune _skbuild
 global-exclude *.py[cod]

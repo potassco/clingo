@@ -1,9 +1,9 @@
-from setuptools import setup, find_packages
 from textwrap import dedent
+from setuptools import setup, find_packages
 
 setup(
-    version = '5.5.0.post16',
-    name = 'clingo-cffi',
+    version = '5.5.0.post6',
+    name = 'clingo-cffi-system',
     description = 'CFFI-based bindings to the clingo solver.',
     long_description = dedent('''\
         This package provides CFFI-based bindings to the clingo solver.
@@ -23,7 +23,7 @@ setup(
     setup_requires=["cffi>=1.0.0"],
     cffi_modules=["build.py:ffi"],
     install_requires=["cffi>=1.0.0"],
-    packages=find_packages(exclude='tests'),
+    packages=[ 'clingo' ],
     package_data={ 'clingo': [ 'py.typed' ] },
     python_requires=">=3.6"
 )
