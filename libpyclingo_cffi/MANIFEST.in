@@ -1,0 +1,7 @@
+include setup.py
+include build.py
+include pyproject.toml
+include LICENSE.md
+include README.md
+recursive-include clingo *.typed *.py
+global-exclude *.py[cod]

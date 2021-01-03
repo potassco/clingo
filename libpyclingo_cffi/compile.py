@@ -133,7 +133,7 @@ def generate_python():
 
         sys.stdout.write(f"    return AST(p_ast[0])\n")
 
-def generate_c(embed):
+def generate_c(action):
     clingo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     print(clingo_dir+"/libbpyclingo_cffi")
 
@@ -143,7 +143,7 @@ def generate_c(embed):
     with open(f'{clingo_dir}/libclingo/clingo.h') as f:
         for line in f:
             if not re.match(r' *(#|//|extern *"C" *{|}$|$)', line):
-                cnt.append(line.replace('CLINGO_VISIBILITY_DEFAULT ', ''))
+                cnt.append(line.replace('CLINGO_VISIBILITY_DEFAULT ', '').strip())
 
     # callbacks
     cnt.append('extern "Python" bool pyclingo_solve_event_callback(clingo_solve_event_type_t type, void *event, void *data, bool *goon);')
@@ -190,7 +190,7 @@ def generate_c(embed):
     # ast callbacks
     cnt.append('extern "Python" bool pyclingo_ast_callback(clingo_ast_t const *, void *);')
 
-    if embed:
+    if action == "embed":
         ffi.embedding_api('''\
 bool pyclingo_execute_(void *loc, char const *code, void *data);
 bool pyclingo_call_(void *loc, char const *name, void *arguments, size_t size, void *symbol_callback, void *symbol_callback_data, void *data);
@@ -249,12 +249,15 @@ def pyclingo_main_(ctl, data):
     return True
 """)
 
-    ffi.set_source(
-        '_clingo',
-        '#include <clingo.h>')
-    ffi.cdef(''.join(cnt))
-    ffi.emit_c_code('_clingo.c')
-
+    if action != "header":
+        ffi.set_source(
+            '_clingo',
+            '#include <clingo.h>')
+        ffi.cdef(''.join(cnt))
+        ffi.emit_c_code('_clingo.c')
+    else:
+        with open('_clingo.cdef', 'w') as f:
+            f.write(''.join(f'{line}\n' for line in cnt))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="generate code for clingo python binding")
@@ -263,11 +266,15 @@ if __name__ == "__main__":
     parser_c = subparsers.add_parser('c', help='Generate C code.')
     parser_c.add_argument("-e", "--embed", action="store_true", help="add support for embedding")
 
+    parser_h = subparsers.add_parser('h', help='Generate C header for cffi.')
+
     if imported:
         parser_py = subparsers.add_parser('python', help='generate Python code')
 
     args = parser.parse_args()
+    if args.command == "h":
+        generate_c("header")
     if args.command == "c":
-        generate_c(args.embed)
+        generate_c("embed" if args.embed else "source")
     if args.command == "python":
         generate_python()
