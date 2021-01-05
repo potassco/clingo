@@ -1,0 +1,17 @@
+clingo (5.5.0-alpha3) bionic; urgency=medium
+
+  * Fix install paths for i386.
+
+ -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Fri, 05 Jan 2021 15:00:00 +0100
+
+clingo (5.5.0-alpha2) bionic; urgency=medium
+
+  * Adjust versions.
+
+ -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Fri, 05 Jan 2021 13:50:00 +0100
+
+clingo (5.5.0-alpha1) bionic; urgency=medium
+
+  * Initial Release.
+
+ -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Fri, 05 Jan 2021 13:45:00 +0100
