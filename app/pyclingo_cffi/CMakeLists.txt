@@ -32,7 +32,7 @@ if (NOT PYCLINGO_SUFFIX)
 endif()
 
 add_library(pyclingo MODULE ${source})
-target_link_libraries(pyclingo PRIVATE libclingo Python::Python)
+target_link_libraries(pyclingo PRIVATE libclingo Python::Module)
 if (PYCLINGO_DYNAMIC_LOOKUP)
     set_property(TARGET pyclingo PROPERTY LINK_FLAGS "-undefined dynamic_lookup")
 endif()
