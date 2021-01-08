@@ -1862,7 +1862,9 @@ private:
     }
     bool on_unsat(Potassco::Span<int64_t> optimization) override {
         bool goon = true;
-        if (!cb_(clingo_solve_event_type_unsat, &optimization, data_, &goon)) { throw ClingoError(); }
+        if (!cb_(clingo_solve_event_type_unsat, &optimization, data_, &goon)) {
+            clingo_terminate("error in SolveEventHandler::on_unsat going to terminate");
+        }
         return goon;
     }
     void on_finish(SolveResult ret, Potassco::AbstractStatistics *step, Potassco::AbstractStatistics *accu) override {
