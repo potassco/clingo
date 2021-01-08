@@ -270,6 +270,7 @@ public:
     void parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out, bool addStdIn = true);
     void main(IClingoApp &app, StringVec const &files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out);
     bool onModel(Clasp::Model const &m);
+    bool onUnsat(Potassco::Span<int64_t> optimization);
     void onFinish(Clasp::ClaspFacade::Result ret);
     bool update();
 
@@ -483,6 +484,7 @@ protected:
     // Event handler
     void onEvent(const Clasp::Event& ev) override;
     bool onModel(const Clasp::Solver& s, const Clasp::Model& m) override;
+    bool onUnsat(const Clasp::Solver&, const Clasp::Model&) override;
 private:
     ClingoLib(const ClingoLib&);
     ClingoLib& operator=(const ClingoLib&);

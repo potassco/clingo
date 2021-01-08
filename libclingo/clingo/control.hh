@@ -122,11 +122,13 @@ namespace Gringo {
 
 struct SolveEventHandler {
     virtual bool on_model(Model &model);
+    virtual void on_unsat(Potassco::Span<int64_t> optimization);
     virtual void on_finish(SolveResult ret, Potassco::AbstractStatistics *step, Potassco::AbstractStatistics *accu);
     virtual ~SolveEventHandler() = default;
 };
 using USolveEventHandler = std::unique_ptr<SolveEventHandler>;
 inline bool SolveEventHandler::on_model(Model &) { return true; }
+inline void SolveEventHandler::on_unsat(Potassco::Span<int64_t> optimization) { }
 inline void SolveEventHandler::on_finish(SolveResult, Potassco::AbstractStatistics *, Potassco::AbstractStatistics *) { }
 
 struct SolveFuture {
