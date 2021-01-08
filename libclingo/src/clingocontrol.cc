@@ -281,7 +281,7 @@ bool ClingoControl::onModel(Clasp::Model const &m) {
 bool ClingoControl::onUnsat(Potassco::Span<int64_t> optimization) {
     if (eventHandler_) {
         std::lock_guard<decltype(propLock_)> lock(propLock_);
-        eventHandler_->on_unsat(optimization);
+        return eventHandler_->on_unsat(optimization);
     }
     return true;
 }

@@ -189,6 +189,8 @@ def generate_c(action):
     cnt.append('extern "Python" bool pyclingo_application_options_parse(char const *value, void *data);')
     # ast callbacks
     cnt.append('extern "Python" bool pyclingo_ast_callback(clingo_ast_t const *, void *);')
+    cnt.append('')
+    print('\n'.join(cnt))
 
     if action == "embed":
         ffi.embedding_api('''\
@@ -253,7 +255,7 @@ def pyclingo_main_(ctl, data):
         ffi.set_source(
             '_clingo',
             '#include <clingo.h>')
-        ffi.cdef(''.join(cnt))
+        ffi.cdef('\n'.join(cnt))
         ffi.emit_c_code('_clingo.c')
     else:
         with open('_clingo.cdef', 'w') as f:
