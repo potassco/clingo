@@ -2,7 +2,10 @@ name: Build manylinux wheels
 
 on:
   workflow_dispatch:
-    # No input required, possibly a version?
+  push:
+    branches: [ master, manylinux ]
+  pull_request:
+    branches: [ master, manylinux ]
 
 jobs:
   build_packages:
