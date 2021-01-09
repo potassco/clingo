@@ -36,6 +36,7 @@ setup(
                  '-DPYCLINGO_USE_CFFI=ON',
                  '-DPYCLINGO_USER_INSTALL=OFF',
                  '-DPYCLINGO_USE_INSTALL_PREFIX=ON',
+                 '-DPYCLINGO_FORCE_OLD_MODULE=ON',
                  '-DPYCLINGO_INSTALL_DIR=libpyclingo_cffi' ],
     packages=[ 'clingo' ],
     package_data={ 'clingo': [ 'py.typed' ] },

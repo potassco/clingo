@@ -41,6 +41,7 @@ CMAKE_DEPENDENT_OPTION(CLINGO_BUILD_LUA_SHARED "build luaclingo library shared" 
 
 option(CLINGO_INSTALL_LIB "install the clingo library" ${CLINGO_BUILD_SHARED})
 option(PYCLINGO_USE_CFFI "build pyclingo using cffi" OFF)
+option(PYCLINGO_FORCE_OLD_MODULE "force use of the old find_python module" OFF)
 option(PYCLINGO_USER_INSTALL "install the python module in the user's site directory" ON)
 option(PYCLINGO_DYNAMIC_LOOKUP "do not link to python library and pass linker option `-undefined link_dynamic`" ${APPLE})
 CMAKE_DEPENDENT_OPTION(PYCLINGO_USE_INSTALL_PREFIX "install the python module under the install prefix" OFF "NOT PYCLINGO_USER_INSTALL" OFF)
@@ -58,6 +59,7 @@ mark_as_advanced(CLINGO_BUILD_PY_SHARED)
 mark_as_advanced(CLINGO_BUILD_LUA_SHARED)
 mark_as_advanced(CLINGO_USE_LIB)
 mark_as_advanced(CLINGO_BUILD_REVISION)
+mark_as_advanced(PYCLINGO_FORCE_OLD_MODULE)
 
 # workaround to set custom ar and ranlib
 if (CLINGO_CMAKE_AR)
@@ -107,7 +109,7 @@ endif()
 #       that searching for the python libraries finds the matching libraries for the default python interpreter
 #       python is also used to run the tests
 
-if(CMAKE_VERSION VERSION_GREATER "3.15.0" OR CMAKE_VERSION VERSION_EQUAL "3.15.0")
+if(PYCLINGO_FORCE_OLD_MODULE OR CMAKE_VERSION VERSION_GREATER "3.15.0" OR CMAKE_VERSION VERSION_EQUAL "3.15.0")
     if(DEFINED PYTHON_EXECUTABLE AND NOT DEFINED Python_EXECUTABLE)
         set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}")
     endif()
