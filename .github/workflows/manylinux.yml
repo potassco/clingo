@@ -1,0 +1,36 @@
+name: Build manylinux wheels
+
+on:
+  workflow_dispatch:
+    # No input required, possibly a version?
+
+jobs:
+  build_packages:
+    runs-on: ubuntu-latest
+    env:
+      PLAT: ${{ matrix.image }}
+    strategy:
+      matrix:
+        image: [manylinux2014_x86_64, manylinux2014_ppc64le]
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Pull images
+      run: |
+        docker pull multiarch/qemu-user-static
+        docker pull quay.io/pypa/${{ matrix.image }}:latest
+    - name: Set up QEMU
+      run: |
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: Build wheels
+      run: |
+        docker run --rm -e PLAT --workdir /github/workspace -v $GITHUB_WORKSPACE:/"/github/workspace" quay.io/pypa/${{ matrix.image }} bash -c "bash .github/manylinux.sh"
+    - name: Publish package to TestPyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        packages_dir: wheelhouse/
+        repository_url: https://test.pypi.org/legacy/
