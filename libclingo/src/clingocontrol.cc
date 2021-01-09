@@ -900,7 +900,7 @@ bool ClingoLib::onUnsat(Clasp::Solver const &s, Clasp::Model const &m) {
         std::vector<int64_t> optimization;
         auto const *costs = m.num > 0 ? m.costs : nullptr;
         if (costs != nullptr && costs->size() > s.lower.level) {
-            std::copy(costs->begin(), costs->begin() + s.lower.level, std::back_inserter(optimization));
+            optimization.insert(optimization.end(), costs->begin(), costs->begin() + s.lower.level);
         }
         optimization.emplace_back(s.lower.bound);
         return ClingoControl::onUnsat(Potassco::toSpan(optimization));
@@ -923,6 +923,7 @@ bool ClingoLib::parsePositional(const std::string& t, std::string& out) {
     }
     return false;
 }
+
 ClingoLib::~ClingoLib() {
     clasp_.shutdown();
 }

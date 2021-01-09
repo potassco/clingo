@@ -2041,12 +2041,14 @@ public:
     SolveEventHandler &operator=(SolveEventHandler const &) = default;
     SolveEventHandler &operator=(SolveEventHandler &&) noexcept = default;
     virtual bool on_model(Model &model);
+    virtual void on_unsat(Span<int64_t> lower_bound);
     virtual void on_statistics(UserStatistics step, UserStatistics accu);
     virtual void on_finish(SolveResult result);
     virtual ~SolveEventHandler() = default;
 };
 
 inline bool SolveEventHandler::on_model(Model &) { return true; }
+inline void SolveEventHandler::on_unsat(Span<int64_t>)  { }
 inline void SolveEventHandler::on_statistics(UserStatistics, UserStatistics) { }
 inline void SolveEventHandler::on_finish(SolveResult) { }
 
@@ -5078,6 +5080,14 @@ inline SolveHandle Control::solve(LiteralSpan assumptions, SolveEventHandler *ha
                 CLINGO_CALLBACK_TRY {
                     Model m{static_cast<clingo_model_t*>(event)};
                     *goon = data.handler->on_model(m);
+                }
+                CLINGO_CALLBACK_CATCH(data.ptr);
+            }
+            case clingo_solve_event_type_unsat: {
+                CLINGO_CALLBACK_TRY {
+                    auto span = static_cast<std::pair<int64_t const *, size_t>*>(event);
+                    data.handler->on_unsat(make_span(span->first, span->second));
+                    *goon = true;
                 }
                 CLINGO_CALLBACK_CATCH(data.ptr);
             }
