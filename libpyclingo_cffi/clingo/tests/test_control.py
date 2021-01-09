@@ -25,9 +25,9 @@ class Context:
         '''
         raise TestError('test')
 
-class TestSymbol(TestCase):
+class TestControl(TestCase):
     '''
-    Tests basic solving and related functions.
+    Tests basic functions of the control object.
     '''
     def test_ground(self):
         '''
@@ -48,3 +48,15 @@ class TestSymbol(TestCase):
         ctl = Control()
         ctl.add('part', ['c'], 'p(@cb_error()).')
         self.assertRaisesRegex(TestError, 'test', ctl.ground, [('part', [Number(1)])], ctx)
+
+    def test_lower(self):
+        '''
+        Test lower bounds reported during optimization.
+        '''
+        ctl = Control(['--opt-str=usc,oll,0', '--stats=2'])
+        ctl.add('base', [], '1 { p(X); q(X) } 1 :- X=1..3. #minimize { 1,p,X: p(X); 1,q,X: q(X) }.')
+        ctl.ground([('base', [])])
+        lower = []
+        self.assertTrue(ctl.solve(on_unsat=lower.append).satisfiable)
+        self.assertEqual(lower, [[1], [2], [3]])
+        self.assertEqual(ctl.statistics['summary']['lower'], [3.0])

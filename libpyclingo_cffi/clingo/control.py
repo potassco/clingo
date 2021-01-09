@@ -46,8 +46,9 @@ __all__ = [ 'Control' ]
 
 class _SolveEventHandler:
     # pylint: disable=missing-function-docstring
-    def __init__(self, on_model, on_statistics, on_finish):
+    def __init__(self, on_model, on_unsat, on_statistics, on_finish):
         self._on_model = on_model
+        self._on_unsat = on_unsat
         self._on_statistics = on_statistics
         self._on_finish = on_finish
 
@@ -56,6 +57,9 @@ class _SolveEventHandler:
         if self._on_model is not None:
             ret = self._on_model(Model(m))
         return bool(ret or ret is None)
+
+    def on_unsat(self, lower):
+        ret = self._on_unsat(lower)
 
     def on_finish(self, res):
         if self._on_finish is not None:
@@ -76,6 +80,13 @@ def _pyclingo_solve_event_callback(type_, event, data, goon):
 
     if type_ == _lib.clingo_solve_event_type_model:
         goon[0] = handler.on_model(_ffi.cast('clingo_model_t*', event))
+
+    if type_ == _lib.clingo_solve_event_type_unsat:
+        lower = []
+        c_args = _ffi.cast('void**', event)
+        c_lower = _ffi.cast('int64_t*', c_args[0])
+        size = int(_ffi.cast('size_t', c_args[1]))
+        handler.on_unsat([c_lower[i] for i in range(size) ])
 
     if type_ == _lib.clingo_solve_event_type_statistics:
         p_stats = _ffi.cast('clingo_statistics_t**', event)
@@ -460,6 +471,7 @@ class Control:
     def solve(self,
               assumptions: Sequence[Union[Tuple[Symbol,bool],int]]=[],
               on_model: Callable[[Model],Optional[bool]]=None,
+              on_unsat: Callable[[Sequence[int]],None]=None,
               on_statistics : Callable[[StatisticsMap,StatisticsMap],None]=None,
               on_finish: Callable[[SolveResult],None]=None,
               on_core: Callable[[Sequence[int]],None]=None,
@@ -480,6 +492,8 @@ class Control:
             A `clingo.solving.Model` object is passed to the callback. The
             search can be interruped from the model callback by returning
             False.
+        on_unsat
+            Optional callback to intercept lower bounds during optimization.
         on_statistics
             Optional callback to update statistics.
             The step and accumulated statistics are passed as arguments.
@@ -529,7 +543,7 @@ class Control:
         '''
         # pylint: disable=protected-access,dangerous-default-value
         self._error.clear()
-        handler = _SolveEventHandler(on_model, on_statistics, on_finish)
+        handler = _SolveEventHandler(on_model, on_unsat, on_statistics, on_finish)
         data = _CBData(handler, self._error)
         self._handler = _ffi.new_handle(data)
 

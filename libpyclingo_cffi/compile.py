@@ -135,7 +135,6 @@ def generate_python():
 
 def generate_c(action):
     clingo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    print(clingo_dir+"/libbpyclingo_cffi")
 
     ffi = FFI()
 
@@ -253,7 +252,7 @@ def pyclingo_main_(ctl, data):
         ffi.set_source(
             '_clingo',
             '#include <clingo.h>')
-        ffi.cdef(''.join(cnt))
+        ffi.cdef('\n'.join(cnt))
         ffi.emit_c_code('_clingo.c')
     else:
         with open('_clingo.cdef', 'w') as f:

@@ -277,6 +277,15 @@ bool ClingoControl::onModel(Clasp::Model const &m) {
     }
     return ret;
 }
+
+bool ClingoControl::onUnsat(Potassco::Span<int64_t> optimization) {
+    if (eventHandler_) {
+        std::lock_guard<decltype(propLock_)> lock(propLock_);
+        return eventHandler_->on_unsat(optimization);
+    }
+    return true;
+}
+
 void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
     if (eventHandler_) {
         eventHandler_->on_finish(convert(ret), &step_stats_, &accu_stats_);
@@ -883,15 +892,29 @@ void ClingoLib::initOptions(Potassco::ProgramOptions::OptionContext& root) {
 }
 
 bool ClingoLib::onModel(Clasp::Solver const&, Clasp::Model const& m) {
-    bool ret = ClingoControl::onModel(m);
-    return ret;
+    return ClingoControl::onModel(m);
 }
+
+bool ClingoLib::onUnsat(Clasp::Solver const &s, Clasp::Model const &m) {
+    if (m.ctx != nullptr && m.ctx->optimize() && s.lower.active()) {
+        std::vector<int64_t> optimization;
+        auto const *costs = m.num > 0 ? m.costs : nullptr;
+        if (costs != nullptr && costs->size() > s.lower.level) {
+            optimization.insert(optimization.end(), costs->begin(), costs->begin() + s.lower.level);
+        }
+        optimization.emplace_back(s.lower.bound);
+        return ClingoControl::onUnsat(Potassco::toSpan(optimization));
+    }
+    return true;
+}
+
 void ClingoLib::onEvent(Clasp::Event const& ev) {
     Clasp::ClaspFacade::StepReady const *r = Clasp::event_cast<Clasp::ClaspFacade::StepReady>(ev);
     if (r) { onFinish(r->summary->result); }
     const Clasp::LogEvent* log = Clasp::event_cast<Clasp::LogEvent>(ev);
     if (log && log->isWarning()) { logger_.print(Warnings::Other, log->msg); }
 }
+
 bool ClingoLib::parsePositional(const std::string& t, std::string& out) {
     int num;
     if (Potassco::string_cast(t, num)) {
@@ -900,6 +923,7 @@ bool ClingoLib::parsePositional(const std::string& t, std::string& out) {
     }
     return false;
 }
+
 ClingoLib::~ClingoLib() {
     clasp_.shutdown();
 }

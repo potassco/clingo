@@ -3441,6 +3441,13 @@ static int _cffi_const_clingo_solve_event_type_model(unsigned long long *o)
   return n;
 }
 
+static int _cffi_const_clingo_solve_event_type_unsat(unsigned long long *o)
+{
+  int n = (clingo_solve_event_type_unsat) <= 0;
+  *o = (unsigned long long)((clingo_solve_event_type_unsat) | 0);  /* check that clingo_solve_event_type_unsat is an integer */
+  return n;
+}
+
 static int _cffi_const_clingo_solve_event_type_statistics(unsigned long long *o)
 {
   int n = (clingo_solve_event_type_statistics) <= 0;
@@ -18485,6 +18492,7 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_solve_event_type_finish", (void *)_cffi_const_clingo_solve_event_type_finish, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_event_type_model", (void *)_cffi_const_clingo_solve_event_type_model, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_event_type_statistics", (void *)_cffi_const_clingo_solve_event_type_statistics, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
+  { "clingo_solve_event_type_unsat", (void *)_cffi_const_clingo_solve_event_type_unsat, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_handle_cancel", (void *)_cffi_f_clingo_solve_handle_cancel, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 693), (void *)_cffi_d_clingo_solve_handle_cancel },
   { "clingo_solve_handle_close", (void *)_cffi_f_clingo_solve_handle_close, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 693), (void *)_cffi_d_clingo_solve_handle_close },
   { "clingo_solve_handle_core", (void *)_cffi_f_clingo_solve_handle_core, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 700), (void *)_cffi_d_clingo_solve_handle_core },
@@ -19620,7 +19628,7 @@ static const struct _cffi_enum_s _cffi_enums[] = {
   { "clingo_show_type", 1294, _cffi_prim_int(sizeof(enum clingo_show_type), ((enum clingo_show_type)-1) <= 0),
     "clingo_show_type_csp,clingo_show_type_shown,clingo_show_type_atoms,clingo_show_type_terms,clingo_show_type_theory,clingo_show_type_all,clingo_show_type_complement" },
   { "clingo_solve_event_type", 1295, _cffi_prim_int(sizeof(enum clingo_solve_event_type), ((enum clingo_solve_event_type)-1) <= 0),
-    "clingo_solve_event_type_model,clingo_solve_event_type_statistics,clingo_solve_event_type_finish" },
+    "clingo_solve_event_type_model,clingo_solve_event_type_unsat,clingo_solve_event_type_statistics,clingo_solve_event_type_finish" },
   { "clingo_solve_mode", 1296, _cffi_prim_int(sizeof(enum clingo_solve_mode), ((enum clingo_solve_mode)-1) <= 0),
     "clingo_solve_mode_async,clingo_solve_mode_yield" },
   { "clingo_solve_result", 1297, _cffi_prim_int(sizeof(enum clingo_solve_result), ((enum clingo_solve_result)-1) <= 0),
@@ -19781,7 +19789,7 @@ static const struct _cffi_type_context_s _cffi_type_context = {
   _cffi_struct_unions,
   _cffi_enums,
   _cffi_typenames,
-  538,  /* num_globals */
+  539,  /* num_globals */
   76,  /* num_struct_unions */
   36,  /* num_enums */
   132,  /* num_typenames */

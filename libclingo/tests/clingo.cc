@@ -699,6 +699,25 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(m == (goon ? 2 : 1));
             REQUIRE(f == 1);
         }
+        SECTION("on_unsat") {
+            struct EH : Clingo::SolveEventHandler {
+                EH(std::vector<int64_t> &v) : v(v) { }
+                void on_unsat(Clingo::Span<int64_t> lower_bound) override {
+                    REQUIRE(lower_bound.size() == 1);
+                    v.push_back(lower_bound.back());
+                }
+                std::vector<int64_t> &v;
+            };
+            std::vector<int64_t> values;
+            EH handler{values};
+            auto conf = ctl.configuration();
+            conf["solver"]["opt_strategy"] = "usc,oll,0";
+            ctl.add("base", {}, "1 { p(X); q(X) } 1 :- X=1..3. #minimize { 1,p,X: p(X); 1,q,X: q(X) }.");
+            ctl.ground({{"base", {}}});
+            auto handle = ctl.solve(LiteralSpan{}, &handler);
+            REQUIRE(test_solve(std::move(handle), models).is_satisfiable());
+            REQUIRE(values == std::vector<int64_t>{1,2,3});
+        }
         SECTION("pos_strat") {
             ctl.with_backend([](Clingo::Backend &b){
                 b.rule(true, {b.add_atom(Clingo::Function("a", {Clingo::Number(1)}))}, {});
