@@ -4,8 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [ master, manylinux ]
-  pull_request:
-    branches: [ master, manylinux ]
 
 jobs:
   build_packages:
