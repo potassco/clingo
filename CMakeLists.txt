@@ -109,7 +109,7 @@ endif()
 #       that searching for the python libraries finds the matching libraries for the default python interpreter
 #       python is also used to run the tests
 
-if(PYCLINGO_FORCE_OLD_MODULE OR CMAKE_VERSION VERSION_GREATER "3.15.0" OR CMAKE_VERSION VERSION_EQUAL "3.15.0")
+if(NOT PYCLINGO_FORCE_OLD_MODULE AND (CMAKE_VERSION VERSION_GREATER "3.15.0" OR CMAKE_VERSION VERSION_EQUAL "3.15.0"))
     if(DEFINED PYTHON_EXECUTABLE AND NOT DEFINED Python_EXECUTABLE)
         set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}")
     endif()
