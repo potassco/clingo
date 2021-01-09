@@ -59,10 +59,7 @@ class _SolveEventHandler:
         return bool(ret or ret is None)
 
     def on_unsat(self, lower):
-        ret = None
-        if self._on_unsat is not None:
-            ret = self._on_unsat(lower)
-        return bool(ret or ret is None)
+        ret = self._on_unsat(lower)
 
     def on_finish(self, res):
         if self._on_finish is not None:
@@ -89,7 +86,7 @@ def _pyclingo_solve_event_callback(type_, event, data, goon):
         c_args = _ffi.cast('void**', event)
         c_lower = _ffi.cast('int64_t*', c_args[0])
         size = int(_ffi.cast('size_t', c_args[1]))
-        goon[0] = handler.on_unsat([c_lower[i] for i in range(size) ])
+        handler.on_unsat([c_lower[i] for i in range(size) ])
 
     if type_ == _lib.clingo_solve_event_type_statistics:
         p_stats = _ffi.cast('clingo_statistics_t**', event)
@@ -474,7 +471,7 @@ class Control:
     def solve(self,
               assumptions: Sequence[Union[Tuple[Symbol,bool],int]]=[],
               on_model: Callable[[Model],Optional[bool]]=None,
-              on_unsat: Callable[[Sequence[int]],Optional[bool]]=None,
+              on_unsat: Callable[[Sequence[int]],None]=None,
               on_statistics : Callable[[StatisticsMap,StatisticsMap],None]=None,
               on_finish: Callable[[SolveResult],None]=None,
               on_core: Callable[[Sequence[int]],None]=None,
