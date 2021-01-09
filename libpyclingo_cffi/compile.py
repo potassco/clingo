@@ -135,7 +135,6 @@ def generate_python():
 
 def generate_c(action):
     clingo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    print(clingo_dir+"/libbpyclingo_cffi")
 
     ffi = FFI()
 
@@ -189,8 +188,6 @@ def generate_c(action):
     cnt.append('extern "Python" bool pyclingo_application_options_parse(char const *value, void *data);')
     # ast callbacks
     cnt.append('extern "Python" bool pyclingo_ast_callback(clingo_ast_t const *, void *);')
-    cnt.append('')
-    print('\n'.join(cnt))
 
     if action == "embed":
         ffi.embedding_api('''\
