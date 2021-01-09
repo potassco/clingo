@@ -30,7 +30,6 @@ fi
 
 # Bump the version number
 sed -i "s/post\([0-9]\+\)/post$version/g" setup.py
-sed -i 's/, "cmake"//' pyproject.toml 
 
 # Compile wheels
 for PYBIN in /opt/python/*/bin; do
