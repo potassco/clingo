@@ -75,7 +75,7 @@ def repair_wheels():
             print("Skipping non-platform wheel {}".format(wheel))
             continue
 
-        check_call(['auditwheel', 'repair', wheel, '--plat', environ('PLAT'), '-w', 'wheelhouse/'])
+        check_call(['auditwheel', 'repair', wheel, '--plat', environ['PLAT'], '-w', 'wheelhouse/'])
         unlink(wheel)
 
 
