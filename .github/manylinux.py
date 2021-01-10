@@ -14,7 +14,7 @@ def adjust_version():
     '''
     Adjust version in setup.py.
     '''
-    pip = check_output(['curl', '-sL', 'https://test.pypi.org/simple/clingo-cffi']).decode()
+    pip = check_output(['curl', '-sL', 'https://test.pypi.org/simple/clingo_cffi']).decode()
     version = None
     with open('libclingo/clingo.h') as fh:
         for line in fh:
@@ -25,7 +25,7 @@ def adjust_version():
     assert version is not None
 
     post = 0
-    for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+).tar.gz'.format(escape(version)), pip):
+    for m in finditer(r'clingo_cffi-{}.post([0-9]+).tar.gz'.format(escape(version)), pip):
         post = max(post, int(m.group(1)))
 
     for m in finditer(r'clingo_cffi-{}.post([0-9]+).*manylinux2014_{}'.format(escape(version), escape(ARCH)), pip):

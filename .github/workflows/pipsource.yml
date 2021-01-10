@@ -2,8 +2,6 @@ name: Build source package
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ master, manylinux ]
 
 jobs:
   build_packages:
