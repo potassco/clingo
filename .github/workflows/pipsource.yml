@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install prerequisites
-      run: sudo apt-get install bison re2c python3 cmake ninja-build gcc g++
+      run: |
+        sudo apt-get install bison re2c python3 python3-pip gcc g++ cmake ninja-build
+        sudo pip3 install setuptools wheel scikit-build
     - name: Checkout repo
       uses: actions/checkout@v2
       with:
