@@ -24,7 +24,7 @@ def adjust_version():
     for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+)'.format(escape(version)), pip):
         post = max(post, int(m.group(1)) + 1)
 
-    for m in finditer(r'clingo_cffi-{}.post([0-9]+).*manylinux2014_'.format(escape(version)), pip):
+    for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+).*manylinux2014_'.format(escape(version)), pip):
         post = max(post, int(m.group(1)))
 
     with open('setup.py') as fr:
