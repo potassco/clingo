@@ -7,7 +7,7 @@ if not site.ENABLE_USER_SITE and "--user" in sys.argv[1:]:
     site.ENABLE_USER_SITE = True
 
 setup(
-    version = '5.5.0.post18',
+    version = '5.5.0',
     name = 'clingo-cffi',
     description = 'CFFI-based bindings to the clingo solver.',
     long_description = dedent('''\
@@ -36,6 +36,7 @@ setup(
                  '-DPYCLINGO_USE_CFFI=ON',
                  '-DPYCLINGO_USER_INSTALL=OFF',
                  '-DPYCLINGO_USE_INSTALL_PREFIX=ON',
+                 '-DPYCLINGO_FORCE_OLD_MODULE=ON',
                  '-DPYCLINGO_INSTALL_DIR=libpyclingo_cffi' ],
     packages=[ 'clingo' ],
     package_data={ 'clingo': [ 'py.typed' ] },

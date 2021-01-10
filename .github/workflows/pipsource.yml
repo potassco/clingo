@@ -1,0 +1,26 @@
+name: Build source package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_packages:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install prerequisites
+      run: |
+        sudo apt-get install bison re2c python3 python3-pip gcc g++ cmake ninja-build
+        sudo pip3 install setuptools wheel scikit-build
+    - name: Checkout repo
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Build source package
+      run: python3 .github/pipsource.py
+    - name: Publish package to TestPyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        packages_dir: dist/
+        repository_url: https://test.pypi.org/legacy/
