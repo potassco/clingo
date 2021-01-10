@@ -34,7 +34,10 @@ def adjust_version():
     with open('setup.py') as fr:
         setup = fr.read()
     with open('setup.py', 'w') as fw:
-        fw.write(sub('version( *)=.*', 'version = \'{}.post{}\','.format(version, post), setup, 1))
+        if post > 0:
+            fw.write(sub('version( *)=.*', 'version = \'{}.post{}\','.format(version, post), setup, 1))
+        else:
+            fw.write(sub('version( *)=.*', 'version = \'{}\','.format(version), setup, 1))
 
 
 def install():
