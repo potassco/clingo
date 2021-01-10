@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dev_branch=manylinux
+dev_branch=wip
 
 function list() {
     curl \
