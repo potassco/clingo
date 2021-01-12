@@ -6,6 +6,8 @@ on:
 jobs:
   build_packages:
     runs-on: ubuntu-latest
+    env:
+      distribution: ${{ matrix.distribution }}
     strategy:
       matrix:
         distribution: [focal, bionic]
@@ -25,4 +27,4 @@ jobs:
     - name: Build deb and source package
       run: |
         cd .github/ppa-wip
-        ./build.sh "${distribution}" create sync build put
+        ./build.sh "$distribution" create sync build put
