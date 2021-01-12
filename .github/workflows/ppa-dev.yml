@@ -18,7 +18,7 @@ jobs:
       run: |
         echo "$POTASSCO_PPA_GPGKEY" | base64 --decode | gpg --import
       env:
-        POTASSCO_PPA_GPGKEY: ${{ POTASSCO_PPA_GPGKEY }}
+        POTASSCO_PPA_GPGKEY: ${{ secrets.POTASSCO_PPA_GPGKEY }}
     - name: Build deb and source package
       run: |
           cd scratch
