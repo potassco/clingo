@@ -27,4 +27,4 @@ jobs:
     - name: Build deb and source package
       run: |
         cd .github/ppa-wip
-        ./build.sh "$distribution" create sync build put
+        ./build.sh "$distribution" create sync changes build put

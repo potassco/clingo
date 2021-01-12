@@ -50,6 +50,18 @@ for act in "${@}"; do
                 ../../LICENSE.md \
                 $rep/
             ;;
+        changes)
+            VERSION=$(sed -n '/#define CLINGO_VERSION "/s/.*"\([0-9]\+\.[0-9\+]\.[0-9]\+\)".*/\1/p' ../../libclingo/clingo.h)
+            BUILD=$(curl -sL http://ppa.launchpad.net/potassco/${rep}-wip/ubuntu/pool/main/c/clingo/ | sed -n '/\.dsc/s/.*alpha\([0-9]\+\).*/\1/p' | sort -rn | head -1)
+            BUILD=$[BUILD+1]
+            cat > ${rep}/debian/changelog <<EOF
+clingo (${VERSION}-alpha$[BUILD+1]) ${rep}; urgency=medium
+
+  * build for git revision $(git rev-parse HEAD)
+
+ -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  $(date -R)
+EOF
+            ;;
         build)
             VERSION="$(head -n 1 ${rep}/debian/changelog | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[a-z0-9]\+\)\?')"
             (cd "${rep}" && pdebuild -- --basetgz /var/cache/pbuilder/${rep}.tgz; debsign -k744d959e10f5ad73f9cf17cc1d150536980033d5 ../clingo_${VERSION}_source.changes)
