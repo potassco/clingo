@@ -1,9 +1,7 @@
 name: Publish ppa (wip)
 
 on:
-  push:
-    - ppa
-  workflow_dispatch:
+  - push
 
 jobs:
   build_packages:
