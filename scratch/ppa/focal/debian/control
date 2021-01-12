@@ -2,7 +2,7 @@ Source: clingo
 Section: devel
 Priority: optional
 Maintainer: Roland Kaminski <kaminski@cs.uni-potsdam.de>
-Build-Depends: debhelper-compat (= 12), cmake, dh-python, python3-dev, liblua5.3-dev, python3-cffi
+Build-Depends: debhelper-compat (= 12), cmake, dh-python, python3-dev, liblua5.3-dev, python3-cffi, bison, re2c
 Standards-Version: 4.4.1
 Homepage: https://potassco.org/clingo
 Vcs-Browser: https://github.com/potassco/clingo
