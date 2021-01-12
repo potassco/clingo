@@ -1,0 +1,27 @@
+name: Publish ppa (wip)
+
+on:
+  push:
+    - ppa
+  workflow_dispatch:
+
+jobs:
+  build_packages:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install prerequisites
+      run: |
+        sudo apt-get install pbuilder pbuilder-scripts
+    - name: Checkout repo
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Setup gpg
+      run: |
+        echo "$POTASSCO_PPA_GPGKEY" | base64 --decode | gpg --import
+      env:
+        POTASSCO_PPA_GPGKEY: ${{ POTASSCO_PPA_GPGKEY }}
+    - name: Build deb and source package
+      run: |
+          cd scratch
+          ./build.sh focal create sync build
