@@ -16,7 +16,7 @@ jobs:
         submodules: recursive
     - name: Setup gpg
       run: |
-        echo "$POTASSCO_PPA_GPGKEY" | base64 --decode | gpg --import
+        echo "$POTASSCO_PPA_GPGKEY" | base64 --decode | gpg --batch --import
       env:
         POTASSCO_PPA_GPGKEY: ${{ secrets.POTASSCO_PPA_GPGKEY }}
     - name: Build deb and source package
