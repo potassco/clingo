@@ -9,7 +9,7 @@ jobs:
     steps:
     - name: Install prerequisites
       run: |
-        sudo apt-get install pbuilder pbuilder-scripts
+        sudo apt-get install pbuilder pbuilder-scripts dh-python
     - name: Checkout repo
       uses: actions/checkout@v2
       with:
