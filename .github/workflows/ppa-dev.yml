@@ -1,11 +1,14 @@
 name: Publish ppa (wip)
 
 on:
-  - push
+  workflow_dispatch:
 
 jobs:
   build_packages:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        distribution: [focal, bionic]
     steps:
     - name: Install prerequisites
       run: |
@@ -21,5 +24,5 @@ jobs:
         POTASSCO_PPA_GPGKEY: ${{ secrets.POTASSCO_PPA_GPGKEY }}
     - name: Build deb and source package
       run: |
-          cd scratch/ppa
-          ./build.sh focal create sync build
+        cd .github/ppa-wip
+        ./build.sh "${distribution}" create sync build put
