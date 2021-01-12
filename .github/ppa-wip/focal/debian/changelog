@@ -1,3 +1,9 @@
+clingo (5.5.0-alpha4) focal; urgency=medium
+
+  * Add bison and re2c dependency.
+
+ -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Fri, 12 Jan 2021 13:30:00 +0100
+
 clingo (5.5.0-alpha3) focal; urgency=medium
 
   * Fine-tune python packages.
