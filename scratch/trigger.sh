@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dev_branch=ppa
+dev_branch=wip
 
 function list() {
     curl \
@@ -25,8 +25,8 @@ case $1 in
         list
         ;;
     dev)
-        #dispatch 4811844
-        #dispatch 4823035
+        dispatch 4811844
+        dispatch 4823035
         dispatch 4881510
         ;;
     release)
