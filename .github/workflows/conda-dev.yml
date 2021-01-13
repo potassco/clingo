@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+        os: ['ubuntu-latest', 'macos-latest', 'windows-2016']
         python-version: ['3.8']
 
     steps:
@@ -30,6 +30,13 @@ jobs:
     - name: install prerequisites
       shell: pwsh
       run: conda install conda-build anaconda-client
+
+    - name: install macos SDK
+      if: ${{ matrix.os == 'macos-latest' }}
+      shell: pwsh
+      run: |
+        Invoke-WebRequest -Uri 'https://github.com/phracker/MacOSX-SDKs/releases/download/10.15/MacOSX10.9.sdk.tar.xz' -OutFile 'MacOSX10.9.sdk.tar.xz'
+        tar xf MacOSX10.9.sdk.tar.xz -C /opt
 
     - name: print info
       shell: pwsh
