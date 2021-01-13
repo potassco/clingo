@@ -25,7 +25,7 @@ jobs:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
         activate-environment: clingo
-        channels: [potassco, potassco/label/dev]
+        channels: potassco,potassco/label/dev
 
     - name: install prerequisites
       shell: pwsh
