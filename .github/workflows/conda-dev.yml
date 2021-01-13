@@ -20,7 +20,7 @@ jobs:
         ref: 'master'
 
     - name: setup miniconda
-      uses: goanpeca/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v2
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
