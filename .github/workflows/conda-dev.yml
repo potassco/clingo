@@ -16,7 +16,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        repository: 'https://github.com/potassco/conda'
+        repository: 'potassco/conda'
         ref: 'master'
 
     - name: setup miniconda
