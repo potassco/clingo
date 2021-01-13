@@ -25,9 +25,9 @@ case $1 in
         list
         ;;
     dev)
-        #dispatch 4811844
-        #dispatch 4823035
-        #dispatch 4881510
+        dispatch 4811844
+        dispatch 4823035
+        dispatch 4881510
         dispatch 4923491
         ;;
     release)
