@@ -36,7 +36,7 @@ jobs:
       shell: pwsh
       run: |
         Invoke-WebRequest -Uri 'https://github.com/phracker/MacOSX-SDKs/releases/download/10.15/MacOSX10.9.sdk.tar.xz' -OutFile 'MacOSX10.9.sdk.tar.xz'
-        tar xf MacOSX10.9.sdk.tar.xz -C /opt
+        sudo tar xf MacOSX10.9.sdk.tar.xz -C /opt
 
     - name: print info
       shell: pwsh
