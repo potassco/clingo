@@ -25,6 +25,7 @@ jobs:
       run: |
         choco install re2c
         choco install winflexbison3
+        pip install --user cffi
 
     - name: Compile clingo
       run: python .github/pipwindows.py

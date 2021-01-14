@@ -40,4 +40,4 @@ def adjust_version():
 
 if __name__ == "__main__":
     adjust_version()
-    check_call(['pip', 'wheel', './', '-w', 'wheelhouse'])
+    check_call(['python', 'setup.py', 'bdist_wheel'])
