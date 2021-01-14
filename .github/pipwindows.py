@@ -10,6 +10,21 @@ from re import finditer, escape, match, sub
 from subprocess import check_call
 from urllib.request import urlopen
 from glob import glob
+from platform import python_implementation
+from distutils.util import get_platform
+from sysconfig import get_config_var
+
+NAMES = {
+    "cpython": "cp",
+    "pypy": "pp",
+}
+
+def python_tag():
+    name = NAMES[python_implementation().lower()]
+    return '{}{}'.format(name, get_config_var("py_version_nodot"))
+
+def platform_tag():
+    return get_platform().replace("-", "_").replace(".", "_")
 
 def adjust_version():
     '''
@@ -29,9 +44,15 @@ def adjust_version():
 
     post = 0
     for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+).tar.gz'.format(escape(version)), pip):
+        print(m)
         post = max(post, int(m.group(1)))
 
-    for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+).*win'.format(escape(version)), pip):
+    for m in finditer(r'clingo[_-]cffi-{}-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())), pip):
+        print(m)
+        post = 1
+
+    for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+)-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())), pip):
+        print(m)
         post = max(post, int(m.group(1)) + 1)
 
     with open('setup.py') as fr:
@@ -42,9 +63,11 @@ def adjust_version():
         else:
             fw.write(sub('version( *)=.*', 'version = \'{}\','.format(version), setup, 1))
 
+    print('the current version post is: ', post)
+
 
 if __name__ == "__main__":
     adjust_version()
-    check_call(['python', 'setup.py', 'bdist_wheel'])
-    for wheel in glob('dist/*.whl'):
-        check_call(['python', '-m', 'twine', 'upload', wheel])
+    #check_call(['python', 'setup.py', 'bdist_wheel'])
+    #for wheel in glob('dist/*.whl'):
+    #    check_call(['python', '-m', 'twine', 'upload', wheel])
