@@ -11,9 +11,9 @@ from subprocess import check_call
 from urllib.request import urlopen
 from glob import glob
 from platform import python_implementation
-from distutils.util import get_platform
 from sysconfig import get_config_var
 from os import environ, pathsep
+import os
 
 NAMES = {
     "cpython": "cp",
@@ -25,7 +25,7 @@ def python_tag():
     return '{}{}'.format(name, get_config_var("py_version_nodot"))
 
 def platform_tag():
-    return get_platform().replace("-", "_").replace(".", "_")
+    return 'macosx' if os.name == 'posix' else 'win'
 
 def adjust_version():
     '''
