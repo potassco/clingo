@@ -1,28 +1,28 @@
 # Changes
 
 ## clingo 5.5.0
-  * allow for using `not` as a theory operator (#193)
-  * improve parsing of disjunctions (#171)
+  * allow for using `not` as a theory operator ([#193])
+  * improve parsing of disjunctions ([#171])
   * rename `max_size` to `size` in APIs and remove previous `size` method
     (breaks backward compatibility but makes things consistent)
-  * extend clingo API (#236, #231, #228, #227, #187, #171, #174, #183)
-  * add type annotations and add stub files for type checkers (#212)
-  * add alternative Python package using the Python CFFI package (#253)
+  * extend clingo API ([#236], [#231], [#228], [#227], [#187], [#171], [#174], [#183])
+  * add type annotations and add stub files for type checkers ([#212])
+  * add alternative Python package using the Python CFFI package ([#253])
   * add support for Lua 5.4
   * add options to select specific Lua/Python versions
     (see installation instructions)
   * rename `clingo.Tuple` to `clingo.Tuple_`
     (to avoid name clashes with `typing.Tuple`)
-  * fix propagator initialization (#166)
-  * fix cleanup function and handling of theory (#169)
-  * fix shifting of disjunctions (in clasp) (#173)
-  * fix handling of pools in externals (#179)
-  * fix logger in Python API (#175)
-  * fix memory bugs regarding strings (#196)
-  * fix undo function (#191)
-  * fix adding literals in propagate init (#192)
-  * fix handling of undefined arithmetics (#218)
-  * fix incremental grounding (#248)
+  * fix propagator initialization ([#166])
+  * fix cleanup function and handling of theory ([#169])
+  * fix shifting of disjunctions (in clasp) ([#173])
+  * fix handling of pools in externals ([#179])
+  * fix logger in Python API ([#175])
+  * fix memory bugs regarding strings ([#196])
+  * fix undo function ([#191])
+  * fix adding literals in propagate init ([#192])
+  * fix handling of undefined arithmetics ([#218])
+  * fix incremental grounding ([#248])
   * update to clasp version 3.3.6 fixing various issues
 ## clingo 5.4.0
   * add extension to implement custom heuristics
@@ -60,25 +60,25 @@
   * add _to_c functions for python API to be able to call C functions from
     python
   * only create ground representations for requested program parts when
-    grounding (#71)
-  * improve program observer (#19)
-  * support for binary, octal, and hexadecimal numbers (#65)
+    grounding ([#71])
+  * improve program observer ([#19])
+  * support for binary, octal, and hexadecimal numbers ([#65])
   * the backend has to be opened/closed now
-  * release python's GIL while grounding (#82)
+  * release python's GIL while grounding ([#82])
   * TruthValue.{True,False} becomes TruthValue.{\_True,\_False} in python API
   * improve API and it's documentation
 ## clingo 5.2.3
   * update to clasp version 3.3.4
   * really fix --pre option
-  * fix link to potassco guide (#74)
-  * fix location printing (#78)
-  * fix linking problems (#79)
-  * fix modulo zero (#100)
-  * fix web builds (#103)
-  * fix addding clauses after a model has been found (#104)
-  * fix python program observer bindings (#105)
+  * fix link to potassco guide ([#74])
+  * fix location printing ([#78])
+  * fix linking problems ([#79])
+  * fix modulo zero ([#100])
+  * fix web builds ([#103])
+  * fix addding clauses after a model has been found ([#104])
+  * fix python program observer bindings ([#105])
   * expose exponentiation operator in APIs
-  * improve python docstrings (#101, #102)
+  * improve python docstrings ([#101], [#102])
   * add option to build python and lua modules against an existing libclingo
 ## clingo 5.2.2
   * update to clasp version 3.3.3
@@ -262,3 +262,30 @@
   * fixed preprocessing of definitions
   * fixed lparse translation of optimization constructs
 
+[#19]: https://github.com/potassco/clingo/issues/19
+[#65]: https://github.com/potassco/clingo/issues/65
+[#71]: https://github.com/potassco/clingo/issues/71
+[#74]: https://github.com/potassco/clingo/issues/74
+[#78]: https://github.com/potassco/clingo/issues/78
+[#79]: https://github.com/potassco/clingo/issues/79
+[#82]: https://github.com/potassco/clingo/issues/82
+[#100]: https://github.com/potassco/clingo/issues/100
+[#101]: https://github.com/potassco/clingo/issues/101
+[#103]: https://github.com/potassco/clingo/issues/103
+[#104]: https://github.com/potassco/clingo/issues/104
+[#105]: https://github.com/potassco/clingo/issues/105
+[#166]: https://github.com/potassco/clingo/issues/166
+[#169]: https://github.com/potassco/clingo/issues/169
+[#171]: https://github.com/potassco/clingo/issues/171
+[#173]: https://github.com/potassco/clingo/issues/173
+[#175]: https://github.com/potassco/clingo/issues/175
+[#179]: https://github.com/potassco/clingo/issues/179
+[#191]: https://github.com/potassco/clingo/issues/191
+[#192]: https://github.com/potassco/clingo/issues/192
+[#193]: https://github.com/potassco/clingo/issues/193
+[#196]: https://github.com/potassco/clingo/issues/196
+[#212]: https://github.com/potassco/clingo/issues/212
+[#218]: https://github.com/potassco/clingo/issues/218
+[#236]: https://github.com/potassco/clingo/issues/236
+[#248]: https://github.com/potassco/clingo/issues/248
+[#253]: https://github.com/potassco/clingo/issues/253
