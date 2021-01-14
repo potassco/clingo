@@ -1,5 +1,9 @@
 '''
 Script to build binary wheels on windows.
+
+TODO:
+- version detection has to take python version into account
+- this script should mac binaries too
 '''
 
 from re import finditer, escape, match, sub
