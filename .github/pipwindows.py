@@ -11,7 +11,7 @@ def adjust_version():
     Adjust version in setup.py.
     '''
     with urlopen('https://test.pypi.org/simple/clingo-cffi') as uh:
-        pip = uh.read()
+        pip = uh.read().decode()
 
     version = None
     with open('libclingo/clingo.h') as fh:
