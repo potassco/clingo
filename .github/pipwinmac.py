@@ -52,6 +52,7 @@ def adjust_version():
         print('init', m)
         post = max(post, 1)
 
+    print(r'clingo[_-]cffi-{}.post([0-9]+)-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())))
     for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+)-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())), pip):
         print('update', m)
         post = max(post, int(m.group(1)) + 1)
