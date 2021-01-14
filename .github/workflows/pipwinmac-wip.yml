@@ -1,7 +1,7 @@
 name: Deploy win/mac wheels (wip)
 
 on:
-  - push
+  workflow_dispatch:
 
 jobs:
   build:

@@ -45,16 +45,12 @@ def adjust_version():
 
     post = 0
     for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+).tar.gz'.format(escape(version)), pip):
-        print('source', m)
         post = max(post, int(m.group(1)))
 
     for m in finditer(r'clingo[_-]cffi-{}-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())), pip):
-        print('init', m)
         post = max(post, 1)
 
-    print(r'clingo[_-]cffi-{}.post([0-9]+)-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())))
     for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+)-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())), pip):
-        print('update', m)
         post = max(post, int(m.group(1)) + 1)
 
     with open('setup.py') as fr:
@@ -65,12 +61,10 @@ def adjust_version():
         else:
             fw.write(sub('version( *)=.*', 'version = \'{}\','.format(version), setup, 1))
 
-    print('the current version post is: ', post)
-
 
 if __name__ == "__main__":
     adjust_version()
     environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + environ["PATH"]
-    #check_call(['python', 'setup.py', 'bdist_wheel'])
-    #for wheel in glob('dist/*.whl'):
-    #    check_call(['python', '-m', 'twine', 'upload', wheel])
+    check_call(['python', 'setup.py', 'bdist_wheel'])
+    for wheel in glob('dist/*.whl'):
+        check_call(['python', '-m', 'twine', 'upload', wheel])
