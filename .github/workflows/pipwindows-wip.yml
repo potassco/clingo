@@ -1,4 +1,4 @@
-name: Build windows pip binary wheels (wip)
+name: Build windows wheels (wip)
 
 on:
   - push
@@ -29,11 +29,5 @@ jobs:
 
     - name: Compile clingo
       run: python .github/pipwindows.py
-
-    - name: Publish package to TestPyPI
-      uses: pypa/gh-action-pypi-publish@master
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
-        packages_dir: wheelhouse
-        repository_url: https://test.pypi.org/legacy/
+      env:
+        PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}

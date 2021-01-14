@@ -3,8 +3,21 @@ Script to build binary wheels on windows.
 '''
 
 from re import finditer, escape, match, sub
-from subprocess import check_output, check_call
+from subprocess import check_call
 from urllib.request import urlopen
+from os import environ
+from glob import glob
+
+def setup():
+    with open('twine.cfg') as fh:
+        fh.write('''\
+[distutils]
+index-servers=clingo-cffi
+[clingo-cffi]
+repository = https://test.pypi.org/legacy/
+username=__token__
+password={}
+'''.format(environ['PYPI_API_TOKEN']))
 
 def adjust_version():
     '''
@@ -39,5 +52,8 @@ def adjust_version():
 
 
 if __name__ == "__main__":
+    setup()
     adjust_version()
     check_call(['python', 'setup.py', 'bdist_wheel'])
+    for wheel in glob('dist/*.whl'):
+        check_call(['python', '-m', 'twine', '--config-file', "twine.cfg", '--repository', 'clingo-cffi', wheel])
