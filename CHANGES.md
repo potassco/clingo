@@ -232,7 +232,7 @@
     * fixed cleanup up of learnt constraints during incremental solving
   * workaround for libstdc++'s bad choice for hash<uint64_t> on 32bit arches
 ## gringo/clingo 4.2
-  * added clingo 
+  * added clingo
     * supports very flexible scripting support
     * can cover iclingo and oclingo functionality now
   * added stack traces to lua error messages
