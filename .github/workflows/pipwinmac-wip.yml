@@ -25,14 +25,14 @@ jobs:
     - name: Install mac prerequisites
       if: ${{ matrix.os == 'macos-10.15' }}
       run: |
-        choco install re2c
-        choco install winflexbison3
+        brew install re2c
+        brew install bison
 
     - name: Install win prerequisites
       if: ${{ matrix.os == 'windows-2016' }}
       run: |
-        brew install re2c
-        brew install bison
+        choco install re2c
+        choco install winflexbison3
 
     - name: Install pip prerequisites
       if: ${{ matrix.os == 'windows-2016' }}
