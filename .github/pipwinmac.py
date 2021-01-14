@@ -13,6 +13,7 @@ from glob import glob
 from platform import python_implementation
 from distutils.util import get_platform
 from sysconfig import get_config_var
+from os import environ, pathsep
 
 NAMES = {
     "cpython": "cp",
@@ -68,6 +69,7 @@ def adjust_version():
 
 if __name__ == "__main__":
     adjust_version()
+    environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + environ["PATH"]
     check_call(['python', 'setup.py', 'bdist_wheel'])
     for wheel in glob('dist/*.whl'):
         check_call(['python', '-m', 'twine', 'upload', wheel])
