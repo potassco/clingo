@@ -70,6 +70,6 @@ def adjust_version():
 if __name__ == "__main__":
     adjust_version()
     environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + environ["PATH"]
-    check_call(['python', 'setup.py', 'bdist_wheel'])
-    for wheel in glob('dist/*.whl'):
-        check_call(['python', '-m', 'twine', 'upload', wheel])
+    #check_call(['python', 'setup.py', 'bdist_wheel'])
+    #for wheel in glob('dist/*.whl'):
+    #    check_call(['python', '-m', 'twine', 'upload', wheel])
