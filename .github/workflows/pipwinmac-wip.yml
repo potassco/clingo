@@ -1,13 +1,14 @@
-name: Deploy windows wheels (wip)
+name: Deploy win/mac wheels (wip)
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-2016
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [windows-2016, macos-10.15]
         python-version: [ '3.6', '3.7', '3.8', '3.9' ]
 
     steps:
@@ -21,14 +22,24 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install prerequisites
+    - name: Install mac prerequisites
+      if: ${{ matrix.os == 'macos-10.15' }}
+      run: |
+        brew install re2c
+        brew install bison
+
+    - name: Install win prerequisites
+      if: ${{ matrix.os == 'windows-2016' }}
       run: |
         choco install re2c
         choco install winflexbison3
+
+    - name: Install pip prerequisites
+      run: |
         pip install --user cffi scikit-build cmake ninja twine
 
     - name: Compile clingo
-      run: python .github/pipwindows.py
+      run: python .github/pipwinmac.py
       env:
         TWINE_NON_INTERACTIVE: True
         TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/

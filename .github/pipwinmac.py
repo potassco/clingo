@@ -10,6 +10,22 @@ from re import finditer, escape, match, sub
 from subprocess import check_call
 from urllib.request import urlopen
 from glob import glob
+from platform import python_implementation
+from sysconfig import get_config_var
+from os import environ, pathsep
+import os
+
+NAMES = {
+    "cpython": "cp",
+    "pypy": "pp",
+}
+
+def python_tag():
+    name = NAMES[python_implementation().lower()]
+    return '{}{}'.format(name, get_config_var("py_version_nodot"))
+
+def platform_tag():
+    return 'macosx' if os.name == 'posix' else 'win'
 
 def adjust_version():
     '''
@@ -31,7 +47,10 @@ def adjust_version():
     for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+).tar.gz'.format(escape(version)), pip):
         post = max(post, int(m.group(1)))
 
-    for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+).*win'.format(escape(version)), pip):
+    for m in finditer(r'clingo[_-]cffi-{}-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())), pip):
+        post = max(post, 1)
+
+    for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+)-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())), pip):
         post = max(post, int(m.group(1)) + 1)
 
     with open('setup.py') as fr:
@@ -45,6 +64,7 @@ def adjust_version():
 
 if __name__ == "__main__":
     adjust_version()
+    environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + environ["PATH"]
     check_call(['python', 'setup.py', 'bdist_wheel'])
     for wheel in glob('dist/*.whl'):
         check_call(['python', '-m', 'twine', 'upload', wheel])
