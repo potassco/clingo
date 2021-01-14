@@ -35,7 +35,6 @@ jobs:
         choco install winflexbison3
 
     - name: Install pip prerequisites
-      if: ${{ matrix.os == 'windows-2016' }}
       run: |
         pip install --user cffi scikit-build cmake ninja twine
 

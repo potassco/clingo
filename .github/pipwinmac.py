@@ -44,15 +44,15 @@ def adjust_version():
 
     post = 0
     for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+).tar.gz'.format(escape(version)), pip):
-        print(m)
+        print('source', m)
         post = max(post, int(m.group(1)))
 
     for m in finditer(r'clingo[_-]cffi-{}-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())), pip):
-        print(m)
-        post = 1
+        print('init', m)
+        post = max(post, 1)
 
     for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+)-{}-.*-{}'.format(escape(version), escape(python_tag()), escape(platform_tag())), pip):
-        print(m)
+        print('update', m)
         post = max(post, int(m.group(1)) + 1)
 
     with open('setup.py') as fr:
