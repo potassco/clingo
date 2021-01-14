@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2016
     strategy:
       matrix:
         python-version: [ '3.6', '3.7', '3.8', '3.9' ]
@@ -25,7 +25,7 @@ jobs:
       run: |
         choco install re2c
         choco install winflexbison3
-        pip install --user cffi scikit-build
+        pip install --user cffi scikit-build cmake ninja
 
     - name: Compile clingo
       run: python .github/pipwindows.py
