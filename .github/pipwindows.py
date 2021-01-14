@@ -9,7 +9,7 @@ from os import environ
 from glob import glob
 
 def setup():
-    with open('twine.cfg') as fh:
+    with open('twine.cfg', 'w') as fh:
         fh.write('''\
 [distutils]
 index-servers=clingo-cffi
