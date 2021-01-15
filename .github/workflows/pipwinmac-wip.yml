@@ -45,4 +45,3 @@ jobs:
         TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        MACOSX_DEPLOYMENT_TARGET: 10.9
