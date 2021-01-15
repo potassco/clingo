@@ -1,9 +1,5 @@
 '''
 Script to build binary wheels on windows.
-
-TODO:
-- version detection has to take python version into account
-- this script should mac binaries too
 '''
 
 from re import finditer, escape, match, sub
@@ -64,7 +60,11 @@ def adjust_version():
 
 if __name__ == "__main__":
     adjust_version()
-    environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + environ["PATH"]
-    check_call(['python', 'setup.py', 'bdist_wheel'])
+    options = ['python', 'setup.py', 'bdist_wheel']
+    if os.name == 'posix':
+        environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + environ["PATH"]
+        environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
+        options.extend(['-p', 'macosx_10_9_x86_64'])
+    check_call(options)
     for wheel in glob('dist/*.whl'):
         check_call(['python', '-m', 'twine', 'upload', wheel])
