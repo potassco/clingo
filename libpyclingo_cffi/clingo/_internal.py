@@ -4,12 +4,23 @@ Internal functions and classes of the clingo module.
 
 from os import _exit
 from traceback import print_exception
+import os
 import sys
 try:
-    # Note: imported first to correctly handle the embedded case
-    from _clingo import ffi as _ffi, lib as _lib # type: ignore # pylint: disable=no-name-in-module
-except ImportError:
-    from ._clingo import ffi as _ffi, lib as _lib # type: ignore # pylint: disable=no-name-in-module
+    _FLAGS = None
+    # In the pip module the library also exports the clingo symbols, which
+    # should be globally available for other libraries depending on clingo.
+    if hasattr(sys, 'setdlopenflags'):
+        _FLAGS = sys.getdlopenflags()
+        sys.setdlopenflags(os.RTLD_LAZY|os.RTLD_GLOBAL)
+    try:
+        # Note: imported first to correctly handle the embedded case
+        from _clingo import ffi as _ffi, lib as _lib # type: ignore # pylint: disable=no-name-in-module
+    except ImportError:
+        from ._clingo import ffi as _ffi, lib as _lib # type: ignore # pylint: disable=no-name-in-module
+finally:
+    if _FLAGS is not None:
+        sys.setdlopenflags(_FLAGS)
 
 def _str(f_size, f_str, *args, handler=None):
     p_size = _ffi.new('size_t*')
