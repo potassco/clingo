@@ -43,27 +43,37 @@ set(source
 list(APPEND header "${CLASP_SOURCE_DIR}/app/clasp_app.h")
 list(APPEND source "${CLASP_SOURCE_DIR}/app/clasp_app.cpp")
 
+set(clingo_public_scope_ PUBLIC)
+set(clingo_private_scope_ PRIVATE)
 if (CLINGO_BUILD_SHARED)
-    set(clingo_lib_type SHARED)
+    if (CLINGO_BUILD_SHARED_INTERFACE)
+        set(clingo_lib_type INTERFACE)
+        set(clingo_public_scope_ INTERFACE)
+        set(clingo_private_scope_ INTERFACE)
+    else()
+        set(clingo_lib_type SHARED)
+    endif()
 else()
     set(clingo_lib_type STATIC)
+    set(clingo_public_scope_ PUBLIC)
 endif()
 
-add_library(libclingo ${clingo_lib_type} ${header} ${source})
-target_link_libraries(libclingo PRIVATE libgringo libclasp)
+add_library(libclingo ${clingo_lib_type})
+target_sources(libclingo ${clingo_private_scope_} ${header} ${source})
+target_link_libraries(libclingo ${clingo_private_scope_} libgringo libclasp)
 target_include_directories(libclingo
-    PUBLIC
+    ${clingo_public_scope_}
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-    PRIVATE
+    ${clingo_private_scope_}
     "$<BUILD_INTERFACE:${CLASP_SOURCE_DIR}/app>")
-target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
+target_compile_definitions(libclingo ${clingo_private_scope_} CLINGO_BUILD_LIBRARY)
 
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
 endif()
 
-if (CLINGO_INSTALL_LIB)
+if (CLINGO_INSTALL_LIB AND NOT CLINGO_BUILD_SHARED_INTERFACE)
     set(clingo_targets libclingo)
     if (CLINGO_BUILD_SHARED)
         set_target_properties(libclingo PROPERTIES SOVERSION 4 VERSION 4.0)
@@ -103,9 +113,11 @@ endif()
 if (CLINGO_BUILD_REVISION)
     target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_REVISION=${CLINGO_BUILD_REVISION})
 endif()
-set_target_properties(libclingo PROPERTIES
-    OUTPUT_NAME clingo
-    FOLDER lib)
+if (NOT CLINGO_BUILD_SHARED_INTERFACE)
+    set_target_properties(libclingo PROPERTIES
+        OUTPUT_NAME clingo
+        FOLDER lib)
+endif()
 
 if (CLINGO_BUILD_TESTS)
     add_subdirectory(tests)
