@@ -31,7 +31,11 @@ if (NOT PYCLINGO_SUFFIX)
     endif()
 endif()
 
-add_library(pyclingo MODULE ${source})
+if (CLINGO_BUILD_SHARED_INTERFACE)
+    add_library(pyclingo SHARED ${source})
+else()
+    add_library(pyclingo MODULE ${source})
+endif()
 target_link_libraries(pyclingo PRIVATE libclingo Python::Module)
 if (PYCLINGO_DYNAMIC_LOOKUP)
     set_property(TARGET pyclingo PROPERTY LINK_FLAGS "-undefined dynamic_lookup")
@@ -55,7 +59,8 @@ if (PYCLINGO_INSTALL_DIR)
     file(TO_CMAKE_PATH "${PYCLINGO_INSTALL_DIR}" _PYCLINGO_INSTALL_DIR)
     install(TARGETS pyclingo
         RUNTIME DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
-        LIBRARY DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo)
+        LIBRARY DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
+        ARCHIVE DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo)
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/libpyclingo_cffi/clingo/
         DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
         FILES_MATCHING
