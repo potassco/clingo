@@ -108,7 +108,7 @@ if (CLINGO_INSTALL_LIB AND NOT CLINGO_BUILD_SHARED_INTERFACE)
 endif()
 
 if (MSVC)
-    target_compile_definitions(libclingo PRIVATE _SCL_SECURE_NO_WARNINGS)
+    target_compile_definitions(libclingo ${clingo_private_scope_} _SCL_SECURE_NO_WARNINGS)
 endif()
 if (CLINGO_BUILD_REVISION)
     target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_REVISION=${CLINGO_BUILD_REVISION})
