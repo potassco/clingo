@@ -67,6 +67,8 @@ if (PYCLINGO_INSTALL_DIR)
         PATTERN "*.py"
         PATTERN "*.typed"
         PATTERN "tests" EXCLUDE)
+    install(FILES ${CMAKE_SOURCE_DIR}/libclingo/clingo.h
+        DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo)
 endif()
 
 if (Python_EXECUTABLE AND CLINGO_BUILD_TESTS)

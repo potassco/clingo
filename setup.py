@@ -40,7 +40,7 @@ setup(
                  '-DPYCLINGO_FORCE_OLD_MODULE=ON',
                  '-DPYCLINGO_INSTALL_DIR=libpyclingo_cffi' ],
     packages=[ 'clingo' ],
-    package_data={ 'clingo': [ 'py.typed', 'import__clingo.lib' ] },
+    package_data={ 'clingo': [ 'py.typed', 'import__clingo.lib', 'clingo.h' ] },
     package_dir={ '': 'libpyclingo_cffi' },
     python_requires=">=3.6"
 )
