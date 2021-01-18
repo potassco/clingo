@@ -609,7 +609,7 @@ TEST_CASE("unpool-ast-v2", "[clingo]") {
     SECTION("options") {
         std::vector<ASTv2::AST> prg;
         ASTv2::parse_string(":- a(1;2): a(3;4).", [&prg](ASTv2::AST &&ast) { prg.emplace_back(std::move(ast)); });
-        auto lit = *prg.back().get(ASTv2::Attribute::Body).get<ASTv2::ASTVector>().begin();
+        ASTv2::AST lit = *prg.back().get(ASTv2::Attribute::Body).get<ASTv2::ASTVector>().begin();
         auto unpool = [&lit](bool other, bool condition) {
             std::vector<std::string> ret;
             for (auto &ast : lit.unpool(other, condition)) {

@@ -378,7 +378,7 @@ public:
     friend ArrayIterator operator+(difference_type n, ArrayIterator it) { return ArrayIterator{it.arr_, it.index_ + n}; }
     friend ArrayIterator operator-(ArrayIterator it, difference_type n) { return ArrayIterator{it.arr_, it.index_ - n}; }
     friend difference_type operator-(ArrayIterator a, ArrayIterator b)  { return a.index_ - b.index_; }
-    reference operator*() { return arr_->at(index_); }
+    reference operator*() { return arr_->operator[](index_); }
     pointer operator->() { return arr_->at(index_); }
     friend void swap(ArrayIterator& lhs, ArrayIterator& rhs) {
         std::swap(lhs.arr_, rhs.arr_);
@@ -2474,11 +2474,15 @@ public:
     AST deep_copy() const;
     Type type() const;
     ASTValue get(Attribute attribute) const;
+    template <class T>
+    T get(Attribute attribute) const;
     void set(Attribute attribute, ASTValue value);
     template <class Visitor>
-    void visit_attribute(Visitor &&visitor);
+    void visit_attribute(Visitor &&visitor) const;
     template <class Visitor>
-    void visit_ast(Visitor &&visitor);
+    void visit_ast(Visitor &&visitor) const;
+    template <class Visitor>
+    AST transform_ast(Visitor &&visitor) const;
     std::string to_string() const;
     std::vector<AST> unpool(bool other=true, bool condition=true) const;
     clingo_ast_t *to_c() const { return ast_; }
@@ -2494,11 +2498,22 @@ private:
     clingo_ast_t *ast_;
 };
 
+class ASTRef {
+public:
+    ASTRef(ASTVector *vec, size_t index);
+    ASTRef &operator=(AST const &ast);
+    AST get() const;
+    operator AST () const;
+private:
+    ASTVector *vec_;
+    size_t index_;
+};
+
 class ASTVector {
 public:
     using value_type = AST;
-    using iterator = ArrayIterator<AST, ASTVector*>;
-    using const_iterator = ArrayIterator<AST const, ASTVector const *>;
+    using iterator = ArrayIterator<ASTRef, ASTVector*>;
+    using const_iterator = ArrayIterator<AST, ASTVector const *>;
 
     ASTVector(AST ast, clingo_ast_attribute_t attr);
     iterator begin();
@@ -2509,8 +2524,11 @@ public:
     bool empty() const;
     iterator insert(iterator it, AST const &ast);
     iterator erase(iterator it);
-    AST at(size_t idx) const;
-    AST operator[](size_t idx) const { return at(idx); }
+    void set(iterator it, AST const &ast);
+    ValuePointer<ASTRef> at(size_t idx);
+    ASTRef operator[](size_t idx);
+    ValuePointer<AST> at(size_t idx) const;
+    AST operator[](size_t idx) const;
     void push_back(AST const &ast);
     void pop_back();
     void clear();
@@ -2550,10 +2568,10 @@ public:
     iterator insert(iterator it, char const *str);
     void set(iterator it, char const *str);
     iterator erase(iterator it);
-    StringRef at(size_t idx);
-    StringRef operator[](size_t idx) { return at(idx); }
-    char const *at(size_t idx) const;
-    char const *operator[](size_t idx) const { return at(idx); }
+    StringRef operator[](size_t idx);
+    ValuePointer<StringRef> at(size_t idx);
+    char const *operator[](size_t idx) const;
+    ValuePointer<char const *> at(size_t idx) const;
     void push_back(char const *str);
     void pop_back();
     void clear();
@@ -3806,19 +3824,26 @@ struct construct_ast<0> {
 
 template <class V>
 struct ASTVisitor {
-    void operator()(ASTValue &value) {
+    void operator()(Attribute attr, ASTValue value) {
         if (value.is<AST>()) {
-            v(value.get<AST>());
+            auto &ast = value.get<AST>();
+            if (v(ast)) {
+                ast.visit_attribute(*this);
+            }
         }
         else if (value.is<Optional<AST>>()) {
             auto *ast = value.get<Optional<AST>>().get();
             if (ast != nullptr) {
-                v(*ast);
+                if (v(*ast)) {
+                    ast->visit_attribute(*this);
+                }
             }
         }
         else if (value.is<ASTVector>()) {
-            for (auto ast : value.get<ASTVector>()) {
-                v(ast);
+            for (AST ast : value.get<ASTVector>()) {
+                if (v(ast)) {
+                    ast.visit_attribute(*this);
+                }
             }
         }
     }
@@ -3948,6 +3973,11 @@ inline ASTValue AST::get(Attribute attribute) const {
     return {ASTVector{*this, attr}};
 }
 
+template <class T>
+T AST::get(Attribute attribute) const {
+    return get(attribute).get<T>();
+}
+
 inline void AST::set(Attribute attribute, ASTValue value) {
     bool has_attribute;
     clingo_ast_attribute_t attr = static_cast<clingo_ast_attribute_t>(attribute);
@@ -4005,7 +4035,7 @@ inline void AST::set(Attribute attribute, ASTValue value) {
 }
 
 template <class Visitor>
-inline void AST::visit_attribute(Visitor &&visitor) {
+inline void AST::visit_attribute(Visitor &&visitor) const {
     auto const &cons = g_clingo_ast_constructors.constructors[static_cast<size_t>(type())];
     for (auto &x : make_span(cons.arguments, cons.size)) {
         auto attr = static_cast<Attribute>(x.attribute);
@@ -4014,9 +4044,76 @@ inline void AST::visit_attribute(Visitor &&visitor) {
 }
 
 template <class Visitor>
-inline void AST::visit_ast(Visitor &&visitor) {
+inline void AST::visit_ast(Visitor &&visitor) const {
     ASTDetail::ASTVisitor<Visitor> v{visitor};
-    visit_attribute(v);
+    if (visitor(*this)) {
+        visit_attribute(v);
+    }
+}
+
+template <class Transformer>
+AST AST::transform_ast(Transformer &&transformer) const {
+    std::vector<std::pair<Attribute, Variant<AST, Optional<AST>, std::vector<AST>>>> result;
+    visit_attribute([&](Attribute attr, ASTValue value) {
+        if (value.is<AST>()) {
+            auto &ast = value.get<AST>();
+            auto *ptr = ast.to_c();
+            auto tra = transformer(ast);
+            if (tra.to_c() != ptr) {
+                result.emplace_back(attr, std::move(tra));
+            }
+        }
+        else if (value.is<Optional<AST>>()) {
+            auto *ast = value.get<Optional<AST>>().get();
+            if (ast != nullptr) {
+                auto *ptr = ast->to_c();
+                auto tra = transformer(*ast);
+                if (tra.to_c() != ptr) {
+                    result.emplace_back(attr, Optional<AST>{std::move(tra)});
+                }
+            }
+        }
+        else if (value.is<ASTVector>()) {
+            auto &ast_vec = value.get<ASTVector>();
+            bool changed = false;
+            std::vector<AST> vec;
+            for (auto it = ast_vec.begin(), ie = ast_vec.end(); it != ie; ++it) {
+                AST ast = *it;
+                auto *ptr = ast.to_c();
+                auto tra = transformer(*it);
+                if (tra.to_c() != ptr && !changed) {
+                    changed = true;
+                    vec.reserve(ast_vec.size());
+                    vec.assign(ast_vec.begin(), it);
+                }
+                if (changed) {
+                    vec.emplace_back(std::move(tra));
+                }
+            }
+            if (changed) {
+                result.emplace_back(attr, vec);
+            }
+        }
+    });
+    if (result.empty()) {
+        return *this;
+    }
+    auto ret = copy();
+    for (auto &x : result) {
+        if (x.second.is<AST>()) {
+            ret.set(x.first, x.second.get<AST>());
+        }
+        else if (x.second.is<Optional<AST>>()) {
+            ret.set(x.first, x.second.get<Optional<AST>>());
+        }
+        else {
+            auto val = ret.get<ASTVector>(x.first);
+            auto &vec = x.second.get<std::vector<AST>>();
+            val.clear();
+            std::move(vec.begin(), vec.end(), std::back_inserter(val));
+        }
+    }
+    return ret;
 }
 
 inline std::string AST::to_string() const {
@@ -4083,6 +4180,23 @@ inline size_t AST::hash() const {
 
 // ASTVector
 
+inline ASTRef::ASTRef(ASTVector *vec, size_t index)
+: vec_{vec}
+, index_{index} { }
+
+inline ASTRef &ASTRef::operator=(AST const &ast) {
+    vec_->set(vec_->begin() + index_, ast);
+    return *this;
+}
+
+inline AST ASTRef::get() const {
+    return static_cast<ASTVector const *>(vec_)->operator[](index_);
+}
+
+inline ASTRef::operator AST () const {
+    return get();
+}
+
 inline ASTVector::ASTVector(AST ast, clingo_ast_attribute_t attr)
 : ast_{std::move(ast)}
 , attr_{attr} { }
@@ -4123,10 +4237,26 @@ inline ASTVector::iterator ASTVector::erase(iterator it) {
     return it;
 }
 
-inline AST ASTVector::at(size_t idx) const {
+inline void ASTVector::set(iterator it, AST const &ast) {
+    Detail::handle_error(clingo_ast_attribute_set_ast_at(ast_.to_c(), attr_, it - begin(), ast.to_c()));
+}
+
+inline ASTRef ASTVector::operator[](size_t idx) {
+    return ASTRef{this, idx};
+}
+
+inline ValuePointer<ASTRef> ASTVector::at(size_t idx) {
+    return operator[](idx);
+}
+
+inline AST ASTVector::operator[](size_t idx) const {
     clingo_ast_t *ret;
     Detail::handle_error(clingo_ast_attribute_get_ast_at(ast_.to_c(), attr_, idx, &ret));
     return AST{ret};
+}
+
+inline ValuePointer<AST> ASTVector::at(size_t idx) const {
+    return operator[](idx);
 }
 
 inline void ASTVector::push_back(AST const &ast) {
@@ -4163,7 +4293,7 @@ inline StringRef &StringRef::operator=(char const *str) {
 }
 
 inline char const *StringRef::get() const {
-    return static_cast<StringVector const *>(vec_)->at(index_);
+    return static_cast<StringVector const *>(vec_)->operator[](index_);
 }
 
 inline StringRef::operator char const *() const {
@@ -4212,14 +4342,22 @@ inline StringVector::iterator StringVector::erase(iterator it) {
     return it;
 }
 
-inline StringRef StringVector::at(size_t idx)  {
+inline StringRef StringVector::operator[](size_t idx)  {
     return {this, idx};
 }
 
-inline char const *StringVector::at(size_t idx) const {
+inline ValuePointer<StringRef> StringVector::at(size_t idx)  {
+    return operator[](idx);
+}
+
+inline char const *StringVector::operator[](size_t idx) const {
     char const *ret;
     Detail::handle_error(clingo_ast_attribute_get_string_at(ast_.to_c(), attr_, idx, &ret));
     return ret;
+}
+
+inline ValuePointer<char const *> StringVector::at(size_t idx) const {
+    return operator[](idx);
 }
 
 inline void StringVector::push_back(char const *str) {

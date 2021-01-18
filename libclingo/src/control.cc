@@ -1626,7 +1626,7 @@ extern "C" bool clingo_ast_attribute_get_string_at(clingo_ast_t *ast, clingo_ast
 
 extern "C" bool clingo_ast_attribute_set_string_at(clingo_ast_t *ast, clingo_ast_attribute_t attribute, size_t index, char const *value) {
     GRINGO_CLINGO_TRY {
-        get_attr<Input::AST::StrVec>(ast, attribute).assign(index, value);
+        get_attr<Input::AST::StrVec>(ast, attribute)[index] = value;
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -1667,7 +1667,7 @@ extern "C" bool clingo_ast_attribute_set_ast_at(clingo_ast_t *ast, clingo_ast_at
         if (value == nullptr) {
             throw std::runtime_error("ast must not be null");
         }
-        get_attr<Input::AST::ASTVec>(ast, attribute).assign(index, Input::SAST{reinterpret_cast<Input::AST*>(value)});
+        get_attr<Input::AST::ASTVec>(ast, attribute)[index] = Input::SAST{reinterpret_cast<Input::AST*>(value)};
     }
     GRINGO_CLINGO_CATCH;
 }
