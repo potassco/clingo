@@ -55,7 +55,6 @@ if (CLINGO_BUILD_SHARED)
     endif()
 else()
     set(clingo_lib_type STATIC)
-    set(clingo_public_scope_ PUBLIC)
 endif()
 
 add_library(libclingo ${clingo_lib_type})
