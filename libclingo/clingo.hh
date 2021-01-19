@@ -4084,7 +4084,11 @@ AST AST::transform_ast(Transformer &&transformer) const {
                 if (tra.to_c() != ptr && !changed) {
                     changed = true;
                     vec.reserve(ast_vec.size());
-                    vec.assign(ast_vec.begin(), it);
+                    // NOTE: some msvc 2017 problem
+                    // vec.assign(ast_vec.begin(), it);
+                    for (auto jt = ast_vec.begin(); jt != it; ++jt) {
+                        vec.emplace_back(*jt);
+                    }
                 }
                 if (changed) {
                     vec.emplace_back(std::move(tra));
