@@ -25,10 +25,15 @@ case $1 in
         list
         ;;
     dev)
+        # .github/workflows/manylinux.yml
         dispatch 4811844
+        # .github/workflows/pipsource.yml
         dispatch 4823035
+        # .github/workflows/ppa-dev.yml
         dispatch 4881510
+        # .github/workflows/conda-dev.yml
         dispatch 4923491
+        # .github/workflows/pipwinmac-wip.yml
         dispatch 4978730
         ;;
     release)
