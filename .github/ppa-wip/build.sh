@@ -53,7 +53,6 @@ for act in "${@}"; do
         changes)
             VERSION=$(sed -n '/#define CLINGO_VERSION "/s/.*"\([0-9]\+\.[0-9\+]\.[0-9]\+\)".*/\1/p' ../../libclingo/clingo.h)
             BUILD=$(curl -sL http://ppa.launchpad.net/potassco/${rep}-wip/ubuntu/pool/main/c/clingo/ | sed -n '/\.dsc/s/.*alpha\([0-9]\+\).*/\1/p' | sort -rn | head -1)
-            BUILD=$[BUILD+1]
             cat > ${rep}/debian/changelog <<EOF
 clingo (${VERSION}-alpha$[BUILD+1]) ${rep}; urgency=medium
 
