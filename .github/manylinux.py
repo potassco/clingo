@@ -25,13 +25,13 @@ def adjust_version():
     assert version is not None
 
     post = 0
-    for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+).tar.gz'.format(escape(version)), pip):
+    for m in finditer(r'clingo[_-]cffi-{}\.post([0-9]+)\.tar\.gz'.format(escape(version)), pip):
         post = max(post, int(m.group(1)))
 
     for m in finditer(r'clingo[_-]cffi-{}.*manylinux2014_{}'.format(escape(version), escape(ARCH)), pip):
         post = max(post, 1)
 
-    for m in finditer(r'clingo[_-]cffi-{}.post([0-9]+).*manylinux2014_{}'.format(escape(version), escape(ARCH)), pip):
+    for m in finditer(r'clingo[_-]cffi-{}\.post([0-9]+).*manylinux2014_{}'.format(escape(version), escape(ARCH)), pip):
         post = max(post, int(m.group(1)) + 1)
 
     with open('setup.py') as fr:
