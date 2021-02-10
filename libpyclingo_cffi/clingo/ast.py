@@ -343,7 +343,7 @@ The next example shows how to transform ASTs using the `Transformer` class:
 '''
 
 from enum import Enum, IntEnum
-from typing import Any, Callable, ContextManager, Dict, List, NamedTuple, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, Callable, ContextManager, Dict, List, MutableSequence, NamedTuple, Optional, Sequence, Tuple, Union
 from collections import abc
 from functools import total_ordering
 
@@ -782,8 +782,8 @@ def _py_location(rep):
 _attribute_names = { _to_str(_lib.g_clingo_ast_attribute_names.names[i]): i
                      for i in range(_lib.g_clingo_ast_attribute_names.size) }
 
-ASTValue = Union[str, int, Symbol, None, 'AST', StrSequence, ASTSequence]
-ASTUpdate = Union[str, int, Symbol, None, 'AST', Sequence[str], Sequence['AST']]
+ASTValue = Union[str, int, Symbol, Location, None, 'AST', StrSequence, ASTSequence]
+ASTUpdate = Union[str, int, Symbol, Location, None, 'AST', Sequence[str], Sequence['AST']]
 
 @total_ordering
 class AST:
@@ -1113,8 +1113,6 @@ class ProgramBuilder(ContextManager['ProgramBuilder']):
         '''
         _handle_error(_lib.clingo_program_builder_add_ast(self._rep, statement._rep))
 
-T = TypeVar('T', AST, Union[ASTSequence, List[AST]], None)
-
 class Transformer:
     '''
     Utility class to transform ASTs.
@@ -1147,15 +1145,28 @@ class Transformer:
         The functions returns a dictionary that can be passed to `AST.update`.
         It contains the attributes and values that have been transformed.
         '''
-        update = dict()
+        update: Dict[str, ASTUpdate] = dict()
         for key in ast.child_keys:
             old = getattr(ast, key)
-            new = self._visit(old, *args, **kwargs)
+            new = self._dispatch(old, *args, **kwargs)
             if new is not old:
                 update[key] = new
         return update
 
-    def _visit(self, ast: T, *args: Any, **kwargs: Any) -> T:
+    def visit_sequence(self, sequence: ASTSequence, *args: Any, **kwargs: Any) -> MutableSequence[AST]:
+        '''
+        Transform a sequence of ASTs returning the same sequnce if there are no
+        changes or a list of ASTs otherwise.
+        '''
+        ret: MutableSequence[AST]
+        ret, lst = sequence, []
+        for old in sequence:
+            lst.append(self(old, *args, **kwargs))
+            if lst[-1] is not old:
+                ret = lst
+        return ret
+
+    def _dispatch(self, ast: Union[None, AST, ASTSequence], *args: Any, **kwargs: Any) -> Union[None, AST, MutableSequence[AST]]:
         '''
         Visit and transform an (optional) AST or a sequence of ASTs.
         '''
@@ -1166,12 +1177,7 @@ class Transformer:
             return self.visit(ast, *args, **kwargs) # type: ignore
 
         if isinstance(ast, Sequence):
-            ret, lst = ast, []
-            for old in ast:
-                lst.append(self.visit(old, *args, **kwargs))
-                if lst[-1] is not old:
-                    ret = lst
-            return ret
+            return self.visit_sequence(ast, *args, **kwargs)
 
         raise TypeError('unexpected type')
 
