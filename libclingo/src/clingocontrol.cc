@@ -203,7 +203,7 @@ bool ClingoControl::update() {
     }
     if (!grounded) {
         if (!initialized_) {
-            out_->init(incremental_);
+            out_->init(clasp_->incremental());
             initialized_ = true;
         }
         out_->beginStep();
@@ -241,24 +241,25 @@ void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
 }
 
 void ClingoControl::main(IClingoApp &app, StringVec const &files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out) {
-    incremental_ = true;
     if (app.has_main()) {
         parse({}, opts, out, false);
-        clasp_->enableProgramUpdates();
+        if (opts.singleShot) { clasp_->keepProgram(); }
+        else { clasp_->enableProgramUpdates(); }
         app.main(*this, files);
     }
     else {
         parse(files, opts, out);
         if (scripts_.callable("main")) {
-            clasp_->enableProgramUpdates();
+            if (opts.singleShot) { clasp_->keepProgram(); }
+            else { clasp_->enableProgramUpdates(); }
             scripts_.main(*this);
         }
         else if (incmode_) {
-            clasp_->enableProgramUpdates();
+            if (opts.singleShot) { clasp_->keepProgram(); }
+            else { clasp_->enableProgramUpdates(); }
             incmode(*this);
         }
         else {
-            incremental_ = false;
             claspConfig_.releaseOptions();
             Control::GroundVec parts;
             parts.emplace_back("base", SymVec{});
@@ -848,7 +849,8 @@ ClingoLib::ClingoLib(Scripts &scripts, int argc, char const * const *argv, Logge
     allOpts.assignDefaults(parsed);
     claspConfig_.finalize(parsed, Clasp::Problem_t::Asp, true);
     clasp_.ctx.setEventHandler(this);
-    Clasp::Asp::LogicProgram* lp = &clasp_.startAsp(claspConfig_, true);
+    Clasp::Asp::LogicProgram* lp = &clasp_.startAsp(claspConfig_, !grOpts_.singleShot);
+    if (grOpts_.singleShot) { clasp_.keepProgram(); }
     parse({}, grOpts_, lp, false);
 }
 
@@ -886,6 +888,7 @@ void ClingoLib::initOptions(Potassco::ProgramOptions::OptionContext& root) {
          "      [no-]other:               clasp related and uncategorized warnings")
         ("rewrite-minimize"         , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
         ("keep-facts"               , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
+        ("single-shot,@2"           , flag(grOpts_.singleShot = false), "Force single-shot solving mode")
         ;
     root.add(gringo);
     claspConfig_.addOptions(root);
