@@ -2521,7 +2521,7 @@ typedef struct clingo_ast_attribute_names {
 //! A map from attributes to their string representation.
 CLINGO_VISIBILITY_DEFAULT extern clingo_ast_attribute_names_t g_clingo_ast_attribute_names;
 
-//! Strut to define an argument that consits of a name and a type.
+//! Struct to define an argument that consists of a name and a type.
 typedef struct clingo_ast_argument {
     clingo_ast_attribute_t attribute;
     clingo_ast_attribute_type_t type;
@@ -2989,7 +2989,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_add_ast(clingo_program_bui
 enum clingo_ast_unpool_type {
     clingo_ast_unpool_type_condition = 1, //!< To only unpool conditions of conditional literals.
     clingo_ast_unpool_type_other = 2,     //!< To unpool everything except conditions of conditional literals.
-    clingo_ast_unpool_type_all = 3,       //!< To only unpool everytihng.
+    clingo_ast_unpool_type_all = 3,       //!< To unpool everything.
 };
 //! Corresponding type to ::clingo_ast_unpool_type.
 typedef int clingo_ast_unpool_type_bitset_t;
