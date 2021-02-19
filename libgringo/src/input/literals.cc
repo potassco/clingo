@@ -431,11 +431,6 @@ UTerm PredicateLiteral::headRepr() const {
     return get_clone(repr);
 }
 
-void PredicateLiteral::getNeg(std::function<void (Sig)> f) const {
-    Sig sig(repr->getSig());
-    if (sig.sign()) { f(sig); }
-}
-
 // {{{1 definition of ProjectionLiteral
 
 ProjectionLiteral::ProjectionLiteral(UTerm &&repr)

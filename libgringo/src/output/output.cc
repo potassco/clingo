@@ -320,6 +320,32 @@ private:
 } // namespace
 
 void OutputBase::endGround(Logger &log) {
+    auto &doms = predDoms();
+    for (auto &neg : doms) {
+        auto sig = neg->sig();
+        if (!sig.sign()) {
+            continue;
+        }
+        auto it_pos = doms.find(sig.flipSign());
+        if (it_pos == doms.end()) {
+            continue;
+        }
+        auto &pos = *it_pos;
+        auto rule = [&](auto it, auto jt) {
+            output(tempRule(false)
+                .addBody({NAF::POS, Output::AtomType::Predicate, static_cast<Potassco::Id_t>(it - pos->begin()), pos->domainOffset()})
+                .addBody({NAF::POS, Output::AtomType::Predicate, static_cast<Potassco::Id_t>(jt - neg->begin()), neg->domainOffset()}));
+        };
+        auto neg_begin = neg->begin() + neg->incOffset();
+        for (auto it = neg_begin, ie = neg->end(); it != ie; ++it) {
+            auto jt = pos->find(static_cast<Symbol>(*it).flipSign());
+            if (jt != pos->end() && jt->defined()) { rule(jt, it); }
+        }
+        for (auto it = pos->begin() + pos->incOffset(), ie = pos->end(); it != ie; ++it) {
+            auto jt = neg->find(static_cast<Symbol>(*it).flipSign());
+            if (jt != neg->end() && jt->defined() && jt < neg_begin) { rule(it, jt); }
+        }
+    }
     for (auto &lit : delayed_) { DelayedStatement(lit).passTo(data, *out_); }
     delayed_.clear();
 

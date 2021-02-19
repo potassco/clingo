@@ -46,7 +46,6 @@ struct Statement : Printable, Locatable {
     virtual void toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
     virtual void add(ULit &&lit);
     virtual void initTheory(TheoryDefs &def, Logger &log);
-    virtual void getNeg(std::function<void (Sig)> f) const;
     virtual ~Statement();
 
     UHeadAggr     head;

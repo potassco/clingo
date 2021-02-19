@@ -216,7 +216,6 @@ struct TupleHeadAggregate : HeadAggregate {
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
-    void getNeg(std::function<void (Sig)> f) const override;
     virtual ~TupleHeadAggregate();
 
     AggregateFunction fun;
@@ -242,7 +241,6 @@ struct LitHeadAggregate : HeadAggregate {
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
-    void getNeg(std::function<void (Sig)> f) const override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~LitHeadAggregate();
 
@@ -274,7 +272,6 @@ struct Disjunction : HeadAggregate {
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
-    void getNeg(std::function<void (Sig)> f) const override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~Disjunction();
 
@@ -303,7 +300,6 @@ struct SimpleHeadLiteral : HeadAggregate {
     void replace(Defines &dx) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     Symbol isEDB() const override;
-    void getNeg(std::function<void (Sig)> f) const override;
     virtual ~SimpleHeadLiteral();
 
     ULit lit;
@@ -329,7 +325,6 @@ struct MinimizeHeadLiteral : HeadAggregate {
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &x) override;
-    void getNeg(std::function<void (Sig)> f) const override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~MinimizeHeadLiteral();
 
@@ -358,7 +353,6 @@ struct EdgeHeadAtom : HeadAggregate {
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &x) override;
-    void getNeg(std::function<void (Sig)> f) const override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~EdgeHeadAtom();
 
@@ -384,7 +378,6 @@ struct ProjectHeadAtom : HeadAggregate {
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &x) override;
-    void getNeg(std::function<void (Sig)> f) const override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~ProjectHeadAtom();
 
@@ -410,7 +403,6 @@ struct ExternalHeadAtom : HeadAggregate {
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &x) override;
-    void getNeg(std::function<void (Sig)> f) const override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~ExternalHeadAtom();
 
@@ -436,7 +428,6 @@ struct HeuristicHeadAtom : HeadAggregate {
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &x) override;
-    void getNeg(std::function<void (Sig)> f) const override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~HeuristicHeadAtom();
 
@@ -464,7 +455,6 @@ struct ShowHeadLiteral : HeadAggregate {
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &x) override;
-    void getNeg(std::function<void (Sig)> f) const override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~ShowHeadLiteral();
 
