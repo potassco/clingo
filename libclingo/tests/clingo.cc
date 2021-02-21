@@ -729,6 +729,18 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(models == ModelVec({{}}));
         }
     }
+    SECTION("with single-shot control") {
+        MessageVec messages;
+        ModelVec models;
+        Control ctl{{"0", "--single-shot"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }, 20};
+        SECTION("single-shot") {
+            ctl.add("step", {"k"}, "p(k).");
+            ctl.ground({{"step", {Number(1)}}});
+            REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
+            REQUIRE(models == ModelVec({{Function("p", {Number(1)})}}));
+            REQUIRE_THROWS_AS(ctl.ground({{"step", {Number(2)}}}), std::logic_error);
+        }
+    }
 }
 
 } } // namespace Test Clingo
