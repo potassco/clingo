@@ -753,6 +753,39 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
             REQUIRE(models == ModelVec({{}, {Function("a", {}, true)}, {Function("a", {}, false)}}));
         }
+        SECTION("bug_on_model") {
+            class OnModel : public SolveEventHandler {
+            public:
+                OnModel(std::vector<std::string> &events) : events_{events} { }
+                bool on_model(Model &model) override {
+                    static_cast<void>(model);
+                    events_.emplace_back("on_model");
+                    return true;
+                }
+            private:
+                std::vector<std::string> &events_;
+            };
+
+            std::vector<std::string> events;
+            OnModel handler{events};
+            {
+                auto hnd = ctl.solve(LiteralSpan{}, &handler, true, true);
+                for (auto &&m : hnd) {
+                    events.emplace_back("on_yield");
+                }
+                hnd.get();
+            }
+            REQUIRE(events == std::vector<std::string>{"on_model", "on_yield"});
+            events.clear();
+            {
+                auto hnd = ctl.solve(LiteralSpan{}, &handler, false, true);
+                for (auto &&m : hnd) {
+                    events.emplace_back("on_yield");
+                }
+                hnd.get();
+            }
+            REQUIRE(events == std::vector<std::string>{"on_model", "on_yield"});
+        }
     }
     SECTION("with single-shot control") {
         MessageVec messages;
