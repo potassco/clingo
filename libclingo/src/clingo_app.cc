@@ -85,6 +85,7 @@ void ClingoApp::initOptions(Potassco::ProgramOptions::OptionContext& root) {
         ("keep-facts,@1"            , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
         ("reify-sccs,@1"            , flag(grOpts_.outputOptions.reifySCCs = false), "Calculate SCCs for reified output")
         ("reify-steps,@1"           , flag(grOpts_.outputOptions.reifySteps = false), "Add step numbers to reified output")
+        ("single-shot,@2"           , flag(grOpts_.singleShot = false), "Force single-shot solving mode")
         ("foobar,@4"                , storeTo(grOpts_.foobar, parseFoobar) , "Foobar")
         ;
     root.add(gringo);

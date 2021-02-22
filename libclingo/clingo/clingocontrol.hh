@@ -97,6 +97,7 @@ struct ClingoOptions {
     bool                          wNoOther              = false;
     bool                          rewriteMinimize       = false;
     bool                          keepFacts             = false;
+    bool                          singleShot            = false;
     Foobar                        foobar;
 };
 
@@ -386,7 +387,6 @@ public:
     bool                                                       verbose_               = false;
     bool                                                       parsed                 = false;
     bool                                                       grounded               = false;
-    bool                                                       incremental_           = true;
     bool                                                       configUpdate_          = false;
     bool                                                       initialized_           = false;
     bool                                                       incmode_               = false;

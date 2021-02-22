@@ -60,6 +60,7 @@ struct GringoOptions {
     bool                          wNoOther              = false;
     bool                          rewriteMinimize       = false;
     bool                          keepFacts             = false;
+    bool                          singleShot            = false;
     Foobar                        foobar;
 };
 
@@ -364,6 +365,7 @@ struct GringoApp : public Potassco::Application {
             ("keep-facts,@1", flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
             ("reify-sccs,@1", flag(grOpts_.outputOptions.reifySCCs = false), "Calculate SCCs for reified output")
             ("reify-steps,@1", flag(grOpts_.outputOptions.reifySteps = false), "Add step numbers to reified output")
+            ("single-shot,@2", flag(grOpts_.singleShot = false), "Force single-shot grounding mode")
             ("foobar,@4", storeTo(grOpts_.foobar, parseFoobar), "Foobar")
             ;
         root.add(gringo);
@@ -408,11 +410,11 @@ struct GringoApp : public Potassco::Application {
         using namespace Gringo;
         IncrementalControl inc(out, input_, grOpts_);
         if (inc.scripts.callable("main")) {
-            inc.incremental_ = true;
+            inc.incremental_ = !grOpts_.singleShot;
             inc.scripts.main(inc);
         }
         else if (inc.incmode) {
-            inc.incremental_ = true;
+            inc.incremental_ = !grOpts_.singleShot;
             incmode(inc);
         }
         else {
