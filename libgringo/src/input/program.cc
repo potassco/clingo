@@ -237,13 +237,6 @@ private:
 };
 
 Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains, Logger &log) {
-    HashSet<uint64_t> neg;
-    Ground::Program::ClassicalNegationVec negate;
-    auto gn = [&neg, &negate, &domains](Sig x) {
-        if (neg.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), x.rep()).second) {
-            negate.emplace_back(domains.add(x.flipSign()), domains.add(x));
-        }
-    };
     Ground::UStmVec stms;
     if (!pheads.empty()) { stms.emplace_back(gringo_make_unique<DummyStatement>(std::move(pheads), true)); }
     if (!nheads.empty()) { stms.emplace_back(gringo_make_unique<DummyStatement>(std::move(nheads), false)); }
@@ -252,19 +245,13 @@ Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains
     Ground::SEdbVec edb;
     for (auto &block : blocks_) {
         if (sigs.find(Sig{block.name.c_str() + 5, numeric_cast<uint32_t>(block.params.size()), false}) != sigs.end()) {
-            for (auto &x : block.edb->second) {
-                auto sig = x.sig();
-                if (sig.sign()) { gn(sig); }
-            }
             edb.emplace_back(block.edb);
             for (auto &x : block.stms) {
-                x->getNeg(gn);
                 x->toGround(arg, stms);
             }
         }
     }
     for (auto &x : stms_) {
-        x->getNeg(gn);
         x->toGround(arg, stms);
     }
     Ground::Statement::Dep dep;
@@ -274,7 +261,7 @@ Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains
         node.stm->analyze(node, dep);
     }
     auto ret = dep.analyze();
-    Ground::Program prg(std::move(edb), std::move(std::get<0>(ret)), std::move(negate));
+    Ground::Program prg(std::move(edb), std::move(std::get<0>(ret)));
     pheads = std::move(std::get<1>(ret));
     nheads = std::move(std::get<2>(ret));
     for (auto &sig : sigs_) {

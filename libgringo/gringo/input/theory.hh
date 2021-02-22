@@ -165,7 +165,6 @@ public:
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &x) override;
-    void getNeg(std::function<void (Sig)> f) const override;
     void initTheory(TheoryDefs &def, bool hasBody, Logger &log) override;
     // {{{2 Hashable
     size_t hash() const override;

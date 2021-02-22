@@ -1088,10 +1088,6 @@ CreateHead TupleHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
     }
 }
 
-void TupleHeadAggregate::getNeg(std::function<void (Sig)> f) const {
-    for (auto &x : elems) { std::get<1>(x)->getNeg(f); }
-}
-
 // {{{1 definition of LitHeadAggregate
 
 LitHeadAggregate::LitHeadAggregate(AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems)
@@ -1231,10 +1227,6 @@ void LitHeadAggregate::replace(Defines &x) {
         elem.first->replace(x);
         for (auto &y : elem.second) { y->replace(x); }
     }
-}
-
-void LitHeadAggregate::getNeg(std::function<void (Sig)> f) const {
-    for (auto &x : elems) { x.first->getNeg(f); }
 }
 
 CreateHead LitHeadAggregate::toGround(ToGroundArg &, Ground::UStmVec &) const {
@@ -1462,12 +1454,6 @@ void Disjunction::replace(Defines &x) {
     }
 }
 
-void Disjunction::getNeg(std::function<void (Sig)> f) const {
-    for (auto &x : elems) {
-        for (auto &y : x.first) { y.first->getNeg(f); }
-    }
-}
-
 CreateHead Disjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     bool isSimple = true;
     for (auto &y : elems) {
@@ -1601,10 +1587,6 @@ bool SimpleHeadLiteral::hasPool(bool beforeRewrite) const {
 
 void SimpleHeadLiteral::replace(Defines &x) {
     lit->replace(x);
-}
-
-void SimpleHeadLiteral::getNeg(std::function<void (Sig)> f) const {
-    lit->getNeg(f);
 }
 
 CreateHead SimpleHeadLiteral::toGround(ToGroundArg &x, Ground::UStmVec &) const {
@@ -1928,8 +1910,6 @@ Term &MinimizeHeadLiteral::priority() const {
     return *tuple_[1];
 }
 
-void MinimizeHeadLiteral::getNeg(std::function<void (Sig)>) const { }
-
 // {{{1 definition of EdgeHeadAtom
 
 EdgeHeadAtom::EdgeHeadAtom(UTerm &&u, UTerm &&v)
@@ -2015,8 +1995,6 @@ CreateHead EdgeHeadAtom::toGround(ToGroundArg &, Ground::UStmVec &) const {
     });
 }
 
-void EdgeHeadAtom::getNeg(std::function<void (Sig)>) const { }
-
 // {{{1 definition of ProjectHeadAtom
 
 ProjectHeadAtom::ProjectHeadAtom(UTerm &&atom)
@@ -2096,8 +2074,6 @@ CreateHead ProjectHeadAtom::toGround(ToGroundArg &, Ground::UStmVec &) const {
         return gringo_make_unique<Ground::ProjectStatement>(get_clone(atom_), std::move(lits));
     });
 }
-
-void ProjectHeadAtom::getNeg(std::function<void (Sig)>) const { }
 
 // {{{1 definition of ExternalHeadAtom
 
@@ -2196,11 +2172,6 @@ CreateHead ExternalHeadAtom::toGround(ToGroundArg &x, Ground::UStmVec &) const {
             heads.emplace_back(get_clone(atom_), &x.domains.add(sig));
             return gringo_make_unique<Ground::ExternalStatement>(std::move(heads), std::move(lits), get_clone(type_));
         }};
-}
-
-void ExternalHeadAtom::getNeg(std::function<void (Sig)> f) const {
-    Sig sig(atom_->getSig());
-    if (sig.sign()) { f(sig); }
 }
 
 // {{{1 definition of HeuristicHeadAtom
@@ -2306,8 +2277,6 @@ CreateHead HeuristicHeadAtom::toGround(ToGroundArg &, Ground::UStmVec &) const {
     });
 }
 
-void HeuristicHeadAtom::getNeg(std::function<void (Sig)>) const { }
-
 // {{{1 definition of ShowHeadLiteral
 
 ShowHeadLiteral::ShowHeadLiteral(UTerm &&term, bool csp)
@@ -2385,9 +2354,6 @@ CreateHead ShowHeadLiteral::toGround(ToGroundArg &, Ground::UStmVec &) const {
     });
 }
 
-void ShowHeadLiteral::getNeg(std::function<void (Sig)>) const { }
-
 // }}}1
 
 } } // namespace Input Gringo
-

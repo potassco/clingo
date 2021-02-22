@@ -50,16 +50,13 @@ struct Parameters {
 };
 
 struct Program {
-    using ClassicalNegationVec = std::vector<std::pair<PredicateDomain &, PredicateDomain &>>;
-
-    Program(SEdbVec &&edb, Statement::Dep::ComponentVec &&stms, ClassicalNegationVec &&negate);
+    Program(SEdbVec &&edb, Statement::Dep::ComponentVec &&stms);
     void linearize(Context &context, Logger &log);
     void ground(Parameters const &params, Context &context, Output::OutputBase &out, Logger &log);
 
     SEdbVec                      edb;
     bool                         linearized = false;
     Statement::Dep::ComponentVec stms;
-    ClassicalNegationVec         negate;
 };
 
 std::ostream &operator<<(std::ostream &out, Program const &x);

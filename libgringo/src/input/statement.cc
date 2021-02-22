@@ -47,10 +47,6 @@ void Statement::initTheory(TheoryDefs &def, Logger &log) {
         lit->initTheory(def, log);
     }
 }
-void Statement::getNeg(std::function<void (Sig)> f) const {
-    head->getNeg(f);
-}
-
 // {{{ definition of Statement::add
 
 void Statement::add(ULit &&lit) {

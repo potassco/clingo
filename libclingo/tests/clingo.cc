@@ -728,6 +728,31 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
             REQUIRE(models == ModelVec({{}}));
         }
+        SECTION("bug_classical_1") {
+            ctl.add("a", {}, "-a.");
+            ctl.add("b", {}, "a.");
+
+            ctl.ground({{"a", {}}});
+            REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
+            REQUIRE(models == ModelVec({{Function("a", {}, false)}}));
+
+            ctl.ground({{"b", {}}});
+            REQUIRE(test_solve(ctl.solve(), models).is_unsatisfiable());
+            REQUIRE(models == ModelVec({}));
+        }
+        SECTION("bug_classical_2") {
+            ctl.add("a", {}, "-a.");
+            ctl.add("b", {}, "a.");
+
+            ctl.with_backend([](Backend &bck) {
+                auto a = bck.add_atom(Function("a", {}, true));
+                auto b = bck.add_atom(Function("a", {}, false));
+                bck.rule(true, {a, b}, {});
+            });
+
+            REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
+            REQUIRE(models == ModelVec({{}, {Function("a", {}, true)}, {Function("a", {}, false)}}));
+        }
     }
     SECTION("with single-shot control") {
         MessageVec messages;
