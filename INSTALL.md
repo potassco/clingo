@@ -14,6 +14,10 @@
 
 # Requirements
 
+This document is about installing clingo from source. We also provide
+precompiled packages for various package managers:
+<https://potassco.org/clingo/#packages>.
+
 - a c++14 conforming compiler
   - *at least* [gcc](https://gcc.gnu.org/) version 4.9
   - [clang](http://clang.llvm.org/) version 3.1 (using either libstdc++
