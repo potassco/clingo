@@ -5,25 +5,58 @@ from clingo import Number, String, Function
 import threading
 import time
 
-class IterData:
+class State:
+    def __init__(self, imin, imax, iloop, isecond):
+        self.step = 0
+        self.first_solution_food = False
+        self.ret = None
+        self.timer = None
+        self.iteration_without_improvement = 0
+        self.all_time_best_solution = [float('inf')]
+        self.iter_best_solution = [float('inf')]
+        self.min = imin.number
+        if imax is None:
+            self.max = None
+        else:
+            self.max = imax.number
+        self.loop = iloop.number
+        self.second = isecond.number
 
-    def __init__(self, timer, iter_best_solution):
-        self.timer = timer
-        self.iter_best_solution = iter_best_solution
+    def __on_model(self, m):
+        if len(m.cost) > 0:
+            if self.timer.is_alive():
+                self.timer.cancel()
+                self.timer.join()
+            self.timer = threading.Timer(self.second, self.prg.interrupt)
+            if sum(m.cost) < sum(self.iter_best_solution):
+                self.iter_best_solution = m.cost
+            if not self.timer.is_alive():
+                self.timer.start()
 
-def handle_stop(iter_data):
-    def on_model(ret):
-        print("ok")
-        if len(ret.cost) > 0:
-            if iter_data.timer.is_alive():
-                iter_data.timer.cancel()
-                iter_data.timer.join()
-            iter_data.timer = threading.Timer(60.0, prg.interrupt)
-            if sum(ret.cost) < sum(iter_data.iter_best_solution):
-                iter_data.iter_best_solution = ret.cost
-            if not iter_data.timer.is_alive():
-                iter_data.timer.start()
-
+    def run(self, prg):
+        self.prg = prg
+        while ((self.max is None or self.step < self.max) and
+               (self.step == 0 or self.step < self.min or not self.first_solution_food)) or self.iteration_without_improvement < self.loop:
+            self.iter_best_solution = [float('inf')]
+            parts = []
+            if self.step > 0:
+                parts.append(("step", [Number(self.step)]))
+            else:
+                parts.append(("base", []))
+            self.prg.ground(parts)
+            self.timer = threading.Timer(self.second, self.prg.interrupt)
+            self.timer.start()
+            self.ret, self.step = self.prg.solve(on_model=self.__on_model), self.step+1
+            if sum(self.iter_best_solution) < sum(self.all_time_best_solution):
+                self.all_time_best_solution = self.iter_best_solution
+                self.prg.configuration.solve.opt_mode = "opt," + ",".join([str(x) for x in self.all_time_best_solution])
+                self.iteration_without_improvement = 0
+                self.first_solution_food = True
+            else:
+                self.iteration_without_improvement += 1
+            if self.timer.is_alive():
+                self.timer.cancel()
+                self.timer.join()
 
 def get(val, default):
     return val if val != None else default
@@ -32,31 +65,10 @@ def main(prg):
     imin   = get(prg.get_const("imin"), Number(0))
     imax   = prg.get_const("imax")
     iloop   = get(prg.get_const("iloop"), Number(3))
-    iconst   = get(prg.get_const("isecond"), Number(60))
+    isecond   = get(prg.get_const("isecond"), Number(10))
 
-    step, ret = 0, None
-    iteration_without_improvement, all_time_best_solution = 0, [float('inf')]
-    while ((imax is None or step < imax.number) and
-           (step == 0 or step < imin.number or not ret.satisfiable)) or iteration_without_improvement < iloop.number:
-        iter_data = IterData(threading.Timer(iconst.number, prg.interrupt), [float('inf')])
-        parts = []
-        if step > 0:
-            parts.append(("step", [Number(step)]))
-        else:
-            parts.append(("base", []))
-        prg.ground(parts)
-        iter_data.timer.start()
-        ret, step = prg.solve(on_model=handle_stop(iter_data)), step+1
-        if sum(iter_data.iter_best_solution) < sum(all_time_best_solution):
-            all_time_best_solution = iter_data.iter_best_solution
-            print("opt," + ",".join(all_time_best_solution))
-            prg.configuration.solve.opt_mode = "opt," + ",".join(all_time_best_solution)
-            iteration_without_improvement = 0
-        else:
-            iteration_without_improvement += 1
-        if iter_data.timer.is_alive():
-            iter_data.timer.cancel()
-            iter_data.timer.join()
+    x = State(imin, imax, iloop, isecond)
+    x.run(prg)
 #end.
 
 #program step(t).
