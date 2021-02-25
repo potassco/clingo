@@ -9,6 +9,6 @@ We set a time limit at each iteration without a new solution (parametrized by th
 If we found a new solution during an iteration, we reset the timer and continue to look for a solution.
 We save the best solution found and go to the next iteration at the end of the timer, except if we have spent **iloop** iteration in a row without finding a new solution.
 
-## Example calls
+## Example call
 
     clingo instance.lp example.lp multishot-py.lp
