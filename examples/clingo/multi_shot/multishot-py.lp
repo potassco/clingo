@@ -13,13 +13,14 @@ class IterData:
 
 def handle_stop(iter_data):
     def on_model(ret):
+        print("ok")
         if len(ret.cost) > 0:
             if iter_data.timer.is_alive():
                 iter_data.timer.cancel()
                 iter_data.timer.join()
             iter_data.timer = threading.Timer(60.0, prg.interrupt)
-            if sum(m.cost) < sum(iter_data.iter_best_solution):
-                iter_data.iter_best_solution = m.cost
+            if sum(ret.cost) < sum(iter_data.iter_best_solution):
+                iter_data.iter_best_solution = ret.cost
             if not iter_data.timer.is_alive():
                 iter_data.timer.start()
 
