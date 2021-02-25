@@ -65,7 +65,7 @@ def main(prg):
     imin   = get(prg.get_const("imin"), Number(0))
     imax   = prg.get_const("imax")
     iloop   = get(prg.get_const("iloop"), Number(3))
-    isecond   = get(prg.get_const("isecond"), Number(10))
+    isecond   = get(prg.get_const("isecond"), Number(60))
 
     x = State(imin, imax, iloop, isecond)
     x.run(prg)
