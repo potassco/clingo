@@ -108,9 +108,9 @@ def _well_founded(interpretation: Set[Literal], scc: List[Rule]) -> None:
         for lit in rule.body:
             if not is_supported(lit):
                 count += 1
-            if lit > 0 and lit not in need_source:
-                need_source.add(lit)
-                unfounded.append(lit)
+            if abs(lit) not in need_source:
+                need_source.add(abs(lit))
+                unfounded.append(-abs(lit))
         counters_source[i] = count
         enqueue_source(i)
         can_source.setdefault(atm, []).append(i)
@@ -131,6 +131,10 @@ def _well_founded(interpretation: Set[Literal], scc: List[Rule]) -> None:
         while idx < len(todo):
             lit = todo[idx]
             idx += 1
+            # Note that in this case, the literal already lost its source earlier
+            # and has already been made false at the end of the loop.
+            if lit < 0 and lit in interpretation:
+                continue
             for i in watches.get(-lit, []):
                 counters_source[i] += 1
                 if i in is_source:
@@ -157,8 +161,8 @@ def _well_founded(interpretation: Set[Literal], scc: List[Rule]) -> None:
             unfounded, todo = todo, unfounded
         todo.clear()
         for lit in unfounded:
-            if lit > 0 and lit in need_source and lit not in has_source:
-                enqueue_lit(-lit)
+            if lit < 0 and -lit in need_source and -lit not in has_source:
+                enqueue_lit(lit)
         unfounded.clear()
 
 
