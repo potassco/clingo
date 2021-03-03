@@ -30,6 +30,15 @@ pip:
             check_call(['cmake', '--build', 're2c_build', '--target', 'install'])
         else:
             check_call(['yum', 'install', '-y', 're2c', 'bison'])
+    winmac_images:
+        macos-10.15:
+            depends: |
+                brew install re2c
+                brew install bison
+        windows-2016:
+            depends: |
+                choco install re2c
+                choco install winflexbison3
 
 conda:
     package_name:

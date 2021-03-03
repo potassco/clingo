@@ -8,7 +8,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-2016, macos-10.15]
+        os:
+          - macos-10.15
+          - windows-2016
         python-version: [ '3.6', '3.7', '3.8', '3.9' ]
 
     steps:
@@ -22,13 +24,13 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install mac prerequisites
+    - name: Install macos-10.15 prerequisites
       if: ${{ matrix.os == 'macos-10.15' }}
       run: |
         brew install re2c
         brew install bison
 
-    - name: Install win prerequisites
+    - name: Install windows-2016 prerequisites
       if: ${{ matrix.os == 'windows-2016' }}
       run: |
         choco install re2c
@@ -38,7 +40,7 @@ jobs:
       run: |
         pip install --user cffi scikit-build cmake ninja twine
 
-    - name: Compile clingo
+    - name: Compile and upload wheels
       run: python .github/pipwinmac.py
       env:
         TWINE_NON_INTERACTIVE: True
