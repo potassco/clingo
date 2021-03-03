@@ -13,7 +13,7 @@ jobs:
         os:
         - ubuntu-latest
         - macos-latest
-        - windows-2016windows-2016
+        - windows-2016
         python-version: ['3.8']
 
     steps:

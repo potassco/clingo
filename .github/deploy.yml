@@ -46,7 +46,7 @@ conda:
     os: 
         - 'ubuntu-latest'
         - 'macos-latest'
-        - 'windows-2016windows-2016'
+        - 'windows-2016'
     macosx-sdk: 'MacOSX10.9.sdk.tar.xz'
 
 ppa:
