@@ -1,0 +1,86 @@
+# do not edit the workflows, they are generated from this file
+pip:
+    package_name:
+        'clingo-cffi'
+    pure: False
+    version: |
+        version = None
+        with open('libclingo/clingo.h') as fh:
+            for line in fh:
+                m = match(r'#define CLINGO_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"', line)
+                if m is not None:
+                    version = m.group(1)
+    build_depends: |
+        sudo apt-get install bison re2c gcc g++ cmake ninja-build
+        python3 -m pip install --user --upgrade scikit-build
+    generate: |
+        check_call(['cmake', '-G', 'Ninja', '-H.', '-Bbuild'])
+        check_call(['cmake', '--build', 'build', '--target', 'gen'])
+        check_call(['mkdir', '-p', 'libgringo/gen/src/'])
+        check_call(['rsync', '-ra', 'build/libgringo/src/input', 'libgringo/gen/src/'])
+
+#conda:
+#    package_name:
+#        'python-clingox'
+#    os: 
+#        - 'ubuntu-latest'
+#
+#ppa:
+#    package_name:
+#        'python3-clingox'
+#    upstream_name:
+#        'python-clingox'
+#    initial_version:
+#        '1.0.0'
+#    initial_date:
+#        'Sat, 21 Feb 2021 12:00:00 +0100'
+#    contact_url:
+#        'https://github.com/potassco/python-clingox/issues'
+#    source_url:
+#        'https://github.com/potassco/python-clingox'
+#    version:
+#        '1.0.0'
+#    build_depends:
+#        - 'dh-python'
+#        - 'python3-all'
+#    create_depends:
+#        - 'python3-clingo'
+#    sync_patterns:
+#        - 'clingox'
+#        - 'setup.py'
+#        - 'README.md'
+#        - 'LICENSE'
+#    sync_script: |
+#        sed -i 's/clingo-cffi/clingo/g' "${rep}/setup.py"
+#    distributions:
+#        focal:
+#        bionic:
+#            source:
+#                Build-Depends: 'debhelper-compat (= 11), dh-python, python3-all, python3-setuptools'
+#    source:
+#        Source: 'python3-clingox'
+#        Section: 'devel'
+#        Priority: 'optional'
+#        Maintainer: 'Roland Kaminski <kaminski@cs.uni-potsdam.de>'
+#        Build-Depends: 'debhelper-compat (= 12), dh-python, python3-all, python3-setuptools'
+#        Standards-Version: '4.4.1'
+#        Homepage: 'https://potassco.org/'
+#        Vcs-Browser: 'https://github.com/potassco/python-clingox'
+#        Vcs-Git: 'https://github.com/potassco/python-clingox.git'
+#    packages:
+#        python3-clingox:
+#            Architecture: 'any'
+#            Depends: '${shlibs:Depends}, ${misc:Depends}, ${python3:Depends}'
+#            Description: 'Support library for the clingo package.'
+#    files:
+#        docs: |
+#            README.md
+#        py3dist-overrides: |
+#            clingo python3-clingo
+#        install: |
+#            debian/python3-clingox/usr/*
+#        rules: |
+#            #!/usr/bin/make -f
+#            
+#            %:
+#            	dh $@ --with python3 --buildsystem=pybuild

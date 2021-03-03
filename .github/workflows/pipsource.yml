@@ -1,4 +1,4 @@
-name: Build source package
+name: Deploy pip source package (wip)
 
 on:
   workflow_dispatch:
@@ -9,8 +9,11 @@ jobs:
     steps:
     - name: Install prerequisites
       run: |
-        sudo apt-get install bison re2c python3 python3-pip gcc g++ cmake ninja-build
-        sudo pip3 install setuptools wheel scikit-build
+        sudo apt-get install python3 python3-pip
+        pip3 install --user --upgrade --force-reinstall pip
+        python3 -m pip install --user --upgrade setuptools wheel
+        sudo apt-get install bison re2c gcc g++ cmake ninja-build
+        python3 -m pip install --user --upgrade scikit-build
     - name: Checkout repo
       uses: actions/checkout@v2
       with:
