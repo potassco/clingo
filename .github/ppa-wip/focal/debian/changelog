@@ -1,5 +1,5 @@
-clingo (5.5.0-alpha17) focal; urgency=medium
+clingo (5.5.0) focal; urgency=medium
 
-  * build for git revision c332ee1e79c45d9ad8058524e8ee881608d920e7
+  * initial release
 
- -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Wed, 03 Mar 2021 15:57:41 +0100
+ -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Fri, 02 Jan 2021 13:32:11 +0100

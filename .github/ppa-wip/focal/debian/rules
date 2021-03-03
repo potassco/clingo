@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-export CLINGO_BUILD_REVISION = c332ee1e
+export CLINGO_BUILD_REVISION =
 
 %:
 	dh $@ --with python3
