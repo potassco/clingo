@@ -45,4 +45,3 @@ if __name__ == "__main__":
     check_call(['mkdir', '-p', 'libgringo/gen/src/'])
     check_call(['rsync', '-ra', 'build/libgringo/src/input', 'libgringo/gen/src/'])
     check_call(['python3', 'setup.py', 'sdist'])
-
