@@ -1,29 +1,5 @@
-clingo (5.5.0-alpha4) focal; urgency=medium
+clingo (5.5.0-alpha17) focal; urgency=medium
 
-  * Add bison and re2c dependency.
+  * build for git revision c332ee1e79c45d9ad8058524e8ee881608d920e7
 
- -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Fri, 12 Jan 2021 13:30:00 +0100
-
-clingo (5.5.0-alpha3) focal; urgency=medium
-
-  * Fine-tune python packages.
-
- -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Fri, 02 Jan 2021 17:00:00 +0100
-
-clingo (5.5.0-alpha2) focal; urgency=medium
-
-  * Fix missing dependency.
-
- -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Fri, 02 Jan 2021 17:00:00 +0100
-
-clingo (5.5.0-1) focal; urgency=medium
-
-  * Add cffi dependency.
-
- -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Fri, 02 Jan 2021 14:28:00 +0100
-
-clingo (5.5.0) focal; urgency=medium
-
-  * Initial Release.
-
- -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Fri, 02 Jan 2021 13:32:11 +0100
+ -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Wed, 03 Mar 2021 15:57:41 +0100

@@ -1,4 +1,4 @@
-name: Publish ppa (wip)
+name: Deploy ppa package (wip)
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ jobs:
     steps:
     - name: Install prerequisites
       run: |
-        sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dh-python dput
+        sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dput dh-python
     - name: Checkout repo
       uses: actions/checkout@v2
       with:
