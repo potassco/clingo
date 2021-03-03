@@ -1,16 +1,19 @@
-name: Publish conda packages (wip)
+name: Deploy conda packages (wip)
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: clingcon ${{ matrix.python-version }} ${{ matrix.os }}
+    name: deploy on ${{ matrix.os }} using python-${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: ['ubuntu-latest', 'macos-latest', 'windows-2016']
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-2016windows-2016
         python-version: ['3.8']
 
     steps:
@@ -24,7 +27,7 @@ jobs:
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
-        activate-environment: clingo
+        activate-environment: build
         channels: potassco,potassco/label/dev
 
     - name: install prerequisites

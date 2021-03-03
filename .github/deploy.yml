@@ -19,12 +19,15 @@ pip:
         check_call(['mkdir', '-p', 'libgringo/gen/src/'])
         check_call(['rsync', '-ra', 'build/libgringo/src/input', 'libgringo/gen/src/'])
 
-#conda:
-#    package_name:
-#        'python-clingox'
-#    os: 
-#        - 'ubuntu-latest'
-#
+conda:
+    package_name:
+        'clingo'
+    os: 
+        - 'ubuntu-latest'
+        - 'macos-latest'
+        - 'windows-2016windows-2016'
+    macosx-sdk: 'MacOSX10.9.sdk.tar.xz'
+
 #ppa:
 #    package_name:
 #        'python3-clingox'
