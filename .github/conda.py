@@ -34,24 +34,16 @@ def compile():
     build_env.pop("BUILD_RELEASE", None)
     build_env["VERSION_NUMBER"] = version
     build_env["BUILD_NUMBER"] = str(build_number)
+    if 'GITHUB_SHA' in os.environ:
+        build_env["BUILD_REVISION"] = os.environ['GITHUB_SHA']
 
-    options = ['conda', 'build']
+    options = ['conda', 'build', '--label', LABEL]
     for c in CHANNELS:
         options.extend(['-c', c])
-
-    data = subprocess.check_output(options + ['--output', '.'], env=build_env)
-    files = data.decode(locale.getpreferredencoding()).splitlines()
-    assert files
+    options.append('.')
 
     os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conda'))
     subprocess.call(options + ['.'], env=build_env)
 
-    return files
-
-def upload(files):
-    for f in files:
-        print('uploading:', ['anaconda', 'upload', f, '--label', LABEL])
-        #subprocess.call(['anaconda', 'upload', f, '--label', LABEL])
-
 if __name__ == '__main__':
-    upload(compile())
+    compile()

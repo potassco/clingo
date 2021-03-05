@@ -12,8 +12,8 @@ jobs:
       matrix:
         os:
         - ubuntu-latest
-        - macos-latest
-        - windows-2016
+        #- macos-latest
+        #- windows-2016
         python-version: ['3.8']
 
     steps:
@@ -31,7 +31,9 @@ jobs:
 
     - name: install prerequisites
       shell: pwsh
-      run: conda install conda-build anaconda-client
+      run: |
+        conda config --set anaconda_upload yes
+        conda install conda-build anaconda-client
 
     - name: install macos SDK
       if: ${{ matrix.os == 'macos-latest' }}

@@ -1,6 +1,7 @@
 {% set name = 'clingo' %}
 {% set dev = not environ.get('BUILD_RELEASE', false) %}
 {% set version = environ.get('VERSION_NUMBER', "5.4.0") %}
+{% set revision = environ.get('GITHUB_SHA', 'wip') %}
 {% set build = environ.get('BUILD_NUMBER', "0") %}
 
 package:
@@ -9,7 +10,7 @@ package:
 
 source:
 {% if dev %}
-  git_rev: wip
+  git_rev: {{ revision }}
   git_url: https://github.com/potassco/{{ name }}.git
 {% else %}
   url: https://github.com/potassco/clingo/archive/v{{ version }}.tar.gz
