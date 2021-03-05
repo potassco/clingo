@@ -26,7 +26,7 @@ def get_build_number(version):
 
     return build_number + 1
 
-def compile():
+def run():
     version = get_version()
     build_number = get_build_number(version)
 
@@ -42,8 +42,8 @@ def compile():
         options.extend(['-c', c])
     options.append('.')
 
-    os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conda'))
-    subprocess.call(options + ['.'], env=build_env)
+    d = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'conda')
+    subprocess.call(options + [d], env=build_env)
 
 if __name__ == '__main__':
-    compile()
+    run()

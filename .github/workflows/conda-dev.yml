@@ -12,8 +12,8 @@ jobs:
       matrix:
         os:
         - ubuntu-latest
-        #- macos-latest
-        #- windows-2016
+        - macos-latest
+        - windows-2016
         python-version: ['3.8']
 
     steps:
