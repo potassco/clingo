@@ -47,7 +47,18 @@ conda:
         - 'ubuntu-latest'
         - 'macos-latest'
         - 'windows-2016'
-    macosx-sdk: 'MacOSX10.9.sdk.tar.xz'
+    macosx-sdk:
+      'MacOSX10.9.sdk.tar.xz'
+    channels:
+      - 'potassco'
+      - 'potassco/label/dev'
+    version: |
+      version = None
+      with open('libclingo/clingo.h') as fh:
+          for line in fh:
+              m = match(r'#define CLINGO_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"', line)
+              if m is not None:
+                  version = m.group(1)
 
 ppa:
     package_name:

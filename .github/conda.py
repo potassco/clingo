@@ -9,17 +9,8 @@ import re
 import os
 
 LABEL = "dev"
-CHANNELS = ["potassco", "potassco/label/dev"]
-NAME = "clingo"
-
-def get_version():
-    '''
-    Get the current version.
-    '''
-    with open('libclingo/clingo.h') as f:
-        text = f.read()
-    m = next(re.finditer(r'#define CLINGO_VERSION "([0-9]*\.[0-9]*\.[0-9*])"', text))
-    return m.group(1)
+CHANNELS = ['potassco', 'potassco/label/dev']
+NAME = 'clingo'
 
 def get_build_number(version):
     '''
@@ -38,7 +29,12 @@ def run():
     '''
     Compile and upload conda packages.
     '''
-    version = get_version()
+    version = None
+    with open('libclingo/clingo.h') as fh:
+        for line in fh:
+            m = match(r'#define CLINGO_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"', line)
+            if m is not None:
+                version = m.group(1)
     build_number = get_build_number(version)
 
     build_env = os.environ.copy()
