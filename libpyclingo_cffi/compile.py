@@ -201,12 +201,16 @@ bool pyclingo_main_(void *ctl, void *data);
 ''')
 
         ffi.embedding_init_code(f"""\
+import os
+import sys
 from collections.abc import Iterable
 from traceback import format_exception
 import __main__
 from clingo._internal import _ffi, _handle_error, _lib
 from clingo.control import Control
 from clingo.symbol import Symbol
+
+sys.path.insert(0, os.getcwd())
 
 def _cb_error_top_level(exception, exc_value, traceback):
     msg = "".join(format_exception(exception, exc_value, traceback))
@@ -252,6 +256,10 @@ def pyclingo_main_(ctl, data):
 """)
 
     code = '''\
+#ifdef CFFI_DLLEXPORT
+#undef CFFI_DLLEXPORT
+#define CFFI_DLLEXPORT
+#endif
 #ifdef PYPY_VERSION
 void pyclingo_finalize() { }
 #else

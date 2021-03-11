@@ -568,6 +568,10 @@ static void (*_cffi_call_python_org)(struct _cffi_externpy_s *, char *);
 #define _CFFI_MODULE_NAME  "_clingo"
 static const char _CFFI_PYTHON_STARTUP_CODE[] = {
 // # NB. this is not a string because of a size limit in MSVC
+// 'import os\n
+105,109,112,111,114,116,32,111,115,10,
+// 'import sys\n
+105,109,112,111,114,116,32,115,121,115,10,
 // 'from collections.abc import Iterable\n
 102,114,111,109,32,99,111,108,108,101,99,116,105,111,110,115,46,97,98,99,32,
 105,109,112,111,114,116,32,73,116,101,114,97,98,108,101,10,
@@ -586,6 +590,11 @@ static const char _CFFI_PYTHON_STARTUP_CODE[] = {
 // 'from clingo.symbol import Symbol\n
 102,114,111,109,32,99,108,105,110,103,111,46,115,121,109,98,111,108,32,105,109,
 112,111,114,116,32,83,121,109,98,111,108,10,
+// '\n
+10,
+// 'sys.path.insert(0, os.getcwd())\n
+115,121,115,46,112,97,116,104,46,105,110,115,101,114,116,40,48,44,32,111,115,
+46,103,101,116,99,119,100,40,41,41,10,
 // '\n
 10,
 // 'def _cb_error_top_level(exception, exc_value, traceback):\n
@@ -1410,6 +1419,10 @@ static int cffi_start_python(void)
 /************************************************************/
 
 #include <clingo.h>
+#ifdef CFFI_DLLEXPORT
+#undef CFFI_DLLEXPORT
+#define CFFI_DLLEXPORT
+#endif
 #ifdef PYPY_VERSION
 void pyclingo_finalize() { }
 #else
