@@ -30,7 +30,7 @@ namespace Gringo {
 bool Scripts::callable(String name) {
     if (context_ && context_->callable(name)) { return true; }
     for (auto &&script : scripts_) {
-        if (script.second->callable(name)) {
+        if (std::get<1>(script) && std::get<2>(script)->callable(name)) {
             return true;
         }
     }
@@ -39,8 +39,8 @@ bool Scripts::callable(String name) {
 
 void Scripts::main(Control &ctl) {
     for (auto &&script : scripts_) {
-        if (script.second->callable("main")) {
-            script.second->main(ctl);
+        if (std::get<1>(script) && std::get<2>(script)->callable("main")) {
+            std::get<2>(script)->main(ctl);
             return;
         }
     }
@@ -49,8 +49,8 @@ void Scripts::main(Control &ctl) {
 SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log) {
     if (context_ && context_->callable(name)) { return context_->call(loc, name, args, log); }
     for (auto &&script : scripts_) {
-        if (script.second->callable(name)) {
-            return script.second->call(loc, name, args, log);
+        if (std::get<1>(script) && std::get<2>(script)->callable(name)) {
+            return std::get<2>(script)->call(loc, name, args, log);
         }
     }
     GRINGO_REPORT(log, Warnings::OperationUndefined)
@@ -61,14 +61,15 @@ SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log
 }
 
 void Scripts::registerScript(clingo_ast_script_type type, UScript script) {
-    if (script) { scripts_.emplace_back(type, std::move(script)); }
+    if (script) { scripts_.emplace_back(type, false, std::move(script)); }
 }
 
 void Scripts::exec(ScriptType type, Location loc, String code) {
     bool notfound = true;
     for (auto &&script : scripts_) {
-        if (script.first == static_cast<clingo_ast_script_type_t>(type)) {
-            script.second->exec(type, loc, code);
+        if (std::get<0>(script) == static_cast<clingo_ast_script_type_t>(type)) {
+            std::get<1>(script) = true;
+            std::get<2>(script)->exec(type, loc, code);
             notfound = false;
         }
     }
@@ -86,8 +87,8 @@ void Scripts::exec(ScriptType type, Location loc, String code) {
 
 char const *Scripts::version(clingo_ast_script_type type) {
     for (auto &&script : scripts_) {
-        if (script.first == type) {
-            return script.second->version();
+        if (std::get<0>(script) == type) {
+            return std::get<2>(script)->version();
         }
     }
     return nullptr;

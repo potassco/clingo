@@ -1414,8 +1414,10 @@ static int cffi_start_python(void)
 void pyclingo_finalize() { }
 #else
 void pyclingo_finalize() {
-    PyGILState_Ensure();
-    Py_Finalize();
+    if (Py_IsInitialized()) {
+        PyGILState_Ensure();
+        Py_Finalize();
+    }
 }
 #endif
 

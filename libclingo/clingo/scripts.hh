@@ -37,7 +37,7 @@ public:
     virtual ~Script() = default;
 };
 using UScript = std::shared_ptr<Script>;
-using UScriptVec = std::vector<std::pair<clingo_ast_script_type, UScript>>;
+using UScriptVec = std::vector<std::tuple<clingo_ast_script_type, bool, UScript>>;
 
 class Scripts : public Context {
 public:

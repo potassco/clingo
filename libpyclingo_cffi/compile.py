@@ -256,8 +256,10 @@ def pyclingo_main_(ctl, data):
 void pyclingo_finalize() { }
 #else
 void pyclingo_finalize() {
-    PyGILState_Ensure();
-    Py_Finalize();
+    if (Py_IsInitialized()) {
+        PyGILState_Ensure();
+        Py_Finalize();
+    }
 }
 #endif
 '''
