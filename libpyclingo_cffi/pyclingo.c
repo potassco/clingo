@@ -25,8 +25,11 @@
 #include "pyclingo.h"
 #include "version.h"
 
+void pyclingo_finalize();
+
 void pyclingo_free_(void *data) {
     (void)data;
+    pyclingo_finalize();
 }
 
 bool clingo_register_python_() {

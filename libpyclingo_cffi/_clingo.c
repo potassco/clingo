@@ -9,20 +9,49 @@
    the same works for the other two macros.  Py_DEBUG implies them,
    but not the other way around.
 
-   Issue #350 is still open: on Windows, the code here causes it to link
-   with PYTHON36.DLL (for example) instead of PYTHON3.DLL.  A fix was
-   attempted in 164e526a5515 and 14ce6985e1c3, but reverted: virtualenv
-   does not make PYTHON3.DLL available, and so the "correctly" compiled
-   version would not run inside a virtualenv.  We will re-apply the fix
-   after virtualenv has been fixed for some time.  For explanation, see
-   issue #355.  For a workaround if you want PYTHON3.DLL and don't worry
-   about virtualenv, see issue #350.  See also 'py_limited_api' in
-   setuptools_ext.py.
+   The implementation is messy (issue #350): on Windows, with _MSC_VER,
+   we have to define Py_LIMITED_API even before including pyconfig.h.
+   In that case, we guess what pyconfig.h will do to the macros above,
+   and check our guess after the #include.
+
+   Note that on Windows, with CPython 3.x, you need >= 3.5 and virtualenv
+   version >= 16.0.0.  With older versions of either, you don't get a
+   copy of PYTHON3.DLL in the virtualenv.  We can't check the version of
+   CPython *before* we even include pyconfig.h.  ffi.set_source() puts
+   a ``#define _CFFI_NO_LIMITED_API'' at the start of this file if it is
+   running on Windows < 3.5, as an attempt at fixing it, but that's
+   arguably wrong because it may not be the target version of Python.
+   Still better than nothing I guess.  As another workaround, you can
+   remove the definition of Py_LIMITED_API here.
+
+   See also 'py_limited_api' in cffi/setuptools_ext.py.
 */
 #if !defined(_CFFI_USE_EMBEDDING) && !defined(Py_LIMITED_API)
-#  include <pyconfig.h>
-#  if !defined(Py_DEBUG) && !defined(Py_TRACE_REFS) && !defined(Py_REF_DEBUG)
-#    define Py_LIMITED_API
+#  ifdef _MSC_VER
+#    if !defined(_DEBUG) && !defined(Py_DEBUG) && !defined(Py_TRACE_REFS) && !defined(Py_REF_DEBUG) && !defined(_CFFI_NO_LIMITED_API)
+#      define Py_LIMITED_API
+#    endif
+#    include <pyconfig.h>
+     /* sanity-check: Py_LIMITED_API will cause crashes if any of these
+        are also defined.  Normally, the Python file PC/pyconfig.h does not
+        cause any of these to be defined, with the exception that _DEBUG
+        causes Py_DEBUG.  Double-check that. */
+#    ifdef Py_LIMITED_API
+#      if defined(Py_DEBUG)
+#        error "pyconfig.h unexpectedly defines Py_DEBUG, but Py_LIMITED_API is set"
+#      endif
+#      if defined(Py_TRACE_REFS)
+#        error "pyconfig.h unexpectedly defines Py_TRACE_REFS, but Py_LIMITED_API is set"
+#      endif
+#      if defined(Py_REF_DEBUG)
+#        error "pyconfig.h unexpectedly defines Py_REF_DEBUG, but Py_LIMITED_API is set"
+#      endif
+#    endif
+#  else
+#    include <pyconfig.h>
+#    if !defined(Py_DEBUG) && !defined(Py_TRACE_REFS) && !defined(Py_REF_DEBUG) && !defined(_CFFI_NO_LIMITED_API)
+#      define Py_LIMITED_API
+#    endif
 #  endif
 #endif
 
@@ -539,162 +568,162 @@ static void (*_cffi_call_python_org)(struct _cffi_externpy_s *, char *);
 #define _CFFI_MODULE_NAME  "_clingo"
 static const char _CFFI_PYTHON_STARTUP_CODE[] = {
 // # NB. this is not a string because of a size limit in MSVC
-// from collections.abc import Iterable
+// 'from collections.abc import Iterable\n
 102,114,111,109,32,99,111,108,108,101,99,116,105,111,110,115,46,97,98,99,32,
 105,109,112,111,114,116,32,73,116,101,114,97,98,108,101,10,
-// from traceback import format_exception
+// 'from traceback import format_exception\n
 102,114,111,109,32,116,114,97,99,101,98,97,99,107,32,105,109,112,111,114,116,
 32,102,111,114,109,97,116,95,101,120,99,101,112,116,105,111,110,10,
-// import __main__
+// 'import __main__\n
 105,109,112,111,114,116,32,95,95,109,97,105,110,95,95,10,
-// from clingo._internal import _ffi, _handle_error, _lib
+// 'from clingo._internal import _ffi, _handle_error, _lib\n
 102,114,111,109,32,99,108,105,110,103,111,46,95,105,110,116,101,114,110,97,108,
 32,105,109,112,111,114,116,32,95,102,102,105,44,32,95,104,97,110,100,108,101,
 95,101,114,114,111,114,44,32,95,108,105,98,10,
-// from clingo.control import Control
+// 'from clingo.control import Control\n
 102,114,111,109,32,99,108,105,110,103,111,46,99,111,110,116,114,111,108,32,105,
 109,112,111,114,116,32,67,111,110,116,114,111,108,10,
-// from clingo.symbol import Symbol
+// 'from clingo.symbol import Symbol\n
 102,114,111,109,32,99,108,105,110,103,111,46,115,121,109,98,111,108,32,105,109,
 112,111,114,116,32,83,121,109,98,111,108,10,
-//
+// '\n
 10,
-// def _cb_error_top_level(exception, exc_value, traceback):
+// 'def _cb_error_top_level(exception, exc_value, traceback):\n
 100,101,102,32,95,99,98,95,101,114,114,111,114,95,116,111,112,95,108,101,118,
 101,108,40,101,120,99,101,112,116,105,111,110,44,32,101,120,99,95,118,97,108,
 117,101,44,32,116,114,97,99,101,98,97,99,107,41,58,10,
-//     msg = "".join(format_exception(exception, exc_value, traceback))
+// '    msg = "".join(format_exception(exception, exc_value, traceback))\n
 32,32,32,32,109,115,103,32,61,32,34,34,46,106,111,105,110,40,102,111,114,109,
 97,116,95,101,120,99,101,112,116,105,111,110,40,101,120,99,101,112,116,105,111,
 110,44,32,101,120,99,95,118,97,108,117,101,44,32,116,114,97,99,101,98,97,99,
 107,41,41,10,
-//     _lib.clingo_set_error(_lib.clingo_error_runtime, msg.encode())
+// '    _lib.clingo_set_error(_lib.clingo_error_runtime, msg.encode())\n
 32,32,32,32,95,108,105,98,46,99,108,105,110,103,111,95,115,101,116,95,101,114,
 114,111,114,40,95,108,105,98,46,99,108,105,110,103,111,95,101,114,114,111,114,
 95,114,117,110,116,105,109,101,44,32,109,115,103,46,101,110,99,111,100,101,40,
 41,41,10,
-//     return False
+// '    return False\n
 32,32,32,32,114,101,116,117,114,110,32,70,97,108,115,101,10,
-//
+// '\n
 10,
-// @_ffi.def_extern(onerror=_cb_error_top_level)
+// '@_ffi.def_extern(onerror=_cb_error_top_level)\n
 64,95,102,102,105,46,100,101,102,95,101,120,116,101,114,110,40,111,110,101,114,
 114,111,114,61,95,99,98,95,101,114,114,111,114,95,116,111,112,95,108,101,118,
 101,108,41,10,
-// def pyclingo_execute_(loc, code, data):
+// 'def pyclingo_execute_(loc, code, data):\n
 100,101,102,32,112,121,99,108,105,110,103,111,95,101,120,101,99,117,116,101,
 95,40,108,111,99,44,32,99,111,100,101,44,32,100,97,116,97,41,58,10,
-//     exec(_ffi.string(code).decode(), __main__.__dict__, __main__.__dict__)
+// '    exec(_ffi.string(code).decode(), __main__.__dict__, __main__.__dict__)\n
 32,32,32,32,101,120,101,99,40,95,102,102,105,46,115,116,114,105,110,103,40,99,
 111,100,101,41,46,100,101,99,111,100,101,40,41,44,32,95,95,109,97,105,110,95,
 95,46,95,95,100,105,99,116,95,95,44,32,95,95,109,97,105,110,95,95,46,95,95,100,
 105,99,116,95,95,41,10,
-//     return True
+// '    return True\n
 32,32,32,32,114,101,116,117,114,110,32,84,114,117,101,10,
-//
+// '\n
 10,
-// @_ffi.def_extern(onerror=_cb_error_top_level)
+// '@_ffi.def_extern(onerror=_cb_error_top_level)\n
 64,95,102,102,105,46,100,101,102,95,101,120,116,101,114,110,40,111,110,101,114,
 114,111,114,61,95,99,98,95,101,114,114,111,114,95,116,111,112,95,108,101,118,
 101,108,41,10,
-// def pyclingo_call_(loc, name, arguments, size, symbol_callback, symbol_callback_data, data):
+// 'def pyclingo_call_(loc, name, arguments, size, symbol_callback, symbol_callback_data, data):\n
 100,101,102,32,112,121,99,108,105,110,103,111,95,99,97,108,108,95,40,108,111,
 99,44,32,110,97,109,101,44,32,97,114,103,117,109,101,110,116,115,44,32,115,105,
 122,101,44,32,115,121,109,98,111,108,95,99,97,108,108,98,97,99,107,44,32,115,
 121,109,98,111,108,95,99,97,108,108,98,97,99,107,95,100,97,116,97,44,32,100,
 97,116,97,41,58,10,
-//     symbol_callback = _ffi.cast('clingo_symbol_callback_t', symbol_callback)
+// "    symbol_callback = _ffi.cast('clingo_symbol_callback_t', symbol_callback)\n
 32,32,32,32,115,121,109,98,111,108,95,99,97,108,108,98,97,99,107,32,61,32,95,
 102,102,105,46,99,97,115,116,40,39,99,108,105,110,103,111,95,115,121,109,98,
 111,108,95,99,97,108,108,98,97,99,107,95,116,39,44,32,115,121,109,98,111,108,
 95,99,97,108,108,98,97,99,107,41,10,
-//     arguments = _ffi.cast('clingo_symbol_t*', arguments)
+// "    arguments = _ffi.cast('clingo_symbol_t*', arguments)\n
 32,32,32,32,97,114,103,117,109,101,110,116,115,32,61,32,95,102,102,105,46,99,
 97,115,116,40,39,99,108,105,110,103,111,95,115,121,109,98,111,108,95,116,42,
 39,44,32,97,114,103,117,109,101,110,116,115,41,10,
-//     context = _ffi.from_handle(data).data if data != _ffi.NULL else None
+// '    context = _ffi.from_handle(data).data if data != _ffi.NULL else None\n
 32,32,32,32,99,111,110,116,101,120,116,32,61,32,95,102,102,105,46,102,114,111,
 109,95,104,97,110,100,108,101,40,100,97,116,97,41,46,100,97,116,97,32,105,102,
 32,100,97,116,97,32,33,61,32,95,102,102,105,46,78,85,76,76,32,101,108,115,101,
 32,78,111,110,101,10,
-//     py_name = _ffi.string(name).decode()
+// '    py_name = _ffi.string(name).decode()\n
 32,32,32,32,112,121,95,110,97,109,101,32,61,32,95,102,102,105,46,115,116,114,
 105,110,103,40,110,97,109,101,41,46,100,101,99,111,100,101,40,41,10,
-//     fun = getattr(__main__ if context is None else context, py_name)
+// '    fun = getattr(__main__ if context is None else context, py_name)\n
 32,32,32,32,102,117,110,32,61,32,103,101,116,97,116,116,114,40,95,95,109,97,
 105,110,95,95,32,105,102,32,99,111,110,116,101,120,116,32,105,115,32,78,111,
 110,101,32,101,108,115,101,32,99,111,110,116,101,120,116,44,32,112,121,95,110,
 97,109,101,41,10,
-//
+// '\n
 10,
-//     args = []
+// '    args = []\n
 32,32,32,32,97,114,103,115,32,61,32,91,93,10,
-//     for i in range(size):
+// '    for i in range(size):\n
 32,32,32,32,102,111,114,32,105,32,105,110,32,114,97,110,103,101,40,115,105,122,
 101,41,58,10,
-//         args.append(Symbol(arguments[i]))
+// '        args.append(Symbol(arguments[i]))\n
 32,32,32,32,32,32,32,32,97,114,103,115,46,97,112,112,101,110,100,40,83,121,109,
 98,111,108,40,97,114,103,117,109,101,110,116,115,91,105,93,41,41,10,
-//
+// '\n
 10,
-//     ret = fun(*args)
+// '    ret = fun(*args)\n
 32,32,32,32,114,101,116,32,61,32,102,117,110,40,42,97,114,103,115,41,10,
-//     symbols = list(ret) if isinstance(ret, Iterable) else [ret]
+// '    symbols = list(ret) if isinstance(ret, Iterable) else [ret]\n
 32,32,32,32,115,121,109,98,111,108,115,32,61,32,108,105,115,116,40,114,101,116,
 41,32,105,102,32,105,115,105,110,115,116,97,110,99,101,40,114,101,116,44,32,
 73,116,101,114,97,98,108,101,41,32,101,108,115,101,32,91,114,101,116,93,10,
-//
+// '\n
 10,
-//     c_symbols = _ffi.new('clingo_symbol_t[]', len(symbols))
+// "    c_symbols = _ffi.new('clingo_symbol_t[]', len(symbols))\n
 32,32,32,32,99,95,115,121,109,98,111,108,115,32,61,32,95,102,102,105,46,110,
 101,119,40,39,99,108,105,110,103,111,95,115,121,109,98,111,108,95,116,91,93,
 39,44,32,108,101,110,40,115,121,109,98,111,108,115,41,41,10,
-//     for i, sym in enumerate(symbols):
+// '    for i, sym in enumerate(symbols):\n
 32,32,32,32,102,111,114,32,105,44,32,115,121,109,32,105,110,32,101,110,117,109,
 101,114,97,116,101,40,115,121,109,98,111,108,115,41,58,10,
-//         c_symbols[i] = sym._rep
+// '        c_symbols[i] = sym._rep\n
 32,32,32,32,32,32,32,32,99,95,115,121,109,98,111,108,115,91,105,93,32,61,32,
 115,121,109,46,95,114,101,112,10,
-//     _handle_error(symbol_callback(c_symbols, len(symbols), symbol_callback_data))
+// '    _handle_error(symbol_callback(c_symbols, len(symbols), symbol_callback_data))\n
 32,32,32,32,95,104,97,110,100,108,101,95,101,114,114,111,114,40,115,121,109,
 98,111,108,95,99,97,108,108,98,97,99,107,40,99,95,115,121,109,98,111,108,115,
 44,32,108,101,110,40,115,121,109,98,111,108,115,41,44,32,115,121,109,98,111,
 108,95,99,97,108,108,98,97,99,107,95,100,97,116,97,41,41,10,
-//     return True
+// '    return True\n
 32,32,32,32,114,101,116,117,114,110,32,84,114,117,101,10,
-//
+// '\n
 10,
-// @_ffi.def_extern(onerror=_cb_error_top_level)
+// '@_ffi.def_extern(onerror=_cb_error_top_level)\n
 64,95,102,102,105,46,100,101,102,95,101,120,116,101,114,110,40,111,110,101,114,
 114,111,114,61,95,99,98,95,101,114,114,111,114,95,116,111,112,95,108,101,118,
 101,108,41,10,
-// def pyclingo_callable_(name, ret, data):
+// 'def pyclingo_callable_(name, ret, data):\n
 100,101,102,32,112,121,99,108,105,110,103,111,95,99,97,108,108,97,98,108,101,
 95,40,110,97,109,101,44,32,114,101,116,44,32,100,97,116,97,41,58,10,
-//     py_name = _ffi.string(name).decode()
+// '    py_name = _ffi.string(name).decode()\n
 32,32,32,32,112,121,95,110,97,109,101,32,61,32,95,102,102,105,46,115,116,114,
 105,110,103,40,110,97,109,101,41,46,100,101,99,111,100,101,40,41,10,
-//     ret[0] = py_name in __main__.__dict__ and callable(__main__.__dict__[py_name])
+// '    ret[0] = py_name in __main__.__dict__ and callable(__main__.__dict__[py_name])\n
 32,32,32,32,114,101,116,91,48,93,32,61,32,112,121,95,110,97,109,101,32,105,110,
 32,95,95,109,97,105,110,95,95,46,95,95,100,105,99,116,95,95,32,97,110,100,32,
 99,97,108,108,97,98,108,101,40,95,95,109,97,105,110,95,95,46,95,95,100,105,99,
 116,95,95,91,112,121,95,110,97,109,101,93,41,10,
-//     return True
+// '    return True\n
 32,32,32,32,114,101,116,117,114,110,32,84,114,117,101,10,
-//
+// '\n
 10,
-// @_ffi.def_extern(onerror=_cb_error_top_level)
+// '@_ffi.def_extern(onerror=_cb_error_top_level)\n
 64,95,102,102,105,46,100,101,102,95,101,120,116,101,114,110,40,111,110,101,114,
 114,111,114,61,95,99,98,95,101,114,114,111,114,95,116,111,112,95,108,101,118,
 101,108,41,10,
-// def pyclingo_main_(ctl, data):
+// 'def pyclingo_main_(ctl, data):\n
 100,101,102,32,112,121,99,108,105,110,103,111,95,109,97,105,110,95,40,99,116,
 108,44,32,100,97,116,97,41,58,10,
-//     __main__.main(Control(_ffi.cast('clingo_control_t*', ctl)))
+// "    __main__.main(Control(_ffi.cast('clingo_control_t*', ctl)))\n
 32,32,32,32,95,95,109,97,105,110,95,95,46,109,97,105,110,40,67,111,110,116,114,
 111,108,40,95,102,102,105,46,99,97,115,116,40,39,99,108,105,110,103,111,95,99,
 111,110,116,114,111,108,95,116,42,39,44,32,99,116,108,41,41,41,10,
-//     return True
+// '    return True\n
 32,32,32,32,114,101,116,117,114,110,32,84,114,117,101,10,
 0 };
 #ifdef PYPY_VERSION
@@ -1076,7 +1105,7 @@ static int _cffi_initialize_python(void)
 
         if (f != NULL && f != Py_None) {
             PyFile_WriteString("\nFrom: " _CFFI_MODULE_NAME
-                               "\ncompiled with cffi version: 1.14.0"
+                               "\ncompiled with cffi version: 1.14.4"
                                "\n_cffi_backend module: ", f);
             modules = PyImport_GetModuleDict();
             mod = PyDict_GetItemString(modules, "_cffi_backend");
@@ -1098,7 +1127,9 @@ static int _cffi_initialize_python(void)
     goto done;
 }
 
+#if PY_VERSION_HEX < 0x03080000
 PyAPI_DATA(char *) _PyParser_TokenNames[];  /* from CPython */
+#endif
 
 static int _cffi_carefully_make_gil(void)
 {
@@ -1181,15 +1212,20 @@ static int _cffi_carefully_make_gil(void)
     /* call Py_InitializeEx() */
     if (!Py_IsInitialized()) {
         _cffi_py_initialize();
+#if PY_VERSION_HEX < 0x03070000
         PyEval_InitThreads();
+#endif
         PyEval_SaveThread();  /* release the GIL */
         /* the returned tstate must be the one that has been stored into the
            autoTLSkey by _PyGILState_Init() called from Py_Initialize(). */
     }
     else {
+#if PY_VERSION_HEX < 0x03070000
+        /* PyEval_InitThreads() is always a no-op from CPython 3.7 */
         PyGILState_STATE state = PyGILState_Ensure();
         PyEval_InitThreads();
         PyGILState_Release(state);
+#endif
     }
 
 #ifdef WITH_THREAD
@@ -1213,11 +1249,11 @@ PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(const void *[]);   /* forward */
 
 static struct _cffi_pypy_init_s {
     const char *name;
-    void (*func)(const void *[]);
+    void *func;    /* function pointer */
     const char *code;
 } _cffi_pypy_init = {
     _CFFI_MODULE_NAME,
-    (void(*)(const void *[]))_CFFI_PYTHON_STARTUP_FUNC,
+    _CFFI_PYTHON_STARTUP_FUNC,
     _CFFI_PYTHON_STARTUP_CODE,
 };
 
@@ -1374,6 +1410,16 @@ static int cffi_start_python(void)
 /************************************************************/
 
 #include <clingo.h>
+#ifdef PYPY_VERSION
+void pyclingo_finalize() { }
+#else
+void pyclingo_finalize() {
+    PyGILState_Ensure();
+    Py_Finalize();
+}
+#endif
+
+
 
 /************************************************************/
 

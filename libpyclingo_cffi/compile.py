@@ -189,6 +189,9 @@ def generate_c(action):
     # ast callbacks
     cnt.append('extern "Python" bool pyclingo_ast_callback(clingo_ast_t const *, void *);')
 
+    code = "void pyclingo_finalize() { }\n"
+
+
     if action == "embed":
         ffi.embedding_api('''\
 bool pyclingo_execute_(void *loc, char const *code, void *data);
@@ -248,10 +251,24 @@ def pyclingo_main_(ctl, data):
     return True
 """)
 
+    code = '''\
+#ifdef PYPY_VERSION
+void pyclingo_finalize() { }
+#else
+void pyclingo_finalize() {
+    PyGILState_Ensure();
+    Py_Finalize();
+}
+#endif
+'''
+
     if action != "header":
         ffi.set_source(
             '_clingo',
-            '#include <clingo.h>')
+            f'''\
+#include <clingo.h>
+{code}
+''')
         ffi.cdef('\n'.join(cnt))
         ffi.emit_c_code('_clingo.c')
     else:

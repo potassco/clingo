@@ -315,8 +315,9 @@ clingo_solve_mode_yield = 2, //!< Yield models in calls to clingo_solve_handle_m
 typedef unsigned clingo_solve_mode_bitset_t;
 enum clingo_solve_event_type {
 clingo_solve_event_type_model      = 0, //!< Issued if a model is found.
-clingo_solve_event_type_statistics = 1, //!< Issued when the statistics can be updated.
-clingo_solve_event_type_finish     = 2, //!< Issued if the search has completed.
+clingo_solve_event_type_unsat      = 1, //!< Issued if an optimization problem is found unsatisfiable.
+clingo_solve_event_type_statistics = 2, //!< Issued when the statistics can be updated.
+clingo_solve_event_type_finish     = 3, //!< Issued if the search has completed.
 };
 typedef unsigned clingo_solve_event_type_t;
 typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_type_t type, void *event, void *data, bool *goon);
@@ -572,7 +573,7 @@ bool clingo_program_builder_add_ast(clingo_program_builder_t *builder, clingo_as
 enum clingo_ast_unpool_type {
 clingo_ast_unpool_type_condition = 1, //!< To only unpool conditions of conditional literals.
 clingo_ast_unpool_type_other = 2,     //!< To unpool everything except conditions of conditional literals.
-clingo_ast_unpool_type_all = 3,       //!< To only unpool everytihng.
+clingo_ast_unpool_type_all = 3,       //!< To unpool everything.
 };
 typedef int clingo_ast_unpool_type_bitset_t;
 bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bitset_t unpool_type, clingo_ast_callback_v2_t callback, void *callback_data);
