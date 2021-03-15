@@ -1666,7 +1666,7 @@ private:
 
 // {{{1 ast v2
 
-namespace ASTv2 {
+namespace AST {
 
 enum class TheorySequenceType {
     Tuple = clingo_ast_theory_sequence_type_tuple,
@@ -1844,88 +1844,88 @@ enum class Attribute {
     Weight = clingo_ast_attribute_weight,
 };
 
-class AST;
-class ASTVector;
+class Node;
+class NodeVector;
 class StringVector;
 
-using ASTValue = Variant<int, Symbol, Location, char const *, AST, Optional<AST>, StringVector, ASTVector>;
+using NodeValue = Variant<int, Symbol, Location, char const *, Node, Optional<Node>, StringVector, NodeVector>;
 
-class AST {
+class Node {
 public:
-    explicit AST(clingo_ast_t *ast);
+    explicit Node(clingo_ast_t *ast);
     template <class... Args>
-    AST(Type type, Args&& ...args);
-    AST(AST const &ast);
-    AST(AST &&ast) noexcept;
-    AST &operator=(AST const &ast);
-    AST &operator=(AST &&ast) noexcept;
-    ~AST();
-    AST copy() const;
-    AST deep_copy() const;
+    Node(Type type, Args&& ...args);
+    Node(Node const &ast);
+    Node(Node &&ast) noexcept;
+    Node &operator=(Node const &ast);
+    Node &operator=(Node &&ast) noexcept;
+    ~Node();
+    Node copy() const;
+    Node deep_copy() const;
     Type type() const;
-    ASTValue get(Attribute attribute) const;
+    NodeValue get(Attribute attribute) const;
     template <class T>
     T get(Attribute attribute) const;
-    void set(Attribute attribute, ASTValue value);
+    void set(Attribute attribute, NodeValue value);
     template <class Visitor>
     void visit_attribute(Visitor &&visitor) const;
     template <class Visitor>
     void visit_ast(Visitor &&visitor) const;
     template <class Visitor>
-    AST transform_ast(Visitor &&visitor) const;
+    Node transform_ast(Visitor &&visitor) const;
     std::string to_string() const;
-    std::vector<AST> unpool(bool other=true, bool condition=true) const;
+    std::vector<Node> unpool(bool other=true, bool condition=true) const;
     clingo_ast_t *to_c() const { return ast_; }
-    friend std::ostream &operator<<(std::ostream &out, AST const &ast);
-    friend bool operator<(AST const &a, AST const &b);
-    friend bool operator>(AST const &a, AST const &b);
-    friend bool operator<=(AST const &a, AST const &b);
-    friend bool operator>=(AST const &a, AST const &b);
-    friend bool operator==(AST const &a, AST const &b);
-    friend bool operator!=(AST const &a, AST const &b);
+    friend std::ostream &operator<<(std::ostream &out, Node const &ast);
+    friend bool operator<(Node const &a, Node const &b);
+    friend bool operator>(Node const &a, Node const &b);
+    friend bool operator<=(Node const &a, Node const &b);
+    friend bool operator>=(Node const &a, Node const &b);
+    friend bool operator==(Node const &a, Node const &b);
+    friend bool operator!=(Node const &a, Node const &b);
     size_t hash() const;
 private:
     clingo_ast_t *ast_;
 };
 
-class ASTRef {
+class NodeRef {
 public:
-    ASTRef(ASTVector *vec, size_t index);
-    ASTRef &operator=(AST const &ast);
-    AST get() const;
-    operator AST () const;
+    NodeRef(NodeVector *vec, size_t index);
+    NodeRef &operator=(Node const &ast);
+    Node get() const;
+    operator Node () const;
 private:
-    ASTVector *vec_;
+    NodeVector *vec_;
     size_t index_;
 };
 
-class ASTVector {
+class NodeVector {
 public:
-    using value_type = AST;
-    using iterator = ArrayIterator<ASTRef, ASTVector*>;
-    using const_iterator = ArrayIterator<AST, ASTVector const *>;
+    using value_type = Node;
+    using iterator = ArrayIterator<NodeRef, NodeVector*>;
+    using const_iterator = ArrayIterator<Node, NodeVector const *>;
 
-    ASTVector(AST ast, clingo_ast_attribute_t attr);
+    NodeVector(Node ast, clingo_ast_attribute_t attr);
     iterator begin();
     iterator end();
     const_iterator begin() const;
     const_iterator end() const;
     size_t size() const;
     bool empty() const;
-    iterator insert(iterator it, AST const &ast);
+    iterator insert(iterator it, Node const &ast);
     iterator erase(iterator it);
-    void set(iterator it, AST const &ast);
-    ValuePointer<ASTRef> at(size_t idx);
-    ASTRef operator[](size_t idx);
-    ValuePointer<AST> at(size_t idx) const;
-    AST operator[](size_t idx) const;
-    void push_back(AST const &ast);
+    void set(iterator it, Node const &ast);
+    ValuePointer<NodeRef> at(size_t idx);
+    NodeRef operator[](size_t idx);
+    ValuePointer<Node> at(size_t idx) const;
+    Node operator[](size_t idx) const;
+    void push_back(Node const &ast);
     void pop_back();
     void clear();
-    AST &ast();
-    AST const &ast() const;
+    Node &ast();
+    Node const &ast() const;
 private:
-    AST ast_;
+    Node ast_;
     clingo_ast_attribute_t attr_;
 };
 
@@ -1948,7 +1948,7 @@ public:
     using iterator = ArrayIterator<StringRef, StringVector*>;
     using const_iterator = ArrayIterator<char const *, StringVector const *>;
 
-    StringVector(AST ast, clingo_ast_attribute_t attr);
+    StringVector(Node ast, clingo_ast_attribute_t attr);
     iterator begin();
     iterator end();
     const_iterator begin() const;
@@ -1965,10 +1965,10 @@ public:
     void push_back(char const *str);
     void pop_back();
     void clear();
-    AST &ast();
-    AST const &ast() const;
+    Node &ast();
+    Node const &ast() const;
 private:
-    AST ast_;
+    Node ast_;
     clingo_ast_attribute_t attr_;
 };
 
@@ -1983,7 +1983,7 @@ public:
     ProgramBuilder &operator=(ProgramBuilder &&) noexcept;
     ~ProgramBuilder();
 
-    void add(AST const &ast);
+    void add(Node const &ast);
     clingo_program_builder_t *to_c() const { return builder_; }
 
 private:
@@ -2002,13 +2002,13 @@ inline void with_builder(Control &ctl, F f) {
     f(b);
 }
 
-} // namespace ASTv2
+} // namespace AST
 
 } namespace std {
 
 template<>
-struct hash<Clingo::ASTv2::AST> {
-    size_t operator()(Clingo::ASTv2::AST const &ast) const { return ast.hash(); }
+struct hash<Clingo::AST::Node> {
+    size_t operator()(Clingo::AST::Node const &ast) const { return ast.hash(); }
 };
 
 } namespace Clingo {
@@ -3131,7 +3131,7 @@ inline char const *Configuration::key_name(size_t index) const {
 
 // {{{2 ast v2
 
-namespace ASTv2 {
+namespace AST {
 
 namespace ASTDetail {
 
@@ -3166,21 +3166,21 @@ struct construct_ast {
         return construct_ast<j - 1>::template construct<i + 1>(type, cons, std::forward<Args>(args)..., &arg);
     }
     template <size_t i, class... Args>
-    static clingo_ast_t *construct(clingo_ast_type_t type, clingo_ast_constructor_t const &cons, AST const &arg, Args&& ...args) {
+    static clingo_ast_t *construct(clingo_ast_type_t type, clingo_ast_constructor_t const &cons, Node const &arg, Args&& ...args) {
         if (cons.size <= i || cons.arguments[i].type != clingo_ast_attribute_type_ast) {
             throw std::runtime_error("invalid argument");
         }
         return construct_ast<j - 1>::template construct<i + 1>(type, cons, std::forward<Args>(args)..., arg.to_c());
     }
     template <size_t i, class... Args>
-    static clingo_ast_t *construct(clingo_ast_type_t type, clingo_ast_constructor_t const &cons, Optional<AST> const &arg, Args&& ...args) {
+    static clingo_ast_t *construct(clingo_ast_type_t type, clingo_ast_constructor_t const &cons, Optional<Node> const &arg, Args&& ...args) {
         if (cons.size <= i || cons.arguments[i].type != clingo_ast_attribute_type_optional_ast) {
             throw std::runtime_error("invalid argument");
         }
         return construct_ast<j - 1>::template construct<i + 1>(type, cons, std::forward<Args>(args)..., arg.get());
     }
     template <size_t i, class... Args>
-    static clingo_ast_t *construct(clingo_ast_type_t type, clingo_ast_constructor_t const &cons, std::vector<AST> const &arg, Args&& ...args) {
+    static clingo_ast_t *construct(clingo_ast_type_t type, clingo_ast_constructor_t const &cons, std::vector<Node> const &arg, Args&& ...args) {
         if (cons.size <= i || cons.arguments[i].type != clingo_ast_attribute_type_ast_array) {
             throw std::runtime_error("invalid argument");
         }
@@ -3210,23 +3210,23 @@ struct construct_ast<0> {
 
 template <class V>
 struct ASTVisitor {
-    void operator()(Attribute attr, ASTValue value) {
-        if (value.is<AST>()) {
-            auto &ast = value.get<AST>();
+    void operator()(Attribute attr, NodeValue value) {
+        if (value.is<Node>()) {
+            auto &ast = value.get<Node>();
             if (v(ast)) {
                 ast.visit_attribute(*this);
             }
         }
-        else if (value.is<Optional<AST>>()) {
-            auto *ast = value.get<Optional<AST>>().get();
+        else if (value.is<Optional<Node>>()) {
+            auto *ast = value.get<Optional<Node>>().get();
             if (ast != nullptr) {
                 if (v(*ast)) {
                     ast->visit_attribute(*this);
                 }
             }
         }
-        else if (value.is<ASTVector>()) {
-            for (AST ast : value.get<ASTVector>()) {
+        else if (value.is<NodeVector>()) {
+            for (Node ast : value.get<NodeVector>()) {
                 if (v(ast)) {
                     ast.visit_attribute(*this);
                 }
@@ -3238,30 +3238,30 @@ struct ASTVisitor {
 
 } // namespace ASTDetail
 
-// AST
+// Node
 
-inline AST::AST(clingo_ast_t *ast)
+inline Node::Node(clingo_ast_t *ast)
 : ast_{ast} { }
 
 template <class... Args>
-AST::AST(Type type, Args&& ...args)
+Node::Node(Type type, Args&& ...args)
 : ast_{ASTDetail::construct_ast<sizeof...(Args)>::template construct<0>(
     static_cast<clingo_ast_type_t>(type),
     g_clingo_ast_constructors.constructors[static_cast<size_t>(type)],
     std::forward<Args>(args)...)} {
 }
 
-inline AST::AST(AST const &ast)
+inline Node::Node(Node const &ast)
 : ast_{ast.ast_} {
     clingo_ast_acquire(ast_);
 }
 
-inline AST::AST(AST &&ast) noexcept
+inline Node::Node(Node &&ast) noexcept
 : ast_{ast.ast_} {
     ast.ast_ = nullptr;
 }
 
-inline AST &AST::operator=(AST const &ast) {
+inline Node &Node::operator=(Node const &ast) {
     if (ast_ != ast.ast_) {
         if (ast_ != nullptr) {
             clingo_ast_release(ast_);
@@ -3274,7 +3274,7 @@ inline AST &AST::operator=(AST const &ast) {
     return *this;
 }
 
-inline AST &AST::operator=(AST &&ast) noexcept {
+inline Node &Node::operator=(Node &&ast) noexcept {
     if (ast_ != ast.ast_) {
         if (ast_ != nullptr) {
             clingo_ast_release(ast_);
@@ -3285,31 +3285,31 @@ inline AST &AST::operator=(AST &&ast) noexcept {
     return *this;
 }
 
-inline AST::~AST() {
+inline Node::~Node() {
     if (ast_ != nullptr) {
         clingo_ast_release(ast_);
     }
 }
 
-inline AST AST::copy() const {
+inline Node Node::copy() const {
     clingo_ast_t *ast;
     Detail::handle_error(clingo_ast_copy(ast_, &ast));
-    return AST{ast};
+    return Node{ast};
 }
 
-inline AST AST::deep_copy() const {
+inline Node Node::deep_copy() const {
     clingo_ast_t *ast;
     Detail::handle_error(clingo_ast_deep_copy(ast_, &ast));
-    return AST{ast};
+    return Node{ast};
 }
 
-inline Type AST::type() const {
+inline Type Node::type() const {
     clingo_ast_type_t type;
     Detail::handle_error(clingo_ast_get_type(ast_, &type));
     return static_cast<Type>(type);
 }
 
-inline ASTValue AST::get(Attribute attribute) const {
+inline NodeValue Node::get(Attribute attribute) const {
     bool has_attribute;
     clingo_ast_attribute_t attr = static_cast<clingo_ast_attribute_t>(attribute);
     Detail::handle_error(clingo_ast_has_attribute(ast_, attr, &has_attribute));
@@ -3342,12 +3342,12 @@ inline ASTValue AST::get(Attribute attribute) const {
         case clingo_ast_attribute_type_ast: {
             clingo_ast_t *ret;
             Detail::handle_error(clingo_ast_attribute_get_ast(ast_, attr, &ret));
-            return {AST{ret}};
+            return {Node{ret}};
         }
         case clingo_ast_attribute_type_optional_ast: {
             clingo_ast_t *ret;
             Detail::handle_error(clingo_ast_attribute_get_optional_ast(ast_, attr, &ret));
-            return ret == nullptr ? Optional<AST>{} : Optional<AST>{AST{ret}};
+            return ret == nullptr ? Optional<Node>{} : Optional<Node>{Node{ret}};
         }
         case clingo_ast_attribute_type_string_array: {
             return {StringVector{*this, attr}};
@@ -3356,15 +3356,15 @@ inline ASTValue AST::get(Attribute attribute) const {
             break;
         }
     }
-    return {ASTVector{*this, attr}};
+    return {NodeVector{*this, attr}};
 }
 
 template <class T>
-T AST::get(Attribute attribute) const {
+T Node::get(Attribute attribute) const {
     return get(attribute).get<T>();
 }
 
-inline void AST::set(Attribute attribute, ASTValue value) {
+inline void Node::set(Attribute attribute, NodeValue value) {
     bool has_attribute;
     clingo_ast_attribute_t attr = static_cast<clingo_ast_attribute_t>(attribute);
     Detail::handle_error(clingo_ast_has_attribute(ast_, attr, &has_attribute));
@@ -3387,10 +3387,10 @@ inline void AST::set(Attribute attribute, ASTValue value) {
             return Detail::handle_error(clingo_ast_attribute_set_string(ast_, attr, value.get<char const*>()));
         }
         case clingo_ast_attribute_type_ast: {
-            return Detail::handle_error(clingo_ast_attribute_set_ast(ast_, attr, value.get<AST>().ast_));
+            return Detail::handle_error(clingo_ast_attribute_set_ast(ast_, attr, value.get<Node>().ast_));
         }
         case clingo_ast_attribute_type_optional_ast: {
-            auto *ast = value.get<Optional<AST>>().get();
+            auto *ast = value.get<Optional<Node>>().get();
             return Detail::handle_error(clingo_ast_attribute_set_optional_ast(ast_, attr, ast != nullptr ? ast->ast_ : nullptr));
         }
         case clingo_ast_attribute_type_string_array: {
@@ -3407,8 +3407,8 @@ inline void AST::set(Attribute attribute, ASTValue value) {
         }
         case clingo_ast_attribute_type_ast_array: {
             auto val = get(attribute);
-            auto &a = val.get<ASTVector>();
-            auto &b = value.get<ASTVector>();
+            auto &a = val.get<NodeVector>();
+            auto &b = value.get<NodeVector>();
             if (a.ast().to_c() != b.ast().to_c()) {
                 a.clear();
                 for (auto x : b) {
@@ -3421,7 +3421,7 @@ inline void AST::set(Attribute attribute, ASTValue value) {
 }
 
 template <class Visitor>
-inline void AST::visit_attribute(Visitor &&visitor) const {
+inline void Node::visit_attribute(Visitor &&visitor) const {
     auto const &cons = g_clingo_ast_constructors.constructors[static_cast<size_t>(type())];
     for (auto &x : make_span(cons.arguments, cons.size)) {
         auto attr = static_cast<Attribute>(x.attribute);
@@ -3430,7 +3430,7 @@ inline void AST::visit_attribute(Visitor &&visitor) const {
 }
 
 template <class Visitor>
-inline void AST::visit_ast(Visitor &&visitor) const {
+inline void Node::visit_ast(Visitor &&visitor) const {
     ASTDetail::ASTVisitor<Visitor> v{visitor};
     if (visitor(*this)) {
         visit_attribute(v);
@@ -3438,33 +3438,33 @@ inline void AST::visit_ast(Visitor &&visitor) const {
 }
 
 template <class Transformer>
-AST AST::transform_ast(Transformer &&transformer) const {
-    std::vector<std::pair<Attribute, Variant<AST, Optional<AST>, std::vector<AST>>>> result;
-    visit_attribute([&](Attribute attr, ASTValue value) {
-        if (value.is<AST>()) {
-            auto &ast = value.get<AST>();
+Node Node::transform_ast(Transformer &&transformer) const {
+    std::vector<std::pair<Attribute, Variant<Node, Optional<Node>, std::vector<Node>>>> result;
+    visit_attribute([&](Attribute attr, NodeValue value) {
+        if (value.is<Node>()) {
+            auto &ast = value.get<Node>();
             auto *ptr = ast.to_c();
             auto tra = transformer(ast);
             if (tra.to_c() != ptr) {
                 result.emplace_back(attr, std::move(tra));
             }
         }
-        else if (value.is<Optional<AST>>()) {
-            auto *ast = value.get<Optional<AST>>().get();
+        else if (value.is<Optional<Node>>()) {
+            auto *ast = value.get<Optional<Node>>().get();
             if (ast != nullptr) {
                 auto *ptr = ast->to_c();
                 auto tra = transformer(*ast);
                 if (tra.to_c() != ptr) {
-                    result.emplace_back(attr, Optional<AST>{std::move(tra)});
+                    result.emplace_back(attr, Optional<Node>{std::move(tra)});
                 }
             }
         }
-        else if (value.is<ASTVector>()) {
-            auto &ast_vec = value.get<ASTVector>();
+        else if (value.is<NodeVector>()) {
+            auto &ast_vec = value.get<NodeVector>();
             bool changed = false;
-            std::vector<AST> vec;
+            std::vector<Node> vec;
             for (auto it = ast_vec.begin(), ie = ast_vec.end(); it != ie; ++it) {
-                AST ast = *it;
+                Node ast = *it;
                 auto *ptr = ast.to_c();
                 auto tra = transformer(*it);
                 if (tra.to_c() != ptr && !changed) {
@@ -3490,15 +3490,15 @@ AST AST::transform_ast(Transformer &&transformer) const {
     }
     auto ret = copy();
     for (auto &x : result) {
-        if (x.second.is<AST>()) {
-            ret.set(x.first, x.second.get<AST>());
+        if (x.second.is<Node>()) {
+            ret.set(x.first, x.second.get<Node>());
         }
-        else if (x.second.is<Optional<AST>>()) {
-            ret.set(x.first, x.second.get<Optional<AST>>());
+        else if (x.second.is<Optional<Node>>()) {
+            ret.set(x.first, x.second.get<Optional<Node>>());
         }
         else {
-            auto val = ret.get<ASTVector>(x.first);
-            auto &vec = x.second.get<std::vector<AST>>();
+            auto val = ret.get<NodeVector>(x.first);
+            auto &vec = x.second.get<std::vector<Node>>();
             val.clear();
             std::move(vec.begin(), vec.end(), std::back_inserter(val));
         }
@@ -3506,11 +3506,11 @@ AST AST::transform_ast(Transformer &&transformer) const {
     return ret;
 }
 
-inline std::string AST::to_string() const {
+inline std::string Node::to_string() const {
     return Detail::to_string(clingo_ast_to_string_size, clingo_ast_to_string, ast_);
 }
 
-inline std::vector<AST> AST::unpool(bool other, bool condition) const {
+inline std::vector<Node> Node::unpool(bool other, bool condition) const {
     clingo_ast_unpool_type_bitset_t type = 0;
     if (other) {
         type |= clingo_ast_unpool_type_other;
@@ -3518,156 +3518,156 @@ inline std::vector<AST> AST::unpool(bool other, bool condition) const {
     if (condition) {
         type |= clingo_ast_unpool_type_condition;
     }
-    using Data = std::pair<std::vector<AST>, std::exception_ptr>;
+    using Data = std::pair<std::vector<Node>, std::exception_ptr>;
     Data data({}, nullptr);
     Detail::handle_error(clingo_ast_unpool(ast_, type, [](clingo_ast_t *ast, void *data) -> bool {
         auto &d = *static_cast<Data*>(data);
         clingo_ast_acquire(ast);
-        CLINGO_CALLBACK_TRY { d.first.emplace_back(AST{ast}); }
+        CLINGO_CALLBACK_TRY { d.first.emplace_back(Node{ast}); }
         CLINGO_CALLBACK_CATCH(d.second);
     }, &data));
     return std::move(data.first);
 }
 
-inline std::ostream &operator<<(std::ostream &out, AST const &ast) {
+inline std::ostream &operator<<(std::ostream &out, Node const &ast) {
     out << ast.to_string();
     return out;
 }
 
-inline bool operator<(AST const &a, AST const &b) {
+inline bool operator<(Node const &a, Node const &b) {
     if (a.ast_ == nullptr || b.ast_ == nullptr) {
-        throw std::runtime_error("invalid AST");
+        throw std::runtime_error("invalid Node");
     }
     return clingo_ast_less_than(a.ast_, b.ast_);
 }
 
-inline bool operator>(AST const &a, AST const &b) {
+inline bool operator>(Node const &a, Node const &b) {
     return b < a;
 }
 
-inline bool operator<=(AST const &a, AST const &b) {
+inline bool operator<=(Node const &a, Node const &b) {
     return !(b < a);
 }
 
-inline bool operator>=(AST const &a, AST const &b) {
+inline bool operator>=(Node const &a, Node const &b) {
     return !(a < b);
 }
 
-inline bool operator==(AST const &a, AST const &b) {
+inline bool operator==(Node const &a, Node const &b) {
     if (a.ast_ == nullptr || b.ast_ == nullptr) {
-        throw std::runtime_error("invalid AST");
+        throw std::runtime_error("invalid Node");
     }
     return clingo_ast_equal(a.ast_, b.ast_);
 }
 
-inline bool operator!=(AST const &a, AST const &b) {
+inline bool operator!=(Node const &a, Node const &b) {
     return !(a == b);
 }
 
-inline size_t AST::hash() const {
+inline size_t Node::hash() const {
     return clingo_ast_hash(ast_);
 }
 
-// ASTVector
+// NodeVector
 
-inline ASTRef::ASTRef(ASTVector *vec, size_t index)
+inline NodeRef::NodeRef(NodeVector *vec, size_t index)
 : vec_{vec}
 , index_{index} { }
 
-inline ASTRef &ASTRef::operator=(AST const &ast) {
+inline NodeRef &NodeRef::operator=(Node const &ast) {
     vec_->set(vec_->begin() + index_, ast);
     return *this;
 }
 
-inline AST ASTRef::get() const {
-    return static_cast<ASTVector const *>(vec_)->operator[](index_);
+inline Node NodeRef::get() const {
+    return static_cast<NodeVector const *>(vec_)->operator[](index_);
 }
 
-inline ASTRef::operator AST () const {
+inline NodeRef::operator Node () const {
     return get();
 }
 
-inline ASTVector::ASTVector(AST ast, clingo_ast_attribute_t attr)
+inline NodeVector::NodeVector(Node ast, clingo_ast_attribute_t attr)
 : ast_{std::move(ast)}
 , attr_{attr} { }
 
-inline ASTVector::iterator ASTVector::begin() {
+inline NodeVector::iterator NodeVector::begin() {
     return iterator{this, 0};
 }
 
-inline ASTVector::iterator ASTVector::end() {
+inline NodeVector::iterator NodeVector::end() {
     return iterator{this, size()};
 }
 
-inline ASTVector::const_iterator ASTVector::begin() const {
+inline NodeVector::const_iterator NodeVector::begin() const {
     return const_iterator{this, 0};
 }
 
-inline ASTVector::const_iterator ASTVector::end() const {
+inline NodeVector::const_iterator NodeVector::end() const {
     return const_iterator{this, size()};
 }
 
-inline size_t ASTVector::size() const {
+inline size_t NodeVector::size() const {
     size_t ret;
     Detail::handle_error(clingo_ast_attribute_size_ast_array(ast_.to_c(), attr_, &ret));
     return ret;
 }
 
-inline bool ASTVector::empty() const {
+inline bool NodeVector::empty() const {
     return size() == 0;
 }
 
-inline ASTVector::iterator ASTVector::insert(iterator it, AST const &ast) {
+inline NodeVector::iterator NodeVector::insert(iterator it, Node const &ast) {
     Detail::handle_error(clingo_ast_attribute_insert_ast_at(ast_.to_c(), attr_, it - begin(), ast.to_c()));
     return it;
 }
 
-inline ASTVector::iterator ASTVector::erase(iterator it) {
+inline NodeVector::iterator NodeVector::erase(iterator it) {
     Detail::handle_error(clingo_ast_attribute_delete_ast_at(ast_.to_c(), attr_, it - begin()));
     return it;
 }
 
-inline void ASTVector::set(iterator it, AST const &ast) {
+inline void NodeVector::set(iterator it, Node const &ast) {
     Detail::handle_error(clingo_ast_attribute_set_ast_at(ast_.to_c(), attr_, it - begin(), ast.to_c()));
 }
 
-inline ASTRef ASTVector::operator[](size_t idx) {
-    return ASTRef{this, idx};
+inline NodeRef NodeVector::operator[](size_t idx) {
+    return NodeRef{this, idx};
 }
 
-inline ValuePointer<ASTRef> ASTVector::at(size_t idx) {
+inline ValuePointer<NodeRef> NodeVector::at(size_t idx) {
     return operator[](idx);
 }
 
-inline AST ASTVector::operator[](size_t idx) const {
+inline Node NodeVector::operator[](size_t idx) const {
     clingo_ast_t *ret;
     Detail::handle_error(clingo_ast_attribute_get_ast_at(ast_.to_c(), attr_, idx, &ret));
-    return AST{ret};
+    return Node{ret};
 }
 
-inline ValuePointer<AST> ASTVector::at(size_t idx) const {
+inline ValuePointer<Node> NodeVector::at(size_t idx) const {
     return operator[](idx);
 }
 
-inline void ASTVector::push_back(AST const &ast) {
+inline void NodeVector::push_back(Node const &ast) {
     insert(end(), ast);
 }
 
-inline void ASTVector::pop_back() {
+inline void NodeVector::pop_back() {
     erase(end() - 1);
 }
 
-inline void ASTVector::clear() {
+inline void NodeVector::clear() {
     for (size_t n = size(); n > 0; --n) {
         Detail::handle_error(clingo_ast_attribute_delete_ast_at(ast_.to_c(), attr_, n - 1));
     }
 }
 
-inline AST &ASTVector::ast() {
+inline Node &NodeVector::ast() {
     return ast_;
 }
 
-inline AST const &ASTVector::ast() const {
+inline Node const &NodeVector::ast() const {
     return ast_;
 }
 
@@ -3692,7 +3692,7 @@ inline StringRef::operator char const *() const {
 
 // StringVector
 
-inline StringVector::StringVector(AST ast, clingo_ast_attribute_t attr)
+inline StringVector::StringVector(Node ast, clingo_ast_attribute_t attr)
 : ast_{std::move(ast)}
 , attr_{attr} { }
 
@@ -3764,11 +3764,11 @@ inline void StringVector::clear() {
     }
 }
 
-inline AST &StringVector::ast() {
+inline Node &StringVector::ast() {
     return ast_;
 }
 
-inline AST const &StringVector::ast() const {
+inline Node const &StringVector::ast() const {
     return ast_;
 }
 
@@ -3796,7 +3796,7 @@ inline ProgramBuilder::~ProgramBuilder() {
     }
 }
 
-inline void ProgramBuilder::add(AST const &ast) {
+inline void ProgramBuilder::add(Node const &ast) {
     Detail::handle_error(clingo_program_builder_add_ast(builder_, ast.to_c()));
 }
 
@@ -3809,7 +3809,7 @@ inline void parse_string(char const *program, Callback &&cb, Logger logger, unsi
     Detail::handle_error(clingo_ast_parse_string(program, [](clingo_ast_t *ast, void *data) -> bool {
         auto &d = *static_cast<Data*>(data);
         clingo_ast_acquire(ast);
-        CLINGO_CALLBACK_TRY { d.first(AST{ast}); }
+        CLINGO_CALLBACK_TRY { d.first(Node{ast}); }
         CLINGO_CALLBACK_CATCH(d.second);
     }, &data, [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
@@ -3824,7 +3824,7 @@ inline void parse_files(StringSpan files, Callback cb, Logger logger, unsigned m
     Detail::handle_error(clingo_ast_parse_files(files.begin(), files.size(), [](clingo_ast_t *ast, void *data) -> bool {
         auto &d = *static_cast<Data*>(data);
         clingo_ast_acquire(ast);
-        CLINGO_CALLBACK_TRY { d.first(AST{ast}); }
+        CLINGO_CALLBACK_TRY { d.first(Node{ast}); }
         CLINGO_CALLBACK_CATCH(d.second);
     }, &data, [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
@@ -3832,7 +3832,7 @@ inline void parse_files(StringSpan files, Callback cb, Logger logger, unsigned m
     }, &logger, message_limit), data.second);
 }
 
-} // namespace ASTv2
+} // namespace AST
 
 // {{{2 program builder
 
