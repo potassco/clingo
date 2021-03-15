@@ -23,11 +23,14 @@ int main(int argc, char const **argv) {
         out << "#const d=" << Number(23) << ".";
         ctl.add("base", {}, out.str().c_str());
 
+        throw std::runtime_error("TODO");
+        /*
         // define a constant via the AST
         ctl.with_builder([](ProgramBuilder &b) {
             Location loc{"<generated>", "<generated>", 1, 1, 1, 1};
             b.add({loc, AST::Definition{"e", {loc, Number(24)}, false}});
         });
+        */
 
         ctl.add("base", {}, "p(@c()). p(d). p(e).");
         ctl.ground({{"base", {}}}, ground_callback);

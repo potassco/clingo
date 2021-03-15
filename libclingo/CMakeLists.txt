@@ -5,7 +5,6 @@ set(header-group
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo.hh")
 source_group("${ide_header_group}" FILES ${header-group})
 set(header-group-clingo
-    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/ast.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/astv2.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/clingo_app.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/clingocontrol.hh"
@@ -23,7 +22,6 @@ set(header
 # [[[source: src
 set(ide_source_group "Source Files")
 set(source-group
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/ast.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2_build.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/astv2_parse.cc"

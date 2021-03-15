@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+/*
 bool print_model(clingo_model_t const *model) {
   bool ret = true;
   clingo_symbol_t *atoms = NULL;
@@ -245,4 +246,8 @@ out:
 
   return ret;
 }
+*/
 
+int main(int argc, char const **argv) {
+    printf("TODO");
+}
