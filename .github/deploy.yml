@@ -59,6 +59,100 @@ conda:
               m = match(r'#define CLINGO_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"', line)
               if m is not None:
                   version = m.group(1)
+    meta:
+      url: https://github.com/potassco/clingo/archive/v{{ version }}.tar.gz
+      git_url: https://github.com/potassco/{{ name }}.git
+      requirements:
+        build:
+          - cmake
+          - "{{ compiler('c') }}"
+          - "{{ compiler('cxx') }}"
+        build_dev:
+          - win_flex_bison [win]
+          - bison [not win]
+          - m4 [not win]
+          - re2c
+        host: 
+          - python
+        run:
+          - python
+          - cffi
+      build:
+        skip: True [win and vc<14]
+      test:
+        commands:
+          - 'clingo --version'
+          - 'clasp --version'
+          - 'reify --version'
+          - 'lpconvert --version'
+          - 'gringo --version'
+      about:
+        home: https://potassco.org/
+        license: MIT
+        summary: A grounder and solver for logic programs.
+        description: Clingo is an answer set programming (ASP) system that takes a logic program as input and calculates its answer sets.
+        license_file: LICENSE.md
+        doc_url: https://potassco.org/
+        dev_url: https://github.com/potassco/{{ name }}
+
+    build_sh: |
+      #!/bin/bash
+
+      mkdir build
+      cd build
+
+      export M4="$(command -v m4)"
+
+      if [ -z "${PYTHON}" ]; then
+          PYTHON="$(which python)"
+      fi
+
+      cmake .. \
+          -DCMAKE_CXX_COMPILER="${CXX}" \
+          -DCMAKE_C_COMPILER="${CC}" \
+          -DPython_ROOT_DIR="${PREFIX}" \
+          -DPython_EXECUTABLE="${PYTHON}" \
+          -DCLINGO_REQUIRE_PYTHON=ON \
+          -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+          -DPYCLINGO_USER_INSTALL=OFF \
+          -DPYCLINGO_USE_CFFI=On \
+          -DCLINGO_BUILD_WITH_LUA=OFF \
+          -DCLINGO_MANAGE_RPATH=OFF \
+          -DPYCLINGO_INSTALL_DIR="${SP_DIR}" \
+          -DCMAKE_INSTALL_LIBDIR="lib" \
+          -DCMAKE_BUILD_TYPE=Release
+
+      make -j${CPU_COUNT}
+      make install
+
+    build_bat: |
+      mkdir build
+
+      cmake -G "%CMAKE_GENERATOR%" -H. -Bbuild ^
+          -DCMAKE_CXX_COMPILER="%CXX%" ^
+          -DCMAKE_C_COMPILER="%CC%" ^
+          -DPython_ROOT_DIR="%PREFIX%" ^
+          -DPYTHON_EXECUTABLE="%PYTHON%" ^
+          -DCLINGO_REQUIRE_PYTHON=ON ^
+          -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
+          -DPYCLINGO_USER_INSTALL=OFF ^
+          -DPYCLINGO_USE_CFFI=On ^
+          -DCLINGO_BUILD_WITH_LUA=OFF ^
+          -DCLINGO_MANAGE_RPATH=OFF
+
+      cmake --build build --config Release
+      cmake --build build --config Release --target install
+
+    build_config: |
+      python:
+      - 3.6
+      - 3.7
+      - 3.8
+      - 3.9
+
+      # from https://github.com/phracker/MacOSX-SDKs
+      CONDA_BUILD_SYSROOT:
+      - /opt/MacOSX10.9.sdk # [osx]
 
 ppa:
     package_name:
