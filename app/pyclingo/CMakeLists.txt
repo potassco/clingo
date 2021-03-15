@@ -1,7 +1,7 @@
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${CMAKE_CURRENT_SOURCE_DIR}/main.cc")
+    "${CMAKE_CURRENT_SOURCE_DIR}/_clingo.c")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})
@@ -31,14 +31,23 @@ if (NOT PYCLINGO_SUFFIX)
     endif()
 endif()
 
-add_library(pyclingo MODULE ${source})
+if (CLINGO_BUILD_SHARED_INTERFACE)
+    add_library(pyclingo SHARED ${source})
+else()
+    add_library(pyclingo MODULE ${source})
+endif()
+target_link_libraries(pyclingo PRIVATE libclingo Python::Module)
+# NOTE: It would be really nice to enable the limited API for the pip packages
+# to avoid having to build Python-specific wheels. Unfortunately, this fails to
+# build on conda on Windows then. Since supporting conda is important, it is
+# disabled for now but should be investigated further, later.
+target_compile_definitions(pyclingo PRIVATE _CFFI_NO_LIMITED_API)
 if (PYCLINGO_DYNAMIC_LOOKUP)
     set_property(TARGET pyclingo PROPERTY LINK_FLAGS "-undefined dynamic_lookup")
 endif()
-target_link_libraries(pyclingo PRIVATE libpyclingom)
 set_target_properties(pyclingo PROPERTIES
     FOLDER lib
-    OUTPUT_NAME clingo
+    OUTPUT_NAME _clingo
     SUFFIX ${PYCLINGO_SUFFIX}
     PREFIX "")
 if (CMAKE_RUNTIME_OUTPUT_DIRECTORY)
@@ -54,11 +63,32 @@ endif()
 if (PYCLINGO_INSTALL_DIR)
     file(TO_CMAKE_PATH "${PYCLINGO_INSTALL_DIR}" _PYCLINGO_INSTALL_DIR)
     install(TARGETS pyclingo
-        RUNTIME DESTINATION ${_PYCLINGO_INSTALL_DIR}
-        LIBRARY DESTINATION ${_PYCLINGO_INSTALL_DIR})
+        RUNTIME DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
+        LIBRARY DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
+        ARCHIVE DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo)
+    if (NOT PYCLINGO_FORCE_OLD_MODULE)
+        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/INSTALLER "pip\n")
+        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/METADATA "Metadata-Version: 1.1\nName: clingo\nVersion: ${CLINGO_VERSION}\n")
+        install(FILES
+            ${CMAKE_CURRENT_BINARY_DIR}/INSTALLER
+            ${CMAKE_CURRENT_BINARY_DIR}/METADATA
+            DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo-${CLINGO_VERSION}.dist-info)
+    endif()
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/libpyclingo/clingo/
         DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
         FILES_MATCHING
-        PATTERN "*.pyi"
-        PATTERN "*.typed")
+        PATTERN "*.py"
+        PATTERN "*.typed"
+        PATTERN "tests" EXCLUDE)
+    install(FILES
+        ${CMAKE_SOURCE_DIR}/libclingo/clingo.h
+        ${CMAKE_SOURCE_DIR}/libclingo/clingo.hh
+        DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo)
+endif()
+
+if (Python_EXECUTABLE AND CLINGO_BUILD_TESTS)
+    add_test(NAME test_pyclingo
+             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/libpyclingo"
+             COMMAND ${Python_EXECUTABLE} -m unittest)
+    set_property(TEST test_pyclingo APPEND PROPERTY ENVIRONMENT "PYTHONPATH=$<TARGET_FILE_DIR:pyclingo>")
 endif()

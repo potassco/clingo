@@ -1,18 +1,19 @@
-sudo: false
 language: c++
 matrix:
   include:
     - os: linux
-      dist: bionic
+      dist: focal
       compiler: gcc
       addons:
         apt:
           packages:
             - re2c
             - bison
+            - python3-dev
             - liblua5.3-dev
             - zsh
     - os: osx
+      osx_image: xcode12.2
 
 script:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
@@ -21,6 +22,7 @@ script:
       brew install lua bison re2c;
       export PATH="/usr/local/opt/bison/bin:$PATH";
     fi
+  - python3 -m pip install --user cffi
   - mkdir build &&
     cd build &&
     cmake

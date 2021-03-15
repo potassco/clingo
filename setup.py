@@ -34,13 +34,12 @@ setup(
                  '-DCLINGO_BUILD_SHARED_INTERFACE=ON',
                  '-DCLINGO_REQUIRE_PYTHON=ON',
                  '-DCLINGO_BUILD_WITH_LUA=OFF',
-                 '-DPYCLINGO_USE_CFFI=ON',
                  '-DPYCLINGO_USER_INSTALL=OFF',
                  '-DPYCLINGO_USE_INSTALL_PREFIX=ON',
                  '-DPYCLINGO_FORCE_OLD_MODULE=ON',
-                 '-DPYCLINGO_INSTALL_DIR=libpyclingo_cffi' ],
+                 '-DPYCLINGO_INSTALL_DIR=libpyclingo' ],
     packages=[ 'clingo' ],
     package_data={ 'clingo': [ 'py.typed', 'import__clingo.lib', 'clingo.h', 'clingo.hh' ] },
-    package_dir={ '': 'libpyclingo_cffi' },
+    package_dir={ '': 'libpyclingo' },
     python_requires=">=3.6"
 )

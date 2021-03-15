@@ -22,45 +22,31 @@
 
 // }}}
 
-#ifndef PYCLINGO_PYCLINGO_H
-#define PYCLINGO_PYCLINGO_H
+#ifndef PYCLINGO_CLINGO_H
+#define PYCLINGO_CLINGO_H
 
 #include <clingo/script.h>
-
-#if defined _WIN32 || defined __CYGWIN__
-#   define PYCLINGO_WIN
-#endif
-#ifdef PYCLINGO_NO_VISIBILITY
-#   define PYCLINGO_VISIBILITY_DEFAULT
-#   define PYCLINGO_VISIBILITY_PRIVATE
-#else
-#   ifdef PYCLINGO_WIN
-#       ifdef PYCLINGO_BUILD_LIBRARY
-#           define PYCLINGO_VISIBILITY_DEFAULT __declspec (dllexport)
-#       else
-#           define PYCLINGO_VISIBILITY_DEFAULT __declspec (dllimport)
-#       endif
-#       define PYCLINGO_VISIBILITY_PRIVATE
-#   else
-#       if __GNUC__ >= 4
-#           define PYCLINGO_VISIBILITY_DEFAULT  __attribute__ ((visibility ("default")))
-#           define PYCLINGO_VISIBILITY_PRIVATE __attribute__ ((visibility ("hidden")))
-#       else
-#           define PYCLINGO_VISIBILITY_DEFAULT
-#           define PYCLINGO_VISIBILITY_PRIVATE
-#       endif
-#   endif
-#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-PYCLINGO_VISIBILITY_DEFAULT void *clingo_init_python_();
-PYCLINGO_VISIBILITY_DEFAULT bool clingo_register_python_();
+#if defined(_WIN32)
+#  define CFFI_DLLEXPORT  __declspec(dllexport)
+#elif defined(__GNUC__)
+#  define CFFI_DLLEXPORT  __attribute__((visibility("default")))
+#else
+#  define CFFI_DLLEXPORT  /* nothing */
+#endif
+
+CFFI_DLLEXPORT bool pyclingo_execute_(clingo_location_t const *loc, char const *code, void *);
+CFFI_DLLEXPORT bool pyclingo_call_(clingo_location_t const *loc, char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *);
+CFFI_DLLEXPORT bool pyclingo_callable_(char const * name, bool *ret, void *);
+CFFI_DLLEXPORT bool pyclingo_main_(clingo_control_t *ctl, void *);
+CFFI_DLLEXPORT bool clingo_register_python_();
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // PYCLINGO_PYCLINGO_H
+#endif // PYCLINGO_CLINGO_H

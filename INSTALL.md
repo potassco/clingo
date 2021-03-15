@@ -45,7 +45,7 @@ branch. Releases already include the necessary generated files.
 ## Optional Dependencies
 
 - the [Python](https://www.python.org/) script language
-  - version 2.7 is tested
+  - at least version 3.6
 - the [Lua](https://www.lua.org/) script language
   - version 5.1 is used for development
   - version 5.2 and 5.3 should work
@@ -146,9 +146,6 @@ Python development packages are installed.
 - Variable `PYCLINGO_INSTALL_DIR` can be used to customize where to install the
   python module.
   (Default: automatically detected)
-- Variable `PYCLINGO_USE_CFFI` can be used to build and install the clingo
-  packages using Python's cffi package instead of using Python's C API.
-  (Default: `OFF`)
 
 Note that it can happen that the found Python interpreter does not match the
 found Python libraries if the development headers for the interpreter are not
