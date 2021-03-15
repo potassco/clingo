@@ -25,13 +25,13 @@ def adjust_version():
     assert version is not None
 
     post = 0
-    for m in finditer(r'clingo[_-]cffi-{}\.post([0-9]+)\.tar\.gz'.format(escape(version)), pip):
+    for m in finditer(r'clingo[-_]cffi-{}\.post([0-9]+)\.tar\.gz'.format(escape(version)), pip):
         post = max(post, int(m.group(1)))
 
-    for m in finditer(r'clingo[_-]cffi-{}.*manylinux2014_{}'.format(escape(version), escape(ARCH)), pip):
+    for m in finditer(r'clingo[-_]cffi-{}.*manylinux2014_{}'.format(escape(version), escape(ARCH)), pip):
         post = max(post, 1)
 
-    for m in finditer(r'clingo[_-]cffi-{}\.post([0-9]+).*manylinux2014_{}'.format(escape(version), escape(ARCH)), pip):
+    for m in finditer(r'clingo[-_]cffi-{}\.post([0-9]+).*manylinux2014_{}'.format(escape(version), escape(ARCH)), pip):
         post = max(post, int(m.group(1)) + 1)
 
     with open('setup.py') as fr:
@@ -41,20 +41,6 @@ def adjust_version():
             fw.write(sub('version( *)=.*', 'version = \'{}.post{}\','.format(version, post), setup, 1))
         else:
             fw.write(sub('version( *)=.*', 'version = \'{}\','.format(version), setup, 1))
-
-
-def install():
-    '''
-    Install required software.
-    '''
-    if ARCH == "ppc64le":
-        mkdir('re2c_source')
-        check_call(['curl', '-LJ', '-o', 're2c.tar.gz', 'https://github.com/skvadrik/re2c/archive/2.0.3.tar.gz'])
-        check_call(['tar', 'xzf', 're2c.tar.gz', '-C', 're2c_source', '--strip-components=1'])
-        check_call(['cmake', '-G', 'Ninja', '-Hre2c_source', '-Bre2c_build', '-DRE2C_BUILD_RE2GO=OFF'])
-        check_call(['cmake', '--build', 're2c_build', '--target', 'install'])
-    else:
-        check_call(['yum', 'install', '-y', 're2c', 'bison'])
 
 
 def compile_wheels():
@@ -83,7 +69,14 @@ def repair_wheels():
 
 
 if __name__ == "__main__":
-    install()
     adjust_version()
+    if ARCH == "ppc64le":
+        mkdir('re2c_source')
+        check_call(['curl', '-LJ', '-o', 're2c.tar.gz', 'https://github.com/skvadrik/re2c/archive/2.0.3.tar.gz'])
+        check_call(['tar', 'xzf', 're2c.tar.gz', '-C', 're2c_source', '--strip-components=1'])
+        check_call(['cmake', '-G', 'Ninja', '-Hre2c_source', '-Bre2c_build', '-DRE2C_BUILD_RE2GO=OFF'])
+        check_call(['cmake', '--build', 're2c_build', '--target', 'install'])
+    else:
+        check_call(['yum', 'install', '-y', 're2c', 'bison'])
     compile_wheels()
     repair_wheels()

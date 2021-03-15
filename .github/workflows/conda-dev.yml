@@ -1,35 +1,39 @@
-name: Publish conda packages (wip)
+name: Deploy conda packages (wip)
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: clingcon ${{ matrix.python-version }} ${{ matrix.os }}
+    name: deploy on ${{ matrix.os }} using python-${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: ['ubuntu-latest', 'macos-latest', 'windows-2016']
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-2016
         python-version: ['3.8']
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout repo
+      uses: actions/checkout@v2
       with:
-        repository: 'potassco/conda'
-        ref: 'master'
+        submodules: recursive
 
     - name: setup miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
-        activate-environment: clingo
-        channels: potassco,potassco/label/dev
+        activate-environment: build
 
     - name: install prerequisites
       shell: pwsh
-      run: conda install conda-build anaconda-client
+      run: |
+        conda config --set anaconda_upload yes
+        conda install conda-build anaconda-client
 
     - name: install macos SDK
       if: ${{ matrix.os == 'macos-latest' }}
@@ -47,7 +51,6 @@ jobs:
     - name: publish conda package
       shell: pwsh
       run: |
-        Set-Location "clingo"
-        python upload.py
+        python .github/conda.py
       env:
         ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}

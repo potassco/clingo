@@ -1,5 +1,5 @@
 '''
-Script to build pip source package for clingo.
+Script to build pip source package.
 '''
 
 from re import finditer, escape, match, sub
@@ -21,10 +21,13 @@ def adjust_version():
     assert version is not None
 
     post = 0
-    for m in finditer(r'clingo[_-]cffi-{}\.post([0-9]+)\.tar\.gz'.format(escape(version)), pip):
+    for m in finditer(r'clingo[-_]cffi-{}\.tar\.gz'.format(escape(version)), pip):
+        post = max(post, 1)
+
+    for m in finditer(r'clingo[-_]cffi-{}\.post([0-9]+)\.tar\.gz'.format(escape(version)), pip):
         post = max(post, int(m.group(1)) + 1)
 
-    for m in finditer(r'clingo[_-]cffi-{}\.post([0-9]+).*\.whl'.format(escape(version)), pip):
+    for m in finditer(r'clingo[-_]cffi-{}\.post([0-9]+).*\.whl'.format(escape(version)), pip):
         post = max(post, int(m.group(1)))
 
     with open('setup.py') as fr:
@@ -35,18 +38,10 @@ def adjust_version():
         else:
             fw.write(sub('version( *)=.*', 'version = \'{}\','.format(version), setup, 1))
 
-
-def generate():
-    '''
-    Generate grammars and lexers.
-    '''
+if __name__ == "__main__":
+    adjust_version()
     check_call(['cmake', '-G', 'Ninja', '-H.', '-Bbuild'])
     check_call(['cmake', '--build', 'build', '--target', 'gen'])
     check_call(['mkdir', '-p', 'libgringo/gen/src/'])
     check_call(['rsync', '-ra', 'build/libgringo/src/input', 'libgringo/gen/src/'])
-
-
-if __name__ == "__main__":
-    adjust_version()
-    generate()
     check_call(['python3', 'setup.py', 'sdist'])
