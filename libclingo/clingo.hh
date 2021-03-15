@@ -1550,24 +1550,6 @@ private:
     unsigned key_;
 };
 
-// {{{1 program builder
-
-class ProgramBuilder {
-public:
-    explicit ProgramBuilder(clingo_program_builder_t *builder);
-    ProgramBuilder() = delete;
-    ProgramBuilder(ProgramBuilder const &) = delete;
-    ProgramBuilder(ProgramBuilder &&) noexcept;
-    ProgramBuilder &operator=(ProgramBuilder const &) = delete;
-    ProgramBuilder &operator=(ProgramBuilder &&) noexcept;
-    ~ProgramBuilder();
-
-    clingo_program_builder_t *to_c() const { return builder_; }
-private:
-    clingo_program_builder_t *builder_;
-
-};
-
 // {{{1 control
 
 class Part {
@@ -1650,7 +1632,6 @@ public:
     void cleanup();
     void enable_cleanup(bool value);
     bool enable_cleanup() const;
-    ProgramBuilder builder();
     Backend backend();
     template <class F>
     void with_backend(F f) {
@@ -3834,24 +3815,6 @@ inline void parse_files(StringSpan files, Callback cb, Logger logger, unsigned m
 
 } // namespace AST
 
-// {{{2 program builder
-
-inline ProgramBuilder::ProgramBuilder(clingo_program_builder_t *builder)
-: builder_{builder} {
-    Detail::handle_error(clingo_program_builder_begin(builder_));
-}
-
-inline ProgramBuilder::ProgramBuilder(ProgramBuilder &&builder) noexcept
-: builder_{nullptr} {
-    std::swap(builder_, builder.builder_);
-}
-
-inline ProgramBuilder::~ProgramBuilder() {
-    if (builder_ != nullptr) {
-        Detail::handle_error(clingo_program_builder_end(builder_));
-    }
-}
-
 // {{{2 control
 
 struct Control::Impl {
@@ -4331,12 +4294,6 @@ inline Statistics Control::statistics() const {
     uint64_t key;
     Detail::handle_error(clingo_statistics_root(stats, &key));
     return Statistics{stats, key};
-}
-
-inline ProgramBuilder Control::builder() {
-    clingo_program_builder_t *ret;
-    Detail::handle_error(clingo_control_program_builder(impl_->ctl, &ret));
-    return ProgramBuilder{ret};
 }
 
 // {{{2 clingo application
