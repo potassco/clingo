@@ -34,7 +34,6 @@ setup(
                  '-DCLINGO_BUILD_SHARED_INTERFACE=ON',
                  '-DCLINGO_REQUIRE_PYTHON=ON',
                  '-DCLINGO_BUILD_WITH_LUA=OFF',
-                 '-DPYCLINGO_USE_CFFI=ON',
                  '-DPYCLINGO_USER_INSTALL=OFF',
                  '-DPYCLINGO_USE_INSTALL_PREFIX=ON',
                  '-DPYCLINGO_FORCE_OLD_MODULE=ON',

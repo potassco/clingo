@@ -8,13 +8,7 @@ set(source
     ${source-group})
 # ]]]
 
-if (CLINGO_BUILD_LUA_SHARED)
-    set(luaclingo_lib_type SHARED)
-else()
-    set(luaclingo_lib_type STATIC)
-endif()
-
-add_library(libluaclingo ${luaclingo_lib_type} ${source})
+add_library(libluaclingo STATIC ${source})
 target_link_libraries(libluaclingo PUBLIC libclingo PRIVATE Lua::Lua)
 target_include_directories(libluaclingo PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>")
