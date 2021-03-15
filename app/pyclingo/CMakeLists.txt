@@ -74,7 +74,7 @@ if (PYCLINGO_INSTALL_DIR)
             ${CMAKE_CURRENT_BINARY_DIR}/METADATA
             DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo-${CLINGO_VERSION}.dist-info)
     endif()
-    install(DIRECTORY ${CMAKE_SOURCE_DIR}/libpyclingo_cffi/clingo/
+    install(DIRECTORY ${CMAKE_SOURCE_DIR}/libpyclingo/clingo/
         DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
         FILES_MATCHING
         PATTERN "*.py"
@@ -88,7 +88,7 @@ endif()
 
 if (Python_EXECUTABLE AND CLINGO_BUILD_TESTS)
     add_test(NAME test_pyclingo
-             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/libpyclingo_cffi"
+             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/libpyclingo"
              COMMAND ${Python_EXECUTABLE} -m unittest)
     set_property(TEST test_pyclingo APPEND PROPERTY ENVIRONMENT "PYTHONPATH=$<TARGET_FILE_DIR:pyclingo>")
 endif()

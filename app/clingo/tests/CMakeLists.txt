@@ -6,7 +6,7 @@ if (Python_EXECUTABLE)
     endif()
     add_test(NAME test_clingo_app COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/run.py" -c $<TARGET_FILE:clingo> run -- ${solver-options})
     if (Python_Development_FOUND)
-        set_property(TEST test_clingo_app APPEND PROPERTY ENVIRONMENT "PYTHONPATH=${PROJECT_SOURCE_DIR}/libpyclingo_cffi")
+        set_property(TEST test_clingo_app APPEND PROPERTY ENVIRONMENT "PYTHONPATH=${PROJECT_SOURCE_DIR}/libpyclingo")
     endif()
 
 endif()

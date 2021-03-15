@@ -9,12 +9,11 @@ recursive-include cmake *
 recursive-include libclingo  *
 recursive-include libgringo *
 recursive-include libluaclingo *
-recursive-include libpyclingo *
-include libpyclingo_cffi/*.c
-include libpyclingo_cffi/*.h
-include libpyclingo_cffi/*.h.in
-include libpyclingo_cffi/CMakeLists.txt
-recursive-include libpyclingo_cffi/clingo *.py *.typed
+include libpyclingo/*.c
+include libpyclingo/*.h
+include libpyclingo/*.h.in
+include libpyclingo/CMakeLists.txt
+recursive-include libpyclingo/clingo *.py *.typed
 recursive-include libreify *
 prune _skbuild
 global-exclude *.py[cod]
