@@ -5,7 +5,7 @@ Simple script to call conda build with the current revision and version.
 
 import subprocess
 import json
-import re
+from re import match
 import os
 
 LABEL = "dev"
