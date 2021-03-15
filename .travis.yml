@@ -15,6 +15,7 @@ matrix:
             - liblua5.3-dev
             - zsh
     - os: osx
+      osx_image: xcode12.2
 
 script:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
