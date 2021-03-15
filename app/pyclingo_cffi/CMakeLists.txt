@@ -37,6 +37,11 @@ else()
     add_library(pyclingo MODULE ${source})
 endif()
 target_link_libraries(pyclingo PRIVATE libclingo Python::Module)
+# NOTE: It would be really nice to enable the limited API for the pip packages
+# to avoid having to build Python-specific wheels. Unfortunately, this fails to
+# build on conda on Windows then. Since supporting conda is important, it is
+# disabled for now but should be investigated further, later.
+target_compile_definitions(pyclingo PRIVATE _CFFI_NO_LIMITED_API)
 if (PYCLINGO_DYNAMIC_LOOKUP)
     set_property(TARGET pyclingo PROPERTY LINK_FLAGS "-undefined dynamic_lookup")
 endif()

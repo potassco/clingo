@@ -1,5 +1,4 @@
 #define _CFFI_
-#define _CFFI_NO_LIMITED_API
 
 /* We try to define Py_LIMITED_API before including Python.h.
 
