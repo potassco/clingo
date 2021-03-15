@@ -748,7 +748,7 @@ void handle_c_error(bool ret, std::exception_ptr *exc = nullptr) {
         if (exc && *exc) { std::rethrow_exception(*exc); }
         char const *msg = clingo_error_message();
         if (!msg) { msg = "no message"; }
-        switch (static_cast<clingo_error>(clingo_error_code())) {
+        switch (static_cast<clingo_error_e>(clingo_error_code())) {
             case clingo_error_runtime:   { throw std::runtime_error(msg); }
             case clingo_error_logic:     { throw std::logic_error(msg); }
             case clingo_error_bad_alloc: { throw std::bad_alloc(); }
@@ -1428,7 +1428,7 @@ Set : TheoryTermType
     For set theory terms.
 )";
 
-    static constexpr clingo_theory_term_type const values[] = {
+    static constexpr clingo_theory_term_type_e const values[] = {
         clingo_theory_term_type_function,
         clingo_theory_term_type_number,
         clingo_theory_term_type_symbol,
@@ -1446,7 +1446,7 @@ Set : TheoryTermType
     };
 };
 
-constexpr clingo_theory_term_type const TheoryTermType::values[];
+constexpr clingo_theory_term_type_e const TheoryTermType::values[];
 constexpr const char * const TheoryTermType::strings[];
 
 struct TheoryTerm : ObjectBase<TheoryTerm> {
@@ -1754,7 +1754,7 @@ Supremum : SymbolType
     The `#sup` symbol
 )";
 
-    static constexpr enum clingo_symbol_type const values[] = {
+    static constexpr enum clingo_symbol_type_e const values[] = {
         clingo_symbol_type_number,
         clingo_symbol_type_string,
         clingo_symbol_type_function,
@@ -1764,7 +1764,7 @@ Supremum : SymbolType
     static constexpr const char * const strings[] = { "Number", "String", "Function", "Infimum", "Supremum" };
 };
 
-constexpr enum clingo_symbol_type const SymbolType::values[];
+constexpr enum clingo_symbol_type_e const SymbolType::values[];
 constexpr const char * const SymbolType::strings[];
 
 struct Symbol : ObjectBase<Symbol> {
@@ -2541,7 +2541,7 @@ CautiousConsequences : ModelType
     The model stores the set of cautious consequences.
 )";
 
-    static constexpr enum clingo_model_type const values[] = {
+    static constexpr enum clingo_model_type_e const values[] = {
         clingo_model_type_stable_model,
         clingo_model_type_brave_consequences,
         clingo_model_type_cautious_consequences
@@ -2549,7 +2549,7 @@ CautiousConsequences : ModelType
     static constexpr const char * const strings[] = { "StableModel", "BraveConsequences", "CautiousConsequences" };
 };
 
-constexpr enum clingo_model_type const ModelType::values[];
+constexpr enum clingo_model_type_e const ModelType::values[];
 constexpr const char * const ModelType::strings[];
 
 struct Model : ObjectBase<Model> {
@@ -3805,7 +3805,7 @@ An int representing the pointer to the underlying C `clingo_assignment_t` struct
 // {{{1 wrap PropagateInit
 
 struct PropagatorCheckMode : EnumType<PropagatorCheckMode> {
-    using Type = clingo_propagator_check_mode;
+    using Type = clingo_propagator_check_mode_e;
     static constexpr char const *tp_type = "PropagatorCheckMode";
     static constexpr char const *tp_name = "clingo.PropagatorCheckMode";
     static constexpr char const *tp_doc =
@@ -4424,7 +4424,7 @@ static bool propagator_decide(clingo_id_t solverId, clingo_assignment_t const *a
 // {{{1 wrap observer
 
 struct TruthValue : EnumType<TruthValue> {
-    using Type = clingo_external_type;
+    using Type = clingo_external_type_e;
     static constexpr char const *tp_type = "TruthValue";
     static constexpr char const *tp_name = "clingo.TruthValue";
     static constexpr char const *tp_doc =
@@ -4468,7 +4468,7 @@ constexpr TruthValue::Type const TruthValue::values[];
 constexpr const char * const TruthValue::strings[];
 
 struct HeuristicType : EnumType<HeuristicType> {
-    using Type = clingo_heuristic_type;
+    using Type = clingo_heuristic_type_e;
     static constexpr char const *tp_type = "HeuristicType";
     static constexpr char const *tp_name = "clingo.HeuristicType";
     static constexpr char const *tp_doc =
@@ -5098,7 +5098,7 @@ Max : AggregateFunction
         "Max",
     };
     Object tp_repr() {
-        switch (static_cast<enum clingo_ast_aggregate_function>(values[offset])) {
+        switch (static_cast<clingo_ast_aggregate_function_e>(values[offset])) {
             case clingo_ast_aggregate_function_count: { return PyString_FromString("#count"); }
             case clingo_ast_aggregate_function_sum:   { return PyString_FromString("#sum"); }
             case clingo_ast_aggregate_function_sump:  { return PyString_FromString("#sum+"); }
@@ -5298,7 +5298,7 @@ Absolute : UnaryOperator
         "Negation",
     };
     Object leftHandSide() {
-        switch (static_cast<enum clingo_ast_unary_operator>(values[offset])) {
+        switch (static_cast<clingo_ast_unary_operator_e>(values[offset])) {
             case clingo_ast_unary_operator_absolute: { return PyString_FromString("|"); }
             case clingo_ast_unary_operator_minus:    { return PyString_FromString("-"); }
             case clingo_ast_unary_operator_negation: { return PyString_FromString("~"); }
@@ -5551,7 +5551,7 @@ Directive : TheoryAtomType
         "Directive"
     };
     Object tp_repr() {
-        switch (static_cast<enum clingo_ast_theory_atom_definition_type>(values[offset])) {
+        switch (static_cast<clingo_ast_theory_atom_definition_type_e>(values[offset])) {
             case clingo_ast_theory_atom_definition_type_any:       { return PyString_FromString("any"); }
             case clingo_ast_theory_atom_definition_type_body:      { return PyString_FromString("body"); }
             case clingo_ast_theory_atom_definition_type_head:      { return PyString_FromString("head"); }
@@ -6284,7 +6284,7 @@ Object cppToPy(clingo_ast_id_t const &id) {
 }
 
 Object cppToPy(clingo_ast_term_t const &term) {
-    switch (static_cast<enum clingo_ast_term_type>(term.type)) {
+    switch (static_cast<clingo_ast_term_type_e>(term.type)) {
         case clingo_ast_term_type_symbol: {
             return call(createSymbol, cppToPy(term.location), cppToPy(symbol_wrapper{term.symbol}));
         }
@@ -6338,7 +6338,7 @@ Object cppToPy(clingo_ast_theory_unparsed_term_element_t const &term) {
 }
 
 Object cppToPy(clingo_ast_theory_term_t const &term) {
-    switch (static_cast<enum clingo_ast_theory_term_type>(term.type)) {
+    switch (static_cast<clingo_ast_theory_term_type_e>(term.type)) {
         case clingo_ast_theory_term_type_symbol: {
             return call(createSymbol, cppToPy(term.location), cppToPy(symbol_wrapper{term.symbol}));
         }
@@ -6376,7 +6376,7 @@ Object cppToPy(clingo_ast_csp_guard_t const &guard) {
 }
 
 Object cppToPy(clingo_ast_literal_t const &lit) {
-    switch (static_cast<enum clingo_ast_literal_type>(lit.type)) {
+    switch (static_cast<clingo_ast_literal_type_e>(lit.type)) {
         case clingo_ast_literal_type_boolean: {
             return call(createLiteral, cppToPy(lit.location), Sign::getAttr(lit.sign), call(createBooleanConstant, cppToPy(lit.boolean)));
         }
@@ -6454,7 +6454,7 @@ Object cppToPy(clingo_ast_body_aggregate_element_t const &elem) {
 // {{{3 head literal
 
 Object cppToPy(clingo_ast_head_literal_t const &head) {
-    switch (static_cast<enum clingo_ast_head_literal_type>(head.type)) {
+    switch (static_cast<clingo_ast_head_literal_type_e>(head.type)) {
         case clingo_ast_head_literal_type_literal: {
             return cppToPy(*head.literal);
         }
@@ -6479,7 +6479,7 @@ Object cppToPy(clingo_ast_head_literal_t const &head) {
 // {{{3 body literal
 
 Object cppToPy(clingo_ast_body_literal_t const &body) {
-    switch (static_cast<enum clingo_ast_body_literal_type>(body.type)) {
+    switch (static_cast<clingo_ast_body_literal_type_e>(body.type)) {
         case clingo_ast_body_literal_type_literal: {
             assert(body.sign == clingo_ast_sign_none);
             return cppToPy(*body.literal);
@@ -6527,7 +6527,7 @@ Object cppToPy(clingo_ast_theory_atom_definition_t const &def) {
 }
 
 Object cppToPy(clingo_ast_statement_t const &stm) {
-    switch (static_cast<enum clingo_ast_statement_type>(stm.type)) {
+    switch (static_cast<clingo_ast_statement_type_e>(stm.type)) {
         case clingo_ast_statement_type_rule: {
             return call(createRule, cppToPy(stm.location), cppToPy(stm.rule->head), cppToPy(stm.rule->body, stm.rule->size));
         }
@@ -7499,7 +7499,7 @@ GlobalVariable : MessageCode
 Other : MessageCode
     Reports other kinds of messages.
 )";
-    static constexpr clingo_warning const values[] = {
+    static constexpr clingo_warning_e const values[] = {
         clingo_warning_operation_undefined,
         clingo_warning_runtime_error,
         clingo_warning_atom_undefined,
@@ -7519,7 +7519,7 @@ Other : MessageCode
     };
 };
 
-constexpr clingo_warning const MessageCode::values[];
+constexpr clingo_warning_e const MessageCode::values[];
 constexpr const char * const MessageCode::strings[];
 
 // {{{1 wrap Statistics
