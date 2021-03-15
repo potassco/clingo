@@ -45,7 +45,7 @@ branch. Releases already include the necessary generated files.
 ## Optional Dependencies
 
 - the [Python](https://www.python.org/) script language
-  - version 2.7 is tested
+  - at least version 3.6
 - the [Lua](https://www.lua.org/) script language
   - version 5.1 is used for development
   - version 5.2 and 5.3 should work

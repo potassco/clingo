@@ -102,6 +102,10 @@ if (NOT CMAKE_IMPORT_LIBRARY_PREFIX)
     set(CMAKE_IMPORT_LIBRARY_PREFIX import_)
 endif()
 
+if (NOT CLINGO_PYTHON_VERSION)
+    set(CLINGO_PYTHON_VERSION "3.6")
+endif()
+
 # NOTE: searching for the interpreter first increases the chance
 #       that searching for the python libraries finds the matching libraries for the default python interpreter
 #       python is also used to run the tests
@@ -130,6 +134,7 @@ if(NOT PYCLINGO_FORCE_OLD_MODULE AND (CMAKE_VERSION VERSION_GREATER "3.15.0" OR 
 else()
     find_package(PythonInterp)
     set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}")
+    set(Python_VERSION_MAJOR "${PYTHON_VERSION_MAJOR}")
     if (CLINGO_BUILD_WITH_PYTHON)
         if (CLINGO_REQUIRE_PYTHON)
             find_package(PythonLibs ${CLINGO_PYTHON_VERSION} REQUIRED)
@@ -150,6 +155,9 @@ else()
             endif()
         endif()
     endif()
+endif()
+if (Python_Development_FOUND AND Python_VERSION_MAJOR LESS 3)
+    message(FATAL_ERROR "Clingo does not support Python 2.")
 endif()
 if (CLINGO_BUILD_WITH_LUA)
     if (CLINGO_REQUIRE_LUA)
