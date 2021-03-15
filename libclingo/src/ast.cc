@@ -440,7 +440,7 @@ HdLitUid ASTBuilder::headaggr(Location const &loc, AggregateFunction fun, BoundV
         guards.front().comparison = static_cast<clingo_ast_comparison_operator_t>(inv(static_cast<Relation>(guards.front().comparison)));
     }
     clingo_ast_head_aggregate_t aggr;
-    aggr.function    = static_cast<clingo_ast_aggregate_function>(fun);
+    aggr.function    = static_cast<clingo_ast_aggregate_function_e>(fun);
     aggr.size        = elems.size();
     aggr.elements    = createArray_(elems);
     aggr.left_guard  = guards.size() > 0 ? create_(guards[0]) : nullptr;
@@ -520,7 +520,7 @@ BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf,
         guards.front().comparison = static_cast<clingo_ast_comparison_operator_t>(inv(static_cast<Relation>(guards.front().comparison)));
     }
     clingo_ast_body_aggregate_t aggr;
-    aggr.function    = static_cast<clingo_ast_aggregate_function>(fun);
+    aggr.function    = static_cast<clingo_ast_aggregate_function_e>(fun);
     aggr.size        = elems.size();
     aggr.elements    = createArray_(elems);
     aggr.left_guard  = guards.size() > 0 ? create_(guards[0]) : nullptr;
@@ -1021,11 +1021,10 @@ public:
     // {{{2 statement
 
     void parse(clingo_ast_statement_t const &stm) {
-        switch (static_cast<enum clingo_ast_statement_type>(stm.type)) {
+        switch (static_cast<clingo_ast_statement_type_e>(stm.type)) {
             case clingo_ast_statement_type_rule: {
                 auto &y = *stm.rule;
-                return prg_.rule(parseLocation(stm.location), parseHeadLiteral(y.head), parseBodyLiteralVec(y.body, y.size));
-            }
+                return prg_.rule(parseLocation(stm.location), parseHeadLiteral(y.head), parseBodyLiteralVec(y.body, y.size)); }
             case clingo_ast_statement_type_const: {
                 auto &y = *stm.definition;
                 return prg_.define(parseLocation(stm.location), y.name, parseTerm(y.value), y.is_default, log_);
@@ -1121,7 +1120,7 @@ private:
     }
 
     TermUid parseTerm(clingo_ast_term_t const &x) {
-        switch (static_cast<enum clingo_ast_term_type>(x.type)) {
+        switch (static_cast<clingo_ast_term_type_t>(x.type)) {
             case clingo_ast_term_type_symbol: {
                 return prg_.term(parseLocation(x.location), Symbol(x.symbol));
             }
@@ -1174,7 +1173,7 @@ private:
     }
 
     TheoryTermUid parseTheoryTerm(clingo_ast_theory_term_t const &x) {
-        switch (static_cast<enum clingo_ast_theory_term_type>(x.type)) {
+        switch (static_cast<clingo_ast_theory_term_type_e>(x.type)) {
             case clingo_ast_theory_term_type_symbol: {
                 return prg_.theorytermvalue(parseLocation(x.location), Symbol(x.symbol));
             }
@@ -1230,7 +1229,7 @@ private:
 
     // {{{2 literals
 
-    NAF parseSign(enum clingo_ast_sign a, enum clingo_ast_sign b = clingo_ast_sign_none) {
+    NAF parseSign(clingo_ast_sign_e a, clingo_ast_sign_e b = clingo_ast_sign_none) {
         switch (a) {
             case clingo_ast_sign_none:            { return static_cast<NAF>(b); }
             case clingo_ast_sign_negation:        { return static_cast<NAF>(b == clingo_ast_sign_negation ? clingo_ast_sign_double_negation : clingo_ast_sign_negation); }
@@ -1239,13 +1238,13 @@ private:
         return static_cast<NAF>(clingo_ast_sign_none);
     }
 
-    LitUid parseLiteral(clingo_ast_literal_t const &x, enum clingo_ast_sign extraSign = clingo_ast_sign_none) {
-        switch (static_cast<enum clingo_ast_literal_type>(x.type)) {
+    LitUid parseLiteral(clingo_ast_literal_t const &x, clingo_ast_sign_e extraSign = clingo_ast_sign_none) {
+        switch (static_cast<clingo_ast_literal_type_e>(x.type)) {
             case clingo_ast_literal_type_boolean: {
                 return prg_.boollit(parseLocation(x.location), extraSign != clingo_ast_sign_negation ? x.boolean : !x.boolean);
             }
             case clingo_ast_literal_type_symbolic: {
-                return prg_.predlit(parseLocation(x.location), parseSign(static_cast<enum clingo_ast_sign>(x.sign), extraSign), parseTerm(*x.symbol));
+                return prg_.predlit(parseLocation(x.location), parseSign(static_cast<clingo_ast_sign_e>(x.sign), extraSign), parseTerm(*x.symbol));
             }
             case clingo_ast_literal_type_comparison: {
                 auto &y = *x.comparison;
@@ -1323,7 +1322,7 @@ private:
     // {{{2 heads
 
     HdLitUid parseHeadLiteral(clingo_ast_head_literal_t const &x) {
-        switch (static_cast<enum clingo_ast_head_literal_type>(x.type)) {
+        switch (static_cast<clingo_ast_head_literal_type_e>(x.type)) {
             case clingo_ast_head_literal_type_literal: {
                 return prg_.headlit(parseLiteral(*x.literal));
             }
@@ -1354,9 +1353,9 @@ private:
     BdLitVecUid parseBodyLiteralVec(clingo_ast_body_literal_t const *lit, size_t size) {
         auto ret = prg_.body();
         for (auto it = lit, ie = lit + size; it != ie; ++it) {
-            switch (static_cast<enum clingo_ast_body_literal_type>(it->type)) {
+            switch (static_cast<clingo_ast_body_literal_type_e>(it->type)) {
                 case clingo_ast_body_literal_type_literal: {
-                    ret = prg_.bodylit(ret, parseLiteral(*it->literal, static_cast<enum clingo_ast_sign>(it->sign)));
+                    ret = prg_.bodylit(ret, parseLiteral(*it->literal, static_cast<clingo_ast_sign_e>(it->sign)));
                     break;
                 }
                 case clingo_ast_body_literal_type_conditional: {

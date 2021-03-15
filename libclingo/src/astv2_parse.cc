@@ -29,16 +29,16 @@ namespace Gringo { namespace Input {
 namespace {
 
 template <class T>
-T &get(AST &ast, clingo_ast_attribute name) {
+T &get(AST &ast, clingo_ast_attribute_e name) {
     return mpark::get<T>(ast.value(name));
 }
 
 template <class T>
-T const &get(AST const &ast, clingo_ast_attribute name) {
+T const &get(AST const &ast, clingo_ast_attribute_e name) {
     return mpark::get<T>(ast.value(name));
 }
 
-AST *getOpt(AST const &ast, clingo_ast_attribute name) {
+AST *getOpt(AST const &ast, clingo_ast_attribute_e name) {
     if (!ast.hasValue(name)) {
         return nullptr;
     }

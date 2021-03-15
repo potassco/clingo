@@ -597,9 +597,9 @@ luaL_Reg const SolveResult::meta[] = {
 // {{{1 wrap TheoryTerm
 
 struct TheoryTermType : Object<TheoryTermType> {
-    clingo_theory_term_type type;
-    TheoryTermType(clingo_theory_term_type type) : type(type) { }
-    clingo_theory_term_type cmpKey() { return type; }
+    clingo_theory_term_type_e type;
+    TheoryTermType(clingo_theory_term_type_e type) : type(type) { }
+    clingo_theory_term_type_e cmpKey() { return type; }
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 6);
         for (auto t : { clingo_theory_term_type_function, clingo_theory_term_type_number, clingo_theory_term_type_symbol, clingo_theory_term_type_tuple, clingo_theory_term_type_list, clingo_theory_term_type_set}) {
@@ -610,7 +610,7 @@ struct TheoryTermType : Object<TheoryTermType> {
         return 0;
     }
     static char const *field_(clingo_theory_term_type_t t) {
-        switch (static_cast<clingo_theory_term_type>(t)) {
+        switch (static_cast<clingo_theory_term_type_e>(t)) {
             case clingo_theory_term_type_function: { return "Function"; }
             case clingo_theory_term_type_number:   { return "Number"; }
             case clingo_theory_term_type_symbol:   { return "Symbol"; }
@@ -904,7 +904,7 @@ struct SymbolType : Object<SymbolType> {
         return 0;
     }
     static char const *field_(clingo_symbol_type_t type) {
-        switch (static_cast<enum clingo_symbol_type>(type)) {
+        switch (static_cast<clingo_symbol_type_e>(type)) {
             case clingo_symbol_type_number:   { return "Number"; }
             case clingo_symbol_type_string:   { return "String"; }
             case clingo_symbol_type_function: { return "Function"; }
@@ -1492,7 +1492,7 @@ struct ModelType : Object<ModelType> {
         return 0;
     }
     static char const *field_(Type t) {
-        switch (static_cast<enum clingo_model_type>(t)) {
+        switch (static_cast<clingo_model_type_e>(t)) {
             case clingo_model_type_stable_model:          { return "StableModel"; }
             case clingo_model_type_brave_consequences:    { return "BraveConsequences"; }
             case clingo_model_type_cautious_consequences: { break; }
@@ -2070,7 +2070,7 @@ struct ExternalType : Object<ExternalType> {
         return 0;
     }
     static char const *field_(Type t) {
-        switch (static_cast<clingo_external_type>(t)) {
+        switch (static_cast<clingo_external_type_e>(t)) {
             case clingo_external_type_true:    { return "True"; }
             case clingo_external_type_false:   { return "False"; }
             case clingo_external_type_free:    { return "Free"; }
@@ -2488,9 +2488,9 @@ luaL_Reg const Assignment::meta[] = {
 // {{{1 wrap PropagateInit
 
 struct PropagatorCheckMode : Object<PropagatorCheckMode> {
-    clingo_propagator_check_mode type;
-    PropagatorCheckMode(clingo_propagator_check_mode type) : type(type) { }
-    clingo_propagator_check_mode cmpKey() { return type; }
+    clingo_propagator_check_mode_e type;
+    PropagatorCheckMode(clingo_propagator_check_mode_e type) : type(type) { }
+    clingo_propagator_check_mode_e cmpKey() { return type; }
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 4);
         for (auto t : {clingo_propagator_check_mode_none, clingo_propagator_check_mode_total, clingo_propagator_check_mode_fixpoint, clingo_propagator_check_mode_both}) {
@@ -2500,7 +2500,7 @@ struct PropagatorCheckMode : Object<PropagatorCheckMode> {
         lua_setfield(L, -2, "PropagatorCheckMode");
         return 0;
     }
-    static char const *field_(clingo_propagator_check_mode type) {
+    static char const *field_(clingo_propagator_check_mode_e type) {
         switch (type) {
             case clingo_propagator_check_mode_none:     { return "Off"; }
             case clingo_propagator_check_mode_total:    { return "Total"; }
@@ -2621,7 +2621,7 @@ struct PropagateInit : Object<PropagateInit> {
     }
 
     static int getCheckMode(lua_State *L) {
-        PropagatorCheckMode::new_(L, static_cast<clingo_propagator_check_mode>(clingo_propagate_init_get_check_mode(get_self(L).init)));
+        PropagatorCheckMode::new_(L, static_cast<clingo_propagator_check_mode_e>(clingo_propagate_init_get_check_mode(get_self(L).init)));
         return 1;
     }
 
@@ -3116,13 +3116,13 @@ public:
         return call(data, S("output_csp"), symbol_wrapper{symbol}, value, range(condition, size));
     }
     static bool external(clingo_atom_t atom, clingo_external_type_t type, void *data) {
-        return call(data, S("external"), atom, static_cast<clingo_external_type>(type));
+        return call(data, S("external"), atom, static_cast<clingo_external_type_e>(type));
     }
     static bool assume(clingo_literal_t const *literals, size_t size, void *data) {
         return call(data, S("assume"), range(literals, size));
     }
     static bool heuristic(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size, void *data) {
-        return call(data, S("heuristic"), atom, static_cast<clingo_heuristic_type>(type), bias, priority, range(condition, size));
+        return call(data, S("heuristic"), atom, static_cast<clingo_heuristic_type_e>(type), bias, priority, range(condition, size));
     }
     static bool acyc_edge(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data) {
         return call(data, S("acyc_edge"), node_u, node_v, range(condition, size));
@@ -3163,10 +3163,10 @@ private:
     static void push(lua_State *L, symbol_wrapper b) {
         Term::new_(L, b.symbol);
     }
-    static void push(lua_State *L, clingo_external_type x) {
+    static void push(lua_State *L, clingo_external_type_e x) {
         ExternalType::new_(L, x);
     }
-    static void push(lua_State *L, clingo_heuristic_type x) {
+    static void push(lua_State *L, clingo_heuristic_type_e x) {
         HeuristicType::new_(L, x);
     }
     static void push(lua_State *L, clingo_weighted_literal_t lit) {
@@ -3259,9 +3259,9 @@ private:
 // {{{1 wrap ControlWrap
 
 struct MessageCode : Object<MessageCode> {
-    clingo_warning type;
-    MessageCode(clingo_warning type) : type(type) { }
-    clingo_warning cmpKey() { return type; }
+    clingo_warning_e type;
+    MessageCode(clingo_warning_e type) : type(type) { }
+    clingo_warning_e cmpKey() { return type; }
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 7);
         for (auto t : {clingo_warning_operation_undefined, clingo_warning_runtime_error, clingo_warning_atom_undefined, clingo_warning_file_included, clingo_warning_variable_unbounded, clingo_warning_global_variable, clingo_warning_other}) {
@@ -3271,7 +3271,7 @@ struct MessageCode : Object<MessageCode> {
         lua_setfield(L, -2, "MessageCode");
         return 0;
     }
-    static char const *field_(clingo_warning type) {
+    static char const *field_(clingo_warning_e type) {
         switch (type) {
             case clingo_warning_operation_undefined: { return "OperationUndefined"; }
             case clingo_warning_runtime_error      : { return "RuntimeError"; }
@@ -3308,7 +3308,7 @@ static int lua_logger_callback(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "clingo"); // +1
     lua_getfield(L, -1, "MessageCode");           // +1
     lua_replace(L, -2);                           // -1
-    lua_getfield(L, -1, MessageCode::field_(static_cast<clingo_warning>(code))); // +1
+    lua_getfield(L, -1, MessageCode::field_(static_cast<clingo_warning_e>(code))); // +1
     lua_replace(L, -2);                           // -1
     lua_pushstring(L, str);                       // +1
     lua_call(L, 2, 0);                            // -3

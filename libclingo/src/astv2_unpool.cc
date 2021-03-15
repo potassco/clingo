@@ -29,7 +29,7 @@ namespace Gringo { namespace Input {
 namespace {
 
 template <class T>
-T &get(AST &ast, clingo_ast_attribute name) {
+T &get(AST &ast, clingo_ast_attribute_e name) {
     return mpark::get<T>(ast.value(name));
 }
 
@@ -98,7 +98,7 @@ tl::optional<std::vector<AST::ASTVec>> unpool(AST::ASTVec &vec, clingo_ast_unpoo
 template <int i, bool cond>
 struct unpool_cross_ {
     template <class V, class... Args>
-    static void apply_(V &val, tl::optional<AST::ASTVec> &ret, AST &ast, clingo_ast_attribute name, Args&&... args) {
+    static void apply_(V &val, tl::optional<AST::ASTVec> &ret, AST &ast, clingo_ast_attribute_e name, Args&&... args) {
         auto pool = cond ? unpool(val, clingo_ast_unpool_type_other) : unpool(val);
         if (!pool.has_value()) {
             unpool_cross_<i-1, cond>::apply(ret, ast, std::forward<Args>(args)..., name, AST::Value{val});
@@ -113,7 +113,7 @@ struct unpool_cross_ {
         }
     }
     template <class... Args>
-    static void apply(tl::optional<AST::ASTVec> &ret, AST &ast, clingo_ast_attribute name, Args&&... args) {
+    static void apply(tl::optional<AST::ASTVec> &ret, AST &ast, clingo_ast_attribute_e name, Args&&... args) {
         auto &val = ast.value(name);
         if (mpark::holds_alternative<SAST>(val)) {
             assert(mpark::get<SAST>(val).get() != nullptr);
@@ -149,7 +149,7 @@ tl::optional<AST::ASTVec> unpool_cross(AST &ast, Args&&... args) {
 }
 
 template <bool cond=false>
-tl::optional<SAST> unpool_chain(AST &ast, clingo_ast_attribute name) {
+tl::optional<SAST> unpool_chain(AST &ast, clingo_ast_attribute_e name) {
     auto &val = mpark::get<AST::ASTVec>(ast.value(name));
     AST::ASTVec chain;
     chain.reserve(val.size());
@@ -171,7 +171,7 @@ tl::optional<SAST> unpool_chain(AST &ast, clingo_ast_attribute name) {
 }
 
 template <bool cond, class... Args>
-tl::optional<AST::ASTVec> unpool_chain_cross(AST &ast, clingo_ast_attribute name, Args&&... args) {
+tl::optional<AST::ASTVec> unpool_chain_cross(AST &ast, clingo_ast_attribute_e name, Args&&... args) {
     auto chain = unpool_chain<cond>(ast, name);
     tl::optional<AST::ASTVec> ret;
     if (chain.has_value()) {

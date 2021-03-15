@@ -125,22 +125,22 @@ struct CompareEqual {
 
 } // namespace
 
-AST::AST(clingo_ast_type type)
+AST::AST(clingo_ast_type_e type)
 : type_{type} { }
 
-AST::AttributeVector::iterator AST::find_(clingo_ast_attribute name) {
+AST::AttributeVector::iterator AST::find_(clingo_ast_attribute_e name) {
     return std::find_if(values_.begin(), values_.end(), [name](auto const &x) { return x.first == name; });
 }
 
-AST::AttributeVector::const_iterator AST::find_(clingo_ast_attribute name) const {
+AST::AttributeVector::const_iterator AST::find_(clingo_ast_attribute_e name) const {
     return std::find_if(values_.begin(), values_.end(), [name](auto const &x) { return x.first == name; });
 }
 
-bool AST::hasValue(clingo_ast_attribute name) const {
+bool AST::hasValue(clingo_ast_attribute_e name) const {
     return find_(name) != values_.end();
 }
 
-AST::Value const &AST::value(clingo_ast_attribute name) const {
+AST::Value const &AST::value(clingo_ast_attribute_e name) const {
     auto it = find_(name);
     if (it == values_.end()) {
         std::ostringstream oss;
@@ -153,7 +153,7 @@ AST::Value const &AST::value(clingo_ast_attribute name) const {
     return it->second;
 }
 
-AST::Value &AST::value(clingo_ast_attribute name) {
+AST::Value &AST::value(clingo_ast_attribute_e name) {
     auto it = find_(name);
     if (it == values_.end()) {
         std::ostringstream oss;
@@ -166,7 +166,7 @@ AST::Value &AST::value(clingo_ast_attribute name) {
     return it->second;
 }
 
-void AST::value(clingo_ast_attribute name, Value value) {
+void AST::value(clingo_ast_attribute_e name, Value value) {
     assert(find_(name) == values_.end());
     values_.emplace_back(name, std::move(value));
 }
@@ -276,7 +276,7 @@ bool AST::unique() const {
     return refCount_ == 1;
 }
 
-clingo_ast_type AST::type() const {
+clingo_ast_type_e AST::type() const {
     return type_;
 }
 
@@ -290,7 +290,7 @@ SAST::SAST(AST *ast)
     }
 }
 
-SAST::SAST(clingo_ast_type type)
+SAST::SAST(clingo_ast_type_e type)
 : ast_{new AST{type}} {
     ast_->incRef();
 }

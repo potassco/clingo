@@ -134,7 +134,7 @@ void handleCError(bool ret, std::exception_ptr *exc) {
         if (exc && *exc) { std::rethrow_exception(*exc); }
         char const *msg = clingo_error_message();
         if (!msg) { msg = "no message"; }
-        switch (static_cast<clingo_error>(clingo_error_code())) {
+        switch (static_cast<clingo_error_e>(clingo_error_code())) {
             case clingo_error_runtime:   { throw std::runtime_error(msg); }
             case clingo_error_logic:     { throw std::logic_error(msg); }
             case clingo_error_bad_alloc: { throw std::bad_alloc(); }
@@ -217,7 +217,7 @@ extern "C" clingo_error_t clingo_error_code() {
 }
 
 extern "C" char const *clingo_error_string(clingo_error_t code) {
-    switch (static_cast<clingo_error>(code)) {
+    switch (static_cast<clingo_error_e>(code)) {
         case clingo_error_success:               { return "success"; }
         case clingo_error_runtime:               { return "runtime error"; }
         case clingo_error_bad_alloc:             { return "bad allocation"; }
@@ -228,7 +228,7 @@ extern "C" char const *clingo_error_string(clingo_error_t code) {
 }
 
 extern "C" char const *clingo_warning_string(clingo_warning_t code) {
-    switch (static_cast<clingo_warning>(code)) {
+    switch (static_cast<clingo_warning_e>(code)) {
         case clingo_warning_operation_undefined: { return "operation undefined"; }
         case clingo_warning_runtime_error:       { return "runtime errer"; }
         case clingo_warning_atom_undefined:      { return "atom undefined"; }
@@ -1405,12 +1405,12 @@ extern "C" bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...
         va_list args;
         va_start(args, ast);
 
-        Input::SAST sast{static_cast<clingo_ast_type>(type)};
+        Input::SAST sast{static_cast<clingo_ast_type_e>(type)};
 
         auto const &cons = g_clingo_ast_constructors.constructors[type];
         for (auto it = cons.arguments, ie = it + cons.size; it != ie; ++it) {
-            auto attribute = static_cast<clingo_ast_attribute>(it->attribute);
-            switch (static_cast<enum clingo_ast_attribute_type>(it->type)) {
+            auto attribute = static_cast<clingo_ast_attribute_e>(it->attribute);
+            switch (static_cast<clingo_ast_attribute_type_e>(it->type)) {
                 case clingo_ast_attribute_type_number: {
                     sast->value(attribute, va_arg(args, int));
                     break;
@@ -1509,19 +1509,19 @@ extern "C" void clingo_ast_release(clingo_ast_t *ast) {
 
 template <class T>
 T &get_attr(clingo_ast_t *ast, clingo_ast_attribute_t attribute) {
-    return mpark::get<T>(ast->ast.value(static_cast<clingo_ast_attribute>(attribute)));
+    return mpark::get<T>(ast->ast.value(static_cast<clingo_ast_attribute_e>(attribute)));
 }
 
 extern "C" bool clingo_ast_has_attribute(clingo_ast_t *ast, clingo_ast_attribute_t attribute, bool *has_attribute) {
     GRINGO_CLINGO_TRY {
-        *has_attribute = ast->ast.hasValue(static_cast<clingo_ast_attribute>(attribute));
+        *has_attribute = ast->ast.hasValue(static_cast<clingo_ast_attribute_e>(attribute));
     }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_ast_attribute_type(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_attribute_type_t *type) {
     GRINGO_CLINGO_TRY {
-        *type = static_cast<clingo_ast_attribute_type_t>(ast->ast.value(static_cast<clingo_ast_attribute>(attribute)).index());
+        *type = static_cast<clingo_ast_attribute_type_t>(ast->ast.value(static_cast<clingo_ast_attribute_e>(attribute)).index());
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -2189,12 +2189,12 @@ private:
 } // namespace
 
 extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_register_script_(clingo_ast_script_type_t type, clingo_script_t_ const *script, void *data) {
-    GRINGO_CLINGO_TRY { g_scripts().registerScript(static_cast<clingo_ast_script_type>(type), gringo_make_unique<CScript>(*script, data)); }
+    GRINGO_CLINGO_TRY { g_scripts().registerScript(static_cast<clingo_ast_script_type_e>(type), gringo_make_unique<CScript>(*script, data)); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version_(clingo_ast_script_type_t type) {
-    return g_scripts().version(static_cast<clingo_ast_script_type>(type));
+    return g_scripts().version(static_cast<clingo_ast_script_type_e>(type));
 }
 
 extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]) {

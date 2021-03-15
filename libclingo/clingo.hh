@@ -2693,7 +2693,7 @@ inline void handle_error(bool ret) {
     if (!ret) {
         char const *msg = clingo_error_message();
         if (msg == nullptr) { msg = "no message"; }
-        switch (static_cast<clingo_error>(clingo_error_code())) {
+        switch (static_cast<clingo_error_e>(clingo_error_code())) {
             case clingo_error_runtime:   { throw std::runtime_error(msg); }
             case clingo_error_logic:     { throw std::logic_error(msg); }
             case clingo_error_bad_alloc: { throw std::bad_alloc(); }
@@ -3932,7 +3932,7 @@ inline ASTValue AST::get(Attribute attribute) const {
     }
     clingo_ast_attribute_type_t type;
     Detail::handle_error(clingo_ast_attribute_type(ast_, attr, &type));
-    switch (static_cast<enum clingo_ast_attribute_type>(type)) {
+    switch (static_cast<clingo_ast_attribute_type_e>(type)) {
         case clingo_ast_attribute_type_number: {
             int ret;
             Detail::handle_error(clingo_ast_attribute_get_number(ast_, attr, &ret));
@@ -3987,7 +3987,7 @@ inline void AST::set(Attribute attribute, ASTValue value) {
     }
     clingo_ast_attribute_type_t type;
     Detail::handle_error(clingo_ast_attribute_type(ast_, attr, &type));
-    switch (static_cast<enum clingo_ast_attribute_type>(type)) {
+    switch (static_cast<clingo_ast_attribute_type_e>(type)) {
         case clingo_ast_attribute_type_number: {
             return Detail::handle_error(clingo_ast_attribute_set_number(ast_, attr, value.get<int>()));
         }
@@ -5778,7 +5778,7 @@ inline Term convTerm(clingo_ast_term_t const &term);
 CLINGO_ARRAY(clingo_ast_term_t, Term)
 
 inline Term convTerm(clingo_ast_term_t const &term) {
-    switch (static_cast<enum clingo_ast_term_type>(term.type)) {
+    switch (static_cast<clingo_ast_term_type_e>(term.type)) {
         case clingo_ast_term_type_symbol: {
             return {Location{term.location}, Symbol{term.symbol}};
         }
@@ -5839,7 +5839,7 @@ inline TheoryUnparsedTermElement convTheoryUnparsedTermElement(clingo_ast_theory
 CLINGO_ARRAY(clingo_ast_theory_unparsed_term_element_t, TheoryUnparsedTermElement)
 
 inline TheoryTerm convTheoryTerm(clingo_ast_theory_term_t const &term) {
-    switch (static_cast<enum clingo_ast_theory_term_type>(term.type)) {
+    switch (static_cast<clingo_ast_theory_term_type_e>(term.type)) {
         case clingo_ast_theory_term_type_symbol: {
             return {Location{term.location}, Symbol{term.symbol}};
         }
@@ -5878,7 +5878,7 @@ inline CSPGuard convCSPGuard(clingo_ast_csp_guard_t const &guard) {
 CLINGO_ARRAY(clingo_ast_csp_guard_t, CSPGuard)
 
 inline Literal convLiteral(clingo_ast_literal_t const &lit) {
-    switch (static_cast<enum clingo_ast_literal_type>(lit.type)) {
+    switch (static_cast<clingo_ast_literal_type_e>(lit.type)) {
         case clingo_ast_literal_type_boolean: {
             return {Location(lit.location), static_cast<Sign>(lit.sign), Boolean{lit.boolean}};
         }
@@ -5956,7 +5956,7 @@ CLINGO_ARRAY(clingo_ast_body_aggregate_element_t, BodyAggregateElement)
 // {{{4 head literal
 
 inline HeadLiteral convHeadLiteral(clingo_ast_head_literal_t const &head) {
-    switch (static_cast<enum clingo_ast_head_literal_type>(head.type)) {
+    switch (static_cast<clingo_ast_head_literal_type_e>(head.type)) {
         case clingo_ast_head_literal_type_literal: {
             return {Location{head.location}, convLiteral(*head.literal)};
         }
@@ -5981,7 +5981,7 @@ inline HeadLiteral convHeadLiteral(clingo_ast_head_literal_t const &head) {
 // {{{4 body literal
 
 inline BodyLiteral convBodyLiteral(clingo_ast_body_literal_t const &body) {
-    switch (static_cast<enum clingo_ast_body_literal_type>(body.type)) {
+    switch (static_cast<clingo_ast_body_literal_type_e>(body.type)) {
         case clingo_ast_body_literal_type_literal: {
             return {Location{body.location}, static_cast<Sign>(body.sign), convLiteral(*body.literal)};
         }
@@ -6032,7 +6032,7 @@ inline TheoryAtomDefinition convTheoryAtomDefinition(clingo_ast_theory_atom_defi
 CLINGO_ARRAY(clingo_ast_theory_atom_definition_t, TheoryAtomDefinition)
 
 inline void convStatement(clingo_ast_statement_t const *stm, StatementCallback &cb) {
-    switch (static_cast<enum clingo_ast_statement_type>(stm->type)) {
+    switch (static_cast<clingo_ast_statement_type_e>(stm->type)) {
         case clingo_ast_statement_type_rule: {
             cb({Location(stm->location), Rule{convHeadLiteral(stm->rule->head), convBodyLiteralVec(stm->rule->body, stm->rule->size)}});
             break;

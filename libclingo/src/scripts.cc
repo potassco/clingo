@@ -60,7 +60,7 @@ SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log
     return {};
 }
 
-void Scripts::registerScript(clingo_ast_script_type type, UScript script) {
+void Scripts::registerScript(clingo_ast_script_type_e type, UScript script) {
     if (script) { scripts_.emplace_back(type, false, std::move(script)); }
 }
 
@@ -85,7 +85,7 @@ void Scripts::exec(ScriptType type, Location loc, String code) {
     }
 }
 
-char const *Scripts::version(clingo_ast_script_type type) {
+char const *Scripts::version(clingo_ast_script_type_e type) {
     for (auto &&script : scripts_) {
         if (std::get<0>(script) == type) {
             return std::get<2>(script)->version();

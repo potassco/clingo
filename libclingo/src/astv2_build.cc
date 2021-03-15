@@ -29,25 +29,25 @@ namespace Gringo { namespace Input {
 namespace {
 
 template <class T>
-T &get(AST &ast, clingo_ast_attribute name) {
+T &get(AST &ast, clingo_ast_attribute_e name) {
     return mpark::get<T>(ast.value(name));
 }
 
 template <class T>
-T const &get(AST const &ast, clingo_ast_attribute name) {
+T const &get(AST const &ast, clingo_ast_attribute_e name) {
     return mpark::get<T>(ast.value(name));
 }
 
 class ast {
 public:
-    ast(clingo_ast_type type, Location const &loc)
+    ast(clingo_ast_type_e type, Location const &loc)
     : ast_{SAST{type}} {
         set(clingo_ast_attribute_location, loc);
     }
-    ast(clingo_ast_type type)
+    ast(clingo_ast_type_e type)
     : ast_{SAST{type}} { }
     template <typename T>
-    ast &set(clingo_ast_attribute name, T &&value) {
+    ast &set(clingo_ast_attribute_e name, T &&value) {
         ast_->value(name, std::forward<T>(value));
         return *this;
     }
@@ -537,7 +537,7 @@ public:
 
     // {{{1 theory atoms
 
-    TheoryTermUid theorytermseq(Location const &loc, TheoryOptermVecUid args, clingo_ast_theory_sequence_type type) {
+    TheoryTermUid theorytermseq(Location const &loc, TheoryOptermVecUid args, clingo_ast_theory_sequence_type_e type) {
         return theoryterms_.insert(ast(clingo_ast_type_theory_sequence, loc)
             .set(clingo_ast_attribute_sequence_type, type)
             .set(clingo_ast_attribute_terms, theoryoptermvecs_.erase(args)));

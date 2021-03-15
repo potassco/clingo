@@ -141,7 +141,7 @@ bool print_statistics(const clingo_statistics_t *stats, uint64_t key, int depth)
 
   // get the type of an entry and switch over its various values
   if (!clingo_statistics_type(stats, key, &type)) { goto error; }
-  switch ((enum clingo_statistics_type)type) {
+  switch ((enum clingo_statistics_type_e)type) {
     // print values
     case clingo_statistics_type_value: {
       double value;

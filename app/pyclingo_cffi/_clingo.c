@@ -567,12 +567,18 @@ static void (*_cffi_call_python_org)(struct _cffi_externpy_s *, char *);
 /************************************************************/
 
 #include <clingo.h>
+#ifdef CFFI_DLLEXPORT
+#undef CFFI_DLLEXPORT
+#define CFFI_DLLEXPORT
+#endif
 #ifdef PYPY_VERSION
 void pyclingo_finalize() { }
 #else
 void pyclingo_finalize() {
-    PyGILState_Ensure();
-    Py_Finalize();
+    if (Py_IsInitialized()) {
+        PyGILState_Ensure();
+        Py_Finalize();
+    }
 }
 #endif
 
@@ -1849,42 +1855,42 @@ static void *_cffi_types[] = {
 /* 1265 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 73), // clingo_symbolic_atoms_t
 /* 1266 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 74), // clingo_theory_atoms_t
 /* 1267 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 75), // clingo_weighted_literal_t
-/* 1268 */ _CFFI_OP(_CFFI_OP_ENUM, 0), // enum clingo_ast_aggregate_function
-/* 1269 */ _CFFI_OP(_CFFI_OP_ENUM, 1), // enum clingo_ast_attribute
-/* 1270 */ _CFFI_OP(_CFFI_OP_ENUM, 2), // enum clingo_ast_attribute_type
-/* 1271 */ _CFFI_OP(_CFFI_OP_ENUM, 3), // enum clingo_ast_binary_operator
-/* 1272 */ _CFFI_OP(_CFFI_OP_ENUM, 4), // enum clingo_ast_body_literal_type
-/* 1273 */ _CFFI_OP(_CFFI_OP_ENUM, 5), // enum clingo_ast_comparison_operator
-/* 1274 */ _CFFI_OP(_CFFI_OP_ENUM, 6), // enum clingo_ast_head_literal_type
-/* 1275 */ _CFFI_OP(_CFFI_OP_ENUM, 7), // enum clingo_ast_literal_type
-/* 1276 */ _CFFI_OP(_CFFI_OP_ENUM, 8), // enum clingo_ast_script_type
-/* 1277 */ _CFFI_OP(_CFFI_OP_ENUM, 9), // enum clingo_ast_sign
-/* 1278 */ _CFFI_OP(_CFFI_OP_ENUM, 10), // enum clingo_ast_statement_type
-/* 1279 */ _CFFI_OP(_CFFI_OP_ENUM, 11), // enum clingo_ast_term_type
-/* 1280 */ _CFFI_OP(_CFFI_OP_ENUM, 12), // enum clingo_ast_theory_atom_definition_type
-/* 1281 */ _CFFI_OP(_CFFI_OP_ENUM, 13), // enum clingo_ast_theory_operator_type
-/* 1282 */ _CFFI_OP(_CFFI_OP_ENUM, 14), // enum clingo_ast_theory_sequence_type
-/* 1283 */ _CFFI_OP(_CFFI_OP_ENUM, 15), // enum clingo_ast_theory_term_type
-/* 1284 */ _CFFI_OP(_CFFI_OP_ENUM, 16), // enum clingo_ast_type
-/* 1285 */ _CFFI_OP(_CFFI_OP_ENUM, 17), // enum clingo_ast_unary_operator
-/* 1286 */ _CFFI_OP(_CFFI_OP_ENUM, 18), // enum clingo_ast_unpool_type
-/* 1287 */ _CFFI_OP(_CFFI_OP_ENUM, 19), // enum clingo_clause_type
-/* 1288 */ _CFFI_OP(_CFFI_OP_ENUM, 20), // enum clingo_configuration_type
-/* 1289 */ _CFFI_OP(_CFFI_OP_ENUM, 21), // enum clingo_error
-/* 1290 */ _CFFI_OP(_CFFI_OP_ENUM, 22), // enum clingo_external_type
-/* 1291 */ _CFFI_OP(_CFFI_OP_ENUM, 23), // enum clingo_heuristic_type
-/* 1292 */ _CFFI_OP(_CFFI_OP_ENUM, 24), // enum clingo_model_type
-/* 1293 */ _CFFI_OP(_CFFI_OP_ENUM, 25), // enum clingo_propagator_check_mode
-/* 1294 */ _CFFI_OP(_CFFI_OP_ENUM, 26), // enum clingo_show_type
-/* 1295 */ _CFFI_OP(_CFFI_OP_ENUM, 27), // enum clingo_solve_event_type
-/* 1296 */ _CFFI_OP(_CFFI_OP_ENUM, 28), // enum clingo_solve_mode
-/* 1297 */ _CFFI_OP(_CFFI_OP_ENUM, 29), // enum clingo_solve_result
-/* 1298 */ _CFFI_OP(_CFFI_OP_ENUM, 30), // enum clingo_statistics_type
-/* 1299 */ _CFFI_OP(_CFFI_OP_ENUM, 31), // enum clingo_symbol_type
-/* 1300 */ _CFFI_OP(_CFFI_OP_ENUM, 32), // enum clingo_theory_term_type
-/* 1301 */ _CFFI_OP(_CFFI_OP_ENUM, 33), // enum clingo_truth_value
-/* 1302 */ _CFFI_OP(_CFFI_OP_ENUM, 34), // enum clingo_warning
-/* 1303 */ _CFFI_OP(_CFFI_OP_ENUM, 35), // enum clingo_weight_constraint_type
+/* 1268 */ _CFFI_OP(_CFFI_OP_ENUM, 0), // enum clingo_ast_aggregate_function_e
+/* 1269 */ _CFFI_OP(_CFFI_OP_ENUM, 1), // enum clingo_ast_attribute_e
+/* 1270 */ _CFFI_OP(_CFFI_OP_ENUM, 2), // enum clingo_ast_attribute_type_e
+/* 1271 */ _CFFI_OP(_CFFI_OP_ENUM, 3), // enum clingo_ast_binary_operator_e
+/* 1272 */ _CFFI_OP(_CFFI_OP_ENUM, 4), // enum clingo_ast_body_literal_type_e
+/* 1273 */ _CFFI_OP(_CFFI_OP_ENUM, 5), // enum clingo_ast_comparison_operator_e
+/* 1274 */ _CFFI_OP(_CFFI_OP_ENUM, 6), // enum clingo_ast_head_literal_type_e
+/* 1275 */ _CFFI_OP(_CFFI_OP_ENUM, 7), // enum clingo_ast_literal_type_e
+/* 1276 */ _CFFI_OP(_CFFI_OP_ENUM, 8), // enum clingo_ast_script_type_e
+/* 1277 */ _CFFI_OP(_CFFI_OP_ENUM, 9), // enum clingo_ast_sign_e
+/* 1278 */ _CFFI_OP(_CFFI_OP_ENUM, 10), // enum clingo_ast_statement_type_e
+/* 1279 */ _CFFI_OP(_CFFI_OP_ENUM, 11), // enum clingo_ast_term_type_e
+/* 1280 */ _CFFI_OP(_CFFI_OP_ENUM, 12), // enum clingo_ast_theory_atom_definition_type_e
+/* 1281 */ _CFFI_OP(_CFFI_OP_ENUM, 13), // enum clingo_ast_theory_operator_type_e
+/* 1282 */ _CFFI_OP(_CFFI_OP_ENUM, 14), // enum clingo_ast_theory_sequence_type_e
+/* 1283 */ _CFFI_OP(_CFFI_OP_ENUM, 15), // enum clingo_ast_theory_term_type_e
+/* 1284 */ _CFFI_OP(_CFFI_OP_ENUM, 16), // enum clingo_ast_type_e
+/* 1285 */ _CFFI_OP(_CFFI_OP_ENUM, 17), // enum clingo_ast_unary_operator_e
+/* 1286 */ _CFFI_OP(_CFFI_OP_ENUM, 18), // enum clingo_ast_unpool_type_e
+/* 1287 */ _CFFI_OP(_CFFI_OP_ENUM, 19), // enum clingo_clause_type_e
+/* 1288 */ _CFFI_OP(_CFFI_OP_ENUM, 20), // enum clingo_configuration_type_e
+/* 1289 */ _CFFI_OP(_CFFI_OP_ENUM, 21), // enum clingo_error_e
+/* 1290 */ _CFFI_OP(_CFFI_OP_ENUM, 22), // enum clingo_external_type_e
+/* 1291 */ _CFFI_OP(_CFFI_OP_ENUM, 23), // enum clingo_heuristic_type_e
+/* 1292 */ _CFFI_OP(_CFFI_OP_ENUM, 24), // enum clingo_model_type_e
+/* 1293 */ _CFFI_OP(_CFFI_OP_ENUM, 25), // enum clingo_propagator_check_mode_e
+/* 1294 */ _CFFI_OP(_CFFI_OP_ENUM, 26), // enum clingo_show_type_e
+/* 1295 */ _CFFI_OP(_CFFI_OP_ENUM, 27), // enum clingo_solve_event_type_e
+/* 1296 */ _CFFI_OP(_CFFI_OP_ENUM, 28), // enum clingo_solve_mode_e
+/* 1297 */ _CFFI_OP(_CFFI_OP_ENUM, 29), // enum clingo_solve_result_e
+/* 1298 */ _CFFI_OP(_CFFI_OP_ENUM, 30), // enum clingo_statistics_type_e
+/* 1299 */ _CFFI_OP(_CFFI_OP_ENUM, 31), // enum clingo_symbol_type_e
+/* 1300 */ _CFFI_OP(_CFFI_OP_ENUM, 32), // enum clingo_theory_term_type_e
+/* 1301 */ _CFFI_OP(_CFFI_OP_ENUM, 33), // enum clingo_truth_value_e
+/* 1302 */ _CFFI_OP(_CFFI_OP_ENUM, 34), // enum clingo_warning_e
+/* 1303 */ _CFFI_OP(_CFFI_OP_ENUM, 35), // enum clingo_weight_constraint_type_e
 /* 1304 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 23), // int64_t
 /* 1305 */ _CFFI_OP(_CFFI_OP_POINTER, 1065), // unsigned int(*)(void *)
 /* 1306 */ _CFFI_OP(_CFFI_OP_POINTER, 1078), // void(*)(clingo_propagate_control_t const *, int32_t const *, size_t, void *)
@@ -19612,77 +19618,77 @@ static const struct _cffi_struct_union_s _cffi_struct_unions[] = {
 };
 
 static const struct _cffi_enum_s _cffi_enums[] = {
-  { "clingo_ast_aggregate_function", 1268, _cffi_prim_int(sizeof(enum clingo_ast_aggregate_function), ((enum clingo_ast_aggregate_function)-1) <= 0),
+  { "clingo_ast_aggregate_function_e", 1268, _cffi_prim_int(sizeof(enum clingo_ast_aggregate_function_e), ((enum clingo_ast_aggregate_function_e)-1) <= 0),
     "clingo_ast_aggregate_function_count,clingo_ast_aggregate_function_sum,clingo_ast_aggregate_function_sump,clingo_ast_aggregate_function_min,clingo_ast_aggregate_function_max" },
-  { "clingo_ast_attribute", 1269, _cffi_prim_int(sizeof(enum clingo_ast_attribute), ((enum clingo_ast_attribute)-1) <= 0),
+  { "clingo_ast_attribute_e", 1269, _cffi_prim_int(sizeof(enum clingo_ast_attribute_e), ((enum clingo_ast_attribute_e)-1) <= 0),
     "clingo_ast_attribute_argument,clingo_ast_attribute_arguments,clingo_ast_attribute_arity,clingo_ast_attribute_atom,clingo_ast_attribute_atoms,clingo_ast_attribute_atom_type,clingo_ast_attribute_bias,clingo_ast_attribute_body,clingo_ast_attribute_code,clingo_ast_attribute_coefficient,clingo_ast_attribute_comparison,clingo_ast_attribute_condition,clingo_ast_attribute_csp,clingo_ast_attribute_elements,clingo_ast_attribute_external,clingo_ast_attribute_external_type,clingo_ast_attribute_function,clingo_ast_attribute_guard,clingo_ast_attribute_guards,clingo_ast_attribute_head,clingo_ast_attribute_is_default,clingo_ast_attribute_left,clingo_ast_attribute_left_guard,clingo_ast_attribute_literal,clingo_ast_attribute_location,clingo_ast_attribute_modifier,clingo_ast_attribute_name,clingo_ast_attribute_node_u,clingo_ast_attribute_node_v,clingo_ast_attribute_operator_name,clingo_ast_attribute_operator_type,clingo_ast_attribute_operators,clingo_ast_attribute_parameters,clingo_ast_attribute_positive,clingo_ast_attribute_priority,clingo_ast_attribute_right,clingo_ast_attribute_right_guard,clingo_ast_attribute_script_type,clingo_ast_attribute_sequence_type,clingo_ast_attribute_sign,clingo_ast_attribute_symbol,clingo_ast_attribute_term,clingo_ast_attribute_terms,clingo_ast_attribute_value,clingo_ast_attribute_variable,clingo_ast_attribute_weight" },
-  { "clingo_ast_attribute_type", 1270, _cffi_prim_int(sizeof(enum clingo_ast_attribute_type), ((enum clingo_ast_attribute_type)-1) <= 0),
+  { "clingo_ast_attribute_type_e", 1270, _cffi_prim_int(sizeof(enum clingo_ast_attribute_type_e), ((enum clingo_ast_attribute_type_e)-1) <= 0),
     "clingo_ast_attribute_type_number,clingo_ast_attribute_type_symbol,clingo_ast_attribute_type_location,clingo_ast_attribute_type_string,clingo_ast_attribute_type_ast,clingo_ast_attribute_type_optional_ast,clingo_ast_attribute_type_string_array,clingo_ast_attribute_type_ast_array" },
-  { "clingo_ast_binary_operator", 1271, _cffi_prim_int(sizeof(enum clingo_ast_binary_operator), ((enum clingo_ast_binary_operator)-1) <= 0),
+  { "clingo_ast_binary_operator_e", 1271, _cffi_prim_int(sizeof(enum clingo_ast_binary_operator_e), ((enum clingo_ast_binary_operator_e)-1) <= 0),
     "clingo_ast_binary_operator_xor,clingo_ast_binary_operator_or,clingo_ast_binary_operator_and,clingo_ast_binary_operator_plus,clingo_ast_binary_operator_minus,clingo_ast_binary_operator_multiplication,clingo_ast_binary_operator_division,clingo_ast_binary_operator_modulo,clingo_ast_binary_operator_power" },
-  { "clingo_ast_body_literal_type", 1272, _cffi_prim_int(sizeof(enum clingo_ast_body_literal_type), ((enum clingo_ast_body_literal_type)-1) <= 0),
+  { "clingo_ast_body_literal_type_e", 1272, _cffi_prim_int(sizeof(enum clingo_ast_body_literal_type_e), ((enum clingo_ast_body_literal_type_e)-1) <= 0),
     "clingo_ast_body_literal_type_literal,clingo_ast_body_literal_type_conditional,clingo_ast_body_literal_type_aggregate,clingo_ast_body_literal_type_body_aggregate,clingo_ast_body_literal_type_theory_atom,clingo_ast_body_literal_type_disjoint" },
-  { "clingo_ast_comparison_operator", 1273, _cffi_prim_int(sizeof(enum clingo_ast_comparison_operator), ((enum clingo_ast_comparison_operator)-1) <= 0),
+  { "clingo_ast_comparison_operator_e", 1273, _cffi_prim_int(sizeof(enum clingo_ast_comparison_operator_e), ((enum clingo_ast_comparison_operator_e)-1) <= 0),
     "clingo_ast_comparison_operator_greater_than,clingo_ast_comparison_operator_less_than,clingo_ast_comparison_operator_less_equal,clingo_ast_comparison_operator_greater_equal,clingo_ast_comparison_operator_not_equal,clingo_ast_comparison_operator_equal" },
-  { "clingo_ast_head_literal_type", 1274, _cffi_prim_int(sizeof(enum clingo_ast_head_literal_type), ((enum clingo_ast_head_literal_type)-1) <= 0),
+  { "clingo_ast_head_literal_type_e", 1274, _cffi_prim_int(sizeof(enum clingo_ast_head_literal_type_e), ((enum clingo_ast_head_literal_type_e)-1) <= 0),
     "clingo_ast_head_literal_type_literal,clingo_ast_head_literal_type_disjunction,clingo_ast_head_literal_type_aggregate,clingo_ast_head_literal_type_head_aggregate,clingo_ast_head_literal_type_theory_atom" },
-  { "clingo_ast_literal_type", 1275, _cffi_prim_int(sizeof(enum clingo_ast_literal_type), ((enum clingo_ast_literal_type)-1) <= 0),
+  { "clingo_ast_literal_type_e", 1275, _cffi_prim_int(sizeof(enum clingo_ast_literal_type_e), ((enum clingo_ast_literal_type_e)-1) <= 0),
     "clingo_ast_literal_type_boolean,clingo_ast_literal_type_symbolic,clingo_ast_literal_type_comparison,clingo_ast_literal_type_csp" },
-  { "clingo_ast_script_type", 1276, _cffi_prim_int(sizeof(enum clingo_ast_script_type), ((enum clingo_ast_script_type)-1) <= 0),
+  { "clingo_ast_script_type_e", 1276, _cffi_prim_int(sizeof(enum clingo_ast_script_type_e), ((enum clingo_ast_script_type_e)-1) <= 0),
     "clingo_ast_script_type_lua,clingo_ast_script_type_python" },
-  { "clingo_ast_sign", 1277, _cffi_prim_int(sizeof(enum clingo_ast_sign), ((enum clingo_ast_sign)-1) <= 0),
+  { "clingo_ast_sign_e", 1277, _cffi_prim_int(sizeof(enum clingo_ast_sign_e), ((enum clingo_ast_sign_e)-1) <= 0),
     "clingo_ast_sign_no_sign,clingo_ast_sign_negation,clingo_ast_sign_double_negation" },
-  { "clingo_ast_statement_type", 1278, _cffi_prim_int(sizeof(enum clingo_ast_statement_type), ((enum clingo_ast_statement_type)-1) <= 0),
+  { "clingo_ast_statement_type_e", 1278, _cffi_prim_int(sizeof(enum clingo_ast_statement_type_e), ((enum clingo_ast_statement_type_e)-1) <= 0),
     "clingo_ast_statement_type_rule,clingo_ast_statement_type_const,clingo_ast_statement_type_show_signature,clingo_ast_statement_type_show_term,clingo_ast_statement_type_minimize,clingo_ast_statement_type_script,clingo_ast_statement_type_program,clingo_ast_statement_type_external,clingo_ast_statement_type_edge,clingo_ast_statement_type_heuristic,clingo_ast_statement_type_project_atom,clingo_ast_statement_type_project_atom_signature,clingo_ast_statement_type_theory_definition,clingo_ast_statement_type_defined" },
-  { "clingo_ast_term_type", 1279, _cffi_prim_int(sizeof(enum clingo_ast_term_type), ((enum clingo_ast_term_type)-1) <= 0),
+  { "clingo_ast_term_type_e", 1279, _cffi_prim_int(sizeof(enum clingo_ast_term_type_e), ((enum clingo_ast_term_type_e)-1) <= 0),
     "clingo_ast_term_type_symbol,clingo_ast_term_type_variable,clingo_ast_term_type_unary_operation,clingo_ast_term_type_binary_operation,clingo_ast_term_type_interval,clingo_ast_term_type_function,clingo_ast_term_type_external_function,clingo_ast_term_type_pool" },
-  { "clingo_ast_theory_atom_definition_type", 1280, _cffi_prim_int(sizeof(enum clingo_ast_theory_atom_definition_type), ((enum clingo_ast_theory_atom_definition_type)-1) <= 0),
+  { "clingo_ast_theory_atom_definition_type_e", 1280, _cffi_prim_int(sizeof(enum clingo_ast_theory_atom_definition_type_e), ((enum clingo_ast_theory_atom_definition_type_e)-1) <= 0),
     "clingo_ast_theory_atom_definition_type_head,clingo_ast_theory_atom_definition_type_body,clingo_ast_theory_atom_definition_type_any,clingo_ast_theory_atom_definition_type_directive" },
-  { "clingo_ast_theory_operator_type", 1281, _cffi_prim_int(sizeof(enum clingo_ast_theory_operator_type), ((enum clingo_ast_theory_operator_type)-1) <= 0),
+  { "clingo_ast_theory_operator_type_e", 1281, _cffi_prim_int(sizeof(enum clingo_ast_theory_operator_type_e), ((enum clingo_ast_theory_operator_type_e)-1) <= 0),
     "clingo_ast_theory_operator_type_unary,clingo_ast_theory_operator_type_binary_left,clingo_ast_theory_operator_type_binary_right" },
-  { "clingo_ast_theory_sequence_type", 1282, _cffi_prim_int(sizeof(enum clingo_ast_theory_sequence_type), ((enum clingo_ast_theory_sequence_type)-1) <= 0),
+  { "clingo_ast_theory_sequence_type_e", 1282, _cffi_prim_int(sizeof(enum clingo_ast_theory_sequence_type_e), ((enum clingo_ast_theory_sequence_type_e)-1) <= 0),
     "clingo_ast_theory_sequence_type_tuple,clingo_ast_theory_sequence_type_list,clingo_ast_theory_sequence_type_set" },
-  { "clingo_ast_theory_term_type", 1283, _cffi_prim_int(sizeof(enum clingo_ast_theory_term_type), ((enum clingo_ast_theory_term_type)-1) <= 0),
+  { "clingo_ast_theory_term_type_e", 1283, _cffi_prim_int(sizeof(enum clingo_ast_theory_term_type_e), ((enum clingo_ast_theory_term_type_e)-1) <= 0),
     "clingo_ast_theory_term_type_symbol,clingo_ast_theory_term_type_variable,clingo_ast_theory_term_type_tuple,clingo_ast_theory_term_type_list,clingo_ast_theory_term_type_set,clingo_ast_theory_term_type_function,clingo_ast_theory_term_type_unparsed_term" },
-  { "clingo_ast_type", 1284, _cffi_prim_int(sizeof(enum clingo_ast_type), ((enum clingo_ast_type)-1) <= 0),
+  { "clingo_ast_type_e", 1284, _cffi_prim_int(sizeof(enum clingo_ast_type_e), ((enum clingo_ast_type_e)-1) <= 0),
     "clingo_ast_type_id,clingo_ast_type_variable,clingo_ast_type_symbolic_term,clingo_ast_type_unary_operation,clingo_ast_type_binary_operation,clingo_ast_type_interval,clingo_ast_type_function,clingo_ast_type_pool,clingo_ast_type_csp_product,clingo_ast_type_csp_sum,clingo_ast_type_csp_guard,clingo_ast_type_boolean_constant,clingo_ast_type_symbolic_atom,clingo_ast_type_comparison,clingo_ast_type_csp_literal,clingo_ast_type_aggregate_guard,clingo_ast_type_conditional_literal,clingo_ast_type_aggregate,clingo_ast_type_body_aggregate_element,clingo_ast_type_body_aggregate,clingo_ast_type_head_aggregate_element,clingo_ast_type_head_aggregate,clingo_ast_type_disjunction,clingo_ast_type_disjoint_element,clingo_ast_type_disjoint,clingo_ast_type_theory_sequence,clingo_ast_type_theory_function,clingo_ast_type_theory_unparsed_term_element,clingo_ast_type_theory_unparsed_term,clingo_ast_type_theory_guard,clingo_ast_type_theory_atom_element,clingo_ast_type_theory_atom,clingo_ast_type_literal,clingo_ast_type_theory_operator_definition,clingo_ast_type_theory_term_definition,clingo_ast_type_theory_guard_definition,clingo_ast_type_theory_atom_definition,clingo_ast_type_rule,clingo_ast_type_definition,clingo_ast_type_show_signature,clingo_ast_type_show_term,clingo_ast_type_minimize,clingo_ast_type_script,clingo_ast_type_program,clingo_ast_type_external,clingo_ast_type_edge,clingo_ast_type_heuristic,clingo_ast_type_project_atom,clingo_ast_type_project_signature,clingo_ast_type_defined,clingo_ast_type_theory_definition" },
-  { "clingo_ast_unary_operator", 1285, _cffi_prim_int(sizeof(enum clingo_ast_unary_operator), ((enum clingo_ast_unary_operator)-1) <= 0),
+  { "clingo_ast_unary_operator_e", 1285, _cffi_prim_int(sizeof(enum clingo_ast_unary_operator_e), ((enum clingo_ast_unary_operator_e)-1) <= 0),
     "clingo_ast_unary_operator_minus,clingo_ast_unary_operator_negation,clingo_ast_unary_operator_absolute" },
-  { "clingo_ast_unpool_type", 1286, _cffi_prim_int(sizeof(enum clingo_ast_unpool_type), ((enum clingo_ast_unpool_type)-1) <= 0),
+  { "clingo_ast_unpool_type_e", 1286, _cffi_prim_int(sizeof(enum clingo_ast_unpool_type_e), ((enum clingo_ast_unpool_type_e)-1) <= 0),
     "clingo_ast_unpool_type_condition,clingo_ast_unpool_type_other,clingo_ast_unpool_type_all" },
-  { "clingo_clause_type", 1287, _cffi_prim_int(sizeof(enum clingo_clause_type), ((enum clingo_clause_type)-1) <= 0),
+  { "clingo_clause_type_e", 1287, _cffi_prim_int(sizeof(enum clingo_clause_type_e), ((enum clingo_clause_type_e)-1) <= 0),
     "clingo_clause_type_learnt,clingo_clause_type_static,clingo_clause_type_volatile,clingo_clause_type_volatile_static" },
-  { "clingo_configuration_type", 1288, _cffi_prim_int(sizeof(enum clingo_configuration_type), ((enum clingo_configuration_type)-1) <= 0),
+  { "clingo_configuration_type_e", 1288, _cffi_prim_int(sizeof(enum clingo_configuration_type_e), ((enum clingo_configuration_type_e)-1) <= 0),
     "clingo_configuration_type_value,clingo_configuration_type_array,clingo_configuration_type_map" },
-  { "clingo_error", 1289, _cffi_prim_int(sizeof(enum clingo_error), ((enum clingo_error)-1) <= 0),
+  { "clingo_error_e", 1289, _cffi_prim_int(sizeof(enum clingo_error_e), ((enum clingo_error_e)-1) <= 0),
     "clingo_error_success,clingo_error_runtime,clingo_error_logic,clingo_error_bad_alloc,clingo_error_unknown" },
-  { "clingo_external_type", 1290, _cffi_prim_int(sizeof(enum clingo_external_type), ((enum clingo_external_type)-1) <= 0),
+  { "clingo_external_type_e", 1290, _cffi_prim_int(sizeof(enum clingo_external_type_e), ((enum clingo_external_type_e)-1) <= 0),
     "clingo_external_type_free,clingo_external_type_true,clingo_external_type_false,clingo_external_type_release" },
-  { "clingo_heuristic_type", 1291, _cffi_prim_int(sizeof(enum clingo_heuristic_type), ((enum clingo_heuristic_type)-1) <= 0),
+  { "clingo_heuristic_type_e", 1291, _cffi_prim_int(sizeof(enum clingo_heuristic_type_e), ((enum clingo_heuristic_type_e)-1) <= 0),
     "clingo_heuristic_type_level,clingo_heuristic_type_sign,clingo_heuristic_type_factor,clingo_heuristic_type_init,clingo_heuristic_type_true,clingo_heuristic_type_false" },
-  { "clingo_model_type", 1292, _cffi_prim_int(sizeof(enum clingo_model_type), ((enum clingo_model_type)-1) <= 0),
+  { "clingo_model_type_e", 1292, _cffi_prim_int(sizeof(enum clingo_model_type_e), ((enum clingo_model_type_e)-1) <= 0),
     "clingo_model_type_stable_model,clingo_model_type_brave_consequences,clingo_model_type_cautious_consequences" },
-  { "clingo_propagator_check_mode", 1293, _cffi_prim_int(sizeof(enum clingo_propagator_check_mode), ((enum clingo_propagator_check_mode)-1) <= 0),
+  { "clingo_propagator_check_mode_e", 1293, _cffi_prim_int(sizeof(enum clingo_propagator_check_mode_e), ((enum clingo_propagator_check_mode_e)-1) <= 0),
     "clingo_propagator_check_mode_none,clingo_propagator_check_mode_total,clingo_propagator_check_mode_fixpoint,clingo_propagator_check_mode_both" },
-  { "clingo_show_type", 1294, _cffi_prim_int(sizeof(enum clingo_show_type), ((enum clingo_show_type)-1) <= 0),
+  { "clingo_show_type_e", 1294, _cffi_prim_int(sizeof(enum clingo_show_type_e), ((enum clingo_show_type_e)-1) <= 0),
     "clingo_show_type_csp,clingo_show_type_shown,clingo_show_type_atoms,clingo_show_type_terms,clingo_show_type_theory,clingo_show_type_all,clingo_show_type_complement" },
-  { "clingo_solve_event_type", 1295, _cffi_prim_int(sizeof(enum clingo_solve_event_type), ((enum clingo_solve_event_type)-1) <= 0),
+  { "clingo_solve_event_type_e", 1295, _cffi_prim_int(sizeof(enum clingo_solve_event_type_e), ((enum clingo_solve_event_type_e)-1) <= 0),
     "clingo_solve_event_type_model,clingo_solve_event_type_unsat,clingo_solve_event_type_statistics,clingo_solve_event_type_finish" },
-  { "clingo_solve_mode", 1296, _cffi_prim_int(sizeof(enum clingo_solve_mode), ((enum clingo_solve_mode)-1) <= 0),
+  { "clingo_solve_mode_e", 1296, _cffi_prim_int(sizeof(enum clingo_solve_mode_e), ((enum clingo_solve_mode_e)-1) <= 0),
     "clingo_solve_mode_async,clingo_solve_mode_yield" },
-  { "clingo_solve_result", 1297, _cffi_prim_int(sizeof(enum clingo_solve_result), ((enum clingo_solve_result)-1) <= 0),
+  { "clingo_solve_result_e", 1297, _cffi_prim_int(sizeof(enum clingo_solve_result_e), ((enum clingo_solve_result_e)-1) <= 0),
     "clingo_solve_result_satisfiable,clingo_solve_result_unsatisfiable,clingo_solve_result_exhausted,clingo_solve_result_interrupted" },
-  { "clingo_statistics_type", 1298, _cffi_prim_int(sizeof(enum clingo_statistics_type), ((enum clingo_statistics_type)-1) <= 0),
+  { "clingo_statistics_type_e", 1298, _cffi_prim_int(sizeof(enum clingo_statistics_type_e), ((enum clingo_statistics_type_e)-1) <= 0),
     "clingo_statistics_type_empty,clingo_statistics_type_value,clingo_statistics_type_array,clingo_statistics_type_map" },
-  { "clingo_symbol_type", 1299, _cffi_prim_int(sizeof(enum clingo_symbol_type), ((enum clingo_symbol_type)-1) <= 0),
+  { "clingo_symbol_type_e", 1299, _cffi_prim_int(sizeof(enum clingo_symbol_type_e), ((enum clingo_symbol_type_e)-1) <= 0),
     "clingo_symbol_type_infimum,clingo_symbol_type_number,clingo_symbol_type_string,clingo_symbol_type_function,clingo_symbol_type_supremum" },
-  { "clingo_theory_term_type", 1300, _cffi_prim_int(sizeof(enum clingo_theory_term_type), ((enum clingo_theory_term_type)-1) <= 0),
+  { "clingo_theory_term_type_e", 1300, _cffi_prim_int(sizeof(enum clingo_theory_term_type_e), ((enum clingo_theory_term_type_e)-1) <= 0),
     "clingo_theory_term_type_tuple,clingo_theory_term_type_list,clingo_theory_term_type_set,clingo_theory_term_type_function,clingo_theory_term_type_number,clingo_theory_term_type_symbol" },
-  { "clingo_truth_value", 1301, _cffi_prim_int(sizeof(enum clingo_truth_value), ((enum clingo_truth_value)-1) <= 0),
+  { "clingo_truth_value_e", 1301, _cffi_prim_int(sizeof(enum clingo_truth_value_e), ((enum clingo_truth_value_e)-1) <= 0),
     "clingo_truth_value_free,clingo_truth_value_true,clingo_truth_value_false" },
-  { "clingo_warning", 1302, _cffi_prim_int(sizeof(enum clingo_warning), ((enum clingo_warning)-1) <= 0),
+  { "clingo_warning_e", 1302, _cffi_prim_int(sizeof(enum clingo_warning_e), ((enum clingo_warning_e)-1) <= 0),
     "clingo_warning_operation_undefined,clingo_warning_runtime_error,clingo_warning_atom_undefined,clingo_warning_file_included,clingo_warning_variable_unbounded,clingo_warning_global_variable,clingo_warning_other" },
-  { "clingo_weight_constraint_type", 1303, _cffi_prim_int(sizeof(enum clingo_weight_constraint_type), ((enum clingo_weight_constraint_type)-1) <= 0),
+  { "clingo_weight_constraint_type_e", 1303, _cffi_prim_int(sizeof(enum clingo_weight_constraint_type_e), ((enum clingo_weight_constraint_type_e)-1) <= 0),
     "clingo_weight_constraint_type_implication_left,clingo_weight_constraint_type_implication_right,clingo_weight_constraint_type_equivalence" },
 };
 

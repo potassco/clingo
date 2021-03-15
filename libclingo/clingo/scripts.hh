@@ -37,7 +37,7 @@ public:
     virtual ~Script() = default;
 };
 using UScript = std::shared_ptr<Script>;
-using UScriptVec = std::vector<std::tuple<clingo_ast_script_type, bool, UScript>>;
+using UScriptVec = std::vector<std::tuple<clingo_ast_script_type_e, bool, UScript>>;
 
 class Scripts : public Context {
 public:
@@ -45,11 +45,11 @@ public:
     bool callable(String name) override;
     SymVec call(Location const &loc, String name, SymSpan args, Logger &log) override;
     void main(Control &ctl);
-    void registerScript(clingo_ast_script_type type, UScript script);
+    void registerScript(clingo_ast_script_type_e type, UScript script);
     void setContext(Context &ctx) { context_ = &ctx; }
     void resetContext() { context_ = nullptr; }
     void exec(ScriptType type, Location loc, String code) override;
-    char const *version(clingo_ast_script_type type);
+    char const *version(clingo_ast_script_type_e type);
 
     ~Scripts();
 

@@ -138,7 +138,7 @@ typedef struct clingo_weighted_literal {
 //! functions do not provide strong exception guarantees.  This means that in
 //! case of errors associated objects cannot be used further.  If such an
 //! object has a free function, this function can and should still be called.
-enum clingo_error {
+enum clingo_error_e {
     clingo_error_success   = 0, //!< successful API calls
     clingo_error_runtime   = 1, //!< errors only detectable at runtime like invalid input
     clingo_error_logic     = 2, //!< wrong usage of the clingo API
@@ -163,7 +163,7 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_error_message();
 CLINGO_VISIBILITY_DEFAULT void clingo_set_error(clingo_error_t code, char const *message);
 
 //! Enumeration of warning codes.
-enum clingo_warning {
+enum clingo_warning_e {
     clingo_warning_operation_undefined = 0, //!< undefined arithmetic operation or weight of aggregate
     clingo_warning_runtime_error       = 1, //!< to report multiple errors; a corresponding runtime error is raised later
     clingo_warning_atom_undefined      = 2, //!< undefined atom in program
@@ -195,7 +195,7 @@ typedef void (*clingo_logger_t)(clingo_warning_t code, char const *message, void
 CLINGO_VISIBILITY_DEFAULT void clingo_version(int *major, int *minor, int *revision);
 
 //! Represents three-valued truth values.
-enum clingo_truth_value {
+enum clingo_truth_value_e {
     clingo_truth_value_free  = 0, //!< no truth value
     clingo_truth_value_true  = 1, //!< true
     clingo_truth_value_false = 2  //!< false
@@ -313,7 +313,7 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_signature_hash(clingo_signature_t signat
 //! @}
 
 //! Enumeration of available symbol types.
-enum clingo_symbol_type {
+enum clingo_symbol_type_e {
     clingo_symbol_type_infimum  = 0, //!< the <tt>\#inf</tt> symbol
     clingo_symbol_type_number   = 1, //!< a numeric symbol, e.g., `1`
     clingo_symbol_type_string   = 4, //!< a string symbol, e.g., `"a"`
@@ -711,7 +711,7 @@ typedef bool (*clingo_symbol_callback_t) (clingo_symbol_t const *symbols, size_t
 //! @{
 
 //! Enumeration of theory term types.
-enum clingo_theory_term_type {
+enum clingo_theory_term_type_e {
     clingo_theory_term_type_tuple    = 0, //!< a tuple term, e.g., `(1,2,3)`
     clingo_theory_term_type_list     = 1, //!< a list term, e.g., `[1,2,3]`
     clingo_theory_term_type_set      = 2, //!< a set term, e.g., `{1,2,3}`
@@ -1071,7 +1071,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_at(clingo_assignment_t co
 //!
 //! Note that total checks are subject to the lock when a model is found.
 //! This means that information from previously found models can be used to discard assignments in check calls.
-enum clingo_propagator_check_mode {
+enum clingo_propagator_check_mode_e {
     clingo_propagator_check_mode_none     = 0, //!< do not call @ref ::clingo_propagator::check() at all
     clingo_propagator_check_mode_total    = 1, //!< call @ref ::clingo_propagator::check() on total assignments
     clingo_propagator_check_mode_fixpoint = 2, //!< call @ref ::clingo_propagator::check() on propagation fixpoints
@@ -1081,7 +1081,7 @@ enum clingo_propagator_check_mode {
 typedef int clingo_propagator_check_mode_t;
 
 //! Enumeration of weight_constraint_types.
-enum clingo_weight_constraint_type {
+enum clingo_weight_constraint_type_e {
     clingo_weight_constraint_type_implication_left  = -1, //!< the weight constraint implies the literal
     clingo_weight_constraint_type_implication_right =  1, //!< the literal implies the weight constraint
     clingo_weight_constraint_type_equivalence       =  0, //!< the weight constraint is equivalent to the literal
@@ -1229,7 +1229,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_propagate(clingo_propagate_
 //!
 //! Clauses in the solver are either cleaned up based on a configurable deletion policy or at the end of a solving step.
 //! The values of this enumeration determine if a clause is subject to one of the above deletion strategies.
-enum clingo_clause_type {
+enum clingo_clause_type_e {
     clingo_clause_type_learnt          = 0, //!< clause is subject to the solvers deletion policy
     clingo_clause_type_static          = 1, //!< clause is not subject to the solvers deletion policy
     clingo_clause_type_volatile        = 2, //!< like ::clingo_clause_type_learnt but the clause is deleted after a solving step
@@ -1460,7 +1460,7 @@ typedef struct clingo_propagator {
 
 //! Enumeration of different heuristic modifiers.
 //! @ingroup ProgramInspection
-enum clingo_heuristic_type {
+enum clingo_heuristic_type_e {
     clingo_heuristic_type_level  = 0, //!< set the level of an atom
     clingo_heuristic_type_sign   = 1, //!< configure which sign to chose for an atom
     clingo_heuristic_type_factor = 2, //!< modify VSIDS factor of an atom
@@ -1474,7 +1474,7 @@ typedef int clingo_heuristic_type_t;
 
 //! Enumeration of different external statements.
 //! @ingroup ProgramInspection
-enum clingo_external_type {
+enum clingo_external_type_e {
     clingo_external_type_free    = 0, //!< allow an external to be assigned freely
     clingo_external_type_true    = 1, //!< assign an external to true
     clingo_external_type_false   = 2, //!< assign an external to false
@@ -1623,7 +1623,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_add_atom(clingo_backend_t *backend
 //! @{
 
 //! Enumeration for entries of the configuration.
-enum clingo_configuration_type {
+enum clingo_configuration_type_e {
     clingo_configuration_type_value = 1, //!< the entry is a (string) value
     clingo_configuration_type_array = 2, //!< the entry is an array
     clingo_configuration_type_map   = 4  //!< the entry is a map
@@ -1806,7 +1806,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_configuration_value_set(clingo_configurati
 //! @{
 
 //! Enumeration for entries of the statistics.
-enum clingo_statistics_type {
+enum clingo_statistics_type_e {
     clingo_statistics_type_empty = 0, //!< the entry is invalid (has neither of the types below)
     clingo_statistics_type_value = 1, //!< the entry is a (double) value
     clingo_statistics_type_array = 2, //!< the entry is an array
@@ -1976,7 +1976,7 @@ typedef struct clingo_solve_control clingo_solve_control_t;
 typedef struct clingo_model clingo_model_t;
 
 //! Enumeration for the different model types.
-enum clingo_model_type {
+enum clingo_model_type_e {
     clingo_model_type_stable_model          = 0, //!< The model represents a stable model.
     clingo_model_type_brave_consequences    = 1, //!< The model represents a set of brave consequences.
     clingo_model_type_cautious_consequences = 2  //!< The model represents a set of cautious consequences.
@@ -1985,7 +1985,7 @@ enum clingo_model_type {
 typedef int clingo_model_type_t;
 
 //! Enumeration of bit flags to select symbols in models.
-enum clingo_show_type {
+enum clingo_show_type_e {
     clingo_show_type_csp        = 1,  //!< Select CSP assignments.
     clingo_show_type_shown      = 2,  //!< Select shown atoms and terms.
     clingo_show_type_atoms      = 4,  //!< Select all atoms.
@@ -2131,7 +2131,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_control_add_clause(clingo_solve_cont
 // {{{1 solve result
 
 // NOTE: documented in Control Module
-enum clingo_solve_result {
+enum clingo_solve_result_e {
     clingo_solve_result_satisfiable   = 1,
     clingo_solve_result_unsatisfiable = 2,
     clingo_solve_result_exhausted     = 4,
@@ -2175,7 +2175,7 @@ typedef unsigned clingo_solve_result_bitset_t;
 //! @{
 
 //! Enumeration of solve modes.
-enum clingo_solve_mode {
+enum clingo_solve_mode_e {
     clingo_solve_mode_async = 1, //!< Enable non-blocking search.
     clingo_solve_mode_yield = 2, //!< Yield models in calls to clingo_solve_handle_model.
 };
@@ -2183,7 +2183,7 @@ enum clingo_solve_mode {
 typedef unsigned clingo_solve_mode_bitset_t;
 
 //! Enumeration of solve events.
-enum clingo_solve_event_type {
+enum clingo_solve_event_type_e {
     clingo_solve_event_type_model      = 0, //!< Issued if a model is found.
     clingo_solve_event_type_unsat      = 1, //!< Issued if an optimization problem is found unsatisfiable.
     clingo_solve_event_type_statistics = 2, //!< Issued when the statistics can be updated.
@@ -2290,7 +2290,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 //! @{
 
 //! Enumeration of theory sequence types.
-enum clingo_ast_theory_sequence_type {
+enum clingo_ast_theory_sequence_type_e {
     clingo_ast_theory_sequence_type_tuple, //!< Theory tuples "(t1,...,tn)".
     clingo_ast_theory_sequence_type_list,  //!< Theory lists "[t1,...,tn]".
     clingo_ast_theory_sequence_type_set    //!< Theory sets "{t1,...,tn}".
@@ -2299,7 +2299,7 @@ enum clingo_ast_theory_sequence_type {
 typedef int clingo_ast_theory_sequence_type_t;
 
 //! Enumeration of comparison relations.
-enum clingo_ast_comparison_operator {
+enum clingo_ast_comparison_operator_e {
     clingo_ast_comparison_operator_greater_than  = 0, //!< Operator ">".
     clingo_ast_comparison_operator_less_than     = 1, //!< Operator "<".
     clingo_ast_comparison_operator_less_equal    = 2, //!< Operator "<=".
@@ -2311,7 +2311,7 @@ enum clingo_ast_comparison_operator {
 typedef int clingo_ast_comparison_operator_t;
 
 //! Enumeration of signs.
-enum clingo_ast_sign {
+enum clingo_ast_sign_e {
     clingo_ast_sign_no_sign         = 0, //!< For positive literals.
     clingo_ast_sign_negation        = 1, //!< For negative literals (prefix "not").
     clingo_ast_sign_double_negation = 2  //!< For double negated literals (prefix "not not").
@@ -2320,7 +2320,7 @@ enum clingo_ast_sign {
 typedef int clingo_ast_sign_t;
 
 //! Enumeration of unary operators.
-enum clingo_ast_unary_operator {
+enum clingo_ast_unary_operator_e {
     clingo_ast_unary_operator_minus    = 0, //!< Operator "-".
     clingo_ast_unary_operator_negation = 1, //!< Operator "~".
     clingo_ast_unary_operator_absolute = 2  //!< Operator "|.|".
@@ -2329,7 +2329,7 @@ enum clingo_ast_unary_operator {
 typedef int clingo_ast_unary_operator_t;
 
 //! Enumeration of binary operators.
-enum clingo_ast_binary_operator {
+enum clingo_ast_binary_operator_e {
     clingo_ast_binary_operator_xor            = 0, //!< Operator "^".
     clingo_ast_binary_operator_or             = 1, //!< Operator "?".
     clingo_ast_binary_operator_and            = 2, //!< Operator "&".
@@ -2344,7 +2344,7 @@ enum clingo_ast_binary_operator {
 typedef int clingo_ast_binary_operator_t;
 
 //! Enumeration of aggregate functions.
-enum clingo_ast_aggregate_function {
+enum clingo_ast_aggregate_function_e {
     clingo_ast_aggregate_function_count = 0, //!< Operator "^".
     clingo_ast_aggregate_function_sum   = 1, //!< Operator "?".
     clingo_ast_aggregate_function_sump  = 2, //!< Operator "&".
@@ -2355,7 +2355,7 @@ enum clingo_ast_aggregate_function {
 typedef int clingo_ast_aggregate_function_t;
 
 //! Enumeration of theory operators.
-enum clingo_ast_theory_operator_type {
+enum clingo_ast_theory_operator_type_e {
      clingo_ast_theory_operator_type_unary        = 0, //!< An unary theory operator.
      clingo_ast_theory_operator_type_binary_left  = 1, //!< A left associative binary operator.
      clingo_ast_theory_operator_type_binary_right = 2  //!< A right associative binary operator.
@@ -2364,7 +2364,7 @@ enum clingo_ast_theory_operator_type {
 typedef int clingo_ast_theory_operator_type_t;
 
 //! Enumeration of the theory atom types.
-enum clingo_ast_theory_atom_definition_type {
+enum clingo_ast_theory_atom_definition_type_e {
     clingo_ast_theory_atom_definition_type_head      = 0, //!< For theory atoms that can appear in the head.
     clingo_ast_theory_atom_definition_type_body      = 1, //!< For theory atoms that can appear in the body.
     clingo_ast_theory_atom_definition_type_any       = 2, //!< For theory atoms that can appear in both head and body.
@@ -2374,7 +2374,7 @@ enum clingo_ast_theory_atom_definition_type {
 typedef int clingo_ast_theory_atom_definition_type_t;
 
 //! Enumeration of script types.
-enum clingo_ast_script_type {
+enum clingo_ast_script_type_e {
     clingo_ast_script_type_lua    = 0, //!< For Lua scripts.
     clingo_ast_script_type_python = 1  //!< For Python scripts.
 };
@@ -2382,7 +2382,7 @@ enum clingo_ast_script_type {
 typedef int clingo_ast_script_type_t;
 
 //! Enumeration of AST types.
-enum clingo_ast_type {
+enum clingo_ast_type_e {
     // terms
     clingo_ast_type_id,
     clingo_ast_type_variable,
@@ -2447,7 +2447,7 @@ enum clingo_ast_type {
 typedef int clingo_ast_type_t;
 
 //! Enumeration of attributes types used by the AST.
-enum clingo_ast_attribute_type {
+enum clingo_ast_attribute_type_e {
     clingo_ast_attribute_type_number       = 0, //!< For an attribute of type "int".
     clingo_ast_attribute_type_symbol       = 1, //!< For an attribute of type "clingo_ast_symbol_t".
     clingo_ast_attribute_type_location     = 2, //!< For an attribute of type "clingo_location_t".
@@ -2461,7 +2461,7 @@ enum clingo_ast_attribute_type {
 typedef int clingo_ast_attribute_type_t;
 
 //! Enumeration of attributes used by the AST.
-enum clingo_ast_attribute {
+enum clingo_ast_attribute_e {
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arguments,
     clingo_ast_attribute_arity,
@@ -2986,7 +2986,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_add_ast(clingo_program_bui
 //! @{
 
 //! Enum to configure unpooling.
-enum clingo_ast_unpool_type {
+enum clingo_ast_unpool_type_e {
     clingo_ast_unpool_type_condition = 1, //!< To only unpool conditions of conditional literals.
     clingo_ast_unpool_type_other = 2,     //!< To unpool everything except conditions of conditional literals.
     clingo_ast_unpool_type_all = 3,       //!< To unpool everything.
@@ -3047,7 +3047,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_u
 
 // {{{2 terms
 
-enum clingo_ast_term_type {
+enum clingo_ast_term_type_e {
     clingo_ast_term_type_symbol            = 0,
     clingo_ast_term_type_variable          = 1,
     clingo_ast_term_type_unary_operation   = 2,
@@ -3157,7 +3157,7 @@ typedef struct clingo_ast_comparison {
     clingo_ast_term_t right;
 } clingo_ast_comparison_t;
 
-enum clingo_ast_literal_type {
+enum clingo_ast_literal_type_e {
     clingo_ast_literal_type_boolean    = 0,
     clingo_ast_literal_type_symbolic   = 1,
     clingo_ast_literal_type_comparison = 2,
@@ -3258,7 +3258,7 @@ typedef struct clingo_ast_disjoint {
 
 // {{{2 theory atom
 
-enum clingo_ast_theory_term_type {
+enum clingo_ast_theory_term_type_e {
     clingo_ast_theory_term_type_symbol        = 0,
     clingo_ast_theory_term_type_variable      = 1,
     clingo_ast_theory_term_type_tuple         = 2,
@@ -3330,7 +3330,7 @@ typedef struct clingo_ast_theory_atom {
 
 // {{{2 head literals
 
-enum clingo_ast_head_literal_type {
+enum clingo_ast_head_literal_type_e {
     clingo_ast_head_literal_type_literal        = 0,
     clingo_ast_head_literal_type_disjunction    = 1,
     clingo_ast_head_literal_type_aggregate      = 2,
@@ -3353,7 +3353,7 @@ typedef struct clingo_ast_head_literal {
 
 // {{{2 body literals
 
-enum clingo_ast_body_literal_type {
+enum clingo_ast_body_literal_type_e {
     clingo_ast_body_literal_type_literal        = 0,
     clingo_ast_body_literal_type_conditional    = 1,
     clingo_ast_body_literal_type_aggregate      = 2,
@@ -3520,7 +3520,7 @@ typedef struct clingo_ast_project {
 
 // statement
 
-enum clingo_ast_statement_type {
+enum clingo_ast_statement_type_e {
     clingo_ast_statement_type_rule                   = 0,
     clingo_ast_statement_type_const                  = 1,
     clingo_ast_statement_type_show_signature         = 2,
@@ -3832,7 +3832,7 @@ typedef struct clingo_ground_program_observer {
 //! @addtogroup Control
 //! @{
 
-//! @enum clingo_solve_result
+//! @enum clingo_solve_result_e
 //! Enumeration of bit masks for solve call results.
 //!
 //! @note Neither ::clingo_solve_result_satisfiable nor

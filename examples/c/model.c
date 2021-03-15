@@ -105,7 +105,7 @@ bool print_solution(clingo_model_t const *model, model_buffer_t *data) {
   // get model type
   if (!clingo_model_type(model, &type)) { goto error; }
 
-  switch ((enum clingo_model_type)type) {
+  switch ((enum clingo_model_type_e)type) {
     case clingo_model_type_stable_model:          { type_string = "Stable model"; break; }
     case clingo_model_type_brave_consequences:    { type_string = "Brave consequences"; break; }
     case clingo_model_type_cautious_consequences: { type_string = "Cautious consequences"; break; }

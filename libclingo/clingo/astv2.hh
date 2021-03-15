@@ -49,7 +49,7 @@ public:
     AST *operator->() const;
     AST &operator*() const;
 
-    explicit SAST(clingo_ast_type type);
+    explicit SAST(clingo_ast_type_e type);
     explicit SAST(AST *ast);
     AST *get() const;
     AST *release();
@@ -71,9 +71,9 @@ public:
     using StrVec = std::vector<String>;
     using ASTVec = std::vector<SAST>;
     using Value = mpark::variant<int, Symbol, Location, String, SAST, OAST, StrVec, ASTVec>;
-    using AttributeVector = std::vector<std::pair<clingo_ast_attribute, Value>>;
+    using AttributeVector = std::vector<std::pair<clingo_ast_attribute_e, Value>>;
 
-    AST(clingo_ast_type type);
+    AST(clingo_ast_type_e type);
     AST() = delete;
     AST(AST const &) = delete;
     AST(AST &&) noexcept = default;
@@ -81,11 +81,11 @@ public:
     AST &operator=(AST &&) noexcept = default;
     ~AST() = default;
 
-    bool hasValue(clingo_ast_attribute name) const;
-    Value &value(clingo_ast_attribute name);
-    Value const &value(clingo_ast_attribute name) const;
-    void value(clingo_ast_attribute name, Value value);
-    clingo_ast_type type() const;
+    bool hasValue(clingo_ast_attribute_e name) const;
+    Value &value(clingo_ast_attribute_e name);
+    Value const &value(clingo_ast_attribute_e name) const;
+    void value(clingo_ast_attribute_e name, Value value);
+    clingo_ast_type_e type() const;
     SAST copy();
     template <class... Args>
     SAST update(Args&&... args) {
@@ -106,20 +106,20 @@ public:
     unsigned refCount() const;
     bool unique() const;
 private:
-    AttributeVector::iterator find_(clingo_ast_attribute name);
-    AttributeVector::const_iterator find_(clingo_ast_attribute name) const;
+    AttributeVector::iterator find_(clingo_ast_attribute_e name);
+    AttributeVector::const_iterator find_(clingo_ast_attribute_e name) const;
     AttributeVector::value_type update_(AttributeVector::value_type const &x) {
         return x;
     }
     template <class V, class... Args>
-    AttributeVector::value_type update_(AttributeVector::value_type const &x, clingo_ast_attribute name, V &&value, Args&&... args) {
+    AttributeVector::value_type update_(AttributeVector::value_type const &x, clingo_ast_attribute_e name, V &&value, Args&&... args) {
         if (x.first == name) {
             return {name, std::forward<V>(value)};
         }
         return update_(x, std::forward<Args>(args)...);
     }
 
-    clingo_ast_type type_;
+    clingo_ast_type_e type_;
     unsigned refCount_{0};
     AttributeVector values_;
 };
