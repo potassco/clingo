@@ -1659,7 +1659,7 @@ extern "C" bool clingo_ast_attribute_insert_ast_at(clingo_ast_t *ast, clingo_ast
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
+extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         auto builder = Input::build([cb, cb_data](Input::SAST ast) {
             forwardCError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
@@ -1676,7 +1676,7 @@ extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_v2_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
+extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         auto builder = Input::build([cb, cb_data](Input::SAST ast) {
             forwardCError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
@@ -1698,7 +1698,7 @@ extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, cling
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bitset_t unpool_type, clingo_ast_callback_v2_t callback, void *callback_data) {
+extern "C" bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bitset_t unpool_type, clingo_ast_callback_t callback, void *callback_data) {
     GRINGO_CLINGO_TRY {
         Input::SAST sast{&ast->ast};
         auto pool = Input::unpool(sast, unpool_type);
@@ -1722,7 +1722,7 @@ extern "C" bool clingo_program_builder_begin(clingo_program_builder_t *bld) {
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_program_builder_add_ast(clingo_program_builder_t *bld, clingo_ast_t *ast) {
+extern "C" bool clingo_program_builder_add(clingo_program_builder_t *bld, clingo_ast_t *ast) {
     GRINGO_CLINGO_TRY { bld->add(*ast); }
     GRINGO_CLINGO_CATCH;
 }

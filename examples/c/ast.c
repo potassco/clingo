@@ -78,7 +78,7 @@ bool on_statement (clingo_ast_t *stm, on_statement_data *data) {
 
   // pass through all statements that are not rules
   if (type != clingo_ast_type_rule) {
-    if (!clingo_program_builder_add_ast(data->builder, stm)) { goto error; }
+    if (!clingo_program_builder_add(data->builder, stm)) { goto error; }
     goto out;
   }
 
@@ -97,7 +97,7 @@ bool on_statement (clingo_ast_t *stm, on_statement_data *data) {
   }
 
   // add the rewritten statement to the program
-  if (!clingo_program_builder_add_ast(data->builder, stm)) { goto error; }
+  if (!clingo_program_builder_add(data->builder, stm)) { goto error; }
 
   goto out;
 
@@ -181,7 +181,7 @@ int main(int argc, char const **argv) {
   if (!clingo_program_builder_begin(data.builder)) { goto error; }
 
   // get the AST of the program
-  if (!clingo_ast_parse_string("a :- not b. b :- not a.", (clingo_ast_callback_v2_t)on_statement, &data, NULL, NULL, 20)) { goto error; }
+  if (!clingo_ast_parse_string("a :- not b. b :- not a.", (clingo_ast_callback_t)on_statement, &data, NULL, NULL, 20)) { goto error; }
 
   // finish building a program
   if (!clingo_program_builder_end(data.builder)) { goto error; }

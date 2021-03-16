@@ -10999,13 +10999,13 @@ _cffi_f_clingo_parse_term(PyObject *self, PyObject *args)
 #  define _cffi_f_clingo_parse_term _cffi_d_clingo_parse_term
 #endif
 
-static _Bool _cffi_d_clingo_program_builder_add_ast(clingo_program_builder_t * x0, clingo_ast_t * x1)
+static _Bool _cffi_d_clingo_program_builder_add(clingo_program_builder_t * x0, clingo_ast_t * x1)
 {
-  return clingo_program_builder_add_ast(x0, x1);
+  return clingo_program_builder_add(x0, x1);
 }
 #ifndef PYPY_VERSION
 static PyObject *
-_cffi_f_clingo_program_builder_add_ast(PyObject *self, PyObject *args)
+_cffi_f_clingo_program_builder_add(PyObject *self, PyObject *args)
 {
   clingo_program_builder_t * x0;
   clingo_ast_t * x1;
@@ -11016,7 +11016,7 @@ _cffi_f_clingo_program_builder_add_ast(PyObject *self, PyObject *args)
   PyObject *arg0;
   PyObject *arg1;
 
-  if (!PyArg_UnpackTuple(args, "clingo_program_builder_add_ast", 2, 2, &arg0, &arg1))
+  if (!PyArg_UnpackTuple(args, "clingo_program_builder_add", 2, 2, &arg0, &arg1))
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
@@ -11039,7 +11039,7 @@ _cffi_f_clingo_program_builder_add_ast(PyObject *self, PyObject *args)
 
   Py_BEGIN_ALLOW_THREADS
   _cffi_restore_errno();
-  { result = clingo_program_builder_add_ast(x0, x1); }
+  { result = clingo_program_builder_add(x0, x1); }
   _cffi_save_errno();
   Py_END_ALLOW_THREADS
 
@@ -11049,7 +11049,7 @@ _cffi_f_clingo_program_builder_add_ast(PyObject *self, PyObject *args)
   return pyresult;
 }
 #else
-#  define _cffi_f_clingo_program_builder_add_ast _cffi_d_clingo_program_builder_add_ast
+#  define _cffi_f_clingo_program_builder_add _cffi_d_clingo_program_builder_add
 #endif
 
 static _Bool _cffi_d_clingo_program_builder_begin(clingo_program_builder_t * x0)
@@ -17166,7 +17166,7 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_options_add", (void *)_cffi_f_clingo_options_add, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 548), (void *)_cffi_d_clingo_options_add },
   { "clingo_options_add_flag", (void *)_cffi_f_clingo_options_add_flag, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 541), (void *)_cffi_d_clingo_options_add_flag },
   { "clingo_parse_term", (void *)_cffi_f_clingo_parse_term, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 76), (void *)_cffi_d_clingo_parse_term },
-  { "clingo_program_builder_add_ast", (void *)_cffi_f_clingo_program_builder_add_ast, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 565), (void *)_cffi_d_clingo_program_builder_add_ast },
+  { "clingo_program_builder_add", (void *)_cffi_f_clingo_program_builder_add, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 565), (void *)_cffi_d_clingo_program_builder_add },
   { "clingo_program_builder_begin", (void *)_cffi_f_clingo_program_builder_begin, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 562), (void *)_cffi_d_clingo_program_builder_begin },
   { "clingo_program_builder_end", (void *)_cffi_f_clingo_program_builder_end, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 562), (void *)_cffi_d_clingo_program_builder_end },
   { "clingo_propagate_control_add_clause", (void *)_cffi_f_clingo_propagate_control_add_clause, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 577), (void *)_cffi_d_clingo_propagate_control_add_clause },
@@ -17651,7 +17651,7 @@ static const struct _cffi_typename_s _cffi_typenames[] = {
   { "clingo_ast_attribute_t", 143 },
   { "clingo_ast_attribute_type_t", 143 },
   { "clingo_ast_binary_operator_t", 143 },
-  { "clingo_ast_callback_v2_t", 24 },
+  { "clingo_ast_callback_t", 24 },
   { "clingo_ast_comparison_operator_t", 143 },
   { "clingo_ast_constructor_t", 1123 },
   { "clingo_ast_constructors_t", 1124 },

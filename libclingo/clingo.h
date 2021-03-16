@@ -2940,7 +2940,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_insert_ast_at(clingo_ast_t *
 //! @param[in] ast the AST
 //! @param[in] data a user data pointer
 //! @return whether the call was successful
-typedef bool (*clingo_ast_callback_v2_t) (clingo_ast_t *ast, void *data);
+typedef bool (*clingo_ast_callback_t) (clingo_ast_t *ast, void *data);
 //! Parse the given program and return an abstract syntax tree for each statement via a callback.
 //!
 //! @param[in] program the program in gringo syntax
@@ -2952,7 +2952,7 @@ typedef bool (*clingo_ast_callback_v2_t) (clingo_ast_t *ast, void *data);
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if parsing fails
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(char const *program, clingo_ast_callback_v2_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(char const *program, clingo_ast_callback_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
 //! Parse the programs in the given list of files and return an abstract syntax tree for each statement via a callback.
 //!
 //! The function follows clingo's handling of files on the command line.
@@ -2968,7 +2968,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(char const *program, clin
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if parsing fails
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const * const *files, size_t size, clingo_ast_callback_v2_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const * const *files, size_t size, clingo_ast_callback_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
 
 //! @}
 
@@ -2996,7 +2996,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_end(clingo_program_builder
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime for statements of invalid form or AST nodes that do not represent statements
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_add_ast(clingo_program_builder_t *builder, clingo_ast_t *ast);
+CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_add(clingo_program_builder_t *builder, clingo_ast_t *ast);
 
 //! @}
 
@@ -3020,7 +3020,7 @@ typedef int clingo_ast_unpool_type_bitset_t;
 //! @param[in] callback_data user data for the callback
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bitset_t unpool_type, clingo_ast_callback_v2_t callback, void *callback_data);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bitset_t unpool_type, clingo_ast_callback_t callback, void *callback_data);
 
 //! @}
 

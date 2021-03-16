@@ -3778,7 +3778,7 @@ inline ProgramBuilder::~ProgramBuilder() {
 }
 
 inline void ProgramBuilder::add(Node const &ast) {
-    Detail::handle_error(clingo_program_builder_add_ast(builder_, ast.to_c()));
+    Detail::handle_error(clingo_program_builder_add(builder_, ast.to_c()));
 }
 
 // functions

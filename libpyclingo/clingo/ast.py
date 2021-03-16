@@ -1112,7 +1112,7 @@ class ProgramBuilder(ContextManager['ProgramBuilder']):
         statement
             The statement to add.
         '''
-        _handle_error(_lib.clingo_program_builder_add_ast(self._rep, statement._rep))
+        _handle_error(_lib.clingo_program_builder_add(self._rep, statement._rep))
 
 class Transformer:
     '''
