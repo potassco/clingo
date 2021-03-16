@@ -295,11 +295,7 @@ tl::optional<AST::ASTVec> unpool(SAST &ast, clingo_ast_unpool_type_bitset_t type
             return unpool_chain_cross<true>(*ast, clingo_ast_attribute_elements, clingo_ast_attribute_elements);
         }
         case clingo_ast_type_theory_atom_element: {
-            auto ret = unpool_chain(*ast, clingo_ast_attribute_condition);
-            if (ret.has_value()) {
-                return AST::ASTVec{std::move(*ret)};
-            }
-            return {};
+            return unpool_cross(*ast, clingo_ast_attribute_condition);
         }
         case clingo_ast_type_theory_atom: {
             return unpool_chain_cross<false>(*ast, clingo_ast_attribute_elements, clingo_ast_attribute_term);
