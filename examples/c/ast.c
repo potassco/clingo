@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-/*
 bool print_model(clingo_model_t const *model) {
   bool ret = true;
   clingo_symbol_t *atoms = NULL;
@@ -63,60 +62,42 @@ out:
 }
 
 typedef struct {
-  clingo_ast_term_t atom;
+  clingo_location_t *loc;
+  clingo_ast_t *atom;
   clingo_program_builder_t *builder;
 } on_statement_data;
 
 // adds atom enable to all rule bodies
-bool on_statement (clingo_ast_statement_t const *stm, on_statement_data *data) {
+bool on_statement (clingo_ast_t *stm, on_statement_data *data) {
   bool ret = true;
-  clingo_ast_rule_t rule;
-  clingo_ast_body_literal_t *body = NULL;
-  clingo_ast_literal_t lit;
-  clingo_ast_statement_t stm2;
+  clingo_ast_t *lit = NULL;
+  clingo_ast_type_t type;
+  size_t size;
+
+  if (!clingo_ast_get_type(stm, &type)) { goto error; }
 
   // pass through all statements that are not rules
-  if (stm->type != clingo_ast_statement_type_rule) {
-    if (!clingo_program_builder_add(data->builder, stm)) { goto error; }
+  if (type != clingo_ast_type_rule) {
+    if (!clingo_program_builder_add_ast(data->builder, stm)) { goto error; }
     goto out;
   }
 
-  // allocate space to hold the current rule body + one literal
-  body = (clingo_ast_body_literal_t*)malloc(sizeof(clingo_ast_body_literal_t) * (stm->rule->size + 1));
-  if (!body) {
-    clingo_set_error(clingo_error_bad_alloc, "could not allocate memory for rule body");
+  // create literal "enable"
+  if (!clingo_ast_build(clingo_ast_type_literal, &lit, data->loc, clingo_ast_sign_no_sign, data->atom)) {
     goto error;
   }
 
-  // copy the current rule body
-  for (size_t i = 0; i < stm->rule->size; ++i) {
-    body[i] = stm->rule->body[i];
+  if (!clingo_ast_attribute_size_ast_array(stm, clingo_ast_attribute_body, &size)) {
+    goto error;
   }
 
-  // create atom enable
-  lit.symbol   = &data->atom;
-  lit.location = data->atom.location;
-  lit.type     = clingo_ast_literal_type_symbolic;
-  lit.sign     = clingo_ast_sign_none;
-
-  // add atom enable to the rule body
-  body[stm->rule->size].location = data->atom.location;
-  body[stm->rule->size].type     = clingo_ast_body_literal_type_literal;
-  body[stm->rule->size].sign     = clingo_ast_sign_none;
-  body[stm->rule->size].literal  = &lit;
-
-  // initialize the rule
-  rule.head = stm->rule->head;
-  rule.size = stm->rule->size + 1;
-  rule.body = body;
-
-  // initialize the statement
-  stm2.location = stm->location;
-  stm2.type     = stm->type;
-  stm2.rule     = &rule;
+  // append the literal to the rule body
+  if (!clingo_ast_attribute_insert_ast_at(stm, clingo_ast_attribute_body, size, lit)) {
+    goto error;
+  }
 
   // add the rewritten statement to the program
-  if (!clingo_program_builder_add(data->builder, &stm2)) { goto error; }
+  if (!clingo_program_builder_add_ast(data->builder, stm)) { goto error; }
 
   goto out;
 
@@ -124,8 +105,9 @@ error:
   ret = false;
 
 out:
-  if (body) { free(body); }
-
+  if (lit != NULL) {
+    clingo_ast_release(lit);
+  }
   return ret;
 }
 
@@ -169,9 +151,8 @@ int main(int argc, char const **argv) {
   clingo_symbolic_atom_iterator_t atm_it;
   clingo_literal_t atm;
   clingo_location_t location;
-  clingo_ast_statement_t stm;
-  clingo_ast_external_t ext;
-  on_statement_data data;
+  clingo_ast_t *term = NULL;
+  on_statement_data data = {NULL, NULL, NULL};
   clingo_part_t parts[] = {{ "base", NULL, 0 }};
 
   // create a control object and pass command line arguments
@@ -184,33 +165,31 @@ int main(int argc, char const **argv) {
   location.begin_line   = location.end_line   = 0;
   location.begin_column = location.end_column = 0;
   location.begin_file   = location.end_file   = "<rewrite>";
+  data.loc = &location;
 
   // initilize atom to add
   if (!clingo_symbol_create_id("enable", true, &sym)) { goto error; }
-  data.atom.location = location;
-  data.atom.type = clingo_ast_term_type_symbol;
-  data.atom.symbol = sym;
+
+  if (!clingo_ast_build(clingo_ast_type_symbolic_term, &term, data.loc, sym)) {
+    goto error;
+  }
+  if (!clingo_ast_build(clingo_ast_type_symbolic_atom, &data.atom, term)) {
+    goto error;
+  }
 
   // begin building a program
   if (!clingo_program_builder_begin(data.builder)) { goto error; }
 
   // get the AST of the program
-  if (!clingo_parse_program("a :- not b. b :- not a.", (clingo_ast_callback_t)on_statement, &data, NULL, NULL, 20)) { goto error; }
-
-  // add the external statement: #external enable.
-  ext.atom = data.atom;
-  ext.body = NULL;
-  ext.size = 0;
-  ext.type.location = location;
-  ext.type.type = clingo_ast_term_type_symbol;
-  if (!clingo_symbol_create_function("false", NULL, 0, true, &ext.type.symbol)) { goto error; }
-  stm.location = location;
-  stm.type = clingo_ast_statement_type_external;
-  stm.external = &ext;
-  if (!clingo_program_builder_add(data.builder, &stm)) { goto error; }
+  if (!clingo_ast_parse_string("a :- not b. b :- not a.", (clingo_ast_callback_v2_t)on_statement, &data, NULL, NULL, 20)) { goto error; }
 
   // finish building a program
   if (!clingo_program_builder_end(data.builder)) { goto error; }
+
+  // add the external statement: #external enable.
+  if (!clingo_control_add(ctl, "base", NULL, 0, "#external enable.")) {
+    goto error;
+  }
 
   // ground the base part
   if (!clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }
@@ -241,13 +220,10 @@ error:
   ret = clingo_error_code();
 
 out:
+  if (term) { clingo_ast_release(term); }
+  if (data.atom) { clingo_ast_release(data.atom); }
   if (handle) { clingo_solve_handle_close(handle); }
   if (ctl) { clingo_control_free(ctl); }
 
   return ret;
-}
-*/
-
-int main(int argc, char const **argv) {
-    printf("TODO");
 }
