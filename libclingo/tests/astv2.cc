@@ -50,7 +50,7 @@ bool cmp(V const &a, W const &b) {
 struct CB {
     CB(std::string &ret)
     : ret(ret) { ret.clear(); }
-    void operator()(ASTv2::AST const &x) {
+    void operator()(AST::Node const &x) {
         std::ostringstream oss;
         oss << x;
         if (first) {
@@ -68,14 +68,14 @@ struct CB {
 
 std::string parse(char const *prg) {
     std::string ret;
-    ASTv2::parse_string(prg, CB(ret));
+    AST::parse_string(prg, CB(ret));
     return ret;
 }
 
 std::string unpool(char const *prg) {
     std::string ret;
     auto cb = CB(ret);
-    ASTv2::parse_string(prg, [&](ASTv2::AST const &ast) {
+    AST::parse_string(prg, [&](AST::Node const &ast) {
         for (auto &unpooled : ast.unpool()) {
             cb(unpooled);
         }
@@ -88,8 +88,8 @@ ModelVec solve(char const *prg, PartSpan parts = {{"base", {}}}) {
     ModelVec models;
     Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }};
 
-    ASTv2::with_builder(ctl, [prg](ASTv2::ProgramBuilder &b){
-        ASTv2::parse_string(prg, [&b](ASTv2::AST const &stm) { b.add(stm); });
+    AST::with_builder(ctl, [prg](AST::ProgramBuilder &b){
+        AST::parse_string(prg, [&b](AST::Node const &stm) { b.add(stm); });
     });
     ctl.ground(parts);
     test_solve(ctl.solve(), models);
@@ -101,9 +101,9 @@ StringVec parse_theory(char const *prg, char const *theory) {
     MessageVec messages;
     ModelVec models;
     Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }};
-    ASTv2::with_builder(ctl, [prg, theory](ASTv2::ProgramBuilder &b){
-        ASTv2::parse_string(theory, [&b](ASTv2::AST const &ast) { b.add(ast); });
-        ASTv2::parse_string(prg, [&b](ASTv2::AST const &ast) { b.add(ast); });
+    AST::with_builder(ctl, [prg, theory](AST::ProgramBuilder &b){
+        AST::parse_string(theory, [&b](AST::Node const &ast) { b.add(ast); });
+        AST::parse_string(prg, [&b](AST::Node const &ast) { b.add(ast); });
     });
     ctl.ground({{"base", {}}});
     StringVec ret;
@@ -323,11 +323,11 @@ TEST_CASE("add-ast-v2", "[clingo]") {
 TEST_CASE("build-ast-v2", "[clingo]") {
     Location loc{"<string>", "<string>", 1, 1, 1, 1};
     SECTION("string array") {
-        auto sym = ASTv2::AST{ASTv2::Type::SymbolicTerm, loc, Function("a", {})};
+        auto sym = AST::Node{AST::Type::SymbolicTerm, loc, Function("a", {})};
         auto lst = std::vector<char const *>{"x", "y", "z"};
-        auto tue = ASTv2::AST{ASTv2::Type::TheoryUnparsedTermElement, lst, sym};
+        auto tue = AST::Node{AST::Type::TheoryUnparsedTermElement, lst, sym};
 
-        auto seq = tue.get(ASTv2::Attribute::Operators).get<ASTv2::StringVector>();
+        auto seq = tue.get(AST::Attribute::Operators).get<AST::StringVector>();
         REQUIRE(!seq.empty());
         REQUIRE(seq.size() == 3);
         REQUIRE(cmp(seq, lst));
@@ -339,25 +339,25 @@ TEST_CASE("build-ast-v2", "[clingo]") {
         seq.erase(seq.begin());
         seq.erase(seq.begin());
         REQUIRE(cmp(seq, lst));
-        tue.set(ASTv2::Attribute::Operators, seq);
+        tue.set(AST::Attribute::Operators, seq);
         REQUIRE(cmp(seq, lst));
-        tue.set(ASTv2::Attribute::Operators, tue.deep_copy().get(ASTv2::Attribute::Operators));
+        tue.set(AST::Attribute::Operators, tue.deep_copy().get(AST::Attribute::Operators));
         REQUIRE(cmp(seq, lst));
-        tue.set(ASTv2::Attribute::Operators, tue.copy().get(ASTv2::Attribute::Operators));
+        tue.set(AST::Attribute::Operators, tue.copy().get(AST::Attribute::Operators));
         REQUIRE(cmp(seq, lst));
     }
     SECTION("ast array") {
-        auto lst = std::vector<ASTv2::AST>{
-            ASTv2::AST(ASTv2::Type::Id, loc, "x"),
-            ASTv2::AST(ASTv2::Type::Id, loc, "y"),
-            ASTv2::AST(ASTv2::Type::Id, loc, "z")};
-        auto prg = ASTv2::AST(ASTv2::Type::Program, loc, "p", lst);
-        auto seq = prg.get(ASTv2::Attribute::Parameters).get<ASTv2::ASTVector>();
+        auto lst = std::vector<AST::Node>{
+            AST::Node(AST::Type::Id, loc, "x"),
+            AST::Node(AST::Type::Id, loc, "y"),
+            AST::Node(AST::Type::Id, loc, "z")};
+        auto prg = AST::Node(AST::Type::Program, loc, "p", lst);
+        auto seq = prg.get(AST::Attribute::Parameters).get<AST::NodeVector>();
         REQUIRE(seq.size() == 3);
         REQUIRE(vec(seq) == lst);
         REQUIRE(seq[0] == lst[0]);
-        seq.insert(seq.begin(), ASTv2::AST(ASTv2::Type::Id, loc, "i"));
-        lst.insert(lst.begin(), ASTv2::AST(ASTv2::Type::Id, loc, "i"));
+        seq.insert(seq.begin(), AST::Node(AST::Type::Id, loc, "i"));
+        lst.insert(lst.begin(), AST::Node(AST::Type::Id, loc, "i"));
         REQUIRE(vec(seq) == lst);
         seq.insert(seq.begin(), seq[3]);
         lst.insert(lst.begin(), lst[3]);
@@ -368,9 +368,9 @@ TEST_CASE("build-ast-v2", "[clingo]") {
     }
     SECTION("ast compare") {
         Location alt{"<string>", "<string>", 1, 1, 1, 2};
-        auto x = ASTv2::AST(ASTv2::Type::Id, loc, "x");
-        auto y = ASTv2::AST(ASTv2::Type::Id, alt, "x");
-        auto z = ASTv2::AST(ASTv2::Type::Id, loc, "z");
+        auto x = AST::Node(AST::Type::Id, loc, "x");
+        auto y = AST::Node(AST::Type::Id, alt, "x");
+        auto z = AST::Node(AST::Type::Id, loc, "z");
         REQUIRE(x == y);
         REQUIRE(x == x);
         REQUIRE(x != z);
@@ -607,9 +607,9 @@ TEST_CASE("unpool-ast-v2", "[clingo]") {
             "#project a(2) : a(4).");
     }
     SECTION("options") {
-        std::vector<ASTv2::AST> prg;
-        ASTv2::parse_string(":- a(1;2): a(3;4).", [&prg](ASTv2::AST &&ast) { prg.emplace_back(std::move(ast)); });
-        ASTv2::AST lit = *prg.back().get(ASTv2::Attribute::Body).get<ASTv2::ASTVector>().begin();
+        std::vector<AST::Node> prg;
+        AST::parse_string(":- a(1;2): a(3;4).", [&prg](AST::Node &&ast) { prg.emplace_back(std::move(ast)); });
+        AST::Node lit = *prg.back().get(AST::Attribute::Body).get<AST::NodeVector>().begin();
         auto unpool = [&lit](bool other, bool condition) {
             std::vector<std::string> ret;
             for (auto &ast : lit.unpool(other, condition)) {

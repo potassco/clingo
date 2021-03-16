@@ -26,7 +26,6 @@
 #include <clingo/incmode.hh>
 #include <clingo/control.hh>
 #include <clingo/astv2.hh>
-#include <clingo/ast.hh>
 #include <gringo/input/nongroundparser.hh>
 #include <gringo/input/groundtermparser.hh>
 #include <gringo/input/programbuilder.hh>
@@ -199,9 +198,6 @@ struct IncrementalControl : Control {
     }
     void beginAdd() override {
         parse();
-    }
-    void add(clingo_ast_statement_t const &stm) override {
-        Input::parseStatement(pb, logger_, stm);
     }
     void add(clingo_ast_t const &ast) override {
         Input::parse(pb, logger_, ast.ast);

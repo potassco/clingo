@@ -24,9 +24,9 @@ int main(int argc, char const **argv) {
         ctl.add("base", {}, out.str().c_str());
 
         // define a constant via the AST
-        ctl.with_builder([](ProgramBuilder &b) {
+        AST::with_builder(ctl, [](AST::ProgramBuilder &b) {
             Location loc{"<generated>", "<generated>", 1, 1, 1, 1};
-            b.add({loc, AST::Definition{"e", {loc, Number(24)}, false}});
+            b.add(AST::Node(AST::Type::Definition, loc, "e", AST::Node(AST::Type::SymbolicTerm, loc, Number(24)), false));
         });
 
         ctl.add("base", {}, "p(@c()). p(d). p(e).");

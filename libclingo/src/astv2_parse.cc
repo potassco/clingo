@@ -402,7 +402,7 @@ private:
 
     static NAF parseSign(int sign) {
         switch (sign) {
-            case clingo_ast_sign_none: {
+            case clingo_ast_sign_no_sign: {
                 return NAF::POS;
             }
             case clingo_ast_sign_negation: {
