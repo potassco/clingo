@@ -26,7 +26,7 @@ precompiled packages for various package managers:
     Update 3)
   - other compilers might work
 - the [cmake](https://www.cmake.org/) build system
-  - at least version 3.3 is recommended
+  - at least version 3.18 is recommended
   - at least version 3.1 is *required*
 
 ## Development Dependencies
