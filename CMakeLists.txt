@@ -75,6 +75,9 @@ set(PYCLINGO_INSTALL_DIR "" CACHE STRING
 "Advanced variable to manually configure where to install the Python module.")
 set(PYCLINGO_SUFFIX CACHE STRING
 "Advanced variable to manually configure the suffix of the Python module.")
+option(PYCLINGO_DYNAMIC_LOOKUP
+"Pass linker option `-undefined link_dynamic`."
+${APPLE})
 
 # Lua configuration
 set(CLINGO_BUILD_WITH_LUA "auto" CACHE STRING
@@ -95,6 +98,7 @@ mark_as_advanced(CLINGO_BUILD_SHARED)
 mark_as_advanced(CLINGO_USE_LIB)
 mark_as_advanced(PYCLINGO_INSTALL_DIR)
 mark_as_advanced(PYCLINGO_SUFFIX)
+mark_as_advanced(PYCLINGO_DYNAMIC_LOOKUP)
 mark_as_advanced(LUACLINGO_INSTALL_DIR)
 mark_as_advanced(LUACLINGO_SUFFIX)
 

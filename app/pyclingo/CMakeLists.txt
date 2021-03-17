@@ -38,6 +38,10 @@ target_link_libraries(pyclingo PRIVATE libclingo Python::Module)
 # build on conda on Windows then. Since supporting conda is important, it is
 # disabled for now but should be investigated further, later.
 target_compile_definitions(pyclingo PRIVATE _CFFI_NO_LIMITED_API)
+# NOTE: This seems to be necessary on MacOS. I do not understand why.
+if (PYCLINGO_DYNAMIC_LOOKUP)
+    set_property(TARGET pyclingo PROPERTY LINK_FLAGS "-undefined dynamic_lookup")
+endif()
 set_target_properties(pyclingo PROPERTIES
     FOLDER lib
     OUTPUT_NAME _clingo
