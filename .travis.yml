@@ -26,11 +26,11 @@ script:
   - mkdir build &&
     cd build &&
     cmake
-      -DCMAKE_VERBOSE_MAKEFILE=True
-      -DCLINGO_BUILD_TESTS=True
-      -DCLASP_BUILD_TESTS=True
-      -DLIB_POTASSCO_BUILD_TESTS=True
-      -DCLINGO_BUILD_EXAMPLES=True
+      -DCMAKE_VERBOSE_MAKEFILE=On
+      -DCLINGO_BUILD_TESTS=On
+      -DCLASP_BUILD_TESTS=On
+      -DLIB_POTASSCO_BUILD_TESTS=On
+      -DCLINGO_BUILD_EXAMPLES=On
       .. &&
     make -j3 &&
     make test CTEST_OUTPUT_ON_FAILURE=True
