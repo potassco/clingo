@@ -112,9 +112,8 @@ conda:
           -DCMAKE_C_COMPILER="${CC}" \
           -DPython_ROOT_DIR="${PREFIX}" \
           -DPython_EXECUTABLE="${PYTHON}" \
-          -DCLINGO_REQUIRE_PYTHON=ON \
+          -DCLINGO_BUILD_WITH_PYTHON=ON \
           -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
-          -DPYCLINGO_USER_INSTALL=OFF \
           -DCLINGO_BUILD_WITH_LUA=OFF \
           -DCLINGO_MANAGE_RPATH=OFF \
           -DPYCLINGO_INSTALL_DIR="${SP_DIR}" \
@@ -131,10 +130,9 @@ conda:
           -DCMAKE_CXX_COMPILER="%CXX%" ^
           -DCMAKE_C_COMPILER="%CC%" ^
           -DPython_ROOT_DIR="%PREFIX%" ^
-          -DPYTHON_EXECUTABLE="%PYTHON%" ^
-          -DCLINGO_REQUIRE_PYTHON=ON ^
+          -DPython_EXECUTABLE="%PYTHON%" ^
+          -DCLINGO_BUILD_WITH_PYTHON=ON ^
           -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
-          -DPYCLINGO_USER_INSTALL=OFF ^
           -DCLINGO_BUILD_WITH_LUA=OFF ^
           -DCLINGO_MANAGE_RPATH=OFF
 
@@ -253,4 +251,4 @@ ppa:
             	dh $@ --with python3
 
             override_dh_auto_configure:
-            	dh_auto_configure -- -DCMAKE_LIBRARY_PATH=$(DEB_HOST_MULTIARCH) -DCLINGO_BUILD_REVISION=$(CLINGO_BUILD_REVISION) -DCLINGO_REQUIRE_LUA=On -DCLINGO_REQUIRE_PYTHON=On -DPYCLINGO_USER_INSTALL=Off -DCLINGO_MANAGE_RPATH=Off -DPYCLINGO_INSTALL_DIR=/usr/lib/python3/dist-packages
+            	dh_auto_configure -- -DCMAKE_LIBRARY_PATH=$(DEB_HOST_MULTIARCH) -DCLINGO_BUILD_REVISION=$(CLINGO_BUILD_REVISION) -DCLINGO_BUILD_WITH_LUA=On -DCLINGO_BUILD_WITH_PYTHON=On -DCLINGO_MANAGE_RPATH=Off -DPYCLINGO_INSTALL_DIR=/usr/lib/python3/dist-packages
