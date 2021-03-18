@@ -88,7 +88,9 @@ if (Python_EXECUTABLE AND CLINGO_BUILD_TESTS)
              WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/libpyclingo"
              COMMAND ${Python_EXECUTABLE} -m unittest)
     set_property(TEST test_pyclingo APPEND PROPERTY ENVIRONMENT "PYTHONPATH=$<TARGET_FILE_DIR:pyclingo>")
-    if (WIN32)
+    if (CYGWIN)
+        set_property(TEST test_pyclingo APPEND PROPERTY ENVIRONMENT "PATH=$<TARGET_FILE_DIR:libclingo>")
+    elseif(WIN32)
         add_custom_command(
             TARGET pyclingo
             POST_BUILD
