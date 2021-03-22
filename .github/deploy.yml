@@ -49,7 +49,9 @@ conda:
         - 'windows-2016'
     macosx-sdk:
       'MacOSX10.9.sdk.tar.xz'
-    channels:
+    channels_release:
+      - 'potassco'
+    channels_dev:
       - 'potassco'
       - 'potassco/label/dev'
     version: |

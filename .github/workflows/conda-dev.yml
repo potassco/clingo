@@ -2,6 +2,10 @@ name: Deploy conda packages (wip)
 
 on:
   workflow_dispatch:
+    wip:
+      description: 'Publish work in progress package.'
+      required: false
+      default: true
 
 jobs:
   build:
@@ -48,9 +52,17 @@ jobs:
         conda info
         conda list
 
-    - name: publish conda package
+    - name: publish conda package (wip)
+      if: ${{ github.event.inputs.wip }}
       shell: pwsh
       run: |
         python .github/conda.py
+
+    - name: publish conda package (release)
+      if: not ${{ !github.event.inputs.wip }}
+      shell: pwsh
+      run: |
+        python .github/conda.py --release
+
       env:
         ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
