@@ -133,6 +133,7 @@ conda:
           -DPython_EXECUTABLE="%PYTHON%" ^
           -DCLINGO_BUILD_WITH_PYTHON=ON ^
           -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
+          -DPYCLINGO_INSTALL="system" ^
           -DCLINGO_BUILD_WITH_LUA=OFF ^
           -DCLINGO_MANAGE_RPATH=OFF
 
