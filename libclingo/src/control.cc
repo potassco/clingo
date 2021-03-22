@@ -679,6 +679,21 @@ extern "C" bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_propagate_init_remove_watch(clingo_propagate_init_t *init, clingo_literal_t lit) {
+    GRINGO_CLINGO_TRY { init->removeWatch(lit); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_propagate_init_remove_watch_from_thread(clingo_propagate_init_t *init, clingo_literal_t lit, uint32_t thread_id) {
+    GRINGO_CLINGO_TRY { init->removeWatch(thread_id, lit); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_propagate_init_freeze_literal(clingo_propagate_init_t *init, clingo_literal_t lit) {
+    GRINGO_CLINGO_TRY { init->freezeLiteral(lit); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" int clingo_propagate_init_number_of_threads(clingo_propagate_init_t const *init) {
     return init->threads();
 }

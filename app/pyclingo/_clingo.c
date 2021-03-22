@@ -11951,6 +11951,54 @@ _cffi_f_clingo_propagate_init_assignment(PyObject *self, PyObject *arg0)
 #  define _cffi_f_clingo_propagate_init_assignment _cffi_d_clingo_propagate_init_assignment
 #endif
 
+static _Bool _cffi_d_clingo_propagate_init_freeze_literal(clingo_propagate_init_t * x0, int32_t x1)
+{
+  return clingo_propagate_init_freeze_literal(x0, x1);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_clingo_propagate_init_freeze_literal(PyObject *self, PyObject *args)
+{
+  clingo_propagate_init_t * x0;
+  int32_t x1;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+  _Bool result;
+  PyObject *pyresult;
+  PyObject *arg0;
+  PyObject *arg1;
+
+  if (!PyArg_UnpackTuple(args, "clingo_propagate_init_freeze_literal", 2, 2, &arg0, &arg1))
+    return NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(603), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(603), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  x1 = _cffi_to_c_int(arg1, int32_t);
+  if (x1 == (int32_t)-1 && PyErr_Occurred())
+    return NULL;
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { result = clingo_propagate_init_freeze_literal(x0, x1); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  pyresult = _cffi_from_c__Bool(result);
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  return pyresult;
+}
+#else
+#  define _cffi_f_clingo_propagate_init_freeze_literal _cffi_d_clingo_propagate_init_freeze_literal
+#endif
+
 static int _cffi_d_clingo_propagate_init_get_check_mode(clingo_propagate_init_t const * x0)
 {
   return clingo_propagate_init_get_check_mode(x0);
@@ -12078,6 +12126,108 @@ _cffi_f_clingo_propagate_init_propagate(PyObject *self, PyObject *args)
 }
 #else
 #  define _cffi_f_clingo_propagate_init_propagate _cffi_d_clingo_propagate_init_propagate
+#endif
+
+static _Bool _cffi_d_clingo_propagate_init_remove_watch(clingo_propagate_init_t * x0, int32_t x1)
+{
+  return clingo_propagate_init_remove_watch(x0, x1);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_clingo_propagate_init_remove_watch(PyObject *self, PyObject *args)
+{
+  clingo_propagate_init_t * x0;
+  int32_t x1;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+  _Bool result;
+  PyObject *pyresult;
+  PyObject *arg0;
+  PyObject *arg1;
+
+  if (!PyArg_UnpackTuple(args, "clingo_propagate_init_remove_watch", 2, 2, &arg0, &arg1))
+    return NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(603), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(603), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  x1 = _cffi_to_c_int(arg1, int32_t);
+  if (x1 == (int32_t)-1 && PyErr_Occurred())
+    return NULL;
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { result = clingo_propagate_init_remove_watch(x0, x1); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  pyresult = _cffi_from_c__Bool(result);
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  return pyresult;
+}
+#else
+#  define _cffi_f_clingo_propagate_init_remove_watch _cffi_d_clingo_propagate_init_remove_watch
+#endif
+
+static _Bool _cffi_d_clingo_propagate_init_remove_watch_from_thread(clingo_propagate_init_t * x0, int32_t x1, uint32_t x2)
+{
+  return clingo_propagate_init_remove_watch_from_thread(x0, x1, x2);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_clingo_propagate_init_remove_watch_from_thread(PyObject *self, PyObject *args)
+{
+  clingo_propagate_init_t * x0;
+  int32_t x1;
+  uint32_t x2;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+  _Bool result;
+  PyObject *pyresult;
+  PyObject *arg0;
+  PyObject *arg1;
+  PyObject *arg2;
+
+  if (!PyArg_UnpackTuple(args, "clingo_propagate_init_remove_watch_from_thread", 3, 3, &arg0, &arg1, &arg2))
+    return NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(603), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(603), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  x1 = _cffi_to_c_int(arg1, int32_t);
+  if (x1 == (int32_t)-1 && PyErr_Occurred())
+    return NULL;
+
+  x2 = _cffi_to_c_int(arg2, uint32_t);
+  if (x2 == (uint32_t)-1 && PyErr_Occurred())
+    return NULL;
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { result = clingo_propagate_init_remove_watch_from_thread(x0, x1, x2); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  pyresult = _cffi_from_c__Bool(result);
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  return pyresult;
+}
+#else
+#  define _cffi_f_clingo_propagate_init_remove_watch_from_thread _cffi_d_clingo_propagate_init_remove_watch_from_thread
 #endif
 
 static void _cffi_d_clingo_propagate_init_set_check_mode(clingo_propagate_init_t * x0, int x1)
@@ -17184,9 +17334,12 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_propagate_init_add_watch_to_thread", (void *)_cffi_f_clingo_propagate_init_add_watch_to_thread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 637), (void *)_cffi_d_clingo_propagate_init_add_watch_to_thread },
   { "clingo_propagate_init_add_weight_constraint", (void *)_cffi_f_clingo_propagate_init_add_weight_constraint, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 621), (void *)_cffi_d_clingo_propagate_init_add_weight_constraint },
   { "clingo_propagate_init_assignment", (void *)_cffi_f_clingo_propagate_init_assignment, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1005), (void *)_cffi_d_clingo_propagate_init_assignment },
+  { "clingo_propagate_init_freeze_literal", (void *)_cffi_f_clingo_propagate_init_freeze_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 617), (void *)_cffi_d_clingo_propagate_init_freeze_literal },
   { "clingo_propagate_init_get_check_mode", (void *)_cffi_f_clingo_propagate_init_get_check_mode, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1014), (void *)_cffi_d_clingo_propagate_init_get_check_mode },
   { "clingo_propagate_init_number_of_threads", (void *)_cffi_f_clingo_propagate_init_number_of_threads, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1014), (void *)_cffi_d_clingo_propagate_init_number_of_threads },
   { "clingo_propagate_init_propagate", (void *)_cffi_f_clingo_propagate_init_propagate, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 602), (void *)_cffi_d_clingo_propagate_init_propagate },
+  { "clingo_propagate_init_remove_watch", (void *)_cffi_f_clingo_propagate_init_remove_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 617), (void *)_cffi_d_clingo_propagate_init_remove_watch },
+  { "clingo_propagate_init_remove_watch_from_thread", (void *)_cffi_f_clingo_propagate_init_remove_watch_from_thread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 637), (void *)_cffi_d_clingo_propagate_init_remove_watch_from_thread },
   { "clingo_propagate_init_set_check_mode", (void *)_cffi_f_clingo_propagate_init_set_check_mode, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1059), (void *)_cffi_d_clingo_propagate_init_set_check_mode },
   { "clingo_propagate_init_solver_literal", (void *)_cffi_f_clingo_propagate_init_solver_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 654), (void *)_cffi_d_clingo_propagate_init_solver_literal },
   { "clingo_propagate_init_symbolic_atoms", (void *)_cffi_f_clingo_propagate_init_symbolic_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 646), (void *)_cffi_d_clingo_propagate_init_symbolic_atoms },
@@ -17726,7 +17879,7 @@ static const struct _cffi_type_context_s _cffi_type_context = {
   _cffi_struct_unions,
   _cffi_enums,
   _cffi_typenames,
-  492,  /* num_globals */
+  495,  /* num_globals */
   25,  /* num_struct_unions */
   30,  /* num_enums */
   74,  /* num_typenames */

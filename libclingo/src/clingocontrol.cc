@@ -405,6 +405,9 @@ public:
     int threads() const override { return facade_().ctx.concurrency(); }
     void addWatch(Lit_t lit) override { p_.addWatch(Clasp::decodeLit(lit)); }
     void addWatch(uint32_t solverId, Lit_t lit) override { p_.addWatch(solverId, Clasp::decodeLit(lit)); }
+    void removeWatch(Lit_t lit) override { p_.removeWatch(Clasp::decodeLit(lit)); }
+    void removeWatch(uint32_t solverId, Lit_t lit) override { p_.removeWatch(solverId, Clasp::decodeLit(lit)); }
+    void freezeLiteral(Lit_t lit) override { p_.freezeLit(Clasp::decodeLit(lit)); }
     void enableHistory(bool b) override { p_.enableHistory(b); };
     Potassco::Lit_t addLiteral(bool freeze) override {
         auto &ctx = facade_().ctx;

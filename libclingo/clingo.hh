@@ -972,6 +972,9 @@ public:
     literal_t solver_literal(literal_t lit) const;
     void add_watch(literal_t lit);
     void add_watch(literal_t literal, id_t thread_id);
+    void remove_watch(literal_t lit);
+    void remove_watch(literal_t literal, id_t thread_id);
+    void freeze_literal(literal_t lit);
     int number_of_threads() const;
     Assignment assignment() const;
     SymbolicAtoms symbolic_atoms() const;
@@ -2594,6 +2597,18 @@ inline void PropagateInit::add_watch(literal_t lit) {
 
 inline void PropagateInit::add_watch(literal_t lit, id_t thread_id) {
     Detail::handle_error(clingo_propagate_init_add_watch_to_thread(init_, lit, thread_id));
+}
+
+inline void PropagateInit::remove_watch(literal_t lit) {
+    Detail::handle_error(clingo_propagate_init_remove_watch(init_, lit));
+}
+
+inline void PropagateInit::remove_watch(literal_t literal, id_t thread_id) {
+    Detail::handle_error(clingo_propagate_init_remove_watch_from_thread(init_, literal, thread_id));
+}
+
+inline void PropagateInit::freeze_literal(literal_t lit) {
+    Detail::handle_error(clingo_propagate_init_freeze_literal(init_, lit));
 }
 
 inline int PropagateInit::number_of_threads() const {
