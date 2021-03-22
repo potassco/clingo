@@ -377,6 +377,41 @@ class PropagateInit:
         else:
             _handle_error(_lib.clingo_propagate_init_add_watch_to_thread(self._rep, literal, thread_id))
 
+    def remove_watch(self, literal: int, thread_id: Optional[int]=None) -> None:
+        '''
+        Remove the watch for the solver literal in the given phase.
+
+        Parameters
+        ----------
+        literal
+            The solver literal to remove the watch from.
+        thread_id
+            The id of the thread from which to remove the watch. If the is `None`, then
+            the watch is removed from all active threads.
+        '''
+        if thread_id is None:
+            _handle_error(_lib.clingo_propagate_init_remove_watch(self._rep, literal))
+        else:
+            _handle_error(_lib.clingo_propagate_init_remove_watch_from_thread(self._rep, literal, thread_id))
+
+    def freeze_literal(self, literal: int) -> None:
+        '''
+        Freeze the given solver literal.
+
+        Any solver literal that is not frozen is subject to simplification and
+        might be removed in a preprocessing step after propagator
+        initialization. A propagator should freeze all literals over which it
+        might add clauses during propagation. Note that any watched literal is
+        automatically frozen and that it does not matter which phase of the
+        literal is frozen.
+
+        Parameters
+        ----------
+        literal
+            The solver literal to freeze.
+        '''
+        _handle_error(_lib.clingo_propagate_init_freeze_literal(self._rep, literal))
+
     def add_weight_constraint(self, literal: int, literals: Sequence[Tuple[int,int]],
                               bound: int, type_: int=0, compare_equal: bool=False) -> bool:
         '''

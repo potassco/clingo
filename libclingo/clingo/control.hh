@@ -196,6 +196,9 @@ struct clingo_propagate_init {
     virtual Gringo::Lit_t mapLit(Gringo::Lit_t lit) const = 0;
     virtual void addWatch(Gringo::Lit_t lit) = 0;
     virtual void addWatch(uint32_t solverId, Gringo::Lit_t lit) = 0;
+    virtual void removeWatch(Gringo::Lit_t lit) = 0;
+    virtual void removeWatch(uint32_t solverId, Gringo::Lit_t lit) = 0;
+    virtual void freezeLiteral(Gringo::Lit_t lit) = 0;
     virtual void enableHistory(bool b) = 0;
     virtual Potassco::AbstractAssignment const &assignment() const = 0;
     virtual int threads() const = 0;

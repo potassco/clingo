@@ -1123,6 +1123,29 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch(clingo_propagate_
 //! @param[in] thread_id the id of the solver thread
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t solver_literal, clingo_id_t thread_id);
+//! Remove the watch for the solver literal in the given phase.
+//!
+//! @param[in] init the target
+//! @param[in] solver_literal the solver literal
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_remove_watch(clingo_propagate_init_t *init, clingo_literal_t solver_literal);
+//! Remove the watch for the solver literal in the given phase from the given solver thread.
+//!
+//! @param[in] init the target
+//! @param[in] solver_literal the solver literal
+//! @param[in] thread_id the id of the solver thread
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_remove_watch_from_thread(clingo_propagate_init_t *init, clingo_literal_t solver_literal, uint32_t thread_id);
+//! Freeze the given solver literal.
+//!
+//! Any solver literal that is not frozen is subject to simplification and might be removed in a preprocessing step after propagator initialization.
+//! A propagator should freeze all literals over which it might add clauses during propagation.
+//! Note that any watched literal is automatically frozen and that it does not matter which phase of the literal is frozen.
+//!
+//! @param[in] init the target
+//! @param[in] solver_literal the solver literal
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_freeze_literal(clingo_propagate_init_t *init, clingo_literal_t solver_literal);
 //! Get an object to inspect the symbolic atoms.
 //!
 //! @param[in] init the target
