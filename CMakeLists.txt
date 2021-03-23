@@ -57,6 +57,9 @@ ON "NOT CLINGO_BUILD_STATIC" OFF)
 set(CLINGO_USE_LIB OFF CACHE BOOL
 "Advanced option to build Python and Lua modules against an existing \
 libclingo.")
+option(CLINGO_INSTALL_LIB
+"Advanced option to force installation of static libraries."
+OFF)
 
 # Python configuration
 set(CLINGO_BUILD_WITH_PYTHON "auto" CACHE STRING
@@ -96,6 +99,7 @@ mark_as_advanced(CLINGO_BUILD_WEB)
 mark_as_advanced(CLINGO_BUILD_STATIC)
 mark_as_advanced(CLINGO_BUILD_SHARED)
 mark_as_advanced(CLINGO_USE_LIB)
+mark_as_advanced(CLINGO_INSTALL_LIB)
 mark_as_advanced(PYCLINGO_INSTALL_DIR)
 mark_as_advanced(PYCLINGO_SUFFIX)
 mark_as_advanced(PYCLINGO_DYNAMIC_LOOKUP)
@@ -238,6 +242,9 @@ if (CLINGO_USE_LIB)
 else()
     set(clingo_library_targets libgringo libpotassco libclasp libreify)
     set(CLASP_USE_LOCAL_LIB_POTASSCO ON CACHE BOOL "" FORCE)
+    if (NOT CLINGO_BUILD_SHARED AND CLINGO_INSTALL_LIB)
+        set(CLASP_INSTALL_LIB ${CLINGO_INSTALL_LIB} CACHE BOOL "" FORCE)
+    endif()
     add_subdirectory(clasp)
     add_subdirectory(libreify)
     add_subdirectory(libgringo)

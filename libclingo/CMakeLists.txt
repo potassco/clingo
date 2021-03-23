@@ -70,7 +70,7 @@ if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
 endif()
 
-if (CLINGO_BUILD_SHARED AND NOT CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
+if ((CLINGO_BUILD_SHARED OR CLINGO_INSTALL_LIB) AND NOT CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
     set(clingo_targets libclingo)
     if (CLINGO_BUILD_SHARED)
         set_target_properties(libclingo PROPERTIES SOVERSION 4 VERSION 4.0)
