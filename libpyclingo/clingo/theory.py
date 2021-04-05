@@ -23,7 +23,7 @@ Example
 ...
 >>> ctl.ground([('base', [])])
 >>> thy.prepare(ctl)
->>> with ctl.solve(yield_=True) as hnd:
+>>> with ctl.solve(yield_=True, on_model=thy.on_model) as hnd:
 ...     for mdl in hnd:
 ...         print([f'{key}={val}' for key, val in thy.assignment(mdl.thread_id)])
 ...
@@ -192,7 +192,7 @@ class Theory:
         value
             The value of the option.
         '''
-        self.__call0('configure', key.encode(), value.encode())
+        self.__call0('configure', self._theory, key.encode(), value.encode())
 
     def register(self, control: Control) -> None:
         '''
