@@ -192,7 +192,7 @@ class Theory:
         value
             The value of the option.
         '''
-        self.__call0('configure', key.encode(), value.encode())
+        self.__call0('configure', self._theory, key.encode(), value.encode())
 
     def register(self, control: Control) -> None:
         '''
