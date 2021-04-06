@@ -86,7 +86,7 @@ EOF
             ;;
         put)
             VERSION="$(head -n 1 ${rep}/debian/changelog | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[a-z0-9]\+\)\?')"
-            dput ppa:potassco/${ref} clingo_${VERSION}_source.changes
+            dput ppa:potassco/${rep} clingo_${VERSION}_source.changes
             ;;
         clean)
             rm -rf \
