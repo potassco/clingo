@@ -2,29 +2,46 @@ name: Deploy ppa package (wip)
 
 on:
   workflow_dispatch:
+    wip:
+      description: 'Publish work in progress package.'
+      required: false
+      default: true
 
 jobs:
   build_packages:
     runs-on: ubuntu-latest
-    env:
-      distribution: ${{ matrix.distribution }}
+
     strategy:
       matrix:
         distribution: [focal, bionic]
+
+    env:
+      distribution: ${{ matrix.distribution }}
+
     steps:
     - name: Install prerequisites
       run: |
         sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dput dh-python
+
     - name: Checkout repo
       uses: actions/checkout@v2
       with:
         submodules: recursive
+
     - name: Setup gpg
       run: |
         echo "$POTASSCO_PPA_GPGKEY" | base64 --decode | gpg --batch --import
       env:
         POTASSCO_PPA_GPGKEY: ${{ secrets.POTASSCO_PPA_GPGKEY }}
-    - name: Build deb and source package
+
+    - name: Build deb and source package (wip)
+      if: ${{ github.event.inputs.wip }}
       run: |
         cd .github/ppa-wip
-        ./build.sh "$distribution" create sync changes build put
+        ./build.sh wip "$distribution" create sync changes build put
+
+    - name: Build deb and source package (release)
+      if: ${{ !github.event.inputs.wip }}
+      run: |
+        cd .github/ppa-wip
+        ./build.sh stable "$distribution" create sync changes build put
