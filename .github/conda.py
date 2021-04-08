@@ -34,10 +34,10 @@ def run():
     args = parser.parse_args()
     if args.release:
         label = None
-        channels = ['potassco', 'potassco/label/dev']
+        channels = ['potassco']
     else:
         label = "dev"
-        channels = ['potassco']
+        channels = ['potassco', 'potassco/label/dev']
 
     version = None
     with open('libclingo/clingo.h') as fh:
