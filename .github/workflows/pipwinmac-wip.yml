@@ -47,7 +47,7 @@ jobs:
 
 
     - name: Compile and upload wheels (wip)
-      if: not ${{ github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip }}
       run: python .github/pipwinmac.py
       env:
         TWINE_NON_INTERACTIVE: True
@@ -56,7 +56,7 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
     - name: Compile and upload wheels (release)
-      if: not ${{ !github.event.inputs.wip }}
+      if: ${{ !github.event.inputs.wip }}
       run: python .github/pipwinmac.py --release
       env:
         TWINE_NON_INTERACTIVE: True

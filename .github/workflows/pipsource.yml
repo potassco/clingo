@@ -27,11 +27,11 @@ jobs:
         submodules: recursive
 
     - name: Build source package (wip)
-      if: not ${{ github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip }}
       run: python3 .github/pipsource.py
 
     - name: Publish package to TestPyPI (wip)
-      if: not ${{ github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip }}
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
@@ -40,11 +40,11 @@ jobs:
         repository_url: https://test.pypi.org/legacy/
 
     - name: Build source package (release)
-      if: not ${{ !github.event.inputs.wip }}
+      if: ${{ !github.event.inputs.wip }}
       run: python3 .github/pipsource.py --release
 
     - name: Publish package to TestPyPI (release)
-      if: not ${{ !github.event.inputs.wip }}
+      if: ${{ !github.event.inputs.wip }}
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__

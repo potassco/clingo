@@ -60,7 +60,7 @@ jobs:
         python .github/conda.py
 
     - name: publish conda package (release)
-      if: not ${{ !github.event.inputs.wip }}
+      if: ${{ !github.event.inputs.wip }}
       shell: pwsh
       run: |
         python .github/conda.py --release

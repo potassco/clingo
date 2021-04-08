@@ -35,12 +35,12 @@ jobs:
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
     - name: Build wheels (wip)
-      if: not ${{ github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip }}
       run: |
         docker run --rm -e PLAT --workdir /github/workspace -v $GITHUB_WORKSPACE:/"/github/workspace" quay.io/pypa/${{ matrix.image }} /opt/python/cp38-cp38/bin/python ".github/manylinux.py"
 
     - name: Publish package to TestPyPI (wip)
-      if: not ${{ github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip }}
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
@@ -49,12 +49,12 @@ jobs:
         repository_url: https://test.pypi.org/legacy/
 
     - name: Build wheels (release)
-      if: not ${{ !github.event.inputs.wip }}
+      if: ${{ !github.event.inputs.wip }}
       run: |
         docker run --rm -e PLAT --workdir /github/workspace -v $GITHUB_WORKSPACE:/"/github/workspace" quay.io/pypa/${{ matrix.image }} /opt/python/cp38-cp38/bin/python ".github/manylinux.py" --release
 
     - name: Publish package to TestPyPI (release)
-      if: not ${{ !github.event.inputs.wip }}
+      if: ${{ !github.event.inputs.wip }}
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
