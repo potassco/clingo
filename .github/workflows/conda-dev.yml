@@ -58,12 +58,13 @@ jobs:
       shell: pwsh
       run: |
         python .github/conda.py
+      env:
+        ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
 
     - name: publish conda package (release)
       if: ${{ !github.event.inputs.wip }}
       shell: pwsh
       run: |
         python .github/conda.py --release
-
       env:
         ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
