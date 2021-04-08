@@ -1,7 +1,5 @@
 # do not edit the workflows, they are generated from this file
 pip:
-    package_name:
-        'clingo-cffi'
     pure: False
     version: |
         version = None

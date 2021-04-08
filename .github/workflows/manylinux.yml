@@ -2,35 +2,61 @@ name: Build manylinux wheels
 
 on:
   workflow_dispatch:
+    inputs:
+      wip:
+        description: 'Publish work in progress package.'
+        required: false
+        default: true
 
 jobs:
   build_packages:
     runs-on: ubuntu-latest
     env:
       PLAT: ${{ matrix.image }}
+
     strategy:
       matrix:
         image:
           - manylinux2014_x86_64
+
     steps:
     - name: Checkout repo
       uses: actions/checkout@v2
       with:
         submodules: recursive
+
     - name: Pull images
       run: |
         docker pull multiarch/qemu-user-static
         docker pull quay.io/pypa/${{ matrix.image }}:latest
+
     - name: Set up QEMU
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-    - name: Build wheels
+
+    - name: Build wheels (wip)
+      if: not ${{ github.event.inputs.wip }}
       run: |
         docker run --rm -e PLAT --workdir /github/workspace -v $GITHUB_WORKSPACE:/"/github/workspace" quay.io/pypa/${{ matrix.image }} /opt/python/cp38-cp38/bin/python ".github/manylinux.py"
-    - name: Publish package to TestPyPI
+
+    - name: Publish package to TestPyPI (wip)
+      if: not ${{ github.event.inputs.wip }}
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
         packages_dir: wheelhouse/
         repository_url: https://test.pypi.org/legacy/
+
+    - name: Build wheels (release)
+      if: not ${{ !github.event.inputs.wip }}
+      run: |
+        docker run --rm -e PLAT --workdir /github/workspace -v $GITHUB_WORKSPACE:/"/github/workspace" quay.io/pypa/${{ matrix.image }} /opt/python/cp38-cp38/bin/python ".github/manylinux.py" --release
+
+    - name: Publish package to TestPyPI (release)
+      if: not ${{ !github.event.inputs.wip }}
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN_RELEASE }}
+        packages_dir: wheelhouse/
