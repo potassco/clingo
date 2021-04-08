@@ -9,8 +9,7 @@ package:
   version: {{ version }}
 
 source:
-  git_rev: {{ revision }}
-  git_url: https://github.com/potassco/{{ name }}.git
+  path: ../..
 
 requirements:
   build:

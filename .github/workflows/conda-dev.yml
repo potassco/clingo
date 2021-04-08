@@ -34,13 +34,13 @@ jobs:
         python-version: ${{ matrix.python-version }}
         activate-environment: build
 
-    - name: install prerequisites
+    - name: Install prerequisites
       shell: pwsh
       run: |
         conda config --set anaconda_upload yes
         conda install conda-build anaconda-client
 
-    - name: install macos SDK
+    - name: Install macos SDK
       if: ${{ matrix.os == 'macos-latest' }}
       shell: pwsh
       run: |
