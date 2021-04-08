@@ -48,6 +48,6 @@ EOF
 
 sed -i '/^<script>$/{:a;N;/<\/script>$/!ba};/window\.location\.reload()/d' ./html/**/*(.)
 sed -i 's|href="/|href="https://www.cs.uni-potsdam.de/~kaminski/pyclingo-cffi/|g' ./html/**/*(.)
-rsync -av --delete ./html/ ouessant.haiti.cs.uni-potsdam.de:public_html/pyclingo-cffi/
+rsync -av --delete ./html/ chevaux.staff:public_html/pyclingo-cffi/
 
 
