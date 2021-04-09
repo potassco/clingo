@@ -1,3 +1,6 @@
+#include "../common/meta.lp".
+#include "../common/metaD.lp".
+
 cxopt(card).  cxopt(incl).  cxopt(pref).
 
 criteria(J,W,Q,A) :- output(_criteria(J,W,Q),A).
@@ -58,3 +61,11 @@ equal(J,W,pref) :- cxopt(J,W,pref), criteria(J,W,A), cando(J,W,A), nocon(A') : c
 
 worse(J)        :- cxopt(J,W,pref), nocon(J,W,A) : criteria(J,W,A).
 
+%%%%%%%%%% handling fo queries and optimization statements
+
+optimize(J,W,Q) :- output(_optimize(J,W,Q),B), conjunction(B).
+ :- output(_query,B), not conjunction(B).
+
+hide(_criteria(J,W,Q)) :- output(_criteria(J,W,Q),_).
+hide(_query)           :- output(_query,_).
+hide(_optimize(J,W,Q)) :- output(_optimize(J,W,Q),_).
