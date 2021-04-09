@@ -45,6 +45,7 @@ def run():
             m = match(r'#define CLINGO_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"', line)
             if m is not None:
                 version = m.group(1)
+    assert version is not None
     build_number = get_build_number(channels, version)
 
     build_env = os.environ.copy()

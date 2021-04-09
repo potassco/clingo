@@ -45,7 +45,6 @@ jobs:
         choco install re2c
         choco install winflexbison3
 
-
     - name: Compile and upload wheels (wip)
       if: ${{ github.event.inputs.wip }}
       run: python .github/pipwinmac.py

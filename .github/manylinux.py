@@ -49,14 +49,18 @@ def adjust_version(url):
             fw.write(sub('version( *)=.*', 'version = \'{}\','.format(version), setup, 1))
 
 
-def compile_wheels():
+def compile_wheels(idx):
     '''
     Compile binary wheels for different python versions.
     '''
     for pybin in glob('/opt/python/*/bin'):
         # Requires Py3.6 or greater - on the docker image 3.5 is cp35-cp35m
         if "35" not in pybin:
-            check_call([path.join(pybin, 'pip'), 'wheel', './', '--no-deps', '-w', 'wheelhouse/'])
+            args = [path.join(pybin, 'pip'), 'wheel', '--no-deps', '-w', 'wheelhouse/']
+            if idx is not None:
+                args.extend(['--extra-index-url', idx])
+            args.extend(['./'])
+            check_call(args)
 
 
 def repair_wheels():
@@ -81,8 +85,10 @@ def run():
     if args.release:
         rename_clingo_cffi()
         url = 'https://pypi.org/simple'
+        idx = None
     else:
         url = 'https://test.pypi.org/simple'
+        idx = 'https://test.pypi.org/simple/'
 
     adjust_version(url)
 
@@ -95,7 +101,7 @@ def run():
     else:
         check_call(['yum', 'install', '-y', 're2c', 'bison'])
 
-    compile_wheels()
+    compile_wheels(idx)
 
     repair_wheels()
 

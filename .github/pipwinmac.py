@@ -70,15 +70,21 @@ def run():
     if args.release:
         rename_clingo_cffi()
         url = 'https://pypi.org/simple'
+        idx = None
     else:
         url = 'https://test.pypi.org/simple'
+        idx = 'https://test.pypi.org/simple'
 
     adjust_version(url)
 
     if os.name == 'posix':
         environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + environ["PATH"]
         environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
-    check_call(['python', 'setup.py', 'bdist_wheel'])
+    args = ['pip', 'wheel', '--no-deps']
+    if idx is not None:
+        args.extend(['--extra-index-url', idx])
+    args.extend(['./'])
+    check_call(args)
 
     for wheel in glob('dist/*.whl'):
         check_call(['python', '-m', 'twine', 'upload', wheel])
