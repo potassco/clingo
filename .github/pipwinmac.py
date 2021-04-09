@@ -80,7 +80,7 @@ def run():
     if os.name == 'posix':
         environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + environ["PATH"]
         environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
-    args = ['pip', 'wheel', '--no-deps']
+    args = ['pip', 'wheel', '-v', '--no-deps']
     if idx is not None:
         args.extend(['--extra-index-url', idx])
     args.extend(['./'])
