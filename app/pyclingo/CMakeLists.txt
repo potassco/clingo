@@ -31,7 +31,14 @@ if (PYCLINGO_SUFFIX STREQUAL "")
     endif()
 endif()
 
-add_library(pyclingo MODULE ${source})
+# Note: For the pip package, we actually not just want to load this library but
+# also link agaist it. This is mainly for Windows to ensure that the import
+# library is installed.
+if (CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
+    add_library(pyclingo SHARED ${source})
+else()
+    add_library(pyclingo MODULE ${source})
+endif()
 target_link_libraries(pyclingo PRIVATE libclingo Python::Module)
 # NOTE: It would be really nice to enable the limited API for the pip packages
 # to avoid having to build Python-specific wheels. Unfortunately, this fails to
