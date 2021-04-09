@@ -1,7 +1,5 @@
 # do not edit the workflows, they are generated from this file
 pip:
-    package_name:
-        'clingo-cffi'
     pure: False
     version: |
         version = None
@@ -49,7 +47,9 @@ conda:
         - 'windows-2016'
     macosx-sdk:
       'MacOSX10.9.sdk.tar.xz'
-    channels:
+    channels_release:
+      - 'potassco'
+    channels_dev:
       - 'potassco'
       - 'potassco/label/dev'
     version: |

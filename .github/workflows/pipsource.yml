@@ -2,10 +2,16 @@ name: Deploy pip source package (wip)
 
 on:
   workflow_dispatch:
+    inputs:
+      wip:
+        description: 'Publish work in progress package.'
+        required: false
+        default: true
 
 jobs:
   build_packages:
     runs-on: ubuntu-latest
+
     steps:
     - name: Install prerequisites
       run: |
@@ -14,16 +20,33 @@ jobs:
         python3 -m pip install --user --upgrade setuptools wheel
         sudo apt-get install bison re2c gcc g++ cmake ninja-build
         python3 -m pip install --user --upgrade scikit-build
+
     - name: Checkout repo
       uses: actions/checkout@v2
       with:
         submodules: recursive
-    - name: Build source package
+
+    - name: Build source package (wip)
+      if: ${{ github.event.inputs.wip }}
       run: python3 .github/pipsource.py
-    - name: Publish package to TestPyPI
+
+    - name: Publish package to TestPyPI (wip)
+      if: ${{ github.event.inputs.wip }}
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
         packages_dir: dist/
         repository_url: https://test.pypi.org/legacy/
+
+    - name: Build source package (release)
+      if: ${{ !github.event.inputs.wip }}
+      run: python3 .github/pipsource.py --release
+
+    - name: Publish package to TestPyPI (release)
+      if: ${{ !github.event.inputs.wip }}
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN_RELEASE }}
+        packages_dir: dist/

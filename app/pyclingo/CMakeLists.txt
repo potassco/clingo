@@ -31,7 +31,14 @@ if (PYCLINGO_SUFFIX STREQUAL "")
     endif()
 endif()
 
-add_library(pyclingo MODULE ${source})
+# Note: For the pip package, we actually not just want to load this library but
+# also link agaist it. This is mainly for Windows to ensure that the import
+# library is installed.
+if (CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
+    add_library(pyclingo SHARED ${source})
+else()
+    add_library(pyclingo MODULE ${source})
+endif()
 target_link_libraries(pyclingo PRIVATE libclingo Python::Module)
 # NOTE: It would be really nice to enable the limited API for the pip packages
 # to avoid having to build Python-specific wheels. Unfortunately, this fails to
@@ -63,7 +70,7 @@ if (PYCLINGO_INSTALL_DIR)
         RUNTIME DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
         LIBRARY DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo
         ARCHIVE DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo)
-    if (CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
+    if (NOT CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
         file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/INSTALLER "pip\n")
         file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/METADATA "Metadata-Version: 1.1\nName: clingo\nVersion: ${CLINGO_VERSION}\n")
         install(FILES
@@ -77,10 +84,12 @@ if (PYCLINGO_INSTALL_DIR)
         PATTERN "*.py"
         PATTERN "*.typed"
         PATTERN "tests" EXCLUDE)
-    install(FILES
-        ${CMAKE_SOURCE_DIR}/libclingo/clingo.h
-        ${CMAKE_SOURCE_DIR}/libclingo/clingo.hh
-        DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo)
+    if (CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
+        install(FILES
+            ${CMAKE_SOURCE_DIR}/libclingo/clingo.h
+            ${CMAKE_SOURCE_DIR}/libclingo/clingo.hh
+            DESTINATION ${_PYCLINGO_INSTALL_DIR}/clingo)
+    endif()
 endif()
 
 if (Python_EXECUTABLE AND CLINGO_BUILD_TESTS)
