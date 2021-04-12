@@ -78,7 +78,7 @@ def run():
     adjust_version(url)
 
     if os.name == 'posix':
-        environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + environ["PATH"]
+        environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + '/usr/local/opt/bison@2.7/bin' + pathsep + environ["PATH"]
         environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
     args = ['pip', 'wheel', '-v', '--no-deps', '-w', 'dist']
     if idx is not None:

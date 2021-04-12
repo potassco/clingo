@@ -31,8 +31,9 @@ pip:
     winmac_images:
         macos-10.15:
             depends: |
+                brew update
                 brew install re2c
-                brew install bison
+                brew install bison@2.7
         windows-2016:
             depends: |
                 choco install re2c
