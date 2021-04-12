@@ -1419,6 +1419,18 @@ TEST_CASE("output-lparse", "[output]") {
                 "c(X) :- a(X).\n"
                 ":- #count {A,B: a(A),  b(A),  c(A), a(B), b(B), c(B) } >= 2.\n", {"a("})));
     }
+    SECTION("bugEmptyAggr") {
+        REQUIRE(
+            "([[a(1),a(3),a(4),a(6)]],[])" ==
+            IO::to_string(solve(
+                "a(1) :- #count { }.\n"
+                "a(2) :- not #count { }.\n"
+                "a(3) :- not not #count { }.\n"
+                "a(4) :- { }.\n"
+                "a(5) :- not { }.\n"
+                "a(6) :- not not { }.\n"
+                , {"a("})));
+    }
 }
 
 } } } // namespace Test Output Gringo

@@ -221,6 +221,12 @@ bool TupleBodyAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
         aggr.emplace_back(make_locatable<TupleBodyAggregate>(loc(), naf, removedAssignment, translated, fun, std::move(bound), get_clone(elems)));
     }
     if (skip) { bounds.emplace_back(std::move(assign.back())); }
+    if (bounds.empty() && naf == NAF::NOT) {
+        aggr.emplace_back(gringo_make_unique<SimpleBodyLiteral>(make_locatable<RelationLiteral>(
+            loc(), Relation::NEQ,
+            make_locatable<ValTerm>(loc(), Symbol::createNum(0)),
+            make_locatable<ValTerm>(loc(), Symbol::createNum(0)))));
+    }
     return !bounds.empty();
 }
 
