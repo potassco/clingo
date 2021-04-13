@@ -204,7 +204,7 @@ class Application(metaclass=ABCMeta):
         '''
         Function to intercept messages normally printed to standard error.
 
-        By default, messages are printed to stdandard error.
+        By default, messages are printed to standard error.
 
         Parameters
         ----------
