@@ -82,6 +82,18 @@ class Symbol:
     def __str__(self) -> str:
         return _str(_lib.clingo_symbol_to_string_size, _lib.clingo_symbol_to_string, self._rep)
 
+    def __repr__(self) -> str:
+        if self.type == SymbolType.Infimum:
+            return 'Infimum'
+        if self.type == SymbolType.Supremum:
+            return 'Supremum'
+        if self.type == SymbolType.Number:
+            return f'Number({self.number!r})'
+        if self.type == SymbolType.String:
+            return f'String({self.string!r})'
+        assert self.type == SymbolType.Function
+        return f'Function({self.name!r}, {self.arguments!r}, {self.positive!r})'
+
     def __hash__(self) -> int:
         return _lib.clingo_symbol_hash(self._rep)
 
