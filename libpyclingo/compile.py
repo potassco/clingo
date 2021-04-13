@@ -189,8 +189,7 @@ def generate_c(action):
     # ast callbacks
     cnt.append('extern "Python" bool pyclingo_ast_callback(clingo_ast_t const *, void *);')
 
-    code = "void pyclingo_finalize() { }\n"
-
+    code = ''
 
     if action == "embed":
         ffi.embedding_api('''\
@@ -255,7 +254,7 @@ def pyclingo_main_(ctl, data):
     return True
 """)
 
-    code = '''\
+        code = '''\
 #ifdef CFFI_DLLEXPORT
 #undef CFFI_DLLEXPORT
 #define CFFI_DLLEXPORT

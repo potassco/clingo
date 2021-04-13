@@ -567,20 +567,6 @@ static void (*_cffi_call_python_org)(struct _cffi_externpy_s *, char *);
 /************************************************************/
 
 #include <clingo.h>
-#ifdef CFFI_DLLEXPORT
-#undef CFFI_DLLEXPORT
-#define CFFI_DLLEXPORT
-#endif
-#ifdef PYPY_VERSION
-void pyclingo_finalize() { }
-#else
-void pyclingo_finalize() {
-    if (Py_IsInitialized()) {
-        PyGILState_Ensure();
-        Py_Finalize();
-    }
-}
-#endif
 
 
 
