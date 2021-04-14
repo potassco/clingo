@@ -50,6 +50,8 @@ from clingo.ast import Location, _py_location
 
 import __main__ # type: ignore
 
+__all__ = [ 'Script', 'enable_python', 'register_script' ]
+
 def _cb_error_top_level(exception, exc_value, traceback):
     msg = "".join(format_exception(exception, exc_value, traceback))
     _lib.clingo_set_error(_lib.clingo_error_runtime, msg.encode())
