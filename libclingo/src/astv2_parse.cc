@@ -446,21 +446,24 @@ private:
     LitUid parseLiteral(AST const &ast) {
         switch (ast.type()) {
             case clingo_ast_type_literal: {
+                auto loc = get<Location>(ast, clingo_ast_attribute_location);
                 auto sign = parseSign(get<int>(ast, clingo_ast_attribute_sign));
                 auto const &atom = *get<SAST>(ast, clingo_ast_attribute_atom);
 
                 switch (atom.type()) {
                     case clingo_ast_type_boolean_constant: {
-                        return prg_.boollit(get<Location>(ast, clingo_ast_attribute_location), get<int>(atom, clingo_ast_attribute_value) != 0);
+                        int cmp = sign == NAF::NOT ? 1 : 0;
+                        return prg_.boollit(loc,
+                                            get<int>(atom, clingo_ast_attribute_value) != cmp);
                     }
                     case clingo_ast_type_symbolic_atom: {
-                        return prg_.predlit(get<Location>(ast, clingo_ast_attribute_location),
-                                            parseSign(get<int>(ast, clingo_ast_attribute_sign)),
+                        return prg_.predlit(loc,
+                                            sign,
                                             parseAtom(*get<SAST>(ast, clingo_ast_attribute_atom)));
                     }
                     case clingo_ast_type_comparison: {
                         auto rel = parseRelation(get<int>(atom, clingo_ast_attribute_comparison));
-                        return prg_.rellit(get<Location>(ast, clingo_ast_attribute_location),
+                        return prg_.rellit(loc,
                                            sign != NAF::NOT ? rel : neg(rel),
                                            parseTerm(*get<SAST>(atom, clingo_ast_attribute_left)),
                                            parseTerm(*get<SAST>(atom, clingo_ast_attribute_right)));
