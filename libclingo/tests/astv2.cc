@@ -130,7 +130,9 @@ TEST_CASE("parse-ast-v2", "[clingo]") {
         REQUIRE(parse("#show $a : b.") == "#show $a : b.");
         REQUIRE(parse("#show $a : b.") == "#show $a : b.");
         REQUIRE(parse("#minimize{ 1:b }.") == ":~ b. [1@0]");
-        REQUIRE(parse("#script (python) 42 #end.") == "#script (python) 42 #end.");
+        REQUIRE(parse("#script (python)\n42\n  #end.") == "#script (python)\n42\n#end.");
+        REQUIRE(parse("#script (lua) \n42\n #end.") == "#script (lua)\n42\n#end.");
+        REQUIRE(parse("#script (other)  \n42\n#end.") == "#script (other)\n42\n#end.");
         REQUIRE(parse("#program p(k).") == "#program p(k).");
         REQUIRE(parse("#external p(k).") == "#external p(k). [false]");
         REQUIRE(parse("#external p(k). [true]") == "#external p(k). [true]");

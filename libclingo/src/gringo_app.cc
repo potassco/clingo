@@ -22,7 +22,6 @@
 
 // }}}
 
-#include <clingo/script.h>
 #include <clingo/incmode.hh>
 #include <clingo/control.hh>
 #include <clingo/astv2.hh>
@@ -390,8 +389,8 @@ struct GringoApp : public Potassco::Application {
     }
 
     virtual void printVersion() {
-        char const *py_version = clingo_script_version_(clingo_ast_script_type_python);
-        char const *lua_version = clingo_script_version_(clingo_ast_script_type_lua);
+        char const *py_version = clingo_script_version("python");
+        char const *lua_version = clingo_script_version("lua");
         Potassco::Application::printVersion();
         printf("\n");
         printf("libgringo version " CLINGO_VERSION "\n");

@@ -85,13 +85,9 @@ public:
                                      parseBodyLiteralVec(get<AST::ASTVec>(ast, clingo_ast_attribute_body)));
             }
             case clingo_ast_type_script: {
-                switch (get<int>(ast, clingo_ast_attribute_script_type)) {
-                    case clingo_ast_script_type_python: { return prg_.python(get<Location>(ast, clingo_ast_attribute_location),
-                                                                             get<String>(ast, clingo_ast_attribute_code)); }
-                    case clingo_ast_script_type_lua:    { return prg_.lua(get<Location>(ast, clingo_ast_attribute_location),
-                                                                          get<String>(ast, clingo_ast_attribute_code)); }
-                }
-                break;
+                return prg_.script(get<Location>(ast, clingo_ast_attribute_location),
+                                   get<String>(ast, clingo_ast_attribute_name),
+                                   get<String>(ast, clingo_ast_attribute_code));
             }
             case clingo_ast_type_program: {
                 return prg_.block(get<Location>(ast, clingo_ast_attribute_location),

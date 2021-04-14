@@ -125,8 +125,7 @@ public:
     virtual void showsig(Location const &loc, Sig sig, bool csp) override;
     virtual void defined(Location const &loc, Sig sig) override;
     virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
-    virtual void python(Location const &loc, String code) override;
-    virtual void lua(Location const &loc, String code) override;
+    virtual void script(Location const &loc, String type, String code) override;
     virtual void block(Location const &loc, String name, IdVecUid args) override;
     virtual void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) override;
     virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
@@ -639,15 +638,11 @@ void TestNongroundProgramBuilder::show(Location const &, TermUid t, BdLitVecUid 
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::python(Location const &, String code) {
-    current_ << code << ".";
+void TestNongroundProgramBuilder::script(Location const &, String type, String code) {
+    current_ << "#script(" << type << ")\n" << code << "\n#end.";
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::lua(Location const &, String code) {
-    current_ << code << ".";
-    statements_.emplace_back(str());
-}
 void TestNongroundProgramBuilder::block(Location const &, String name, IdVecUid args) {
     current_ << "#program " << name << "(";
     print(idvecs_.erase(args), ",");

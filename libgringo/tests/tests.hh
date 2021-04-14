@@ -314,7 +314,7 @@ struct TestGringoModule {
 struct TestContext : Context {
     bool callable(String) override { return false; }
     SymVec call(Location const &, String, SymSpan, Logger &) override { throw std::runtime_error("not implemented"); }
-    void exec(ScriptType, Location, String) override { throw std::runtime_error("not implemented"); }
+    void exec(String type, Location, String) override { throw std::runtime_error("not implemented"); }
 };
 
 inline std::ostream &operator<<(std::ostream &out, TestGringoModule const &mod) {

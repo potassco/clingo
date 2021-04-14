@@ -3961,7 +3961,7 @@ extern "C" bool clingo_register_lua_(lua_State *L) {
         return strncmp("Lua ", str, 4) == 0 ? str + 4 : str;
     };
     try {
-        clingo_script_t_ script = {
+        clingo_script_t script = {
             LuaScriptC::execute,
             LuaScriptC::call,
             LuaScriptC::callable,
@@ -3969,7 +3969,7 @@ extern "C" bool clingo_register_lua_(lua_State *L) {
             LuaScriptC::free,
             strip_lua(LUA_RELEASE),
         };
-        return clingo_register_script_(clingo_ast_script_type_lua, &script, new LuaScriptC(L));
+        return clingo_register_script("lua", &script, new LuaScriptC(L));
     }
     catch (...) {
         clingo_set_error(clingo_error_runtime, "could not initialize lua interpreter");

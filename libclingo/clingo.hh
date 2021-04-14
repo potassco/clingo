@@ -1712,11 +1712,6 @@ enum class TheoryAtomDefinitionType {
     Directive = clingo_ast_theory_atom_definition_type_directive,
 };
 
-enum class ScriptType {
-    Lua = clingo_ast_script_type_lua,
-    Python = clingo_ast_script_type_python,
-};
-
 enum class Type {
     // terms
     Id = clingo_ast_type_id,
@@ -1817,7 +1812,6 @@ enum class Attribute {
     Priority = clingo_ast_attribute_priority,
     Right = clingo_ast_attribute_right,
     RightGuard = clingo_ast_attribute_right_guard,
-    ScriptType = clingo_ast_attribute_script_type,
     SequenceType = clingo_ast_attribute_sequence_type,
     Sign = clingo_ast_attribute_sign,
     Symbol = clingo_ast_attribute_symbol,

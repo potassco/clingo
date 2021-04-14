@@ -320,8 +320,9 @@ class Control:
         '''
         # pylint: disable=protected-access,dangerous-default-value
         self._error.clear()
-        handler = _CBData(context, self._error)
-        c_handler = _ffi.new_handle(handler)
+        data = _CBData(context, self._error)
+        c_data = _ffi.new_handle(data) if context else _ffi.NULL
+        c_cb = _lib.pyclingo_ground_callback if context else _ffi.NULL
 
         c_mem = []
         c_parts = _ffi.new("clingo_part_t[]", len(parts))
@@ -335,7 +336,7 @@ class Control:
             c_part.size = len(part[1])
 
         _handle_error(_lib.clingo_control_ground(
-            self._rep, c_parts, len(parts), _lib.pyclingo_ground_callback, c_handler), handler)
+            self._rep, c_parts, len(parts), c_cb, c_data), data)
 
     def interrupt(self) -> None:
         '''

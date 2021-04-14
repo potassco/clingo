@@ -2414,14 +2414,6 @@ enum clingo_ast_theory_atom_definition_type_e {
 //! Corresponding type to ::clingo_ast_theory_atom_definition_type.
 typedef int clingo_ast_theory_atom_definition_type_t;
 
-//! Enumeration of script types.
-enum clingo_ast_script_type_e {
-    clingo_ast_script_type_lua    = 0, //!< For Lua scripts.
-    clingo_ast_script_type_python = 1  //!< For Python scripts.
-};
-//! Corresponding type to ::clingo_ast_script_type.
-typedef int clingo_ast_script_type_t;
-
 //! Enumeration of AST types.
 enum clingo_ast_type_e {
     // terms
@@ -2540,7 +2532,6 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_priority,
     clingo_ast_attribute_right,
     clingo_ast_attribute_right_guard,
-    clingo_ast_attribute_script_type,
     clingo_ast_attribute_sequence_type,
     clingo_ast_attribute_sign,
     clingo_ast_attribute_symbol,
@@ -3817,6 +3808,54 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_options_add_flag(clingo_options_t *options
 //! @param[in] data user data to pass to callbacks in application
 //! @return exit code to return from main function
 CLINGO_VISIBILITY_DEFAULT int clingo_main(clingo_application_t *application, char const *const * arguments, size_t size, void *data);
+
+//! Custom scripting language to run functions during grounding.
+typedef struct clingo_script {
+    //! Evaluate the given source code.
+    //! @param[in] location the location in the logic program of the source code
+    //! @param[in] code the code to evaluate
+    //! @param[in] data user data as given when registering the script
+    //! @return whether the function call was successful
+    bool (*execute) (clingo_location_t const *location, char const *code, void *data);
+    //! Call the function with the given name and arguments.
+    //! @param[in] location the location in the logic program of the function call
+    //! @param[in] name the name of the function
+    //! @param[in] arguments the arguments to the function
+    //! @param[in] arguments_size the number of arguments
+    //! @param[in] symbol_callback callback to return a pool of symbols
+    //! @param[in] symbol_callback_data user data for the symbol callback
+    //! @param[in] data user data as given when registering the script
+    //! @return whether the function call was successful
+    bool (*call) (clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data);
+    //! Check if the given function is callable.
+    //! @param[in] name the name of the function
+    //! @param[out] result whether the function is callable
+    //! @param[in] data user data as given when registering the script
+    //! @return whether the function call was successful
+    bool (*callable) (char const * name, bool *result, void *data);
+    //! Run the main function.
+    //! @param[in] control the control object to pass to the main function
+    //! @param[in] data user data as given when registering the script
+    //! @return whether the function call was successful
+    bool (*main) (clingo_control_t *control, void *data);
+    //! This function is called once when the script is deleted.
+    //! @param[in] data user data as given when registering the script
+    void (*free) (void *data);
+    char const *version;
+} clingo_script_t;
+
+//! Add a custom scripting language to clingo.
+//!
+//! @param[in] name the name of the scripting language
+//! @param[in] script struct with functions implementing the language
+//! @param[in] data user data to pass to callbacks in the script
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_register_script(char const *name, clingo_script_t const *script, void *data);
+//! Get the version of the registered scripting language.
+//!
+//! @param[in] name the name of the scripting language
+//! @return the version
+CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version(char const *name);
 
 //! @}
 

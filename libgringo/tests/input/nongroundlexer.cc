@@ -44,6 +44,7 @@ TEST_CASE("input-nongroundlexer", "[input]") {
     NongroundProgramBuilder pb(context, prg, out, defs);
     bool incmode;
     NonGroundParser ngp(pb, incmode);
+    ngp.parse(module); // Just to set the logger
     std::string in =
         "#script (python) #end "
         "%*xyz\nxyz\n*%"
@@ -70,7 +71,12 @@ TEST_CASE("input-nongroundlexer", "[input]") {
     Location loc("<undef>", 0, 0, "<undef>", 0, 0);
     NonGroundGrammar::parser::semantic_type val;
 
-    REQUIRE(int(NonGroundGrammar::parser::token::PYTHON) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::PARSE_LP) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::SCRIPT) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::LPAREN) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::IDENTIFIER) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::RPAREN) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::CODE) == ngp.lex(&val, loc));
     REQUIRE(int(NonGroundGrammar::parser::token::MINIMIZE) == ngp.lex(&val, loc));
     REQUIRE(int(NonGroundGrammar::parser::token::MINIMIZE) == ngp.lex(&val, loc));
     REQUIRE(int(NonGroundGrammar::parser::token::INFIMUM) == ngp.lex(&val, loc));

@@ -310,8 +310,8 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 %token <str>
     ANONYMOUS  "<ANONYMOUS>"
     IDENTIFIER "<IDENTIFIER>"
-    PYTHON     "<PYTHON>"
-    LUA        "<LUA>"
+    SCRIPT     "<SCRIPT>"
+    CODE       "<CODE>"
     STRING     "<STRING>"
     VARIABLE   "<VARIABLE>"
     THEORY_OP  "<THEORYOP>"
@@ -844,8 +844,7 @@ statement
 // {{{2 scripts
 
 statement
-    : PYTHON[code] DOT { BUILDER.python(@$, String::fromRep($code)); }
-    | LUA[code]    DOT { BUILDER.lua(@$, String::fromRep($code)); }
+    : SCRIPT LPAREN IDENTIFIER[type] RPAREN CODE[code] DOT { BUILDER.script(@$, String::fromRep($type), String::fromRep($code)); }
     ;
 
 // {{{2 include

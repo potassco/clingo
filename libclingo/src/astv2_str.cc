@@ -678,20 +678,8 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         }
         case clingo_ast_type_script: {
             auto s = get<String>(ast, clingo_ast_attribute_code);
-            auto t = get_enum<clingo_ast_script_type_e>(ast, clingo_ast_attribute_script_type);
-            if (t == clingo_ast_script_type_lua) {
-                out << "#script(lua)";
-            }
-            for (auto const *it = s.c_str(); *it != '\0'; ++it) {
-                if (*it == '\n' && *(it + 1) == 0) {
-                    break;
-                }
-                out << *it;
-            }
-            if (t == clingo_ast_script_type_lua) {
-                out << "#end";
-            }
-            out << ".";
+            auto t = get<String>(ast, clingo_ast_attribute_name);
+            out << "#script (" << t << ")" << s << "#end.";
             break;
         }
         case clingo_ast_type_program: {

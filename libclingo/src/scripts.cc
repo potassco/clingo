@@ -60,14 +60,14 @@ SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log
     return {};
 }
 
-void Scripts::registerScript(clingo_ast_script_type_e type, UScript script) {
+void Scripts::registerScript(String type, UScript script) {
     if (script) { scripts_.emplace_back(type, false, std::move(script)); }
 }
 
-void Scripts::exec(ScriptType type, Location loc, String code) {
+void Scripts::exec(String type, Location loc, String code) {
     bool notfound = true;
     for (auto &&script : scripts_) {
-        if (std::get<0>(script) == static_cast<clingo_ast_script_type_t>(type)) {
+        if (std::get<0>(script) == type) {
             std::get<1>(script) = true;
             std::get<2>(script)->exec(type, loc, code);
             notfound = false;
@@ -75,17 +75,12 @@ void Scripts::exec(ScriptType type, Location loc, String code) {
     }
     if (notfound) {
         std::ostringstream oss;
-        oss << loc << ": error: ";
-        switch (type) {
-            case ScriptType::Python: { oss << "python"; break; }
-            case ScriptType::Lua:    { oss << "lua"; break; }
-        }
-        oss << " support not available\n";
+        oss << loc << ": error: " << type << " support not available\n";
         throw GringoError(oss.str().c_str());
     }
 }
 
-char const *Scripts::version(clingo_ast_script_type_e type) {
+char const *Scripts::version(String type) {
     for (auto &&script : scripts_) {
         if (std::get<0>(script) == type) {
             return std::get<2>(script)->version();
