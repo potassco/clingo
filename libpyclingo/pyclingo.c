@@ -33,13 +33,13 @@ void pyclingo_free_(void *data) {
 }
 
 bool clingo_register_python_() {
-    clingo_script_t_ script = {
-        pyclingo_execute_,
-        pyclingo_call_,
-        pyclingo_callable_,
-        pyclingo_main_,
+    clingo_script_t script = {
+        pyclingo_execute,
+        pyclingo_call,
+        pyclingo_callable,
+        pyclingo_main,
         pyclingo_free_,
         PYCLINGO_PYTHON_VERSION
     };
-    return clingo_register_script_(clingo_ast_script_type_python, &script, NULL);
+    return clingo_register_script("python", &script, NULL);
 }

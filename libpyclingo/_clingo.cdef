@@ -392,11 +392,6 @@ clingo_ast_theory_atom_definition_type_any       = 2, //!< For theory atoms that
 clingo_ast_theory_atom_definition_type_directive = 3  //!< For theory atoms that must not have a body.
 };
 typedef int clingo_ast_theory_atom_definition_type_t;
-enum clingo_ast_script_type_e {
-clingo_ast_script_type_lua    = 0, //!< For Lua scripts.
-clingo_ast_script_type_python = 1  //!< For Python scripts.
-};
-typedef int clingo_ast_script_type_t;
 enum clingo_ast_type_e {
 clingo_ast_type_id,
 clingo_ast_type_variable,
@@ -500,7 +495,6 @@ clingo_ast_attribute_positive,
 clingo_ast_attribute_priority,
 clingo_ast_attribute_right,
 clingo_ast_attribute_right_guard,
-clingo_ast_attribute_script_type,
 clingo_ast_attribute_sequence_type,
 clingo_ast_attribute_sign,
 clingo_ast_attribute_symbol,
@@ -652,6 +646,16 @@ bool (*validate_options)(void *data);                            //!< callback v
 bool clingo_options_add(clingo_options_t *options, char const *group, char const *option, char const *description, bool (*parse) (char const *value, void *data), void *data, bool multi, char const *argument);
 bool clingo_options_add_flag(clingo_options_t *options, char const *group, char const *option, char const *description, bool *target);
 int clingo_main(clingo_application_t *application, char const *const * arguments, size_t size, void *data);
+typedef struct clingo_script {
+bool (*execute) (clingo_location_t const *location, char const *code, void *data);
+bool (*call) (clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data);
+bool (*callable) (char const * name, bool *result, void *data);
+bool (*main) (clingo_control_t *control, void *data);
+void (*free) (void *data);
+char const *version;
+} clingo_script_t;
+bool clingo_register_script(char const *name, clingo_script_t const *script, void *data);
+char const *clingo_script_version(char const *name);
 extern "Python" bool pyclingo_solve_event_callback(clingo_solve_event_type_t type, void *event, void *data, bool *goon);
 extern "Python" void pyclingo_logger_callback(clingo_warning_t code, char const *message, void *data);
 extern "Python" bool pyclingo_ground_callback(clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data);
@@ -690,3 +694,11 @@ extern "Python" bool pyclingo_application_register_options(clingo_options_t *opt
 extern "Python" bool pyclingo_application_validate_options(void *data);
 extern "Python" bool pyclingo_application_options_parse(char const *value, void *data);
 extern "Python" bool pyclingo_ast_callback(clingo_ast_t const *, void *);
+extern "Python" bool pyclingo_script_execute(clingo_location_t *loc, char const *code, void *data);
+extern "Python" bool pyclingo_script_call(clingo_location_t *loc, char const *name, void *arguments, size_t size, void *symbol_callback, void *symbol_callback_data, void *data);
+extern "Python" bool pyclingo_script_callable(char const * name, bool *ret, void *data);
+extern "Python" bool pyclingo_script_main(clingo_control_t *ctl, void *data);
+extern "Python" bool pyclingo_execute(void *loc, char const *code, void *data);
+extern "Python" bool pyclingo_call(void *loc, char const *name, void *arguments, size_t size, void *symbol_callback, void *symbol_callback_data, void *data);
+extern "Python" bool pyclingo_callable(char const * name, bool *ret, void *data);
+extern "Python" bool pyclingo_main(void *ctl, void *data);

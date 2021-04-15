@@ -31,7 +31,6 @@
 #include <clasp/weight_constraint.h>
 #include "clingo.h"
 #include <csignal>
-#include <clingo/script.h>
 #include <clingo/incmode.hh>
 
 namespace Gringo {

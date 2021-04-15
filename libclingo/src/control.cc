@@ -31,7 +31,6 @@
 
 #include <clingo/clingo_app.hh>
 #include <clingo/clingocontrol.hh>
-#include <clingo/script.h>
 #include <gringo/input/groundtermparser.hh>
 #include <gringo/input/programbuilder.hh>
 #include <gringo/input/nongroundparser.hh>
@@ -1242,7 +1241,7 @@ C(definition) { A(location, location), A(name, string), A(value, ast), A(is_defa
 C(show_signature) { A(location, location), A(name, string), A(arity, number), A(positive, number), A(csp, number) };
 C(show_term) { A(location, location), A(term, ast), A(body, ast_array), A(csp, number) };
 C(minimize) { A(location, location), A(weight, ast), A(priority, ast), A(terms, ast_array), A(body, ast_array) };
-C(script) { A(location, location), A(script_type, number), A(code, string) };
+C(script) { A(location, location), A(name, string), A(code, string) };
 C(program) { A(location, location), A(name, string), A(parameters, ast_array) };
 C(external) { A(location, location), A(atom, ast), A(body, ast_array), A(external_type, ast) };
 C(edge) { A(location, location), A(node_u, ast), A(node_v, ast), A(body, ast_array) };
@@ -1356,7 +1355,6 @@ char const * attribute_list[] = {
     "priority",
     "right",
     "right_guard",
-    "script_type",
     "sequence_type",
     "sign",
     "symbol",
@@ -1788,7 +1786,7 @@ struct ClingoContext : Context {
         if (!ret) { throw ClingoError(); }
         return std::move(this->ret);
     }
-    void exec(ScriptType, Location, String) override {
+    void exec(String, Location, String) override {
         throw std::logic_error("Context::exec: not supported");
     }
     ~ClingoContext() noexcept = default;
@@ -2112,12 +2110,12 @@ namespace {
 
 class CScript : public Script {
 public:
-    CScript(clingo_script_t_ script, void *data) : script_(script), data_(data) { }
+    CScript(clingo_script_t script, void *data) : script_(script), data_(data) { }
     ~CScript() noexcept override {
         if (script_.free) { script_.free(data_); }
     }
 private:
-    void exec(ScriptType, Location loc, String code) override {
+    void exec(String, Location loc, String code) override {
         if (script_.execute) {
             auto l = conv(loc);
             forwardCError(script_.execute(&l, code.c_str(), data_));
@@ -2153,19 +2151,19 @@ private:
         return script_.version;
     }
 private:
-    clingo_script_t_ script_;
+    clingo_script_t script_;
     void *data_;
 };
 
 } // namespace
 
-extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_register_script_(clingo_ast_script_type_t type, clingo_script_t_ const *script, void *data) {
-    GRINGO_CLINGO_TRY { g_scripts().registerScript(static_cast<clingo_ast_script_type_e>(type), gringo_make_unique<CScript>(*script, data)); }
+extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_register_script(char const *type, clingo_script_t const *script, void *data) {
+    GRINGO_CLINGO_TRY { g_scripts().registerScript(type, gringo_make_unique<CScript>(*script, data)); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version_(clingo_ast_script_type_t type) {
-    return g_scripts().version(static_cast<clingo_ast_script_type_e>(type));
+extern "C" CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version(char const *type) {
+    return g_scripts().version(type);
 }
 
 extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]) {

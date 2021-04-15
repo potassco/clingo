@@ -347,12 +347,8 @@ void NongroundProgramBuilder::show(Location const &loc, TermUid t, BdLitVecUid b
     prg_.add(make_locatable<Statement>(loc, make_locatable<ShowHeadLiteral>(loc, terms_.erase(t), csp), bodies_.erase(body)));
 }
 
-void NongroundProgramBuilder::lua(Location const &loc, String code) {
-    context_.exec(ScriptType::Lua, loc, code);
-}
-
-void NongroundProgramBuilder::python(Location const &loc, String code) {
-    context_.exec(ScriptType::Python, loc, code);
+void NongroundProgramBuilder::script(Location const &loc, String type, String code) {
+    context_.exec(type, loc, code);
 }
 
 void NongroundProgramBuilder::block(Location const &loc, String name, IdVecUid args) {

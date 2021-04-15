@@ -23,7 +23,6 @@
 // }}}
 
 #include <clingo/clingo_app.hh>
-#include <clingo/script.h>
 #include <clasp/parser.h>
 #include <climits>
 
@@ -246,8 +245,8 @@ void ClingoApp::printHelp(const Potassco::ProgramOptions::OptionContext& root) {
 }
 
 void ClingoApp::printVersion() {
-    char const *py_version = clingo_script_version_(clingo_ast_script_type_python);
-    char const *lua_version = clingo_script_version_(clingo_ast_script_type_lua);
+    char const *py_version = clingo_script_version("python");
+    char const *lua_version = clingo_script_version("lua");
     Potassco::Application::printVersion();
     printf("\n");
     printf("libclingo version " CLINGO_VERSION "\n");

@@ -472,15 +472,9 @@ public:
             .set(clingo_ast_attribute_csp, static_cast<int>(csp)));
     }
 
-    void python(Location const &loc, String code) override {
+    void script(Location const &loc, String type, String code) override {
         cb_(ast(clingo_ast_type_script, loc)
-            .set(clingo_ast_attribute_script_type, static_cast<int>(clingo_ast_script_type_python))
-            .set(clingo_ast_attribute_code, code));
-    }
-
-    void lua(Location const &loc, String code) override {
-        cb_(ast(clingo_ast_type_script, loc)
-            .set(clingo_ast_attribute_script_type, static_cast<int>(clingo_ast_script_type_lua))
+            .set(clingo_ast_attribute_name, type)
             .set(clingo_ast_attribute_code, code));
     }
 

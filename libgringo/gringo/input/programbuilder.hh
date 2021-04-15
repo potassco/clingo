@@ -179,8 +179,7 @@ public:
     virtual void showsig(Location const &loc, Sig, bool csp) = 0;
     virtual void defined(Location const &loc, Sig) = 0;
     virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) = 0;
-    virtual void python(Location const &loc, String code) = 0;
-    virtual void lua(Location const &loc, String code) = 0;
+    virtual void script(Location const &loc, String type, String code) = 0;
     virtual void block(Location const &loc, String name, IdVecUid args) = 0;
     virtual void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) = 0;
     virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) = 0;
@@ -328,8 +327,7 @@ public:
     void showsig(Location const &loc, Sig sig, bool csp) override;
     void defined(Location const &loc, Sig) override;
     void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
-    void python(Location const &loc, String code) override;
-    void lua(Location const &loc, String code) override;
+    void script(Location const &loc, String type, String code) override;
     void block(Location const &loc, String name, IdVecUid args) override;
     void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) override;
     void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;

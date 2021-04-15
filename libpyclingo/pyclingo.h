@@ -25,7 +25,7 @@
 #ifndef PYCLINGO_CLINGO_H
 #define PYCLINGO_CLINGO_H
 
-#include <clingo/script.h>
+#include <clingo.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,11 +39,11 @@ extern "C" {
 #  define CFFI_DLLEXPORT  /* nothing */
 #endif
 
-CFFI_DLLEXPORT bool pyclingo_execute_(clingo_location_t const *loc, char const *code, void *);
-CFFI_DLLEXPORT bool pyclingo_call_(clingo_location_t const *loc, char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *);
-CFFI_DLLEXPORT bool pyclingo_callable_(char const * name, bool *ret, void *);
-CFFI_DLLEXPORT bool pyclingo_main_(clingo_control_t *ctl, void *);
-CFFI_DLLEXPORT bool clingo_register_python_();
+CFFI_DLLEXPORT bool pyclingo_execute(clingo_location_t const *loc, char const *code, void *);
+CFFI_DLLEXPORT bool pyclingo_call(clingo_location_t const *loc, char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *);
+CFFI_DLLEXPORT bool pyclingo_callable(char const * name, bool *ret, void *);
+CFFI_DLLEXPORT bool pyclingo_main(clingo_control_t *ctl, void *);
+bool clingo_register_python_();
 
 #ifdef __cplusplus
 }

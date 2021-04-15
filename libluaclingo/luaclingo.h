@@ -25,7 +25,7 @@
 #ifndef LUACLINGO_LUACLINGO_H
 #define LUACLINGO_LUACLINGO_H
 
-#include <clingo/script.h>
+#include <clingo.h>
 
 #if defined _WIN32 || defined __CYGWIN__
 #   define LUACLINGO_WIN

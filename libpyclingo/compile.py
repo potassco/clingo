@@ -188,70 +188,28 @@ def generate_c(action):
     cnt.append('extern "Python" bool pyclingo_application_options_parse(char const *value, void *data);')
     # ast callbacks
     cnt.append('extern "Python" bool pyclingo_ast_callback(clingo_ast_t const *, void *);')
+    # script callbacks
+    cnt.append('extern "Python" bool pyclingo_script_execute(clingo_location_t *loc, char const *code, void *data);')
+    cnt.append('extern "Python" bool pyclingo_script_call(clingo_location_t *loc, char const *name, void *arguments, size_t size, void *symbol_callback, void *symbol_callback_data, void *data);')
+    cnt.append('extern "Python" bool pyclingo_script_callable(char const * name, bool *ret, void *data);')
+    cnt.append('extern "Python" bool pyclingo_script_main(clingo_control_t *ctl, void *data);')
 
     code = ''
 
     if action == "embed":
         ffi.embedding_api('''\
-bool pyclingo_execute_(void *loc, char const *code, void *data);
-bool pyclingo_call_(void *loc, char const *name, void *arguments, size_t size, void *symbol_callback, void *symbol_callback_data, void *data);
-bool pyclingo_callable_(char const * name, bool *ret, void *data);
-bool pyclingo_main_(void *ctl, void *data);
+bool pyclingo_execute(void *loc, char const *code, void *data);
+bool pyclingo_call(void *loc, char const *name, void *arguments, size_t size, void *symbol_callback, void *symbol_callback_data, void *data);
+bool pyclingo_callable(char const * name, bool *ret, void *data);
+bool pyclingo_main(void *ctl, void *data);
 ''')
 
         ffi.embedding_init_code(f"""\
 import os
 import sys
-from collections.abc import Iterable
-from traceback import format_exception
-import __main__
-from clingo._internal import _ffi, _handle_error, _lib
-from clingo.control import Control
-from clingo.symbol import Symbol
+import clingo.script
 
 sys.path.insert(0, os.getcwd())
-
-def _cb_error_top_level(exception, exc_value, traceback):
-    msg = "".join(format_exception(exception, exc_value, traceback))
-    _lib.clingo_set_error(_lib.clingo_error_runtime, msg.encode())
-    return False
-
-@_ffi.def_extern(onerror=_cb_error_top_level)
-def pyclingo_execute_(loc, code, data):
-    exec(_ffi.string(code).decode(), __main__.__dict__, __main__.__dict__)
-    return True
-
-@_ffi.def_extern(onerror=_cb_error_top_level)
-def pyclingo_call_(loc, name, arguments, size, symbol_callback, symbol_callback_data, data):
-    symbol_callback = _ffi.cast('clingo_symbol_callback_t', symbol_callback)
-    arguments = _ffi.cast('clingo_symbol_t*', arguments)
-    context = _ffi.from_handle(data).data if data != _ffi.NULL else None
-    py_name = _ffi.string(name).decode()
-    fun = getattr(__main__ if context is None else context, py_name)
-
-    args = []
-    for i in range(size):
-        args.append(Symbol(arguments[i]))
-
-    ret = fun(*args)
-    symbols = list(ret) if isinstance(ret, Iterable) else [ret]
-
-    c_symbols = _ffi.new('clingo_symbol_t[]', len(symbols))
-    for i, sym in enumerate(symbols):
-        c_symbols[i] = sym._rep
-    _handle_error(symbol_callback(c_symbols, len(symbols), symbol_callback_data))
-    return True
-
-@_ffi.def_extern(onerror=_cb_error_top_level)
-def pyclingo_callable_(name, ret, data):
-    py_name = _ffi.string(name).decode()
-    ret[0] = py_name in __main__.__dict__ and callable(__main__.__dict__[py_name])
-    return True
-
-@_ffi.def_extern(onerror=_cb_error_top_level)
-def pyclingo_main_(ctl, data):
-    __main__.main(Control(_ffi.cast('clingo_control_t*', ctl)))
-    return True
 """)
 
         code = '''\
@@ -270,6 +228,12 @@ void pyclingo_finalize() {
 }
 #endif
 '''
+    else:
+        cnt.append('extern "Python" bool pyclingo_execute(void *loc, char const *code, void *data);')
+        cnt.append('extern "Python" bool pyclingo_call(void *loc, char const *name, void *arguments, size_t size, void *symbol_callback, void *symbol_callback_data, void *data);')
+        cnt.append('extern "Python" bool pyclingo_callable(char const * name, bool *ret, void *data);')
+        cnt.append('extern "Python" bool pyclingo_main(void *ctl, void *data);')
+
 
     if action != "header":
         ffi.set_source(

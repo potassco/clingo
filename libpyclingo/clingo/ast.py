@@ -232,9 +232,9 @@ statement = Rule
              , body     : body_literal*
              )
           | Script
-             ( location    : Location
-             , script_type : ScriptType
-             , code        : str
+             ( location : Location
+             , name     : str
+             , code     : str
              )
           | Program
              ( location   : Location
@@ -364,13 +364,12 @@ __all__ = [ 'AST', 'ASTSequence', 'ASTType', 'ASTValue', 'Aggregate',
             'HeadAggregateElement', 'Heuristic', 'Id', 'Interval', 'Literal',
             'Location', 'Minimize', 'Pool', 'Position', 'Program',
             'ProgramBuilder', 'ProjectAtom', 'ProjectSignature', 'Rule',
-            'Script', 'ScriptType', 'ShowSignature', 'ShowTerm', 'Sign',
-            'StrSequence', 'SymbolicTerm', 'TheoryAtom',
-            'TheoryAtomDefinition', 'TheoryAtomElement', 'TheoryAtomType',
-            'TheoryDefinition', 'TheoryFunction', 'TheoryGuard',
-            'TheoryGuardDefinition', 'TheoryOperatorDefinition',
-            'TheoryOperatorType', 'TheorySequence', 'TheorySequenceType',
-            'TheoryTermDefinition', 'TheoryUnparsedTerm',
+            'Script', 'ShowSignature', 'ShowTerm', 'Sign', 'StrSequence',
+            'SymbolicTerm', 'TheoryAtom', 'TheoryAtomDefinition',
+            'TheoryAtomElement', 'TheoryAtomType', 'TheoryDefinition',
+            'TheoryFunction', 'TheoryGuard', 'TheoryGuardDefinition',
+            'TheoryOperatorDefinition', 'TheoryOperatorType', 'TheorySequence',
+            'TheorySequenceType', 'TheoryTermDefinition', 'TheoryUnparsedTerm',
             'TheoryUnparsedTermElement', 'Transformer', 'UnaryOperation',
             'UnaryOperator', 'Variable', 'parse_files', 'parse_string' ]
 
@@ -525,19 +524,6 @@ class ComparisonOperator(IntEnum):
     NotEqual = _lib.clingo_ast_comparison_operator_not_equal
     '''
     The `!=` operator.
-    '''
-
-class ScriptType(IntEnum):
-    '''
-    Enumeration of theory atom types.
-    '''
-    Lua = _lib.clingo_ast_script_type_lua
-    '''
-    For Lua code.
-    '''
-    Python = _lib.clingo_ast_script_type_python
-    '''
-    For Python code.
     '''
 
 class Sign(IntEnum):
@@ -1758,7 +1744,7 @@ def Minimize(location: Location, weight: AST, priority: AST, terms: Sequence[AST
         _ffi.cast('size_t', len(body))))
     return AST(p_ast[0])
 
-def Script(location: Location, script_type: int, code: str) -> AST:
+def Script(location: Location, name: str, code: str) -> AST:
     '''
     Construct an AST node of type `ASTType.Script`.
     '''
@@ -1767,7 +1753,7 @@ def Script(location: Location, script_type: int, code: str) -> AST:
     _handle_error(_lib.clingo_ast_build(
         _lib.clingo_ast_type_script, p_ast,
         c_location[0],
-        _ffi.cast('int', script_type),
+        _ffi.new('char const[]', name.encode()),
         _ffi.new('char const[]', code.encode())))
     return AST(p_ast[0])
 
