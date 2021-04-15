@@ -492,6 +492,13 @@ class SolveHandle(ContextManager['SolveHandle']):
         '''
         Wait for solve call to finish or the next result with an optional timeout.
 
+        If a timeout is given, the behavior of the function changes depending
+        on the sign of the timeout. If a postive timeout is given, the function
+        blocks for the given amount time or until a result is ready. If the
+        timeout is negative, the function will block until a result is ready,
+        which also corresponds to the behavior of the function if no timeout is
+        given. A timeout of zero can be used to poll if a result is ready.
+
         Parameters
         ----------
         timeout
@@ -502,5 +509,5 @@ class SolveHandle(ContextManager['SolveHandle']):
         Indicates whether the solve call has finished or the next result is ready.
         '''
         p_res = _ffi.new('bool*')
-        _lib.clingo_solve_handle_wait(self._rep, 0 if timeout is None else timeout, p_res)
+        _lib.clingo_solve_handle_wait(self._rep, -1 if timeout is None else timeout, p_res)
         return p_res[0]
