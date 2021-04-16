@@ -26,6 +26,12 @@ class TestSymbol(TestCase):
         '''
         self.assertEqual(str(Number(10)), "10")
 
+    def test_repr(self):
+        '''
+        Test representation of symbols.
+        '''
+        self.assertEqual(repr(Function('test', [Number(10), Infimum, Supremum, String("test")], False)), "Function('test', [Number(10), Infimum, Supremum, String('test')], False)")
+
     def test_cmp(self):
         '''
         Test hashing and comparisons.
