@@ -143,6 +143,9 @@ class SolveResult:
             return "UNSAT"
         return "UNKNOWN"
 
+    def __repr__(self):
+        return f"SolveResult({self._rep})"
+
 class SolveControl:
     '''
     Object that allows for controlling a running search.
@@ -348,6 +351,9 @@ class Model:
 
     def __str__(self):
         return " ".join(map(str, self.symbols(shown=True)))
+
+    def __repr__(self):
+        return f'Model({self._rep!r})'
 
     @property
     def context(self) -> SolveControl:

@@ -30,7 +30,9 @@ class TestSymbol(TestCase):
         '''
         Test representation of symbols.
         '''
-        self.assertEqual(repr(Function('test', [Number(10), Infimum, Supremum, String("test")], False)), "Function('test', [Number(10), Infimum, Supremum, String('test')], False)")
+        self.assertEqual(
+            repr(Function('test', [Number(10), Infimum, Supremum, String("test")], False)),
+            "Function('test', [Number(10), Infimum, Supremum, String('test')], False)")
 
     def test_cmp(self):
         '''
