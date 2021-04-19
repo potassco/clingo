@@ -11,7 +11,7 @@ from .. import ast
 from ..ast import (AST, ASTSequence, Id, Location, Program, ProgramBuilder, Position, StrSequence,
                    SymbolicTerm, TheoryUnparsedTermElement,
                    parse_string)
-from ..symbol import *
+from ..symbol import Function, Number
 from ..control import Control
 
 class VariableRenamer(ast.Transformer):
@@ -340,7 +340,7 @@ class TestAST(TestCase):
         loc = Location(pos, pos)
 
         lst = ["x", "y", "z"]
-        sym = SymbolicTerm(loc, Function("a"))
+        sym = SymbolicTerm(loc, Function("a", [Number(1)]))
         tue = TheoryUnparsedTermElement(lst, sym)
         seq = tue.operators
         self.assertIsInstance(seq, StrSequence)
@@ -388,11 +388,16 @@ class TestAST(TestCase):
         self.assertEqual(prg[-1], 'p(_X) :- q(_X).')
 
     def test_repr(self):
-        prg = []
-        input_ = """a :- &sum(body,second) { foo; (1 - 3) } > (4 * 17).
-&theory { (X * a ** stuff): dom(X); (1 - 3) }.
-&diff { (foo - bar) } <= 42."""
-        parse_string(input_, prg.append)
-        output_ = "\n".join(str(eval(repr(stm))) for stm in prg)
-        input_ = "#program base.\n" + input_
-        self.assertEqual(input_, output_)
+        '''
+        Test the string representation of AST nodes.
+        '''
+        # pylint: disable=eval-used
+        stms = []
+        prg = dedent('''\
+            a :- &sum(body,second) { foo; (1 - 3) } > (4 * 17).
+            &theory { (X * a ** stuff): dom(X); (1 - 3) }.
+            &diff { (foo - bar) } <= 42.
+            1 #max { X : a } :- a, X = #count { a }.
+            ''')
+        parse_string(prg, stms.append)
+        self.assertEqual(stms, eval(repr(stms)))
