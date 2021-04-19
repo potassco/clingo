@@ -121,6 +121,8 @@ class TestAtoms(TestCase):
         self.assertEqual(hash(num), hash(lst.arguments[0]))
         self.assertNotEqual(num < sym, sym < num)
 
+        self.assertRegex(repr(num), 'TheoryTerm(.*)')
+
     def test_theory_element(self):
         '''
         Test theory element.
@@ -144,6 +146,8 @@ class TestAtoms(TestCase):
         self.assertNotEqual(a, b)
         self.assertNotEqual(hash(a), hash(b))
         self.assertNotEqual(a < b, b < a)
+
+        self.assertRegex(repr(a), 'TheoryElement(.*)')
 
     def test_theory_atom(self):
         '''
@@ -169,3 +173,5 @@ class TestAtoms(TestCase):
         self.assertNotEqual(a, b)
         self.assertNotEqual(hash(a), hash(b))
         self.assertNotEqual(a < b, b < a)
+
+        self.assertRegex(repr(a), 'TheoryAtom(.*)')

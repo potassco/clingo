@@ -874,6 +874,11 @@ class AST:
     def __str__(self):
         return _str(_lib.clingo_ast_to_string_size, _lib.clingo_ast_to_string, self._rep)
 
+    def __repr__(self):
+        name = str(self.ast_type).replace('ASTType', 'ast')
+        args = ', '.join(repr(x) for x in self.values())
+        return f'{name}({args})'
+
     def __copy__(self) -> 'AST':
         '''
         Return a shallow copy of the ast.
@@ -1163,7 +1168,7 @@ class Transformer:
         if isinstance(ast, AST):
             return self.visit(ast, *args, **kwargs) # type: ignore
 
-        if isinstance(ast, Sequence):
+        if isinstance(ast, abc.Sequence):
             return self.visit_sequence(ast, *args, **kwargs)
 
         raise TypeError('unexpected type')

@@ -86,6 +86,9 @@ class TheoryTerm:
                     _lib.clingo_theory_atoms_term_to_string,
                     self._rep, self._idx)
 
+    def __repr__(self):
+        return f'TheoryTerm({self._rep!r})'
+
     @property
     def arguments(self) -> List['TheoryTerm']:
         '''
@@ -142,6 +145,9 @@ class TheoryElement:
                     _lib.clingo_theory_atoms_element_to_string,
                     self._rep, self._idx)
 
+    def __repr__(self):
+        return f'TheoryElement({self._rep!r})'
+
     @property
     def condition(self) -> List[int]:
         '''
@@ -193,6 +199,9 @@ class TheoryAtom:
         return _str(_lib.clingo_theory_atoms_atom_to_string_size,
                     _lib.clingo_theory_atoms_atom_to_string,
                     self._rep, self._idx)
+
+    def __repr__(self):
+        return f'TheoryAtom({self._rep!r})'
 
     @property
     def elements(self) -> List[TheoryElement]:

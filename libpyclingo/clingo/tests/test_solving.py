@@ -22,6 +22,25 @@ class TestSolving(TestCase):
         self.mit = None
         self.ctl = None
 
+    def test_solve_result_str(self):
+        '''
+        Test string representation of solve results.
+        '''
+        ret = self.ctl.solve()
+        self.assertEqual(str(ret), 'SAT')
+        self.assertRegex(repr(ret), 'SolveResult(.*)')
+
+    def test_model_str(self):
+        '''
+        Test string representation of models.
+        '''
+        self.ctl.add('base', [], 'a.')
+        self.ctl.ground([('base', [])])
+        with self.ctl.solve(yield_=True) as hnd:
+            for mdl in hnd:
+                self.assertEqual(str(mdl), "a")
+                self.assertRegex(repr(mdl), "Model(.*)")
+
     def test_solve_cb(self):
         '''
         Test solving using callback.
