@@ -1,4 +1,4 @@
-VERSION=5.3.5
+VERSION=5.3.6
 SHELL=/bin/bash
 
 all: source/CMakeLists.txt
