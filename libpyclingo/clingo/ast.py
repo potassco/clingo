@@ -1168,7 +1168,7 @@ class Transformer:
         if isinstance(ast, AST):
             return self.visit(ast, *args, **kwargs) # type: ignore
 
-        if isinstance(ast, Sequence):
+        if isinstance(ast, abc.Sequence):
             return self.visit_sequence(ast, *args, **kwargs)
 
         raise TypeError('unexpected type')
