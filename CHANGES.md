@@ -1,5 +1,7 @@
 # Changes
 
+## clingo 5.5.1
+
 ## clingo 5.5.0
   * allow for using `not` as a theory operator (#193)
   * improve parsing of disjunctions (#171)
