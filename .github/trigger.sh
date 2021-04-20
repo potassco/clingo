@@ -15,7 +15,7 @@ function dispatch() {
       -X POST \
       -H "Accept: application/vnd.github.v3+json" \
       "https://api.github.com/repos/potassco/clingo/actions/workflows/$1/dispatches" \
-      -d "{\"ref\":\"${$3}\",\"inputs\":{\"wip\":$2}}"
+      -d "{\"ref\":\"$3\",\"inputs\":{\"wip\":\"$2\"}}"
 }
 
 branch=wip
