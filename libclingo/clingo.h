@@ -2324,7 +2324,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 //!
 //! ## Code ##
 
-//! @defgroup AST Abstract Syntax Trees Version 2
+//! @defgroup AST Abstract Syntax Trees
 //! Functions and data structures to work with program ASTs.
 
 //! @addtogroup AST
