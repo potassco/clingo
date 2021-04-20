@@ -6,12 +6,13 @@ on:
       wip:
         description: 'Publish work in progress package.'
         required: false
-        default: true
+        default: 'true'
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os:
           - macos-10.15
@@ -47,7 +48,7 @@ jobs:
         choco install winflexbison3
 
     - name: Compile and upload wheels (wip)
-      if: ${{ github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip == 'true' }}
       run: python .github/pipwinmac.py
       env:
         TWINE_NON_INTERACTIVE: True
@@ -56,7 +57,7 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
     - name: Compile and upload wheels (release)
-      if: ${{ !github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip == 'false' }}
       run: python .github/pipwinmac.py --release
       env:
         TWINE_NON_INTERACTIVE: True

@@ -6,7 +6,7 @@ on:
       wip:
         description: 'Publish work in progress package.'
         required: false
-        default: true
+        default: 'true'
 
 jobs:
   build:
@@ -54,7 +54,7 @@ jobs:
         conda list
 
     - name: publish conda package (wip)
-      if: ${{ github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip == 'true' }}
       shell: pwsh
       run: |
         python .github/conda.py
@@ -62,7 +62,7 @@ jobs:
         ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
 
     - name: publish conda package (release)
-      if: ${{ !github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip == 'false' }}
       shell: pwsh
       run: |
         python .github/conda.py --release

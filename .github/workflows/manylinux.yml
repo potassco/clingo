@@ -6,7 +6,7 @@ on:
       wip:
         description: 'Publish work in progress package.'
         required: false
-        default: true
+        default: 'true'
 
 jobs:
   build_packages:
@@ -15,6 +15,7 @@ jobs:
       PLAT: ${{ matrix.image }}
 
     strategy:
+      fail-fast: false
       matrix:
         image:
           - manylinux2014_x86_64
@@ -35,12 +36,12 @@ jobs:
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
     - name: Build wheels (wip)
-      if: ${{ github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip == 'true' }}
       run: |
         docker run --rm -e PLAT --workdir /github/workspace -v $GITHUB_WORKSPACE:/"/github/workspace" quay.io/pypa/${{ matrix.image }} /opt/python/cp38-cp38/bin/python ".github/manylinux.py"
 
     - name: Publish package to TestPyPI (wip)
-      if: ${{ github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip == 'true' }}
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
@@ -49,12 +50,12 @@ jobs:
         repository_url: https://test.pypi.org/legacy/
 
     - name: Build wheels (release)
-      if: ${{ !github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip == 'false' }}
       run: |
         docker run --rm -e PLAT --workdir /github/workspace -v $GITHUB_WORKSPACE:/"/github/workspace" quay.io/pypa/${{ matrix.image }} /opt/python/cp38-cp38/bin/python ".github/manylinux.py" --release
 
     - name: Publish package to TestPyPI (release)
-      if: ${{ !github.event.inputs.wip }}
+      if: ${{ github.event.inputs.wip == 'false' }}
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
