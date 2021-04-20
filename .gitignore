@@ -12,7 +12,6 @@ ReleaseScript
 *.db
 *.vcxproj.user
 x64
-libgringo/generated
 .nfs*
 examples/clingo/pydoc/clingo.ast.html
 examples/clingo/pydoc/clingo.html
@@ -25,4 +24,3 @@ _skbuild/
 dist
 *.egg-info/
 MANIFEST
-libgringo/gen/
