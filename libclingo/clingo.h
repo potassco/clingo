@@ -145,7 +145,7 @@ enum clingo_error_e {
     clingo_error_bad_alloc = 3, //!< memory could not be allocated
     clingo_error_unknown   = 4  //!< errors unrelated to clingo
 };
-//! Corresponding type to ::clingo_error.
+//! Corresponding type to ::clingo_error_e.
 typedef int clingo_error_t;
 //! Convert error code into string.
 CLINGO_VISIBILITY_DEFAULT char const *clingo_error_string(clingo_error_t code);
@@ -172,7 +172,7 @@ enum clingo_warning_e {
     clingo_warning_global_variable     = 5, //!< global variable in tuple of aggregate element
     clingo_warning_other               = 6, //!< other kinds of warnings
 };
-//! Corresponding type to ::clingo_warning.
+//! Corresponding type to ::clingo_warning_e.
 typedef int clingo_warning_t;
 //! Convert warning code into string.
 CLINGO_VISIBILITY_DEFAULT char const *clingo_warning_string(clingo_warning_t code);
@@ -200,7 +200,7 @@ enum clingo_truth_value_e {
     clingo_truth_value_true  = 1, //!< true
     clingo_truth_value_false = 2  //!< false
 };
-//! Corresponding type to ::clingo_truth_value.
+//! Corresponding type to ::clingo_truth_value_e.
 typedef int clingo_truth_value_t;
 
 //! Represents a source code location marking its beginnig and end.
@@ -719,7 +719,7 @@ enum clingo_theory_term_type_e {
     clingo_theory_term_type_number   = 4, //!< a number term, e.g., `42`
     clingo_theory_term_type_symbol   = 5  //!< a symbol term, e.g., `c`
 };
-//! Corresponding type to ::clingo_theory_term_type.
+//! Corresponding type to ::clingo_theory_term_type_e.
 typedef int clingo_theory_term_type_t;
 
 //! Container that stores theory atoms, elements, and terms (see @ref clingo_control_theory_atoms()).
@@ -1077,7 +1077,7 @@ enum clingo_propagator_check_mode_e {
     clingo_propagator_check_mode_fixpoint = 2, //!< call @ref ::clingo_propagator::check() on propagation fixpoints
     clingo_propagator_check_mode_both     = 3, //!< call @ref ::clingo_propagator::check() on propagation fixpoints and total assignments
 };
-//! Corresponding type to ::clingo_propagator_check_mode.
+//! Corresponding type to ::clingo_propagator_check_mode_e.
 typedef int clingo_propagator_check_mode_t;
 
 //! Enumeration of weight_constraint_types.
@@ -1086,7 +1086,7 @@ enum clingo_weight_constraint_type_e {
     clingo_weight_constraint_type_implication_right =  1, //!< the literal implies the weight constraint
     clingo_weight_constraint_type_equivalence       =  0, //!< the weight constraint is equivalent to the literal
 };
-//! Corresponding type to ::clingo_weight_constraint_type.
+//! Corresponding type to ::clingo_weight_constraint_type_e.
 typedef int clingo_weight_constraint_type_t;
 
 //! Object to initialize a user-defined propagator before each solving step.
@@ -1258,7 +1258,7 @@ enum clingo_clause_type_e {
     clingo_clause_type_volatile        = 2, //!< like ::clingo_clause_type_learnt but the clause is deleted after a solving step
     clingo_clause_type_volatile_static = 3  //!< like ::clingo_clause_type_static but the clause is deleted after a solving step
 };
-//! Corresponding type to ::clingo_clause_type.
+//! Corresponding type to ::clingo_clause_type_e.
 typedef int clingo_clause_type_t;
 
 //! This object can be used to add clauses and propagate literals while solving.
@@ -1491,7 +1491,7 @@ enum clingo_heuristic_type_e {
     clingo_heuristic_type_true   = 4, //!< set the level of an atom and choose a positive sign
     clingo_heuristic_type_false  = 5  //!< set the level of an atom and choose a negative sign
 };
-//! Corresponding type to ::clingo_heuristic_type.
+//! Corresponding type to ::clingo_heuristic_type_e.
 //! @ingroup ProgramInspection
 typedef int clingo_heuristic_type_t;
 
@@ -1503,7 +1503,7 @@ enum clingo_external_type_e {
     clingo_external_type_false   = 2, //!< assign an external to false
     clingo_external_type_release = 3, //!< no longer treat an atom as external
 };
-//! Corresponding type to ::clingo_external_type.
+//! Corresponding type to ::clingo_external_type_e.
 //! @ingroup ProgramInspection
 typedef int clingo_external_type_t;
 
@@ -2004,7 +2004,7 @@ enum clingo_model_type_e {
     clingo_model_type_brave_consequences    = 1, //!< The model represents a set of brave consequences.
     clingo_model_type_cautious_consequences = 2  //!< The model represents a set of cautious consequences.
 };
-//! Corresponding type to ::clingo_model_type.
+//! Corresponding type to ::clingo_model_type_e.
 typedef int clingo_model_type_t;
 
 //! Enumeration of bit flags to select symbols in models.
@@ -2017,7 +2017,7 @@ enum clingo_show_type_e {
     clingo_show_type_all        = 31, //!< Select everything.
     clingo_show_type_complement = 32  //!< Select false instead of true atoms (::clingo_show_type_atoms) or terms (::clingo_show_type_terms).
 };
-//! Corresponding type to ::clingo_show_type.
+//! Corresponding type to ::clingo_show_type_e.
 typedef unsigned clingo_show_type_bitset_t;
 
 //! @name Functions for Inspecting Models
@@ -2202,7 +2202,7 @@ enum clingo_solve_mode_e {
     clingo_solve_mode_async = 1, //!< Enable non-blocking search.
     clingo_solve_mode_yield = 2, //!< Yield models in calls to clingo_solve_handle_model.
 };
-//! Corresponding type to ::clingo_solve_mode.
+//! Corresponding type to ::clingo_solve_mode_e.
 typedef unsigned clingo_solve_mode_bitset_t;
 
 //! Enumeration of solve events.
@@ -2212,7 +2212,7 @@ enum clingo_solve_event_type_e {
     clingo_solve_event_type_statistics = 2, //!< Issued when the statistics can be updated.
     clingo_solve_event_type_finish     = 3, //!< Issued if the search has completed.
 };
-//! Corresponding type to ::clingo_solve_event_type.
+//! Corresponding type to ::clingo_solve_event_type_e.
 typedef unsigned clingo_solve_event_type_t;
 
 //! Callback function called during search to notify when the search is finished or a model is ready.
@@ -2304,7 +2304,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t 
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
 
 //! @}
-// {{{1 ast v2
+// {{{1 ast
 
 //! @example ast.c
 //! The example shows how to rewrite a non-ground logic program.
@@ -2324,10 +2324,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 //!
 //! ## Code ##
 
-//! @defgroup ASTv2 Abstract Syntax Trees Version 2
+//! @defgroup AST Abstract Syntax Trees Version 2
 //! Functions and data structures to work with program ASTs.
 
-//! @addtogroup ASTv2
+//! @addtogroup AST
 //! @{
 
 //! Enumeration of theory sequence types.
@@ -2336,7 +2336,7 @@ enum clingo_ast_theory_sequence_type_e {
     clingo_ast_theory_sequence_type_list,  //!< Theory lists "[t1,...,tn]".
     clingo_ast_theory_sequence_type_set    //!< Theory sets "{t1,...,tn}".
 };
-//! Corresponding type to ::clingo_ast_theory_sequence_type.
+//! Corresponding type to ::clingo_ast_theory_sequence_type_e.
 typedef int clingo_ast_theory_sequence_type_t;
 
 //! Enumeration of comparison relations.
@@ -2348,7 +2348,7 @@ enum clingo_ast_comparison_operator_e {
     clingo_ast_comparison_operator_not_equal     = 4, //!< Operator "!=".
     clingo_ast_comparison_operator_equal         = 5  //!< Operator "==".
 };
-//! Corresponding type to ::clingo_ast_comparison_operator.
+//! Corresponding type to ::clingo_ast_comparison_operator_e.
 typedef int clingo_ast_comparison_operator_t;
 
 //! Enumeration of signs.
@@ -2366,7 +2366,7 @@ enum clingo_ast_unary_operator_e {
     clingo_ast_unary_operator_negation = 1, //!< Operator "~".
     clingo_ast_unary_operator_absolute = 2  //!< Operator "|.|".
 };
-//! Corresponding type to ::clingo_ast_unary_operator.
+//! Corresponding type to ::clingo_ast_unary_operator_e.
 typedef int clingo_ast_unary_operator_t;
 
 //! Enumeration of binary operators.
@@ -2381,7 +2381,7 @@ enum clingo_ast_binary_operator_e {
     clingo_ast_binary_operator_modulo         = 7, //!< Operator "\".
     clingo_ast_binary_operator_power          = 8  //!< Operator "**".
 };
-//! Corresponding type to ::clingo_ast_binary_operator.
+//! Corresponding type to ::clingo_ast_binary_operator_e.
 typedef int clingo_ast_binary_operator_t;
 
 //! Enumeration of aggregate functions.
@@ -2392,7 +2392,7 @@ enum clingo_ast_aggregate_function_e {
     clingo_ast_aggregate_function_min   = 3, //!< Operator "+".
     clingo_ast_aggregate_function_max   = 4  //!< Operator "-".
 };
-//! Corresponding type to ::clingo_ast_aggregate_function.
+//! Corresponding type to ::clingo_ast_aggregate_function_e.
 typedef int clingo_ast_aggregate_function_t;
 
 //! Enumeration of theory operators.
@@ -2401,7 +2401,7 @@ enum clingo_ast_theory_operator_type_e {
      clingo_ast_theory_operator_type_binary_left  = 1, //!< A left associative binary operator.
      clingo_ast_theory_operator_type_binary_right = 2  //!< A right associative binary operator.
 };
-//! Corresponding type to ::clingo_ast_theory_operator_type.
+//! Corresponding type to ::clingo_ast_theory_operator_type_e.
 typedef int clingo_ast_theory_operator_type_t;
 
 //! Enumeration of the theory atom types.
@@ -2411,7 +2411,7 @@ enum clingo_ast_theory_atom_definition_type_e {
     clingo_ast_theory_atom_definition_type_any       = 2, //!< For theory atoms that can appear in both head and body.
     clingo_ast_theory_atom_definition_type_directive = 3  //!< For theory atoms that must not have a body.
 };
-//! Corresponding type to ::clingo_ast_theory_atom_definition_type.
+//! Corresponding type to ::clingo_ast_theory_atom_definition_type_e.
 typedef int clingo_ast_theory_atom_definition_type_t;
 
 //! Enumeration of AST types.
@@ -2476,7 +2476,7 @@ enum clingo_ast_type_e {
     clingo_ast_type_defined,
     clingo_ast_type_theory_definition
 };
-//! Corresponding type to ::clingo_ast_type.
+//! Corresponding type to ::clingo_ast_type_e.
 typedef int clingo_ast_type_t;
 
 //! Enumeration of attributes types used by the AST.
@@ -2541,7 +2541,7 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_variable,
     clingo_ast_attribute_weight,
 };
-//! Corresponding type to ::clingo_ast_attribute.
+//! Corresponding type to ::clingo_ast_attribute_e.
 typedef int clingo_ast_attribute_t;
 
 //! Struct to map attributes to their string representation.
@@ -3023,7 +3023,7 @@ enum clingo_ast_unpool_type_e {
     clingo_ast_unpool_type_other = 2,     //!< To unpool everything except conditions of conditional literals.
     clingo_ast_unpool_type_all = 3,       //!< To unpool everything.
 };
-//! Corresponding type to ::clingo_ast_unpool_type.
+//! Corresponding type to ::clingo_ast_unpool_type_e.
 typedef int clingo_ast_unpool_type_bitset_t;
 
 //! Unpool the given AST.
@@ -3289,7 +3289,7 @@ typedef struct clingo_ground_program_observer {
 //! @see clingo_control_interrupt()
 
 //! @typedef clingo_solve_result_bitset_t
-//! Corresponding type to ::clingo_solve_result.
+//! Corresponding type to ::clingo_solve_result_e.
 
 //! Struct used to specify the program parts that have to be grounded.
 //!

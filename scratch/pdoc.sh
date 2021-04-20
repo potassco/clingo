@@ -47,7 +47,7 @@ oMUWNYaok05dpI88e1nJuP525rMQCuFcvYOY6tXctStjaUFhe7OXEqBvA7Zv/h/hPwyPH6ZYGAAA
 EOF
 
 sed -i '/^<script>$/{:a;N;/<\/script>$/!ba};/window\.location\.reload()/d' ./html/**/*(.)
-sed -i 's|href="/|href="https://www.cs.uni-potsdam.de/~kaminski/pyclingo-cffi/|g' ./html/**/*(.)
-rsync -av --delete ./html/ chevaux.staff:public_html/pyclingo-cffi/
+sed -i 's|href="/|href="https://potassco.org/clingo/python-api/5.5/|g' ./html/**/*(.)
+rsync -av --delete ./html/ ${HOME}/git/potassco.github.io/clingo/python-api/5.5/
 
 
