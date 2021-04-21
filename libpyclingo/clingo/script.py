@@ -48,7 +48,14 @@ from clingo.control import Control
 from clingo.symbol import Symbol
 from clingo.ast import Location, _py_location
 
-import __main__ # type: ignore
+try:
+    import __main__ # type: ignore
+except ImportError:
+    # Note: pypy does not create a main module if embedded
+    import sys
+    import types
+    sys.modules['__main__'] = types.ModuleType('__main__', 'the main module')
+    import __main__ # type: ignore
 
 __all__ = [ 'Script', 'enable_python', 'register_script' ]
 
