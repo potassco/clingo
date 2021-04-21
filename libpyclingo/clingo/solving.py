@@ -77,6 +77,7 @@ from typing import ContextManager, Iterator, List, Optional, Sequence, Tuple, Un
 from enum import Enum
 
 from ._internal import _c_call, _c_call2, _ffi, _handle_error, _lib
+from .util import Slice, SlicedSequence
 from .symbol import Symbol
 from .symbolic_atoms import SymbolicAtoms
 
@@ -219,6 +220,29 @@ class ModelType(Enum):
     The model captures a stable model.
     '''
 
+class _SymbolSequence(Sequence[Symbol]):
+    '''
+    Helper class to efficiently store sequences of symbols.
+    '''
+    def __init__(self, p_symbols):
+        self._p_symbols = p_symbols
+
+    def __len__(self):
+        return len(self._p_symbols)
+
+    def __getitem__(self, slc):
+        if isinstance(slc, slice):
+            return SlicedSequence(self, Slice(slc))
+        if slc < 0:
+            slc += len(self)
+        if slc < 0 or slc >= len(self):
+            raise IndexError('invalid index')
+        return Symbol(self._p_symbols[slc])
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield Symbol(self._p_symbols[i])
+
 class Model:
     '''
     Provides access to a model during a solve call and provides a
@@ -294,7 +318,7 @@ class Model:
         return _c_call('bool', _lib.clingo_model_is_true, self._rep, literal)
 
     def symbols(self, atoms: bool=False, terms: bool=False, shown: bool=False, csp: bool=False,
-                theory: bool=False, complement: bool=False) -> List[Symbol]:
+                theory: bool=False, complement: bool=False) -> Sequence[Symbol]:
         '''
         Return the list of atoms, terms, or CSP assignments in the model.
 
@@ -344,10 +368,7 @@ class Model:
         p_symbols = _ffi.new('clingo_symbol_t[]', size)
         _handle_error(_lib.clingo_model_symbols(self._rep, show, p_symbols, size))
 
-        symbols = []
-        for c_symbol in p_symbols:
-            symbols.append(Symbol(c_symbol))
-        return symbols
+        return _SymbolSequence(p_symbols)
 
     def __str__(self):
         return " ".join(map(str, self.symbols(shown=True)))
