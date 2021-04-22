@@ -92,7 +92,7 @@ def run():
 
     adjust_version(url)
 
-    if ARCH == "ppc64le":
+    if ARCH != "x86_64":
         check_call(['sed', '-i', 's/, "cmake"//', 'pyproject.toml'])
         mkdir('re2c_source')
         check_call(['curl', '-LJ', '-o', 're2c.tar.gz', 'https://github.com/skvadrik/re2c/archive/2.0.3.tar.gz'])
