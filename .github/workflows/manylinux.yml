@@ -36,11 +36,6 @@ jobs:
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
-    - name: Patch build system
-      if: ${{ matrix.image != 'manylinux2014_x86_64' }}
-      run: |
-        git apply .github/ppc.patch
-
     - name: Build wheels (wip)
       if: ${{ github.event.inputs.wip == 'true' && matrix.image == 'manylinux2014_x86_64' }}
       run: |
