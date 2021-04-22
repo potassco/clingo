@@ -21,6 +21,7 @@ pip:
         check_call(['rsync', '-ra', 'build/libgringo/src/input', 'libgringo/gen/src/'])
     install: |
         if ARCH == "ppc64le":
+            check_call(['sed', '-i', 's/, "cmake"//', 'pyproject.toml'])
             mkdir('re2c_source')
             check_call(['curl', '-LJ', '-o', 're2c.tar.gz', 'https://github.com/skvadrik/re2c/archive/2.0.3.tar.gz'])
             check_call(['tar', 'xzf', 're2c.tar.gz', '-C', 're2c_source', '--strip-components=1'])

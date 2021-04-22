@@ -56,7 +56,7 @@ def compile_wheels(idx):
     for pybin in glob('/opt/python/*/bin'):
         # Requires Py3.6 or greater - on the docker image 3.5 is cp35-cp35m
         if "35" not in pybin:
-            args = [path.join(pybin, 'pip'), 'wheel', '--no-deps', '-w', 'wheelhouse/']
+            args = [path.join(pybin, 'pip'), 'wheel', '--verbose', '--no-deps', '-w', 'wheelhouse/']
             if idx is not None:
                 args.extend(['--extra-index-url', idx])
             args.extend(['./'])
@@ -93,6 +93,7 @@ def run():
     adjust_version(url)
 
     if ARCH == "ppc64le":
+        check_call(['sed', '-i', 's/, "cmake"//', 'pyproject.toml'])
         mkdir('re2c_source')
         check_call(['curl', '-LJ', '-o', 're2c.tar.gz', 'https://github.com/skvadrik/re2c/archive/2.0.3.tar.gz'])
         check_call(['tar', 'xzf', 're2c.tar.gz', '-C', 're2c_source', '--strip-components=1'])

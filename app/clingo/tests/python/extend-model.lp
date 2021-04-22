@@ -12,7 +12,7 @@ def main(prg):
     prg.ground([("base", [])])
     with prg.solve(on_model=on_model, yield_=True) as handle:
         for m in handle:
-            assert m.symbols(theory=True) == symbols
+            assert list(m.symbols(theory=True)) == symbols
         handle.get()
 
 #end.

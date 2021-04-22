@@ -154,7 +154,7 @@ class TestSolving(TestCase):
             self.assertFalse(m.optimality_proven)
             self.assertEqual(m.cost, [3])
             m.extend([Function('e')])
-            self.assertEqual(m.symbols(theory=True), [Function('e')])
+            self.assertSequenceEqual(m.symbols(theory=True), [Function('e')])
         self.ctl.add("base", [], "a. b. c. #minimize { 1,a:a; 1,b:b; 1,c:c }.")
         self.ctl.ground([("base", [])])
         self.ctl.solve(on_model=on_model)
