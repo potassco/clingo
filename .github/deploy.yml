@@ -15,7 +15,6 @@ pip:
         - 'manylinux2014_x86_64'
         - 'manylinux2014_ppc64le'
         #- 'manylinux2014_aarch64'
-        #- 'manylinux2014_armv7l'
     generate: |
         check_call(['cmake', '-G', 'Ninja', '-H.', '-Bbuild'])
         check_call(['cmake', '--build', 'build', '--target', 'gen'])
