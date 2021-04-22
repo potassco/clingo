@@ -15,7 +15,7 @@ function dispatch() {
       -X POST \
       -H "Accept: application/vnd.github.v3+json" \
       "https://api.github.com/repos/potassco/clingo/actions/workflows/$1/dispatches" \
-      -d "{\"ref\":\"$3\",\"inputs\":{\"wip\":\"$2\"}}"
+      -d "{\"ref\":\"$3\",\"inputs\":{\"wip\":\"$2\"${4:+,$4}}}"
 }
 
 branch=wip
@@ -32,6 +32,9 @@ case $1 in
         fi
         wip=false
         branch=$2
+        # .github/workflows/manylinux.yml
+        dispatch 4811844 $wip $branch '"image":"manylinux2014_ppc64le"'
+        dispatch 4811844 $wip $branch '"image":"manylinux2014_aarch64"'
         ;&
     dev)
         # .github/workflows/manylinux.yml
