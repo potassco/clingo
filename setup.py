@@ -18,7 +18,7 @@ setup(
         The *clingo* system then takes such a logic program and computes *answer sets* representing solutions to the given problem.
         To get an idea, check our [Getting Started](https://potassco.org/doc/start/) page and the [online version](https://potassco.org/clingo/run/) of clingo.
 
-        Temporarily, the API documentation of this project can be found [here](https://www.cs.uni-potsdam.de/~kaminski/pyclingo-cffi/).
+        Please check the the [API documentation](https://potassco.org/clingo/python-api/current/clingo/) on how to use this module.
         '''),
     long_description_content_type='text/markdown',
     author = 'Roland Kaminski',
