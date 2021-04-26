@@ -229,7 +229,7 @@ extern "C" char const *clingo_error_string(clingo_error_t code) {
 extern "C" char const *clingo_warning_string(clingo_warning_t code) {
     switch (static_cast<clingo_warning_e>(code)) {
         case clingo_warning_operation_undefined: { return "operation undefined"; }
-        case clingo_warning_runtime_error:       { return "runtime errer"; }
+        case clingo_warning_runtime_error:       { return "runtime error"; }
         case clingo_warning_atom_undefined:      { return "atom undefined"; }
         case clingo_warning_file_included:       { return "file included"; }
         case clingo_warning_variable_unbounded:  { return "variable unbounded"; }
