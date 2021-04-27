@@ -74,10 +74,10 @@ The second example shows how to use Python code from clingo.
     from clingo.symbol import Number
 
     class Context:
-        def inc(x):
+        def inc(self, x):
             return Number(x.number)
 
-        def seq(x, y):
+        def seq(self, x, y):
             return [x, y]
 
     def main(prg):
