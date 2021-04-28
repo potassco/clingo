@@ -40,7 +40,7 @@ class MessageCode(Enum):
     Inform about an undefined arithmetic operation or unsupported weight of an
     aggregate.
     '''
-    Other = _lib.clingo_warning_atom_undefined
+    Other = _lib.clingo_warning_other
     '''
     Reports other kinds of messages.
     '''
