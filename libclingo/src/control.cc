@@ -1202,8 +1202,8 @@ C(function) { A(location, location), A(name, string), A(arguments, ast_array), A
 C(pool) { A(location, location), A(arguments, ast_array) };
 // csp terms
 C(csp_product) { A(location, location), A(coefficient, ast), A(variable, ast) };
-C(csp_sum) { A(location, location), A(coefficient, ast), A(variable, ast) };
-C(csp_guard) { A(location, location), A(comparison, number), A(term, ast) };
+C(csp_sum) { A(location, location), A(terms, ast_array) };
+C(csp_guard) { A(comparison, number), A(term, ast) };
 // simple atoms
 C(boolean_constant) { A(value, number) };
 C(symbolic_atom) { A(symbol, ast) };
