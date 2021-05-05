@@ -2618,14 +2618,14 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_release(clingo_ast_t *ast);
 //! @name Functions to copy ASTs
 //! @{
 
-//! Deep copy an AST node.
+//! Create a shallow copy of an AST node.
 //!
 //! @param[in] ast the AST to copy
 //! @param[out] copy the resulting AST
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy);
-//! Create a shallow copy of an AST node.
+//! Create a deep copy of an AST node.
 //!
 //! @param[in] ast the AST to copy
 //! @param[out] copy the resulting AST
