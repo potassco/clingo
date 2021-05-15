@@ -1651,7 +1651,7 @@ enum clingo_configuration_type_e {
     clingo_configuration_type_array = 2, //!< the entry is an array
     clingo_configuration_type_map   = 4  //!< the entry is a map
 };
-//! Bitset for values of type ::clingo_configuration_type.
+//! Bitset for values of type ::clingo_configuration_type_e.
 typedef unsigned clingo_configuration_type_bitset_t;
 
 //! Handle for to the solver configuration.

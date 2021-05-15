@@ -884,7 +884,7 @@ extern "C" bool clingo_configuration_type(clingo_configuration_t const *conf, cl
         int map_size, array_size, value_size;
         conf->getKeyInfo(key, &map_size, &array_size, nullptr, &value_size);
         *ret = 0;
-        if (map_size >= 0)   { *ret |= clingo_configuration_type_map; }
+        if (map_size > 0) { *ret |= clingo_configuration_type_map; }
         if (array_size >= 0) { *ret |= clingo_configuration_type_array; }
         if (value_size >= 0) { *ret |= clingo_configuration_type_value; }
     }
