@@ -7,7 +7,7 @@ def print_conf(conf, ident):
         subconf = getattr(conf, key)
         if isinstance(subconf, clingo.Configuration):
             label = key
-            if (len(subconf) >= 0):
+            if subconf.is_array:
                 label += "[0.." + str(len(subconf)) + "]"
             print ("{0}{1} - {2}".format(ident, label, conf.description(key)))
             print_conf(subconf, "  " + ident + label + ".")

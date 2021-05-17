@@ -50,11 +50,11 @@ class Configuration:
         config.group.subgroup[0].option = "value1"
         config.group.subgroup[1].option = "value2"
 
-    To list the subgroups of an option group, use the `Configuration.keys` member.
-    Array option groups, like solver, have a non-negative length and can be
-    iterated. Furthermore, there are meta options having key `configuration`.
-    Assigning a meta option sets a number of related options.  To get further
-    information about an option or option group, use `Configuration.description`.
+    To list the subgroups of an option group, use the `Configuration.keys`
+    member. Array option groups, like solver, can be iterated. Furthermore,
+    there are meta options having key `configuration`. Assigning a meta option
+    sets a number of related options.  To get further information about an
+    option or option group, use `Configuration.description`.
 
     Notes
     -----
@@ -73,6 +73,13 @@ class Configuration:
     @property
     def _type(self) -> int:
         return _c_call('clingo_configuration_type_bitset_t', _lib.clingo_configuration_type, self._rep, self._key)
+
+    @property
+    def is_array(self) -> bool:
+        '''
+        This property is true if the configuration option is an array.
+        '''
+        return bool(self._type & _lib.clingo_configuration_type_array)
 
     def _get_subkey(self, name: str) -> Optional[int]:
         if self._type & _lib.clingo_configuration_type_map:
