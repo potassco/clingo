@@ -512,13 +512,13 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         }
         case clingo_ast_type_disjoint_element: {
             out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_terms, "", ",", "", false)
-                << ": " << print(ast, clingo_ast_attribute_term)
+                << ":" << print(ast, clingo_ast_attribute_term)
                 << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, ": ", ", ", "", false);
             break;
         }
         case clingo_ast_type_disjoint: {
-            out << "#disjoint { "
-                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, "", "; ", "", false)
+            out << "#disjoint {"
+                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, " ", "; ", "", false)
                 << " }";
             break;
         }
