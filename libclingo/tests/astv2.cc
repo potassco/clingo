@@ -158,7 +158,7 @@ TEST_CASE("parse-ast-v2", "[clingo]") {
         REQUIRE(parse(":-{a:b,c;e}2.") == "#false :- 2 >= { a: b, c; e }.");
         REQUIRE(parse(":-1#min{1,2:b,c;1:e}2.") == "#false :- 1 <= #min { 1,2: b, c; 1: e } <= 2.");
         REQUIRE(parse(":-&p { 1: a,b; 2: c }.") == "#false :- &p { 1: a, b; 2: c }.");
-        REQUIRE(parse(":-#disjoint {1,2:$x:a,b}.") == "#false :- #disjoint { 1,2: 1$*$x: a, b }.");
+        REQUIRE(parse(":-#disjoint {1,2:$x:a,b}.") == "#false :- #disjoint { 1,2:1$*$x: a, b }.");
     }
     SECTION("head literal") {
         REQUIRE(parse("a.") == "a.");
@@ -442,14 +442,14 @@ TEST_CASE("unpool-ast-v2", "[clingo]") {
             "1$*$a(2) $< a(4)$*$b(6).");
         REQUIRE(unpool("#disjoint { a(1;2): $a(3;4): a(5;6) }.") ==
             "#false :- not #disjoint { "
-            "a(1): 1$*$a(3): a(5); "
-            "a(1): 1$*$a(3): a(6); "
-            "a(1): 1$*$a(4): a(5); "
-            "a(1): 1$*$a(4): a(6); "
-            "a(2): 1$*$a(3): a(5); "
-            "a(2): 1$*$a(3): a(6); "
-            "a(2): 1$*$a(4): a(5); "
-            "a(2): 1$*$a(4): a(6) "
+            "a(1):1$*$a(3): a(5); "
+            "a(1):1$*$a(3): a(6); "
+            "a(1):1$*$a(4): a(5); "
+            "a(1):1$*$a(4): a(6); "
+            "a(2):1$*$a(3): a(5); "
+            "a(2):1$*$a(3): a(6); "
+            "a(2):1$*$a(4): a(5); "
+            "a(2):1$*$a(4): a(6) "
             "}.");
     }
     SECTION("head literal") {
