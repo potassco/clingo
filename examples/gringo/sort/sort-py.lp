@@ -1,14 +1,14 @@
 #script (python)
 
-import clingo
+from clingo import Number, Tuple_
 
 values = []
 
 def gather(a):
     values.append(a)
-    return 1
+    return Number(1)
 
 def sort():
-    return list(enumerate(sorted(values)))
+    return [Tuple_((Number(i), val)) for i, val in enumerate(sorted(values))]
 
 #end.
