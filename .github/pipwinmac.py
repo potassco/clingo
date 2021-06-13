@@ -5,6 +5,7 @@ Script to build binary wheels on windows.
 from re import finditer, escape, match, sub, search
 from subprocess import check_call
 from urllib.request import urlopen
+from urllib.error import HTTPError
 from glob import glob
 from platform import python_implementation
 from sysconfig import get_config_var
@@ -44,8 +45,15 @@ def adjust_version(url):
                 version = m.group(1)
     assert version is not None
 
-    with urlopen('{}/{}'.format(url, package_name)) as uh:
-        pip = uh.read().decode()
+    try:
+        with urlopen('{}/{}'.format(url, package_name)) as uh:
+            pip = uh.read().decode()
+    except HTTPError as err:
+        if err.code == 404:
+            pip = '\n'
+        else:
+            raise
+
     post = 0
     for m in finditer(r'{}-{}\.post([0-9]+)\.tar\.gz'.format(package_regex, escape(version)), pip):
         post = max(post, int(m.group(1)))
@@ -68,12 +76,12 @@ def run():
     args = parser.parse_args()
 
     if args.release:
-        rename_clingo_cffi()
         url = 'https://pypi.org/simple'
         idx = None
     else:
         url = 'https://test.pypi.org/simple'
         idx = 'https://test.pypi.org/simple'
+        rename_clingo_cffi()
 
     adjust_version(url)
 
