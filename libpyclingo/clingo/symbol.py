@@ -20,7 +20,7 @@ Examples
     p(3)
 '''
 
-from typing import Callable, List, Sequence
+from typing import Callable, List, Optional, Sequence
 
 from enum import Enum
 from functools import total_ordering
@@ -256,7 +256,7 @@ _lib.clingo_symbol_create_supremum(_p_supremum)
 Infimum: Symbol = Symbol(_p_infimum[0])
 Supremum: Symbol = Symbol(_p_supremum[0])
 
-def parse_term(string: str, logger: Callable[[MessageCode,str],None]=None, message_limit: int=20) -> Symbol:
+def parse_term(string: str, logger: Optional[Callable[[MessageCode,str],None]]=None, message_limit: int=20) -> Symbol:
     '''
     Parse the given string using gringo's term parser for ground terms.
 

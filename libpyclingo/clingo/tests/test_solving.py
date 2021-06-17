@@ -36,7 +36,7 @@ class TestSolving(TestCase):
         '''
         self.ctl.add('base', [], 'a.')
         self.ctl.ground([('base', [])])
-        with self.ctl.solve(yield_=True) as hnd:
+        with cast(SolveHandle, self.ctl.solve(yield_=True)) as hnd:
             for mdl in hnd:
                 self.assertEqual(str(mdl), "a")
                 self.assertRegex(repr(mdl), "Model(.*)")
@@ -80,7 +80,7 @@ class TestSolving(TestCase):
         '''
         self.ctl.add("base", [], "1 {a; b} 1. c.")
         self.ctl.ground([("base", [])])
-        with self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=True) as hnd:
+        with cast(SolveHandle, self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=True)) as hnd:
             while True:
                 hnd.resume()
                 _ = hnd.wait()
@@ -98,13 +98,13 @@ class TestSolving(TestCase):
         '''
         self.ctl.add("base", [], "1 { p(P,H): H=1..99 } 1 :- P=1..100.\n1 { p(P,H): P=1..100 } 1 :- H=1..99.")
         self.ctl.ground([("base", [])])
-        with self.ctl.solve(async_=True) as hnd:
+        with cast(SolveHandle, self.ctl.solve(async_=True)) as hnd:
             hnd.resume()
             hnd.cancel()
             ret = hnd.get()
             self.assertTrue(ret.interrupted)
 
-        with self.ctl.solve(async_=True) as hnd:
+        with cast(SolveHandle, self.ctl.solve(async_=True)) as hnd:
             hnd.resume()
             self.ctl.interrupt()
             ret = hnd.get()

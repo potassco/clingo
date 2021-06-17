@@ -3,7 +3,9 @@ Tests for theory and symbolic atoms.
 '''
 
 from unittest import TestCase
+from typing import cast
 from clingo import Control, Function, Number, TheoryTermType
+from clingo.symbolic_atoms import SymbolicAtom
 
 THEORY = '''
 #theory test {
@@ -30,7 +32,7 @@ class TestAtoms(TestCase):
 
         atoms = self.ctl.symbolic_atoms
 
-        p1 = atoms[Function('p', [Number(1)])]
+        p1 = cast(SymbolicAtom, atoms[Function('p', [Number(1)])])
         self.assertIsNotNone(p1)
         self.assertTrue(p1.is_fact)
         self.assertFalse(p1.is_external)
@@ -39,7 +41,7 @@ class TestAtoms(TestCase):
         self.assertTrue(p1.match('p', 1, True))
         self.assertFalse(p1.match('p', 2, True))
 
-        p2 = atoms[Function('p', [Number(2)])]
+        p2 = cast(SymbolicAtom, atoms[Function('p', [Number(2)])])
         self.assertIsNotNone(p2)
         self.assertFalse(p2.is_fact)
         self.assertFalse(p2.is_external)
@@ -48,7 +50,7 @@ class TestAtoms(TestCase):
         self.assertTrue(p2.match('p', 1, True))
         self.assertFalse(p2.match('p', 2, True))
 
-        p3 = atoms[Function('p', [Number(3)])]
+        p3 = cast(SymbolicAtom, atoms[Function('p', [Number(3)])])
         self.assertIsNotNone(p3)
         self.assertFalse(p3.is_fact)
         self.assertTrue(p3.is_external)

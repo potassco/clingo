@@ -662,6 +662,13 @@ class ASTSequence(abc.MutableSequence):
     def insert(self, index, value):
         _handle_error(_lib.clingo_ast_attribute_insert_ast_at(self._rep, self._attribute, index, value._rep))
 
+    def clear(self):
+        '''
+        Remove all elements from the sequence.
+        '''
+        for i in range(len(self), 0, -1):
+            del self[i - 1]
+
     def __str__(self):
         return str(list(self))
 
@@ -714,6 +721,13 @@ class StrSequence(abc.MutableSequence):
 
     def insert(self, index, value):
         _handle_error(_lib.clingo_ast_attribute_insert_string_at(self._rep, self._attribute, index, value.encode()))
+
+    def clear(self):
+        '''
+        Remove all elements from the sequence.
+        '''
+        for i in range(len(self), 0, -1):
+            del self[i - 1]
 
     def __str__(self):
         return str(list(self))

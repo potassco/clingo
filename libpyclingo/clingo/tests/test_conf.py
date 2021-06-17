@@ -3,6 +3,7 @@ Tests for configuration and statistics.
 '''
 
 from unittest import TestCase
+from typing import cast
 from clingo import Configuration, Control
 
 class TestConfig(TestCase):
@@ -17,10 +18,11 @@ class TestConfig(TestCase):
         self.assertIn('solver', ctl.configuration.keys)
         self.assertEqual(len(ctl.configuration.solver), 2)
         self.assertIsInstance(ctl.configuration.solver[0], Configuration)
-        self.assertIsInstance(ctl.configuration.solver[0].heuristic, str)
-        self.assertIsInstance(ctl.configuration.solver[0].description('heuristic'), str)
-        ctl.configuration.solver[0].heuristic = 'berkmin'
-        self.assertTrue(ctl.configuration.solver[0].heuristic.startswith('berkmin'))
+        conf = cast(Configuration, ctl.configuration.solver[0])
+        self.assertIsInstance(conf.heuristic, str)
+        self.assertIsInstance(conf.description('heuristic'), str)
+        conf.heuristic = 'berkmin'
+        self.assertTrue(conf.heuristic.startswith('berkmin'))
 
     def test_simple_stats(self):
         '''

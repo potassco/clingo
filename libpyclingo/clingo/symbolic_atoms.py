@@ -28,10 +28,9 @@ Examples
     [('p(1)', True, False), ('p(3)', False, False), ('p(2)', False, True)]
 '''
 
-from typing import Iterator, List, Optional, Tuple
+from typing import Collection, Iterator, List, Optional, Tuple
 
 from ._internal import _c_call, _ffi, _handle_error, _lib, _to_str
-from .util import Lookup
 from .symbol import Symbol
 
 __all__ = [ 'SymbolicAtom', 'SymbolicAtoms' ]
@@ -97,7 +96,7 @@ class SymbolicAtom:
         '''
         return Symbol(_c_call('clingo_symbol_t', _lib.clingo_symbolic_atoms_symbol, self._rep, self._it))
 
-class SymbolicAtoms(Lookup[Symbol,SymbolicAtom]):
+class SymbolicAtoms(Collection[SymbolicAtom]):
     '''
     This class provides read-only access to the atom base of the grounder.
     '''

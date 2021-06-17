@@ -2,21 +2,10 @@
 Utility functions and classes.
 """
 
-from typing import Collection, Generic, MutableSequence, Sequence, Optional, TypeVar
-from abc import abstractmethod
+from typing import Optional, cast
 from collections import abc
 
 # pylint: disable=too-many-ancestors
-
-Key = TypeVar('Key')
-Value = TypeVar('Value')
-class Lookup(Generic[Key, Value], Collection[Value]):
-    '''
-    A collection of values with additional lookup by key.
-    '''
-    @abstractmethod
-    def __getitem__(self, key: Key) -> Optional[Value]:
-        pass
 
 class Slice:
     '''
@@ -41,7 +30,7 @@ class SlicedSequence(abc.Sequence):
     '''
     Helper to slice sequences.
     '''
-    def __init__(self, seq: Sequence, slc: Slice):
+    def __init__(self, seq: abc.Sequence, slc: Slice):
         self._seq = seq
         self._slc = slc
         self._len = -1
@@ -78,18 +67,22 @@ class SlicedMutableSequence(SlicedSequence, abc.MutableSequence):
     '''
     Helper to slice sequences.
     '''
-    def __init__(self, seq: MutableSequence, slc: Slice):
+    def __init__(self, seq: abc.MutableSequence, slc: Slice):
         super().__init__(seq, slc)
+
+    @property
+    def _mut_seq(self):
+        return cast(abc.MutableSequence, self._seq)
 
     def __setitem__(self, index, ast):
         if isinstance(index, slice):
             raise TypeError('slicing not implemented')
-        self._seq[self._rng[index]] = ast
+        self._mut_seq[self._rng[index]] = ast
 
     def __delitem__(self, index):
         if isinstance(index, slice):
             raise TypeError('slicing not implemented')
-        del self._seq[self._rng[index]]
+        del self._mut_seq[self._rng[index]]
 
     def insert(self, index, value):
-        self._seq[self._rng[index]] = value
+        self._mut_seq[self._rng[index]] = value

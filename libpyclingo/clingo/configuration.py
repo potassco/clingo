@@ -99,7 +99,7 @@ class Configuration:
         key = _c_call('clingo_id_t', _lib.clingo_configuration_array_at, self._rep, self._key, idx)
         return Configuration(self._rep, key)
 
-    def __getattr__(self, name: str) -> Union[None,str,'Configuration']:
+    def __getattr__(self, name: str) -> Union[None, str, 'Configuration']:
         key = self._get_subkey(name)
         if key is None:
             raise AttributeError(f'no attribute: {name}')

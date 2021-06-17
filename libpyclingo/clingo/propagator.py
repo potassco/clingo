@@ -778,6 +778,8 @@ class Propagator(metaclass=ABCMeta):
         decision. If all propagators return 0, then the fallback literal is
         used.
         '''
+        # pylint: disable=unused-argument
+        return fallback
 
 @_ffi.def_extern(onerror=_cb_error_handler('data'), name='pyclingo_propagator_init')
 def _pyclingo_propagator_init(init, data):

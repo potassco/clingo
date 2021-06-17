@@ -471,11 +471,11 @@ class Control:
 
     def solve(self,
               assumptions: Sequence[Union[Tuple[Symbol,bool],int]]=[],
-              on_model: Callable[[Model],Optional[bool]]=None,
-              on_unsat: Callable[[Sequence[int]],None]=None,
-              on_statistics : Callable[[StatisticsMap,StatisticsMap],None]=None,
-              on_finish: Callable[[SolveResult],None]=None,
-              on_core: Callable[[Sequence[int]],None]=None,
+              on_model: Optional[Callable[[Model],Optional[bool]]]=None,
+              on_unsat: Optional[Callable[[Sequence[int]],None]]=None,
+              on_statistics : Optional[Callable[[StatisticsMap,StatisticsMap],None]]=None,
+              on_finish: Optional[Callable[[SolveResult],None]]=None,
+              on_core: Optional[Callable[[Sequence[int]],None]]=None,
               yield_: bool=False,
               async_: bool=False) -> Union[SolveHandle,SolveResult]:
         '''

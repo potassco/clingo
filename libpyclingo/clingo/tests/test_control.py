@@ -2,7 +2,8 @@
 Tests control.
 '''
 from unittest import TestCase
-from clingo import Control, Function, Number
+from typing import cast
+from clingo import Control, Function, Number, SolveResult
 
 class TestError(Exception):
     '''
@@ -57,6 +58,6 @@ class TestControl(TestCase):
         ctl.add('base', [], '1 { p(X); q(X) } 1 :- X=1..3. #minimize { 1,p,X: p(X); 1,q,X: q(X) }.')
         ctl.ground([('base', [])])
         lower = []
-        self.assertTrue(ctl.solve(on_unsat=lower.append).satisfiable)
+        self.assertTrue(cast(SolveResult, ctl.solve(on_unsat=lower.append)).satisfiable)
         self.assertEqual(lower, [[1], [2], [3]])
         self.assertEqual(ctl.statistics['summary']['lower'], [3.0])
