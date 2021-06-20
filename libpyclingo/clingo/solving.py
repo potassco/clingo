@@ -243,6 +243,9 @@ class _SymbolSequence(Sequence[Symbol]):
         for i in range(len(self)):
             yield Symbol(self._p_symbols[i])
 
+    def __str__(self):
+        return f'[{", ".join(str(sym) for sym in self)}]'
+
 class Model:
     '''
     Provides access to a model during a solve call and provides a
