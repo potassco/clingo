@@ -8,8 +8,6 @@ from subprocess import check_output, check_call, CalledProcessError
 from os import unlink, environ, path, mkdir
 from glob import glob
 
-from rename import rename_clingo_cffi
-
 ARCH = check_output(['uname', '-m']).decode().strip()
 
 
@@ -88,7 +86,6 @@ def run():
     else:
         url = 'https://test.pypi.org/simple'
         idx = 'https://test.pypi.org/simple/'
-        rename_clingo_cffi()
 
     adjust_version(url)
 
