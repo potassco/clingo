@@ -6,8 +6,6 @@ import argparse
 from re import finditer, escape, match, sub, search
 from subprocess import check_call, check_output
 
-from rename import rename_clingo_cffi
-
 def adjust_version(url):
     '''
     Adjust version in setup.py.
@@ -51,7 +49,6 @@ def run():
         url = 'https://pypi.org/simple'
     else:
         url = 'https://test.pypi.org/simple'
-        rename_clingo_cffi()
 
     adjust_version(url)
     check_call(['cmake', '-G', 'Ninja', '-H.', '-Bbuild'])
