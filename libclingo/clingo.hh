@@ -3889,22 +3889,22 @@ inline void Control::ground(PartSpan parts, GroundCallback cb) {
     using Data = std::pair<GroundCallback&, Detail::AssignOnce&>;
     Data data(cb, impl_->ptr);
     impl_->ptr.reset();
-    Detail::handle_error(clingo_control_ground(*impl_, reinterpret_cast<clingo_part_t const *>(parts.begin()), parts.size(),
-        [](clingo_location_t const *loc, char const *name, clingo_symbol_t const *args, size_t n, void *data, clingo_symbol_callback_t cb, void *cbdata) -> bool {
-            auto &d = *static_cast<Data*>(data);
-            CLINGO_CALLBACK_TRY {
-                if (d.first) {
-                    struct Ret : std::exception { };
-                    try {
-                        d.first(Location(*loc), name, {reinterpret_cast<Symbol const *>(args), n}, [cb, cbdata](SymbolSpan symret) {
-                            if (!cb(reinterpret_cast<clingo_symbol_t const *>(symret.begin()), symret.size(), cbdata)) { throw Ret(); }
-                        });
-                    }
-                    catch (Ret const &e) { return false; }
+    clingo_ground_callback_t ccb = [](clingo_location_t const *loc, char const *name, clingo_symbol_t const *args, size_t n, void *data, clingo_symbol_callback_t cb, void *cbdata) -> bool {
+        auto &d = *static_cast<Data*>(data);
+        CLINGO_CALLBACK_TRY {
+            if (d.first) {
+                struct Ret : std::exception { };
+                try {
+                    d.first(Location(*loc), name, {reinterpret_cast<Symbol const *>(args), n}, [cb, cbdata](SymbolSpan symret) {
+                        if (!cb(reinterpret_cast<clingo_symbol_t const *>(symret.begin()), symret.size(), cbdata)) { throw Ret(); }
+                    });
                 }
+                catch (Ret const &e) { return false; }
             }
-            CLINGO_CALLBACK_CATCH(d.second);
-        }, &data), data.second);
+        }
+        CLINGO_CALLBACK_CATCH(d.second);
+    };
+    Detail::handle_error(clingo_control_ground(*impl_, reinterpret_cast<clingo_part_t const *>(parts.begin()), parts.size(), cb ? ccb : nullptr, &data), data.second);
 }
 
 inline clingo_control_t *Control::to_c() const { return *impl_; }
