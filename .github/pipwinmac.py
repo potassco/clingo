@@ -95,7 +95,7 @@ def run():
     check_call(args)
 
     # build
-    args = ['python', 'setup.py', 'build', '--build-type', 'Release']
+    args = ['python', 'setup.py', 'bdist_wheel', '--build-type', 'Release']
     if os.name != 'posix':
         args.extend(['-G', 'NMake Makefiles'])
     check_call(args)
