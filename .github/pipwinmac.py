@@ -12,6 +12,7 @@ from sysconfig import get_config_var
 from os import environ, pathsep
 import os
 import argparse
+import toml
 
 NAMES = {
     "cpython": "cp",
@@ -82,13 +83,21 @@ def run():
 
     adjust_version(url)
 
+    # build environment
     if os.name == 'posix':
         environ['PATH'] = '/usr/local/opt/bison/bin' + pathsep + '/usr/local/opt/bison@2.7/bin' + pathsep + environ["PATH"]
         environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
-    args = ['pip', 'wheel', '-v', '--no-deps', '-w', 'dist']
+
+    # install requirements
+    args = ['python', '-m', 'pip', 'install'] + toml.load("pyproject.toml")["build-system"]["requires"]
     if idx is not None:
         args.extend(['--extra-index-url', idx])
-    args.extend(['./'])
+    check_call(args)
+
+    # build
+    args = ['python', 'setup.py', 'build', '--build-type', 'Release']
+    if os.name != 'posix':
+        args.extend(['-G', 'NMake Makefiles'])
     check_call(args)
 
     for wheel in glob('dist/*.whl'):

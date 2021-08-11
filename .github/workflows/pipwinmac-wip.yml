@@ -32,7 +32,7 @@ jobs:
 
     - name: Install pip prerequisites
       run: |
-        pip install --user cffi scikit-build cmake ninja twine
+        pip install --user toml cffi scikit-build cmake ninja twine
 
     - name: Install macos-10.15 prerequisites
       if: ${{ matrix.os == 'macos-10.15' }}
