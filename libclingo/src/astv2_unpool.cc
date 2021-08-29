@@ -81,7 +81,8 @@ tl::optional<std::vector<AST::ASTVec>> unpool(AST::ASTVec &vec, clingo_ast_unpoo
     product.reserve(size);
     product.emplace_back();
     for (auto &pool : pools) {
-        for (auto jt = product.begin(), je = product.end(); jt != je; ++jt) {
+        auto jt = product.begin();
+        for (size_t i = 0, e = product.size(); i != e; ++i, ++jt) {
             assert(!pool->empty());
             auto kt = pool->begin();
             auto ke = pool->end();
