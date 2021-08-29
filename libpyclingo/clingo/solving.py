@@ -246,6 +246,9 @@ class _SymbolSequence(Sequence[Symbol]):
     def __str__(self):
         return f'[{", ".join(str(sym) for sym in self)}]'
 
+    def __repr__(self):
+        return f'[{", ".join(repr(sym) for sym in self)}]'
+
 class Model:
     '''
     Provides access to a model during a solve call and provides a
