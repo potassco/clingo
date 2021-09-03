@@ -9,29 +9,35 @@ Terms
 Terms without variables and interpreted functions are called symbols in the
 following. They are wrapped in the `clingo.symbol.Symbol` class.
 
-Atoms and Literals
-------------------
-Atoms are also captured using the `clingo.symbol.Symbol` class. They must be of
-type `clingo.symbol.SymbolType.Function`. Some functions accept literals in
-form of pairs of symbols and Booleans. The Boolean stands for the sign of the
-literal (`True` for positive and `False` for negative).
+Symbolic Atoms and Literals
+---------------------------
+Symbolic atoms and literals are the usual atoms and literals that occur in
+a logic program. They are also captured using the `clingo.symbol.Symbol` class.
+They must be of type `clingo.symbol.SymbolType.Function`. Some functions accept
+literals in form of pairs of symbols and Booleans. The Boolean stands for
+the sign of the literal (`True` for positive and `False` for negative).
 
 Program Literals
 ----------------
-*Program literals* are non-zero integers associated with symbolic atoms, theory
+The result of grounding a logic program is a program in the aspif format.
+The literals in this format are called *program literals*.
+They are non-zero integers associated with symbolic atoms, theory
 atoms, and also without any association if they are used to translate complex
 language constructs. The sign of a program literal is used to represent default
-negation. Symbolic atoms can be mapped to program literals using the
+negation. There is a injective mapping from symbolic atoms to program literals.
+Symbolic atoms can be mapped to program literals using the
 `clingo.symbolic_atoms` module, theory atoms using the `clingo.theory_atoms`
 module, and the `clingo.backend` can also be used to introduce fresh program
 literals.
 
 Solver Literals
 ---------------
-Furthermore, there are non-zero integer *solver literals*. There is a
-surjective mapping from program atoms to solver literals. The
-`clingo.propagator.PropagateInit.solver_literal` function can be used to map
-program literals to solver literals.
+Before solving, programs in the aspif format are translated to
+the internal representation of the solver, where program literals
+are replaced by non-zero integers called *solver literals*.
+There is an injective mapping from program literals to solver literals.
+The `clingo.propagator.PropagateInit.solver_literal` function
+can be used to map program literals to solver literals.
 
 Embedded Python Code
 --------------------
