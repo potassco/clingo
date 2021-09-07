@@ -9,36 +9,43 @@ Terms
 Terms without variables and interpreted functions are called symbols in the
 following. They are wrapped in the `clingo.symbol.Symbol` class.
 
-Atoms and Literals
-------------------
-Atoms are also captured using the `clingo.symbol.Symbol` class. They must be of
-type `clingo.symbol.SymbolType.Function`. Some functions accept literals in
-form of pairs of symbols and Booleans. The Boolean stands for the sign of the
-literal (`True` for positive and `False` for negative).
+Symbolic Atoms and Literals
+---------------------------
+*Symbolic atoms* without variables and interpreted functions, which appear in
+ground logic programs, are captured using the `clingo.symbol.Symbol` class.
+They must be of type `clingo.symbol.SymbolType.Function`. Furthermore, some
+functions accept *symbolic literals*, which are represented as pairs of symbols
+and Booleans. The Boolean stands for the sign of the literal (`True` for
+positive and `False` for negative).
 
 Program Literals
 ----------------
-*Program literals* are non-zero integers associated with symbolic atoms, theory
-atoms, and also without any association if they are used to translate complex
-language constructs. The sign of a program literal is used to represent default
+When passing a ground logic program to a solver, clingo does not use a human
+readable textual representation but the aspif format. The literals in this
+format are called *program literals*. They are non-zero integers associated
+with symbolic atoms, theory atoms, and also without any association if they are
+used to translate complex language constructs not directly representable in
+aspif format. The sign of a program literal is used to represent default
 negation. Symbolic atoms can be mapped to program literals using the
-`clingo.symbolic_atoms` module, theory atoms using the `clingo.theory_atoms`
-module, and the `clingo.backend` can also be used to introduce fresh program
-literals.
+`clingo.symbolic_atoms` module and theory atoms using the `clingo.theory_atoms`
+module. Note that symbolic and theory atoms can share the same program
+literals. Finally, the `clingo.backend` module can also be used to introduce
+fresh symbolic atoms and program literals.
 
 Solver Literals
 ---------------
-Furthermore, there are non-zero integer *solver literals*. There is a
-surjective mapping from program atoms to solver literals. The
-`clingo.propagator.PropagateInit.solver_literal` function can be used to map
-program literals to solver literals.
+Before solving, programs in aspif format are translated to an internal solver
+representation, where program literals are again mapped to non-zero integers,
+so called *solver literals*. The `clingo.propagator.PropagateInit.solver_literal`
+function can be used to map program literals to solver literals. Note that
+different program literals can share the same solver literal.
 
 Embedded Python Code
 --------------------
 If the clingo application is build with Python support, clingo will also be
-able to execute Python code embedded in logic programs.  Functions defined in a
+able to execute Python code embedded in logic programs. Functions defined in a
 Python script block are callable during the instantiation process using
-`@`-syntax.  The default grounding/solving process can be customized if a main
+`@`-syntax. The default grounding/solving process can be customized if a main
 function is provided.
 
 ## Examples
