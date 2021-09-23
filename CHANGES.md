@@ -1,6 +1,7 @@
 # Changes
 
 ## clingo 5.5.1
+  * fix error handling while solving in Python API (#334)
 
 ## clingo 5.5.0
   * allow for using `not` as a theory operator (#193)
