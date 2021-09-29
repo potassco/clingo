@@ -61,3 +61,21 @@ class TestControl(TestCase):
         self.assertTrue(cast(SolveResult, ctl.solve(on_unsat=lower.append)).satisfiable)
         self.assertEqual(lower, [[1], [2], [3]])
         self.assertEqual(ctl.statistics['summary']['lower'], [3.0])
+
+    def test_error_handling(self):
+        '''
+        Test basic error handling during solving.
+        '''
+        ctl = Control()
+        ctl.add('base', [], '1 {a; b} 1.')
+        ctl.ground([('base', [])])
+
+        self.assertRaises(ZeroDivisionError, lambda: ctl.solve(on_model=lambda m: 1 / 0))
+
+        with ctl.solve(on_model=lambda m: 1 / 0, yield_=True) as handle:
+            self.assertRaises(ZeroDivisionError, lambda: [_ for _ in handle])
+
+        # Note: currently clasp does not store and re-raise the exception in
+        # asynchronous mode, so we get a runtime error instead
+        with ctl.solve(on_model=lambda m: 1 / 0, async_=True) as handle:
+            self.assertRaises(RuntimeError, handle.get)

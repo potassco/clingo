@@ -574,7 +574,7 @@ class Control:
                 p_ass, len(assumptions),
                 _lib.pyclingo_solve_event_callback, self._handler,
                 handler=data),
-            handler)
+            data)
 
         if not yield_ and not async_:
             with handle:

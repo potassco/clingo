@@ -70,11 +70,10 @@ void inline clingo_expect(bool expr) {
     if (!expr) { throw std::runtime_error("unexpected"); }
 }
 
-void handleCError(bool ret, std::exception_ptr *exc = nullptr);
-void handleCXXError();
+void handleError();
 
 #define GRINGO_CLINGO_TRY try
-#define GRINGO_CLINGO_CATCH catch (...) { handleCXXError(); return false; } return true
+#define GRINGO_CLINGO_CATCH catch (...) { handleError(); return false; } return true
 
 #define GRINGO_CALLBACK_TRY try
 #define GRINGO_CALLBACK_CATCH(ref) catch (...){ (ref) = std::current_exception(); return false; } return true
@@ -128,40 +127,22 @@ void print(char *ret, size_t n, F f) {
     #define g_lastCode (tLlastCode())
 #endif
 
-void handleCError(bool ret, std::exception_ptr *exc) {
-    if (!ret) {
-        if (exc && *exc) { std::rethrow_exception(*exc); }
-        char const *msg = clingo_error_message();
-        if (!msg) { msg = "no message"; }
-        switch (static_cast<clingo_error_e>(clingo_error_code())) {
-            case clingo_error_runtime:   { throw std::runtime_error(msg); }
-            case clingo_error_logic:     { throw std::logic_error(msg); }
-            case clingo_error_bad_alloc: { throw std::bad_alloc(); }
-            case clingo_error_unknown:   { throw std::runtime_error(msg); }
-            case clingo_error_success:   { throw std::runtime_error(msg); }
-        }
-    }
-}
-
-void forwardCError(bool ret, std::exception_ptr *exc=nullptr) {
+void forwardError(bool ret, std::exception_ptr *exc=nullptr) {
     if (!ret) {
         if (exc && *exc) { std::rethrow_exception(*exc); }
         else             { throw ClingoError(); }
     }
 }
 
-void handleCXXError() {
+void handleError() {
     try { throw; }
-    catch (GringoError const &)         { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
     // Note: a ClingoError is throw after an exception is set or a user error is thrown so either
     //       - g_lastException is already set, or
     //       - there was a user error (currently not associated to an error message)
     catch (ClingoError const &e)        { g_lastException = std::current_exception(); g_lastCode = e.code; }
-    catch (MessageLimitError const &)   { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
-    catch (std::bad_alloc const &)      { g_lastException = std::current_exception(); g_lastCode = clingo_error_bad_alloc; return; }
-    catch (std::runtime_error const &)  { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
-    catch (std::logic_error const &)    { g_lastException = std::current_exception(); g_lastCode = clingo_error_logic; return; }
-    g_lastCode = clingo_error_unknown;
+    catch (std::bad_alloc const &)      { g_lastException = std::current_exception(); g_lastCode = clingo_error_bad_alloc; }
+    catch (std::logic_error)            { g_lastException = std::current_exception(); g_lastCode = clingo_error_logic; }
+    catch (...)                         { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; }
 }
 
 
@@ -1675,7 +1656,7 @@ extern "C" bool clingo_ast_attribute_insert_ast_at(clingo_ast_t *ast, clingo_ast
 extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         auto builder = Input::build([cb, cb_data](Input::SAST ast) {
-            forwardCError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
+            forwardError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
         });
         bool incmode = false;
         Input::NonGroundParser parser{*builder, incmode};
@@ -1692,7 +1673,7 @@ extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback
 extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         auto builder = Input::build([cb, cb_data](Input::SAST ast) {
-            forwardCError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
+            forwardError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
         });
         bool incmode = false;
         Input::NonGroundParser parser(*builder, incmode);
@@ -1717,11 +1698,11 @@ extern "C" bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bits
         auto pool = Input::unpool(sast, unpool_type);
         if (pool.has_value()) {
             for (auto &unpooled : *pool) {
-                forwardCError(callback(reinterpret_cast<clingo_ast_t*>(unpooled.get()), callback_data));
+                forwardError(callback(reinterpret_cast<clingo_ast_t*>(unpooled.get()), callback_data));
             }
         }
         else {
-            forwardCError(callback(ast, callback_data));
+            forwardError(callback(ast, callback_data));
         }
     }
     GRINGO_CLINGO_CATCH;
@@ -2118,14 +2099,14 @@ private:
     void exec(String, Location loc, String code) override {
         if (script_.execute) {
             auto l = conv(loc);
-            forwardCError(script_.execute(&l, code.c_str(), data_));
+            forwardError(script_.execute(&l, code.c_str(), data_));
         }
     }
     SymVec call(Location const &loc, String name, SymSpan args, Logger &) override {
         using Data = std::pair<SymVec, std::exception_ptr>;
         Data data;
         auto l = conv(loc);
-        forwardCError(script_.call(
+        forwardError(script_.call(
             &l, name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size,
             [](clingo_symbol_t const *symbols, size_t symbols_size, void *pdata) {
                 auto &data = *static_cast<Data*>(pdata);
@@ -2141,11 +2122,11 @@ private:
     }
     bool callable(String name) override {
         bool ret;
-        forwardCError(script_.callable(name.c_str(), &ret, data_));
+        forwardError(script_.callable(name.c_str(), &ret, data_));
         return ret;
     }
     void main(Control &ctl) override {
-        forwardCError(script_.main(&ctl, data_));
+        forwardError(script_.main(&ctl, data_));
     }
     char const *version() override {
         return script_.version;
@@ -2212,7 +2193,7 @@ public:
         for (auto &x : files) {
             c_files.emplace_back(x.c_str());
         }
-        forwardCError(app_.main(&ctl, c_files.data(), c_files.size(), data_));
+        forwardError(app_.main(&ctl, c_files.data(), c_files.size(), data_));
     }
     bool has_log() const override { return app_.logger; }
     void log(Gringo::Warnings code, char const *message) noexcept override {
@@ -2221,7 +2202,7 @@ public:
     }
     bool has_printer() const override { return app_.printer; }
     void print_model(Model *model, std::function<void()> printer) override {
-        forwardCError(app_.printer(model, [](void *data) {
+        forwardError(app_.printer(model, [](void *data) {
             GRINGO_CLINGO_TRY {
                 (*static_cast<std::function<void()>*>(data))();
             }
@@ -2231,12 +2212,12 @@ public:
 
     void register_options(ClingoApp &app) override {
         if (app_.register_options) {
-            forwardCError(app_.register_options(static_cast<clingo_options_t*>(&app), data_));
+            forwardError(app_.register_options(static_cast<clingo_options_t*>(&app), data_));
         }
     }
     void validate_options() override {
         if (app_.validate_options) {
-            forwardCError(app_.validate_options(data_));
+            forwardError(app_.validate_options(data_));
         }
     }
 private:
@@ -2274,7 +2255,7 @@ extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main(clingo_application *applica
         return Gringo::ClingoApp{std::move(app)}.main(args.size() - 1, args.data());
     }
     catch (...) {
-        handleCXXError();
+        handleError();
         std::cerr << "error during initialization: going to terminate:\n" << clingo_error_message() << std::endl;
         std::terminate();
     }
