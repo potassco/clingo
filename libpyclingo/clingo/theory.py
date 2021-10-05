@@ -56,6 +56,7 @@ typedef bool (*PREFIX_ast_callback_t)(clingo_ast_t *ast, void *data);
 
 bool PREFIX_create(PREFIX_theory_t **theory)
 bool PREFIX_destroy(PREFIX_theory_t *theory)
+bool PREFIX_version(PREFIX_theory_t **theory, int *major, int *minor, int *patch);
 bool PREFIX_register(PREFIX_theory_t *theory, clingo_control_t* control)
 bool PREFIX_rewrite_ast(PREFIX_theory_t *theory, clingo_ast_t *ast, PREFIX_ast_callback_t add, void *data);
 bool PREFIX_prepare(PREFIX_theory_t *theory, clingo_control_t* control)
@@ -177,6 +178,19 @@ class Theory:
         if self._theory is not None:
             self.__call0('destroy', self._theory)
             self._theory = None
+
+    def version(self) -> Tuple[int, int, int]:
+        '''
+        This function returns the version of the theory.
+
+        Returns
+        -------
+        A 3-tuple of integers representing major and minor version as well as
+        the patch level.
+        '''
+        p_version = self._ffi.new('int[3]')
+        self.__call('version', p_version, p_version + 1, p_version + 2)
+        return p_version[0], p_version[1], p_version[2]
 
     def configure(self, key: str, value: str) -> None:
         '''
