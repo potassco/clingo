@@ -301,7 +301,7 @@ class Theory:
         Get the integer index of a symbol assigned by the theory when a
         model is found.
 
-        Using indices allows for efficent retreival of values.
+        Using indices allows for efficent retrieval of values.
 
         Arguments
         ---------
