@@ -379,12 +379,14 @@ private:
 };
 
 template <class T, class A=T*, class P=ValuePointer<T>>
-class ArrayIterator : public std::iterator<std::random_access_iterator_tag, T, ptrdiff_t, P, T> {
+class ArrayIterator {
 public:
-    using base = std::iterator<std::random_access_iterator_tag, T, ptrdiff_t, P, T>;
-    using difference_type = typename base::difference_type;
-    using reference = typename base::reference;
-    using pointer = typename base::pointer;
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = T;
+    using difference_type = ptrdiff_t;
+    using pointer = P;
+    using reference = T;
+
     explicit ArrayIterator(A arr, size_t index = 0)
     : arr_(std::move(arr))
     , index_(index) { }
@@ -646,8 +648,14 @@ private:
     clingo_symbolic_atom_iterator_t range_;
 };
 
-class SymbolicAtomIterator : private SymbolicAtom, public std::iterator<std::input_iterator_tag, SymbolicAtom> {
+class SymbolicAtomIterator : private SymbolicAtom {
 public:
+    using iterator_category = std::input_iterator_tag;
+    using value_type = SymbolicAtom;
+    using difference_type = ptrdiff_t;
+    using pointer = SymbolicAtom*;
+    using reference = SymbolicAtom&;
+
     explicit SymbolicAtomIterator(clingo_symbolic_atoms_t const *atoms, clingo_symbolic_atom_iterator_t range)
     : SymbolicAtom{atoms, range} { }
     SymbolicAtom &operator*() { return *this; }
@@ -692,10 +700,14 @@ enum class TheoryTermType : clingo_theory_term_type_t {
 };
 
 template <class T>
-class TheoryIterator : public std::iterator<std::random_access_iterator_tag, T const, ptrdiff_t, T*, T> {
+class TheoryIterator {
 public:
-    using base = std::iterator<std::random_access_iterator_tag, T const>;
-    using difference_type = typename base::difference_type;
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = T const;
+    using difference_type = ptrdiff_t;
+    using pointer = T*;
+    using reference = T;
+
     explicit TheoryIterator(clingo_theory_atoms_t const *atoms, clingo_id_t const* id)
     : elem_(atoms)
     , id_(id) { }
@@ -711,8 +723,8 @@ public:
         --*this;
         return t;
     }
-    TheoryIterator& operator+=(difference_type n) { id_ += n; return *this; }
-    TheoryIterator& operator-=(difference_type n) { id_ -= n; return *this; }
+    TheoryIterator& operator+=(difference_type n) { id_ += n; return *this; } // NOLINT
+    TheoryIterator& operator-=(difference_type n) { id_ -= n; return *this; } // NOLINT
     friend TheoryIterator operator+(TheoryIterator it, difference_type n) { return TheoryIterator{it.atoms(), it.id_ + n}; }
     friend TheoryIterator operator+(difference_type n, TheoryIterator it) { return TheoryIterator{it.atoms(), it.id_ + n}; }
     friend TheoryIterator operator-(TheoryIterator it, difference_type n) { return TheoryIterator{it.atoms(), it.id_ - n}; }
@@ -833,8 +845,14 @@ private:
 };
 std::ostream &operator<<(std::ostream &out, TheoryAtom term);
 
-class TheoryAtomIterator : private TheoryAtom, public std::iterator<TheoryAtom, std::random_access_iterator_tag, ptrdiff_t, TheoryAtom*, TheoryAtom> {
+class TheoryAtomIterator : private TheoryAtom {
 public:
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = TheoryAtom;
+    using difference_type = ptrdiff_t;
+    using pointer = TheoryAtom*;
+    using reference = TheoryAtom;
+
     explicit TheoryAtomIterator(clingo_theory_atoms_t const *atoms, clingo_id_t id)
     : TheoryAtom{atoms, id} { }
     TheoryAtomIterator& operator++() { ++id_; return *this; }
@@ -887,11 +905,14 @@ private:
 // {{{1 trail
 
 template <class T, class U, class I>
-class IndexIterator : public std::iterator<std::random_access_iterator_tag, typename T::value_type, I, typename T::value_type, typename T::value_type> {
+class IndexIterator {
 public:
+    using iterator_category = std::random_access_iterator_tag;
     using value_type = typename T::value_type;
-    using base = std::iterator<std::random_access_iterator_tag, value_type, I, value_type*, value_type>;
-    using difference_type = typename base::difference_type;
+    using difference_type = I;
+    using pointer = value_type*;
+    using reference = value_type;
+
     explicit IndexIterator(T *con = nullptr, U index = 0)
     : con_(con)
     , index_(index) { }
@@ -1452,8 +1473,14 @@ private:
 // {{{1 statistics
 
 template <class T>
-class KeyIterator : public std::iterator<std::random_access_iterator_tag, char const *, ptrdiff_t, ValuePointer<char const *>, char const *> {
+class KeyIterator {
 public:
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = char const *;
+    using difference_type = ptrdiff_t;
+    using pointer = ValuePointer<char const *>;
+    using reference = char const *;
+
     explicit KeyIterator(T const *map, size_t index = 0)
     : map_(map)
     , index_(index) { }
@@ -1604,8 +1631,14 @@ private:
     Detail::AssignOnce *exception_{nullptr};
 };
 
-class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
+class ModelIterator {
 public:
+    using iterator_category = std::input_iterator_tag;
+    using value_type = Model;
+    using difference_type = ptrdiff_t;
+    using pointer = Model const *;
+    using reference = Model const &;
+
     explicit ModelIterator(SolveHandle &iter)
     : iter_(&iter) { }
     ModelIterator() = default;
