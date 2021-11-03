@@ -16,7 +16,7 @@ def get_build_number(channels, version):
     Get the next build number.
     '''
     try:
-        pkgs = json.loads(subprocess.check_output(['conda', 'search', '--json', '-c', channels[-1], NAME]))
+        pkgs = json.loads(subprocess.check_output(['conda', 'search', '--json', '-c', channels[0], NAME]))
     except subprocess.CalledProcessError:
         pkgs = {NAME: []}
 

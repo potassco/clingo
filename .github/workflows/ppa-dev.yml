@@ -23,6 +23,7 @@ jobs:
     steps:
     - name: Install prerequisites
       run: |
+        sudo apt-get update
         sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dput dh-python
 
     - name: Checkout repo
