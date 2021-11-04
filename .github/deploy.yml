@@ -53,8 +53,8 @@ conda:
     channels_release:
       - 'potassco'
     channels_dev:
-      - 'potassco'
       - 'potassco/label/dev'
+      - 'potassco'
     version: |
       version = None
       with open('libclingo/clingo.h') as fh:
