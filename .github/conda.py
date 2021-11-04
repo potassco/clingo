@@ -23,7 +23,7 @@ def get_build_number(channels, version):
 
     build_number = -1
     for pkg in pkgs.get(NAME, []):
-        if pkg['channel'].find(channels[-1]) >= 0 and pkg["version"] == version:
+        if pkg['channel'].find(channels[0]) >= 0 and pkg["version"] == version:
             build_number = max(build_number, pkg['build_number'])
 
     return build_number + 1
@@ -41,7 +41,7 @@ def run():
         channels = ['potassco']
     else:
         label = "dev"
-        channels = ['potassco', 'potassco/label/dev']
+        channels = ['potassco/label/dev', 'potassco']
 
     version = None
     with open('libclingo/clingo.h') as fh:
