@@ -433,7 +433,11 @@ struct ToIterator {
 template <class T, class I = ToIterator<T>>
 class Span : private I {
 public:
+#if __cplusplus >= 201703L
+    using IteratorType = typename std::invoke_result<I, T const *>::type;
+#else
     using IteratorType = typename std::result_of<I(T const *)>::type;
+#endif
     using ReferenceType = decltype(*std::declval<IteratorType>());
     Span(I to_it = I())
     : Span(nullptr, size_t(0), to_it) { }
