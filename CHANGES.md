@@ -1,7 +1,11 @@
 # Changes
 
 ## clingo 5.5.1
+  * extend theory class to get version information
+  * improve performance of `Model.symbol` (#296)
+  * tidy up `clingo.hh` header regarding C++17 deprecations (#344)
   * fix error handling while solving in Python API (#334)
+  * fix various outher bugs
 
 ## clingo 5.5.0
   * allow for using `not` as a theory operator (#193)
