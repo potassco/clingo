@@ -3,7 +3,6 @@ python:
 - 3.7
 - 3.8
 - 3.9
-- 3.10
 
 # from https://github.com/phracker/MacOSX-SDKs
 CONDA_BUILD_SYSROOT:
