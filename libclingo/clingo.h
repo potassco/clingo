@@ -113,9 +113,9 @@ extern "C" {
 //! Minor version number.
 #define CLINGO_VERSION_MINOR 5
 //! Revision number.
-#define CLINGO_VERSION_REVISION 1
+#define CLINGO_VERSION_REVISION 2
 //! String representation of version.
-#define CLINGO_VERSION "5.5.1"
+#define CLINGO_VERSION "5.5.2"
 
 //! Signed integer type used for aspif and solver literals.
 typedef int32_t clingo_literal_t;
