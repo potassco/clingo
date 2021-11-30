@@ -4,20 +4,18 @@ values in lexicographical order.
 
 # TODO
 - add an option to control whether to restore the last solution candidate
-- add constraints to establish upper bounds with more than one priority
 - maybe print the models in a nicer way
 - maybe add the number of optimal models to the user statistics
 """
 import sys
 from typing import cast, Dict, List, Optional, Sequence, Tuple
 
-from clingo.configuration import Configuration
+from clingo.application import clingo_main, Application
 from clingo.backend import Backend, Observer
+from clingo.configuration import Configuration
 from clingo.control import Control
-from clingo.application import Application
-from clingo.solving import SolveResult, Model
 from clingo.propagator import Propagator, Assignment, PropagateControl
-from clingo import clingo_main
+from clingo.solving import SolveResult, Model
 
 
 class MinObs(Observer):
@@ -64,27 +62,70 @@ class RestoreHeu(Propagator):
 
 class OptApt(Application):
     _restore: bool
+    _aux_level: Dict[Tuple[int, int], int]
 
     def __init__(self):
         # TODO: this should be controlled via an option
         self._restore = True
+        self._aux_level = {}
 
-    def _set_upper_bound(self, backend: Backend, minimize: Sequence[Sequence[Tuple[int, int]]], bound: Sequence[int]):
-        assert len(minimize) == len(bound)
-        if len(minimize) != 1:
-            raise RuntimeError('only one priority level accepted for now')
+    def _add_upper_bound(self, backend: Backend, wlits: Sequence[Tuple[int, int]], bound: int, level: Optional[int]):
+        '''
+        Adds the constraint `a <> { wlits } < bound` and returns litera `a`.
 
-        # TODO: multiple priority level should be supported
-        lower = -bound[0]
-        wlits = []
-        for l, w in minimize[0]:
+        If level is None, then an integrity constraint is added and no
+        auxiliary literal is introduced.
+
+        This function reuses literals introduced in earlier iterations.
+        '''
+        hd = []
+        if level:
+            if (level, bound) in self._aux_level:
+                return self._aux_level[(level, bound)]
+            hd.append(backend.add_atom())
+            self._aux_level[(level, bound)] = hd[0]
+
+        lower = -bound
+        wlits_lower = []
+        for l, w in wlits:
             if w > 0:
                 lower += w
                 l = -l
             else:
                 w = -w
-            wlits.append((l, w))
-        backend.add_weight_rule([], lower, wlits)
+            wlits_lower.append((l, w))
+
+        backend.add_weight_rule(hd, lower, wlits_lower)
+        return level and hd[0]
+
+    def _set_upper_bound(self, backend: Backend, minimize: Sequence[Sequence[Tuple[int, int]]], bound: Sequence[int]):
+        '''
+        Adds constraints discarding solutions lexicographically smaller or
+        equal than the bound.
+
+        The weighted literals in the minimize variable directly correspond to
+        how the solver represents minimize constraints.
+        '''
+        assert minimize and len(minimize) == len(bound)
+        if len(minimize) == 1:
+            self._add_upper_bound(backend, minimize[0], bound[0], None)
+        else:
+            # Note: we could also introduce a chain. But then there are
+            # typically few priorities and this should resolve nicely.
+            # :- l0 <= b0-1
+            # :- l0 <= b0 && l1 <= b1-1
+            # :- l0 <= b0 && l1 <= b1 && l2 <= b2-1
+            # ...
+            # :- l0 <= b0 && l1 <= b1 && l2 <= b2 && ... && ln <= bn
+            prefix = []
+            for i, (wlits, value) in enumerate(zip(minimize, bound)):
+                if i == len(minimize) - 1:
+                    prefix.append(self._add_upper_bound(backend, wlits, value - 1, i))
+                    backend.add_rule([], prefix)
+                    prefix[-1] = self._add_upper_bound(backend, wlits, value, i)
+                else:
+                    prefix.append(self._add_upper_bound(backend, wlits, value, i))
+                    backend.add_rule([], prefix)
 
     def _optimize(self, control: Control):
         obs = MinObs()
