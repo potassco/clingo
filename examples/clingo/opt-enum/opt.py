@@ -1,33 +1,38 @@
 """
 Simple example showing how to resume optimization to enumerate all optimal
 values in lexicographical order.
-
-# TODO
-- add an option to control whether to restore the last solution candidate
-- maybe print the models in a nicer way
-- maybe add the number of optimal models to the user statistics
 """
 import sys
 from typing import cast, Dict, List, Optional, Sequence, Tuple
 
-from clingo.application import clingo_main, Application
+from clingo.application import clingo_main, Application, ApplicationOptions, Flag
 from clingo.backend import Backend, Observer
 from clingo.configuration import Configuration
 from clingo.control import Control
 from clingo.propagator import Propagator, Assignment, PropagateControl
 from clingo.solving import SolveResult, Model
+from clingo.statistics import StatisticsMap
 
 
 class MinObs(Observer):
+    '''
+    Observer to extract ground minimize constraint.
+    '''
     literals: Dict[int, List[Tuple[int, int]]]
 
     def __init__(self):
         self.literals = {}
 
     def minimize(self, priority: int, literals: Sequence[Tuple[int,int]]):
+        '''
+        Intercept minimize constraint and add it to member `literals`.
+        '''
         self.literals.setdefault(priority, []).extend(literals)
 
 class RestoreHeu(Propagator):
+    '''
+    Heuristic to restore solutions when resuming optimal model enumeration.
+    '''
     costs: Dict[Tuple[int], Sequence[int]]
     models: Dict[int, Sequence[int]]
     restore: Optional[Sequence[int]]
@@ -38,6 +43,10 @@ class RestoreHeu(Propagator):
         self.restore = None
 
     def set_restore(self, bound: Tuple[int]):
+        '''
+        Set the best previously found solution with a cost worse than bound to
+        restore.
+        '''
         min_costs = bound
         for costs, model in self.costs.items():
             if bound < costs < min_costs:
@@ -45,14 +54,24 @@ class RestoreHeu(Propagator):
                 self.restore = model
 
     def on_model(self, model: Model):
+        '''
+        If a model has been found store the corresponding bound/solution.
+        '''
         idx = cast(Tuple[int], tuple(model.cost))
         self.costs[idx] = self.models[model.thread_id]
 
     def check(self, control: PropagateControl):
+        '''
+        Store the last solution found by a thread.
+        '''
         self.models[control.thread_id] = list(control.assignment.trail)
         self.restore = None
 
     def decide(self, thread_id: int, assignment: Assignment, fallback: int) -> int:
+        '''
+        Either restores the last solution or falls back to the solvers
+        heuristic.
+        '''
         if self.restore:
             for lit in self.restore:
                 if assignment.is_free(lit):
@@ -61,13 +80,29 @@ class RestoreHeu(Propagator):
 
 
 class OptApt(Application):
-    _restore: bool
+    '''
+    Application class implementing optimal model enumeration.
+    '''
+    _restore: Flag
     _aux_level: Dict[Tuple[int, int], int]
+    _heu: Optional[RestoreHeu]
+    _proven: int
+    _intermediate: int
 
     def __init__(self):
-        # TODO: this should be controlled via an option
-        self._restore = True
+        self._restore = Flag()
         self._aux_level = {}
+        self._proven = 0
+        self._intermediate = 0
+        self._heu = None
+
+    def register_options(self, options: ApplicationOptions):
+        '''
+        Register enumeration specific heuristics.
+        '''
+        options.add_flag("Enumerate", "restore",
+            "heuristically restore last solution when resuming optimization",
+            self._restore)
 
     def _add_upper_bound(self, backend: Backend, wlits: Sequence[Tuple[int, int]], bound: int, level: Optional[int]):
         '''
@@ -79,7 +114,7 @@ class OptApt(Application):
         This function reuses literals introduced in earlier iterations.
         '''
         hd = []
-        if level:
+        if level is not None:
             if (level, bound) in self._aux_level:
                 return self._aux_level[(level, bound)]
             hd.append(backend.add_atom())
@@ -96,7 +131,7 @@ class OptApt(Application):
             wlits_lower.append((l, w))
 
         backend.add_weight_rule(hd, lower, wlits_lower)
-        return level and hd[0]
+        return hd[0] if hd else None
 
     def _set_upper_bound(self, backend: Backend, minimize: Sequence[Sequence[Tuple[int, int]]], bound: Sequence[int]):
         '''
@@ -120,32 +155,56 @@ class OptApt(Application):
             prefix = []
             for i, (wlits, value) in enumerate(zip(minimize, bound)):
                 if i == len(minimize) - 1:
+                    prefix.append(self._add_upper_bound(backend, wlits, value, i))
+                    backend.add_rule([], prefix)
+                else:
                     prefix.append(self._add_upper_bound(backend, wlits, value - 1, i))
                     backend.add_rule([], prefix)
                     prefix[-1] = self._add_upper_bound(backend, wlits, value, i)
-                else:
-                    prefix.append(self._add_upper_bound(backend, wlits, value, i))
-                    backend.add_rule([], prefix)
+
+    def _on_model(self, model: Model) -> bool:
+        '''
+        Intercept models.
+
+        This function counts optimal and intermediate models as well as passes
+        model to the restore heuristic.
+        '''
+        if self._heu:
+            self._heu.on_model(model)
+        if model.optimality_proven:
+            self._proven += 1
+        else:
+            self._intermediate += 1
+        return True
+
+    def _on_statistics(self, step: StatisticsMap, accu: StatisticsMap):
+        '''
+        Sets optimization specific statistics.
+        '''
+        #pylint: disable=unused-argument
+        accu.update({'Enumerate': {
+            'Enumerated': self._proven,
+            'Intermediate': self._intermediate}})
 
     def _optimize(self, control: Control):
+        '''
+        Run optimal solution enumeration algorithm.
+        '''
         obs = MinObs()
         control.register_observer(obs)
 
-        heu = None
-        on_model = None
         if self._restore:
-            heu = RestoreHeu()
-            on_model = heu.on_model
-            control.register_propagator(heu)
+            self._heu = RestoreHeu()
+            control.register_propagator(self._heu)
 
         control.ground([('base', [])])
-        res = cast(SolveResult, control.solve(on_model=on_model))
+        res = cast(SolveResult, control.solve(on_model=self._on_model, on_statistics=self._on_statistics))
 
         solve_config = cast(Configuration, control.configuration.solve)
 
         num_models = int(cast(str, solve_config.models))
 
-        minimize = [ x[1] for x in sorted(obs.literals.items(), key=lambda x: x[0]) ]
+        minimize = [ x[1] for x in sorted(obs.literals.items(), key=lambda x: -x[0]) ]
 
         while (res.satisfiable and not res.interrupted and
                minimize and 'costs' in control.statistics['summary']):
@@ -160,12 +219,15 @@ class OptApt(Application):
             with control.backend() as backend:
                 self._set_upper_bound(backend, minimize, costs)
 
-            if heu is not None:
-                heu.set_restore(costs)
+            if self._heu is not None:
+                self._heu.set_restore(costs)
 
-            res = cast(SolveResult, control.solve(on_model=on_model))
+            res = cast(SolveResult, control.solve(on_model=self._on_model, on_statistics=self._on_statistics))
 
     def main(self, control: Control, files: Sequence[str]):
+        '''
+        Runs the main ground/solve algorithm.
+        '''
         for file_ in files:
             control.load(file_)
         if not files:
