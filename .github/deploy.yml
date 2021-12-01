@@ -31,12 +31,12 @@ pip:
         else:
             check_call(['yum', 'install', '-y', 're2c', 'bison'])
     winmac_images:
-        macos-10.15:
+        macos-latest:
             depends: |
                 brew update
                 brew install re2c
                 brew install bison@2.7
-        windows-2016:
+        windows-latest:
             depends: |
                 choco install re2c
                 choco install winflexbison3
@@ -47,7 +47,7 @@ conda:
     os: 
         - 'ubuntu-latest'
         - 'macos-latest'
-        - 'windows-2016'
+        - 'windows-latest'
     macosx-sdk:
       'MacOSX10.9.sdk.tar.xz'
     channels_release:
@@ -68,6 +68,7 @@ conda:
       requirements:
         build:
           - cmake
+          - ninja
           - "{{ compiler('c') }}"
           - "{{ compiler('cxx') }}"
         build_dev:
@@ -129,19 +130,20 @@ conda:
     build_bat: |
       mkdir build
 
-      cmake -G "%CMAKE_GENERATOR%" -H. -Bbuild ^
+      cmake -G "Ninja" -H. -Bbuild ^
           -DCMAKE_CXX_COMPILER="%CXX%" ^
           -DCMAKE_C_COMPILER="%CC%" ^
+          -DCMAKE_BUILD_TYPE=Release ^
+          -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
           -DPython_ROOT_DIR="%PREFIX%" ^
           -DPython_EXECUTABLE="%PYTHON%" ^
           -DCLINGO_BUILD_WITH_PYTHON=ON ^
-          -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
-          -DPYCLINGO_INSTALL="system" ^
           -DCLINGO_BUILD_WITH_LUA=OFF ^
-          -DCLINGO_MANAGE_RPATH=OFF
+          -DCLINGO_MANAGE_RPATH=OFF ^
+          -DPYCLINGO_INSTALL="system"
 
-      cmake --build build --config Release
-      cmake --build build --config Release --target install
+      cmake --build build
+      cmake --build build --target install
 
     build_config: |
       python:

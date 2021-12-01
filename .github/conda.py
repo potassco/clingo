@@ -68,7 +68,7 @@ def run():
         options.extend(['-c', c])
     options.append(recipe_path)
 
-    subprocess.call(options, env=build_env)
+    subprocess.check_call(options, env=build_env)
 
 if __name__ == '__main__':
     run()

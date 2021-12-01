@@ -34,7 +34,7 @@ jobs:
       run: |
         pip install --user toml cffi scikit-build cmake ninja twine
 
-    - name: Install macos prerequisites
+    - name: Install macos-latest prerequisites
       if: ${{ matrix.os == 'macos-latest' }}
       run: |
         brew update
