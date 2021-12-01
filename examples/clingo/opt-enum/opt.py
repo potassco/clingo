@@ -1,6 +1,10 @@
 """
-Simple example showing how to resume optimization to enumerate all optimal
-values in lexicographical order.
+Simple example showing how to resume optimization to enumerate all solutions in
+lexicographical order where costs are determined by the minimize constraints.
+
+The program simply adds weight constraints ensuring that the next best
+solutions, after all optimal solutions have been enumerated, are enumerated.
+This process is repeated until the program becomes unsatisfiable.
 """
 import sys
 from typing import cast, Dict, List, Optional, Sequence, Tuple
@@ -106,7 +110,7 @@ class OptApt(Application):
 
     def _add_upper_bound(self, backend: Backend, wlits: Sequence[Tuple[int, int]], bound: int, level: Optional[int]):
         '''
-        Adds the constraint `a <> { wlits } < bound` and returns litera `a`.
+        Adds the constraint `a <> { wlits } < bound` and returns literal `a`.
 
         If level is None, then an integrity constraint is added and no
         auxiliary literal is introduced.
