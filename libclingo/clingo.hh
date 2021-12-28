@@ -3991,7 +3991,7 @@ inline void parse_string(char const *program, Callback &&cb, Logger logger, unsi
 }
 
 template <class Callback>
-inline void parse_files(StringSpan files, Callback cb, Logger logger, unsigned message_limit) {
+inline void parse_files(StringSpan files, Callback &&cb, Logger logger, unsigned message_limit) {
     using Data = std::pair<Callback&, std::exception_ptr>;
     Data data(cb, nullptr);
     Detail::handle_error(clingo_ast_parse_files(files.begin(), files.size(), [](clingo_ast_t *ast, void *data) -> bool {
