@@ -1,5 +1,9 @@
 # Changes
 
+## clingo 5.5.2
+  * fix `parse_files` in C++ API
+  * update clasp
+
 ## clingo 5.5.1
   * extend theory class to get version information
   * improve performance of `Model.symbol` (#296)
