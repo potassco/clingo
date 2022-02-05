@@ -24,7 +24,7 @@ jobs:
             build_type: 'Debug'
             env_file: '.github/tests/macos-env.yml'
           - os: 'windows-latest'
-            generator: 'Visual Studio 16 2019'
+            generator: 'Visual Studio 17 2022'
             build_type: 'Release'
             env_file: '.github/tests/windows-env.yml'
 
