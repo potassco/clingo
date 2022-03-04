@@ -423,6 +423,8 @@ public:
             else { return; }
         }
         claspLits.push_back(~ctx().stepLiteral());
+        std::sort(claspLits.begin(), claspLits.end());
+        claspLits.erase(std::unique(claspLits.begin(), claspLits.end()), claspLits.end());
         model_->ctx->commitClause(claspLits);
     }
     Gringo::SymbolicAtoms const &getDomain() const override {
