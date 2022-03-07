@@ -2,6 +2,7 @@
 
 ## clingo 5.5.2
   * fix `parse_files` in C++ API
+  * fix adding clauses during enumeration (#359)
   * update clasp
 
 ## clingo 5.5.1
