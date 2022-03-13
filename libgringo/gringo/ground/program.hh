@@ -52,7 +52,10 @@ struct Parameters {
 struct Program {
     Program(SEdbVec &&edb, Statement::Dep::ComponentVec &&stms);
     void linearize(Context &context, Logger &log);
-    void ground(Parameters const &params, Context &context, Output::OutputBase &out, Logger &log);
+    //! Prepare the ground program before grounding.
+    void prepare(Parameters const &params, Output::OutputBase &out, Logger &log);
+    //! Ground a prepared program.
+    void ground(Context &context, Output::OutputBase &out, Logger &log);
 
     SEdbVec                      edb;
     bool                         linearized = false;

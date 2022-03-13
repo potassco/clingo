@@ -373,7 +373,7 @@ void OutputBase::endGround(Logger &log) {
 
 void OutputBase::endStep(Assumptions const &ass) {
     if (ass.size > 0) {
-        if (auto b = backend_()) { b->assume(ass); }
+        if (auto b = backend()) { b->assume(ass); }
     }
     backendLambda(data, *out_, [](DomainData &, UBackend &out) { out->endStep(); });
 }
@@ -446,18 +446,10 @@ std::pair<Id_t, Id_t> OutputBase::simplify(AssignmentLookup assignment) {
     return {facts, deleted};
 }
 
-Backend *OutputBase::backend_() {
+Backend *OutputBase::backend() {
     Backend *backend = nullptr;
     backendLambda(data, *out_, [&backend](DomainData &, UBackend &out) { backend = out.get(); });
     return backend;
-}
-
-Backend *OutputBase::backend(Logger &logger) {
-    for (auto &dom : predDoms()) {
-        dom->incNext();
-    }
-    checkOutPreds(logger);
-    return backend_();
 }
 
 namespace {

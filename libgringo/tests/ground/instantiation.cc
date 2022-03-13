@@ -58,7 +58,8 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     Program gPrg(prg.toGround({Sig{"base", 0, false}}, out.data, module));
     Parameters params;
     params.add("base", {});
-    gPrg.ground(params, context, out, module);
+    gPrg.prepare(params, out, module);
+    gPrg.ground(context, out, module);
     out.endStep({});
 
     std::string line;
