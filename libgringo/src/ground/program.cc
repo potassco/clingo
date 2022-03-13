@@ -123,8 +123,8 @@ void Program::prepare(Parameters const &params, Output::OutputBase &out, Logger 
         }
     }
     for (auto &x : doms) { x->nextGeneration(); }
-
 }
+
 void Program::ground(Context &context, Output::OutputBase &out, Logger &log) {
     Queue q;
     for (auto &x : stms) {

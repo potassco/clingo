@@ -56,7 +56,6 @@ std::string iground(std::string in, int last = 3) {
         auto gPrg = prg.toGround(sigs, out.data, module.logger);
         gPrg.prepare(params, out, module.logger);
         gPrg.ground(context, out, module.logger);
-
     };
     if (!module.logger.hasError()) {
         out.init(true);
