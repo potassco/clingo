@@ -161,7 +161,8 @@ struct IncrementalControl : Control {
             Ground::Program gPrg(prg.toGround(sigs, out.data, logger_));
             LOG << "************* intermediate program *************" << std::endl << gPrg << std::endl;
             LOG << "*************** grounded program ***************" << std::endl;
-            gPrg.ground(params, scripts, out, logger_);
+            gPrg.prepare(params, out, logger_);
+            gPrg.ground(scripts, out, logger_);
         }
     }
     void add(std::string const &name, StringVec const &params, std::string const &part) override {
@@ -210,7 +211,7 @@ struct IncrementalControl : Control {
     Potassco::AbstractStatistics const *statistics() const override { throw std::runtime_error("statistics not supported (yet)"); }
     bool isConflicting() const noexcept override { return false; }
     void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) override {
-        if (auto *b = out.backend_()) { b->external(ext, val); }
+        if (auto *b = out.backend()) { b->external(ext, val); }
     }
     SymbolicAtoms const &getDomain() const override { throw std::runtime_error("domain introspection not supported"); }
     ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
@@ -223,7 +224,9 @@ struct IncrementalControl : Control {
     virtual ~IncrementalControl() { }
     Output::DomainData const &theory() const override { return out.data; }
     bool beginAddBackend() override {
-        backend_ = out.backend(logger());
+        backend_prg_ = std::make_unique<Ground::Program>(prg.toGround({}, out.data, logger_));
+        backend_prg_->prepare({}, out, logger_);
+        backend_ = out.backend();
         return backend_ != nullptr;
     }
     Backend *getBackend() override {
@@ -252,7 +255,8 @@ struct IncrementalControl : Control {
         }
         added_atoms_.clear();
         added_facts_.clear();
-        out.endGround(logger());
+        backend_prg_->ground(scripts, out, logger_);
+        backend_prg_.reset(nullptr);
         backend_ = nullptr;
     }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
@@ -269,6 +273,7 @@ struct IncrementalControl : Control {
     std::vector<Symbol>            added_atoms_;
     std::unordered_set<Potassco::Atom_t> added_facts_;
     Backend                       *backend_ = nullptr;
+    std::unique_ptr<Ground::Program> backend_prg_;
     std::unique_ptr<Input::NongroundProgramBuilder> builder;
     bool                                   incmode = false;
     bool                                   parsed = false;

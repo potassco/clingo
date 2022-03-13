@@ -377,6 +377,7 @@ public:
     Logger                                                     logger_;
     TheoryOutput                                               theory_;
     Backend                                                   *backend_               = nullptr;
+    std::unique_ptr<Ground::Program>                           backend_prg_;
     UserStatistics                                             step_stats_;
     UserStatistics                                             accu_stats_;
     bool                                                       enableEnumAssupmption_ = true;

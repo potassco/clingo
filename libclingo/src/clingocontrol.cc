@@ -235,7 +235,8 @@ void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
         LOG << "************* grounded program *************" << std::endl;
         auto exit = onExit([this]{ scripts_.resetContext(); });
         if (context) { scripts_.setContext(*context); }
-        gPrg.ground(params, scripts_, *out_, logger_);
+        gPrg.prepare(params, *out_, logger_);
+        gPrg.ground(scripts_, *out_, logger_);
     }
 }
 
@@ -563,7 +564,7 @@ std::string ClingoControl::str() {
 
 void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) {
     if (update()) {
-        if (auto backend = out_->backend_()) {
+        if (auto backend = out_->backend()) {
             backend->external(ext, val);
         }
     }
@@ -740,7 +741,9 @@ size_t ClingoControl::length() const {
 
 bool ClingoControl::beginAddBackend() {
     update();
-    backend_ = out_->backend(logger());
+    backend_prg_ = std::make_unique<Ground::Program>(prg_.toGround({}, out_->data, logger_));
+    backend_prg_->prepare({}, *out_, logger_);
+    backend_ = out_->backend();
     return backend_ != nullptr;
 }
 
@@ -768,7 +771,8 @@ void ClingoControl::endAddBackend() {
     }
     added_atoms_.clear();
     added_facts_.clear();
-    out_->endGround(logger());
+    backend_prg_->ground(scripts_, *out_, logger_);
+    backend_prg_.reset(nullptr);
     backend_ = nullptr;
 }
 

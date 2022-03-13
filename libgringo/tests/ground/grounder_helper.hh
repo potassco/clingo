@@ -53,7 +53,8 @@ inline void ground(std::string const &str, Output::OutputFormat fmt, std::ostrea
     Ground::Program gPrg(prg.toGround({Sig{"base", 0, false}}, out.data, module.logger));
     Parameters params;
     params.add("base", {});
-    gPrg.ground(params, context, out, module);
+    gPrg.prepare(params, out, module);
+    gPrg.ground(context, out, module);
     out.endStep({});
 }
 

@@ -72,7 +72,7 @@ void Program::linearize(Context &context, Logger &log) {
     linearized = true;
 }
 
-void Program::ground(Parameters const &params, Context &context, Output::OutputBase &out, Logger &log) {
+void Program::prepare(Parameters const &params, Output::OutputBase &out, Logger &log) {
     auto &doms = out.predDoms();
     for (auto &dom : doms) {
         auto name = dom->sig().name();
@@ -123,6 +123,9 @@ void Program::ground(Parameters const &params, Context &context, Output::OutputB
         }
     }
     for (auto &x : doms) { x->nextGeneration(); }
+}
+
+void Program::ground(Context &context, Output::OutputBase &out, Logger &log) {
     Queue q;
     for (auto &x : stms) {
         if (!linearized) {

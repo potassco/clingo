@@ -86,9 +86,7 @@ public:
     Rule &tempRule(bool choice) { return tempRule_.reset(choice); }
     SymVec &tempVals() { tempVals_.clear(); return tempVals_; }
     LitVec &tempLits() { tempLits_.clear(); return tempLits_; }
-    Backend *backend_();
-    // also prepares the domains to be able to add to them
-    Backend *backend(Logger &logger);
+    Backend *backend();
     void registerObserver(UBackend prg, bool replace);
     void reset(bool resetData);
     Id_t addAtom(Symbol sym, bool *added = nullptr) {

@@ -52,14 +52,18 @@ std::string iground(std::string in, int last = 3) {
     prg.rewrite(defs, module.logger);
     prg.check(module.logger);
     //std::cerr << prg;
-    // TODO: think about passing params to toGround already...
+    auto ground = [&](std::set<Sig> const &sigs, Ground::Parameters const &params) {
+        auto gPrg = prg.toGround(sigs, out.data, module.logger);
+        gPrg.prepare(params, out, module.logger);
+        gPrg.ground(context, out, module.logger);
+    };
     if (!module.logger.hasError()) {
         out.init(true);
         {
             Ground::Parameters params;
             params.add("base", {});
             out.beginStep();
-            prg.toGround({Sig{"base", 0, false}}, out.data, module.logger).ground(params, context, out, module.logger);
+            ground({Sig{"base", 0, false}}, params);
             out.endStep({});
             out.reset(true);
         }
@@ -67,7 +71,7 @@ std::string iground(std::string in, int last = 3) {
             Ground::Parameters params;
             params.add("step", {NUM(i)});
             out.beginStep();
-            prg.toGround({Sig{"step", 1, false}}, out.data, module.logger).ground(params, context, out, module.logger);
+            ground({Sig{"step", 1, false}}, params);
             out.endStep({});
             out.reset(true);
         }
@@ -75,7 +79,7 @@ std::string iground(std::string in, int last = 3) {
             Ground::Parameters params;
             params.add("last", {});
             out.beginStep();
-            prg.toGround({Sig{"last", 0, false}}, out.data, module.logger).ground(params, context, out, module.logger);
+            ground({Sig{"last", 0, false}}, params);
             out.endStep({});
             out.reset(true);
         }
