@@ -225,7 +225,9 @@ void Reifier::theoryTerm(Id_t termId, int cId, IdSpan const &args) {
 }
 
 void Reifier::theoryElement(Id_t elementId, IdSpan const &terms, const LitSpan& cond) {
-    printStepFact("theory_element", elementId, theoryTuple(terms), litTuple(cond));
+    auto tt = theoryTuple(terms);
+    auto lt = litTuple(cond);
+    printStepFact("theory_element", elementId, tt, lt);
 }
 
 void Reifier::theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &elements) {
