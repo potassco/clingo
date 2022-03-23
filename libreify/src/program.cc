@@ -162,8 +162,33 @@ void Reifier::project(const AtomSpan& atoms) {
     for (auto &x : atoms) { printStepFact("project", x); }
 }
 
+namespace {
+
+size_t csp_offset(const StringSpan& str) {
+    auto pos = str.size;
+    for (; pos > 0 && str[pos - 1] >= '0' && str[pos - 1] <= '9'; --pos) { }
+    if (pos == str.size) {
+        return str.size;
+    }
+    if (pos > 1 && str[pos - 1] == '-') {
+        --pos;
+    }
+    if (pos > 1 && str[pos - 1] == '=') {
+        return pos - 1;
+    }
+    return str.size;
+}
+
+}
+
 void Reifier::output(const StringSpan& str, const LitSpan& condition) {
-    printStepFact("output", str, litTuple(condition));
+    auto pos = csp_offset(str);
+    if (pos == str.size) {
+        printStepFact("output", str, litTuple(condition));
+    }
+    else {
+        printStepFact("output_csp", StringSpan{str.first, pos}, StringSpan{str.first + pos + 1, str.size - pos - 1}, litTuple(condition));
+    }
 }
 
 void Reifier::external(Atom_t a, Value_t v) {
