@@ -54,7 +54,7 @@ def compile_wheels(idx):
     for pybin in glob('/opt/python/*/bin'):
         # Requires Py3.6 or greater - on the docker image 3.5 is cp35-cp35m
         print("PYBIN", pybin)
-        if "35" not in pybin and "pp39" not in pybin:
+        if "35" not in pybin:
             check_call(['rm', '-rf', '_skbuild'])
             args = [path.join(pybin, 'pip'), 'wheel', '--verbose', '--no-deps', '-w', 'wheelhouse/']
             if idx is not None:
