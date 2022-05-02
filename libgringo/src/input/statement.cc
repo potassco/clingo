@@ -242,6 +242,27 @@ void Statement::rewrite() {
         for (auto &y : assign) { body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RelationLiteral::make(y))); }
         arith.pop_back();
     }
+    { // rewrite linear inequalities into intervals
+      // TODO
+      // 1. gather linear inequalities in body
+      // 2. compute bounds
+      // 3. add intervals
+      /*
+      IntervalSolver is;
+      for (auto &y : body) { y->gatherInequalities(is); }
+      for (auto &&rng : is.solve()) {
+          body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RangeLiteral::make(rng)));
+      }
+      for (auto &y : body) {
+          // this creates a new IntervalSolver remembering the bounds
+          // furthermore, it marks the variables in those bounds as global
+          // and will not provide ranges involving them
+          auto subIs = is.nextLevel();
+          y->rewriteInequalities(subIs);
+      }
+
+       */
+    }
     _rewriteAssignments(body);
 }
 
