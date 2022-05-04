@@ -37,9 +37,6 @@ set(source
     ${source-group})
 # ]]]
 
-list(APPEND header "${CLASP_SOURCE_DIR}/app/clasp_app.h")
-list(APPEND source "${CLASP_SOURCE_DIR}/app/clasp_app.cpp")
-
 set(clingo_public_scope_ PUBLIC)
 set(clingo_private_scope_ PRIVATE)
 if (CLINGO_BUILD_SHARED)
@@ -60,9 +57,7 @@ target_link_libraries(libclingo ${clingo_private_scope_} libgringo libclasp)
 target_include_directories(libclingo
     ${clingo_public_scope_}
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
-    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-    ${clingo_private_scope_}
-    "$<BUILD_INTERFACE:${CLASP_SOURCE_DIR}/app>")
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_compile_definitions(libclingo ${clingo_private_scope_} CLINGO_BUILD_LIBRARY)
 
 if (NOT CLINGO_BUILD_SHARED)

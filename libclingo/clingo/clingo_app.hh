@@ -25,7 +25,7 @@
 #ifndef CLINGO_CLINGOAPP_HH
 #define CLINGO_CLINGOAPP_HH
 
-#include "clasp_app.h"
+#include <clasp/cli/clasp_app.h>
 #include "clingo/clingocontrol.hh"
 
 namespace Gringo {
