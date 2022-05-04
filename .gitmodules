@@ -1,4 +1,0 @@
-[submodule "clasp"]
-	path = clasp
-	url = https://github.com/potassco/clasp.git
-	branch = dev
