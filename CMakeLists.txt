@@ -60,6 +60,10 @@ libclingo.")
 option(CLINGO_INSTALL_LIB
 "Advanced option to force installation of static libraries."
 OFF)
+option(CLINGO_USE_LOCAL_CLASP
+"Advanced option to build against bundled clasp or installed clasp target."
+ON)
+
 
 # Python configuration
 set(CLINGO_BUILD_WITH_PYTHON "auto" CACHE STRING
@@ -232,8 +236,6 @@ endif()
 
 enable_testing()
 
-# NOTE: assumes that submodule has been initialized
-set(CLASP_BUILD_APP ${CLINGO_BUILD_APPS} CACHE BOOL "")
 if (CLINGO_USE_LIB)
     set(clingo_library_targets)
     add_library(libclingo INTERFACE IMPORTED)
@@ -241,11 +243,17 @@ if (CLINGO_USE_LIB)
     set_property(TARGET libclingo PROPERTY INTERFACE_LINK_LIBRARIES "clingo")
 else()
     set(clingo_library_targets libgringo libpotassco libclasp libreify)
-    set(CLASP_USE_LOCAL_LIB_POTASSCO ON CACHE BOOL "" FORCE)
-    if (NOT CLINGO_BUILD_SHARED AND CLINGO_INSTALL_LIB)
-        set(CLASP_INSTALL_LIB ${CLINGO_INSTALL_LIB} CACHE BOOL "" FORCE)
+    if (CLINGO_USE_LOCAL_CLASP)
+        # NOTE: assumes that submodule has been initialized
+        set(CLASP_BUILD_APP ${CLINGO_BUILD_APPS} CACHE BOOL "")
+        set(CLASP_USE_LOCAL_LIB_POTASSCO ON CACHE BOOL "" FORCE)
+        if (NOT CLINGO_BUILD_SHARED AND CLINGO_INSTALL_LIB)
+            set(CLASP_INSTALL_LIB ${CLINGO_INSTALL_LIB} CACHE BOOL "" FORCE)
+        endif()
+        add_subdirectory(clasp)
+    else()
+        find_package(Clasp REQUIRED)
     endif()
-    add_subdirectory(clasp)
     add_subdirectory(libreify)
     add_subdirectory(libgringo)
     add_subdirectory(libclingo)
