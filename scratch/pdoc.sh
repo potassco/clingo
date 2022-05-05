@@ -48,6 +48,6 @@ EOF
 
 sed -i '/^<script>$/{:a;N;/<\/script>$/!ba};/window\.location\.reload()/d' ./html/**/*(.)
 sed -i 's|href="/|href="https://potassco.org/clingo/python-api/5.5/|g' ./html/**/*(.)
-rsync -av --delete ./html/ ${HOME}/git/potassco.github.io/clingo/python-api/5.5/
+rsync -av --delete ./html/ ${HOME}/git/potassco/potassco.github.io/clingo/python-api/5.5/
 
 
