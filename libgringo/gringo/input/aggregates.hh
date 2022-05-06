@@ -46,7 +46,7 @@ struct TupleBodyAggregate : BodyAggregate {
     void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
@@ -76,7 +76,7 @@ struct LitBodyAggregate : BodyAggregate {
     void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
@@ -109,7 +109,7 @@ struct Conjunction : BodyAggregate {
     void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
@@ -137,7 +137,7 @@ struct SimpleBodyLiteral : BodyAggregate {
     void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
@@ -184,7 +184,7 @@ struct DisjointAggregate : BodyAggregate {
     void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;

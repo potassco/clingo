@@ -149,7 +149,7 @@ struct BodyAggregate : Printable, Hashable, Locatable, Clonable<BodyAggregate>, 
     virtual void check(ChkLvlVec &lvl, Logger &log) const = 0;
     //! Rewrite arithmetics.
     //! \pre Requires variables assigned to levels.
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) = 0;
+    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) = 0;
     //! Rewrite aggregates.
     //! Separates assignment aggregates from ordinary bounds, and
     //! transforms literal aggregates into tuple aggregates.

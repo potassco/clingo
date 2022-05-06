@@ -42,7 +42,7 @@ struct PredicateLiteral : Literal {
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     Symbol isEDB() const override;
     bool hasPool(bool beforeRewrite) const override;
@@ -72,6 +72,49 @@ struct ProjectionLiteral : PredicateLiteral {
 // }}}
 // {{{ declaration of RelationLiteral
 
+class RelationLiteralN : public Literal {
+public:
+    using Terms = std::vector<std::pair<Relation, UTerm>>;
+    RelationLiteralN(NAF naf, UTerm &&left, Terms &&right);
+    RelationLiteralN(NAF naf, Relation rel, UTerm &&left, UTerm &&right);
+
+    RelationLiteralN() = delete;
+    RelationLiteralN(RelationLiteralN const &other) = delete;
+    RelationLiteralN(RelationLiteralN &&other) = default;
+    RelationLiteralN &operator=(RelationLiteralN const &other) = delete;
+    RelationLiteralN &operator=(RelationLiteralN &&other) = default;
+    ~RelationLiteralN() override;
+    static ULit make(Term::LevelMap::value_type &x);
+    static ULit make(Literal::RelationVec::value_type &x);
+    // {{{ Term interface
+    unsigned projectScore() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void toTuple(UTermVec &tuple, int &id) override;
+    RelationLiteralN *clone() const override;
+    void print(std::ostream &out) const override;
+    bool operator==(Literal const &other) const override;
+    size_t hash() const override;
+    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
+    ULitVec unpool(bool beforeRewrite) const override;
+    bool hasPool(bool beforeRewrite) const override;
+    void replace(Defines &dx) override;
+    Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
+    UTerm headRepr() const override;
+    ULit shift(bool negate) override;
+    bool auxiliary() const override { return true; }
+    void auxiliary(bool aux) override { }
+    // }}}
+
+private:
+    UTerm left_;
+    Terms right_;
+    NAF naf_;
+};
+
+// }}}
+// {{{ declaration of RelationLiteral
+
 struct RelationLiteral : Literal {
     RelationLiteral(Relation rel, UTerm &&left, UTerm &&right);
     unsigned projectScore() const override;
@@ -82,7 +125,7 @@ struct RelationLiteral : Literal {
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     bool hasPool(bool beforeRewrite) const override;
     void replace(Defines &dx) override;
@@ -93,7 +136,7 @@ struct RelationLiteral : Literal {
     void auxiliary(bool) override { }
     virtual ~RelationLiteral();
     static ULit make(Term::LevelMap::value_type &x);
-    static ULit make(Literal::AssignVec::value_type &x);
+    static ULit make(Literal::RelationVec::value_type &x);
 
     Relation rel;
     UTerm left;
@@ -112,7 +155,7 @@ struct RangeLiteral : Literal {
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     bool hasPool(bool beforeRewrite) const override;
     void replace(Defines &dx) override;
@@ -141,7 +184,7 @@ struct ScriptLiteral : Literal {
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     bool hasPool(bool beforeRewrite) const override;
     void replace(Defines &dx) override;
@@ -171,7 +214,7 @@ struct FalseLiteral : Literal {
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     bool hasPool(bool beforeRewrite) const override;
     void replace(Defines &dx) override;
@@ -200,7 +243,7 @@ struct CSPLiteral : Literal {
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     bool hasPool(bool beforeRewrite) const override;
     void replace(Defines &dx) override;

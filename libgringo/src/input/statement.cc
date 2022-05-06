@@ -234,7 +234,7 @@ void Statement::rewrite() {
     }
     { // rewrite arithmetics
         Term::ArithmeticsMap arith;
-        Literal::AssignVec assign;
+        Literal::RelationVec assign;
         arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         head->rewriteArithmetics(arith, auxGen);
         for (auto &y : body) { y->rewriteArithmetics(arith, assign, auxGen); }

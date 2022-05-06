@@ -98,7 +98,7 @@ std::string simplify(UHeadAggr &&x) {
 }
 
 std::string rewrite(UBodyAggr &&x) {
-    Literal::AssignVec assign;
+    Literal::RelationVec assign;
     Term::ArithmeticsMap arith;
     arith.emplace_back(gringo_make_unique<Term::LevelMap>());
     AuxGen gen;

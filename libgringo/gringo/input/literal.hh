@@ -59,7 +59,7 @@ struct Projections {
 };
 
 struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<Literal> {
-    using AssignVec = std::vector<std::pair<UTerm, UTerm>>;
+    using RelationVec = std::vector<std::tuple<Relation, UTerm, UTerm>>;
 
     virtual unsigned projectScore() const { return 2; }
     //! Removes all occurrences of PoolTerm instances.
@@ -76,7 +76,7 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     virtual void collect(VarTermBoundVec &vars, bool bound) const = 0;
     //! Removes non-invertible arithmetics.
     //! \note This method will not be called for head literals.
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) = 0;
+    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) = 0;
     virtual void toTuple(UTermVec &tuple, int &id) = 0;
     virtual Symbol isEDB() const;
     virtual bool hasPool(bool beforeRewrite) const = 0;

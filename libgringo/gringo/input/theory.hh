@@ -121,7 +121,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     void removeAssignment() override;
     bool isAssignment() const override;

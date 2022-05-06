@@ -134,7 +134,7 @@ bool TheoryElement::simplify(Projections &project, SimplifyState &state, Logger 
 }
 
 void TheoryElement::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) {
-    Literal::AssignVec assign;
+    Literal::RelationVec assign;
     arith.emplace_back(gringo_make_unique<Term::LevelMap>());
     for (auto &lit : cond_) { lit->rewriteArithmetics(arith, assign, auxGen); }
     for (auto &y : *arith.back()) { cond_.emplace_back(RelationLiteral::make(y)); }
@@ -517,7 +517,7 @@ void BodyTheoryLiteral::check(ChkLvlVec &lvl, Logger &log) const {
     atom_.check(loc(), *this, lvl, log);
 }
 
-void BodyTheoryLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &, AuxGen &auxGen) {
+void BodyTheoryLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &, AuxGen &auxGen) {
     atom_.rewriteArithmetics(arith, auxGen);
 }
 

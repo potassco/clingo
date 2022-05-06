@@ -34,10 +34,25 @@ namespace Gringo { namespace Input {
 unsigned RelationLiteral::projectScore() const {
     return left->projectScore() + right->projectScore();
 }
+unsigned RelationLiteralN::projectScore() const {
+    auto score = left_->projectScore();
+    for (auto &term : right_) {
+        score += term.second->projectScore();
+    }
+    return score;
+}
+
 
 // {{{1 definition of Literal::print
 
 inline void RelationLiteral::print(std::ostream &out) const  { out << *left << rel << *right; }
+inline void RelationLiteralN::print(std::ostream &out) const {
+    assert(!right_.empty());
+    out << naf_ << *left_;
+    for (auto &&term: right_) {
+        out << term.first << *term.second;
+    }
+}
 inline void RangeLiteral::print(std::ostream &out) const     { out << "#range(" << *assign << "," << *lower << "," << *upper << ")"; }
 inline void FalseLiteral::print(std::ostream &out) const     { out << "#false"; }
 inline void ScriptLiteral::print(std::ostream &out) const    {
@@ -58,6 +73,9 @@ inline void CSPLiteral::print(std::ostream &out) const {
 RelationLiteral *RelationLiteral::clone() const {
     return make_locatable<RelationLiteral>(loc(), rel, get_clone(left), get_clone(right)).release();
 }
+RelationLiteralN *RelationLiteralN::clone() const {
+    return make_locatable<RelationLiteralN>(loc(), naf_, get_clone(left_), get_clone(right_)).release();
+}
 RangeLiteral *RangeLiteral::clone() const {
     return make_locatable<RangeLiteral>(loc(), get_clone(assign), get_clone(lower), get_clone(upper)).release();
 }
@@ -76,6 +94,20 @@ CSPLiteral *CSPLiteral::clone() const {
 bool RelationLiteral::simplify(Logger &log, Projections &, SimplifyState &state, bool, bool) {
     if (left->simplify(state, false, false, log).update(left, false).undefined()) { return false; }
     if (right->simplify(state, false, false, log).update(right, false).undefined()) { return false; }
+    return true;
+}
+bool RelationLiteralN::simplify(Logger &log, Projections &project, SimplifyState &state, bool positional, bool singleton) {
+    static_cast<void>(project);
+    static_cast<void>(positional);
+    static_cast<void>(singleton);
+    if (left_->simplify(state, false, false, log).update(left_, false).undefined()) {
+        return false;
+    }
+    for (auto &&term : right_) {
+        if (!term.second->simplify(state, false, false, log).update(term.second, false).undefined()) {
+            return false;
+        }
+    }
     return true;
 }
 bool RangeLiteral::simplify(Logger &, Projections &, SimplifyState &, bool, bool) {
@@ -98,6 +130,12 @@ void RelationLiteral::collect(VarTermBoundVec &vars, bool bound) const {
     left->collect(vars, bound && rel == Relation::EQ);
     right->collect(vars, false);
 }
+void RelationLiteralN::collect(VarTermBoundVec &vars, bool bound) const {
+    left_->collect(vars, bound && naf_ == NAF::POS && right_.front().first == Relation::EQ);
+    for (auto &term : right_) {
+        term.second->collect(vars, false);
+    }
+}
 void RangeLiteral::collect(VarTermBoundVec &vars, bool bound) const {
     assign->collect(vars, bound);
     lower->collect(vars, false);
@@ -114,63 +152,88 @@ void CSPLiteral::collect(VarTermBoundVec &vars, bool) const {
 
 // {{{1 definition of Literal::operator==
 
-inline bool RelationLiteral::operator==(Literal const &x) const {
+bool RelationLiteral::operator==(Literal const &x) const {
     auto t = dynamic_cast<RelationLiteral const *>(&x);
     return t && rel == t->rel && is_value_equal_to(left, t->left) && is_value_equal_to(right, t->right);
 }
-inline bool RangeLiteral::operator==(Literal const &x) const {
+bool RelationLiteralN::operator==(Literal const &x) const {
+    auto t = dynamic_cast<RelationLiteralN const *>(&x);
+    return t != nullptr && naf_ == t->naf_ && is_value_equal_to(left_, t->left_) && is_value_equal_to(right_, t->right_);
+}
+bool RangeLiteral::operator==(Literal const &x) const {
     auto t = dynamic_cast<RangeLiteral const *>(&x);
     return t && is_value_equal_to(assign, t->assign) && is_value_equal_to(lower, t->lower) && is_value_equal_to(upper, t->upper);
 }
-inline bool FalseLiteral::operator==(Literal const &x) const {
+bool FalseLiteral::operator==(Literal const &x) const {
     return dynamic_cast<FalseLiteral const *>(&x) != nullptr;
 }
-inline bool ScriptLiteral::operator==(Literal const &x) const {
+bool ScriptLiteral::operator==(Literal const &x) const {
     auto t = dynamic_cast<ScriptLiteral const *>(&x);
     return t && is_value_equal_to(assign, t->assign) && name == t->name && is_value_equal_to(args, t->args);
 }
-inline bool CSPLiteral::operator==(Literal const &x) const {
+bool CSPLiteral::operator==(Literal const &x) const {
     auto t = dynamic_cast<CSPLiteral const *>(&x);
     return t && is_value_equal_to(terms, t->terms) && (auxiliary_ == t->auxiliary_);
 }
 
 // {{{1 definition of Literal::rewriteArithmetics
 
-void RelationLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) {
+void RelationLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) {
     if (rel == Relation::EQ) {
         if (right->hasVar()) {
-            assign.emplace_back(get_clone(right), get_clone(left));
-            Term::replace(assign.back().first, assign.back().first->rewriteArithmetics(arith, auxGen));
+            assign.emplace_back(Relation::EQ, get_clone(right), get_clone(left));
+            Term::replace(std::get<1>(assign.back()), std::get<1>(assign.back())->rewriteArithmetics(arith, auxGen));
         }
         Term::replace(left, left->rewriteArithmetics(arith, auxGen));
     }
 }
-void RangeLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &, AuxGen &auxGen) {
+void RelationLiteralN::rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) {
+    assert(naf_ == NAF::POS);
+    UTerm *prev = &left_;
+    for (auto &term : right_) {
+        if (term.first == Relation::EQ) {
+            if (term.second->hasVar()) {
+                assign.emplace_back(Relation::EQ, get_clone(term.second), get_clone(*prev));
+                Term::replace(std::get<1>(assign.back()), std::get<1>(assign.back())->rewriteArithmetics(arith, auxGen));
+            }
+            Term::replace(*prev, prev->get()->rewriteArithmetics(arith, auxGen));
+        }
+        prev = &term.second;
+    }
+    while (right_.size() > 1) {
+        assign.emplace_back(right_.back().first, get_clone((right_.end() - 2)->second), std::move(right_.back().second));
+        right_.pop_back();
+    }
+}
+void RangeLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &, AuxGen &auxGen) {
     Term::replace(this->assign, this->assign->rewriteArithmetics(arith, auxGen));
 }
-void FalseLiteral::rewriteArithmetics(Term::ArithmeticsMap &, AssignVec &, AuxGen &) { }
-void ScriptLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &, AuxGen &auxGen) {
+void FalseLiteral::rewriteArithmetics(Term::ArithmeticsMap &, RelationVec &, AuxGen &) { }
+void ScriptLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &, AuxGen &auxGen) {
     Term::replace(this->assign, this->assign->rewriteArithmetics(arith, auxGen));
 }
-void CSPLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &, AuxGen &auxGen) {
+void CSPLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &, AuxGen &auxGen) {
     for (auto &x : terms) { x.rewriteArithmetics(arith, auxGen); }
 }
 
 // {{{1 definition of Literal::hash
 
-inline size_t RelationLiteral::hash() const {
+size_t RelationLiteral::hash() const {
     return get_value_hash(typeid(RelationLiteral).hash_code(), size_t(rel), left, right);
 }
-inline size_t RangeLiteral::hash() const {
+size_t RelationLiteralN::hash() const {
+    return get_value_hash(typeid(CSPLiteral).hash_code(), naf_, left_, right_);
+}
+size_t RangeLiteral::hash() const {
     return get_value_hash(typeid(RangeLiteral).hash_code(), assign, lower, upper);
 }
-inline size_t FalseLiteral::hash() const {
+size_t FalseLiteral::hash() const {
     return get_value_hash(typeid(FalseLiteral).hash_code());
 }
-inline size_t ScriptLiteral::hash() const {
+size_t ScriptLiteral::hash() const {
     return get_value_hash(typeid(RangeLiteral).hash_code(), assign, name, args);
 }
-inline size_t CSPLiteral::hash() const {
+size_t CSPLiteral::hash() const {
     return get_value_hash(typeid(CSPLiteral).hash_code(), terms);
 }
 
@@ -181,6 +244,43 @@ ULitVec RelationLiteral::unpool(bool) const {
     auto f = [&](UTerm &&l, UTerm &&r) { value.emplace_back(make_locatable<RelationLiteral>(loc(), rel, std::move(l), std::move(r))); };
     Term::unpool(left, right, Gringo::unpool, Gringo::unpool, f);
     return value;
+}
+ULitVec RelationLiteralN::unpool(bool beforeRewrite) const {
+    static_cast<void>(beforeRewrite);
+    // unpool a term with a relation
+    auto unpoolTerm = [&](Terms::value_type const &term) -> Terms {
+        Terms ret;
+        for (auto &x : Gringo::unpool(term.second)) {
+            ret.emplace_back(term.first, std::move(x));
+        }
+        return ret;
+    };
+    // unpool a vector of terms with relations
+    auto unpoolTerms = [&](Terms const &terms) -> std::vector<Terms> {
+        std::vector<Terms> termsPool;
+        Term::unpool(terms.begin(), terms.end(), unpoolTerm, [&termsPool](Terms &&unpooled) {
+            termsPool.emplace_back(std::move(unpooled));
+        });
+        return termsPool;
+    };
+    // unpool the left hand side together with the terms and relations
+    ULitVec unpooled;
+    auto appendRelN = [&](UTerm &&left, Terms &&right) {
+        if (naf_ != NAF::NOT) {
+            unpooled.emplace_back(make_locatable<RelationLiteralN>(loc(), naf_, std::move(left), std::move(right)));
+        }
+        else {
+            // since relation literals only occur in conjunctive scopes,
+            // we can get rid of negated relation literals here via unpooling
+            UTerm prev = std::move(left);
+            for (auto &term : right) {
+                unpooled.emplace_back(make_locatable<RelationLiteralN>(loc(), naf_, term.first, std::move(prev), get_clone(term.second)));
+                prev = std::move(term.second);
+            }
+        }
+    };
+    Term::unpool(left_, right_, Gringo::unpool, unpoolTerms, appendRelN);
+    return unpooled;
 }
 ULitVec RangeLiteral::unpool(bool) const {
     ULitVec value;
@@ -219,6 +319,13 @@ void RelationLiteral::toTuple(UTermVec &tuple, int &id) {
     tuple.emplace_back(get_clone(right));
     id++;
 }
+void RelationLiteralN::toTuple(UTermVec &tuple, int &id) {
+    assert(right_.size() == 1);
+    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+3)));
+    tuple.emplace_back(get_clone(left_));
+    tuple.emplace_back(get_clone(right_.begin()->second));
+    id++;
+}
 void RangeLiteral::toTuple(UTermVec &, int &) {
     throw std::logic_error("RangeLiteral::toTuple should never be called  if used properly");
 }
@@ -244,10 +351,25 @@ Symbol Literal::isEDB() const          { return {}; }
 // {{{1 definition of Literal::hasPool
 
 inline bool RelationLiteral::hasPool(bool) const  { return left->hasPool() || right->hasPool(); }
-inline bool RangeLiteral::hasPool(bool) const                   { return false; }
-inline bool FalseLiteral::hasPool(bool) const                   { return false; }
-inline bool ScriptLiteral::hasPool(bool) const                  { return false; }
-inline bool CSPLiteral::hasPool(bool beforeRewrite) const       {
+inline bool RelationLiteralN::hasPool(bool beforeRewrite) const  {
+    static_cast<void>(beforeRewrite);
+    if (naf_ == NAF::NOT) {
+        return true;
+    }
+    if (left_->hasPool()) {
+        return true;
+    }
+    for (auto &term : right_) {
+        if (term.second->hasPool()) {
+            return true;
+        }
+    }
+    return  false;
+}
+inline bool RangeLiteral::hasPool(bool) const             { return false; }
+inline bool FalseLiteral::hasPool(bool) const             { return false; }
+inline bool ScriptLiteral::hasPool(bool) const            { return false; }
+inline bool CSPLiteral::hasPool(bool beforeRewrite) const {
     if (beforeRewrite) {
         for (auto &x : terms) {
             if (x.hasPool()) { return true; }
@@ -262,6 +384,12 @@ inline bool CSPLiteral::hasPool(bool beforeRewrite) const       {
 inline void RelationLiteral::replace(Defines &x) {
     Term::replace(left, left->replace(x, true));
     Term::replace(right, right->replace(x, true));
+}
+inline void RelationLiteralN::replace(Defines &x) {
+    Term::replace(left_, left_->replace(x, true));
+    for (auto &term : right_) {
+        Term::replace(term.second, term.second->replace(x, true));
+    }
 }
 inline void RangeLiteral::replace(Defines &x) {
     Term::replace(assign, assign->replace(x, true));
@@ -282,6 +410,12 @@ inline void CSPLiteral::replace(Defines &x) {
 inline Ground::ULit RelationLiteral::toGround(DomainData &, bool) const {
     return gringo_make_unique<Ground::RelationLiteral>(rel, get_clone(left), get_clone(right));
 }
+inline Ground::ULit RelationLiteralN::toGround(DomainData &data, bool auxiliary) const {
+    static_cast<void>(data);
+    static_cast<void>(auxiliary);
+    assert(right_.size() == 1 && naf_ == NAF::POS);
+    return gringo_make_unique<Ground::RelationLiteral>(right_.front().first, get_clone(left_), get_clone(right_.front().second));
+}
 inline Ground::ULit RangeLiteral::toGround(DomainData &, bool) const {
     return gringo_make_unique<Ground::RangeLiteral>(get_clone(assign), get_clone(lower), get_clone(upper));
 }
@@ -301,6 +435,19 @@ inline Ground::ULit CSPLiteral::toGround(DomainData &data, bool auxiliary) const
 ULit RelationLiteral::shift(bool negate) {
     return make_locatable<RelationLiteral>(loc(), negate ? neg(rel) : rel, std::move(left), std::move(right));
 }
+ULit RelationLiteralN::shift(bool negate) {
+    if (naf_ == NAF::NOT) {
+        naf_ = NAF::POS;
+    }
+    else if (right_.size() == 1) {
+        naf_ = NAF::POS;
+        right_.front().first = neg(right_.front().first);
+    }
+    else {
+        naf_ = NAF::NOT;
+    }
+    return make_locatable<RelationLiteralN>(loc(), std::move(*this));
+}
 ULit RangeLiteral::shift(bool)  { throw std::logic_error("RangeLiteral::shift should never be called  if used properly"); }
 ULit FalseLiteral::shift(bool)  { return nullptr; }
 ULit ScriptLiteral::shift(bool) { throw std::logic_error("ScriptLiteral::shift should never be called  if used properly"); }
@@ -316,6 +463,9 @@ ULit CSPLiteral::shift(bool negate) {
 
 UTerm RelationLiteral::headRepr() const {
     throw std::logic_error("RelationLiteral::toTuple should never be called if used properly");
+}
+UTerm RelationLiteralN::headRepr() const {
+    throw std::logic_error("RelationLiteralN::toTuple should never be called if used properly");
 }
 UTerm RangeLiteral::headRepr() const {
     throw std::logic_error("RangeLiteral::toTuple should never be called if used properly");
@@ -382,7 +532,7 @@ inline bool PredicateLiteral::operator==(Literal const &x) const {
     return t && naf == t->naf && is_value_equal_to(repr, t->repr) && (auxiliary_ == t->auxiliary_);
 }
 
-void PredicateLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &, AuxGen &auxGen) {
+void PredicateLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &, AuxGen &auxGen) {
     if (naf == NAF::POS) { Term::replace(repr, repr->rewriteArithmetics(arith, auxGen)); }
 }
 
@@ -468,12 +618,42 @@ ULit RelationLiteral::make(Term::LevelMap::value_type &x) {
     return make_locatable<RelationLiteral>(loc, Relation::EQ, std::move(x.second), get_clone(x.first));
 }
 
-ULit RelationLiteral::make(Literal::AssignVec::value_type &x) {
-    Location loc(x.first->loc() + x.second->loc());
-    return make_locatable<RelationLiteral>(loc, Relation::EQ, std::move(x.first), get_clone(x.second));
+ULit RelationLiteral::make(Literal::RelationVec::value_type &x) {
+    Location loc(std::get<1>(x)->loc() + std::get<2>(x)->loc());
+    return make_locatable<RelationLiteral>(loc, std::get<0>(x), std::move(std::get<1>(x)), get_clone(std::get<2>(x)));
 }
 
 RelationLiteral::~RelationLiteral() { }
+
+// {{{1 definition of RelationLiteralN
+
+RelationLiteralN::RelationLiteralN(NAF naf, Relation rel, UTerm &&left, UTerm &&right)
+: left_{std::move(left)}
+, naf_{NAF::POS} {
+    right_.emplace_back(naf == NAF::NOT ? neg(rel) : rel, std::move(right));
+}
+
+RelationLiteralN::RelationLiteralN(NAF naf, UTerm &&left, Terms &&right)
+: left_(std::move(left))
+, right_(std::move(right))
+, naf_{naf == NAF::NOT ? NAF::NOT : NAF::POS} {
+    if (naf_ == NAF::NOT && right_.size() == 1) {
+        naf_ = NAF::POS;
+        right_.front().first = neg(right_.front().first);
+    }
+}
+
+ULit RelationLiteralN::make(Term::LevelMap::value_type &x) {
+    Location loc(x.first->loc());
+    return make_locatable<RelationLiteralN>(loc, NAF::POS, Relation::EQ, std::move(x.second), get_clone(x.first));
+}
+
+ULit RelationLiteralN::make(Literal::RelationVec::value_type &x) {
+    Location loc(std::get<1>(x)->loc() + std::get<2>(x)->loc());
+    return make_locatable<RelationLiteralN>(loc, NAF::POS, std::get<0>(x), std::move(std::get<1>(x)), get_clone(std::get<2>(x)));
+}
+
+RelationLiteralN::~RelationLiteralN() = default;
 
 // {{{1 definition of RangeLiteral
 

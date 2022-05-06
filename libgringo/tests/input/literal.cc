@@ -40,7 +40,7 @@ namespace {
 ULit rewrite(ULit &&x) {
     Gringo::Test::TestGringoModule log;
     Projections project;
-    Literal::AssignVec assign;
+    Literal::RelationVec assign;
     SimplifyState state;
     Term::ArithmeticsMap arith;
     x->simplify(log, project, state);
