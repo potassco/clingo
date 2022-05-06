@@ -66,7 +66,7 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     //! Returns all unpooled incarnations of the literal.
     //! \note The literal becomes unusable after the method returns.
     //! \post The returned pool does not contain PoolTerm instances.
-    virtual ULitVec unpool(bool beforeRewrite) const = 0;
+    virtual ULitVec unpool(bool beforeRewrite, bool head) const = 0;
     //! Simplifies the literal.
     //! Flag positional=true indicates that anonymous variables in this literal can be projected.
     //! Flag singleton=true disables projections for positive predicate literals (e.g., in non-monotone aggregates)
@@ -79,7 +79,7 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) = 0;
     virtual void toTuple(UTermVec &tuple, int &id) = 0;
     virtual Symbol isEDB() const;
-    virtual bool hasPool(bool beforeRewrite) const = 0;
+    virtual bool hasPool(bool beforeRewrite, bool head) const = 0;
     virtual void replace(Defines &dx) = 0;
     virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const = 0;
     virtual ULit shift(bool negate) = 0;

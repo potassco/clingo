@@ -43,9 +43,9 @@ struct PredicateLiteral : Literal {
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
     Symbol isEDB() const override;
-    bool hasPool(bool beforeRewrite) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
@@ -62,7 +62,7 @@ struct PredicateLiteral : Literal {
 struct ProjectionLiteral : PredicateLiteral {
     ProjectionLiteral(UTerm &&repr);
     ProjectionLiteral *clone() const override;
-    ULitVec unpool(bool beforeRewrite) const override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
     virtual ~ProjectionLiteral();
@@ -96,8 +96,8 @@ public:
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     UTerm headRepr() const override;
@@ -126,8 +126,8 @@ struct RelationLiteral : Literal {
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     UTerm headRepr() const override;
@@ -156,8 +156,8 @@ struct RangeLiteral : Literal {
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
@@ -185,8 +185,8 @@ struct ScriptLiteral : Literal {
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
@@ -215,8 +215,8 @@ struct FalseLiteral : Literal {
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
@@ -244,8 +244,8 @@ struct CSPLiteral : Literal {
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;

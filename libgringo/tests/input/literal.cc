@@ -135,9 +135,9 @@ TEST_CASE("input-literal", "[input]") {
     }
 
     SECTION("unpool") {
-        REQUIRE("[x,y,z]" == to_string(pred(NAF::POS, pool(val(ID("x")), val(ID("y")), val(ID("z"))))->unpool(true)));
-        REQUIRE("[not x,not y,not z]" == to_string(pred(NAF::NOT, pool(val(ID("x")), val(ID("y")), val(ID("z"))))->unpool(true)));
-        REQUIRE("[a!=x,a!=y,b!=x,b!=y]" == to_string(rel(Relation::NEQ, pool(val(ID("a")), val(ID("b"))), pool(val(ID("x")), val(ID("y"))))->unpool(true)));
+        REQUIRE("[x,y,z]" == to_string(pred(NAF::POS, pool(val(ID("x")), val(ID("y")), val(ID("z"))))->unpool(true, false)));
+        REQUIRE("[not x,not y,not z]" == to_string(pred(NAF::NOT, pool(val(ID("x")), val(ID("y")), val(ID("z"))))->unpool(true, false)));
+        REQUIRE("[a!=x,a!=y,b!=x,b!=y]" == to_string(rel(Relation::NEQ, pool(val(ID("a")), val(ID("b"))), pool(val(ID("x")), val(ID("y"))))->unpool(true, false)));
         REQUIRE(
             "[1$*$x$+1$*$y$<=23$<=42"
             ",2$*$x$+1$*$y$<=23$<=42"
@@ -154,7 +154,7 @@ TEST_CASE("input-literal", "[input]") {
                 Relation::LEQ,
                 cspadd(cspmul(val(ID("23")))),
                 Relation::LEQ,
-                cspadd(cspmul(pool(val(ID("42")), val(NUM(43))))))->unpool(true)));
+                cspadd(cspmul(pool(val(ID("42")), val(NUM(43))))))->unpool(true, false)));
     }
 
     SECTION("rewrite") {

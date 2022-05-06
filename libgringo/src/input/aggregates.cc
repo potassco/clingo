@@ -62,7 +62,7 @@ auto _printCond = [](std::ostream &out, CondLit const &x) {
 };
 
 std::function<ULitVec(ULit const &)> _unpool_lit(bool beforeRewrite) {
-    return [beforeRewrite](ULit const &x) { return x->unpool(beforeRewrite); };
+    return [beforeRewrite](ULit const &x) { return x->unpool(beforeRewrite, false); };
 }
 auto _unpool_bound = [](Bound &x) { return x.unpool(); };
 
@@ -295,7 +295,7 @@ bool TupleBodyAggregate::hasPool(bool beforeRewrite) const {
     for (auto &bound : bounds) { if (bound.bound->hasPool()) { return true; } }
     for (auto &elem : elems) {
         for (auto &term : elem.first) { if (term->hasPool()) { return true; } }
-        for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite)) { return true; } }
+        for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
     }
     return false;
 }
@@ -519,8 +519,8 @@ void LitBodyAggregate::check(ChkLvlVec &levels, Logger &log) const {
 bool LitBodyAggregate::hasPool(bool beforeRewrite) const {
     for (auto &bound : bounds) { if (bound.bound->hasPool()) { return true; } }
     for (auto &elem : elems) {
-        if (elem.first->hasPool(beforeRewrite)) { return true; }
-        for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite)) { return true; } }
+        if (elem.first->hasPool(beforeRewrite, false)) { return true; }
+        for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
     }
     return false;
 }
@@ -705,10 +705,10 @@ bool Conjunction::hasPool(bool beforeRewrite) const {
     for (auto &elem : elems) {
         for (auto &disj : elem.first) {
             for (auto &lit : disj) {
-                if (lit->hasPool(beforeRewrite)) { return true; }
+                if (lit->hasPool(beforeRewrite, false)) { return true; }
             }
         }
-        for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite)) { return true; } }
+        for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
     }
     return false;
 }
@@ -800,7 +800,7 @@ SimpleBodyLiteral *SimpleBodyLiteral::clone() const {
 }
 
 void SimpleBodyLiteral::unpool(UBodyAggrVec &x, bool beforeRewrite) {
-    for (auto &y : lit->unpool(beforeRewrite)) { x.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(y))); }
+    for (auto &y : lit->unpool(beforeRewrite, false)) { x.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(y))); }
 }
 
 void SimpleBodyLiteral::collect(VarTermBoundVec &vars) const { lit->collect(vars, true); }
@@ -827,7 +827,7 @@ void SimpleBodyLiteral::check(ChkLvlVec &levels, Logger &) const {
 }
 
 bool SimpleBodyLiteral::hasPool(bool beforeRewrite) const {
-    return lit->hasPool(beforeRewrite);
+    return lit->hasPool(beforeRewrite, false);
 }
 
 void SimpleBodyLiteral::replace(Defines &x) {
@@ -1042,8 +1042,8 @@ bool TupleHeadAggregate::hasPool(bool beforeRewrite) const {
     for (auto &bound : bounds) { if (bound.bound->hasPool()) { return true; } }
     for (auto &elem : elems) {
         for (auto &term : std::get<0>(elem)) { if (term->hasPool()) { return true; } }
-        if (std::get<1>(elem)->hasPool(beforeRewrite)) { return true; }
-        for (auto &lit : std::get<2>(elem)) { if (lit->hasPool(beforeRewrite)) { return true; } }
+        if (std::get<1>(elem)->hasPool(beforeRewrite, false)) { return true; }
+        for (auto &lit : std::get<2>(elem)) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
     }
     return false;
 }
@@ -1221,8 +1221,8 @@ void LitHeadAggregate::check(ChkLvlVec &levels, Logger &log) const {
 bool LitHeadAggregate::hasPool(bool beforeRewrite) const {
     for (auto &bound : bounds) { if (bound.bound->hasPool()) { return true; } }
     for (auto &elem : elems) {
-        if (elem.first->hasPool(beforeRewrite)) { return true; }
-        for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite)) { return true; } }
+        if (elem.first->hasPool(beforeRewrite, false)) { return true; }
+        for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
     }
     return false;
 }
@@ -1287,7 +1287,7 @@ void Disjunction::unpool(UHeadAggrVec &x, bool beforeRewrite) {
         if (beforeRewrite) {
             HeadVec heads;
             for (auto &head : elem.first) {
-                for (auto &lit : head.first->unpool(beforeRewrite)) {
+                for (auto &lit : head.first->unpool(beforeRewrite, true)) {
                     Term::unpool(head.second.begin(), head.second.end(), _unpool_lit(beforeRewrite), [&](ULitVec &&expand) {
                         heads.emplace_back(get_clone(lit), std::move(expand));
                     });
@@ -1301,7 +1301,7 @@ void Disjunction::unpool(UHeadAggrVec &x, bool beforeRewrite) {
             HeadVec heads;
             for (auto &head : elem.first) {
                 Term::unpoolJoin(head.second, _unpool_lit(beforeRewrite));
-                for (auto &lit : head.first->unpool(beforeRewrite)) {
+                for (auto &lit : head.first->unpool(beforeRewrite, true)) {
                     heads.emplace_back(std::move(lit), get_clone(head.second));
                 }
             }
@@ -1442,10 +1442,10 @@ void Disjunction::check(ChkLvlVec &levels, Logger &log) const {
 bool Disjunction::hasPool(bool beforeRewrite) const {
     for (auto &elem : elems) {
         for (auto &head : elem.first) {
-            if (head.first->hasPool(beforeRewrite)) { return true; }
-            for (auto &lit : head.second) { if (lit->hasPool(beforeRewrite)) { return true; } }
+            if (head.first->hasPool(beforeRewrite, true)) { return true; }
+            for (auto &lit : head.second) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
         }
-        for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite)) { return true; } }
+        for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
     }
     return false;
 }
@@ -1553,7 +1553,9 @@ SimpleHeadLiteral *SimpleHeadLiteral::clone() const {
 }
 
 void SimpleHeadLiteral::unpool(UHeadAggrVec &x, bool beforeRewrite) {
-    for (auto &y : lit->unpool(beforeRewrite)) { x.emplace_back(gringo_make_unique<SimpleHeadLiteral>(std::move(y))); }
+    // TODO: we do need an in head flag here
+    //       as a first step it is probably a good idea to kick out the CSP leftovers
+    for (auto &y : lit->unpool(beforeRewrite, true)) { x.emplace_back(gringo_make_unique<SimpleHeadLiteral>(std::move(y))); }
 }
 
 void SimpleHeadLiteral::collect(VarTermBoundVec &vars) const { lit->collect(vars, false); }
@@ -1588,7 +1590,7 @@ void SimpleHeadLiteral::check(ChkLvlVec &levels, Logger &) const {
 }
 
 bool SimpleHeadLiteral::hasPool(bool beforeRewrite) const {
-    return lit->hasPool(beforeRewrite);
+    return lit->hasPool(beforeRewrite, true);
 }
 
 void SimpleHeadLiteral::replace(Defines &x) {
@@ -1754,7 +1756,7 @@ bool DisjointAggregate::hasPool(bool beforeRewrite) const {
     for (auto &elem : elems) {
         for (auto &term : elem.tuple) { if (term->hasPool()) { return true; } }
         if (elem.value.hasPool()) { return true; }
-        for (auto &lit : elem.cond) { if (lit->hasPool(beforeRewrite)) { return true; } }
+        for (auto &lit : elem.cond) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
     }
     return false;
 }

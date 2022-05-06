@@ -65,7 +65,7 @@ size_t TheoryElement::hash() const {
 
 void TheoryElement::unpool(TheoryElementVec &elems, bool beforeRewrite) {
     Term::unpool(cond_.begin(), cond_.end(), [beforeRewrite](ULit &lit) {
-        return lit->unpool(beforeRewrite);
+        return lit->unpool(beforeRewrite, false);
     }, [&](ULitVec &&cond) {
         elems.emplace_back(get_clone(tuple_), std::move(cond));
     });
@@ -77,7 +77,7 @@ TheoryElement TheoryElement::clone() const {
 
 bool TheoryElement::hasPool(bool beforeRewrite) const {
     for (auto &lit : cond_) {
-        if (lit->hasPool(beforeRewrite)) { return true; }
+        if (lit->hasPool(beforeRewrite, false)) { return true; }
     }
     return false;
 }

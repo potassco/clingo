@@ -249,13 +249,13 @@ size_t CSPLiteral::hash() const {
 
 // {{{1 definition of Literal::unpool
 
-ULitVec RelationLiteral::unpool(bool) const {
+ULitVec RelationLiteral::unpool(bool, bool) const {
     ULitVec value;
     auto f = [&](UTerm &&l, UTerm &&r) { value.emplace_back(make_locatable<RelationLiteral>(loc(), rel, std::move(l), std::move(r))); };
     Term::unpool(left, right, Gringo::unpool, Gringo::unpool, f);
     return value;
 }
-ULitVec RelationLiteralN::unpool(bool beforeRewrite) const {
+ULitVec RelationLiteralN::unpool(bool beforeRewrite, bool head) const {
     static_cast<void>(beforeRewrite);
     // unpool a term with a relation
     auto unpoolTerm = [&](Terms::value_type const &term) -> Terms {
@@ -276,12 +276,10 @@ ULitVec RelationLiteralN::unpool(bool beforeRewrite) const {
     // unpool the left hand side together with the terms and relations
     ULitVec unpooled;
     auto appendRelN = [&](UTerm &&left, Terms &&right) {
-        if (naf_ != NAF::NOT) {
+        if (head ? naf_ == NAF::NOT : naf_ != NAF::NOT) {
             unpooled.emplace_back(make_locatable<RelationLiteralN>(loc(), naf_, std::move(left), std::move(right)));
         }
         else {
-            // since relation literals only occur in conjunctive scopes,
-            // we can get rid of negated relation literals here via unpooling
             UTerm prev = std::move(left);
             for (auto &term : right) {
                 unpooled.emplace_back(make_locatable<RelationLiteralN>(loc(), naf_, term.first, std::move(prev), get_clone(term.second)));
@@ -292,22 +290,22 @@ ULitVec RelationLiteralN::unpool(bool beforeRewrite) const {
     Term::unpool(left_, right_, Gringo::unpool, unpoolTerms, appendRelN);
     return unpooled;
 }
-ULitVec RangeLiteral::unpool(bool) const {
+ULitVec RangeLiteral::unpool(bool, bool) const {
     ULitVec value;
     value.emplace_back(ULit(clone()));
     return value;
 }
-ULitVec FalseLiteral::unpool(bool) const {
+ULitVec FalseLiteral::unpool(bool, bool) const {
     ULitVec value;
     value.emplace_back(ULit(clone()));
     return value;
 }
-ULitVec ScriptLiteral::unpool(bool) const {
+ULitVec ScriptLiteral::unpool(bool, bool) const {
     ULitVec value;
     value.emplace_back(ULit(clone()));
     return value;
 }
-ULitVec CSPLiteral::unpool(bool beforeRewrite) const {
+ULitVec CSPLiteral::unpool(bool beforeRewrite, bool) const {
     using namespace std::placeholders;
     ULitVec value;
     auto f = [&](Terms &&args)                { value.emplace_back(make_locatable<CSPLiteral>(loc(), std::move(args))); };
@@ -360,10 +358,10 @@ Symbol Literal::isEDB() const          { return {}; }
 
 // {{{1 definition of Literal::hasPool
 
-inline bool RelationLiteral::hasPool(bool) const  { return left->hasPool() || right->hasPool(); }
-inline bool RelationLiteralN::hasPool(bool beforeRewrite) const  {
+inline bool RelationLiteral::hasPool(bool, bool) const  { return left->hasPool() || right->hasPool(); }
+inline bool RelationLiteralN::hasPool(bool beforeRewrite, bool head) const  {
     static_cast<void>(beforeRewrite);
-    if (naf_ == NAF::NOT) {
+    if ((head ? naf_ != NAF::NOT : naf_ == NAF::NOT) && right_.size() > 1) {
         return true;
     }
     if (left_->hasPool()) {
@@ -376,10 +374,10 @@ inline bool RelationLiteralN::hasPool(bool beforeRewrite) const  {
     }
     return  false;
 }
-inline bool RangeLiteral::hasPool(bool) const             { return false; }
-inline bool FalseLiteral::hasPool(bool) const             { return false; }
-inline bool ScriptLiteral::hasPool(bool) const            { return false; }
-inline bool CSPLiteral::hasPool(bool beforeRewrite) const {
+inline bool RangeLiteral::hasPool(bool, bool) const             { return false; }
+inline bool FalseLiteral::hasPool(bool, bool) const             { return false; }
+inline bool ScriptLiteral::hasPool(bool, bool) const            { return false; }
+inline bool CSPLiteral::hasPool(bool beforeRewrite, bool) const {
     if (beforeRewrite) {
         for (auto &x : terms) {
             if (x.hasPool()) { return true; }
@@ -552,7 +550,7 @@ inline size_t PredicateLiteral::hash() const {
     return get_value_hash(typeid(PredicateLiteral).hash_code(), size_t(naf), repr);
 }
 
-ULitVec PredicateLiteral::unpool(bool) const {
+ULitVec PredicateLiteral::unpool(bool, bool) const {
     ULitVec value;
     auto f = [&](UTerm &&y){ value.emplace_back(make_locatable<PredicateLiteral>(loc(), naf, std::move(y))); };
     Term::unpool(repr, Gringo::unpool, f);
@@ -572,7 +570,7 @@ void PredicateLiteral::toTuple(UTermVec &tuple, int &) {
 
 Symbol PredicateLiteral::isEDB() const { return naf == NAF::POS ? repr->isEDB() : Symbol(); }
 
-inline bool PredicateLiteral::hasPool(bool) const { return repr->hasPool(); }
+inline bool PredicateLiteral::hasPool(bool, bool) const { return repr->hasPool(); }
 
 inline void PredicateLiteral::replace(Defines &x) { Term::replace(repr, repr->replace(x, false)); }
 
@@ -604,7 +602,7 @@ ProjectionLiteral *ProjectionLiteral::clone() const {
     throw std::logic_error("ProjectionLiteral::clone must not be called!!!");
 }
 
-ULitVec ProjectionLiteral::unpool(bool) const {
+ULitVec ProjectionLiteral::unpool(bool, bool) const {
     throw std::logic_error("ProjectionLiteral::unpool must not be called!!!");
 }
 
