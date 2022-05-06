@@ -183,15 +183,26 @@ TermVecVecUid NongroundProgramBuilder::termvecvec(TermVecVecUid uid, TermVecUid 
 // {{{2 literals
 
 LitUid NongroundProgramBuilder::boollit(Location const &loc, bool type) {
-    return rellit(loc, type ? Relation::EQ : Relation::NEQ, term(loc, Symbol::createNum(0)), term(loc, Symbol::createNum(0)));
+    return rellit(loc, NAF::POS, term(loc, Symbol::createNum(0)), rellitvec(loc, type ? Relation::EQ : Relation::NEQ, term(loc, Symbol::createNum(0))));
 }
 
 LitUid NongroundProgramBuilder::predlit(Location const &loc, NAF naf, TermUid term) {
     return lits_.insert(make_locatable<PredicateLiteral>(loc, naf, terms_.erase(term)));
 }
 
-LitUid NongroundProgramBuilder::rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) {
-    return lits_.insert(make_locatable<RelationLiteralN>(loc, NAF::POS, rel, terms_.erase(termUidLeft), terms_.erase(termUidRight)));
+RelLitVecUid NongroundProgramBuilder::rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) {
+    auto uid = rellitvecs_.emplace();
+    rellitvecs_[uid].emplace_back(rel, terms_.erase(termUidLeft));
+    return uid;
+}
+
+RelLitVecUid NongroundProgramBuilder::rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) {
+    rellitvecs_[vecUidLeft].emplace_back(rel, terms_.erase(termUidRight));
+    return vecUidLeft;
+}
+
+LitUid NongroundProgramBuilder::rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) {
+    return lits_.insert(make_locatable<RelationLiteralN>(loc, naf, terms_.erase(termUidLeft), rellitvecs_.erase(vecUidRight)));
 }
 
 // {{{2 literal vectors

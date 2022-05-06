@@ -230,13 +230,24 @@ public:
             .set(clingo_ast_attribute_atom, symbolicatom(termUid)));
     }
 
-    LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override {
+    RelLitVecUid rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) override {
+        throw std::logic_error("implement me!!!");
+    }
+
+    RelLitVecUid rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) override {
+        throw std::logic_error("implement me!!!");
+    }
+
+    LitUid rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) override {
+        throw std::logic_error("implement me!!!");
+        /*
         return lits_.insert(ast(clingo_ast_type_literal, loc)
             .set(clingo_ast_attribute_sign, static_cast<int>(clingo_ast_sign_no_sign))
             .set(clingo_ast_attribute_atom, ast(clingo_ast_type_comparison)
                 .set(clingo_ast_attribute_comparison, static_cast<int>(rel))
                 .set(clingo_ast_attribute_left, terms_.erase(termUidLeft))
                 .set(clingo_ast_attribute_right, terms_.erase(termUidRight))));
+        */
     }
 
     LitUid csplit(CSPLitUid a) override {

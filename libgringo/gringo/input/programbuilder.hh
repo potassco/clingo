@@ -80,6 +80,7 @@ enum TermVecUid         : unsigned { };
 enum TermVecVecUid      : unsigned { };
 enum LitUid             : unsigned { };
 enum LitVecUid          : unsigned { };
+enum RelLitVecUid       : unsigned { };
 enum CondLitVecUid      : unsigned { };
 enum BdAggrElemVecUid   : unsigned { };
 enum HdAggrElemVecUid   : unsigned { };
@@ -138,7 +139,9 @@ public:
     // {{{2 literals
     virtual LitUid boollit(Location const &loc, bool type) = 0;
     virtual LitUid predlit(Location const &loc, NAF naf, TermUid atom) = 0;
-    virtual LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) = 0;
+    virtual RelLitVecUid rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) = 0;
+    virtual RelLitVecUid rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) = 0;
+    virtual LitUid rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) = 0;
     // {{{2 literal vectors
     virtual LitVecUid litvec() = 0;
     virtual LitVecUid litvec(LitVecUid uid, LitUid literalUid) = 0;
@@ -286,7 +289,9 @@ public:
     // {{{2 literals
     LitUid boollit(Location const &loc, bool type) override;
     LitUid predlit(Location const &loc, NAF naf, TermUid term) override;
-    LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override;
+    RelLitVecUid rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) override;
+    RelLitVecUid rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) override;
+    LitUid rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) override;
     // {{{2 literal vectors
     LitVecUid litvec() override;
     LitVecUid litvec(LitVecUid uid, LitUid literalUid) override;
@@ -325,7 +330,7 @@ public:
     void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) override;
     void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
     void showsig(Location const &loc, Sig sig, bool csp) override;
-    void defined(Location const &loc, Sig) override;
+    void defined(Location const &loc, Sig sig) override;
     void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
     void script(Location const &loc, String type, String code) override;
     void block(Location const &loc, String name, IdVecUid args) override;
@@ -387,6 +392,7 @@ private:
     using IdVecs           = Indexed<IdVec, IdVecUid>;
     using Lits             = Indexed<ULit, LitUid>;
     using LitVecs          = Indexed<ULitVec, LitVecUid>;
+    using RelLitVecs       = Indexed<std::vector<std::pair<Relation, UTerm>>, RelLitVecUid>;
     using BodyAggrElemVecs = Indexed<BodyAggrElemVec, BdAggrElemVecUid>;
     using CondLitVecs      = Indexed<CondLitVec, CondLitVecUid>;
     using HeadAggrElemVecs = Indexed<HeadAggrElemVec, HdAggrElemVecUid>;
@@ -419,6 +425,7 @@ private:
     IdVecs              idvecs_;
     Lits                lits_;
     LitVecs             litvecs_;
+    RelLitVecs          rellitvecs_;
     BodyAggrElemVecs    bodyaggrelemvecs_;
     HeadAggrElemVecs    headaggrelemvecs_;
     CondLitVecs         condlitvecs_;

@@ -458,11 +458,14 @@ private:
                                             parseAtom(*get<SAST>(ast, clingo_ast_attribute_atom)));
                     }
                     case clingo_ast_type_comparison: {
+                        throw std::logic_error("implement me!!!");
+                        /*
                         auto rel = parseRelation(get<int>(atom, clingo_ast_attribute_comparison));
                         return prg_.rellit(loc,
                                            sign != NAF::NOT ? rel : neg(rel),
                                            parseTerm(*get<SAST>(atom, clingo_ast_attribute_left)),
                                            parseTerm(*get<SAST>(atom, clingo_ast_attribute_right)));
+                        */
                     }
                     default: {
                         throw std::runtime_error("invalid ast: atom expected");

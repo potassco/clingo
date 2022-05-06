@@ -75,7 +75,9 @@ public:
     // {{{ literals
     virtual LitUid boollit(Location const &loc, bool type) override;
     virtual LitUid predlit(Location const &loc, NAF naf, TermUid termUid) override;
-    virtual LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override;
+    virtual RelLitVecUid rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) override;
+    virtual RelLitVecUid rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) override;
+    virtual LitUid rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) override;
     // }}}
     // {{{ literal vectors
     virtual LitVecUid litvec() override;
@@ -411,9 +413,20 @@ LitUid TestNongroundProgramBuilder::predlit(Location const &, NAF naf, TermUid t
     return lits_.emplace(str());
 }
 
-LitUid TestNongroundProgramBuilder::rellit(Location const &, Relation rel, TermUid termUidLeft, TermUid termUidRight) {
+RelLitVecUid TestNongroundProgramBuilder::rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) {
+    throw std::logic_error("implement me!!!");
+}
+
+RelLitVecUid TestNongroundProgramBuilder::rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) {
+    throw std::logic_error("implement me!!!");
+}
+
+LitUid TestNongroundProgramBuilder::rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) {
+    /*
     current_ << terms_.erase(termUidLeft) << rel << terms_.erase(termUidRight);
     return lits_.emplace(str());
+    */
+    throw std::logic_error("implement me!!!");
 }
 
 // }}}

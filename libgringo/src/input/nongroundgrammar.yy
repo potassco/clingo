@@ -116,6 +116,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
     TermVecVecUid termvecvec;
     LitVecUid litvec;
     LitUid lit;
+    RelLitVecUid rellitvec;
     BdAggrElemVecUid bodyaggrelemvec;
     CondLitVecUid condlitlist;
     HdAggrElemVecUid headaggrelemvec;
@@ -182,6 +183,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 %type <termvec>         termvec ntermvec consttermvec unaryargvec optimizetuple tuplevec tuplevec_sem
 %type <termvecvec>      argvec constargvec binaryargvec
 %type <lit>             literal
+%type <rellitvec>       rellitvec
 %type <litvec>          litvec nlitvec optcondition
 %type <bodyaggrelem>    bodyaggrelem
 %type <lbodyaggrelem>   altbodyaggrelem conjunction
@@ -497,20 +499,25 @@ atom
     | SUB identifier[id] LPAREN argvec[tvv] RPAREN[r] { $$ = BUILDER.predRep(@$, true, String::fromRep($id), $tvv); }
     ;
 
+rellitvec
+    : cmp[rel] term[r]              { $$ = BUILDER.rellitvec(@$, $rel, $r); }
+    | rellitvec[l] cmp[rel] term[r] { $$ = BUILDER.rellitvec(@$, $l, $rel, $r); }
+    ;
+
 literal
-    :         TRUE                     { $$ = BUILDER.boollit(@$, true); }
-    |     NOT TRUE                     { $$ = BUILDER.boollit(@$, false); }
-    | NOT NOT TRUE                     { $$ = BUILDER.boollit(@$, true); }
-    |         FALSE                    { $$ = BUILDER.boollit(@$, false); }
-    |     NOT FALSE                    { $$ = BUILDER.boollit(@$, true); }
-    | NOT NOT FALSE                    { $$ = BUILDER.boollit(@$, false); }
-    |         atom[a]                  { $$ = BUILDER.predlit(@$, NAF::POS, $a); }
-    |     NOT atom[a]                  { $$ = BUILDER.predlit(@$, NAF::NOT, $a); }
-    | NOT NOT atom[a]                  { $$ = BUILDER.predlit(@$, NAF::NOTNOT, $a); }
-    |         term[l] cmp[rel] term[r] { $$ = BUILDER.rellit(@$, $rel, $l, $r); }
-    |     NOT term[l] cmp[rel] term[r] { $$ = BUILDER.rellit(@$, neg($rel), $l, $r); }
-    | NOT NOT term[l] cmp[rel] term[r] { $$ = BUILDER.rellit(@$, $rel, $l, $r); }
-    | csp_literal[lit]                 { $$ = BUILDER.csplit($lit); }
+    :         TRUE                 { $$ = BUILDER.boollit(@$, true); }
+    |     NOT TRUE                 { $$ = BUILDER.boollit(@$, false); }
+    | NOT NOT TRUE                 { $$ = BUILDER.boollit(@$, true); }
+    |         FALSE                { $$ = BUILDER.boollit(@$, false); }
+    |     NOT FALSE                { $$ = BUILDER.boollit(@$, true); }
+    | NOT NOT FALSE                { $$ = BUILDER.boollit(@$, false); }
+    |         atom[a]              { $$ = BUILDER.predlit(@$, NAF::POS, $a); }
+    |     NOT atom[a]              { $$ = BUILDER.predlit(@$, NAF::NOT, $a); }
+    | NOT NOT atom[a]              { $$ = BUILDER.predlit(@$, NAF::NOTNOT, $a); }
+    |         term[l] rellitvec[r] { $$ = BUILDER.rellit(@$, NAF::POS, $l, $r); }
+    |     NOT term[l] rellitvec[r] { $$ = BUILDER.rellit(@$, NAF::NOT, $l, $r); }
+    | NOT NOT term[l] rellitvec[r] { $$ = BUILDER.rellit(@$, NAF::NOTNOT, $l, $r); }
+    | csp_literal[lit]             { $$ = BUILDER.csplit($lit); }
     ;
 
 csp_mul_term
