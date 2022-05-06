@@ -191,7 +191,7 @@ LitUid NongroundProgramBuilder::predlit(Location const &loc, NAF naf, TermUid te
 }
 
 LitUid NongroundProgramBuilder::rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) {
-    return lits_.insert(make_locatable<RelationLiteral>(loc, rel, terms_.erase(termUidLeft), terms_.erase(termUidRight)));
+    return lits_.insert(make_locatable<RelationLiteralN>(loc, NAF::POS, rel, terms_.erase(termUidLeft), terms_.erase(termUidRight)));
 }
 
 // {{{2 literal vectors

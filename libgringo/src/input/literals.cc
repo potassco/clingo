@@ -42,14 +42,13 @@ unsigned RelationLiteralN::projectScore() const {
     return score;
 }
 
-
 // {{{1 definition of Literal::print
 
 inline void RelationLiteral::print(std::ostream &out) const  { out << *left << rel << *right; }
 inline void RelationLiteralN::print(std::ostream &out) const {
     assert(!right_.empty());
     out << naf_ << *left_;
-    for (auto &&term: right_) {
+    for (auto &term: right_) {
         out << term.first << *term.second;
     }
 }
@@ -100,12 +99,23 @@ bool RelationLiteralN::simplify(Logger &log, Projections &project, SimplifyState
     static_cast<void>(project);
     static_cast<void>(positional);
     static_cast<void>(singleton);
-    if (left_->simplify(state, false, false, log).update(left_, false).undefined()) {
+    auto handle_fail = [&]() {
+        if (naf_ == NAF::NOT) {
+            // the relation literal is trivially satisfied in this case
+            naf_ = NAF::POS;
+            left_ = make_locatable<ValTerm>(loc(), Symbol::createNum(0));
+            right_.clear();
+            right_.emplace_back(Relation::EQ, make_locatable<ValTerm>(loc(), Symbol::createNum(0)));
+            return true;
+        }
         return false;
+    };
+    if (left_->simplify(state, false, false, log).update(left_, false).undefined()) {
+        return handle_fail();
     }
-    for (auto &&term : right_) {
-        if (!term.second->simplify(state, false, false, log).update(term.second, false).undefined()) {
-            return false;
+    for (auto &term : right_) {
+        if (term.second->simplify(state, false, false, log).update(term.second, false).undefined()) {
+            return handle_fail();
         }
     }
     return true;
@@ -436,15 +446,17 @@ ULit RelationLiteral::shift(bool negate) {
     return make_locatable<RelationLiteral>(loc(), negate ? neg(rel) : rel, std::move(left), std::move(right));
 }
 ULit RelationLiteralN::shift(bool negate) {
-    if (naf_ == NAF::NOT) {
-        naf_ = NAF::POS;
-    }
-    else if (right_.size() == 1) {
-        naf_ = NAF::POS;
-        right_.front().first = neg(right_.front().first);
-    }
-    else {
-        naf_ = NAF::NOT;
+    if (negate) {
+        if (naf_ == NAF::NOT) {
+            naf_ = NAF::POS;
+        }
+        else if (right_.size() == 1) {
+            naf_ = NAF::POS;
+            right_.front().first = neg(right_.front().first);
+        }
+        else {
+            naf_ = NAF::NOT;
+        }
     }
     return make_locatable<RelationLiteralN>(loc(), std::move(*this));
 }
