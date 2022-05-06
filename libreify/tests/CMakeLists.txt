@@ -1,8 +1,6 @@
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${CMAKE_CURRENT_SOURCE_DIR}/catch.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/program.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
@@ -10,7 +8,7 @@ set(source
 # ]]]
 
 add_executable(test_reify ${source})
-target_link_libraries(test_reify PRIVATE libreify)
+target_link_libraries(test_reify PRIVATE libreify Catch2::Catch2WithMain)
 target_include_directories(test_reify PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )

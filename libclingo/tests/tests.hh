@@ -23,7 +23,7 @@
 // }}}
 
 #include "clingo.hh"
-#include "catch.hpp"
+#include <catch2/catch.hpp>
 
 namespace Clingo { namespace Test {
 

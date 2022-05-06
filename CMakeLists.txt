@@ -61,7 +61,10 @@ option(CLINGO_INSTALL_LIB
 "Advanced option to force installation of static libraries."
 OFF)
 option(CLINGO_USE_LOCAL_CLASP
-"Advanced option to build against bundled clasp or installed clasp target."
+"Advanced option to build against bundled or installed clasp."
+ON)
+option(CLINGO_USE_LOCAL_CATCH
+"Advanced option to build against bundled or installed catch."
 ON)
 
 
@@ -242,6 +245,7 @@ if (CLINGO_USE_LIB)
     set_property(TARGET libclingo PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CLINGO_SOURCE_DIR}/libclingo")
     set_property(TARGET libclingo PROPERTY INTERFACE_LINK_LIBRARIES "clingo")
 else()
+    add_subdirectory(third_party)
     set(clingo_library_targets libgringo libpotassco libclasp libreify)
     if (CLINGO_USE_LOCAL_CLASP)
         # NOTE: assumes that submodule has been initialized

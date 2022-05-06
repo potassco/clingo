@@ -25,7 +25,7 @@
 #ifndef _GRINGO_TEST_TESTS_HH
 #define _GRINGO_TEST_TESTS_HH
 
-#include "catch.hpp"
+#include <catch2/catch.hpp>
 #include "gringo/utility.hh"
 #include "gringo/logger.hh"
 #include "gringo/base.hh"

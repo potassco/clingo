@@ -1,10 +1,8 @@
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${CMAKE_CURRENT_SOURCE_DIR}/catch.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/graph.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/intervals.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/safetycheck.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/symbol.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/term.cc"
@@ -48,7 +46,7 @@ set(source
 # ]]]
 
 add_executable(test_gringo ${source})
-target_link_libraries(test_gringo PRIVATE libgringo libclasp)
+target_link_libraries(test_gringo PRIVATE libgringo libclasp Catch2::Catch2WithMain)
 target_include_directories(test_gringo PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 if(MSVC)

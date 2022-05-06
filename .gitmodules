@@ -2,3 +2,6 @@
 	path = clasp
 	url = https://github.com/potassco/clasp.git
 	branch = dev
+[submodule "third_party/catch"]
+	path = third_party/catch
+	url = ../../catchorg/Catch2.git
