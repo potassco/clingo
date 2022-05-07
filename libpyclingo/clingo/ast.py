@@ -88,13 +88,17 @@ symbolic_atom = SymbolicAtom
                  ( symbol : term
                  )
 
+comparison_term = ComparisonTerm
+                    ( comparison : ComparisonOperator
+                    , term       : Term
+                    )
+
 literal = Literal
            ( location : Location
            , sign     : Sign
            , atom     : Comparison
-                         ( comparison : ComparisonOperator
-                         , left       : term
-                         , right      : term
+                         ( left  : term
+                         , right : comparison_term+
                          )
                       | BooleanConstant
                          ( value : bool
@@ -358,18 +362,19 @@ __all__ = [ 'AST', 'ASTSequence', 'ASTType', 'ASTValue', 'Aggregate',
             'AggregateFunction', 'AggregateGuard', 'BinaryOperation',
             'BinaryOperator', 'BodyAggregate', 'BodyAggregateElement',
             'BooleanConstant', 'Comparison', 'ComparisonOperator',
-            'ConditionalLiteral', 'CspGuard', 'CspLiteral', 'CspProduct',
-            'CspSum', 'Defined', 'Definition', 'Disjoint', 'DisjointElement',
-            'Disjunction', 'Edge', 'External', 'Function', 'HeadAggregate',
-            'HeadAggregateElement', 'Heuristic', 'Id', 'Interval', 'Literal',
-            'Location', 'Minimize', 'Pool', 'Position', 'Program',
-            'ProgramBuilder', 'ProjectAtom', 'ProjectSignature', 'Rule',
-            'Script', 'ShowSignature', 'ShowTerm', 'Sign', 'StrSequence',
-            'SymbolicTerm', 'TheoryAtom', 'TheoryAtomDefinition',
-            'TheoryAtomElement', 'TheoryAtomType', 'TheoryDefinition',
-            'TheoryFunction', 'TheoryGuard', 'TheoryGuardDefinition',
-            'TheoryOperatorDefinition', 'TheoryOperatorType', 'TheorySequence',
-            'TheorySequenceType', 'TheoryTermDefinition', 'TheoryUnparsedTerm',
+            'ComparisonTerm', 'ConditionalLiteral', 'CspGuard', 'CspLiteral',
+            'CspProduct', 'CspSum', 'Defined', 'Definition', 'Disjoint',
+            'DisjointElement', 'Disjunction', 'Edge', 'External', 'Function',
+            'HeadAggregate', 'HeadAggregateElement', 'Heuristic', 'Id',
+            'Interval', 'Literal', 'Location', 'Minimize', 'Pool', 'Position',
+            'Program', 'ProgramBuilder', 'ProjectAtom', 'ProjectSignature',
+            'Rule', 'Script', 'ShowSignature', 'ShowTerm', 'Sign',
+            'StrSequence', 'SymbolicTerm', 'TheoryAtom',
+            'TheoryAtomDefinition', 'TheoryAtomElement', 'TheoryAtomType',
+            'TheoryDefinition', 'TheoryFunction', 'TheoryGuard',
+            'TheoryGuardDefinition', 'TheoryOperatorDefinition',
+            'TheoryOperatorType', 'TheorySequence', 'TheorySequenceType',
+            'TheoryTermDefinition', 'TheoryUnparsedTerm',
             'TheoryUnparsedTermElement', 'Transformer', 'UnaryOperation',
             'UnaryOperator', 'Variable', 'parse_files', 'parse_string' ]
 
