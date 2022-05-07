@@ -198,6 +198,7 @@ private:
     using TermVecVecs = Indexed<StringVecVec, TermVecVecUid>;
     using Lits = Indexed<std::string, LitUid>;
     using LitVecs = Indexed<StringVec, LitVecUid>;
+    using RelLitVecs = Indexed<StringVec, RelLitVecUid>;
     using BodyAggrElemVecs = Indexed<StringVec, BdAggrElemVecUid>;
     using CondLitVecs = Indexed<StringVec, CondLitVecUid>;
     using HeadAggrElemVecs = Indexed<StringVec, HdAggrElemVecUid>;
@@ -238,6 +239,7 @@ private:
     TermVecVecs termvecvecs_;
     Lits lits_;
     LitVecs litvecs_;
+    RelLitVecs rellitvecs_;
     BodyAggrElemVecs bodyaggrelemvecs_;
     CondLitVecs condlitvecs_;
     HeadAggrElemVecs headaggrelemvecs_;
@@ -414,19 +416,21 @@ LitUid TestNongroundProgramBuilder::predlit(Location const &, NAF naf, TermUid t
 }
 
 RelLitVecUid TestNongroundProgramBuilder::rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) {
-    throw std::logic_error("implement me!!!");
+    auto uid = rellitvecs_.emplace();
+    return rellitvec(loc, uid, rel, termUidLeft);
 }
 
 RelLitVecUid TestNongroundProgramBuilder::rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) {
-    throw std::logic_error("implement me!!!");
+    current_<< rel << terms_.erase(termUidRight);
+    rellitvecs_[vecUidLeft].emplace_back(str());
+    return vecUidLeft;
 }
 
 LitUid TestNongroundProgramBuilder::rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) {
-    /*
-    current_ << terms_.erase(termUidLeft) << rel << terms_.erase(termUidRight);
+    print(naf);
+    current_ << terms_.erase(termUidLeft);
+    print(rellitvecs_.erase(vecUidRight), "");
     return lits_.emplace(str());
-    */
-    throw std::logic_error("implement me!!!");
 }
 
 // }}}
@@ -1064,6 +1068,10 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\n#not #not p." == parse("not not p."));
         // term cmp term
         REQUIRE("#program base().\n(1+2)!=3." == parse("1+2!=3."));
+        REQUIRE("#program base().\n(1+2)<3<4." == parse("1+2<3<4."));
+        REQUIRE("#program base().\n(1+2)<3<4<=5." == parse("1+2<3<4<=5."));
+        REQUIRE("#program base().\n#not (1+2)<3<4<=5." == parse("not 1+2<3<4<=5."));
+        REQUIRE("#program base().\n#not #not (1+2)<3<4<=5." == parse("not not 1+2<3<4<=5."));
     }
 
     SECTION("bdaggr") {
