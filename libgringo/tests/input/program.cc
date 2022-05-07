@@ -115,6 +115,18 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("#theory x{node{};&edge/1:node,head}.#false:-p(Z);#range(#Range0,Z,Z);not &edge((#Range0+0)){(z),(Y): p(Y,(#Range1+0)),#range(#Range1,Y,Y)}." == rewrite(parse("#theory x{ node{}; &edge/1: node, head }.&edge(Z..Z) { z, Y : p(Y,Y..Y)} :- p(Z).")));
     }
 
+    SECTION("rewrite-comparisons") {
+        REQUIRE("#false:-1>=2;q.#false:-2>=3;q." == rewrite(parse("1<2<3:-q.")));
+        REQUIRE("#false:-2<3;1<2;q." == rewrite(parse("not 1<2<3:-q.")));
+        REQUIRE("#false:1>=2&#false:2>=3:;#false:4>=5&#false:5>=6::-q." == rewrite(parse("1<2<3|4<5<6:-q.")));
+        REQUIRE("#false::;#false:::-5<6;2<3;4<5;1<2;q." == rewrite(parse("not 1<2<3|not 4<5<6:-q.")));
+        REQUIRE("#false:-#range(#Range0,1,2);q;1>=(#Range0+0).#false:-#range(#Range0,1,2);q;(#Range0+0)>=3." == rewrite(parse("1<1..2<3:-q.")));
+        REQUIRE("#false:-#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
+        REQUIRE("#false:-1>=2;q.#false:-2>=4;q.#false:-1>=3;q.#false:-3>=4;q." == rewrite(parse("1<(2;3)<4:-q.")));
+        REQUIRE("#false:-2<4;1<2;q.#false:-3<4;1<3;q." == rewrite(parse("not 1<(2;3)<4:-q.")));
+        // TODO: test bodies + various aggregates (especially aggregates with heads)
+    }
+
     SECTION("defines") {
         REQUIRE("p(1):-q." ==  rewrite(parse("#const a=1.#const b=a.#const c=b.#const d=c.p(d):-q.")));
         REQUIRE("p(2):-q." ==  rewrite(parse("#const c=a+b.#const b=a.#const a=1.p(c):-q.")));
