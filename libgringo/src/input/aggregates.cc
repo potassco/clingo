@@ -61,8 +61,8 @@ auto _printCond = [](std::ostream &out, CondLit const &x) {
     print_comma(out, x.second, ",", std::bind(&Literal::print, _2, _1));
 };
 
-std::function<ULitVec(ULit const &)> _unpool_lit(bool beforeRewrite) {
-    return [beforeRewrite](ULit const &x) { return x->unpool(beforeRewrite, false); };
+std::function<ULitVec(ULit const &)> _unpool_lit(bool beforeRewrite, bool head) {
+    return [beforeRewrite, head](ULit const &x) { return x->unpool(beforeRewrite, head); };
 }
 auto _unpool_bound = [](Bound &x) { return x.unpool(); };
 
@@ -184,10 +184,10 @@ void TupleBodyAggregate::unpool(UBodyAggrVec &x, bool beforeRewrite) {
     for (auto &elem : elems) {
         if (beforeRewrite) {
             auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(elem.first), std::move(y)); };
-            Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite), f);
+            Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite, false), f);
         }
         else {
-            Term::unpoolJoin(elem.second, _unpool_lit(beforeRewrite));
+            Term::unpoolJoin(elem.second, _unpool_lit(beforeRewrite, false));
             e.emplace_back(std::move(elem));
         }
     }
@@ -419,17 +419,17 @@ void LitBodyAggregate::unpool(UBodyAggrVec &x, bool beforeRewrite) {
     CondLitVec e;
     for (auto &elem : elems) {
         auto f = [&](ULit &&y) { e.emplace_back(std::move(y), get_clone(elem.second)); };
-        Term::unpool(elem.first, _unpool_lit(beforeRewrite), f);
+        Term::unpool(elem.first, _unpool_lit(beforeRewrite, true), f);
     }
     elems = std::move(e);
     e.clear();
     for (auto &elem : elems) {
         if (beforeRewrite) {
             auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(elem.first), std::move(y)); };
-            Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite), f);
+            Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite, false), f);
         }
         else {
-            Term::unpoolJoin(elem.second, _unpool_lit(beforeRewrite));
+            Term::unpoolJoin(elem.second, _unpool_lit(beforeRewrite, false));
             e.emplace_back(std::move(elem));
         }
     }
@@ -586,17 +586,17 @@ void Conjunction::unpool(UBodyAggrVec &x, bool beforeRewrite) {
             ULitVecVec heads;
             for (auto &head : elem.first) {
                 auto g = [&](ULitVec &&z) { heads.emplace_back(std::move(z)); };
-                Term::unpool(head.begin(), head.end(), _unpool_lit(beforeRewrite), g);
+                Term::unpool(head.begin(), head.end(), _unpool_lit(beforeRewrite, false), g);
             }
             elem.first = std::move(heads);
             auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(elem.first), std::move(y)); };
-            Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite), f);
+            Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite, false), f);
         }
         else {
             for (auto &head : elem.first) {
-                Term::unpoolJoin(head, _unpool_lit(beforeRewrite));
+                Term::unpoolJoin(head, _unpool_lit(beforeRewrite, false));
             }
-            Term::unpoolJoin(elem.second, _unpool_lit(beforeRewrite));
+            Term::unpoolJoin(elem.second, _unpool_lit(beforeRewrite, false));
             e.emplace_back(std::move(elem));
         }
     }
@@ -897,16 +897,16 @@ void TupleHeadAggregate::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     elems.clear();
     for (auto &elem : e) {
         auto f = [&](ULit &&y) { elems.emplace_back(get_clone(std::get<0>(elem)), std::move(y), get_clone(std::get<2>(elem))); };
-        Term::unpool(std::get<1>(elem), _unpool_lit(beforeRewrite), f);
+        Term::unpool(std::get<1>(elem), _unpool_lit(beforeRewrite, true), f);
     }
     e.clear();
     for (auto &elem : elems) {
         if (beforeRewrite) {
             auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(std::get<0>(elem)), get_clone(std::get<1>(elem)), std::move(y)); };
-            Term::unpool(std::get<2>(elem).begin(), std::get<2>(elem).end(), _unpool_lit(beforeRewrite), f);
+            Term::unpool(std::get<2>(elem).begin(), std::get<2>(elem).end(), _unpool_lit(beforeRewrite, false), f);
         }
         else {
-            Term::unpoolJoin(std::get<2>(elem), _unpool_lit(beforeRewrite));
+            Term::unpoolJoin(std::get<2>(elem), _unpool_lit(beforeRewrite, false));
             e.emplace_back(std::move(elem));
         }
     }
@@ -1124,16 +1124,16 @@ void LitHeadAggregate::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     CondLitVec e;
     for (auto &elem : elems) {
         auto f = [&](ULit &&y) { e.emplace_back(std::move(y), get_clone(elem.second)); };
-        Term::unpool(elem.first, _unpool_lit(beforeRewrite), f);
+        Term::unpool(elem.first, _unpool_lit(beforeRewrite, true), f);
     }
     elems.clear();
     for (auto &elem : e) {
         if (beforeRewrite) {
             auto f = [&](ULitVec &&y) { elems.emplace_back(get_clone(elem.first), std::move(y)); };
-            Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite), f);
+            Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite, false), f);
         }
         else {
-            Term::unpoolJoin(elem.second, _unpool_lit(beforeRewrite));
+            Term::unpoolJoin(elem.second, _unpool_lit(beforeRewrite, false));
             elems.emplace_back(std::move(elem));
         }
     }
@@ -1288,25 +1288,25 @@ void Disjunction::unpool(UHeadAggrVec &x, bool beforeRewrite) {
             HeadVec heads;
             for (auto &head : elem.first) {
                 for (auto &lit : head.first->unpool(beforeRewrite, true)) {
-                    Term::unpool(head.second.begin(), head.second.end(), _unpool_lit(beforeRewrite), [&](ULitVec &&expand) {
+                    Term::unpool(head.second.begin(), head.second.end(), _unpool_lit(beforeRewrite, false), [&](ULitVec &&expand) {
                         heads.emplace_back(get_clone(lit), std::move(expand));
                     });
                 }
             }
             elem.first = std::move(heads);
             auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(elem.first), std::move(y)); };
-            Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite), f);
+            Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite, false), f);
         }
         else {
             HeadVec heads;
             for (auto &head : elem.first) {
-                Term::unpoolJoin(head.second, _unpool_lit(beforeRewrite));
+                Term::unpoolJoin(head.second, _unpool_lit(beforeRewrite, false));
                 for (auto &lit : head.first->unpool(beforeRewrite, true)) {
                     heads.emplace_back(std::move(lit), get_clone(head.second));
                 }
             }
             elem.first = std::move(heads);
-            Term::unpoolJoin(elem.second, _unpool_lit(beforeRewrite));
+            Term::unpoolJoin(elem.second, _unpool_lit(beforeRewrite, false));
             e.emplace_back(std::move(elem));
         }
     }
@@ -1679,10 +1679,10 @@ void DisjointAggregate::unpool(UBodyAggrVec &x, bool beforeRewrite) {
     for (auto &elem : elems) {
         if (beforeRewrite) {
             auto f = [&](ULitVec &&cond) { e.emplace_back(elem.loc, get_clone(elem.tuple), get_clone(elem.value), std::move(cond)); };
-            Term::unpool(elem.cond.begin(), elem.cond.end(), _unpool_lit(beforeRewrite), f);
+            Term::unpool(elem.cond.begin(), elem.cond.end(), _unpool_lit(beforeRewrite, false), f);
         }
         else {
-            Term::unpoolJoin(elem.cond, _unpool_lit(beforeRewrite));
+            Term::unpoolJoin(elem.cond, _unpool_lit(beforeRewrite, false));
             e.emplace_back(std::move(elem));
         }
     }

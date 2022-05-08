@@ -116,6 +116,7 @@ TEST_CASE("input-program", "[input]") {
     }
 
     SECTION("rewrite-comparisons") {
+        // head
         REQUIRE("#false:-1>=2;q.#false:-2>=3;q." == rewrite(parse("1<2<3:-q.")));
         REQUIRE("#false:-2<3;1<2;q." == rewrite(parse("not 1<2<3:-q.")));
         REQUIRE("#false:1>=2&#false:2>=3:;#false:4>=5&#false:5>=6::-q." == rewrite(parse("1<2<3|4<5<6:-q.")));
@@ -124,7 +125,15 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("#false:-#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
         REQUIRE("#false:-1>=2;q.#false:-2>=4;q.#false:-1>=3;q.#false:-3>=4;q." == rewrite(parse("1<(2;3)<4:-q.")));
         REQUIRE("#false:-2<4;1<2;q.#false:-3<4;1<3;q." == rewrite(parse("not 1<(2;3)<4:-q.")));
+        // head aggregates
+        // problematic, but probably the only choice...!!!
+        // I would like to have that `{ 1<2<3 } = 1` is satisfiable.
+        // The current unpooling does not work in this regard.
+        REQUIRE("" == rewrite(parse("{ 1<2 } >= 1:-q.")));
+        REQUIRE("" == rewrite(parse("{ 1<2<3 }:-q.")));
+        REQUIRE("" == rewrite(parse("{ not 1<(2;3)<4 }:-q.")));
         // TODO: test bodies + various aggregates (especially aggregates with heads)
+
     }
 
     SECTION("defines") {

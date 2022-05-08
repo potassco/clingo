@@ -138,6 +138,14 @@ void Program::rewrite(Defines &defs, Logger &log) {
         else if (std::get<1>(*block.edb).empty()) { std::swap(std::get<1>(*block.edb), block.addedEdb); }
         else { std::copy(block.addedEdb.begin(), block.addedEdb.end(), std::back_inserter(std::get<1>(*block.edb))); }
         // {{{3 rewriting
+        // steps:
+        // 1. unpool before simplify
+        //    - currently comparisons in the head are split here
+        // 2. initialize theory
+        // 3. simplify
+        // 4. unpool after simplify
+        // 5. rewrite
+        //    - currently comparisons are split here
         auto rewrite2 = [&](UStm &x) -> void {
             std::get<1>(*block.edb).emplace_back(x->isEDB());
             if (std::get<1>(*block.edb).back().type() == SymbolType::Special) {
