@@ -155,9 +155,9 @@ TEST_CASE("ground-program", "[ground]") {
             "% positive component\n"
             "#accu(#d0(Z,X,Y),tuple(0,a(B,Y))):-[p(X,Y,Z)],a(B,Y).\n"
             "% positive component\n"
-            "#accu(#d0(Z,X,Y),tuple(3,X,1)):-[p(X,Y,Z)],q(X),X>1.\n"
+            "#accu(#d0(Z,X,Y),tuple(3,(0,X))):-[p(X,Y,Z)],q(X),X>1.\n"
             "% positive component\n"
-            "#d0(Z,X,Y):-#accu(#d0(Z,X,Y),tuple(#special)),#accu(#d0(Z,X,Y),tuple(1,q(A))),#accu(#d0(Z,X,Y),tuple(0,a(B,Y))),#accu(#d0(Z,X,Y),tuple(3,X,1)).\n"
+            "#d0(Z,X,Y):-#accu(#d0(Z,X,Y),tuple(#special)),#accu(#d0(Z,X,Y),tuple(1,q(A))),#accu(#d0(Z,X,Y),tuple(0,a(B,Y))),#accu(#d0(Z,X,Y),tuple(3,(0,X))).\n"
             "% positive component\n"
             "x:-p(X,Y,Z),Z<#count{#d0(Z,X,Y)}." ==
             toString(parse("x:-p(X,Y,Z),Z<{not q(A):r(A,X);a(B,Y);X>1:q(X)}.")));
@@ -171,7 +171,7 @@ TEST_CASE("ground-program", "[ground]") {
             "% component\n"
             "#accu(#d0(Z,X,Y),#true):-r(A,X),not q(A),#d0(Z,X,Y)!.\n"
             "% component\n"
-            "Z<#count{1,q(A):#true:#accu(#d0(Z,X,Y),#true);0,a(B,Y):a(B,Y):#accu(#d0(Z,X,Y),a(B,Y),tuple(0,a(B,Y)));3,X,1:#true:#accu(#d0(Z,X,Y),#true)}:-#d0(Z,X,Y)!." ==
+            "Z<#count{1,q(A):#true:#accu(#d0(Z,X,Y),#true);0,a(B,Y):a(B,Y):#accu(#d0(Z,X,Y),a(B,Y),tuple(0,a(B,Y)));3,(0,X):#true:#accu(#d0(Z,X,Y),#true)}:-#d0(Z,X,Y)!." ==
             toString(parse("Z<{not q(A):r(A,X);a(B,Y);X>1:q(X)}:-p(X,Y,Z).")));
         REQUIRE(
             "% component\n"

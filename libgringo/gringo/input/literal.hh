@@ -62,6 +62,11 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     using RelationVec = std::vector<std::tuple<Relation, UTerm, UTerm>>;
 
     virtual unsigned projectScore() const { return 2; }
+    //! Returns true if the literal needs to be shifted before unpooling to
+    //! support counting in aggregates.
+    virtual bool needSetShift() const { return false; }
+    //! Return true if the literal is trivially satisfied.
+    virtual bool triviallyTrue() const { return false; }
     //! Removes all occurrences of PoolTerm instances.
     //! Returns all unpooled incarnations of the literal.
     //! \note The literal becomes unusable after the method returns.
@@ -77,6 +82,15 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     //! Removes non-invertible arithmetics.
     //! \note This method will not be called for head literals.
     virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) = 0;
+    //! Convert the literal into a tuple to be used in a set based aggregate.
+    //!
+    //! Symbolic literals use `(naf, repr)` where 0-2 is used to encode the
+    //! negation and repr is the symbolic representation of the atom.
+    //!
+    //! Comparisons use `(3, uid, vars...)` where uid is the position where the
+    //! comparision occurs in the arregate and vars are the variables that
+    //! occur in the comparison. This ensures something like a multi-set
+    //! semantics for comparisions.
     virtual void toTuple(UTermVec &tuple, int &id) = 0;
     virtual Symbol isEDB() const;
     virtual bool hasPool(bool beforeRewrite, bool head) const = 0;

@@ -117,23 +117,48 @@ TEST_CASE("input-program", "[input]") {
 
     SECTION("rewrite-comparisons") {
         // head
-        REQUIRE("#false:-1>=2;q.#false:-2>=3;q." == rewrite(parse("1<2<3:-q.")));
-        REQUIRE("#false:-2<3;1<2;q." == rewrite(parse("not 1<2<3:-q.")));
-        REQUIRE("#false:1>=2&#false:2>=3:;#false:4>=5&#false:5>=6::-q." == rewrite(parse("1<2<3|4<5<6:-q.")));
-        REQUIRE("#false::;#false:::-5<6;2<3;4<5;1<2;q." == rewrite(parse("not 1<2<3|not 4<5<6:-q.")));
-        REQUIRE("#false:-#range(#Range0,1,2);q;1>=(#Range0+0).#false:-#range(#Range0,1,2);q;(#Range0+0)>=3." == rewrite(parse("1<1..2<3:-q.")));
-        REQUIRE("#false:-#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
-        REQUIRE("#false:-1>=2;q.#false:-2>=4;q.#false:-1>=3;q.#false:-3>=4;q." == rewrite(parse("1<(2;3)<4:-q.")));
-        REQUIRE("#false:-2<4;1<2;q.#false:-3<4;1<3;q." == rewrite(parse("not 1<(2;3)<4:-q.")));
-        // head aggregates
-        // problematic, but probably the only choice...!!!
-        // I would like to have that `{ 1<2<3 } = 1` is satisfiable.
-        // The current unpooling does not work in this regard.
-        REQUIRE("" == rewrite(parse("{ 1<2 } >= 1:-q.")));
-        REQUIRE("" == rewrite(parse("{ 1<2<3 }:-q.")));
-        REQUIRE("" == rewrite(parse("{ not 1<(2;3)<4 }:-q.")));
-        // TODO: test bodies + various aggregates (especially aggregates with heads)
-
+        REQUIRE("#void:-1>=2;q.#void:-2>=3;q." == rewrite(parse("1<2<3:-q.")));
+        REQUIRE("#void:-2<3;1<2;q." == rewrite(parse("not 1<2<3:-q.")));
+        REQUIRE("#void:1>=2&#void:2>=3:;#void:4>=5&#void:5>=6::-q." == rewrite(parse("1<2<3|4<5<6:-q.")));
+        REQUIRE("#void::;#void:::-5<6;2<3;4<5;1<2;q." == rewrite(parse("not 1<2<3|not 4<5<6:-q.")));
+        REQUIRE("#void:-#range(#Range0,1,2);q;1>=(#Range0+0).#void:-#range(#Range0,1,2);q;(#Range0+0)>=3." == rewrite(parse("1<1..2<3:-q.")));
+        REQUIRE("#void:-#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
+        REQUIRE("#void:-1>=2;q.#void:-2>=4;q.#void:-1>=3;q.#void:-3>=4;q." == rewrite(parse("1<(2;3)<4:-q.")));
+        REQUIRE("#void:-2<4;1<2;q.#void:-3<4;1<3;q." == rewrite(parse("not 1<(2;3)<4:-q.")));
+        // set based head aggregates
+        REQUIRE("1<=#count{3,(0,):#void:1<2}:-q." == rewrite(parse("{ 1<2 } >= 1:-q.")));
+        REQUIRE("1<=#count{3,(0,):#void:1<2;3,(1,):#void:3<4}:-q." == rewrite(parse("{ 1<2; 3<4 } >= 1:-q.")));
+        REQUIRE("1<=#count{"
+                "3,(0,):#void:1<2,2<4;"
+                "3,(0,):#void:1<3,3<4"
+                "}:-q." == rewrite(parse("{ 1<(2;3)<4 } >= 1:-q.")));
+        REQUIRE("#count{"
+                "3,(0,):#void:1>=2;"
+                "3,(0,):#void:2>=4;"
+                "3,(0,):#void:1>=3;"
+                "3,(0,):#void:3>=4"
+                "}:-q." == rewrite(parse("{ not 1<(2;3)<4 }:-q.")));
+        // TODO: what's this? I should probably try to get rid of unnecessary body literals!
+        // REQUIRE("#count{0:#false:}:-2<3;;1<2;(0,)<=(0,);3<=3;q." == rewrite(parse("{ 1<2<3 }:-q.")));
+        // TODO: head aggreagets
+        REQUIRE("1<=#count{1:#void:p,1<2}:-q." == rewrite(parse("#count{ 1:1<2:p } >= 1:-q.")));
+        REQUIRE("1<=#count{1:#void:p,1<2,2<3}:-q." == rewrite(parse("#count{ 1:1<2<3:p } >= 1:-q.")));
+        REQUIRE("1<=#count{"
+                "1:#void:p,1>=2;"
+                "1:#void:p,2>=3"
+                "}:-q." == rewrite(parse("#count{ 1:not 1<2<3:p } >= 1:-q.")));
+        REQUIRE("1<=#count{"
+                "1:#void:p,1<2,2<4;"
+                "1:#void:p,1<3,3<4"
+                "}:-q." == rewrite(parse("#count{ 1:1<(2;3)<4:p } >= 1:-q.")));
+        REQUIRE("1<=#count{"
+                "1:#void:p,1>=2;"
+                "1:#void:p,2>=4;"
+                "1:#void:p,1>=3;"
+                "1:#void:p,3>=4"
+                "}:-q." == rewrite(parse("#count{ 1:not 1<(2;3)<4:p } >= 1:-q.")));
+        // TODO: set based body aggregates
+        // TODO: body aggregates
     }
 
     SECTION("defines") {

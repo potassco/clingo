@@ -87,6 +87,7 @@ public:
     static ULit make(Term::LevelMap::value_type &x);
     static ULit make(Literal::RelationVec::value_type &x);
     // {{{ Term interface
+    bool needSetShift() const override;
     unsigned projectScore() const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
     void toTuple(UTermVec &tuple, int &id) override;
@@ -202,14 +203,14 @@ struct ScriptLiteral : Literal {
 };
 
 // }}}
-// {{{ declaration of FalseLiteral
+// {{{ declaration of VoidLiteral
 
-struct FalseLiteral : Literal {
-    FalseLiteral();
+struct VoidLiteral : Literal {
+    VoidLiteral();
     unsigned projectScore() const override { return 0; }
     void collect(VarTermBoundVec &vars, bool bound) const override;
     void toTuple(UTermVec &tuple, int &id) override;
-    FalseLiteral *clone() const override;
+    VoidLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
@@ -223,7 +224,45 @@ struct FalseLiteral : Literal {
     UTerm headRepr() const override;
     bool auxiliary() const override { return true; }
     void auxiliary(bool) override { }
-    virtual ~FalseLiteral();
+    virtual ~VoidLiteral();
+};
+
+// }}}
+// {{{ declaration of BooleanSetLiteral
+
+// This literals simply evaluates to a fixed Boolean but also has a set
+// representation usable in set-based aggregates.
+
+class BooleanSetLiteral : public Literal {
+public:
+    BooleanSetLiteral(UTerm repr, bool value);
+    BooleanSetLiteral() = delete;
+    BooleanSetLiteral(BooleanSetLiteral const &other) = delete;
+    BooleanSetLiteral(BooleanSetLiteral &&other) noexcept;
+    BooleanSetLiteral &operator=(BooleanSetLiteral const &other) = delete;
+    BooleanSetLiteral &operator=(BooleanSetLiteral &&other) noexcept;
+    bool triviallyTrue() const override { return value_; }
+    unsigned projectScore() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void toTuple(UTermVec &tuple, int &id) override;
+    BooleanSetLiteral *clone() const override;
+    void print(std::ostream &out) const override;
+    bool operator==(Literal const &other) const override;
+    size_t hash() const override;
+    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
+    void replace(Defines &dx) override;
+    Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
+    ULit shift(bool negate) override;
+    UTerm headRepr() const override;
+    bool auxiliary() const override;
+    void auxiliary(bool aux) override;
+    ~BooleanSetLiteral() noexcept override;
+private:
+    UTerm repr_;
+    bool value_;
 };
 
 // }}}

@@ -140,12 +140,12 @@ void Program::rewrite(Defines &defs, Logger &log) {
         // {{{3 rewriting
         // steps:
         // 1. unpool before simplify
-        //    - currently comparisons in the head are split here
+        //    - also splits conjunctive/disjunctive comparisons in heads/bodies
         // 2. initialize theory
         // 3. simplify
         // 4. unpool after simplify
         // 5. rewrite
-        //    - currently comparisons are split here
+        //    - also splits (the remaining) disjunctive/conjunctive comparisons in heads/bodies
         auto rewrite2 = [&](UStm &x) -> void {
             std::get<1>(*block.edb).emplace_back(x->isEDB());
             if (std::get<1>(*block.edb).back().type() == SymbolType::Special) {

@@ -389,11 +389,40 @@ void TupleBodyAggregate::removeAssignment() {
 
 // {{{1 definition of LitBodyAggregate
 
+namespace {
+
+void aggregate_set_shift(CondLitVec &elems) {
+    // Note: to be able to use comparisions that need unpooling in set based
+    // aggregates, we shift them into conditions and use a dummy head
+    // representation. This treats comparisons like multi-sets where unpooling
+    // does not increase counts.
+    int id = 0;
+    for (auto &elem : elems) {
+        if (elem.first->needSetShift()) {
+            VarTermBoundVec vars;
+            elem.first->collect(vars, false);
+            UTermVec tvars;
+            tvars.emplace_back(make_locatable<ValTerm>(elem.first->loc(), Symbol::createNum(id)));
+            for (auto &var : vars) {
+                tvars.emplace_back(var.first->clone());
+            }
+            elem.second.emplace_back(elem.first->shift(false));
+            elem.first = make_locatable<BooleanSetLiteral>(elem.first->loc(), make_locatable<FunctionTerm>(elem.first->loc(), "", std::move(tvars)), true);
+            assert(elem.second.back());
+            ++id;
+        }
+    }
+}
+
+} // namespace
+
 LitBodyAggregate::LitBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems)
-    : naf(naf)
-    , fun(fun)
-    , bounds(std::move(bounds))
-    , elems(std::move(elems)) { }
+: naf(naf)
+, fun(fun)
+, bounds(std::move(bounds))
+, elems(std::move(elems)) {
+    aggregate_set_shift(this->elems);
+}
 
 LitBodyAggregate::~LitBodyAggregate() { }
 
@@ -452,7 +481,9 @@ bool LitBodyAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
         UTermVec tuple;
         x.first->toTuple(tuple, id);
         ULitVec lits(std::move(x.second));
-        lits.emplace_back(std::move(x.first));
+        if (!x.first->triviallyTrue()) {
+            lits.emplace_back(std::move(x.first));
+        }
         elems.emplace_back(std::move(tuple), std::move(lits));
     }
     UBodyAggr x(make_locatable<TupleBodyAggregate>(loc(), naf, false, true, fun, std::move(bounds), std::move(elems)));
@@ -897,7 +928,7 @@ void TupleHeadAggregate::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     elems.clear();
     for (auto &elem : e) {
         auto f = [&](ULit &&y) { elems.emplace_back(get_clone(std::get<0>(elem)), std::move(y), get_clone(std::get<2>(elem))); };
-        Term::unpool(std::get<1>(elem), _unpool_lit(beforeRewrite, true), f);
+        Term::unpool(std::get<1>(elem), _unpool_lit(beforeRewrite, false), f);
     }
     e.clear();
     for (auto &elem : elems) {
@@ -937,9 +968,10 @@ void zeroLevel(VarTermBoundVec &bound, T const &x) {
 UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
     for (auto &x : elems) {
         if (ULit shifted = std::get<1>(x)->shift(false)) {
-            // NOTE: FalseLiteral is a bad name
-            std::get<1>(x) = make_locatable<FalseLiteral>(std::get<1>(x)->loc());
-            std::get<2>(x).emplace_back(std::move(shifted));
+            std::get<1>(x) = make_locatable<VoidLiteral>(std::get<1>(x)->loc());
+            if (!shifted->triviallyTrue()) {
+                std::get<2>(x).emplace_back(std::move(shifted));
+            }
         }
     }
     // NOTE: if it were possible to add further ruleshere,
@@ -1097,9 +1129,11 @@ CreateHead TupleHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
 // {{{1 definition of LitHeadAggregate
 
 LitHeadAggregate::LitHeadAggregate(AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems)
-    : fun(fun)
-    , bounds(std::move(bounds))
-    , elems(std::move(elems)) { }
+: fun(fun)
+, bounds(std::move(bounds))
+, elems(std::move(elems)) {
+    aggregate_set_shift(this->elems);
+}
 
 LitHeadAggregate::~LitHeadAggregate() { }
 
@@ -1221,7 +1255,7 @@ void LitHeadAggregate::check(ChkLvlVec &levels, Logger &log) const {
 bool LitHeadAggregate::hasPool(bool beforeRewrite) const {
     for (auto &bound : bounds) { if (bound.bound->hasPool()) { return true; } }
     for (auto &elem : elems) {
-        if (elem.first->hasPool(beforeRewrite, false)) { return true; }
+        if (elem.first->hasPool(beforeRewrite, true)) { return true; }
         for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
     }
     return false;
@@ -1327,8 +1361,10 @@ UHeadAggr Disjunction::rewriteAggregates(UBodyAggrVec &body) {
     for (auto &elem : this->elems) {
         for (auto &head : elem.first) {
             if (ULit shifted = head.first->shift(true)) {
-                head.first = make_locatable<FalseLiteral>(head.first->loc());
-                head.second.emplace_back(std::move(shifted));
+                head.first = make_locatable<VoidLiteral>(head.first->loc());
+                if (!shifted->triviallyTrue()) {
+                    head.second.emplace_back(std::move(shifted));
+                }
             }
         }
         if (elem.second.empty() && elem.first.size() == 1) {
@@ -1564,7 +1600,7 @@ UHeadAggr SimpleHeadLiteral::rewriteAggregates(UBodyAggrVec &aggr) {
     ULit shifted(lit->shift(true));
     if (shifted) {
         aggr.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(shifted)));
-        return gringo_make_unique<SimpleHeadLiteral>(make_locatable<FalseLiteral>(lit->loc()));
+        return gringo_make_unique<SimpleHeadLiteral>(make_locatable<VoidLiteral>(lit->loc()));
     }
     return nullptr;
 }
