@@ -32,8 +32,14 @@ namespace Gringo {
 template <class Base>
 class Clonable {
 public:
+    Clonable() = default;
+    Clonable(Clonable const &other) = default;
+    Clonable(Clonable && other) noexcept = default;
+    Clonable &operator=(Clonable const &other) = default;
+    Clonable &operator=(Clonable &&other) noexcept = default;
+    virtual ~Clonable() noexcept = default;
+
     virtual Base *clone() const = 0;
-    virtual ~Clonable() { }
 };
 
 // }}}

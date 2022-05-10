@@ -80,10 +80,10 @@ public:
 
     RelationLiteralN() = delete;
     RelationLiteralN(RelationLiteralN const &other) = delete;
-    RelationLiteralN(RelationLiteralN &&other) = default;
+    RelationLiteralN(RelationLiteralN &&other) noexcept = default;
     RelationLiteralN &operator=(RelationLiteralN const &other) = delete;
-    RelationLiteralN &operator=(RelationLiteralN &&other) = default;
-    ~RelationLiteralN() override;
+    RelationLiteralN &operator=(RelationLiteralN &&other) noexcept = default;
+    ~RelationLiteralN() noexcept override;
     static ULit make(Term::LevelMap::value_type &x);
     static ULit make(Literal::RelationVec::value_type &x);
     // {{{ Term interface
@@ -98,6 +98,8 @@ public:
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite, bool head) const override;
+    ULitVecVec unpoolComparison() const override;
+    bool hasUnpoolComparison() const override;
     bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;

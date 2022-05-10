@@ -33,12 +33,14 @@
 namespace Gringo {
 
 namespace Ground {
+
 enum class RuleType : unsigned short;
 using ULitVec = std::vector<ULit>;
 class Statement;
 using UStm = std::unique_ptr<Statement>;
 using UStmVec = std::vector<UStm>;
-}
+
+} // namespace Ground
 
 namespace Input {
 
@@ -52,11 +54,12 @@ using BodyAggrElemVec = std::vector<BodyAggrElem>;
 using HeadAggrElem = std::tuple<UTermVec, ULit, ULitVec>;
 using HeadAggrElemVec = std::vector<HeadAggrElem>;
 
-struct BodyAggregate;
+class BodyAggregate;
 using UBodyAggr = std::unique_ptr<BodyAggregate>;
 using UBodyAggrVec = std::vector<UBodyAggr>;
+using UBodyAggrVecVec = std::vector<UBodyAggrVec>;
 
-struct HeadAggregate;
+class HeadAggregate;
 using UHeadAggr = std::unique_ptr<HeadAggregate>;
 using UHeadAggrVec = std::vector<UHeadAggr>;
 
@@ -64,14 +67,22 @@ using UHeadAggrVec = std::vector<UHeadAggr>;
 
 // {{{ declaration of AssignLevel
 
-struct AssignLevel {
-    typedef std::unordered_map<Term::SVal, unsigned> BoundSet;
+class AssignLevel {
+public:
+    using BoundSet = std::unordered_map<Term::SVal, unsigned>;
+
+    AssignLevel();
+    AssignLevel(AssignLevel const &other) = delete;
+    AssignLevel(AssignLevel &&other) noexcept = delete;
+    AssignLevel &operator=(AssignLevel const &other) = delete;
+    AssignLevel &operator=(AssignLevel &&other) noexcept = delete;
+    ~AssignLevel() noexcept;
+
 
     void add(VarTermBoundVec &vars);
     AssignLevel &subLevel();
     void assignLevels();
     void assignLevels(unsigned level, BoundSet const &bound);
-    virtual ~AssignLevel();
 
     std::list<AssignLevel> childs;
     std::unordered_map<Term::SVal, std::vector<VarTerm*>> occurr;
@@ -80,7 +91,8 @@ struct AssignLevel {
 // }}}
 // {{{ declaration of CheckLevel
 
-struct CheckLevel {
+class CheckLevel {
+public:
     struct Ent {
         bool operator<(Ent const &) const;
     };
@@ -88,15 +100,19 @@ struct CheckLevel {
     using VarMap = std::unordered_map<String, SC::VarNode *>;
 
     CheckLevel(Location const &loc, Printable const &p);
-    CheckLevel(CheckLevel &&);
+    CheckLevel(CheckLevel const &other) = delete;
+    CheckLevel(CheckLevel &&other) noexcept;
+    CheckLevel &operator=(CheckLevel const &other) = delete;
+    CheckLevel &operator=(CheckLevel &&other) noexcept = delete;
+    ~CheckLevel() noexcept;
+
     SC::VarNode &var(VarTerm &var);
     void check(Logger &log);
-    ~CheckLevel();
 
     Location         loc;
     Printable const &p;
     SC               dep;
-    SC::EntNode     *current = 0;
+    SC::EntNode     *current = nullptr;
     VarMap           vars;
 };
 using ChkLvlVec = std::vector<CheckLevel>;
@@ -112,8 +128,15 @@ using CreateBody    = std::pair<CreateLit, CreateStmVec>;
 using CreateBodyVec = std::vector<CreateBody>;
 using CreateHead    = CreateStm;
 
-struct ToGroundArg {
+class ToGroundArg {
+public:
     ToGroundArg(unsigned &auxNames, DomainData &domains);
+    ToGroundArg(ToGroundArg const &other) = delete;
+    ToGroundArg(ToGroundArg &&other) = delete;
+    ToGroundArg &operator=(ToGroundArg const &other) = delete;
+    ToGroundArg &operator=(ToGroundArg &&other) = delete;
+    ~ToGroundArg() noexcept;
+
     String newId(bool increment = true);
     UTermVec getGlobal(VarTermBoundVec const &vars);
     UTermVec getLocal(VarTermBoundVec const &vars);
@@ -124,7 +147,6 @@ struct ToGroundArg {
         x.collect(vars);
         return newId(getGlobal(vars), x.loc());
     }
-    ~ToGroundArg();
 
     unsigned   &auxNames;
     DomainData &domains;
@@ -134,12 +156,26 @@ struct ToGroundArg {
 
 // {{{ declaration of BodyAggregate
 
-struct BodyAggregate : Printable, Hashable, Locatable, Clonable<BodyAggregate>, Comparable<BodyAggregate> {
+class BodyAggregate : public Printable, public Hashable, public Locatable, public Clonable<BodyAggregate>, public Comparable<BodyAggregate> {
+public:
+    BodyAggregate() = default;
+    BodyAggregate(BodyAggregate const &other) = default;
+    BodyAggregate(BodyAggregate &&other) noexcept = default;
+    BodyAggregate &operator=(BodyAggregate const &other) = default;
+    BodyAggregate &operator=(BodyAggregate &&other) noexcept = default;
+    ~BodyAggregate() noexcept override = default;
+
     //! Removes RawTheoryTerms from TheoryLiterals
     virtual void initTheory(TheoryDefs &def, Logger &log) { (void)def; (void)log; };
     virtual unsigned projectScore() const { return 2; }
+    //! Check if the aggregate needs unpooling.
+    virtual bool hasPool(bool beforeRewrite) const = 0;
     //! Unpool the aggregate and aggregate elements.
     virtual void unpool(UBodyAggrVec &x, bool beforeRewrite) = 0;
+    //! Check if the aggregate needs unpooling.
+    virtual bool hasUnpoolComparison() const;
+    //! Unpool the aggregate and aggregate elements.
+    virtual UBodyAggrVecVec unpoolComparison() const;
     //! Simplify the aggregate and aggregate elements.
     //! \pre Must be called after unpool.
     virtual bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) = 0;
@@ -164,22 +200,34 @@ struct BodyAggregate : Printable, Hashable, Locatable, Clonable<BodyAggregate>, 
     //! Occurrences bound by the aggregate are marked as such
     //! (occurrences bound in nested scopes are not marked).
     virtual void collect(VarTermBoundVec &vars) const = 0;
-    virtual bool hasPool(bool beforeRewrite) const = 0;
     virtual void replace(Defines &dx) = 0;
     virtual CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const = 0;
-    virtual ~BodyAggregate() { }
 };
 
 // }}}
 
 // {{{ declaration of HeadAggregate
 
-struct HeadAggregate : Printable, Hashable, Locatable, Clonable<HeadAggregate>, Comparable<HeadAggregate> {
+class HeadAggregate : public Printable, public Hashable, public Locatable, public Clonable<HeadAggregate>, public Comparable<HeadAggregate> {
+public:
+    HeadAggregate() = default;
+    HeadAggregate(HeadAggregate const &other) = default;
+    HeadAggregate(HeadAggregate &&other) noexcept = default;
+    HeadAggregate &operator=(HeadAggregate const &other) = default;
+    HeadAggregate &operator=(HeadAggregate &&other) noexcept = default;
+    ~HeadAggregate() noexcept override = default;
+
     //! Removes RawTheoryTerms from TheoryLiterals
     virtual void initTheory(TheoryDefs &def, bool hasBody, Logger &log) { (void)def; (void)hasBody; (void)log; }
     virtual bool isPredicate() const { return false; }
+    //! Check if the aggregate needs unpooling.
+    virtual bool hasPool(bool beforeRewrite) const = 0;
     //! Unpool the aggregate and aggregate elements.
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite) = 0;
+    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite);
+    //! Check if the aggregate needs unpooling.
+    virtual bool hasUnpoolComparison() const;
+    //! Unpool comparisons within the aggregate.
+    virtual UHeadAggrVec unpoolComparison() const;
     //! Simplify the aggregate and aggregate elements.
     //! \pre Must be called after unpool.
     virtual bool simplify(Projections &project, SimplifyState &state, Logger &log) = 0;
@@ -195,12 +243,10 @@ struct HeadAggregate : Printable, Hashable, Locatable, Clonable<HeadAggregate>, 
     //! Occurrences bound by the aggregate are marked as such
     //! (occurrences bound in nested scopes are not marked).
     virtual void collect(VarTermBoundVec &vars) const = 0;
-    virtual bool hasPool(bool beforeRewrite) const = 0;
     virtual void replace(Defines &dx) = 0;
     virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const = 0;
     virtual Symbol isEDB() const;
     virtual void printWithCondition(std::ostream &out, UBodyAggrVec const &condition) const;
-    virtual ~HeadAggregate() { }
 };
 
 // }}}

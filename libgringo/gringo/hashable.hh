@@ -39,8 +39,14 @@ namespace Gringo {
 
 class Hashable {
 public:
+    Hashable() = default;
+    Hashable(Hashable const &other) = default;
+    Hashable(Hashable && other) noexcept = default;
+    Hashable &operator=(Hashable const &other) = default;
+    Hashable &operator=(Hashable &&other) noexcept = default;
+    virtual ~Hashable() noexcept = default;
+
     virtual size_t hash() const = 0;
-    virtual ~Hashable() { }
 };
 
 // }}}

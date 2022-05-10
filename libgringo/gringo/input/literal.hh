@@ -33,11 +33,15 @@ namespace Gringo { namespace Input {
 
 // {{{ declaration of Literal
 
-struct Projection {
+class Projection {
+public:
     Projection(UTerm &&projected, UTerm &&project);
-    Projection(Projection &&);
-    Projection &operator=(Projection &&);
-    ~Projection();
+    Projection(Projection const &other) = delete;
+    Projection(Projection &&other) noexcept;
+    Projection &operator=(Projection const &other) = delete;
+    Projection &operator=(Projection &&other) noexcept;
+    ~Projection() noexcept;
+
     operator Term const &() const;
 
     UTerm projected;
@@ -45,21 +49,37 @@ struct Projection {
     bool  done = false;
 };
 
-struct Projections {
+class Projections {
+public:
     using ProjectionMap = UniqueVec<Projection, std::hash<Term>, std::equal_to<Term>>;
 
     Projections();
-    Projections(Projections &&x);
+    Projections(Projections &&other) noexcept;
+    Projections(Projections const &other);
+    Projections &operator=(Projections const &other) = delete;
+    Projections &operator=(Projections &&other) noexcept;
+    ~Projections() noexcept;
+
     ProjectionMap::Iterator begin();
     ProjectionMap::Iterator end();
-    ~Projections();
+
     UTerm add(Term &term);
 
     ProjectionMap proj;
 };
 
-struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<Literal> {
+using ULitVecVec = std::vector<ULitVec>;
+
+class Literal : public Printable, public Hashable, public Locatable, public Comparable<Literal>, public Clonable<Literal> {
+public:
     using RelationVec = std::vector<std::tuple<Relation, UTerm, UTerm>>;
+
+    Literal() = default;
+    Literal(Literal const &other) = default;
+    Literal(Literal && other) noexcept = default;
+    Literal &operator=(Literal const &other) = default;
+    Literal &operator=(Literal &&other) noexcept = default;
+    ~Literal() noexcept override = default;
 
     virtual unsigned projectScore() const { return 2; }
     //! Returns true if the literal needs to be shifted before unpooling to
@@ -72,7 +92,20 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     //! \note The literal becomes unusable after the method returns.
     //! \post The returned pool does not contain PoolTerm instances.
     virtual ULitVec unpool(bool beforeRewrite, bool head) const = 0;
+    //! Check if the literal has occurrences of pool terms.
+    virtual bool hasPool(bool beforeRewrite, bool head) const = 0;
+    //! Unpool a comparision.
+    //!
+    //! Comparisons with more than one relation have to be unpooled after the
+    //! simplification process to not duplicate pools. A comparison of form
+    //! `A < B < C` is unpooled into a conjunction `A < B & B < C` and a
+    //! comparison of form `not A < B < C` is unpooleld into a disjunction
+    //! `A >= B | B >= C`.
+    virtual ULitVecVec unpoolComparison() const;
+    //! Check if there is a comparison that needs unpooling.
+    virtual bool hasUnpoolComparison() const;
     //! Simplifies the literal.
+    //!
     //! Flag positional=true indicates that anonymous variables in this literal can be projected.
     //! Flag singleton=true disables projections for positive predicate literals (e.g., in non-monotone aggregates)
     virtual bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) = 0;
@@ -93,14 +126,12 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     //! semantics for comparisions.
     virtual void toTuple(UTermVec &tuple, int &id) = 0;
     virtual Symbol isEDB() const;
-    virtual bool hasPool(bool beforeRewrite, bool head) const = 0;
     virtual void replace(Defines &dx) = 0;
     virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const = 0;
     virtual ULit shift(bool negate) = 0;
     virtual UTerm headRepr() const = 0;
     virtual bool auxiliary() const = 0;
     virtual void auxiliary(bool auxiliary) = 0;
-    virtual ~Literal() { }
 };
 
 // }}}

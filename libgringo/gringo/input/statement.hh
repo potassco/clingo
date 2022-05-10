@@ -32,24 +32,34 @@ namespace Gringo { namespace Input {
 
 // {{{ declaration of Statement
 
-struct Statement : Printable, Locatable {
+class Statement : public Printable, public Locatable {
+public:
     Statement(UHeadAggr &&head, UBodyAggrVec &&body);
-    virtual UStmVec unpool(bool beforeRewrite);
-    virtual void assignLevels(VarTermBoundVec &bound);
-    virtual bool simplify(Projections &project, Logger &log);
-    virtual void rewrite();
-    virtual Symbol isEDB() const;
-    virtual void print(std::ostream &out) const;
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(Logger &log) const;
-    virtual void replace(Defines &dx);
-    virtual void toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
-    virtual void add(ULit &&lit);
-    virtual void initTheory(TheoryDefs &def, Logger &log);
-    virtual ~Statement();
+    Statement(Statement const &other) = delete;
+    Statement(Statement &&other) noexcept;
+    Statement &operator=(Statement const &other) = delete;
+    Statement &operator=(Statement &&other) noexcept;
+    ~Statement() noexcept override;
 
-    UHeadAggr     head;
-    UBodyAggrVec  body;
+    UStmVec unpool(bool beforeRewrite);
+    bool hasPool(bool beforeRewrite) const;
+    UStmVec unpoolComparison();
+    void shift();
+    bool hasUnpoolComparison() const;
+    void assignLevels(VarTermBoundVec &bound);
+    bool simplify(Projections &project, Logger &log);
+    void rewrite();
+    Symbol isEDB() const;
+    void print(std::ostream &out) const override;
+    void check(Logger &log) const;
+    void replace(Defines &dx);
+    void toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
+    void add(ULit &&lit);
+    void initTheory(TheoryDefs &def, Logger &log);
+
+private:
+    UHeadAggr     head_;
+    UBodyAggrVec  body_;
 };
 
 // }}}

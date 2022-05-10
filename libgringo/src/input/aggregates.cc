@@ -389,40 +389,11 @@ void TupleBodyAggregate::removeAssignment() {
 
 // {{{1 definition of LitBodyAggregate
 
-namespace {
-
-void aggregate_set_shift(CondLitVec &elems) {
-    // Note: to be able to use comparisions that need unpooling in set based
-    // aggregates, we shift them into conditions and use a dummy head
-    // representation. This treats comparisons like multi-sets where unpooling
-    // does not increase counts.
-    int id = 0;
-    for (auto &elem : elems) {
-        if (elem.first->needSetShift()) {
-            VarTermBoundVec vars;
-            elem.first->collect(vars, false);
-            UTermVec tvars;
-            tvars.emplace_back(make_locatable<ValTerm>(elem.first->loc(), Symbol::createNum(id)));
-            for (auto &var : vars) {
-                tvars.emplace_back(var.first->clone());
-            }
-            elem.second.emplace_back(elem.first->shift(false));
-            elem.first = make_locatable<BooleanSetLiteral>(elem.first->loc(), make_locatable<FunctionTerm>(elem.first->loc(), "", std::move(tvars)), true);
-            assert(elem.second.back());
-            ++id;
-        }
-    }
-}
-
-} // namespace
-
 LitBodyAggregate::LitBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems)
 : naf(naf)
 , fun(fun)
 , bounds(std::move(bounds))
-, elems(std::move(elems)) {
-    aggregate_set_shift(this->elems);
-}
+, elems(std::move(elems)) { }
 
 LitBodyAggregate::~LitBodyAggregate() { }
 
@@ -884,15 +855,15 @@ Symbol HeadAggregate::isEDB() const     { return Symbol(); }
 // {{{1 definition of TupleHeadAggregate
 
 TupleHeadAggregate::TupleHeadAggregate(AggregateFunction fun, BoundVec &&bounds, HeadAggrElemVec &&elems)
-    : TupleHeadAggregate(fun, false, std::move(bounds), std::move(elems)) { }
+: TupleHeadAggregate(fun, false, std::move(bounds), std::move(elems)) { }
 
 TupleHeadAggregate::TupleHeadAggregate(AggregateFunction fun, bool translated, BoundVec &&bounds, HeadAggrElemVec &&elems)
-    : fun(fun)
-    , translated(translated)
-    , bounds(std::move(bounds))
-    , elems(std::move(elems)) { }
+: fun_(fun)
+, translated_(translated)
+, bounds_(std::move(bounds))
+, elems_(std::move(elems)) { }
 
-TupleHeadAggregate::~TupleHeadAggregate() { }
+TupleHeadAggregate::~TupleHeadAggregate() noexcept = default;
 
 void TupleHeadAggregate::print(std::ostream &out) const {
     auto f = [](std::ostream &out, HeadAggrElem const &y) {
@@ -903,35 +874,35 @@ void TupleHeadAggregate::print(std::ostream &out) const {
         out << ":";
         print_comma(out, std::get<2>(y), ",", std::bind(&Literal::print, _2, _1));
     };
-    _print(out, fun, bounds, elems, f);
+    _print(out, fun_, bounds_, elems_, f);
 }
 
 size_t TupleHeadAggregate::hash() const {
-    return get_value_hash(typeid(TupleHeadAggregate).hash_code(), size_t(fun), bounds, elems);
+    return get_value_hash(typeid(TupleHeadAggregate).hash_code(), size_t(fun_), bounds_, elems_);
 }
 
 bool TupleHeadAggregate::operator==(HeadAggregate const &x) const {
     auto t = dynamic_cast<TupleHeadAggregate const *>(&x);
-    return t && fun == t->fun && is_value_equal_to(bounds, t->bounds) && is_value_equal_to(elems, t->elems);
+    return t != nullptr && fun_ == t->fun_ && is_value_equal_to(bounds_, t->bounds_) && is_value_equal_to(elems_, t->elems_);
 }
 
 TupleHeadAggregate *TupleHeadAggregate::clone() const {
-    return make_locatable<TupleHeadAggregate>(loc(), fun, translated, get_clone(bounds), get_clone(elems)).release();
+    return make_locatable<TupleHeadAggregate>(loc(), fun_, translated_, get_clone(bounds_), get_clone(elems_)).release();
 }
 
 void TupleHeadAggregate::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     HeadAggrElemVec e;
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         auto f = [&](UTermVec &&y) { e.emplace_back(std::move(y), get_clone(std::get<1>(elem)), get_clone(std::get<2>(elem))); };
         Term::unpool(std::get<0>(elem).begin(), std::get<0>(elem).end(), Gringo::unpool, f);
     }
-    elems.clear();
+    elems_.clear();
     for (auto &elem : e) {
-        auto f = [&](ULit &&y) { elems.emplace_back(get_clone(std::get<0>(elem)), std::move(y), get_clone(std::get<2>(elem))); };
+        auto f = [&](ULit &&y) { elems_.emplace_back(get_clone(std::get<0>(elem)), std::move(y), get_clone(std::get<2>(elem))); };
         Term::unpool(std::get<1>(elem), _unpool_lit(beforeRewrite, false), f);
     }
     e.clear();
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         if (beforeRewrite) {
             auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(std::get<0>(elem)), get_clone(std::get<1>(elem)), std::move(y)); };
             Term::unpool(std::get<2>(elem).begin(), std::get<2>(elem).end(), _unpool_lit(beforeRewrite, false), f);
@@ -941,16 +912,84 @@ void TupleHeadAggregate::unpool(UHeadAggrVec &x, bool beforeRewrite) {
             e.emplace_back(std::move(elem));
         }
     }
-    auto f = [&](BoundVec &&y) { x.emplace_back(make_locatable<TupleHeadAggregate>(loc(), fun, translated, std::move(y), get_clone(e))); };
-    Term::unpool(bounds.begin(), bounds.end(), _unpool_bound, f);
+    auto f = [&](BoundVec &&y) { x.emplace_back(make_locatable<TupleHeadAggregate>(loc(), fun_, translated_, std::move(y), get_clone(e))); };
+    Term::unpool(bounds_.begin(), bounds_.end(), _unpool_bound, f);
+}
+
+bool TupleHeadAggregate::hasUnpoolComparison() const {
+    for (auto &elem : elems_) {
+        if (std::get<1>(elem)->hasUnpoolComparison()) {
+            return true;
+        }
+        for (auto &lit : std::get<2>(elem)) {
+            if (lit->hasUnpoolComparison()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+UHeadAggrVec TupleHeadAggregate::unpoolComparison() const {
+    HeadAggrElemVec elems;
+    for (auto &elem : elems_) {
+        auto &cond = std::get<2>(elem);
+        std::vector<ULitVec> conds;
+        // compute the cross-product of the unpooled conditions
+        Term::unpool(
+            cond.begin(), cond.end(),
+            [](ULit const &lit) {
+                return lit->unpoolComparison();
+            }, [&] (std::vector<ULitVec> cond) {
+                conds.emplace_back();
+                for (auto &lits : cond) {
+                    conds.back().insert(conds.back().end(),
+                                        std::make_move_iterator(lits.begin()),
+                                        std::make_move_iterator(lits.end()));
+                }
+            });
+        // compute cross-product of unpooled heads and conditions
+        for (auto &heads : std::get<1>(elem)->unpoolComparison()) {
+            if (heads.size() == 1) {
+                for (auto &cond : conds) {
+                    elems.emplace_back(
+                        get_clone(std::get<0>(elem)),
+                        get_clone(heads.front()),
+                        get_clone(cond));
+                }
+            }
+            else {
+                for (auto &cond : conds) {
+                    elems.emplace_back(
+                        get_clone(std::get<0>(elem)),
+                        make_locatable<VoidLiteral>(std::get<1>(elem)->loc()),
+                        get_clone(cond));
+                    for (auto &head : heads) {
+                        auto lit = get_clone(head)->shift(false);
+                        assert(lit);
+                        std::get<2>(elems.back()).emplace_back(std::move(lit));
+                    }
+                }
+            }
+        }
+    }
+    UHeadAggrVec ret;
+    ret.emplace_back(make_locatable<TupleHeadAggregate>(loc(), fun_, translated_, get_clone(bounds_), std::move(elems)));
+    return ret;
 }
 
 void TupleHeadAggregate::collect(VarTermBoundVec &vars) const {
-    for (auto &bound : bounds) { bound.bound->collect(vars, false); }
-    for (auto &elem : elems) {
-        for (auto &term : std::get<0>(elem)) { term->collect(vars, false); }
+    for (auto &bound : bounds_) {
+        bound.bound->collect(vars, false);
+    }
+    for (auto &elem : elems_) {
+        for (auto &term : std::get<0>(elem)) {
+            term->collect(vars, false);
+        }
         std::get<1>(elem)->collect(vars, false);
-        for (auto &lit : std::get<2>(elem)) { lit->collect(vars, false); }
+        for (auto &lit : std::get<2>(elem)) {
+            lit->collect(vars, false);
+        }
     }
 }
 
@@ -960,13 +999,16 @@ template <class T>
 void zeroLevel(VarTermBoundVec &bound, T const &x) {
     bound.clear();
     x->collect(bound, false);
-    for (auto &var : bound) { var.first->level = 0; }
+    for (auto &var : bound) {
+        var.first->level = 0;
+    }
 }
 
 } // namspace
 
 UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
-    for (auto &x : elems) {
+    // shift non-symbolic head occurrences
+    for (auto &x : elems_) {
         if (ULit shifted = std::get<1>(x)->shift(false)) {
             std::get<1>(x) = make_locatable<VoidLiteral>(std::get<1>(x)->loc());
             if (!shifted->triviallyTrue()) {
@@ -976,11 +1018,11 @@ UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
     }
     // NOTE: if it were possible to add further ruleshere,
     // then also aggregates with more than one element could be supported
-    if (elems.size() == 1 && bounds.empty()) {
+    if (elems_.size() == 1 && bounds_.empty()) {
         VarTermBoundVec bound;
-        auto &elem = elems.front();
+        auto &elem = elems_.front();
         // Note: to handle undefinedness in tuples
-        bool weight = fun == AggregateFunction::SUM || fun == AggregateFunction::SUMP;
+        bool weight = fun_ == AggregateFunction::SUM || fun_ == AggregateFunction::SUMP;
         auto &tuple = std::get<0>(elem);
         Location l = tuple.empty() ? loc() : tuple.front()->loc();
         for (auto &term : tuple) {
@@ -1006,10 +1048,10 @@ UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
 }
 
 bool TupleHeadAggregate::simplify(Projections &project, SimplifyState &state, Logger &log) {
-    for (auto &bound : bounds) {
+    for (auto &bound : bounds_) {
         if (!bound.simplify(state, log)) { return false; }
     }
-    elems.erase(std::remove_if(elems.begin(), elems.end(), [&](HeadAggrElemVec::value_type &elem) {
+    elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](HeadAggrElemVec::value_type &elem) {
         SimplifyState elemState(state);
         for (auto &term : std::get<0>(elem)) {
             if (term->simplify(elemState, false, false, log).update(term, false).undefined()) { return true; }
@@ -1023,32 +1065,46 @@ bool TupleHeadAggregate::simplify(Projections &project, SimplifyState &state, Lo
         for (auto &dot : elemState.dots) { std::get<2>(elem).emplace_back(RangeLiteral::make(dot)); }
         for (auto &script : elemState.scripts) { std::get<2>(elem).emplace_back(ScriptLiteral::make(script)); }
         return false;
-    }), elems.end());
+    }), elems_.end());
     return true;
 }
 
 void TupleHeadAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) {
-    for (auto &bound : bounds) { bound.rewriteArithmetics(arith, auxGen); }
-    for (auto &elem : elems) {
+    for (auto &bound : bounds_) {
+        bound.rewriteArithmetics(arith, auxGen);
+    }
+    for (auto &elem : elems_) {
         Literal::RelationVec assign;
         arith.emplace_back(gringo_make_unique<Term::LevelMap>());
-        for (auto &y : std::get<2>(elem)) { y->rewriteArithmetics(arith, assign, auxGen); }
-        for (auto &y : *arith.back()) { std::get<2>(elem).emplace_back(RelationLiteral::make(y)); }
-        for (auto &y : assign) { std::get<2>(elem).emplace_back(RelationLiteral::make(y)); }
+        for (auto &y : std::get<2>(elem)) {
+            y->rewriteArithmetics(arith, assign, auxGen);
+        }
+        for (auto &y : *arith.back()) {
+            std::get<2>(elem).emplace_back(RelationLiteral::make(y));
+        }
+        for (auto &y : assign) {
+            std::get<2>(elem).emplace_back(RelationLiteral::make(y));
+        }
         arith.pop_back();
     }
 }
 
 void TupleHeadAggregate::assignLevels(AssignLevel &lvl) {
     VarTermBoundVec vars;
-    for (auto &bound : bounds) { bound.bound->collect(vars, false); }
+    for (auto &bound : bounds_) {
+        bound.bound->collect(vars, false);
+    }
     lvl.add(vars);
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         AssignLevel &local(lvl.subLevel());
         VarTermBoundVec vars;
-        for (auto &term : std::get<0>(elem)) { term->collect(vars, false); }
+        for (auto &term : std::get<0>(elem)) {
+            term->collect(vars, false);
+        }
         std::get<1>(elem)->collect(vars, false);
-        for (auto &lit : std::get<2>(elem)) { lit->collect(vars, false); }
+        for (auto &lit : std::get<2>(elem)) {
+            lit->collect(vars, false);
+        }
         local.add(vars);
     }
 }
@@ -1056,7 +1112,7 @@ void TupleHeadAggregate::assignLevels(AssignLevel &lvl) {
 void TupleHeadAggregate::check(ChkLvlVec &levels, Logger &log) const {
     auto f = [&]() {
         VarTermBoundVec vars;
-        for (auto &y : elems) {
+        for (auto &y : elems_) {
             levels.emplace_back(loc(), *this);
             _add(levels, std::get<0>(y));
             _add(levels, std::get<1>(y), false);
@@ -1065,42 +1121,65 @@ void TupleHeadAggregate::check(ChkLvlVec &levels, Logger &log) const {
             levels.pop_back();
             for (auto &term : std::get<0>(y)) { term->collect(vars, false); }
         }
-        warnGlobal(vars, !translated, log);
+        warnGlobal(vars, !translated_, log);
     };
-    _aggr(levels, bounds, f, false);
+    _aggr(levels, bounds_, f, false);
 }
 
 bool TupleHeadAggregate::hasPool(bool beforeRewrite) const {
-    for (auto &bound : bounds) { if (bound.bound->hasPool()) { return true; } }
-    for (auto &elem : elems) {
-        for (auto &term : std::get<0>(elem)) { if (term->hasPool()) { return true; } }
-        if (std::get<1>(elem)->hasPool(beforeRewrite, false)) { return true; }
-        for (auto &lit : std::get<2>(elem)) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
+    for (auto &bound : bounds_) {
+        if (bound.bound->hasPool()) {
+            return true;
+        }
+    }
+    for (auto &elem : elems_) {
+        for (auto &term : std::get<0>(elem)) {
+            if (term->hasPool()) {
+                return true;
+            }
+        }
+        if (std::get<1>(elem)->hasPool(beforeRewrite, false)) {
+            return true;
+        }
+        for (auto &lit : std::get<2>(elem)) {
+            if (lit->hasPool(beforeRewrite, false)) {
+                return true;
+            }
+        }
     }
     return false;
 }
 
 void TupleHeadAggregate::replace(Defines &x) {
-    for (auto &bound : bounds) { Term::replace(bound.bound, bound.bound->replace(x, true)); }
-    for (auto &elem : elems) {
-        for (auto &y : std::get<0>(elem)) { Term::replace(y, y->replace(x, true)); }
+    for (auto &bound : bounds_) {
+        Term::replace(bound.bound, bound.bound->replace(x, true));
+    }
+    for (auto &elem : elems_) {
+        for (auto &y : std::get<0>(elem)) {
+            Term::replace(y, y->replace(x, true));
+        }
         std::get<1>(elem)->replace(x);
-        for (auto &y : std::get<2>(elem)) { y->replace(x); }
+        for (auto &y : std::get<2>(elem)) {
+            y->replace(x);
+        }
     }
 }
 
 CreateHead TupleHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
-    bool isSimple = bounds.empty();
+    bool isSimple = bounds_.empty();
     if (isSimple) {
-        for (auto &elem  : elems) {
-            if (!std::get<2>(elem).empty()) { isSimple = false; break; }
+        for (auto &elem  : elems_) {
+            if (!std::get<2>(elem).empty()) {
+                isSimple = false;
+                break;
+            }
         }
     }
     if (isSimple) {
         DomainData &data = x.domains;
         return CreateHead([&](Ground::ULitVec &&lits) {
             Ground::AbstractRule::HeadVec heads;
-            for (auto &elem : elems) {
+            for (auto &elem : elems_) {
                 if (UTerm headRepr = std::get<1>(elem)->headRepr()) {
                     PredicateDomain *headDom = &data.add(headRepr->getSig());
                     heads.emplace_back(std::move(headRepr), headDom);
@@ -1109,21 +1188,24 @@ CreateHead TupleHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
             return gringo_make_unique<Ground::Rule<false>>(std::move(heads), std::move(lits));
         });
     }
-    else {
-        stms.emplace_back(gringo_make_unique<Ground::HeadAggregateComplete>(x.domains, x.newId(*this), fun, get_clone(bounds)));
-        auto &completeRef = static_cast<Ground::HeadAggregateComplete&>(*stms.back());
-        for (auto &y : elems) {
-            Ground::ULitVec lits;
-            for (auto &z : std::get<2>(y)) { lits.emplace_back(z->toGround(x.domains, false)); }
-            lits.emplace_back(gringo_make_unique<Ground::HeadAggregateLiteral>(completeRef));
-            UTerm headRep(std::get<1>(y)->headRepr());
-            PredicateDomain *predDom = headRep ? &x.domains.add(headRep->getSig()) : nullptr;
-            auto ret = gringo_make_unique<Ground::HeadAggregateAccumulate>(completeRef, get_clone(std::get<0>(y)), predDom, std::move(headRep), std::move(lits));
-            completeRef.addAccuDom(*ret);
-            stms.emplace_back(std::move(ret));
+
+    stms.emplace_back(gringo_make_unique<Ground::HeadAggregateComplete>(x.domains, x.newId(*this), fun_, get_clone(bounds_)));
+    auto &completeRef = static_cast<Ground::HeadAggregateComplete&>(*stms.back());
+    for (auto &y : elems_) {
+        Ground::ULitVec lits;
+        for (auto &z : std::get<2>(y)) {
+            lits.emplace_back(z->toGround(x.domains, false));
         }
-        return CreateHead([&completeRef](Ground::ULitVec &&lits) { return gringo_make_unique<Ground::HeadAggregateRule>(completeRef, std::move(lits)); });
+        lits.emplace_back(gringo_make_unique<Ground::HeadAggregateLiteral>(completeRef));
+        UTerm headRep(std::get<1>(y)->headRepr());
+        PredicateDomain *predDom = headRep ? &x.domains.add(headRep->getSig()) : nullptr;
+        auto ret = gringo_make_unique<Ground::HeadAggregateAccumulate>(completeRef, get_clone(std::get<0>(y)), predDom, std::move(headRep), std::move(lits));
+        completeRef.addAccuDom(*ret);
+        stms.emplace_back(std::move(ret));
     }
+    return CreateHead([&completeRef](Ground::ULitVec &&lits) {
+        return gringo_make_unique<Ground::HeadAggregateRule>(completeRef, std::move(lits));
+    });
 }
 
 // {{{1 definition of LitHeadAggregate
@@ -1131,9 +1213,7 @@ CreateHead TupleHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
 LitHeadAggregate::LitHeadAggregate(AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems)
 : fun(fun)
 , bounds(std::move(bounds))
-, elems(std::move(elems)) {
-    aggregate_set_shift(this->elems);
-}
+, elems(std::move(elems)) { }
 
 LitHeadAggregate::~LitHeadAggregate() { }
 
@@ -1589,9 +1669,9 @@ SimpleHeadLiteral *SimpleHeadLiteral::clone() const {
 }
 
 void SimpleHeadLiteral::unpool(UHeadAggrVec &x, bool beforeRewrite) {
-    // TODO: we do need an in head flag here
-    //       as a first step it is probably a good idea to kick out the CSP leftovers
-    for (auto &y : lit->unpool(beforeRewrite, true)) { x.emplace_back(gringo_make_unique<SimpleHeadLiteral>(std::move(y))); }
+    for (auto &y : lit->unpool(beforeRewrite, true)) {
+        x.emplace_back(gringo_make_unique<SimpleHeadLiteral>(std::move(y)));
+    }
 }
 
 void SimpleHeadLiteral::collect(VarTermBoundVec &vars) const { lit->collect(vars, false); }

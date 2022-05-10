@@ -139,13 +139,12 @@ void Program::rewrite(Defines &defs, Logger &log) {
         else { std::copy(block.addedEdb.begin(), block.addedEdb.end(), std::back_inserter(std::get<1>(*block.edb))); }
         // {{{3 rewriting
         // steps:
-        // 1. unpool before simplify
-        //    - also splits conjunctive/disjunctive comparisons in heads/bodies
+        // 1. unpool
         // 2. initialize theory
         // 3. simplify
-        // 4. unpool after simplify
-        // 5. rewrite
-        //    - also splits (the remaining) disjunctive/conjunctive comparisons in heads/bodies
+        // 4. shift
+        // 5. unpool comparisions
+        // 6. rewrite aggregates
         auto rewrite2 = [&](UStm &x) -> void {
             std::get<1>(*block.edb).emplace_back(x->isEDB());
             if (std::get<1>(*block.edb).back().type() == SymbolType::Special) {
@@ -159,8 +158,15 @@ void Program::rewrite(Defines &defs, Logger &log) {
         auto rewrite1 = [&](UStm &x) -> void {
             x->initTheory(theoryDefs_, log);
             if (x->simplify(project_, log)) {
-                if (x->hasPool(false)) { for (auto &y : x->unpool(false)) { rewrite2(y); } }
-                else                   { rewrite2(x); }
+                x->shift();
+                if (x->hasUnpoolComparison()) {
+                    for (auto &y : x->unpoolComparison()) {
+                        rewrite2(y);
+                    }
+                }
+                else {
+                    rewrite2(x);
+                }
             }
         };
         for (auto &x : block.addedStms) {

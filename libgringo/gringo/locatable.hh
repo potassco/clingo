@@ -56,9 +56,15 @@ std::ostream &operator<<(std::ostream &out, Location const &loc);
 
 class Locatable {
 public:
+    Locatable() = default;
+    Locatable(Locatable const &other) = default;
+    Locatable(Locatable && other) noexcept = default;
+    Locatable &operator=(Locatable const &other) = default;
+    Locatable &operator=(Locatable &&other) noexcept = default;
+    virtual ~Locatable() noexcept = default;
+
     virtual Location const &loc() const = 0;
     virtual void loc(Location const &loc) = 0;
-    virtual ~Locatable() { }
 };
 
 // }}}
@@ -69,9 +75,14 @@ class LocatableClass : public T {
 public:
     template <typename... Args>
     LocatableClass(Location const &loc, Args&&... args);
+    LocatableClass(LocatableClass const &other) = default;
+    LocatableClass(LocatableClass &&other) noexcept = default;
+    LocatableClass &operator=(LocatableClass const &other) = default;
+    LocatableClass &operator=(LocatableClass &&other) noexcept = default;
+    virtual ~LocatableClass() noexcept = default;
+
     virtual void loc(Location const &loc) final;
     virtual Location const &loc() const final;
-    virtual ~LocatableClass();
 private:
     Location loc_;
 };
@@ -148,9 +159,6 @@ template <class T>
 void LocatableClass<T>::loc(Location const &loc) {
     loc_ = loc;
 }
-
-template <class T>
-LocatableClass<T>::~LocatableClass() { }
 
 // }}}
 // {{{ defintion of make_locatable<T, Args>

@@ -30,6 +30,9 @@ namespace Gringo { namespace Input {
 
 // {{{ definition of AssignLevel
 
+AssignLevel::AssignLevel() = default;
+AssignLevel::~AssignLevel() noexcept = default;
+
 void AssignLevel::add(VarTermBoundVec &vars) {
     for (auto &occ : vars) { occurr[occ.first->ref].emplace_back(occ.first); }
 }
@@ -49,19 +52,26 @@ void AssignLevel::assignLevels(unsigned level, BoundSet const &parent) {
     }
     for (auto &child : childs) { child.assignLevels(level + 1, bound); }
 }
-AssignLevel::~AssignLevel() { }
 
 // }}}
 // {{{ definition of CheckLevel
 
 bool CheckLevel::Ent::operator<(Ent const &) const { return false; }
+
 CheckLevel::CheckLevel(Location const &loc, Printable const &p) : loc(loc), p(p) { }
-CheckLevel::CheckLevel(CheckLevel &&) = default;
+
+CheckLevel::CheckLevel(CheckLevel &&other) noexcept = default;
+
+CheckLevel::~CheckLevel() noexcept = default;
+
 CheckLevel::SC::VarNode &CheckLevel::var(VarTerm &var) {
     auto &node = vars[var.name];
-    if (!node) { node = &dep.insertVar(&var); }
+    if (node == nullptr) {
+        node = &dep.insertVar(&var);
+    }
     return *node;
 }
+
 void CheckLevel::check(Logger &log) {
     dep.order();
     auto vars(dep.open());
@@ -77,7 +87,6 @@ void CheckLevel::check(Logger &log) {
         GRINGO_REPORT(log, Warnings::RuntimeError) << msg.str();
     }
 }
-CheckLevel::~CheckLevel() { }
 
 void addVars(ChkLvlVec &levels, VarTermBoundVec &vars) {
     for (auto &x: vars) {

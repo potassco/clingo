@@ -199,9 +199,16 @@ struct DisjointAggregate : BodyAggregate {
 
 // {{{1 declaration of TupleHeadAggregate
 
-struct TupleHeadAggregate : HeadAggregate {
-    TupleHeadAggregate(AggregateFunction fun, bool translated, BoundVec &&bounds, HeadAggrElemVec &&elems); // NOTE: private
+class TupleHeadAggregate : public HeadAggregate {
+public:
+    TupleHeadAggregate(AggregateFunction fun, bool translated, BoundVec &&bounds, HeadAggrElemVec &&elems);
     TupleHeadAggregate(AggregateFunction fun, BoundVec &&bounds, HeadAggrElemVec &&elems);
+    TupleHeadAggregate(TupleHeadAggregate const &other) = default;
+    TupleHeadAggregate(TupleHeadAggregate &&other) noexcept = default;
+    TupleHeadAggregate &operator=(TupleHeadAggregate const &other) = default;
+    TupleHeadAggregate &operator=(TupleHeadAggregate &&other) = default;
+    ~TupleHeadAggregate() noexcept override;
+
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
     bool operator==(HeadAggregate const &other) const override;
@@ -209,6 +216,8 @@ struct TupleHeadAggregate : HeadAggregate {
     size_t hash() const override;
     TupleHeadAggregate *clone() const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasUnpoolComparison() const override;
+    UHeadAggrVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
@@ -216,12 +225,12 @@ struct TupleHeadAggregate : HeadAggregate {
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
-    virtual ~TupleHeadAggregate();
 
-    AggregateFunction fun;
-    bool translated;
-    BoundVec bounds;
-    HeadAggrElemVec elems;
+private:
+    AggregateFunction fun_;
+    bool translated_;
+    BoundVec bounds_;
+    HeadAggrElemVec elems_;
 };
 
 // {{{1 declaration of LitHeadAggregate
