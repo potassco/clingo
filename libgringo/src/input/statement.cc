@@ -91,46 +91,46 @@ void Statement::shift() {
     throw std::runtime_error("implement me!!!");
 }
 
-UStmVec Statement::unpoolComparison() {
-    /*
-    std::vector<UBodyAggrVec> bodies;
-    if (beforeRewrite) {
-        Term::unpool(body_.begin(), body_.end(),
-            [] (UBodyAggr &x) -> UBodyAggrVec {
-                UBodyAggrVec body;
-                x->unpool(body, true);
-                return body;
-            }, [&bodies](UBodyAggrVec &&x) { bodies.push_back(std::move(x)); });
-    }
-    else {
-        bodies.emplace_back();
-        for (auto &y : body_) {
-            y->unpool(bodies.back(), beforeRewrite);
+UStmVec Statement::unpoolComparison() const {
+    auto heads = head_->unpoolComparison();
+    UBodyAggrVecVec bodies;
+    // compute the cross-product of the unpooled bodies
+    Term::unpool(
+        body_.begin(), body_.end(),
+        [](UBodyAggr const &lit) {
+            return lit->unpoolComparison();
+        }, [&] (std::vector<UBodyAggrVec> body) {
+            bodies.emplace_back();
+            for (auto &lits : body) {
+                bodies.back().insert(bodies.back().end(),
+                                     std::make_move_iterator(lits.begin()),
+                                     std::make_move_iterator(lits.end()));
+            }
+        });
+    // compute cross-product of head and body
+    UStmVec ret;
+    for (auto &head : heads) {
+        for (auto &body : bodies) {
+            auto copy = get_clone(body);
+            for (auto &lit: head.second) {
+                copy.emplace_back(get_clone(lit));
+            }
+            ret.emplace_back(make_locatable<Statement>(loc(), get_clone(head.first), std::move(copy)));
         }
     }
-    UHeadAggrVec heads;
-    head_->unpool(heads, beforeRewrite);
-    UStmVec x;
-    for (auto &body : bodies) {
-        for (auto &head : heads) {
-            x.emplace_back(make_locatable<Statement>(loc(), get_clone(head), get_clone(body)));
-        }
-    }
-    return x;
-    */
-    throw std::runtime_error("implement me!!!");
+    return ret;
 }
 
 bool Statement::hasUnpoolComparison() const {
-    /*
+    if (head_->hasUnpoolComparison()) {
+        return true;
+    }
     for (auto &x : body_) {
         if (x->hasUnpoolComparison()) {
             return true;
         }
     }
-    return head_->hasUnpoolComparison();
-    */
-    throw std::runtime_error("implement me!!!");
+    return false;
 }
 
 void Statement::assignLevels(VarTermBoundVec &bound) {

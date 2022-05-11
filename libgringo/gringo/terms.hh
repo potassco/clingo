@@ -174,8 +174,11 @@ inline std::ostream &operator<<(std::ostream &out, TheoryDef const &def) {
 
 struct CSPMulTerm {
     CSPMulTerm(UTerm &&var, UTerm &&coe);
-    CSPMulTerm(CSPMulTerm &&x);
-    CSPMulTerm &operator=(CSPMulTerm &&x);
+    CSPMulTerm(CSPMulTerm const &other) = delete;
+    CSPMulTerm(CSPMulTerm &&other) noexcept;
+    CSPMulTerm &operator=(CSPMulTerm const &other) = delete;
+    CSPMulTerm &operator=(CSPMulTerm &&other) noexcept;
+    ~CSPMulTerm() noexcept;
     void collect(VarTermBoundVec &vars) const;
     void collect(VarTermSet &vars) const;
     void replace(Defines &x);
@@ -185,7 +188,6 @@ struct CSPMulTerm {
     size_t hash() const;
     bool hasPool() const;
     std::vector<CSPMulTerm> unpool() const;
-    ~CSPMulTerm();
 
     UTerm var;
     UTerm coe;
@@ -206,10 +208,13 @@ using CSPGroundLit = std::tuple<Relation, CSPGroundAdd, int>;
 struct CSPAddTerm {
     using Terms = std::vector<CSPMulTerm>;
 
-    CSPAddTerm(CSPMulTerm &&x);
-    CSPAddTerm(CSPAddTerm &&x);
     CSPAddTerm(Terms &&terms);
-    CSPAddTerm &operator=(CSPAddTerm &&x);
+    CSPAddTerm(CSPMulTerm &&x);
+    CSPAddTerm(CSPAddTerm const &other) = delete;
+    CSPAddTerm(CSPAddTerm &&other) noexcept;
+    CSPAddTerm &operator=(CSPAddTerm const &other) = delete;
+    CSPAddTerm &operator=(CSPAddTerm &&other) noexcept;
+    ~CSPAddTerm() noexcept;
     void append(CSPMulTerm &&x);
     bool simplify(SimplifyState &state, Logger &log);
     void collect(VarTermBoundVec &vars) const;
@@ -222,7 +227,6 @@ struct CSPAddTerm {
     bool hasPool() const;
     void toGround(CSPGroundLit &ground, bool invert, Logger &log) const;
     bool checkEval(Logger &log) const;
-    ~CSPAddTerm();
 
     Terms terms;
 };

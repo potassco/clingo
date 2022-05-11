@@ -49,6 +49,12 @@ class String {
 public:
     String(StringSpan str);
     String(char const *str);
+    String(String const &other) = default;
+    String(String &&other) noexcept = default;
+    String &operator=(String const &other) = default;
+    String &operator=(String &&other) noexcept = default;
+    ~String() noexcept = default;
+
     const char *c_str() const { return str_; }
     bool empty() const;
     size_t length() { return std::strlen(str_); }

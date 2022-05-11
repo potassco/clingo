@@ -304,24 +304,38 @@ CSPRelTerm clone<CSPRelTerm>::operator()(CSPRelTerm const &x) const {
 
 // {{{1 definition of CSPAddTerm
 
-CSPAddTerm::CSPAddTerm(CSPAddTerm &&) = default;
-CSPAddTerm &CSPAddTerm::operator=(CSPAddTerm &&) = default;
+CSPAddTerm::CSPAddTerm(CSPMulTerm &&x) {
+    terms.emplace_back(std::move(x));
+}
+CSPAddTerm::CSPAddTerm(Terms &&terms)
+: terms(std::move(terms)) { }
 
-CSPAddTerm::CSPAddTerm(CSPMulTerm &&x) { terms.emplace_back(std::move(x)); }
-CSPAddTerm::CSPAddTerm(Terms &&terms) : terms(std::move(terms)) { }
+CSPAddTerm::CSPAddTerm(CSPAddTerm &&other) noexcept = default;
 
-void CSPAddTerm::append(CSPMulTerm &&x) { terms.emplace_back(std::move(x)); }
+CSPAddTerm &CSPAddTerm::operator=(CSPAddTerm &&other) noexcept = default;
+
+CSPAddTerm::~CSPAddTerm() noexcept = default;
+
+void CSPAddTerm::append(CSPMulTerm &&x) {
+    terms.emplace_back(std::move(x));
+}
 
 void CSPAddTerm::collect(VarTermBoundVec &vars) const {
     for (auto &x : terms) { x.collect(vars); }
 }
+
 void CSPAddTerm::collect(VarTermSet &vars) const {
     for (auto &x : terms) { x.collect(vars); }
 }
+
 void CSPAddTerm::replace(Defines &x) {
     for (auto &y : terms) { y.replace(x); }
 }
-bool CSPAddTerm::operator==(CSPAddTerm const &x) const { return is_value_equal_to(terms, x.terms); }
+
+bool CSPAddTerm::operator==(CSPAddTerm const &x) const {
+    return is_value_equal_to(terms, x.terms);
+}
+
 bool CSPAddTerm::simplify(SimplifyState &state, Logger &log) {
     for (auto &y : terms) {
         if (!y.simplify(state, log)) { return false; }
@@ -369,23 +383,26 @@ bool CSPAddTerm::checkEval(Logger &log) const {
     return true;
 }
 
-CSPAddTerm::~CSPAddTerm() { }
 std::ostream &operator<<(std::ostream &out, CSPAddTerm const &x) {
     print_comma(out, x.terms, "$+");
     return out;
 }
+
 CSPAddTerm clone<CSPAddTerm>::operator()(CSPAddTerm const &x) const {
     return CSPAddTerm(get_clone(x.terms));
 }
 
 // {{{1 definition of CSPMulTerm
 
-CSPMulTerm::CSPMulTerm(CSPMulTerm &&) = default;
-CSPMulTerm &CSPMulTerm::operator=(CSPMulTerm &&) = default;
-
 CSPMulTerm::CSPMulTerm(UTerm &&var, UTerm &&coe)
     : var(std::move(var))
     , coe(std::move(coe)) { }
+
+CSPMulTerm::CSPMulTerm(CSPMulTerm &&other) noexcept = default;
+
+CSPMulTerm &CSPMulTerm::operator=(CSPMulTerm &&other) noexcept = default;
+
+CSPMulTerm::~CSPMulTerm() noexcept = default;
 
 void CSPMulTerm::collect(VarTermBoundVec &vars) const {
     if (var) { var->collect(vars, false); }
@@ -429,7 +446,6 @@ std::vector<CSPMulTerm> CSPMulTerm::unpool() const {
     }
     return value;
 }
-CSPMulTerm::~CSPMulTerm() { }
 std::ostream &operator<<(std::ostream &out, CSPMulTerm const &x) {
     out << *x.coe;
     if (x.var) { out << "$*$" << *x.var; };

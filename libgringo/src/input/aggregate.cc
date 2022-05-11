@@ -135,6 +135,12 @@ ToGroundArg::~ToGroundArg() { }
 
 // }}}
 
+// {{{ definition of HeadAggregate
+
+Symbol HeadAggregate::isEDB() const {
+    return {};
+}
+
 void HeadAggregate::printWithCondition(std::ostream &out, UBodyAggrVec const &condition) const {
     out << *this;
     if (!condition.empty()) {
@@ -144,5 +150,7 @@ void HeadAggregate::printWithCondition(std::ostream &out, UBodyAggrVec const &co
     }
     out << ".";
 }
+
+// }}}
 
 } } // namespace Input Gringo

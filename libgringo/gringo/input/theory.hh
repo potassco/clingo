@@ -158,11 +158,13 @@ public:
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
+    bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasUnpoolComparison() const override;
+    UHeadBodyAggrVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &x) override;
     void initTheory(TheoryDefs &def, bool hasBody, Logger &log) override;
