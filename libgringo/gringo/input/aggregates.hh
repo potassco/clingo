@@ -58,7 +58,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -97,7 +97,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -139,7 +139,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -176,7 +176,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -235,7 +235,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -270,7 +270,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -304,7 +304,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -343,7 +343,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -377,7 +377,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     Symbol isEDB() const override;
@@ -412,7 +412,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &x) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -447,7 +447,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &x) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -479,7 +479,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &x) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -511,7 +511,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &x) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -543,7 +543,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &x) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
@@ -577,7 +577,7 @@ public:
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void check(ChkLvlVec &levels, Logger &log) const override;
     void replace(Defines &x) override;
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
