@@ -311,6 +311,9 @@ void sort_unique(T &vec) {
     sort_unique(vec, std::less<typename std::remove_reference<decltype(*vec.begin())>::type>());
 }
 
+template<class A, class B, class Pred>
+void move_if(A &a, B &b, Pred p);
+
 // {{{1 custom streams
 
 class CountBuf : public std::streambuf {
@@ -783,6 +786,26 @@ void erase_if(Map &m, Pred p) {
             ++it;
         }
     }
+}
+
+template<class A, class B, class Pred>
+void move_if(A &a, B &b, Pred p) {
+    using std::begin;
+    auto first = begin(a);
+    auto last = end(a);
+    first = std::find_if(first, last, p);
+    if (first != last) {
+        b.emplace_back(std::move(*first));
+        for(auto it = first; ++it != last; ) {
+            if (!p(*it)) {
+                *first++ = std::move(*it);
+            }
+            else {
+                b.emplace_back(std::move(*it));
+            }
+        }
+    }
+    a.erase(first, last);
 }
 
 // }}}

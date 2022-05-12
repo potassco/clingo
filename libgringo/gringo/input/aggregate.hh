@@ -94,7 +94,7 @@ public:
 class CheckLevel {
 public:
     struct Ent {
-        bool operator<(Ent const &) const;
+        bool operator<(Ent const &x) const;
     };
     using SC     = SafetyChecker<VarTerm*, Ent>;
     using VarMap = std::unordered_map<String, SC::VarNode *>;
@@ -248,6 +248,8 @@ public:
 };
 
 // }}}
+
+std::vector<ULitVec> unpoolComparison_(ULitVec const &cond);
 
 } } // namespace Input Gringo
 

@@ -45,18 +45,23 @@ namespace Input {
 
 class TheoryElement;
 using TheoryElementVec = std::vector<TheoryElement>;
+
 class TheoryElement {
 public:
-    TheoryElement(TheoryElement &&);
-    TheoryElement &operator=(TheoryElement &&);
     TheoryElement(Output::UTheoryTermVec &&tuple, ULitVec &&cond);
+    TheoryElement(TheoryElement const &other) = delete;
+    TheoryElement(TheoryElement &&other) noexcept;
+    TheoryElement &operator=(TheoryElement const &other) = delete;
+    TheoryElement &operator=(TheoryElement &&other) noexcept;
     ~TheoryElement() noexcept;
     TheoryElement clone() const;
     void print(std::ostream &out) const;
     bool operator==(TheoryElement const &other) const;
     size_t hash() const;
-    void unpool(TheoryElementVec &elems, bool beforeRewrite);
     bool hasPool(bool beforeRewrite) const;
+    void unpool(TheoryElementVec &elems, bool beforeRewrite);
+    bool hasUnpoolComparison() const;
+    TheoryElementVec unpoolComparison();
     void replace(Defines &x);
     void collect(VarTermBoundVec &vars) const;
     void assignLevels(AssignLevel &lvl);
@@ -76,11 +81,13 @@ inline std::ostream &operator<<(std::ostream &out, TheoryElement const &elem) { 
 
 class TheoryAtom {
 public:
-    TheoryAtom(TheoryAtom &&);
-    TheoryAtom &operator=(TheoryAtom &&);
     // Note: name must be a term that (after unpooling) has a signature
     TheoryAtom(UTerm &&name, TheoryElementVec &&elems);
     TheoryAtom(UTerm &&name, TheoryElementVec &&elems, String op, Output::UTheoryTerm &&guard, TheoryAtomType type = TheoryAtomType::Any);
+    TheoryAtom(TheoryAtom const &other) = delete;
+    TheoryAtom(TheoryAtom &&other) noexcept;
+    TheoryAtom &operator=(TheoryAtom const &other) = delete;
+    TheoryAtom &operator=(TheoryAtom &&other) noexcept;
     ~TheoryAtom() noexcept;
     TheoryAtom clone() const;
     bool operator==(TheoryAtom const &other) const;
@@ -89,6 +96,7 @@ public:
     size_t hash() const;
     template <class T>
     void unpool(T f, bool beforeRewrite);
+    void unpoolComparison();
     bool hasPool(bool beforeRewrite) const;
     void replace(Defines &x);
     void collect(VarTermBoundVec &vars) const;
@@ -115,7 +123,11 @@ inline std::ostream &operator<<(std::ostream &out, TheoryAtom const &atom) { ato
 class BodyTheoryLiteral : public BodyAggregate {
 public:
     BodyTheoryLiteral(NAF naf, TheoryAtom &&atom, bool rewritten = false);
-    virtual ~BodyTheoryLiteral() noexcept;
+    BodyTheoryLiteral(BodyTheoryLiteral const &other) = delete;
+    BodyTheoryLiteral(BodyTheoryLiteral &&other) noexcept;
+    BodyTheoryLiteral &operator=(BodyTheoryLiteral const &other) = delete;
+    BodyTheoryLiteral &operator=(BodyTheoryLiteral &&other) noexcept;
+    ~BodyTheoryLiteral() noexcept override;
     // {{{2 BodyAggregate interface
     void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
@@ -153,7 +165,11 @@ private:
 class HeadTheoryLiteral : public HeadAggregate {
 public:
     HeadTheoryLiteral(TheoryAtom &&atom, bool rewritten = false);
-    virtual ~HeadTheoryLiteral() noexcept;
+    HeadTheoryLiteral(HeadTheoryLiteral const &other) = delete;
+    HeadTheoryLiteral(HeadTheoryLiteral &&other) noexcept;
+    HeadTheoryLiteral &operator=(HeadTheoryLiteral const &other) = delete;
+    HeadTheoryLiteral &operator=(HeadTheoryLiteral &&other) noexcept;
+    ~HeadTheoryLiteral() noexcept override;
     // {{{2 HeadAggregate interface
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;

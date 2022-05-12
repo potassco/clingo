@@ -49,9 +49,9 @@ class String {
 public:
     String(StringSpan str);
     String(char const *str);
-    String(String const &other) = default;
+    String(String const &other) noexcept = default;
     String(String &&other) noexcept = default;
-    String &operator=(String const &other) = default;
+    String &operator=(String const &other) noexcept = default;
     String &operator=(String &&other) noexcept = default;
     ~String() noexcept = default;
 

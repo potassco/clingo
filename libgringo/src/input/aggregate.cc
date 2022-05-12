@@ -31,6 +31,7 @@ namespace Gringo { namespace Input {
 // {{{ definition of AssignLevel
 
 AssignLevel::AssignLevel() = default;
+
 AssignLevel::~AssignLevel() noexcept = default;
 
 void AssignLevel::add(VarTermBoundVec &vars) {
@@ -56,9 +57,13 @@ void AssignLevel::assignLevels(unsigned level, BoundSet const &parent) {
 // }}}
 // {{{ definition of CheckLevel
 
-bool CheckLevel::Ent::operator<(Ent const &) const { return false; }
+bool CheckLevel::Ent::operator<(Ent const &x) const {
+    return false;
+}
 
-CheckLevel::CheckLevel(Location const &loc, Printable const &p) : loc(loc), p(p) { }
+CheckLevel::CheckLevel(Location const &loc, Printable const &p)
+: loc(loc)
+, p(p) { }
 
 CheckLevel::CheckLevel(CheckLevel &&other) noexcept = default;
 
@@ -104,8 +109,9 @@ ToGroundArg::ToGroundArg(unsigned &auxNames, DomainData &domains)
     : auxNames(auxNames)
     , domains(domains) { }
 String ToGroundArg::newId(bool increment) {
-    auxNames+= increment;
-    return ("#d" + std::to_string(auxNames-increment)).c_str();
+    unsigned inc = increment ? 1 : 0;
+    auxNames += inc;
+    return ("#d" + std::to_string(auxNames - inc)).c_str();
 }
 UTermVec ToGroundArg::getGlobal(VarTermBoundVec const &vars) {
     std::unordered_set<String> seen;
@@ -128,10 +134,12 @@ UTermVec ToGroundArg::getLocal(VarTermBoundVec const &vars) {
     return local;
 }
 UTerm ToGroundArg::newId(UTermVec &&global, Location const &loc, bool increment) {
-    if (!global.empty()) { return make_locatable<FunctionTerm>(loc, newId(increment), std::move(global)); }
-    else                 { return make_locatable<ValTerm>(loc, Symbol::createId(newId(increment))); }
+    if (!global.empty()) {
+        return make_locatable<FunctionTerm>(loc, newId(increment), std::move(global));
+    }
+    return make_locatable<ValTerm>(loc, Symbol::createId(newId(increment)));
 }
-ToGroundArg::~ToGroundArg() { }
+ToGroundArg::~ToGroundArg() noexcept = default;
 
 // }}}
 
@@ -152,5 +160,23 @@ void HeadAggregate::printWithCondition(std::ostream &out, UBodyAggrVec const &co
 }
 
 // }}}
+
+std::vector<ULitVec> unpoolComparison_(ULitVec const &cond) {
+    std::vector<ULitVec> conds;
+    // compute the cross-product of the unpooled conditions
+    Term::unpool(
+        cond.begin(), cond.end(),
+        [](ULit const &lit) {
+            return lit->unpoolComparison();
+        }, [&] (std::vector<ULitVec> cond) {
+            conds.emplace_back();
+            for (auto &lits : cond) {
+                conds.back().insert(conds.back().end(),
+                                    std::make_move_iterator(lits.begin()),
+                                    std::make_move_iterator(lits.end()));
+            }
+        });
+    return conds;
+}
 
 } } // namespace Input Gringo

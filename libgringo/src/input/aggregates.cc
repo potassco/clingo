@@ -143,44 +143,6 @@ void warnGlobal(VarTermBoundVec &vars, bool warn, Logger &log) {
     }
 }
 
-std::vector<ULitVec> unpoolCond_(ULitVec const &cond) {
-    std::vector<ULitVec> conds;
-    // compute the cross-product of the unpooled conditions
-    Term::unpool(
-        cond.begin(), cond.end(),
-        [](ULit const &lit) {
-            return lit->unpoolComparison();
-        }, [&] (std::vector<ULitVec> cond) {
-            conds.emplace_back();
-            for (auto &lits : cond) {
-                conds.back().insert(conds.back().end(),
-                                    std::make_move_iterator(lits.begin()),
-                                    std::make_move_iterator(lits.end()));
-            }
-        });
-    return conds;
-}
-
-template<class A, class B, class Pred>
-void move_if(A &a, B &b, Pred p) {
-    using std::begin;
-    auto first = begin(a);
-    auto last = end(a);
-    first = std::find_if(first, last, p);
-    if (first != last) {
-        b.emplace_back(std::move(*first));
-        for(auto it = first; ++it != last; ) {
-            if (!p(*it)) {
-                *first++ = std::move(*it);
-            }
-            else {
-                b.emplace_back(std::move(*it));
-            }
-        }
-    }
-    a.erase(first, last);
-}
-
 // }}}1
 
 } // namespace
@@ -1180,7 +1142,7 @@ UHeadAggr TupleHeadAggregate::unpoolComparison(UBodyAggrVec &body) {
     });
     // unpool conditions
     for (auto &elem : elems) {
-        for (auto &cond : unpoolCond_(std::get<2>(elem))) {
+        for (auto &cond : unpoolComparison_(std::get<2>(elem))) {
             elems_.emplace_back(
                 get_clone(std::get<0>(elem)),
                 get_clone(std::get<1>(elem)),
@@ -1715,12 +1677,12 @@ UHeadAggr Disjunction::unpoolComparison(UBodyAggrVec &body) {
         // compute cross-product of unpooled head conditions
         HeadVec newHeads;
         for (auto const &head : elem.first) {
-            for (auto &cond : unpoolCond_(head.second)) {
+            for (auto &cond : unpoolComparison_(head.second)) {
                 newHeads.emplace_back(get_clone(head.first), std::move(cond));
             }
         }
         // compute cross-product of the unpooled conditions
-        for (auto &cond : unpoolCond_(elem.second)) {
+        for (auto &cond : unpoolComparison_(elem.second)) {
             elems_.emplace_back(get_clone(newHeads), std::move(cond));
         }
     }
