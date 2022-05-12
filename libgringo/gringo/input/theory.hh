@@ -160,8 +160,7 @@ public:
     void collect(VarTermBoundVec &vars) const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;

@@ -158,14 +158,8 @@ void Program::rewrite(Defines &defs, Logger &log) {
         auto rewrite1 = [&](UStm &x) -> void {
             x->initTheory(theoryDefs_, log);
             if (x->simplify(project_, log)) {
-                x->shift();
-                if (x->hasUnpoolComparison()) {
-                    for (auto &y : x->unpoolComparison()) {
-                        rewrite2(y);
-                    }
-                }
-                else {
-                    rewrite2(x);
+                for (auto &y : x->unpoolComparison()) {
+                    rewrite2(y);
                 }
             }
         };

@@ -161,6 +161,26 @@ std::vector<ULitVec> unpoolCond_(ULitVec const &cond) {
     return conds;
 }
 
+template<class A, class B, class Pred>
+void move_if(A &a, B &b, Pred p) {
+    using std::begin;
+    auto first = begin(a);
+    auto last = end(a);
+    first = std::find_if(first, last, p);
+    if (first != last) {
+        b.emplace_back(std::move(*first));
+        for(auto it = first; ++it != last; ) {
+            if (!p(*it)) {
+                *first++ = std::move(*it);
+            }
+            else {
+                b.emplace_back(std::move(*it));
+            }
+        }
+    }
+    a.erase(first, last);
+}
+
 // }}}1
 
 } // namespace
@@ -1139,53 +1159,36 @@ void TupleHeadAggregate::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     Term::unpool(bounds_.begin(), bounds_.end(), _unpool_bound, f);
 }
 
-bool TupleHeadAggregate::hasUnpoolComparison() const {
-    for (auto &elem : elems_) {
-        if (std::get<1>(elem)->hasUnpoolComparison()) {
-            return true;
+UHeadAggr TupleHeadAggregate::unpoolComparison(UBodyAggrVec &body) {
+    static_cast<void>(body);
+    // shift comparisons
+    for (auto &x : elems_) {
+        if (ULit shifted = std::get<1>(x)->shift(false)) {
+            std::get<1>(x) = make_locatable<VoidLiteral>(std::get<1>(x)->loc());
+            std::get<2>(x).emplace_back(std::move(shifted));
         }
+    }
+    // extract elements that need unpooling
+    HeadAggrElemVec elems;
+    move_if(elems_, elems, [](auto const &elem) {
         for (auto &lit : std::get<2>(elem)) {
             if (lit->hasUnpoolComparison()) {
                 return true;
             }
         }
-    }
-    return false;
-}
-
-UHeadBodyAggrVec TupleHeadAggregate::unpoolComparison() const {
-    HeadAggrElemVec elems;
-    for (auto &elem : elems_) {
-        // compute the cross-product of the unpooled conditions
-        std::vector<ULitVec> conds = unpoolCond_(std::get<2>(elem));
-        // compute cross-product of unpooled heads and conditions
-        for (auto &heads : std::get<1>(elem)->unpoolComparison()) {
-            if (heads.size() == 1) {
-                for (auto &cond : conds) {
-                    elems.emplace_back(
-                        get_clone(std::get<0>(elem)),
-                        get_clone(heads.front()),
-                        get_clone(cond));
-                }
-            }
-            else {
-                for (auto &cond : conds) {
-                    elems.emplace_back(
-                        get_clone(std::get<0>(elem)),
-                        make_locatable<VoidLiteral>(std::get<1>(elem)->loc()),
-                        get_clone(cond));
-                    for (auto &head : heads) {
-                        auto lit = get_clone(head)->shift(false);
-                        assert(lit);
-                        std::get<2>(elems.back()).emplace_back(std::move(lit));
-                    }
-                }
-            }
+        return false;
+    });
+    // unpool conditions
+    for (auto &elem : elems) {
+        for (auto &cond : unpoolCond_(std::get<2>(elem))) {
+            elems_.emplace_back(
+                get_clone(std::get<0>(elem)),
+                get_clone(std::get<1>(elem)),
+                std::move(cond));
         }
+
     }
-    UHeadBodyAggrVec ret;
-    ret.emplace_back(make_locatable<TupleHeadAggregate>(loc(), fun_, translated_, get_clone(bounds_), std::move(elems)), UBodyAggrVec{});
-    return ret;
+    return nullptr;
 }
 
 void TupleHeadAggregate::collect(VarTermBoundVec &vars) const {
@@ -1217,15 +1220,6 @@ void zeroLevel(VarTermBoundVec &bound, T const &x) {
 } // namspace
 
 UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
-    // shift non-symbolic head occurrences
-    for (auto &x : elems_) {
-        if (ULit shifted = std::get<1>(x)->shift(false)) {
-            std::get<1>(x) = make_locatable<VoidLiteral>(std::get<1>(x)->loc());
-            if (!shifted->triviallyTrue()) {
-                std::get<2>(x).emplace_back(std::move(shifted));
-            }
-        }
-    }
     // NOTE: if it were possible to add further rules here,
     // then also aggregates with more than one element could be supported
     if (elems_.size() == 1 && bounds_.empty()) {
@@ -1469,12 +1463,8 @@ void LitHeadAggregate::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     Term::unpool(bounds_.begin(), bounds_.end(), _unpool_bound, f);
 }
 
-bool LitHeadAggregate::hasUnpoolComparison() const {
-    // we use this point to rewrite teh aggregaet into a tuple aggregate
-    return true;
-}
-
-UHeadBodyAggrVec LitHeadAggregate::unpoolComparison() const {
+UHeadAggr LitHeadAggregate::unpoolComparison(UBodyAggrVec &body) {
+    static_cast<void>(body);
     int id = 0;
     HeadAggrElemVec elems;
     for (auto &x : elems_) {
@@ -1483,12 +1473,8 @@ UHeadBodyAggrVec LitHeadAggregate::unpoolComparison() const {
         elems.emplace_back(std::move(tuple), get_clone(x.first), get_clone(x.second));
     }
     UHeadAggr x(make_locatable<TupleHeadAggregate>(loc(), fun_, true, get_clone(bounds_), std::move(elems)));
-    if (x->hasUnpoolComparison()) {
-        return x->unpoolComparison();
-    }
-    UHeadBodyAggrVec ret;
-    ret.emplace_back(std::move(x), UBodyAggrVec{});
-    return ret;
+    Term::replace(x, x->unpoolComparison(body));
+    return x;
 }
 
 void LitHeadAggregate::collect(VarTermBoundVec &vars) const {
@@ -1696,12 +1682,21 @@ void Disjunction::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     x.emplace_back(make_locatable<Disjunction>(loc(), std::move(e)));
 }
 
-bool Disjunction::hasUnpoolComparison() const {
-    for (auto const &elem : elems_) {
+UHeadAggr Disjunction::unpoolComparison(UBodyAggrVec &body) {
+    static_cast<void>(body);
+    // shift comparisons
+    for (auto &elem : elems_) {
         for (auto &head : elem.first) {
-            if (head.first->hasUnpoolComparison()) {
-                return true;
+            if (ULit shifted = head.first->shift(true)) {
+                head.first = make_locatable<VoidLiteral>(head.first->loc());
+                head.second.emplace_back(std::move(shifted));
             }
+        }
+    }
+    // extract elements that need unpooling
+    ElemVec elems;
+    move_if(elems_, elems, [](auto const &elem) {
+        for (auto &head : elem.first) {
             for (auto &lit : head.second) {
                 if (lit->hasUnpoolComparison()) {
                     return true;
@@ -1713,52 +1708,23 @@ bool Disjunction::hasUnpoolComparison() const {
                 return true;
             }
         }
-    }
-    return false;
-}
-
-UHeadBodyAggrVec Disjunction::unpoolComparison() const {
-    ElemVec elems;
-    for (auto const &elem : elems_) {
-        // compute the cross-product of the unpooled conditions
-        std::vector<ULitVec> conds = unpoolCond_(elem.second);
-        // compute cross-product of unpooled heads and conditions
-        HeadVec heads;
-        for (auto const &elemHeads : elem.first) {
-            std::vector<ULitVec> headConds = unpoolCond_(elemHeads.second);
-            for (auto &headPools : elemHeads.first->unpoolComparison()) {
-                ULitVec headLits;
-                for (auto &lit: headPools) {
-                    // Note: maybe it would also be possible to factor the whole thing out?
-                    if (ULit shifted = lit->shift(true)) {
-                        for (auto &headCond : headConds) {
-                            headCond.emplace_back(get_clone(shifted));
-                        }
-                    }
-                    else {
-                        headLits.emplace_back(std::move(lit));
-                    }
-                }
-                assert(headLits.size() <= 1);
-                ULit head;
-                if (headLits.empty()) {
-                    head = make_locatable<VoidLiteral>(elemHeads.first->loc());
-                }
-                else {
-                    head = std::move(headLits.front());
-                }
-                for (auto &headCond : headConds) {
-                    heads.emplace_back(std::move(head), get_clone(headCond));
-                }
+        return false;
+    });
+    // unpool elements
+    for (auto const &elem : elems) {
+        // compute cross-product of unpooled head conditions
+        HeadVec newHeads;
+        for (auto const &head : elem.first) {
+            for (auto &cond : unpoolCond_(head.second)) {
+                newHeads.emplace_back(get_clone(head.first), std::move(cond));
             }
         }
-        for (auto &cond : conds) {
-            elems.emplace_back(get_clone(heads), get_clone(cond));
+        // compute cross-product of the unpooled conditions
+        for (auto &cond : unpoolCond_(elem.second)) {
+            elems_.emplace_back(get_clone(newHeads), std::move(cond));
         }
     }
-    UHeadBodyAggrVec ret;
-    ret.emplace_back(make_locatable<Disjunction>(loc(), std::move(elems)), UBodyAggrVec{});
-    return ret;
+    return nullptr;
 }
 
 void Disjunction::collect(VarTermBoundVec &vars) const {
@@ -2091,34 +2057,13 @@ void SimpleHeadLiteral::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     }
 }
 
-bool SimpleHeadLiteral::hasUnpoolComparison() const {
-    return lit_->hasUnpoolComparison();
-}
-
-UHeadBodyAggrVec SimpleHeadLiteral::unpoolComparison() const {
-    auto pool = lit_->unpoolComparison();
-    cross_product(pool);
-    UHeadBodyAggrVec ret;
-    for (auto &lits: pool) {
-        UHeadAggrVec head;
-        UBodyAggrVec body;
-        for (auto &lit : lits) {
-            ULit shifted(lit->shift(true));
-            if (shifted) {
-                body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(shifted)));
-            }
-            else {
-                head.emplace_back(gringo_make_unique<SimpleHeadLiteral>(std::move(lit)));
-            }
-        }
-        // Note: one could also create a disjunction but this case cannot happen
-        assert(head.size() <= 1);
-        if (head.empty()) {
-            head.emplace_back(gringo_make_unique<SimpleHeadLiteral>(make_locatable<VoidLiteral>(lit_->loc())));
-        }
-        ret.emplace_back(std::move(head.front()), std::move(body));
+UHeadAggr SimpleHeadLiteral::unpoolComparison(UBodyAggrVec &body) {
+    ULit shifted(lit_->shift(true));
+    if (shifted) {
+        body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(shifted)));
+        return gringo_make_unique<SimpleHeadLiteral>(make_locatable<VoidLiteral>(lit_->loc()));
     }
-    return ret;
+    return nullptr;
 }
 
 void SimpleHeadLiteral::collect(VarTermBoundVec &vars) const {
@@ -2126,11 +2071,7 @@ void SimpleHeadLiteral::collect(VarTermBoundVec &vars) const {
 }
 
 UHeadAggr SimpleHeadLiteral::rewriteAggregates(UBodyAggrVec &aggr) {
-    ULit shifted(lit_->shift(true));
-    if (shifted) {
-        aggr.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(shifted)));
-        return gringo_make_unique<SimpleHeadLiteral>(make_locatable<VoidLiteral>(lit_->loc()));
-    }
+    static_cast<void>(aggr);
     return nullptr;
 }
 
@@ -2228,6 +2169,11 @@ void MinimizeHeadLiteral::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     assert(beforeRewrite); (void)beforeRewrite;
     auto f = [&](UTermVec &&tuple) { x.emplace_back(make_locatable<MinimizeHeadLiteral>(loc(), std::move(tuple))); };
     Term::unpool(tuple_.begin(), tuple_.end(), Gringo::unpool, f);
+}
+
+UHeadAggr MinimizeHeadLiteral::unpoolComparison(UBodyAggrVec &body) {
+    static_cast<void>(body);
+    return nullptr;
 }
 
 void MinimizeHeadLiteral::collect(VarTermBoundVec &vars) const {
@@ -2343,8 +2289,13 @@ void EdgeHeadAtom::unpool(UHeadAggrVec &x, bool beforeRewrite) {
         }
     }
     else {
-        x.emplace_back(this->clone());
+        x.emplace_back(clone());
     }
+}
+
+UHeadAggr EdgeHeadAtom::unpoolComparison(UBodyAggrVec &body) {
+    static_cast<void>(body);
+    return nullptr;
 }
 
 void EdgeHeadAtom::collect(VarTermBoundVec &vars) const {
@@ -2434,6 +2385,11 @@ void ProjectHeadAtom::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     else {
         x.emplace_back(clone());
     }
+}
+
+UHeadAggr ProjectHeadAtom::unpoolComparison(UBodyAggrVec &body) {
+    static_cast<void>(body);
+    return nullptr;
 }
 
 void ProjectHeadAtom::collect(VarTermBoundVec &vars) const {
@@ -2533,6 +2489,11 @@ void ExternalHeadAtom::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     else {
         x.emplace_back(clone());
     }
+}
+
+UHeadAggr ExternalHeadAtom::unpoolComparison(UBodyAggrVec &body) {
+    static_cast<void>(body);
+    return nullptr;
 }
 
 void ExternalHeadAtom::collect(VarTermBoundVec &vars) const {
@@ -2638,6 +2599,11 @@ void HeuristicHeadAtom::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     }
 }
 
+UHeadAggr HeuristicHeadAtom::unpoolComparison(UBodyAggrVec &body) {
+    static_cast<void>(body);
+    return nullptr;
+}
+
 void HeuristicHeadAtom::collect(VarTermBoundVec &vars) const {
     atom_->collect(vars, false);
     value_->collect(vars, false);
@@ -2729,6 +2695,11 @@ void ShowHeadLiteral::unpool(UHeadAggrVec &x, bool beforeRewrite) {
             x.emplace_back(make_locatable<ShowHeadLiteral>(loc(), std::move(term), csp_));
         }
     }
+}
+
+UHeadAggr ShowHeadLiteral::unpoolComparison(UBodyAggrVec &body) {
+    static_cast<void>(body);
+    return nullptr;
 }
 
 void ShowHeadLiteral::collect(VarTermBoundVec &vars) const {

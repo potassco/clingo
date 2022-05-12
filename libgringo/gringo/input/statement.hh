@@ -43,9 +43,7 @@ public:
 
     UStmVec unpool(bool beforeRewrite);
     bool hasPool(bool beforeRewrite) const;
-    UStmVec unpoolComparison() const;
-    void shift();
-    bool hasUnpoolComparison() const;
+    UStmVec unpoolComparison();
     void assignLevels(VarTermBoundVec &bound);
     bool simplify(Projections &project, Logger &log);
     void rewrite();

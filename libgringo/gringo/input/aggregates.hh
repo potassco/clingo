@@ -230,8 +230,7 @@ public:
     TupleHeadAggregate *clone() const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
@@ -265,8 +264,7 @@ public:
     LitHeadAggregate *clone() const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
@@ -305,8 +303,7 @@ public:
     Disjunction *clone() const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
@@ -340,8 +337,7 @@ public:
     SimpleHeadLiteral *clone() const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
@@ -376,8 +372,7 @@ public:
     MinimizeHeadLiteral *clone() const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
@@ -412,8 +407,7 @@ public:
     EdgeHeadAtom *clone() const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
@@ -445,8 +439,7 @@ public:
     ProjectHeadAtom *clone() const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
@@ -478,8 +471,7 @@ public:
     ExternalHeadAtom *clone() const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
@@ -511,8 +503,7 @@ public:
     HeuristicHeadAtom *clone() const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
@@ -546,8 +537,7 @@ public:
     ShowHeadLiteral *clone() const override;
     bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UHeadBodyAggrVec unpoolComparison() const override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;

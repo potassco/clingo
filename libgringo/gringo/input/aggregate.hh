@@ -62,7 +62,6 @@ using UBodyAggrVecVec = std::vector<UBodyAggrVec>;
 class HeadAggregate;
 using UHeadAggr = std::unique_ptr<HeadAggregate>;
 using UHeadAggrVec = std::vector<UHeadAggr>;
-using UHeadBodyAggrVec = std::vector<std::pair<UHeadAggr, UBodyAggrVec>>;
 
 // }}}
 
@@ -225,10 +224,8 @@ public:
     virtual bool hasPool(bool beforeRewrite) const = 0;
     //! Unpool the aggregate and aggregate elements.
     virtual void unpool(UHeadAggrVec &x, bool beforeRewrite) = 0;
-    //! Check if the aggregate needs unpooling.
-    virtual bool hasUnpoolComparison() const = 0;
     //! Unpool comparisons within the aggregate.
-    virtual UHeadBodyAggrVec unpoolComparison() const = 0;
+    virtual UHeadAggr unpoolComparison(UBodyAggrVec &body) = 0;
     //! Simplify the aggregate and aggregate elements.
     //! \pre Must be called after unpool.
     virtual bool simplify(Projections &project, SimplifyState &state, Logger &log) = 0;

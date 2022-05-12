@@ -34,8 +34,8 @@
 namespace Gringo { namespace Input {
 
 Statement::Statement(UHeadAggr &&head, UBodyAggrVec &&body)
-    : head_(std::move(head))
-    , body_(std::move(body)) { }
+: head_(std::move(head))
+, body_(std::move(body)) { }
 
 void Statement::initTheory(TheoryDefs &def, Logger &log) {
     head_->initTheory(def, !body_.empty(), log);
@@ -53,7 +53,9 @@ void Statement::print(std::ostream &out) const {
     head_->printWithCondition(out, body_);
 }
 
-Symbol Statement::isEDB() const { return body_.empty() ? head_->isEDB() : Symbol(); }
+Symbol Statement::isEDB() const {
+    return body_.empty() ? head_->isEDB() : Symbol();
+}
 
 UStmVec Statement::unpool(bool beforeRewrite) {
     std::vector<UBodyAggrVec> bodies;
@@ -83,73 +85,83 @@ UStmVec Statement::unpool(bool beforeRewrite) {
 }
 
 bool Statement::hasPool(bool beforeRewrite) const {
-    for (auto &x : body_) { if (x->hasPool(beforeRewrite)) { return true; } }
-    return head_->hasPool(beforeRewrite);
-}
-
-void Statement::shift() {
-    throw std::runtime_error("implement me!!!");
-}
-
-UStmVec Statement::unpoolComparison() const {
-    auto heads = head_->unpoolComparison();
-    UBodyAggrVecVec bodies;
-    // compute the cross-product of the unpooled bodies
-    Term::unpool(
-        body_.begin(), body_.end(),
-        [](UBodyAggr const &lit) {
-            return lit->unpoolComparison();
-        }, [&] (std::vector<UBodyAggrVec> body) {
-            bodies.emplace_back();
-            for (auto &lits : body) {
-                bodies.back().insert(bodies.back().end(),
-                                     std::make_move_iterator(lits.begin()),
-                                     std::make_move_iterator(lits.end()));
-            }
-        });
-    // compute cross-product of head and body
-    UStmVec ret;
-    for (auto &head : heads) {
-        for (auto &body : bodies) {
-            auto copy = get_clone(body);
-            for (auto &lit: head.second) {
-                copy.emplace_back(get_clone(lit));
-            }
-            ret.emplace_back(make_locatable<Statement>(loc(), get_clone(head.first), std::move(copy)));
-        }
-    }
-    return ret;
-}
-
-bool Statement::hasUnpoolComparison() const {
-    if (head_->hasUnpoolComparison()) {
-        return true;
-    }
     for (auto &x : body_) {
-        if (x->hasUnpoolComparison()) {
+        if (x->hasPool(beforeRewrite)) {
             return true;
         }
     }
-    return false;
+    return head_->hasPool(beforeRewrite);
+}
+
+UStmVec Statement::unpoolComparison() {
+    Term::replace(head_, head_->unpoolComparison(body_));
+    // check if the body needs unpooling
+    bool hasPool = false;
+    for (auto &x : body_) {
+        if (x->hasUnpoolComparison()) {
+            hasPool = true;
+            break;
+        }
+    }
+    // compute the cross-product of the unpooled bodies
+    UStmVec ret;
+    if (hasPool) {
+        UBodyAggrVecVec bodies;
+        Term::unpool(
+            body_.begin(), body_.end(),
+            [](UBodyAggr const &lit) {
+                return lit->unpoolComparison();
+            }, [&] (std::vector<UBodyAggrVec> body) {
+                bodies.emplace_back();
+                for (auto &lits : body) {
+                    bodies.back().insert(bodies.back().end(),
+                                         std::make_move_iterator(lits.begin()),
+                                         std::make_move_iterator(lits.end()));
+                }
+            });
+        // compute cross-product of head and body
+        for (auto &body : bodies) {
+            ret.emplace_back(make_locatable<Statement>(loc(), get_clone(head_), std::move(body)));
+        }
+    }
+    else {
+        ret.emplace_back(make_locatable<Statement>(loc(), std::move(head_), std::move(body_)));
+    }
+    return ret;
 }
 
 void Statement::assignLevels(VarTermBoundVec &bound) {
     AssignLevel c;
     head_->assignLevels(c);
-    for (auto &y : body_) { y->assignLevels(c); }
+    for (auto &y : body_) {
+        y->assignLevels(c);
+    }
     c.add(bound);
     c.assignLevels();
 }
 
 bool Statement::simplify(Projections &project, Logger &log) {
     SimplifyState state;
-    if (!head_->simplify(project, state, log)) { return false; }
-    bool singleton = std::accumulate(body_.begin(), body_.end(), 0, [](unsigned x, UBodyAggr const &y){ return x + y->projectScore(); }) == 1 && head_->isPredicate();
-    for (auto &y : body_) {
-        if (!y->simplify(project, state, singleton, log)) { return false; }
+    if (!head_->simplify(project, state, log)) {
+        return false;
     }
-    for (auto &y : state.dots) { body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RangeLiteral::make(y))); }
-    for (auto &y : state.scripts) { body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(ScriptLiteral::make(y))); }
+    bool singleton = std::accumulate(body_.begin(),
+                                     body_.end(),
+                                     0,
+                                     [](unsigned x, UBodyAggr const &y) {
+                                         return x + y->projectScore();
+                                     }) == 1 && head_->isPredicate();
+    for (auto &y : body_) {
+        if (!y->simplify(project, state, singleton, log)) {
+            return false;
+        }
+    }
+    for (auto &y : state.dots) {
+        body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RangeLiteral::make(y)));
+    }
+    for (auto &y : state.scripts) {
+        body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(ScriptLiteral::make(y)));
+    }
     return true;
 }
 
@@ -160,7 +172,9 @@ void _rewriteAggregates(UBodyAggrVec &body) {
     auto jt = body.begin();
     for (auto it = jt, ie = body.end(); it != ie; ++it) {
         if ((*it)->rewriteAggregates(aggr)) {
-            if (it != jt) { *jt = std::move(*it); }
+            if (it != jt) {
+                *jt = std::move(*it);
+            }
             ++jt;
         }
     }
@@ -224,7 +238,9 @@ void _rewriteAssignments(UBodyAggrVec &body) {
                         break;
                     }
                 }
-                if (!allBound) { nextAssign.emplace_back(x); }
+                if (!allBound) {
+                    nextAssign.emplace_back(x);
+                }
                 else {
                     x->data->removeAssignment();
                     dep.propagate(x, open, &bound);
@@ -241,7 +257,9 @@ void _rewriteAssignments(UBodyAggrVec &body) {
         }
     }
     for (auto &x : dep.entNodes_) {
-        if (x.depends > 0) { sorted.emplace_back(std::move(x.data)); }
+        if (x.depends > 0) {
+            sorted.emplace_back(std::move(x.data));\
+        }
     }
     // dep.entNodes_;
     body = std::move(sorted);
@@ -260,9 +278,15 @@ void Statement::rewrite() {
         Literal::RelationVec assign;
         arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         head_->rewriteArithmetics(arith, auxGen);
-        for (auto &y : body_) { y->rewriteArithmetics(arith, assign, auxGen); }
-        for (auto &y : *arith.back()) { body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RelationLiteral::make(y))); }
-        for (auto &y : assign) { body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RelationLiteral::make(y))); }
+        for (auto &y : body_) {
+            y->rewriteArithmetics(arith, assign, auxGen);
+        }
+        for (auto &y : *arith.back()) {
+            body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RelationLiteral::make(y)));
+        }
+        for (auto &y : assign) {
+            body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RelationLiteral::make(y)));
+        }
         arith.pop_back();
     }
     { // rewrite linear inequalities into intervals
@@ -293,27 +317,35 @@ void Statement::check(Logger &log) const {
     ChkLvlVec levels;
     levels.emplace_back(loc(), *this);
     head_->check(levels, log);
-    for (auto &y : body_) { y->check(levels, log); }
+    for (auto &y : body_) {
+        y->check(levels, log);
+    }
     levels.back().check(log);
 }
 
 void Statement::replace(Defines &x) {
     head_->replace(x);
-    for (auto &y : body_) { y->replace(x); }
+    for (auto &y : body_) {
+        y->replace(x);
+    }
 }
 
 namespace {
 
 void toGround(CreateHead &&head, UBodyAggrVec const &body, ToGroundArg &x, Ground::UStmVec &stms) {
     CreateBodyVec createVec;
-    for (auto &y : body) { createVec.emplace_back(y->toGround(x, stms)); }
+    for (auto &y : body) {
+        createVec.emplace_back(y->toGround(x, stms));
+    }
     Ground::ULitVec lits;
     for (auto current = createVec.begin(), end = createVec.end(); current != end; ++current) {
         current->first(lits, true, false);
         for (auto &z : current->second) {
             Ground::ULitVec splitLits;
             for (auto it = createVec.begin(); it != end; ++it) {
-                if (it != current) { it->first(splitLits, it < current, true); }
+                if (it != current) {
+                    it->first(splitLits, it < current, true);
+                }
             }
             stms.emplace_back(z(std::move(splitLits)));
         }
@@ -330,4 +362,3 @@ void Statement::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
 Statement::~Statement() noexcept = default;
 
 } } // namespace Input Gringo
-
