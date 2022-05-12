@@ -153,14 +153,14 @@ TupleBodyAggregate::TupleBodyAggregate(NAF naf, AggregateFunction fun, BoundVec 
     : TupleBodyAggregate(naf, false, false, fun, std::move(bounds), std::move(elems)) { }
 
 TupleBodyAggregate::TupleBodyAggregate(NAF naf, bool removedAssignment, bool translated, AggregateFunction fun, BoundVec &&bounds, BodyAggrElemVec &&elems)
-    : naf(naf)
-    , removedAssignment(removedAssignment)
-    , translated(translated)
-    , fun(fun)
-    , bounds(std::move(bounds))
-    , elems(std::move(elems)) { }
+: naf_(naf)
+, removedAssignment_(removedAssignment)
+, translated_(translated)
+, fun_(fun)
+, bounds_(std::move(bounds))
+, elems_(std::move(elems)) { }
 
-TupleBodyAggregate::~TupleBodyAggregate() { }
+TupleBodyAggregate::~TupleBodyAggregate() noexcept = default;
 
 void TupleBodyAggregate::print(std::ostream &out) const {
     auto f = [](std::ostream &out, BodyAggrElem const &y) {
@@ -169,34 +169,38 @@ void TupleBodyAggregate::print(std::ostream &out) const {
         out << ":";
         print_comma(out, y.second, ",", std::bind(&Literal::print, _2, _1));
     };
-    out << naf;
-    printAggr_(out, fun, bounds, elems, f);
+    out << naf_;
+    printAggr_(out, fun_, bounds_, elems_, f);
 }
 
 size_t TupleBodyAggregate::hash() const {
-    return get_value_hash(typeid(TupleBodyAggregate).hash_code(), size_t(naf), size_t(fun), bounds, elems);
+    return get_value_hash(typeid(TupleBodyAggregate).hash_code(), size_t(naf_), size_t(fun_), bounds_, elems_);
 }
 
 bool TupleBodyAggregate::operator==(BodyAggregate const &x) const {
     auto t = dynamic_cast<TupleBodyAggregate const *>(&x);
-    return t && naf == t->naf && fun == t->fun && is_value_equal_to(bounds, t->bounds) && is_value_equal_to(elems, t->elems);
+    return t != nullptr &&
+           naf_ == t->naf_ &&
+           fun_ == t->fun_ &&
+           is_value_equal_to(bounds_, t->bounds_) &&
+           is_value_equal_to(elems_, t->elems_);
 }
 
 TupleBodyAggregate *TupleBodyAggregate::clone() const {
-    return make_locatable<TupleBodyAggregate>(loc(), naf, removedAssignment, translated, fun, get_clone(bounds), get_clone(elems)).release();
+    return make_locatable<TupleBodyAggregate>(loc(), naf_, removedAssignment_, translated_, fun_, get_clone(bounds_), get_clone(elems_)).release();
 }
 
 void TupleBodyAggregate::unpool(UBodyAggrVec &x, bool beforeRewrite) {
     BodyAggrElemVec e;
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         auto f = [&](UTermVec &&x) {
             e.emplace_back(std::move(x), get_clone(elem.second));
         };
         Term::unpool(elem.first.begin(), elem.first.end(), Gringo::unpool, f);
     }
-    elems = std::move(e);
+    elems_ = std::move(e);
     e.clear();
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         if (beforeRewrite) {
             auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(elem.first), std::move(y)); };
             Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite, false), f);
@@ -206,50 +210,61 @@ void TupleBodyAggregate::unpool(UBodyAggrVec &x, bool beforeRewrite) {
             e.emplace_back(std::move(elem));
         }
     }
-    auto f = [&](BoundVec &&y) { x.emplace_back(make_locatable<TupleBodyAggregate>(loc(), naf, removedAssignment, translated, fun, std::move(y), get_clone(e))); };
-    Term::unpool(bounds.begin(), bounds.end(), _unpool_bound, f);
+    auto f = [&](BoundVec &&y) { x.emplace_back(make_locatable<TupleBodyAggregate>(loc(), naf_, removedAssignment_, translated_, fun_, std::move(y), get_clone(e))); };
+    Term::unpool(bounds_.begin(), bounds_.end(), _unpool_bound, f);
 }
 
 void TupleBodyAggregate::collect(VarTermBoundVec &vars) const {
-    for (auto &bound : bounds) { bound.bound->collect(vars, bound.rel == Relation::EQ && naf == NAF::POS); }
-    for (auto &elem : elems) {
-        for (auto &term : std::get<0>(elem)) { term->collect(vars, false); }
-        for (auto &lit : std::get<1>(elem)) { lit->collect(vars, false); }
+    for (auto &bound : bounds_) {
+        bound.bound->collect(vars, bound.rel == Relation::EQ && naf_ == NAF::POS);
+    }
+    for (auto &elem : elems_) {
+        for (auto &term : std::get<0>(elem)) {
+            term->collect(vars, false);
+        }
+        for (auto &lit : std::get<1>(elem)) {
+            lit->collect(vars, false);
+        }
     }
 }
 
 bool TupleBodyAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
     BoundVec assign;
-    auto jt(bounds.begin());
-    for (auto it = jt, ie = bounds.end(); it != ie; ++it) {
-        if (it->rel == Relation::EQ && naf == NAF::POS) { assign.emplace_back(std::move(*it)); }
+    auto jt(bounds_.begin());
+    for (auto it = jt, ie = bounds_.end(); it != ie; ++it) {
+        if (it->rel == Relation::EQ && naf_ == NAF::POS) { assign.emplace_back(std::move(*it)); }
         else {
-            if (it != jt) { *jt = std::move(*it); }
+            if (it != jt) {
+                *jt = std::move(*it);
+            }
             ++jt;
         }
     }
-    bounds.erase(jt, bounds.end());
-    bool skip = bounds.empty() && !assign.empty();
-    for (auto it = assign.begin(), ie = assign.end() - skip; it != ie; ++it) {
+    bounds_.erase(jt, bounds_.end());
+    bool skip = bounds_.empty() && !assign.empty();
+    for (auto it = assign.begin(), ie = assign.end() - (skip ? 1 : 0); it != ie; ++it) {
         BoundVec bound;
         bound.emplace_back(std::move(*it));
-        aggr.emplace_back(make_locatable<TupleBodyAggregate>(loc(), naf, removedAssignment, translated, fun, std::move(bound), get_clone(elems)));
+        aggr.emplace_back(make_locatable<TupleBodyAggregate>(loc(), naf_, removedAssignment_, translated_, fun_, std::move(bound), get_clone(elems_)));
     }
-    if (skip) { bounds.emplace_back(std::move(assign.back())); }
-    if (bounds.empty() && naf == NAF::NOT) {
+    if (skip) { bounds_.emplace_back(std::move(assign.back())); }
+    if (bounds_.empty() && naf_ == NAF::NOT) {
         aggr.emplace_back(gringo_make_unique<SimpleBodyLiteral>(make_locatable<RelationLiteral>(
             loc(), Relation::NEQ,
             make_locatable<ValTerm>(loc(), Symbol::createNum(0)),
             make_locatable<ValTerm>(loc(), Symbol::createNum(0)))));
     }
-    return !bounds.empty();
+    return !bounds_.empty();
 }
 
-bool TupleBodyAggregate::simplify(Projections &project, SimplifyState &state, bool, Logger &log) {
-    for (auto &bound : bounds) {
-        if (!bound.simplify(state, log)) { return false; }
+bool TupleBodyAggregate::simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) {
+    static_cast<void>(singleton);
+    for (auto &bound : bounds_) {
+        if (!bound.simplify(state, log)) {
+            return false;
+        }
     }
-    elems.erase(std::remove_if(elems.begin(), elems.end(), [&](BodyAggrElemVec::value_type &elem) {
+    elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](BodyAggrElemVec::value_type &elem) {
         SimplifyState elemState(state);
         for (auto &term : std::get<0>(elem)) {
             if (term->simplify(elemState, false, false, log).update(term, false).undefined()) { return true; }
@@ -261,13 +276,13 @@ bool TupleBodyAggregate::simplify(Projections &project, SimplifyState &state, bo
         for (auto &dot : elemState.dots) { std::get<1>(elem).emplace_back(RangeLiteral::make(dot)); }
         for (auto &script : elemState.scripts) { std::get<1>(elem).emplace_back(ScriptLiteral::make(script)); }
         return false;
-    }), elems.end());
+    }), elems_.end());
     return true;
 }
 
 void TupleBodyAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &, AuxGen &auxGen) {
-    for (auto &bound : bounds) { bound.rewriteArithmetics(arith, auxGen); }
-    for (auto &elem : elems) {
+    for (auto &bound : bounds_) { bound.rewriteArithmetics(arith, auxGen); }
+    for (auto &elem : elems_) {
         Literal::RelationVec assign;
         arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         for (auto &y : std::get<1>(elem)) { y->rewriteArithmetics(arith, assign, auxGen); }
@@ -279,9 +294,9 @@ void TupleBodyAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal
 
 void TupleBodyAggregate::assignLevels(AssignLevel &lvl) {
     VarTermBoundVec vars;
-    for (auto &bound : bounds) { bound.bound->collect(vars, false); }
+    for (auto &bound : bounds_) { bound.bound->collect(vars, false); }
     lvl.add(vars);
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         AssignLevel &local(lvl.subLevel());
         VarTermBoundVec vars;
         for (auto &term : std::get<0>(elem)) { term->collect(vars, false); }
@@ -293,7 +308,7 @@ void TupleBodyAggregate::assignLevels(AssignLevel &lvl) {
 void TupleBodyAggregate::check(ChkLvlVec &levels, Logger &log) const {
     auto f = [&]() {
         VarTermBoundVec vars;
-        for (auto &y : elems) {
+        for (auto &y : elems_) {
             levels.emplace_back(loc(), *this);
             _add(levels, y.first);
             _add(levels, y.second);
@@ -301,14 +316,14 @@ void TupleBodyAggregate::check(ChkLvlVec &levels, Logger &log) const {
             levels.pop_back();
             for (auto &term : y.first) { term->collect(vars, false); }
         }
-        warnGlobal(vars, !translated, log);
+        warnGlobal(vars, !translated_, log);
     };
-    return _aggr(levels, bounds, f, naf == NAF::POS);
+    return _aggr(levels, bounds_, f, naf_ == NAF::POS);
 }
 
 bool TupleBodyAggregate::hasPool(bool beforeRewrite) const {
-    for (auto &bound : bounds) { if (bound.bound->hasPool()) { return true; } }
-    for (auto &elem : elems) {
+    for (auto &bound : bounds_) { if (bound.bound->hasPool()) { return true; } }
+    for (auto &elem : elems_) {
         for (auto &term : elem.first) { if (term->hasPool()) { return true; } }
         for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
     }
@@ -316,8 +331,8 @@ bool TupleBodyAggregate::hasPool(bool beforeRewrite) const {
 }
 
 void TupleBodyAggregate::replace(Defines &x) {
-    for (auto &bound : bounds) { Term::replace(bound.bound, bound.bound->replace(x, true)); }
-    for (auto &elem : elems) {
+    for (auto &bound : bounds_) { Term::replace(bound.bound, bound.bound->replace(x, true)); }
+    for (auto &elem : elems_) {
         for (auto &y : elem.first)  { Term::replace(y, y->replace(x, true)); }
         for (auto &y : elem.second) { y->replace(x); }
     }
@@ -325,7 +340,7 @@ void TupleBodyAggregate::replace(Defines &x) {
 
 CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     if (!isAssignment()) {
-        stms.emplace_back(gringo_make_unique<Ground::BodyAggregateComplete>(x.domains, x.newId(*this), fun, get_clone(bounds)));
+        stms.emplace_back(gringo_make_unique<Ground::BodyAggregateComplete>(x.domains, x.newId(*this), fun_, get_clone(bounds_)));
         auto &completeRef = static_cast<Ground::BodyAggregateComplete&>(*stms.back());
         CreateStmVec split;
         split.emplace_back([&completeRef, this](Ground::ULitVec &&lits) -> Ground::UStm {
@@ -333,17 +348,17 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
             tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol()));
             // Note: should this become a function?
             UTerm neutral;
-            switch (fun) {
+            switch (fun_) {
                 case AggregateFunction::MIN: { neutral = make_locatable<ValTerm>(loc(), Symbol::createSup());  break; }
                 case AggregateFunction::MAX: { neutral = make_locatable<ValTerm>(loc(), Symbol::createInf());  break; }
                 default:                     { neutral = make_locatable<ValTerm>(loc(), Symbol::createNum(0)); break; }
             }
-            for (auto &y : bounds) { lits.emplace_back(gringo_make_unique<Ground::RelationLiteral>(y.rel, get_clone(neutral), get_clone(y.bound))); }
+            for (auto &y : bounds_) { lits.emplace_back(gringo_make_unique<Ground::RelationLiteral>(y.rel, get_clone(neutral), get_clone(y.bound))); }
             auto ret = gringo_make_unique<Ground::BodyAggregateAccumulate>(completeRef, get_clone(tuple), std::move(lits));
             completeRef.addAccuDom(*ret);
             return std::move(ret);
         });
-        for (auto &y : elems) {
+        for (auto &y : elems_) {
             split.emplace_back([&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
                 for (auto &z : y.second) { lits.emplace_back(z->toGround(x.domains, false)); }
                 auto ret = gringo_make_unique<Ground::BodyAggregateAccumulate>(completeRef, get_clone(y.first), std::move(lits));
@@ -352,23 +367,23 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
             });
         }
         return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool auxiliary) {
-            if (primary) { lits.emplace_back(gringo_make_unique<Ground::BodyAggregateLiteral>(completeRef, naf, auxiliary)); }
+            if (primary) { lits.emplace_back(gringo_make_unique<Ground::BodyAggregateLiteral>(completeRef, naf_, auxiliary)); }
         }, std::move(split));
     }
     else {
-        assert(bounds.size() == 1 && naf == NAF::POS);
+        assert(bounds_.size() == 1 && naf_ == NAF::POS);
         VarTermBoundVec vars;
-        for (auto &y : elems) {
+        for (auto &y : elems_) {
             for (auto &z : y.first)  { z->collect(vars, false); }
             for (auto &z : y.second) { z->collect(vars, false); }
         }
         UTermVec global(x.getGlobal(vars));
-        global.emplace_back(get_clone(bounds.front().bound));
+        global.emplace_back(get_clone(bounds_.front().bound));
         UTermVec globalSpecial(x.getGlobal(vars));
         UTerm repr(x.newId(std::move(global), loc(), false));
         UTerm dataRepr(x.newId(std::move(globalSpecial), loc()));
 
-        stms.emplace_back(gringo_make_unique<Ground::AssignmentAggregateComplete>(x.domains, get_clone(repr), get_clone(dataRepr), fun));
+        stms.emplace_back(gringo_make_unique<Ground::AssignmentAggregateComplete>(x.domains, get_clone(repr), get_clone(dataRepr), fun_));
         auto &completeRef = static_cast<Ground::AssignmentAggregateComplete&>(*stms.back());
         // NOTE: for assignment aggregates this does not make much sense
         //       the empty aggregate always matches and hence the elements
@@ -381,7 +396,7 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
             completeRef.addAccuDom(*ret);
             return std::move(ret);
         });
-        for (auto &y : elems) {
+        for (auto &y : elems_) {
             split.emplace_back([&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
                 for (auto &z : y.second) { lits.emplace_back(z->toGround(x.domains, false)); }
                 auto ret = gringo_make_unique<Ground::AssignmentAggregateAccumulate>(completeRef, get_clone(y.first), std::move(lits));
@@ -395,50 +410,50 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
     }
 }
 
-bool TupleBodyAggregate::isAssignment() const { return !removedAssignment && bounds.size() == 1 && naf == NAF::POS && bounds.front().rel == Relation::EQ && bounds.front().bound->getInvertibility() == Term::INVERTIBLE; }
+bool TupleBodyAggregate::isAssignment() const { return !removedAssignment_ && bounds_.size() == 1 && naf_ == NAF::POS && bounds_.front().rel == Relation::EQ && bounds_.front().bound->getInvertibility() == Term::INVERTIBLE; }
 
 void TupleBodyAggregate::removeAssignment() {
     assert (isAssignment());
-    removedAssignment = true;
+    removedAssignment_ = true;
 }
 
 // {{{1 definition of LitBodyAggregate
 
 LitBodyAggregate::LitBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems)
-: naf(naf)
-, fun(fun)
-, bounds(std::move(bounds))
-, elems(std::move(elems)) { }
+: naf_(naf)
+, fun_(fun)
+, bounds_(std::move(bounds))
+, elems_(std::move(elems)) { }
 
 LitBodyAggregate::~LitBodyAggregate() { }
 
 void LitBodyAggregate::print(std::ostream &out) const {
-    out << naf;
-    printAggr_(out, fun, bounds, elems, printCond_);
+    out << naf_;
+    printAggr_(out, fun_, bounds_, elems_, printCond_);
 }
 
 size_t LitBodyAggregate::hash() const {
-    return get_value_hash(typeid(LitBodyAggregate).hash_code(), size_t(naf), size_t(fun), bounds, elems);
+    return get_value_hash(typeid(LitBodyAggregate).hash_code(), size_t(naf_), size_t(fun_), bounds_, elems_);
 }
 
 bool LitBodyAggregate::operator==(BodyAggregate const &x) const {
     auto t = dynamic_cast<LitBodyAggregate const *>(&x);
-    return t && naf == t->naf && fun == t->fun && is_value_equal_to(bounds, t->bounds) && is_value_equal_to(elems, t->elems);
+    return t && naf_ == t->naf_ && fun_ == t->fun_ && is_value_equal_to(bounds_, t->bounds_) && is_value_equal_to(elems_, t->elems_);
 }
 
 LitBodyAggregate *LitBodyAggregate::clone() const {
-    return make_locatable<LitBodyAggregate>(loc(), naf, fun, get_clone(bounds), get_clone(elems)).release();
+    return make_locatable<LitBodyAggregate>(loc(), naf_, fun_, get_clone(bounds_), get_clone(elems_)).release();
 }
 
 void LitBodyAggregate::unpool(UBodyAggrVec &x, bool beforeRewrite) {
     CondLitVec e;
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         auto f = [&](ULit &&y) { e.emplace_back(std::move(y), get_clone(elem.second)); };
         Term::unpool(elem.first, _unpool_lit(beforeRewrite, true), f);
     }
-    elems = std::move(e);
+    elems_ = std::move(e);
     e.clear();
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         if (beforeRewrite) {
             auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(elem.first), std::move(y)); };
             Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(beforeRewrite, false), f);
@@ -448,13 +463,13 @@ void LitBodyAggregate::unpool(UBodyAggrVec &x, bool beforeRewrite) {
             e.emplace_back(std::move(elem));
         }
     }
-    auto f = [&](BoundVec &&y) { x.emplace_back(make_locatable<LitBodyAggregate>(loc(), naf, fun, std::move(y), get_clone(e))); };
-    Term::unpool(bounds.begin(), bounds.end(), _unpool_bound, f);
+    auto f = [&](BoundVec &&y) { x.emplace_back(make_locatable<LitBodyAggregate>(loc(), naf_, fun_, std::move(y), get_clone(e))); };
+    Term::unpool(bounds_.begin(), bounds_.end(), _unpool_bound, f);
 }
 
 void LitBodyAggregate::collect(VarTermBoundVec &vars) const {
-    for (auto &bound : bounds) { bound.bound->collect(vars, bound.rel == Relation::EQ && naf == NAF::POS); }
-    for (auto &elem : elems) {
+    for (auto &bound : bounds_) { bound.bound->collect(vars, bound.rel == Relation::EQ && naf_ == NAF::POS); }
+    for (auto &elem : elems_) {
         elem.first->collect(vars, false);
         for (auto &lit : elem.second) { lit->collect(vars, false); }
     }
@@ -463,7 +478,7 @@ void LitBodyAggregate::collect(VarTermBoundVec &vars) const {
 bool LitBodyAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
     int id = 0;
     BodyAggrElemVec elems;
-    for (auto &x : this->elems) {
+    for (auto &x : elems_) {
         UTermVec tuple;
         x.first->toTuple(tuple, id);
         ULitVec lits(std::move(x.second));
@@ -472,16 +487,16 @@ bool LitBodyAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
         }
         elems.emplace_back(std::move(tuple), std::move(lits));
     }
-    UBodyAggr x(make_locatable<TupleBodyAggregate>(loc(), naf, false, true, fun, std::move(bounds), std::move(elems)));
+    UBodyAggr x(make_locatable<TupleBodyAggregate>(loc(), naf_, false, true, fun_, std::move(bounds_), std::move(elems)));
     if (x->rewriteAggregates(aggr)) { aggr.emplace_back(std::move(x)); }
     return false;
 }
 
 bool LitBodyAggregate::simplify(Projections &project, SimplifyState &state, bool, Logger &log) {
-    for (auto &bound : bounds) {
+    for (auto &bound : bounds_) {
         if (!bound.simplify(state, log)) { return false; }
     }
-    elems.erase(std::remove_if(elems.begin(), elems.end(), [&](CondLitVec::value_type &elem) {
+    elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](CondLitVec::value_type &elem) {
         SimplifyState elemState(state);
         if (!std::get<0>(elem)->simplify(log, project, elemState, true, true)) { return true; }
         for (auto &lit : std::get<1>(elem)) {
@@ -491,13 +506,13 @@ bool LitBodyAggregate::simplify(Projections &project, SimplifyState &state, bool
         for (auto &dot : elemState.dots) { std::get<1>(elem).emplace_back(RangeLiteral::make(dot)); }
         for (auto &script : elemState.scripts) { std::get<1>(elem).emplace_back(ScriptLiteral::make(script)); }
         return false;
-    }), elems.end());
+    }), elems_.end());
     return true;
 }
 
 void LitBodyAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &, AuxGen &auxGen) {
-    for (auto &bound : bounds) { bound.rewriteArithmetics(arith, auxGen); }
-    for (auto &elem : elems) {
+    for (auto &bound : bounds_) { bound.rewriteArithmetics(arith, auxGen); }
+    for (auto &elem : elems_) {
         Literal::RelationVec assign;
         arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         for (auto &y : std::get<1>(elem)) { y->rewriteArithmetics(arith, assign, auxGen); }
@@ -509,9 +524,9 @@ void LitBodyAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::
 
 void LitBodyAggregate::assignLevels(AssignLevel &lvl) {
     VarTermBoundVec vars;
-    for (auto &bound : bounds) { bound.bound->collect(vars, false); }
+    for (auto &bound : bounds_) { bound.bound->collect(vars, false); }
     lvl.add(vars);
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         AssignLevel &local(lvl.subLevel());
         VarTermBoundVec vars;
         std::get<0>(elem)->collect(vars, false);
@@ -522,7 +537,7 @@ void LitBodyAggregate::assignLevels(AssignLevel &lvl) {
 
 void LitBodyAggregate::check(ChkLvlVec &levels, Logger &log) const {
     auto f = [&]() {
-        for (auto &y : elems) {
+        for (auto &y : elems_) {
             levels.emplace_back(loc(), *this);
             _add(levels, y.first, false);
             _add(levels, y.second);
@@ -530,12 +545,12 @@ void LitBodyAggregate::check(ChkLvlVec &levels, Logger &log) const {
             levels.pop_back();
         }
     };
-    _aggr(levels, bounds, f, naf == NAF::POS);
+    _aggr(levels, bounds_, f, naf_ == NAF::POS);
 }
 
 bool LitBodyAggregate::hasPool(bool beforeRewrite) const {
-    for (auto &bound : bounds) { if (bound.bound->hasPool()) { return true; } }
-    for (auto &elem : elems) {
+    for (auto &bound : bounds_) { if (bound.bound->hasPool()) { return true; } }
+    for (auto &elem : elems_) {
         if (elem.first->hasPool(beforeRewrite, false)) { return true; }
         for (auto &lit : elem.second) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
     }
@@ -543,8 +558,8 @@ bool LitBodyAggregate::hasPool(bool beforeRewrite) const {
 }
 
 void LitBodyAggregate::replace(Defines &x) {
-    for (auto &bound : bounds) { Term::replace(bound.bound, bound.bound->replace(x, true)); }
-    for (auto &elem : elems) {
+    for (auto &bound : bounds_) { Term::replace(bound.bound, bound.bound->replace(x, true)); }
+    for (auto &elem : elems_) {
         elem.first->replace(x);
         for (auto &y : elem.second) { y->replace(x); }
     }
@@ -561,13 +576,13 @@ void LitBodyAggregate::removeAssignment()  { }
 // {{{1 definition of Conjunction
 
 Conjunction::Conjunction(ULit &&head, ULitVec &&cond) {
-    elems.emplace_back(ULitVecVec(), std::move(cond));
-    elems.back().first.emplace_back();
-    elems.back().first.back().emplace_back(std::move(head));
+    elems_.emplace_back(ULitVecVec(), std::move(cond));
+    elems_.back().first.emplace_back();
+    elems_.back().first.back().emplace_back(std::move(head));
 }
 
 Conjunction::Conjunction(ElemVec &&elems)
-: elems(std::move(elems)) { }
+: elems_(std::move(elems)) { }
 
 Conjunction::~Conjunction() { }
 
@@ -580,25 +595,25 @@ void Conjunction::print(std::ostream &out) const {
         out << ":";
         print_comma(out, y.second, ",", std::bind(&Literal::print, _2, _1));
     };
-    print_comma(out, elems, ";", f);
+    print_comma(out, elems_, ";", f);
 }
 
 size_t Conjunction::hash() const {
-    return get_value_hash(typeid(Conjunction).hash_code(), elems);
+    return get_value_hash(typeid(Conjunction).hash_code(), elems_);
 }
 
 bool Conjunction::operator==(BodyAggregate const &x) const {
     auto t = dynamic_cast<Conjunction const *>(&x);
-    return t && is_value_equal_to(elems, t->elems);
+    return t && is_value_equal_to(elems_, t->elems_);
 }
 
 Conjunction *Conjunction::clone() const {
-    return make_locatable<Conjunction>(loc(), get_clone(elems)).release();
+    return make_locatable<Conjunction>(loc(), get_clone(elems_)).release();
 }
 
 void Conjunction::unpool(UBodyAggrVec &x, bool beforeRewrite) {
     ElemVec e;
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         if (beforeRewrite) {
             ULitVecVec heads;
             for (auto &head : elem.first) {
@@ -621,7 +636,7 @@ void Conjunction::unpool(UBodyAggrVec &x, bool beforeRewrite) {
 }
 
 void Conjunction::collect(VarTermBoundVec &vars) const {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         for (auto &disj : elem.first) {
             for (auto &lit : disj) { lit->collect(vars, false); }
         }
@@ -630,17 +645,17 @@ void Conjunction::collect(VarTermBoundVec &vars) const {
 }
 
 bool Conjunction::rewriteAggregates(UBodyAggrVec &x) {
-    while (elems.size() > 1) {
+    while (elems_.size() > 1) {
         ElemVec vec;
-        vec.emplace_back(std::move(elems.back()));
+        vec.emplace_back(std::move(elems_.back()));
         x.emplace_back(make_locatable<Conjunction>(loc(), std::move(vec)));
-        elems.pop_back();
+        elems_.pop_back();
     }
-    return !elems.empty();
+    return !elems_.empty();
 }
 
 bool Conjunction::simplify(Projections &project, SimplifyState &state, bool, Logger &log) {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         elem.first.erase(std::remove_if(elem.first.begin(), elem.first.end(), [&](ULitVec &clause) {
             SimplifyState elemState(state);
             for (auto &lit : clause) {
@@ -651,7 +666,7 @@ bool Conjunction::simplify(Projections &project, SimplifyState &state, bool, Log
             return false;
         }), elem.first.end());
     }
-    elems.erase(std::remove_if(elems.begin(), elems.end(), [&](ElemVec::value_type &elem) {
+    elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](ElemVec::value_type &elem) {
         SimplifyState elemState(state);
         for (auto &lit : elem.second) {
             // NOTE: projection disabled with singelton=true
@@ -660,12 +675,12 @@ bool Conjunction::simplify(Projections &project, SimplifyState &state, bool, Log
         for (auto &dot : elemState.dots) { elem.second.emplace_back(RangeLiteral::make(dot)); }
         for (auto &script : elemState.scripts) { elem.second.emplace_back(ScriptLiteral::make(script)); }
         return false;
-    }), elems.end());
+    }), elems_.end());
     return true;
 }
 
 void Conjunction::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &, AuxGen &auxGen) {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         for (auto &y : elem.first) {
             Literal::RelationVec assign;
             arith.emplace_back(gringo_make_unique<Term::LevelMap>());
@@ -686,7 +701,7 @@ void Conjunction::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::Relat
 }
 
 void Conjunction::assignLevels(AssignLevel &lvl) {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         AssignLevel &local(lvl.subLevel());
         VarTermBoundVec vars;
         for (auto &disj : elem.first) {
@@ -701,7 +716,7 @@ void Conjunction::assignLevels(AssignLevel &lvl) {
 
 void Conjunction::check(ChkLvlVec &levels, Logger &log) const {
     levels.back().current = &levels.back().dep.insertEnt();
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         levels.emplace_back(loc(), *this);
         _add(levels, elem.second);
         // check safety of condition
@@ -719,7 +734,7 @@ void Conjunction::check(ChkLvlVec &levels, Logger &log) const {
 }
 
 bool Conjunction::hasPool(bool beforeRewrite) const {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         for (auto &disj : elem.first) {
             for (auto &lit : disj) {
                 if (lit->hasPool(beforeRewrite, false)) { return true; }
@@ -731,7 +746,7 @@ bool Conjunction::hasPool(bool beforeRewrite) const {
 }
 
 void Conjunction::replace(Defines &x) {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         for (auto &y : elem.first) {
             for (auto &z : y) { z->replace(x); }
         }
@@ -740,16 +755,16 @@ void Conjunction::replace(Defines &x) {
 }
 
 CreateBody Conjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
-    assert(elems.size() == 1);
+    assert(elems_.size() == 1);
 
     UTermVec local;
     std::unordered_set<String> seen;
     VarTermBoundVec varsHead;
     VarTermBoundVec varsBody;
-    for (auto &x : elems.front().first) {
+    for (auto &x : elems_.front().first) {
         for (auto &y : x) { y->collect(varsHead, false); }
     }
-    for (auto &x : elems.front().second) { x->collect(varsBody, false); }
+    for (auto &x : elems_.front().second) { x->collect(varsBody, false); }
     for (auto &occ : varsBody) {
         if (occ.first->level != 0) {
             seen.emplace(occ.first->name);
@@ -764,10 +779,10 @@ CreateBody Conjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     auto &completeRef = static_cast<Ground::ConjunctionComplete&>(*stms.back());
 
     Ground::ULitVec condLits;
-    for (auto &y : elems.front().second) { condLits.emplace_back(y->toGround(x.domains, false)); }
+    for (auto &y : elems_.front().second) { condLits.emplace_back(y->toGround(x.domains, false)); }
     stms.emplace_back(gringo_make_unique<Ground::ConjunctionAccumulateCond>(completeRef, std::move(condLits)));
 
-    for (auto &y : elems.front().first)  {
+    for (auto &y : elems_.front().first)  {
         Ground::ULitVec headLits;
         for (auto &z : y) {
             headLits.emplace_back(z->toGround(x.domains, false));
@@ -824,45 +839,45 @@ bool CSPElem::operator==(CSPElem const &x) const {
 }
 
 DisjointAggregate::DisjointAggregate(NAF naf, CSPElemVec &&elems)
-    : naf(naf)
-    , elems(std::move(elems)) { }
+    : naf_(naf)
+    , elems_(std::move(elems)) { }
 
 DisjointAggregate::~DisjointAggregate() noexcept = default;
 
 void DisjointAggregate::print(std::ostream &out) const {
-    out << naf << "#disjoint{";
-    print_comma(out, elems, ";");
+    out << naf_ << "#disjoint{";
+    print_comma(out, elems_, ";");
     out << "}";
 }
 
 size_t DisjointAggregate::hash() const {
-    return get_value_hash(typeid(DisjointAggregate).hash_code(), elems);
+    return get_value_hash(typeid(DisjointAggregate).hash_code(), elems_);
 }
 
 bool DisjointAggregate::operator==(BodyAggregate const &x) const {
     auto t = dynamic_cast<DisjointAggregate const *>(&x);
     return t != nullptr &&
-           is_value_equal_to(elems, t->elems);
+           is_value_equal_to(elems_, t->elems_);
 }
 
 DisjointAggregate *DisjointAggregate::clone() const {
-    return make_locatable<DisjointAggregate>(loc(), naf, get_clone(elems)).release();
+    return make_locatable<DisjointAggregate>(loc(), naf_, get_clone(elems_)).release();
 }
 
 void DisjointAggregate::unpool(UBodyAggrVec &x, bool beforeRewrite) {
     CSPElemVec e;
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         auto f = [&](UTermVec &&y) { e.emplace_back(elem.loc, std::move(y), get_clone(elem.value), get_clone(elem.cond)); };
         Term::unpool(elem.tuple.begin(), elem.tuple.end(), Gringo::unpool, f);
     }
-    elems.clear();
+    elems_.clear();
     for (auto &elem : e) {
         for (auto &y : elem.value.unpool()) {
-            elems.emplace_back(elem.loc, get_clone(elem.tuple), std::move(y), get_clone(elem.cond));
+            elems_.emplace_back(elem.loc, get_clone(elem.tuple), std::move(y), get_clone(elem.cond));
         }
     }
     e.clear();
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         if (beforeRewrite) {
             auto f = [&](ULitVec &&cond) { e.emplace_back(elem.loc, get_clone(elem.tuple), get_clone(elem.value), std::move(cond)); };
             Term::unpool(elem.cond.begin(), elem.cond.end(), _unpool_lit(beforeRewrite, false), f);
@@ -873,11 +888,11 @@ void DisjointAggregate::unpool(UBodyAggrVec &x, bool beforeRewrite) {
         }
     }
 
-    x.emplace_back(make_locatable<DisjointAggregate>(loc(), naf, std::move(e)));
+    x.emplace_back(make_locatable<DisjointAggregate>(loc(), naf_, std::move(e)));
 }
 
 void DisjointAggregate::collect(VarTermBoundVec &vars) const {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         for (auto &term : elem.tuple) { term->collect(vars, false); }
         elem.value.collect(vars);
         for (auto &lit : elem.cond) { lit->collect(vars, false); }
@@ -887,7 +902,7 @@ void DisjointAggregate::collect(VarTermBoundVec &vars) const {
 bool DisjointAggregate::rewriteAggregates(UBodyAggrVec &) { return true; }
 
 bool DisjointAggregate::simplify(Projections &project, SimplifyState &state, bool, Logger &log) {
-    elems.erase(std::remove_if(elems.begin(), elems.end(), [&](CSPElemVec::value_type &elem) {
+    elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](CSPElemVec::value_type &elem) {
         SimplifyState elemState(state);
         for (auto &term : elem.tuple) {
             if (term->simplify(elemState, false, false, log).update(term, false).undefined()) { return true; }
@@ -899,12 +914,12 @@ bool DisjointAggregate::simplify(Projections &project, SimplifyState &state, boo
         for (auto &dot : elemState.dots) { elem.cond.emplace_back(RangeLiteral::make(dot)); }
         for (auto &script : elemState.scripts) { elem.cond.emplace_back(ScriptLiteral::make(script)); }
         return false;
-    }), elems.end());
+    }), elems_.end());
     return true;
 }
 
 void DisjointAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &, AuxGen &auxGen) {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         Literal::RelationVec assign;
         arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         for (auto &y : elem.cond) { y->rewriteArithmetics(arith, assign, auxGen); }
@@ -915,7 +930,7 @@ void DisjointAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal:
 }
 
 void DisjointAggregate::assignLevels(AssignLevel &lvl) {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         AssignLevel &local(lvl.subLevel());
         VarTermBoundVec vars;
         for (auto &term : elem.tuple) { term->collect(vars, false); }
@@ -927,7 +942,7 @@ void DisjointAggregate::assignLevels(AssignLevel &lvl) {
 
 void DisjointAggregate::check(ChkLvlVec &levels, Logger &log) const {
     auto f = [&]() {
-        for (auto &y : elems) {
+        for (auto &y : elems_) {
             levels.emplace_back(loc(), *this);
             _add(levels, y.tuple, &y.value);
             _add(levels, y.cond);
@@ -939,7 +954,7 @@ void DisjointAggregate::check(ChkLvlVec &levels, Logger &log) const {
 }
 
 bool DisjointAggregate::hasPool(bool beforeRewrite) const {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         for (auto &term : elem.tuple) { if (term->hasPool()) { return true; } }
         if (elem.value.hasPool()) { return true; }
         for (auto &lit : elem.cond) { if (lit->hasPool(beforeRewrite, false)) { return true; } }
@@ -948,7 +963,7 @@ bool DisjointAggregate::hasPool(bool beforeRewrite) const {
 }
 
 void DisjointAggregate::replace(Defines &x) {
-    for (auto &elem : elems) {
+    for (auto &elem : elems_) {
         for (auto &y : elem.tuple) { y->replace(x, true); }
         elem.value.replace(x);
         for (auto &y : elem.cond) { y->replace(x); }
@@ -964,7 +979,7 @@ CreateBody DisjointAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) co
         completeRef.addAccuDom(*ret);
         return std::move(ret);
     });
-    for (auto &y : elems) {
+    for (auto &y : elems_) {
         split.emplace_back([&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
             for (auto &z : y.cond) { lits.emplace_back(z->toGround(x.domains, false)); }
             auto ret = gringo_make_unique<Ground::DisjointAccumulate>(completeRef, get_clone(y.tuple), get_clone(y.value), std::move(lits));
@@ -973,7 +988,7 @@ CreateBody DisjointAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) co
         });
     }
     return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool auxiliary) {
-        if (primary) { lits.emplace_back(gringo_make_unique<Ground::DisjointLiteral>(completeRef, naf, auxiliary)); }
+        if (primary) { lits.emplace_back(gringo_make_unique<Ground::DisjointLiteral>(completeRef, naf_, auxiliary)); }
     }, std::move(split));
 }
 
@@ -984,67 +999,67 @@ void DisjointAggregate::removeAssignment() { }
 // {{{1 definition of SimpleBodyLiteral
 
 SimpleBodyLiteral::SimpleBodyLiteral(ULit &&lit)
-    : lit(std::move(lit)) { }
+    : lit_(std::move(lit)) { }
 
-Location const &SimpleBodyLiteral::loc() const { return lit->loc(); }
+Location const &SimpleBodyLiteral::loc() const { return lit_->loc(); }
 
-void SimpleBodyLiteral::loc(Location const &loc) { lit->loc(loc); }
+void SimpleBodyLiteral::loc(Location const &loc) { lit_->loc(loc); }
 
 SimpleBodyLiteral::~SimpleBodyLiteral() { }
 
-void SimpleBodyLiteral::print(std::ostream &out) const { lit->print(out); }
+void SimpleBodyLiteral::print(std::ostream &out) const { lit_->print(out); }
 
 size_t SimpleBodyLiteral::hash() const {
-    return get_value_hash(typeid(SimpleBodyLiteral).hash_code(), lit);
+    return get_value_hash(typeid(SimpleBodyLiteral).hash_code(), lit_);
 }
 
 bool SimpleBodyLiteral::operator==(BodyAggregate const &x) const {
     auto t = dynamic_cast<SimpleBodyLiteral const *>(&x);
-    return t && is_value_equal_to(lit, t->lit);
+    return t && is_value_equal_to(lit_, t->lit_);
 }
 
 SimpleBodyLiteral *SimpleBodyLiteral::clone() const {
-    return gringo_make_unique<SimpleBodyLiteral>(get_clone(lit)).release();
+    return gringo_make_unique<SimpleBodyLiteral>(get_clone(lit_)).release();
 }
 
 void SimpleBodyLiteral::unpool(UBodyAggrVec &x, bool beforeRewrite) {
-    for (auto &y : lit->unpool(beforeRewrite, false)) { x.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(y))); }
+    for (auto &y : lit_->unpool(beforeRewrite, false)) { x.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(y))); }
 }
 
-void SimpleBodyLiteral::collect(VarTermBoundVec &vars) const { lit->collect(vars, true); }
+void SimpleBodyLiteral::collect(VarTermBoundVec &vars) const { lit_->collect(vars, true); }
 
 bool SimpleBodyLiteral::rewriteAggregates(UBodyAggrVec &) { return true; }
 
 bool SimpleBodyLiteral::simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) {
-    return lit->simplify(log, project, state, true, singleton);
+    return lit_->simplify(log, project, state, true, singleton);
 }
 
 void SimpleBodyLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) {
-    lit->rewriteArithmetics(arith, assign, auxGen);
+    lit_->rewriteArithmetics(arith, assign, auxGen);
 }
 
 void SimpleBodyLiteral::assignLevels(AssignLevel &lvl) {
     VarTermBoundVec vars;
-    lit->collect(vars, false);
+    lit_->collect(vars, false);
     lvl.add(vars);
 }
 
 void SimpleBodyLiteral::check(ChkLvlVec &levels, Logger &) const {
     levels.back().current = &levels.back().dep.insertEnt();
-    _add(levels, lit, true);
+    _add(levels, lit_, true);
 }
 
 bool SimpleBodyLiteral::hasPool(bool beforeRewrite) const {
-    return lit->hasPool(beforeRewrite, false);
+    return lit_->hasPool(beforeRewrite, false);
 }
 
 void SimpleBodyLiteral::replace(Defines &x) {
-    lit->replace(x);
+    lit_->replace(x);
 }
 
 CreateBody SimpleBodyLiteral::toGround(ToGroundArg &x, Ground::UStmVec &) const {
     return {[&](Ground::ULitVec &lits, bool, bool auxiliary) -> void {
-        lits.emplace_back(lit->toGround(x.domains, auxiliary));
+        lits.emplace_back(lit_->toGround(x.domains, auxiliary));
     }, CreateStmVec()};
 }
 

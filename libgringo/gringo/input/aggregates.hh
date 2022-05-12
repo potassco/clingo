@@ -32,9 +32,17 @@ namespace Gringo { namespace Input {
 
 // {{{1 declaration of TupleBodyAggregate
 
-struct TupleBodyAggregate : BodyAggregate {
+class TupleBodyAggregate : public BodyAggregate {
+public:
     TupleBodyAggregate(NAF naf, bool removedAssignment, bool translated, AggregateFunction fun, BoundVec &&bounds, BodyAggrElemVec &&elems); // NOTE: private
     TupleBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bounds, BodyAggrElemVec &&elems);
+    TupleBodyAggregate(TupleBodyAggregate const &other) = delete;
+    TupleBodyAggregate(TupleBodyAggregate &&other) noexcept = default;
+    TupleBodyAggregate &operator=(TupleBodyAggregate const &other) = delete;
+    TupleBodyAggregate &operator=(TupleBodyAggregate &&other) noexcept = default;
+    ~TupleBodyAggregate() noexcept override;
+
+
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     bool isAssignment() const override;
     void removeAssignment() override;
@@ -53,20 +61,27 @@ struct TupleBodyAggregate : BodyAggregate {
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
-    virtual ~TupleBodyAggregate();
 
-    NAF naf;
-    bool removedAssignment = false;
-    bool translated = false;
-    AggregateFunction fun;
-    BoundVec bounds;
-    BodyAggrElemVec elems;
+private:
+    NAF naf_;
+    bool removedAssignment_ = false;
+    bool translated_ = false;
+    AggregateFunction fun_;
+    BoundVec bounds_;
+    BodyAggrElemVec elems_;
 };
 
 // {{{1 declaration of LitBodyAggregate
 
-struct LitBodyAggregate : BodyAggregate {
+class LitBodyAggregate : public BodyAggregate {
+public:
     LitBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems);
+    LitBodyAggregate(LitBodyAggregate const &other) = delete;
+    LitBodyAggregate(LitBodyAggregate &&other) noexcept = default;
+    LitBodyAggregate &operator=(LitBodyAggregate const &other) = delete;
+    LitBodyAggregate &operator=(LitBodyAggregate &&other) noexcept = default;
+    ~LitBodyAggregate() noexcept override;
+
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     bool isAssignment() const override;
     void removeAssignment() override;
@@ -85,23 +100,30 @@ struct LitBodyAggregate : BodyAggregate {
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
-    virtual ~LitBodyAggregate();
 
-    NAF naf;
-    AggregateFunction fun;
-    BoundVec bounds;
-    CondLitVec elems;
+private:
+    NAF naf_;
+    AggregateFunction fun_;
+    BoundVec bounds_;
+    CondLitVec elems_;
 };
 
 // {{{1 declaration of Conjunction
 
-struct Conjunction : BodyAggregate {
+class Conjunction : public BodyAggregate {
+public:
     using ULitVecVec = std::vector<ULitVec>;
     using Elem = std::pair<ULitVecVec, ULitVec>;
     using ElemVec = std::vector<Elem>;
 
     Conjunction(ULit &&head, ULitVec &&cond);
     Conjunction(ElemVec &&elems);
+    Conjunction(Conjunction const &other) = delete;
+    Conjunction(Conjunction &&other) noexcept = default;
+    Conjunction &operator=(Conjunction const &other) = delete;
+    Conjunction &operator=(Conjunction &&other) noexcept = default;
+    ~Conjunction() noexcept override;
+
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     bool isAssignment() const override;
     void removeAssignment() override;
@@ -120,16 +142,23 @@ struct Conjunction : BodyAggregate {
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
-    virtual ~Conjunction();
 
-    ElemVec elems;
+private:
+    ElemVec elems_;
 };
 
 // {{{1 declaration of SimpleBodyLiteral
 
-struct SimpleBodyLiteral : BodyAggregate {
+class SimpleBodyLiteral : public BodyAggregate {
+public:
     SimpleBodyLiteral(ULit &&lit);
-    unsigned projectScore() const override { return lit->projectScore(); }
+    SimpleBodyLiteral(SimpleBodyLiteral const &other) = delete;
+    SimpleBodyLiteral(SimpleBodyLiteral &&other) noexcept = default;
+    SimpleBodyLiteral &operator=(SimpleBodyLiteral const &other) = delete;
+    SimpleBodyLiteral &operator=(SimpleBodyLiteral &&other) noexcept = default;
+    ~SimpleBodyLiteral() noexcept override;
+
+    unsigned projectScore() const override { return lit_->projectScore(); }
     Location const &loc() const override;
     void loc(Location const &loc) override;
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
@@ -150,9 +179,9 @@ struct SimpleBodyLiteral : BodyAggregate {
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
-    virtual ~SimpleBodyLiteral();
 
-    ULit lit;
+private:
+    ULit lit_;
 };
 
 // {{{1 declaration of DisjointAggregate
@@ -164,6 +193,7 @@ struct CSPElem {
     CSPElem &operator=(CSPElem &&other) noexcept;
     CSPElem &operator=(CSPElem const &other) = delete;
     ~CSPElem() noexcept;
+
     void print(std::ostream &out) const;
     CSPElem clone() const;
     size_t hash() const; bool operator==(CSPElem const &other) const;
@@ -181,9 +211,14 @@ inline std::ostream &operator<<(std::ostream &out, CSPElem const &x) {
 
 using CSPElemVec = std::vector<CSPElem>;
 
-struct DisjointAggregate : BodyAggregate {
+class DisjointAggregate : public BodyAggregate {
+public:
     DisjointAggregate(NAF naf, CSPElemVec &&elems);
-    ~DisjointAggregate() noexcept;
+    DisjointAggregate(DisjointAggregate const &other) = delete;
+    DisjointAggregate(DisjointAggregate &&other) noexcept = default;
+    DisjointAggregate &operator=(DisjointAggregate const &other) = delete;
+    DisjointAggregate &operator=(DisjointAggregate &&other) noexcept = default;
+    ~DisjointAggregate() noexcept override;
 
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     bool isAssignment() const override;
@@ -204,8 +239,9 @@ struct DisjointAggregate : BodyAggregate {
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
-    NAF        naf;
-    CSPElemVec elems;
+private:
+    NAF        naf_;
+    CSPElemVec elems_;
 };
 
 // }}}1
@@ -558,4 +594,3 @@ GRINGO_CALL_HASH(Gringo::Input::CSPElem)
 GRINGO_CALL_CLONE(Gringo::Input::CSPElem)
 
 #endif // _GRINGO_INPUT_AGGREGATES_HH
-
