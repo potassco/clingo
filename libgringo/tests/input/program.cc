@@ -120,23 +120,23 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("#void:-1>=2;q.#void:-2>=3;q." == rewrite(parse("1<2<3:-q.")));
         REQUIRE("#void:-2<3;1<2;q." == rewrite(parse("not 1<2<3:-q.")));
         REQUIRE("#void:1>=2&#void:2>=3:;#void:4>=5&#void:5>=6::-q." == rewrite(parse("1<2<3|4<5<6:-q.")));
-        REQUIRE("#void::;#void:::-5<6;2<3;4<5;1<2;q." == rewrite(parse("not 1<2<3|not 4<5<6:-q.")));
+        REQUIRE("#void::;#void:::-5<6;4<5;2<3;1<2;q." == rewrite(parse("not 1<2<3|not 4<5<6:-q.")));
         REQUIRE("#void:-#range(#Range0,1,2);q;1>=(#Range0+0).#void:-#range(#Range0,1,2);q;(#Range0+0)>=3." == rewrite(parse("1<1..2<3:-q.")));
         REQUIRE("#void:-#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
         REQUIRE("#void:-1>=2;q.#void:-2>=4;q.#void:-1>=3;q.#void:-3>=4;q." == rewrite(parse("1<(2;3)<4:-q.")));
         REQUIRE("#void:-2<4;1<2;q.#void:-3<4;1<3;q." == rewrite(parse("not 1<(2;3)<4:-q.")));
         // set based head aggregates
-        REQUIRE("1<=#count{3,(0,):#void:1<2}:-q." == rewrite(parse("{ 1<2 } >= 1:-q.")));
-        REQUIRE("1<=#count{3,(0,):#void:1<2;3,(1,):#void:3<4}:-q." == rewrite(parse("{ 1<2; 3<4 } >= 1:-q.")));
+        REQUIRE("1<=#count{3:#void:1<2}:-q." == rewrite(parse("{ 1<2 } >= 1:-q.")));
+        REQUIRE("1<=#count{3:#void:1<2;4:#void:3<4}:-q." == rewrite(parse("{ 1<2; 3<4 } >= 1:-q.")));
         REQUIRE("1<=#count{"
-                "3,(0,):#void:1<2,2<4;"
-                "3,(0,):#void:1<3,3<4"
+                "3:#void:1<2,2<4;"
+                "4:#void:1<3,3<4"
                 "}:-q." == rewrite(parse("{ 1<(2;3)<4 } >= 1:-q.")));
         REQUIRE("#count{"
-                "3,(0,):#void:1>=2;"
-                "3,(0,):#void:2>=4;"
-                "3,(0,):#void:1>=3;"
-                "3,(0,):#void:3>=4"
+                "3:#void:1>=2;"
+                "3:#void:2>=4;"
+                "4:#void:1>=3;"
+                "4:#void:3>=4"
                 "}:-q." == rewrite(parse("{ not 1<(2;3)<4 }:-q.")));
         // TODO: what's this? I should probably try to get rid of unnecessary body literals!
         // REQUIRE("#count{0:#false:}:-2<3;;1<2;(0,)<=(0,);3<=3;q." == rewrite(parse("{ 1<2<3 }:-q.")));

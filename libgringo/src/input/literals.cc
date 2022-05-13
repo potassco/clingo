@@ -213,17 +213,17 @@ ULitVec CSPLiteral::unpool(bool beforeRewrite, bool) const {
 // {{{1 definition of Literal::toTuple
 
 void RelationLiteral::toTuple(UTermVec &tuple, int &id) const {
-    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+4)));
+    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+3)));
     tuple.emplace_back(get_clone(left));
     tuple.emplace_back(get_clone(right));
-    id++;
+    ++id;
 }
 void RangeLiteral::toTuple(UTermVec &, int &) const {
     throw std::logic_error("RangeLiteral::toTuple should never be called if used properly");
 }
 void VoidLiteral::toTuple(UTermVec &tuple, int &id) const {
-    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+4)));
-    id++;
+    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+3)));
+    ++id;
 }
 void ScriptLiteral::toTuple(UTermVec &, int &) const {
     throw std::logic_error("ScriptLiteral::toTuple should never be called if used properly");
@@ -231,9 +231,9 @@ void ScriptLiteral::toTuple(UTermVec &, int &) const {
 void CSPLiteral::toTuple(UTermVec &tuple, int &id) const {
     VarTermSet vars;
     for (auto &x : terms) { x.collect(vars); }
-    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+4)));
+    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+3)));
     for (auto &x : vars) { tuple.emplace_back(UTerm(x.get().clone())); }
-    id++;
+    ++id;
 }
 
 // {{{1 definition of Literal::isEDB
@@ -687,7 +687,16 @@ bool RelationLiteralN::hasUnpoolComparison() const {
 }
 
 void RelationLiteralN::toTuple(UTermVec &tuple, int &id) const {
-    throw std::runtime_error("RelationLiteralN::toTuple: a relation literal always has to be shifted");
+    VarTermBoundVec vars;
+    left_->collect(vars, false);
+    for (auto const &term : right_) {
+        term.second->collect(vars, false);
+    }
+    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+3)));
+    for (auto const &var : vars) {
+        tuple.emplace_back(std::unique_ptr<VarTerm>(var.first->clone()));
+    }
+    ++id;
 }
 
 inline bool RelationLiteralN::hasPool(bool beforeRewrite, bool head) const  {
