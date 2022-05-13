@@ -167,7 +167,7 @@ RelLitVecUid NongroundProgramBuilder::rellitvec(Location const &loc, RelLitVecUi
 }
 
 LitUid NongroundProgramBuilder::rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) {
-    return lits_.insert(make_locatable<RelationLiteralN>(loc, naf, terms_.erase(termUidLeft), rellitvecs_.erase(vecUidRight)));
+    return lits_.insert(make_locatable<RelationLiteral>(loc, naf, terms_.erase(termUidLeft), rellitvecs_.erase(vecUidRight)));
 }
 
 // {{{2 literal vectors

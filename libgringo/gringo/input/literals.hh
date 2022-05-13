@@ -72,18 +72,19 @@ struct ProjectionLiteral : PredicateLiteral {
 // }}}
 // {{{ declaration of RelationLiteral
 
-class RelationLiteralN : public Literal {
+class RelationLiteral : public Literal {
 public:
     using Terms = std::vector<std::pair<Relation, UTerm>>;
-    RelationLiteralN(NAF naf, UTerm &&left, Terms &&right);
-    RelationLiteralN(NAF naf, Relation rel, UTerm &&left, UTerm &&right);
+    RelationLiteral(NAF naf, UTerm &&left, Terms &&right);
+    RelationLiteral(Relation rel, UTerm &&left, UTerm &&right);
+    RelationLiteral(NAF naf, Relation rel, UTerm &&left, UTerm &&right);
 
-    RelationLiteralN() = delete;
-    RelationLiteralN(RelationLiteralN const &other) = delete;
-    RelationLiteralN(RelationLiteralN &&other) noexcept = default;
-    RelationLiteralN &operator=(RelationLiteralN const &other) = delete;
-    RelationLiteralN &operator=(RelationLiteralN &&other) noexcept = default;
-    ~RelationLiteralN() noexcept override;
+    RelationLiteral() = delete;
+    RelationLiteral(RelationLiteral const &other) = delete;
+    RelationLiteral(RelationLiteral &&other) noexcept = default;
+    RelationLiteral &operator=(RelationLiteral const &other) = delete;
+    RelationLiteral &operator=(RelationLiteral &&other) noexcept = default;
+    ~RelationLiteral() noexcept override;
     static ULit make(Term::LevelMap::value_type &x);
     static ULit make(Literal::RelationVec::value_type &x);
     // {{{ Term interface
@@ -91,7 +92,7 @@ public:
     unsigned projectScore() const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
     void toTuple(UTermVec &tuple, int &id) const override;
-    RelationLiteralN *clone() const override;
+    RelationLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
@@ -113,37 +114,6 @@ private:
     UTerm left_;
     Terms right_;
     NAF naf_;
-};
-
-// }}}
-// {{{ declaration of RelationLiteral
-
-struct RelationLiteral : Literal {
-    RelationLiteral(Relation rel, UTerm &&left, UTerm &&right);
-    unsigned projectScore() const override;
-    void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) const override;
-    RelationLiteral *clone() const override;
-    void print(std::ostream &out) const override;
-    bool operator==(Literal const &other) const override;
-    size_t hash() const override;
-    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite, bool head) const override;
-    bool hasPool(bool beforeRewrite, bool head) const override;
-    void replace(Defines &dx) override;
-    Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
-    UTerm headRepr() const override;
-    ULit shift(bool negate) override;
-    bool auxiliary() const override { return true; }
-    void auxiliary(bool) override { }
-    virtual ~RelationLiteral();
-    static ULit make(Term::LevelMap::value_type &x);
-    static ULit make(Literal::RelationVec::value_type &x);
-
-    Relation rel;
-    UTerm left;
-    UTerm right;
 };
 
 // }}}

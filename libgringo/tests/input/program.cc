@@ -125,6 +125,9 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("#void:-#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
         REQUIRE("#void:-1>=2;q.#void:-2>=4;q.#void:-1>=3;q.#void:-3>=4;q." == rewrite(parse("1<(2;3)<4:-q.")));
         REQUIRE("#void:-2<4;1<2;q.#void:-3<4;1<3;q." == rewrite(parse("not 1<(2;3)<4:-q.")));
+        // TODO: body
+        // TODO: disjunctions
+        // TODO: conjunctions
         // set based head aggregates
         REQUIRE("1<=#count{3:#void:1<2}:-q." == rewrite(parse("{ 1<2 } >= 1:-q.")));
         REQUIRE("1<=#count{3:#void:1<2;4:#void:3<4}:-q." == rewrite(parse("{ 1<2; 3<4 } >= 1:-q.")));
@@ -140,7 +143,7 @@ TEST_CASE("input-program", "[input]") {
                 "}:-q." == rewrite(parse("{ not 1<(2;3)<4 }:-q.")));
         // TODO: what's this? I should probably try to get rid of unnecessary body literals!
         // REQUIRE("#count{0:#false:}:-2<3;;1<2;(0,)<=(0,);3<=3;q." == rewrite(parse("{ 1<2<3 }:-q.")));
-        // TODO: head aggreagets
+        // head aggreagets
         REQUIRE("1<=#count{1:#void:p,1<2}:-q." == rewrite(parse("#count{ 1:1<2:p } >= 1:-q.")));
         REQUIRE("1<=#count{1:#void:p,1<2,2<3}:-q." == rewrite(parse("#count{ 1:1<2<3:p } >= 1:-q.")));
         REQUIRE("1<=#count{"
@@ -157,8 +160,15 @@ TEST_CASE("input-program", "[input]") {
                 "1:#void:p,1>=3;"
                 "1:#void:p,3>=4"
                 "}:-q." == rewrite(parse("#count{ 1:not 1<(2;3)<4:p } >= 1:-q.")));
+        REQUIRE("1<=#count{1:p:1<2,2<4;1:p:1<3,3<4}:-q." == rewrite(parse("#count{ 1:p:1<(2;3)<4 } >= 1:-q.")));
+        REQUIRE("1<=#count{1:p:1>=2;1:p:2>=4;1:p:1>=3;1:p:3>=4}:-q." == rewrite(parse("#count{ 1:p:not 1<(2;3)<4 } >= 1:-q.")));
         // TODO: set based body aggregates
-        // TODO: body aggregates
+        // body aggregates
+        REQUIRE("q:-1<=#count{1:1<2}." == rewrite(parse("q :- #count{ 1:1<2 } >= 1.")));
+        REQUIRE("q:-1<=#count{1:1<2,2<3}." == rewrite(parse("q :- #count{ 1:1<2<3 } >= 1.")));
+        REQUIRE("q:-1<=#count{1:1>=2;1:2>=3}." == rewrite(parse("q :- #count{ 1:not 1<2<3 } >= 1.")));
+        REQUIRE("q:-1<=#count{1:1<2,2<4;1:1<3,3<4}." == rewrite(parse("q :- #count{ 1:1<(2;3)<4 } >= 1.")));
+        REQUIRE("q:-1<=#count{1:1>=2;1:2>=4;1:1>=3;1:3>=4}." == rewrite(parse("q :- #count{ 1:not 1<(2;3)<4 } >= 1.")));
     }
 
     SECTION("defines") {
