@@ -89,15 +89,17 @@ public:
     TheoryAtom &operator=(TheoryAtom const &other) = delete;
     TheoryAtom &operator=(TheoryAtom &&other) noexcept;
     ~TheoryAtom() noexcept;
+
     TheoryAtom clone() const;
     bool operator==(TheoryAtom const &other) const;
     void print(std::ostream &out) const;
     bool hasGuard() const;
     size_t hash() const;
+    bool hasPool(bool beforeRewrite) const;
     template <class T>
     void unpool(T f, bool beforeRewrite);
+    bool hasUnpoolComparison() const;
     void unpoolComparison();
-    bool hasPool(bool beforeRewrite) const;
     void replace(Defines &x);
     void collect(VarTermBoundVec &vars) const;
     void assignLevels(AssignLevel &lvl);
@@ -107,7 +109,7 @@ public:
     void initTheory(Location const &loc, TheoryDefs &def, bool inBody, bool hasBody, Logger &log);
     TheoryAtomType type() const { return type_; }
     CreateBody toGroundBody(ToGroundArg &x, Ground::UStmVec &stms, NAF naf, UTerm &&id) const;
-    CreateHead toGroundHead() const;
+    static CreateHead toGroundHead() ;
 
 private:
     UTerm               name_;
