@@ -206,7 +206,7 @@ private:
 
 class ShowStatement : public AbstractStatement {
 public:
-    ShowStatement(UTerm &&term, bool csp, ULitVec &&body);
+    ShowStatement(UTerm &&term, ULitVec &&body);
     virtual ~ShowStatement() noexcept;
 
     // {{{2 AbstractStatement interface
@@ -222,7 +222,6 @@ private:
 
 private:
     UTerm term_;
-    bool csp_;
 };
 
 // {{{1 declaration of EdgeStatement
@@ -736,126 +735,6 @@ private:
     DefinedBy defs_;
     Id_t offset_;
     OccurrenceType type_ = OccurrenceType::POSITIVELY_STRATIFIED;
-    bool auxiliary_;
-};
-
-// }}}1
-
-// {{{1 declaration of DisjointAccumulate
-
-using Output::DisjointAtom;
-using Output::DisjointDomain;
-class DisjointComplete;
-
-class DisjointAccumulate : public AbstractStatement {
-public:
-    DisjointAccumulate(DisjointComplete &complete, ULitVec &&lits);
-    DisjointAccumulate(DisjointComplete &complete, UTermVec &&tuple, CSPAddTerm &&value, ULitVec &&lits);
-    void printHead(std::ostream &out) const override;
-    virtual ~DisjointAccumulate() noexcept;
-    // {{{2 AbstractStatement interface
-    void collectImportant(Term::VarSet &vars) override;
-    // {{{2 Statement interface
-    bool isNormal() const override { return true; }
-    void linearize(Context &context, bool positive, Logger &log) override;
-private:
-    // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out, Logger &log) override;
-    // }}}2
-
-private:
-    DisjointComplete &complete_;
-    UTermVec tuple_;
-    CSPAddTerm value_;
-    bool neutral_ = true;
-};
-
-// {{{1 declaration of DisjointComplete
-
-class DisjointComplete : public Statement, private SolutionCallback, private BodyOcc {
-public:
-    using AccuVec = std::vector<std::reference_wrapper<DisjointAccumulate>>;
-    using TodoVec = std::vector<Id_t>;
-
-    DisjointComplete(DomainData &data, UTerm &&repr);
-    virtual ~DisjointComplete() noexcept;
-
-    DisjointDomain &dom() { return static_cast<DisjointDomain&>(def_.dom()); }
-    void enqueue(DisjointDomain::Iterator atom);
-    UTerm const &accuRepr() const { return accuRepr_; }
-    UTerm const &domRepr() const { return def_.domRepr(); }
-    void addAccuDom(DisjointAccumulate &accu) { accuDoms_.emplace_back(accu); }
-    void setOutputRecursive() { outputRecursive_ = true; }
-
-    // {{{2 Statement interface
-    bool isNormal() const override;
-    void analyze(Dep::Node &node, Dep &dep) override;
-    void startLinearize(bool active) override;
-    void linearize(Context &context, bool positive, Logger &log) override;
-    void enqueue(Queue &q) override;
-    // {{{2 Printable interface
-    void print(std::ostream &out) const override;
-    // }}}2
-private:
-    // {{{2 SolutionCallback interface
-    void printHead(std::ostream &out) const override;
-    void propagate(Queue &queue) override;
-    void report(Output::OutputBase &out, Logger &log) override;
-    // {{{2 BodyOcc interface
-    UGTerm getRepr() const override;
-    bool isPositive() const override;
-    bool isNegative() const override;
-    void setType(OccurrenceType x) override;
-    OccurrenceType getType() const override;
-    DefinedBy &definedBy() override;
-    void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const override;
-    // }}}2
-
-private:
-    AccuVec accuDoms_;
-    HeadDefinition def_;
-    UTerm accuRepr_;
-    TodoVec todo_;
-    DefinedBy defBy_;
-    Instantiator inst_;
-    OccurrenceType occType_ = OccurrenceType::STRATIFIED;
-    bool outputRecursive_ = false;
-};
-
-// {{{1 declaration of DisjointLiteral
-
-class DisjointLiteral : public Literal, private BodyOcc {
-public:
-    DisjointLiteral(DisjointComplete &complete, NAF naf, bool auxiliary);
-    virtual ~DisjointLiteral() noexcept;
-    // {{{2 Printable interface
-    void print(std::ostream &out) const override;
-    // {{{2 Literal interface
-    UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
-    bool isRecursive() const override;
-    BodyOcc *occurrence() override;
-    void collect(VarTermBoundVec &vars) const override;
-    Score score(Term::VarSet const &bound, Logger &log) override;
-    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
-    bool auxiliary() const override { return auxiliary_; }
-    // }}}2
-private:
-    // {{{2 BodyOcc interface
-    DefinedBy &definedBy() override;
-    UGTerm getRepr() const override;
-    bool isPositive() const override;
-    bool isNegative() const override;
-    void setType(OccurrenceType x) override;
-    OccurrenceType getType() const override;
-    void checkDefined(LocSet &done, SigSet const &edb, UndefVec &) const override;
-    // }}}2
-
-private:
-    DisjointComplete &complete_;
-    DefinedBy defs_;
-    Id_t offset_ = InvalidId;
-    OccurrenceType type_ = OccurrenceType::POSITIVELY_STRATIFIED;
-    NAF naf_;
     bool auxiliary_;
 };
 

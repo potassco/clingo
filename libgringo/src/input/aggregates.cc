@@ -79,14 +79,11 @@ void _add(ChkLvlVec &levels, ULit const &lit, bool bind) {
     addVars(levels, vars);
 }
 
-void _add(ChkLvlVec &levels, UTermVec const &terms, CSPAddTerm const *term = nullptr) {
+void _add(ChkLvlVec &levels, UTermVec const &terms) {
     VarTermBoundVec vars;
     levels.back().current = &levels.back().dep.insertEnt();
     for (auto const &x : terms)  {
         x->collect(vars, false);
-    }
-    if (term != nullptr) {
-        term->collect(vars);
     }
     addVars(levels, vars);
 }
@@ -1046,272 +1043,6 @@ bool Conjunction::isAssignment() const {
 }
 
 void Conjunction::removeAssignment() { }
-
-// {{{1 definition of DisjointAggregate
-
-CSPElem::CSPElem(Location const &loc, UTermVec &&tuple, CSPAddTerm &&value, ULitVec &&cond)
-: loc(loc)
-, tuple(std::move(tuple))
-, value(std::move(value))
-, cond(std::move(cond)) { }
-
-CSPElem::CSPElem(CSPElem &&other) noexcept = default;
-
-CSPElem &CSPElem::operator=(CSPElem &&other) noexcept = default;
-
-CSPElem::~CSPElem() noexcept = default;
-
-void CSPElem::print(std::ostream &out) const {
-    using namespace std::placeholders;
-    print_comma(out, tuple, ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
-    out << ":" << value;
-    if (!cond.empty()) {
-        out << ":";
-        print_comma(out, cond, ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
-    }
-}
-size_t CSPElem::hash() const {
-    return get_value_hash(tuple, value, cond);
-}
-CSPElem CSPElem::clone() const {
-    return {loc, get_clone(tuple), get_clone(value), get_clone(cond)};
-}
-bool CSPElem::operator==(CSPElem const &other) const {
-    return is_value_equal_to(tuple, other.tuple) &&
-           is_value_equal_to(value, other.value) &&
-           is_value_equal_to(cond, other.cond);
-}
-
-DisjointAggregate::DisjointAggregate(NAF naf, CSPElemVec &&elems)
-: naf_(naf)
-, elems_(std::move(elems)) { }
-
-DisjointAggregate::~DisjointAggregate() noexcept = default;
-
-void DisjointAggregate::print(std::ostream &out) const {
-    out << naf_ << "#disjoint{";
-    print_comma(out, elems_, ";");
-    out << "}";
-}
-
-size_t DisjointAggregate::hash() const {
-    return get_value_hash(typeid(DisjointAggregate).hash_code(), elems_);
-}
-
-bool DisjointAggregate::operator==(BodyAggregate const &other) const {
-    const auto *t = dynamic_cast<DisjointAggregate const *>(&other);
-    return t != nullptr &&
-           is_value_equal_to(elems_, t->elems_);
-}
-
-DisjointAggregate *DisjointAggregate::clone() const {
-    return make_locatable<DisjointAggregate>(loc(), naf_, get_clone(elems_)).release();
-}
-
-void DisjointAggregate::unpool(UBodyAggrVec &x, bool beforeRewrite) {
-    CSPElemVec e;
-    for (auto &elem : elems_) {
-        auto f = [&](UTermVec &&y) { e.emplace_back(elem.loc, std::move(y), get_clone(elem.value), get_clone(elem.cond)); };
-        Term::unpool(elem.tuple.begin(), elem.tuple.end(), Gringo::unpool, f);
-    }
-    elems_.clear();
-    for (auto &elem : e) {
-        for (auto &y : elem.value.unpool()) {
-            elems_.emplace_back(elem.loc, get_clone(elem.tuple), std::move(y), get_clone(elem.cond));
-        }
-    }
-    e.clear();
-    for (auto &elem : elems_) {
-        if (beforeRewrite) {
-            auto f = [&](ULitVec &&cond) { e.emplace_back(elem.loc, get_clone(elem.tuple), get_clone(elem.value), std::move(cond)); };
-            Term::unpool(elem.cond.begin(), elem.cond.end(), _unpool_lit(beforeRewrite, false), f);
-        }
-        else {
-            Term::unpoolJoin(elem.cond, _unpool_lit(beforeRewrite, false));
-            e.emplace_back(std::move(elem));
-        }
-    }
-
-    x.emplace_back(make_locatable<DisjointAggregate>(loc(), naf_, std::move(e)));
-}
-
-bool DisjointAggregate::hasUnpoolComparison() const {
-    for (auto const &elem : elems_) {
-        for (auto const &lit : elem.cond) {
-            if (lit->hasUnpoolComparison()) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-UBodyAggrVecVec DisjointAggregate::unpoolComparison() const {
-    CSPElemVec elems;
-    for (auto const &elem : elems_) {
-        for (auto &cond: unpoolComparison_(elem.cond)) {
-            elems.emplace_back(elem.loc, get_clone(elem.tuple), get_clone(elem.value), std::move(cond));
-        }
-    }
-    UBodyAggrVecVec ret;
-    ret.emplace_back();
-    ret.back().emplace_back(make_locatable<DisjointAggregate>(loc(), naf_, std::move(elems)));
-    return ret;
-}
-
-void DisjointAggregate::collect(VarTermBoundVec &vars) const {
-    for (auto const &elem : elems_) {
-        for (auto const &term : elem.tuple) {
-            term->collect(vars, false);
-        }
-        elem.value.collect(vars);
-        for (auto const &lit : elem.cond) {
-            lit->collect(vars, false);
-        }
-    }
-}
-
-bool DisjointAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
-    static_cast<void>(aggr);
-    return true;
-}
-
-bool DisjointAggregate::simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) {
-    static_cast<void>(singleton);
-    elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](CSPElemVec::value_type &elem) {
-        SimplifyState elemState(state);
-        for (auto &term : elem.tuple) {
-            if (term->simplify(elemState, false, false, log).update(term, false).undefined()) {
-                return true;
-            }
-        }
-        if (!elem.value.simplify(elemState, log)) {
-            return true;
-        }
-        for (auto &lit : elem.cond) {
-            if (!lit->simplify(log, project, elemState)) {
-                return true;
-            }
-        }
-        for (auto &dot : elemState.dots) {
-            elem.cond.emplace_back(RangeLiteral::make(dot));
-        }
-        for (auto &script : elemState.scripts) {
-            elem.cond.emplace_back(ScriptLiteral::make(script));
-        }
-        return false;
-    }), elems_.end());
-    return true;
-}
-
-void DisjointAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) {
-    static_cast<void>(assign);
-    for (auto &elem : elems_) {
-        Literal::RelationVec assign;
-        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
-        for (auto &y : elem.cond) {
-            y->rewriteArithmetics(arith, assign, auxGen);
-        }
-        for (auto &y : *arith.back()) {
-            elem.cond.emplace_back(RelationLiteral::make(y));
-        }
-        for (auto &y : assign) {
-            elem.cond.emplace_back(RelationLiteral::make(y));
-        }
-        arith.pop_back();
-    }
-}
-
-void DisjointAggregate::assignLevels(AssignLevel &lvl) {
-    for (auto &elem : elems_) {
-        AssignLevel &local(lvl.subLevel());
-        VarTermBoundVec vars;
-        for (auto &term : elem.tuple) {
-            term->collect(vars, false);
-        }
-        elem.value.collect(vars);
-        for (auto &lit : elem.cond) {
-            lit->collect(vars, false);
-        }
-        local.add(vars);
-    }
-}
-
-void DisjointAggregate::check(ChkLvlVec &levels, Logger &log) const {
-    auto f = [&]() {
-        for (auto const &y : elems_) {
-            levels.emplace_back(loc(), *this);
-            _add(levels, y.tuple, &y.value);
-            _add(levels, y.cond);
-            levels.back().check(log);
-            levels.pop_back();
-        }
-    };
-    _aggr(levels, {}, f, false);
-}
-
-bool DisjointAggregate::hasPool(bool beforeRewrite) const {
-    for (auto const &elem : elems_) {
-        for (auto const &term : elem.tuple) {
-            if (term->hasPool()) {
-                return true;
-            }
-        }
-        if (elem.value.hasPool()) {
-            return true;
-        }
-        for (auto const &lit : elem.cond) {
-            if (lit->hasPool(beforeRewrite, false)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-void DisjointAggregate::replace(Defines &x) {
-    for (auto &elem : elems_) {
-        for (auto &y : elem.tuple) {
-            y->replace(x, true);
-        }
-        elem.value.replace(x);
-        for (auto &y : elem.cond) {
-            y->replace(x);
-        }
-    }
-}
-
-CreateBody DisjointAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
-    stms.emplace_back(gringo_make_unique<Ground::DisjointComplete>(x.domains, x.newId(*this)));
-    auto &completeRef = static_cast<Ground::DisjointComplete&>(*stms.back()); // NOLINT
-    CreateStmVec split;
-    split.emplace_back([&completeRef](Ground::ULitVec &&lits) -> Ground::UStm {
-        auto ret = gringo_make_unique<Ground::DisjointAccumulate>(completeRef, std::move(lits));
-        completeRef.addAccuDom(*ret);
-        return std::move(ret);
-    });
-    for (auto const &y : elems_) {
-        split.emplace_back([&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
-            for (auto const &z : y.cond) {
-                lits.emplace_back(z->toGround(x.domains, false));
-            }
-            auto ret = gringo_make_unique<Ground::DisjointAccumulate>(completeRef, get_clone(y.tuple), get_clone(y.value), std::move(lits));
-            completeRef.addAccuDom(*ret);
-            return std::move(ret);
-        });
-    }
-    return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool auxiliary) {
-        if (primary) {
-            lits.emplace_back(gringo_make_unique<Ground::DisjointLiteral>(completeRef, naf_, auxiliary));
-        }
-    }, std::move(split));
-}
-
-bool DisjointAggregate::isAssignment() const  {
-    return false;
-}
-
-void DisjointAggregate::removeAssignment() { }
 
 // {{{1 definition of SimpleBodyLiteral
 
@@ -3010,35 +2741,33 @@ CreateHead HeuristicHeadAtom::toGround(ToGroundArg &x, Ground::UStmVec &stms) co
 
 // {{{1 definition of ShowHeadLiteral
 
-ShowHeadLiteral::ShowHeadLiteral(UTerm &&term, bool csp)
-: term_(std::move(term))
-, csp_(csp) { }
+ShowHeadLiteral::ShowHeadLiteral(UTerm &&term)
+: term_(std::move(term)) { }
 
 ShowHeadLiteral::~ShowHeadLiteral() noexcept = default;
 
 void ShowHeadLiteral::print(std::ostream &out) const {
-    out << "#show " << (csp_ ? "$" : "") << *term_;
+    out << "#show " << *term_;
 }
 
 size_t ShowHeadLiteral::hash() const {
-    return get_value_hash(typeid(ShowHeadLiteral).hash_code(), term_, csp_);
+    return get_value_hash(typeid(ShowHeadLiteral).hash_code(), term_);
 }
 
 bool ShowHeadLiteral::operator==(HeadAggregate const &other) const {
     const auto *t = dynamic_cast<ShowHeadLiteral const *>(&other);
     return t != nullptr &&
-           is_value_equal_to(term_, t->term_) &&
-           is_value_equal_to(csp_, t->csp_);;
+           is_value_equal_to(term_, t->term_);
 }
 
 ShowHeadLiteral *ShowHeadLiteral::clone() const {
-    return make_locatable<ShowHeadLiteral>(loc(), get_clone(term_), csp_).release();
+    return make_locatable<ShowHeadLiteral>(loc(), get_clone(term_)).release();
 }
 
 void ShowHeadLiteral::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     if (beforeRewrite) {
         for (auto &term : Gringo::unpool(term_)) {
-            x.emplace_back(make_locatable<ShowHeadLiteral>(loc(), std::move(term), csp_));
+            x.emplace_back(make_locatable<ShowHeadLiteral>(loc(), std::move(term)));
         }
     }
 }
@@ -3094,7 +2823,7 @@ CreateHead ShowHeadLiteral::toGround(ToGroundArg &x, Ground::UStmVec &stms) cons
     static_cast<void>(x);
     static_cast<void>(stms);
     return CreateHead([&](Ground::ULitVec &&lits) {
-        return gringo_make_unique<Ground::ShowStatement>(get_clone(term_), csp_, std::move(lits));
+        return gringo_make_unique<Ground::ShowStatement>(get_clone(term_), std::move(lits));
     });
 }
 

@@ -613,121 +613,6 @@ void ConjunctionAtom::init(bool headRecursive, bool condRecursive) {
     condRecursive_ = condRecursive;
 }
 
-// {{{1 definition of DisjointAtom
-
-DisjointElement::DisjointElement(CSPGroundAdd &&value, int fixed, ClauseId cond)
-: value_(std::move(value))
-, cond_(cond)
-, fixed_(fixed) { }
-
-void DisjointElement::printPlain(PrintPlain out) const {
-    if (value_.empty()) { out << fixed_; }
-    else {
-        auto print_add = [](PrintPlain out, CSPGroundAdd::value_type const &z) {
-            if (z.first == 1) { out              << "$" << z.second; }
-            else              { out << z.first << "$*$" << z.second; }
-        };
-        print_comma(out, value_, "$+", print_add);
-        if (fixed_ > 0)      { out << "$+" << fixed_; }
-        else if (fixed_ < 0) { out << "$-" << -fixed_; }
-    }
-    if (cond_.second > 0) {
-        out << ":";
-        print_comma(out, out.domain.clause(cond_), ",", [](PrintPlain out, LiteralId lit) { printLit(out, lit); });
-    }
-}
-
-void DisjointAtom::accumulate(DomainData &data, SymVec const &tuple, CSPGroundAdd &&value, int fixed, LitVec const &lits) {
-    auto elem = elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple());
-    elem.first->second.emplace_back(std::move(value), fixed, data.clause(get_clone(lits)));
-}
-
-bool DisjointAtom::translate(DomainData &data, Translator &x, Logger &log) {
-    std::set<int> values;
-    std::vector<std::map<int, LiteralId>> layers;
-    for (auto &elem : elems_) {
-        layers.emplace_back();
-        auto &current = layers.back();
-        auto encodeSingle = [&data, &current, &x, &values](ClauseId cond, int coef, Symbol var, int fixed) -> void {
-            auto &bound = x.findBound(var);
-            auto it = bound.atoms.begin() + 1;
-            for(auto i : bound) {
-                auto &aux = current[i*coef + fixed];
-                if (!aux) { aux = data.newAux(); }
-                Rule rule;
-                if (cond.second > 0) { rule.addBody(getEqualClause(data, x, cond, true, false)); }
-                if ((it-1)->second)          { rule.addBody(LiteralId{NAF::NOT, AtomType::Aux, (it-1)->second, 0}); }
-                if (it != bound.atoms.end()) { rule.addBody(LiteralId{NAF::POS, AtomType::Aux, it->second, 0}); ++it; }
-                rule.addHead(aux).translate(data, x);
-                values.insert(i*coef + fixed);
-            }
-        };
-        for (auto &condVal : elem.second) {
-            switch(condVal.value().size()) {
-                case 0: {
-                    auto &aux = current[condVal.fixed()];
-                    if (!aux) { aux = data.newAux(); }
-                    Rule().addHead(aux).addBody(getEqualClause(data, x, condVal.cond(), true, false)).translate(data, x);
-                    values.insert(condVal.fixed());
-                    break;
-                }
-                case 1: {
-                    encodeSingle(condVal.cond(), condVal.value().front().first, condVal.value().front().second, condVal.fixed());
-                    break;
-                }
-                default: {
-                    // create a bound possibly with holes
-                    auto b = x.addBound(Symbol::createId(("#aux" + std::to_string(data.newAtom())).c_str()));
-                    b->clear();
-                    std::set<int> values;
-                    values.emplace(0);
-                    for (auto &mul : condVal.value()) {
-                        std::set<int> nextValues;
-                        for (auto i : x.findBound(mul.second)) {
-                            for (auto j : values) { nextValues.emplace(j + i * mul.first); }
-                        }
-                        values = std::move(nextValues);
-                    }
-                    for (auto i : values) { b->add(i, i+1); }
-                    b->init(data, x, log);
-
-                    // create a new variable with the respective bound
-                    // b = value + fixed
-                    // b - value = fixed
-                    // aux :- b - value <=  fixed - 1
-                    // aux :- value - b <= -fixed - 1
-                    // :- aux.
-                    LiteralId aux = data.newAux();
-                    auto value = condVal.value();
-                    value.emplace_back(-1, b->var);
-                    x.addLinearConstraint(aux, get_clone(value), -condVal.fixed()-1);
-                    for (auto &add : value) { add.first *= -1; }
-                    x.addLinearConstraint(aux, std::move(value), condVal.fixed()-1);
-                    Rule().addBody(aux).translate(data, x);
-                    // then proceed as in case one
-                    encodeSingle(condVal.cond(), 1, b->var, 0);
-                    break;
-                }
-            }
-        }
-    }
-    LitVec checks;
-    for (auto &value : values) {
-        LitUintVec card;
-        for (auto &layer : layers) {
-            auto it = layer.find(value);
-            if (it != layer.end()) { card.emplace_back(it->second, 1); }
-        }
-        LiteralId aux = data.newAux();
-        checks.emplace_back(aux.negate());
-        WeightRule wr(std::move(aux), 2, std::move(card));
-        x.output(data, wr);
-    }
-    Rule().addHead(lit()).addBody(std::move(checks)).translate(data, x);
-    return true;
-}
-
-
 // {{{1 definition of DisjunctionAtom
 
 // Example:
@@ -826,7 +711,7 @@ void DisjunctionAtom::accumulateHead(DomainData &data, Symbol elem, LitVec &lits
     elems_.findPush(elem, elem).first->accumulateHead(data, lits, headFact_);
 }
 
-// {{{1 declaration of TheoryAtom
+// {{{1 definition of TheoryAtom
 
 void TheoryAtom::simplify(TheoryData const &) {
     if (!simplified_) {
@@ -1139,126 +1024,6 @@ int TheoryLiteral::uid() const { throw std::logic_error("TheoryLiteral::uid: tra
 
 TheoryLiteral::~TheoryLiteral() noexcept = default;
 
-// {{{1 definition of CSPLiteral
-
-CSPLiteral::CSPLiteral(DomainData &data, LiteralId id)
-: data_(data)
-, id_(id) { }
-
-CSPGroundLit const &CSPLiteral::atom() const {
-    return data_.cspAtom(id_.offset());
-
-}
-void CSPLiteral::printPlain(PrintPlain out) const {
-    auto &atm = atom();
-    out << id_.sign();
-    if (!std::get<1>(atm).empty()) {
-        auto f = [](PrintPlain out, std::pair<int, Symbol> mul) { out << mul.first << "$*$" << mul.second; };
-        print_comma(out, std::get<1>(atm), "$+", f);
-    }
-    else { out << 0; }
-    out << "$" << std::get<0>(atm);
-    out << std::get<2>(atm);
-}
-
-bool CSPLiteral::isIncomplete() const {
-    return false;
-}
-
-bool CSPLiteral::isBound(Symbol &value, bool negate) const {
-    auto &atm = atom();
-    Relation rel = std::get<0>(atm);
-    if (id_.sign() == NAF::NOT) { negate = !negate; }
-    if (negate) { rel = neg(rel); }
-    if (std::get<1>(atm).size() != 1) { return false; }
-    if (rel == Relation::NEQ)            { return false; }
-    if (value.type() == SymbolType::Special)  { value = std::get<1>(atm).front().second; }
-    return value == std::get<1>(atm).front().second;
-}
-
-void CSPLiteral::updateBound(std::vector<CSPBound> &bounds, bool negate) const {
-    auto &atm = atom();
-    bounds.emplace_back(std::numeric_limits<int>::min(), std::numeric_limits<int>::max()-1);
-    auto &bound = bounds.back();
-    Relation rel = std::get<0>(atm);
-    if (id_.sign() == NAF::NOT) { negate = !negate; }
-    if (negate) { rel = neg(rel); }
-    int coef  = std::get<1>(atm).front().first;
-    int fixed = std::get<2>(atm);
-    if (coef < 0) {
-        coef  = -coef;
-        fixed = -fixed;
-        rel   = inv(rel);
-    }
-    switch (rel) {
-        case Relation::LT:  { fixed--; }
-        case Relation::LEQ: {
-            fixed /= coef;
-            bound.second = std::min(bound.second, fixed);
-            break;
-        }
-        case Relation::GT:  { fixed++; }
-        case Relation::GEQ: {
-            fixed = (fixed+coef-1) / coef;
-            bound.first  = std::max(bound.first,  fixed);
-            break;
-        }
-        case Relation::EQ: {
-            if (fixed % coef == 0) {
-                fixed /= coef;
-                bound.first  = std::max(bound.first,  fixed);
-                bound.second = std::min(bound.second, fixed);
-            }
-            else {
-                bound.first  = 0;
-                bound.second = -1;
-            }
-            break;
-        }
-        case Relation::NEQ: { assert(false); }
-    }
-}
-
-LiteralId CSPLiteral::translate(Translator &x) {
-    // NOTE: consider replacing this with a theory atom
-    auto &atm = atom();
-    auto term = std::get<1>(atm);
-    Relation rel = std::get<0>(atm);
-    if (id_.sign() == NAF::NOT) { rel = neg(rel); }
-    int bound = std::get<2>(atm);
-    auto addInv = [&x](Atom_t aux, CoefVarVec &&vars, int bound) {
-        for (auto &x : vars) { x.first *= -1; }
-        x.addLinearConstraint(aux, std::move(vars), -bound);
-    };
-    Atom_t aux = data_.newAtom();
-    switch (rel) {
-        case Relation::EQ:
-        case Relation::NEQ: {
-            x.addLinearConstraint(aux, CoefVarVec(term), bound-1);
-            addInv(aux, std::move(term), bound + 1);
-            return LiteralId{rel != Relation::NEQ ? NAF::NOT : NAF::POS, AtomType::Aux, aux, 0};
-        }
-        case Relation::LT:  { bound--; }
-        case Relation::LEQ: {
-            x.addLinearConstraint(aux, std::move(term), bound);
-            return LiteralId{NAF::POS, AtomType::Aux, aux, 0};
-        }
-        case Relation::GT:  { bound++; }
-        case Relation::GEQ: {
-            addInv(aux, std::move(term), bound);
-            return LiteralId{NAF::POS, AtomType::Aux, aux, 0};
-        }
-    }
-    assert(false);
-    throw std::logic_error("cannot happen");
-}
-
-int CSPLiteral::uid() const {
-    throw std::logic_error("CSPLiteral::uid must not be called");
-}
-
-CSPLiteral::~CSPLiteral() noexcept = default;
-
 // {{{1 definition of BodyAggregateLiteral
 
 BodyAggregateLiteral::BodyAggregateLiteral(DomainData &data, LiteralId id)
@@ -1400,45 +1165,11 @@ void DisjunctionLiteral::printPlain(PrintPlain out) const {
     else { out << "#false"; }
 }
 
-bool DisjunctionLiteral::isBound(Symbol &value, bool negate) const {
-    assert(!negate);
-    auto &atm = dom()[id_.offset()];
-    for (auto &y : atm.elems()) {
-        if (y.bodies().size() != 1 && y.bodies().front().second > 0) { return false; }
-        for (auto &z : y.heads()) {
-            if (z.second != 1) { return false; }
-            for (auto &u : data_.clause(z)) {
-                if (!call(data_, u, &Literal::isBound, value, negate)) { return false; }
-            }
-        }
-    }
-    return true;
-}
-
-void DisjunctionLiteral::updateBound(std::vector<CSPBound> &bounds, bool negate) const {
-    assert(!negate);
-    auto &atm = dom()[id_.offset()];
-    for (auto &y : atm.elems()) {
-        for (auto &z : y.heads()) {
-            for (auto &u : data_.clause(z)) {
-                call(data_, u, &Literal::updateBound, bounds, negate);
-            }
-        }
-    }
-}
-
 LiteralId DisjunctionLiteral::translate(Translator &x) {
     auto &atm = dom()[id_.offset()];
     if (!atm.translated()) {
         atm.setTranslated();
         if (!atm.lit()) { atm.setLit(data_.newAux()); }
-        Symbol value;
-        if (atm.fact() && isBound(value, false) && value.type() != SymbolType::Special) {
-            std::vector<CSPBound> bounds;
-            updateBound(bounds, false);
-            x.addBounds(value, bounds);
-            return atm.lit();
-        }
         bool headFact;
         atm.simplify(headFact);
         if (headFact) { return atm.lit(); }
@@ -1630,69 +1361,6 @@ bool ConjunctionLiteral::needsSemicolon() const {
 }
 
 ConjunctionLiteral::~ConjunctionLiteral() noexcept = default;
-
-// {{{1 definition of DisjointLiteral
-
-DisjointLiteral::DisjointLiteral(DomainData &data, LiteralId id)
-: data_(data)
-, id_(id) { }
-
-DisjointDomain &DisjointLiteral::dom() const {
-    return data_.getDom<DisjointDomain>(id_.domain());
-}
-
-void DisjointLiteral::printPlain(PrintPlain out) const {
-    auto &atm = data_.getAtom<DisjointDomain>(id_.domain(), id_.offset());
-    if (atm.defined()) {
-        auto print_elems = [](PrintPlain out, DisjointElemSet::ValueType const &x) {
-            print_comma(out, out.domain.tuple(x.first), ",");
-            out << ":";
-            using namespace std::placeholders;
-            print_comma(out, x.second, ",", std::bind(&DisjointElement::printPlain, _2, _1));
-        };
-        out << id_.sign();
-        out << "#disjoint{";
-        print_comma(out, atm.elems(), ";", print_elems);
-        out << "}";
-    }
-    else {
-        out << (id_.sign() == NAF::NOT ? "#true" : "#false");
-    }
-}
-
-LiteralId DisjointLiteral::toId() const {
-    return id_;
-}
-
-LiteralId DisjointLiteral::translate(Translator &x) {
-    auto &atm = data_.getAtom<DisjointDomain>(id_.domain(), id_.offset());
-    if (!atm.translated()) {
-        atm.setTranslated();
-        if (atm.defined()) {
-            if (!atm.lit()) { atm.setLit(data_.newAux()); }
-            x.addDisjointConstraint(data_, id_);
-        }
-        else { makeFalse(data_, x, id_.sign(), atm); }
-    }
-    return id_.sign() != NAF::NOT ? atm.lit() : atm.lit().negate();
-}
-
-int DisjointLiteral::uid() const {
-    throw std::logic_error("DisjointLiteral::uid must be called after DisjointLiteral::translate");
-}
-
-bool DisjointLiteral::isIncomplete() const {
-    return data_.getAtom<DisjointDomain>(id_.domain(), id_.offset()).recursive();
-}
-
-std::pair<LiteralId,bool> DisjointLiteral::delayedLit() {
-    auto &atm = data_.getAtom<DisjointDomain>(id_.domain(), id_.offset());
-    bool found = atm.lit();
-    if (!found) { atm.setLit(data_.newDelayed()); }
-    return {id_.sign() != NAF::NOT ? atm.lit() : atm.lit().negate(), !found};
-}
-
-DisjointLiteral::~DisjointLiteral() noexcept = default;
 
 // {{{1 definition of HeadAggregateLiteral
 

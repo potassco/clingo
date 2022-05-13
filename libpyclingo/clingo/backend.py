@@ -182,22 +182,6 @@ class Observer(metaclass=ABCMeta):
             term.
         '''
 
-    def output_csp(self, symbol: Symbol, value: int,
-                   condition: Sequence[int]) -> None:
-        '''
-        Observe shown csp variables passed to the solver.
-
-        Parameters
-        ----------
-        symbol
-            The symbolic representation of the variable.
-        value
-            The integer value of the variable.
-        condition
-            List of program literals forming the condition when to show the
-            variable with its value.
-        '''
-
     def external(self, atom: int, value: TruthValue) -> None:
         '''
         Observe external statements passed to the solver.
@@ -413,12 +397,6 @@ def _pyclingo_observer_output_atom(symbol, atom, data):
 def _pyclingo_observer_output_term(symbol, condition, size, data):
     observer: Observer = _ffi.from_handle(data).data
     observer.output_term(Symbol(symbol), [ condition[i] for i in range(size) ])
-    return True
-
-@_ffi.def_extern(onerror=_cb_error_handler('data'), name='pyclingo_observer_output_csp')
-def _pyclingo_observer_output_csp(symbol, value, condition, size, data):
-    observer: Observer = _ffi.from_handle(data).data
-    observer.output_csp(Symbol(symbol), value, [ condition[i] for i in range(size) ])
     return True
 
 @_ffi.def_extern(onerror=_cb_error_handler('data'), name='pyclingo_observer_external')

@@ -390,7 +390,6 @@ class Control:
             _lib.pyclingo_observer_project if _overwritten(Observer, observer, "project") else _ffi.NULL,
             _lib.pyclingo_observer_output_atom if _overwritten(Observer, observer, "output_atom") else _ffi.NULL,
             _lib.pyclingo_observer_output_term if _overwritten(Observer, observer, "output_term") else _ffi.NULL,
-            _lib.pyclingo_observer_output_csp if _overwritten(Observer, observer, "output_csp") else _ffi.NULL,
             _lib.pyclingo_observer_external if _overwritten(Observer, observer, "external") else _ffi.NULL,
             _lib.pyclingo_observer_assume if _overwritten(Observer, observer, "assume") else _ffi.NULL,
             _lib.pyclingo_observer_heuristic if _overwritten(Observer, observer, "heuristic") else _ffi.NULL,

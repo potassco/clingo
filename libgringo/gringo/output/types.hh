@@ -45,10 +45,9 @@ using LitVec = std::vector<LiteralId>;
 using ClauseId = std::pair<Id_t, Id_t>;
 using FormulaId = std::pair<Id_t, Id_t>;
 using Formula = std::vector<ClauseId>;
-using CSPBound = std::pair<int, int>;
 using AssignmentLookup = std::function<std::pair<bool, Potassco::Value_t>(unsigned)>; // (isExternal, truthValue)
 using IsTrueLookup = std::function<bool(unsigned)>;
-using OutputPredicates = std::vector<std::tuple<Location, Sig, bool>>;
+using OutputPredicates = std::vector<std::pair<Location, Sig>>;
 using CoefVarVec = std::vector<std::pair<int, Symbol>>;
 
 struct UPredDomHash;

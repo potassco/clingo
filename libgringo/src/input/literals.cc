@@ -44,13 +44,6 @@ inline void ScriptLiteral::print(std::ostream &out) const    {
     print_comma(out, args, ",", [](std::ostream &out, UTerm const &term) { out << *term; });
     out << ")";
 }
-inline void CSPLiteral::print(std::ostream &out) const {
-    assert(!terms.empty());
-    if (auxiliary()) { out << "["; }
-    out << terms.front().term;
-    for (auto it = terms.begin() + 1, ie = terms.end(); it != ie; ++it) { out << *it; }
-    if (auxiliary()) { out << "]"; }
-}
 
 // {{{1 definition of Literal::clone
 
@@ -66,9 +59,6 @@ VoidLiteral *VoidLiteral::clone() const {
 ScriptLiteral *ScriptLiteral::clone() const {
     return make_locatable<ScriptLiteral>(loc(), get_clone(assign), name, get_clone(args)).release();
 }
-CSPLiteral *CSPLiteral::clone() const {
-    return make_locatable<CSPLiteral>(loc(), get_clone(terms)).release();
-}
 
 // {{{1 definition of Literal::simplify
 
@@ -83,12 +73,6 @@ bool RangeLiteral::simplify(Logger &, Projections &, SimplifyState &, bool, bool
 bool VoidLiteral::simplify(Logger &, Projections &, SimplifyState &, bool, bool) { return true; }
 bool ScriptLiteral::simplify(Logger &, Projections &, SimplifyState &, bool, bool) {
     throw std::logic_error("ScriptLiteral::simplify should never be called  if used properly");
-}
-bool CSPLiteral::simplify(Logger &log, Projections &, SimplifyState &state, bool, bool) {
-    for (auto &x : terms) {
-        if (!x.simplify(state, log)) { return false; };
-    }
-    return true;
 }
 
 // {{{1 definition of Literal::collect
@@ -107,9 +91,6 @@ void ScriptLiteral::collect(VarTermBoundVec &vars, bool bound) const {
     assign->collect(vars, bound);
     for (auto &x : args) { x->collect(vars, false); }
 }
-void CSPLiteral::collect(VarTermBoundVec &vars, bool) const {
-    for (auto &x : terms) { x.collect(vars); }
-}
 
 // {{{1 definition of Literal::operator==
 
@@ -127,10 +108,6 @@ bool VoidLiteral::operator==(Literal const &x) const {
 bool ScriptLiteral::operator==(Literal const &x) const {
     auto t = dynamic_cast<ScriptLiteral const *>(&x);
     return t && is_value_equal_to(assign, t->assign) && name == t->name && is_value_equal_to(args, t->args);
-}
-bool CSPLiteral::operator==(Literal const &x) const {
-    auto t = dynamic_cast<CSPLiteral const *>(&x);
-    return t && is_value_equal_to(terms, t->terms) && (auxiliary_ == t->auxiliary_);
 }
 
 // {{{1 definition of Literal::rewriteArithmetics
@@ -151,9 +128,6 @@ void VoidLiteral::rewriteArithmetics(Term::ArithmeticsMap &, RelationVec &, AuxG
 void ScriptLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &, AuxGen &auxGen) {
     Term::replace(this->assign, this->assign->rewriteArithmetics(arith, auxGen));
 }
-void CSPLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &, AuxGen &auxGen) {
-    for (auto &x : terms) { x.rewriteArithmetics(arith, auxGen); }
-}
 
 // {{{1 definition of Literal::hash
 
@@ -168,9 +142,6 @@ size_t VoidLiteral::hash() const {
 }
 size_t ScriptLiteral::hash() const {
     return get_value_hash(typeid(RangeLiteral).hash_code(), assign, name, args);
-}
-size_t CSPLiteral::hash() const {
-    return get_value_hash(typeid(CSPLiteral).hash_code(), terms);
 }
 
 // {{{1 definition of Literal::unpool
@@ -196,19 +167,6 @@ ULitVec ScriptLiteral::unpool(bool, bool) const {
     value.emplace_back(ULit(clone()));
     return value;
 }
-ULitVec CSPLiteral::unpool(bool beforeRewrite, bool) const {
-    using namespace std::placeholders;
-    ULitVec value;
-    auto f = [&](Terms &&args)                { value.emplace_back(make_locatable<CSPLiteral>(loc(), std::move(args))); };
-    auto unpoolLit = [&](CSPLiteral const &x) { Term::unpool(x.terms.begin(), x.terms.end(), std::bind(&CSPRelTerm::unpool, _1), f); };
-    if (!beforeRewrite) {
-        for (auto it = terms.begin() + 1, ie = terms.end(); it != ie; ++it) {
-            unpoolLit(*make_locatable<CSPLiteral>(loc(), it->rel, get_clone((it-1)->term), get_clone(it->term)));
-        }
-    }
-    else { unpoolLit(*this); }
-    return value;
-}
 
 // {{{1 definition of Literal::toTuple
 
@@ -228,13 +186,6 @@ void VoidLiteral::toTuple(UTermVec &tuple, int &id) const {
 void ScriptLiteral::toTuple(UTermVec &, int &) const {
     throw std::logic_error("ScriptLiteral::toTuple should never be called if used properly");
 }
-void CSPLiteral::toTuple(UTermVec &tuple, int &id) const {
-    VarTermSet vars;
-    for (auto &x : terms) { x.collect(vars); }
-    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+3)));
-    for (auto &x : vars) { tuple.emplace_back(UTerm(x.get().clone())); }
-    ++id;
-}
 
 // {{{1 definition of Literal::isEDB
 
@@ -242,57 +193,41 @@ Symbol Literal::isEDB() const          { return {}; }
 
 // {{{1 definition of Literal::hasPool
 
-inline bool RelationLiteral::hasPool(bool, bool) const  { return left->hasPool() || right->hasPool(); }
-inline bool RangeLiteral::hasPool(bool, bool) const             { return false; }
-inline bool VoidLiteral::hasPool(bool, bool) const             { return false; }
-inline bool ScriptLiteral::hasPool(bool, bool) const            { return false; }
-inline bool CSPLiteral::hasPool(bool beforeRewrite, bool) const {
-    if (beforeRewrite) {
-        for (auto &x : terms) {
-            if (x.hasPool()) { return true; }
-        }
-        return false;
-    }
-    else { return terms.size() > 2; }
-}
+bool RelationLiteral::hasPool(bool, bool) const  { return left->hasPool() || right->hasPool(); }
+bool RangeLiteral::hasPool(bool, bool) const             { return false; }
+bool VoidLiteral::hasPool(bool, bool) const             { return false; }
+bool ScriptLiteral::hasPool(bool, bool) const            { return false; }
 
 // {{{1 definition of Literal::replace
 
-inline void RelationLiteral::replace(Defines &x) {
+void RelationLiteral::replace(Defines &x) {
     Term::replace(left, left->replace(x, true));
     Term::replace(right, right->replace(x, true));
 }
-inline void RangeLiteral::replace(Defines &x) {
+void RangeLiteral::replace(Defines &x) {
     Term::replace(assign, assign->replace(x, true));
     Term::replace(lower, lower->replace(x, true));
     Term::replace(upper, upper->replace(x, true));
 }
-inline void VoidLiteral::replace(Defines &) { }
-inline void ScriptLiteral::replace(Defines &x) {
+void VoidLiteral::replace(Defines &) { }
+void ScriptLiteral::replace(Defines &x) {
     Term::replace(assign, assign->replace(x, true));
     for (auto &y : args) { Term::replace(y, y->replace(x, true)); }
-}
-inline void CSPLiteral::replace(Defines &x) {
-    for (auto &y : terms) { y.replace(x); }
 }
 
 // {{{1 definition of Literal::toGround
 
-inline Ground::ULit RelationLiteral::toGround(DomainData &, bool) const {
+Ground::ULit RelationLiteral::toGround(DomainData &, bool) const {
     return gringo_make_unique<Ground::RelationLiteral>(rel, get_clone(left), get_clone(right));
 }
-inline Ground::ULit RangeLiteral::toGround(DomainData &, bool) const {
+Ground::ULit RangeLiteral::toGround(DomainData &, bool) const {
     return gringo_make_unique<Ground::RangeLiteral>(get_clone(assign), get_clone(lower), get_clone(upper));
 }
-inline Ground::ULit VoidLiteral::toGround(DomainData &, bool) const {
+Ground::ULit VoidLiteral::toGround(DomainData &, bool) const {
     throw std::logic_error("VoidLiteral::toGround: must not happen");
 }
-inline Ground::ULit ScriptLiteral::toGround(DomainData &, bool) const {
+Ground::ULit ScriptLiteral::toGround(DomainData &, bool) const {
     return gringo_make_unique<Ground::ScriptLiteral>(get_clone(assign), name, get_clone(args));
-}
-inline Ground::ULit CSPLiteral::toGround(DomainData &data, bool auxiliary) const {
-    assert(terms.size() == 2);
-    return gringo_make_unique<Ground::CSPLiteral>(data, auxiliary_ || auxiliary, terms[1].rel, get_clone(terms[0].term), get_clone(terms[1].term));
 }
 
 // {{{1 definition of Literal::shift
@@ -303,13 +238,6 @@ ULit RelationLiteral::shift(bool negate) {
 ULit RangeLiteral::shift(bool)  { throw std::logic_error("RangeLiteral::shift should never be called  if used properly"); }
 ULit VoidLiteral::shift(bool)  { return nullptr; }
 ULit ScriptLiteral::shift(bool) { throw std::logic_error("ScriptLiteral::shift should never be called  if used properly"); }
-ULit CSPLiteral::shift(bool negate) {
-    if (negate) {
-        assert(terms.size() == 2);
-        return make_locatable<CSPLiteral>(loc(), neg(terms[1].rel), std::move(terms[0].term), std::move(terms[1].term));
-    }
-    else { return make_locatable<CSPLiteral>(loc(), std::move(terms)); }
-}
 
 // {{{1 definition of Literal::headRepr
 
@@ -324,9 +252,6 @@ UTerm VoidLiteral::headRepr() const {
 }
 UTerm ScriptLiteral::headRepr() const {
     throw std::logic_error("ScriptLiteral::toTuple should never be called if used properly");
-}
-UTerm CSPLiteral::headRepr() const {
-    throw std::logic_error("CSPLiteral::toTuple should never be called if used properly");
 }
 
 // }}}1
@@ -507,17 +432,6 @@ ULit ScriptLiteral::make(SimplifyState::ScriptMap::value_type &script) {
 
 ScriptLiteral::~ScriptLiteral() { }
 
-// {{{1 definition of CSPLiteral
-
-CSPLiteral::CSPLiteral(Relation rel, CSPAddTerm &&left, CSPAddTerm &&right) {
-    terms.emplace_back(rel, std::move(left));
-    terms.emplace_back(rel, std::move(right));
-}
-void CSPLiteral::append(Relation rel, CSPAddTerm &&x) { terms.emplace_back(rel, std::move(x)); }
-CSPLiteral::CSPLiteral(Terms &&terms) : terms(std::move(terms)) { }
-CSPLiteral::~CSPLiteral() { }
-
-// }}}1
 
 // {{{ definition of RelationLiteralN
 
@@ -631,7 +545,7 @@ void RelationLiteralN::rewriteArithmetics(Term::ArithmeticsMap &arith, RelationV
 }
 
 size_t RelationLiteralN::hash() const {
-    return get_value_hash(typeid(CSPLiteral).hash_code(), naf_, left_, right_);
+    return get_value_hash(typeid(RelationLiteralN).hash_code(), naf_, left_, right_);
 }
 
 ULitVec RelationLiteralN::unpool(bool beforeRewrite, bool head) const {

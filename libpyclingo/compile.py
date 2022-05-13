@@ -164,7 +164,6 @@ def generate_c(action):
     cnt.append('extern "Python" bool pyclingo_observer_project(clingo_atom_t const *atoms, size_t size, void *data);')
     cnt.append('extern "Python" bool pyclingo_observer_output_atom(clingo_symbol_t symbol, clingo_atom_t atom, void *data);')
     cnt.append('extern "Python" bool pyclingo_observer_output_term(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *data);')
-    cnt.append('extern "Python" bool pyclingo_observer_output_csp(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, void *data);')
     cnt.append('extern "Python" bool pyclingo_observer_external(clingo_atom_t atom, clingo_external_type_t type, void *data);')
     cnt.append('extern "Python" bool pyclingo_observer_assume(clingo_literal_t const *literals, size_t size, void *data);')
     cnt.append('extern "Python" bool pyclingo_observer_heuristic(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size, void *data);')

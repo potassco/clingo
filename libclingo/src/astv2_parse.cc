@@ -68,14 +68,12 @@ public:
                 return prg_.showsig(get<Location>(ast, clingo_ast_attribute_location),
                                     Sig(get<String>(ast, clingo_ast_attribute_name),
                                         get<int>(ast, clingo_ast_attribute_arity),
-                                        get<int>(ast, clingo_ast_attribute_positive) == 0),
-                                    ast.hasValue(clingo_ast_attribute_csp) && get<int>(ast, clingo_ast_attribute_csp) != 0);
+                                        get<int>(ast, clingo_ast_attribute_positive) == 0));
             }
             case clingo_ast_type_show_term: {
                 return prg_.show(get<Location>(ast, clingo_ast_attribute_location),
                                  parseTerm(*get<SAST>(ast, clingo_ast_attribute_term)),
-                                 parseBodyLiteralVec(get<AST::ASTVec>(ast, clingo_ast_attribute_body)),
-                                 ast.hasValue(clingo_ast_attribute_csp) && get<int>(ast, clingo_ast_attribute_csp) != 0);
+                                 parseBodyLiteralVec(get<AST::ASTVec>(ast, clingo_ast_attribute_body)));
             }
             case clingo_ast_type_minimize: {
                 return prg_.optimize(get<Location>(ast, clingo_ast_attribute_location),
@@ -278,34 +276,6 @@ private:
         return uid;
     }
 
-    CSPMulTermUid parseCSPMulTerm(AST const &ast) {
-        require_(ast.type() == clingo_ast_type_csp_product, "invalid ast: csp product required");
-        auto const *variable = getOpt(ast, clingo_ast_attribute_variable);
-        return variable != nullptr
-            ? prg_.cspmulterm(get<Location>(ast, clingo_ast_attribute_location),
-                              parseTerm(*get<SAST>(ast, clingo_ast_attribute_coefficient)),
-                              parseTerm(*variable))
-            : prg_.cspmulterm(get<Location>(ast, clingo_ast_attribute_location),
-                              parseTerm(*get<SAST>(ast, clingo_ast_attribute_coefficient)));
-    }
-
-    CSPAddTermUid parseCSPAddTerm(AST const &ast) {
-        require_(ast.type() == clingo_ast_type_csp_sum, "invalid ast: csp sum required");
-        auto const &terms = get<AST::ASTVec>(ast, clingo_ast_attribute_terms);
-        require_(!terms.empty(), "invalid ast: csp sums terms must not be empty");
-        auto it = terms.begin();
-        auto ie = terms.end();
-        auto uid = prg_.cspaddterm(get<Location>(**it, clingo_ast_attribute_location),
-                                   parseCSPMulTerm(**it));
-        for (++it; it != ie; ++it) {
-            uid = prg_.cspaddterm(get<Location>(**it, clingo_ast_attribute_location),
-                                  uid,
-                                  parseCSPMulTerm(**it), true);
-
-        }
-        return uid;
-    }
-
     TheoryTermUid parseTheoryTerm(AST const &ast) {
         switch (ast.type()) {
             case clingo_ast_type_symbolic_term : {
@@ -472,23 +442,6 @@ private:
                     }
                 }
             }
-            case clingo_ast_type_csp_literal: {
-                auto const &guards = get<AST::ASTVec>(ast, clingo_ast_attribute_guards);
-                require_(!guards.empty(), "invalid ast: csp literals need at least one guard");
-                auto it = guards.begin();
-                auto ie = guards.end();
-                auto uid = prg_.csplit(get<Location>(ast, clingo_ast_attribute_location),
-                                       parseCSPAddTerm(*get<SAST>(ast, clingo_ast_attribute_term)),
-                                       parseRelation(get<int>(**it, clingo_ast_attribute_comparison)),
-                                       parseCSPAddTerm(*get<SAST>(**it, clingo_ast_attribute_term)));
-                for (++it; it != ie; ++it) {
-                    uid = prg_.csplit(get<Location>(ast, clingo_ast_attribute_location),
-                                      uid,
-                                      parseRelation(get<int>(**it, clingo_ast_attribute_comparison)),
-                                      parseCSPAddTerm(*get<SAST>(**it, clingo_ast_attribute_term)));
-                }
-                return prg_.csplit(uid);
-            }
             default: {
                 throw std::runtime_error("invalid ast: (CSP) literal expected");
             }
@@ -590,19 +543,6 @@ private:
         return uid;
     }
 
-    CSPElemVecUid parseCSPElemVec(AST::ASTVec const &asts) {
-        auto ret = prg_.cspelemvec();
-        for (auto const &ast  : asts) {
-            require_(ast->type() == clingo_ast_type_disjoint_element, "invalid ast: disjoint element expected");
-            ret = prg_.cspelemvec(ret,
-                                  get<Location>(*ast, clingo_ast_attribute_location),
-                                  parseTermVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_terms)),
-                                  parseCSPAddTerm(*get<SAST>(*ast, clingo_ast_attribute_term)),
-                                  parseLiteralVec(get<AST::ASTVec>(*ast, clingo_ast_attribute_condition)));
-        }
-        return ret;
-    }
-
     TheoryAtomUid parseTheoryAtom(AST const &ast) {
         require_(ast.type() == clingo_ast_type_theory_atom, "invalid ast: theory atom expected");
         auto const &loc = get<Location>(ast, clingo_ast_attribute_location);
@@ -623,8 +563,7 @@ private:
 
     HdLitUid parseHeadLiteral(AST const &ast) {
         switch (ast.type()) {
-            case clingo_ast_type_literal:
-            case clingo_ast_type_csp_literal: {
+            case clingo_ast_type_literal: {
                 return prg_.headlit(parseLiteral(ast));
             }
             case clingo_ast_type_disjunction: {
@@ -679,11 +618,6 @@ private:
                         }
                         case clingo_ast_type_theory_atom: {
                             uid = prg_.bodyaggr(uid, loc, sign, parseTheoryAtom(atom));
-                            break;
-                        }
-                        case clingo_ast_type_disjoint: {
-                            uid = prg_.disjoint(uid, loc, sign,
-                                                parseCSPElemVec(get<AST::ASTVec>(atom, clingo_ast_attribute_elements)));
                             break;
                         }
                         default: {

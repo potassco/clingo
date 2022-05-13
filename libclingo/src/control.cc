@@ -1181,15 +1181,10 @@ C(binary_operation) { A(location, location), A(operator_type, number), A(left, a
 C(interval) { A(location, location), A(left, ast), A(right, ast) };
 C(function) { A(location, location), A(name, string), A(arguments, ast_array), A(external, number) };
 C(pool) { A(location, location), A(arguments, ast_array) };
-// csp terms
-C(csp_product) { A(location, location), A(coefficient, ast), A(variable, optional_ast) };
-C(csp_sum) { A(location, location), A(terms, ast_array) };
-C(csp_guard) { A(comparison, number), A(term, ast) };
 // simple atoms
 C(boolean_constant) { A(value, number) };
 C(symbolic_atom) { A(symbol, ast) };
 C(comparison) { A(comparison, number), A(left, ast), A(right, ast) };
-C(csp_literal) { A(location, location), A(term, ast), A(guards, ast_array) };
 // aggregates
 C(aggregate_guard) { A(comparison, number), A(term, ast) };
 C(conditional_literal) { A(location, location), A(literal, ast), A(condition, ast_array) };
@@ -1199,8 +1194,6 @@ C(body_aggregate) { A(location, location), A(left_guard, optional_ast), A(functi
 C(head_aggregate_element) { A(terms, ast_array), A(condition, ast) };
 C(head_aggregate) { A(location, location), A(left_guard, optional_ast), A(function, number), A(elements, ast_array), A(right_guard, optional_ast) };
 C(disjunction) { A(location, location), A(elements, ast_array) };
-C(disjoint_element) { A(location, location), A(terms, ast_array), A(term, ast), A(condition, ast_array) };
-C(disjoint) { A(location, location), A(elements, ast_array) };
 // theory atoms
 C(theory_sequence) { A(location, location), A(sequence_type, number), A(terms, ast_array) };
 C(theory_function) { A(location, location), A(name, string), A(arguments, ast_array) };
@@ -1219,8 +1212,8 @@ C(theory_atom_definition) { A(location, location), A(atom_type, number), A(name,
 // statemets
 C(rule) { A(location, location), A(head, ast), A(body, ast_array) };
 C(definition) { A(location, location), A(name, string), A(value, ast), A(is_default, number) };
-C(show_signature) { A(location, location), A(name, string), A(arity, number), A(positive, number), A(csp, number) };
-C(show_term) { A(location, location), A(term, ast), A(body, ast_array), A(csp, number) };
+C(show_signature) { A(location, location), A(name, string), A(arity, number), A(positive, number) };
+C(show_term) { A(location, location), A(term, ast), A(body, ast_array) };
 C(minimize) { A(location, location), A(weight, ast), A(priority, ast), A(terms, ast_array), A(body, ast_array) };
 C(script) { A(location, location), A(name, string), A(code, string) };
 C(program) { A(location, location), A(name, string), A(parameters, ast_array) };
@@ -1242,15 +1235,10 @@ clingo_ast_constructor_t const clingo_ast_constructor_list[] = {
     E(interval),
     E(function),
     E(pool),
-    // csp terms
-    E(csp_product),
-    E(csp_sum),
-    E(csp_guard),
     // simple atoms
     E(boolean_constant),
     E(symbolic_atom),
     E(comparison),
-    E(csp_literal),
     // aggregates
     E(aggregate_guard),
     E(conditional_literal),
@@ -1260,8 +1248,6 @@ clingo_ast_constructor_t const clingo_ast_constructor_list[] = {
     E(head_aggregate_element),
     E(head_aggregate),
     E(disjunction),
-    E(disjoint_element),
-    E(disjoint),
     // theory atoms
     E(theory_sequence),
     E(theory_function),
@@ -1311,7 +1297,6 @@ char const * attribute_list[] = {
     "coefficient",
     "comparison",
     "condition",
-    "csp",
     "elements",
     "external",
     "external_type",
@@ -2025,9 +2010,6 @@ public:
     }
     void output(Symbol sym, Potassco::LitSpan const& condition) override {
         call(obs_.output_term, sym.rep(), condition.first, condition.size);
-    }
-    void output(Symbol sym, int value, Potassco::LitSpan const& condition) override {
-        call(obs_.output_csp, sym.rep(), value, condition.first, condition.size);
     }
     void external(Atom_t a, Potassco::Value_t v) override {
         call(obs_.external, a, v);

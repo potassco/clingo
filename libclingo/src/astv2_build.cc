@@ -161,55 +161,6 @@ public:
         return uid;
     }
 
-
-   // {{{1 csp
-
-    CSPMulTermUid cspmulterm(Location const &loc, TermUid coe, TermUid var) override {
-        return cspmulterms_.insert(ast(clingo_ast_type_csp_product, loc)
-            .set(clingo_ast_attribute_coefficient, terms_.erase(coe))
-            .set(clingo_ast_attribute_variable, OAST{terms_.erase(var)}));
-    }
-
-    CSPMulTermUid cspmulterm(Location const &loc, TermUid coe) override {
-        return cspmulterms_.insert(ast(clingo_ast_type_csp_product, loc)
-            .set(clingo_ast_attribute_coefficient, terms_.erase(coe))
-            .set(clingo_ast_attribute_variable, OAST{SAST{nullptr}}));
-    }
-
-    CSPAddTermUid cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) override {
-        if (!add) {
-            auto &pos = get<SAST>(*cspmulterms_[b], clingo_ast_attribute_coefficient);
-            pos = ast(clingo_ast_type_unary_operation, loc)
-                .set(clingo_ast_attribute_operator_type, static_cast<int>(clingo_ast_unary_operator_minus))
-                .set(clingo_ast_attribute_argument, std::move(pos));
-        }
-        auto &addterm = cspaddterms_[a];
-        get<Location>(*addterm, clingo_ast_attribute_location) = loc;
-        get<AST::ASTVec>(*addterm, clingo_ast_attribute_terms).emplace_back(cspmulterms_.erase(b));
-        return a;
-    }
-
-    CSPAddTermUid cspaddterm(Location const &loc, CSPMulTermUid b) override {
-        return cspaddterms_.emplace(ast(clingo_ast_type_csp_sum, loc)
-            .set(clingo_ast_attribute_terms, AST::ASTVec{cspmulterms_.erase(b)}));
-    }
-
-    CSPLitUid csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) override {
-        return csplits_.insert(ast(clingo_ast_type_csp_literal, loc)
-            .set(clingo_ast_attribute_term, cspaddterms_.erase(a))
-            .set(clingo_ast_attribute_guards, AST::ASTVec{ast(clingo_ast_type_csp_guard)
-                .set(clingo_ast_attribute_comparison, static_cast<int>(rel))
-                .set(clingo_ast_attribute_term, cspaddterms_.erase(b))}));
-    }
-
-    CSPLitUid csplit(Location const &loc, CSPLitUid a, Relation rel, CSPAddTermUid b) override {
-        auto &lit = csplits_[a];
-        get<AST::ASTVec>(*lit, clingo_ast_attribute_guards).emplace_back(ast(clingo_ast_type_csp_guard)
-            .set(clingo_ast_attribute_comparison, static_cast<int>(rel))
-            .set(clingo_ast_attribute_term, cspaddterms_.erase(b)));
-        return a;
-    }
-
     // {{{1 literals
 
     SAST symbolicatom(TermUid termUid) {
@@ -248,10 +199,6 @@ public:
                 .set(clingo_ast_attribute_left, terms_.erase(termUidLeft))
                 .set(clingo_ast_attribute_right, terms_.erase(termUidRight))));
         */
-    }
-
-    LitUid csplit(CSPLitUid a) override {
-        return lits_.insert(csplits_.erase(a));
     }
 
     LitVecUid litvec() override {
@@ -314,18 +261,6 @@ public:
         boundvecs_[uid].emplace_back(ast(clingo_ast_type_aggregate_guard)
             .set(clingo_ast_attribute_comparison, static_cast<int>(rel))
             .set(clingo_ast_attribute_term, terms_.erase(term)));
-        return uid;
-    }
-
-    CSPElemVecUid cspelemvec() override {
-        return cspelems_.emplace();
-    }
-
-    CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) override {
-        cspelems_[uid].emplace_back(ast(clingo_ast_type_disjoint_element, loc)
-            .set(clingo_ast_attribute_terms, termvecs_.erase(termvec))
-            .set(clingo_ast_attribute_term, cspaddterms_.erase(addterm))
-            .set(clingo_ast_attribute_condition, litvecs_.erase(litvec)));
         return uid;
     }
 
@@ -425,14 +360,6 @@ public:
         return body;
     }
 
-    BdLitVecUid disjoint(BdLitVecUid body, Location const &loc, NAF naf, CSPElemVecUid elem) override {
-        bodylitvecs_[body].emplace_back(ast(clingo_ast_type_literal, loc)
-            .set(clingo_ast_attribute_sign, static_cast<int>(naf))
-            .set(clingo_ast_attribute_atom, ast(clingo_ast_type_disjoint, loc)
-                .set(clingo_ast_attribute_elements, cspelems_.erase(elem))));
-        return body;
-    }
-
     // {{{1 statements
 
     void rule(Location const &loc, HdLitUid head) override {
@@ -461,12 +388,11 @@ public:
             .set(clingo_ast_attribute_body, bodylitvecs_.erase(body)));
     }
 
-    void showsig(Location const &loc, Sig sig, bool csp) override {
+    void showsig(Location const &loc, Sig sig) override {
         cb_(ast(clingo_ast_type_show_signature, loc)
             .set(clingo_ast_attribute_name, sig.name())
             .set(clingo_ast_attribute_arity, static_cast<int>(sig.arity()))
-            .set(clingo_ast_attribute_positive, static_cast<int>(!sig.sign()))
-            .set(clingo_ast_attribute_csp, static_cast<int>(csp)));
+            .set(clingo_ast_attribute_positive, static_cast<int>(!sig.sign())));
     }
 
     void defined(Location const &loc, Sig sig) override {
@@ -476,11 +402,10 @@ public:
             .set(clingo_ast_attribute_positive, static_cast<int>(!sig.sign())));
     }
 
-    void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override {
+    void show(Location const &loc, TermUid t, BdLitVecUid body) override {
         cb_(ast(clingo_ast_type_show_term, loc)
             .set(clingo_ast_attribute_term, terms_.erase(t))
-            .set(clingo_ast_attribute_body, bodylitvecs_.erase(body))
-            .set(clingo_ast_attribute_csp, static_cast<int>(csp)));
+            .set(clingo_ast_attribute_body, bodylitvecs_.erase(body)));
     }
 
     void script(Location const &loc, String type, String code) override {
@@ -732,9 +657,6 @@ private:
     Indexed<AST::ASTVec, IdVecUid> idvecs_;
     Indexed<SAST, LitUid> lits_;
     Indexed<AST::ASTVec, LitVecUid> litvecs_;
-    Indexed<SAST, CSPMulTermUid> cspmulterms_;
-    Indexed<SAST, CSPAddTermUid> cspaddterms_;
-    Indexed<SAST, CSPLitUid> csplits_;
     Indexed<AST::ASTVec, CondLitVecUid> condlitvecs_;
     Indexed<AST::ASTVec, BdAggrElemVecUid> bdaggrelemvecs_;
     Indexed<AST::ASTVec, HdAggrElemVecUid> hdaggrelemvecs_;
@@ -742,7 +664,6 @@ private:
     Indexed<AST::ASTVec, BdLitVecUid> bodylitvecs_;
     Indexed<SAST, HdLitUid> heads_;
     Indexed<SAST, TheoryAtomUid> theoryatoms_;
-    Indexed<AST::ASTVec, CSPElemVecUid> cspelems_;
     Indexed<SAST, TheoryTermUid> theoryterms_;
     Indexed<AST::ASTVec, TheoryOptermUid> theoryopterms_;
     Indexed<AST::ASTVec, TheoryOptermVecUid> theoryoptermvecs_;

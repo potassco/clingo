@@ -245,31 +245,11 @@ tl::optional<AST::ASTVec> unpool(SAST &ast, clingo_ast_unpool_type_bitset_t type
             }
             return ret;
         }
-        case clingo_ast_type_csp_product: {
-            return unpool_cross(*ast, clingo_ast_attribute_coefficient, clingo_ast_attribute_variable);
-        }
-        case clingo_ast_type_csp_sum: {
-            return unpool_cross(*ast, clingo_ast_attribute_terms);
-        }
-        case clingo_ast_type_disjoint_element: {
-            return unpool_cross(*ast, clingo_ast_attribute_terms, clingo_ast_attribute_term, clingo_ast_attribute_condition);
-        }
-        case clingo_ast_type_disjoint: {
-            auto ret = unpool_chain(*ast, clingo_ast_attribute_elements);
-            if (ret.has_value()) {
-                return AST::ASTVec{std::move(*ret)};
-            }
-            return {};
-        }
         case clingo_ast_type_symbolic_atom: {
             return unpool_cross(*ast, clingo_ast_attribute_symbol);
         }
-        case clingo_ast_type_csp_guard:
         case clingo_ast_type_aggregate_guard: {
             return unpool_cross(*ast, clingo_ast_attribute_term);
-        }
-        case clingo_ast_type_csp_literal: {
-            return unpool_cross(*ast, clingo_ast_attribute_term, clingo_ast_attribute_guards);
         }
         case clingo_ast_type_conditional_literal: {
             if ((type & clingo_ast_unpool_type_all) == clingo_ast_unpool_type_all) {

@@ -86,7 +86,6 @@ private:
 private:
     std::set<std::string> filenames_;
     bool &incmode_;
-    bool cspIncluded_ = false;
     TheoryLexing theoryLexing_ = TheoryLexing::Disabled;
     String not_;
     INongroundProgramBuilder &pb_;

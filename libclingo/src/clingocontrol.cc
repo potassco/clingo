@@ -77,12 +77,6 @@ void ClaspAPIBackend::output(Symbol sym, Potassco::LitSpan const& condition) {
     if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), condition); }
 }
 
-void ClaspAPIBackend::output(Symbol sym, int value, Potassco::LitSpan const& condition) {
-    std::ostringstream out;
-    out << sym << "=" << value;
-    if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), condition); }
-}
-
 void ClaspAPIBackend::acycEdge(int s, int t, const Potassco::LitSpan& condition) {
     if (auto p = prg()) { p->addAcycEdge(s, t, condition); }
 }
@@ -165,7 +159,7 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
     verbose_ = opts.verbose;
     Output::OutputPredicates outPreds;
     for (auto &x : opts.foobar) {
-        outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
+        outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x);
     }
     if (claspOut) {
         out_ = gringo_make_unique<Output::OutputBase>(claspOut->theoryData(), std::move(outPreds), gringo_make_unique<ClaspAPIBackend>(*this), opts.outputOptions);

@@ -199,54 +199,6 @@ TEST_CASE("output-incremental", "[output]") {
                 "#program last."
                 "last."));
     }
-    SECTION("csp") {
-        REQUIRE(
-            "asp 1 0 0 incremental\n"
-            "4 6 base=1 0\n"
-            "0\n"
-            "1 0 1 1 0 0\n"
-            "1 1 1 2 0 1 3\n"
-            "1 1 1 3 0 0\n"
-            "1 1 1 4 0 1 5\n"
-            "1 1 1 5 0 1 6\n"
-            "1 1 1 6 0 0\n"
-            "1 1 1 7 0 1 8\n"
-            "1 1 1 8 0 1 9\n"
-            "1 1 1 9 0 1 10\n"
-            "1 1 1 10 0 0\n"
-            "4 4 ib=1 1 2\n"
-            "4 4 ib=2 2 3 -2\n"
-            "4 4 ib=3 1 -3\n"
-            "4 4 lo=1 1 4\n"
-            "4 4 lo=2 2 5 -4\n"
-            "4 4 lo=3 2 6 -5\n"
-            "4 4 lo=4 1 -6\n"
-            "4 4 up=0 1 7\n"
-            "4 4 up=1 2 8 -7\n"
-            "4 4 up=2 2 9 -8\n"
-            "4 4 up=3 2 10 -9\n"
-            "4 4 up=4 1 -10\n"
-            "4 7 step(1) 0\n"
-            "0\n"
-            "1 0 1 11 0 0\n"
-            "1 0 0 0 2 -2 3\n"
-            "1 0 0 0 1 4\n"
-            "1 0 0 0 1 -10\n"
-            "4 7 step(2) 0\n"
-            "0\n"
-            "4 6 last=1 0\n"
-            "0\n" == iground(
-                "#program base."
-                "$base$=1."
-                "#program step(k)."
-                "step(k)."
-                "0 $<= $up $<= 5-k."
-                "k $<= $lo $<= 4."
-                "1 $<= $ib $<= 3."
-                "$ib $= 1; $ib $=3 :- k == 2."
-                "#program last."
-                "$last$=1."));
-    }
 
     SECTION("projectionBug") {
         REQUIRE(

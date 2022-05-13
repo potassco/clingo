@@ -184,66 +184,6 @@ private:
     ULit lit_;
 };
 
-// {{{1 declaration of DisjointAggregate
-
-struct CSPElem {
-    CSPElem(Location const &loc, UTermVec &&tuple, CSPAddTerm &&value, ULitVec &&cond);
-    CSPElem(CSPElem &&other) noexcept;
-    CSPElem(CSPElem const &other) = delete;
-    CSPElem &operator=(CSPElem &&other) noexcept;
-    CSPElem &operator=(CSPElem const &other) = delete;
-    ~CSPElem() noexcept;
-
-    void print(std::ostream &out) const;
-    CSPElem clone() const;
-    size_t hash() const; bool operator==(CSPElem const &other) const;
-
-    Location   loc;
-    UTermVec   tuple;
-    CSPAddTerm value;
-    ULitVec    cond;
-};
-
-inline std::ostream &operator<<(std::ostream &out, CSPElem const &x) {
-    x.print(out);
-    return out;
-}
-
-using CSPElemVec = std::vector<CSPElem>;
-
-class DisjointAggregate : public BodyAggregate {
-public:
-    DisjointAggregate(NAF naf, CSPElemVec &&elems);
-    DisjointAggregate(DisjointAggregate const &other) = delete;
-    DisjointAggregate(DisjointAggregate &&other) noexcept = default;
-    DisjointAggregate &operator=(DisjointAggregate const &other) = delete;
-    DisjointAggregate &operator=(DisjointAggregate &&other) noexcept = default;
-    ~DisjointAggregate() noexcept override;
-
-    bool rewriteAggregates(UBodyAggrVec &aggr) override;
-    bool isAssignment() const override;
-    void removeAssignment() override;
-    void collect(VarTermBoundVec &vars) const override;
-    bool operator==(BodyAggregate const &other) const override;
-    void print(std::ostream &out) const override;
-    size_t hash() const override;
-    DisjointAggregate *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
-    bool hasUnpoolComparison() const override;
-    UBodyAggrVecVec unpoolComparison() const override;
-    bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
-    void assignLevels(AssignLevel &lvl) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
-    void check(ChkLvlVec &levels, Logger &log) const override;
-    void replace(Defines &dx) override;
-    CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
-
-private:
-    NAF        naf_;
-    CSPElemVec elems_;
-};
-
 // }}}1
 
 // {{{1 declaration of TupleHeadAggregate
@@ -558,7 +498,7 @@ private:
 
 class ShowHeadLiteral : public HeadAggregate {
 public:
-    ShowHeadLiteral(UTerm &&term, bool csp);
+    ShowHeadLiteral(UTerm &&term);
     ShowHeadLiteral(ShowHeadLiteral const &other) = delete;
     ShowHeadLiteral(ShowHeadLiteral &&other) noexcept = default;
     ShowHeadLiteral &operator=(ShowHeadLiteral const &other) = delete;
@@ -583,14 +523,10 @@ public:
 
 private:
     UTerm term_;
-    bool csp_;
 };
 
 // }}}1
 
 } } // namespace Input Gringo
-
-GRINGO_CALL_HASH(Gringo::Input::CSPElem)
-GRINGO_CALL_CLONE(Gringo::Input::CSPElem)
 
 #endif // _GRINGO_INPUT_AGGREGATES_HH

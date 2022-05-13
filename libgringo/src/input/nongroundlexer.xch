@@ -104,7 +104,6 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal> "#count"                            { return NonGroundGrammar::parser::token::COUNT; }
         <normal> "#min"                              { return NonGroundGrammar::parser::token::MIN; }
         <normal> "#max"                              { return NonGroundGrammar::parser::token::MAX; }
-        <normal> "#disjoint"                         { return NonGroundGrammar::parser::token::DISJOINT; }
         <normal> "#theory"                           { return NonGroundGrammar::parser::token::THEORY; }
         <normal,theory,definition> ";"               { return NonGroundGrammar::parser::token::SEM; }
         <normal> ".."                                { return NonGroundGrammar::parser::token::DOTS; }
@@ -140,18 +139,6 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal> "^"                                 { return NonGroundGrammar::parser::token::XOR; }
         <normal> "~"                                 { return NonGroundGrammar::parser::token::BNOT; }
         <normal> "?"                                 { return NonGroundGrammar::parser::token::QUESTION; }
-        <normal> "$"                                 { return NonGroundGrammar::parser::token::CSP; }
-        <normal> "$+"                                { return NonGroundGrammar::parser::token::CSP_ADD; }
-        <normal> "$-"                                { return NonGroundGrammar::parser::token::CSP_SUB; }
-        <normal> "$*"                                { return NonGroundGrammar::parser::token::CSP_MUL; }
-        <normal> "$<="                               { return NonGroundGrammar::parser::token::CSP_LEQ; }
-        <normal> "$<"                                { return NonGroundGrammar::parser::token::CSP_LT; }
-        <normal> "$>="                               { return NonGroundGrammar::parser::token::CSP_GEQ; }
-        <normal> "$>"                                { return NonGroundGrammar::parser::token::CSP_GT; }
-        <normal> "$=="                               { return NonGroundGrammar::parser::token::CSP_EQ; }
-        <normal> "$="                                { return NonGroundGrammar::parser::token::CSP_EQ; }
-        <normal> "$!="                               { return NonGroundGrammar::parser::token::CSP_NEQ; }
-        <normal> "$<>"                               { return NonGroundGrammar::parser::token::CSP_NEQ; }
         <theory> THEORYOP                            { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::THEORY_OP; }
         <normal,theory,definition,script> "%*"       => blockcomment { bc++; continue; }
         <normal,theory,definition,script> "%"        :=> comment

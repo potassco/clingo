@@ -142,44 +142,6 @@ struct ProjectionLiteral : PredicateLiteral {
 };
 
 // }}}
-// {{{ declaration of CSPLiteral
-
-struct ExternalBodyOcc : BodyOcc {
-    ExternalBodyOcc();
-    UGTerm getRepr() const override;
-    bool isPositive() const override;
-    bool isNegative() const override;
-    void setType(OccurrenceType x) override;
-    OccurrenceType getType() const override;
-    DefinedBy &definedBy() override;
-    void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const override;
-    virtual ~ExternalBodyOcc();
-    DefinedBy defs;
-};
-
-using CSPLiteralShared = std::tuple<Relation, CSPAddTerm, CSPAddTerm>;
-class CSPLiteral : public Literal {
-public:
-    CSPLiteral(DomainData &data, bool auxiliary, Relation rel, CSPAddTerm &&left, CSPAddTerm &&right);
-    void print(std::ostream &out) const override;
-    bool isRecursive() const override;
-    BodyOcc *occurrence() override;
-    void collectImportant(Term::VarSet &vars) override;
-    void collect(VarTermBoundVec &vars) const override;
-    UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
-    Score score(Term::VarSet const &bound, Logger &log) override;
-    bool auxiliary() const override { return auxiliary_; }
-    virtual ~CSPLiteral() noexcept;
-
-private:
-    DomainData &data_;
-    CSPLiteralShared terms_;
-    ExternalBodyOcc ext_;
-    bool auxiliary_;
-};
-
-// }}}
 
 } } // namespace Ground Gringo
 

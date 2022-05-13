@@ -1168,7 +1168,6 @@ public:
     virtual void project(AtomSpan atoms);
     virtual void output_atom(Symbol symbol, atom_t atom);
     virtual void output_term(Symbol symbol, LiteralSpan condition);
-    virtual void output_csp(Symbol symbol, int value, LiteralSpan condition);
     virtual void external(atom_t atom, ExternalType type);
     virtual void assume(LiteralSpan literals);
     virtual void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LiteralSpan condition);
@@ -1218,12 +1217,6 @@ inline void GroundProgramObserver::output_atom(Symbol symbol, atom_t atom) {
 
 inline void GroundProgramObserver::output_term(Symbol symbol, LiteralSpan condition) {
     static_cast<void>(symbol);
-    static_cast<void>(condition);
-}
-
-inline void GroundProgramObserver::output_csp(Symbol symbol, int value, LiteralSpan condition) {
-    static_cast<void>(symbol);
-    static_cast<void>(value);
     static_cast<void>(condition);
 }
 
@@ -1345,7 +1338,6 @@ enum class ModelType : clingo_model_type_t {
 class ShowType {
 public:
     enum Type : clingo_show_type_bitset_t {
-        CSP        = clingo_show_type_csp,
         Shown      = clingo_show_type_shown,
         Atoms      = clingo_show_type_atoms,
         Terms      = clingo_show_type_terms,
@@ -1885,15 +1877,10 @@ enum class Type {
     Interval = clingo_ast_type_interval,
     Function = clingo_ast_type_function,
     Pool = clingo_ast_type_pool,
-    // csp terms
-    CspProduct = clingo_ast_type_csp_product,
-    CspSum = clingo_ast_type_csp_sum,
-    CspGuard = clingo_ast_type_csp_guard,
     // simple atoms
     BooleanConstant = clingo_ast_type_boolean_constant,
     SymbolicAtom = clingo_ast_type_symbolic_atom,
     Comparison = clingo_ast_type_comparison,
-    CspLiteral = clingo_ast_type_csp_literal,
     // aggregates
     AggregateGuard = clingo_ast_type_aggregate_guard,
     ConditionalLiteral = clingo_ast_type_conditional_literal,
@@ -1903,8 +1890,6 @@ enum class Type {
     HeadAggregateElement = clingo_ast_type_head_aggregate_element,
     HeadAggregate = clingo_ast_type_head_aggregate,
     Disjunction = clingo_ast_type_disjunction,
-    DisjointElement = clingo_ast_type_disjoint_element,
-    Disjoint = clingo_ast_type_disjoint,
     // theory atoms
     TheorySequence = clingo_ast_type_theory_sequence,
     TheoryFunction = clingo_ast_type_theory_function,
@@ -1950,7 +1935,6 @@ enum class Attribute {
     Coefficient = clingo_ast_attribute_coefficient,
     Comparison = clingo_ast_attribute_comparison,
     Condition = clingo_ast_attribute_condition,
-    Csp = clingo_ast_attribute_csp,
     Elements = clingo_ast_attribute_elements,
     External = clingo_ast_attribute_external,
     ExternalType = clingo_ast_attribute_external_type,
@@ -4322,12 +4306,6 @@ inline bool g_output_term(clingo_symbol_t symbol, clingo_literal_t const *condit
     CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_output_csp(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, void *pdata) {
-    ObserverData &data = *static_cast<ObserverData*>(pdata);
-    CLINGO_CALLBACK_TRY { data.first.output_csp(Symbol{symbol}, value, LiteralSpan{condition, size}); }
-    CLINGO_CALLBACK_CATCH(data.second);
-}
-
 inline bool g_external(clingo_atom_t atom, clingo_external_type_t type, void *pdata) {
     ObserverData &data = *static_cast<ObserverData*>(pdata);
     CLINGO_CALLBACK_TRY { data.first.external(atom, static_cast<ExternalType>(type)); }
@@ -4402,7 +4380,6 @@ inline void Control::register_observer(GroundProgramObserver &observer, bool rep
         Detail::g_project,
         Detail::g_output_atom,
         Detail::g_output_term,
-        Detail::g_output_csp,
         Detail::g_external,
         Detail::g_assume,
         Detail::g_heuristic,

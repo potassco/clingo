@@ -37,13 +37,6 @@ std::pair<LiteralId,bool> Literal::delayedLit() {
     throw std::logic_error("Literal::hasDelayedOffset: not implemented");
 }
 
-bool Literal::isBound(Symbol &, bool) const {
-    return false;
-}
-
-void Literal::updateBound(std::vector<CSPBound> &, bool) const {
-}
-
 bool Literal::needsSemicolon() const {
     return false;
 }

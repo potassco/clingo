@@ -62,7 +62,6 @@ public:
     void project(const Potassco::AtomSpan& atoms) override;
     void output(Symbol sym, Potassco::Atom_t atom) override;
     void output(Symbol sym, Potassco::LitSpan const& condition) override;
-    void output(Symbol sym, int value, Potassco::LitSpan const& condition) override;
     void external(Potassco::Atom_t a, Potassco::Value_t v) override;
     void assume(const Potassco::LitSpan& lits) override;
     void heuristic(Potassco::Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& condition) override;

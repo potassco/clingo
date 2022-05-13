@@ -144,13 +144,6 @@ TEST_CASE("output-lparse", "[output]") {
             ))
         );
         REQUIRE(
-            "([],[])" ==
-            IO::to_string(solve(
-                "1 {q(3;4)} 1."
-                "#disjoint { (1;2) : (2;3) : q(3;4) }."
-            ))
-        );
-        REQUIRE(
             "([[a,p(1),q(3)],[a,p(1),q(4)],[a,p(2),q(3)],[a,p(2),q(4)]],[])" ==
             IO::to_string(solve(
                 "1 { p(1;2) } 1."
@@ -752,24 +745,6 @@ TEST_CASE("output-lparse", "[output]") {
                 "{p(1); q(1); -p(1); -q(1)}.\n"
                 "\n"
                 "#const p=42.\n")));
-        REQUIRE(
-            "([[a,c,x=1,y=1]],[])" == IO::to_string(solve(
-                "a. b.\n"
-                "$x $= 1. $y $= 1. $z $= 1.\n"
-                "#show a/0.\n"
-                "#show c.\n"
-                "#show $x/0.\n"
-                "#show $y.\n"
-                )));
-        REQUIRE(
-            "([[x=1],[y=1]],[])" ==
-            IO::to_string(solve(
-                "{b}.\n"
-                "$x $= 1. $y $= 1.\n"
-                "#show.\n"
-                "#show $x:b.\n"
-                "#show $y:not b.\n"
-                )));
     }
 
     SECTION("aggregates") {
@@ -861,197 +836,6 @@ TEST_CASE("output-lparse", "[output]") {
         REQUIRE("([[]],[])" == IO::to_string(solve("{p}. #maximize{1:not p}.", {"p"}, {-1})));
     }
 
-    SECTION("csp") {
-        REQUIRE(
-            "([[p(1)=1,p(2)=1,x=1],[p(1)=1,p(2)=2,x=1],[p(1)=2,p(2)=1,x=1],[p(1)=2,p(2)=2,x=1]],[])" ==
-            IO::to_string(solve(
-                "1 $<= $p(1..2) $<= 2.\n"
-                "$x $= 1.\n"
-                )));
-        REQUIRE(
-            "([[x=0,y=0,z=2],[x=0,y=0,z=3],[x=0,y=1,z=3],[x=1,y=0,z=3]],[])" ==
-            IO::to_string(solve(
-                "0 $<= $(x;y;z) $<= 3.\n"
-                "$x $+ $y $+ -1$*$z $<= -2.\n"
-                )));
-        REQUIRE(
-            "([[x=0,y=0,z=2],[x=0,y=0,z=3],[x=0,y=1,z=3],[x=1,y=0,z=3]],[])" ==
-            IO::to_string(solve(
-                "0 $<= $(x;y;z) $<= 3.\n"
-                "p:-$x $+ $y $+ -1$*$z $<= -2.\n"
-                ":- not p.\n", {"x", "y", "z"}
-                )));
-    }
-
-    SECTION("cspbound") {
-        REQUIRE(
-            "([[x=4],[x=5]],[])" ==
-            IO::to_string(solve(
-                "$x $<= 5.\n"
-                ":- $x $<= 3, $x $<=4.\n", {"x="}
-                )));
-        REQUIRE(
-            "([[x=2],[x=4],[x=6]],[])" ==
-            IO::to_string(solve(
-                "$x $= 2*X : X = 1..3.\n", {"x="}
-                )));
-        REQUIRE(
-            "([[x=1],[x=3],[x=7]],[])" ==
-            IO::to_string(solve(
-                "$x $= 1; $x $= 3 :- $x $!= 7."
-                , {"x="})));
-    }
-
-    SECTION("disjoint") {
-        REQUIRE(
-            "([[x,x=2,y=2],[x=2,y=1],[x=2,y=2]],[])" ==
-            IO::to_string(solve(
-                "1 $<= $x $<= 2.\n"
-                "1 $<= $y $<= 2.\n"
-                "{x}.\n"
-                "#disjoint{ 1:1; 2:$x; 2:$y : x }.\n"
-                )));
-        REQUIRE(
-            "([[x=2]],[])" ==
-            IO::to_string(solve(
-                "1 $<= $x $<= 2.\n"
-                "#disjoint{ 1:1; 2:$x }.\n"
-                )));
-        REQUIRE(
-            "([[a,x=1],[b,x=1],[x=1]],[])" ==
-            IO::to_string(solve(
-                "$x $= 1.\n"
-                "{ a; b }.\n"
-                "#disjoint{ a:$x:a; b:$x:b }.\n"
-                )));
-        REQUIRE(
-            "([[a,b,y=2],[a,y=2],[b,y=2],[y=1],[y=2]],[])" ==
-            IO::to_string(solve(
-                "1 $<= $y $<= 2.\n"
-                "{ a; b }.\n"
-                "#disjoint{ 1:1:a; 1:1:b; 2:$y }.\n"
-                )));
-        REQUIRE(
-            "([[p(1)=1,p(2)=1,p(3)=1,q(1)=2,q(2)=2,q(3)=2],[p(1)=2,p(2)=2,p(3)=2,q(1)=1,q(2)=1,q(3)=1]],[])" ==
-            IO::to_string(solve(
-                "1 $<= $(p(1..3);q(1..3)) $<= 2.\n"
-                "#disjoint{ 1:$p(1..3); 2:$q(1..3) }.\n"
-                )));
-        REQUIRE(
-            "([[x=6,y=35]],[])" ==
-            IO::to_string(solve(
-                "6  $<= $x $<=  7.\n"
-                "35 $<= $y $<= 36.\n"
-                "not #disjoint{ 1:6$*$y; 2:35$*$x }.\n"
-                )));
-        REQUIRE(
-            "([[x=1,y=1,z=1]"
-            ",[x=2,y=2,z=2]"
-            ",[x=3,y=3,z=3]],[])" ==
-            IO::to_string(solve(
-                "1  $<= $(x;y;z) $<=  3.\n"
-                "not #disjoint{ 1:2$*$x $+ 3$*$y; 2:2$*$y $+ 3$*$z; 3:2$*$z $+ 3$*$x }.\n"
-                )));
-        REQUIRE(
-            "([[x=6,y=35]],[])" ==
-            IO::to_string(solve(
-                "6  $<= $x $<=  7.\n"
-                "35 $<= $y $<= 36.\n"
-                "not #disjoint{ 1:6$*$y; 2:35$*$x }.\n"
-                )));
-        REQUIRE(
-            "([[a],[a,b]],[])" ==
-            IO::to_string(solve(
-                "{b}.\n"
-                "a :- #disjoint { 1 : 1 : a; 2 : 2 : a; 3 : 3 : b }.\n"
-                )));
-        REQUIRE(
-            "([],[])" ==
-            IO::to_string(solve(
-                "{b}.\n"
-                "a :- #disjoint { 1 : 1 : a; 2 : 1 : a; 3 : 3 : b }.\n"
-                )));
-        REQUIRE(
-            "([[a]],[])" ==
-            IO::to_string(solve(
-                "{b}.\n"
-                "a :- #disjoint { 1 : 1 : a; 2 : 2 : a; 3 : 2 : b }.\n"
-                )));
-        REQUIRE(
-            "([[b]],[])" ==
-            IO::to_string(solve(
-                "{b}.\n"
-                "a :- #disjoint { 1 : 1 : a; 2 : 1 : a; 3 : 3 : b; 4 : 3 : b }.\n"
-                )));
-        REQUIRE(
-            576 == solve(
-                "#const n = 4.\n"
-                "row(1..n).\n"
-                "col(1..n).\n"
-                "dom(1,n).\n"
-                "\n"
-                "L $<= $cell(X,Y) $<= U :- row(X), col(Y), dom(L,U).\n"
-                ":- col(Y), not #disjoint { X : $cell(X,Y) : row(X) }.\n"
-                ":- row(X), not #disjoint { Y : $cell(X,Y) : col(Y) }.\n"
-                ).first.size());
-        REQUIRE(
-            "([[d=7,e=5,m=1,n=6,o=0,r=8,s=9,y=2]],[])" ==
-            IO::to_string(solve(
-                "0 $<= $(s;e;n;d;m;o;r;y) $<= 9.\n"
-                "\n"
-                "                1000$*$s $+ 100$*$e $+ 10$*$n $+ $d\n"
-                "$+              1000$*$m $+ 100$*$o $+ 10$*$r $+ $e\n"
-                "$= 10000$*$m $+ 1000$*$o $+ 100$*$n $+ 10$*$e $+ $y.\n"
-                "\n"
-                "$m $!= 0.\n"
-                "$s $!= 0.\n"
-                "#disjoint { X:$X:X=(s;e;n;d;m;o;r;y) }.\n"
-                "\n"
-                "#show.\n"
-                "#show $(s;e;n;d;m;o;r;y).\n"
-                )));
-        REQUIRE(
-            "([[d=7,e=5,m=1,n=6,o=0,r=8,s=9,y=2]],[])" ==
-            IO::to_string(solve(
-                "0 $<= $(s;e;n;d;m;o;r;y) $<= 9.\n"
-                "0 $<= $(s0;s1;s2;s3) $<= 19.\n"
-                "0 $<= $(c0;c1;c2;c3) $<= 1.\n"
-                "\n"
-                "$s0 $= $d $+ $e.\n"
-                "$y  $= $s0     :- $s0 $<  10.\n"
-                "$y  $= $s0$-10 :- $s0 $>= 10.\n"
-                "$c0 $= 0       :- $s0 $<  10.\n"
-                "$c0 $= 1       :- $s0 $>= 10.\n"
-                "\n"
-                "$s1 $= $n $+ $r $+ $c0.\n"
-                "$e  $= $s1     :- $s1 $<  10.\n"
-                "$e  $= $s1$-10 :- $s1 $>= 10.\n"
-                "$c1 $= 0       :- $s1 $<  10.\n"
-                "$c1 $= 1       :- $s1 $>= 10.\n"
-                "\n"
-                "$s2 $= $e $+ $o $+ $c1.\n"
-                "$n  $= $s2     :- $s2 $<  10.\n"
-                "$n  $= $s2$-10 :- $s2 $>= 10.\n"
-                "$c2 $= 0       :- $s2 $<  10.\n"
-                "$c2 $= 1       :- $s2 $>= 10.\n"
-                "\n"
-                "$s3 $= $s $+ $m $+ $c2.\n"
-                "$o  $= $s3     :- $s3 $<  10.\n"
-                "$o  $= $s3$-10 :- $s3 $>= 10.\n"
-                "$c3 $= 0       :- $s3 $<  10.\n"
-                "$c3 $= 1       :- $s3 $>= 10.\n"
-                "\n"
-                "$m $= $c3.\n"
-                "\n"
-                "$m $!= 0.\n"
-                "$s $!= 0.\n"
-                "#disjoint { X:$X:X=(s;e;n;d;m;o;r;y) }.\n"
-                "\n"
-                "#show.\n"
-                "#show $(s;e;n;d;m;o;r;y).\n"
-                )));
-    }
-
     SECTION("queens") {
         REQUIRE(
             "([[q(1,2),q(2,4),q(3,6),q(4,1),q(5,3),q(6,5)],"
@@ -1072,50 +856,6 @@ TEST_CASE("output-lparse", "[output]") {
                 "\n"
                 "c(C,XX,YY) :-     c(C,X,Y), n(C,X,Y,XX,YY), not q(XX,YY).\n"
                 "           :- not c(C,X,Y), n(C,X,Y,XX,YY),     q(XX,YY).\n", {"q("})));
-        REQUIRE(
-            48 == solve(
-                "#const n=4.\n"
-                "1 $<= $(row(X);col(X)) $<= n :- X=1..n.\n"
-                "$row(X) $!= $row(Y) :- X=1..n, Y=1..n, X<Y.\n"
-                "$col(X) $!= $col(Y) :- X=1..n, Y=1..n, X<Y.\n"
-                "$row(X) $+ $col(Y) $!= $row(Y) $+ $col(X) :- X=1..n, Y=1..n, X<Y.\n"
-                "$row(X) $+ $col(X) $!= $row(Y) $+ $col(Y) :- X=1..n, Y=1..n, X<Y.\n"
-                ).first.size());
-        std::string q5 =
-            "([[q(1)=1,q(2)=3,q(3)=5,q(4)=2,q(5)=4]"
-            ",[q(1)=1,q(2)=4,q(3)=2,q(4)=5,q(5)=3]"
-            ",[q(1)=2,q(2)=4,q(3)=1,q(4)=3,q(5)=5]"
-            ",[q(1)=2,q(2)=5,q(3)=3,q(4)=1,q(5)=4]"
-            ",[q(1)=3,q(2)=1,q(3)=4,q(4)=2,q(5)=5]"
-            ",[q(1)=3,q(2)=5,q(3)=2,q(4)=4,q(5)=1]"
-            ",[q(1)=4,q(2)=1,q(3)=3,q(4)=5,q(5)=2]"
-            ",[q(1)=4,q(2)=2,q(3)=5,q(4)=3,q(5)=1]"
-            ",[q(1)=5,q(2)=2,q(3)=4,q(4)=1,q(5)=3]"
-            ",[q(1)=5,q(2)=3,q(3)=1,q(4)=4,q(5)=2]],[])";
-        REQUIRE(
-            q5 == IO::to_string(solve(
-                "#const n=5.\n"
-                "1 $<= $q(1..n) $<= n.\n"
-                "$q(X) $!= $q(Y) :- X=1..n, Y=1..n, X<Y.\n"
-                "X $+ $q(Y) $!= Y $+ $q(X) :- X=1..n, Y=1..n, X<Y.\n"
-                "X $+ $q(X) $!= Y $+ $q(Y) :- X=1..n, Y=1..n, X<Y.\n"
-                )));
-        REQUIRE(
-            q5 == IO::to_string(solve(
-                "#const n=5.\n"
-                "1 $<= $q(1..n) $<= n.\n"
-                "#disjoint { X : $q(X)$+0 : X=1..n }.\n"
-                "#disjoint { X : $q(X)$+X : X=1..n }.\n"
-                "#disjoint { X : $q(X)$-X : X=1..n }.\n"
-                )));
-        REQUIRE(
-            q5 == IO::to_string(solve(
-                "#const n=5.\n"
-                "1 $<= $q(1..n) $<= n.\n"
-                "#disjoint { X : $q(X)     : X=1..n }.\n"
-                ":- not #disjoint { X : $q(X)$+ X : X=1..n }.\n"
-                "not not #disjoint { X : $q(X)$+-X : X=1..n }.\n"
-                )));
     }
 
     SECTION("undefinedRule") {
@@ -1153,45 +893,6 @@ TEST_CASE("output-lparse", "[output]") {
                 "a(1).\n"
                 "b(1).\n"
                 "q(A..B) :- a(A), b(B).\n", {"q("})));
-    }
-
-    SECTION("undefinedCSP") {
-        REQUIRE( "([[a(1),a(a),b(1)]],[-:4:1-2: info: number expected:\n  A\n])" == IO::to_string(solve(
-                "a(a).\n"
-                "a(1).\n"
-                "b(1).\n"
-                "A $<= B :- a(A), b(B).\n")));
-        REQUIRE(
-            "([[a(1),a(a),b(1)]],[-:4:16-17: info: number expected:\n  A\n])" ==
-            IO::to_string(solve(
-                "a(a).\n"
-                "a(1).\n"
-                "b(1).\n"
-                ":- a(A), b(B), A $< B.\n")));
-        REQUIRE(
-            "([[a(1),a(2)=1,a(a),b(1)]],[-:5:19-20: info: operation undefined:\n  (A+1)\n])" ==
-            IO::to_string(solve(
-                "a(a).\n"
-                "a(1).\n"
-                "b(1).\n"
-                "$a(2) $<= 1.\n"
-                ":- a(A), b(B), $a(A+1) $< B.\n")));
-    }
-
-    SECTION("undefinedCSPDisjoint") {
-        REQUIRE(
-            "([[a(1),a(a)]],[-:3:17-18: info: number expected:\n  X\n])" ==
-            IO::to_string(solve(
-                "a(a).\n"
-                "a(1).\n"
-                "#disjoint { X : X : a(X) }.\n")));
-        REQUIRE(
-            "([[a(1),a(1)=1,a(a)]],[-:4:20-21: info: operation undefined:\n  (X+1)\n])" ==
-            IO::to_string(solve(
-                "a(a).\n"
-                "a(1).\n"
-                "$a(1) $= 1.\n"
-                "#disjoint { X : $a(X+1) : a(X) }.\n")));
     }
 
     SECTION("undefinedBodyAggregate") {

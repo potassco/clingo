@@ -408,25 +408,6 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             }
             break;
         }
-        case clingo_ast_type_csp_product: {
-            auto const *var = get_opt_ast(ast, clingo_ast_attribute_variable);
-            auto coe = print(ast, clingo_ast_attribute_coefficient);
-            out << coe;
-            if (var != nullptr) {
-                out << "$*" << "$" << *var;
-            }
-            break;
-        }
-        case clingo_ast_type_csp_sum: {
-            auto const &terms = get<AST::ASTVec>(ast, clingo_ast_attribute_terms);
-            if (terms.empty()) {
-                out << "0";
-            }
-            else  {
-                out << print_list(terms, "", "$+", "", false);
-            }
-            break;
-        }
         // {{{1 literal
         case clingo_ast_type_literal: {
             out << enum_to_string<clingo_ast_sign_e>(ast, clingo_ast_attribute_sign)
@@ -447,18 +428,6 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
                 << enum_to_string<clingo_ast_comparison_operator_e>(ast, clingo_ast_attribute_comparison)
                 << " "
                 << print(ast, clingo_ast_attribute_right);
-            break;
-        }
-        case clingo_ast_type_csp_guard: {
-            out << " $"
-                << enum_to_string<clingo_ast_comparison_operator_e>(ast, clingo_ast_attribute_comparison)
-                << " "
-                << print(ast, clingo_ast_attribute_term);
-            break;
-        }
-        case clingo_ast_type_csp_literal: {
-            out << print(ast, clingo_ast_attribute_term)
-                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_guards, "", "", "", false);
             break;
         }
         // {{{1 aggregate
@@ -508,18 +477,6 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         }
         case clingo_ast_type_disjunction: {
             out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, "", "; ", "", false);
-            break;
-        }
-        case clingo_ast_type_disjoint_element: {
-            out << print_list<AST::ASTVec>(ast, clingo_ast_attribute_terms, "", ",", "", false)
-                << ":" << print(ast, clingo_ast_attribute_term)
-                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_condition, ": ", ", ", "", false);
-            break;
-        }
-        case clingo_ast_type_disjoint: {
-            out << "#disjoint {"
-                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_elements, " ", "; ", "", false)
-                << " }";
             break;
         }
         // {{{1 theory atom
@@ -644,7 +601,6 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
         }
         case clingo_ast_type_show_signature: {
             out << "#show "
-                << (get_bool(ast, clingo_ast_attribute_csp) ? "$" : "")
                 << (get_bool(ast, clingo_ast_attribute_positive) ? "" : "-")
                 << print(ast, clingo_ast_attribute_name)
                 << "/"
@@ -660,7 +616,7 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             break;
         }
         case clingo_ast_type_show_term: {
-            out << "#show " << (get_bool(ast, clingo_ast_attribute_csp) ? "$" : "")
+            out << "#show "
                 << print(ast, clingo_ast_attribute_term)
                 << print_body(ast, clingo_ast_attribute_body);
             break;

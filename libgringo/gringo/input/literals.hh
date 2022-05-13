@@ -268,39 +268,6 @@ private:
 };
 
 // }}}
-// {{{ declaration of CSPLiteral
-
-struct CSPLiteral : Literal {
-    using Terms = std::vector<CSPRelTerm>;
-
-    CSPLiteral(Relation rel, CSPAddTerm &&left, CSPAddTerm &&right);
-    CSPLiteral(Terms &&terms);
-    void append(Relation rel, CSPAddTerm &&x);
-
-    void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) const override;
-    CSPLiteral *clone() const override;
-    void print(std::ostream &out) const override;
-    bool operator==(Literal const &other) const override;
-    size_t hash() const override;
-    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite, bool head) const override;
-    bool hasPool(bool beforeRewrite, bool head) const override;
-    void replace(Defines &dx) override;
-    Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
-    ULit shift(bool negate) override;
-    UTerm headRepr() const override;
-    bool auxiliary() const override { return auxiliary_; }
-    void auxiliary(bool auxiliary) override { auxiliary_ = auxiliary; }
-    virtual ~CSPLiteral();
-
-    Terms terms;
-    bool auxiliary_ = false;
-};
-using UCSPLit = std::unique_ptr<CSPLiteral>;
-
-// }}}
 
 } } // namespace Input Gringo
 

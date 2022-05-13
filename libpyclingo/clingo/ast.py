@@ -47,15 +47,6 @@ term = SymbolicTerm
         , arguments : term*
         )
 
-csp_term = CSPSum
-            ( location : Location
-            , terms    : CSPProduct
-                          ( location    : Location
-                          , coefficient : term
-                          , variable    : term?
-                          )*
-            )
-
 theory_term = SymbolicTerm
                ( location : Location
                , symbol   : clingo.Symbol
@@ -106,15 +97,6 @@ literal = Literal
                       | symbolic_atom
            )
 
-        | CSPLiteral
-           ( location : Location
-           , term     : csp_term
-           , guards   : CSPGuard
-                         ( comparison : ComparisonOperator
-                         , term       : csp_term
-                         )+
-           )
-
 # Head and Body Literals
 
 aggregate_guard = AggregateGuard
@@ -158,15 +140,6 @@ body_atom = aggregate
                               , condition : literal*
                               )*
              , right_guard : aggregate_guard?
-             )
-          | Disjoint
-             ( location : Location
-             , elements : DisjointElement
-                           ( location  : Location
-                           , terms     : term*
-                           , term      : csp_term
-                           , condition : literal*
-                           )*
              )
           | theory_atom
 
@@ -214,7 +187,6 @@ statement = Rule
              , name       : str
              , arity      : int
              , sign       : bool
-             , csp        : bool
              )
           | Defined
              ( location   : Location
@@ -226,7 +198,6 @@ statement = Rule
              ( location : Location
              , term     : term
              , body     : body_literal*
-             , csp      : bool
              )
           | Minimize
              ( location : Location
@@ -392,13 +363,9 @@ class ASTType(Enum):
     Interval = _lib.clingo_ast_type_interval
     Function = _lib.clingo_ast_type_function
     Pool = _lib.clingo_ast_type_pool
-    CspProduct = _lib.clingo_ast_type_csp_product
-    CspSum = _lib.clingo_ast_type_csp_sum
-    CspGuard = _lib.clingo_ast_type_csp_guard
     BooleanConstant = _lib.clingo_ast_type_boolean_constant
     SymbolicAtom = _lib.clingo_ast_type_symbolic_atom
     Comparison = _lib.clingo_ast_type_comparison
-    CspLiteral = _lib.clingo_ast_type_csp_literal
     AggregateGuard = _lib.clingo_ast_type_aggregate_guard
     ConditionalLiteral = _lib.clingo_ast_type_conditional_literal
     Aggregate = _lib.clingo_ast_type_aggregate
@@ -407,8 +374,6 @@ class ASTType(Enum):
     HeadAggregateElement = _lib.clingo_ast_type_head_aggregate_element
     HeadAggregate = _lib.clingo_ast_type_head_aggregate
     Disjunction = _lib.clingo_ast_type_disjunction
-    DisjointElement = _lib.clingo_ast_type_disjoint_element
-    Disjoint = _lib.clingo_ast_type_disjoint
     TheorySequence = _lib.clingo_ast_type_theory_sequence
     TheoryFunction = _lib.clingo_ast_type_theory_function
     TheoryUnparsedTermElement = _lib.clingo_ast_type_theory_unparsed_term_element
@@ -1302,43 +1267,6 @@ def Pool(location: Location, arguments: Sequence[AST]) -> AST:
         _ffi.cast('size_t', len(arguments))))
     return AST(p_ast[0])
 
-def CspProduct(location: Location, coefficient: AST, variable: Optional[AST]) -> AST:
-    '''
-    Construct an AST node of type `ASTType.CspProduct`.
-    '''
-    p_ast = _ffi.new('clingo_ast_t**')
-    c_location = _c_location(location)
-    _handle_error(_lib.clingo_ast_build(
-        _lib.clingo_ast_type_csp_product, p_ast,
-        c_location[0],
-        coefficient._rep,
-        _ffi.NULL if variable is None else variable._rep))
-    return AST(p_ast[0])
-
-def CspSum(location: Location, terms: Sequence[AST]) -> AST:
-    '''
-    Construct an AST node of type `ASTType.CspSum`.
-    '''
-    p_ast = _ffi.new('clingo_ast_t**')
-    c_location = _c_location(location)
-    _handle_error(_lib.clingo_ast_build(
-        _lib.clingo_ast_type_csp_sum, p_ast,
-        c_location[0],
-        _ffi.new('clingo_ast_t*[]', [ x._rep for x in terms ]),
-        _ffi.cast('size_t', len(terms))))
-    return AST(p_ast[0])
-
-def CspGuard(comparison: int, term: AST) -> AST:
-    '''
-    Construct an AST node of type `ASTType.CspGuard`.
-    '''
-    p_ast = _ffi.new('clingo_ast_t**')
-    _handle_error(_lib.clingo_ast_build(
-        _lib.clingo_ast_type_csp_guard, p_ast,
-        _ffi.cast('int', comparison),
-        term._rep))
-    return AST(p_ast[0])
-
 def BooleanConstant(value: int) -> AST:
     '''
     Construct an AST node of type `ASTType.BooleanConstant`.
@@ -1369,20 +1297,6 @@ def Comparison(comparison: int, left: AST, right: AST) -> AST:
         _ffi.cast('int', comparison),
         left._rep,
         right._rep))
-    return AST(p_ast[0])
-
-def CspLiteral(location: Location, term: AST, guards: Sequence[AST]) -> AST:
-    '''
-    Construct an AST node of type `ASTType.CspLiteral`.
-    '''
-    p_ast = _ffi.new('clingo_ast_t**')
-    c_location = _c_location(location)
-    _handle_error(_lib.clingo_ast_build(
-        _lib.clingo_ast_type_csp_literal, p_ast,
-        c_location[0],
-        term._rep,
-        _ffi.new('clingo_ast_t*[]', [ x._rep for x in guards ]),
-        _ffi.cast('size_t', len(guards))))
     return AST(p_ast[0])
 
 def AggregateGuard(comparison: int, term: AST) -> AST:
@@ -1493,35 +1407,6 @@ def Disjunction(location: Location, elements: Sequence[AST]) -> AST:
     c_location = _c_location(location)
     _handle_error(_lib.clingo_ast_build(
         _lib.clingo_ast_type_disjunction, p_ast,
-        c_location[0],
-        _ffi.new('clingo_ast_t*[]', [ x._rep for x in elements ]),
-        _ffi.cast('size_t', len(elements))))
-    return AST(p_ast[0])
-
-def DisjointElement(location: Location, terms: Sequence[AST], term: AST, condition: Sequence[AST]) -> AST:
-    '''
-    Construct an AST node of type `ASTType.DisjointElement`.
-    '''
-    p_ast = _ffi.new('clingo_ast_t**')
-    c_location = _c_location(location)
-    _handle_error(_lib.clingo_ast_build(
-        _lib.clingo_ast_type_disjoint_element, p_ast,
-        c_location[0],
-        _ffi.new('clingo_ast_t*[]', [ x._rep for x in terms ]),
-        _ffi.cast('size_t', len(terms)),
-        term._rep,
-        _ffi.new('clingo_ast_t*[]', [ x._rep for x in condition ]),
-        _ffi.cast('size_t', len(condition))))
-    return AST(p_ast[0])
-
-def Disjoint(location: Location, elements: Sequence[AST]) -> AST:
-    '''
-    Construct an AST node of type `ASTType.Disjoint`.
-    '''
-    p_ast = _ffi.new('clingo_ast_t**')
-    c_location = _c_location(location)
-    _handle_error(_lib.clingo_ast_build(
-        _lib.clingo_ast_type_disjoint, p_ast,
         c_location[0],
         _ffi.new('clingo_ast_t*[]', [ x._rep for x in elements ]),
         _ffi.cast('size_t', len(elements))))
@@ -1719,7 +1604,7 @@ def Definition(location: Location, name: str, value: AST, is_default: int) -> AS
         _ffi.cast('int', is_default)))
     return AST(p_ast[0])
 
-def ShowSignature(location: Location, name: str, arity: int, positive: int, csp: int) -> AST:
+def ShowSignature(location: Location, name: str, arity: int, positive: int) -> AST:
     '''
     Construct an AST node of type `ASTType.ShowSignature`.
     '''
@@ -1730,11 +1615,10 @@ def ShowSignature(location: Location, name: str, arity: int, positive: int, csp:
         c_location[0],
         _ffi.new('char const[]', name.encode()),
         _ffi.cast('int', arity),
-        _ffi.cast('int', positive),
-        _ffi.cast('int', csp)))
+        _ffi.cast('int', positive)))
     return AST(p_ast[0])
 
-def ShowTerm(location: Location, term: AST, body: Sequence[AST], csp: int) -> AST:
+def ShowTerm(location: Location, term: AST, body: Sequence[AST]) -> AST:
     '''
     Construct an AST node of type `ASTType.ShowTerm`.
     '''
@@ -1745,8 +1629,7 @@ def ShowTerm(location: Location, term: AST, body: Sequence[AST], csp: int) -> AS
         c_location[0],
         term._rep,
         _ffi.new('clingo_ast_t*[]', [ x._rep for x in body ]),
-        _ffi.cast('size_t', len(body)),
-        _ffi.cast('int', csp)))
+        _ffi.cast('size_t', len(body))))
     return AST(p_ast[0])
 
 def Minimize(location: Location, weight: AST, priority: AST, terms: Sequence[AST], body: Sequence[AST]) -> AST:

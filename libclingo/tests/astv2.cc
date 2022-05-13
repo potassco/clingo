@@ -125,10 +125,7 @@ TEST_CASE("parse-ast-v2", "[clingo]") {
         REQUIRE(parse("#const a=10. [default]") == "#const a = 10.");
         REQUIRE(parse("#const a=10.") == "#const a = 10.");
         REQUIRE(parse("#show a/1.") == "#show a/1.");
-        REQUIRE(parse("#show $a/1.") == "#show $a/1.");
         REQUIRE(parse("#show a : b.") == "#show a : b.");
-        REQUIRE(parse("#show $a : b.") == "#show $a : b.");
-        REQUIRE(parse("#show $a : b.") == "#show $a : b.");
         REQUIRE(parse("#minimize{ 1:b }.") == ":~ b. [1@0]");
         REQUIRE(parse("#script (python)\n42\n  #end.") == "#script (python)\n42\n#end.");
         REQUIRE(parse("#script (lua) \n42\n #end.") == "#script (lua)\n42\n#end.");
@@ -158,7 +155,6 @@ TEST_CASE("parse-ast-v2", "[clingo]") {
         REQUIRE(parse(":-{a:b,c;e}2.") == "#false :- 2 >= { a: b, c; e }.");
         REQUIRE(parse(":-1#min{1,2:b,c;1:e}2.") == "#false :- 1 <= #min { 1,2: b, c; 1: e } <= 2.");
         REQUIRE(parse(":-&p { 1: a,b; 2: c }.") == "#false :- &p { 1: a, b; 2: c }.");
-        REQUIRE(parse(":-#disjoint {1,2:$x:a,b}.") == "#false :- #disjoint { 1,2:1$*$x: a, b }.");
     }
     SECTION("head literal") {
         REQUIRE(parse("a.") == "a.");
@@ -177,8 +173,6 @@ TEST_CASE("parse-ast-v2", "[clingo]") {
         REQUIRE(parse("not a.") == "not a.");
         REQUIRE(parse("not not a.") == "not not a.");
         REQUIRE(parse("1 != 3.") == "1 != 3.");
-        REQUIRE(parse("1 $< 2 $< 3.") == "1 $< 2 $< 3.");
-        REQUIRE(parse("1 $< 2 $< 3.") == "1 $< 2 $< 3.");
     }
     SECTION("terms") {
         REQUIRE(parse("p(a).") == "p(a).");
@@ -199,7 +193,6 @@ TEST_CASE("parse-ast-v2", "[clingo]") {
         REQUIRE(parse("p(a;b).") == "p(a;b).");
         REQUIRE(parse("p((a,;b)).") == "p(((a,);b)).");
         REQUIRE(parse("p(((a,);b)).") == "p(((a,);b)).");
-        REQUIRE(parse("1 $+ 3 $* $x $+ 7 $< 2 $< 3.") == "1$+3$*$x$+7 $< 2 $< 3.");
     }
     SECTION("theory terms") {
         REQUIRE(parse("&p{ } !! a.") == "&p { } !! a.");
@@ -223,9 +216,7 @@ TEST_CASE("add-ast-v2", "[clingo]") {
         REQUIRE(solve("a. c. b :- a, c.") == ModelVec({{Id("a"), Id("b"), Id("c")}}));
         REQUIRE(solve("#const a=10. p(a).") == ModelVec({{Function("p", {Number(10)})}}));
         REQUIRE(solve("a. b. #show a/0.") == ModelVec({{Id("a")}}));
-        REQUIRE(solve("$a$=1. $b$=2. #show $a/0.") == ModelVec({{Function("$", {Id("a"), Number(1)})}}));
         REQUIRE(solve("a. #show b : a.") == ModelVec({{Id("a"), Id("b")}}));
-        REQUIRE(solve("$a$=1. $b$=2. #show. #show $a.") == ModelVec({{Function("$", {Id("a"), Number(1)})}}));
         REQUIRE(solve("#minimize{ 1:b; 2:a }. {a;b}. :- not a, not b.") == ModelVec({{Id("b")}}));
 #ifdef WITH_LUA
         // NOTE: at the moment it is not possible to add additional script code - it is simply ignored
@@ -246,8 +237,6 @@ TEST_CASE("add-ast-v2", "[clingo]") {
         REQUIRE(solve(":-a:b.") == ModelVec({}));
         REQUIRE(solve(":-0{a:b;c}1. {a;b;c}.") == ModelVec({{Id("a"), Id("b"), Id("c")}}));
         REQUIRE(solve(":-0#min{1,2:a,b;2:c}2. {a;b;c}.") == ModelVec({{}, {Id("a")}, {Id("b")}}));
-        auto c = [](char const *name, int value) { return Function("$", {Id(name), Number(value)}); };
-        REQUIRE(solve("1 $<= $x $<= 2. 1 $<= $y $<= 2. :- #disjoint {1:$x; 2:$y}.") == ModelVec({{c("x", 1), c("y", 1)}, {c("x", 2), c("y", 2)}}));
     }
     SECTION("head literal") {
         REQUIRE(solve("a.") == ModelVec({{Id("a")}}));
@@ -263,8 +252,6 @@ TEST_CASE("add-ast-v2", "[clingo]") {
         REQUIRE(solve("1!=1.") == ModelVec({}));
         REQUIRE(solve("#true.") == ModelVec({SymbolVector{}}));
         REQUIRE(solve("#false.") == ModelVec({}));
-        REQUIRE(solve("1 $< 2 $< 3.") == ModelVec({SymbolVector{}}));
-        REQUIRE(solve("2 $< 3 $< 1.") == ModelVec({}));
     }
     SECTION("terms") {
         auto t = [](char const *s) { return ModelVec({{parse_term(s)}}); };
@@ -288,7 +275,6 @@ TEST_CASE("add-ast-v2", "[clingo]") {
         REQUIRE(solve("p(a;b).") == tt({"p(a)", "p(b)"}));
         REQUIRE(solve("p((),(1,),f(),f(1,2)).") == t("p((),(1,),f,f(1,2))"));
         REQUIRE(solve("p((a,;b)).") == tt({"p(b)", "p((a,))"}));
-        REQUIRE(solve("12 $< 1 $+ 3 $* $x $+ 7 $< 17. 0 $<= x $<= 4.") == ModelVec({{Function("$", {Id("x"), Number(2)})}}));
     }
     SECTION("theory") {
         char const *theory = R"(
@@ -429,28 +415,6 @@ TEST_CASE("unpool-ast-v2", "[clingo]") {
             "a((1..4)).\n"
             "a((2..3)).\n"
             "a((2..4)).");
-    }
-    SECTION("csp") {
-        REQUIRE(unpool("$a(1;2) $< a(3;4)$*$b(5;6).") ==
-            "1$*$a(1) $< a(3)$*$b(5).\n"
-            "1$*$a(1) $< a(3)$*$b(6).\n"
-            "1$*$a(1) $< a(4)$*$b(5).\n"
-            "1$*$a(1) $< a(4)$*$b(6).\n"
-            "1$*$a(2) $< a(3)$*$b(5).\n"
-            "1$*$a(2) $< a(3)$*$b(6).\n"
-            "1$*$a(2) $< a(4)$*$b(5).\n"
-            "1$*$a(2) $< a(4)$*$b(6).");
-        REQUIRE(unpool("#disjoint { a(1;2): $a(3;4): a(5;6) }.") ==
-            "#false :- not #disjoint { "
-            "a(1):1$*$a(3): a(5); "
-            "a(1):1$*$a(3): a(6); "
-            "a(1):1$*$a(4): a(5); "
-            "a(1):1$*$a(4): a(6); "
-            "a(2):1$*$a(3): a(5); "
-            "a(2):1$*$a(3): a(6); "
-            "a(2):1$*$a(4): a(5); "
-            "a(2):1$*$a(4): a(6) "
-            "}.");
     }
     SECTION("head literal") {
         REQUIRE(unpool("a(1;2).") ==

@@ -1556,9 +1556,6 @@ struct Model : Object<Model> {
         lua_getfield(L, 2, "terms");
         if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_terms; }
         lua_pop(L, 1);
-        lua_getfield(L, 2, "csp");
-        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_csp; }
-        lua_pop(L, 1);
         lua_getfield(L, 2, "theory");
         if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_theory; }
         lua_pop(L, 1);
@@ -3112,9 +3109,6 @@ public:
     static bool output_term(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *data) {
         return call(data, S("output_term"), symbol_wrapper{symbol}, range(condition, size));
     }
-    static bool output_csp(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, void *data) {
-        return call(data, S("output_csp"), symbol_wrapper{symbol}, value, range(condition, size));
-    }
     static bool external(clingo_atom_t atom, clingo_external_type_t type, void *data) {
         return call(data, S("external"), atom, static_cast<clingo_external_type_e>(type));
     }
@@ -3713,7 +3707,6 @@ struct ControlWrap : Object<ControlWrap> {
             GroundProgramObserver::project,
             GroundProgramObserver::output_atom,
             GroundProgramObserver::output_term,
-            GroundProgramObserver::output_csp,
             GroundProgramObserver::external,
             GroundProgramObserver::assume,
             GroundProgramObserver::heuristic,

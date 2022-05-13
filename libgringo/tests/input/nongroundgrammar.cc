@@ -51,14 +51,6 @@ public:
     virtual TermUid term(Location const &loc, TermVecUid args, bool forceTuple) override;
     virtual TermUid pool(Location const &loc, TermVecUid args) override;
     // }}}
-    // {{{ csp
-    virtual CSPMulTermUid cspmulterm(Location const &loc, TermUid coe, TermUid var) override;
-    virtual CSPMulTermUid cspmulterm(Location const &loc, TermUid coe) override;
-    virtual CSPAddTermUid cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) override;
-    virtual CSPAddTermUid cspaddterm(Location const &loc, CSPMulTermUid a) override;
-    virtual LitUid csplit(CSPLitUid a) override;
-    virtual CSPLitUid csplit(Location const &loc, CSPLitUid a, Relation rel, CSPAddTermUid b) override;
-    virtual CSPLitUid csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) override;
     // }}}
     // {{{ id vectors
     virtual IdVecUid idvec() override;
@@ -113,20 +105,15 @@ public:
     virtual BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, BdAggrElemVecUid bodyaggrelemvec) override;
     virtual BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid bodyaggrelemvec) override;
     virtual BdLitVecUid conjunction(BdLitVecUid body, Location const &loc, LitUid head, LitVecUid litvec) override;
-    virtual BdLitVecUid disjoint(BdLitVecUid body, Location const &loc, NAF naf, CSPElemVecUid elem) override;
-    // }}}
-    // {{{ csp constraint elements
-    virtual CSPElemVecUid cspelemvec() override;
-    virtual CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) override;
     // }}}
     // {{{ statements
     virtual void rule(Location const &loc, HdLitUid head) override;
     virtual void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
     virtual void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) override;
     virtual void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
-    virtual void showsig(Location const &loc, Sig sig, bool csp) override;
+    virtual void showsig(Location const &loc, Sig sig) override;
     virtual void defined(Location const &loc, Sig sig) override;
-    virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
+    virtual void show(Location const &loc, TermUid t, BdLitVecUid body) override;
     virtual void script(Location const &loc, String type, String code) override;
     virtual void block(Location const &loc, String name, IdVecUid args) override;
     virtual void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) override;
@@ -203,11 +190,7 @@ private:
     using CondLitVecs = Indexed<StringVec, CondLitVecUid>;
     using HeadAggrElemVecs = Indexed<StringVec, HdAggrElemVecUid>;
     using Bodies = Indexed<StringVec, BdLitVecUid>;
-    using CSPElems = Indexed<StringVec, CSPElemVecUid>;
     using Heads = Indexed<std::string, HdLitUid>;
-    using CSPAddTerms = Indexed<std::string, CSPAddTermUid>;
-    using CSPMulTerms = Indexed<std::string, CSPMulTermUid>;
-    using CSPLits = Indexed<std::string, CSPLitUid>;
     using Bounds = Indexed<StringPairVec, BoundVecUid>;
     using Statements = std::vector<std::string>;
 
@@ -245,10 +228,6 @@ private:
     HeadAggrElemVecs headaggrelemvecs_;
     Bodies bodies_;
     Heads heads_;
-    CSPAddTerms cspaddterms_;
-    CSPMulTerms cspmulterms_;
-    CSPLits csplits_;
-    CSPElems cspelems_;
     Bounds bounds_;
     Statements statements_;
     std::stringstream current_;
@@ -349,35 +328,6 @@ TermUid TestNongroundProgramBuilder::pool(Location const &, TermVecUid args) {
     return terms_.emplace(str());
 }
 
-// }}}
-// {{{ csp
-CSPMulTermUid TestNongroundProgramBuilder::cspmulterm(Location const &, TermUid coe, TermUid var) {
-    current_ << terms_.erase(coe) << "$*$" << terms_.erase(var);
-    return cspmulterms_.emplace(str());
-}
-CSPMulTermUid TestNongroundProgramBuilder::cspmulterm(Location const &, TermUid coe) {
-    current_ << terms_.erase(coe);
-    return cspmulterms_.emplace(str());
-}
-CSPAddTermUid TestNongroundProgramBuilder::cspaddterm(Location const &, CSPAddTermUid a, CSPMulTermUid b, bool add) {
-    cspaddterms_[a] += (add ? "$+" : "$-") + cspmulterms_.erase(b);
-    return a;
-}
-CSPAddTermUid TestNongroundProgramBuilder::cspaddterm(Location const &, CSPMulTermUid a) {
-    current_ << cspmulterms_.erase(a);
-    return cspaddterms_.emplace(str());
-}
-LitUid TestNongroundProgramBuilder::csplit(CSPLitUid a) {
-    return lits_.emplace(csplits_.erase(a));
-}
-CSPLitUid TestNongroundProgramBuilder::csplit(Location const &, CSPLitUid a, Relation rel, CSPAddTermUid b) {
-    csplits_[a] += "$" + IO::to_string(rel) + cspaddterms_.erase(b);
-    return a;
-}
-CSPLitUid TestNongroundProgramBuilder::csplit(Location const &, CSPAddTermUid a, Relation rel, CSPAddTermUid b) {
-    current_ << cspaddterms_.erase(a) << "$" << rel << cspaddterms_.erase(b);
-    return csplits_.emplace(str());
-}
 // }}}
 // {{{ term vectors
 
@@ -572,29 +522,6 @@ BdLitVecUid TestNongroundProgramBuilder::conjunction(BdLitVecUid uid, Location c
     return uid;
 }
 
-BdLitVecUid TestNongroundProgramBuilder::disjoint(BdLitVecUid body, Location const &, NAF naf, CSPElemVecUid elem) {
-    current_ << naf << "#disjoint{";
-    print(cspelems_.erase(elem), ",");
-    current_ << "}";
-    bodies_[body].emplace_back(str());
-    return body;
-}
-
-// }}}
-// {{{ csp constraint elements
-
-CSPElemVecUid TestNongroundProgramBuilder::cspelemvec() {
-    return cspelems_.emplace();
-}
-
-CSPElemVecUid TestNongroundProgramBuilder::cspelemvec(CSPElemVecUid uid, Location const &, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) {
-    print(termvecs_.erase(termvec), ",");
-    current_ << ":" << cspaddterms_.erase(addterm) << ":";
-    print(litvecs_.erase(litvec), ",");
-    cspelems_[uid].emplace_back(str());
-    return uid;
-}
-
 // }}}
 // {{{ statements
 
@@ -634,8 +561,8 @@ void TestNongroundProgramBuilder::optimize(Location const &, TermUid weight, Ter
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::showsig(Location const &, Sig sig, bool csp) {
-    current_ << "#showsig " << (csp ? "$" : "") << sig << ".";
+void TestNongroundProgramBuilder::showsig(Location const &, Sig sig) {
+    current_ << "#showsig " << sig << ".";
     statements_.emplace_back(str());
 }
 
@@ -644,8 +571,8 @@ void TestNongroundProgramBuilder::defined(Location const &, Sig sig) {
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::show(Location const &, TermUid t, BdLitVecUid bodyuid, bool csp) {
-    current_ << "#show " << (csp ? "$" : "") << terms_.erase(t);
+void TestNongroundProgramBuilder::show(Location const &, TermUid t, BdLitVecUid bodyuid) {
+    current_ << "#show " << terms_.erase(t);
     StringVec body(bodies_.erase(bodyuid));
     if (!body.empty()) {
         current_ << ":";
@@ -1290,12 +1217,6 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
             ~Del() { std::remove("test_include.lp"); }
         } del;
         REQUIRE("#program base().\na.\nb.\n#program base().\nc.\nd." == parse("a.\n#include \"test_include.lp\".\nc.\nd.\n"));
-    }
-
-    SECTION("csp") {
-        REQUIRE("#program base().\n1$<=1$*$x$<=10." == parse("1 $<= $x $<= 10."));
-        REQUIRE("#program base().\n1$*$a$<=X$*$x$+8$*$X$<=10:-p(X)." == parse("1 $* $a $<= $x $* X $+ 8 $* $X $<= 10 :- p(X)."));
-        REQUIRE("#program base().\n#false:-a;b;not #disjoint{a:1$*$a:a,a,b:1$*$b:b}." == parse("#disjoint{a:$a:a,a; b:$b:b} :- a, b."));
     }
 
     SECTION("edge") {
