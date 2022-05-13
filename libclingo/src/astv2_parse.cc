@@ -409,6 +409,21 @@ private:
         }
     }
 
+    RelLitVecUid parseRightGuards(AST::ASTVec const &vec) {
+        if (vec.empty()) {
+            throw std::runtime_error("invalid ast: a comparision must have at least one guard");
+        }
+        auto ret = prg_.rellitvec(get<Location>(*vec.front(), clingo_ast_attribute_location),
+                                  parseRelation(get<int>(*vec.front(), clingo_ast_attribute_comparison)),
+                                  parseTerm(*get<SAST>(*vec.front(), clingo_ast_attribute_term)));
+        for (auto it = vec.begin() + 1, ie = vec.end(); it != ie; ++it) {
+            ret = prg_.rellitvec(get<Location>(**it, clingo_ast_attribute_location),
+                                 parseRelation(get<int>(**it, clingo_ast_attribute_comparison)),
+                                 parseTerm(*get<SAST>(**it, clingo_ast_attribute_term)));
+        }
+        return ret;
+    }
+
     LitUid parseLiteral(AST const &ast) {
         switch (ast.type()) {
             case clingo_ast_type_literal: {
@@ -428,14 +443,10 @@ private:
                                             parseAtom(*get<SAST>(ast, clingo_ast_attribute_atom)));
                     }
                     case clingo_ast_type_comparison: {
-                        throw std::logic_error("implement me!!!");
-                        /*
-                        auto rel = parseRelation(get<int>(atom, clingo_ast_attribute_comparison));
                         return prg_.rellit(loc,
-                                           sign != NAF::NOT ? rel : neg(rel),
-                                           parseTerm(*get<SAST>(atom, clingo_ast_attribute_left)),
-                                           parseTerm(*get<SAST>(atom, clingo_ast_attribute_right)));
-                        */
+                                           sign,
+                                           parseTerm(*get<SAST>(atom, clingo_ast_attribute_term)),
+                                           parseRightGuards(get<AST::ASTVec>(atom, clingo_ast_attribute_guards)));
                     }
                     default: {
                         throw std::runtime_error("invalid ast: atom expected");

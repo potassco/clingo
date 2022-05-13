@@ -79,17 +79,17 @@ symbolic_atom = SymbolicAtom
                  ( symbol : term
                  )
 
-comparison_term = ComparisonTerm
-                    ( comparison : ComparisonOperator
-                    , term       : Term
-                    )
+guard = Guard
+         ( comparison : ComparisonOperator
+         , term       : term
+         )
 
 literal = Literal
            ( location : Location
            , sign     : Sign
            , atom     : Comparison
-                         ( left  : term
-                         , right : comparison_term+
+                         ( term   : term
+                         , guards : guard+
                          )
                       | BooleanConstant
                          ( value : bool
@@ -99,11 +99,6 @@ literal = Literal
 
 # Head and Body Literals
 
-aggregate_guard = AggregateGuard
-                   ( comparison : ComparisonOperator
-                   , term       : term
-                   )
-
 conditional_literal = ConditionalLiteral
                        ( location  : Location
                        , literal   : Literal
@@ -112,9 +107,9 @@ conditional_literal = ConditionalLiteral
 
 aggregate = Aggregate
              ( location    : Location
-             , left_guard  : aggregate_guard?
+             , left_guard  : guard?
              , elements    : conditional_literal*
-             , right_guard : aggregate_guard?
+             , right_guard : guard?
              )
 
 theory_atom = TheoryAtom
@@ -133,13 +128,13 @@ theory_atom = TheoryAtom
 body_atom = aggregate
           | BodyAggregate
              ( location    : Location
-             , left_guard  : aggregate_guard?
+             , left_guard  : guard?
              , function    : AggregateFunction
              , elements    : BodyAggregateElement
                               ( terms     : term*
                               , condition : literal*
                               )*
-             , right_guard : aggregate_guard?
+             , right_guard : guard?
              )
           | theory_atom
 
@@ -155,13 +150,13 @@ head = literal
      | aggregate
      | HeadAggregate
         ( location    : Location
-        , left_guard  : aggregate_guard?
+        , left_guard  : guard?
         , function    : AggregateFunction
         , elements    : HeadAggregateElement
                          ( terms     : term*
                          , condition : conditional_literal
                          )*
-        , right_guard : aggregate_guard?
+        , right_guard : guard?
         )
      | Disjunction
         ( location : Location
@@ -330,7 +325,7 @@ from .control import Control
 from .symbol import Symbol
 
 __all__ = [ 'AST', 'ASTSequence', 'ASTType', 'ASTValue', 'Aggregate',
-            'AggregateFunction', 'AggregateGuard', 'BinaryOperation',
+            'AggregateFunction', 'Guard', 'BinaryOperation',
             'BinaryOperator', 'BodyAggregate', 'BodyAggregateElement',
             'BooleanConstant', 'Comparison', 'ComparisonOperator',
             'ComparisonTerm', 'ConditionalLiteral', 'CspGuard', 'CspLiteral',
@@ -366,7 +361,7 @@ class ASTType(Enum):
     BooleanConstant = _lib.clingo_ast_type_boolean_constant
     SymbolicAtom = _lib.clingo_ast_type_symbolic_atom
     Comparison = _lib.clingo_ast_type_comparison
-    AggregateGuard = _lib.clingo_ast_type_aggregate_guard
+    Guard = _lib.clingo_ast_type_guard
     ConditionalLiteral = _lib.clingo_ast_type_conditional_literal
     Aggregate = _lib.clingo_ast_type_aggregate
     BodyAggregateElement = _lib.clingo_ast_type_body_aggregate_element
@@ -1287,25 +1282,25 @@ def SymbolicAtom(symbol: AST) -> AST:
         symbol._rep))
     return AST(p_ast[0])
 
-def Comparison(comparison: int, left: AST, right: AST) -> AST:
+def Comparison(term: AST, guards: Sequence[AST]) -> AST:
     '''
     Construct an AST node of type `ASTType.Comparison`.
     '''
     p_ast = _ffi.new('clingo_ast_t**')
     _handle_error(_lib.clingo_ast_build(
         _lib.clingo_ast_type_comparison, p_ast,
-        _ffi.cast('int', comparison),
-        left._rep,
-        right._rep))
+        term._rep,
+        _ffi.new('clingo_ast_t*[]', [ x._rep for x in guards ]),
+        _ffi.cast('size_t', len(guards))))
     return AST(p_ast[0])
 
-def AggregateGuard(comparison: int, term: AST) -> AST:
+def Guard(comparison: int, term: AST) -> AST:
     '''
-    Construct an AST node of type `ASTType.AggregateGuard`.
+    Construct an AST node of type `ASTType.Guard`.
     '''
     p_ast = _ffi.new('clingo_ast_t**')
     _handle_error(_lib.clingo_ast_build(
-        _lib.clingo_ast_type_aggregate_guard, p_ast,
+        _lib.clingo_ast_type_guard, p_ast,
         _ffi.cast('int', comparison),
         term._rep))
     return AST(p_ast[0])

@@ -2429,7 +2429,7 @@ enum clingo_ast_type_e {
     clingo_ast_type_symbolic_atom,
     clingo_ast_type_comparison,
     // aggregates
-    clingo_ast_type_aggregate_guard,
+    clingo_ast_type_guard,
     clingo_ast_type_conditional_literal,
     clingo_ast_type_aggregate,
     clingo_ast_type_body_aggregate_element,

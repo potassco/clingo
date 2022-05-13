@@ -423,19 +423,16 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             break;
         }
         case clingo_ast_type_comparison: {
-            out << print(ast, clingo_ast_attribute_left)
-                << " "
-                << enum_to_string<clingo_ast_comparison_operator_e>(ast, clingo_ast_attribute_comparison)
-                << " "
-                << print(ast, clingo_ast_attribute_right);
+            out << print(ast, clingo_ast_attribute_term)
+                << print_list<AST::ASTVec>(ast, clingo_ast_attribute_guards, "", "", "", false);
             break;
         }
         // {{{1 aggregate
-        case clingo_ast_type_aggregate_guard: {
-            out << "AggregateGuard("
+        case clingo_ast_type_guard: {
+            out << " "
                 << enum_to_string<clingo_ast_comparison_operator_e>(ast, clingo_ast_attribute_comparison)
-                << ", "
-                << print(ast, clingo_ast_attribute_term) << ")";
+                << " "
+                << print(ast, clingo_ast_attribute_term);
             break;
         }
         case clingo_ast_type_conditional_literal: {

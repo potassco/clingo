@@ -1184,9 +1184,9 @@ C(pool) { A(location, location), A(arguments, ast_array) };
 // simple atoms
 C(boolean_constant) { A(value, number) };
 C(symbolic_atom) { A(symbol, ast) };
-C(comparison) { A(comparison, number), A(left, ast), A(right, ast) };
+C(comparison) { A(term, ast), A(guards, ast_array) };
 // aggregates
-C(aggregate_guard) { A(comparison, number), A(term, ast) };
+C(guard) { A(comparison, number), A(term, ast) };
 C(conditional_literal) { A(location, location), A(literal, ast), A(condition, ast_array) };
 C(aggregate) { A(location, location), A(left_guard, optional_ast), A(elements, ast_array), A(right_guard, optional_ast) };
 C(body_aggregate_element) { A(terms, ast_array), A(condition, ast_array) };
@@ -1240,7 +1240,7 @@ clingo_ast_constructor_t const clingo_ast_constructor_list[] = {
     E(symbolic_atom),
     E(comparison),
     // aggregates
-    E(aggregate_guard),
+    E(guard),
     E(conditional_literal),
     E(aggregate),
     E(body_aggregate_element),

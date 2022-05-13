@@ -1882,7 +1882,7 @@ enum class Type {
     SymbolicAtom = clingo_ast_type_symbolic_atom,
     Comparison = clingo_ast_type_comparison,
     // aggregates
-    AggregateGuard = clingo_ast_type_aggregate_guard,
+    Guard = clingo_ast_type_guard,
     ConditionalLiteral = clingo_ast_type_conditional_literal,
     Aggregate = clingo_ast_type_aggregate,
     BodyAggregateElement = clingo_ast_type_body_aggregate_element,

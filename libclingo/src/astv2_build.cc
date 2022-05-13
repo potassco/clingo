@@ -182,23 +182,23 @@ public:
     }
 
     RelLitVecUid rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) override {
-        throw std::logic_error("implement me!!!");
+        auto id = guardvecs_.emplace();
+        return rellitvec(loc, id, rel, termUidLeft);
     }
 
     RelLitVecUid rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) override {
-        throw std::logic_error("implement me!!!");
+        guardvecs_[vecUidLeft].emplace_back(ast(clingo_ast_type_guard, loc)
+            .set(clingo_ast_attribute_comparison, static_cast<int>(rel))
+            .set(clingo_ast_attribute_term, terms_.erase(termUidRight)));
+        return vecUidLeft;
     }
 
     LitUid rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) override {
-        throw std::logic_error("implement me!!!");
-        /*
         return lits_.insert(ast(clingo_ast_type_literal, loc)
             .set(clingo_ast_attribute_sign, static_cast<int>(clingo_ast_sign_no_sign))
             .set(clingo_ast_attribute_atom, ast(clingo_ast_type_comparison)
-                .set(clingo_ast_attribute_comparison, static_cast<int>(rel))
-                .set(clingo_ast_attribute_left, terms_.erase(termUidLeft))
-                .set(clingo_ast_attribute_right, terms_.erase(termUidRight))));
-        */
+                .set(clingo_ast_attribute_term, terms_.erase(termUidLeft))
+                .set(clingo_ast_attribute_guards, guardvecs_.erase(vecUidRight))));
     }
 
     LitVecUid litvec() override {
@@ -258,7 +258,7 @@ public:
     }
 
     BoundVecUid boundvec(BoundVecUid uid, Relation rel, TermUid term) override {
-        boundvecs_[uid].emplace_back(ast(clingo_ast_type_aggregate_guard)
+        boundvecs_[uid].emplace_back(ast(clingo_ast_type_guard)
             .set(clingo_ast_attribute_comparison, static_cast<int>(rel))
             .set(clingo_ast_attribute_term, terms_.erase(term)));
         return uid;
@@ -661,6 +661,7 @@ private:
     Indexed<AST::ASTVec, BdAggrElemVecUid> bdaggrelemvecs_;
     Indexed<AST::ASTVec, HdAggrElemVecUid> hdaggrelemvecs_;
     Indexed<AST::ASTVec, BoundVecUid> boundvecs_;
+    Indexed<AST::ASTVec, RelLitVecUid> guardvecs_;
     Indexed<AST::ASTVec, BdLitVecUid> bodylitvecs_;
     Indexed<SAST, HdLitUid> heads_;
     Indexed<SAST, TheoryAtomUid> theoryatoms_;

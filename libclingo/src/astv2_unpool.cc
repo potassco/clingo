@@ -224,7 +224,9 @@ tl::optional<AST::ASTVec> unpool(SAST &ast, clingo_ast_unpool_type_bitset_t type
         case clingo_ast_type_unary_operation: {
             return unpool_cross(*ast, clingo_ast_attribute_argument);
         }
-        case clingo_ast_type_comparison:
+        case clingo_ast_type_comparison: {
+            return unpool_cross(*ast, clingo_ast_attribute_term, clingo_ast_attribute_guards);
+        }
         case clingo_ast_type_interval:
         case clingo_ast_type_binary_operation: {
             return unpool_cross(*ast, clingo_ast_attribute_left, clingo_ast_attribute_right);
@@ -248,7 +250,7 @@ tl::optional<AST::ASTVec> unpool(SAST &ast, clingo_ast_unpool_type_bitset_t type
         case clingo_ast_type_symbolic_atom: {
             return unpool_cross(*ast, clingo_ast_attribute_symbol);
         }
-        case clingo_ast_type_aggregate_guard: {
+        case clingo_ast_type_guard: {
             return unpool_cross(*ast, clingo_ast_attribute_term);
         }
         case clingo_ast_type_conditional_literal: {

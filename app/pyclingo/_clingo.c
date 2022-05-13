@@ -2464,10 +2464,10 @@ static int _cffi_const_clingo_ast_type_comparison(unsigned long long *o)
   return n;
 }
 
-static int _cffi_const_clingo_ast_type_aggregate_guard(unsigned long long *o)
+static int _cffi_const_clingo_ast_type_guard(unsigned long long *o)
 {
-  int n = (clingo_ast_type_aggregate_guard) <= 0;
-  *o = (unsigned long long)((clingo_ast_type_aggregate_guard) | 0);  /* check that clingo_ast_type_aggregate_guard is an integer */
+  int n = (clingo_ast_type_guard) <= 0;
+  *o = (unsigned long long)((clingo_ast_type_guard) | 0);  /* check that clingo_ast_type_guard is an integer */
   return n;
 }
 
@@ -17326,7 +17326,6 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_ast_to_string", (void *)_cffi_f_clingo_ast_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 134), (void *)_cffi_d_clingo_ast_to_string },
   { "clingo_ast_to_string_size", (void *)_cffi_f_clingo_ast_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 246), (void *)_cffi_d_clingo_ast_to_string_size },
   { "clingo_ast_type_aggregate", (void *)_cffi_const_clingo_ast_type_aggregate, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_type_aggregate_guard", (void *)_cffi_const_clingo_ast_type_aggregate_guard, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_type_binary_operation", (void *)_cffi_const_clingo_ast_type_binary_operation, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_type_body_aggregate", (void *)_cffi_const_clingo_ast_type_body_aggregate, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_type_body_aggregate_element", (void *)_cffi_const_clingo_ast_type_body_aggregate_element, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
@@ -17339,6 +17338,7 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_ast_type_edge", (void *)_cffi_const_clingo_ast_type_edge, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_type_external", (void *)_cffi_const_clingo_ast_type_external, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_type_function", (void *)_cffi_const_clingo_ast_type_function, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
+  { "clingo_ast_type_guard", (void *)_cffi_const_clingo_ast_type_guard, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_type_head_aggregate", (void *)_cffi_const_clingo_ast_type_head_aggregate, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_type_head_aggregate_element", (void *)_cffi_const_clingo_ast_type_head_aggregate_element, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_type_heuristic", (void *)_cffi_const_clingo_ast_type_heuristic, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
@@ -17932,7 +17932,7 @@ static const struct _cffi_enum_s _cffi_enums[] = {
   { "clingo_ast_theory_sequence_type_e", 1220, _cffi_prim_int(sizeof(enum clingo_ast_theory_sequence_type_e), ((enum clingo_ast_theory_sequence_type_e)-1) <= 0),
     "clingo_ast_theory_sequence_type_tuple,clingo_ast_theory_sequence_type_list,clingo_ast_theory_sequence_type_set" },
   { "clingo_ast_type_e", 1221, _cffi_prim_int(sizeof(enum clingo_ast_type_e), ((enum clingo_ast_type_e)-1) <= 0),
-    "clingo_ast_type_id,clingo_ast_type_variable,clingo_ast_type_symbolic_term,clingo_ast_type_unary_operation,clingo_ast_type_binary_operation,clingo_ast_type_interval,clingo_ast_type_function,clingo_ast_type_pool,clingo_ast_type_boolean_constant,clingo_ast_type_symbolic_atom,clingo_ast_type_comparison,clingo_ast_type_aggregate_guard,clingo_ast_type_conditional_literal,clingo_ast_type_aggregate,clingo_ast_type_body_aggregate_element,clingo_ast_type_body_aggregate,clingo_ast_type_head_aggregate_element,clingo_ast_type_head_aggregate,clingo_ast_type_disjunction,clingo_ast_type_theory_sequence,clingo_ast_type_theory_function,clingo_ast_type_theory_unparsed_term_element,clingo_ast_type_theory_unparsed_term,clingo_ast_type_theory_guard,clingo_ast_type_theory_atom_element,clingo_ast_type_theory_atom,clingo_ast_type_literal,clingo_ast_type_theory_operator_definition,clingo_ast_type_theory_term_definition,clingo_ast_type_theory_guard_definition,clingo_ast_type_theory_atom_definition,clingo_ast_type_rule,clingo_ast_type_definition,clingo_ast_type_show_signature,clingo_ast_type_show_term,clingo_ast_type_minimize,clingo_ast_type_script,clingo_ast_type_program,clingo_ast_type_external,clingo_ast_type_edge,clingo_ast_type_heuristic,clingo_ast_type_project_atom,clingo_ast_type_project_signature,clingo_ast_type_defined,clingo_ast_type_theory_definition" },
+    "clingo_ast_type_id,clingo_ast_type_variable,clingo_ast_type_symbolic_term,clingo_ast_type_unary_operation,clingo_ast_type_binary_operation,clingo_ast_type_interval,clingo_ast_type_function,clingo_ast_type_pool,clingo_ast_type_boolean_constant,clingo_ast_type_symbolic_atom,clingo_ast_type_comparison,clingo_ast_type_guard,clingo_ast_type_conditional_literal,clingo_ast_type_aggregate,clingo_ast_type_body_aggregate_element,clingo_ast_type_body_aggregate,clingo_ast_type_head_aggregate_element,clingo_ast_type_head_aggregate,clingo_ast_type_disjunction,clingo_ast_type_theory_sequence,clingo_ast_type_theory_function,clingo_ast_type_theory_unparsed_term_element,clingo_ast_type_theory_unparsed_term,clingo_ast_type_theory_guard,clingo_ast_type_theory_atom_element,clingo_ast_type_theory_atom,clingo_ast_type_literal,clingo_ast_type_theory_operator_definition,clingo_ast_type_theory_term_definition,clingo_ast_type_theory_guard_definition,clingo_ast_type_theory_atom_definition,clingo_ast_type_rule,clingo_ast_type_definition,clingo_ast_type_show_signature,clingo_ast_type_show_term,clingo_ast_type_minimize,clingo_ast_type_script,clingo_ast_type_program,clingo_ast_type_external,clingo_ast_type_edge,clingo_ast_type_heuristic,clingo_ast_type_project_atom,clingo_ast_type_project_signature,clingo_ast_type_defined,clingo_ast_type_theory_definition" },
   { "clingo_ast_unary_operator_e", 1222, _cffi_prim_int(sizeof(enum clingo_ast_unary_operator_e), ((enum clingo_ast_unary_operator_e)-1) <= 0),
     "clingo_ast_unary_operator_minus,clingo_ast_unary_operator_negation,clingo_ast_unary_operator_absolute" },
   { "clingo_ast_unpool_type_e", 1223, _cffi_prim_int(sizeof(enum clingo_ast_unpool_type_e), ((enum clingo_ast_unpool_type_e)-1) <= 0),
