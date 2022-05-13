@@ -36,7 +36,7 @@ struct PredicateLiteral : Literal {
     PredicateLiteral(NAF naf, UTerm &&repr, bool auxiliary = false);
     unsigned projectScore() const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     PredicateLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
@@ -90,7 +90,7 @@ public:
     bool needSetShift() const override;
     unsigned projectScore() const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     RelationLiteralN *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
@@ -122,7 +122,7 @@ struct RelationLiteral : Literal {
     RelationLiteral(Relation rel, UTerm &&left, UTerm &&right);
     unsigned projectScore() const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     RelationLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
@@ -152,7 +152,7 @@ struct RelationLiteral : Literal {
 struct RangeLiteral : Literal {
     RangeLiteral(UTerm &&assign, UTerm &&lower, UTerm &&upper);
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     RangeLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
@@ -181,7 +181,7 @@ struct RangeLiteral : Literal {
 struct ScriptLiteral : Literal {
     ScriptLiteral(UTerm &&assign, String name, UTermVec &&args);
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     ScriptLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
@@ -211,7 +211,7 @@ struct VoidLiteral : Literal {
     VoidLiteral();
     unsigned projectScore() const override { return 0; }
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     VoidLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
@@ -246,7 +246,7 @@ public:
     bool triviallyTrue() const override { return value_; }
     unsigned projectScore() const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     BooleanSetLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
@@ -278,7 +278,7 @@ struct CSPLiteral : Literal {
     void append(Relation rel, CSPAddTerm &&x);
 
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     CSPLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;

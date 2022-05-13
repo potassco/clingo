@@ -173,9 +173,9 @@ public:
     //! Unpool the aggregate and aggregate elements.
     virtual void unpool(UBodyAggrVec &x, bool beforeRewrite) = 0;
     //! Check if the aggregate needs unpooling.
-    virtual bool hasUnpoolComparison() const;
+    virtual bool hasUnpoolComparison() const = 0;
     //! Unpool the aggregate and aggregate elements.
-    virtual UBodyAggrVecVec unpoolComparison() const;
+    virtual UBodyAggrVecVec unpoolComparison() const = 0;
     //! Simplify the aggregate and aggregate elements.
     //! \pre Must be called after unpool.
     virtual bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) = 0;

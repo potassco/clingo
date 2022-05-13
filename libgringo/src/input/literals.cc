@@ -212,23 +212,23 @@ ULitVec CSPLiteral::unpool(bool beforeRewrite, bool) const {
 
 // {{{1 definition of Literal::toTuple
 
-void RelationLiteral::toTuple(UTermVec &tuple, int &id) {
+void RelationLiteral::toTuple(UTermVec &tuple, int &id) const {
     tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+4)));
     tuple.emplace_back(get_clone(left));
     tuple.emplace_back(get_clone(right));
     id++;
 }
-void RangeLiteral::toTuple(UTermVec &, int &) {
+void RangeLiteral::toTuple(UTermVec &, int &) const {
     throw std::logic_error("RangeLiteral::toTuple should never be called if used properly");
 }
-void VoidLiteral::toTuple(UTermVec &tuple, int &id) {
+void VoidLiteral::toTuple(UTermVec &tuple, int &id) const {
     tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+4)));
     id++;
 }
-void ScriptLiteral::toTuple(UTermVec &, int &) {
+void ScriptLiteral::toTuple(UTermVec &, int &) const {
     throw std::logic_error("ScriptLiteral::toTuple should never be called if used properly");
 }
-void CSPLiteral::toTuple(UTermVec &tuple, int &id) {
+void CSPLiteral::toTuple(UTermVec &tuple, int &id) const {
     VarTermSet vars;
     for (auto &x : terms) { x.collect(vars); }
     tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+4)));
@@ -396,7 +396,7 @@ ULitVec PredicateLiteral::unpool(bool, bool) const {
     return  value;
 }
 
-void PredicateLiteral::toTuple(UTermVec &tuple, int &) {
+void PredicateLiteral::toTuple(UTermVec &tuple, int &) const {
     int id = 0;
     switch (naf) {
         case NAF::POS:    { id = 0; break; }
@@ -686,7 +686,7 @@ bool RelationLiteralN::hasUnpoolComparison() const {
     return right_.size() > 1;
 }
 
-void RelationLiteralN::toTuple(UTermVec &tuple, int &id) {
+void RelationLiteralN::toTuple(UTermVec &tuple, int &id) const {
     throw std::runtime_error("RelationLiteralN::toTuple: a relation literal always has to be shifted");
 }
 
@@ -759,7 +759,7 @@ void BooleanSetLiteral::collect(VarTermBoundVec &vars, bool bound) const {
     repr_->collect(vars, false);
 }
 
-void BooleanSetLiteral::toTuple(UTermVec &tuple, int &id) {
+void BooleanSetLiteral::toTuple(UTermVec &tuple, int &id) const {
     static_cast<void>(id);
     tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(3)));
     tuple.emplace_back(get_clone(repr_));

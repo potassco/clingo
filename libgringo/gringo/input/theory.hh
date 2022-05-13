@@ -130,6 +130,8 @@ public:
     ~BodyTheoryLiteral() noexcept override;
     // {{{2 BodyAggregate interface
     void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool hasUnpoolComparison() const override;
+    UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void check(ChkLvlVec &lvl, Logger &log) const override;

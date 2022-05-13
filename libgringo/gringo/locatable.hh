@@ -34,9 +34,9 @@ namespace Gringo {
 
 struct Location {
     Location(String beginFilename, unsigned beginLine, unsigned beginColumn, String endFilename, unsigned endLine, unsigned endColumn);
-    Location(Location const &other) = default;
+    Location(Location const &other) noexcept = default;
     Location(Location &&other) noexcept = default;
-    Location &operator=(Location const &other) = default;
+    Location &operator=(Location const &other) noexcept = default;
     Location &operator=(Location &&other) noexcept = default;
     ~Location() noexcept = default;
 

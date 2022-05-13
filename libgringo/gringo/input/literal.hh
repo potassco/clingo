@@ -124,7 +124,7 @@ public:
     //! comparision occurs in the arregate and vars are the variables that
     //! occur in the comparison. This ensures something like a multi-set
     //! semantics for comparisions.
-    virtual void toTuple(UTermVec &tuple, int &id) = 0;
+    virtual void toTuple(UTermVec &tuple, int &id) const = 0;
     virtual Symbol isEDB() const;
     virtual void replace(Defines &dx) = 0;
     virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const = 0;
