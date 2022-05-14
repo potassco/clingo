@@ -156,10 +156,10 @@ bool Statement::simplify(Projections &project, Logger &log) {
             return false;
         }
     }
-    for (auto &y : state.dots) {
+    for (auto &y : state.dots()) {
         body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RangeLiteral::make(y)));
     }
-    for (auto &y : state.scripts) {
+    for (auto &y : state.scripts()) {
         body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(ScriptLiteral::make(y)));
     }
     return true;

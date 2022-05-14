@@ -145,7 +145,8 @@ struct AuxGen {
     std::shared_ptr<unsigned> auxNum;
 };
 
-struct SimplifyState {
+class SimplifyState {
+public:
     //! Somewhat complex result type of simplify.
     struct SimplifyRet;
 
@@ -153,23 +154,37 @@ struct SimplifyState {
     using DotsMap = std::vector<std::tuple<UTerm, UTerm, UTerm>>;
     using ScriptMap = std::vector<std::tuple<UTerm, String, UTermVec>>;
 
-    SimplifyState(SimplifyState &state)
-    : gen(state.gen)
-    , level(state.level + 1) { }
     SimplifyState() = default;
-    SimplifyState(SimplifyState const &other) = default;
+    SimplifyState(SimplifyState const &other) = delete;
     SimplifyState(SimplifyState &&other) noexcept;
-    SimplifyState &operator=(SimplifyState const &other) = default;
+    SimplifyState &operator=(SimplifyState const &other) = delete;
     SimplifyState &operator=(SimplifyState &&other) noexcept;
     ~SimplifyState() noexcept = default;
 
+    static SimplifyState make_substate(SimplifyState &state) {
+        return {state.gen_, state.level_ + 1};
+    }
+
+    String createName(char const *prefix);
     std::unique_ptr<LinearTerm> createDots(Location const &loc, UTerm &&left, UTerm &&right);
     SimplifyRet createScript(Location const &loc, String name, UTermVec &&args, bool arith);
 
-    DotsMap dots;
-    ScriptMap scripts;
-    AuxGen gen;
-    int level{0};
+    DotsMap dots() {
+        return std::move(dots_);
+    }
+    ScriptMap scripts() {
+        return std::move(scripts_);
+    }
+
+private:
+    SimplifyState(AuxGen &gen, int level)
+    : gen_{gen}
+    , level_{level} { }
+
+    DotsMap dots_;
+    ScriptMap scripts_;
+    AuxGen gen_;
+    int level_{0};
 };
 
 struct Term : public Printable, public Hashable, public Locatable, public Comparable<Term>, public Clonable<Term> {

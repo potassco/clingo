@@ -86,7 +86,7 @@ std::string simplify(UBodyAggr &&x) {
     Projections project;
     SimplifyState state;
     x->simplify(project, state, false, log);
-    return to_string(std::make_pair(std::move(x), std::move(state.dots)));
+    return to_string(std::make_pair(std::move(x), state.dots()));
 }
 
 std::string simplify(UHeadAggr &&x) {
@@ -94,7 +94,7 @@ std::string simplify(UHeadAggr &&x) {
     Projections project;
     SimplifyState state;
     x->simplify(project, state, log);
-    return to_string(std::make_pair(std::move(x), std::move(state.dots)));
+    return to_string(std::make_pair(std::move(x), state.dots()));
 }
 
 std::string rewrite(UBodyAggr &&x) {

@@ -155,10 +155,10 @@ bool TheoryElement::simplify(Projections &project, SimplifyState &state, Logger 
             return false;
         }
     }
-    for (auto &dot : state.dots) {
+    for (auto &dot : state.dots()) {
         cond_.emplace_back(RangeLiteral::make(dot));
     }
-    for (auto &script : state.scripts) {
+    for (auto &script : state.scripts()) {
         cond_.emplace_back(ScriptLiteral::make(script));
     }
     return true;
@@ -338,7 +338,7 @@ bool TheoryAtom::simplify(Projections &project, SimplifyState &state, Logger &lo
         return false;
     }
     for (auto &elem : elems_) {
-        SimplifyState elemState(state);
+        auto elemState = SimplifyState::make_substate(state);
         if (!elem.simplify(project, elemState, log)) {
             return false;
         }

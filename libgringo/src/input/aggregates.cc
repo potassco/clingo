@@ -319,7 +319,7 @@ bool TupleBodyAggregate::simplify(Projections &project, SimplifyState &state, bo
         }
     }
     elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](BodyAggrElemVec::value_type &elem) {
-        SimplifyState elemState(state);
+        auto elemState = SimplifyState::make_substate(state);
         for (auto &term : std::get<0>(elem)) {
             if (term->simplify(elemState, false, false, log).update(term, false).undefined()) {
                 return true;
@@ -331,8 +331,12 @@ bool TupleBodyAggregate::simplify(Projections &project, SimplifyState &state, bo
                 return true;
             }
         }
-        for (auto &dot : elemState.dots) { std::get<1>(elem).emplace_back(RangeLiteral::make(dot)); }
-        for (auto &script : elemState.scripts) { std::get<1>(elem).emplace_back(ScriptLiteral::make(script)); }
+        for (auto &dot : elemState.dots()) {
+            std::get<1>(elem).emplace_back(RangeLiteral::make(dot));
+        }
+        for (auto &script : elemState.scripts()) {
+            std::get<1>(elem).emplace_back(ScriptLiteral::make(script));
+        }
         return false;
     }), elems_.end());
     return true;
@@ -605,7 +609,7 @@ bool LitBodyAggregate::simplify(Projections &project, SimplifyState &state, bool
         }
     }
     elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](CondLitVec::value_type &elem) {
-        SimplifyState elemState(state);
+        auto elemState = SimplifyState::make_substate(state);
         if (!std::get<0>(elem)->simplify(log, project, elemState, true, true)) {
             return true;
         }
@@ -615,10 +619,10 @@ bool LitBodyAggregate::simplify(Projections &project, SimplifyState &state, bool
                 return true;
             }
         }
-        for (auto &dot : elemState.dots) {
+        for (auto &dot : elemState.dots()) {
             std::get<1>(elem).emplace_back(RangeLiteral::make(dot));
         }
-        for (auto &script : elemState.scripts) {
+        for (auto &script : elemState.scripts()) {
             std::get<1>(elem).emplace_back(ScriptLiteral::make(script));
         }
         return false;
@@ -869,33 +873,33 @@ bool Conjunction::simplify(Projections &project, SimplifyState &state, bool sing
     static_cast<void>(singleton);
     for (auto &elem : elems_) {
         elem.first.erase(std::remove_if(elem.first.begin(), elem.first.end(), [&](ULitVec &clause) {
-            SimplifyState elemState(state);
+            auto elemState = SimplifyState::make_substate(state);
             for (auto &lit : clause) {
                 if (!lit->simplify(log, project, elemState)) {
                     return true;
                 }
             }
-            for (auto &dot : elemState.dots) {
+            for (auto &dot : elemState.dots()) {
                 clause.emplace_back(RangeLiteral::make(dot));
             }
-            for (auto &script : elemState.scripts) {
+            for (auto &script : elemState.scripts()) {
                 clause.emplace_back(ScriptLiteral::make(script));
             }
             return false;
         }), elem.first.end());
     }
     elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](ElemVec::value_type &elem) {
-        SimplifyState elemState(state);
+        auto elemState = SimplifyState::make_substate(state);
         for (auto &lit : elem.second) {
             // NOTE: projection disabled with singelton=true
             if (!lit->simplify(log, project, elemState, true, true)) {
                 return true;
             }
         }
-        for (auto &dot : elemState.dots) {
+        for (auto &dot : elemState.dots()) {
             elem.second.emplace_back(RangeLiteral::make(dot));
         }
-        for (auto &script : elemState.scripts) {
+        for (auto &script : elemState.scripts()) {
             elem.second.emplace_back(ScriptLiteral::make(script));
         }
         return false;
@@ -1316,7 +1320,7 @@ bool TupleHeadAggregate::simplify(Projections &project, SimplifyState &state, Lo
         }
     }
     elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](HeadAggrElemVec::value_type &elem) {
-        SimplifyState elemState(state);
+        auto elemState = SimplifyState::make_substate(state);
         for (auto &term : std::get<0>(elem)) {
             if (term->simplify(elemState, false, false, log).update(term, false).undefined()) {
                 return true;
@@ -1330,10 +1334,10 @@ bool TupleHeadAggregate::simplify(Projections &project, SimplifyState &state, Lo
                 return true;
             }
         }
-        for (auto &dot : elemState.dots) {
+        for (auto &dot : elemState.dots()) {
             std::get<2>(elem).emplace_back(RangeLiteral::make(dot));
         }
-        for (auto &script : elemState.scripts) {
+        for (auto &script : elemState.scripts()) {
             std::get<2>(elem).emplace_back(ScriptLiteral::make(script));
         }
         return false;
@@ -1571,7 +1575,7 @@ bool LitHeadAggregate::simplify(Projections &project, SimplifyState &state, Logg
         }
     }
     elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](CondLitVec::value_type &elem) {
-        SimplifyState elemState(state);
+        auto elemState = SimplifyState::make_substate(state);
         if (!std::get<0>(elem)->simplify(log, project, elemState, false)) {
             return true;
         }
@@ -1580,10 +1584,10 @@ bool LitHeadAggregate::simplify(Projections &project, SimplifyState &state, Logg
                 return true;
             }
         }
-        for (auto &dot : elemState.dots) {
+        for (auto &dot : elemState.dots()) {
             std::get<1>(elem).emplace_back(RangeLiteral::make(dot));
         }
-        for (auto &script : elemState.scripts) {
+        for (auto &script : elemState.scripts()) {
             std::get<1>(elem).emplace_back(ScriptLiteral::make(script));
         }
         return false;
@@ -1848,7 +1852,7 @@ bool Disjunction::simplify(Projections &project, SimplifyState &state, Logger &l
     for (auto &elem : elems_) {
         for (auto &head : elem.first) {
             bool replace = false;
-            SimplifyState elemState(state);
+            auto elemState = SimplifyState::make_substate(state);
             if (head.first->simplify(log, project, elemState)) {
                 for (auto &lit : head.second) {
                     if (!lit->simplify(log, project, elemState)) {
@@ -1867,26 +1871,26 @@ bool Disjunction::simplify(Projections &project, SimplifyState &state, Logger &l
                 head.second.clear();
             }
             else {
-                for (auto &dot : elemState.dots) {
+                for (auto &dot : elemState.dots()) {
                     head.second.emplace_back(RangeLiteral::make(dot));
                 }
-                for (auto &script : elemState.scripts) {
+                for (auto &script : elemState.scripts()) {
                     head.second.emplace_back(ScriptLiteral::make(script));
                 }
             }
         }
     }
     elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](ElemVec::value_type &elem) -> bool {
-        SimplifyState elemState(state);
+        auto elemState = SimplifyState::make_substate(state);
         for (auto &lit : elem.second) {
             if (!lit->simplify(log, project, elemState)) {
                 return true;
             }
         }
-        for (auto &dot : elemState.dots) {
+        for (auto &dot : elemState.dots()) {
             elem.second.emplace_back(RangeLiteral::make(dot));
         }
-        for (auto &script : elemState.scripts) {
+        for (auto &script : elemState.scripts()) {
             elem.second.emplace_back(ScriptLiteral::make(script));
         }
         return false;

@@ -59,14 +59,15 @@ TEST_CASE("term", "[base]") {
     auto rewriteDots = [&](UTerm &&x) -> std::tuple<UTerm, SimplifyState::DotsMap, SimplifyState::ScriptMap>  {
         SimplifyState state;
         x->simplify(state, true, false, log).update(x, false);
-        return std::make_tuple(std::move(x), std::move(state.dots), std::move(state.scripts));
+        return std::make_tuple(std::move(x), state.dots(), state.scripts());
     };
 
     auto rewriteProject = [&](UTerm &&x) -> std::string {
         UTerm sig{make_locatable<ValTerm>(x->loc(), Symbol::createId("#p"))};
+        AuxGen arithGen;
         SimplifyState state;
         x->simplify(state, true, false, log).update(x, false);
-        auto ret(x->project(sig.get() != nullptr, state.gen));
+        auto ret(x->project(sig.get() != nullptr, arithGen));
         Term::replace(x, std::move(std::get<0>(ret)));
         auto projected(std::move(std::get<1>(ret)));
         auto project(std::move(std::get<2>(ret)));
@@ -89,32 +90,32 @@ TEST_CASE("term", "[base]") {
         if (x->simplify(state, true, false, log).update(x, false).undefined()) {
             return make_locatable<ValTerm>(x->loc(), Symbol::createId("#undefined"));
         }
-        else {
-            return std::move(x);
-        }
+        return std::move(x);
     };
 
     auto rewrite = [&] (UTerm &&x) -> std::vector<std::tuple<UTerm, SimplifyState::DotsMap, Term::ArithmeticsMap>> {
+        AuxGen arithGen;
         SimplifyState state;
         std::vector<std::tuple<UTerm, SimplifyState::DotsMap, Term::ArithmeticsMap>> res;
         for(auto &term : unpool(x)) {
-            SimplifyState elemState(state);
+            auto elemState = SimplifyState::make_substate(state);
             Term::ArithmeticsMap arith;
             arith.emplace_back(gringo_make_unique<Term::LevelMap>());
             term->simplify(elemState, true, false, log).update(term, false);
-            Term::replace(term, term->rewriteArithmetics(arith, elemState.gen));
-            res.emplace_back(std::move(term), std::move(elemState.dots), std::move(arith));
+            Term::replace(term, term->rewriteArithmetics(arith, arithGen));
+            res.emplace_back(std::move(term), elemState.dots(), std::move(arith));
         }
         return res;
     };
 
     auto bindVars = [&](UTerm &&x) -> UTerm {
+        AuxGen arithGen;
         SimplifyState state;
         Term::ArithmeticsMap arith;
         Term::VarSet set;
         arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         x->simplify(state, true, false, log).update(x, false);
-        Term::replace(x, x->rewriteArithmetics(arith, state.gen));
+        Term::replace(x, x->rewriteArithmetics(arith, arithGen));
         x->bind(set);
         return std::move(x);
     };
@@ -288,7 +289,7 @@ TEST_CASE("term", "[base]") {
         REQUIRE("(#p_p(g(#p)),#p_p(g(#p)),p(g(#P0)))" == to_string(rewriteProject(fun("p", fun("g", var("_"))))));
         REQUIRE("(#p_p(#p,f(#b(X),#p),g(#p)),#p_p(#p,f(#b(#X1),#p),g(#p)),p(#P0,f(#X1,#P2),g(#P3)))" == to_string(rewriteProject(fun("p", var("_"), fun("f", var("X"), var("_")), fun("g", var("_"))))));
         REQUIRE("(#p_p(#p,f(h(#p),#b((X+2)),#p),g(#p)),#p_p(#p,f(h(#p),#b(#X2),#p),g(#p)),p(#P0,f(h(#P1),#X2,#P3),g(#P4)))" == to_string(rewriteProject(fun("p", var("_"), fun("f", fun("h", var("_")), binop(BinOp::ADD, var("X"), val(NUM(2))), var("_")), fun("g", var("_"))))));
-        REQUIRE("(#p_p(#b((#Anon0+1))),#p_p(#b(#X1)),p(#X1))" == to_string(rewriteProject(fun("p", binop(BinOp::ADD, var("_"), val(NUM(1)))))));
+        REQUIRE("(#p_p(#b((#Anon0+1))),#p_p(#b(#X0)),p(#X0))" == to_string(rewriteProject(fun("p", binop(BinOp::ADD, var("_"), val(NUM(1)))))));
     }
 
     SECTION("match") {

@@ -41,10 +41,11 @@ ULit rewrite(ULit &&x) {
     Gringo::Test::TestGringoModule log;
     Projections project;
     Literal::RelationVec assign;
+    AuxGen arithGen;
     SimplifyState state;
     Term::ArithmeticsMap arith;
     x->simplify(log, project, state);
-    x->rewriteArithmetics(arith, assign, state.gen);
+    x->rewriteArithmetics(arith, assign, arithGen);
     return std::move(x);
 }
 

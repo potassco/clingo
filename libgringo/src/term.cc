@@ -695,18 +695,22 @@ UTerm AuxGen::uniqueVar(Location const &loc, unsigned level, const char *prefix)
 
 // {{{1 definition of SimplifyState
 
+String SimplifyState::createName(char const *prefix) {
+    return gen_.uniqueName(prefix);
+}
+
 SimplifyState::SimplifyRet SimplifyState::createScript(Location const &loc, String name, UTermVec &&args, bool arith) {
-    scripts.emplace_back(gen.uniqueVar(loc, level, "#Script"), name, std::move(args));
+    scripts_.emplace_back(gen_.uniqueVar(loc, level_, "#Script"), name, std::move(args));
     if (arith) {
-        return make_locatable<LinearTerm>(loc, static_cast<VarTerm&>(*std::get<0>(scripts.back())), 1, 0); // NOLINT
+        return make_locatable<LinearTerm>(loc, static_cast<VarTerm&>(*std::get<0>(scripts_.back())), 1, 0); // NOLINT
     }
-    return UTerm{std::get<0>(scripts.back())->clone()};
+    return UTerm{std::get<0>(scripts_.back())->clone()};
 
 }
 
 std::unique_ptr<LinearTerm> SimplifyState::createDots(Location const &loc, UTerm &&left, UTerm &&right) {
-    dots.emplace_back(gen.uniqueVar(loc, level, "#Range"), std::move(left), std::move(right));
-    return make_locatable<LinearTerm>(loc, static_cast<VarTerm&>(*std::get<0>(dots.back())), 1, 0); // NOLINT
+    dots_.emplace_back(gen_.uniqueVar(loc, level_, "#Range"), std::move(left), std::move(right));
+    return make_locatable<LinearTerm>(loc, static_cast<VarTerm&>(*std::get<0>(dots_.back())), 1, 0); // NOLINT
 }
 
 
@@ -1181,7 +1185,7 @@ Term::SimplifyRet VarTerm::simplify(SimplifyState &state, bool positional, bool 
         if (positional) {
             return {*this, true};
         }
-        name = state.gen.uniqueName("#Anon");
+        name = state.createName("#Anon");
     }
     if (arithmetic) {
         return {make_locatable<LinearTerm>(loc(), *this, 1, 0)};
@@ -1820,7 +1824,7 @@ Term::SimplifyRet DotsTerm::simplify(SimplifyState &state, bool, bool, Logger &l
     if (!left->simplify(state, false, false, log).update(left, true).undefined() && !right->simplify(state, false, false, log).update(right, true).undefined()) {
         return { state.createDots(loc(), std::move(left), std::move(right)) };
     }
-            return {};
+    return {};
 
 }
 
