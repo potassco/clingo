@@ -45,10 +45,10 @@ class TheoryDef;
 namespace Input {
 
 class Program;
-struct Statement;
-struct BodyAggregate;
-struct HeadAggregate;
-struct Literal;
+class Statement;
+class BodyAggregate;
+class HeadAggregate;
+class Literal;
 class TheoryElement;
 class TheoryAtom;
 

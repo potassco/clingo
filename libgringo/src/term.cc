@@ -33,7 +33,12 @@ namespace Gringo {
 
 Defines::Defines() = default;
 
+#if defined(_MSC_VER) && _MSCVER < 1920
+Defines::Defines(Defines &&other) noexcept
+: defs_{ std::move(other.defs_) } { }
+#else
 Defines::Defines(Defines &&other) noexcept = default;
+#endif
 
 Defines::DefMap const &Defines::defs() const {
     return defs_;

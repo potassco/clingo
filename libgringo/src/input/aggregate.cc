@@ -65,7 +65,16 @@ CheckLevel::CheckLevel(Location const &loc, Printable const &p)
 : loc(loc)
 , p(p) { }
 
+#if defined(_MSC_VER) && _MSCVER < 1920
+CheckLevel::CheckLevel(CheckLevel &&other) noexcept
+: loc{ other.loc }
+, p{ other.p }
+, dep{ std::move(other.dep) }
+, current{ other.current }
+, vars{ std::move(other.vars) } { }
+#else
 CheckLevel::CheckLevel(CheckLevel &&other) noexcept = default;
+#endif
 
 CheckLevel::~CheckLevel() noexcept = default;
 
