@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_VALUE_HH
-#define _GRINGO_VALUE_HH
+#ifndef GRINGO_SYMBOL_HH
+#define GRINGO_SYMBOL_HH
 
 #include <cstdint>
 #include <cstring>
@@ -62,10 +62,10 @@ public:
         return std::strncmp(prefix, str_, strlen(prefix)) == 0;
     }
     size_t hash() const;
-    static uintptr_t toRep(String s);
-    static String fromRep(uintptr_t t);
+    static uintptr_t toRep(String s) noexcept;
+    static String fromRep(uintptr_t t) noexcept;
 private:
-    String(uintptr_t);
+    String(uintptr_t) noexcept;
     char const *str_;
 };
 
@@ -303,5 +303,5 @@ struct hash<Gringo::Symbol> {
 
 } // namespace std
 
-#endif // _GRINGO_VALUE_HH
+#endif // GRINGO_SYMBOL_HH
 

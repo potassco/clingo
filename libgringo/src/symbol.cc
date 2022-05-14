@@ -236,14 +236,20 @@ String::String(char const *str)
 String::String(StringSpan str)
 : str_(UString::encode(str)) { }
 
-String::String(uintptr_t r)
+String::String(uintptr_t r) noexcept
 : str_(reinterpret_cast<char const *>(r)) { }
 
 bool String::empty() const { return str_[0] == '\0'; }
 
-size_t String::hash() const { return reinterpret_cast<uintptr_t>(str_); }
-uintptr_t String::toRep(String s) { return reinterpret_cast<uintptr_t>(s.str_); }
-String String::fromRep(uintptr_t t) { return String(t); }
+size_t String::hash() const {
+    return reinterpret_cast<uintptr_t>(str_);
+}
+uintptr_t String::toRep(String s) noexcept {
+    return reinterpret_cast<uintptr_t>(s.str_);
+}
+String String::fromRep(uintptr_t t) noexcept {
+    return String(t);
+}
 
 // {{{1 definition of Signature
 

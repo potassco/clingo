@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_TERM_HH
-#define _GRINGO_TERM_HH
+#ifndef GRINGO_TERM_HH
+#define GRINGO_TERM_HH
 
 #include <gringo/bug.hh>
 #include <gringo/symbol.hh>
@@ -60,12 +60,17 @@ std::ostream &operator<<(std::ostream &out, UnOp op);
 
 struct Term;
 using UTerm = std::unique_ptr<Term>;
+
 class Defines {
 public:
     using DefMap = std::unordered_map<String, std::tuple<bool, Location, UTerm>>;
-
     Defines();
-    Defines(Defines &&x);
+    Defines(Defines const &other) = default;
+    Defines(Defines &&other) noexcept;
+    Defines &operator=(Defines const &other) = default;
+    Defines &operator=(Defines &&other) noexcept;
+    ~Defines() noexcept;
+
     //! Add a define.
     //! Default defintions will not overwrite existing definitions and can be overwritten by other defines.
     void add(Location const &loc, String name, UTerm &&value, bool defaultDef, Logger &log);
@@ -74,7 +79,6 @@ public:
     bool empty() const;
     void apply(Symbol x, Symbol &retVal, UTerm &retTerm, bool replace);
     DefMap const &defs() const;
-    ~Defines();
 
 private:
     std::unordered_map<String, std::tuple<bool, Location, UTerm>> defs_;
@@ -93,6 +97,14 @@ using UGTerm = std::unique_ptr<GTerm>;
 using UGFunTerm = std::unique_ptr<GFunctionTerm>;
 struct GTerm : Clonable<GTerm>, Printable, Hashable, Comparable<GTerm> {
     using EvalResult = std::pair<bool, Symbol>;
+
+    GTerm() = default;
+    GTerm(GTerm const &other) = default;
+    GTerm(GTerm &&other) noexcept = default;
+    GTerm &operator=(GTerm const &other) = default;
+    GTerm &operator=(GTerm &&other) noexcept = default;
+    ~GTerm() noexcept override = default;
+
     virtual Sig sig() const = 0;
     virtual EvalResult eval() const = 0;
     virtual bool occurs(GRef &x) const = 0;
@@ -102,7 +114,6 @@ struct GTerm : Clonable<GTerm>, Printable, Hashable, Comparable<GTerm> {
     virtual bool unify(GFunctionTerm &x) = 0;
     virtual bool unify(GLinearTerm &x) = 0;
     virtual bool unify(GVarTerm &x) = 0;
-    virtual ~GTerm() { }
 };
 using UGTermVec = std::vector<UGTerm>;
 using SGRef     = std::shared_ptr<GRef>;
@@ -122,8 +133,12 @@ using VarTermSet      = std::unordered_set<std::reference_wrapper<VarTerm>, valu
 struct AuxGen {
     AuxGen()
     : auxNum(std::make_shared<unsigned>(0)) { }
-    AuxGen(AuxGen const &) = default;
-    AuxGen(AuxGen &&)      = default;
+    AuxGen(AuxGen const &other) = default;
+    AuxGen(AuxGen &&other) noexcept = default;
+    AuxGen &operator=(AuxGen const &other) = default;
+    AuxGen &operator=(AuxGen &&other) noexcept = default;
+    ~AuxGen() noexcept = default;
+
     String uniqueName(char const *prefix);
     UTerm uniqueVar(Location const &loc, unsigned level, const char *prefix);
 
@@ -137,12 +152,16 @@ struct SimplifyState {
     //! Type that stores for each rewritten DotsTerm the associated variable and the lower and upper bound.
     using DotsMap = std::vector<std::tuple<UTerm, UTerm, UTerm>>;
     using ScriptMap = std::vector<std::tuple<UTerm, String, UTermVec>>;
+
     SimplifyState(SimplifyState &state)
     : gen(state.gen)
     , level(state.level + 1) { }
-    SimplifyState() : level(0) { }
-    SimplifyState(SimplifyState const &) = delete;
-    SimplifyState(SimplifyState &&)      = default;
+    SimplifyState() = default;
+    SimplifyState(SimplifyState const &other) = default;
+    SimplifyState(SimplifyState &&other) noexcept;
+    SimplifyState &operator=(SimplifyState const &other) = default;
+    SimplifyState &operator=(SimplifyState &&other) noexcept;
+    ~SimplifyState() noexcept = default;
 
     std::unique_ptr<LinearTerm> createDots(Location const &loc, UTerm &&left, UTerm &&right);
     SimplifyRet createScript(Location const &loc, String name, UTermVec &&args, bool arith);
@@ -150,7 +169,7 @@ struct SimplifyState {
     DotsMap dots;
     ScriptMap scripts;
     AuxGen gen;
-    int level;
+    int level{0};
 };
 
 struct Term : public Printable, public Hashable, public Locatable, public Comparable<Term>, public Clonable<Term> {
@@ -173,6 +192,14 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     //! - INVERTIBLE for invertible terms (e.g. -X, 1+X, f(X,Y+Z))
     //! - NOT_INVERTIBLE for terms that are not invertible (e.g. arithmetic operations with two unknowns)
     enum Invertibility { CONSTANT = 0, INVERTIBLE = 1, NOT_INVERTIBLE = 2 };
+
+    Term() = default;
+    Term(Term const &other) = default;
+    Term(Term &&other) noexcept = default;
+    Term &operator=(Term const &other) = default;
+    Term &operator=(Term &&other) noexcept = default;
+    ~Term() noexcept override = default;
+
     //! Whether the term contains a VarTerm.
     virtual bool hasVar() const = 0;
     virtual unsigned projectScore() const = 0;
@@ -241,7 +268,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     //! \pre Must be called after assignLevel.
     virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined = false) = 0;
     virtual bool match(Symbol const &val) const = 0;
-    bool bind(VarSet &bound);
+    bool bind(VarSet &bound) const;
     virtual Sig getSig() const = 0;
     virtual UTerm renameVars(RenameMap &names) const = 0;
     SGRef _newRef(RenameMap &names, ReferenceMap &refs) const;
@@ -254,8 +281,6 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     virtual Symbol isEDB() const = 0;
     virtual int toNum(bool &undefined, Logger &log);
     virtual bool isAtom() const { return false; }
-
-    virtual ~Term() { }
 
     //! Inserts a term into arith creating a new unique variable if necessary.
     static UTerm insert(ArithmeticsMap &arith, AuxGen &auxGen, UTerm &&term, bool eq = false);
@@ -285,8 +310,7 @@ UTermVec unpool(UTerm const &x);
 struct LinearTerm;
 struct SimplifyState::SimplifyRet {
     enum Type { UNTOUCHED, CONSTANT, LINEAR, REPLACE, UNDEFINED };
-    SimplifyRet(SimplifyRet const &) = delete;
-    SimplifyRet(SimplifyRet &&x);
+
     //! Reference to untouched term.
     SimplifyRet(Term &x, bool project);
     //! Indicate replacement with linear term.
@@ -297,17 +321,22 @@ struct SimplifyState::SimplifyRet {
     SimplifyRet(Symbol const &x);
     //! Indicate undefined term
     SimplifyRet();
+    SimplifyRet(SimplifyRet const &) = delete;
+    SimplifyRet(SimplifyRet &&x) noexcept;
+    SimplifyRet &operator=(SimplifyRet const &) = delete;
+    SimplifyRet &operator=(SimplifyRet &&x) noexcept;
+    ~SimplifyRet() noexcept;
+
     bool notNumeric() const;
     bool notFunction() const;
     bool constant() const;
     bool isZero() const;
     bool undefined() const;
-    LinearTerm &lin();
+    LinearTerm &lin() const;
     SimplifyRet &update(UTerm &x, bool arith);
-    ~SimplifyRet();
     Type  type;
     bool  project = false;
-    union {
+    union { // NOLINT
         Symbol val;
         Term *term;
     };
@@ -325,7 +354,7 @@ struct GRef {
     GRef &operator=(Symbol const &x);
     GRef &operator=(GTerm &x);
     bool occurs(GRef &x) const;
-    bool match(Symbol const &x);
+    bool match(Symbol const &x) const;
     template <class T>
     bool unify(T &x);
 
@@ -342,6 +371,8 @@ using SGRef = std::shared_ptr<GRef>;
 
 struct GValTerm : GTerm {
     GValTerm(Symbol val);
+    ~GValTerm() noexcept override;
+
     virtual bool operator==(GTerm const &other) const;
     virtual size_t hash() const;
     virtual void print(std::ostream &out) const;
@@ -355,7 +386,6 @@ struct GValTerm : GTerm {
     virtual bool unify(GLinearTerm &x);
     virtual bool unify(GVarTerm &x);
     virtual GValTerm *clone() const { return new GValTerm{val}; }
-    virtual ~GValTerm();
 
     Symbol val;
 };
@@ -366,6 +396,8 @@ struct GValTerm : GTerm {
 struct GFunctionTerm : GTerm {
     GFunctionTerm(String name, UGTermVec &&args);
     GFunctionTerm(GFunctionTerm const &x, bool sign);
+    ~GFunctionTerm() noexcept override;
+
     virtual bool operator==(GTerm const &other) const;
     virtual size_t hash() const;
     virtual void print(std::ostream &out) const;
@@ -383,7 +415,6 @@ struct GFunctionTerm : GTerm {
         ret->sign = sign;
         return ret;
     }
-    virtual ~GFunctionTerm();
 
     bool sign;
     String name;
@@ -394,7 +425,9 @@ struct GFunctionTerm : GTerm {
 // {{{ declaration of GLinearTerm
 
 struct GLinearTerm : GTerm {
-    GLinearTerm(SGRef ref, int m, int n);
+    GLinearTerm(const SGRef& ref, int m, int n);
+    ~GLinearTerm() noexcept override;
+
     virtual bool operator==(GTerm const &other) const;
     virtual size_t hash() const;
     virtual void print(std::ostream &out) const;
@@ -408,7 +441,6 @@ struct GLinearTerm : GTerm {
     virtual bool unify(GLinearTerm &x);
     virtual bool unify(GVarTerm &x);
     virtual GLinearTerm *clone() const { return new GLinearTerm{ref, m, n}; }
-    virtual ~GLinearTerm();
 
     SGRef ref;
     int m;
@@ -419,7 +451,7 @@ struct GLinearTerm : GTerm {
 // {{{ declaration of GVarTerm
 
 struct GVarTerm : GTerm {
-    GVarTerm(SGRef ref);
+    GVarTerm(const SGRef& ref);
     virtual bool operator==(GTerm const &other) const;
     virtual size_t hash() const;
     virtual void print(std::ostream &out) const;
@@ -433,7 +465,7 @@ struct GVarTerm : GTerm {
     virtual bool unify(GLinearTerm &x);
     virtual bool unify(GVarTerm &x);
     virtual GVarTerm *clone() const { return new GVarTerm{ref}; }
-    virtual ~GVarTerm();
+    virtual ~GVarTerm() noexcept;
 
     SGRef ref;
 };
@@ -472,7 +504,7 @@ struct PoolTerm : public Term {
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
     virtual bool isAtom() const;
-    virtual ~PoolTerm();
+    virtual ~PoolTerm() noexcept;
 
     UTermVec args;
 };
@@ -510,7 +542,7 @@ struct ValTerm : public Term {
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
     virtual bool isAtom() const;
-    virtual ~ValTerm();
+    virtual ~ValTerm() noexcept;
 
     Symbol value;
 };
@@ -519,7 +551,7 @@ struct ValTerm : public Term {
 // {{{ declaration of VarTerm
 
 struct VarTerm : Term {
-    VarTerm(String name, SVal ref, unsigned level = 0, bool bindRef = false);
+    VarTerm(String name, const SVal& ref, unsigned level = 0, bool bindRef = false);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
     virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
@@ -547,7 +579,7 @@ struct VarTerm : Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
-    virtual ~VarTerm();
+    virtual ~VarTerm() noexcept;
 
     String name;
     SVal ref;
@@ -627,7 +659,7 @@ struct BinOpTerm : public Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
-    virtual ~BinOpTerm();
+    virtual ~BinOpTerm() noexcept;
 
     BinOp op;
     UTerm left;
@@ -666,7 +698,7 @@ struct DotsTerm : public Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
-    virtual ~DotsTerm();
+    virtual ~DotsTerm() noexcept;
 
     UTerm left;
     UTerm right;
@@ -704,7 +736,7 @@ struct LuaTerm : public Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
-    virtual ~LuaTerm();
+    virtual ~LuaTerm() noexcept;
 
     String const name;
     UTermVec args;
@@ -744,7 +776,7 @@ struct FunctionTerm : public Term {
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
     virtual bool isAtom() const;
-    virtual ~FunctionTerm();
+    virtual ~FunctionTerm() noexcept;
 
     String name;
     UTermVec args;
@@ -786,7 +818,7 @@ struct LinearTerm : Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
-    virtual ~LinearTerm();
+    virtual ~LinearTerm() noexcept;
 
     UVarTerm var;
     int m;
@@ -848,4 +880,4 @@ GRINGO_HASH(Gringo::GTerm)
 #pragma warning( pop )
 #endif
 
-#endif // _GRINGO_TERM_HH
+#endif // GRINGO_TERM_HH
