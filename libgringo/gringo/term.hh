@@ -586,6 +586,10 @@ private:
 class ValTerm : public Term {
 public:
     ValTerm(Symbol value);
+    ValTerm(ValTerm const &other) = delete;
+    ValTerm(ValTerm &&other) noexcept = default;
+    ValTerm &operator=(ValTerm const &other) = delete;
+    ValTerm &operator=(ValTerm &&other) noexcept = default;
     ~ValTerm() noexcept override = default;
 
     unsigned projectScore() const override;
@@ -618,7 +622,7 @@ public:
     bool isAtom() const override;
 
 private:
-    Symbol value;
+    Symbol value_;
 };
 
 // }}}
@@ -627,7 +631,11 @@ private:
 class VarTerm : public Term {
 public:
     VarTerm(String name, const SVal& ref, unsigned level = 0, bool bindRef = false);
-    ~VarTerm() noexcept = default;
+    VarTerm(VarTerm const &other) = delete;
+    VarTerm(VarTerm &&other) noexcept = default;
+    VarTerm &operator=(VarTerm const &other) = delete;
+    VarTerm &operator=(VarTerm &&other) noexcept = default;
+    ~VarTerm() noexcept override = default;
 
     unsigned projectScore() const override;
     void rename(String name) override;
@@ -669,6 +677,10 @@ public:
 class UnOpTerm : public Term {
 public:
     UnOpTerm(UnOp op, UTerm &&arg);
+    UnOpTerm(UnOpTerm const &other) = delete;
+    UnOpTerm(UnOpTerm &&other) noexcept = default;
+    UnOpTerm &operator=(UnOpTerm const &other) = delete;
+    UnOpTerm &operator=(UnOpTerm &&other) noexcept = default;
     ~UnOpTerm() noexcept override = default;
 
     unsigned projectScore() const override;
@@ -702,7 +714,7 @@ public:
     bool isAtom() const override;
 
 private:
-    UnOp const op;
+    UnOp op;
     UTerm arg;
 };
 
@@ -712,6 +724,10 @@ private:
 class BinOpTerm : public Term {
 public:
     BinOpTerm(BinOp op, UTerm &&left, UTerm &&right);
+    BinOpTerm(BinOpTerm const &other) = delete;
+    BinOpTerm(BinOpTerm &&other) noexcept = default;
+    BinOpTerm &operator=(BinOpTerm const &other) = delete;
+    BinOpTerm &operator=(BinOpTerm &&other) noexcept = default;
     ~BinOpTerm() noexcept override = default;
 
     unsigned projectScore() const override;
@@ -754,6 +770,10 @@ private:
 class DotsTerm : public Term {
 public:
     DotsTerm(UTerm &&left, UTerm &&right);
+    DotsTerm(DotsTerm const &other) = delete;
+    DotsTerm(DotsTerm &&other) noexcept = default;
+    DotsTerm &operator=(DotsTerm const &other) = delete;
+    DotsTerm &operator=(DotsTerm &&other) noexcept = default;
     ~DotsTerm() noexcept override = default;
 
     unsigned projectScore() const override;
@@ -795,6 +815,10 @@ private:
 class LuaTerm : public Term {
 public:
     LuaTerm(String name, UTermVec &&args);
+    LuaTerm(LuaTerm const &other) = delete;
+    LuaTerm(LuaTerm &&other) noexcept = default;
+    LuaTerm &operator=(LuaTerm const &other) = delete;
+    LuaTerm &operator=(LuaTerm &&other) noexcept = default;
     ~LuaTerm() noexcept override = default;
 
     unsigned projectScore() const override;
@@ -826,7 +850,7 @@ public:
     Symbol isEDB() const override;
 
 private:
-    String const name;
+    String name;
     UTermVec args;
 };
 
@@ -836,7 +860,11 @@ private:
 class FunctionTerm : public Term {
 public:
     FunctionTerm(String name, UTermVec &&args);
-    ~FunctionTerm() noexcept = default;
+    FunctionTerm(FunctionTerm const &other) = delete;
+    FunctionTerm(FunctionTerm &&other) noexcept = default;
+    FunctionTerm &operator=(FunctionTerm const &other) = delete;
+    FunctionTerm &operator=(FunctionTerm &&other) noexcept = default;
+    ~FunctionTerm() noexcept override = default;
 
     UTermVec const &arguments() {
         return args;
@@ -885,8 +913,12 @@ private:
 class LinearTerm : public Term {
 public:
     using UVarTerm = std::unique_ptr<VarTerm>;
-    LinearTerm(VarTerm const &var, int m, int n);
     LinearTerm(UVarTerm &&var, int m, int n);
+    LinearTerm(VarTerm const &var, int m, int n);
+    LinearTerm(LinearTerm const &other) = delete;
+    LinearTerm(LinearTerm &&other) noexcept = default;
+    LinearTerm &operator=(LinearTerm const &other) = delete;
+    LinearTerm &operator=(LinearTerm &&other) noexcept = default;
     ~LinearTerm() noexcept override = default;
 
     bool isVar() const { return m == 1 && n == 0; }
