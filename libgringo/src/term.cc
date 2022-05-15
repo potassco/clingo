@@ -31,20 +31,9 @@ namespace Gringo {
 
 // {{{ definition of Defines
 
-Defines::Defines() = default;
-
-#if defined(_MSC_VER) && _MSCVER < 1920
-Defines::Defines(Defines &&other) noexcept
-: defs_{ std::move(other.defs_) } { }
-#else
-Defines::Defines(Defines &&other) noexcept = default;
-#endif
-
 Defines::DefMap const &Defines::defs() const {
     return defs_;
 }
-
-Defines &Defines::operator=(Defines &&other) noexcept = default;
 
 void Defines::add(Location const &loc, String name, UTerm &&value, bool defaultDef, Logger &log) {
     auto it = defs_.find(name);
@@ -145,8 +134,6 @@ void Defines::apply(Symbol x, Symbol &retVal, UTerm &retTerm, bool replace) {
     }
 }
 
-Defines::~Defines() noexcept = default;
-
 // }}}
 
 // {{{ definition of GRef
@@ -207,27 +194,27 @@ bool GRef::unify(T &x) {
 // {{{1 definition of GValTerm
 
 GValTerm::GValTerm(Symbol val)
-: val(val) { }
+: val_(val) { }
 
 bool GValTerm::operator==(GTerm const &x) const {
     const auto *t = dynamic_cast<GValTerm const*>(&x);
-    return (t != nullptr) && val == t->val;
+    return (t != nullptr) && val_ == t->val_;
 }
 
 size_t GValTerm::hash() const {
-    return get_value_hash(typeid(GValTerm).hash_code(), val);
+    return get_value_hash(typeid(GValTerm).hash_code(), val_);
 }
 
 void GValTerm::print(std::ostream &out) const {
-    out << val;
+    out << val_;
 }
 
 Sig GValTerm::sig() const {
-    return val.sig();
+    return val_.sig();
 }
 
 GTerm::EvalResult GValTerm::eval() const {
-    return {true, val};
+    return {true, val_};
 }
 
 bool GValTerm::occurs(GRef &x) const {
@@ -237,56 +224,56 @@ bool GValTerm::occurs(GRef &x) const {
 void GValTerm::reset() { }
 
 bool GValTerm::match(Symbol const &x) {
-    return val == x;
+    return val_ == x;
 }
 
 bool GValTerm::unify(GTerm &x) {
-    return x.match(val);
+    return x.match(val_);
 }
 
 bool GValTerm::unify(GFunctionTerm &x) {
-    return x.match(val);
+    return x.match(val_);
 }
 
 bool GValTerm::unify(GLinearTerm &x) {
-    return x.match(val);
+    return x.match(val_);
 }
 
 bool GValTerm::unify(GVarTerm &x) {
-    return x.match(val);
+    return x.match(val_);
 }
-
-GValTerm::~GValTerm() noexcept = default;
 
 // {{{1 definition of GFunctionTerm
 
 GFunctionTerm::GFunctionTerm(String name, UGTermVec &&args)
-: sign(false)
-, name(name)
-, args(std::move(args)) { }
+: sign_(false)
+, name_(name)
+, args_(std::move(args)) { }
 
 // Note: uses structural comparisson of names of variable terms (VarTerm/LinearTerm)
 bool GFunctionTerm::operator==(GTerm const &x) const {
     const auto *t = dynamic_cast<GFunctionTerm const*>(&x);
-    return (t != nullptr) && sig() == x.sig() && is_value_equal_to(args, t->args);
+    return t != nullptr &&
+           sig() == x.sig() &&
+           is_value_equal_to(args_, t->args_);
 }
 
 size_t GFunctionTerm::hash() const {
-    return get_value_hash(typeid(GFunctionTerm).hash_code(), sig(), args);
+    return get_value_hash(typeid(GFunctionTerm).hash_code(), sig(), args_);
 }
 
 void GFunctionTerm::print(std::ostream &out) const {
     if ((sig()).sign()) {
         out << "-";
     }
-    out << name;
+    out << name_;
     out << "(";
-    print_comma(out, args, ",", [](std::ostream &out, UGTerm const &x) { out << *x; });
+    print_comma(out, args_, ",", [](std::ostream &out, UGTerm const &x) { out << *x; });
     out << ")";
 }
 
 Sig GFunctionTerm::sig() const {
-    return {name, numeric_cast<uint32_t>(args.size()), sign};
+    return {name_, numeric_cast<uint32_t>(args_.size()), sign_};
 }
 
 GTerm::EvalResult GFunctionTerm::eval() const {
@@ -294,7 +281,7 @@ GTerm::EvalResult GFunctionTerm::eval() const {
 }
 
 bool GFunctionTerm::occurs(GRef &x) const {
-    for (const auto &y : args) {
+    for (const auto &y : args_) {
         if (y->occurs(x)) {
             return true;
         }
@@ -303,7 +290,7 @@ bool GFunctionTerm::occurs(GRef &x) const {
 }
 
 void GFunctionTerm::reset() {
-    for (auto &y : args) {
+    for (auto &y : args_) {
         y->reset();
     }
 }
@@ -313,7 +300,7 @@ bool GFunctionTerm::match(Symbol const &x) {
         return false;
     }
     auto i = 0;
-    for (auto &y : args) {
+    for (auto &y : args_) {
         if (!y->match(x.args()[i++])) {
             return false;
         }
@@ -330,7 +317,7 @@ bool GFunctionTerm::unify(GFunctionTerm &x) {
     if (sig() != x.sig()) {
         return false;
     }
-    for (auto it = args.begin(), jt = x.args.begin(), ie = args.end(); it != ie; ++it, ++jt) {
+    for (auto it = args_.begin(), jt = x.args_.begin(), ie = args_.end(); it != ie; ++it, ++jt) {
         if (!(*it)->unify(**jt)) {
             return false;
         }
@@ -354,26 +341,27 @@ bool GFunctionTerm::unify(GVarTerm &x) {
     return false;
 }
 
-GFunctionTerm::~GFunctionTerm() noexcept = default;
-
 // {{{1 definition of GLinearTerm
 
 GLinearTerm::GLinearTerm(const SGRef& ref, int m, int n)
-: ref(ref), m(m), n(n) {
+: ref_(ref), m_(m), n_(n) {
     assert(ref);
 }
 
 bool GLinearTerm::operator==(GTerm const &x) const {
     const auto *t = dynamic_cast<GLinearTerm const*>(&x);
-    return (t != nullptr) && *ref->name == *t->ref->name && m == t->m && n == t->n;
+    return t != nullptr &&
+           *ref_->name == *t->ref_->name &&
+           m_ == t->m_ &&
+           n_ == t->n_;
 }
 
 size_t GLinearTerm::hash() const {
-    return get_value_hash(typeid(GLinearTerm).hash_code(), ref->name, m, n);
+    return get_value_hash(typeid(GLinearTerm).hash_code(), ref_->name, m_, n_);
 }
 
 void GLinearTerm::print(std::ostream &out) const {
-    out << "(" << m << "*" << *ref->name << "+" << n << ")";
+    out << "(" << m_ << "*" << *ref_->name << "+" << n_ << ")";
 }
 
 Sig GLinearTerm::sig() const {
@@ -385,11 +373,11 @@ GTerm::EvalResult GLinearTerm::eval() const {
 }
 
 bool GLinearTerm::occurs(GRef &x) const {
-    return ref->occurs(x);
+    return ref_->occurs(x);
 }
 
 void GLinearTerm::reset() {
-    ref->reset();
+    ref_->reset();
 }
 
 bool GLinearTerm::match(Symbol const &x) {
@@ -397,33 +385,20 @@ bool GLinearTerm::match(Symbol const &x) {
         return false;
     }
     int y = x.num();
-    y-= n;
-    if (y % m != 0) {
+    y-= n_;
+    if (y % m_ != 0) {
         return false;
     }
-    y /= m;
-    if (*ref) {
-        return ref->match(Symbol::createNum(y));
+    y /= m_;
+    if (*ref_) {
+        return ref_->match(Symbol::createNum(y));
     }
-    *ref = Symbol::createNum(y);
+    *ref_ = Symbol::createNum(y);
     return true;
-
-
 }
 
 bool GLinearTerm::unify(GTerm &x) {
     return x.unify(*this);
-}
-
-bool GVarTerm::unify(GFunctionTerm &x) {
-    if (*ref) {
-        return ref->unify(x);
-    }
-    if (!x.occurs(*ref)) {
-        *ref = x;
-        return true;
-    }
-    return false;
 }
 
 bool GLinearTerm::unify(GLinearTerm &x) {
@@ -444,8 +419,6 @@ bool GLinearTerm::unify(GVarTerm &x) {
     return true;
 
 }
-
-GLinearTerm::~GLinearTerm() noexcept = default;
 
 // {{{1 definition of GVarTerm
 
@@ -504,6 +477,17 @@ bool GVarTerm::unify(GLinearTerm &x) {
     return true;
 }
 
+bool GVarTerm::unify(GFunctionTerm &x) {
+    if (*ref) {
+        return ref->unify(x);
+    }
+    if (!x.occurs(*ref)) {
+        *ref = x;
+        return true;
+    }
+    return false;
+}
+
 bool GVarTerm::unify(GVarTerm &x) {
     if (*ref) {
         return ref->unify(x);
@@ -516,8 +500,6 @@ bool GVarTerm::unify(GVarTerm &x) {
     }
     return true;
 }
-
-GVarTerm::~GVarTerm() noexcept = default;
 
 // }}}1
 
@@ -722,36 +704,36 @@ std::unique_ptr<LinearTerm> SimplifyState::createDots(Location const &loc, UTerm
 // {{{1 definition of SimplifyState::SimplifyRet
 
 SimplifyState::SimplifyRet::SimplifyRet(SimplifyRet &&x) noexcept
-: type(x.type) {
-    switch(type) {
+: type_(x.type_) {
+    switch(type_) {
         case LINEAR:
-        case REPLACE:   { x.type = UNTOUCHED; }
+        case REPLACE:   { x.type_ = UNTOUCHED; }
         case UNTOUCHED: {
-            term = x.term; // NOLINT
+            term_ = x.term_; // NOLINT
             break;
         }
         case UNDEFINED:
         case CONSTANT: {
-            val = x.val; // NOLINT
+            val_ = x.val_; // NOLINT
             break;
         }
     }
 }
 
 SimplifyState::SimplifyRet &SimplifyState::SimplifyRet::operator=(SimplifyRet &&x) noexcept {
-    type = x.type;
-    switch(type) {
+    type_ = x.type_;
+    switch(type_) {
         case LINEAR:
         case REPLACE:   {
-            x.type = UNTOUCHED;
+            x.type_ = UNTOUCHED;
         }
         case UNTOUCHED: {
-            term = x.term; // NOLINT
+            term_ = x.term_; // NOLINT
             break;
         }
         case UNDEFINED:
         case CONSTANT: {
-            val = x.val; // NOLINT
+            val_ = x.val_; // NOLINT
             break;
         }
     }
@@ -759,69 +741,69 @@ SimplifyState::SimplifyRet &SimplifyState::SimplifyRet::operator=(SimplifyRet &&
 }
 
 SimplifyState::SimplifyRet::SimplifyRet(Term &x, bool project)
-: type(UNTOUCHED)
-, project(project), term(&x) { }
+: type_(UNTOUCHED)
+, project_(project), term_(&x) { }
 
 SimplifyState::SimplifyRet::SimplifyRet(std::unique_ptr<LinearTerm> &&x)
-: type(LINEAR)
-, term(x.release()) { }
+: type_(LINEAR)
+, term_(x.release()) { }
 
 SimplifyState::SimplifyRet::SimplifyRet(UTerm &&x) // NOLINT
-: type(REPLACE)
-, term(x.release()) { }
+: type_(REPLACE)
+, term_(x.release()) { }
 
 SimplifyState::SimplifyRet::SimplifyRet(Symbol const &x) // NOLINT
-: type(CONSTANT)
-, val(x) { }
+: type_(CONSTANT)
+, val_(x) { }
 
 SimplifyState::SimplifyRet::SimplifyRet() // NOLINT
-: type(UNDEFINED) { }
+: type_(UNDEFINED) { }
 
 bool SimplifyState::SimplifyRet::notNumeric() const {
-    switch (type) {
+    switch (type_) {
         case UNDEFINED: { return true; }
         case LINEAR:    { return false; }
-        case CONSTANT:  { return val.type() != SymbolType::Num; } // NOLINT
+        case CONSTANT:  { return val_.type() != SymbolType::Num; } // NOLINT
         case REPLACE:
-        case UNTOUCHED: { return term->isNotNumeric(); } // NOLINT
+        case UNTOUCHED: { return term_->isNotNumeric(); } // NOLINT
     }
     assert(false);
     return false;
 }
 
 bool SimplifyState::SimplifyRet::constant() const  {
-    return type == CONSTANT;
+    return type_ == CONSTANT;
 }
 
 bool SimplifyState::SimplifyRet::isZero() const {
     return constant() &&
-           val.type() == SymbolType::Num && // NOLINT
-           val.num() == 0; // NOLINT
+           val_.type() == SymbolType::Num && // NOLINT
+           val_.num() == 0; // NOLINT
 }
 
 LinearTerm &SimplifyState::SimplifyRet::lin() const {
-    return static_cast<LinearTerm&>(*term); // NOLINT
+    return static_cast<LinearTerm&>(*term_); // NOLINT
 }
 
 SimplifyState::SimplifyRet &SimplifyState::SimplifyRet::update(UTerm &x, bool arith) {
-    switch (type) {
+    switch (type_) {
         case CONSTANT: {
-            x = make_locatable<ValTerm>(x->loc(), val); // NOLINT
+            x = make_locatable<ValTerm>(x->loc(), val_); // NOLINT
             return *this;
         }
         case LINEAR: {
             // we do not need a trivial linear if its context already requires
             // integers
-            if (arith && lin().m == 1 && lin().n == 0) {
-                type = UNTOUCHED;
-                x = std::move(lin().var);
-                delete term; // NOLINT
+            if (arith && lin().isVar()) {
+                type_ = UNTOUCHED;
+                x = lin().toVar();
+                delete term_; // NOLINT
                 return *this;
             }
         }
         case REPLACE:  {
-            type = UNTOUCHED;
-            x.reset(term); // NOLINT
+            type_ = UNTOUCHED;
+            x.reset(term_); // NOLINT
             return *this;
         }
         case UNDEFINED:
@@ -831,24 +813,24 @@ SimplifyState::SimplifyRet &SimplifyState::SimplifyRet::update(UTerm &x, bool ar
 }
 
 bool SimplifyState::SimplifyRet::undefined() const {
-    return type == UNDEFINED;
+    return type_ == UNDEFINED;
 }
 
 bool SimplifyState::SimplifyRet::notFunction() const {
-    switch (type) {
+    switch (type_) {
         case UNDEFINED:
         case LINEAR:    { return true; }
-        case CONSTANT:  { return val.type() != SymbolType::Fun; } // NOLINT
+        case CONSTANT:  { return val_.type() != SymbolType::Fun; } // NOLINT
         case REPLACE:
-        case UNTOUCHED: { return term->isNotFunction(); } // NOLINT
+        case UNTOUCHED: { return term_->isNotFunction(); } // NOLINT
     }
     assert(false);
     return false;
 }
 
 SimplifyState::SimplifyRet::~SimplifyRet() noexcept {
-    if (type == LINEAR || type == REPLACE) {
-        delete term; // NOLINT
+    if (type_ == LINEAR || type_ == REPLACE) {
+        delete term_; // NOLINT
     }
 }
 
@@ -1013,8 +995,6 @@ bool PoolTerm::isAtom() const {
     return true;
 }
 
-PoolTerm::~PoolTerm() noexcept = default;
-
 // {{{1 definition of ValTerm
 
 ValTerm::ValTerm(Symbol value)
@@ -1146,8 +1126,6 @@ Symbol ValTerm::isEDB() const {
 bool ValTerm::isAtom() const {
     return value.type() == SymbolType::Fun;
 }
-
-ValTerm::~ValTerm() noexcept = default;
 
 // {{{1 definition of VarTerm
 
@@ -1292,8 +1270,6 @@ double VarTerm::estimate(double size, VarSet const &bound) const {
 
 Symbol VarTerm::isEDB() const { return {}; }
 
-VarTerm::~VarTerm() noexcept = default;
-
 // {{{1 definition of LinearTerm
 
 LinearTerm::LinearTerm(VarTerm const &var, int m, int n)
@@ -1426,8 +1402,6 @@ double LinearTerm::estimate(double size, VarSet const &bound) const {
 
 Symbol LinearTerm::isEDB() const { return {}; }
 
-LinearTerm::~LinearTerm() noexcept = default;
-
 // {{{1 definition of UnOpTerm
 
 // TODO: NEG has to be handled specially now - maybe I should add a new kind of term?
@@ -1473,19 +1447,18 @@ Term::SimplifyRet UnOpTerm::simplify(SimplifyState &state, bool, bool arithmetic
             << "  " << *this << "\n";
         return {};
     }
-    switch (ret.type) {
+    switch (ret.type()) {
         case SimplifyRet::CONSTANT: {
-            if (ret.val.type() == SymbolType::Num) {
-                return {Symbol::createNum(Gringo::eval(op, ret.val.num()))};
+            auto val = ret.value();
+            if (val.type() == SymbolType::Num) {
+                return {Symbol::createNum(Gringo::eval(op, val.num()))};
             }
-                            assert(ret.val.type() == SymbolType::Fun);
-                return {ret.val.flipSign()};
-
+            assert(val.type() == SymbolType::Fun);
+            return {val.flipSign()};
         }
         case SimplifyRet::LINEAR: {
             if (op == UnOp::NEG) {
-                ret.lin().m *= -1;
-                ret.lin().n *= -1;
+                ret.lin().invert();
                 return ret;
             }
         }
@@ -1580,7 +1553,7 @@ UGTerm UnOpTerm::gterm(RenameMap &names, ReferenceMap &refs) const {
     if (op == UnOp::NEG) {
         UGFunTerm fun(arg->gfunterm(names, refs));
         if (fun) {
-            fun->sign = !fun->sign;
+            fun->flipSign();
             return std::move(fun);
         }
     }
@@ -1591,7 +1564,7 @@ UGFunTerm UnOpTerm::gfunterm(RenameMap &names, ReferenceMap &refs) const {
     if (op != UnOp::NEG) { return nullptr; }
     UGFunTerm fun(arg->gfunterm(names, refs));
     if (!fun) { return nullptr; }
-    fun->sign = ! fun->sign;
+    fun->flipSign();
     return fun;
 }
 
@@ -1609,7 +1582,6 @@ Symbol UnOpTerm::isEDB() const { return {}; }
 bool UnOpTerm::isAtom() const {
     return op == UnOp::NEG && arg->isAtom();
 }
-UnOpTerm::~UnOpTerm() noexcept = default;
 
 // {{{1 definition of BinOpTerm
 
@@ -1655,9 +1627,9 @@ Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool, Logger &
     if (op == BinOp::MUL && (retLeft.isZero() || retRight.isZero())) {
         // NOTE: keep binary operation untouched
     }
-    else if (retLeft.type == SimplifyRet::CONSTANT && retRight.type == SimplifyRet::CONSTANT) {
-        auto left  = retLeft.val.num();
-        auto right = retRight.val.num();
+    else if (retLeft.type() == SimplifyRet::CONSTANT && retRight.type() == SimplifyRet::CONSTANT) {
+        auto left  = retLeft.value().num();
+        auto right = retRight.value().num();
         if (op == BinOp::POW && left == 0 && right < 0) {
             GRINGO_REPORT(log, Warnings::OperationUndefined)
                 << loc() << ": info: operation undefined:\n"
@@ -1666,34 +1638,33 @@ Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool, Logger &
         }
         return {Symbol::createNum(Gringo::eval(op, left, right))};
     }
-    else if (retLeft.type == SimplifyRet::CONSTANT && retRight.type == SimplifyRet::LINEAR) {
+    else if (retLeft.type() == SimplifyRet::CONSTANT && retRight.type() == SimplifyRet::LINEAR) {
         if (op == BinOp::ADD) {
-            retRight.lin().n += retLeft.val.num();
+            retRight.lin().add(retLeft.value().num());
             return retRight;
         }
-        else if (op == BinOp::SUB) {
-            retRight.lin().n = retLeft.val.num() - retRight.lin().n;
-            retRight.lin().m = -retRight.lin().m;
+        if (op == BinOp::SUB) {
+            retRight.lin().invert();
+            retRight.lin().add(retLeft.value().num());
             return retRight;
         }
-        else if (op == BinOp::MUL) {
-            retRight.lin().n *= retLeft.val.num();
-            retRight.lin().m *= retLeft.val.num();
+        if (op == BinOp::MUL) {
+            retRight.lin().mul(retLeft.value().num());
             return retRight;
         }
     }
-    else if (retLeft.type == SimplifyRet::LINEAR && retRight.type == SimplifyRet::CONSTANT) {
+    else if (retLeft.type() == SimplifyRet::LINEAR && retRight.type() == SimplifyRet::CONSTANT) {
         if (op == BinOp::ADD) {
-            retLeft.lin().n += retRight.val.num();
+            retLeft.lin().add(retRight.value().num());
             return retLeft;
         }
-        else if (op == BinOp::SUB) {
-            retLeft.lin().n-= retRight.val.num();
+        if (op == BinOp::SUB) {
+            retLeft.lin().add(-retRight.value().num());
             return retLeft;
         }
-        else if (op == BinOp::MUL) {
-            retLeft.lin().n *= retRight.val.num();
-            retLeft.lin().m *= retRight.val.num();
+        if (op == BinOp::MUL) {
+            // multiply
+            retLeft.lin().mul(retRight.value().num());
             return retLeft;
         }
     }
@@ -1796,8 +1767,6 @@ double BinOpTerm::estimate(double, VarSet const &) const {
 }
 
 Symbol BinOpTerm::isEDB() const { return {}; }
-
-BinOpTerm::~BinOpTerm() noexcept = default;
 
 // {{{1 definition of DotsTerm
 
@@ -1904,8 +1873,6 @@ double DotsTerm::estimate(double, VarSet const &) const {
 }
 
 Symbol DotsTerm::isEDB() const { return {}; }
-
-DotsTerm::~DotsTerm() noexcept = default;
 
 // {{{1 definition of LuaTerm
 
@@ -2025,8 +1992,6 @@ double LuaTerm::estimate(double, VarSet const &) const {
 
 Symbol LuaTerm::isEDB() const { return {}; }
 
-LuaTerm::~LuaTerm() noexcept = default;
-
 // {{{1 definition of FunctionTerm
 
 FunctionTerm::FunctionTerm(String name, UTermVec &&args)
@@ -2072,7 +2037,7 @@ Term::SimplifyRet FunctionTerm::simplify(SimplifyState &state, bool positional, 
             return {};
         }
         constant  = constant  && ret.constant();
-        projected = projected || ret.project;
+        projected = projected || ret.project();
         ret.update(arg, false);
     }
     if (constant) {
@@ -2211,8 +2176,6 @@ Symbol FunctionTerm::isEDB() const {
 bool FunctionTerm::isAtom() const {
     return true;
 }
-
-FunctionTerm::~FunctionTerm() noexcept = default;
 
 // }}}1
 

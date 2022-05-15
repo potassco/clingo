@@ -1231,7 +1231,7 @@ void AssignmentAggregateLiteral::checkDefined(LocSet &, SigSet const &, UndefVec
 }
 
 void AssignmentAggregateLiteral::print(std::ostream &out) const {
-    out << static_cast<FunctionTerm&>(*complete_.domRepr()).args.back() << "=" << complete_.fun() << "{" << *complete_.domRepr() << "}" << type_;
+    out << static_cast<FunctionTerm&>(*complete_.domRepr()).arguments().back() << "=" << complete_.fun() << "{" << *complete_.domRepr() << "}" << type_;
 }
 
 bool AssignmentAggregateLiteral::isRecursive() const {

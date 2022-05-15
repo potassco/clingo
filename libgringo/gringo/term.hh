@@ -64,12 +64,12 @@ using UTerm = std::unique_ptr<Term>;
 class Defines {
 public:
     using DefMap = std::unordered_map<String, std::tuple<bool, Location, UTerm>>;
-    Defines();
-    Defines(Defines const &other) = default;
-    Defines(Defines &&other) noexcept;
-    Defines &operator=(Defines const &other) = default;
-    Defines &operator=(Defines &&other) noexcept;
-    ~Defines() noexcept;
+    Defines() = default;
+    Defines(Defines const &other) = delete;
+    Defines(Defines &&other) noexcept = delete;
+    Defines &operator=(Defines const &other) = delete;
+    Defines &operator=(Defines &&other) noexcept = delete;
+    ~Defines() noexcept = default;
 
     //! Add a define.
     //! Default defintions will not overwrite existing definitions and can be overwritten by other defines.
@@ -95,7 +95,8 @@ struct GFunctionTerm;
 struct GLinearTerm;
 using UGTerm = std::unique_ptr<GTerm>;
 using UGFunTerm = std::unique_ptr<GFunctionTerm>;
-struct GTerm : Clonable<GTerm>, Printable, Hashable, Comparable<GTerm> {
+class GTerm : public Clonable<GTerm>, public Printable, public Hashable, public Comparable<GTerm> {
+public:
     using EvalResult = std::pair<bool, Symbol>;
 
     GTerm() = default;
@@ -130,7 +131,8 @@ using VarTermVec      = std::vector<std::reference_wrapper<VarTerm>>;
 using VarTermBoundVec = std::vector<std::pair<VarTerm*,bool>>;
 using VarTermSet      = std::unordered_set<std::reference_wrapper<VarTerm>, value_hash<std::reference_wrapper<VarTerm>>, value_equal_to<std::reference_wrapper<VarTerm>>>;
 
-struct AuxGen {
+class AuxGen {
+public:
     AuxGen()
     : auxNum(std::make_shared<unsigned>(0)) { }
     AuxGen(AuxGen const &other) = default;
@@ -142,6 +144,7 @@ struct AuxGen {
     String uniqueName(char const *prefix);
     UTerm uniqueVar(Location const &loc, unsigned level, const char *prefix);
 
+private:
     std::shared_ptr<unsigned> auxNum;
 };
 
@@ -156,9 +159,9 @@ public:
 
     SimplifyState() = default;
     SimplifyState(SimplifyState const &other) = delete;
-    SimplifyState(SimplifyState &&other) noexcept;
+    SimplifyState(SimplifyState &&other) noexcept = default;
     SimplifyState &operator=(SimplifyState const &other) = delete;
-    SimplifyState &operator=(SimplifyState &&other) noexcept;
+    SimplifyState &operator=(SimplifyState &&other) noexcept = default;
     ~SimplifyState() noexcept = default;
 
     static SimplifyState make_substate(SimplifyState &state) {
@@ -187,7 +190,8 @@ private:
     int level_{0};
 };
 
-struct Term : public Printable, public Hashable, public Locatable, public Comparable<Term>, public Clonable<Term> {
+class Term : public Printable, public Hashable, public Locatable, public Comparable<Term>, public Clonable<Term> {
+public:
     //! Return value of Term::project (replace, projected, project).
     //! replace:   projected variables are stripped, null if untouched
     //! projected: term with variables renamed, projected if null
@@ -323,7 +327,8 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
 UTermVec unpool(UTerm const &x);
 
 struct LinearTerm;
-struct SimplifyState::SimplifyRet {
+class SimplifyState::SimplifyRet {
+public:
     enum Type { UNTOUCHED, CONSTANT, LINEAR, REPLACE, UNDEFINED };
 
     //! Reference to untouched term.
@@ -349,11 +354,22 @@ struct SimplifyState::SimplifyRet {
     bool undefined() const;
     LinearTerm &lin() const;
     SimplifyRet &update(UTerm &x, bool arith);
-    Type  type;
-    bool  project = false;
+    Type type() const {
+        return type_;
+    }
+    Symbol value() const {
+        return val_; // NOLINT
+    }
+    bool project() const {
+        return project_;
+    }
+
+private:
+    Type  type_;
+    bool  project_ = false;
     union { // NOLINT
-        Symbol val;
-        Term *term;
+        Symbol val_;
+        Term *term_;
     };
 };
 
@@ -384,103 +400,136 @@ using SGRef = std::shared_ptr<GRef>;
 // }}}
 // {{{ declaration of GValTerm
 
-struct GValTerm : GTerm {
+class GValTerm : public GTerm {
+public:
     GValTerm(Symbol val);
-    ~GValTerm() noexcept override;
+    GValTerm(GValTerm const &other) = default;
+    GValTerm(GValTerm &&other) noexcept = default;
+    GValTerm &operator=(GValTerm const &other) = default;
+    GValTerm &operator=(GValTerm &&other) noexcept = default;
+    ~GValTerm() noexcept override = default;
 
-    virtual bool operator==(GTerm const &other) const;
-    virtual size_t hash() const;
-    virtual void print(std::ostream &out) const;
-    virtual Sig sig() const;
-    virtual EvalResult eval() const;
-    virtual bool occurs(GRef &x) const;
-    virtual void reset();
-    virtual bool match(Symbol const &x);
-    virtual bool unify(GTerm &x);
-    virtual bool unify(GFunctionTerm &x);
-    virtual bool unify(GLinearTerm &x);
-    virtual bool unify(GVarTerm &x);
-    virtual GValTerm *clone() const { return new GValTerm{val}; }
+    bool operator==(GTerm const &other) const override;
+    size_t hash() const override;
+    void print(std::ostream &out) const override;
+    Sig sig() const override;
+    EvalResult eval() const override;
+    bool occurs(GRef &x) const override;
+    void reset() override;
+    bool match(Symbol const &x) override;
+    bool unify(GTerm &x) override;
+    bool unify(GFunctionTerm &x) override;
+    bool unify(GLinearTerm &x) override;
+    bool unify(GVarTerm &x) override;
+    GValTerm *clone() const override {
+        return new GValTerm{val_}; // NOLINT
+    }
 
-    Symbol val;
+private:
+    Symbol val_;
 };
 
 // }}}
 // {{{ declaration of GFunctionTerm
 
-struct GFunctionTerm : GTerm {
+class GFunctionTerm : public GTerm {
+public:
     GFunctionTerm(String name, UGTermVec &&args);
     GFunctionTerm(GFunctionTerm const &x, bool sign);
-    ~GFunctionTerm() noexcept override;
+    GFunctionTerm(GFunctionTerm const &other) = default;
+    GFunctionTerm(GFunctionTerm &&other) noexcept = default;
+    GFunctionTerm &operator=(GFunctionTerm const &other) = default;
+    GFunctionTerm &operator=(GFunctionTerm &&other) noexcept = default;
+    ~GFunctionTerm() noexcept override = default;
 
-    virtual bool operator==(GTerm const &other) const;
-    virtual size_t hash() const;
-    virtual void print(std::ostream &out) const;
-    virtual Sig sig() const;
-    virtual EvalResult eval() const;
-    virtual bool occurs(GRef &x) const;
-    virtual void reset();
-    virtual bool match(Symbol const &x);
-    virtual bool unify(GTerm &x);
-    virtual bool unify(GFunctionTerm &x);
-    virtual bool unify(GLinearTerm &x);
-    virtual bool unify(GVarTerm &x);
-    virtual GFunctionTerm *clone() const {
-        auto ret = new GFunctionTerm{name, get_clone(args)};
-        ret->sign = sign;
+    void flipSign() { sign_ = !sign_; }
+
+    bool operator==(GTerm const &other) const override;
+    size_t hash() const override;
+    void print(std::ostream &out) const override;
+    Sig sig() const override;
+    EvalResult eval() const override;
+    bool occurs(GRef &x) const override;
+    void reset() override;
+    bool match(Symbol const &x) override;
+    bool unify(GTerm &x) override;
+    bool unify(GFunctionTerm &x) override;
+    bool unify(GLinearTerm &x) override;
+    bool unify(GVarTerm &x) override;
+    GFunctionTerm *clone() const override {
+        auto *ret = new GFunctionTerm{name_, get_clone(args_)};
+        ret->sign_ = sign_;
         return ret;
     }
 
-    bool sign;
-    String name;
-    UGTermVec args;
+private:
+    bool sign_;
+    String name_;
+    UGTermVec args_;
 };
 
 // }}}
 // {{{ declaration of GLinearTerm
 
-struct GLinearTerm : GTerm {
+class GLinearTerm : public GTerm {
+public:
     GLinearTerm(const SGRef& ref, int m, int n);
-    ~GLinearTerm() noexcept override;
+    GLinearTerm(GLinearTerm const &other) = default;
+    GLinearTerm(GLinearTerm &&other) noexcept = default;
+    GLinearTerm &operator=(GLinearTerm const &other) = default;
+    GLinearTerm &operator=(GLinearTerm &&other) noexcept = default;
+    ~GLinearTerm() noexcept override = default;
 
-    virtual bool operator==(GTerm const &other) const;
-    virtual size_t hash() const;
-    virtual void print(std::ostream &out) const;
-    virtual Sig sig() const;
-    virtual EvalResult eval() const;
-    virtual bool occurs(GRef &x) const;
-    virtual void reset();
-    virtual bool match(Symbol const &x);
-    virtual bool unify(GTerm &x);
-    virtual bool unify(GFunctionTerm &x);
-    virtual bool unify(GLinearTerm &x);
-    virtual bool unify(GVarTerm &x);
-    virtual GLinearTerm *clone() const { return new GLinearTerm{ref, m, n}; }
+    bool operator==(GTerm const &other) const override;
+    size_t hash() const override;
+    void print(std::ostream &out) const override;
+    Sig sig() const override;
+    EvalResult eval() const override;
+    bool occurs(GRef &x) const override;
+    void reset() override;
+    bool match(Symbol const &x) override;
+    bool unify(GTerm &x) override;
+    bool unify(GFunctionTerm &x) override;
+    bool unify(GLinearTerm &x) override;
+    bool unify(GVarTerm &x) override;
+    GLinearTerm *clone() const override {
+        return new GLinearTerm{ref_, m_, n_}; // NOLINT
+    }
 
-    SGRef ref;
-    int m;
-    int n;
+private:
+    SGRef ref_;
+    int m_;
+    int n_;
 };
 
 // }}}
 // {{{ declaration of GVarTerm
 
-struct GVarTerm : GTerm {
+class GVarTerm : public GTerm {
+public:
     GVarTerm(const SGRef& ref);
-    virtual bool operator==(GTerm const &other) const;
-    virtual size_t hash() const;
-    virtual void print(std::ostream &out) const;
-    virtual Sig sig() const;
-    virtual EvalResult eval() const;
-    virtual bool occurs(GRef &x) const;
-    virtual void reset();
-    virtual bool match(Symbol const &x);
-    virtual bool unify(GTerm &x);
-    virtual bool unify(GFunctionTerm &x);
-    virtual bool unify(GLinearTerm &x);
-    virtual bool unify(GVarTerm &x);
-    virtual GVarTerm *clone() const { return new GVarTerm{ref}; }
-    virtual ~GVarTerm() noexcept;
+    GVarTerm(GVarTerm const &other) = default;
+    GVarTerm(GVarTerm &&other) noexcept = default;
+    GVarTerm &operator=(GVarTerm const &other) = default;
+    GVarTerm &operator=(GVarTerm &&other) noexcept = default;
+    ~GVarTerm() noexcept override = default;
+
+
+    bool operator==(GTerm const &other) const override;
+    size_t hash() const override;
+    void print(std::ostream &out) const override;
+    Sig sig() const override;
+    EvalResult eval() const override;
+    bool occurs(GRef &x) const override;
+    void reset() override;
+    bool match(Symbol const &x) override;
+    bool unify(GTerm &x) override;
+    bool unify(GFunctionTerm &x) override;
+    bool unify(GLinearTerm &x) override;
+    bool unify(GVarTerm &x) override;
+    GVarTerm *clone() const override {
+        return new GVarTerm{ref}; // NOLINT
+    }
 
     SGRef ref;
 };
@@ -489,8 +538,11 @@ struct GVarTerm : GTerm {
 
 // {{{ declaration of PoolTerm
 
-struct PoolTerm : public Term {
+class PoolTerm : public Term {
+public:
     PoolTerm(UTermVec &&terms);
+    ~PoolTerm() noexcept override = default;
+
     virtual unsigned projectScore() const;
     virtual void rename(String name);
     virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
@@ -519,16 +571,19 @@ struct PoolTerm : public Term {
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
     virtual bool isAtom() const;
-    virtual ~PoolTerm() noexcept;
 
+private:
     UTermVec args;
 };
 
 // }}}
 // {{{ declaration of ValTerm
 
-struct ValTerm : public Term {
+class ValTerm : public Term {
+public:
     ValTerm(Symbol value);
+    ~ValTerm() noexcept override = default;
+
     virtual unsigned projectScore() const;
     virtual void rename(String name);
     virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
@@ -557,15 +612,16 @@ struct ValTerm : public Term {
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
     virtual bool isAtom() const;
-    virtual ~ValTerm() noexcept;
 
+private:
     Symbol value;
 };
 
 // }}}
 // {{{ declaration of VarTerm
 
-struct VarTerm : Term {
+class VarTerm : public Term {
+public:
     VarTerm(String name, const SVal& ref, unsigned level = 0, bool bindRef = false);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
@@ -594,7 +650,7 @@ struct VarTerm : Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
-    virtual ~VarTerm() noexcept;
+    virtual ~VarTerm() noexcept = default;
 
     String name;
     SVal ref;
@@ -605,8 +661,11 @@ struct VarTerm : Term {
 // }}}
 // {{{ declaration of UnOpTerm
 
-struct UnOpTerm : public Term {
+class UnOpTerm : public Term {
+public:
     UnOpTerm(UnOp op, UTerm &&arg);
+    ~UnOpTerm() noexcept override = default;
+
     virtual unsigned projectScore() const;
     virtual void rename(String name);
     virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
@@ -636,8 +695,8 @@ struct UnOpTerm : public Term {
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
     virtual bool isAtom() const;
-    virtual ~UnOpTerm();
 
+private:
     UnOp const op;
     UTerm arg;
 };
@@ -645,8 +704,11 @@ struct UnOpTerm : public Term {
 // }}}
 // {{{ declaration of BinOpTerm
 
-struct BinOpTerm : public Term {
+class BinOpTerm : public Term {
+public:
     BinOpTerm(BinOp op, UTerm &&left, UTerm &&right);
+    ~BinOpTerm() noexcept override = default;
+
     virtual unsigned projectScore() const;
     virtual void rename(String name);
     virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
@@ -674,8 +736,8 @@ struct BinOpTerm : public Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
-    virtual ~BinOpTerm() noexcept;
 
+private:
     BinOp op;
     UTerm left;
     UTerm right;
@@ -684,8 +746,11 @@ struct BinOpTerm : public Term {
 // }}}
 // {{{ declaration of DotsTerm
 
-struct DotsTerm : public Term {
+class DotsTerm : public Term {
+public:
     DotsTerm(UTerm &&left, UTerm &&right);
+    ~DotsTerm() noexcept override = default;
+
     virtual unsigned projectScore() const;
     virtual void rename(String name);
     virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
@@ -713,8 +778,8 @@ struct DotsTerm : public Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
-    virtual ~DotsTerm() noexcept;
 
+private:
     UTerm left;
     UTerm right;
 };
@@ -722,8 +787,11 @@ struct DotsTerm : public Term {
 // }}}
 // {{{ declaration of LuaTerm
 
-struct LuaTerm : public Term {
+class LuaTerm : public Term {
+public:
     LuaTerm(String name, UTermVec &&args);
+    ~LuaTerm() noexcept override = default;
+
     virtual unsigned projectScore() const;
     virtual void rename(String name);
     virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
@@ -751,8 +819,8 @@ struct LuaTerm : public Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
-    virtual ~LuaTerm() noexcept;
 
+private:
     String const name;
     UTermVec args;
 };
@@ -760,8 +828,15 @@ struct LuaTerm : public Term {
 // }}}
 // {{{ declaration of FunctionTerm
 
-struct FunctionTerm : public Term {
+class FunctionTerm : public Term {
+public:
     FunctionTerm(String name, UTermVec &&args);
+    ~FunctionTerm() noexcept = default;
+
+    UTermVec const &arguments() {
+        return args;
+    };
+
     virtual unsigned projectScore() const;
     virtual void rename(String name);
     virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
@@ -791,8 +866,8 @@ struct FunctionTerm : public Term {
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
     virtual bool isAtom() const;
-    virtual ~FunctionTerm() noexcept;
 
+private:
     String name;
     UTermVec args;
     mutable SymVec cache;
@@ -802,10 +877,27 @@ struct FunctionTerm : public Term {
 // {{{ declaration of LinearTerm
 
 // TODO: if it holds a var it can as well use its location
-struct LinearTerm : Term {
+class LinearTerm : public Term {
+public:
     using UVarTerm = std::unique_ptr<VarTerm>;
     LinearTerm(VarTerm const &var, int m, int n);
     LinearTerm(UVarTerm &&var, int m, int n);
+    ~LinearTerm() noexcept override = default;
+
+    bool isVar() const { return m == 1 && n == 0; }
+    UVarTerm toVar() { return std::move(var); }
+    void invert() {
+        m *= -1;
+        n *= -1;
+    }
+    void add(int c) {
+        n += c;
+    }
+    void mul(int c) {
+        m *= c;
+        n *= c;
+    }
+
     virtual unsigned projectScore() const;
     virtual void rename(String name);
     virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
@@ -833,8 +925,8 @@ struct LinearTerm : Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
-    virtual ~LinearTerm() noexcept;
 
+private:
     UVarTerm var;
     int m;
     int n;

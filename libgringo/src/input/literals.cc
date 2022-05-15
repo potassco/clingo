@@ -230,7 +230,7 @@ bool PredicateLiteral::simplify(Logger &log, Projections &project, SimplifyState
     auto ret(repr->simplify(state, positional, false, log));
     ret.update(repr, false);
     if (ret.undefined()) { return false; }
-    if (repr->simplify(state, positional, false, log).update(repr, false).project) {
+    if (repr->simplify(state, positional, false, log).update(repr, false).project()) {
         auto rep(project.add(*repr));
         Term::replace(repr, std::move(rep));
     }
