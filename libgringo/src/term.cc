@@ -2365,7 +2365,7 @@ UTerm FunctionTerm::replace(Defines &defs, bool replace) {
 double FunctionTerm::estimate(double size, VarSet const &bound) const {
     double ret = 0.0;
     if (!args.empty()) {
-        double len = static_cast<double>(args.size());
+        auto len = static_cast<double>(args.size());
         double root = std::max(1.0, std::pow((name.empty() ? size : size / 2.0), 1.0 / len));
         for (const auto &x : args) {
             ret += x->estimate(root, bound);
