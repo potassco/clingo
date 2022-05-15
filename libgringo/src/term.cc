@@ -839,7 +839,7 @@ SimplifyState::SimplifyRet::~SimplifyRet() noexcept {
 // {{{1 definition of PoolTerm
 
 PoolTerm::PoolTerm(UTermVec &&terms)
-: args(std::move(terms)) { }
+: args_(std::move(terms)) { }
 
 void PoolTerm::rename(String name) {
     static_cast<void>(name);
@@ -848,7 +848,7 @@ void PoolTerm::rename(String name) {
 
 unsigned PoolTerm::getLevel() const {
     unsigned level = 0;
-    for (const auto &x : args) {
+    for (const auto &x : args_) {
         level = std::max(x->getLevel(), level);
     }
     return level;
@@ -871,7 +871,7 @@ Term::Invertibility PoolTerm::getInvertibility() const {
 }
 
 void PoolTerm::print(std::ostream &out) const {
-    print_comma(out, args, ";", [](std::ostream &out, UTerm const &y) { out << *y; });
+    print_comma(out, args_, ";", [](std::ostream &out, UTerm const &y) { out << *y; });
 }
 
 Term::SimplifyRet PoolTerm::simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) {
@@ -889,7 +889,7 @@ Term::ProjectRet PoolTerm::project(bool rename, AuxGen &auxGen) {
 }
 
 bool PoolTerm::hasVar() const {
-    for (const auto &x : args) {
+    for (const auto &x : args_) {
         if (x->hasVar()) {
             return true;
         }
@@ -902,11 +902,11 @@ bool PoolTerm::hasPool() const {
 }
 
 void PoolTerm::collect(VarTermBoundVec &vars, bool bound) const {
-    for (const auto &y : args) { y->collect(vars, bound); }
+    for (const auto &y : args_) { y->collect(vars, bound); }
 }
 
 void PoolTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) const {
-    for (const auto &y : args) { y->collect(vars, minLevel, maxLevel); }
+    for (const auto &y : args_) { y->collect(vars, minLevel, maxLevel); }
 }
 
 Symbol PoolTerm::eval(bool &undefined, Logger &log) const {
@@ -921,7 +921,7 @@ bool PoolTerm::match(Symbol const &val) const {
 }
 
 void PoolTerm::unpool(UTermVec &x) const {
-    for (const auto &t : args) {
+    for (const auto &t : args_) {
         t->unpool(x);
     }
 }
@@ -936,15 +936,15 @@ UTerm PoolTerm::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen, 
 bool PoolTerm::operator==(Term const &x) const {
     const auto *t = dynamic_cast<PoolTerm const*>(&x);
     return t != nullptr &&
-           is_value_equal_to(args, t->args);
+           is_value_equal_to(args_, t->args_);
 }
 
 size_t PoolTerm::hash() const {
-    return get_value_hash(typeid(PoolTerm).hash_code(), args);
+    return get_value_hash(typeid(PoolTerm).hash_code(), args_);
 }
 
 PoolTerm *PoolTerm::clone() const {
-    return make_locatable<PoolTerm>(loc(), get_clone(args)).release();
+    return make_locatable<PoolTerm>(loc(), get_clone(args_)).release();
 }
 
 Sig PoolTerm::getSig() const {
@@ -953,7 +953,7 @@ Sig PoolTerm::getSig() const {
 
 UTerm PoolTerm::renameVars(RenameMap &names) const {
     UTermVec args;
-    for (const auto &x : this->args) {
+    for (const auto &x : args_) {
         args.emplace_back(x->renameVars(names));
     }
     return make_locatable<PoolTerm>(loc(), std::move(args));
@@ -963,15 +963,15 @@ UGTerm PoolTerm::gterm(RenameMap &names, ReferenceMap &refs) const {
     return gringo_make_unique<GVarTerm>(_newRef(names, refs));
 }
 
-void PoolTerm::collectIds(VarSet &x) const {
-    for (const auto &y : args) {
-        y->collectIds(x);
+void PoolTerm::collectIds(VarSet &vars) const {
+    for (const auto &y : args_) {
+        y->collectIds(vars);
     }
 }
 
-UTerm PoolTerm::replace(Defines &x, bool replace) {
-    for (auto &y : args) {
-        Term::replace(y, y->replace(x, replace));
+UTerm PoolTerm::replace(Defines &defs, bool replace) {
+    for (auto &y : args_) {
+        Term::replace(y, y->replace(defs, replace));
     }
     return nullptr;
 }
@@ -987,7 +987,7 @@ Symbol PoolTerm::isEDB() const {
 }
 
 bool PoolTerm::isAtom() const {
-    for (const auto &x : args) {
+    for (const auto &x : args_) {
         if (!x->isAtom()) {
             return false;
         }
@@ -1096,9 +1096,9 @@ UGTerm ValTerm::gterm(RenameMap &names, ReferenceMap &refs) const {
     return gringo_make_unique<GValTerm>(value);
 }
 
-void ValTerm::collectIds(VarSet &x) const {
+void ValTerm::collectIds(VarSet &vars) const {
     if (value.type() == SymbolType::Fun && value.sig().arity() == 0) {
-        x.emplace(value.name());
+        vars.emplace(value.name());
     }
 }
 
@@ -1568,8 +1568,8 @@ UGFunTerm UnOpTerm::gfunterm(RenameMap &names, ReferenceMap &refs) const {
     return fun;
 }
 
-void UnOpTerm::collectIds(VarSet &x) const {
-    arg->collectIds(x);
+void UnOpTerm::collectIds(VarSet &vars) const {
+    arg->collectIds(vars);
 }
 UTerm UnOpTerm::replace(Defines &x, bool) {
     Term::replace(arg, arg->replace(x, true));
@@ -1751,9 +1751,9 @@ UTerm BinOpTerm::renameVars(RenameMap &names) const {
 
 UGTerm BinOpTerm::gterm(RenameMap &names, ReferenceMap &refs) const  { return gringo_make_unique<GVarTerm>(_newRef(names, refs)); }
 
-void BinOpTerm::collectIds(VarSet &x) const {
-    left->collectIds(x);
-    right->collectIds(x);
+void BinOpTerm::collectIds(VarSet &vars) const {
+    left->collectIds(vars);
+    right->collectIds(vars);
 }
 
 UTerm BinOpTerm::replace(Defines &x, bool) {
@@ -1857,9 +1857,9 @@ UTerm DotsTerm::renameVars(RenameMap &names) const {
 
 UGTerm DotsTerm::gterm(RenameMap &names, ReferenceMap &refs) const   { return gringo_make_unique<GVarTerm>(_newRef(names, refs)); }
 
-void DotsTerm::collectIds(VarSet &x) const {
-    left->collectIds(x);
-    right->collectIds(x);
+void DotsTerm::collectIds(VarSet &vars) const {
+    left->collectIds(vars);
+    right->collectIds(vars);
 }
 
 UTerm DotsTerm::replace(Defines &x, bool) {
@@ -1977,8 +1977,8 @@ UTerm LuaTerm::renameVars(RenameMap &names) const {
 
 UGTerm LuaTerm::gterm(RenameMap &names, ReferenceMap &refs) const    { return gringo_make_unique<GVarTerm>(_newRef(names, refs)); }
 
-void LuaTerm::collectIds(VarSet &x) const {
-    for (const auto &y : args) { y->collectIds(x); }
+void LuaTerm::collectIds(VarSet &vars) const {
+    for (const auto &y : args) { y->collectIds(vars); }
 }
 
 UTerm LuaTerm::replace(Defines &x, bool) {
@@ -2145,8 +2145,10 @@ UGFunTerm FunctionTerm::gfunterm(RenameMap &names, ReferenceMap &refs) const {
     return gringo_make_unique<GFunctionTerm>(name, std::move(args));
 }
 
-void FunctionTerm::collectIds(VarSet &x) const {
-    for (const auto &y : args) { y->collectIds(x); }
+void FunctionTerm::collectIds(VarSet &vars) const {
+    for (const auto &y : args) {
+        y->collectIds(vars);
+    }
 }
 
 UTerm FunctionTerm::replace(Defines &x, bool) {
