@@ -672,6 +672,61 @@ public:
 };
 
 // }}}
+// {{{ declaration of LinearTerm
+
+// TODO: if it holds a var it can as well use its location
+class LinearTerm : public Term {
+public:
+    using UVarTerm = std::unique_ptr<VarTerm>;
+    LinearTerm(UVarTerm &&var, int m, int n);
+    LinearTerm(VarTerm const &var, int m, int n);
+    LinearTerm(LinearTerm const &other) = delete;
+    LinearTerm(LinearTerm &&other) noexcept = default;
+    LinearTerm &operator=(LinearTerm const &other) = delete;
+    LinearTerm &operator=(LinearTerm &&other) noexcept = default;
+    ~LinearTerm() noexcept override = default;
+
+    bool isVar() const;
+    UVarTerm toVar();
+    void invert();
+    void add(int c);
+    void mul(int c);
+
+    unsigned projectScore() const override;
+    void rename(String name) override;
+    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
+    ProjectRet project(bool rename, AuxGen &gen) override;
+    bool hasVar() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
+    Symbol eval(bool &undefined, Logger &log) const override;
+    bool match(Symbol const &val) const override;
+    Sig getSig() const override;
+    UTerm renameVars(RenameMap &names) const override;
+    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
+    unsigned getLevel() const override;
+    bool isNotNumeric() const override;
+    bool isNotFunction() const override;
+    Invertibility getInvertibility() const override;
+    void print(std::ostream &out) const override;
+    void unpool(UTermVec &x) const override;
+    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
+    bool operator==(Term const &other) const override;
+    size_t hash() const override;
+    LinearTerm *clone() const override;
+    bool hasPool() const override;
+    void collectIds(VarSet &vars) const override;
+    UTerm replace(Defines &defs, bool replace = true) override;
+    double estimate(double size, VarSet const &bound) const override;
+    Symbol isEDB() const override;
+
+private:
+    UVarTerm var_;
+    int m_;
+    int n_;
+};
+
+// }}}
 // {{{ declaration of UnOpTerm
 
 class UnOpTerm : public Term {
@@ -904,69 +959,6 @@ private:
     String name;
     UTermVec args;
     mutable SymVec cache;
-};
-
-// }}}
-// {{{ declaration of LinearTerm
-
-// TODO: if it holds a var it can as well use its location
-class LinearTerm : public Term {
-public:
-    using UVarTerm = std::unique_ptr<VarTerm>;
-    LinearTerm(UVarTerm &&var, int m, int n);
-    LinearTerm(VarTerm const &var, int m, int n);
-    LinearTerm(LinearTerm const &other) = delete;
-    LinearTerm(LinearTerm &&other) noexcept = default;
-    LinearTerm &operator=(LinearTerm const &other) = delete;
-    LinearTerm &operator=(LinearTerm &&other) noexcept = default;
-    ~LinearTerm() noexcept override = default;
-
-    bool isVar() const { return m == 1 && n == 0; }
-    UVarTerm toVar() { return std::move(var); }
-    void invert() {
-        m *= -1;
-        n *= -1;
-    }
-    void add(int c) {
-        n += c;
-    }
-    void mul(int c) {
-        m *= c;
-        n *= c;
-    }
-
-    unsigned projectScore() const override;
-    void rename(String name) override;
-    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
-    ProjectRet project(bool rename, AuxGen &gen) override;
-    bool hasVar() const override;
-    void collect(VarTermBoundVec &vars, bool bound) const override;
-    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
-    Symbol eval(bool &undefined, Logger &log) const override;
-    bool match(Symbol const &val) const override;
-    Sig getSig() const override;
-    UTerm renameVars(RenameMap &names) const override;
-    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
-    unsigned getLevel() const override;
-    bool isNotNumeric() const override;
-    bool isNotFunction() const override;
-    Invertibility getInvertibility() const override;
-    void print(std::ostream &out) const override;
-    void unpool(UTermVec &x) const override;
-    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
-    bool operator==(Term const &other) const override;
-    size_t hash() const override;
-    LinearTerm *clone() const override;
-    bool hasPool() const override;
-    void collectIds(VarSet &vars) const override;
-    UTerm replace(Defines &defs, bool replace = true) override;
-    double estimate(double size, VarSet const &bound) const override;
-    Symbol isEDB() const override;
-
-private:
-    UVarTerm var;
-    int m;
-    int n;
 };
 
 // }}}
