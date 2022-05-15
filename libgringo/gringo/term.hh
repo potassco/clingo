@@ -58,7 +58,7 @@ std::ostream &operator<<(std::ostream &out, UnOp op);
 
  // {{{ declaration of Defines
 
-struct Term;
+class Term;
 using UTerm = std::unique_ptr<Term>;
 
 class Defines {
@@ -89,10 +89,10 @@ private:
 // {{{ declaration of GTerm
 
 struct GRef;
-struct GTerm;
-struct GVarTerm;
-struct GFunctionTerm;
-struct GLinearTerm;
+class GTerm;
+class GVarTerm;
+class GFunctionTerm;
+class GLinearTerm;
 using UGTerm = std::unique_ptr<GTerm>;
 using UGFunTerm = std::unique_ptr<GFunctionTerm>;
 class GTerm : public Clonable<GTerm>, public Printable, public Hashable, public Comparable<GTerm> {
@@ -122,9 +122,9 @@ using SGRef     = std::shared_ptr<GRef>;
 // }}}
 // {{{ declaration of Term
 
-struct LinearTerm;
-struct VarTerm;
-struct ValTerm;
+class LinearTerm;
+class VarTerm;
+class ValTerm;
 using UTermVec        = std::vector<UTerm>;
 using UTermVecVec     = std::vector<UTermVec>;
 using VarTermVec      = std::vector<std::reference_wrapper<VarTerm>>;
@@ -151,7 +151,7 @@ private:
 class SimplifyState {
 public:
     //! Somewhat complex result type of simplify.
-    struct SimplifyRet;
+    class SimplifyRet;
 
     //! Type that stores for each rewritten DotsTerm the associated variable and the lower and upper bound.
     using DotsMap = std::vector<std::tuple<UTerm, UTerm, UTerm>>;
@@ -326,7 +326,7 @@ public:
 
 UTermVec unpool(UTerm const &x);
 
-struct LinearTerm;
+class LinearTerm;
 class SimplifyState::SimplifyRet {
 public:
     enum Type { UNTOUCHED, CONSTANT, LINEAR, REPLACE, UNDEFINED };
