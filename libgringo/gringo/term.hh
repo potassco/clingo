@@ -134,7 +134,7 @@ using VarTermSet      = std::unordered_set<std::reference_wrapper<VarTerm>, valu
 class AuxGen {
 public:
     AuxGen()
-    : auxNum(std::make_shared<unsigned>(0)) { }
+    : auxNum_(std::make_shared<unsigned>(0)) { }
     AuxGen(AuxGen const &other) = default;
     AuxGen(AuxGen &&other) noexcept = default;
     AuxGen &operator=(AuxGen const &other) = default;
@@ -145,7 +145,7 @@ public:
     UTerm uniqueVar(Location const &loc, unsigned level, const char *prefix);
 
 private:
-    std::shared_ptr<unsigned> auxNum;
+    std::shared_ptr<unsigned> auxNum_;
 };
 
 class SimplifyState {
@@ -674,7 +674,6 @@ public:
 // }}}
 // {{{ declaration of LinearTerm
 
-// TODO: if it holds a var it can as well use its location
 class LinearTerm : public Term {
 public:
     using UVarTerm = std::unique_ptr<VarTerm>;
@@ -769,8 +768,8 @@ public:
     bool isAtom() const override;
 
 private:
-    UnOp op;
-    UTerm arg;
+    UnOp op_;
+    UTerm arg_;
 };
 
 // }}}
@@ -814,9 +813,9 @@ public:
     Symbol isEDB() const override;
 
 private:
-    BinOp op;
-    UTerm left;
-    UTerm right;
+    BinOp op_;
+    UTerm left_;
+    UTerm right_;
 };
 
 // }}}
@@ -860,8 +859,8 @@ public:
     Symbol isEDB() const override;
 
 private:
-    UTerm left;
-    UTerm right;
+    UTerm left_;
+    UTerm right_;
 };
 
 // }}}
@@ -905,8 +904,8 @@ public:
     Symbol isEDB() const override;
 
 private:
-    String name;
-    UTermVec args;
+    String name_;
+    UTermVec args_;
 };
 
 // }}}
@@ -921,9 +920,7 @@ public:
     FunctionTerm &operator=(FunctionTerm &&other) noexcept = default;
     ~FunctionTerm() noexcept override = default;
 
-    UTermVec const &arguments() {
-        return args;
-    };
+    UTermVec const &arguments();
 
     unsigned projectScore() const override;
     void rename(String name) override;
@@ -956,9 +953,9 @@ public:
     bool isAtom() const override;
 
 private:
-    String name;
-    UTermVec args;
-    mutable SymVec cache;
+    String name_;
+    UTermVec args_;
+    mutable SymVec cache_;
 };
 
 // }}}
