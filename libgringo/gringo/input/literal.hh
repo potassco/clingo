@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_LITERAL_HH
-#define _GRINGO_INPUT_LITERAL_HH
+#ifndef GRINGO_INPUT_LITERAL_HH
+#define GRINGO_INPUT_LITERAL_HH
 
 #include <gringo/term.hh>
 #include <gringo/domain.hh>
@@ -37,28 +37,28 @@ class Projection {
 public:
     Projection(UTerm &&projected, UTerm &&project);
     Projection(Projection const &other) = delete;
-    Projection(Projection &&other) noexcept;
+    Projection(Projection &&other) noexcept = default;
     Projection &operator=(Projection const &other) = delete;
-    Projection &operator=(Projection &&other) noexcept;
-    ~Projection() noexcept;
+    Projection &operator=(Projection &&other) noexcept = default;
+    ~Projection() noexcept = default;
 
     operator Term const &() const;
 
     UTerm projected;
     UTerm project;
-    bool  done = false;
+    bool done = false;
 };
 
 class Projections {
 public:
-    using ProjectionMap = UniqueVec<Projection, std::hash<Term>, std::equal_to<Term>>;
+    using ProjectionMap = UniqueVec<Projection, std::hash<Term>, std::equal_to<Term>>; // NOLINT
 
-    Projections();
-    Projections(Projections &&other) noexcept;
-    Projections(Projections const &other);
+    Projections() = default;
+    Projections(Projections const &other) = delete;
+    Projections(Projections &&other) noexcept = default;
     Projections &operator=(Projections const &other) = delete;
-    Projections &operator=(Projections &&other) noexcept;
-    ~Projections() noexcept;
+    Projections &operator=(Projections &&other) noexcept = default;
+    ~Projections() noexcept = default;
 
     ProjectionMap::Iterator begin();
     ProjectionMap::Iterator end();
@@ -140,4 +140,4 @@ public:
 
 GRINGO_HASH(Gringo::Input::Literal)
 
-#endif // _GRINGO_INPUT_LITERAL_HH
+#endif // GRINGO_INPUT_LITERAL_HH

@@ -30,28 +30,31 @@ namespace Gringo { namespace Input {
 
 // {{{ definition of AssignLevel
 
-AssignLevel::AssignLevel() = default;
-
-AssignLevel::~AssignLevel() noexcept = default;
-
 void AssignLevel::add(VarTermBoundVec &vars) {
-    for (auto &occ : vars) { occurr[occ.first->ref].emplace_back(occ.first); }
+    for (auto &occ : vars) {
+        occurr_[occ.first->ref].emplace_back(occ.first);
+    }
 }
+
 AssignLevel &AssignLevel::subLevel() {
-    childs.emplace_front();
-    return childs.front();
+    children_.emplace_front();
+    return children_.front();
 }
+
 void AssignLevel::assignLevels() {
     BoundSet bound;
     assignLevels(0, bound);
 }
-void AssignLevel::assignLevels(unsigned level, BoundSet const &parent) {
-    BoundSet bound(parent);
-    for (auto &occs : occurr) {
-        unsigned l = bound.emplace(occs.first, level).first->second;
+
+void AssignLevel::assignLevels(unsigned level, BoundSet const &bound) {
+    BoundSet children(bound);
+    for (auto &occs : occurr_) {
+        unsigned l = children.emplace(occs.first, level).first->second;
         for (auto &occ : occs.second) { occ->level = l; }
     }
-    for (auto &child : childs) { child.assignLevels(level + 1, bound); }
+    for (auto &child : children_) {
+        child.assignLevels(level + 1, children);
+    }
 }
 
 // }}}
@@ -67,16 +70,14 @@ CheckLevel::CheckLevel(Location const &loc, Printable const &p)
 
 #if defined(_MSC_VER) && _MSCVER < 1920
 CheckLevel::CheckLevel(CheckLevel &&other) noexcept
-: loc{ other.loc }
-, p{ other.p }
-, dep{ std::move(other.dep) }
-, current{ other.current }
-, vars{ std::move(other.vars) } { }
+: loc{other.loc}
+, p{other.p}
+, dep{std::move(other.dep)}
+, current{other.current}
+, vars{std::move(other.vars)} { }
 #else
 CheckLevel::CheckLevel(CheckLevel &&other) noexcept = default;
 #endif
-
-CheckLevel::~CheckLevel() noexcept = default;
 
 CheckLevel::SC::VarNode &CheckLevel::var(VarTerm &var) {
     auto &node = vars[var.name];
@@ -115,40 +116,43 @@ void addVars(ChkLvlVec &levels, VarTermBoundVec &vars) {
 // {{{ declaration of ToGroundArg
 
 ToGroundArg::ToGroundArg(unsigned &auxNames, DomainData &domains)
-    : auxNames(auxNames)
-    , domains(domains) { }
+: auxNames(auxNames)
+, domains(domains) { }
+
 String ToGroundArg::newId(bool increment) {
     unsigned inc = increment ? 1 : 0;
     auxNames += inc;
     return ("#d" + std::to_string(auxNames - inc)).c_str();
 }
+
 UTermVec ToGroundArg::getGlobal(VarTermBoundVec const &vars) {
     std::unordered_set<String> seen;
     UTermVec global;
-    for (auto &occ : vars) {
+    for (auto const &occ : vars) {
         if (occ.first->level == 0 && seen.emplace(occ.first->name).second) {
             global.emplace_back(occ.first->clone());
         }
     }
     return global;
 }
+
 UTermVec ToGroundArg::getLocal(VarTermBoundVec const &vars) {
     std::unordered_set<String> seen;
     UTermVec local;
-    for (auto &occ : vars) {
+    for (auto const &occ : vars) {
         if (occ.first->level != 0 && seen.emplace(occ.first->name).second) {
             local.emplace_back(occ.first->clone());
         }
     }
     return local;
 }
+
 UTerm ToGroundArg::newId(UTermVec &&global, Location const &loc, bool increment) {
     if (!global.empty()) {
         return make_locatable<FunctionTerm>(loc, newId(increment), std::move(global));
     }
     return make_locatable<ValTerm>(loc, Symbol::createId(newId(increment)));
 }
-ToGroundArg::~ToGroundArg() noexcept = default;
 
 // }}}
 

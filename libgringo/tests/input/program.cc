@@ -54,7 +54,7 @@ struct Grounder {
     Defines d;
     NongroundProgramBuilder pb;
     NonGroundParser ngp;
-    bool incmode;
+    bool incmode{false};
 
 };
 
@@ -119,18 +119,59 @@ TEST_CASE("input-program", "[input]") {
         // head
         REQUIRE("#void:-1>=2;q.#void:-2>=3;q." == rewrite(parse("1<2<3:-q.")));
         REQUIRE("#void:-2<3;1<2;q." == rewrite(parse("not 1<2<3:-q.")));
-        REQUIRE("#void:1>=2&#void:2>=3:;#void:4>=5&#void:5>=6::-q." == rewrite(parse("1<2<3|4<5<6:-q.")));
         REQUIRE("#void::;#void:::-5<6;4<5;2<3;1<2;q." == rewrite(parse("not 1<2<3|not 4<5<6:-q.")));
         REQUIRE("#void:-#range(#Range0,1,2);q;1>=(#Range0+0).#void:-#range(#Range0,1,2);q;(#Range0+0)>=3." == rewrite(parse("1<1..2<3:-q.")));
         REQUIRE("#void:-#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
         REQUIRE("#void:-1>=2;q.#void:-2>=4;q.#void:-1>=3;q.#void:-3>=4;q." == rewrite(parse("1<(2;3)<4:-q.")));
         REQUIRE("#void:-2<4;1<2;q.#void:-3<4;1<3;q." == rewrite(parse("not 1<(2;3)<4:-q.")));
-        // TODO: body
-        // TODO: disjunctions
-        // TODO: conjunctions
+        // body
+        REQUIRE("q:-2<3;1<2." == rewrite(parse("q :- 1<2<3.")));
+        REQUIRE("q:-1>=2."
+                "q:-2>=3." == rewrite(parse("q :- not 1<2<3.")));
+        REQUIRE("q:-#range(#Range0,1,2);1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("q :- 1<1..2<3.")));
+        REQUIRE("q:-#range(#Range0,1,2);1>=(#Range0+0)."
+                "q:-#range(#Range0,1,2);(#Range0+0)>=3." == rewrite(parse("q :- not 1<1..2<3.")));
+        REQUIRE("q:-2<4;1<2."
+                "q:-3<4;1<3." == rewrite(parse("q :- 1<(2;3)<4.")));
+        REQUIRE("q:-1>=2."
+                "q:-2>=4."
+                "q:-1>=3."
+                "q:-3>=4." == rewrite(parse("q :- not 1<(2;3)<4.")));
+        // disjunctions
+        REQUIRE("#void:1>=2&#void:2>=3:;"
+                "#void:4>=5&#void:5>=6::-q." == rewrite(parse("1<2<3|4<5<6:-q.")));
+        REQUIRE("#void:#range(#Range0,2,3),1>=(#Range0+0)&#void:#range(#Range0,2,3),(#Range0+0)>=4:;"
+                "#void:4>=5&#void:5>=7&#void:4>=6&#void:6>=7::-q." == rewrite(parse("1<(2..3)<4|4<(5;6)<7:-q.")));
+        REQUIRE("#void::;#void:::-5<6;4<5;2<3;1<2;q." == rewrite(parse("not 1<2<3|not 4<5<6:-q.")));
+        REQUIRE("#void:1<2,2<3:b;"
+                "#void:4<5,5<6:c:-q." == rewrite(parse("not 1<2<3:b|not 4<5<6:c:-q.")));
+        REQUIRE("#void::;#void:4<5,5<7&#void:4<6,6<7:"
+                ":-#range(#Range0,2,3);q;1<(#Range0+0);(#Range0+0)<4." == rewrite(parse("not 1<(2..3)<4|not 4<(5;6)<7:-q.")));
+        REQUIRE("#void:#range(#Range0,2,3),1<(#Range0+0),(#Range0+0)<4:b;"
+                "#void:4<5,5<7&#void:4<6,6<7:c:-q." == rewrite(parse("not 1<(2..3)<4:b|not 4<(5;6)<7:c:-q.")));
+        REQUIRE("b::1<2,2<3:-q." == rewrite(parse("b:1<2<3:-q.")));
+        REQUIRE("b::1>=2;"
+                "b::2>=3:-q." == rewrite(parse("b:not 1<2<3:-q.")));
+        // conjunctions
+        REQUIRE("h:-1<2&2<3:a." == rewrite(parse("h:-1<2<3:a.")));
+        REQUIRE("h:-a:1<2,2<3." == rewrite(parse("h:-a:1<2<3.")));
+        REQUIRE("h:-1>=2|2>=3:a." == rewrite(parse("h:-not 1<2<3:a.")));
+        REQUIRE("h:-a:2>=3;a:1>=2." == rewrite(parse("h:-a:not 1<2<3.")));
+        REQUIRE("h:-1<2&2<4|1<3&3<4:a." == rewrite(parse("h:-1<(2;3)<4:a.")));
+        REQUIRE("h:-a:1<3,3<4;a:1<2,2<4." == rewrite(parse("h:-a:1<(2;3)<4.")));
+        REQUIRE("h:-1>=2|2>=4|1>=3|3>=4:a." == rewrite(parse("h:-not 1<(2;3)<4:a.")));
+        REQUIRE("h:-a:3>=4;a:1>=3;a:2>=4;a:1>=2." == rewrite(parse("h:-a:not 1<(2;3)<4.")));
+        REQUIRE("h:-1<(#Range0+0)&(#Range0+0)<4&#range(#Range0,2,3):a." == rewrite(parse("h:-1<(2..3)<4:a.")));
+        REQUIRE("h:-a:1<(#Range0+0),(#Range0+0)<4,#range(#Range0,2,3)." == rewrite(parse("h:-a:1<(2..3)<4.")));
+        // Note: should be correct
+        REQUIRE("h:-1>=(#Range0+0)&#range(#Range0,2,3)|(#Range0+0)>=4&#range(#Range0,2,3):a." == rewrite(parse("h:-not 1<(2..3)<4:a.")));
+        REQUIRE("h:-a:(#Range0+0)>=4,#range(#Range0,2,3);a:1>=(#Range0+0),#range(#Range0,2,3)." == rewrite(parse("h:-a:not 1<(2..3)<4.")));
         // set based head aggregates
         REQUIRE("1<=#count{3:#void:1<2}:-q." == rewrite(parse("{ 1<2 } >= 1:-q.")));
-        REQUIRE("1<=#count{3:#void:1<2;4:#void:3<4}:-q." == rewrite(parse("{ 1<2; 3<4 } >= 1:-q.")));
+        REQUIRE("1<=#count{"
+                "3:#void:1<2;"
+                "4:#void:3<4"
+                "}:-q." == rewrite(parse("{ 1<2; 3<4 } >= 1:-q.")));
         REQUIRE("1<=#count{"
                 "3:#void:1<2,2<4;"
                 "4:#void:1<3,3<4"
@@ -141,8 +182,8 @@ TEST_CASE("input-program", "[input]") {
                 "4:#void:1>=3;"
                 "4:#void:3>=4"
                 "}:-q." == rewrite(parse("{ not 1<(2;3)<4 }:-q.")));
-        // TODO: what's this? I should probably try to get rid of unnecessary body literals!
-        // REQUIRE("#count{0:#false:}:-2<3;;1<2;(0,)<=(0,);3<=3;q." == rewrite(parse("{ 1<2<3 }:-q.")));
+        // Note the 3<=3 is the tuple and is meant to handle undefined terms
+        REQUIRE("#count{0:#void:}:-6<7;5<6;3<=3;q." == rewrite(parse("{ 5<6<7 }:-q.")));
         // head aggreagets
         REQUIRE("1<=#count{1:#void:p,1<2}:-q." == rewrite(parse("#count{ 1:1<2:p } >= 1:-q.")));
         REQUIRE("1<=#count{1:#void:p,1<2,2<3}:-q." == rewrite(parse("#count{ 1:1<2<3:p } >= 1:-q.")));
@@ -160,15 +201,49 @@ TEST_CASE("input-program", "[input]") {
                 "1:#void:p,1>=3;"
                 "1:#void:p,3>=4"
                 "}:-q." == rewrite(parse("#count{ 1:not 1<(2;3)<4:p } >= 1:-q.")));
-        REQUIRE("1<=#count{1:p:1<2,2<4;1:p:1<3,3<4}:-q." == rewrite(parse("#count{ 1:p:1<(2;3)<4 } >= 1:-q.")));
-        REQUIRE("1<=#count{1:p:1>=2;1:p:2>=4;1:p:1>=3;1:p:3>=4}:-q." == rewrite(parse("#count{ 1:p:not 1<(2;3)<4 } >= 1:-q.")));
-        // TODO: set based body aggregates
+        REQUIRE("1<=#count{"
+                "1:p:1<2,2<4;"
+                "1:p:1<3,3<4"
+                "}:-q." == rewrite(parse("#count{ 1:p:1<(2;3)<4 } >= 1:-q.")));
+        REQUIRE("1<=#count{"
+                "1:p:1>=2;"
+                "1:p:2>=4;"
+                "1:p:1>=3;"
+                "1:p:3>=4"
+                "}:-q." == rewrite(parse("#count{ 1:p:not 1<(2;3)<4 } >= 1:-q.")));
+        // set based body aggregates
+        REQUIRE("q:-1<=#count{3:1<2}." == rewrite(parse("q :- { 1<2 } >= 1.")));
+        REQUIRE("q:-1<=#count{"
+                "3:1<2;"
+                "4:3<4"
+                "}." == rewrite(parse("q :- { 1<2; 3<4 } >= 1.")));
+        REQUIRE("q:-1<=#count{"
+                "3:1<2,2<4;"
+                "4:1<3,3<4"
+                "}." == rewrite(parse("q :- { 1<(2;3)<4 } >= 1.")));
+        REQUIRE("q:-1<=#count{"
+                "3:1>=2;"
+                "3:2>=4;"
+                "4:1>=3;"
+                "4:3>=4"
+                "}." == rewrite(parse("q :- { not 1<(2;3)<4 } >= 1.")));
         // body aggregates
         REQUIRE("q:-1<=#count{1:1<2}." == rewrite(parse("q :- #count{ 1:1<2 } >= 1.")));
         REQUIRE("q:-1<=#count{1:1<2,2<3}." == rewrite(parse("q :- #count{ 1:1<2<3 } >= 1.")));
-        REQUIRE("q:-1<=#count{1:1>=2;1:2>=3}." == rewrite(parse("q :- #count{ 1:not 1<2<3 } >= 1.")));
-        REQUIRE("q:-1<=#count{1:1<2,2<4;1:1<3,3<4}." == rewrite(parse("q :- #count{ 1:1<(2;3)<4 } >= 1.")));
-        REQUIRE("q:-1<=#count{1:1>=2;1:2>=4;1:1>=3;1:3>=4}." == rewrite(parse("q :- #count{ 1:not 1<(2;3)<4 } >= 1.")));
+        REQUIRE("q:-1<=#count{"
+                "1:1>=2;"
+                "1:2>=3"
+                "}." == rewrite(parse("q :- #count{ 1:not 1<2<3 } >= 1.")));
+        REQUIRE("q:-1<=#count{"
+                "1:1<2,2<4;"
+                "1:1<3,3<4"
+                "}." == rewrite(parse("q :- #count{ 1:1<(2;3)<4 } >= 1.")));
+        REQUIRE("q:-1<=#count{"
+                "1:1>=2;"
+                "1:2>=4;"
+                "1:1>=3;"
+                "1:3>=4"
+                "}." == rewrite(parse("q :- #count{ 1:not 1<(2;3)<4 } >= 1.")));
     }
 
     SECTION("defines") {

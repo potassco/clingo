@@ -32,28 +32,17 @@ Projection::Projection(UTerm &&projected, UTerm &&project)
 : projected(std::move(projected))
 , project(std::move(project)) { }
 
-Projection::Projection(Projection &&other) noexcept = default;
-
-Projection &Projection::operator=(Projection &&other) noexcept = default;
-
-Projection::~Projection() noexcept = default;
-
-Projection::operator Term const &() const { return *projected; }
+Projection::operator Term const &() const {
+    return *projected;
+}
 
 // }}}
 // {{{ definition of Projections
 
-Projections::Projections() = default;
-
-Projections::Projections(Projections &&other) noexcept = default;
-
-Projections &Projections::operator=(Projections &&other) noexcept = default;
-
-Projections::~Projections() noexcept = default;
-
 Projections::ProjectionMap::Iterator Projections::begin() {
     return proj.begin();
 }
+
 Projections::ProjectionMap::Iterator Projections::end() {
     return proj.end();
 }

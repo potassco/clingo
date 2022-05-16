@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_AGGREGATE_HH
-#define _GRINGO_INPUT_AGGREGATE_HH
+#ifndef GRINGO_INPUT_AGGREGATE_HH
+#define GRINGO_INPUT_AGGREGATE_HH
 
 #include <gringo/input/literal.hh>
 #include <gringo/safetycheck.hh>
@@ -71,12 +71,12 @@ class AssignLevel {
 public:
     using BoundSet = std::unordered_map<Term::SVal, unsigned>;
 
-    AssignLevel();
+    AssignLevel() = default;
     AssignLevel(AssignLevel const &other) = delete;
     AssignLevel(AssignLevel &&other) noexcept = delete;
     AssignLevel &operator=(AssignLevel const &other) = delete;
     AssignLevel &operator=(AssignLevel &&other) noexcept = delete;
-    ~AssignLevel() noexcept;
+    ~AssignLevel() noexcept = default;
 
 
     void add(VarTermBoundVec &vars);
@@ -84,8 +84,9 @@ public:
     void assignLevels();
     void assignLevels(unsigned level, BoundSet const &bound);
 
-    std::list<AssignLevel> childs;
-    std::unordered_map<Term::SVal, std::vector<VarTerm*>> occurr;
+private:
+    std::list<AssignLevel> children_;
+    std::unordered_map<Term::SVal, std::vector<VarTerm*>> occurr_;
 };
 
 // }}}
@@ -104,7 +105,7 @@ public:
     CheckLevel(CheckLevel &&other) noexcept;
     CheckLevel &operator=(CheckLevel const &other) = delete;
     CheckLevel &operator=(CheckLevel &&other) noexcept = delete;
-    ~CheckLevel() noexcept;
+    ~CheckLevel() noexcept = default;
 
     SC::VarNode &var(VarTerm &var);
     void check(Logger &log);
@@ -135,7 +136,7 @@ public:
     ToGroundArg(ToGroundArg &&other) = delete;
     ToGroundArg &operator=(ToGroundArg const &other) = delete;
     ToGroundArg &operator=(ToGroundArg &&other) = delete;
-    ~ToGroundArg() noexcept;
+    ~ToGroundArg() noexcept = default;
 
     String newId(bool increment = true);
     UTermVec getGlobal(VarTermBoundVec const &vars);
@@ -256,4 +257,4 @@ std::vector<ULitVec> unpoolComparison_(ULitVec const &cond);
 GRINGO_HASH(Gringo::Input::BodyAggregate)
 GRINGO_HASH(Gringo::Input::HeadAggregate)
 
-#endif // _GRINGO_INPUT_AGGREGATE_HH
+#endif // GRINGO_INPUT_AGGREGATE_HH

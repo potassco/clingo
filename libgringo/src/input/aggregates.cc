@@ -446,11 +446,11 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
                 return std::move(ret);
             });
         }
-        return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool auxiliary) {
+        return {[&completeRef, this](Ground::ULitVec &lits, bool primary, bool auxiliary) {
             if (primary) {
                 lits.emplace_back(gringo_make_unique<Ground::BodyAggregateLiteral>(completeRef, naf_, auxiliary));
             }
-        }, std::move(split));
+        }, std::move(split)};
     }
     assert(bounds_.size() == 1 && naf_ == NAF::POS);
     VarTermBoundVec vars;
@@ -491,11 +491,11 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
             return std::move(ret);
         });
     }
-    return CreateBody([&completeRef](Ground::ULitVec &lits, bool primary, bool auxiliary) {
+    return {[&completeRef](Ground::ULitVec &lits, bool primary, bool auxiliary) {
         if (primary) {
             lits.emplace_back(gringo_make_unique<Ground::AssignmentAggregateLiteral>(completeRef, auxiliary));
         }
-    }, std::move(split));
+    }, std::move(split)};
 }
 
 bool TupleBodyAggregate::isAssignment() const {
@@ -832,9 +832,8 @@ UBodyAggrVecVec Conjunction::unpoolComparison() const {
     ret.emplace_back();
     for (auto const &elem : elems_) {
         ULitVecVec heads;
-        for (auto &head : elem.first) {
+        for (auto const &head : elem.first) {
             auto unpooled = unpoolComparison_(head);
-            // TODO: is this correct???
             std::move(unpooled.begin(), unpooled.end(), std::back_inserter(heads));
         }
         for (auto &cond : unpoolComparison_(elem.second)) {
@@ -1035,11 +1034,11 @@ CreateBody Conjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
         return std::move(ret);
     });
 
-    return CreateBody([&completeRef](Ground::ULitVec &lits, bool primary, bool auxiliary) {
+    return {[&completeRef](Ground::ULitVec &lits, bool primary, bool auxiliary) {
         if (primary) {
             lits.emplace_back(gringo_make_unique<Ground::ConjunctionLiteral>(completeRef, auxiliary));
         }
-    }, std::move(split));
+    }, std::move(split)};
 }
 
 bool Conjunction::isAssignment() const {
@@ -1455,7 +1454,7 @@ CreateHead TupleHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
     }
     if (isSimple) {
         DomainData &data = x.domains;
-        return CreateHead([&](Ground::ULitVec &&lits) {
+        return [&](Ground::ULitVec &&lits) {
             Ground::AbstractRule::HeadVec heads;
             for (auto const &elem : elems_) {
                 if (UTerm headRepr = std::get<1>(elem)->headRepr()) {
@@ -1464,7 +1463,7 @@ CreateHead TupleHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
                 }
             }
             return gringo_make_unique<Ground::Rule<false>>(std::move(heads), std::move(lits));
-        });
+        };
     }
 
     stms.emplace_back(gringo_make_unique<Ground::HeadAggregateComplete>(x.domains, x.newId(*this), fun_, get_clone(bounds_)));
@@ -1481,9 +1480,9 @@ CreateHead TupleHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
         completeRef.addAccuDom(*ret);
         stms.emplace_back(std::move(ret));
     }
-    return CreateHead([&completeRef](Ground::ULitVec &&lits) {
+    return [&completeRef](Ground::ULitVec &&lits) {
         return gringo_make_unique<Ground::HeadAggregateRule>(completeRef, std::move(lits));
-    });
+    };
 }
 
 // {{{1 definition of LitHeadAggregate
@@ -2011,7 +2010,7 @@ CreateHead Disjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     }
     if (isSimple) {
         DomainData &data = x.domains;
-        return CreateHead([&](Ground::ULitVec &&lits) {
+        return [&](Ground::ULitVec &&lits) {
             Ground::AbstractRule::HeadVec heads;
             for (auto const &elem : elems_) {
                 for (auto const &head : elem.first) {
@@ -2022,7 +2021,7 @@ CreateHead Disjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
                 }
             }
             return gringo_make_unique<Ground::Rule<true>>(std::move(heads), std::move(lits));
-        });
+        };
     }
     stms.emplace_back(gringo_make_unique<Ground::DisjunctionComplete>(x.domains, x.newId(*this)));
     auto &complete = static_cast<Ground::DisjunctionComplete&>(*stms.back()); // NOLINT
@@ -2090,9 +2089,9 @@ CreateHead Disjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
             }
         }
     }
-    return CreateHead([&](Ground::ULitVec &&lits) {
+    return [&](Ground::ULitVec &&lits) {
         return gringo_make_unique<Ground::DisjunctionRule>(complete, std::move(lits));
-    });
+    };
 }
 
 // {{{1 definition of SimpleHeadLiteral
@@ -2187,14 +2186,14 @@ void SimpleHeadLiteral::replace(Defines &x) {
 
 CreateHead SimpleHeadLiteral::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     static_cast<void>(stms);
-    return {[this, &x](Ground::ULitVec &&lits) -> Ground::UStm {
+    return [this, &x](Ground::ULitVec &&lits) -> Ground::UStm {
         Ground::AbstractRule::HeadVec heads;
         if (UTerm headRepr = lit_->headRepr()) {
             Sig sig(headRepr->getSig());
             heads.emplace_back(std::move(headRepr), &x.domains.add(sig));
         }
         return gringo_make_unique<Ground::Rule<true>>(std::move(heads), std::move(lits));
-    }};
+    };
 }
 
 // {{{1 definition of MinimizeHeadLiteral
@@ -2320,9 +2319,9 @@ void MinimizeHeadLiteral::replace(Defines &x) {
 CreateHead MinimizeHeadLiteral::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     static_cast<void>(x);
     static_cast<void>(stms);
-    return CreateHead([&](Ground::ULitVec &&lits) {
+    return [&](Ground::ULitVec &&lits) {
         return gringo_make_unique<Ground::WeakConstraint>(get_clone(tuple_), std::move(lits));
-    });
+    };
 }
 
 Term &MinimizeHeadLiteral::weight() const {
@@ -2427,9 +2426,9 @@ void EdgeHeadAtom::replace(Defines &x) {
 CreateHead EdgeHeadAtom::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     static_cast<void>(x);
     static_cast<void>(stms);
-    return CreateHead([&](Ground::ULitVec &&lits) {
+    return [&](Ground::ULitVec &&lits) {
         return gringo_make_unique<Ground::EdgeStatement>(get_clone(u_), get_clone(v_), std::move(lits));
-    });
+    };
 }
 
 // {{{1 definition of ProjectHeadAtom
@@ -2516,9 +2515,9 @@ void ProjectHeadAtom::replace(Defines &x) {
 CreateHead ProjectHeadAtom::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     static_cast<void>(x);
     static_cast<void>(stms);
-    return CreateHead([&](Ground::ULitVec &&lits) {
+    return [&](Ground::ULitVec &&lits) {
         return gringo_make_unique<Ground::ProjectStatement>(get_clone(atom_), std::move(lits));
-    });
+    };
 }
 
 // {{{1 definition of ExternalHeadAtom
@@ -2623,12 +2622,12 @@ void ExternalHeadAtom::replace(Defines &x) {
 
 CreateHead ExternalHeadAtom::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     static_cast<void>(stms);
-    return {[this, &x](Ground::ULitVec &&lits) -> Ground::UStm {
+    return [this, &x](Ground::ULitVec &&lits) -> Ground::UStm {
         Ground::AbstractRule::HeadVec heads;
         Sig sig(atom_->getSig());
         heads.emplace_back(get_clone(atom_), &x.domains.add(sig));
         return gringo_make_unique<Ground::ExternalStatement>(std::move(heads), std::move(lits), get_clone(type_));
-    }};
+    };
 }
 
 // {{{1 definition of HeuristicHeadAtom
@@ -2738,9 +2737,9 @@ void HeuristicHeadAtom::replace(Defines &x) {
 CreateHead HeuristicHeadAtom::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     static_cast<void>(x);
     static_cast<void>(stms);
-    return CreateHead([&](Ground::ULitVec &&lits) {
+    return [&](Ground::ULitVec &&lits) {
         return gringo_make_unique<Ground::HeuristicStatement>(get_clone(atom_), get_clone(value_), get_clone(priority_), get_clone(mod_), std::move(lits));
-    });
+    };
 }
 
 // {{{1 definition of ShowHeadLiteral
@@ -2826,9 +2825,9 @@ void ShowHeadLiteral::replace(Defines &x) {
 CreateHead ShowHeadLiteral::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     static_cast<void>(x);
     static_cast<void>(stms);
-    return CreateHead([&](Ground::ULitVec &&lits) {
+    return [&](Ground::ULitVec &&lits) {
         return gringo_make_unique<Ground::ShowStatement>(get_clone(term_), std::move(lits));
-    });
+    };
 }
 
 // }}}1
