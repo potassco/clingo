@@ -49,11 +49,6 @@ class String {
 public:
     String(StringSpan str);
     String(char const *str);
-    String(String const &other) noexcept = default;
-    String(String &&other) noexcept = default;
-    String &operator=(String const &other) noexcept = default;
-    String &operator=(String &&other) noexcept = default;
-    ~String() noexcept = default;
 
     const char *c_str() const { return str_; }
     bool empty() const;
@@ -64,6 +59,7 @@ public:
     size_t hash() const;
     static uintptr_t toRep(String s) noexcept;
     static String fromRep(uintptr_t t) noexcept;
+
 private:
     String(uintptr_t) noexcept;
     char const *str_;
@@ -101,6 +97,7 @@ class Sig {
 public:
     Sig(String name, uint32_t arity, bool sign);
     explicit Sig(uint64_t rep) : rep_(rep) {  }
+
     String name() const;
     Sig flipSign() const;
     uint32_t arity() const;
@@ -119,6 +116,7 @@ public:
     bool operator>(Sig s) const;
     bool operator<=(Sig s) const;
     bool operator>=(Sig s) const;
+
 private:
     uint64_t rep_;
 };
@@ -139,6 +137,7 @@ enum class SymbolType : uint8_t {
     Special = 6,
     Sup     = 7
 };
+
 inline std::ostream &operator<<(std::ostream &out, SymbolType sym) {
     switch (sym) {
         case SymbolType::Inf: { out << "Inf"; break; }

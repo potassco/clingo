@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_OUTPUT_TYPES_HH
-#define _GRINGO_OUTPUT_TYPES_HH
+#ifndef GRINGO_OUTPUT_TYPES_HH
+#define GRINGO_OUTPUT_TYPES_HH
 
 #include <gringo/domain.hh>
 #include <gringo/types.hh>
@@ -36,7 +36,6 @@ class PredicateDomain;
 class LiteralId;
 class DisjointElement;
 class Statement;
-struct AuxAtom;
 struct PrintPlain;
 class DomainData;
 class OutputBase;
@@ -59,4 +58,4 @@ enum class OutputFormat { TEXT, INTERMEDIATE, SMODELS, REIFY };
 
 } } // namespace Output Gringo
 
-#endif // _GRINGO_OUTPUT_TYPES_HH
+#endif // GRINGO_OUTPUT_TYPES_HH

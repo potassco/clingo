@@ -42,19 +42,24 @@ Block::Block(Location const &loc, String name, IdVec &&params)
     , params(std::move(params))
     , edb(std::make_shared<Ground::SEdb::element_type>(nullptr, SymVec())) {
     UTermVec args;
-    for (auto &param : this->params) { args.emplace_back(make_locatable<ValTerm>(param.first, Symbol::createId(param.second))); }
-    if (args.empty()) { std::get<0>(*edb) = make_locatable<ValTerm>(loc, Symbol::createId(name)); }
-    else              { std::get<0>(*edb) = make_locatable<FunctionTerm>(loc, name, std::move(args)); }
+    for (auto &param : this->params) {
+        args.emplace_back(make_locatable<ValTerm>(param.first, Symbol::createId(param.second)));
+    }
+    if (args.empty()) {
+        std::get<0>(*edb) = make_locatable<ValTerm>(loc, Symbol::createId(name));
+    }
+    else {
+        std::get<0>(*edb) = make_locatable<FunctionTerm>(loc, name, std::move(args));
+    }
 }
-
-Block::Block(Block&&) = default;
-Block &Block::operator=(Block&&) = default;
-Block::~Block() = default;
 
 Term const &Block::sig() const {
     return *std::get<0>(*edb);
 }
-Block::operator Term const &() const { return sig(); }
+
+Block::operator Term const &() const {
+    return sig();
+}
 
 // }}}
 // {{{ definition of Program
@@ -62,8 +67,6 @@ Block::operator Term const &() const { return sig(); }
 Program::Program() {
     begin(Location("<internal>", 1, 1, "<internal>", 1, 1), "base", IdVec({}));
 }
-
-Program::Program(Program &&) = default;
 
 void Program::begin(Location const &loc, String name, IdVec &&params) {
     current_ = &*blocks_.push(loc, (std::string("#inc_") + name.c_str()).c_str(), std::move(params)).first;
@@ -97,7 +100,7 @@ void Program::add(TheoryDef &&def, Logger &log) {
 
 void Program::rewrite(Defines &defs, Logger &log) {
     for (auto &block : blocks_) {
-        // {{{3 replacing definitions
+        // replacing definitions
         Defines incDefs;
 
         UTermVec args;
@@ -123,21 +126,29 @@ void Program::rewrite(Defines &defs, Logger &log) {
             if (rt) {
                 Location loc{rt->loc()};
                 block.addedStms.emplace_back(make_locatable<Statement>(loc, gringo_make_unique<SimpleHeadLiteral>(make_locatable<PredicateLiteral>(loc, NAF::POS, std::move(rt))), UBodyAggrVec{}));
-                return Symbol();
+                return {};
             }
-            else if (rv.type() != SymbolType::Special) { return rv; }
-            else { return fact; }
+            if (rv.type() != SymbolType::Special) {
+                return rv;
+            }
+            return fact;
         };
         if (!defs.empty() || !incDefs.empty()) {
             for (auto &fact : block.addedEdb) {
                 Symbol rv = replace(incDefs, replace(defs, fact));
-                if (rv.type() != SymbolType::Special) { std::get<1>(*block.edb).emplace_back(rv); }
+                if (rv.type() != SymbolType::Special) {
+                    std::get<1>(*block.edb).emplace_back(rv);
+                }
             }
             block.addedEdb.clear();
         }
-        else if (std::get<1>(*block.edb).empty()) { std::swap(std::get<1>(*block.edb), block.addedEdb); }
-        else { std::copy(block.addedEdb.begin(), block.addedEdb.end(), std::back_inserter(std::get<1>(*block.edb))); }
-        // {{{3 rewriting
+        else if (std::get<1>(*block.edb).empty()) {
+            std::swap(std::get<1>(*block.edb), block.addedEdb);
+        }
+        else {
+            std::copy(block.addedEdb.begin(), block.addedEdb.end(), std::back_inserter(std::get<1>(*block.edb)));
+        }
+        // rewriting
         // steps:
         // 1. unpool
         // 2. initialize theory
@@ -167,13 +178,18 @@ void Program::rewrite(Defines &defs, Logger &log) {
             x->replace(defs);
             x->replace(incDefs);
             x->assignLevels(blockBound);
-            if (x->hasPool(true)) { for (auto &y : x->unpool(true)) { rewrite1(y); } }
-            else                  { rewrite1(x); }
+            if (x->hasPool(true)) {
+                for (auto &y : x->unpool(true)) {
+                    rewrite1(y);
+                }
+            }
+            else {
+                rewrite1(x);
+            }
         }
         block.addedStms.clear();
-        // }}}3
     }
-    // {{{3 projection
+    // projection
     for (auto &x : project_) {
         if (!x.done) {
             Location loc(x.project->loc());
@@ -191,11 +207,13 @@ void Program::rewrite(Defines &defs, Logger &log) {
 
 void Program::check(Logger &log) {
     for (auto &block : blocks_) {
-        for (auto &stm : block.stms) { stm->check(log); }
+        for (auto &stm : block.stms) {
+            stm->check(log);
+        }
     }
     std::unordered_map<Sig, Location> seenSigs;
     for (auto &def : theoryDefs_) {
-        for (auto &atomDef : def.atomDefs()) {
+        for (auto const &atomDef : def.atomDefs()) {
             auto seenSig = seenSigs.emplace(atomDef.sig(), atomDef.loc());
             if (!seenSig.second) {
                 GRINGO_REPORT(log, Warnings::RuntimeError)
@@ -208,51 +226,77 @@ void Program::check(Logger &log) {
 }
 
 void Program::print(std::ostream &out) const {
-    for (auto &def : theoryDefs_) {
+    for (auto const &def : theoryDefs_) {
         out << def << "\n";
     }
-    for (auto &block : blocks_) {
-        for (auto &x : block.addedEdb)          { out << x << "." << "\n"; }
-        for (auto &x : std::get<1>(*block.edb)) { out << x << "." << "\n"; }
-        for (auto &x : block.addedStms)         { out << *x << "\n"; }
-        for (auto &x : block.stms)              { out << *x << "\n"; }
+    for (auto const &block : blocks_) {
+        for (auto const &x : block.addedEdb)          { out << x << "." << "\n"; }
+        for (auto const &x : std::get<1>(*block.edb)) { out << x << "." << "\n"; }
+        for (auto const &x : block.addedStms)         { out << *x << "\n"; }
+        for (auto const &x : block.stms)              { out << *x << "\n"; }
     }
-    for (auto &x : stms_) { out << *x << "\n"; }
+    for (auto const &x : stms_) { out << *x << "\n"; }
 }
 
 // Defines atoms that have been seen in earlier steps
 class DummyStatement : public Ground::Statement, private Ground::HeadOccurrence {
 public:
-    DummyStatement(UGTermVec terms, bool normal) : terms_{std::move(terms)}, normal_{normal}  {}
-    bool isNormal() const override { return normal_; }
+    DummyStatement(UGTermVec terms, bool normal)
+    : terms_{std::move(terms)}
+    , normal_{normal}  {}
+
+    bool isNormal() const override {
+        return normal_;
+    }
+
     void analyze(Dep::Node &node, Dep &dep) override {
         for (auto &term : terms_) {
             dep.provides(node, *this, get_clone(term));
         }
     }
-    void startLinearize(bool) override { }
-    void linearize(Context &, bool, Logger &) override { }
-    void enqueue(Ground::Queue &) override { }
+
+    void startLinearize(bool active) override {
+        static_cast<void>(active);
+    }
+
+    void linearize(Context &context, bool positive, Logger &log) override {
+        static_cast<void>(context);
+        static_cast<void>(positive);
+        static_cast<void>(log);
+    }
+
+    void enqueue(Ground::Queue &q) override {
+        static_cast<void>(q);
+    }
+
     void print(std::ostream &out) const override {
         print_comma(out, terms_, ";", [](std::ostream &out, UGTerm const &term) { out << *term; });
         out << ".";
     }
+
 private:
-    void defines(IndexUpdater &, Ground::Instantiator *) override { }
-private:
+    void defines(IndexUpdater &update, Ground::Instantiator *inst) override {
+        static_cast<void>(update);
+        static_cast<void>(inst);
+    }
+
     UGTermVec terms_;
     bool normal_;
 };
 
 Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains, Logger &log) {
     Ground::UStmVec stms;
-    if (!pheads.empty()) { stms.emplace_back(gringo_make_unique<DummyStatement>(std::move(pheads), true)); }
-    if (!nheads.empty()) { stms.emplace_back(gringo_make_unique<DummyStatement>(std::move(nheads), false)); }
+    if (!pheads.empty()) {
+        stms.emplace_back(gringo_make_unique<DummyStatement>(std::move(pheads), true));
+    }
+    if (!nheads.empty()) {
+        stms.emplace_back(gringo_make_unique<DummyStatement>(std::move(nheads), false));
+    }
     stms.emplace_back(make_locatable<Ground::ExternalRule>(Location("#external", 1, 1, "#external", 1, 1)));
     ToGroundArg arg(auxNames_, domains);
     Ground::SEdbVec edb;
     for (auto &block : blocks_) {
-        if (sigs.find(Sig{block.name.c_str() + 5, numeric_cast<uint32_t>(block.params.size()), false}) != sigs.end()) {
+        if (sigs.find(Sig{block.name.c_str() + 5, numeric_cast<uint32_t>(block.params.size()), false}) != sigs.end()) { // NOLINT
             edb.emplace_back(block.edb);
             for (auto &x : block.stms) {
                 x->toGround(arg, stms);
@@ -277,7 +321,9 @@ Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains
     }
     Ground::UndefVec undef;
     for (auto &x : dep.depend.occs) {
-        for (auto &y : x.second.first->depend) { (*std::get<0>(y)).checkDefined(locs_, sigs_, undef); }
+        for (auto &y : x.second.first->depend) {
+            (*std::get<0>(y)).checkDefined(locs_, sigs_, undef);
+        }
     }
     std::sort(undef.begin(), undef.end(), [](Ground::UndefVec::value_type const &a, Ground::UndefVec::value_type const &b) { return a.first < b.first; });
     for (auto &x : undef) {
@@ -287,8 +333,6 @@ Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains
     }
     return prg;
 }
-
-Program::~Program() { }
 
 std::ostream &operator<<(std::ostream &out, Program const &p) {
     p.print(out);

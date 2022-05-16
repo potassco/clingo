@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_TYPES_HH
-#define _GRINGO_INPUT_TYPES_HH
+#ifndef GRINGO_INPUT_TYPES_HH
+#define GRINGO_INPUT_TYPES_HH
 
 #include <gringo/ground/types.hh>
 
@@ -53,4 +53,4 @@ using UBodyAggrVec = std::vector<UBodyAggr>;
 
 } } // namespace Input Gringo
 
-#endif // _GRINGO_INPUT_TYPES_HH
+#endif // GRINGO_INPUT_TYPES_HH

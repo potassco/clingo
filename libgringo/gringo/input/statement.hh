@@ -22,11 +22,11 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_STATEMENT_HH
-#define _GRINGO_INPUT_STATEMENT_HH
+#ifndef GRINGO_INPUT_STATEMENT_HH
+#define GRINGO_INPUT_STATEMENT_HH
 
 #include <gringo/terms.hh>
-#include <gringo/input/types.hh>
+#include <gringo/input/aggregate.hh>
 
 namespace Gringo { namespace Input {
 
@@ -36,10 +36,10 @@ class Statement : public Printable, public Locatable {
 public:
     Statement(UHeadAggr &&head, UBodyAggrVec &&body);
     Statement(Statement const &other) = delete;
-    Statement(Statement &&other) noexcept;
+    Statement(Statement &&other) noexcept = default;
     Statement &operator=(Statement const &other) = delete;
-    Statement &operator=(Statement &&other) noexcept;
-    ~Statement() noexcept override;
+    Statement &operator=(Statement &&other) noexcept = default;
+    ~Statement() noexcept override = default;
 
     UStmVec unpool(bool beforeRewrite);
     bool hasPool(bool beforeRewrite) const;
@@ -64,4 +64,4 @@ private:
 
 } } // namespace Input Gringo
 
-#endif // _GRINGO_INPUT_STATEMENT_HH
+#endif // GRINGO_INPUT_STATEMENT_HH

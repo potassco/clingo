@@ -36,12 +36,6 @@ TheoryElement::TheoryElement(Output::UTheoryTermVec &&tuple, ULitVec &&cond)
 , cond_(std::move(cond))
 { }
 
-TheoryElement::TheoryElement(TheoryElement &&other) noexcept = default;
-
-TheoryElement &TheoryElement::operator=(TheoryElement &&other) noexcept = default;
-
-TheoryElement::~TheoryElement() noexcept = default;
-
 bool TheoryElement::operator==(TheoryElement const &other) const {
     return is_value_equal_to(tuple_, other.tuple_) && is_value_equal_to(cond_, other.cond_);
 }
@@ -200,12 +194,6 @@ TheoryAtom::TheoryAtom(UTerm &&name, TheoryElementVec &&elems)
 , op_("")
 , guard_(nullptr)
 { }
-
-TheoryAtom::TheoryAtom(TheoryAtom &&other) noexcept = default;
-
-TheoryAtom &TheoryAtom::operator=(TheoryAtom &&other) noexcept = default;
-
-TheoryAtom::~TheoryAtom() noexcept = default;
 
 TheoryAtom::TheoryAtom(UTerm &&name, TheoryElementVec &&elems, String op, Output::UTheoryTerm &&guard, TheoryAtomType type)
 : name_(std::move(name))
@@ -438,7 +426,7 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
 }
 
 CreateHead TheoryAtom::toGroundHead() {
-    return CreateHead([&](Ground::ULitVec &&lits) {
+    return [&](Ground::ULitVec &&lits) {
         for (auto &x : lits) {
             auto *lit = dynamic_cast<Ground::TheoryLiteral*>(x.get());
             if (lit != nullptr && lit->auxiliary()) {
@@ -446,7 +434,7 @@ CreateHead TheoryAtom::toGroundHead() {
             }
         }
         throw std::logic_error("must not happen");
-    });
+    };
 }
 
 CreateBody TheoryAtom::toGroundBody(ToGroundArg &x, Ground::UStmVec &stms, NAF naf, UTerm &&id) const {
@@ -471,12 +459,12 @@ CreateBody TheoryAtom::toGroundBody(ToGroundArg &x, Ground::UStmVec &stms, NAF n
         });
     }
     bool aux1 = type_ != TheoryAtomType::Body;
-    return CreateBody([&completeRef, naf, aux1](Ground::ULitVec &lits, bool primary, bool aux2) {
+    return {[&completeRef, naf, aux1](Ground::ULitVec &lits, bool primary, bool aux2) {
         if (primary) {
             auto ret = gringo_make_unique<Ground::TheoryLiteral>(completeRef, naf, aux1 || aux2);
             lits.emplace_back(std::move(ret));
         }
-    }, std::move(split));
+    }, std::move(split)};
 }
 
 // {{{1 definition of HeadTheoryLiteral
@@ -485,8 +473,6 @@ HeadTheoryLiteral::HeadTheoryLiteral(TheoryAtom &&atom, bool rewritten)
 : atom_(std::move(atom))
 , rewritten_(rewritten)
 { }
-
-HeadTheoryLiteral::~HeadTheoryLiteral() noexcept = default;
 
 CreateHead HeadTheoryLiteral::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     static_cast<void>(x);
@@ -570,12 +556,6 @@ BodyTheoryLiteral::BodyTheoryLiteral(NAF naf, TheoryAtom &&atom, bool rewritten)
 , naf_(naf)
 , rewritten_(rewritten)
 { }
-
-BodyTheoryLiteral::BodyTheoryLiteral(BodyTheoryLiteral &&other) noexcept = default;
-
-BodyTheoryLiteral &BodyTheoryLiteral::operator=(BodyTheoryLiteral &&other) noexcept = default;
-
-BodyTheoryLiteral::~BodyTheoryLiteral() noexcept = default;
 
 bool BodyTheoryLiteral::hasPool(bool beforeRewrite) const {
     return atom_.hasPool(beforeRewrite);

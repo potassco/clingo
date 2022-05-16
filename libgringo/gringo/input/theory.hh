@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_THEORY_HH
-#define _GRINGO_INPUT_THEORY_HH
+#ifndef GRINGO_INPUT_THEORY_HH
+#define GRINGO_INPUT_THEORY_HH
 
 #include <gringo/terms.hh>
 #include <gringo/output/theory.hh>
@@ -50,10 +50,10 @@ class TheoryElement {
 public:
     TheoryElement(Output::UTheoryTermVec &&tuple, ULitVec &&cond);
     TheoryElement(TheoryElement const &other) = delete;
-    TheoryElement(TheoryElement &&other) noexcept;
+    TheoryElement(TheoryElement &&other) noexcept = default;
     TheoryElement &operator=(TheoryElement const &other) = delete;
-    TheoryElement &operator=(TheoryElement &&other) noexcept;
-    ~TheoryElement() noexcept;
+    TheoryElement &operator=(TheoryElement &&other) noexcept = default;
+    ~TheoryElement() noexcept = default;
     TheoryElement clone() const;
     void print(std::ostream &out) const;
     bool operator==(TheoryElement const &other) const;
@@ -85,10 +85,10 @@ public:
     TheoryAtom(UTerm &&name, TheoryElementVec &&elems);
     TheoryAtom(UTerm &&name, TheoryElementVec &&elems, String op, Output::UTheoryTerm &&guard, TheoryAtomType type = TheoryAtomType::Any);
     TheoryAtom(TheoryAtom const &other) = delete;
-    TheoryAtom(TheoryAtom &&other) noexcept;
+    TheoryAtom(TheoryAtom &&other) noexcept = default;
     TheoryAtom &operator=(TheoryAtom const &other) = delete;
-    TheoryAtom &operator=(TheoryAtom &&other) noexcept;
-    ~TheoryAtom() noexcept;
+    TheoryAtom &operator=(TheoryAtom &&other) noexcept = default;
+    ~TheoryAtom() noexcept = default;
 
     TheoryAtom clone() const;
     bool operator==(TheoryAtom const &other) const;
@@ -126,10 +126,10 @@ class BodyTheoryLiteral : public BodyAggregate {
 public:
     BodyTheoryLiteral(NAF naf, TheoryAtom &&atom, bool rewritten = false);
     BodyTheoryLiteral(BodyTheoryLiteral const &other) = delete;
-    BodyTheoryLiteral(BodyTheoryLiteral &&other) noexcept;
+    BodyTheoryLiteral(BodyTheoryLiteral &&other) noexcept = default;
     BodyTheoryLiteral &operator=(BodyTheoryLiteral const &other) = delete;
-    BodyTheoryLiteral &operator=(BodyTheoryLiteral &&other) noexcept;
-    ~BodyTheoryLiteral() noexcept override;
+    BodyTheoryLiteral &operator=(BodyTheoryLiteral &&other) noexcept = default;
+    ~BodyTheoryLiteral() noexcept override = default;
     // {{{2 BodyAggregate interface
     void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
     bool hasUnpoolComparison() const override;
@@ -170,10 +170,10 @@ class HeadTheoryLiteral : public HeadAggregate {
 public:
     HeadTheoryLiteral(TheoryAtom &&atom, bool rewritten = false);
     HeadTheoryLiteral(HeadTheoryLiteral const &other) = delete;
-    HeadTheoryLiteral(HeadTheoryLiteral &&other) noexcept;
+    HeadTheoryLiteral(HeadTheoryLiteral &&other) noexcept = default;
     HeadTheoryLiteral &operator=(HeadTheoryLiteral const &other) = delete;
-    HeadTheoryLiteral &operator=(HeadTheoryLiteral &&other) noexcept;
-    ~HeadTheoryLiteral() noexcept override;
+    HeadTheoryLiteral &operator=(HeadTheoryLiteral &&other) noexcept = default;
+    ~HeadTheoryLiteral() noexcept override = default;
     // {{{2 HeadAggregate interface
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
@@ -210,4 +210,4 @@ GRINGO_CALL_HASH(Gringo::Input::TheoryElement)
 GRINGO_CALL_CLONE(Gringo::Input::TheoryElement)
 GRINGO_CALL_CLONE(Gringo::Input::TheoryAtom)
 
-#endif // _GRINGO_INPUT_THEORY_HH
+#endif // GRINGO_INPUT_THEORY_HH

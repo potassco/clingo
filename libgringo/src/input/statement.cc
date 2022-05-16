@@ -85,7 +85,7 @@ UStmVec Statement::unpool(bool beforeRewrite) {
 }
 
 bool Statement::hasPool(bool beforeRewrite) const {
-    for (auto &x : body_) {
+    for (auto const &x : body_) {
         if (x->hasPool(beforeRewrite)) {
             return true;
         }
@@ -261,7 +261,6 @@ void _rewriteAssignments(UBodyAggrVec &body) {
             sorted.emplace_back(std::move(x.data));\
         }
     }
-    // dep.entNodes_;
     body = std::move(sorted);
 }
 
@@ -289,27 +288,6 @@ void Statement::rewrite() {
         }
         arith.pop_back();
     }
-    { // rewrite linear inequalities into intervals
-      // TODO
-      // 1. gather linear inequalities in body
-      // 2. compute bounds
-      // 3. add intervals
-      /*
-      IntervalSolver is;
-      for (auto &y : body_) { y->gatherInequalities(is); }
-      for (auto &&rng : is.solve()) {
-          body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RangeLiteral::make(rng)));
-      }
-      for (auto &y : body_) {
-          // this creates a new IntervalSolver remembering the bounds
-          // furthermore, it marks the variables in those bounds as global
-          // and will not provide ranges involving them
-          auto subIs = is.nextLevel();
-          y->rewriteInequalities(subIs);
-      }
-
-       */
-    }
     _rewriteAssignments(body_);
 }
 
@@ -317,7 +295,7 @@ void Statement::check(Logger &log) const {
     ChkLvlVec levels;
     levels.emplace_back(loc(), *this);
     head_->check(levels, log);
-    for (auto &y : body_) {
+    for (auto const &y : body_) {
         y->check(levels, log);
     }
     levels.back().check(log);
@@ -334,7 +312,7 @@ namespace {
 
 void toGround(CreateHead &&head, UBodyAggrVec const &body, ToGroundArg &x, Ground::UStmVec &stms) {
     CreateBodyVec createVec;
-    for (auto &y : body) {
+    for (auto const &y : body) {
         createVec.emplace_back(y->toGround(x, stms));
     }
     Ground::ULitVec lits;
@@ -358,7 +336,5 @@ void toGround(CreateHead &&head, UBodyAggrVec const &body, ToGroundArg &x, Groun
 void Statement::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     Gringo::Input::toGround(head_->toGround(x, stms), body_, x, stms);
 }
-
-Statement::~Statement() noexcept = default;
 
 } } // namespace Input Gringo
