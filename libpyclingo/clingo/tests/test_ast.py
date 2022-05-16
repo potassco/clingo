@@ -289,15 +289,6 @@ class TestAST(TestCase):
                            &e/0: t, { =, !=, + }, t, any
                          }."""))
 
-    def test_csp(self):
-        '''
-        Test CSP constructs.
-        '''
-        self._str("#false :- #disjoint { }.")
-        self._str("#false :- #disjoint { a:2$*$x; b:3$*$y }.")
-        self._str("#false :- #disjoint { a:2$*$x: p; b:3$*$y: q, r }.")
-        self._str("0 $<= 1$*$(x;y;z) $<= 3.")
-        self._str("1$*$x$+1$*$y$+-1$*$z $<= -2.")
 
     def test_compare(self):
         """

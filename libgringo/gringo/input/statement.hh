@@ -22,38 +22,46 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_STATEMENT_HH
-#define _GRINGO_INPUT_STATEMENT_HH
+#ifndef GRINGO_INPUT_STATEMENT_HH
+#define GRINGO_INPUT_STATEMENT_HH
 
 #include <gringo/terms.hh>
-#include <gringo/input/types.hh>
+#include <gringo/input/aggregate.hh>
 
 namespace Gringo { namespace Input {
 
 // {{{ declaration of Statement
 
-struct Statement : Printable, Locatable {
+class Statement : public Printable, public Locatable {
+public:
     Statement(UHeadAggr &&head, UBodyAggrVec &&body);
-    virtual UStmVec unpool(bool beforeRewrite);
-    virtual void assignLevels(VarTermBoundVec &bound);
-    virtual bool simplify(Projections &project, Logger &log);
-    virtual void rewrite();
-    virtual Symbol isEDB() const;
-    virtual void print(std::ostream &out) const;
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(Logger &log) const;
-    virtual void replace(Defines &dx);
-    virtual void toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
-    virtual void add(ULit &&lit);
-    virtual void initTheory(TheoryDefs &def, Logger &log);
-    virtual ~Statement();
+    Statement(Statement const &other) = delete;
+    Statement(Statement &&other) noexcept = default;
+    Statement &operator=(Statement const &other) = delete;
+    Statement &operator=(Statement &&other) noexcept = default;
+    ~Statement() noexcept override = default;
 
-    UHeadAggr     head;
-    UBodyAggrVec  body;
+    UStmVec unpool(bool beforeRewrite);
+    bool hasPool(bool beforeRewrite) const;
+    UStmVec unpoolComparison();
+    void assignLevels(VarTermBoundVec &bound);
+    bool simplify(Projections &project, Logger &log);
+    void rewrite();
+    Symbol isEDB() const;
+    void print(std::ostream &out) const override;
+    void check(Logger &log) const;
+    void replace(Defines &dx);
+    void toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
+    void add(ULit &&lit);
+    void initTheory(TheoryDefs &def, Logger &log);
+
+private:
+    UHeadAggr     head_;
+    UBodyAggrVec  body_;
 };
 
 // }}}
 
 } } // namespace Input Gringo
 
-#endif // _GRINGO_INPUT_STATEMENT_HH
+#endif // GRINGO_INPUT_STATEMENT_HH

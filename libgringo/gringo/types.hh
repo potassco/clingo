@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_TYPES_HH
-#define _GRINGO_TYPES_HH
+#ifndef GRINGO_TYPES_HH
+#define GRINGO_TYPES_HH
 
 #include <potassco/basic_types.h>
 #include <limits>
@@ -40,4 +40,4 @@ static constexpr Id_t InvalidId = std::numeric_limits<Id_t>::max();
 
 } // namespace Gringo
 
-#endif // _GRINGO_TYPES_HH
+#endif // GRINGO_TYPES_HH

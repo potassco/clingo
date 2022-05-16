@@ -262,9 +262,6 @@ end
 
 #end.
 
-$x $= 1.
-$y $= 2.
-
 1 {a; b}.
 #minimize {1:a; 2:b}.
 #project a.

@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_LITERALS_HH
-#define _GRINGO_INPUT_LITERALS_HH
+#ifndef GRINGO_INPUT_LITERALS_HH
+#define GRINGO_INPUT_LITERALS_HH
 
 #include <gringo/terms.hh>
 #include <gringo/input/literal.hh>
@@ -32,193 +32,213 @@ namespace Gringo { namespace Input {
 
 // {{{1 declaration of PredicateLiteral
 
-struct PredicateLiteral : Literal {
+class PredicateLiteral : public Literal {
+public:
     PredicateLiteral(NAF naf, UTerm &&repr, bool auxiliary = false);
+    PredicateLiteral(PredicateLiteral const &other) = delete;
+    PredicateLiteral(PredicateLiteral &&other) noexcept = default;
+    PredicateLiteral &operator=(PredicateLiteral const &other) = delete;
+    PredicateLiteral &operator=(PredicateLiteral &&other) noexcept = delete;
+    ~PredicateLiteral() noexcept override = default;
+
     unsigned projectScore() const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     PredicateLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
     Symbol isEDB() const override;
-    bool hasPool(bool beforeRewrite) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
     UTerm headRepr() const override;
-    bool auxiliary() const override { return auxiliary_; }
-    void auxiliary(bool auxiliary) override { auxiliary_ = auxiliary; }
-    virtual ~PredicateLiteral();
+    bool auxiliary() const override;
+    void auxiliary(bool auxiliary) override;
 
-    NAF naf;
+private:
+    NAF naf_;
     bool auxiliary_;
-    UTerm repr;
+    UTerm repr_;
 };
 
-struct ProjectionLiteral : PredicateLiteral {
+class ProjectionLiteral : public PredicateLiteral {
+public:
     ProjectionLiteral(UTerm &&repr);
+    ProjectionLiteral(ProjectionLiteral const &other) = delete;
+    ProjectionLiteral(ProjectionLiteral &&other) noexcept = default;
+    ProjectionLiteral &operator=(ProjectionLiteral const &other) = delete;
+    ProjectionLiteral &operator=(ProjectionLiteral &&other) noexcept = delete;
+    ~ProjectionLiteral() noexcept override = default;
+
     ProjectionLiteral *clone() const override;
-    ULitVec unpool(bool beforeRewrite) const override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
-    virtual ~ProjectionLiteral();
+
+private:
     mutable bool initialized_;
 };
 
 // }}}
 // {{{ declaration of RelationLiteral
 
-struct RelationLiteral : Literal {
+class RelationLiteral : public Literal {
+public:
+    using Terms = std::vector<std::pair<Relation, UTerm>>;
+
+    RelationLiteral(NAF naf, UTerm &&left, Terms &&right);
     RelationLiteral(Relation rel, UTerm &&left, UTerm &&right);
+    RelationLiteral(NAF naf, Relation rel, UTerm &&left, UTerm &&right);
+    RelationLiteral(RelationLiteral const &other) = delete;
+    RelationLiteral(RelationLiteral &&other) noexcept = default;
+    RelationLiteral &operator=(RelationLiteral const &other) = delete;
+    RelationLiteral &operator=(RelationLiteral &&other) noexcept = delete;
+    ~RelationLiteral() noexcept override = default;
+
+    static ULit make(Term::LevelMap::value_type &x);
+    static ULit make(Literal::RelationVec::value_type &x);
+
+    // {{{ Term interface
+    bool needSetShift() const override;
     unsigned projectScore() const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     RelationLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    ULitVecVec unpoolComparison() const override;
+    bool hasUnpoolComparison() const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     UTerm headRepr() const override;
     ULit shift(bool negate) override;
-    bool auxiliary() const override { return true; }
-    void auxiliary(bool) override { }
-    virtual ~RelationLiteral();
-    static ULit make(Term::LevelMap::value_type &x);
-    static ULit make(Literal::AssignVec::value_type &x);
+    bool auxiliary() const override;
+    void auxiliary(bool aux) override;
+    // }}}
 
-    Relation rel;
-    UTerm left;
-    UTerm right;
+private:
+    UTerm left_;
+    Terms right_;
+    NAF naf_;
 };
 
 // }}}
 // {{{ declaration of RangeLiteral
 
-struct RangeLiteral : Literal {
+class RangeLiteral : public Literal {
+public:
     RangeLiteral(UTerm &&assign, UTerm &&lower, UTerm &&upper);
+    RangeLiteral(RangeLiteral const &other) = delete;
+    RangeLiteral(RangeLiteral &&other) noexcept = default;
+    RangeLiteral &operator=(RangeLiteral const &other) = delete;
+    RangeLiteral &operator=(RangeLiteral &&other) noexcept = delete;
+    ~RangeLiteral() noexcept override = default;
+
+    static ULit make(SimplifyState::DotsMap::value_type &dots);
+
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     RangeLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
     UTerm headRepr() const override;
-    bool auxiliary() const override { return true; }
-    void auxiliary(bool) override { }
-    virtual ~RangeLiteral();
-    static ULit make(SimplifyState::DotsMap::value_type &dots);
+    bool auxiliary() const override;
+    void auxiliary(bool aux) override;
 
-    UTerm assign;
-    UTerm lower;
-    UTerm upper;
+private:
+    UTerm assign_;
+    UTerm lower_;
+    UTerm upper_;
 };
 
 // }}}
 // {{{ declaration of ScriptLiteral
 
-struct ScriptLiteral : Literal {
+class ScriptLiteral : public Literal {
+public:
     ScriptLiteral(UTerm &&assign, String name, UTermVec &&args);
+    ScriptLiteral(ScriptLiteral const &other) = delete;
+    ScriptLiteral(ScriptLiteral &&other) noexcept = default;
+    ScriptLiteral &operator=(ScriptLiteral const &other) = delete;
+    ScriptLiteral &operator=(ScriptLiteral &&other) noexcept = delete;
+    ~ScriptLiteral() noexcept override = default;
+
+    static ULit make(SimplifyState::ScriptMap::value_type &script);
+
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
+    void toTuple(UTermVec &tuple, int &id) const override;
     ScriptLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
     UTerm headRepr() const override;
-    bool auxiliary() const override { return true; }
-    void auxiliary(bool) override { }
-    virtual ~ScriptLiteral();
-    static ULit make(SimplifyState::ScriptMap::value_type &script);
+    bool auxiliary() const override;
+    void auxiliary(bool aux) override;
 
-    UTerm assign;
-    String name;
-    UTermVec args;
+private:
+    UTerm assign_;
+    String name_;
+    UTermVec args_;
 };
 
 // }}}
-// {{{ declaration of FalseLiteral
+// {{{ declaration of VoidLiteral
 
-struct FalseLiteral : Literal {
-    FalseLiteral();
+class VoidLiteral : public Literal {
+public:
+    VoidLiteral() = default;
+    VoidLiteral(VoidLiteral const &other) = delete;
+    VoidLiteral(VoidLiteral &&other) noexcept = default;
+    VoidLiteral &operator=(VoidLiteral const &other) = delete;
+    VoidLiteral &operator=(VoidLiteral &&other) noexcept = delete;
+    ~VoidLiteral() noexcept override = default;
+
     unsigned projectScore() const override { return 0; }
     void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
-    FalseLiteral *clone() const override;
+    void toTuple(UTermVec &tuple, int &id) const override;
+    VoidLiteral *clone() const override;
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
+    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool beforeRewrite, bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
     UTerm headRepr() const override;
-    bool auxiliary() const override { return true; }
-    void auxiliary(bool) override { }
-    virtual ~FalseLiteral();
+    bool auxiliary() const override;
+    void auxiliary(bool aux) override;
 };
-
-// }}}
-// {{{ declaration of CSPLiteral
-
-struct CSPLiteral : Literal {
-    using Terms = std::vector<CSPRelTerm>;
-
-    CSPLiteral(Relation rel, CSPAddTerm &&left, CSPAddTerm &&right);
-    CSPLiteral(Terms &&terms);
-    void append(Relation rel, CSPAddTerm &&x);
-
-    void collect(VarTermBoundVec &vars, bool bound) const override;
-    void toTuple(UTermVec &tuple, int &id) override;
-    CSPLiteral *clone() const override;
-    void print(std::ostream &out) const override;
-    bool operator==(Literal const &other) const override;
-    size_t hash() const override;
-    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite) const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void replace(Defines &dx) override;
-    Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
-    ULit shift(bool negate) override;
-    UTerm headRepr() const override;
-    bool auxiliary() const override { return auxiliary_; }
-    void auxiliary(bool auxiliary) override { auxiliary_ = auxiliary; }
-    virtual ~CSPLiteral();
-
-    Terms terms;
-    bool auxiliary_ = false;
-};
-using UCSPLit = std::unique_ptr<CSPLiteral>;
 
 // }}}
 
 } } // namespace Input Gringo
 
-#endif // _GRINGO_INPUT_LITERALS_HH
-
+#endif // GRINGO_INPUT_LITERALS_HH

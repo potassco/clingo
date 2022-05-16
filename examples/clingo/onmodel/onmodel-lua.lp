@@ -17,9 +17,6 @@ function main(prg)
         print("shown")
         print("  positive: " .. tostringTable(m:symbols{shown=true}))
         print("  negative: " .. tostringTable(m:symbols{shown=true, complement=true}))
-        print("csp")
-        print("  positive: " .. tostringTable(m:symbols{csp=true}))
-        print("  negative: " .. tostringTable(m:symbols{csp=true, complement=true}))
         print("atoms")
         print("  positive: " .. tostringTable(m:symbols{atoms=true}))
         print("  negative: " .. tostringTable(m:symbols{atoms=true, complement=true}))
@@ -35,8 +32,5 @@ end
 
 {a}.
 b :- a.
-$x $= 1.
-$y $= 2.
 #show c : a.
 #show b/0.
-#show $x/0.

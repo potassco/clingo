@@ -32,25 +32,17 @@ Projection::Projection(UTerm &&projected, UTerm &&project)
 : projected(std::move(projected))
 , project(std::move(project)) { }
 
-Projection::Projection(Projection &&) = default;
-Projection &Projection::operator=(Projection &&) = default;
-
-Projection::~Projection() = default;
-
-Projection::operator Term const &() const { return *projected; }
+Projection::operator Term const &() const {
+    return *projected;
+}
 
 // }}}
 // {{{ definition of Projections
 
-Projections::Projections() = default;
-
-Projections::Projections(Projections &&) = default;
-
-Projections::~Projections() = default;
-
 Projections::ProjectionMap::Iterator Projections::begin() {
     return proj.begin();
 }
+
 Projections::ProjectionMap::Iterator Projections::end() {
     return proj.end();
 }
@@ -64,4 +56,19 @@ UTerm Projections::add(Term &term) {
 
 // }}}
 
+// {{{ definition of Literal
+
+ULitVecVec Literal::unpoolComparison() const {
+    ULitVecVec ret;
+    ret.emplace_back();
+    ret.back().emplace_back(clone());
+    return ret;
+}
+
+bool Literal::hasUnpoolComparison() const {
+    return false;
+}
+
+// }}}
+//
 } } // namespace Input Gringo

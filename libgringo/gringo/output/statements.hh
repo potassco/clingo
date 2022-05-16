@@ -85,7 +85,7 @@ private:
 
 class ShowStatement : public Statement {
 public:
-    ShowStatement(Symbol term, bool csp, LitVec const &body);
+    ShowStatement(Symbol term, LitVec const &body);
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
@@ -95,7 +95,6 @@ public:
 private:
     Symbol term_;
     LitVec body_;
-    bool csp_;
 };
 
 // {{{1 declaration of ProjectStatement
@@ -190,80 +189,7 @@ private:
 
 // {{{1 declaration of Translator
 
-// {{{2 declaration of Bound
-
-struct Bound {
-    using ConstIterator = enum_interval_set<int>::const_iterator;
-    using AtomVec = std::vector<std::pair<int,Potassco::Id_t>>;
-    Bound(Symbol var)
-        : modified(true)
-        , var(var) {
-        range_.add(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
-    }
-    operator Symbol const & () const { return var; }
-    bool init(DomainData &data, Translator &x, Logger &log);
-    int getLower(int coef) const {
-        if (range_.empty()) { return 0; }
-        return coef * (coef < 0 ? range_.back() : range_.front());
-    }
-    int getUpper(int coef) const {
-        if (range_.empty()) { return -coef; }
-        return coef * (coef < 0 ? range_.front() : range_.back());
-    }
-    void remove(int l, int r) {
-        range_.remove(l, r);
-        modified = true;
-    }
-    void add(int l, int r) {
-        range_.add(l, r);
-        modified = true;
-    }
-    void clear() {
-        range_.clear();
-        modified = true;
-    }
-    void intersect(enum_interval_set<int> &x) {
-        range_.intersect(x);
-        modified = true;
-    }
-    ConstIterator begin() const { return range_.begin(); }
-    ConstIterator end() const { return range_.end(); }
-
-    bool                   modified;
-    Symbol                  var;
-
-    AtomVec                atoms;
-    enum_interval_set<int> range_;
-};
-
-// {{{2 declaration of LinearConstraint
-
-struct LinearConstraint {
-    struct State {
-        using Coef = CoefVarVec::value_type;
-        State(Bound &bound, Coef &coef)
-            : bound(bound)
-            , coef(coef.first) { }
-        int upper()  { return bound.getUpper(coef); }
-        int lower()  { return bound.getLower(coef); }
-        Bound &bound;
-        int    coef;
-    };
-    using StateVec = std::vector<State>;
-    LinearConstraint(Potassco::Atom_t atom, CoefVarVec &&coefs, int bound)
-        : atom(atom)
-        , coefs(std::move(coefs))
-        , bound(bound) { }
-    bool translate(DomainData &data, Translator &x);
-    Potassco::Atom_t atom;
-    CoefVarVec       coefs;
-    int              bound;
-};
-
-// }}}2
-
 enum class ShowType : unsigned {
-    Csp        = 1,
     Shown      = 2,
     Atoms      = 4,
     Terms      = 8,
@@ -299,24 +225,16 @@ private:
 public:
     using TupleLit        = std::pair<TupleId, LiteralId>;
     using MinimizeList    = std::vector<TupleLit>;
-    using BoundMap        = UniqueVec<Bound, HashKey<Symbol>, EqualToKey<Symbol>>;
-    using ConstraintVec   = std::vector<LinearConstraint>;
-    using DisjointConsVec = std::vector<LiteralId>;
     using ProjectionVec   = std::vector<std::pair<Potassco::Id_t, Potassco::Id_t>>;
     using TupleLitMap     = UniqueVec<TupleLit, HashFirst<TupleId>, EqualToFirst<TupleId>>;
 
     Translator(UAbstractOutput &&out);
     void addMinimize(TupleId tuple, LiteralId cond);
-    void addBounds(Symbol value, std::vector<CSPBound> bounds);
-    BoundMap::Iterator addBound(Symbol x);
-    Bound &findBound(Symbol x);
-    void addLinearConstraint(Potassco::Atom_t head, CoefVarVec &&vars, int bound);
-    void addDisjointConstraint(DomainData &data, LiteralId lit);
     void atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds);
     void translate(DomainData &data, OutputPredicates const &outPreds, Logger &log);
     void output(DomainData &data, Statement &x);
     void simplify(DomainData &data, Mappings &mappings, AssignmentLookup assignment);
-    void showTerm(DomainData &data, Symbol term, bool csp, LitVec &&cond);
+    void showTerm(DomainData &data, Symbol term, LitVec &&cond);
     LiteralId removeNotNot(DomainData &data, LiteralId lit);
     unsigned nodeUid(Symbol v);
     // These are used to cache literals of translated formulas.
@@ -332,23 +250,14 @@ private:
     void showAtom(DomainData &data, PredDomMap::Iterator it);
     void showValue(DomainData &data, Symbol value, LitVec const &cond);
     void showValue(DomainData &data, Bound const &bound, LitVec const &cond);
-    void addLowerBound(Symbol x, int bound);
-    void addUpperBound(Symbol x, int bound);
-    bool showBound(OutputPredicates const &outPreds, Bound const &bound);
     void translateMinimize(DomainData &data);
     void outputSymbols(DomainData &data, OutputPredicates const &outPreds, Logger &log);
-    bool showSig(OutputPredicates const &outPreds, Sig sig, bool csp);
-    void showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms);
+    bool showSig(OutputPredicates const &outPreds, Sig sig);
 
     OutputTable termOutput_;
-    OutputTable cspOutput_;
     MinimizeList minimize_;   // stores minimize constraint for current step
     TupleLitMap tuples_;      // to incrementally extend minimize constraint
-    BoundMap boundMap_;
-    ConstraintVec constraints_;
-    DisjointConsVec disjointCons_;
     HashSet<uint64_t> seenSigs_;
-    BoundMap::SizeType incBoundOffset_ = 0;
     UAbstractOutput out_;
     UniqueVec<Symbol> nodeUids_;
     struct ClauseKey {
@@ -399,7 +308,6 @@ private:
 class Symtab : public Statement {
 public:
     Symtab(Symbol symbol, LitVec &&body);
-    Symtab(Symbol symbol, int value, LitVec &&body);
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
@@ -408,8 +316,6 @@ public:
 
 private:
     Symbol symbol_;
-    int value_;
-    bool csp_;
     LitVec body_;
 };
 

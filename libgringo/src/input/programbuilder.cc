@@ -123,41 +123,6 @@ IdVecUid NongroundProgramBuilder::idvec(IdVecUid uid, Location const &loc, Strin
     return uid;
 }
 
-// {{{2 csp
-
-CSPMulTermUid NongroundProgramBuilder::cspmulterm(Location const &, TermUid coe, TermUid var) {
-    return cspmulterms_.emplace(terms_.erase(var), terms_.erase(coe));
-}
-CSPMulTermUid NongroundProgramBuilder::cspmulterm(Location const &, TermUid coe) {
-    return cspmulterms_.emplace(nullptr, terms_.erase(coe));
-}
-CSPAddTermUid NongroundProgramBuilder::cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) {
-    if (add) {
-        cspaddterms_[a].append(cspmulterms_.erase(b));
-    }
-    else {
-        CSPMulTerm mul(cspmulterms_.erase(b));
-        mul.coe = make_locatable<UnOpTerm>(loc, UnOp::NEG, std::move(mul.coe));
-        cspaddterms_[a].append(std::move(mul));
-    }
-
-    return a;
-}
-CSPAddTermUid NongroundProgramBuilder::cspaddterm(Location const &, CSPMulTermUid a) {
-    return cspaddterms_.emplace(cspmulterms_.erase(a));
-}
-LitUid NongroundProgramBuilder::csplit(CSPLitUid a) {
-    return lits_.emplace(csplits_.erase(a));
-}
-CSPLitUid NongroundProgramBuilder::csplit(Location const &loc, CSPLitUid a, Relation rel, CSPAddTermUid b) {
-    csplits_[a]->append(rel, cspaddterms_.erase(b));
-    csplits_[a]->loc(csplits_[a]->loc() + loc);
-    return a;
-}
-CSPLitUid NongroundProgramBuilder::csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) {
-    return csplits_.insert(make_locatable<CSPLiteral>(loc, rel, cspaddterms_.erase(a), cspaddterms_.erase(b)));
-}
-
 // {{{2 termvecs
 
 TermVecUid NongroundProgramBuilder::termvec() {
@@ -183,15 +148,26 @@ TermVecVecUid NongroundProgramBuilder::termvecvec(TermVecVecUid uid, TermVecUid 
 // {{{2 literals
 
 LitUid NongroundProgramBuilder::boollit(Location const &loc, bool type) {
-    return rellit(loc, type ? Relation::EQ : Relation::NEQ, term(loc, Symbol::createNum(0)), term(loc, Symbol::createNum(0)));
+    return rellit(loc, NAF::POS, term(loc, Symbol::createNum(0)), rellitvec(loc, type ? Relation::EQ : Relation::NEQ, term(loc, Symbol::createNum(0))));
 }
 
 LitUid NongroundProgramBuilder::predlit(Location const &loc, NAF naf, TermUid term) {
     return lits_.insert(make_locatable<PredicateLiteral>(loc, naf, terms_.erase(term)));
 }
 
-LitUid NongroundProgramBuilder::rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) {
-    return lits_.insert(make_locatable<RelationLiteral>(loc, rel, terms_.erase(termUidLeft), terms_.erase(termUidRight)));
+RelLitVecUid NongroundProgramBuilder::rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) {
+    auto uid = rellitvecs_.emplace();
+    rellitvecs_[uid].emplace_back(rel, terms_.erase(termUidLeft));
+    return uid;
+}
+
+RelLitVecUid NongroundProgramBuilder::rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) {
+    rellitvecs_[vecUidLeft].emplace_back(rel, terms_.erase(termUidRight));
+    return vecUidLeft;
+}
+
+LitUid NongroundProgramBuilder::rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) {
+    return lits_.insert(make_locatable<RelationLiteral>(loc, naf, terms_.erase(termUidLeft), rellitvecs_.erase(vecUidRight)));
 }
 
 // {{{2 literal vectors
@@ -273,12 +249,6 @@ BdLitVecUid NongroundProgramBuilder::conjunction(BdLitVecUid body, Location cons
     return body;
 }
 
-BdLitVecUid NongroundProgramBuilder::disjoint(BdLitVecUid body, Location const &loc, NAF naf, CSPElemVecUid elem) {
-    bodies_[body].push_back(make_locatable<DisjointAggregate>(loc, naf, cspelems_.erase(elem)));
-    return body;
-}
-
-
 // {{{2 rule heads
 
 HdLitUid NongroundProgramBuilder::headlit(LitUid lit) {
@@ -295,17 +265,6 @@ HdLitUid NongroundProgramBuilder::headaggr(Location const &loc, AggregateFunctio
 
 HdLitUid NongroundProgramBuilder::disjunction(Location const &loc, CondLitVecUid condlitvec) {
     return heads_.insert(make_locatable<Disjunction>(loc, condlitvecs_.erase(condlitvec)));
-}
-
-// {{{2 csp constraint elements
-
-CSPElemVecUid NongroundProgramBuilder::cspelemvec() {
-    return cspelems_.emplace();
-}
-
-CSPElemVecUid NongroundProgramBuilder::cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) {
-    cspelems_[uid].emplace_back(loc, termvecs_.erase(termvec), cspaddterms_.erase(addterm), litvecs_.erase(litvec));
-    return uid;
 }
 
 // {{{2 statements
@@ -328,23 +287,23 @@ void NongroundProgramBuilder::optimize(Location const &loc, TermUid weight, Term
         termvec(argsUid, term(loc, cond, true));
         auto predUid = predlit(loc, NAF::POS, term(loc, "_criteria", termvecvec(termvecvec(), argsUid), false));
         rule(loc, headlit(predUid), body);
-        out.outPredsForce.emplace_back(loc, Sig("_criteria", 3, false), false);
+        out.outPredsForce.emplace_back(loc, Sig("_criteria", 3, false));
     }
     else {
         prg_.add(make_locatable<Statement>(loc, make_locatable<MinimizeHeadLiteral>(loc, terms_.erase(weight), terms_.erase(priority), termvecs_.erase(cond)), bodies_.erase(body)));
     }
 }
 
-void NongroundProgramBuilder::showsig(Location const &loc, Sig sig, bool csp) {
-    out.outPreds.emplace_back(loc, sig, csp);
+void NongroundProgramBuilder::showsig(Location const &loc, Sig sig) {
+    out.outPreds.emplace_back(loc, sig);
 }
 
 void NongroundProgramBuilder::defined(Location const &, Sig sig) {
     prg_.addInput(sig);
 }
 
-void NongroundProgramBuilder::show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) {
-    prg_.add(make_locatable<Statement>(loc, make_locatable<ShowHeadLiteral>(loc, terms_.erase(t), csp), bodies_.erase(body)));
+void NongroundProgramBuilder::show(Location const &loc, TermUid t, BdLitVecUid body) {
+    prg_.add(make_locatable<Statement>(loc, make_locatable<ShowHeadLiteral>(loc, terms_.erase(t)), bodies_.erase(body)));
 }
 
 void NongroundProgramBuilder::script(Location const &loc, String type, String code) {

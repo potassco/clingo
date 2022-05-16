@@ -22,8 +22,7 @@ precompiled packages for various package managers:
   - *at least* [GCC](https://gcc.gnu.org/) version 4.9
   - [Clang](http://clang.llvm.org/) version 3.1 (using either libstdc++
     provided by gcc 4.9 or libc++)
-  - *at least* MSVC 14.0 ([Visual Studio](https://www.visualstudio.com/) 2015
-    Update 3)
+  - *at least* MSVC 15.0 ([Visual Studio](https://www.visualstudio.com/) 2017)
   - other compilers might work
 - the [cmake](https://www.cmake.org/) build system
   - at least version 3.18 is recommended

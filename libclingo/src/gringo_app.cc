@@ -432,7 +432,7 @@ struct GringoApp : public Potassco::Application {
             grOpts_.verbose = verbose() == UINT_MAX;
             Output::OutputPredicates outPreds;
             for (auto &x : grOpts_.foobar) {
-                outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
+                outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x);
             }
             Potassco::TheoryData data;
             data.update();

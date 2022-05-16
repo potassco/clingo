@@ -32,9 +32,15 @@ namespace Gringo {
 template <class Base>
 class Comparable {
 public:
+    Comparable() = default;
+    Comparable(Comparable const &other) = default;
+    Comparable(Comparable && other) noexcept = default;
+    Comparable &operator=(Comparable const &other) = default;
+    Comparable &operator=(Comparable &&other) noexcept = default;
+    virtual ~Comparable() noexcept = default;
+
     virtual bool operator==(Base const &other) const = 0;
     virtual bool operator!=(Base const &other) const { return !(*this == other); }
-    virtual ~Comparable() { }
 };
 
 // }}}

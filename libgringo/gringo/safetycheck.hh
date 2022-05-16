@@ -52,12 +52,15 @@ struct SafetyChecker {
         Ent data;
     };
 
-    typedef std::vector<EntNode*> EntVec;
-    typedef std::vector<VarNode*> VarVec;
+    using EntVec = std::vector<EntNode*>;
+    using VarVec = std::vector<VarNode*>;
 
-    SafetyChecker();
-    SafetyChecker(SafetyChecker const &) = delete;
-    SafetyChecker(SafetyChecker &&x);
+    SafetyChecker() = default;
+    SafetyChecker(SafetyChecker const &other) = delete;
+    SafetyChecker(SafetyChecker &&other) noexcept = default;
+    SafetyChecker &operator=(SafetyChecker const &other) = delete;
+    SafetyChecker &operator=(SafetyChecker &&other) noexcept = default;
+    ~SafetyChecker() noexcept = default;
 
     template <class... T>
     VarNode &insertVar(T&&... args);
@@ -104,12 +107,6 @@ SafetyChecker<Var, Ent>::EntNode::EntNode(T&&... args)
 
 // }}}
 // {{{ definition of SafetyChecker<Var, Ent>
-
-template <class Var, class Ent>
-SafetyChecker<Var, Ent>::SafetyChecker() = default;
-
-template <class Var, class Ent>
-SafetyChecker<Var, Ent>::SafetyChecker(SafetyChecker &&) = default;
 
 template <class Var, class Ent>
 void SafetyChecker<Var, Ent>::insertEdge(VarNode &x, EntNode &y) {

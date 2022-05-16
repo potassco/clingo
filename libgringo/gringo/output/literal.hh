@@ -54,8 +54,6 @@ enum class AtomType : uint32_t {
     HeadAggregate,
     Disjunction,
     Conjunction,
-    LinearConstraint,
-    Disjoint,
     Theory,
     Predicate,
     Aux
@@ -156,8 +154,6 @@ public:
     // The literal might copy its sign into the delayed literal.
     // In this case the sign is stripped from the original literal.
     virtual std::pair<LiteralId,bool> delayedLit();
-    virtual bool isBound(Symbol &value, bool negate) const;
-    virtual void updateBound(std::vector<CSPBound> &bounds, bool negate) const;
     virtual bool needsSemicolon() const;
     virtual bool isPositive() const;
     // Maps true and false literals to a unique literal and remaps the offsets of predicate literals.

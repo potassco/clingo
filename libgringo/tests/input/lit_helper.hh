@@ -34,42 +34,6 @@ using namespace Gringo::Test;
 
 // {{{ definition of functions to create literals
 
-inline CSPMulTerm cspmul(UTerm &&coe, UTerm &&var = nullptr) {
-    return CSPMulTerm(std::move(var), std::move(coe));
-}
-
-inline void cspadd(CSPAddTerm &) { }
-
-template <class... T>
-inline void cspadd(CSPAddTerm &add, CSPMulTerm &&mul, T&&... args) {
-    add.append(std::move(mul));
-    cspadd(add, std::forward<T>(args)...);
-}
-
-template <class... T>
-inline CSPAddTerm cspadd(CSPMulTerm &&mul, T&&... args) {
-    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
-    CSPAddTerm add(std::move(mul));
-    cspadd(add, std::forward<T>(args)...);
-    return add;
-}
-
-inline void csplit(CSPLiteral &) { }
-
-template <class... T>
-inline void csplit(CSPLiteral &lit, Relation rel, CSPAddTerm &&add, T&&... args) {
-    lit.append(rel, std::move(add));
-    csplit(lit, std::forward<T>(args)...);
-}
-
-template <class... T>
-inline UCSPLit csplit(CSPAddTerm &&left, Relation rel, CSPAddTerm &&right, T&&... args) {
-    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
-    UCSPLit lit(make_locatable<CSPLiteral>(loc, rel, std::move(left), std::move(right)));
-    csplit(*lit, std::forward<T>(args)...);
-    return lit;
-}
-
 inline ULit pred(NAF naf, UTerm &&arg) {
     Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<PredicateLiteral>(loc, naf, std::move(arg));

@@ -52,10 +52,12 @@ for act in "${@}"; do
                 --exclude '*.egg-info' \
                 --exclude dist \
                 --exclude build \
+                --exclude third_party/catch \
                 ../../app \
                 ../../cmake \
                 ../../clasp \
                 ../../lib* \
+                ../../third_party \
                 ../../CMakeLists.txt \
                 ../../README.md \
                 ../../INSTALL.md \
@@ -94,6 +96,7 @@ EOF
                 "${rep}"/cmake \
                 "${rep}"/clasp \
                 "${rep}"/lib* \
+                "${rep}"/third_party \
                 "${rep}"/CMakeLists.txt \
                 "${rep}"/README.md \
                 "${rep}"/INSTALL.md \

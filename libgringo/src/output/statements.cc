@@ -82,23 +82,6 @@ void printPlainHead(PrintPlain out, LitVec const &body, bool choice) {
     if (choice) { out << "}"; }
 }
 
-bool updateBound(DomainData &data, LitVec const &head, LitVec const &body, Translator &trans) {
-    Symbol value;
-    for (auto &y : head) {
-        if (!call(data, y, &Literal::isBound, value, false)) { return false; }
-    }
-    for (auto &y : body) {
-        if (!call(data, y, &Literal::isBound, value, true)) { return false; }
-    }
-    if (value.type() == SymbolType::Special) { return false; }
-    std::vector<CSPBound> bounds;
-    for (auto &y : body) {
-        call(data, y, &Literal::updateBound, bounds, true);
-    }
-    trans.addBounds(value, bounds);
-    return true;
-}
-
 } // namespace
 
 
@@ -152,11 +135,10 @@ void Rule::translate(DomainData &data, Translator &x) {
         }
         return false;
     }), head_.end());
-    if (!updateBound(data, head_, body_, x)) {
-        Gringo::Output::translate(data, x, head_);
-        Gringo::Output::translate(data, x, body_);
-        x.output(data, *this);
-    }
+    Gringo::Output::translate(data, x, head_);
+    Gringo::Output::translate(data, x, body_);
+    x.output(data, *this);
+
 }
 void Rule::output(DomainData &data, UBackend &out) const {
     BackendAtomVec &hd = data.tempAtoms();
@@ -212,14 +194,13 @@ External::~External() { }
 
 // {{{1 definition of ShowStatement
 
-ShowStatement::ShowStatement(Symbol term, bool csp, LitVec const &body)
+ShowStatement::ShowStatement(Symbol term, LitVec const &body)
 : term_(term)
-, body_(body)
-, csp_(csp) { }
+, body_(body) { }
 
 void ShowStatement::print(PrintPlain out, char const *prefix) const {
     out << prefix;
-    out << "#show " << (csp_ ? "$" : "") << term_;
+    out << "#show " << term_;
     if (!body_.empty()) { out << ":"; }
     printPlainBody(out, body_);
     out << ".\n";
@@ -231,7 +212,7 @@ void ShowStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
 
 void ShowStatement::translate(DomainData &data, Translator &x) {
     Gringo::Output::translate(data, x, body_);
-    x.showTerm(data, term_, csp_, std::move(body_));
+    x.showTerm(data, term_, std::move(body_));
 }
 
 void ShowStatement::output(DomainData &, UBackend &) const {
@@ -393,196 +374,28 @@ void WeakConstraint::replaceDelayed(DomainData &data, LitVec &delayed) {
 
 // }}}
 
-
-// {{{1 definition of Bound
-
-bool Bound::init(DomainData &data, Translator &x, Logger &log) {
-    if (modified) {
-        modified = false;
-        if (range_.empty()) { Rule().translate(data, x); }
-        else {
-            if (range_.front() == std::numeric_limits<int>::min() || range_.back()+1 == std::numeric_limits<int>::max()) {
-                if      (range_.front()  != std::numeric_limits<int>::min()) { range_.remove(range_.front()+1, std::numeric_limits<int>::max()); }
-                else if (range_.back()+1 != std::numeric_limits<int>::max()) { range_.remove(std::numeric_limits<int>::min(), range_.back()); }
-                else                                                         { range_.clear(), range_.add(0, 1); }
-                GRINGO_REPORT(log, Warnings::VariableUnbounded)
-                    << "warning: unbounded constraint variable:\n"
-                    << "  domain of '" << var << "' is set to [" << range_.front() << "," << range_.back() << "]\n"
-                    ;
-            }
-            if (atoms.empty()) {
-                auto assign = [&](Potassco::Atom_t a, Potassco::Atom_t b) {
-                    if (b) {
-                        Rule rule(true);
-                        if (a) { rule.addBody({NAF::POS, AtomType::Aux, a, 0}); }
-                        rule.addHead({NAF::POS, AtomType::Aux, b, 0}).translate(data, x);
-                    }
-                };
-                for (auto y : range_) {
-                    if (y == range_.front()) { atoms.emplace_back(y, 0); }
-                    else                     { atoms.emplace_back(y, data.newAtom()); }
-                }
-                for (auto jt = atoms.begin() + 1; jt != atoms.end(); ++jt) { assign(jt->second, (jt-1)->second); }
-                assign(0, atoms.back().second);
-            }
-            else { // incremental update of bounds
-                AtomVec next;
-                int l = range_.front(), r = range_.back();
-                for (auto jt = atoms.begin() + 1; jt != atoms.end(); ++jt) {
-                    int w = (jt - 1)->first;
-                    if (w < l)                           { Rule().addBody({NAF::POS, AtomType::Aux, jt->second, 0}).translate(data, x); }
-                    else if (w >= r)                     {
-                        Rule().addBody({NAF::NOT, AtomType::Aux, jt->second, 0}).translate(data, x);
-                        if (w == r) { next.emplace_back(*(jt - 1)); }
-                    }
-                    else if (!range_.contains(w, w + 1)) { Rule().addBody({NAF::NOT, AtomType::Aux, (jt-1)->second, 0}).addBody({NAF::POS, AtomType::Aux, jt->second, 0}).translate(data, x); }
-                    else                                 { next.emplace_back(*(jt - 1)); }
-                }
-                if (atoms.back().first <= r) { next.emplace_back(atoms.back()); }
-                next.front().second = 0;
-                atoms = std::move(next);
-            }
-        }
-    }
-    return !range_.empty();
-}
-
-// {{{1 definition of LinearConstraint
-
-bool LinearConstraint::translate(DomainData &data, Translator &trans) {
-    StateVec states;
-    int current   = 0;
-    // introduces the order variables for each variable
-    for (auto &y : coefs) {
-        states.emplace_back(trans.findBound(y.second), y);
-        current += states.back().lower();
-    }
-    if (current <= bound) {
-        int adjust = 0;
-        LitUintVec body;
-        for (auto &state : states) {
-            if (!state.bound.atoms.empty()) {
-                auto prev = state.bound.begin(), it = prev, ie = state.bound.end();
-                auto atomIt = state.bound.atoms.begin();
-                adjust+= *it * state.coef;
-                for (++it, ++atomIt; it != ie; ++it, ++prev, ++atomIt) {
-                    int diff = state.coef * (*it - *prev);
-                    if (diff > 0) {
-                        body.emplace_back(LiteralId{NAF::POS, AtomType::Aux, atomIt->second, 0}, diff);
-                        adjust += diff;
-                    }
-                    else {
-                        body.emplace_back(LiteralId{NAF::NOT, AtomType::Aux, atomIt->second, 0}, -diff);
-                    }
-                }
-            }
-        }
-        WeightRule{{NAF::POS, AtomType::Aux, atom, 0}, adjust-bound, std::move(body)}.translate(data, trans);
-    }
-    return current <= bound;
-}
-
-// }}}1
-
 // {{{1 definition of Translator
 
 Translator::Translator(UAbstractOutput &&out)
 : out_(std::move(out))
 { }
 
-Translator::BoundMap::Iterator Translator::addBound(Symbol x) {
-    auto it = boundMap_.find(x);
-    return it != boundMap_.end() ? it : boundMap_.push(x).first;
-}
-
-Bound &Translator::findBound(Symbol x) {
-    auto it = boundMap_.find(x);
-    assert(it != boundMap_.end());
-    return *it;
-}
-
-void Translator::addLowerBound(Symbol x, int bound) {
-    auto &y = *addBound(x);
-    y.remove(std::numeric_limits<int>::min(), bound);
-}
-
-void Translator::addUpperBound(Symbol x, int bound) {
-    auto &y = *addBound(x);
-    y.remove(bound+1, std::numeric_limits<int>::max());
-}
-
-void Translator::addBounds(Symbol value, std::vector<CSPBound> bounds) {
-    std::map<Symbol, enum_interval_set<int>> boundUnion;
-    for (auto &x : bounds) {
-        boundUnion[value].add(x.first, x.second+1);
-    }
-    for (auto &x : boundUnion) {
-        auto &z = *addBound(x.first);
-        z.intersect(x.second);
-    }
-}
-void Translator::addLinearConstraint(Potassco::Atom_t head, CoefVarVec &&vars, int bound) {
-    for (auto &x : vars) { addBound(x.second); }
-    constraints_.emplace_back(head, std::move(vars), bound);
-}
-void Translator::addDisjointConstraint(DomainData &data, LiteralId lit) {
-    auto &atm = data.getAtom<DisjointDomain>(lit.domain(), lit.offset());
-    for (auto &x : atm.elems()) {
-        for (auto &y : x.second) {
-            for (auto z : y.value()) { addBound(z.second); }
-        }
-    }
-    disjointCons_.emplace_back(lit);
-}
 void Translator::addMinimize(TupleId tuple, LiteralId cond) {
     minimize_.emplace_back(tuple, cond);
 }
+
 void Translator::translate(DomainData &data, OutputPredicates const &outPreds, Logger &log) {
-    for (auto &x : boundMap_) {
-        if (!x.init(data, *this, log)) { return; }
-    }
-    for (auto &lit : disjointCons_) {
-        auto &atm = data.getAtom<DisjointDomain>(lit.domain(), lit.offset());
-        atm.translate(data, *this, log);
-    }
-    for (auto &x : constraints_)  { x.translate(data, *this); }
-    disjointCons_.clear();
-    constraints_.clear();
     translateMinimize(data);
     outputSymbols(data, outPreds, log);
 }
 
-bool Translator::showBound(OutputPredicates const &outPreds, Bound const &bound) {
-    return outPreds.empty() || (bound.var.type() == SymbolType::Fun && showSig(outPreds, bound.var.sig(), true));
-}
-
 void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPreds, Logger &log) {
-    { // show csp varibles
-        for (auto it = boundMap_.begin() + incBoundOffset_, ie = boundMap_.end(); it != ie; ++it, ++incBoundOffset_) {
-            if (it->var.type() == SymbolType::Fun) { seenSigs_.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), it->var.sig().rep()); }
-            if (showBound(outPreds, *it)) { showValue(data, *it, LitVec{}); }
-        }
-    }
-    // check for signatures that did not occur in the program
-    for (auto &x : outPreds) {
-        if (!std::get<1>(x).match("", 0, false) && std::get<2>(x)) {
-            auto it(seenSigs_.find(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep()));
-            if (!it) {
-                GRINGO_REPORT(log, Warnings::AtomUndefined)
-                    << std::get<0>(x) << ": info: no constraint variables over signature occur in program:\n"
-                    << "  $" << std::get<1>(x) << "\n";
-                seenSigs_.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep());
-            }
-        }
-    }
     // show what was requested
     if (!outPreds.empty()) {
         for (auto &x : outPreds) {
-            if (!std::get<2>(x)) {
-                auto it(data.predDoms().find(std::get<1>(x)));
-                if (it != data.predDoms().end()) {
-                    showAtom(data, it);
-                }
+            auto it(data.predDoms().find(std::get<1>(x)));
+            if (it != data.predDoms().end()) {
+                showAtom(data, it);
             }
         }
     }
@@ -600,20 +413,6 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
         showValue(data, todo.term, updateCond(data, termOutput_.table, todo));
     }
     termOutput_.todo.clear();
-    // show csp variables
-    for (auto &todo : cspOutput_.todo) {
-        auto bound = boundMap_.find(todo.term);
-        if (bound == boundMap_.end()) {
-            // TODO: Warnings::AtomUndefined???
-            GRINGO_REPORT(log, Warnings::AtomUndefined)
-                << "info: constraint variable does not occur in program:\n"
-                << "  $" << todo.term << "\n";
-            continue;
-        }
-        if (todo.cond.empty() || showBound(outPreds, *bound)) { continue; }
-        showValue(data, *bound, updateCond(data, cspOutput_.table, todo));
-    }
-    cspOutput_.todo.clear();
 }
 
 LitVec Translator::updateCond(DomainData &data, OutputTable::Table &table, OutputTable::Todo::ValueType &todo) {
@@ -633,46 +432,25 @@ LitVec Translator::updateCond(DomainData &data, OutputTable::Table &table, Outpu
     return {excludeOldCond};
 }
 
-bool Translator::showSig(OutputPredicates const &outPreds, Sig sig, bool csp) {
+bool Translator::showSig(OutputPredicates const &outPreds, Sig sig) {
     if (outPreds.empty()) { return true; }
     auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
-        if (std::get<1>(x) != std::get<1>(y)) { return std::get<1>(x) < std::get<1>(y); }
-        return std::get<2>(x) < std::get<2>(y);
+        return std::get<1>(x) < std::get<1>(y);
     };
     static Location loc("",1,1,"",1,1);
-    return std::binary_search(outPreds.begin(), outPreds.end(), OutputPredicates::value_type(loc, sig, csp), le);
-}
-
-void Translator::showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms) {
-    assert(!bound.atoms.empty());
-    int prev = bound.atoms.front().first;
-    for (auto it = bound.atoms.begin()+1; it != bound.atoms.end() && !isTrue(it->second); ++it) { prev = it->first; }
-    atoms.emplace_back(Symbol::createFun("$", Potassco::toSpan(SymVec{bound.var, Symbol::createNum(prev)})));
+    return std::binary_search(outPreds.begin(), outPreds.end(), OutputPredicates::value_type(loc, sig), le);
 }
 
 void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
     auto isComp = [isTrue, atomset](unsigned x) { return (atomset & static_cast<unsigned>(ShowType::Complement)) ? !isTrue(x) : isTrue(x); };
-    if (atomset & (static_cast<unsigned>(ShowType::Csp) | static_cast<unsigned>(ShowType::Shown))) {
-        for (auto &x : boundMap_) {
-            if (atomset & static_cast<unsigned>(ShowType::Csp) || (atomset & static_cast<unsigned>(ShowType::Shown) && showBound(outPreds, x))) { showCsp(x, isTrue, atoms); }
-        }
-    }
     if (atomset & (static_cast<unsigned>(ShowType::Atoms) | static_cast<unsigned>(ShowType::Shown))) {
         for (auto &x : data.predDoms()) {
             Sig sig = *x;
             auto name = sig.name();
-            if (((atomset & static_cast<unsigned>(ShowType::Atoms) || (atomset & static_cast<unsigned>(ShowType::Shown) && showSig(outPreds, sig, false))) && !name.empty() && !name.startsWith("#"))) {
+            if (((atomset & static_cast<unsigned>(ShowType::Atoms) || (atomset & static_cast<unsigned>(ShowType::Shown) && showSig(outPreds, sig))) && !name.empty() && !name.startsWith("#"))) {
                 for (auto &y: *x) {
                     if (y.defined() && y.hasUid() && isComp(y.uid())) { atoms.emplace_back(y); }
                 }
-            }
-        }
-    }
-    if (atomset & static_cast<unsigned>(ShowType::Shown)) {
-        for (auto &entry : cspOutput_.table) {
-            auto bound = boundMap_.find(entry.term);
-            if (bound != boundMap_.end() && !showBound(outPreds, *bound) && call(data, entry.cond, &Literal::isTrue, isComp)) {
-                showCsp(*bound, isTrue, atoms);
             }
         }
     }
@@ -695,10 +473,6 @@ void Translator::simplify(DomainData &data, Mappings &mappings, AssignmentLookup
         return elem.second != data.getTrueLit().negate();
     });
     termOutput_.table.erase([&](OutputTable::Table::ValueType &elem) {
-        elem.cond = call(data, elem.cond, &Literal::simplify, mappings, assignment);
-        return elem.cond != data.getTrueLit().negate();
-    });
-    cspOutput_.table.erase([&](OutputTable::Table::ValueType &elem) {
         elem.cond = call(data, elem.cond, &Literal::simplify, mappings, assignment);
         return elem.cond != data.getTrueLit().negate();
     });
@@ -754,20 +528,6 @@ void Translator::showValue(DomainData &data, Symbol value, LitVec const &cond) {
     Symtab(value, get_clone(cond)).translate(data, *this);
 }
 
-void Translator::showValue(DomainData &data, Bound const &bound, LitVec const &cond) {
-    if (bound.var.type() != SymbolType::Fun || !bound.var.name().startsWith("#")) {
-        auto assign = [&](int i, Potassco::Atom_t a, Potassco::Atom_t b) {
-            LitVec body = get_clone(cond);
-            if (a) { body.emplace_back(NAF::POS, AtomType::Aux, a, 0); }
-            if (b) { body.emplace_back(NAF::NOT, AtomType::Aux, b, 0); }
-            Symtab(bound.var, i, std::move(body)).translate(data, *this);
-        };
-        auto it = bound.begin();
-        for (auto jt = bound.atoms.begin() + 1; jt != bound.atoms.end(); ++jt) { assign(*it++, jt->second, (jt-1)->second); }
-        assign(*it++, 0, bound.atoms.back().second);
-    }
-}
-
 void Translator::translateMinimize(DomainData &data) {
     sort_unique(minimize_, [&data](TupleLit const &a, TupleLit const &b) {
         auto aa = data.tuple(a.first), ab = data.tuple(b.first);
@@ -801,13 +561,8 @@ void Translator::translateMinimize(DomainData &data) {
     minimize_.clear();
 }
 
-void Translator::showTerm(DomainData &data, Symbol term, bool csp, LitVec &&cond) {
-    if (csp) {
-        cspOutput_.todo.push(term, Formula{}).first->cond.emplace_back(data.clause(std::move(cond)));
-    }
-    else {
-        termOutput_.todo.push(term, Formula{}).first->cond.emplace_back(data.clause(std::move(cond)));
-    }
+void Translator::showTerm(DomainData &data, Symbol term, LitVec &&cond) {
+    termOutput_.todo.push(term, Formula{}).first->cond.emplace_back(data.clause(std::move(cond)));
 }
 
 unsigned Translator::nodeUid(Symbol v) {
@@ -851,19 +606,10 @@ Translator::~Translator() { }
 
 Symtab::Symtab(Symbol symbol, LitVec &&body)
 : symbol_(symbol)
-, value_(0)
-, csp_(false)
-, body_(std::move(body)) { }
-
-Symtab::Symtab(Symbol symbol, int value, LitVec &&body)
-: symbol_(symbol)
-, value_(value)
-, csp_(true)
 , body_(std::move(body)) { }
 
 void Symtab::print(PrintPlain out, char const *prefix) const {
     out << prefix << "#show " << symbol_;
-    if (csp_) { out << "=" << value_; }
     if (!body_.empty()) { out << ":"; }
     printPlainBody(out, body_);
     out << ".\n";
@@ -879,12 +625,7 @@ void Symtab::output(DomainData &data, UBackend &out) const {
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
     std::ostringstream oss;
     oss << symbol_;
-    if (csp_) {
-        out->output(symbol_, value_, Potassco::toSpan(bd));
-    }
-    else {
-        out->output(symbol_, Potassco::toSpan(bd));
-    }
+    out->output(symbol_, Potassco::toSpan(bd));
 }
 
 void Symtab::replaceDelayed(DomainData &data, LitVec &delayed) {

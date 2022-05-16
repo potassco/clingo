@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_THEORY_HH
-#define _GRINGO_INPUT_THEORY_HH
+#ifndef GRINGO_INPUT_THEORY_HH
+#define GRINGO_INPUT_THEORY_HH
 
 #include <gringo/terms.hh>
 #include <gringo/output/theory.hh>
@@ -45,18 +45,23 @@ namespace Input {
 
 class TheoryElement;
 using TheoryElementVec = std::vector<TheoryElement>;
+
 class TheoryElement {
 public:
-    TheoryElement(TheoryElement &&);
-    TheoryElement &operator=(TheoryElement &&);
     TheoryElement(Output::UTheoryTermVec &&tuple, ULitVec &&cond);
-    ~TheoryElement() noexcept;
+    TheoryElement(TheoryElement const &other) = delete;
+    TheoryElement(TheoryElement &&other) noexcept = default;
+    TheoryElement &operator=(TheoryElement const &other) = delete;
+    TheoryElement &operator=(TheoryElement &&other) noexcept = default;
+    ~TheoryElement() noexcept = default;
     TheoryElement clone() const;
     void print(std::ostream &out) const;
     bool operator==(TheoryElement const &other) const;
     size_t hash() const;
-    void unpool(TheoryElementVec &elems, bool beforeRewrite);
     bool hasPool(bool beforeRewrite) const;
+    void unpool(TheoryElementVec &elems, bool beforeRewrite);
+    bool hasUnpoolComparison() const;
+    TheoryElementVec unpoolComparison();
     void replace(Defines &x);
     void collect(VarTermBoundVec &vars) const;
     void assignLevels(AssignLevel &lvl);
@@ -76,20 +81,25 @@ inline std::ostream &operator<<(std::ostream &out, TheoryElement const &elem) { 
 
 class TheoryAtom {
 public:
-    TheoryAtom(TheoryAtom &&);
-    TheoryAtom &operator=(TheoryAtom &&);
     // Note: name must be a term that (after unpooling) has a signature
     TheoryAtom(UTerm &&name, TheoryElementVec &&elems);
     TheoryAtom(UTerm &&name, TheoryElementVec &&elems, String op, Output::UTheoryTerm &&guard, TheoryAtomType type = TheoryAtomType::Any);
-    ~TheoryAtom() noexcept;
+    TheoryAtom(TheoryAtom const &other) = delete;
+    TheoryAtom(TheoryAtom &&other) noexcept = default;
+    TheoryAtom &operator=(TheoryAtom const &other) = delete;
+    TheoryAtom &operator=(TheoryAtom &&other) noexcept = default;
+    ~TheoryAtom() noexcept = default;
+
     TheoryAtom clone() const;
     bool operator==(TheoryAtom const &other) const;
     void print(std::ostream &out) const;
     bool hasGuard() const;
     size_t hash() const;
+    bool hasPool(bool beforeRewrite) const;
     template <class T>
     void unpool(T f, bool beforeRewrite);
-    bool hasPool(bool beforeRewrite) const;
+    bool hasUnpoolComparison() const;
+    void unpoolComparison();
     void replace(Defines &x);
     void collect(VarTermBoundVec &vars) const;
     void assignLevels(AssignLevel &lvl);
@@ -99,7 +109,7 @@ public:
     void initTheory(Location const &loc, TheoryDefs &def, bool inBody, bool hasBody, Logger &log);
     TheoryAtomType type() const { return type_; }
     CreateBody toGroundBody(ToGroundArg &x, Ground::UStmVec &stms, NAF naf, UTerm &&id) const;
-    CreateHead toGroundHead() const;
+    static CreateHead toGroundHead() ;
 
 private:
     UTerm               name_;
@@ -115,13 +125,19 @@ inline std::ostream &operator<<(std::ostream &out, TheoryAtom const &atom) { ato
 class BodyTheoryLiteral : public BodyAggregate {
 public:
     BodyTheoryLiteral(NAF naf, TheoryAtom &&atom, bool rewritten = false);
-    virtual ~BodyTheoryLiteral() noexcept;
+    BodyTheoryLiteral(BodyTheoryLiteral const &other) = delete;
+    BodyTheoryLiteral(BodyTheoryLiteral &&other) noexcept = default;
+    BodyTheoryLiteral &operator=(BodyTheoryLiteral const &other) = delete;
+    BodyTheoryLiteral &operator=(BodyTheoryLiteral &&other) noexcept = default;
+    ~BodyTheoryLiteral() noexcept override = default;
     // {{{2 BodyAggregate interface
     void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool hasUnpoolComparison() const override;
+    UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
-    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) override;
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     void removeAssignment() override;
     bool isAssignment() const override;
@@ -153,16 +169,21 @@ private:
 class HeadTheoryLiteral : public HeadAggregate {
 public:
     HeadTheoryLiteral(TheoryAtom &&atom, bool rewritten = false);
-    virtual ~HeadTheoryLiteral() noexcept;
+    HeadTheoryLiteral(HeadTheoryLiteral const &other) = delete;
+    HeadTheoryLiteral(HeadTheoryLiteral &&other) noexcept = default;
+    HeadTheoryLiteral &operator=(HeadTheoryLiteral const &other) = delete;
+    HeadTheoryLiteral &operator=(HeadTheoryLiteral &&other) noexcept = default;
+    ~HeadTheoryLiteral() noexcept override = default;
     // {{{2 HeadAggregate interface
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
+    bool hasPool(bool beforeRewrite) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
-    bool hasPool(bool beforeRewrite) const override;
     void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &x) override;
     void initTheory(TheoryDefs &def, bool hasBody, Logger &log) override;
@@ -189,4 +210,4 @@ GRINGO_CALL_HASH(Gringo::Input::TheoryElement)
 GRINGO_CALL_CLONE(Gringo::Input::TheoryElement)
 GRINGO_CALL_CLONE(Gringo::Input::TheoryAtom)
 
-#endif // _GRINGO_INPUT_THEORY_HH
+#endif // GRINGO_INPUT_THEORY_HH

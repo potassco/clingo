@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_TYPES_HH
-#define _GRINGO_INPUT_TYPES_HH
+#ifndef GRINGO_INPUT_TYPES_HH
+#define GRINGO_INPUT_TYPES_HH
 
 #include <gringo/ground/types.hh>
 
@@ -33,24 +33,24 @@ using Gringo::Output::PredicateDomain;
 using Gringo::Output::PredDomMap;
 using Gringo::Output::DomainData;
 
-struct ToGroundArg;
-struct Projections;
+class ToGroundArg;
+class Projections;
 
-struct Literal;
+class Literal;
 using ULit    = std::unique_ptr<Literal>;
 using ULitVec = std::vector<ULit>;
 
-struct Statement;
+class Statement;
 using UStm = std::unique_ptr<Statement>;
 using UStmVec = std::vector<UStm>;
 
-struct BodyAggregate;
+class BodyAggregate;
 using UBodyAggr    = std::unique_ptr<BodyAggregate>;
 
-struct HeadAggregate;
+class HeadAggregate;
 using UHeadAggr    = std::unique_ptr<HeadAggregate>;
 using UBodyAggrVec = std::vector<UBodyAggr>;
 
 } } // namespace Input Gringo
 
-#endif // _GRINGO_INPUT_TYPES_HH
+#endif // GRINGO_INPUT_TYPES_HH

@@ -111,11 +111,11 @@ extern "C" {
 //! Major version number.
 #define CLINGO_VERSION_MAJOR 5
 //! Minor version number.
-#define CLINGO_VERSION_MINOR 5
+#define CLINGO_VERSION_MINOR 6
 //! Revision number.
-#define CLINGO_VERSION_REVISION 2
+#define CLINGO_VERSION_REVISION 0
 //! String representation of version.
-#define CLINGO_VERSION "5.5.2"
+#define CLINGO_VERSION "5.6.0"
 
 //! Signed integer type used for aspif and solver literals.
 typedef int32_t clingo_literal_t;
@@ -2009,7 +2009,6 @@ typedef int clingo_model_type_t;
 
 //! Enumeration of bit flags to select symbols in models.
 enum clingo_show_type_e {
-    clingo_show_type_csp        = 1,  //!< Select CSP assignments.
     clingo_show_type_shown      = 2,  //!< Select shown atoms and terms.
     clingo_show_type_atoms      = 4,  //!< Select all atoms.
     clingo_show_type_terms      = 8,  //!< Select all terms.
@@ -2425,17 +2424,12 @@ enum clingo_ast_type_e {
     clingo_ast_type_interval,
     clingo_ast_type_function,
     clingo_ast_type_pool,
-    // csp terms
-    clingo_ast_type_csp_product,
-    clingo_ast_type_csp_sum,
-    clingo_ast_type_csp_guard,
     // simple atoms
     clingo_ast_type_boolean_constant,
     clingo_ast_type_symbolic_atom,
     clingo_ast_type_comparison,
-    clingo_ast_type_csp_literal,
     // aggregates
-    clingo_ast_type_aggregate_guard,
+    clingo_ast_type_guard,
     clingo_ast_type_conditional_literal,
     clingo_ast_type_aggregate,
     clingo_ast_type_body_aggregate_element,
@@ -2443,8 +2437,6 @@ enum clingo_ast_type_e {
     clingo_ast_type_head_aggregate_element,
     clingo_ast_type_head_aggregate,
     clingo_ast_type_disjunction,
-    clingo_ast_type_disjoint_element,
-    clingo_ast_type_disjoint,
     // theory atoms
     clingo_ast_type_theory_sequence,
     clingo_ast_type_theory_function,
@@ -2507,7 +2499,6 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_coefficient,
     clingo_ast_attribute_comparison,
     clingo_ast_attribute_condition,
-    clingo_ast_attribute_csp,
     clingo_ast_attribute_elements,
     clingo_ast_attribute_external,
     clingo_ast_attribute_external_type,
@@ -3139,15 +3130,6 @@ typedef struct clingo_ground_program_observer {
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
     bool (*output_term)(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *data);
-    //! Observe shown csp variables passed to the solver.
-    //!
-    //! @param[in] symbol the symbolic representation of the variable
-    //! @param[in] value the value of the variable
-    //! @param[in] condition the literals of the condition
-    //! @param[in] size the size of the condition
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*output_csp)(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, void *data);
     //! Observe external statements passed to the solver.
     //!
     //! @param[in] atom the external atom

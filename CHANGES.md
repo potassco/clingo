@@ -1,5 +1,11 @@
 # Changes
 
+## clingo 5.6.0
+
+  * add support for comparisons with more than one relation (#368)
+  * remove experimental CSP extensions (#367)
+  * require at least MSVC 15.0 to build on Windows
+
 ## clingo 5.5.2
   * fix `parse_files` in C++ API
   * fix adding clauses during enumeration (#359)
@@ -14,6 +20,7 @@
   * fix various outher bugs
 
 ## clingo 5.5.0
+
   * allow for using `not` as a theory operator (#193)
   * improve parsing of disjunctions (#171)
   * rename `max_size` to `size` in APIs and remove previous `size` method
@@ -43,7 +50,9 @@
   * fix incremental grounding (#248)
   * fix/improve handling of classical negation (#268)
   * update to clasp version 3.3.6 fixing various issues
+
 ## clingo 5.4.0
+
   * add extension to implement custom heuristics
   * add const modifiers to C API
   * add flags to external and const statements to match API functions
@@ -60,7 +69,9 @@
   * improve python API documentation
   * use cmakes `find_python` module
   * update to clasp version 3.3.5
+
 ## clingo 5.3.0
+
   * change C API to use numeric instead of symbolic literals
     * affects assumptions and assigning/releasing externals
       (breaks backward compatibility)
@@ -86,7 +97,9 @@
   * release python's GIL while grounding (#82)
   * TruthValue.{True,False} becomes TruthValue.{\_True,\_False} in python API
   * improve API and it's documentation
+
 ## clingo 5.2.3
+
   * update to clasp version 3.3.4
   * really fix --pre option
   * fix link to potassco guide (#74)
@@ -99,7 +112,9 @@
   * expose exponentiation operator in APIs
   * improve python docstrings (#101, #102)
   * add option to build python and lua modules against an existing libclingo
+
 ## clingo 5.2.2
+
   * update to clasp version 3.3.3
   * use GNUInstallDirs in cmake files to simplify packaging
   * fix --pre option
@@ -110,7 +125,9 @@
   * fix reified format term tuples
   * fix wrong use of python API (causing trouble with python 3.6)
   * fix compilation problems on 32bit linux (missing libatomic)
+
 ## clingo 5.2.1
+
   * update to clasp version 3.3.2
   * fix handling of istop in incmode programs
   * fix handling of undefined ** operations
@@ -118,7 +135,9 @@
     (regression in clingo-5)
   * fix segfault during preprocessing
     (regression in clingo-5)
+
 ## clingo 5.2.0
+
   * switch to MIT license
   * improve compatibility with abstract gringo
   * switch build system from scons to cmake
@@ -135,18 +154,24 @@
       because FFIs of some languages do not support this
   * fix cleanup function
   * numerous other bugfixes not listed here
+
 ## clingo 5.1.1
+
   * fix thread id to start with one in propagator.undo in lua
   * fix version macro in clingo.h
   * fix added missing methods to get thread id to model in lua/python
   * fix child\_key property in python ast
+
 ## clingo 5.1.0
+
   * update to clasp 3.2.1
   * add interface to add variables during propagation
   * add interface to inspect ground rules (C/C++ only)
   * add experimental interface to access clasp facade (C/C++ only)
   * fixed smodels output (--output=smodels)
+
 ## clingo 5.0.0
+
   * cleanup of python and lua API (breaks backwards compatibility)
   * added new aspif output format replacing the old smodels format
   * added input language support for clasp features
@@ -160,7 +185,9 @@
   * added support for compilation with Visual Studio 2015
   * improved data structures to reduce memory consumption on typical input
   * updated to clasp version 3.2.0 + patches
+
 ## gringo/clingo 4.5.4
+
   * fixed bug when creating multiple Control objects
     (affects lua only)
   * fixed bug when trying to configure more solvers than in portfolio
@@ -168,14 +195,20 @@
   * fixed #disjoint constraints
   * improved build scripts
   * added option to keep facts in normal rules
+
 ## gringo/clingo 4.5.3
+
   * fixed regression w.r.t gringo 4.4 in translation of conditional literals
   * fixed projection in incremental programs
   * fixed bug with (double) negative literals in minimize constraints
+
 ## gringo/clingo 4.5.2
+
   * fixed memory leak in python API when enumerating models
   * updated to clasp version 3.1.3
+
 ## gringo/clingo 4.5.1
+
   * ground term parser returns None/nil for undefined terms now
   * added warning if a global variable occurs in a tuple of an aggregate element
   * added auto detection of libraries
@@ -184,7 +217,9 @@
   * fixed grounding of recursive disjunctions (regression in 4.5.0)
   * fixed Control.stats in lua bindings
   * fixed a bug in clingo that would print 0-ary classically negated atoms wrongly
+
 ## gringo/clingo 4.5.0
+
   * fixed grounding of recursive aggregates
   * fixed usage of lua\_next
   * fixed bug when applying constant definitions
@@ -207,7 +242,9 @@
   * changed handling of ==, it is treated like = now
   * changed SolveFuture.interrupt to SolveFuture.cancel
     (breaks backwards compatibility)
+
 ## gringo/clingo 4.4.0
+
   * updated underlying clasp to version 3.1.0
     * this version brings numerous fixes regarding incremental solving
   * scripting API changes
@@ -228,7 +265,9 @@
   * rules with fact heads where not simplified in all cases
   * fixed grounding of recursive aggregates
   * fixed translation of aggregates with multiple guards
+
 ## gringo/clingo 4.3.0
+
   * fixed bug with incremental parameters in minimize constraints
   * fixed handling of empty tuples
   * fixed translation of conditional literals
@@ -240,7 +279,9 @@
   * improved handling of conditional literals
   * added method to get optimization values of model in scripting language
   * clingo uses clasp 3.0 now
+
 ## gringo/clingo 4.2.1
+
   * fixed bug in simplification of aggregates
   * fixed bug with raw strings in macros
   * fixed compilation issues with older glibc versions
@@ -250,7 +291,9 @@
     * fixed incremental optimization
     * fixed cleanup up of learnt constraints during incremental solving
   * workaround for libstdc++'s bad choice for hash<uint64_t> on 32bit arches
+
 ## gringo/clingo 4.2
+
   * added clingo 
     * supports very flexible scripting support
     * can cover iclingo and oclingo functionality now
@@ -268,7 +311,9 @@
   * fixed show statements for CSP variables (condition was ignored)
   * fixed plain text output of body aggregates
   * added a ton of new bugs
+
 ## gringo 4.1
+
   * added scripting languages python and lua
   * added -c option to define constants
   * added constraints over integer variables
@@ -280,4 +325,3 @@
   * fixed include directives
   * fixed preprocessing of definitions
   * fixed lparse translation of optimization constructs
-

@@ -495,74 +495,6 @@ private:
     uint8_t translated_ : 1;
 };
 
-// {{{1 declaration of DisjointAtom
-
-class DisjointElement {
-public:
-    DisjointElement(CSPGroundAdd &&value, int fixed, ClauseId cond);
-    DisjointElement(DisjointElement &&) noexcept = default;
-    DisjointElement &operator=(DisjointElement &&) noexcept = default;
-    ~DisjointElement() noexcept = default;
-
-    void printPlain(PrintPlain out) const;
-    CSPGroundAdd const &value() const { return value_; }
-    ClauseId const &cond() const { return cond_; }
-    int fixed() const { return fixed_; }
-private:
-    CSPGroundAdd value_;
-    ClauseId cond_;
-    int fixed_;
-};
-
-using DisjointElemVec = std::vector<DisjointElement>;
-using DisjointElemSet = UniqueVec<std::pair<TupleId, DisjointElemVec>, HashFirst<TupleId>, EqualToFirst<TupleId>>;
-
-class DisjointAtom {
-public:
-    DisjointAtom(DisjointAtom &&) = default;
-    DisjointAtom(DisjointAtom const &) = delete;
-    DisjointAtom &operator=(DisjointAtom &&) noexcept = default;
-    DisjointAtom &operator=(DisjointAtom const &) = delete;
-    ~DisjointAtom() noexcept = default;
-    // {{{2 Atom interface
-    DisjointAtom(Symbol value)
-    : value_(value)
-    , generation_(0)
-    , delayed_(false)
-    , enqueued_(false)
-    , recursive_(true)
-    , translated_(false) { }
-    bool fact() const { return !recursive_ && elems_.size() <= 1; }
-    bool defined() const { return generation_ > 0; }
-    Id_t generation() const { assert(defined()); return generation_ - 1; }
-    void setGeneration(unsigned x) { generation_ = x + 1; }
-    void markDelayed() { delayed_ = 1; }
-    bool delayed() const { return delayed_; }
-    operator Symbol const &() const { return value_; }
-    // }}}2
-    void init(bool recursive) { recursive_ = recursive; }
-    bool recursive() const { return recursive_; }
-    void setEnqueued(bool enqueued) { enqueued_ = enqueued; }
-    bool enqueued() const { return enqueued_; }
-    void accumulate(DomainData &data, SymVec const &tuple, CSPGroundAdd &&value, int fixed, LitVec const &lits);
-    bool translated() const { return translated_; }
-    void setTranslated() { translated_ = true; }
-    LiteralId lit() const { return lit_; }
-    void setLit(LiteralId lit) { lit_ = lit; }
-    DisjointElemSet const &elems() const { return elems_; }
-    bool translate(DomainData &data, Translator &x, Logger &log);
-
-private:
-    Symbol value_;
-    DisjointElemSet elems_;
-    LiteralId lit_;
-    Id_t generation_ = 0;
-    uint8_t delayed_ : 1;
-    uint8_t enqueued_ : 1;
-    uint8_t recursive_ : 1;
-    uint8_t translated_ : 1;
-};
-
 // {{{1 declaration of DisjunctionAtom
 
 class DisjunctionElement {
@@ -851,12 +783,6 @@ class ConjunctionDomain : public AbstractDomain<ConjunctionAtom> {
 public:
 private:
 };
-// {{{1 declaration of DisjointDomain
-
-class DisjointDomain : public AbstractDomain<DisjointAtom> {
-public:
-private:
-};
 // {{{1 declaration of DisjunctionDomain
 
 class DisjunctionDomain : public AbstractDomain<DisjunctionAtom> {
@@ -934,26 +860,6 @@ private:
     LiteralId id_;
 };
 
-// {{{1 declaration of CSPLiteral
-
-class CSPLiteral : public Literal {
-public:
-    CSPLiteral(DomainData &data, LiteralId id);
-    CSPGroundLit const &atom() const;
-    bool isBound(Symbol &value, bool negate) const override;
-    void updateBound(std::vector<CSPBound> &bounds, bool negate) const override;
-    void printPlain(PrintPlain out) const override;
-    bool isIncomplete() const override;
-    LiteralId toId() const override { return id_; }
-    LiteralId translate(Translator &x) override;
-    Lit_t uid() const override;
-    virtual ~CSPLiteral() noexcept;
-
-private:
-    DomainData &data_;
-    LiteralId   id_;
-};
-
 // {{{1 declaration of BodyAggregateLiteral
 
 class BodyAggregateLiteral : public Literal {
@@ -1012,25 +918,6 @@ private:
     LiteralId id_;
 };
 
-// {{{1 declaration of DisjointLiteral
-
-class DisjointLiteral : public Literal {
-public:
-    DisjointLiteral(DomainData &data, LiteralId id);
-    LiteralId toId() const override;
-    LiteralId translate(Translator &x) override;
-    void printPlain(PrintPlain out) const override;
-    bool isIncomplete() const override;
-    Lit_t uid() const override;
-    std::pair<LiteralId,bool>delayedLit() override;
-    DisjointDomain &dom() const;
-    virtual ~DisjointLiteral() noexcept;
-
-private:
-    DomainData &data_;
-    LiteralId id_;
-};
-
 // {{{1 declaration of DisjunctionLiteral
 
 class DisjunctionLiteral : public Literal {
@@ -1043,8 +930,6 @@ public:
     Lit_t uid() const override;
     std::pair<LiteralId,bool>delayedLit() override;
     DisjunctionDomain &dom() const;
-    bool isBound(Symbol &value, bool negate) const override;
-    void updateBound(std::vector<CSPBound> &bound, bool negate) const override;
     virtual ~DisjunctionLiteral() noexcept;
 
 private:
@@ -1089,7 +974,6 @@ class DomainData {
     using Tuples = UniqueVecVec<2, Symbol>;
     using Clauses = UniqueVecVec<2, LiteralId>;
     using Formulas = UniqueVecVec<2, std::pair<Id_t,Id_t>, value_hash<std::pair<Id_t,Id_t>>>;
-    using CSPAtoms = UniqueVec<CSPGroundLit, value_hash<CSPGroundLit>>;
 public:
     DomainData(Potassco::TheoryData &theory)
     : theory_(theory) { }
@@ -1169,13 +1053,6 @@ public:
         auto it = formulas_.at(id, size);
         return {it, it + size};
     }
-    CSPGroundLit const &cspAtom(Id_t offset) {
-        return cspAtoms_[offset];
-    }
-    Id_t cspAtom(CSPGroundLit &&lit) {
-        auto ret = cspAtoms_.push(std::move(lit));
-        return cspAtoms_.offset(ret.first);
-    }
     IteratorRange<Formula::iterator> formula(std::pair<Id_t, Id_t> pos) { return formula(pos.first, pos.second); }
     // This should be called before grounding a new step
     // to get rid of unnecessary temporary data.
@@ -1230,7 +1107,6 @@ private:
     Clauses clauses_;
     Tuples tuples_;
     Formulas formulas_;
-    CSPAtoms cspAtoms_;
     LiteralId trueLit_;
 };
 
@@ -1262,16 +1138,8 @@ auto call(DomainData &data, LiteralId lit, M m, Args&&... args) -> decltype((std
             ConjunctionLiteral x(data, lit);
             return (x.*m)(std::forward<Args>(args)...);
         }
-        case AtomType::LinearConstraint: {
-            CSPLiteral x(data, lit);
-            return (x.*m)(std::forward<Args>(args)...);
-        }
         case AtomType::Disjunction: {
             DisjunctionLiteral x(data, lit);
-            return (x.*m)(std::forward<Args>(args)...);
-        }
-        case AtomType::Disjoint: {
-            DisjointLiteral x(data, lit);
             return (x.*m)(std::forward<Args>(args)...);
         }
         case AtomType::Theory: {

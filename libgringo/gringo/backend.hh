@@ -61,7 +61,6 @@ public:
     virtual void project(const AtomSpan& atoms) = 0;
     virtual void output(Symbol sym, Potassco::Atom_t atom) = 0;
     virtual void output(Symbol sym, Potassco::LitSpan const& condition) = 0;
-    virtual void output(Symbol sym, int value, Potassco::LitSpan const& condition) = 0;
     virtual void external(Atom_t a, Value_t v) = 0;
     virtual void assume(const LitSpan& lits) = 0;
     virtual void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition) = 0;

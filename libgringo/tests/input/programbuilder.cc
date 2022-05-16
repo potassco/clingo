@@ -199,8 +199,11 @@ void Builder::test_literal() {
     REQUIRE("(-p)." == t(p.predlit(l, NAF::POS, p.predRep(l, true, "p", p.termvecvec(p.termvecvec(), p.termvec())))));
     REQUIRE("not p." == t(p.predlit(l, NAF::NOT, p.predRep(l, false, "p", p.termvecvec(p.termvecvec(), p.termvec())))));
     REQUIRE("not not p." == t(p.predlit(l, NAF::NOTNOT, p.predRep(l, false, "p", p.termvecvec(p.termvecvec(), p.termvec())))));
-    REQUIRE("1<2." == t(p.rellit(l, Relation::LT, p.term(l, NUM(1)), p.term(l, NUM(2)))));
-    REQUIRE("1>2." == t(p.rellit(l, Relation::GT, p.term(l, NUM(1)), p.term(l, NUM(2)))));
+    REQUIRE("1<2." == t(p.rellit(l, NAF::POS, p.term(l, NUM(1)), p.rellitvec(l, Relation::LT, p.term(l, NUM(2))))));
+    REQUIRE("1<2<=3." == t(p.rellit(l, NAF::POS, p.term(l, NUM(1)), p.rellitvec(l, p.rellitvec(l, Relation::LT, p.term(l, NUM(2))), Relation::LEQ, p.term(l, NUM(3))))));
+    REQUIRE("not 1<2<=3." == t(p.rellit(l, NAF::NOT, p.term(l, NUM(1)), p.rellitvec(l, p.rellitvec(l, Relation::LT, p.term(l, NUM(2))), Relation::LEQ, p.term(l, NUM(3))))));
+    // Note: the programbuilder strips the double negation
+    REQUIRE("1<2<=3." == t(p.rellit(l, NAF::NOTNOT, p.term(l, NUM(1)), p.rellitvec(l, p.rellitvec(l, Relation::LT, p.term(l, NUM(2))), Relation::LEQ, p.term(l, NUM(3))))));
 }
 
 void Builder::test_bdaggr() {

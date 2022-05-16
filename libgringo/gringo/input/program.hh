@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_PROGRAM_HH
-#define _GRINGO_INPUT_PROGRAM_HH
+#ifndef GRINGO_INPUT_PROGRAM_HH
+#define GRINGO_INPUT_PROGRAM_HH
 
 #include <gringo/terms.hh>
 #include <gringo/input/literal.hh>
@@ -38,9 +38,11 @@ using IdVec = Ground::IdVec;
 
 struct Block {
     Block(Location const &loc, String name, IdVec &&params);
-    Block(Block&&);
-    Block &operator=(Block &&);
-    ~Block();
+    Block(Block const &other) = default;
+    Block(Block &&other) noexcept = default;
+    Block &operator=(Block const &other) = default;
+    Block &operator=(Block &&other) noexcept = default;
+    ~Block() noexcept = default;
 
     Term const &sig() const;
     operator Term const &() const;
@@ -58,7 +60,12 @@ using BlockMap = UniqueVec<Block, HashKey<Term>, EqualToKey<Term>>;
 class Program {
 public:
     Program();
-    Program(Program &&x);
+    Program(Program const &other) = delete;
+    Program(Program &&other) noexcept = default;
+    Program &operator=(Program const &other) = delete;
+    Program &operator=(Program &&other) noexcept = default;
+    ~Program() = default;
+
     void begin(Location const &loc, String name, IdVec &&params);
     void add(UStm &&stm);
     void add(TheoryDef &&def, Logger &log);
@@ -67,7 +74,6 @@ public:
     void print(std::ostream &out) const;
     void addInput(Sig sig);
     Ground::Program toGround(std::set<Sig> const &sigs, DomainData &domains, Logger &log);
-    ~Program();
 
 private:
     void rewriteDots();
@@ -78,7 +84,7 @@ private:
     Ground::LocSet        locs_;
     Ground::SigSet        sigs_;
     BlockMap              blocks_;
-    Block                *current_;
+    Block                *current_ = nullptr;
     Projections           project_;
     UStmVec               stms_;
     TheoryDefs            theoryDefs_;
@@ -92,4 +98,4 @@ std::ostream &operator<<(std::ostream &out, Program const &p);
 
 } } // namespace Input Gringo
 
-#endif //_GRINGO_INPUT_PROGRAM_HH
+#endif // GRINGO_INPUT_PROGRAM_HH

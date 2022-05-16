@@ -357,14 +357,14 @@ TEST_CASE("ground-instantiation", "[ground]") {
 
     SECTION("bodyaggregate3") {
         REQUIRE(
-            "a:-#true,not c.\n"
+            "a:-not c,#true.\n"
             "c.\n" == ground(
                 "a :- not { c } >= 1, not c."
                 "b :- a, #false."
                 "c :- not b, {b; not b} >= 1."
                 ));
         REQUIRE(
-            "a:-#false,not c.\n"
+            "a:-not c,#false.\n"
             "c.\n" == ground(
                 "a :- not not { c } >= 1, not c."
                 "b :- a, #false."

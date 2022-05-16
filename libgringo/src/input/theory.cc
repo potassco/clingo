@@ -36,12 +36,6 @@ TheoryElement::TheoryElement(Output::UTheoryTermVec &&tuple, ULitVec &&cond)
 , cond_(std::move(cond))
 { }
 
-TheoryElement::TheoryElement(TheoryElement &&) = default;
-
-TheoryElement &TheoryElement::operator=(TheoryElement &&) = default;
-
-TheoryElement::~TheoryElement() noexcept = default;
-
 bool TheoryElement::operator==(TheoryElement const &other) const {
     return is_value_equal_to(tuple_, other.tuple_) && is_value_equal_to(cond_, other.cond_);
 }
@@ -63,23 +57,42 @@ size_t TheoryElement::hash() const {
     return get_value_hash(tuple_, cond_);
 }
 
+bool TheoryElement::hasPool(bool beforeRewrite) const {
+    for (auto const &lit : cond_) {
+        if (lit->hasPool(beforeRewrite, false)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void TheoryElement::unpool(TheoryElementVec &elems, bool beforeRewrite) {
     Term::unpool(cond_.begin(), cond_.end(), [beforeRewrite](ULit &lit) {
-        return lit->unpool(beforeRewrite);
+        return lit->unpool(beforeRewrite, false);
     }, [&](ULitVec &&cond) {
         elems.emplace_back(get_clone(tuple_), std::move(cond));
     });
 }
 
-TheoryElement TheoryElement::clone() const {
-    return {get_clone(tuple_), get_clone(cond_)};
-}
-
-bool TheoryElement::hasPool(bool beforeRewrite) const {
-    for (auto &lit : cond_) {
-        if (lit->hasPool(beforeRewrite)) { return true; }
+bool TheoryElement::hasUnpoolComparison() const {
+    for (auto const &lit : cond_) {
+        if (lit->hasUnpoolComparison()) {
+            return true;
+        }
     }
     return false;
+}
+
+TheoryElementVec TheoryElement::unpoolComparison() {
+    TheoryElementVec ret;
+    for (auto &cond : unpoolComparison_(cond_)) {
+        ret.emplace_back(get_clone(tuple_), std::move(cond));
+    }
+    return ret;
+}
+
+TheoryElement TheoryElement::clone() const {
+    return {get_clone(tuple_), get_clone(cond_)};
 }
 
 void TheoryElement::replace(Defines &x) {
@@ -92,21 +105,29 @@ void TheoryElement::replace(Defines &x) {
 }
 
 void TheoryElement::collect(VarTermBoundVec &vars) const {
-    for (auto &term : tuple_) { term->collect(vars); }
-    for (auto &lit : cond_) { lit->collect(vars, false); }
+    for (auto const &term : tuple_) {
+        term->collect(vars);
+    }
+    for (auto const &lit : cond_) {
+        lit->collect(vars, false);
+    }
 }
 
 void TheoryElement::assignLevels(AssignLevel &lvl) {
     AssignLevel &local(lvl.subLevel());
     VarTermBoundVec vars;
-    for (auto &term : tuple_) { term->collect(vars); }
-    for (auto &lit : cond_) { lit->collect(vars, true); }
+    for (auto &term : tuple_) {
+        term->collect(vars);
+    }
+    for (auto &lit : cond_) {
+        lit->collect(vars, true);
+    }
     local.add(vars);
 }
 
 void TheoryElement::check(Location const &loc, Printable const &p, ChkLvlVec &levels, Logger &log) const {
     levels.emplace_back(loc, p);
-    for (auto &lit : cond_) {
+    for (auto const &lit : cond_) {
         levels.back().current = &levels.back().dep.insertEnt();
         VarTermBoundVec vars;
         lit->collect(vars, true);
@@ -114,7 +135,7 @@ void TheoryElement::check(Location const &loc, Printable const &p, ChkLvlVec &le
     }
     VarTermBoundVec vars;
     levels.back().current = &levels.back().dep.insertEnt();
-    for (auto &term : tuple_) {
+    for (auto const &term : tuple_) {
         term->collect(vars);
     }
     addVars(levels, vars);
@@ -128,17 +149,27 @@ bool TheoryElement::simplify(Projections &project, SimplifyState &state, Logger 
             return false;
         }
     }
-    for (auto &dot : state.dots) { cond_.emplace_back(RangeLiteral::make(dot)); }
-    for (auto &script : state.scripts) { cond_.emplace_back(ScriptLiteral::make(script)); }
+    for (auto &dot : state.dots()) {
+        cond_.emplace_back(RangeLiteral::make(dot));
+    }
+    for (auto &script : state.scripts()) {
+        cond_.emplace_back(ScriptLiteral::make(script));
+    }
     return true;
 }
 
 void TheoryElement::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) {
-    Literal::AssignVec assign;
+    Literal::RelationVec assign;
     arith.emplace_back(gringo_make_unique<Term::LevelMap>());
-    for (auto &lit : cond_) { lit->rewriteArithmetics(arith, assign, auxGen); }
-    for (auto &y : *arith.back()) { cond_.emplace_back(RelationLiteral::make(y)); }
-    for (auto &y : assign) { cond_.emplace_back(RelationLiteral::make(y)); }
+    for (auto &lit : cond_) {
+        lit->rewriteArithmetics(arith, assign, auxGen);
+    }
+    for (auto &y : *arith.back()) {
+        cond_.emplace_back(RelationLiteral::make(y));
+    }
+    for (auto &y : assign) {
+        cond_.emplace_back(RelationLiteral::make(y));
+    }
     arith.pop_back();
 }
 
@@ -149,7 +180,9 @@ void TheoryElement::initTheory(Output::TheoryParser &p, Logger &log) {
 }
 
 std::unique_ptr<Ground::TheoryAccumulate> TheoryElement::toGround(ToGroundArg &x, Ground::TheoryComplete &completeRef, Ground::ULitVec &&lits) const {
-    for (auto &z : cond_) { lits.emplace_back(z->toGround(x.domains, false)); }
+    for (auto const &z : cond_) {
+        lits.emplace_back(z->toGround(x.domains, false));
+    }
     return gringo_make_unique<Ground::TheoryAccumulate>(completeRef, get_clone(tuple_), std::move(lits));
 }
 
@@ -161,10 +194,6 @@ TheoryAtom::TheoryAtom(UTerm &&name, TheoryElementVec &&elems)
 , op_("")
 , guard_(nullptr)
 { }
-
-TheoryAtom::TheoryAtom(TheoryAtom &&) = default;
-
-TheoryAtom &TheoryAtom::operator=(TheoryAtom &&) = default;
 
 TheoryAtom::TheoryAtom(UTerm &&name, TheoryElementVec &&elems, String op, Output::UTheoryTerm &&guard, TheoryAtomType type)
 : name_(std::move(name))
@@ -210,6 +239,12 @@ size_t TheoryAtom::hash() const {
     return hash;
 }
 
+bool TheoryAtom::hasPool(bool beforeRewrite) const {
+    return (beforeRewrite && name_->hasPool()) ||
+           std::any_of(elems_.begin(), elems_.end(),
+                       [&](auto const &elem) { return elem.hasPool(beforeRewrite); });
+}
+
 template <class T>
 void TheoryAtom::unpool(T f, bool beforeRewrite) {
     TheoryElementVec elems;
@@ -223,12 +258,22 @@ void TheoryAtom::unpool(T f, bool beforeRewrite) {
     }
 }
 
-bool TheoryAtom::hasPool(bool beforeRewrite) const {
-    if (beforeRewrite && name_->hasPool()) { return true; }
-    for (auto &elem : elems_) {
-        if (elem.hasPool(beforeRewrite)) { return true; }
+bool TheoryAtom::hasUnpoolComparison() const {
+    return std::any_of(elems_.begin(), elems_.end(),
+                       [](auto const &elem) { return elem.hasUnpoolComparison(); });
+}
+
+void TheoryAtom::unpoolComparison() {
+    // extract elements that need unpooling
+    TheoryElementVec elems;
+    move_if(elems_, elems, [](auto const &elem) {
+        return elem.hasUnpoolComparison();;
+    });
+    // unpool conditions
+    for (auto &elem : elems) {
+        auto unpooled = elem.unpoolComparison();
+        std::move(unpooled.begin(), unpooled.end(), std::back_inserter(elems_));
     }
-    return false;
 }
 
 void TheoryAtom::replace(Defines &x) {
@@ -241,14 +286,20 @@ void TheoryAtom::replace(Defines &x) {
 
 void TheoryAtom::collect(VarTermBoundVec &vars) const {
     name_->collect(vars, false);
-    if (hasGuard()) { guard_->collect(vars); }
-    for (auto &elem : elems_) { elem.collect(vars); }
+    if (hasGuard()) {
+        guard_->collect(vars);
+    }
+    for (auto const &elem : elems_) {
+        elem.collect(vars);
+    }
 }
 
 void TheoryAtom::assignLevels(AssignLevel &lvl) {
     VarTermBoundVec vars;
     name_->collect(vars, false);
-    if (hasGuard()) { guard_->collect(vars); }
+    if (hasGuard()) {
+        guard_->collect(vars);
+    }
     lvl.add(vars);
     for (auto &elem : elems_) {
         elem.assignLevels(lvl);
@@ -260,10 +311,12 @@ void TheoryAtom::check(Location const &loc, Printable const &p, ChkLvlVec &level
 
     VarTermBoundVec vars;
     name_->collect(vars, false);
-    if (hasGuard()) { guard_->collect(vars); }
+    if (hasGuard()) {
+        guard_->collect(vars);
+    }
     addVars(levels, vars);
 
-    for (auto &elem : elems_) {
+    for (auto const &elem : elems_) {
         elem.check(loc, p, levels, log);
     }
 }
@@ -273,7 +326,7 @@ bool TheoryAtom::simplify(Projections &project, SimplifyState &state, Logger &lo
         return false;
     }
     for (auto &elem : elems_) {
-        SimplifyState elemState(state);
+        auto elemState = SimplifyState::make_substate(state);
         if (!elem.simplify(project, elemState, log)) {
             return false;
         }
@@ -290,7 +343,7 @@ void TheoryAtom::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen)
 void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, bool hasBody, Logger &log) {
     Sig sig = name_->getSig();
     for (auto &def : defs) {
-        if (auto atomDef = def.getAtomDef(sig)) {
+        if (auto const *atomDef = def.getAtomDef(sig)) {
             type_ = atomDef->type();
             if (inBody) {
                 if (type_ == TheoryAtomType::Head) {
@@ -299,7 +352,7 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
                         << "  " << sig << "\n";
                     return;
                 }
-                else if (type_ == TheoryAtomType::Directive) {
+                if (type_ == TheoryAtomType::Directive) {
                     GRINGO_REPORT(log, Warnings::RuntimeError)
                         << loc << ": error: theory directive used in body:" << "\n"
                         << "  " << sig << "\n";
@@ -326,7 +379,7 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
             else if (type_ != TheoryAtomType::Directive) {
                 type_ = TheoryAtomType::Head;
             }
-            if (auto termDef = def.getTermDef(atomDef->elemDef())) {
+            if (auto const *termDef = def.getTermDef(atomDef->elemDef())) {
                 Output::TheoryParser p(loc, *termDef);
                 for (auto &elem : elems_) {
                     elem.initTheory(p, log);
@@ -343,7 +396,7 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
                         << loc << ": error: unexpected guard:" << "\n"
                         << "  " << sig << "\n";
                 }
-                else if (auto termDef = def.getTermDef(atomDef->guardDef())) {
+                else if (auto const *termDef = def.getTermDef(atomDef->guardDef())) {
                     if (std::find(atomDef->ops().begin(), atomDef->ops().end(), op_) != atomDef->ops().end()) {
                         Output::TheoryParser p(loc, *termDef);
                         Term::replace(guard_, guard_->initTheory(p, log));
@@ -372,16 +425,16 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
         << "  " << sig << "\n";
 }
 
-CreateHead TheoryAtom::toGroundHead() const {
-    return CreateHead([&](Ground::ULitVec &&lits) {
+CreateHead TheoryAtom::toGroundHead() {
+    return [&](Ground::ULitVec &&lits) {
         for (auto &x : lits) {
-            auto lit = dynamic_cast<Ground::TheoryLiteral*>(x.get());
-            if (lit && lit->auxiliary()) {
+            auto *lit = dynamic_cast<Ground::TheoryLiteral*>(x.get());
+            if (lit != nullptr && lit->auxiliary()) {
                 return gringo_make_unique<Ground::TheoryRule>(*lit, std::move(lits));
             }
         }
         throw std::logic_error("must not happen");
-    });
+    };
 }
 
 CreateBody TheoryAtom::toGroundBody(ToGroundArg &x, Ground::UStmVec &stms, NAF naf, UTerm &&id) const {
@@ -391,14 +444,14 @@ CreateBody TheoryAtom::toGroundBody(ToGroundArg &x, Ground::UStmVec &stms, NAF n
     else {
         stms.emplace_back(gringo_make_unique<Ground::TheoryComplete>(x.domains, std::move(id), type_, get_clone(name_)));
     }
-    auto &completeRef = static_cast<Ground::TheoryComplete&>(*stms.back());
+    auto &completeRef = static_cast<Ground::TheoryComplete&>(*stms.back()); // NOLINT
     CreateStmVec split;
     split.emplace_back([&completeRef](Ground::ULitVec &&lits) -> Ground::UStm {
         auto ret = gringo_make_unique<Ground::TheoryAccumulate>(completeRef, std::move(lits));
         completeRef.addAccuDom(*ret);
         return std::move(ret);
     });
-    for (auto &y : elems_) {
+    for (auto const &y : elems_) {
         split.emplace_back([&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
             auto ret = y.toGround(x, completeRef, std::move(lits));
             completeRef.addAccuDom(*ret);
@@ -406,15 +459,13 @@ CreateBody TheoryAtom::toGroundBody(ToGroundArg &x, Ground::UStmVec &stms, NAF n
         });
     }
     bool aux1 = type_ != TheoryAtomType::Body;
-    return CreateBody([&completeRef, naf, aux1](Ground::ULitVec &lits, bool primary, bool aux2) {
+    return {[&completeRef, naf, aux1](Ground::ULitVec &lits, bool primary, bool aux2) {
         if (primary) {
             auto ret = gringo_make_unique<Ground::TheoryLiteral>(completeRef, naf, aux1 || aux2);
             lits.emplace_back(std::move(ret));
         }
-    }, std::move(split));
+    }, std::move(split)};
 }
-
-TheoryAtom::~TheoryAtom() noexcept = default;
 
 // {{{1 definition of HeadTheoryLiteral
 
@@ -423,16 +474,16 @@ HeadTheoryLiteral::HeadTheoryLiteral(TheoryAtom &&atom, bool rewritten)
 , rewritten_(rewritten)
 { }
 
-HeadTheoryLiteral::~HeadTheoryLiteral() noexcept = default;
-
-CreateHead HeadTheoryLiteral::toGround(ToGroundArg &, Ground::UStmVec &) const {
+CreateHead HeadTheoryLiteral::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
+    static_cast<void>(x);
+    static_cast<void>(stms);
     return atom_.toGroundHead();
 }
 
-UHeadAggr HeadTheoryLiteral::rewriteAggregates(UBodyAggrVec &lits) {
+UHeadAggr HeadTheoryLiteral::rewriteAggregates(UBodyAggrVec &aggr) {
     rewritten_ = true;
     auto lit = make_locatable<BodyTheoryLiteral>(loc(), NAF::POS, atom_.clone(), rewritten_);
-    lits.emplace_back(std::move(lit));
+    aggr.emplace_back(std::move(lit));
     return nullptr;
 }
 
@@ -442,6 +493,12 @@ void HeadTheoryLiteral::collect(VarTermBoundVec &vars) const {
 
 void HeadTheoryLiteral::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     atom_.unpool([&](TheoryAtom &&atom) { x.emplace_back(make_locatable<HeadTheoryLiteral>(loc(), std::move(atom))); }, beforeRewrite);
+}
+
+UHeadAggr HeadTheoryLiteral::unpoolComparison(UBodyAggrVec &body) {
+    static_cast<void>(body);
+    atom_.unpoolComparison();
+    return nullptr;
 }
 
 bool HeadTheoryLiteral::simplify(Projections &project, SimplifyState &state, Logger &log) {
@@ -478,13 +535,14 @@ void HeadTheoryLiteral::print(std::ostream &out) const {
 }
 
 HeadTheoryLiteral *HeadTheoryLiteral::clone() const {
-    auto ret = make_locatable<HeadTheoryLiteral>(loc(), get_clone(atom_), rewritten_).release();
+    auto *ret = make_locatable<HeadTheoryLiteral>(loc(), get_clone(atom_), rewritten_).release();
     return ret;
 }
 
 bool HeadTheoryLiteral::operator==(HeadAggregate const &other) const {
-    auto t = dynamic_cast<HeadTheoryLiteral const*>(&other);
-    return t && atom_ == t->atom_;
+    auto const *t = dynamic_cast<HeadTheoryLiteral const*>(&other);
+    return t != nullptr &&
+           atom_ == t->atom_;
 }
 
 void HeadTheoryLiteral::initTheory(TheoryDefs &defs, bool hasBody, Logger &log) {
@@ -499,13 +557,29 @@ BodyTheoryLiteral::BodyTheoryLiteral(NAF naf, TheoryAtom &&atom, bool rewritten)
 , rewritten_(rewritten)
 { }
 
-BodyTheoryLiteral::~BodyTheoryLiteral() noexcept = default;
+bool BodyTheoryLiteral::hasPool(bool beforeRewrite) const {
+    return atom_.hasPool(beforeRewrite);
+}
 
 void BodyTheoryLiteral::unpool(UBodyAggrVec &x, bool beforeRewrite) {
     atom_.unpool([&](TheoryAtom &&atom) { x.emplace_back(make_locatable<BodyTheoryLiteral>(loc(), naf_, std::move(atom))); }, beforeRewrite);
 }
 
-bool BodyTheoryLiteral::simplify(Projections &project, SimplifyState &state, bool, Logger &log) {
+bool BodyTheoryLiteral::hasUnpoolComparison() const {
+    return atom_.hasUnpoolComparison();
+}
+
+UBodyAggrVecVec BodyTheoryLiteral::unpoolComparison() const {
+    auto atom = atom_.clone();
+    atom.unpoolComparison();
+    UBodyAggrVecVec ret;
+    ret.emplace_back();
+    ret.back().emplace_back(make_locatable<BodyTheoryLiteral>(loc(), naf_, std::move(atom), rewritten_).release());
+    return ret;
+}
+
+bool BodyTheoryLiteral::simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) {
+    static_cast<void>(singleton);
     return atom_.simplify(project, state, log);
 }
 
@@ -517,11 +591,13 @@ void BodyTheoryLiteral::check(ChkLvlVec &lvl, Logger &log) const {
     atom_.check(loc(), *this, lvl, log);
 }
 
-void BodyTheoryLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &, AuxGen &auxGen) {
+void BodyTheoryLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) {
+    static_cast<void>(assign);
     atom_.rewriteArithmetics(arith, auxGen);
 }
 
-bool BodyTheoryLiteral::rewriteAggregates(UBodyAggrVec &) {
+bool BodyTheoryLiteral::rewriteAggregates(UBodyAggrVec &aggr) {
+    static_cast<void>(aggr);
     return true;
 }
 
@@ -534,10 +610,6 @@ bool BodyTheoryLiteral::isAssignment() const {
 
 void BodyTheoryLiteral::collect(VarTermBoundVec &vars) const {
     atom_.collect(vars);
-}
-
-bool BodyTheoryLiteral::hasPool(bool beforeRewrite) const {
-    return atom_.hasPool(beforeRewrite);
 }
 
 void BodyTheoryLiteral::replace(Defines &x) {
@@ -562,8 +634,10 @@ BodyTheoryLiteral *BodyTheoryLiteral::clone() const {
 }
 
 bool BodyTheoryLiteral::operator==(BodyAggregate const &other) const {
-    auto t = dynamic_cast<BodyTheoryLiteral const*>(&other);
-    return t && naf_ == t->naf_ && atom_ == t->atom_;
+    auto const *t = dynamic_cast<BodyTheoryLiteral const*>(&other);
+    return t != nullptr &&
+           naf_ == t->naf_ &&
+           atom_ == t->atom_;
 }
 
 void BodyTheoryLiteral::initTheory(TheoryDefs &defs, Logger &log) {
@@ -573,4 +647,3 @@ void BodyTheoryLiteral::initTheory(TheoryDefs &defs, Logger &log) {
 // }}}1
 
 } } // namespace Gringo Input
-

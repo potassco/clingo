@@ -323,7 +323,7 @@ class Model:
         '''
         return _c_call('bool', _lib.clingo_model_is_true, self._rep, literal)
 
-    def symbols(self, atoms: bool=False, terms: bool=False, shown: bool=False, csp: bool=False,
+    def symbols(self, atoms: bool=False, terms: bool=False, shown: bool=False,
                 theory: bool=False, complement: bool=False) -> Sequence[Symbol]:
         '''
         Return the list of atoms, terms, or CSP assignments in the model.
@@ -336,13 +336,11 @@ class Model:
             Select all terms displayed with `#show` statements in the model.
         shown
             Select all atoms and terms as outputted by clingo.
-        csp
-            Select all csp assignments (independent of `#show` statements).
         theory
             Select atoms added with `Model.extend`.
         complement
             Return the complement of the answer set w.r.t. to the atoms known
-            to the grounder. (Does not affect csp assignments.)
+            to the grounder.
 
         Returns
         -------
@@ -362,8 +360,6 @@ class Model:
             show |= _lib.clingo_show_type_terms
         if shown:
             show |= _lib.clingo_show_type_shown
-        if csp:
-            show |= _lib.clingo_show_type_csp
         if theory:
             show |= _lib.clingo_show_type_theory
         if complement:

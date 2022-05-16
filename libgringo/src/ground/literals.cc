@@ -211,29 +211,6 @@ struct AssignBinder : Binder {
 
 // }}}
 
- // {{{ declaration of CSPLiteralMatcher
-
-struct CSPLiteralMatcher : Binder {
-    CSPLiteralMatcher(CSPLiteralShared &terms)
-        : terms(terms) { }
-    IndexUpdater *getUpdater() override { return nullptr; }
-    void match(Logger &log) override {
-        firstMatch = std::get<1>(terms).checkEval(log) && std::get<2>(terms).checkEval(log);
-    }
-    bool next() override {
-        bool ret = firstMatch;
-        firstMatch = false;
-        return ret;
-    }
-    void print(std::ostream &out) const override { out << std::get<1>(terms) << std::get<0>(terms) << std::get<2>(terms); }
-    virtual ~CSPLiteralMatcher() { }
-
-    CSPLiteralShared &terms;
-    bool firstMatch = false;
-};
-
-// }}}
-
 } // namespace
 
 // {{{ definition of PredicateLiteral::BodyOccurrence
@@ -256,16 +233,6 @@ void PredicateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &u
         undef.emplace_back(repr->loc(), repr.get());
     }
 }
-
-ExternalBodyOcc::ExternalBodyOcc()               { }
-UGTerm ExternalBodyOcc::getRepr() const          { return gringo_make_unique<GValTerm>(Symbol::createId("#external")); }
-bool ExternalBodyOcc::isPositive() const         { return false; }
-bool ExternalBodyOcc::isNegative() const         { return false; }
-void ExternalBodyOcc::setType(OccurrenceType)    { }
-OccurrenceType ExternalBodyOcc::getType() const  { return OccurrenceType::STRATIFIED; }
-BodyOcc::DefinedBy &ExternalBodyOcc::definedBy() { return defs; }
-void ExternalBodyOcc::checkDefined(LocSet &, SigSet const &, UndefVec &) const { }
-ExternalBodyOcc::~ExternalBodyOcc()              { }
 
 // }}}
 
@@ -444,57 +411,6 @@ PredicateLiteral::~PredicateLiteral() { }
 ProjectionLiteral::~ProjectionLiteral() { }
 
 // }}}
-
-// {{{1 definition of CSPLiteral
-
-CSPLiteral::CSPLiteral(DomainData &data, bool auxiliary, Relation rel, CSPAddTerm &&left, CSPAddTerm &&right)
-: data_(data)
-, terms_(rel, std::move(left), std::move(right))
-, auxiliary_(auxiliary)
-{ }
-
-void CSPLiteral::print(std::ostream &out) const  {
-    if (auxiliary()) { out << "["; }
-    out << std::get<1>(terms_) << std::get<0>(terms_) << std::get<2>(terms_);
-    if (auxiliary()) { out << "]"; }
-}
-
-bool CSPLiteral::isRecursive() const { return false; }
-
-BodyOcc *CSPLiteral::occurrence()       { return &ext_; }
-
-void CSPLiteral::collect(VarTermBoundVec &vars) const {
-    std::get<1>(terms_).collect(vars);
-    std::get<2>(terms_).collect(vars);
-}
-
-void CSPLiteral::collectImportant(Term::VarSet &vars) {
-    VarTermBoundVec x;
-    collect(x);
-    for (auto &occ : x) { vars.emplace(occ.first->name); }
-}
-
-UIdx CSPLiteral::index(Context &, BinderType, Term::VarSet &) {
-    // NOTE: if the literal is auxiliary it can simply always match
-    return gringo_make_unique<CSPLiteralMatcher>(terms_);
-}
-
-Literal::Score CSPLiteral::score(Term::VarSet const &, Logger &) {
-    return std::numeric_limits<Literal::Score>::infinity();
-}
-
-std::pair<Output::LiteralId,bool> CSPLiteral::toOutput(Logger &log) {
-    if (auxiliary()) { return {Output::LiteralId(),true}; }
-    CSPGroundLit add;
-    std::get<0>(add) = std::get<0>(terms_);
-    std::get<1>(terms_).toGround(add, false, log);
-    std::get<2>(terms_).toGround(add, true, log);
-    return {Output::LiteralId{NAF::POS, Output::AtomType::LinearConstraint, data_.cspAtom(std::move(add)), 0}, false};
-}
-
-CSPLiteral::~CSPLiteral() noexcept = default;
-
-// }}}1
 
 } } // namespace Ground Gringo
 

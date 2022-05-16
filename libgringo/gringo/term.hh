@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_TERM_HH
-#define _GRINGO_TERM_HH
+#ifndef GRINGO_TERM_HH
+#define GRINGO_TERM_HH
 
 #include <gringo/bug.hh>
 #include <gringo/symbol.hh>
@@ -58,14 +58,19 @@ std::ostream &operator<<(std::ostream &out, UnOp op);
 
  // {{{ declaration of Defines
 
-struct Term;
+class Term;
 using UTerm = std::unique_ptr<Term>;
+
 class Defines {
 public:
     using DefMap = std::unordered_map<String, std::tuple<bool, Location, UTerm>>;
+    Defines() = default;
+    Defines(Defines const &other) = delete;
+    Defines(Defines &&other) noexcept = delete;
+    Defines &operator=(Defines const &other) = delete;
+    Defines &operator=(Defines &&other) noexcept = delete;
+    ~Defines() noexcept = default;
 
-    Defines();
-    Defines(Defines &&x);
     //! Add a define.
     //! Default defintions will not overwrite existing definitions and can be overwritten by other defines.
     void add(Location const &loc, String name, UTerm &&value, bool defaultDef, Logger &log);
@@ -74,7 +79,6 @@ public:
     bool empty() const;
     void apply(Symbol x, Symbol &retVal, UTerm &retTerm, bool replace);
     DefMap const &defs() const;
-    ~Defines();
 
 private:
     std::unordered_map<String, std::tuple<bool, Location, UTerm>> defs_;
@@ -85,14 +89,23 @@ private:
 // {{{ declaration of GTerm
 
 struct GRef;
-struct GTerm;
-struct GVarTerm;
-struct GFunctionTerm;
-struct GLinearTerm;
+class GTerm;
+class GVarTerm;
+class GFunctionTerm;
+class GLinearTerm;
 using UGTerm = std::unique_ptr<GTerm>;
 using UGFunTerm = std::unique_ptr<GFunctionTerm>;
-struct GTerm : Clonable<GTerm>, Printable, Hashable, Comparable<GTerm> {
+class GTerm : public Clonable<GTerm>, public Printable, public Hashable, public Comparable<GTerm> {
+public:
     using EvalResult = std::pair<bool, Symbol>;
+
+    GTerm() = default;
+    GTerm(GTerm const &other) = default;
+    GTerm(GTerm &&other) noexcept = default;
+    GTerm &operator=(GTerm const &other) = default;
+    GTerm &operator=(GTerm &&other) noexcept = default;
+    ~GTerm() noexcept override = default;
+
     virtual Sig sig() const = 0;
     virtual EvalResult eval() const = 0;
     virtual bool occurs(GRef &x) const = 0;
@@ -102,7 +115,6 @@ struct GTerm : Clonable<GTerm>, Printable, Hashable, Comparable<GTerm> {
     virtual bool unify(GFunctionTerm &x) = 0;
     virtual bool unify(GLinearTerm &x) = 0;
     virtual bool unify(GVarTerm &x) = 0;
-    virtual ~GTerm() { }
 };
 using UGTermVec = std::vector<UGTerm>;
 using SGRef     = std::shared_ptr<GRef>;
@@ -110,50 +122,76 @@ using SGRef     = std::shared_ptr<GRef>;
 // }}}
 // {{{ declaration of Term
 
-struct LinearTerm;
-struct VarTerm;
-struct ValTerm;
+class LinearTerm;
+class VarTerm;
+class ValTerm;
 using UTermVec        = std::vector<UTerm>;
 using UTermVecVec     = std::vector<UTermVec>;
 using VarTermVec      = std::vector<std::reference_wrapper<VarTerm>>;
 using VarTermBoundVec = std::vector<std::pair<VarTerm*,bool>>;
 using VarTermSet      = std::unordered_set<std::reference_wrapper<VarTerm>, value_hash<std::reference_wrapper<VarTerm>>, value_equal_to<std::reference_wrapper<VarTerm>>>;
 
-struct AuxGen {
+class AuxGen {
+public:
     AuxGen()
-    : auxNum(std::make_shared<unsigned>(0)) { }
-    AuxGen(AuxGen const &) = default;
-    AuxGen(AuxGen &&)      = default;
+    : auxNum_(std::make_shared<unsigned>(0)) { }
+    AuxGen(AuxGen const &other) = default;
+    AuxGen(AuxGen &&other) noexcept = default;
+    AuxGen &operator=(AuxGen const &other) = default;
+    AuxGen &operator=(AuxGen &&other) noexcept = default;
+    ~AuxGen() noexcept = default;
+
     String uniqueName(char const *prefix);
     UTerm uniqueVar(Location const &loc, unsigned level, const char *prefix);
 
-    std::shared_ptr<unsigned> auxNum;
+private:
+    std::shared_ptr<unsigned> auxNum_;
 };
 
-struct SimplifyState {
+class SimplifyState {
+public:
     //! Somewhat complex result type of simplify.
-    struct SimplifyRet;
+    class SimplifyRet;
 
     //! Type that stores for each rewritten DotsTerm the associated variable and the lower and upper bound.
     using DotsMap = std::vector<std::tuple<UTerm, UTerm, UTerm>>;
     using ScriptMap = std::vector<std::tuple<UTerm, String, UTermVec>>;
-    SimplifyState(SimplifyState &state)
-    : gen(state.gen)
-    , level(state.level + 1) { }
-    SimplifyState() : level(0) { }
-    SimplifyState(SimplifyState const &) = delete;
-    SimplifyState(SimplifyState &&)      = default;
 
+    SimplifyState() = default;
+    SimplifyState(SimplifyState const &other) = delete;
+    SimplifyState(SimplifyState &&other) noexcept = default;
+    SimplifyState &operator=(SimplifyState const &other) = delete;
+    SimplifyState &operator=(SimplifyState &&other) noexcept = default;
+    ~SimplifyState() noexcept = default;
+
+    static SimplifyState make_substate(SimplifyState &state) {
+        return {state.gen_, state.level_ + 1};
+    }
+
+    String createName(char const *prefix);
     std::unique_ptr<LinearTerm> createDots(Location const &loc, UTerm &&left, UTerm &&right);
     SimplifyRet createScript(Location const &loc, String name, UTermVec &&args, bool arith);
 
-    DotsMap dots;
-    ScriptMap scripts;
-    AuxGen gen;
-    int level;
+    DotsMap dots() {
+        return std::move(dots_);
+    }
+    ScriptMap scripts() {
+        return std::move(scripts_);
+    }
+
+private:
+    SimplifyState(AuxGen &gen, int level)
+    : gen_{gen}
+    , level_{level} { }
+
+    DotsMap dots_;
+    ScriptMap scripts_;
+    AuxGen gen_;
+    int level_{0};
 };
 
-struct Term : public Printable, public Hashable, public Locatable, public Comparable<Term>, public Clonable<Term> {
+class Term : public Printable, public Hashable, public Locatable, public Comparable<Term>, public Clonable<Term> {
+public:
     //! Return value of Term::project (replace, projected, project).
     //! replace:   projected variables are stripped, null if untouched
     //! projected: term with variables renamed, projected if null
@@ -173,6 +211,14 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     //! - INVERTIBLE for invertible terms (e.g. -X, 1+X, f(X,Y+Z))
     //! - NOT_INVERTIBLE for terms that are not invertible (e.g. arithmetic operations with two unknowns)
     enum Invertibility { CONSTANT = 0, INVERTIBLE = 1, NOT_INVERTIBLE = 2 };
+
+    Term() = default;
+    Term(Term const &other) = default;
+    Term(Term &&other) noexcept = default;
+    Term &operator=(Term const &other) = default;
+    Term &operator=(Term &&other) noexcept = default;
+    ~Term() noexcept override = default;
+
     //! Whether the term contains a VarTerm.
     virtual bool hasVar() const = 0;
     virtual unsigned projectScore() const = 0;
@@ -241,7 +287,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     //! \pre Must be called after assignLevel.
     virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined = false) = 0;
     virtual bool match(Symbol const &val) const = 0;
-    bool bind(VarSet &bound);
+    bool bind(VarSet &bound) const;
     virtual Sig getSig() const = 0;
     virtual UTerm renameVars(RenameMap &names) const = 0;
     SGRef _newRef(RenameMap &names, ReferenceMap &refs) const;
@@ -254,8 +300,6 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     virtual Symbol isEDB() const = 0;
     virtual int toNum(bool &undefined, Logger &log);
     virtual bool isAtom() const { return false; }
-
-    virtual ~Term() { }
 
     //! Inserts a term into arith creating a new unique variable if necessary.
     static UTerm insert(ArithmeticsMap &arith, AuxGen &auxGen, UTerm &&term, bool eq = false);
@@ -282,11 +326,11 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
 
 UTermVec unpool(UTerm const &x);
 
-struct LinearTerm;
-struct SimplifyState::SimplifyRet {
+class LinearTerm;
+class SimplifyState::SimplifyRet {
+public:
     enum Type { UNTOUCHED, CONSTANT, LINEAR, REPLACE, UNDEFINED };
-    SimplifyRet(SimplifyRet const &) = delete;
-    SimplifyRet(SimplifyRet &&x);
+
     //! Reference to untouched term.
     SimplifyRet(Term &x, bool project);
     //! Indicate replacement with linear term.
@@ -297,19 +341,35 @@ struct SimplifyState::SimplifyRet {
     SimplifyRet(Symbol const &x);
     //! Indicate undefined term
     SimplifyRet();
+    SimplifyRet(SimplifyRet const &) = delete;
+    SimplifyRet(SimplifyRet &&x) noexcept;
+    SimplifyRet &operator=(SimplifyRet const &) = delete;
+    SimplifyRet &operator=(SimplifyRet &&x) noexcept;
+    ~SimplifyRet() noexcept;
+
     bool notNumeric() const;
     bool notFunction() const;
     bool constant() const;
     bool isZero() const;
     bool undefined() const;
-    LinearTerm &lin();
+    LinearTerm &lin() const;
     SimplifyRet &update(UTerm &x, bool arith);
-    ~SimplifyRet();
-    Type  type;
-    bool  project = false;
-    union {
-        Symbol val;
-        Term *term;
+    Type type() const {
+        return type_;
+    }
+    Symbol value() const {
+        return val_; // NOLINT
+    }
+    bool project() const {
+        return project_;
+    }
+
+private:
+    Type  type_;
+    bool  project_ = false;
+    union { // NOLINT
+        Symbol val_;
+        Term *term_;
     };
 };
 
@@ -325,7 +385,7 @@ struct GRef {
     GRef &operator=(Symbol const &x);
     GRef &operator=(GTerm &x);
     bool occurs(GRef &x) const;
-    bool match(Symbol const &x);
+    bool match(Symbol const &x) const;
     template <class T>
     bool unify(T &x);
 
@@ -340,100 +400,136 @@ using SGRef = std::shared_ptr<GRef>;
 // }}}
 // {{{ declaration of GValTerm
 
-struct GValTerm : GTerm {
+class GValTerm : public GTerm {
+public:
     GValTerm(Symbol val);
-    virtual bool operator==(GTerm const &other) const;
-    virtual size_t hash() const;
-    virtual void print(std::ostream &out) const;
-    virtual Sig sig() const;
-    virtual EvalResult eval() const;
-    virtual bool occurs(GRef &x) const;
-    virtual void reset();
-    virtual bool match(Symbol const &x);
-    virtual bool unify(GTerm &x);
-    virtual bool unify(GFunctionTerm &x);
-    virtual bool unify(GLinearTerm &x);
-    virtual bool unify(GVarTerm &x);
-    virtual GValTerm *clone() const { return new GValTerm{val}; }
-    virtual ~GValTerm();
+    GValTerm(GValTerm const &other) = default;
+    GValTerm(GValTerm &&other) noexcept = default;
+    GValTerm &operator=(GValTerm const &other) = default;
+    GValTerm &operator=(GValTerm &&other) noexcept = default;
+    ~GValTerm() noexcept override = default;
 
-    Symbol val;
+    bool operator==(GTerm const &other) const override;
+    size_t hash() const override;
+    void print(std::ostream &out) const override;
+    Sig sig() const override;
+    EvalResult eval() const override;
+    bool occurs(GRef &x) const override;
+    void reset() override;
+    bool match(Symbol const &x) override;
+    bool unify(GTerm &x) override;
+    bool unify(GFunctionTerm &x) override;
+    bool unify(GLinearTerm &x) override;
+    bool unify(GVarTerm &x) override;
+    GValTerm *clone() const override {
+        return new GValTerm{val_}; // NOLINT
+    }
+
+private:
+    Symbol val_;
 };
 
 // }}}
 // {{{ declaration of GFunctionTerm
 
-struct GFunctionTerm : GTerm {
+class GFunctionTerm : public GTerm {
+public:
     GFunctionTerm(String name, UGTermVec &&args);
     GFunctionTerm(GFunctionTerm const &x, bool sign);
-    virtual bool operator==(GTerm const &other) const;
-    virtual size_t hash() const;
-    virtual void print(std::ostream &out) const;
-    virtual Sig sig() const;
-    virtual EvalResult eval() const;
-    virtual bool occurs(GRef &x) const;
-    virtual void reset();
-    virtual bool match(Symbol const &x);
-    virtual bool unify(GTerm &x);
-    virtual bool unify(GFunctionTerm &x);
-    virtual bool unify(GLinearTerm &x);
-    virtual bool unify(GVarTerm &x);
-    virtual GFunctionTerm *clone() const {
-        auto ret = new GFunctionTerm{name, get_clone(args)};
-        ret->sign = sign;
+    GFunctionTerm(GFunctionTerm const &other) = default;
+    GFunctionTerm(GFunctionTerm &&other) noexcept = default;
+    GFunctionTerm &operator=(GFunctionTerm const &other) = default;
+    GFunctionTerm &operator=(GFunctionTerm &&other) noexcept = default;
+    ~GFunctionTerm() noexcept override = default;
+
+    void flipSign() { sign_ = !sign_; }
+
+    bool operator==(GTerm const &other) const override;
+    size_t hash() const override;
+    void print(std::ostream &out) const override;
+    Sig sig() const override;
+    EvalResult eval() const override;
+    bool occurs(GRef &x) const override;
+    void reset() override;
+    bool match(Symbol const &x) override;
+    bool unify(GTerm &x) override;
+    bool unify(GFunctionTerm &x) override;
+    bool unify(GLinearTerm &x) override;
+    bool unify(GVarTerm &x) override;
+    GFunctionTerm *clone() const override {
+        auto *ret = new GFunctionTerm{name_, get_clone(args_)};
+        ret->sign_ = sign_;
         return ret;
     }
-    virtual ~GFunctionTerm();
 
-    bool sign;
-    String name;
-    UGTermVec args;
+private:
+    bool sign_;
+    String name_;
+    UGTermVec args_;
 };
 
 // }}}
 // {{{ declaration of GLinearTerm
 
-struct GLinearTerm : GTerm {
-    GLinearTerm(SGRef ref, int m, int n);
-    virtual bool operator==(GTerm const &other) const;
-    virtual size_t hash() const;
-    virtual void print(std::ostream &out) const;
-    virtual Sig sig() const;
-    virtual EvalResult eval() const;
-    virtual bool occurs(GRef &x) const;
-    virtual void reset();
-    virtual bool match(Symbol const &x);
-    virtual bool unify(GTerm &x);
-    virtual bool unify(GFunctionTerm &x);
-    virtual bool unify(GLinearTerm &x);
-    virtual bool unify(GVarTerm &x);
-    virtual GLinearTerm *clone() const { return new GLinearTerm{ref, m, n}; }
-    virtual ~GLinearTerm();
+class GLinearTerm : public GTerm {
+public:
+    GLinearTerm(const SGRef& ref, int m, int n);
+    GLinearTerm(GLinearTerm const &other) = default;
+    GLinearTerm(GLinearTerm &&other) noexcept = default;
+    GLinearTerm &operator=(GLinearTerm const &other) = default;
+    GLinearTerm &operator=(GLinearTerm &&other) noexcept = default;
+    ~GLinearTerm() noexcept override = default;
 
-    SGRef ref;
-    int m;
-    int n;
+    bool operator==(GTerm const &other) const override;
+    size_t hash() const override;
+    void print(std::ostream &out) const override;
+    Sig sig() const override;
+    EvalResult eval() const override;
+    bool occurs(GRef &x) const override;
+    void reset() override;
+    bool match(Symbol const &x) override;
+    bool unify(GTerm &x) override;
+    bool unify(GFunctionTerm &x) override;
+    bool unify(GLinearTerm &x) override;
+    bool unify(GVarTerm &x) override;
+    GLinearTerm *clone() const override {
+        return new GLinearTerm{ref_, m_, n_}; // NOLINT
+    }
+
+private:
+    SGRef ref_;
+    int m_;
+    int n_;
 };
 
 // }}}
 // {{{ declaration of GVarTerm
 
-struct GVarTerm : GTerm {
-    GVarTerm(SGRef ref);
-    virtual bool operator==(GTerm const &other) const;
-    virtual size_t hash() const;
-    virtual void print(std::ostream &out) const;
-    virtual Sig sig() const;
-    virtual EvalResult eval() const;
-    virtual bool occurs(GRef &x) const;
-    virtual void reset();
-    virtual bool match(Symbol const &x);
-    virtual bool unify(GTerm &x);
-    virtual bool unify(GFunctionTerm &x);
-    virtual bool unify(GLinearTerm &x);
-    virtual bool unify(GVarTerm &x);
-    virtual GVarTerm *clone() const { return new GVarTerm{ref}; }
-    virtual ~GVarTerm();
+class GVarTerm : public GTerm {
+public:
+    GVarTerm(const SGRef& ref);
+    GVarTerm(GVarTerm const &other) = default;
+    GVarTerm(GVarTerm &&other) noexcept = default;
+    GVarTerm &operator=(GVarTerm const &other) = default;
+    GVarTerm &operator=(GVarTerm &&other) noexcept = default;
+    ~GVarTerm() noexcept override = default;
+
+
+    bool operator==(GTerm const &other) const override;
+    size_t hash() const override;
+    void print(std::ostream &out) const override;
+    Sig sig() const override;
+    EvalResult eval() const override;
+    bool occurs(GRef &x) const override;
+    void reset() override;
+    bool match(Symbol const &x) override;
+    bool unify(GTerm &x) override;
+    bool unify(GFunctionTerm &x) override;
+    bool unify(GLinearTerm &x) override;
+    bool unify(GVarTerm &x) override;
+    GVarTerm *clone() const override {
+        return new GVarTerm{ref}; // NOLINT
+    }
 
     SGRef ref;
 };
@@ -442,112 +538,132 @@ struct GVarTerm : GTerm {
 
 // {{{ declaration of PoolTerm
 
-struct PoolTerm : public Term {
+class PoolTerm : public Term {
+public:
     PoolTerm(UTermVec &&terms);
-    virtual unsigned projectScore() const;
-    virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
-    virtual ProjectRet project(bool rename, AuxGen &gen);
-    virtual bool hasVar() const;
-    virtual void collect(VarTermBoundVec &vars, bool bound) const;
-    virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, Logger &log) const;
-    virtual bool match(Symbol const &val) const;
-    virtual Sig getSig() const;
-    virtual UTerm renameVars(RenameMap &names) const;
-    virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual unsigned getLevel() const;
-    virtual bool isNotNumeric() const;
-    virtual bool isNotFunction() const;
-    virtual Invertibility getInvertibility() const;
-    virtual void print(std::ostream &out) const;
-    virtual void unpool(UTermVec &x) const;
-    virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined);
-    virtual bool operator==(Term const &other) const;
-    virtual size_t hash() const;
-    virtual PoolTerm *clone() const;
-    virtual bool hasPool() const;
-    virtual void collectIds(VarSet &vars) const;
-    virtual UTerm replace(Defines &defs, bool replace = true);
-    virtual double estimate(double size, VarSet const &bound) const;
-    virtual Symbol isEDB() const;
-    virtual bool isAtom() const;
-    virtual ~PoolTerm();
+    PoolTerm(PoolTerm const &other) = delete;
+    PoolTerm(PoolTerm &&other) noexcept = default;
+    PoolTerm &operator=(PoolTerm const &other) = delete;
+    PoolTerm &operator=(PoolTerm &&other) noexcept = default;
+    ~PoolTerm() noexcept override = default;
 
-    UTermVec args;
+    unsigned projectScore() const override;
+    void rename(String name) override;
+    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
+    ProjectRet project(bool rename, AuxGen &gen) override;
+    bool hasVar() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
+    Symbol eval(bool &undefined, Logger &log) const override;
+    bool match(Symbol const &val) const override;
+    Sig getSig() const override;
+    UTerm renameVars(RenameMap &names) const override;
+    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
+    unsigned getLevel() const override;
+    bool isNotNumeric() const override;
+    bool isNotFunction() const override;
+    Invertibility getInvertibility() const override;
+    void print(std::ostream &out) const override;
+    void unpool(UTermVec &x) const override;
+    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
+    bool operator==(Term const &other) const override;
+    size_t hash() const override;
+    PoolTerm *clone() const override;
+    bool hasPool() const override;
+    void collectIds(VarSet &vars) const override;
+    UTerm replace(Defines &defs, bool replace = true) override;
+    double estimate(double size, VarSet const &bound) const override;
+    Symbol isEDB() const override;
+    bool isAtom() const override;
+
+private:
+    UTermVec args_;
 };
 
 // }}}
 // {{{ declaration of ValTerm
 
-struct ValTerm : public Term {
+class ValTerm : public Term {
+public:
     ValTerm(Symbol value);
-    virtual unsigned projectScore() const;
-    virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
-    virtual ProjectRet project(bool rename, AuxGen &gen);
-    virtual bool hasVar() const;
-    virtual void collect(VarTermBoundVec &vars, bool bound) const;
-    virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, Logger &log) const;
-    virtual bool match(Symbol const &val) const;
-    virtual Sig getSig() const;
-    virtual UTerm renameVars(RenameMap &names) const;
-    virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual unsigned getLevel() const;
-    virtual bool isNotNumeric() const;
-    virtual bool isNotFunction() const;
-    virtual Invertibility getInvertibility() const;
-    virtual void print(std::ostream &out) const;
-    virtual void unpool(UTermVec &x) const;
-    virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined);
-    virtual bool operator==(Term const &other) const;
-    virtual size_t hash() const;
-    virtual ValTerm *clone() const;
-    virtual bool hasPool() const;
-    virtual void collectIds(VarSet &vars) const;
-    virtual UTerm replace(Defines &defs, bool replace = true);
-    virtual double estimate(double size, VarSet const &bound) const;
-    virtual Symbol isEDB() const;
-    virtual bool isAtom() const;
-    virtual ~ValTerm();
+    ValTerm(ValTerm const &other) = delete;
+    ValTerm(ValTerm &&other) noexcept = default;
+    ValTerm &operator=(ValTerm const &other) = delete;
+    ValTerm &operator=(ValTerm &&other) noexcept = default;
+    ~ValTerm() noexcept override = default;
 
-    Symbol value;
+    unsigned projectScore() const override;
+    void rename(String name) override;
+    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
+    ProjectRet project(bool rename, AuxGen &gen) override;
+    bool hasVar() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
+    Symbol eval(bool &undefined, Logger &log) const override;
+    bool match(Symbol const &val) const override;
+    Sig getSig() const override;
+    UTerm renameVars(RenameMap &names) const override;
+    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
+    unsigned getLevel() const override;
+    bool isNotNumeric() const override;
+    bool isNotFunction() const override;
+    Invertibility getInvertibility() const override;
+    void print(std::ostream &out) const override;
+    void unpool(UTermVec &x) const override;
+    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
+    bool operator==(Term const &other) const override;
+    size_t hash() const override;
+    ValTerm *clone() const override;
+    bool hasPool() const override;
+    void collectIds(VarSet &vars) const override;
+    UTerm replace(Defines &defs, bool replace = true) override;
+    double estimate(double size, VarSet const &bound) const override;
+    Symbol isEDB() const override;
+    bool isAtom() const override;
+
+private:
+    Symbol value_;
 };
 
 // }}}
 // {{{ declaration of VarTerm
 
-struct VarTerm : Term {
-    VarTerm(String name, SVal ref, unsigned level = 0, bool bindRef = false);
-    virtual unsigned projectScore() const;
-    virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
-    virtual ProjectRet project(bool rename, AuxGen &gen);
-    virtual bool hasVar() const;
-    virtual void collect(VarTermBoundVec &vars, bool bound) const;
-    virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, Logger &log) const;
-    virtual bool match(Symbol const &val) const;
-    virtual Sig getSig() const;
-    virtual UTerm renameVars(RenameMap &names) const;
-    virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual unsigned getLevel() const;
-    virtual bool isNotNumeric() const;
-    virtual bool isNotFunction() const;
-    virtual Invertibility getInvertibility() const;
-    virtual void print(std::ostream &out) const;
-    virtual void unpool(UTermVec &x) const;
-    virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined);
-    virtual bool operator==(Term const &other) const;
-    virtual size_t hash() const;
-    virtual VarTerm *clone() const;
-    virtual bool hasPool() const;
-    virtual void collectIds(VarSet &vars) const;
-    virtual UTerm replace(Defines &defs, bool replace = true);
-    virtual double estimate(double size, VarSet const &bound) const;
-    virtual Symbol isEDB() const;
-    virtual ~VarTerm();
+class VarTerm : public Term {
+public:
+    VarTerm(String name, const SVal& ref, unsigned level = 0, bool bindRef = false);
+    VarTerm(VarTerm const &other) = delete;
+    VarTerm(VarTerm &&other) noexcept = default;
+    VarTerm &operator=(VarTerm const &other) = delete;
+    VarTerm &operator=(VarTerm &&other) noexcept = default;
+    ~VarTerm() noexcept override = default;
+
+    unsigned projectScore() const override;
+    void rename(String name) override;
+    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
+    ProjectRet project(bool rename, AuxGen &gen) override;
+    bool hasVar() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
+    Symbol eval(bool &undefined, Logger &log) const override;
+    bool match(Symbol const &val) const override;
+    Sig getSig() const override;
+    UTerm renameVars(RenameMap &names) const override;
+    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
+    unsigned getLevel() const override;
+    bool isNotNumeric() const override;
+    bool isNotFunction() const override;
+    Invertibility getInvertibility() const override;
+    void print(std::ostream &out) const override;
+    void unpool(UTermVec &x) const override;
+    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
+    bool operator==(Term const &other) const override;
+    size_t hash() const override;
+    VarTerm *clone() const override;
+    bool hasPool() const override;
+    void collectIds(VarSet &vars) const override;
+    UTerm replace(Defines &defs, bool replace = true) override;
+    double estimate(double size, VarSet const &bound) const override;
+    Symbol isEDB() const override;
 
     String name;
     SVal ref;
@@ -556,241 +672,290 @@ struct VarTerm : Term {
 };
 
 // }}}
+// {{{ declaration of LinearTerm
+
+class LinearTerm : public Term {
+public:
+    using UVarTerm = std::unique_ptr<VarTerm>;
+    LinearTerm(UVarTerm &&var, int m, int n);
+    LinearTerm(VarTerm const &var, int m, int n);
+    LinearTerm(LinearTerm const &other) = delete;
+    LinearTerm(LinearTerm &&other) noexcept = default;
+    LinearTerm &operator=(LinearTerm const &other) = delete;
+    LinearTerm &operator=(LinearTerm &&other) noexcept = default;
+    ~LinearTerm() noexcept override = default;
+
+    bool isVar() const;
+    UVarTerm toVar();
+    void invert();
+    void add(int c);
+    void mul(int c);
+
+    unsigned projectScore() const override;
+    void rename(String name) override;
+    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
+    ProjectRet project(bool rename, AuxGen &gen) override;
+    bool hasVar() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
+    Symbol eval(bool &undefined, Logger &log) const override;
+    bool match(Symbol const &val) const override;
+    Sig getSig() const override;
+    UTerm renameVars(RenameMap &names) const override;
+    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
+    unsigned getLevel() const override;
+    bool isNotNumeric() const override;
+    bool isNotFunction() const override;
+    Invertibility getInvertibility() const override;
+    void print(std::ostream &out) const override;
+    void unpool(UTermVec &x) const override;
+    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
+    bool operator==(Term const &other) const override;
+    size_t hash() const override;
+    LinearTerm *clone() const override;
+    bool hasPool() const override;
+    void collectIds(VarSet &vars) const override;
+    UTerm replace(Defines &defs, bool replace = true) override;
+    double estimate(double size, VarSet const &bound) const override;
+    Symbol isEDB() const override;
+
+private:
+    UVarTerm var_;
+    int m_;
+    int n_;
+};
+
+// }}}
 // {{{ declaration of UnOpTerm
 
-struct UnOpTerm : public Term {
+class UnOpTerm : public Term {
+public:
     UnOpTerm(UnOp op, UTerm &&arg);
-    virtual unsigned projectScore() const;
-    virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
-    virtual ProjectRet project(bool rename, AuxGen &gen);
-    virtual bool hasVar() const;
-    virtual void collect(VarTermBoundVec &vars, bool bound) const;
-    virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, Logger &log) const;
-    virtual bool match(Symbol const &val) const;
-    virtual Sig getSig() const;
-    virtual UTerm renameVars(RenameMap &names) const;
-    virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual UGFunTerm gfunterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual unsigned getLevel() const;
-    virtual bool isNotNumeric() const;
-    virtual bool isNotFunction() const;
-    virtual Invertibility getInvertibility() const;
-    virtual void print(std::ostream &out) const;
-    virtual void unpool(UTermVec &x) const;
-    virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined);
-    virtual bool operator==(Term const &other) const;
-    virtual size_t hash() const;
-    virtual UnOpTerm *clone() const;
-    virtual bool hasPool() const;
-    virtual void collectIds(VarSet &vars) const;
-    virtual UTerm replace(Defines &defs, bool replace = true);
-    virtual double estimate(double size, VarSet const &bound) const;
-    virtual Symbol isEDB() const;
-    virtual bool isAtom() const;
-    virtual ~UnOpTerm();
+    UnOpTerm(UnOpTerm const &other) = delete;
+    UnOpTerm(UnOpTerm &&other) noexcept = default;
+    UnOpTerm &operator=(UnOpTerm const &other) = delete;
+    UnOpTerm &operator=(UnOpTerm &&other) noexcept = default;
+    ~UnOpTerm() noexcept override = default;
 
-    UnOp const op;
-    UTerm arg;
+    unsigned projectScore() const override;
+    void rename(String name) override;
+    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
+    ProjectRet project(bool rename, AuxGen &gen) override;
+    bool hasVar() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
+    Symbol eval(bool &undefined, Logger &log) const override;
+    bool match(Symbol const &val) const override;
+    Sig getSig() const override;
+    UTerm renameVars(RenameMap &names) const override;
+    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
+    UGFunTerm gfunterm(RenameMap &names, ReferenceMap &refs) const override;
+    unsigned getLevel() const override;
+    bool isNotNumeric() const override;
+    bool isNotFunction() const override;
+    Invertibility getInvertibility() const override;
+    void print(std::ostream &out) const override;
+    void unpool(UTermVec &x) const override;
+    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
+    bool operator==(Term const &other) const override;
+    size_t hash() const override;
+    UnOpTerm *clone() const override;
+    bool hasPool() const override;
+    void collectIds(VarSet &vars) const override;
+    UTerm replace(Defines &defs, bool replace = true) override;
+    double estimate(double size, VarSet const &bound) const override;
+    Symbol isEDB() const override;
+    bool isAtom() const override;
+
+private:
+    UnOp op_;
+    UTerm arg_;
 };
 
 // }}}
 // {{{ declaration of BinOpTerm
 
-struct BinOpTerm : public Term {
+class BinOpTerm : public Term {
+public:
     BinOpTerm(BinOp op, UTerm &&left, UTerm &&right);
-    virtual unsigned projectScore() const;
-    virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
-    virtual ProjectRet project(bool rename, AuxGen &gen);
-    virtual bool hasVar() const;
-    virtual void collect(VarTermBoundVec &vars, bool bound) const;
-    virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, Logger &log) const;
-    virtual bool match(Symbol const &val) const;
-    virtual Sig getSig() const;
-    virtual UTerm renameVars(RenameMap &names) const;
-    virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual unsigned getLevel() const;
-    virtual bool isNotNumeric() const;
-    virtual bool isNotFunction() const;
-    virtual Invertibility getInvertibility() const;
-    virtual void print(std::ostream &out) const;
-    virtual void unpool(UTermVec &x) const;
-    virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined);
-    virtual bool operator==(Term const &other) const;
-    virtual size_t hash() const;
-    virtual BinOpTerm *clone() const;
-    virtual bool hasPool() const;
-    virtual void collectIds(VarSet &vars) const;
-    virtual UTerm replace(Defines &defs, bool replace = true);
-    virtual double estimate(double size, VarSet const &bound) const;
-    virtual Symbol isEDB() const;
-    virtual ~BinOpTerm();
+    BinOpTerm(BinOpTerm const &other) = delete;
+    BinOpTerm(BinOpTerm &&other) noexcept = default;
+    BinOpTerm &operator=(BinOpTerm const &other) = delete;
+    BinOpTerm &operator=(BinOpTerm &&other) noexcept = default;
+    ~BinOpTerm() noexcept override = default;
 
-    BinOp op;
-    UTerm left;
-    UTerm right;
+    unsigned projectScore() const override;
+    void rename(String name) override;
+    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
+    ProjectRet project(bool rename, AuxGen &gen) override;
+    bool hasVar() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
+    Symbol eval(bool &undefined, Logger &log) const override;
+    bool match(Symbol const &val) const override;
+    Sig getSig() const override;
+    UTerm renameVars(RenameMap &names) const override;
+    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
+    unsigned getLevel() const override;
+    bool isNotNumeric() const override;
+    bool isNotFunction() const override;
+    Invertibility getInvertibility() const override;
+    void print(std::ostream &out) const override;
+    void unpool(UTermVec &x) const override;
+    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
+    bool operator==(Term const &other) const override;
+    size_t hash() const override;
+    BinOpTerm *clone() const override;
+    bool hasPool() const override;
+    void collectIds(VarSet &vars) const override;
+    UTerm replace(Defines &defs, bool replace = true) override;
+    double estimate(double size, VarSet const &bound) const override;
+    Symbol isEDB() const override;
+
+private:
+    BinOp op_;
+    UTerm left_;
+    UTerm right_;
 };
 
 // }}}
 // {{{ declaration of DotsTerm
 
-struct DotsTerm : public Term {
+class DotsTerm : public Term {
+public:
     DotsTerm(UTerm &&left, UTerm &&right);
-    virtual unsigned projectScore() const;
-    virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
-    virtual ProjectRet project(bool rename, AuxGen &gen);
-    virtual bool hasVar() const;
-    virtual void collect(VarTermBoundVec &vars, bool bound) const;
-    virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, Logger &log) const;
-    virtual bool match(Symbol const &val) const;
-    virtual Sig getSig() const;
-    virtual UTerm renameVars(RenameMap &names) const;
-    virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual unsigned getLevel() const;
-    virtual bool isNotNumeric() const;
-    virtual bool isNotFunction() const;
-    virtual Invertibility getInvertibility() const;
-    virtual void print(std::ostream &out) const;
-    virtual void unpool(UTermVec &x) const;
-    virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined);
-    virtual bool operator==(Term const &other) const;
-    virtual size_t hash() const;
-    virtual DotsTerm *clone() const;
-    virtual bool hasPool() const;
-    virtual void collectIds(VarSet &vars) const;
-    virtual UTerm replace(Defines &defs, bool replace = true);
-    virtual double estimate(double size, VarSet const &bound) const;
-    virtual Symbol isEDB() const;
-    virtual ~DotsTerm();
+    DotsTerm(DotsTerm const &other) = delete;
+    DotsTerm(DotsTerm &&other) noexcept = default;
+    DotsTerm &operator=(DotsTerm const &other) = delete;
+    DotsTerm &operator=(DotsTerm &&other) noexcept = default;
+    ~DotsTerm() noexcept override = default;
 
-    UTerm left;
-    UTerm right;
+    unsigned projectScore() const override;
+    void rename(String name) override;
+    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
+    ProjectRet project(bool rename, AuxGen &gen) override;
+    bool hasVar() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
+    Symbol eval(bool &undefined, Logger &log) const override;
+    bool match(Symbol const &val) const override;
+    Sig getSig() const override;
+    UTerm renameVars(RenameMap &names) const override;
+    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
+    unsigned getLevel() const override;
+    bool isNotNumeric() const override;
+    bool isNotFunction() const override;
+    Invertibility getInvertibility() const override;
+    void print(std::ostream &out) const override;
+    void unpool(UTermVec &x) const override;
+    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
+    bool operator==(Term const &other) const override;
+    size_t hash() const override;
+    DotsTerm *clone() const override;
+    bool hasPool() const override;
+    void collectIds(VarSet &vars) const override;
+    UTerm replace(Defines &defs, bool replace = true) override;
+    double estimate(double size, VarSet const &bound) const override;
+    Symbol isEDB() const override;
+
+private:
+    UTerm left_;
+    UTerm right_;
 };
 
 // }}}
 // {{{ declaration of LuaTerm
 
-struct LuaTerm : public Term {
+class LuaTerm : public Term {
+public:
     LuaTerm(String name, UTermVec &&args);
-    virtual unsigned projectScore() const;
-    virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
-    virtual ProjectRet project(bool rename, AuxGen &gen);
-    virtual bool hasVar() const;
-    virtual void collect(VarTermBoundVec &vars, bool bound) const;
-    virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, Logger &log) const;
-    virtual bool match(Symbol const &val) const;
-    virtual Sig getSig() const;
-    virtual UTerm renameVars(RenameMap &names) const;
-    virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual unsigned getLevel() const;
-    virtual bool isNotNumeric() const;
-    virtual bool isNotFunction() const;
-    virtual Invertibility getInvertibility() const;
-    virtual void print(std::ostream &out) const;
-    virtual void unpool(UTermVec &x) const;
-    virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined);
-    virtual bool operator==(Term const &other) const;
-    virtual size_t hash() const;
-    virtual LuaTerm *clone() const;
-    virtual bool hasPool() const;
-    virtual void collectIds(VarSet &vars) const;
-    virtual UTerm replace(Defines &defs, bool replace = true);
-    virtual double estimate(double size, VarSet const &bound) const;
-    virtual Symbol isEDB() const;
-    virtual ~LuaTerm();
+    LuaTerm(LuaTerm const &other) = delete;
+    LuaTerm(LuaTerm &&other) noexcept = default;
+    LuaTerm &operator=(LuaTerm const &other) = delete;
+    LuaTerm &operator=(LuaTerm &&other) noexcept = default;
+    ~LuaTerm() noexcept override = default;
 
-    String const name;
-    UTermVec args;
+    unsigned projectScore() const override;
+    void rename(String name) override;
+    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
+    ProjectRet project(bool rename, AuxGen &gen) override;
+    bool hasVar() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
+    Symbol eval(bool &undefined, Logger &log) const override;
+    bool match(Symbol const &val) const override;
+    Sig getSig() const override;
+    UTerm renameVars(RenameMap &names) const override;
+    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
+    unsigned getLevel() const override;
+    bool isNotNumeric() const override;
+    bool isNotFunction() const override;
+    Invertibility getInvertibility() const override;
+    void print(std::ostream &out) const override;
+    void unpool(UTermVec &x) const override;
+    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
+    bool operator==(Term const &other) const override;
+    size_t hash() const override;
+    LuaTerm *clone() const override;
+    bool hasPool() const override;
+    void collectIds(VarSet &vars) const override;
+    UTerm replace(Defines &defs, bool replace = true) override;
+    double estimate(double size, VarSet const &bound) const override;
+    Symbol isEDB() const override;
+
+private:
+    String name_;
+    UTermVec args_;
 };
 
 // }}}
 // {{{ declaration of FunctionTerm
 
-struct FunctionTerm : public Term {
+class FunctionTerm : public Term {
+public:
     FunctionTerm(String name, UTermVec &&args);
-    virtual unsigned projectScore() const;
-    virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
-    virtual ProjectRet project(bool rename, AuxGen &gen);
-    virtual bool hasVar() const;
-    virtual void collect(VarTermBoundVec &vars, bool bound) const;
-    virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, Logger &log) const;
-    virtual bool match(Symbol const &val) const;
-    virtual Sig getSig() const;
-    virtual UTerm renameVars(RenameMap &names) const;
-    virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual UGFunTerm gfunterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual unsigned getLevel() const;
-    virtual bool isNotNumeric() const;
-    virtual bool isNotFunction() const;
-    virtual Invertibility getInvertibility() const;
-    virtual void print(std::ostream &out) const;
-    virtual void unpool(UTermVec &x) const;
-    virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined);
-    virtual bool operator==(Term const &other) const;
-    virtual size_t hash() const;
-    virtual FunctionTerm *clone() const;
-    virtual bool hasPool() const;
-    virtual void collectIds(VarSet &vars) const;
-    virtual UTerm replace(Defines &defs, bool replace = true);
-    virtual double estimate(double size, VarSet const &bound) const;
-    virtual Symbol isEDB() const;
-    virtual bool isAtom() const;
-    virtual ~FunctionTerm();
+    FunctionTerm(FunctionTerm const &other) = delete;
+    FunctionTerm(FunctionTerm &&other) noexcept = default;
+    FunctionTerm &operator=(FunctionTerm const &other) = delete;
+    FunctionTerm &operator=(FunctionTerm &&other) noexcept = default;
+    ~FunctionTerm() noexcept override = default;
 
-    String name;
-    UTermVec args;
-    mutable SymVec cache;
-};
+    UTermVec const &arguments();
 
-// }}}
-// {{{ declaration of LinearTerm
+    unsigned projectScore() const override;
+    void rename(String name) override;
+    SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
+    ProjectRet project(bool rename, AuxGen &gen) override;
+    bool hasVar() const override;
+    void collect(VarTermBoundVec &vars, bool bound) const override;
+    void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const override;
+    Symbol eval(bool &undefined, Logger &log) const override;
+    bool match(Symbol const &val) const override;
+    Sig getSig() const override;
+    UTerm renameVars(RenameMap &names) const override;
+    UGTerm gterm(RenameMap &names, ReferenceMap &refs) const override;
+    UGFunTerm gfunterm(RenameMap &names, ReferenceMap &refs) const override;
+    unsigned getLevel() const override;
+    bool isNotNumeric() const override;
+    bool isNotFunction() const override;
+    Invertibility getInvertibility() const override;
+    void print(std::ostream &out) const override;
+    void unpool(UTermVec &x) const override;
+    UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined) override;
+    bool operator==(Term const &other) const override;
+    size_t hash() const override;
+    FunctionTerm *clone() const override;
+    bool hasPool() const override;
+    void collectIds(VarSet &vars) const override;
+    UTerm replace(Defines &defs, bool replace = true) override;
+    double estimate(double size, VarSet const &bound) const override;
+    Symbol isEDB() const override;
+    bool isAtom() const override;
 
-// TODO: if it holds a var it can as well use its location
-struct LinearTerm : Term {
-    using UVarTerm = std::unique_ptr<VarTerm>;
-    LinearTerm(VarTerm const &var, int m, int n);
-    LinearTerm(UVarTerm &&var, int m, int n);
-    virtual unsigned projectScore() const;
-    virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
-    virtual ProjectRet project(bool rename, AuxGen &gen);
-    virtual bool hasVar() const;
-    virtual void collect(VarTermBoundVec &vars, bool bound) const;
-    virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, Logger &log) const;
-    virtual bool match(Symbol const &val) const;
-    virtual Sig getSig() const;
-    virtual UTerm renameVars(RenameMap &names) const;
-    virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
-    virtual unsigned getLevel() const;
-    virtual bool isNotNumeric() const;
-    virtual bool isNotFunction() const;
-    virtual Invertibility getInvertibility() const;
-    virtual void print(std::ostream &out) const;
-    virtual void unpool(UTermVec &x) const;
-    virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined);
-    virtual bool operator==(Term const &other) const;
-    virtual size_t hash() const;
-    virtual LinearTerm *clone() const;
-    virtual bool hasPool() const;
-    virtual void collectIds(VarSet &vars) const;
-    virtual UTerm replace(Defines &defs, bool replace = true);
-    virtual double estimate(double size, VarSet const &bound) const;
-    virtual Symbol isEDB() const;
-    virtual ~LinearTerm();
-
-    UVarTerm var;
-    int m;
-    int n;
+private:
+    String name_;
+    UTermVec args_;
+    mutable SymVec cache_;
 };
 
 // }}}
@@ -848,4 +1013,4 @@ GRINGO_HASH(Gringo::GTerm)
 #pragma warning( pop )
 #endif
 
-#endif // _GRINGO_TERM_HH
+#endif // GRINGO_TERM_HH

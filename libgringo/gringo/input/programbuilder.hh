@@ -37,8 +37,6 @@
 
 namespace Gringo {
 
-struct CSPMulTerm;
-struct CSPAddTerm;
 class TheoryOpDef;
 class TheoryTermDef;
 class TheoryAtomDef;
@@ -47,12 +45,10 @@ class TheoryDef;
 namespace Input {
 
 class Program;
-struct Statement;
-struct BodyAggregate;
-struct HeadAggregate;
-struct Literal;
-struct CSPLiteral;
-struct CSPElem;
+class Statement;
+class BodyAggregate;
+class HeadAggregate;
+class Literal;
 class TheoryElement;
 class TheoryAtom;
 
@@ -72,21 +68,18 @@ namespace Gringo { namespace Input {
 // {{{1 declaration of unique ids of program elements
 
 enum IdVecUid           : unsigned { };
-enum CSPAddTermUid      : unsigned { };
-enum CSPMulTermUid      : unsigned { };
-enum CSPLitUid          : unsigned { };
 enum TermUid            : unsigned { };
 enum TermVecUid         : unsigned { };
 enum TermVecVecUid      : unsigned { };
 enum LitUid             : unsigned { };
 enum LitVecUid          : unsigned { };
+enum RelLitVecUid       : unsigned { };
 enum CondLitVecUid      : unsigned { };
 enum BdAggrElemVecUid   : unsigned { };
 enum HdAggrElemVecUid   : unsigned { };
 enum HdLitUid           : unsigned { };
 enum BdLitVecUid        : unsigned { };
 enum BoundVecUid        : unsigned { };
-enum CSPElemVecUid      : unsigned { };
 enum TheoryOpVecUid     : unsigned { };
 enum TheoryTermUid      : unsigned { };
 enum TheoryOptermUid    : unsigned { };
@@ -118,14 +111,6 @@ public:
     virtual TermUid term(Location const &loc, String name, TermVecVecUid b, bool lua) = 0; // function or lua function
     virtual TermUid term(Location const &loc, TermVecUid args, bool forceTuple) = 0;         // a tuple term (or simply a term)
     virtual TermUid pool(Location const &loc, TermVecUid args) = 0;                          // a pool term
-    // {{{2 csp
-    virtual CSPMulTermUid cspmulterm(Location const &loc, TermUid coe, TermUid var) = 0;
-    virtual CSPMulTermUid cspmulterm(Location const &loc, TermUid coe) = 0;
-    virtual CSPAddTermUid cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) = 0;
-    virtual CSPAddTermUid cspaddterm(Location const &loc, CSPMulTermUid a) = 0;
-    virtual LitUid csplit(CSPLitUid a) = 0;
-    virtual CSPLitUid csplit(Location const &loc, CSPLitUid a, Relation rel, CSPAddTermUid b) = 0;
-    virtual CSPLitUid csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) = 0;
     // {{{2 id vectors
     virtual IdVecUid idvec() = 0;
     virtual IdVecUid idvec(IdVecUid uid, Location const &loc, String id) = 0;
@@ -138,7 +123,9 @@ public:
     // {{{2 literals
     virtual LitUid boollit(Location const &loc, bool type) = 0;
     virtual LitUid predlit(Location const &loc, NAF naf, TermUid atom) = 0;
-    virtual LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) = 0;
+    virtual RelLitVecUid rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) = 0;
+    virtual RelLitVecUid rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) = 0;
+    virtual LitUid rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) = 0;
     // {{{2 literal vectors
     virtual LitVecUid litvec() = 0;
     virtual LitVecUid litvec(LitVecUid uid, LitUid literalUid) = 0;
@@ -167,18 +154,14 @@ public:
     virtual BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, BdAggrElemVecUid bodyaggrelemvec) = 0;
     virtual BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid bodyaggrelemvec) = 0;
     virtual BdLitVecUid conjunction(BdLitVecUid body, Location const &loc, LitUid head, LitVecUid litvec) = 0;
-    virtual BdLitVecUid disjoint(BdLitVecUid body, Location const &loc, NAF naf, CSPElemVecUid elem) = 0;
-    // {{{2 csp constraint elements
-    virtual CSPElemVecUid cspelemvec() = 0;
-    virtual CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) = 0;
     // {{{2 statements
     virtual void rule(Location const &loc, HdLitUid head) = 0;
     virtual void rule(Location const &loc, HdLitUid head, BdLitVecUid body) = 0;
     virtual void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) = 0;
     virtual void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) = 0;
-    virtual void showsig(Location const &loc, Sig, bool csp) = 0;
+    virtual void showsig(Location const &loc, Sig) = 0;
     virtual void defined(Location const &loc, Sig) = 0;
-    virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) = 0;
+    virtual void show(Location const &loc, TermUid t, BdLitVecUid body) = 0;
     virtual void script(Location const &loc, String type, String code) = 0;
     virtual void block(Location const &loc, String name, IdVecUid args) = 0;
     virtual void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) = 0;
@@ -235,7 +218,6 @@ public:
 
 // {{{1 declaration of NongroundProgramBuilder
 
-using UCSPLit = std::unique_ptr<CSPLiteral>;
 using ULit = std::unique_ptr<Literal>;
 using ULitVec = std::vector<ULit>;
 using UHeadAggr = std::unique_ptr<HeadAggregate>;
@@ -249,7 +231,6 @@ using CondLitVec = std::vector<CondLit>;
 using HeadAggrElem = std::tuple<UTermVec, ULit, ULitVec>;
 using HeadAggrElemVec = std::vector<HeadAggrElem>;
 using UBodyAggrVec = std::vector<UBodyAggr>;
-using CSPElemVec = std::vector<CSPElem>;
 using IdVec = std::vector<std::pair<Location, String>>;
 
 class NongroundProgramBuilder : public INongroundProgramBuilder {
@@ -272,21 +253,15 @@ public:
     // {{{2 id vectors
     IdVecUid idvec() override;
     IdVecUid idvec(IdVecUid uid, Location const &loc, String id) override;
-    // {{{2 csp
-    CSPMulTermUid cspmulterm(Location const &loc, TermUid coe, TermUid var) override;
-    CSPMulTermUid cspmulterm(Location const &loc, TermUid coe) override;
-    CSPAddTermUid cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) override;
-    CSPAddTermUid cspaddterm(Location const &loc, CSPMulTermUid a) override;
-    LitUid csplit(CSPLitUid a) override;
-    CSPLitUid csplit(Location const &loc, CSPLitUid a, Relation rel, CSPAddTermUid b) override;
-    CSPLitUid csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) override;
     // {{{2 term vector vectors
     TermVecVecUid termvecvec() override;
     TermVecVecUid termvecvec(TermVecVecUid uid, TermVecUid termvecUid) override;
     // {{{2 literals
     LitUid boollit(Location const &loc, bool type) override;
     LitUid predlit(Location const &loc, NAF naf, TermUid term) override;
-    LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override;
+    RelLitVecUid rellitvec(Location const &loc, Relation rel, TermUid termUidLeft) override;
+    RelLitVecUid rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) override;
+    LitUid rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) override;
     // {{{2 literal vectors
     LitVecUid litvec() override;
     LitVecUid litvec(LitVecUid uid, LitUid literalUid) override;
@@ -315,18 +290,14 @@ public:
     BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, BdAggrElemVecUid bodyaggrelemvec) override;
     BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid bodyaggrelemvec) override;
     BdLitVecUid conjunction(BdLitVecUid body, Location const &loc, LitUid head, LitVecUid litvec) override;
-    BdLitVecUid disjoint(BdLitVecUid body, Location const &loc, NAF naf, CSPElemVecUid elem) override;
-    // {{{2 csp constraint elements
-    CSPElemVecUid cspelemvec() override;
-    CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) override;
     // {{{2 statements
     void rule(Location const &loc, HdLitUid head) override;
     void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
     void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) override;
     void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
-    void showsig(Location const &loc, Sig sig, bool csp) override;
-    void defined(Location const &loc, Sig) override;
-    void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
+    void showsig(Location const &loc, Sig sig) override;
+    void defined(Location const &loc, Sig sig) override;
+    void show(Location const &loc, TermUid t, BdLitVecUid body) override;
     void script(Location const &loc, String type, String code) override;
     void block(Location const &loc, String name, IdVecUid args) override;
     void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) override;
@@ -387,15 +358,12 @@ private:
     using IdVecs           = Indexed<IdVec, IdVecUid>;
     using Lits             = Indexed<ULit, LitUid>;
     using LitVecs          = Indexed<ULitVec, LitVecUid>;
+    using RelLitVecs       = Indexed<std::vector<std::pair<Relation, UTerm>>, RelLitVecUid>;
     using BodyAggrElemVecs = Indexed<BodyAggrElemVec, BdAggrElemVecUid>;
     using CondLitVecs      = Indexed<CondLitVec, CondLitVecUid>;
     using HeadAggrElemVecs = Indexed<HeadAggrElemVec, HdAggrElemVecUid>;
     using Bodies           = Indexed<UBodyAggrVec, BdLitVecUid>;
     using Heads            = Indexed<UHeadAggr, HdLitUid>;
-    using CSPLits          = Indexed<UCSPLit, CSPLitUid>;
-    using CSPAddTerms      = Indexed<CSPAddTerm, CSPAddTermUid>;
-    using CSPMulTerms      = Indexed<CSPMulTerm, CSPMulTermUid>;
-    using CSPElems         = Indexed<CSPElemVec, CSPElemVecUid>;
     using Statements       = std::vector<UStm>;
     using Bounds           = Indexed<BoundVec, BoundVecUid>;
     using VarVals          = std::unordered_map<String, Term::SVal>;
@@ -419,6 +387,7 @@ private:
     IdVecs              idvecs_;
     Lits                lits_;
     LitVecs             litvecs_;
+    RelLitVecs          rellitvecs_;
     BodyAggrElemVecs    bodyaggrelemvecs_;
     HeadAggrElemVecs    headaggrelemvecs_;
     CondLitVecs         condlitvecs_;
@@ -426,10 +395,6 @@ private:
     Bodies              bodies_;
     Heads               heads_;
     VarVals             vals_;
-    CSPLits             csplits_;
-    CSPAddTerms         cspaddterms_;
-    CSPMulTerms         cspmulterms_;
-    CSPElems            cspelems_;
     TheoryOpVecs        theoryOpVecs_;
     TheoryTerms         theoryTerms_;
     RawTheoryTerms      theoryOpterms_;

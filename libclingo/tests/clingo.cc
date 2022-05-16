@@ -316,15 +316,14 @@ TEST_CASE("solving", "[clingo]") {
         }
 #endif
         SECTION("model") {
-            ctl.add("base", {}, "a. $x $= 1. #show b.");
+            ctl.add("base", {}, "a. #show b.");
             ctl.ground({{"base", {}}});
             bool sat = false;
             for (auto &m : ctl.solve()) {
                 REQUIRE(m.type() == ModelType::StableModel);
                 REQUIRE(m.symbols(ShowType::Atoms) == (SymbolVector{Id("a")}));
                 REQUIRE(m.symbols(ShowType::Terms) == (SymbolVector{Id("b")}));
-                REQUIRE(m.symbols(ShowType::CSP) == (SymbolVector{Function("$", {Id("x"), Number(1)})}));
-                REQUIRE(m.symbols(ShowType::Shown) == (SymbolVector{Function("$", {Id("x"), Number(1)}), Id("a"), Id("b")}));
+                REQUIRE(m.symbols(ShowType::Shown) == (SymbolVector{Id("a"), Id("b")}));
                 REQUIRE(m.symbols(ShowType::Atoms | ShowType::Complement).size() == 0);
                 REQUIRE( m.contains(Id("a")));
                 REQUIRE(!m.contains(Id("b")));

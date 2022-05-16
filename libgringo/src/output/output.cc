@@ -95,8 +95,8 @@ public:
     void output(DomainData &, UBackend &) const override { }
     void print(PrintPlain out, char const *prefix) const override {
         for (auto &x : outPreds_) {
-            if (std::get<1>(x).match("", 0)) { out << prefix << "#show.\n"; }
-            else                             { out << prefix << "#show " << (std::get<2>(x) ? "$" : "") << std::get<1>(x) << ".\n"; }
+            if (x.second.match("", 0)) { out << prefix << "#show.\n"; }
+            else                       { out << prefix << "#show " << x.second << ".\n"; }
         }
     }
     void translate(DomainData &data, Translator &trans) override {
@@ -195,11 +195,6 @@ public:
     void output(Symbol sym, Potassco::LitSpan const& condition) override {
         std::ostringstream out;
         out << sym;
-        prg_.output(Potassco::toSpan(out.str().c_str()), condition);
-    }
-    void output(Symbol sym, int value, Potassco::LitSpan const& condition) override {
-        std::ostringstream out;
-        out << sym << "=" << value;
         prg_.output(Potassco::toSpan(out.str().c_str()), condition);
     }
     void external(Atom_t a, Value_t v)  override { prg_.external(a, v); }
@@ -385,16 +380,15 @@ void OutputBase::reset(bool resetData) {
 
 void OutputBase::checkOutPreds(Logger &log) {
     auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
-        if (std::get<1>(x) != std::get<1>(y)) { return std::get<1>(x) < std::get<1>(y); }
-        return std::get<2>(x) < std::get<2>(y);
+        return x.second < y.second;
     };
     auto eq = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) {
-        return std::get<1>(x) == std::get<1>(y) && std::get<2>(x) == std::get<2>(y);
+        return x.second == y.second;
     };
     std::sort(outPreds.begin(), outPreds.end(), le);
     outPreds.erase(std::unique(outPreds.begin(), outPreds.end(), eq), outPreds.end());
     for (auto &x : outPreds) {
-        if (!std::get<1>(x).match("", 0) && !std::get<2>(x)) {
+        if (!x.second.match("", 0)) {
             auto it(predDoms().find(std::get<1>(x)));
             if (it == predDoms().end()) {
                 GRINGO_REPORT(log, Warnings::AtomUndefined)
@@ -504,10 +498,6 @@ public:
     void output(Symbol sym, Potassco::LitSpan const& condition) override {
         a_->output(sym, condition);
         b_->output(sym, condition);
-    }
-    void output(Symbol sym, int value, Potassco::LitSpan const& condition) override {
-        a_->output(sym, value, condition);
-        b_->output(sym, value, condition);
     }
     void external(Atom_t a, Value_t v) override {
         a_->external(a, v);
