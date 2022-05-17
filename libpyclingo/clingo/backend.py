@@ -31,16 +31,15 @@ observe the corresponding rule passed to the backend:
 '''
 
 from typing import ContextManager, Sequence, Optional, Tuple
-from enum import Enum
 from abc import ABCMeta
 
 from ._internal import _c_call, _cb_error_handler, _ffi, _handle_error, _lib, _to_str
-from .core import TruthValue
+from .core import OrderedEnum, TruthValue
 from .symbol import Symbol
 
 __all__ = [ 'Backend', 'HeuristicType', 'Observer' ]
 
-class HeuristicType(Enum):
+class HeuristicType(OrderedEnum):
     '''
     Enumeration of the different heuristic types.
     '''

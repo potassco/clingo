@@ -312,7 +312,7 @@ The next example shows how to transform ASTs using the `Transformer` class:
     p(_X) :- q(_X).
 '''
 
-from enum import Enum, IntEnum
+from enum import IntEnum
 from typing import Any, Callable, ContextManager, Dict, List, MutableSequence, NamedTuple, Optional, Sequence, Tuple, Union
 from collections import abc
 from functools import total_ordering
@@ -320,7 +320,7 @@ from functools import total_ordering
 from ._internal import (_CBData, _Error,
                         _cb_error_handler, _c_call, _ffi, _handle_error, _lib, _str, _to_str)
 from .util import Slice, SlicedMutableSequence
-from .core import Logger
+from .core import Logger, OrderedEnum
 from .control import Control
 from .symbol import Symbol
 
@@ -346,7 +346,7 @@ __all__ = [ 'AST', 'ASTSequence', 'ASTType', 'ASTValue', 'Aggregate',
 
 # pylint: disable=protected-access,invalid-name,too-many-lines,too-many-ancestors
 
-class ASTType(Enum):
+class ASTType(OrderedEnum):
     '''
     Enumeration of ast node types.
     '''

@@ -24,14 +24,14 @@ Examples
 '''
 
 from typing import List, Optional, Tuple
-from enum import Enum
 from functools import total_ordering
 
 from ._internal import _c_call, _c_call2, _lib, _str, _to_str
+from .core import OrderedEnum
 
 __all__ = [ 'TheoryAtom', 'TheoryElement', 'TheoryTerm', 'TheoryTermType' ]
 
-class TheoryTermType(Enum):
+class TheoryTermType(OrderedEnum):
     '''
     Enumeration of theory term types.
     '''

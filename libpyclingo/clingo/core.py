@@ -7,7 +7,31 @@ from enum import Enum
 
 from ._internal import _cb_error_panic, _ffi, _lib, _to_str
 
-__all__ = [ 'Logger', 'MessageCode', 'TruthValue', 'version' ]
+__all__ = [ 'Logger', 'MessageCode', 'OrderedEnum', 'TruthValue', 'version' ]
+
+class OrderedEnum(Enum):
+    '''
+    Enumeration of orderable elements.
+    '''
+    def __ge__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value >= other.value
+        return NotImplemented
+
+    def __gt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value > other.value
+        return NotImplemented
+
+    def __le__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value <= other.value
+        return NotImplemented
+
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value < other.value
+        return NotImplemented
 
 def version() -> Tuple[int, int, int]:
     '''
@@ -19,7 +43,7 @@ def version() -> Tuple[int, int, int]:
     _lib.clingo_version(p_major, p_minor, p_revision)
     return p_major[0], p_minor[0], p_revision[0]
 
-class MessageCode(Enum):
+class MessageCode(OrderedEnum):
     '''
     Enumeration of messages codes.
     '''
@@ -63,7 +87,7 @@ def _pyclingo_logger_callback(code, message, data):
     handler = _ffi.from_handle(data)
     handler(MessageCode(code), _to_str(message))
 
-class TruthValue(Enum):
+class TruthValue(OrderedEnum):
     '''
     Enumeration of the different truth values.
     '''

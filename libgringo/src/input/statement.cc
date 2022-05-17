@@ -288,6 +288,15 @@ void Statement::rewrite() {
         }
         arith.pop_back();
     }
+    { // TODO: compute bounds something like this
+        /*
+        InequalitySolver iqSolver;
+        for (auto &y : body_) {
+            y->addInequality(iqSolver);
+        }
+        iqSolver.solve();
+        */
+    }
     _rewriteAssignments(body_);
 }
 

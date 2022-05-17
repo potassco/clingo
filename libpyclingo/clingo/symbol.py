@@ -22,16 +22,15 @@ Examples
 
 from typing import Callable, List, Optional, Sequence
 
-from enum import Enum
 from functools import total_ordering
 
 from ._internal import _c_call, _c_call2, _ffi, _lib, _str, _to_str
-from .core import MessageCode
+from .core import MessageCode, OrderedEnum
 
 __all__ = [ 'Function', 'Infimum', 'Number', 'String', 'Supremum', 'Symbol',
             'SymbolType', 'Tuple_', 'parse_term']
 
-class SymbolType(Enum):
+class SymbolType(OrderedEnum):
     '''
     Enumeration of symbols types.
     '''

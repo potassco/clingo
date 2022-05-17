@@ -38,10 +38,10 @@ SAT
 '''
 
 from typing import Iterable, Iterator, Optional, Sequence, Tuple
-from enum import Enum
 from abc import ABCMeta
 
 from ._internal import _cb_error_handler, _c_call, _ffi, _handle_error, _lib
+from .core import OrderedEnum
 from .util import Slice, SlicedSequence
 from .symbolic_atoms import SymbolicAtoms
 from .theory_atoms import TheoryAtom
@@ -267,7 +267,7 @@ class Assignment(Sequence[int]):
         '''
         return Trail(self._rep)
 
-class PropagatorCheckMode(Enum):
+class PropagatorCheckMode(OrderedEnum):
     '''
     Enumeration of supported check modes for propagators.
 

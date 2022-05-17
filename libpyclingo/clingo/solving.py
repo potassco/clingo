@@ -74,10 +74,10 @@ This example shows how to solve both iteratively and asynchronously:
 '''
 
 from typing import ContextManager, Iterator, List, Optional, Sequence, Tuple, Union
-from enum import Enum
 
 from ._internal import _c_call, _c_call2, _ffi, _handle_error, _lib
 from .util import Slice, SlicedSequence
+from .core import OrderedEnum
 from .symbol import Symbol
 from .symbolic_atoms import SymbolicAtoms
 
@@ -203,7 +203,7 @@ class SolveControl:
         atoms = _c_call('clingo_symbolic_atoms_t*', _lib.clingo_solve_control_symbolic_atoms, self._rep)
         return SymbolicAtoms(atoms)
 
-class ModelType(Enum):
+class ModelType(OrderedEnum):
     '''
     Enumeration of the different types of models.
     '''
