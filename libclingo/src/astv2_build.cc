@@ -187,7 +187,8 @@ public:
     }
 
     RelLitVecUid rellitvec(Location const &loc, RelLitVecUid vecUidLeft, Relation rel, TermUid termUidRight) override {
-        guardvecs_[vecUidLeft].emplace_back(ast(clingo_ast_type_guard, loc)
+        static_cast<void>(loc);
+        guardvecs_[vecUidLeft].emplace_back(ast(clingo_ast_type_guard)
             .set(clingo_ast_attribute_comparison, static_cast<int>(rel))
             .set(clingo_ast_attribute_term, terms_.erase(termUidRight)));
         return vecUidLeft;

@@ -413,13 +413,15 @@ private:
         if (vec.empty()) {
             throw std::runtime_error("invalid ast: a comparision must have at least one guard");
         }
-        auto ret = prg_.rellitvec(get<Location>(*vec.front(), clingo_ast_attribute_location),
+        auto lhs = get<SAST>(*vec.front(), clingo_ast_attribute_term);
+        auto ret = prg_.rellitvec(get<Location>(*lhs, clingo_ast_attribute_location),
                                   parseRelation(get<int>(*vec.front(), clingo_ast_attribute_comparison)),
-                                  parseTerm(*get<SAST>(*vec.front(), clingo_ast_attribute_term)));
+                                  parseTerm(*lhs));
         for (auto it = vec.begin() + 1, ie = vec.end(); it != ie; ++it) {
-            ret = prg_.rellitvec(get<Location>(**it, clingo_ast_attribute_location),
+            auto rhs = get<SAST>(**it, clingo_ast_attribute_term);
+            ret = prg_.rellitvec(get<Location>(*rhs, clingo_ast_attribute_location),
                                  parseRelation(get<int>(**it, clingo_ast_attribute_comparison)),
-                                 parseTerm(*get<SAST>(**it, clingo_ast_attribute_term)));
+                                 parseTerm(*rhs));
         }
         return ret;
     }
