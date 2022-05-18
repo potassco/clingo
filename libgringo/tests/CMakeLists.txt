@@ -22,6 +22,7 @@ source_group("${ide_source_group}\\ground" FILES ${source-group-ground})
 set(source-group-input
     "${CMAKE_CURRENT_SOURCE_DIR}/input/aggregate.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/input/aggregate_helper.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/input/iesolver.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/input/lit_helper.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/input/literal.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/input/nongroundgrammar.cc"
