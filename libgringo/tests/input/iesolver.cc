@@ -16,8 +16,20 @@ TEST_CASE("iesolver", "[iesolver]") {
         slv.add({{{1, Y.get()}, {-1, X.get()}}, 1});
         slv.add({{{-1, X.get()}, {-1, Y.get()}}, -100});
 
-        // TODO
-        // REQUIRE(slv.compute_bounds());
+        auto const *bounds = slv.compute_bounds();
+        auto itX = bounds->find(X.get());
+        auto itY = bounds->find(Y.get());
+        REQUIRE(bounds != nullptr);
+        REQUIRE(itX != bounds->end());
+        REQUIRE(itY != bounds->end());
+        REQUIRE(itX->second.hasBound(IEBound::Lower));
+        REQUIRE(itX->second.hasBound(IEBound::Upper));
+        REQUIRE(itY->second.hasBound(IEBound::Lower));
+        REQUIRE(itY->second.hasBound(IEBound::Upper));
+        REQUIRE(itX->second.bound(IEBound::Lower) == 2);
+        REQUIRE(itX->second.bound(IEBound::Upper) == 97);
+        REQUIRE(itY->second.bound(IEBound::Lower) == 3);
+        REQUIRE(itY->second.bound(IEBound::Upper) == 98);
     }
 }
 
