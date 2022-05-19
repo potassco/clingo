@@ -34,6 +34,7 @@
 #include <gringo/clonable.hh>
 #include <gringo/utility.hh>
 #include <gringo/logger.hh>
+
 #include <memory>
 #include <unordered_set>
 #ifdef _MSC_VER
@@ -190,6 +191,54 @@ private:
     int level_{0};
 };
 
+struct IETerm {
+    int coefficient{0};
+    VarTerm const *variable{nullptr};
+};
+using IETermVec = std::vector<IETerm>;
+
+struct IE {
+    IETermVec terms;
+    int bound;
+};
+using IEVec = std::vector<IE>;
+
+class IEBound {
+public:
+    enum Type { Lower, Upper };
+
+    bool hasBound(Type type) const;
+    int bound(Type type) const;
+    void setBound(Type type, int bound);
+    bool refineBound(Type type, int bound);
+
+private:
+    int lower_{0};
+    int upper_{0};
+    bool hasLower_{false};
+    bool hasUpper_{false};
+
+};
+using IEBoundMap = std::map<VarTerm const *, IEBound>;
+
+class IESolver {
+public:
+    void add(IE ie);
+    IEBoundMap const *compute_bounds();
+
+private:
+    template<typename I>
+    static I floordiv_(I n, I m);
+    template<typename I>
+    static I ceildiv_(I n, I m);
+    static int div_(bool positive, int a, int b);
+    bool update_bound_(bool positive, int slack, int num_unbounded, IETerm const &term);
+    void update_slack_(bool positive, IETerm const &term, int &slack, int &num_unbounded);
+
+    IEBoundMap bounds_;
+    IEVec ies_;
+};
+
 class Term : public Printable, public Hashable, public Locatable, public Comparable<Term>, public Clonable<Term> {
 public:
     //! Return value of Term::project (replace, projected, project).
@@ -300,6 +349,10 @@ public:
     virtual Symbol isEDB() const = 0;
     virtual int toNum(bool &undefined, Logger &log);
     virtual bool isAtom() const { return false; }
+    //! Add the term to the given linear term.
+    //!
+    //! The return values indicates whether the term was convertible.
+    virtual bool addToLinearTerm(IETermVec &terms) const = 0;
 
     //! Inserts a term into arith creating a new unique variable if necessary.
     static UTerm insert(ArithmeticsMap &arith, AuxGen &auxGen, UTerm &&term, bool eq = false);
@@ -547,6 +600,7 @@ public:
     PoolTerm &operator=(PoolTerm &&other) noexcept = default;
     ~PoolTerm() noexcept override = default;
 
+    bool addToLinearTerm(IETermVec &terms) const override;
     unsigned projectScore() const override;
     void rename(String name) override;
     SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
@@ -592,6 +646,7 @@ public:
     ValTerm &operator=(ValTerm &&other) noexcept = default;
     ~ValTerm() noexcept override = default;
 
+    bool addToLinearTerm(IETermVec &terms) const override;
     unsigned projectScore() const override;
     void rename(String name) override;
     SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
@@ -637,6 +692,7 @@ public:
     VarTerm &operator=(VarTerm &&other) noexcept = default;
     ~VarTerm() noexcept override = default;
 
+    bool addToLinearTerm(IETermVec &terms) const override;
     unsigned projectScore() const override;
     void rename(String name) override;
     SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
@@ -691,6 +747,7 @@ public:
     void add(int c);
     void mul(int c);
 
+    bool addToLinearTerm(IETermVec &terms) const override;
     unsigned projectScore() const override;
     void rename(String name) override;
     SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
@@ -737,6 +794,7 @@ public:
     UnOpTerm &operator=(UnOpTerm &&other) noexcept = default;
     ~UnOpTerm() noexcept override = default;
 
+    bool addToLinearTerm(IETermVec &terms) const override;
     unsigned projectScore() const override;
     void rename(String name) override;
     SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
@@ -784,6 +842,7 @@ public:
     BinOpTerm &operator=(BinOpTerm &&other) noexcept = default;
     ~BinOpTerm() noexcept override = default;
 
+    bool addToLinearTerm(IETermVec &terms) const override;
     unsigned projectScore() const override;
     void rename(String name) override;
     SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
@@ -830,6 +889,7 @@ public:
     DotsTerm &operator=(DotsTerm &&other) noexcept = default;
     ~DotsTerm() noexcept override = default;
 
+    bool addToLinearTerm(IETermVec &terms) const override;
     unsigned projectScore() const override;
     void rename(String name) override;
     SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
@@ -875,6 +935,7 @@ public:
     LuaTerm &operator=(LuaTerm &&other) noexcept = default;
     ~LuaTerm() noexcept override = default;
 
+    bool addToLinearTerm(IETermVec &terms) const override;
     unsigned projectScore() const override;
     void rename(String name) override;
     SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;
@@ -922,6 +983,7 @@ public:
 
     UTermVec const &arguments();
 
+    bool addToLinearTerm(IETermVec &terms) const override;
     unsigned projectScore() const override;
     void rename(String name) override;
     SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) override;

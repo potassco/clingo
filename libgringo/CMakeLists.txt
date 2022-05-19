@@ -40,7 +40,6 @@ set(header-group-gringo-input
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/input/aggregate.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/input/aggregates.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/input/groundtermparser.hh"
-    "${CMAKE_CURRENT_SOURCE_DIR}/gringo/input/iesolver.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/input/literal.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/input/literals.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/input/nongroundparser.hh"

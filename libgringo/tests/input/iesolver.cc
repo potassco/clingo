@@ -1,5 +1,4 @@
 #include <catch2/catch.hpp>
-#include "gringo/input/iesolver.hh"
 #include "gringo/term.hh"
 
 namespace Gringo { namespace Input { namespace Test {
