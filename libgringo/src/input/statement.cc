@@ -288,14 +288,23 @@ void Statement::rewrite() {
         }
         arith.pop_back();
     }
-    { // TODO: compute bounds something like this
-        /*
-        InequalitySolver iqSolver;
-        for (auto &y : body_) {
-            y->addInequality(iqSolver);
+    {
+        // TODO: maybe require options?
+        IESolver solver;
+        for (auto const &lit : body_) {
+            lit->addToSolver(solver);
         }
-        iqSolver.solve();
-        */
+        for (auto const &bound : solver.compute_bounds()) {
+            if (solver.isImproving(bound.first, bound.second)) {
+                auto loc = bound.first->loc();
+                body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(
+                    make_locatable<RangeLiteral>(
+                        loc,
+                        UTerm{bound.first->clone()},
+                        make_locatable<ValTerm>(loc, Symbol::createNum(bound.second.bound(IEBound::Lower))),
+                        make_locatable<ValTerm>(loc, Symbol::createNum(bound.second.bound(IEBound::Upper))))));
+            }
+        }
     }
     _rewriteAssignments(body_);
 }

@@ -166,6 +166,8 @@ public:
     BodyAggregate &operator=(BodyAggregate &&other) noexcept = default;
     ~BodyAggregate() noexcept override = default;
 
+    //! Add inequalities bounding variables to the given solver.
+    virtual void addToSolver(IESolver &solver) const;
     //! Removes RawTheoryTerms from TheoryLiterals
     virtual void initTheory(TheoryDefs &def, Logger &log) { (void)def; (void)log; };
     virtual unsigned projectScore() const { return 2; }
@@ -218,8 +220,10 @@ public:
     HeadAggregate &operator=(HeadAggregate &&other) noexcept = default;
     ~HeadAggregate() noexcept override = default;
 
+    //! Add inequalities bounding variables to the given solver.
+    virtual void addToSolver(IESolver &solver) const;
     //! Removes RawTheoryTerms from TheoryLiterals
-    virtual void initTheory(TheoryDefs &def, bool hasBody, Logger &log) { (void)def; (void)hasBody; (void)log; }
+    virtual void initTheory(TheoryDefs &def, bool hasBody, Logger &log);
     virtual bool isPredicate() const { return false; }
     //! Check if the aggregate needs unpooling.
     virtual bool hasPool(bool beforeRewrite) const = 0;

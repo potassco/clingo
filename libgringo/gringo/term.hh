@@ -197,6 +197,9 @@ struct IETerm {
 };
 using IETermVec = std::vector<IETerm>;
 
+void addIETerm(IETermVec &terms, IETerm const &term);
+void subIETerm(IETermVec &terms, IETerm const &term);
+
 struct IE {
     IETermVec terms;
     int bound;
@@ -211,6 +214,9 @@ public:
     int bound(Type type) const;
     void setBound(Type type, int bound);
     bool refineBound(Type type, int bound);
+    bool isBounded() const;
+    bool isImproving(IEBound const &other) const;
+    friend bool operator<(IEBound const &a, IEBound const &b);
 
 private:
     int lower_{0};
@@ -219,12 +225,17 @@ private:
     bool hasUpper_{false};
 
 };
-using IEBoundMap = std::map<VarTerm const *, IEBound>;
+
+struct VarTermCmp {
+    bool operator()(VarTerm const *a, VarTerm const *b) const;
+};
+using IEBoundMap = std::map<VarTerm const *, IEBound, VarTermCmp>;
 
 class IESolver {
 public:
-    void add(IE ie);
-    IEBoundMap const *compute_bounds();
+    void add(IE ie, bool ignoreIfFixed);
+    bool isImproving(VarTerm const *var, IEBound const &bound);
+    IEBoundMap const &compute_bounds();
 
 private:
     template<typename I>
@@ -236,6 +247,7 @@ private:
     void update_slack_(bool positive, IETerm const &term, int &slack, int &num_unbounded);
 
     IEBoundMap bounds_;
+    IEBoundMap fixed_;
     IEVec ies_;
 };
 

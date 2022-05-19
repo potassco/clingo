@@ -220,6 +220,74 @@ ULit RelationLiteral::make(Literal::RelationVec::value_type &x) {
     return make_locatable<RelationLiteral>(loc, NAF::POS, std::get<0>(x), std::move(std::get<1>(x)), get_clone(std::get<2>(x)));
 }
 
+void RelationLiteral::addToSolver(IESolver &solver, bool invert) const {
+    if (right_.size() != 1) {
+        return;
+    }
+    auto rel = right_.front().first;
+    if (invert) {
+        rel = neg(rel);
+    }
+    if (naf_ == NAF::NOT) {
+        rel = neg(rel);
+    }
+    if (rel == Relation::NEQ) {
+        return;
+    }
+    IETermVec left;
+    if (!left_->addToLinearTerm(left)) {
+        return;
+    }
+    IETermVec right;
+    if (!right_.front().second->addToLinearTerm(right)) {
+        return;
+    }
+    // TODO: it should be possible to make this nicer!!!
+    switch (rel) {
+        case Relation::NEQ: {
+            return;
+        }
+        case Relation::EQ: {
+            // ignore assignements of X=number
+            bool ignoreIfFixed =
+                dynamic_cast<VarTerm*>(left_.get()) != nullptr &&
+                dynamic_cast<ValTerm*>(right_.front().second.get()) != nullptr;
+            auto temp = right;
+            for (auto const &term : left) {
+                subIETerm(right, term);
+            }
+            solver.add({right, 0}, ignoreIfFixed);
+            for (auto const &term : temp) {
+                subIETerm(left, term);
+            }
+            solver.add({left, 0}, ignoreIfFixed);
+            return;
+        }
+        case Relation::LT: {
+            addIETerm(left, {1, nullptr});
+        }
+        case Relation::LEQ: {
+            // right - left >= 0
+            for (auto const &term : left) {
+                subIETerm(right, term);
+            }
+            solver.add({right, 0}, false);
+            return;
+        }
+        case Relation::GT: {
+            addIETerm(right, {1, nullptr});
+        }
+        case Relation::GEQ: {
+            // left - right >= 0
+            for (auto const &term : right) {
+                subIETerm(left, term);
+            }
+            solver.add({left, 0}, false);
+            return;
+        }
+    }
+}
+
 bool RelationLiteral::needSetShift() const {
     return true;
 }
@@ -440,6 +508,32 @@ RangeLiteral::RangeLiteral(UTerm &&assign, UTerm &&lower, UTerm &&upper)
 ULit RangeLiteral::make(SimplifyState::DotsMap::value_type &dot) {
     Location loc(std::get<0>(dot)->loc());
     return make_locatable<RangeLiteral>(loc, std::move(std::get<0>(dot)), std::move(std::get<1>(dot)), std::move(std::get<2>(dot)));
+}
+
+void RangeLiteral::addToSolver(IESolver &solver, bool invert) const {
+    if (invert) {
+        return;
+    }
+    IETermVec assign;
+    if (!assign_->addToLinearTerm(assign)) {
+        return;
+    }
+    IETermVec upper;
+    if (upper_->addToLinearTerm(upper)) {
+        // we get constraint upper - assign >= 0
+        for (auto const &term : assign) {
+            subIETerm(upper, term);
+        }
+        solver.add({std::move(upper), 0}, true);
+    }
+    IETermVec lower;
+    if (lower_->addToLinearTerm(lower)) {
+        // we get constraint assign - lower >= 0
+        for (auto const &term : lower) {
+            subIETerm(assign, term);
+        }
+        solver.add({std::move(assign), 0}, true);
+    }
 }
 
 void RangeLiteral::print(std::ostream &out) const {

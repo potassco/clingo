@@ -158,6 +158,7 @@ public:
     SimpleBodyLiteral &operator=(SimpleBodyLiteral &&other) noexcept = default;
     ~SimpleBodyLiteral() noexcept override;
 
+    void addToSolver(IESolver &solver) const override;
     unsigned projectScore() const override { return lit_->projectScore(); }
     Location const &loc() const override;
     void loc(Location const &loc) override;
@@ -302,6 +303,7 @@ public:
     SimpleHeadLiteral &operator=(SimpleHeadLiteral &&other) noexcept = default;
     ~SimpleHeadLiteral() noexcept override;
 
+    void addToSolver(IESolver &solver) const override;
     bool isPredicate() const override { return true; }
     Location const &loc() const override;
     void loc(Location const &loc) override;

@@ -81,6 +81,8 @@ public:
     Literal &operator=(Literal &&other) noexcept = default;
     ~Literal() noexcept override = default;
 
+    //! Add inequalities bounding variables to the given solver.
+    virtual void addToSolver(IESolver &solver, bool invert) const;
     virtual unsigned projectScore() const { return 2; }
     //! Returns true if the literal needs to be shifted before unpooling to
     //! support counting in aggregates.

@@ -11,16 +11,16 @@ TEST_CASE("iesolver", "[iesolver]") {
         auto X = make_locatable<VarTerm>(loc, "X", valX);
         auto Y = make_locatable<VarTerm>(loc, "Y", valY);
         IESolver slv;
-        slv.add({{{1, X.get()}}, 2});
-        slv.add({{{1, Y.get()}, {-1, X.get()}}, 1});
-        slv.add({{{-1, X.get()}, {-1, Y.get()}}, -100});
+        slv.add({{{1, X.get()}}, 2}, false);
+        slv.add({{{1, Y.get()}, {-1, X.get()}}, 1}, false);
+        slv.add({{{-1, X.get()}, {-1, Y.get()}}, -100}, false);
 
-        auto const *bounds = slv.compute_bounds();
-        auto itX = bounds->find(X.get());
-        auto itY = bounds->find(Y.get());
-        REQUIRE(bounds != nullptr);
-        REQUIRE(itX != bounds->end());
-        REQUIRE(itY != bounds->end());
+        auto const &bounds = slv.compute_bounds();
+        auto itX = bounds.find(X.get());
+        auto itY = bounds.find(Y.get());
+        REQUIRE(!bounds.empty());
+        REQUIRE(itX != bounds.end());
+        REQUIRE(itY != bounds.end());
         REQUIRE(itX->second.hasBound(IEBound::Lower));
         REQUIRE(itX->second.hasBound(IEBound::Upper));
         REQUIRE(itY->second.hasBound(IEBound::Lower));

@@ -156,7 +156,24 @@ UTerm ToGroundArg::newId(UTermVec &&global, Location const &loc, bool increment)
 
 // }}}
 
+// {{{ definition of BodyAggregate
+
+void BodyAggregate::addToSolver(IESolver &solver) const {
+    static_cast<void>(solver);
+}
+
+// }}}
 // {{{ definition of HeadAggregate
+
+void HeadAggregate::addToSolver(IESolver &solver) const {
+    static_cast<void>(solver);
+}
+
+void HeadAggregate::initTheory(TheoryDefs &def, bool hasBody, Logger &log) {
+    static_cast<void>(def);
+    static_cast<void>(hasBody);
+    static_cast<void>(log);
+}
 
 Symbol HeadAggregate::isEDB() const {
     return {};

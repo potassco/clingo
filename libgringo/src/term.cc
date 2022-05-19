@@ -187,11 +187,109 @@ bool IEBound::refineBound(Type type, int bound) {
     return false;
 }
 
-void IESolver::add(IE ie) {
-    ies_.emplace_back(std::move(ie));
+bool IEBound::isBounded() const {
+    return hasLower_ && hasUpper_;
 }
 
-IEBoundMap const *IESolver::compute_bounds() {
+bool IEBound::isImproving(IEBound const &other) const {
+    if (!other.isBounded() || !isBounded()) {
+        return false;
+    }
+    return other.lower_ < lower_ || upper_ < other.upper_;
+}
+
+bool VarTermCmp::operator()(VarTerm const *a, VarTerm const *b) const {
+    return a->name < b->name;
+}
+
+bool IESolver::isImproving(VarTerm const *var, IEBound const &bound) {
+    auto it = fixed_.find(var);
+    if (it == fixed_.end()) {
+        return bound.isBounded();
+    }
+    return bound.isImproving(it->second);
+}
+
+namespace {
+
+template<class It, class Merge>
+It merge_adjancent(It first, It last, Merge m) {
+    if (first == last) {
+        return last;
+    }
+
+    auto result = first;
+    while (++first != last) {
+        if (!m(*result, *first) && ++result != first) {
+            *result = std::move(*first);
+        }
+    }
+    return ++result;
+}
+
+} // namespace
+
+void IESolver::add(IE ie, bool ignoreIfFixed) {
+    auto &terms = ie.terms;
+
+    // remove terms not associated with a variable
+    auto last = std::partition(
+        terms.begin(), terms.end(),
+        [](auto &term) {
+            return term.variable != nullptr && term.coefficient != 0;
+        });
+    for (auto end = terms.end(), current = last; current != end; ++current) {
+        ie.bound -= current->coefficient;
+    }
+    terms.erase(last, terms.end());
+
+    // sort according to variables
+    std::sort(
+        terms.begin(), terms.end(),
+        [](auto const &a, auto const &b) {
+            return a.variable->name == b.variable->name;
+        });
+
+    // combine adjacent terms referring to the same variable
+    terms.erase(merge_adjancent(
+        terms.begin(), terms.end(),
+        [](auto &a, auto &b) {
+            if (a.variable->name == b.variable->name) {
+                a.coefficient += b.coefficient;
+                return true;
+            }
+            return false;
+        }), terms.end());
+    ies_.emplace_back(std::move(ie));
+
+    if (ies_.back().terms.size() == 1 && ignoreIfFixed) {
+        auto term = ies_.back().terms.back();
+        if (term.coefficient == 1) {
+            fixed_[term.variable].refineBound(IEBound::Lower, ies_.back().bound);
+        }
+        else if (term.coefficient == -1) {
+            fixed_[term.variable].refineBound(IEBound::Upper, -ies_.back().bound);
+        }
+    }
+}
+
+IEBoundMap const &IESolver::compute_bounds() {
+#ifdef CLINGO_DEBUG_INEQUALITIES
+    for (auto &ie : ies_) {
+        bool comma = false;
+        if (ie.terms.empty()) {
+            std::cerr << "0";
+        }
+        for (auto const &term : ie.terms) {
+            if (comma) {
+                std::cerr << " + ";
+            }
+            comma = true;
+            std::cerr << term.coefficient << "*" << term.variable->name;
+        }
+        std::cerr << " >= " << ie.bound << std::endl;
+    }
+#endif
     bounds_.clear();
     bool changed = true;
     while (changed) {
@@ -203,7 +301,14 @@ IEBoundMap const *IESolver::compute_bounds() {
                 update_slack_(term.coefficient > 0, term, slack, num_unbounded);
             }
             if (num_unbounded == 0 && slack > 0) {
-                return nullptr;
+                // we simply set all bounds to empty intervals
+                for (auto const &ie : ies_) {
+                    for (auto const &term : ie.terms) {
+                        bounds_[term.variable].setBound(IEBound::Lower, 1);
+                        bounds_[term.variable].setBound(IEBound::Upper, 0);
+                    }
+                }
+                return bounds_;
             }
             if (num_unbounded <= 1) {
                 for (auto const &term : ie.terms) {
@@ -212,7 +317,7 @@ IEBoundMap const *IESolver::compute_bounds() {
             }
         }
     }
-    return &bounds_;
+    return bounds_;
 }
 
 template<typename I>
@@ -675,6 +780,30 @@ inline int ipow(int a, int b) {
     return r;
 }
 
+void add_(IETermVec &terms, int coefficient, VarTerm const *var = nullptr) {
+    // NOTE: could use sorting and maybe use inequalities right away
+    for (auto &term : terms) {
+        if (var == term.variable || (term.variable != nullptr && var != nullptr && term.variable->name == var->name)) {
+            term.coefficient += coefficient;
+            return;
+        }
+    }
+    terms.emplace_back(IETerm{coefficient, var});
+}
+
+bool toNum_(IETermVec const &terms, int &res) {
+    res = 0;
+    for (auto const &term : terms) {
+        if (term.variable == nullptr) {
+            res += term.coefficient;
+        }
+        if (term.variable != nullptr) {
+            return false;
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 int eval(BinOp op, int x, int y) {
@@ -730,27 +859,12 @@ std::ostream &operator<<(std::ostream &out, BinOp op) {
     return out;
 }
 
-void add_(IETermVec &terms, int coefficient, VarTerm const *var = nullptr) {
-    for (auto &term : terms) {
-        if (var == term.variable || (var != nullptr && term.variable->name == var->name)) {
-            term.coefficient += coefficient;
-            return;
-        }
-    }
-    terms.emplace_back(IETerm{coefficient, var});
+void addIETerm(IETermVec &terms, IETerm const &term) {
+    add_(terms, term.coefficient, term.variable);
 }
 
-bool toNum_(IETermVec const &terms, int &res) {
-    res = 0;
-    for (auto const &term : terms) {
-        if (term.variable == nullptr) {
-            res += term.coefficient;
-        }
-        if (term.variable != nullptr) {
-            return false;
-        }
-    }
-    return true;
+void subIETerm(IETermVec &terms, IETerm const &term) {
+    add_(terms, -term.coefficient, term.variable);
 }
 
 // {{{1 definition of Term and auxiliary functions

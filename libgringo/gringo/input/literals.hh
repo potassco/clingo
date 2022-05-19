@@ -104,6 +104,7 @@ public:
     static ULit make(Literal::RelationVec::value_type &x);
 
     // {{{ Term interface
+    void addToSolver(IESolver &solver, bool invert) const override;
     bool needSetShift() const override;
     unsigned projectScore() const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
@@ -146,6 +147,7 @@ public:
 
     static ULit make(SimplifyState::DotsMap::value_type &dots);
 
+    void addToSolver(IESolver &solver, bool invert) const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
     void toTuple(UTermVec &tuple, int &id) const override;
     RangeLiteral *clone() const override;

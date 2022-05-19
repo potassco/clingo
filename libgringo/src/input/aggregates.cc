@@ -1062,6 +1062,10 @@ void SimpleBodyLiteral::loc(Location const &loc) {
 
 SimpleBodyLiteral::~SimpleBodyLiteral() noexcept = default;
 
+void SimpleBodyLiteral::addToSolver(IESolver &solver) const {
+    lit_->addToSolver(solver, false);
+}
+
 void SimpleBodyLiteral::print(std::ostream &out) const {
     lit_->print(out);
 }
@@ -2107,6 +2111,10 @@ Location const &SimpleHeadLiteral::loc() const {
 
 void SimpleHeadLiteral::loc(Location const &loc) {
     lit_->loc(loc);
+}
+
+void SimpleHeadLiteral::addToSolver(IESolver &solver) const {
+    lit_->addToSolver(solver, true);
 }
 
 void SimpleHeadLiteral::print(std::ostream &out) const {

@@ -120,17 +120,18 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("#void:-1>=2;q.#void:-2>=3;q." == rewrite(parse("1<2<3:-q.")));
         REQUIRE("#void:-2<3;1<2;q." == rewrite(parse("not 1<2<3:-q.")));
         REQUIRE("#void::;#void:::-5<6;4<5;2<3;1<2;q." == rewrite(parse("not 1<2<3|not 4<5<6:-q.")));
-        REQUIRE("#void:-#range(#Range0,1,2);q;1>=(#Range0+0).#void:-#range(#Range0,1,2);q;(#Range0+0)>=3." == rewrite(parse("1<1..2<3:-q.")));
-        REQUIRE("#void:-#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
+        REQUIRE("#void:-#range(#Range0,1,1);#range(#Range0,1,2);q;1>=(#Range0+0)."
+                "#void:-#range(#Range0,1,0);#range(#Range0,1,2);q;(#Range0+0)>=3." == rewrite(parse("1<1..2<3:-q.")));
+        REQUIRE("#void:-#range(#Range0,2,2);#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
         REQUIRE("#void:-1>=2;q.#void:-2>=4;q.#void:-1>=3;q.#void:-3>=4;q." == rewrite(parse("1<(2;3)<4:-q.")));
         REQUIRE("#void:-2<4;1<2;q.#void:-3<4;1<3;q." == rewrite(parse("not 1<(2;3)<4:-q.")));
         // body
         REQUIRE("q:-2<3;1<2." == rewrite(parse("q :- 1<2<3.")));
         REQUIRE("q:-1>=2."
                 "q:-2>=3." == rewrite(parse("q :- not 1<2<3.")));
-        REQUIRE("q:-#range(#Range0,1,2);1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("q :- 1<1..2<3.")));
-        REQUIRE("q:-#range(#Range0,1,2);1>=(#Range0+0)."
-                "q:-#range(#Range0,1,2);(#Range0+0)>=3." == rewrite(parse("q :- not 1<1..2<3.")));
+        REQUIRE("q:-#range(#Range0,2,2);#range(#Range0,1,2);1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("q :- 1<1..2<3.")));
+        REQUIRE("q:-#range(#Range0,1,1);#range(#Range0,1,2);1>=(#Range0+0)."
+                "q:-#range(#Range0,1,0);#range(#Range0,1,2);(#Range0+0)>=3." == rewrite(parse("q :- not 1<1..2<3.")));
         REQUIRE("q:-2<4;1<2."
                 "q:-3<4;1<3." == rewrite(parse("q :- 1<(2;3)<4.")));
         REQUIRE("q:-1>=2."
