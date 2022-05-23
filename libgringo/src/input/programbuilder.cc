@@ -504,7 +504,7 @@ void NongroundProgramBuilder::theorydef(Location const &loc, String name, Theory
 
 // }}}2
 
-NongroundProgramBuilder::~NongroundProgramBuilder() { }
+NongroundProgramBuilder::~NongroundProgramBuilder() noexcept = default;
 
 // }}}1
 

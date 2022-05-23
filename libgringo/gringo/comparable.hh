@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_COMPARABLE_HH
-#define _GRINGO_COMPARABLE_HH
+#ifndef GRINGO_COMPARABLE_HH
+#define GRINGO_COMPARABLE_HH
 
 namespace Gringo {
 
@@ -47,6 +47,6 @@ public:
 
 } // namespace Gringo
 
-#endif // _GRINGO_COMPARABLE_HH
+#endif // GRINGO_COMPARABLE_HH
 
 

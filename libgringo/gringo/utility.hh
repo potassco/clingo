@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_UTILITY_HH
-#define _GRINGO_UTILITY_HH
+#ifndef GRINGO_UTILITY_HH
+#define GRINGO_UTILITY_HH
 
 #include <memory>
 #include <vector>
@@ -43,18 +43,21 @@ namespace Gringo {
 namespace detail {
     template <int X> using int_type = std::integral_constant<int, X>;
     template <class T, class S>
-    inline void nc_check(S s, int_type<0>) { // same sign
-        (void)s;
+    inline void nc_check(S s, int_type<0> t) { // same sign
+        static_cast<void>(s);
+        static_cast<void>(t);
         assert((std::is_same<T, S>::value) || (s >= std::numeric_limits<T>::min() && s <= std::numeric_limits<T>::max()));
     }
     template <class T, class S>
-    inline void nc_check(S s, int_type<-1>) { // Signed -> Unsigned
-        (void)s;
+    inline void nc_check(S s, int_type<-1> t) { // Signed -> Unsigned
+        static_cast<void>(s);
+        static_cast<void>(t);
         assert(s >= 0 && static_cast<S>(static_cast<T>(s)) == s);
     }
     template <class T, class S>
-    inline void nc_check(S s, int_type<1>) { // Unsigned -> Signed
-        (void)s;
+    inline void nc_check(S s, int_type<1> t) { // Unsigned -> Signed
+        static_cast<void>(s);
+        static_cast<void>(t);
         assert(!(s > static_cast<typename std::make_unsigned<T>::type>(std::numeric_limits<T>::max())));
     }
 } // namespace detail
@@ -77,11 +80,11 @@ public:
     : ptr_(0) { }
     explicit single_owner_ptr(T* ptr, bool owner)
     : ptr_(uintptr_t(ptr) | (owner && ptr)) { }
-    single_owner_ptr(single_owner_ptr &&p)
+    single_owner_ptr(single_owner_ptr &&p) noexcept
     : ptr_(p.ptr_) {
         p.release();
     }
-    single_owner_ptr(std::unique_ptr<T>&& p)
+    single_owner_ptr(std::unique_ptr<T>&& p) noexcept // NOLINT
     : single_owner_ptr(p.release(), true) { }
     single_owner_ptr(const single_owner_ptr&) = delete;
     ~single_owner_ptr() {
@@ -89,14 +92,14 @@ public:
             delete get();
         }
     }
-    single_owner_ptr& operator=(single_owner_ptr&& p) {
+    single_owner_ptr& operator=(single_owner_ptr&& p) noexcept {
         bool owner = p.is_owner();
         reset(p.release(), owner);
         return *this;
     }
     single_owner_ptr& operator=(const single_owner_ptr&) = delete;
     bool is_owner() const {
-        return ptr_ & 1;
+        return (ptr_ & 1) == 1;
     }
     T* get() const {
         return (T*)(ptr_ & ~1);
@@ -325,7 +328,8 @@ protected:
         count_++;
         return ch;
     }
-    std::streamsize xsputn(const char_type*, std::streamsize count) override {
+    std::streamsize xsputn(char_type const *c, std::streamsize count) override {
+        static_cast<void>(c);
         count_ += count;
         return count;
     }
@@ -727,7 +731,8 @@ template <class S, class T, class U>
 void print_comma(S &out, T const &x, const char *sep, U const &f) {
     using std::begin;
     using std::end;
-    auto it(begin(x)), ie(end(x));
+    auto it = begin(x);
+    auto ie = end(x);
     if (it != ie) {
         f(out, *it);
         for (++it; it != ie; ++it) { out << sep; f(out, *it); }
@@ -737,7 +742,8 @@ void print_comma(S &out, T const &x, const char *sep, U const &f) {
 template <class S, class T>
 void print_comma(S &out, T const &x, const char *sep) {
     using namespace std;
-    auto it(begin(x)), ie(end(x));
+    auto it = begin(x);
+    auto ie = end(x);
     if (it != ie) {
         out << *it;
         for (++it; it != ie; ++it) { out << sep << *it; }
@@ -812,4 +818,4 @@ void move_if(A &a, B &b, Pred p) {
 
 } // namespace Gringo
 
-#endif // _GRINGO_UTILITY_HH
+#endif // GRINGO_UTILITY_HH
