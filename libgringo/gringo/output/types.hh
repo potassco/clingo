@@ -35,7 +35,7 @@ class TheoryData;
 class PredicateDomain;
 class LiteralId;
 class DisjointElement;
-class Statement;
+class Statement; // NOLINT(bugprone-forward-declaration-namespace)
 struct PrintPlain;
 class DomainData;
 class OutputBase;

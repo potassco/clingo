@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_GROUNDTERMPARSER_HH
-#define _GRINGO_INPUT_GROUNDTERMPARSER_HH
+#ifndef GRINGO_INPUT_GROUNDTERMPARSER_HH
+#define GRINGO_INPUT_GROUNDTERMPARSER_HH
 
 #include <gringo/lexerstate.hh>
 #include <gringo/symbol.hh>
@@ -65,11 +65,11 @@ private:
     Symbol       value_;
     IndexedTerms terms_;
     Logger *log_ = nullptr;
-    bool         undefined_;
+    bool         undefined_{false};
 };
 
 // }}}
 
 } } // namespace Input Gringo
 
-#endif // _GRINGO_INPUT_GROUNDTERMPARSER_HH
+#endif // GRINGO_INPUT_GROUNDTERMPARSER_HH

@@ -125,7 +125,7 @@ String ToGroundArg::newId(bool increment) {
     return ("#d" + std::to_string(auxNames - inc)).c_str();
 }
 
-UTermVec ToGroundArg::getGlobal(VarTermBoundVec const &vars) {
+UTermVec ToGroundArg::getGlobal(VarTermBoundVec const &vars) { // NOLINT(readability-convert-member-functions-to-static)
     std::unordered_set<String> seen;
     UTermVec global;
     for (auto const &occ : vars) {
@@ -136,7 +136,7 @@ UTermVec ToGroundArg::getGlobal(VarTermBoundVec const &vars) {
     return global;
 }
 
-UTermVec ToGroundArg::getLocal(VarTermBoundVec const &vars) {
+UTermVec ToGroundArg::getLocal(VarTermBoundVec const &vars) { // NOLINT(readability-convert-member-functions-to-static)
     std::unordered_set<String> seen;
     UTermVec local;
     for (auto const &occ : vars) {
