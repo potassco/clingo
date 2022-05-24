@@ -425,11 +425,13 @@ TheoryOpVecUid NongroundProgramBuilder::theoryops(TheoryOpVecUid ops, String op)
 TheoryOptermVecUid NongroundProgramBuilder::theoryopterms() {
     return theoryOptermVecs_.emplace();
 }
+
 TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(TheoryOptermVecUid opterms, Location const &loc, TheoryOptermUid opterm) {
     static_cast<void>(loc);
     theoryOptermVecs_[opterms].emplace_back(gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
     return opterms;
 }
+
 TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(Location const &loc, TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
     static_cast<void>(loc);
     theoryOptermVecs_[opterms].insert(theoryOptermVecs_[opterms].begin(), gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
@@ -439,6 +441,7 @@ TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(Location const &loc, T
 TheoryElemVecUid NongroundProgramBuilder::theoryelems() {
     return theoryElems_.emplace();
 }
+
 TheoryElemVecUid NongroundProgramBuilder::theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) {
     theoryElems_[elems].emplace_back(theoryOptermVecs_.erase(opterms), litvecs_.erase(cond));
     return elems;
