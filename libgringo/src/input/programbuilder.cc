@@ -52,12 +52,14 @@ TermUid NongroundProgramBuilder::term(Location const &loc, Symbol val) {
 }
 
 TermUid NongroundProgramBuilder::term(Location const &loc, String name) {
-    if (name == "_") { return terms_.insert(make_locatable<VarTerm>(loc, name, nullptr)); }
-    else {
-        auto &ret(vals_[name]);
-        if (!ret) { ret = std::make_shared<Symbol>(); }
-        return terms_.insert(make_locatable<VarTerm>(loc, name, ret));
+    if (name == "_") {
+        return terms_.insert(make_locatable<VarTerm>(loc, name, nullptr));
     }
+    auto &ret(vals_[name]);
+    if (!ret) {
+        ret = std::make_shared<Symbol>();
+    }
+    return terms_.insert(make_locatable<VarTerm>(loc, name, ret));
 }
 
 TermUid NongroundProgramBuilder::term(Location const &loc, UnOp op, TermUid a) {
@@ -66,12 +68,14 @@ TermUid NongroundProgramBuilder::term(Location const &loc, UnOp op, TermUid a) {
 
 TermUid NongroundProgramBuilder::term(Location const &loc, UnOp op, TermVecUid a) {
     UTermVec vec(termvecs_.erase(a));
-    if (vec.size() == 1) { return terms_.insert(make_locatable<UnOpTerm>(loc, op, std::move(vec.front()))); }
-    else {
-        UTermVec pool;
-        for (auto &terms : vec) { pool.emplace_back(make_locatable<UnOpTerm>(loc, op, std::move(terms))); }
-        return terms_.insert(make_locatable<PoolTerm>(loc, std::move(pool)));
+    if (vec.size() == 1) {
+        return terms_.insert(make_locatable<UnOpTerm>(loc, op, std::move(vec.front())));
     }
+    UTermVec pool;
+    for (auto &terms : vec) {
+        pool.emplace_back(make_locatable<UnOpTerm>(loc, op, std::move(terms)));
+    }
+    return terms_.insert(make_locatable<PoolTerm>(loc, std::move(pool)));
 }
 
 TermUid NongroundProgramBuilder::term(Location const &loc, BinOp op, TermUid a, TermUid b) {
@@ -86,21 +90,27 @@ TermUid NongroundProgramBuilder::term(Location const &loc, String name, TermVecV
     assert(name != "");
     auto create = [&lua, &name, &loc](UTermVec &&vec) -> UTerm {
         // lua terms
-        if (lua) { return make_locatable<LuaTerm>(loc, name, std::move(vec)); }
+        if (lua) {
+            return make_locatable<LuaTerm>(loc, name, std::move(vec));
+        }
         // constant symbols
-        else if (vec.empty()) { return make_locatable<ValTerm>(loc, Symbol::createId(name)); }
+        if (vec.empty()) {
+            return make_locatable<ValTerm>(loc, Symbol::createId(name));
+        }
         // function terms
-        else { return make_locatable<FunctionTerm>(loc, name, std::move(vec)); }
+        return make_locatable<FunctionTerm>(loc, name, std::move(vec));
     };
     TermVecVecs::ValueType vec(termvecvecs_.erase(a));
     // no pooling
-    if (vec.size() == 1) { return terms_.insert(create(std::move(vec.front()))); }
-    // pooling
-    else {
-        UTermVec pool;
-        for (auto &terms : vec) { pool.emplace_back(create(std::move(terms))); }
-        return terms_.insert(make_locatable<PoolTerm>(loc, std::move(pool)));
+    if (vec.size() == 1) {
+        return terms_.insert(create(std::move(vec.front())));
     }
+    // pooling
+    UTermVec pool;
+    for (auto &terms : vec) {
+        pool.emplace_back(create(std::move(terms)));
+    }
+    return terms_.insert(make_locatable<PoolTerm>(loc, std::move(pool)));
 }
 
 TermUid NongroundProgramBuilder::term(Location const &loc, TermVecUid args, bool forceTuple) {
@@ -298,7 +308,8 @@ void NongroundProgramBuilder::showsig(Location const &loc, Sig sig) {
     out.outPreds.emplace_back(loc, sig);
 }
 
-void NongroundProgramBuilder::defined(Location const &, Sig sig) {
+void NongroundProgramBuilder::defined(Location const &loc, Sig sig) {
+    static_cast<void>(loc);
     prg_.addInput(sig);
 }
 
@@ -385,7 +396,9 @@ TheoryTermUid NongroundProgramBuilder::theorytermvalue(Location const &loc, Symb
 
 TheoryTermUid NongroundProgramBuilder::theorytermvar(Location const &loc, String var) {
     auto &ret(vals_[var]);
-    if (!ret) { ret = std::make_shared<Symbol>(); }
+    if (!ret) {
+        ret = std::make_shared<Symbol>();
+    }
     return theoryTerms_.emplace(gringo_make_unique<Output::TermTheoryTerm>(make_locatable<VarTerm>(loc, var, ret)));
 }
 
@@ -412,11 +425,13 @@ TheoryOpVecUid NongroundProgramBuilder::theoryops(TheoryOpVecUid ops, String op)
 TheoryOptermVecUid NongroundProgramBuilder::theoryopterms() {
     return theoryOptermVecs_.emplace();
 }
-TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(TheoryOptermVecUid opterms, Location const &, TheoryOptermUid opterm) {
+TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(TheoryOptermVecUid opterms, Location const &loc, TheoryOptermUid opterm) {
+    static_cast<void>(loc);
     theoryOptermVecs_[opterms].emplace_back(gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
     return opterms;
 }
-TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(Location const &, TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
+TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(Location const &loc, TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
+    static_cast<void>(loc);
     theoryOptermVecs_[opterms].insert(theoryOptermVecs_[opterms].begin(), gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
     return opterms;
 }
@@ -432,7 +447,9 @@ TheoryElemVecUid NongroundProgramBuilder::theoryelems(TheoryElemVecUid elems, Th
 TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems) {
     return theoryAtoms_.emplace(terms_.erase(term), theoryElems_.erase(elems));
 }
-TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &, TheoryOptermUid opterm) {
+
+TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) {
+    static_cast<void>(loc);
     return theoryAtoms_.emplace(terms_.erase(term), theoryElems_.erase(elems), op, gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
 }
 

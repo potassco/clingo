@@ -254,7 +254,7 @@ public:
     TermUid term(Location const &loc, UnOp op, TermVecUid a) override;                  // unary operation
     TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) override;         // binary operation
     TermUid term(Location const &loc, TermUid a, TermUid b) override;                   // assignment
-    TermUid term(Location const &loc, String name, TermVecVecUid b, bool lua) override; // function or lua function
+    TermUid term(Location const &loc, String name, TermVecVecUid a, bool lua) override; // function or lua function
     TermUid term(Location const &loc, TermVecUid args, bool forceTuple) override;       // a tuple term (or simply a term)
     TermUid pool(Location const &loc, TermVecUid args) override;                        // a pool term
 
@@ -292,14 +292,14 @@ public:
     HdLitUid headlit(LitUid lit) override;
     HdLitUid headaggr(Location const &loc, TheoryAtomUid atom) override;
     HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, HdAggrElemVecUid headaggrelemvec) override;
-    HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid headaggrelemvec) override;
+    HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid condlitvec) override;
     HdLitUid disjunction(Location const &loc, CondLitVecUid condlitvec) override;
     // {{{2 bodies
     BdLitVecUid body() override;
     BdLitVecUid bodylit(BdLitVecUid body, LitUid bodylit) override;
     BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, TheoryAtomUid atom) override;
     BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, BdAggrElemVecUid bodyaggrelemvec) override;
-    BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid bodyaggrelemvec) override;
+    BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid condlitvec) override;
     BdLitVecUid conjunction(BdLitVecUid body, Location const &loc, LitUid head, LitVecUid litvec) override;
     // {{{2 statements
     void rule(Location const &loc, HdLitUid head) override;
