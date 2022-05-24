@@ -350,8 +350,10 @@ private:
 class ArrayBuf : public std::streambuf {
 public:
     ArrayBuf(char *begin, size_t size) {
+        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         setg(begin, begin, begin + size);
         setp(begin, begin + size);
+        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
     pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
         if (dir == std::ios_base::cur)      { off += offset(which); }
@@ -360,8 +362,8 @@ public:
     }
     pos_type seekpos(pos_type off, std::ios_base::openmode which) override {
         if (off >= 0 && off <= size()) {
-            if (which & std::ios_base::in) { gbump(static_cast<int>(off - offset(which))); }
-            else                           { pbump(static_cast<int>(off - offset(which))); }
+            if ((which & std::ios_base::in) != 0) { gbump(static_cast<int>(off - offset(which))); }
+            else                                  { pbump(static_cast<int>(off - offset(which))); }
             return off;
         }
         return std::streambuf::seekpos(off, which);
@@ -369,7 +371,7 @@ public:
 private:
     off_type size() const { return egptr() - eback(); }
     off_type offset(std::ios_base::openmode which) const {
-        return (which & std::ios_base::out)
+        return ((which & std::ios_base::out) != 0)
             ? pptr() - pbase()
             : gptr() - eback();
     }
@@ -388,14 +390,24 @@ private:
 
 // {{{1 onExit
 
+// NOTE: decorating with noexcept requires C++17
+
+// NOLINTBEGIN(performance-noexcept-move-constructor)
 template <class T>
 class ScopeExit {
 public:
     ScopeExit(T &&exit) : exit_(std::forward<T>(exit)) { }
-    ~ScopeExit() { exit_(); }
+    ScopeExit(ScopeExit const &other) = default;
+    ScopeExit(ScopeExit &&other) = default;
+    ScopeExit &operator=(ScopeExit const &other) = default;
+    ScopeExit &operator=(ScopeExit &&other) = default;
+    ~ScopeExit() {
+        exit_();
+    }
 private:
     T exit_;
 };
+// NOLINTEND(performance-noexcept-move-constructor)
 
 template <typename T>
 ScopeExit<T> onExit(T &&exit) {
@@ -457,7 +469,9 @@ namespace detail {
     template <>
     struct equal<0> {
         template <class... T>
-        bool operator()(std::tuple<T...> const &, std::tuple<T...> const &) const {
+        bool operator()(std::tuple<T...> const &a, std::tuple<T...> const &b) const {
+            static_cast<void>(a);
+            static_cast<void>(b);
             return true;
         }
     };
@@ -487,6 +501,8 @@ inline bool is_value_equal_to(T const &a, T const &b) {
 // {{{ definition of helpers to calculate hashes
 
 namespace Detail {
+
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
 
 // Note: the following functions have been taken from MurmurHash3
 //       see: https://code.google.com/p/smhasher/
@@ -532,16 +548,22 @@ template <size_t bytes> struct Select;
 template <> struct Select<4> { using Type = uint32_t; };
 template <> struct Select<8> { using Type = uint64_t; };
 
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
+
 }
 
 template <class T, class U>
 void hash_combine(U& seed, T const &v) {
-    Detail::hash_combine(reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), v, std::hash<T>());
+    Detail::hash_combine(
+        reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        v, std::hash<T>());
 }
 
 template <class T, class H, class U>
 void hash_combine(U& seed, T const &v, H h) {
-    Detail::hash_combine(reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), v, h);
+    Detail::hash_combine(
+        reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        v, h);
 }
 
 template <class T>
@@ -611,7 +633,8 @@ namespace detail {
     template <>
     struct hash<0> {
         template <class... T>
-        size_t operator()(std::tuple<T...> const &) const {
+        size_t operator()(std::tuple<T...> const &x) const {
+            static_cast<void>(x);
             return 2;
         }
     };
@@ -645,13 +668,17 @@ inline size_t get_value_hash(T const &x, U const &y, V const &... args) {
 
 inline size_t strhash(char const *x) {
     size_t seed = 0;
-    for ( ; *x; ++x) { hash_combine(seed, *x); }
+    for ( ; *x != '\0'; ++x) { // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        hash_combine(seed, *x);
+    }
     return seed;
 }
 
 inline size_t strhash(StringSpan x) {
     size_t seed = 0;
-    for (auto &c : x) { hash_combine(seed, c); }
+    for (auto const &c : x) {
+        hash_combine(seed, c);
+    }
     return seed;
 }
 
@@ -697,11 +724,12 @@ namespace detail {
 
     template <int ...S>
     struct gens<0, S...> {
-        typedef seq<S...> type;
+        using type = seq<S...>;
     };
 
     template <class... T, int... S>
-    std::tuple<T...> clone(const std::tuple<T...> &x, seq<S...>) {
+    std::tuple<T...> clone(const std::tuple<T...> &x, seq<S...> s) {
+        static_cast<void>(s);
         return std::tuple<T...> { get_clone(std::get<S>(x))... };
     }
 }
