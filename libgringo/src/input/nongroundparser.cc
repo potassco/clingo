@@ -49,7 +49,9 @@ namespace Gringo { namespace Input {
 namespace {
 
 struct Free {
-    void operator ()(char *ptr) { free(ptr); }
+    void operator ()(char *ptr) const {
+        free(ptr); // NOLINT(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+    }
 };
 
 template <typename T>
@@ -72,20 +74,20 @@ bool is_relative(std::string const &filename) {
 }
 
 bool check_relative(std::string const &filename, std::string path, std::pair<std::string, std::string> &ret) {
-    struct stat sb;
-    if (!path.empty()) { path.push_back('/'); }
+    struct stat sb; // NOLINT(cppcoreguidelines-pro-type-member-init)
+    if (!path.empty()) {
+        path.push_back('/');
+    }
     path.append(filename);
     if (stat(path.c_str(), &sb) != -1) {
         if ((sb.st_mode & S_IFMT) == S_IFIFO) {
             ret = {path, path};
             return true;
         }
-        else {
-            std::unique_ptr<char, Free> x{canonicalize_file_name(path.c_str())};
-            if (x) {
-                ret = {x.get(), path};
-                return true;
-            }
+        std::unique_ptr<char, Free> x{canonicalize_file_name(path.c_str())};
+        if (x) {
+            ret = {x.get(), path};
+            return true;
         }
     }
     return false;
@@ -155,9 +157,11 @@ std::pair<std::string, std::string> check_file(std::string const &filename, std:
     if (check_relative(filename, "", ret)) {
         return ret;
     }
-    else if (is_relative(filename)) {
+    if (is_relative(filename)) {
         auto path = get_dir(source);
-        if (path != "" && check_relative(filename, path, ret)) { return ret; }
+        if (!path.empty() && check_relative(filename, path, ret)) {
+            return ret;
+        }
     }
 #   include "input/clingopath.hh"
     std::vector<std::string> e_paths;
@@ -166,8 +170,10 @@ std::pair<std::string, std::string> check_file(std::string const &filename, std:
         split(env_paths, ':', std::back_inserter(e_paths));
         paths = &e_paths;
     }
-    for (auto &path : *paths) {
-        if (check_relative(filename, path, ret)) { return ret; }
+    for (auto const &path : *paths) {
+        if (check_relative(filename, path, ret)) {
+            return ret;
+        }
     }
     return ret;
 }
@@ -188,6 +194,7 @@ void NonGroundParser::parseError(Location const &loc, std::string const &msg) {
 }
 
 void NonGroundParser::lexerError(Location const &loc, StringSpan token) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     GRINGO_REPORT(*log_, Warnings::RuntimeError) << loc << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
 }
 
@@ -225,7 +232,8 @@ void NonGroundParser::pushStream(std::string &&file, std::unique_ptr<std::istrea
     }
 }
 
-void NonGroundParser::pushBlock(std::string const &name, IdVec const &vec, std::string const &block, Logger &) {
+void NonGroundParser::pushBlock(std::string const &name, IdVec const &vec, std::string const &block, Logger &log) {
+    static_cast<void>(log);
     LexerState::push(gringo_make_unique<std::istringstream>(block), {"<block>", {name.c_str(), vec}});
 }
 
@@ -233,13 +241,15 @@ void NonGroundParser::init_() {
     if (!empty()) {
         Location loc(filename(), 1, 1, filename(), 1, 1);
         IdVecUid params = pb_.idvec();
-        for (auto &x : data().second.second) { params = pb_.idvec(params, x.first, x.second); }
+        for (auto const &x : data().second.second) {
+            params = pb_.idvec(params, x.first, x.second);
+        }
         pb_.block(loc, data().second.first, params);
     }
 }
 
 int NonGroundParser::lex(void *pValue, Location &loc) {
-    if (injectSymbol_) {
+    if (injectSymbol_ != 0) {
         auto ret = injectSymbol_;
         injectSymbol_ = 0;
         if (ret == NonGroundGrammar::parser::token::SYNC) {
@@ -253,11 +263,11 @@ int NonGroundParser::lex(void *pValue, Location &loc) {
     while (!empty()) {
         int minor = lex_impl(pValue, loc);
         end(loc);
-        if (minor) { return minor; }
-        else       {
-            injectSymbol_ = NonGroundGrammar::parser::token::SYNC;
-            return injectSymbol_;
+        if (minor != 0) {
+            return minor;
         }
+        injectSymbol_ = NonGroundGrammar::parser::token::SYNC;
+        return injectSymbol_;
     }
     return 0;
 }
@@ -354,7 +364,7 @@ bool NonGroundParser::parse(Logger &log) {
 INongroundProgramBuilder &NonGroundParser::builder() { return pb_; }
 
 unsigned NonGroundParser::aggregate(AggregateFunction fun, bool choice, unsigned elems, BoundVecUid bounds) {
-    return aggregates_.insert({fun, choice, elems, bounds});
+    return aggregates_.insert({fun, choice ? 1U : 0U, elems, bounds});
 }
 
 unsigned NonGroundParser::aggregate(TheoryAtomUid atom) {
@@ -386,8 +396,6 @@ BoundVecUid NonGroundParser::boundvec(Relation ra, TermUid ta, Relation rb, Term
     if (tb != undef) { builder().boundvec(bound, rb, tb); }
     return bound;
 }
-
-NonGroundParser::~NonGroundParser() { }
 
 // }}}
 

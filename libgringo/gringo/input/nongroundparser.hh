@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_NONGROUNDPARSER_HH
-#define _GRINGO_INPUT_NONGROUNDPARSER_HH
+#ifndef GRINGO_INPUT_NONGROUNDPARSER_HH
+#define GRINGO_INPUT_NONGROUNDPARSER_HH
 
 #include <gringo/input/programbuilder.hh>
 #include <gringo/lexerstate.hh>
@@ -45,15 +45,21 @@ private:
     enum Condition { yyccomment, yycblockcomment, yycscript, yycscript_body, yycnormal, yyctheory, yycdefinition };
 public:
     NonGroundParser(INongroundProgramBuilder &pb, bool &incmode);
-    void parseError(Location const &loc, std::string const &token);
+    NonGroundParser(NonGroundParser const &other) = delete;
+    NonGroundParser(NonGroundParser &&other) noexcept = default;
+    NonGroundParser &operator=(NonGroundParser const &other) = delete;
+    NonGroundParser &operator=(NonGroundParser &&other) noexcept = delete;
+    ~NonGroundParser() noexcept = default;
+
+    void parseError(Location const &loc, std::string const &msg);
     void pushFile(std::string &&filename, Logger &log);
-    void pushStream(std::string &&name, std::unique_ptr<std::istream>, Logger &log);
+    void pushStream(std::string &&file, std::unique_ptr<std::istream> in, Logger &log);
     void pushBlock(std::string const &name, IdVec const &vec, std::string const &block, Logger &log);
     int lex(void *pValue, Location &loc);
     bool parseDefine(std::string const &define, Logger &log);
     bool parse(Logger &log);
     bool empty() { return LexerState::empty(); }
-    void include(String file, Location const &loc, bool include, Logger &log);
+    void include(String file, Location const &loc, bool inbuilt, Logger &log);
     void theoryLexing(TheoryLexing mode);
     INongroundProgramBuilder &builder();
     // Note: only to be used during parsing
@@ -65,7 +71,6 @@ public:
     HdLitUid headaggregate(Location const &loc, unsigned hdaggr);
     BdLitVecUid bodyaggregate(BdLitVecUid body, Location const &loc, NAF naf, unsigned bdaggr);
     // }}}
-    ~NonGroundParser();
 
 private:
     int lex_impl(void *pValue, Location &loc);
@@ -83,7 +88,6 @@ private:
     Condition condition() const;
     String filename() const;
 
-private:
     std::set<std::string> filenames_;
     bool &incmode_;
     TheoryLexing theoryLexing_ = TheoryLexing::Disabled;
@@ -107,4 +111,4 @@ private:
 
 } } // namespace Input Gringo
 
-#endif // _GRINGO_INPUT_NONGROUNDPARSER_HH
+#endif // GRINGO_INPUT_NONGROUNDPARSER_HH
