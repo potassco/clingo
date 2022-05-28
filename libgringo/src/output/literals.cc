@@ -765,7 +765,7 @@ std::pair<Id_t, Id_t> PredicateDomain::cleanup(AssignmentLookup assignment, Mapp
     Id_t newOffset = 0;
     reset();
     //std::cerr << "cleaning " << sig_ << std::endl;
-    atoms_.erase([&](PredicateAtom &atom) {
+    atomVec().erase([&](PredicateAtom &atom) {
         if (!atom.defined()) {
             ++deleted;
             ++oldOffset;
@@ -806,10 +806,7 @@ std::pair<Id_t, Id_t> PredicateDomain::cleanup(AssignmentLookup assignment, Mapp
     //for (auto &atom : atoms_) {
     //    std::cerr << "  " << static_cast<Symbol>(atom) << "=" << (atoms_.find(static_cast<Symbol>(atom)) != atoms_.end()) << "/" << atom.generation() << "/" << atom.defined() << "/" << atom.delayed() << std::endl;
     //}
-    delayed_.clear();
-    generation_ = 1;
-    initOffset_ = atoms_.size();
-    initDelayedOffset_ = 0;
+    postCleanup();
     incOffset_ = map.bound(incOffset_);
     showOffset_ = map.bound(showOffset_);
     return {facts, deleted};

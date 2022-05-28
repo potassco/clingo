@@ -72,6 +72,7 @@ using SValVec = std::vector<Term::SVal>;
 template <class Domain>
 class BindIndexEntry {
 public:
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     struct Hash {
         size_t operator()(BindIndexEntry const &e) const {
             return e.hash();
@@ -81,28 +82,22 @@ public:
         };
     };
     using SizeType  = typename Domain::SizeType;
-    using DataVec = std::vector<uint64_t>;
-    BindIndexEntry(SymVec const &bound)
-    : end_(0)
-    , reserved_(1)
-    , data_(nullptr)
-    , begin_(nullptr) {
-        data_ = reinterpret_cast<uint64_t*>(malloc(sizeof(uint64_t) * bound.size() + sizeof(SizeType)));
-        if (!data_) {
+    BindIndexEntry(SymVec const &bound) {
+        // NOLINTNEXTLINE
+        data_ = static_cast<uint64_t*>(malloc(sizeof(uint64_t) * bound.size() + sizeof(SizeType)));
+        if (data_ == nullptr) {
             throw std::bad_alloc();
         }
-        begin_ = reinterpret_cast<SizeType*>(data_ + bound.size());
+        begin_ = asSize_(bound.size());
         uint64_t *it = data_;
-        for (auto &sym : bound) {
+        for (auto const &sym : bound) {
             *it++ = sym.rep();
         }
     }
     BindIndexEntry(BindIndexEntry const &other) = delete;
-    BindIndexEntry(BindIndexEntry &&other) noexcept
-    : end_(0)
-    , reserved_(0)
-    , data_(nullptr)
-    , begin_(nullptr) { *this = std::move(other); }
+    BindIndexEntry(BindIndexEntry &&other) noexcept {
+        *this = std::move(other);
+    }
     BindIndexEntry &operator=(BindIndexEntry const &other) = delete;
     BindIndexEntry &operator=(BindIndexEntry &&other) noexcept {
         std::swap(data_, other.data_);
@@ -112,6 +107,7 @@ public:
         return *this;
     }
     ~BindIndexEntry() {
+        // NOLINTNEXTLINE
         free(data_);
     }
     SizeType const *begin() const {
@@ -123,34 +119,49 @@ public:
     void push(SizeType x) {
         assert(reserved_ > 0 && end_ <= reserved_);
         if (end_ == reserved_) {
-            size_t bound = reinterpret_cast<uint64_t const*>(begin_) - data_;
+            size_t bound = asUint64_() - data_;
             size_t oldsize = sizeof(uint64_t) * bound + sizeof(SizeType) * end_;
             size_t size = oldsize + sizeof(SizeType) * end_;
-            if (size < oldsize) { throw std::runtime_error("size limit exceeded"); }
-            uint64_t *ret = reinterpret_cast<uint64_t*>(realloc(data_, size));
-            if (!ret) { throw std::bad_alloc(); }
+            if (size < oldsize) {
+                throw std::runtime_error("size limit exceeded");
+            }
+            // NOLINTNEXTLINE
+            auto *ret = static_cast<uint64_t*>(realloc(data_, size));
+            if (ret == nullptr) {
+                throw std::bad_alloc();
+            }
             reserved_ = 2 * end_;
             if (data_ != ret) {
                 data_ = ret;
-                begin_ = reinterpret_cast<SizeType*>(data_ + bound);
+                begin_ = asSize_(bound);
             }
         }
         begin_[end_++] = x;
     }
     size_t hash() const {
-        return hash_range(data_, reinterpret_cast<uint64_t *>(begin_));
+        return hash_range(data_, asUint64_());
     }
     bool operator==(BindIndexEntry const &x) const {
-        return std::equal(x.data_, reinterpret_cast<uint64_t const *>(x.begin_), data_, [](uint64_t a, uint64_t b) { return a == b; });
+        return std::equal(x.data_, x.asUint64_(), data_, [](uint64_t a, uint64_t b) { return a == b; });
     }
     bool operator==(SymVec const &vec) const {
         return std::equal(vec.begin(), vec.end(), data_, [](Symbol const &a, uint64_t b) { return a.rep() == b; });
     }
 private:
-    Id_t end_;
-    Id_t reserved_;
-    uint64_t* data_;
-    SizeType* begin_;
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+    uint64_t *asUint64_() const {
+        return reinterpret_cast<uint64_t *>(begin_);
+    }
+    SizeType *asSize_(size_t offset) const {
+        return reinterpret_cast<SizeType *>(data_ + offset);
+    }
+    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
+    Id_t end_{0};
+    Id_t reserved_{1};
+    uint64_t* data_{nullptr};
+    SizeType* begin_{nullptr};
 };
 
 // An index for a positive literal occurrence
@@ -412,6 +423,7 @@ public:
     // All indices that use a domain have to be registered with it.
     BindIndex &add(SValVec &&bound, UTerm &&repr) {
         auto ret(indices_.emplace(*this, std::move(bound), std::move(repr)));
+        // NOLINTNEXTLINE
         auto &idx = const_cast<BindIndex&>(*ret.first);
         idx.update();
         return idx;
@@ -419,6 +431,7 @@ public:
 
     FullIndex &add(UTerm &&repr, Id_t imported) {
         auto ret(fullIndices_.emplace(*this, std::move(repr), imported));
+        // NOLINTNEXTLINE
         auto &idx = const_cast<FullIndex&>(*ret.first);
         idx.update();
         return idx;
@@ -538,6 +551,16 @@ public:
         return ret;
     }
 
+    // Return true if there is an atom that is not a fact in the domain.
+    bool hasChoice() const {
+        for (auto it = atoms_.begin() + choiceIndex_, ie = atoms_.end(); it != ie; ++it, ++choiceIndex_) {
+            if (!it->fact() && it->defined()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     bool empty() const {
         return atoms_.empty();
     }
@@ -620,7 +643,21 @@ public:
     Id_t domainOffset() const override { return domainOffset_; }
 
 protected:
+    // NOTE: hacks that should be replaced by better solutions
+    Atoms &atomVec() {
+        return atoms_;
+    }
+    // Assumes that cleanup sets the generation back to 1 and removes delayed
+    // atoms.
+    void postCleanup() {
+        delayed_.clear();
+        generation_ = 1;
+        initOffset_ = atoms_.size();
+        initDelayedOffset_ = 0;
+    }
     void hide(Iterator it) { atoms_.hide(it); }
+
+private:
 
     BindIndices indices_;
     FullIndices fullIndices_;
@@ -639,5 +676,3 @@ protected:
 } // namespace Gringo
 
 #endif // GRINGO_DOMAIN_HH
-
-
