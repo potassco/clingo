@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_GRAPH_HH
-#define _GRINGO_GRAPH_HH
+#ifndef GRINGO_GRAPH_HH
+#define GRINGO_GRAPH_HH
 
 #include <vector>
 #include <forward_list>
@@ -36,35 +36,45 @@ template <class T>
 class Graph {
 public:
     struct Node;
-    typedef std::vector<Node*> NodeVec;
-    typedef std::vector<NodeVec> SCCVec;
+    using NodeVec = std::vector<Node*>;
+    using SCCVec = std::vector<NodeVec>;
     struct Node {
         friend class Graph;
         template <class... U>
-        Node(unsigned phase, U &&...x);
-        Node(Node const &) = delete;
+        Node(unsigned phase, U &&...data);
+        Node(Node const &other) = delete;
+        Node(Node &&other) noexcept = default;
+        Node &operator=(Node const &other) = delete;
+        Node &operator=(Node &&other) noexcept = default;
+        ~Node() noexcept = default;
+
         void insertEdge(Node &n);
         typename NodeVec::const_iterator begin() const;
         typename NodeVec::const_iterator end() const;
 
+        // NOLINTNEXTLINE
         T  data;
+
     private:
         NodeVec edges_;
         unsigned visited_;
         typename NodeVec::iterator finished_;
     };
 
-    Graph();
-    Graph(Graph &&g);
-    Graph(Graph const &) = delete;
-    Graph &operator=(Graph &&) = default;
+    Graph() = default;
+    Graph(Graph &&other) noexcept = default;
+    Graph(Graph const &other) = delete;
+    Graph &operator=(Graph &&other) noexcept = default;
     Graph &operator=(Graph const &) = delete;
+    ~Graph() = default;
+
     SCCVec tarjan();
     template <class... U>
     Node &insertNode(U &&...x);
 private:
     unsigned nphase() { return phase_ == 0 ? 1 : 0; }
-    typedef std::forward_list<Node> NodeList;
+    using NodeList = std::forward_list<Node>;
+
     NodeList nodes_;
     unsigned phase_ = 0;
 };
@@ -96,12 +106,6 @@ typename Graph<T>::NodeVec::const_iterator Graph<T>::Node::end() const {
 
 // }}}
 // {{{ definition of Graph<T>
-
-template <class T>
-Graph<T>::Graph() = default;
-
-template <class T>
-Graph<T>::Graph(Graph &&) = default;
 
 template <class T>
 template <class... U>
@@ -160,4 +164,4 @@ typename Graph<T>::SCCVec Graph<T>::tarjan() {
 
 } // namespace Gringo
 
-#endif // _GRINGO_GRAPH_HH
+#endif // GRINGO_GRAPH_HH
