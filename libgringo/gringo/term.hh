@@ -243,8 +243,8 @@ private:
     template<typename I>
     static I ceildiv_(I n, I m);
     static int div_(bool positive, int a, int b);
-    bool update_bound_(bool positive, int slack, int num_unbounded, IETerm const &term);
-    void update_slack_(bool positive, IETerm const &term, int &slack, int &num_unbounded);
+    bool update_bound_(IETerm const &term, int slack, int num_unbounded);
+    void update_slack_(IETerm const &term, int &slack, int &num_unbounded);
 
     IEBoundMap bounds_;
     IEBoundMap fixed_;

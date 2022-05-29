@@ -298,7 +298,7 @@ IEBoundMap const &IESolver::compute_bounds() {
             int slack = ie.bound;
             int num_unbounded = 0;
             for (auto const &term : ie.terms) {
-                update_slack_(term.coefficient > 0, term, slack, num_unbounded);
+                update_slack_(term, slack, num_unbounded);
             }
             if (num_unbounded == 0 && slack > 0) {
                 // we simply set all bounds to empty intervals
@@ -312,7 +312,7 @@ IEBoundMap const &IESolver::compute_bounds() {
             }
             if (num_unbounded <= 1) {
                 for (auto const &term : ie.terms) {
-                    changed = update_bound_(term.coefficient > 0, slack, num_unbounded, term) || changed;
+                    changed = update_bound_(term, slack, num_unbounded) || changed;
                 }
             }
         }
@@ -344,7 +344,8 @@ int IESolver::div_(bool positive, int a, int b) {
     return positive ? ceildiv_(a, b) : floordiv_(a, b);
 }
 
-bool IESolver::update_bound_(bool positive, int slack, int num_unbounded, IETerm const &term) {
+bool IESolver::update_bound_(IETerm const &term, int slack, int num_unbounded) {
+    bool positive = term.coefficient > 0;
     auto type = positive ? IEBound::Upper : IEBound::Lower;
     if (num_unbounded == 0) {
         slack += term.coefficient * bounds_[term.variable].bound(type);
@@ -357,8 +358,8 @@ bool IESolver::update_bound_(bool positive, int slack, int num_unbounded, IETerm
     return bounds_[term.variable].refineBound(positive ? IEBound::Lower : IEBound::Upper, value);
 }
 
-void IESolver::update_slack_(bool positive, IETerm const &term, int &slack, int &num_unbounded) {
-    auto type = positive ? IEBound::Upper : IEBound::Lower;
+void IESolver::update_slack_(IETerm const &term, int &slack, int &num_unbounded) {
+    auto type = term.coefficient > 0 ? IEBound::Upper : IEBound::Lower;
     if (bounds_[term.variable].hasBound(type)) {
         slack -= term.coefficient * bounds_[term.variable].bound(type);
     }
