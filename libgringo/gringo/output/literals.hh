@@ -682,7 +682,9 @@ public:
         // This cannot be done here but the cleanup function of the output,
         // will remove such atoms.
         for (auto it = begin() + incOffset(), ie = end(); it != ie; ++it) {
-            if (!it->defined()) { hide(it); }
+            if (!it->defined()) {
+                hide_(it);
+            }
         }
         incOffset_ = size();
     }

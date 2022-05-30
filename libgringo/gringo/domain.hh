@@ -643,19 +643,22 @@ public:
     Id_t domainOffset() const override { return domainOffset_; }
 
 protected:
-    // NOTE: hacks that should be replaced by better solutions
-    Atoms &atomVec() {
-        return atoms_;
-    }
     // Assumes that cleanup sets the generation back to 1 and removes delayed
-    // atoms.
-    void postCleanup() {
+    // atoms. The given function is simply passed as argument to the erase
+    // function of the vector holding the domain elements.
+    template <class F>
+    void cleanup_(F f) {
+        reset();
+        atoms_.erase(f);
         delayed_.clear();
         generation_ = 1;
         initOffset_ = atoms_.size();
         initDelayedOffset_ = 0;
     }
-    void hide(Iterator it) { atoms_.hide(it); }
+
+    void hide_(Iterator it) {
+        atoms_.hide(it);
+    }
 
 private:
 
