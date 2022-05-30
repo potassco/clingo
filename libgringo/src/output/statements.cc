@@ -50,7 +50,7 @@ std::ostream &operator<<(std::ostream &out, IntervalSet<Symbol>::Interval const 
 
 std::ostream &operator<<(std::ostream &out, IntervalSet<Symbol> const &x) {
     out << "{";
-    print_comma(out, x.vec, ",", [](std::ostream &out, IntervalSet<Symbol>::Interval const &x) { out << x; });
+    print_comma(out, x, ",", [](std::ostream &out, IntervalSet<Symbol>::Interval const &x) { out << x; });
     out << "}";
     return out;
 }

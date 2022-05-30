@@ -30,7 +30,6 @@
 namespace Gringo { namespace Test {
 
 using IS = IntervalSet<int>;
-using ES = enum_interval_set<int>;
 using LB = IS::LBound;
 using RB = IS::RBound;
 using IV = IS::Interval;
@@ -51,26 +50,7 @@ std::string print(IS const &x) {
     };
     std::ostringstream out;
     out << "{";
-    print_comma(out, x.vec, ",", f);
-    out << "}";
-    return out.str();
-}
-
-std::string print(ES const &x) {
-    std::ostringstream out;
-    out << "{";
-    if (!x.empty()) {
-        int a = *x.begin();
-        int b = *x.begin() - 1;
-        for (auto y : x) {
-            if (b+1 != y) {
-                if (a <= b) { out << "[" << a << "," << b << "],"; }
-                a = y;
-            }
-            b = y;
-        }
-        out << "[" << a << "," << b << "]";
-    }
+    print_comma(out, x, ",", f);
     out << "}";
     return out.str();
 }
@@ -290,91 +270,6 @@ TEST_CASE("intervals", "[base]") {
         REQUIRE("{(3,4],(5,7),[10,11),[12,13]}" == print(x.difference(y)));
         REQUIRE("{[1,2),[8,9]}" == print(y.difference(x)));
     }
-
-    SECTION("enum_empty") {
-        ES x;
-        REQUIRE(x.empty());
-        REQUIRE(x.begin() == x.end());
-    }
-
-    SECTION("enum_add") {
-        ES x;
-        x.add(1,2);
-        REQUIRE("{[1,1]}" == print(x));
-        x.add(3,3);
-        REQUIRE("{[1,1]}" == print(x));
-        x.add(3,4);
-        REQUIRE("{[1,1],[3,3]}" == print(x));
-        x.add(2,3);
-        REQUIRE("{[1,3]}" == print(x));
-        x.add(4,6);
-        REQUIRE("{[1,5]}" == print(x));
-        x.add(9,10);
-        REQUIRE("{[1,5],[9,9]}" == print(x));
-        x.add(12,13);
-        REQUIRE("{[1,5],[9,9],[12,12]}" == print(x));
-        x.add(14,16);
-        REQUIRE("{[1,5],[9,9],[12,12],[14,15]}" == print(x));
-        x.add(10,11);
-        REQUIRE("{[1,5],[9,10],[12,12],[14,15]}" == print(x));
-        x.add(9,12);
-        REQUIRE("{[1,5],[9,12],[14,15]}" == print(x));
-        x.add(0,14);
-        REQUIRE("{[0,15]}" == print(x));
-        x.add(-1,42);
-        REQUIRE("{[-1,41]}" == print(x));
-        x.add(42,44);
-        REQUIRE("{[-1,43]}" == print(x));
-    }
-
-    SECTION("enum_contains") {
-        ES x;
-        x.add(5,10);
-        x.add(1,4);
-        REQUIRE( x.contains(5,10));
-        REQUIRE(!x.contains(5,11));
-        REQUIRE( x.contains(7,9));
-        REQUIRE( x.contains(6,6));
-    }
-
-    SECTION("enum_remove") {
-        ES x;
-        x.add(1,51);
-        REQUIRE("{[1,50]}" == print(x));
-        x.remove(1,3);
-        REQUIRE("{[3,50]}" == print(x));
-        x.remove(50,51);
-        REQUIRE("{[3,49]}" == print(x));
-        x.remove(5,6);
-        REQUIRE("{[3,4],[6,49]}" == print(x));
-        x.remove(9,10);
-        REQUIRE("{[3,4],[6,8],[10,49]}" == print(x));
-        ES a(x), b(x), c(x);
-        a.remove(3,14);
-        REQUIRE("{[14,49]}" == print(a));
-        b.remove(5,9);
-        REQUIRE("{[3,4],[10,49]}" == print(b));
-        c.remove(5,14);
-        REQUIRE("{[3,4],[14,49]}" == print(c));
-    }
-
-    SECTION("enum_intersects") {
-        ES x;
-        x.add(1,3);
-        x.add(5,9);
-        x.add(12,13);
-        REQUIRE( x.intersects(5,9));
-        REQUIRE( x.intersects(5,10));
-        REQUIRE( x.intersects(7,8));
-        REQUIRE(!x.intersects(10,12));
-        REQUIRE( x.intersects(10,13));
-        REQUIRE( x.intersects(2,7));
-        REQUIRE( x.intersects(4,7));
-        REQUIRE(!x.intersects(0,0));
-        REQUIRE( x.intersects(0,2));
-        REQUIRE(!x.intersects(13,14));
-    }
-
 }
 
 } } // namespace Test Gringo
