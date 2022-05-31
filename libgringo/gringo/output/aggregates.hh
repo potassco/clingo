@@ -32,7 +32,6 @@
 
 namespace Gringo { namespace Output {
 
-struct TupleId;
 using BodyAggregateElements = UniqueVec<std::pair<TupleId, Formula>, HashFirst<TupleId>, EqualToFirst<TupleId>>;
 using HeadFormula = std::vector<std::pair<LiteralId, ClauseId>>;
 using HeadAggregateElements = UniqueVec<std::pair<TupleId, HeadFormula>, HashFirst<TupleId>, EqualToFirst<TupleId>>;

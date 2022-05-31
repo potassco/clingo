@@ -802,8 +802,8 @@ public:
     Lit_t uid() const override;
     bool isPositive() const override { return id_.sign() == NAF::POS; }
     bool isHeadAtom() const override;
-    LiteralId simplify(Mappings &mappings, AssignmentLookup lookup) const override;
-    bool isTrue(IsTrueLookup) const override;
+    LiteralId simplify(Mappings &mappings, AssignmentLookup const &lookup) const override;
+    bool isTrue(IsTrueLookup const &lookup) const override;
     virtual ~AuxLiteral() noexcept;
 
 private:
@@ -824,8 +824,8 @@ public:
     LiteralId translate(Translator &x) override;
     Lit_t uid() const override;
     bool isPositive() const override { return id_.sign() == NAF::POS; }
-    LiteralId simplify(Mappings &mappings, AssignmentLookup lookup) const override;
-    bool isTrue(IsTrueLookup) const override;
+    LiteralId simplify(Mappings &mappings, AssignmentLookup const &lookup) const override;
+    bool isTrue(IsTrueLookup const &lookup) const override;
     virtual ~PredicateLiteral() noexcept;
 
 private:

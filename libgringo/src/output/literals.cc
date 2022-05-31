@@ -838,8 +838,8 @@ int AuxLiteral::uid() const {
     throw std::logic_error("AuxLiteral::uid: must not happen");
 }
 
-LiteralId AuxLiteral::simplify(Mappings &, AssignmentLookup assignment) const {
-    auto value = assignment(id_.offset());
+LiteralId AuxLiteral::simplify(Mappings &mappings, AssignmentLookup const &lookup) const {
+    auto value = lookup(id_.offset());
     if (value.second == Potassco::Value_t::Free) { return id_; }
     auto ret = data_.getTrueLit();
     if (value.second == Potassco::Value_t::False) { ret = ret.negate(false); }
@@ -847,7 +847,7 @@ LiteralId AuxLiteral::simplify(Mappings &, AssignmentLookup assignment) const {
     return id_;
 }
 
-bool AuxLiteral::isTrue(IsTrueLookup lookup) const {
+bool AuxLiteral::isTrue(IsTrueLookup const &lookup) const {
     assert(id_.offset() > 0);
     return (id_.sign() == NAF::NOT) ^ lookup(id_.offset());
 }
@@ -900,7 +900,7 @@ int PredicateLiteral::uid() const {
     return 0;
 }
 
-LiteralId PredicateLiteral::simplify(Mappings &mappings, AssignmentLookup assignment) const {
+LiteralId PredicateLiteral::simplify(Mappings &mappings, AssignmentLookup const &lookup) const {
     auto offset = mappings[id_.domain()].get(id_.offset());
     if (offset == InvalidId) {
         auto ret = data_.getTrueLit();
@@ -911,7 +911,7 @@ LiteralId PredicateLiteral::simplify(Mappings &mappings, AssignmentLookup assign
         auto &atom = data_.predDoms()[id_.domain()]->operator[](offset);
         if (!atom.defined()) { return data_.getTrueLit().negate(); }
         if (atom.hasUid()) {
-            auto value = assignment(atom.uid());
+            auto value = lookup(atom.uid());
             if (value.second != Potassco::Value_t::Free) {
                 auto ret = data_.getTrueLit();
                 if (value.second == Potassco::Value_t::False) { ret = ret.negate(false); }
@@ -923,7 +923,7 @@ LiteralId PredicateLiteral::simplify(Mappings &mappings, AssignmentLookup assign
     }
 }
 
-bool PredicateLiteral::isTrue(IsTrueLookup lookup) const {
+bool PredicateLiteral::isTrue(IsTrueLookup const &lookup) const {
     auto &atom = data_.predDoms()[id_.domain()]->operator[](id_.offset());
     assert(atom.hasUid());
     return (id_.sign() == NAF::NOT) ^ lookup(atom.uid());
