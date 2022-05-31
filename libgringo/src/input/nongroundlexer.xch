@@ -51,7 +51,7 @@
     SIG        = WSNL ([-$])? WSNL IDENTIFIER WSNL "/" WSNL NUMBER WSNL ".";
     SCRIPT     = "#script";
     THEORYOP   = [/!<=>+\-*\\?&@|:;~\^\.]+;
-    THEORYOPL  = THEORYOP WSNL "&";
+    THEORYOPL  = [/!<=>+\-*\\?&@|;~\^]+ WSNL "&";
     SUP        = "#sup"("remum")?;
     INF        = "#inf"("imum")?;
     KEYWORD    = "#" [a-zA-Z0-9_]*;
