@@ -315,6 +315,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
     STRING     "<STRING>"
     VARIABLE   "<VARIABLE>"
     THEORY_OP  "<THEORYOP>"
+    THEORY_OPL "<THEORYOPL>"
     NOT        "not"
     DEFAULT    "default"
     OVERRIDE   "override"
@@ -951,6 +952,10 @@ theory_atom
     : AND theory_atom_name[name] { $$ = BUILDER.theoryatom($name, BUILDER.theoryelems()); }
     | AND theory_atom_name[name] enable_theory_lexing LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE                                     disable_theory_lexing { $$ = BUILDER.theoryatom($name, $elems); }
     | AND theory_atom_name[name] enable_theory_lexing LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE theory_op[op] theory_opterm[opterm] disable_theory_lexing { $$ = BUILDER.theoryatom($name, $elems, String::fromRep($op), @opterm, $opterm); }
+    | term[opterm] THEORY_OPL[op] enable_theory_lexing theory_atom_name[name] LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE disable_theory_lexing {
+        auto theory_term_value = BUILDER.theorytermvalue(@opterm, Symbol::createId("fixed_string"));
+        auto theory_term_op = BUILDER.theoryopterm(BUILDER.theoryops(), theory_term_value);
+        $$ = BUILDER.theoryatom($name, $elems, String::fromRep($op), @opterm, theory_term_op); }
     ;
 
 // {{{2 theory definition

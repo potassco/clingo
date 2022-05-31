@@ -51,6 +51,7 @@
     SIG        = WSNL ([-$])? WSNL IDENTIFIER WSNL "/" WSNL NUMBER WSNL ".";
     SCRIPT     = "#script";
     THEORYOP   = [/!<=>+\-*\\?&@|:;~\^\.]+;
+    THEORYOPL  = THEORYOP WSNL "&";
     SUP        = "#sup"("remum")?;
     INF        = "#inf"("imum")?;
     KEYWORD    = "#" [a-zA-Z0-9_]*;
@@ -153,6 +154,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal> "$!="                               { return NonGroundGrammar::parser::token::CSP_NEQ; }
         <normal> "$<>"                               { return NonGroundGrammar::parser::token::CSP_NEQ; }
         <theory> THEORYOP                            { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::THEORY_OP; }
+        <normal> THEORYOPL                           { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::THEORY_OPL; }
         <normal,theory,definition,script> "%*"       => blockcomment { bc++; continue; }
         <normal,theory,definition,script> "%"        :=> comment
         <normal,theory,definition,script> "#!"       :=> comment
