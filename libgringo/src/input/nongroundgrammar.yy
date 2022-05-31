@@ -338,7 +338,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 // {{{1 logic program and global definitions
 
 start
-    : PARSE_LP  program
+    : PARSE_LP enable_maytheory_lexing program
     | PARSE_DEF define SYNC
     ;
 
@@ -351,8 +351,8 @@ program
 
 statement
     : SYNC
-    | DOT                               { lexer->parseError(@$, "syntax error, unexpected ."); }
-    | error disable_theory_lexing DOT
+    | DOT enable_maytheory_lexing                 { lexer->parseError(@$, "syntax error, unexpected ."); }
+    | error disable_theory_lexing DOT enable_maytheory_lexing
     | error disable_theory_lexing SYNC
     ;
 
@@ -710,17 +710,17 @@ bodycomma
     ;
 
 bodydot
-    : bodycomma[body] literal[lit] DOT                      { $$ = BUILDER.bodylit($body, $lit); }
-    | bodycomma[body] lubodyaggregate[aggr] DOT             { $$ = lexer->bodyaggregate($body, @aggr, NAF::POS, $aggr); }
-    | bodycomma[body] NOT[l] lubodyaggregate[aggr] DOT      { $$ = lexer->bodyaggregate($body, @aggr + @l, NAF::NOT, $aggr); }
-    | bodycomma[body] NOT[l] NOT lubodyaggregate[aggr] DOT  { $$ = lexer->bodyaggregate($body, @aggr + @l, NAF::NOTNOT, $aggr); }
-    | bodycomma[body] conjunction[conj] DOT                 { $$ = BUILDER.conjunction($body, @conj, $conj.first, $conj.second); }
-    | bodycomma[body] disjoint[cons] DOT                    { $$ = BUILDER.disjoint($body, @cons, $cons.first, $cons.second); }
+    : bodycomma[body] literal[lit] disable_theory_lexing DOT enable_maytheory_lexing                      { $$ = BUILDER.bodylit($body, $lit); }
+    | bodycomma[body] lubodyaggregate[aggr] disable_theory_lexing DOT enable_maytheory_lexing             { $$ = lexer->bodyaggregate($body, @aggr, NAF::POS, $aggr); }
+    | bodycomma[body] NOT[l] lubodyaggregate[aggr] disable_theory_lexing DOT enable_maytheory_lexing      { $$ = lexer->bodyaggregate($body, @aggr + @l, NAF::NOT, $aggr); }
+    | bodycomma[body] NOT[l] NOT lubodyaggregate[aggr] disable_theory_lexing DOT enable_maytheory_lexing  { $$ = lexer->bodyaggregate($body, @aggr + @l, NAF::NOTNOT, $aggr); }
+    | bodycomma[body] conjunction[conj] disable_theory_lexing DOT enable_maytheory_lexing                 { $$ = BUILDER.conjunction($body, @conj, $conj.first, $conj.second); }
+    | bodycomma[body] disjoint[cons] disable_theory_lexing DOT enable_maytheory_lexing                    { $$ = BUILDER.disjoint($body, @cons, $cons.first, $cons.second); }
     ;
 
 bodyconddot
-    : DOT             { $$ = BUILDER.body(); }
-    | COLON DOT       { $$ = BUILDER.body(); }
+    : DOT enable_maytheory_lexing            { $$ = BUILDER.body(); }
+    | COLON DOT enable_maytheory_lexing       { $$ = BUILDER.body(); }
     | COLON bodydot[body]   { $$ = $body; }
 
 head
@@ -730,19 +730,19 @@ head
     ;
 
 statement
-    : head[hd] DOT            { BUILDER.rule(@$, $hd); }
-    | head[hd] IF DOT         { BUILDER.rule(@$, $hd); }
-    | head[hd] IF bodydot[bd] { BUILDER.rule(@$, $hd, $bd); }
+    : head[hd] disable_theory_lexing DOT enable_maytheory_lexing            { BUILDER.rule(@$, $hd); }
+    | head[hd] disable_theory_lexing IF DOT enable_maytheory_lexing         { BUILDER.rule(@$, $hd); }
+    | head[hd] disable_theory_lexing IF bodydot[bd] { BUILDER.rule(@$, $hd, $bd); }
     | IF bodydot[bd]          { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@$, false)), $bd); }
-    | IF DOT                  { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@$, false)), BUILDER.body()); }
+    | IF DOT enable_maytheory_lexing                  { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@$, false)), BUILDER.body()); }
     ;
 
 // {{{2 CSP
 
 statement
-    : disjoint[hd] IF bodydot[body] { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@hd, false)), BUILDER.disjoint($body, @hd, inv($hd.first), $hd.second)); }
-    | disjoint[hd] IF DOT           { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@hd, false)), BUILDER.disjoint(BUILDER.body(), @hd, inv($hd.first), $hd.second)); }
-    | disjoint[hd] DOT              { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@hd, false)), BUILDER.disjoint(BUILDER.body(), @hd, inv($hd.first), $hd.second)); }
+    : disjoint[hd] disable_theory_lexing IF bodydot[body] { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@hd, false)), BUILDER.disjoint($body, @hd, inv($hd.first), $hd.second)); }
+    | disjoint[hd] disable_theory_lexing IF DOT enable_maytheory_lexing           { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@hd, false)), BUILDER.disjoint(BUILDER.body(), @hd, inv($hd.first), $hd.second)); }
+    | disjoint[hd] disable_theory_lexing DOT enable_maytheory_lexing              { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@hd, false)), BUILDER.disjoint(BUILDER.body(), @hd, inv($hd.first), $hd.second)); }
     ;
 
 // {{{2 optimization
@@ -868,9 +868,10 @@ idlist
     ;
 
 statement
-    : BLOCK identifier[name] LPAREN idlist[args] RPAREN DOT { BUILDER.block(@$, String::fromRep($name), $args); }
-    | BLOCK identifier[name] DOT                            { BUILDER.block(@$, String::fromRep($name), BUILDER.idvec()); }
+    : BLOCK disable_theory_lexing identifier[name] LPAREN idlist[args] RPAREN DOT { BUILDER.block(@$, String::fromRep($name), $args); }
+    | BLOCK disable_theory_lexing identifier[name] DOT                            { BUILDER.block(@$, String::fromRep($name), BUILDER.idvec()); }
     ;
+
 
 // {{{2 external
 
@@ -1035,6 +1036,10 @@ statement
 
 enable_theory_lexing
     : { lexer->theoryLexing(TheoryLexing::Theory); }
+    ;
+
+enable_maytheory_lexing
+    : { lexer->theoryLexing(TheoryLexing::MayTheory); }
     ;
 
 enable_theory_definition_lexing

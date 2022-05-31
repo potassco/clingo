@@ -38,11 +38,11 @@ namespace Gringo { namespace Input {
 using StringVec   = std::vector<std::string>;
 using ProgramVec  = std::vector<std::tuple<String, IdVec, std::string>>;
 
-enum class TheoryLexing { Disabled, Theory, Definition };
+enum class TheoryLexing { Disabled, MayTheory, Theory, Definition };
 
 class NonGroundParser : private LexerState<std::pair<String, std::pair<String, IdVec>>> {
 private:
-    enum Condition { yyccomment, yycblockcomment, yycscript, yycscript_body, yycnormal, yyctheory, yycdefinition };
+    enum Condition { yyccomment, yycblockcomment, yycscript, yycscript_body, yycnormal, yycmaytheory, yyctheory, yycdefinition };
 public:
     NonGroundParser(INongroundProgramBuilder &pb, bool &incmode);
     void parseError(Location const &loc, std::string const &token);

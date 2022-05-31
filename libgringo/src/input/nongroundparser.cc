@@ -354,6 +354,7 @@ NonGroundParser::Condition NonGroundParser::condition() const {
     if (condition_ == yycnormal) {
         switch (theoryLexing_) {
             case TheoryLexing::Disabled:   { return  yycnormal; }
+            case TheoryLexing::MayTheory:  { return  yycmaytheory; }
             case TheoryLexing::Theory:     { return  yyctheory; }
             case TheoryLexing::Definition: { return  yycdefinition; }
         }
