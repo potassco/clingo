@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_OUTPUT_BACKENDS_HH
-#define _GRINGO_OUTPUT_BACKENDS_HH
+#ifndef GRINGO_OUTPUT_BACKENDS_HH
+#define GRINGO_OUTPUT_BACKENDS_HH
 
 #include <gringo/backend.hh>
 #include <potassco/convert.h>
@@ -46,5 +46,5 @@ using IntermediateFormatBackend = Potassco::AspifOutput;
 
 } } // namespace Output Gringo
 
-#endif // _GRINGO_OUTPUT_BACKENDS_HH
+#endif // GRINGO_OUTPUT_BACKENDS_HH
 
