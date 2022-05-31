@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_REPORT_HH
-#define _GRINGO_REPORT_HH
+#ifndef GRINGO_LOGGER_HH
+#define GRINGO_LOGGER_HH
 
 #include <bitset>
 #include <cstdio>
@@ -40,12 +40,14 @@ namespace Gringo {
 
 class GringoError : public std::runtime_error {
 public:
-    GringoError(char const *msg) : std::runtime_error(msg) { }
+    GringoError(char const *msg)
+    : std::runtime_error(msg) { }
 };
 
 class MessageLimitError : public std::runtime_error {
 public:
-    MessageLimitError(char const *msg) : std::runtime_error(msg) { }
+    MessageLimitError(char const *msg)
+    : std::runtime_error(msg) { }
 };
 
 // {{{1 declaration of Logger
@@ -72,14 +74,15 @@ class Logger {
 public:
     using Printer = std::function<void (Warnings, char const *)>;
     Logger(Printer p = nullptr, unsigned limit = 20)
-    : p_(p)
+    : p_(std::move(p))
     , limit_(limit) { }
+
     bool check(Errors id);
     bool check(Warnings id);
     bool hasError() const;
     void enable(Warnings id, bool enable);
     void print(Warnings code, char const *msg);
-    ~Logger();
+
 private:
     Printer p_;
     unsigned limit_;
@@ -93,15 +96,19 @@ private:
 
 inline bool Logger::check(Warnings id) {
     if (id == Warnings::RuntimeError) {
-        if (!limit_ && error_) { throw MessageLimitError("too many messages."); }
-        if (limit_) { --limit_; }
+        if (limit_ == 0 && error_) {
+            throw MessageLimitError("too many messages.");
+        }
+        if (limit_ > 0) {
+            --limit_;
+        }
         error_ = true;
         return true;
     }
-    else {
-        if (!limit_ && error_) { throw MessageLimitError("too many messages."); }
-        return !disabled_[static_cast<int>(id)] && limit_ && (--limit_, true);
+    if (limit_  == 0 && error_) {
+        throw MessageLimitError("too many messages.");
     }
+    return !disabled_[static_cast<int>(id)] && limit_ > 0 && (--limit_, true);
 }
 
 inline bool Logger::hasError() const {
@@ -113,23 +120,35 @@ inline void Logger::enable(Warnings id, bool enabled) {
 }
 
 inline void Logger::print(Warnings code, char const *msg) {
-    if (p_) { p_(code, msg); }
+    if (p_) {
+        p_(code, msg);
+    }
     else {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
         fprintf(stderr, "%s\n", msg);
         fflush(stderr);
     }
 }
 
-inline Logger::~Logger() { }
-
 // {{{1 definition of Report
 
 class Report {
 public:
-    Report(Logger &p, Warnings code) : p_(p), code_(code) { }
-    ~Report() { p_.print(code_, out.str().c_str()); }
-    std::ostringstream out;
+    Report(Logger &p, Warnings code)
+    : p_(p), code_(code) { }
+    Report(Report const &other) = delete;
+    Report(Report &&other) = delete;
+    Report &operator=(Report const &other) = delete;
+    Report &operator=(Report &&other) = delete;
+    ~Report() {
+        p_.print(code_, out_.str().c_str());
+    }
+    std::ostringstream &out() {
+        return out_;
+    }
+
 private:
+    std::ostringstream out_;
     Logger &p_;
     Warnings code_;
 };
@@ -138,9 +157,9 @@ private:
 
 } // namespace GRINGO
 
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define GRINGO_REPORT(p, id) \
 if (!(p).check(id)) { } \
-else Gringo::Report(p, id).out
+else Gringo::Report(p, id).out()
 
-#endif // _GRINGO_REPORT_HH
-
+#endif // GRINGO_LOGGER_HH
