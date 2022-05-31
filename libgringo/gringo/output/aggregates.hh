@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_OUTPUT_AGGREGATES_HH
-#define _GRINGO_OUTPUT_AGGREGATES_HH
+#ifndef GRINGO_OUTPUT_AGGREGATES_HH
+#define GRINGO_OUTPUT_AGGREGATES_HH
 
 #include <gringo/terms.hh>
 #include <gringo/domain.hh>
@@ -43,7 +43,8 @@ using PlainBounds = std::vector<std::pair<Relation, Symbol>>;
 using LitValVec = std::vector<std::pair<LiteralId, Symbol>>;
 using LitUintVec = std::vector<std::pair<LiteralId, unsigned>>;
 
-struct AggregateAnalyzer {
+class AggregateAnalyzer {
+public:
     enum Monotonicity { MONOTONE, ANTIMONOTONE, CONVEX, NONMONOTONE };
     enum WeightType { MIXED, POSITIVE, NEGATIVE };
     enum Truth { True, False, Open };
@@ -51,7 +52,7 @@ struct AggregateAnalyzer {
 
     AggregateAnalyzer(DomainData &data, NAF naf, DisjunctiveBounds const &disjunctiveBounds, AggregateFunction fun, Interval range, BodyAggregateElements const &elems);
     void print(std::ostream &out);
-    LitValVec translateElems(DomainData &data, Translator &x, AggregateFunction fun, BodyAggregateElements const &bdElems, bool incomplete);
+    LitValVec translateElems(DomainData &data, Translator &x, AggregateFunction fun, BodyAggregateElements const &bdElems, bool incomplete) const;
 
     Monotonicity monotonicity;
     WeightType weightType;
@@ -64,9 +65,15 @@ inline Symbol getNeutral(AggregateFunction fun) {
     switch (fun) {
         case AggregateFunction::COUNT:
         case AggregateFunction::SUMP:
-        case AggregateFunction::SUM: { return Symbol::createNum(0); }
-        case AggregateFunction::MIN: { return Symbol::createSup(); }
-        case AggregateFunction::MAX: { return Symbol::createInf(); }
+        case AggregateFunction::SUM: {
+            return Symbol::createNum(0);
+        }
+        case AggregateFunction::MIN: {
+            return Symbol::createSup();
+        }
+        case AggregateFunction::MAX: {
+            return Symbol::createInf();
+        }
     }
     assert(false);
     return {};
@@ -81,8 +88,8 @@ public:
     LiteralId translate(DomainData &data, Translator &x, AggregateAnalyzer &res, bool isMin, LitValVec &&elems, bool incomplete);
 };
 
-struct SumTranslator {
-    SumTranslator() { }
+class SumTranslator {
+public:
     void addLiteral(DomainData &data, LiteralId const &lit, Potassco::Weight_t weight, bool recursive);
     void translate(DomainData &data, Translator &x, LiteralId const &head, Potassco::Weight_t bound, LitUintVec const &litsPosRec, LitUintVec const &litsNegRec, LitUintVec const &litsPosStrat, LitUintVec const &litsNegStrat);
     LiteralId translate(DomainData &data, Translator &x, ConjunctiveBounds &bounds, bool convex, bool invert);
@@ -95,4 +102,4 @@ struct SumTranslator {
 
 } } // namespace Output Gringo
 
-#endif // _GRINGO_OUTPUT_AGGREGATES_HH
+#endif // GRINGO_OUTPUT_AGGREGATES_HH
