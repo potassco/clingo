@@ -28,8 +28,13 @@
 #include <gringo/term.hh>
 #include <gringo/domain.hh>
 #include <gringo/input/types.hh>
+#include <gringo/ground/literal.hh>
 
 namespace Gringo { namespace Input {
+
+using Output::PredicateDomain;
+using Output::PredDomMap;
+using Output::DomainData;
 
 // {{{ declaration of Literal
 
@@ -68,6 +73,9 @@ public:
     ProjectionMap proj;
 };
 
+class Literal;
+using ULit    = std::unique_ptr<Literal>;
+using ULitVec = std::vector<ULit>;
 using ULitVecVec = std::vector<ULitVec>;
 
 class Literal : public Printable, public Hashable, public Locatable, public Comparable<Literal>, public Clonable<Literal> {

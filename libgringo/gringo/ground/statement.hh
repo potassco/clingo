@@ -32,6 +32,10 @@ namespace Gringo { namespace Ground {
 
 // {{{ declaration of Statement
 
+class Statement;
+using UStm = std::unique_ptr<Statement>;
+using UStmVec = std::vector<UStm>;
+
 class Statement : public Printable {
 public:
     using Dep = Dependency<UStm, HeadOccurrence>;

@@ -25,7 +25,7 @@
 #ifndef _GRINGO_GROUND_INSTANTIATION_HH
 #define _GRINGO_GROUND_INSTANTIATION_HH
 
-#include <gringo/output/types.hh>
+#include <gringo/output/output.hh>
 
 namespace Gringo { namespace Ground {
 

@@ -33,6 +33,8 @@
 
 namespace Gringo { namespace Ground {
 
+using Output::DomainData;
+
 // {{{1 declaration of HeadDefinition
 
 class HeadDefinition : private HeadOccurrence {

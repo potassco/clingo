@@ -31,6 +31,17 @@
 
 namespace Gringo { namespace Output {
 
+// TODO: There should not be any forward declarations here. The
+// PredicateLiteral and Domain can simply be defined here as well. The
+// translator is more difficult. Doing this cleanly requires a Translator
+// interface. This is probably worth it to obtain a nicer interface.
+class DomainData;
+class Translator;
+class PredicateDomain;
+struct UPredDomHash;
+struct UPredDomEqualTo;
+using PredDomMap = UniqueVec<std::unique_ptr<PredicateDomain>, UPredDomHash, UPredDomEqualTo>;
+
 // {{{1 declaration of PrintPlain
 
 struct PrintPlain {
@@ -59,6 +70,9 @@ enum class AtomType : uint32_t {
     Aux
     // TODO: consider a hidden predicate domain for internal purposes
 };
+
+class LiteralId;
+using LitVec = std::vector<LiteralId>;
 
 class LiteralId {
 public:

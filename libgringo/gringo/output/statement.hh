@@ -33,6 +33,8 @@
 
 namespace Gringo { namespace Output {
 
+class Statement;
+
 // {{{1 declaration of AbstractOutput
 
 class AbstractOutput {

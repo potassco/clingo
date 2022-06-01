@@ -32,6 +32,10 @@ namespace Gringo { namespace Input {
 
 // {{{ declaration of Statement
 
+class Statement;
+using UStm = std::unique_ptr<Statement>;
+using UStmVec = std::vector<UStm>;
+
 class Statement : public Printable, public Locatable {
 public:
     Statement(UHeadAggr &&head, UBodyAggrVec &&body);

@@ -22,14 +22,18 @@
 
 // }}}
 
-#ifndef _GRINGO_GROUND_LITERAL_HH
-#define _GRINGO_GROUND_LITERAL_HH
+#ifndef GRINGO_GROUND_LITERAL_HH
+#define GRINGO_GROUND_LITERAL_HH
 
 #include <gringo/ground/types.hh>
 #include <gringo/ground/dependency.hh>
 #include <gringo/ground/instantiation.hh>
+#include <gringo/output/types.hh>
 
 namespace Gringo { namespace Ground {
+
+using Output::DomainData;
+using Output::PredicateDomain;
 
 // {{{ declaration of HeadOccurrence
 
@@ -38,12 +42,16 @@ public:
     virtual void defines(IndexUpdater &update, Instantiator *inst) = 0;
     virtual ~HeadOccurrence() { }
 };
+using BodyOcc = BodyOccurrence<HeadOccurrence>;
 
 // }}}
 
 // {{{ declaration of Literal
 
-using BodyOcc = BodyOccurrence<HeadOccurrence>;
+class Literal;
+using ULit = std::unique_ptr<Literal>;
+using ULitVec = std::vector<ULit>;
+
 class Literal : public Printable {
 public:
     using Score   = double;
@@ -62,5 +70,5 @@ public:
 
 } } // namespace Ground Gringo
 
-#endif // _GRINGO_GROUND_LITERAL_HH
+#endif // GRINGO_GROUND_LITERAL_HH
 
