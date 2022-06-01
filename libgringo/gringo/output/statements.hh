@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_OUTPUT_STATEMENTS_HH
-#define _GRINGO_OUTPUT_STATEMENTS_HH
+#ifndef GRINGO_OUTPUT_STATEMENTS_HH
+#define GRINGO_OUTPUT_STATEMENTS_HH
 
 #include <gringo/output/statement.hh>
 #include <gringo/output/literals.hh>
@@ -35,31 +35,47 @@ namespace Gringo { namespace Output {
 class Rule : public Statement {
 public:
     Rule(bool choice = false);
+
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
+
     Rule &reset(bool choice);
     Rule &addHead(LiteralId lit);
     Rule &addBody(LiteralId lit);
+    Rule &negatePrevious(DomainData &data);
+
     template <class T>
     Rule &addBody(T const &t) {
-        for (auto &x : t) { body_.emplace_back(x); }
+        for (auto &x : t) {
+            body_.emplace_back(x);
+        }
         return *this;
     }
+
     template <class T>
     Rule &addHead(T const &t) {
-        for (auto &x : t) { head_.emplace_back(x); }
+        for (auto &x : t) {
+            head_.emplace_back(x);
+        }
         return *this;
     }
-    Rule &negatePrevious(DomainData &data);
-    size_t numHeads() const { return head_.size(); }
-    LitVec const &heads() const { return head_; }
-    LitVec const &body() const { return body_; }
-    virtual ~Rule();
+
+    size_t numHeads() const {
+        return head_.size();
+    }
+
+    LitVec const &heads() const {
+        return head_;
+    }
+
+    LitVec const &body() const {
+        return body_;
+    }
 
 private:
-    bool   choice_;
+    bool choice_;
     LitVec head_;
     LitVec body_;
 };
@@ -69,11 +85,11 @@ private:
 class External : public Statement {
 public:
     External(LiteralId head, Potassco::Value_t type);
+
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     void output(DomainData &data, UBackend &out) const override;
-    virtual ~External();
 
 private:
     LiteralId head_;
@@ -85,12 +101,12 @@ private:
 
 class ShowStatement : public Statement {
 public:
-    ShowStatement(Symbol term, LitVec const &body);
+    ShowStatement(Symbol term, LitVec body);
+
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
-    virtual ~ShowStatement() noexcept = default;
 
 private:
     Symbol term_;
@@ -102,11 +118,11 @@ private:
 class ProjectStatement : public Statement {
 public:
     ProjectStatement(LiteralId atom);
+
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
-    virtual ~ProjectStatement() noexcept = default;
 
 private:
     LiteralId atom_;
@@ -116,12 +132,12 @@ private:
 
 class HeuristicStatement : public Statement {
 public:
-    HeuristicStatement(LiteralId atom, int value, int priority, Potassco::Heuristic_t mod, LitVec const &body);
+    HeuristicStatement(LiteralId atom, int value, int priority, Potassco::Heuristic_t mod, LitVec body);
+
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
-    virtual ~HeuristicStatement() noexcept = default;
 
 private:
     LiteralId atom_;
@@ -135,12 +151,12 @@ private:
 
 class EdgeStatement : public Statement {
 public:
-    EdgeStatement(Symbol u, Symbol v, LitVec const &body);
+    EdgeStatement(Symbol u, Symbol v, LitVec body);
+
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
-    virtual ~EdgeStatement() noexcept = default;
 
 private:
     Symbol u_;
@@ -154,14 +170,14 @@ private:
 
 class WeakConstraint : public Statement {
 public:
-    WeakConstraint(SymVec tuple, LitVec const &lits)
-    : tuple_(tuple)
-    , lits_(lits) { }
+    WeakConstraint(SymVec tuple, LitVec lits)
+    : tuple_(std::move(tuple))
+    , lits_(std::move(lits)) { }
+
     void translate(DomainData &data, Translator &x) override;
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
-    virtual ~WeakConstraint() noexcept = default;
 
 private:
     SymVec tuple_;
@@ -173,11 +189,11 @@ private:
 class TheoryDirective : public Statement {
 public:
     TheoryDirective(LiteralId theoryLit);
+
     void translate(DomainData &data, Translator &x) override;
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
-    virtual ~TheoryDirective() noexcept = default;
 
 private:
     LiteralId theoryLit_;
@@ -209,7 +225,7 @@ private:
         operator const Symbol&() const { return term; }
     };
     struct TodoOutputEntry {
-        TodoOutputEntry(Symbol term, Formula &&cond)
+        TodoOutputEntry(Symbol term, Formula cond)
         : term(term)
         , cond(std::move(cond)) { }
         operator const Symbol&() const { return term; }
@@ -217,7 +233,9 @@ private:
         Formula cond;
     };
     struct OutputTable {
+        // NOLINTNEXTLINE(modernize-use-transparent-functors)
         using Table = UniqueVec<OutputEntry, std::hash<Symbol>, std::equal_to<Symbol>>;
+        // NOLINTNEXTLINE(modernize-use-transparent-functors)
         using Todo = UniqueVec<TodoOutputEntry, std::hash<Symbol>, std::equal_to<Symbol>>;
         Table table;
         Todo todo;
@@ -228,13 +246,14 @@ public:
     using ProjectionVec   = std::vector<std::pair<Potassco::Id_t, Potassco::Id_t>>;
     using TupleLitMap     = UniqueVec<TupleLit, HashFirst<TupleId>, EqualToFirst<TupleId>>;
 
-    Translator(UAbstractOutput &&out);
+    Translator(UAbstractOutput out);
+
     void addMinimize(TupleId tuple, LiteralId cond);
-    void atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds);
+    void atoms(DomainData &data, unsigned atomset, IsTrueLookup const &isTrue, SymVec &atoms, OutputPredicates const &outPreds);
     void translate(DomainData &data, OutputPredicates const &outPreds, Logger &log);
     void output(DomainData &data, Statement &x);
     void simplify(DomainData &data, Mappings &mappings, AssignmentLookup assignment);
-    void showTerm(DomainData &data, Symbol term, LitVec &&cond);
+    void showTerm(DomainData &data, Symbol term, LitVec cond);
     LiteralId removeNotNot(DomainData &data, LiteralId lit);
     unsigned nodeUid(Symbol v);
     // These are used to cache literals of translated formulas.
@@ -242,9 +261,10 @@ public:
     // Hence, they have to be deleted after each step.
     LiteralId clause(ClauseId id, bool conjunctive, bool equivalence);
     void clause(LiteralId lit, ClauseId id, bool conjunctive, bool equivalence);
-    void reset() { clauses_.clear(); }
+    void reset() {
+        clauses_.clear();
+    }
 
-    ~Translator();
 private:
     LitVec updateCond(DomainData &data, OutputTable::Table &table, OutputTable::Todo::ValueType &todo);
     void showAtom(DomainData &data, PredDomMap::Iterator it);
@@ -252,7 +272,6 @@ private:
     void showValue(DomainData &data, Bound const &bound, LitVec const &cond);
     void translateMinimize(DomainData &data);
     void outputSymbols(DomainData &data, OutputPredicates const &outPreds, Logger &log);
-    bool showSig(OutputPredicates const &outPreds, Sig sig);
 
     OutputTable termOutput_;
     MinimizeList minimize_;   // stores minimize constraint for current step
@@ -290,12 +309,12 @@ class Minimize : public Statement {
 public:
     using LitWeightVec = std::vector<std::pair<LiteralId, int>>;
     Minimize(int priority);
+
     Minimize &add(LiteralId lit, Potassco::Weight_t weight);
     void translate(DomainData &data, Translator &x) override;
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
-    virtual ~Minimize();
 
 private:
     int priority_;
@@ -307,12 +326,12 @@ private:
 
 class Symtab : public Statement {
 public:
-    Symtab(Symbol symbol, LitVec &&body);
+    Symtab(Symbol symbol, LitVec body);
+
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
-    virtual ~Symtab();
 
 private:
     Symbol symbol_;
@@ -323,12 +342,12 @@ private:
 
 class WeightRule : public Statement {
 public:
-    WeightRule(LiteralId head, Potassco::Weight_t lower, LitUintVec &&body);
+    WeightRule(LiteralId head, Potassco::Weight_t lower, LitUintVec body);
+
     void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
-    virtual ~WeightRule();
 
 private:
     LiteralId          head_;
@@ -348,13 +367,25 @@ public:
     BackendStatement(T const &lambda)
     : lambda_(lambda)
     { }
-    void output(DomainData &data, UBackend &out) const override { lambda_(data, out); }
-    void print(PrintPlain, char const *) const override { }
+
+    void output(DomainData &data, UBackend &out) const override {
+        lambda_(data, out);
+    }
+
+    void print(PrintPlain out, char const *prefix) const override {
+        static_cast<void>(out);
+        static_cast<void>(prefix);
+    }
+
     void translate(DomainData &data, Translator &trans) override {
         trans.output(data, *this);
     }
-    void replaceDelayed(DomainData &, LitVec &) override { }
-    virtual ~BackendStatement() { }
+
+    void replaceDelayed(DomainData &data, LitVec &delayed) override {
+        static_cast<void>(data);
+        static_cast<void>(delayed);
+    }
+
 private:
     T const &lambda_;
 };
@@ -374,4 +405,4 @@ void backendLambda(DomainData &data, Translator &trans, T const &lambda) {
 
 } } // namespace Output Gringo
 
-#endif // _GRINGO_OUTPUT_STATEMENTS_HH
+#endif // GRINGO_OUTPUT_STATEMENTS_HH

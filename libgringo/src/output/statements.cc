@@ -61,25 +61,46 @@ namespace {
 
 void printPlainBody(PrintPlain out, LitVec const &body) {
     int sep = 0;
-    for (auto &x : body) {
+    for (auto const &x : body) {
         switch (sep) {
-        case 1: { out << ","; break; }
-        case 2: { out << ";"; break; }
+            case 1: {
+                out << ",";
+                break;
+            }
+            case 2: {
+                out << ";";
+                break;
+            }
         }
         call(out.domain, x, &Literal::printPlain, out);
-        sep = call(out.domain, x, &Literal::needsSemicolon) + 1;
+        sep = call(out.domain, x, &Literal::needsSemicolon) ? 2 : 1;
     }
 }
 
 void printPlainHead(PrintPlain out, LitVec const &body, bool choice) {
     bool sep = false;
-    if (choice) { out << "{"; }
-    for (auto &x : body) {
-        if (sep) { out << ";"; }
+    if (choice) {
+        out << "{";
+    }
+    for (auto const &x : body) {
+        if (sep) {
+            out << ";";
+        }
         call(out.domain, x, &Literal::printPlain, out);
         sep = true;
     }
-    if (choice) { out << "}"; }
+    if (choice) {
+        out << "}";
+    }
+}
+
+bool showSig(OutputPredicates const &outPreds, Sig sig) {
+    if (outPreds.empty()) { return true; }
+    auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
+        return std::get<1>(x) < std::get<1>(y);
+    };
+    static Location loc("",1,1,"",1,1);
+    return std::binary_search(outPreds.begin(), outPreds.end(), OutputPredicates::value_type(loc, sig), le);
 }
 
 } // namespace
@@ -122,33 +143,39 @@ Rule &Rule::negatePrevious(DomainData &data) {
 void Rule::print(PrintPlain out, char const *prefix) const {
     out << prefix;
     printPlainHead(out, head_, choice_);
-    if (!body_.empty() || head_.empty()) { out << ":-"; }
+    if (!body_.empty() || head_.empty()) {
+        out << ":-";
+    }
     printPlainBody(out, body_);
     out << ".\n";
 }
 
-void Rule::translate(DomainData &data, Translator &x) {
+void Rule::translate(DomainData &data, Translator &trans) {
     head_.erase(std::remove_if(head_.begin(), head_.end(), [&](LiteralId &lit) {
         if (!call(data, lit, &Literal::isHeadAtom)) {
-            if (!choice_) { body_.emplace_back(lit.negate()); }
+            if (!choice_) {
+                body_.emplace_back(lit.negate());
+            }
             return true;
         }
         return false;
     }), head_.end());
-    Gringo::Output::translate(data, x, head_);
-    Gringo::Output::translate(data, x, body_);
-    x.output(data, *this);
-
+    Gringo::Output::translate(data, trans, head_);
+    Gringo::Output::translate(data, trans, body_);
+    trans.output(data, *this);
 }
+
 void Rule::output(DomainData &data, UBackend &out) const {
     BackendAtomVec &hd = data.tempAtoms();
-    for (auto &x : head_) {
+    for (auto const &x : head_) {
         Potassco::Lit_t lit = call(data, x, &Literal::uid);
         assert(lit > 0);
         hd.emplace_back(static_cast<Potassco::Atom_t>(lit));
     }
     BackendLitVec &bd = data.tempLits();
-    for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
+    for (auto const &x : body_) {
+        bd.emplace_back(call(data, x, &Literal::uid));
+    }
     outputRule(*out, choice_, hd, bd);
 }
 
@@ -156,8 +183,6 @@ void Rule::replaceDelayed(DomainData &data, LitVec &delayed) {
     Gringo::Output::replaceDelayed(data, head_, delayed);
     Gringo::Output::replaceDelayed(data, body_, delayed);
 }
-
-Rule::~Rule() { }
 
 // {{{1 definition of External
 
@@ -169,15 +194,27 @@ void External::print(PrintPlain out, char const *prefix) const {
     out << prefix << "#external ";
     call(out.domain, head_, &Literal::printPlain, out);
     switch (type_) {
-        case Potassco::Value_t::False:   { out << ".\n"; break; }
-        case Potassco::Value_t::True:    { out << ".[true]\n"; break; }
-        case Potassco::Value_t::Free:    { out << ".[free]\n"; break; }
-        case Potassco::Value_t::Release: { out << ".[release]\n"; break; }
+        case Potassco::Value_t::False: {
+            out << ".\n";
+            break;
+        }
+        case Potassco::Value_t::True: {
+            out << ".[true]\n";
+            break;
+        }
+        case Potassco::Value_t::Free: {
+            out << ".[free]\n";
+            break;
+        }
+        case Potassco::Value_t::Release: {
+            out << ".[release]\n";
+            break;
+        }
     }
 }
 
-void External::translate(DomainData &data, Translator &x) {
-    x.output(data, *this);
+void External::translate(DomainData &data, Translator &trans) {
+    trans.output(data, *this);
 }
 
 void External::output(DomainData &data, UBackend &out) const {
@@ -185,23 +222,23 @@ void External::output(DomainData &data, UBackend &out) const {
     out->external(head, type_);
 }
 
-void External::replaceDelayed(DomainData &data, LitVec &) {
-    (void)data;
+void External::replaceDelayed(DomainData &data, LitVec &delayed) {
+    static_cast<void>(delayed);
     assert(!call(data, head_, &Literal::isIncomplete));
 }
 
-External::~External() { }
-
 // {{{1 definition of ShowStatement
 
-ShowStatement::ShowStatement(Symbol term, LitVec const &body)
+ShowStatement::ShowStatement(Symbol term, LitVec body)
 : term_(term)
-, body_(body) { }
+, body_(std::move(body)) { }
 
 void ShowStatement::print(PrintPlain out, char const *prefix) const {
     out << prefix;
     out << "#show " << term_;
-    if (!body_.empty()) { out << ":"; }
+    if (!body_.empty()) {
+        out << ":";
+    }
     printPlainBody(out, body_);
     out << ".\n";
 }
@@ -210,13 +247,15 @@ void ShowStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
     Gringo::Output::replaceDelayed(data, body_, delayed);
 }
 
-void ShowStatement::translate(DomainData &data, Translator &x) {
-    Gringo::Output::translate(data, x, body_);
-    x.showTerm(data, term_, std::move(body_));
+void ShowStatement::translate(DomainData &data, Translator &trans) {
+    Gringo::Output::translate(data, trans, body_);
+    trans.showTerm(data, term_, std::move(body_));
 }
 
-void ShowStatement::output(DomainData &, UBackend &) const {
+void ShowStatement::output(DomainData &data, UBackend &out) const {
     // Show statements are taken care of in the translator.
+    static_cast<void>(data);
+    static_cast<void>(out);
 }
 
 // {{{1 definition of ProjectStatement
@@ -233,8 +272,8 @@ void ProjectStatement::print(PrintPlain out, char const *prefix) const {
     out << ".\n";
 }
 
-void ProjectStatement::translate(DomainData &data, Translator &x) {
-    x.output(data, *this);
+void ProjectStatement::translate(DomainData &data, Translator &trans) {
+    trans.output(data, *this);
 }
 
 void ProjectStatement::output(DomainData &data, UBackend &out) const {
@@ -243,17 +282,19 @@ void ProjectStatement::output(DomainData &data, UBackend &out) const {
     out->project(Potassco::toSpan(atoms));
 }
 
-void ProjectStatement::replaceDelayed(DomainData &, LitVec &) {
+void ProjectStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
+    static_cast<void>(data);
+    static_cast<void>(delayed);
 }
 
 // {{{1 definition of HeuristicStatement
 
-HeuristicStatement::HeuristicStatement(LiteralId atom, int value, int priority, Potassco::Heuristic_t mod, LitVec const &body)
+HeuristicStatement::HeuristicStatement(LiteralId atom, int value, int priority, Potassco::Heuristic_t mod, LitVec body)
 : atom_(atom)
 , value_(value)
 , priority_(priority)
 , mod_(mod)
-, body_(body) {
+, body_(std::move(body)) {
     assert(atom.sign() == NAF::POS);
     assert(atom.type() == AtomType::Predicate);
 }
@@ -261,20 +302,22 @@ HeuristicStatement::HeuristicStatement(LiteralId atom, int value, int priority, 
 void HeuristicStatement::print(PrintPlain out, char const *prefix) const {
     out << prefix << "#heuristic ";
     call(out.domain, atom_, &Literal::printPlain, out);
-    if (!body_.empty()) { out << ":"; }
+    if (!body_.empty()) {
+        out << ":";
+    }
     printPlainBody(out, body_);
     out << ".[" << value_ << "@" << priority_ << "," << toString(mod_) << "]\n";
 }
 
-void HeuristicStatement::translate(DomainData &data, Translator &x) {
-    Gringo::Output::translate(data, x, body_);
-    x.output(data, *this);
+void HeuristicStatement::translate(DomainData &data, Translator &trans) {
+    Gringo::Output::translate(data, trans, body_);
+    trans.output(data, *this);
 }
 
 void HeuristicStatement::output(DomainData &data, UBackend &out) const {
     auto uid = call(data, atom_, &Literal::uid);
     BackendLitVec bd;
-    for (auto &lit : body_) {
+    for (auto const &lit : body_) {
         bd.emplace_back(call(data, lit, &Literal::uid));
     }
     out->heuristic(uid, mod_, value_, priority_, Potassco::toSpan(bd));
@@ -286,33 +329,37 @@ void HeuristicStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
 
 // {{{1 definition of EdgeStatement
 
-EdgeStatement::EdgeStatement(Symbol u, Symbol v, LitVec const &body)
+EdgeStatement::EdgeStatement(Symbol u, Symbol v, LitVec body)
 : u_(u)
 , v_(v)
 , uidU_(0)
 , uidV_(0)
-, body_(body)
+, body_(std::move(body))
 { }
 
 void EdgeStatement::print(PrintPlain out, char const *prefix) const {
     out << prefix;
     out << "#edge(" << u_ << "," << v_ << ")";
-    if (!body_.empty()) { out << ":"; }
+    if (!body_.empty()) {
+        out << ":";
+    }
     printPlainBody(out, body_);
     out << ".\n";
 }
 
-void EdgeStatement::translate(DomainData &data, Translator &x) {
-    Gringo::Output::translate(data, x, body_);
-    uidU_ = x.nodeUid(u_);
-    uidV_ = x.nodeUid(v_);
-    x.output(data, *this);
+void EdgeStatement::translate(DomainData &data, Translator &trans) {
+    Gringo::Output::translate(data, trans, body_);
+    uidU_ = trans.nodeUid(u_);
+    uidV_ = trans.nodeUid(v_);
+    trans.output(data, *this);
 }
 
 void EdgeStatement::output(DomainData &data, UBackend &out) const {
     BackendLitVec bd;
-    for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
-    out->acycEdge(uidU_, uidV_, Potassco::toSpan(bd));
+    for (auto const &x : body_) {
+        bd.emplace_back(call(data, x, &Literal::uid));
+    }
+    out->acycEdge(numeric_cast<int>(uidU_), numeric_cast<int>(uidV_), Potassco::toSpan(bd));
 }
 
 void EdgeStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -338,17 +385,23 @@ void TheoryDirective::translate(DomainData &data, Translator &x) {
     call(data, theoryLit_, &Literal::translate, x);
 }
 
-void TheoryDirective::output(DomainData &, UBackend &) const {
+void TheoryDirective::output(DomainData &data, UBackend &out) const {
     // Note: taken care of in translate
+    static_cast<void>(data);
+    static_cast<void>(out);
 }
 
-void TheoryDirective::replaceDelayed(DomainData &, LitVec &) {
+void TheoryDirective::replaceDelayed(DomainData &data, LitVec &delayed) {
+    static_cast<void>(data);
+    static_cast<void>(delayed);
 }
 
 // {{{1 definition of Minimize
 
 void WeakConstraint::translate(DomainData &data, Translator &x) {
-    for (auto &z : lits_) { z = call(data, z, &Literal::translate, x); }
+    for (auto &z : lits_) {
+        z = call(data, z, &Literal::translate, x);
+    }
     x.addMinimize(data.tuple(tuple_), getEqualClause(data, x, data.clause(std::move(lits_)), true, false));
 }
 
@@ -360,11 +413,15 @@ void WeakConstraint::print(PrintPlain out, char const *prefix) const {
     auto it(tuple_.begin());
     out << *it++ << "@";
     out << *it++;
-    for (auto ie(tuple_.end()); it != ie; ++it) { out << "," << *it; }
+    for (auto ie(tuple_.end()); it != ie; ++it) {
+        out << "," << *it;
+    }
     out << "]\n";
 }
 
-void WeakConstraint::output(DomainData &, UBackend &) const {
+void WeakConstraint::output(DomainData &data, UBackend &out) const {
+    static_cast<void>(data);
+    static_cast<void>(out);
     throw std::logic_error("WeakConstraint::output: must not be called");
 }
 
@@ -376,7 +433,7 @@ void WeakConstraint::replaceDelayed(DomainData &data, LitVec &delayed) {
 
 // {{{1 definition of Translator
 
-Translator::Translator(UAbstractOutput &&out)
+Translator::Translator(UAbstractOutput out)
 : out_(std::move(out))
 { }
 
@@ -392,7 +449,7 @@ void Translator::translate(DomainData &data, OutputPredicates const &outPreds, L
 void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPreds, Logger &log) {
     // show what was requested
     if (!outPreds.empty()) {
-        for (auto &x : outPreds) {
+        for (auto const &x : outPreds) {
             auto it(data.predDoms().find(std::get<1>(x)));
             if (it != data.predDoms().end()) {
                 showAtom(data, it);
@@ -432,29 +489,28 @@ LitVec Translator::updateCond(DomainData &data, OutputTable::Table &table, Outpu
     return {excludeOldCond};
 }
 
-bool Translator::showSig(OutputPredicates const &outPreds, Sig sig) {
-    if (outPreds.empty()) { return true; }
-    auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
-        return std::get<1>(x) < std::get<1>(y);
+void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup const &isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
+    auto isComp = [isTrue, atomset](unsigned x) {
+        return (atomset & static_cast<unsigned>(ShowType::Complement)) != 0 ? !isTrue(x) : isTrue(x);
     };
-    static Location loc("",1,1,"",1,1);
-    return std::binary_search(outPreds.begin(), outPreds.end(), OutputPredicates::value_type(loc, sig), le);
-}
-
-void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
-    auto isComp = [isTrue, atomset](unsigned x) { return (atomset & static_cast<unsigned>(ShowType::Complement)) ? !isTrue(x) : isTrue(x); };
-    if (atomset & (static_cast<unsigned>(ShowType::Atoms) | static_cast<unsigned>(ShowType::Shown))) {
+    bool showAtoms = (atomset & static_cast<unsigned>(ShowType::Atoms)) != 0;
+    bool showShown = (atomset & static_cast<unsigned>(ShowType::Shown)) != 0;
+    bool showTerms = (atomset & static_cast<unsigned>(ShowType::Terms)) != 0;
+    if (showAtoms || showShown) {
         for (auto &x : data.predDoms()) {
             Sig sig = *x;
             auto name = sig.name();
-            if (((atomset & static_cast<unsigned>(ShowType::Atoms) || (atomset & static_cast<unsigned>(ShowType::Shown) && showSig(outPreds, sig))) && !name.empty() && !name.startsWith("#"))) {
+            bool show = showAtoms || (showShown && showSig(outPreds, sig));
+            if (show && !name.empty() && !name.startsWith("#")) {
                 for (auto &y: *x) {
-                    if (y.defined() && y.hasUid() && isComp(y.uid())) { atoms.emplace_back(y); }
+                    if (y.defined() && y.hasUid() && isComp(y.uid())) {
+                        atoms.emplace_back(y);
+                    }
                 }
             }
         }
     }
-    if (atomset & (static_cast<unsigned>(ShowType::Terms) | static_cast<unsigned>(ShowType::Shown))) {
+    if (showTerms || showShown) {
         for (auto &entry : termOutput_.table) {
             if (isComp(call(data, entry.cond, &Literal::uid))) {
                 atoms.emplace_back(entry.term);
@@ -478,18 +534,22 @@ void Translator::simplify(DomainData &data, Mappings &mappings, AssignmentLookup
     });
 }
 
-void Translator::output(DomainData &data, Statement &stm) {
-    out_->output(data, stm);
+void Translator::output(DomainData &data, Statement &x) {
+    out_->output(data, x);
 }
 
 namespace {
 
 class Atomtab : public Statement {
 public:
-    Atomtab(PredicateDomain::Iterator atom) : atom_(atom) { };
-    void output(DomainData &, UBackend &out) const override {
+    Atomtab(PredicateDomain::Iterator atom)
+    : atom_(atom) { }
+
+    void output(DomainData &data, UBackend &out) const override {
+        static_cast<void>(data);
         out->output(*atom_, atom_->fact() ? 0 : atom_->uid());
     }
+
     void print(PrintPlain out, char const *prefix) const override {
         out << prefix << "#show " << (Symbol)*atom_;
         if (!atom_->fact()) {
@@ -497,12 +557,19 @@ public:
         }
         out << ".\n";
     }
-    void translate(DomainData &data, Translator &x) override {
-        if (!atom_->hasUid()) { atom_->setUid(data.newAtom()); }
-        x.output(data, *this);
+
+    void translate(DomainData &data, Translator &trans) override {
+        if (!atom_->hasUid()) {
+            atom_->setUid(data.newAtom());
+        }
+        trans.output(data, *this);
     }
-    void replaceDelayed(DomainData &, LitVec &) override { }
-    virtual ~Atomtab() = default;
+
+    void replaceDelayed(DomainData &data, LitVec &delayed) override {
+        static_cast<void>(data);
+        static_cast<void>(delayed);
+    }
+
 private:
     PredicateDomain::Iterator atom_;
 };
@@ -514,8 +581,8 @@ void Translator::showAtom(DomainData &data, PredDomMap::Iterator it) {
         if (jt->defined()) {
             LitVec cond;
             if (!jt->fact()) {
-                Potassco::Id_t domain = numeric_cast<Potassco::Id_t>(it - data.predDoms().begin());
-                Potassco::Id_t offset = numeric_cast<Potassco::Id_t>(jt - (*it)->begin());
+                auto domain = numeric_cast<Potassco::Id_t>(it - data.predDoms().begin());
+                auto offset = numeric_cast<Potassco::Id_t>(jt - (*it)->begin());
                 cond.emplace_back(NAF::POS, AtomType::Predicate, offset, domain);
             }
             Atomtab(jt).translate(data, *this);
@@ -530,8 +597,11 @@ void Translator::showValue(DomainData &data, Symbol value, LitVec const &cond) {
 
 void Translator::translateMinimize(DomainData &data) {
     sort_unique(minimize_, [&data](TupleLit const &a, TupleLit const &b) {
-        auto aa = data.tuple(a.first), ab = data.tuple(b.first);
-        if (aa[1] != ab[1]) { return aa[1] < ab[1]; }
+        auto aa = data.tuple(a.first);
+        auto ab = data.tuple(b.first);
+        if (aa[1] != ab[1]) {
+            return aa[1] < ab[1];
+        }
         return a < b;
     });
     for (auto it = minimize_.begin(), iE = minimize_.end(); it != iE;) {
@@ -561,7 +631,7 @@ void Translator::translateMinimize(DomainData &data) {
     minimize_.clear();
 }
 
-void Translator::showTerm(DomainData &data, Symbol term, LitVec &&cond) {
+void Translator::showTerm(DomainData &data, Symbol term, LitVec cond) {
     termOutput_.todo.push(term, Formula{}).first->cond.emplace_back(data.clause(std::move(cond)));
 }
 
@@ -582,47 +652,51 @@ constexpr Translator::ClauseKey Translator::ClauseKeyLiterals::open;
 constexpr Translator::ClauseKey Translator::ClauseKeyLiterals::deleted;
 
 LiteralId Translator::clause(ClauseId id, bool conjunctive, bool equivalence) {
-    auto ret = clauses_.find(
+    auto *ret = clauses_.find(
         [](ClauseKey const &a) { return a.hash(); },
         [](ClauseKey const &a, ClauseKey const &b) { return a == b; },
-        ClauseKey{ id.first, id.second, conjunctive, equivalence, LiteralId().repr() });
-    return ret ? LiteralId{ret->literal} : LiteralId{};
+        ClauseKey{id.first, id.second, conjunctive ? 1U : 0U, equivalence ? 1U : 0U, LiteralId().repr()});
+    return ret != nullptr ? LiteralId{ret->literal} : LiteralId{};
 }
 
 void Translator::clause(LiteralId lit, ClauseId id, bool conjunctive, bool equivalence) {
     auto ret = clauses_.insert(
         [](ClauseKey const &a) { return a.hash(); },
         [](ClauseKey const &a, ClauseKey const &b) { return a == b; },
-        ClauseKey{ id.first, id.second, conjunctive, equivalence, lit.repr() });
-    (void)ret;
+        ClauseKey{ id.first, id.second, conjunctive ? 1U : 0U, equivalence ? 1U : 0U, lit.repr() });
+    static_cast<void>(ret);
     assert(ret.second);
 }
-
-Translator::~Translator() { }
 
 // }}}1
 
 // {{{1 definition of Symtab
 
-Symtab::Symtab(Symbol symbol, LitVec &&body)
+Symtab::Symtab(Symbol symbol, LitVec body)
 : symbol_(symbol)
 , body_(std::move(body)) { }
 
 void Symtab::print(PrintPlain out, char const *prefix) const {
     out << prefix << "#show " << symbol_;
-    if (!body_.empty()) { out << ":"; }
+    if (!body_.empty()) {
+        out << ":";
+    }
     printPlainBody(out, body_);
     out << ".\n";
 }
 
-void Symtab::translate(DomainData &data, Translator &x) {
-    for (auto &y : body_) { y = call(data, y, &Literal::translate, x); }
-    x.output(data, *this);
+void Symtab::translate(DomainData &data, Translator &trans) {
+    for (auto &y : body_) {
+        y = call(data, y, &Literal::translate, trans);
+    }
+    trans.output(data, *this);
 }
 
 void Symtab::output(DomainData &data, UBackend &out) const {
     BackendLitVec &bd = data.tempLits();
-    for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
+    for (auto const &x : body_) {
+        bd.emplace_back(call(data, x, &Literal::uid));
+    }
     std::ostringstream oss;
     oss << symbol_;
     out->output(symbol_, Potassco::toSpan(bd));
@@ -631,8 +705,6 @@ void Symtab::output(DomainData &data, UBackend &out) const {
 void Symtab::replaceDelayed(DomainData &data, LitVec &delayed) {
     Gringo::Output::replaceDelayed(data, body_, delayed);
 }
-
-Symtab::~Symtab() { }
 
 // {{{1 definition of Minimize
 
@@ -645,7 +717,9 @@ Minimize &Minimize::add(LiteralId lit, Potassco::Weight_t weight) {
 }
 
 void Minimize::translate(DomainData &data, Translator &x) {
-    for (auto &y : lits_) { y.first = call(data, y.first, &Literal::translate, x); }
+    for (auto &y : lits_) {
+        y.first = call(data, y.first, &Literal::translate, x);
+    }
     x.output(data, *this);
 }
 
@@ -660,23 +734,23 @@ void Minimize::print(PrintPlain out, char const *prefix) const {
     out << "}.\n";
 }
 
-void Minimize::output(DomainData &data, UBackend &x) const {
+void Minimize::output(DomainData &data, UBackend &out) const {
     BackendLitWeightVec &body = data.tempWLits();
-    for (auto &y : lits_) {
+    for (auto const &y : lits_) {
         body.push_back({call(data, y.first, &Literal::uid), y.second});
     }
-    x->minimize(priority_, Potassco::toSpan(body));
+    out->minimize(priority_, Potassco::toSpan(body));
 }
 
 void Minimize::replaceDelayed(DomainData &data, LitVec &delayed) {
-    for (auto &x : lits_) { Gringo::Output::replaceDelayed(data, x.first, delayed); }
+    for (auto &x : lits_) {
+        Gringo::Output::replaceDelayed(data, x.first, delayed);
+    }
 }
-
-Minimize::~Minimize() { }
 
 // {{{1 definition of WeightRule
 
-WeightRule::WeightRule(LiteralId head, Potassco::Weight_t lower, LitUintVec &&body)
+WeightRule::WeightRule(LiteralId head, Potassco::Weight_t lower, LitUintVec body)
 : head_(head)
 , body_(std::move(body))
 , lower_(lower) { }
@@ -686,7 +760,8 @@ void WeightRule::print(PrintPlain out, char const *prefix) const {
     call(out.domain, head_, &Literal::printPlain, out);
     out << ":-" << lower_ << "{";
     if (!body_.empty()) {
-        auto it(body_.begin()), ie(body_.end());
+        auto it = body_.begin();
+        auto ie = body_.end();
         call(out.domain, it->first, &Literal::printPlain, out);
         out << "=" << it->second;
         for (++it; it != ie; ++it) {
@@ -698,30 +773,34 @@ void WeightRule::print(PrintPlain out, char const *prefix) const {
     out << "}.\n";
 }
 
-void WeightRule::translate(DomainData &data, Translator &x) {
-    head_ = call(data, head_, &Literal::translate, x);
+void WeightRule::translate(DomainData &data, Translator &trans) {
+    head_ = call(data, head_, &Literal::translate, trans);
     if (!call(data, head_, &Literal::isHeadAtom)) {
         LiteralId aux = data.newAux();
-        Rule().addHead(head_).addBody(aux).translate(data, x);
+        Rule().addHead(head_).addBody(aux).translate(data, trans);
         head_ = aux;
     }
-    for (auto &y : body_) { y.first = call(data, y.first, &Literal::translate, x); }
-    x.output(data, *this);
+    for (auto &y : body_) {
+        y.first = call(data, y.first, &Literal::translate, trans);
+    }
+    trans.output(data, *this);
 }
 
 void WeightRule::output(DomainData &data, UBackend &out) const {
     BackendLitWeightVec lits;
-    for (auto &x : body_) { lits.push_back({call(data, x.first, &Literal::uid), static_cast<Potassco::Weight_t>(x.second)}); }
+    for (auto const &x : body_) {
+        lits.push_back({call(data, x.first, &Literal::uid), static_cast<Potassco::Weight_t>(x.second)});
+    }
     BackendAtomVec heads({static_cast<Potassco::Atom_t>(call(data, head_, &Literal::uid))});
     outputRule(*out, false, heads, lower_, lits);
 }
 
 void WeightRule::replaceDelayed(DomainData &data, LitVec &delayed) {
     Gringo::Output::replaceDelayed(data, head_, delayed);
-    for (auto &x : body_) { Gringo::Output::replaceDelayed(data, x.first, delayed); }
+    for (auto &x : body_) {
+        Gringo::Output::replaceDelayed(data, x.first, delayed);
+    }
 }
-
-WeightRule::~WeightRule() { }
 
 // }}}1
 
