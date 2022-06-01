@@ -36,13 +36,17 @@ void replaceDelayed(DomainData &data, LiteralId &lit, LitVec &delayed) {
                 assert(ret.first.sign() == lit.sign());
                 delayed.emplace_back(lit.withSign(NAF::POS));
             }
-            else { delayed.emplace_back(lit); }
+            else {
+                delayed.emplace_back(lit);
+            }
         }
         lit = ret.first;
     }
 }
 void replaceDelayed(DomainData &data, LitVec &lits, LitVec &delayed) {
-    for (auto &lit : lits) { replaceDelayed(data, lit, delayed); }
+    for (auto &lit : lits) {
+        replaceDelayed(data, lit, delayed);
+    }
 }
 
 void translate(DomainData &data, Translator &x, LiteralId &lit) {

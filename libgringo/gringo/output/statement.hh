@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_OUTPUT_STATEMENT_HH
-#define _GRINGO_OUTPUT_STATEMENT_HH
+#ifndef GRINGO_OUTPUT_STATEMENT_HH
+#define GRINGO_OUTPUT_STATEMENT_HH
 
 #include <gringo/output/literal.hh>
 #include <gringo/backend.hh>
@@ -37,8 +37,14 @@ namespace Gringo { namespace Output {
 
 class AbstractOutput {
 public:
-    virtual void output(DomainData &data, Statement &stm) = 0;
+    AbstractOutput() = default;
+    AbstractOutput(AbstractOutput const &other) = default;
+    AbstractOutput(AbstractOutput &&other) noexcept = default;
+    AbstractOutput &operator=(AbstractOutput const &other) = default;
+    AbstractOutput &operator=(AbstractOutput &&other) noexcept = default;
     virtual ~AbstractOutput() noexcept = default;
+
+    virtual void output(DomainData &data, Statement &stm) = 0;
 };
 using UAbstractOutput = std::unique_ptr<AbstractOutput>;
 
@@ -51,7 +57,13 @@ void translate(DomainData &data, Translator &x, LitVec &lits);
 
 class Statement {
 public:
+    Statement() = default;
+    Statement(Statement const &other) = default;
+    Statement(Statement &&other) noexcept = default;
+    Statement &operator=(Statement const &other) = default;
+    Statement &operator=(Statement &&other) noexcept = default;
     virtual ~Statement() noexcept = default;
+
     virtual void output(DomainData &data, UBackend &out) const = 0;
     virtual void print(PrintPlain out, char const *prefix = "") const = 0;
     virtual void translate(DomainData &data, Translator &trans) = 0;
@@ -64,5 +76,5 @@ public:
 
 } } // namespace Output Gringo
 
-#endif // _GRINGO_OUTPUT_STATEMENT_HH
+#endif // GRINGO_OUTPUT_STATEMENT_HH
 
