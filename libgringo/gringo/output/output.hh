@@ -103,8 +103,8 @@ public:
         return atm.uid();
     }
 private:
-    UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputOptions opts);
-    UAbstractOutput fromBackend(UBackend out, OutputOptions opts);
+    static UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputOptions opts);
+    static UAbstractOutput fromBackend(UBackend out, OutputOptions opts);
 
 public:
     SymVec tempVals_;

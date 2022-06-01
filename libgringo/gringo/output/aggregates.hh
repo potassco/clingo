@@ -82,23 +82,6 @@ LiteralId getEqualClause(DomainData &data, Translator &x, std::pair<Id_t, Id_t> 
 LiteralId getEqualFormula(DomainData &data, Translator &x, Formula const &formula, bool conjunctive, bool equivalence);
 LiteralId getEqualAggregate(DomainData &data, Translator &x, AggregateFunction fun, NAF naf, DisjunctiveBounds const &bounds, Interval const &range, BodyAggregateElements const &bdElems, bool recursive);
 
-class MinMaxTranslator {
-public:
-    LiteralId translate(DomainData &data, Translator &x, AggregateAnalyzer &res, bool isMin, LitValVec &&elems, bool incomplete);
-};
-
-class SumTranslator {
-public:
-    void addLiteral(DomainData &data, LiteralId const &lit, Potassco::Weight_t weight, bool recursive);
-    void translate(DomainData &data, Translator &x, LiteralId const &head, Potassco::Weight_t bound, LitUintVec const &litsPosRec, LitUintVec const &litsNegRec, LitUintVec const &litsPosStrat, LitUintVec const &litsNegStrat);
-    LiteralId translate(DomainData &data, Translator &x, ConjunctiveBounds &bounds, bool convex, bool invert);
-
-    LitUintVec litsPosRec;
-    LitUintVec litsNegRec;
-    LitUintVec litsPosStrat;
-    LitUintVec litsNegStrat;
-};
-
 } } // namespace Output Gringo
 
 #endif // GRINGO_OUTPUT_AGGREGATES_HH

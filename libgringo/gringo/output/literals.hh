@@ -153,7 +153,7 @@ public:
     , initialized_(0)
     , translated_(0)
     , simplified_(0) { }
-    bool fact() const {
+    static bool fact() {
         return false;
     }
     bool defined() const {
@@ -685,7 +685,7 @@ public:
     , translated_(false) { }
     // This function could be used to indicate that the head literal.
     // occurs in a rule with an empty body.
-    bool fact() const { return false; }
+    static bool fact() { return false; }
     bool defined() const { return generation_ > 0; }
     unsigned generation() const { assert(defined()); return generation_ - 1; }
     void setGeneration(unsigned x) { generation_ = x + 1; }
