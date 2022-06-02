@@ -223,7 +223,7 @@ std::ostream &operator <<(std::ostream &out, OccurrenceType x) {
 // }}}1
 // {{{1 definition of HeadDefinition
 
-HeadDefinition::HeadDefinition(UTerm &&repr, Domain *domain)
+HeadDefinition::HeadDefinition(UTerm repr, Domain *domain)
 : repr_(std::move(repr))
 , domain_(domain) { }
 
@@ -250,15 +250,11 @@ void HeadDefinition::collectImportant(Term::VarSet &vars) {
     }
 }
 
-HeadDefinition::~HeadDefinition() noexcept = default;
-
 //{{{1 definition of AbstractStatement
 
-AbstractStatement::AbstractStatement(UTerm &&repr, Domain *domain, ULitVec &&lits)
+AbstractStatement::AbstractStatement(UTerm repr, Domain *domain, ULitVec lits)
 : def_(std::move(repr), domain)
 , lits_(std::move(lits)) { }
-
-AbstractStatement::~AbstractStatement() noexcept = default;
 
 bool AbstractStatement::isOutputRecursive() const {
     for (auto &x : lits_) {
@@ -347,11 +343,9 @@ void ExternalRule::print(std::ostream &out) const {
     out << "#external.";
 }
 
-ExternalRule::~ExternalRule() noexcept = default;
-
 //{{{1 definition of AbstractRule
 
-AbstractRule::AbstractRule(HeadVec &&heads, ULitVec &&lits)
+AbstractRule::AbstractRule(HeadVec heads, ULitVec lits)
 : lits_(std::move(lits)) {
     defs_.reserve(heads.size());
     for (auto &head : heads) {
@@ -359,8 +353,6 @@ AbstractRule::AbstractRule(HeadVec &&heads, ULitVec &&lits)
         defs_.emplace_back(std::move(head.first), head.second);
     }
 }
-
-AbstractRule::~AbstractRule() noexcept = default;
 
 void AbstractRule::analyze(Dep::Node &node, Dep &dep) {
     for (auto &def : defs_) { def.analyze(node, dep); }
@@ -393,11 +385,8 @@ void AbstractRule::propagate(Queue &queue) {
 //{{{1 definition of Rule
 
 template <bool disjunctive>
-Rule<disjunctive>::Rule(HeadVec &&heads, ULitVec &&lits)
+Rule<disjunctive>::Rule(HeadVec heads, ULitVec lits)
 : AbstractRule(std::move(heads), std::move(lits)) { }
-
-template <bool disjunctive>
-Rule<disjunctive>::~Rule() noexcept = default;
 
 template <bool disjunctive>
 void Rule<disjunctive>::printHead(std::ostream &out) const {
@@ -468,11 +457,9 @@ template class Rule<false>;
 
 //{{{1 definition of ExternalStatement
 
-ExternalStatement::ExternalStatement(HeadVec &&heads, ULitVec &&lits, UTerm &&type)
+ExternalStatement::ExternalStatement(HeadVec heads, ULitVec lits, UTerm type)
 : AbstractRule(std::move(heads), std::move(lits))
 , type_(std::move(type)) { }
-
-ExternalStatement::~ExternalStatement() noexcept = default;
 
 void ExternalStatement::printHead(std::ostream &out) const {
     out << "#external ";
@@ -528,7 +515,7 @@ void ExternalStatement::report(Output::OutputBase &out, Logger &log) {
 
 // {{{1 definition of ShowStatement
 
-ShowStatement::ShowStatement(UTerm &&term, ULitVec &&lits)
+ShowStatement::ShowStatement(UTerm term, ULitVec lits)
 : AbstractStatement(nullptr, nullptr, std::move(lits))
 , term_(std::move(term)) { }
 
@@ -566,11 +553,9 @@ void ShowStatement::print(std::ostream &out) const {
     out << ":" << lits_ << ".";
 }
 
-ShowStatement::~ShowStatement() noexcept = default;
-
 // {{{1 definition of EdgeStatement
 
-EdgeStatement::EdgeStatement(UTerm &&u, UTerm &&v, ULitVec &&lits)
+EdgeStatement::EdgeStatement(UTerm u, UTerm v, ULitVec lits)
 : AbstractStatement(nullptr, nullptr, std::move(lits))
 , u_(std::move(u))
 , v_(std::move(v))
@@ -614,11 +599,9 @@ void EdgeStatement::print(std::ostream &out) const {
     out << ":" << lits_ << ".";
 }
 
-EdgeStatement::~EdgeStatement() noexcept = default;
-
 // {{{1 definition of ProjectStatement
 
-ProjectStatement::ProjectStatement(UTerm &&atom, ULitVec &&lits)
+ProjectStatement::ProjectStatement(UTerm atom, ULitVec lits)
 : AbstractStatement(nullptr, nullptr, std::move(lits))
 , atom_(std::move(atom))
 { }
@@ -649,11 +632,9 @@ void ProjectStatement::print(std::ostream &out) const {
     out << ":" << lits_ << ".";
 }
 
-ProjectStatement::~ProjectStatement() noexcept = default;
-
 // {{{1 definition of HeuristicStatement
 
-HeuristicStatement::HeuristicStatement(UTerm &&atom, UTerm &&value, UTerm &&bias, UTerm &&mod, ULitVec &&body)
+HeuristicStatement::HeuristicStatement(UTerm atom, UTerm value, UTerm bias, UTerm mod, ULitVec body)
 : AbstractStatement(nullptr, nullptr, std::move(body))
 , atom_(std::move(atom))
 , value_(std::move(value))
@@ -729,11 +710,9 @@ void HeuristicStatement::print(std::ostream &out) const {
     out << ":" << lits_ << ".";
 }
 
-HeuristicStatement::~HeuristicStatement() noexcept = default;
-
 // {{{1 definition of WeakConstraint
 
-WeakConstraint::WeakConstraint(UTermVec &&tuple, ULitVec &&lits)
+WeakConstraint::WeakConstraint(UTermVec tuple, ULitVec lits)
 : AbstractStatement(nullptr, nullptr, std::move(lits))
 , tuple_(std::move(tuple)) { }
 
@@ -775,15 +754,13 @@ void WeakConstraint::print(std::ostream &out) const {
     printHead(out);
 }
 
-WeakConstraint::~WeakConstraint() noexcept = default;
-
 // }}}1
 
 // Body Aggregates
 
 // {{{1 definition of BodyAggregateComplete
 
-BodyAggregateComplete::BodyAggregateComplete(DomainData &data, UTerm &&repr, AggregateFunction fun, BoundVec &&bounds)
+BodyAggregateComplete::BodyAggregateComplete(DomainData &data, UTerm repr, AggregateFunction fun, BoundVec bounds)
 : def_(std::move(repr), &data.add<BodyAggregateDomain>())
 , accuRepr_(completeRepr_(def_.domRepr()))
 , fun_(fun)
@@ -895,16 +872,12 @@ void BodyAggregateComplete::enqueue(BodyAggregateDomain::Iterator atom) {
     }
 }
 
-BodyAggregateComplete::~BodyAggregateComplete() noexcept = default;
-
 // {{{1 definition of BodyAggregateAccumulate
 
-BodyAggregateAccumulate::BodyAggregateAccumulate(BodyAggregateComplete &complete, UTermVec &&tuple, ULitVec &&lits)
+BodyAggregateAccumulate::BodyAggregateAccumulate(BodyAggregateComplete &complete, UTermVec tuple, ULitVec lits)
 : AbstractStatement(get_clone(complete.accuRepr()), nullptr, std::move(lits))
 , complete_(complete)
 , tuple_(std::move(tuple)) {}
-
-BodyAggregateAccumulate::~BodyAggregateAccumulate() noexcept = default;
 
 void BodyAggregateAccumulate::collectImportant(Term::VarSet &vars) {
     VarTermBoundVec bound;
@@ -950,8 +923,6 @@ BodyAggregateLiteral::BodyAggregateLiteral(BodyAggregateComplete &complete, NAF 
 : complete_(complete)
 , naf_(naf)
 , auxiliary_(auxiliary) { }
-
-BodyAggregateLiteral::~BodyAggregateLiteral() noexcept = default;
 
 UGTerm BodyAggregateLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
@@ -1042,7 +1013,7 @@ std::pair<Output::LiteralId, bool> BodyAggregateLiteral::toOutput(Logger &) {
 
 // {{{1 definition of AssignmentAggregateComplete
 
-AssignmentAggregateComplete::AssignmentAggregateComplete(DomainData &data, UTerm &&repr, UTerm &&dataRepr, AggregateFunction fun)
+AssignmentAggregateComplete::AssignmentAggregateComplete(DomainData &data, UTerm repr, UTerm dataRepr, AggregateFunction fun)
 : def_(std::move(repr), &data.add<AssignmentAggregateDomain>())
 , dataRepr_(std::move(dataRepr))
 , fun_(fun)
@@ -1149,16 +1120,12 @@ void AssignmentAggregateComplete::enqueue(Id_t dataId) {
     }
 }
 
-AssignmentAggregateComplete::~AssignmentAggregateComplete() noexcept = default;
-
 // {{{1 Definition of AssignmentAggregateAccumulate
 
-AssignmentAggregateAccumulate::AssignmentAggregateAccumulate(AssignmentAggregateComplete &complete, UTermVec &&tuple, ULitVec &&lits)
+AssignmentAggregateAccumulate::AssignmentAggregateAccumulate(AssignmentAggregateComplete &complete, UTermVec tuple, ULitVec lits)
 : AbstractStatement(get_clone(complete.dataRepr()), nullptr, std::move(lits))
 , complete_(complete)
 , tuple_(std::move(tuple)) { }
-
-AssignmentAggregateAccumulate::~AssignmentAggregateAccumulate() noexcept = default;
 
 void AssignmentAggregateAccumulate::linearize(Context &context, bool positive, Logger &log) {
     AbstractStatement::linearize(context, positive, log);
@@ -1200,8 +1167,6 @@ void AssignmentAggregateAccumulate::printHead(std::ostream &out) const {
 AssignmentAggregateLiteral::AssignmentAggregateLiteral(AssignmentAggregateComplete &complete, bool auxiliary)
 : complete_(complete)
 , auxiliary_(auxiliary) { }
-
-AssignmentAggregateLiteral::~AssignmentAggregateLiteral() noexcept = default;
 
 UGTerm AssignmentAggregateLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
@@ -1270,8 +1235,6 @@ ConjunctionLiteral::ConjunctionLiteral(ConjunctionComplete &complete, bool auxil
 : complete_(complete)
 , auxiliary_(auxiliary) { }
 
-ConjunctionLiteral::~ConjunctionLiteral() noexcept = default;
-
 UGTerm ConjunctionLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
 }
@@ -1333,11 +1296,9 @@ std::pair<Output::LiteralId,bool> ConjunctionLiteral::toOutput(Logger &) {
 
 // {{{1 definition of ConjunctionAccumulateEmpty
 
-ConjunctionAccumulateEmpty::ConjunctionAccumulateEmpty(ConjunctionComplete &complete, ULitVec &&lits)
+ConjunctionAccumulateEmpty::ConjunctionAccumulateEmpty(ConjunctionComplete &complete, ULitVec lits)
 : AbstractStatement(complete.emptyRepr(), &complete.emptyDom(), std::move(lits))
 , complete_(complete) { }
-
-ConjunctionAccumulateEmpty::~ConjunctionAccumulateEmpty() noexcept = default;
 
 bool ConjunctionAccumulateEmpty::isNormal() const {
     return true;
@@ -1352,13 +1313,11 @@ void ConjunctionAccumulateEmpty::report(Output::OutputBase &, Logger &log) {
 
 // {{{1 definition of ConjunctionAccumulateCond
 
-ConjunctionAccumulateCond::ConjunctionAccumulateCond(ConjunctionComplete &complete, ULitVec &&lits)
+ConjunctionAccumulateCond::ConjunctionAccumulateCond(ConjunctionComplete &complete, ULitVec lits)
 : AbstractStatement(complete.condRepr(), &complete.condDom(), std::move(lits))
 , complete_(complete) {
     lits_.emplace_back(gringo_make_unique<PredicateLiteral>(true, complete_.emptyDom(), NAF::POS, complete.emptyRepr()));
 }
-
-ConjunctionAccumulateCond::~ConjunctionAccumulateCond() noexcept = default;
 
 void ConjunctionAccumulateCond::linearize(Context &context, bool positive, Logger &log) {
     AbstractStatement::linearize(context, positive, log);
@@ -1394,13 +1353,11 @@ void ConjunctionAccumulateCond::report(Output::OutputBase &out, Logger &log) {
 
 // {{{1 definition of ConjunctionAccumulateHead
 
-ConjunctionAccumulateHead::ConjunctionAccumulateHead(ConjunctionComplete &complete, ULitVec &&lits)
+ConjunctionAccumulateHead::ConjunctionAccumulateHead(ConjunctionComplete &complete, ULitVec lits)
 : AbstractStatement(complete.headRepr(), nullptr, std::move(lits))
 , complete_(complete) {
     lits_.emplace_back(gringo_make_unique<PredicateLiteral>(true, complete_.condDom(), NAF::POS, complete.condRepr()));
 }
-
-ConjunctionAccumulateHead::~ConjunctionAccumulateHead() noexcept = default;
 
 void ConjunctionAccumulateHead::linearize(Context &context, bool positive, Logger &log) {
     AbstractStatement::linearize(context, positive, log);
@@ -1428,7 +1385,7 @@ void ConjunctionAccumulateHead::report(Output::OutputBase &out, Logger &log) {
 
 // {{{1 definition of ConjunctionComplete
 
-ConjunctionComplete::ConjunctionComplete(DomainData &data, UTerm &&repr, UTermVec &&local)
+ConjunctionComplete::ConjunctionComplete(DomainData &data, UTerm repr, UTermVec local)
 : def_(std::move(repr), &data.add<ConjunctionDomain>())
 , domEmpty_(def_.domRepr()->getSig()) // Note: any sig will do
 , domCond_(def_.domRepr()->getSig()) // Note: any sig will do
@@ -1574,13 +1531,11 @@ ConjunctionComplete::DefinedBy &ConjunctionComplete::definedBy() {
 
 void ConjunctionComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) const { }
 
-ConjunctionComplete::~ConjunctionComplete() noexcept = default;
-
 // }}}1
 
 // {{{1 definition of TheoryComplete
 
-TheoryComplete::TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType type, UTerm &&name)
+TheoryComplete::TheoryComplete(DomainData &data, UTerm repr, TheoryAtomType type, UTerm name)
 : def_(std::move(repr), &data.add<TheoryDomain>())
 , accuRepr_(completeRepr_(def_.domRepr()))
 , op_("")
@@ -1588,7 +1543,7 @@ TheoryComplete::TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType ty
 , inst_(*this)
 , type_(type) { }
 
-TheoryComplete::TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType type, UTerm &&name, String op, Output::UTheoryTerm &&guard)
+TheoryComplete::TheoryComplete(DomainData &data, UTerm repr, TheoryAtomType type, UTerm name, String op, Output::UTheoryTerm guard)
 : def_(std::move(repr), &data.add<TheoryDomain>())
 , accuRepr_(completeRepr_(def_.domRepr()))
 , op_(op)
@@ -1686,22 +1641,18 @@ TheoryComplete::DefinedBy &TheoryComplete::definedBy() {
 void TheoryComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) const {
 }
 
-TheoryComplete::~TheoryComplete() noexcept = default;
-
 // {{{1 definition of TheoryAccumulate
 
-TheoryAccumulate::TheoryAccumulate(TheoryComplete &complete, ULitVec &&lits)
+TheoryAccumulate::TheoryAccumulate(TheoryComplete &complete, ULitVec lits)
     : AbstractStatement(get_clone(complete.accuRepr()), nullptr, std::move(lits))
     , complete_(complete)
     , neutral_(true) { }
 
-TheoryAccumulate::TheoryAccumulate(TheoryComplete &complete, Output::UTheoryTermVec &&tuple, ULitVec &&lits)
+TheoryAccumulate::TheoryAccumulate(TheoryComplete &complete, Output::UTheoryTermVec tuple, ULitVec lits)
     : AbstractStatement(get_clone(complete.accuRepr()), nullptr, std::move(lits))
     , complete_(complete)
     , tuple_(std::move(tuple))
     , neutral_(false) { }
-
-TheoryAccumulate::~TheoryAccumulate() noexcept = default;
 
 void TheoryAccumulate::linearize(Context &context, bool positive, Logger &log) {
     AbstractStatement::linearize(context, positive, log);
@@ -1762,8 +1713,6 @@ TheoryLiteral::TheoryLiteral(TheoryComplete &complete, NAF naf, bool auxiliary)
 : complete_(complete)
 , naf_(naf)
 , auxiliary_(auxiliary) { }
-
-TheoryLiteral::~TheoryLiteral() noexcept = default;
 
 UGTerm TheoryLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
@@ -1833,11 +1782,9 @@ std::pair<Output::LiteralId,bool> TheoryLiteral::toOutput(Logger &) {
 
 // {{{1 definition of TheoryRule
 
-TheoryRule::TheoryRule(TheoryLiteral &lit, ULitVec &&lits)
+TheoryRule::TheoryRule(TheoryLiteral &lit, ULitVec lits)
     : AbstractStatement(nullptr, nullptr, std::move(lits))
     , lit_(lit) { }
-
-TheoryRule::~TheoryRule() noexcept = default;
 
 void TheoryRule::collectImportant(Term::VarSet &vars) {
     lit_.collectImportant(vars);
@@ -1872,11 +1819,9 @@ void TheoryRule::printHead(std::ostream &out) const {
 
 // {{{1 definition of HeadAggregateRule
 
-HeadAggregateRule::HeadAggregateRule(HeadAggregateComplete &complete, ULitVec &&lits)
+HeadAggregateRule::HeadAggregateRule(HeadAggregateComplete &complete, ULitVec lits)
 : AbstractStatement(get_clone(complete.domRepr()), &complete.dom(), std::move(lits))
 , complete_(complete) { }
-
-HeadAggregateRule::~HeadAggregateRule() noexcept = default;
 
 void HeadAggregateRule::report(Output::OutputBase &out, Logger &log) {
     Output::Rule &rule(out.tempRule(false));
@@ -1923,13 +1868,11 @@ void HeadAggregateRule::print(std::ostream &out) const {
 
 // {{{1 definition of HeadAggregateAccumulate
 
-HeadAggregateAccumulate::HeadAggregateAccumulate(HeadAggregateComplete &complete, UTermVec &&tuple, PredicateDomain *predDom, UTerm &&predRepr, ULitVec &&lits)
+HeadAggregateAccumulate::HeadAggregateAccumulate(HeadAggregateComplete &complete, UTermVec tuple, PredicateDomain *predDom, UTerm predRepr, ULitVec lits)
 : AbstractStatement(completeRepr_(complete.domRepr()), nullptr, std::move(lits))
 , complete_(complete)
 , predDef_(std::move(predRepr), predDom)
 , tuple_(std::move(tuple)) { }
-
-HeadAggregateAccumulate::~HeadAggregateAccumulate() noexcept = default;
 
 void HeadAggregateAccumulate::collectImportant(Term::VarSet &vars) {
     VarTermBoundVec bound;
@@ -1980,7 +1923,7 @@ void HeadAggregateAccumulate::printHead(std::ostream &out) const {
 
 // {{{1 definition of HeadAggregateComplete
 
-HeadAggregateComplete::HeadAggregateComplete(DomainData &data, UTerm &&repr, AggregateFunction fun, BoundVec &&bounds)
+HeadAggregateComplete::HeadAggregateComplete(DomainData &data, UTerm repr, AggregateFunction fun, BoundVec bounds)
 : repr_(std::move(repr))
 , domain_(data.add<HeadAggregateDomain>())
 , inst_(*this)
@@ -2102,14 +2045,10 @@ HeadAggregateDomain &HeadAggregateComplete::dom() {
 
 void HeadAggregateComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) const { }
 
-HeadAggregateComplete::~HeadAggregateComplete() noexcept = default;
-
 // {{{1 definition of HeadAggregateLiteral
 
 HeadAggregateLiteral::HeadAggregateLiteral(HeadAggregateComplete &complete)
 : complete_(complete) { }
-
-HeadAggregateLiteral::~HeadAggregateLiteral() noexcept = default;
 
 UGTerm HeadAggregateLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
@@ -2169,7 +2108,7 @@ std::pair<Output::LiteralId,bool> HeadAggregateLiteral::toOutput(Logger &) {
 
 // {{{1 definition of DisjunctionRule
 
-DisjunctionRule::DisjunctionRule(DisjunctionComplete &complete, ULitVec &&lits)
+DisjunctionRule::DisjunctionRule(DisjunctionComplete &complete, ULitVec lits)
 : AbstractStatement(get_clone(complete.domRepr()), &complete.dom(), std::move(lits))
 , complete_(complete) {
 }
@@ -2177,8 +2116,6 @@ DisjunctionRule::DisjunctionRule(DisjunctionComplete &complete, ULitVec &&lits)
 bool DisjunctionRule::isNormal() const {
     return false;
 }
-
-DisjunctionRule::~DisjunctionRule() noexcept = default;
 
 void DisjunctionRule::report(Output::OutputBase &out, Logger &log) {
     Output::Rule &rule(out.tempRule(false));
@@ -2206,8 +2143,6 @@ void DisjunctionRule::report(Output::OutputBase &out, Logger &log) {
 
 DisjunctionLiteral::DisjunctionLiteral(DisjunctionComplete &complete)
 : complete_(complete) { }
-
-DisjunctionLiteral::~DisjunctionLiteral() noexcept = default;
 
 UGTerm DisjunctionLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
@@ -2265,7 +2200,7 @@ std::pair<Output::LiteralId,bool> DisjunctionLiteral::toOutput(Logger &) {
 
 // {{{1 definition of DisjunctionComplete
 
-DisjunctionComplete::DisjunctionComplete(DomainData &data, UTerm &&repr)
+DisjunctionComplete::DisjunctionComplete(DomainData &data, UTerm repr)
 : repr_(std::move(repr))
 , domain_(data.add<DisjunctionDomain>())
 , inst_(*this) { }
@@ -2378,8 +2313,6 @@ DisjunctionComplete::DefinedBy &DisjunctionComplete::definedBy() {
 
 void DisjunctionComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) const { }
 
-DisjunctionComplete::~DisjunctionComplete() noexcept = default;
-
 // {{{1 definition of DisjunctionAccumulate
 
 void DisjunctionAccumulateHead::report(Output::OutputBase &out, Logger &log) {
@@ -2392,7 +2325,7 @@ void DisjunctionAccumulateHead::printHead(std::ostream &out) const {
     else { out << "#false"; }
 }
 
-DisjunctionAccumulate::DisjunctionAccumulate(DisjunctionComplete &complete, PredicateDomain *predDom, UTerm &&predRepr, ULitVec &&headCond, UTerm &&elemRepr, ULitVec &&lits)
+DisjunctionAccumulate::DisjunctionAccumulate(DisjunctionComplete &complete, PredicateDomain *predDom, UTerm predRepr, ULitVec headCond, UTerm elemRepr, ULitVec lits)
 : AbstractStatement(completeRepr_(complete.domRepr()), nullptr, std::move(lits))
 , complete_(complete)
 , elemRepr_(std::move(elemRepr))
@@ -2403,8 +2336,6 @@ DisjunctionAccumulate::DisjunctionAccumulate(DisjunctionComplete &complete, Pred
     complete_.addAccu(*this);
     lits_.emplace_back(gringo_make_unique<DisjunctionLiteral>(complete_));
 }
-
-DisjunctionAccumulate::~DisjunctionAccumulate() noexcept = default;
 
 void DisjunctionAccumulate::analyze(Dep::Node &node, Dep &dep) {
     AbstractStatement::analyze(node, dep);
