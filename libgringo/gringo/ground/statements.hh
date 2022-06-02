@@ -105,10 +105,11 @@ protected:
     void propagate(Queue &queue) override;
     // }}}2
 
-protected:
+    // NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes)
     HeadDefinition def_;
     ULitVec lits_;
     InstVec insts_;
+    // NOLINTEND(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 
 // }}}1
@@ -132,10 +133,11 @@ protected:
     void propagate(Queue &queue) override;
     // }}}2
 
-protected:
+    // NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes)
     HeadDefVec defs_;
     ULitVec lits_;
     InstVec insts_;
+    // NOLINTEND(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 
 // {{{1 declaration of Rule
@@ -172,7 +174,7 @@ protected:
     void printHead(std::ostream &out) const override;
     // }}}2
 
-protected:
+private:
     UTerm type_;
 };
 
@@ -701,7 +703,7 @@ private:
     bool isNegative() const override;
     void setType(OccurrenceType x) override;
     OccurrenceType getType() const override;
-    void checkDefined(LocSet &done, SigSet const &edb, UndefVec &) const override;
+    void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const override;
     // }}}2
 
     ConjunctionComplete &complete_;
@@ -749,7 +751,10 @@ public:
 
     TheoryComplete(DomainData &data, UTerm repr, TheoryAtomType type, UTerm name);
     TheoryComplete(DomainData &data, UTerm repr, TheoryAtomType type, UTerm name, String op, Output::UTheoryTerm guard);
-    TheoryDomain &dom() { return static_cast<TheoryDomain&>(def_.dom()); }
+    TheoryDomain &dom() {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
+        return static_cast<TheoryDomain&>(def_.dom());
+    }
     void enqueue(TheoryDomain::Iterator atom);
     UTerm const &accuRepr() const { return accuRepr_; }
     UTerm const &domRepr() const { return def_.domRepr(); }
@@ -823,7 +828,7 @@ private:
     bool isNegative() const override;
     void setType(OccurrenceType x) override;
     OccurrenceType getType() const override;
-    void checkDefined(LocSet &done, SigSet const &edb, UndefVec &) const override;
+    void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const override;
     // }}}2
 
     TheoryComplete &complete_;

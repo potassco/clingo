@@ -2425,4 +2425,3 @@ void DisjunctionAccumulate::report(Output::OutputBase &out, Logger &log) {
 // }}}1
 
 } } // namespace Ground Gringo
-
