@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_GROUND_INSTANTIATION_HH
-#define _GRINGO_GROUND_INSTANTIATION_HH
+#ifndef GRINGO_GROUND_INSTANTIATION_HH
+#define GRINGO_GROUND_INSTANTIATION_HH
 
 #include <gringo/output/output.hh>
 
@@ -35,13 +35,12 @@ struct Instantiator;
 struct Queue {
     void process(Output::OutputBase &out, Logger &log);
     void enqueue(Instantiator &inst);
-    void enqueue(Domain &inst);
-    ~Queue();
+    void enqueue(Domain &dom);
 
-    using QueueDec  = std::vector<std::reference_wrapper<Instantiator>>;
+    using QueueVec  = std::vector<std::reference_wrapper<Instantiator>>;
     using DomainVec = std::vector<std::reference_wrapper<Domain>>;
-    QueueDec  current;
-    std::array<QueueDec,2>  queues;
+    QueueVec  current;
+    std::array<QueueVec, 2>  queues;
     DomainVec domains;
 };
 
@@ -52,52 +51,58 @@ struct Binder : Printable {
     virtual IndexUpdater *getUpdater() = 0;
     virtual void match(Logger &log) = 0;
     virtual bool next() = 0;
-    virtual ~Binder() { }
 };
 using UIdx = std::unique_ptr<Binder>;
 
 // }}}
 // {{{ declaration if SolutionCallback
 
-class SolutionCallback {
-public:
+struct SolutionCallback {
+    SolutionCallback() = default;
+    SolutionCallback(SolutionCallback const &other) = default;
+    SolutionCallback(SolutionCallback &&other) noexcept = default;
+    SolutionCallback &operator=(SolutionCallback const &other) = default;
+    SolutionCallback &operator=(SolutionCallback &&other) noexcept = default;
+    virtual ~SolutionCallback() noexcept = default;
+
     virtual void report(Output::OutputBase &out, Logger &log) = 0;
     virtual void propagate(Queue &queue) = 0;
     virtual void printHead(std::ostream &out) const = 0;
-    virtual unsigned priority() const { return 0; }
-    virtual ~SolutionCallback() noexcept = default;
+    virtual unsigned priority() const {
+        return 0;
+    }
 };
 
 // }}}
 // {{{ declaration of SolutionBinder
 
-struct SolutionBinder : public Binder {
+struct SolutionBinder : Binder {
     IndexUpdater *getUpdater() override;
     void match(Logger &log) override;
     bool next() override;
     void print(std::ostream &out) const override;
-    virtual ~SolutionBinder();
 };
 
 // }}}
 // {{{ declaration of BackjumpBinder
 
 struct BackjumpBinder {
-    typedef std::vector<unsigned> DependVec;
+    using DependVec = std::vector<unsigned>;
 
     BackjumpBinder(UIdx &&index, DependVec &&depends);
-    BackjumpBinder(BackjumpBinder &&x) noexcept;
-    void match(Logger &log);
-    bool next();
-    bool first(Logger &log);
+    void match(Logger &log) const;
+    bool next() const;
+    bool first(Logger &log) const;
     void print(std::ostream &out) const;
-    ~BackjumpBinder();
 
     UIdx index;
     DependVec depends;
     bool backjumpable = false;
 };
-inline std::ostream &operator<<(std::ostream &out, BackjumpBinder &x) { x.print(out); return out; }
+inline std::ostream &operator<<(std::ostream &out, BackjumpBinder &x) {
+    x.print(out);
+    return out;
+}
 
 // }}}
 // {{{ declaration of Instantiator
@@ -106,25 +111,25 @@ struct Instantiator {
     using DependVec = BackjumpBinder::DependVec;
 
     Instantiator(SolutionCallback &callback);
-    Instantiator(Instantiator &&x) = default;
-    Instantiator &operator=(Instantiator &&x) = default;
     void add(UIdx &&index, DependVec &&depends);
     void finalize(DependVec &&depends);
     void enqueue(Queue &queue);
     void instantiate(Output::OutputBase &out, Logger &log);
     void print(std::ostream &out) const;
     unsigned priority() const;
-    ~Instantiator() noexcept;
 
     SolutionCallback *callback;
     std::vector<BackjumpBinder> binders;
     bool enqueued = false;
 };
 using InstVec = std::vector<Instantiator>;
-inline std::ostream &operator<<(std::ostream &out, Instantiator &x) { x.print(out); return out; }
+inline std::ostream &operator<<(std::ostream &out, Instantiator &x) {
+    x.print(out);
+    return out;
+}
 
 // }}}
 
 } } // namespace Ground Gringo
 
-#endif // _GRINGO_GROUND_INSTANTIATION_HH
+#endif // GRINGO_GROUND_INSTANTIATION_HH

@@ -31,50 +31,72 @@ namespace Gringo { namespace Ground {
 
 // {{{ definition of SolutionBinder
 
-IndexUpdater *SolutionBinder::getUpdater()          { return nullptr; }
-void SolutionBinder::match(Logger &)        { }
-bool SolutionBinder::next()                         { return false; }
-void SolutionBinder::print(std::ostream &out) const { out << "#end"; }
-SolutionBinder::~SolutionBinder()                   { }
+IndexUpdater *SolutionBinder::getUpdater() {
+    return nullptr;
+}
+
+void SolutionBinder::match(Logger &log) {
+    static_cast<void>(log);
+}
+
+bool SolutionBinder::next() {
+    return false;
+}
+
+void SolutionBinder::print(std::ostream &out) const {
+    out << "#end";
+}
 
 // }}}
 // {{{ definition of BackjumpBinder
 
 BackjumpBinder::BackjumpBinder(UIdx &&index, DependVec &&depends)
-    : index(std::move(index))
-    , depends(std::move(depends)) { }
-BackjumpBinder::BackjumpBinder(BackjumpBinder &&) noexcept = default;
-void BackjumpBinder::match(Logger &log) { index->match(log); }
-bool BackjumpBinder::next() { return index->next(); }
-bool BackjumpBinder::first(Logger &log) {
+: index(std::move(index))
+, depends(std::move(depends)) { }
+
+void BackjumpBinder::match(Logger &log) const {
+    index->match(log);
+}
+
+bool BackjumpBinder::next() const {
+    return index->next();
+}
+
+bool BackjumpBinder::first(Logger &log) const {
     index->match(log);
     return next();
 }
+
 void BackjumpBinder::print(std::ostream &out) const {
     out << *index;
     out << ":[";
     print_comma(out, depends, ",");
     out << "]";
 }
-BackjumpBinder::~BackjumpBinder() { }
 
 // }}}
 // {{{ definition of Instantiator
 
 Instantiator::Instantiator(SolutionCallback &callback)
-    : callback(&callback) { }
+: callback(&callback) { }
+
 void Instantiator::add(UIdx &&index, DependVec &&depends) {
     binders.emplace_back(std::move(index), std::move(depends));
 }
+
 void Instantiator::finalize(DependVec &&depends) {
     binders.emplace_back(gringo_make_unique<SolutionBinder>(), std::move(depends));
 }
+
 void Instantiator::enqueue(Queue &queue) { queue.enqueue(*this); }
+
 void Instantiator::instantiate(Output::OutputBase &out, Logger &log) {
 #if DEBUG_INSTANTIATION > 0
     std::cerr << "  instantiate: " << *this << std::endl;
 #endif
-    auto ie = binders.rend(), it = ie - 1, ib = binders.rbegin();
+    auto ie = binders.rend();
+    auto it = ie - 1;
+    auto ib = binders.rbegin();
     it->match(log);
     do {
 #if DEBUG_INSTANTIATION > 1
@@ -99,24 +121,25 @@ void Instantiator::instantiate(Output::OutputBase &out, Logger &log) {
     }
     while (it != ie);
 }
+
 void Instantiator::print(std::ostream &out) const {
     using namespace std::placeholders;
     // Note: consider adding something to callback
     callback->printHead(out);
     out << " <~ ";
-    print_comma(out, binders, " , ", std::bind(&BackjumpBinder::print, _2, _1));
+    print_comma(out, binders, " , ", [](std::ostream &out, BackjumpBinder const &x) { x.print(out); });
     out << ".";
 }
+
 unsigned Instantiator::priority() const {
     return callback->priority();
 }
-Instantiator::~Instantiator() noexcept = default;
 
 // }}}
 // {{{ definition of Queue
 
 void Queue::process(Output::OutputBase &out, Logger &log) {
-    bool empty;
+    bool empty = true;
     do {
         empty = true;
         for (auto &queue : queues) {
@@ -152,17 +175,17 @@ void Queue::process(Output::OutputBase &out, Logger &log) {
 }
 void Queue::enqueue(Instantiator &inst) {
     if (!inst.enqueued) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
         queues[inst.priority()].emplace_back(inst);
         inst.enqueued = true;
     }
 }
-void Queue::enqueue(Domain &x) {
-    if (!x.isEnqueued()) {
-        domains.emplace_back(x);
+void Queue::enqueue(Domain &dom) {
+    if (!dom.isEnqueued()) {
+        domains.emplace_back(dom);
     }
-    x.enqueue();
+    dom.enqueue();
 }
-Queue::~Queue() { }
 
 // }}}
 

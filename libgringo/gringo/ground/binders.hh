@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_GROUND_BINDERS_HH
-#define _GRINGO_GROUND_BINDERS_HH
+#ifndef GRINGO_GROUND_BINDERS_HH
+#define GRINGO_GROUND_BINDERS_HH
 
 #include <gringo/domain.hh>
 #include <gringo/ground/instantiation.hh>
@@ -38,6 +38,7 @@ struct PosBinder : Binder {
     using Match     = typename IndexType::SizeType;
     using MatchRng  = typename IndexType::OffsetRange;
     using Lookup    = std::tuple<Index, LookupArgs...>;
+
     PosBinder(UTerm &&repr, Match &result, Index &&index, BinderType type, LookupArgs&&... args)
         : repr(std::move(repr))
         , result(result)
@@ -52,11 +53,21 @@ struct PosBinder : Binder {
         }
     };
 
-    IndexUpdater *getUpdater() override          { return &std::get<0>(index); }
-    void match(Logger &log) override     { current = lookup<sizeof...(LookupArgs)>()(index, type, log); }
-    bool next() override                         { return current.next(result, *repr, std::get<0>(index)); }
-    void print(std::ostream &out) const override { out << *repr << "@" << type; }
-    virtual ~PosBinder()                         { }
+    IndexUpdater *getUpdater() override {
+        return &std::get<0>(index);
+    }
+
+    void match(Logger &log) override {
+        current = lookup<sizeof...(LookupArgs)>()(index, type, log);
+    }
+
+    bool next() override {
+        return current.next(result, *repr, std::get<0>(index));
+    }
+
+    void print(std::ostream &out) const override {
+        out << *repr << "@" << type;
+    }
 
     UTerm      repr; // problematic
     Match     &result;
@@ -78,25 +89,30 @@ struct Matcher : Binder {
         , domain(domain)
         , repr(repr)
         , naf(naf) { }
-    IndexUpdater *getUpdater() override { return nullptr; }
+
+    IndexUpdater *getUpdater() override {
+        return nullptr;
+    }
+
     void match(Logger &log) override {
         firstMatch = domain.lookup(result, repr, naf, log);
     }
+
     bool next() override {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
     }
+
     void print(std::ostream &out) const override {
         out << naf << repr << "[" << domain.generation() << "/" << domain.size() << "]" << "@ALL";
     }
-    virtual ~Matcher() { }
 
     Match      &result;
     DomainType &domain;
     Term const &repr;
     RECNAF      naf;
-    bool        firstMatch;
+    bool        firstMatch = false;
 };
 
 // }}}
@@ -112,18 +128,28 @@ struct PosMatcher : Binder, IndexUpdater {
         , domain(domain)
         , repr(std::move(repr))
         , type(type) { }
-    IndexUpdater *getUpdater() override { return type == BinderType::NEW ? this : nullptr; }
+
+    IndexUpdater *getUpdater() override {
+        return type == BinderType::NEW ? this : nullptr;
+    }
+
     void match(Logger &log) override {
         firstMatch = domain.lookup(result, *repr, type, log);
     }
+
     bool next() override {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
     }
-    bool update() override { return domain.update([](unsigned) { }, *repr, imported, importedDelayed); }
-    void print(std::ostream &out) const override { out << *repr << "[" << domain.generation() << "/" << domain.size() << "]" << "@" << type; }
-    virtual ~PosMatcher() { };
+
+    bool update() override {
+        return domain.update([](unsigned) { }, *repr, imported, importedDelayed);
+    }
+
+    void print(std::ostream &out) const override {
+        out << *repr << "[" << domain.generation() << "/" << domain.size() << "]" << "@" << type;
+    }
 
     Match      &result;
     DomainType &domain;
@@ -166,7 +192,8 @@ inline UIdx make_binder(AbstractDomain<Atom> &domain, NAF naf, Term const &repr,
             }
             Term::RenameMap rename;
             UTerm idxClone(predClone->renameVars(rename));
-            SValVec predBound, idxBound;
+            SValVec predBound;
+            SValVec idxBound;
             for (VarTerm &x : occBound) {
                 auto it(rename.find(x.name));
                 predBound.emplace_back(x.ref);
@@ -178,31 +205,25 @@ inline UIdx make_binder(AbstractDomain<Atom> &domain, NAF naf, Term const &repr,
                 auto &idx(domain.add(std::move(idxClone), imported));
                 return gringo_make_unique<FullPredicateBinder>(std::move(predClone), elem, idx, type);
             }
-            else {
-                assert(imported == 0);
-                auto &idx(domain.add(std::move(idxBound), std::move(idxClone)));
-                return gringo_make_unique<PosPredicateBinder>(std::move(predClone), elem, idx, type, std::move(predBound));
-            }
+            assert(imported == 0);
+            auto &idx(domain.add(std::move(idxBound), std::move(idxClone)));
+            return gringo_make_unique<PosPredicateBinder>(std::move(predClone), elem, idx, type, std::move(predBound));
         }
-        else if (recursive) {
+        if (recursive) {
             assert(imported == 0);
             Term::VarSet empty;
             predClone->bind(empty);
             return gringo_make_unique<PosPredicateMatcher>(elem, domain, std::move(predClone), type);
         }
-        else {
-            assert(imported == 0);
-            return gringo_make_unique<PredicateMatcher>(elem, domain, repr, RECNAF::POS);
-        }
-    }
-    else {
         assert(imported == 0);
-        return gringo_make_unique<PredicateMatcher>(elem, domain, repr, recnaf(naf, recursive));
+        return gringo_make_unique<PredicateMatcher>(elem, domain, repr, RECNAF::POS);
     }
+    assert(imported == 0);
+    return gringo_make_unique<PredicateMatcher>(elem, domain, repr, recnaf(naf, recursive));
 }
 
 // }}}
 
 } } // namespace Ground Gringo
 
-#endif // _GRINGO_GROUND_BINDERS_HH
+#endif // GRINGO_GROUND_BINDERS_HH
