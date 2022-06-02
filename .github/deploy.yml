@@ -30,6 +30,7 @@ pip:
             check_call(['cmake', '--build', 're2c_build', '--target', 'install'])
         else:
             check_call(['yum', 'install', '-y', 're2c', 'bison'])
+        check_call(['yum', 'install', '-y', 'libffi-devel'])
     winmac_images:
         macos-latest:
             depends: |
