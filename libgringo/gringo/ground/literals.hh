@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_GROUND_LITERALS_HH
-#define _GRINGO_GROUND_LITERALS_HH
+#ifndef GRINGO_GROUND_LITERALS_HH
+#define GRINGO_GROUND_LITERALS_HH
 
 #include <gringo/terms.hh>
 #include <gringo/ground/literal.hh>
@@ -35,20 +35,21 @@ inline double estimate(unsigned size, Term const &term, Term::VarSet const &boun
     Term::VarSet vars;
     term.collect(vars);
     bool found = false;
-    for (auto &x : vars) {
+    for (auto const &x : vars) {
         if (bound.find(x) != bound.end()) {
             found = true;
             break;
         }
     }
-    return term.estimate(size, bound) + !found * 10000000;
+    return term.estimate(size, bound) + (found ? 0 : 10000000);
 }
 
 // {{{ declaration of RangeLiteral
 
 using RangeLiteralShared = std::pair<UTerm, UTerm>;
-struct RangeLiteral : Literal {
-    RangeLiteral(UTerm &&assign, UTerm &&left, UTerm &&right);
+class RangeLiteral : public Literal {
+public:
+    RangeLiteral(UTerm assign, UTerm left, UTerm right);
     void print(std::ostream &out) const override;
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
@@ -56,19 +57,22 @@ struct RangeLiteral : Literal {
     UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
     std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
     Score score(Term::VarSet const &bound, Logger &log) override;
-    bool auxiliary() const override { return true; }
-    virtual ~RangeLiteral();
+    bool auxiliary() const override {
+        return true;
+    }
 
-    UTerm assign;
-    RangeLiteralShared range;
+private:
+    UTerm assign_;
+    RangeLiteralShared range_;
 };
 
 // }}}
 // {{{ declaration of ScriptLiteral
 
 using ScriptLiteralShared = std::pair<String, UTermVec>;
-struct ScriptLiteral : Literal {
-    ScriptLiteral(UTerm &&assign, String name, UTermVec &&args);
+class ScriptLiteral : public Literal {
+public:
+    ScriptLiteral(UTerm assign, String name, UTermVec args);
     void print(std::ostream &out) const override;
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
@@ -76,19 +80,22 @@ struct ScriptLiteral : Literal {
     UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
     std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
     Score score(Term::VarSet const &bound, Logger &log) override;
-    bool auxiliary() const override { return true; }
-    virtual ~ScriptLiteral();
+    bool auxiliary() const override {
+        return true;
+    }
 
-    UTerm assign;
-    ScriptLiteralShared shared;
+private:
+    UTerm assign_;
+    ScriptLiteralShared shared_;
 };
 
 // }}}
 // {{{ declaration of RelationLiteral
 
 using RelationShared = std::tuple<Relation, UTerm, UTerm>;
-struct RelationLiteral : Literal {
-    RelationLiteral(Relation rel, UTerm &&left, UTerm &&right);
+class RelationLiteral : public Literal {
+public:
+    RelationLiteral(Relation rel, UTerm left, UTerm right);
     void print(std::ostream &out) const override;
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
@@ -96,16 +103,19 @@ struct RelationLiteral : Literal {
     UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
     std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
     Score score(Term::VarSet const &bound, Logger &log) override;
-    bool auxiliary() const override { return true; }
-    virtual ~RelationLiteral();
+    bool auxiliary() const override {
+        return true;
+    }
 
-    RelationShared shared;
+private:
+    RelationShared shared_;
 };
 
 // }}}
 // {{{ declaration of PredicateLiteral
 
-struct PredicateLiteral : Literal, BodyOcc {
+class PredicateLiteral : public Literal, public BodyOcc {
+public:
     PredicateLiteral(bool auxiliary, PredicateDomain &domain, NAF naf, UTerm &&repr);
     void print(std::ostream &out) const override;
     UGTerm getRepr() const override;
@@ -122,22 +132,34 @@ struct PredicateLiteral : Literal, BodyOcc {
     Score score(Term::VarSet const &bound, Logger &log) override;
     void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const override;
     bool auxiliary() const override { return auxiliary_; }
-    virtual ~PredicateLiteral();
 
-    OccurrenceType type = OccurrenceType::POSITIVELY_STRATIFIED;
+    bool hasOffset() const {
+        return offset_ != std::numeric_limits<PredicateDomain::SizeType>::max();
+    }
+    Potassco::Id_t getOffset() const {
+        return offset_;
+    }
+
+protected:
+    UIdx make_index(BinderType type, Term::VarSet &bound, bool initialized);
+
+private:
+    OccurrenceType type_ = OccurrenceType::POSITIVELY_STRATIFIED;
     bool auxiliary_;
-    UTerm repr;
-    DefinedBy defs;
-    PredicateDomain &domain;
-    Potassco::Id_t offset = 0;
-    NAF naf;
+    UTerm repr_;
+    DefinedBy defs_;
+    PredicateDomain &domain_;
+    Potassco::Id_t offset_ = 0;
+    NAF naf_;
 
 };
 
-struct ProjectionLiteral : PredicateLiteral {
-    ProjectionLiteral(bool auxiliary, PredicateDomain &dom, UTerm &&repr, bool initialized);
+class ProjectionLiteral : public PredicateLiteral {
+public:
+    ProjectionLiteral(bool auxiliary, PredicateDomain &dom, UTerm repr, bool initialized);
     UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
-    virtual ~ProjectionLiteral();
+
+private:
     bool initialized_;
 };
 
@@ -145,6 +167,4 @@ struct ProjectionLiteral : PredicateLiteral {
 
 } } // namespace Ground Gringo
 
-#endif // _GRINGO_GROUND_LITERALS_HH
-
-
+#endif // GRINGO_GROUND_LITERALS_HH

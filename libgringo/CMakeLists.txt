@@ -80,6 +80,7 @@ set(source-group
 source_group("${ide_source_group}" FILES ${source-group})
 set(source-group-ground
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ground/instantiation.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ground/literal.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ground/literals.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ground/program.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ground/statements.cc")

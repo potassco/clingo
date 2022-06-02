@@ -22,32 +22,19 @@
 
 // }}}
 
-#ifndef GRINGO_GROUND_STATEMENT_HH
-#define GRINGO_GROUND_STATEMENT_HH
-
-#include <gringo/ground/literal.hh>
-#include <gringo/ground/dependency.hh>
+#include "gringo/ground/literal.hh"
 
 namespace Gringo { namespace Ground {
 
-// {{{ declaration of Statement
-
-class Statement;
-using UStm = std::unique_ptr<Statement>;
-using UStmVec = std::vector<UStm>;
-
-class Statement : public Printable {
-public:
-    using Dep = Dependency<UStm, HeadOccurrence>;
-    virtual bool isNormal() const = 0;
-    virtual void analyze(Dep::Node &node, Dep &dep) = 0;
-    virtual void startLinearize(bool active) = 0;
-    virtual void linearize(Context &context, bool positive, Logger &log) = 0;
-    virtual void enqueue(Queue &q) = 0;
-};
-
-// }}}
+void Literal::collectImportant(Term::VarSet &vars) {
+    auto *occ(occurrence());
+    if (occ != nullptr && occ->getType() != OccurrenceType::POSITIVELY_STRATIFIED) {
+        VarTermBoundVec x;
+        collect(x);
+        for (auto &var : x) {
+            vars.emplace(var.first->name);
+        }
+    }
+}
 
 } } // namespace Ground Gringo
-
-#endif // GRINGO_GROUND_STATEMENT_HH

@@ -31,45 +31,68 @@ namespace Gringo { namespace Ground {
 
 // {{{ definition of Parameters
 
-Parameters::Parameters() = default;
-Parameters::~Parameters() { }
 void Parameters::add(String name, SymVec &&args) {
-    params[Sig((std::string("#inc_") + name.c_str()).c_str(), static_cast<uint32_t>(args.size()), false)].emplace(std::move(args));
+    params_[Sig((std::string("#inc_") + name.c_str()).c_str(), static_cast<uint32_t>(args.size()), false)].emplace(std::move(args));
 }
+
 bool Parameters::find(Sig sig) const {
-    auto it = params.find(sig);
-    return it != params.end() && !it->second.empty();
+    auto it = params_.find(sig);
+    return it != params_.end() && !it->second.empty();
 }
-ParamSet::const_iterator Parameters::begin() const { return params.begin(); }
-ParamSet::const_iterator Parameters::end() const   { return params.end(); }
-bool Parameters::empty() const                     { return params.empty(); }
-void Parameters::clear() { params.clear(); }
+
+ParamSet::const_iterator Parameters::begin() const {
+    return params_.begin();
+}
+
+ParamSet::const_iterator Parameters::end() const {
+    return params_.end();
+}
+
+bool Parameters::empty() const {
+    return params_.empty();
+}
+
+void Parameters::clear() {
+    params_.clear();
+}
 
 // }}}
 // {{{ definition of Program
 
 Program::Program(SEdbVec &&edb, Statement::Dep::ComponentVec &&stms)
-    : edb(std::move(edb))
-    , stms(std::move(stms)) { }
+: edb_(std::move(edb))
+, stms_(std::move(stms)) { }
 
-std::ostream &operator<<(std::ostream &out, Program const &p) {
+std::ostream &operator<<(std::ostream &out, Program const &prg) {
     bool comma = false;
-    for (auto &component : p.stms) {
-        if (comma) { out << "\n"; }
-        else       { comma = true; }
+    for (auto const &component : prg) {
+        if (comma) {
+            out << "\n";
+        }
+        else {
+            comma = true;
+        }
         out << "%" << (component.second ? " positive" : "") <<  " component";
-        for (auto &stm : component.first) { out << "\n" << *stm; }
+        for (auto const &stm : component.first) {
+            out << "\n" << *stm;
+        }
     }
     return out;
 }
 
 void Program::linearize(Context &context, Logger &log) {
-    for (auto &x : stms) {
-        for (auto &y : x.first) { y->startLinearize(true); }
-        for (auto &y : x.first) { y->linearize(context, x.second, log); }
-        for (auto &y : x.first) { y->startLinearize(false); }
+    for (auto &x : stms_) {
+        for (auto &y : x.first) {
+            y->startLinearize(true);
+        }
+        for (auto &y : x.first) {
+            y->linearize(context, x.second, log);
+        }
+        for (auto &y : x.first) {
+            y->startLinearize(false);
+        }
     }
-    linearized = true;
+    linearized_ = true;
 }
 
 void Program::prepare(Parameters const &params, Output::OutputBase &out, Logger &log) {
@@ -99,7 +122,7 @@ void Program::prepare(Parameters const &params, Output::OutputBase &out, Logger 
         dom->incNext();
     }
     out.checkOutPreds(log);
-    for (auto &x : edb) {
+    for (auto &x : edb_) {
         if (params.find(std::get<0>(*x)->getSig())) {
             for (auto &z : std::get<1>(*x)) {
                 auto it(doms.find(z.sig()));
@@ -113,25 +136,37 @@ void Program::prepare(Parameters const &params, Output::OutputBase &out, Logger 
             }
         }
     }
-    for (auto &p : params) {
+    for (auto const &p : params) {
         auto base = doms.find(p.first);
         if (base != doms.end()) {
-            for (auto &args : p.second) {
-                if (args.size() == 0) { (*base)->define(Symbol::createId(p.first.name()), true); }
-                else { (*base)->define(Symbol::createFun(p.first.name(), Potassco::toSpan(args)), true); }
+            for (auto const &args : p.second) {
+                if (args.empty()) {
+                    (*base)->define(Symbol::createId(p.first.name()), true);
+                }
+                else {
+                    (*base)->define(Symbol::createFun(p.first.name(), Potassco::toSpan(args)), true);
+                }
             }
         }
     }
-    for (auto &x : doms) { x->nextGeneration(); }
+    for (auto &x : doms) {
+        x->nextGeneration();
+    }
 }
 
 void Program::ground(Context &context, Output::OutputBase &out, Logger &log) {
     Queue q;
-    for (auto &x : stms) {
-        if (!linearized) {
-            for (auto &y : x.first) { y->startLinearize(true); }
-            for (auto &y : x.first) { y->linearize(context, x.second, log); }
-            for (auto &y : x.first) { y->startLinearize(false); }
+    for (auto &x : stms_) {
+        if (!linearized_) {
+            for (auto &y : x.first) {
+                y->startLinearize(true);
+            }
+            for (auto &y : x.first) {
+                y->linearize(context, x.second, log);
+            }
+            for (auto &y : x.first) {
+                y->startLinearize(false);
+            }
         }
 #if DEBUG_INSTANTIATION > 0
         std::cerr << "============= component ===========" << std::endl;
@@ -145,7 +180,7 @@ void Program::ground(Context &context, Output::OutputBase &out, Logger &log) {
         q.process(out, log);
     }
     out.endGround(log);
-    linearized = true;
+    linearized_ = true;
 }
 
 // }}}

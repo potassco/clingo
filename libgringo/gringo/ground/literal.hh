@@ -39,8 +39,14 @@ using Output::PredicateDomain;
 
 class HeadOccurrence {
 public:
+    HeadOccurrence() = default;
+    HeadOccurrence(HeadOccurrence const &other) = default;
+    HeadOccurrence(HeadOccurrence &&other) noexcept = default;
+    HeadOccurrence &operator=(HeadOccurrence const &other) = default;
+    HeadOccurrence &operator=(HeadOccurrence &&other) noexcept = default;
+    virtual ~HeadOccurrence() noexcept = default;
+
     virtual void defines(IndexUpdater &update, Instantiator *inst) = 0;
-    virtual ~HeadOccurrence() { }
 };
 using BodyOcc = BodyOccurrence<HeadOccurrence>;
 
@@ -63,7 +69,6 @@ public:
     virtual void collectImportant(Term::VarSet &vars);
     virtual std::pair<Output::LiteralId,bool> toOutput(Logger &log) = 0;
     virtual Score score(Term::VarSet const &bound, Logger &log) = 0;
-    virtual ~Literal() { }
 };
 
 // }}}
