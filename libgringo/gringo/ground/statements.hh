@@ -708,7 +708,7 @@ private:
 
     ConjunctionComplete &complete_;
     DefinedBy defs_;
-    Id_t offset_;
+    Id_t offset_ = 0;
     OccurrenceType type_ = OccurrenceType::POSITIVELY_STRATIFIED;
     bool auxiliary_;
 };
@@ -739,7 +739,7 @@ private:
 
     TheoryComplete &complete_;
     Output::UTheoryTermVec tuple_;
-    bool neutral_ = true;
+    bool neutral_;
 };
 
 // {{{1 declaration of TheoryComplete
@@ -834,7 +834,7 @@ private:
     TheoryComplete &complete_;
     DefinedBy defs_;
     NAF naf_;
-    Id_t offset_;
+    Id_t offset_ = 0;
     OccurrenceType type_ = OccurrenceType::POSITIVELY_STRATIFIED;
     bool auxiliary_;
 };

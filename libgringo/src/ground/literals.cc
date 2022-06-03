@@ -296,9 +296,9 @@ private:
 
 // {{{1 definition of PredicateLiteral
 
-RangeLiteral::RangeLiteral(UTerm assign, UTerm lower, UTerm upper)
+RangeLiteral::RangeLiteral(UTerm assign, UTerm left, UTerm right)
 : assign_(std::move(assign))
-, range_(std::move(lower), std::move(upper)) { }
+, range_(std::move(left), std::move(right)) { }
 
 void RangeLiteral::print(std::ostream &out) const {
     out << *assign_ << "=" << *range_.first << ".." << *range_.second;
