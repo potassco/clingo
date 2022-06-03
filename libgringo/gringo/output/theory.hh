@@ -22,20 +22,19 @@
 
 // }}}
 
-#ifndef _GRINGO_OUTPUT_THEORY_HH
-#define _GRINGO_OUTPUT_THEORY_HH
+#ifndef GRINGO_OUTPUT_THEORY_HH
+#define GRINGO_OUTPUT_THEORY_HH
 
 #include <gringo/base.hh>
 #include <gringo/terms.hh>
 #include <gringo/types.hh>
 #include <gringo/hash_set.hh>
 #include <potassco/theory_data.h>
+#include <gringo/output/literal.hh>
 #include <functional>
 
 namespace Gringo { namespace Output {
 
-class LiteralId;
-using LitVec = std::vector<LiteralId>;
 using Gringo::StringVec;
 using Gringo::GetName;
 
@@ -46,6 +45,13 @@ public:
     using Id_t = Potassco::Id_t;
     using IdSpan = Potassco::IdSpan;
 
+    TheoryOutput() = default;
+    TheoryOutput(TheoryOutput const &other) = default;
+    TheoryOutput(TheoryOutput &&other) noexcept = default;
+    TheoryOutput &operator=(TheoryOutput const &other) = default;
+    TheoryOutput &operator=(TheoryOutput &&other) noexcept = default;
+    virtual ~TheoryOutput() = default;
+
     virtual void theoryTerm(Id_t termId, int number) = 0;
     virtual void theoryTerm(Id_t termId, const StringSpan& name) = 0;
     virtual void theoryTerm(Id_t termId, int cId, const IdSpan& args) = 0;
@@ -53,7 +59,6 @@ public:
     virtual void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements) = 0;
     virtual void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs) = 0;
 
-    virtual ~TheoryOutput() = default;
 };
 
 class TheoryData : private Potassco::TheoryData::Visitor {
@@ -61,17 +66,18 @@ class TheoryData : private Potassco::TheoryData::Visitor {
     using AtomSet = HashSet<uintptr_t>;
     using ConditionVec = std::vector<LitVec>;
     using PrintLit = std::function<void (std::ostream &out, LiteralId const &)>;
+
 public:
     TheoryData(Potassco::TheoryData &data);
-    ~TheoryData() noexcept;
+
     Potassco::Id_t addTerm(int number);
     Potassco::Id_t addTerm(char const *name);
     Potassco::Id_t addTermFun(Potassco::Id_t funcSym, Potassco::IdSpan const& terms);
     Potassco::Id_t addTermTup(Potassco::Tuple_t type, Potassco::IdSpan const& terms);
     Potassco::Id_t addTerm(Symbol value);
-    Potassco::Id_t addElem(Potassco::IdSpan const &tuple, LitVec &&cond);
-    std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Potassco::Id_t()> newAtom, Potassco::Id_t termId, Potassco::IdSpan const &elems);
-    std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Potassco::Id_t()> newAtom, Potassco::Id_t termId, Potassco::IdSpan const &elems, Potassco::Id_t op, Potassco::Id_t rhs);
+    Potassco::Id_t addElem(Potassco::IdSpan const &tuple, LitVec cond);
+    std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Potassco::Id_t()> const &newAtom, Potassco::Id_t termId, Potassco::IdSpan const &elems);
+    std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Potassco::Id_t()> const &newAtom, Potassco::Id_t termId, Potassco::IdSpan const &elems, Potassco::Id_t op, Potassco::Id_t rhs);
     void printTerm(std::ostream &out, Potassco::Id_t termId) const;
     void printElem(std::ostream &out, Potassco::Id_t elemId, PrintLit printLit) const;
     bool empty() const;
@@ -82,21 +88,22 @@ public:
     bool hasConditions() const;
     void reset(bool resetData);
     void output(TheoryOutput &tout);
-    Potassco::TheoryAtom const &getAtom(Id_t offset) const { return **(data_.begin() + offset); }
+    Potassco::TheoryAtom const &getAtom(Id_t offset) const {
+        return **(data_.begin() + offset);
+    }
+
 private:
     void print(Potassco::Id_t termId, const Potassco::TheoryTerm& term);
     void print(const Potassco::TheoryAtom& a);
     void visit(Potassco::TheoryData const &data, Potassco::Id_t termId, Potassco::TheoryTerm const &t) override;
     void visit(Potassco::TheoryData const &data, Potassco::Id_t elemId, Potassco::TheoryElement const &e) override;
     void visit(Potassco::TheoryData const &data, Potassco::TheoryAtom const &a) override;
-    bool addSeen(std::vector<bool>& vec, Potassco::Id_t id) const;
 
-private:
     template <typename ...Args>
     Potassco::Id_t addTerm_(Args ...args);
     template <typename ...Args>
-    std::pair<Potassco::TheoryAtom const &, bool> addAtom_(std::function<Potassco::Id_t()> newAtom, Args ...args);
-private:
+    std::pair<Potassco::TheoryAtom const &, bool> addAtom_(std::function<Potassco::Id_t()> const &newAtom, Args ...args);
+
     TIdSet terms_;
     TIdSet elems_;
     AtomSet atoms_;
@@ -120,7 +127,6 @@ public:
     virtual void collect(VarTermBoundVec &vars) = 0;
     virtual void replace(Defines &defs) = 0;
     virtual UTheoryTerm initTheory(TheoryParser &p, Logger &log) = 0;
-    virtual ~TheoryTerm() { }
 };
 
 // {{{1 declaration of RawTheoryTerm
@@ -128,13 +134,11 @@ public:
 class RawTheoryTerm : public TheoryTerm {
 public:
     using ElemVec = std::vector<std::pair<StringVec, UTheoryTerm>>;
-public:
-    RawTheoryTerm();
-    RawTheoryTerm(ElemVec &&elems);
-    RawTheoryTerm(RawTheoryTerm &&);
-    RawTheoryTerm &operator=(RawTheoryTerm &&);
-    void append(StringVec &&ops, UTheoryTerm &&term);
-    virtual ~RawTheoryTerm() noexcept;
+
+    RawTheoryTerm() = default;
+    RawTheoryTerm(ElemVec elems);
+
+    void append(StringVec ops, UTheoryTerm term);
     // {{{2 TheoryTerm interface
     Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
@@ -155,26 +159,36 @@ private:
 
 class TheoryParser {
     enum TokenType { Op, Id };
-    struct Elem {
+    class Elem {
+    public:
         Elem(String op, bool unary);
-        Elem(UTheoryTerm &&term);
-        Elem(Elem &&elem);
+        Elem(UTheoryTerm term);
+        Elem(Elem const &elem) = delete;
+        Elem(Elem &&elem) noexcept;
+        Elem &operator=(Elem const &elem) = delete;
+        Elem &operator=(Elem &&elem) noexcept = delete;
         ~Elem() noexcept;
-        TokenType tokenType;
+
+        TokenType type();
+        std::pair<String,bool> &op();
+        UTheoryTerm &term();
+
+    private:
+        TokenType tokenType_;
         union {
-            std::pair<String,bool> op;
-            UTheoryTerm term;
+            std::pair<String,bool> op_;
+            UTheoryTerm term_;
         };
     };
     using Stack = std::vector<Elem>;
 public:
     TheoryParser(Location const &loc, TheoryTermDef const &def);
-    UTheoryTerm parse(RawTheoryTerm::ElemVec && elems, Logger &log);
-    ~TheoryParser() noexcept;
+    UTheoryTerm parse(RawTheoryTerm::ElemVec elems, Logger &log);
+
 private:
     void reduce();
     bool check(String op);
-private:
+
     Location loc_;
     TheoryTermDef const &def_;
     Stack stack_;
@@ -184,8 +198,8 @@ private:
 
 class UnaryTheoryTerm : public TheoryTerm {
 public:
-    UnaryTheoryTerm(String op, UTheoryTerm &&arg);
-    virtual ~UnaryTheoryTerm() noexcept;
+    UnaryTheoryTerm(String op, UTheoryTerm arg);
+
     // {{{2 TheoryTerm interface
     Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
@@ -200,6 +214,7 @@ public:
     // {{{2 Clonable interface
     UnaryTheoryTerm *clone() const override;
     // }}}2
+
 private:
     UTheoryTerm arg_;
     String op_;
@@ -209,8 +224,8 @@ private:
 
 class BinaryTheoryTerm : public TheoryTerm {
 public:
-    BinaryTheoryTerm(UTheoryTerm &&left, String op, UTheoryTerm &&right);
-    virtual ~BinaryTheoryTerm() noexcept;
+    BinaryTheoryTerm(UTheoryTerm left, String op, UTheoryTerm right);
+
     // {{{2 TheoryTerm interface
     Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
@@ -225,6 +240,7 @@ public:
     // {{{2 Clonable interface
     BinaryTheoryTerm *clone() const override;
     // }}}2
+
 private:
     UTheoryTerm left_;
     UTheoryTerm right_;
@@ -236,9 +252,9 @@ private:
 class TupleTheoryTerm : public TheoryTerm {
 public:
     using Type = Potassco::Tuple_t;
-public:
-    TupleTheoryTerm(Type type, UTheoryTermVec &&args);
-    virtual ~TupleTheoryTerm() noexcept;
+
+    TupleTheoryTerm(Type type, UTheoryTermVec args);
+
     // {{{2 TheoryTerm interface
     Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
@@ -253,6 +269,7 @@ public:
     // {{{2 Clonable interface
     TupleTheoryTerm *clone() const override;
     // }}}2
+
 private:
     UTheoryTermVec args_;
     Type type_;
@@ -262,8 +279,8 @@ private:
 
 class FunctionTheoryTerm : public TheoryTerm {
 public:
-    FunctionTheoryTerm(String name, UTheoryTermVec &&args);
-    virtual ~FunctionTheoryTerm() noexcept;
+    FunctionTheoryTerm(String name, UTheoryTermVec args);
+
     // {{{2 TheoryTerm interface
     Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
@@ -278,6 +295,7 @@ public:
     // {{{2 Clonable interface
     FunctionTheoryTerm *clone() const override;
     // }}}2
+
 private:
     UTheoryTermVec args_;
     String name_;
@@ -288,8 +306,8 @@ private:
 
 class TermTheoryTerm : public TheoryTerm {
 public:
-    TermTheoryTerm(UTerm &&term);
-    virtual ~TermTheoryTerm() noexcept;
+    TermTheoryTerm(UTerm term);
+
     // {{{2 TheoryTerm interface
     Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
@@ -304,6 +322,7 @@ public:
     // {{{2 Clonable interface
     TermTheoryTerm *clone() const override;
     // }}}2
+
 private:
     UTerm term_;
 };
@@ -314,5 +333,5 @@ private:
 
 GRINGO_CALL_HASH(Gringo::Output::TheoryTerm)
 
-#endif // _GRINGO_OUTPUT_THEORY_HH
+#endif // GRINGO_OUTPUT_THEORY_HH
 

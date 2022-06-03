@@ -33,9 +33,9 @@ namespace Gringo {
 
 namespace Ground {
 
+// TODO: these could be avoided by putting the ground::theory into a separate header.
 class TheoryAccumulate;
 class TheoryComplete;
-class TheoryLiteral;
 
 } // namespace Ground
 

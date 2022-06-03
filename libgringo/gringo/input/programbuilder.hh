@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_PROGRAMBUILDER_HH
-#define _GRINGO_INPUT_PROGRAMBUILDER_HH
+#ifndef GRINGO_INPUT_PROGRAMBUILDER_HH
+#define GRINGO_INPUT_PROGRAMBUILDER_HH
 
 #include <gringo/locatable.hh>
 #include <gringo/symbol.hh>
@@ -96,21 +96,28 @@ enum TheoryDefVecUid    : unsigned { };
 
 class INongroundProgramBuilder {
 public:
+    INongroundProgramBuilder() = default;
+    INongroundProgramBuilder(INongroundProgramBuilder const &other) = default;
+    INongroundProgramBuilder(INongroundProgramBuilder &&other) noexcept = default;
+    INongroundProgramBuilder &operator=(INongroundProgramBuilder const &other) = default;
+    INongroundProgramBuilder &operator=(INongroundProgramBuilder &&other) noexcept = default;
+    virtual ~INongroundProgramBuilder() noexcept = default;
+
     TermUid predRep(Location const &loc, bool neg, String name, TermVecVecUid tvvUid) {
         TermUid t = term(loc, name, tvvUid, false);
         if (neg) { t = term(loc, UnOp::NEG, t); }
         return t;
     }
     // {{{2 terms
-    virtual TermUid term(Location const &loc, Symbol val) = 0;                                // constant
+    virtual TermUid term(Location const &loc, Symbol val) = 0;                             // constant
     virtual TermUid term(Location const &loc, String name) = 0;                            // variable
-    virtual TermUid term(Location const &loc, UnOp op, TermUid a) = 0;                       // unary operation
-    virtual TermUid term(Location const &loc, UnOp op, TermVecUid a) = 0;                    // unary operation
-    virtual TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) = 0;           // binary operation
-    virtual TermUid term(Location const &loc, TermUid a, TermUid b) = 0;                     // dots
+    virtual TermUid term(Location const &loc, UnOp op, TermUid a) = 0;                     // unary operation
+    virtual TermUid term(Location const &loc, UnOp op, TermVecUid a) = 0;                  // unary operation
+    virtual TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) = 0;         // binary operation
+    virtual TermUid term(Location const &loc, TermUid a, TermUid b) = 0;                   // dots
     virtual TermUid term(Location const &loc, String name, TermVecVecUid b, bool lua) = 0; // function or lua function
-    virtual TermUid term(Location const &loc, TermVecUid args, bool forceTuple) = 0;         // a tuple term (or simply a term)
-    virtual TermUid pool(Location const &loc, TermVecUid args) = 0;                          // a pool term
+    virtual TermUid term(Location const &loc, TermVecUid args, bool forceTuple) = 0;       // a tuple term (or simply a term)
+    virtual TermUid pool(Location const &loc, TermVecUid args) = 0;                        // a pool term
     // {{{2 id vectors
     virtual IdVecUid idvec() = 0;
     virtual IdVecUid idvec(IdVecUid uid, Location const &loc, String id) = 0;
@@ -212,8 +219,6 @@ public:
     virtual void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &log) = 0;
 
     // }}}2
-
-    virtual ~INongroundProgramBuilder() { }
 };
 
 // {{{1 declaration of NongroundProgramBuilder
@@ -236,6 +241,12 @@ using IdVec = std::vector<std::pair<Location, String>>;
 class NongroundProgramBuilder : public INongroundProgramBuilder {
 public:
     NongroundProgramBuilder(Context &context, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize = false);
+    NongroundProgramBuilder(NongroundProgramBuilder const &other) = delete;
+    NongroundProgramBuilder(NongroundProgramBuilder &&other) noexcept = default;
+    NongroundProgramBuilder &operator=(NongroundProgramBuilder &&other) noexcept = delete;
+    NongroundProgramBuilder &operator=(NongroundProgramBuilder const &other) = delete;
+    ~NongroundProgramBuilder() noexcept override;
+
     // {{{2 terms
     TermUid term(Location const &loc, Symbol val) override;                             // constant
     TermUid term(Location const &loc, String name) override;                            // variable
@@ -243,7 +254,7 @@ public:
     TermUid term(Location const &loc, UnOp op, TermVecUid a) override;                  // unary operation
     TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) override;         // binary operation
     TermUid term(Location const &loc, TermUid a, TermUid b) override;                   // assignment
-    TermUid term(Location const &loc, String name, TermVecVecUid b, bool lua) override; // function or lua function
+    TermUid term(Location const &loc, String name, TermVecVecUid a, bool lua) override; // function or lua function
     TermUid term(Location const &loc, TermVecUid args, bool forceTuple) override;       // a tuple term (or simply a term)
     TermUid pool(Location const &loc, TermVecUid args) override;                        // a pool term
 
@@ -281,14 +292,14 @@ public:
     HdLitUid headlit(LitUid lit) override;
     HdLitUid headaggr(Location const &loc, TheoryAtomUid atom) override;
     HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, HdAggrElemVecUid headaggrelemvec) override;
-    HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid headaggrelemvec) override;
+    HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid condlitvec) override;
     HdLitUid disjunction(Location const &loc, CondLitVecUid condlitvec) override;
     // {{{2 bodies
     BdLitVecUid body() override;
     BdLitVecUid bodylit(BdLitVecUid body, LitUid bodylit) override;
     BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, TheoryAtomUid atom) override;
     BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, BdAggrElemVecUid bodyaggrelemvec) override;
-    BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid bodyaggrelemvec) override;
+    BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid condlitvec) override;
     BdLitVecUid conjunction(BdLitVecUid body, Location const &loc, LitUid head, LitVecUid litvec) override;
     // {{{2 statements
     void rule(Location const &loc, HdLitUid head) override;
@@ -348,8 +359,6 @@ public:
     void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &log) override;
 
     // }}}2
-
-    virtual ~NongroundProgramBuilder();
 
 private:
     using Terms            = Indexed<UTerm, TermUid>;

@@ -30,9 +30,7 @@
 #include <gringo/terms.hh>
 #include <list>
 
-namespace Gringo {
-
-namespace Ground {
+namespace Gringo { namespace Ground {
 
 enum class RuleType : unsigned short;
 using ULitVec = std::vector<ULit>;

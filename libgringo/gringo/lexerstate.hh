@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_LEXERSTATE_HH
-#define _GRINGO_LEXERSTATE_HH
+#ifndef GRINGO_LEXERSTATE_HH
+#define GRINGO_LEXERSTATE_HH
 
 #include <cstring>
 #include <cstdlib>
@@ -72,7 +72,7 @@ public:
 private:
     State const &state() const;
     State &state();
-private:
+
     std::vector<State> states_;
 };
 
@@ -82,26 +82,30 @@ private:
 template <class T>
 struct LexerState<T>::State {
     State(T &&data);
-    State(State &&);
+    State(State const &other) = default;
+    State(State &&other) noexcept;
+    State &operator=(State const &other) = default;
+    State &operator=(State &&other) noexcept;
+    ~State() noexcept;
+
     void fill(size_t n);
     void step();
-    void start();
-    ~State();
+    void next();
 
     std::unique_ptr<std::istream> in_;
     T data_;
-    size_t bufmin_;
-    size_t bufsize_;
-    char *buffer_;
-    char *start_;
-    char *offset_;
-    char *cursor_;
-    char *limit_;
-    char *marker_;
-    char *ctxmarker_;
-    char *eof_;
-    int line_;
-    bool newline_;
+    size_t bufmin{4096};
+    size_t bufsize{0};
+    char *buffer{nullptr};
+    char *start{nullptr};
+    char *offset{nullptr};
+    char *cursor{nullptr};
+    char *limit{nullptr};
+    char *marker{nullptr};
+    char *ctxmarker{nullptr};
+    char *eof{nullptr};
+    int line{1};
+    bool newline{false};
 };
 
 // }}}
@@ -110,82 +114,109 @@ struct LexerState<T>::State {
 
 template <class T>
 LexerState<T>::State::State(T &&data)
-    : data_(std::forward<T>(data))
-    , bufmin_(4096), bufsize_(0)
-    , buffer_(0), start_(0), offset_(0)
-    , cursor_(0), limit_(0), marker_(0)
-    , ctxmarker_(0), eof_(0), line_(1)
-    , newline_(false) { }
+: data_(std::forward<T>(data)) { }
 
 template <class T>
-LexerState<T>::State::State(State &&x)
-    : data_(std::forward<T>(x.data_))
-    , bufmin_(x.bufmin_), bufsize_(x.bufsize_)
-    , buffer_(0), start_(x.start_), offset_(x.offset_)
-    , cursor_(x.cursor_), limit_(x.limit_), marker_(x.marker_)
-    , ctxmarker_(x.ctxmarker_), eof_(x.eof_), line_(x.line_)
-    , newline_(x.newline_) {
-    std::swap(x.in_, in_);
-    std::swap(x.buffer_, buffer_);
+LexerState<T>::State::State(State &&other) noexcept
+: data_(std::move(other.data_))
+, bufmin(other.bufmin)
+, bufsize(other.bufsize)
+, start(other.start)
+, offset(other.offset)
+, cursor(other.cursor)
+, limit(other.limit)
+, marker(other.marker)
+, ctxmarker(other.ctxmarker)
+, eof(other.eof)
+, line(other.line)
+, newline(other.newline) {
+    std::swap(other.in_, in_);
+    std::swap(other.buffer, buffer);
+}
+
+template <class T>
+typename LexerState<T>::State &LexerState<T>::State::operator=(State &&other) noexcept {
+    data_ = std::move(other.data_);
+    bufmin = other.bufmin;
+    bufsize = other.bufsize;
+    start = other.start;
+    offset = other.offset;
+    cursor = other.cursor;
+    limit = other.limit;
+    marker = other.marker;
+    ctxmarker = other.ctxmarker;
+    eof = other.eof;
+    line = other.line;
+    newline = other.newline;
+    std::swap(other.in_, in_);
+    std::swap(other.buffer, buffer);
 }
 
 template <class T>
 void LexerState<T>::State::fill(size_t n) {
-    if (eof_) return;
-    if (start_ > buffer_) {
-        size_t shift = start_ - buffer_;
-        memmove(buffer_, start_, limit_ - start_);
-        start_     = buffer_;
-        offset_   -= shift;
-        marker_   -= shift;
-        ctxmarker_-= shift;
-        limit_    -= shift;
-        cursor_   -= shift;
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    if (eof != nullptr) {
+        return;
     }
-    size_t inc = n < bufmin_ ? bufmin_ : n;
-    if (bufsize_ < inc + (limit_ - buffer_)) {
-        bufsize_   = inc + (limit_ - buffer_);
-        char *buf  = (char*)realloc(buffer_, bufsize_ * sizeof(char));
-        start_     = buf + (start_ - buffer_);
-        cursor_    = buf + (cursor_ - buffer_);
-        limit_     = buf + (limit_ - buffer_);
-        marker_    = buf + (marker_ - buffer_);
-        ctxmarker_ = buf + (ctxmarker_ - buffer_);
-        offset_    = buf + (offset_ - buffer_);
-        buffer_    = buf;
+    if (start > buffer) {
+        size_t shift = start - buffer;
+        memmove(buffer, start, limit - start);
+        start      = buffer;
+        offset    -= shift;
+        marker    -= shift;
+        ctxmarker -= shift;
+        limit     -= shift;
+        cursor    -= shift;
     }
-    in_->read(limit_, inc);
-    size_t read = size_t(in_->gcount());
-    limit_+= read;
+    size_t inc = n < bufmin ? bufmin : n;
+    if (bufsize < inc + (limit - buffer)) {
+        bufsize   = inc + (limit - buffer);
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory,cppcoreguidelines-no-malloc)
+        auto *buf = static_cast<char*>(realloc(buffer, bufsize * sizeof(char)));
+        start     = buf + (start - buffer);
+        cursor    = buf + (cursor - buffer);
+        limit     = buf + (limit - buffer);
+        marker    = buf + (marker - buffer);
+        ctxmarker = buf + (ctxmarker - buffer);
+        offset    = buf + (offset - buffer);
+        buffer    = buf;
+    }
+    in_->read(limit, static_cast<std::streamsize>(inc));
+    auto read = static_cast<size_t>(in_->gcount());
+    limit+= read;
     if (read > 0) {
-        newline_ = *(limit_ - 1) == '\n';
+        newline = *(limit - 1) == '\n';
     }
     // make sure the last line is newline terminated
-    if (read < inc && !newline_) {
-        newline_ = true;
+    if (read < inc && !newline) {
+        newline = true;
         ++read;
-        *limit_++ = '\n';
+        *limit++ = '\n';
     }
     if (read < inc) {
-        eof_ = limit_;
-        *eof_++ = '\n';
+        eof = limit;
+        *eof++ = '\n';
     }
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 template <class T>
 void LexerState<T>::State::step() {
-    offset_ = cursor_;
-    line_++;
+    offset = cursor;
+    line++;
 }
 
 template <class T>
-void LexerState<T>::State::start() {
-    start_ = cursor_;
+void LexerState<T>::State::next() {
+    start = cursor;
 }
 
 template <class T>
-LexerState<T>::State::~State() {
-    if(buffer_) free(buffer_);
+LexerState<T>::State::~State() noexcept {
+    if(buffer != nullptr) {
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory,cppcoreguidelines-no-malloc)
+        free(buffer);
+    }
 }
 
 // }}}
@@ -196,12 +227,12 @@ LexerState<T>::LexerState() = default;
 
 template <class T>
 void LexerState<T>::start() {
-    state().start();
+    state().next();
 }
 
 template <class T>
 bool LexerState<T>::eof() const {
-    return state().cursor_ == state().eof_;
+    return state().cursor == state().eof;
 }
 
 template <class T>
@@ -215,18 +246,16 @@ template <class T>
 bool LexerState<T>::push(char const *file, T &&data) {
     if (strcmp(file, "-") == 0) {
         states_.emplace_back(std::forward<T>(data));
-        state().in_.reset(new std::istream(std::cin.rdbuf(0)));
+        state().in_.reset(new std::istream(std::cin.rdbuf(nullptr)));
         return true;
     }
-    else {
-        std::unique_ptr<std::ifstream> ifs(new std::ifstream(file));
-        if (ifs->is_open()) {
-            states_.emplace_back(std::forward<T>(data));
-            state().in_.reset(ifs.release());
-            return true;
-        }
-        else { return false; }
+    std::unique_ptr<std::ifstream> ifs(new std::ifstream(file));
+    if (ifs->is_open()) {
+        states_.emplace_back(std::forward<T>(data));
+        state().in_.reset(ifs.release());
+        return true;
     }
+    return false;
 }
 
 template <class T>
@@ -241,15 +270,18 @@ bool LexerState<T>::empty() const {
 
 template <class T>
 StringSpan LexerState<T>::string(int start, int end) {
-    auto b = state().start_ + start;
-    auto e = state().cursor_ - end;
+    auto b = state().start + start;
+    auto e = state().cursor - end;
     return {b, static_cast<size_t>(e - b)};
 }
 
 template <class T>
 void LexerState<T>::step(char s) {
-    for (char *c = state().start_; c != state().cursor_; c++) {
-        if (*c == s) { step(); }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    for (char *c = state().start; c != state().cursor; ++c) {
+        if (*c == s) {
+            step();
+        }
     }
 }
 
@@ -262,22 +294,23 @@ template <class T>
 int LexerState<T>::integer() const {
     int s = 0;
     int base = 10;
-    if (state().cursor_ - state().start_ >= 2) {
-        if (strncmp("0b", state().start_, 2) == 0) {
+    if (state().cursor - state().start >= 2) {
+        if (strncmp("0b", state().start, 2) == 0) {
             base = 2;
             s = 2;
         }
-        else if (strncmp("0o", state().start_, 2) == 0) {
+        else if (strncmp("0o", state().start, 2) == 0) {
             base = 8;
             s = 2;
         }
-        else if (strncmp("0x", state().start_, 2) == 0) {
+        else if (strncmp("0x", state().start, 2) == 0) {
             base = 16;
             s = 2;
         }
     }
     int r = 0;
-    for (char *i = state().start_ + s; i != state().cursor_; i++) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    for (char *i = state().start + s; i != state().cursor; i++) {
         r *= base;
         if (*i <= '9') {
             r += *i - '0';
@@ -294,12 +327,12 @@ int LexerState<T>::integer() const {
 
 template <class T>
 int LexerState<T>::line() const {
-    return state().line_;
+    return state().line;
 }
 
 template <class T>
 int LexerState<T>::column() const {
-    return static_cast<int>(state().cursor_ - state().offset_ + 1);
+    return static_cast<int>(state().cursor - state().offset + 1);
 }
 
 template <class T>
@@ -309,22 +342,22 @@ T const &LexerState<T>::data() const {
 
 template <class T>
 char *&LexerState<T>::cursor() {
-    return state().cursor_;
+    return state().cursor;
 }
 
 template <class T>
 char *&LexerState<T>::marker() {
-    return state().marker_;
+    return state().marker;
 }
 
 template <class T>
 char *&LexerState<T>::ctxmarker() {
-    return state().ctxmarker_;
+    return state().ctxmarker;
 }
 
 template <class T>
 char const *LexerState<T>::limit() const {
-    return state().limit_;
+    return state().limit;
 }
 
 template <class T>
@@ -346,12 +379,12 @@ typename LexerState<T>::State &LexerState<T>::state() {
 
 template <class T>
 void LexerState<T>::seek(int offset) {
-    state().cursor_ = state().start_ + offset;
-    state().ctxmarker_ = state().cursor_;
+    state().cursor = state().start + offset;
+    state().ctxmarker = state().cursor;
 }
 
 // }}}
 
 } // namespace Gringo
 
-#endif // _GRINGO_LEXERSTATE_HH
+#endif // GRINGO_LEXERSTATE_HH

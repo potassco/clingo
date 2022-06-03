@@ -114,7 +114,7 @@ void GroundTermGrammar::parser::error(GroundTermGrammar::parser::location_type c
 
 // {{{1 the parser
 
-start : term[r] { lexer->value = Symbol($r); };
+start : term[r] { lexer->setValue(Symbol($r)); };
 
 term
     : term[a] XOR term[b]                     { $$ = lexer->term(BinOp::XOR, Symbol($a), Symbol($b)).rep(); }

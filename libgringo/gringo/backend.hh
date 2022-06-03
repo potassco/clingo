@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_BACKEND_HH
-#define _GRINGO_BACKEND_HH
+#ifndef GRINGO_BACKEND_HH
+#define GRINGO_BACKEND_HH
 
 #include <gringo/symbol.hh>
 #include <potassco/theory_data.h>
@@ -51,6 +51,13 @@ public:
     using LitSpan = Potassco::LitSpan;
     using WeightLitSpan = Potassco::WeightLitSpan;
 
+    Backend() = default;
+    Backend(Backend const &other) = default;
+    Backend(Backend &&other) noexcept = default;
+    Backend &operator=(Backend const &other) = default;
+    Backend &operator=(Backend &&other) noexcept = default;
+    virtual ~Backend() noexcept = default;
+
     virtual void initProgram(bool incremental) = 0;
     virtual void beginStep() = 0;
 
@@ -74,7 +81,6 @@ public:
     virtual void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs) = 0;
 
     virtual void endStep() = 0;
-    virtual ~Backend() = default;
 };
 using UBackend = std::unique_ptr<Backend>;
 
@@ -98,4 +104,4 @@ inline void outputRule(Backend &out, bool choice, BackendAtomVec const &head, Po
 
 } // namespace Gringo
 
-#endif // _GRINGO_BACKEND_HH
+#endif // GRINGO_BACKEND_HH

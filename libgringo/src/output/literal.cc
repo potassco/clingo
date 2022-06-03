@@ -12,7 +12,7 @@ void PrintPlain::printTerm(Potassco::Id_t x) {
     domain.theory().printTerm(stream, x);
 }
 
-bool isTrueClause(DomainData &data, LitVec &lits, IsTrueLookup lookup) {
+bool isTrueClause(DomainData &data, LitVec &lits, IsTrueLookup const &lookup) {
     for (auto &lit : lits) {
         if (!call(data, lit, &Literal::isTrue, lookup)) {
             return false;
@@ -45,11 +45,11 @@ bool Literal::isPositive() const {
     return true;
 }
 
-LiteralId Literal::simplify(Mappings &, AssignmentLookup) const {
+LiteralId Literal::simplify(Mappings &mappings, AssignmentLookup const &lookup) const {
     throw std::logic_error("Literal::simplify: not implemented");
 }
 
-bool Literal::isTrue(IsTrueLookup) const {
+bool Literal::isTrue(IsTrueLookup const &lookup) const {
     throw std::logic_error("Literal::isTrue: not implemented");
 }
 

@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_PRINTABLE_HH
-#define _GRINGO_PRINTABLE_HH
+#ifndef GRINGO_PRINTABLE_HH
+#define GRINGO_PRINTABLE_HH
 
 #include <ostream>
 
@@ -52,5 +52,4 @@ inline std::ostream &operator<<(std::ostream &out, Printable const &x) {
 
 } // namespace Gringo
 
-#endif // _GRINGO_PRINTABLE_HH
-
+#endif // GRINGO_PRINTABLE_HH

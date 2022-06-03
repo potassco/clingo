@@ -30,6 +30,8 @@
 
 namespace Gringo {
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
+
 // Note: all of this is really unnecessary.
 // Probe devision is completly sufficient for realistic container sizes. :)
 namespace {
@@ -98,23 +100,23 @@ bool isPrimeProbe(T x) { // Note: this one makes assumptions about the numbers g
 }
 
 // https://miller-rabin.appspot.com/
-static std::initializer_list<uint32_t> a32s1 = { 0x36e8934f };
-static std::initializer_list<uint32_t> a32s2 = { 0x11724a, 0x8c16d95c };
-static std::initializer_list<uint32_t> a32s3 = { 0x2, 0x7, 0x3d };
+std::initializer_list<uint32_t> const a32s1 = { 0x36e8934f };
+std::initializer_list<uint32_t> const a32s2 = { 0x11724a, 0x8c16d95c };
+std::initializer_list<uint32_t> const a32s3 = { 0x2, 0x7, 0x3d };
 std::initializer_list<uint32_t> test(uint32_t n) {
     if (n < 0xbff5)     { return a32s1; }
     if (n < 0x157571b9) { return a32s2; }
     return a32s3;
 }
 #ifdef GRINGO_NEXTPRIME64
-static std::initializer_list<uint32_t> a64s1 = { 0x81b33f22efdceaa9 };
-static std::initializer_list<uint32_t> a64s2 = { 0x4e69b6552d, 0x223f5bb83fc553 };
-static std::initializer_list<uint32_t> a64s3 = { 0x2, 0x7, 0x3d };
-static std::initializer_list<uint32_t> a64s4 = { 0x3ab4f88ff0cc7c80, 0xcbee4cdf120c10aa, 0xe6f1343b0edca8e7 };
-static std::initializer_list<uint32_t> a64s5 = { 0x2, 0x810c207b08bf, 0x10a42595b01d3765, 0x99fd2b545eab5322 };
-static std::initializer_list<uint32_t> a64s6 = { 0x2, 0x3c1c7396f6d, 0x2142e2e3f22de5c, 0x297105b6b7b29dd, 0x370eb221a5f176dd };
-static std::initializer_list<uint32_t> a64s7 = { 0x2, 0x70722e8f5cd0, 0x20cd6bd5ace2d1, 0x9bbc940c751630, 0xa90404784bfcb4d, 0x1189b3f265c2b0c7 };
-static std::initializer_list<uint32_t> a64s8 = { 0x2, 0x3, 0x5, 0x7, 0xb, 0xd, 0x11, 0x13, 0x17, 0x1d, 0x1f, 0x25 };
+std::initializer_list<uint32_t> const a64s1 = { 0x81b33f22efdceaa9 };
+std::initializer_list<uint32_t> const a64s2 = { 0x4e69b6552d, 0x223f5bb83fc553 };
+std::initializer_list<uint32_t> const a64s3 = { 0x2, 0x7, 0x3d };
+std::initializer_list<uint32_t> const a64s4 = { 0x3ab4f88ff0cc7c80, 0xcbee4cdf120c10aa, 0xe6f1343b0edca8e7 };
+std::initializer_list<uint32_t> const a64s5 = { 0x2, 0x810c207b08bf, 0x10a42595b01d3765, 0x99fd2b545eab5322 };
+std::initializer_list<uint32_t> const a64s6 = { 0x2, 0x3c1c7396f6d, 0x2142e2e3f22de5c, 0x297105b6b7b29dd, 0x370eb221a5f176dd };
+std::initializer_list<uint32_t> const a64s7 = { 0x2, 0x70722e8f5cd0, 0x20cd6bd5ace2d1, 0x9bbc940c751630, 0xa90404784bfcb4d, 0x1189b3f265c2b0c7 };
+std::initializer_list<uint32_t> const a64s8 = { 0x2, 0x3, 0x5, 0x7, 0xb, 0xd, 0x11, 0x13, 0x17, 0x1d, 0x1f, 0x25 };
 std::initializer_list<uint64_t> test(uint64_t n) {
     if (n < 0x5361b)           { return a64s1; }
     if (n < 0x3e9de64d)        { return a64s2; }
@@ -179,18 +181,31 @@ T nextPrime(T n) {
 //if ((x + 1) % 4 != 0) { return false; }
 
 uint32_t nextPrime(uint32_t n) {
-    if (n > 0xfffffffb) { throw std::overflow_error("maximum prime number exceeded"); }
+    if (n > 0xfffffffb) {
+        throw std::overflow_error("maximum prime number exceeded");
+    }
     return nextPrime<uint32_t>(n);
 }
 
 #ifdef GRINGO_NEXTPRIME64
+
 uint64_t nextPrime(uint64_t n) {
-    if (n > 0xffffffffffffffc5) { throw std::overflow_error("maximum prime number exceeded"); }
+    if (n > 0xffffffffffffffc5) {
+        throw std::overflow_error("maximum prime number exceeded");
+    }
     return nextPrime<uint64_t>(n);
 }
+
 #else
-uint64_t nextPrime(uint64_t) { throw std::runtime_error("support for 64bit primes not enabled"); }
+
+uint64_t nextPrime(uint64_t n) {
+    static_cast<void>(n);
+    throw std::runtime_error("support for 64bit primes not enabled");
+}
+
 #endif
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 
 } // namspace Gringo
 

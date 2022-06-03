@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_AGGREGATES_HH
-#define _GRINGO_INPUT_AGGREGATES_HH
+#ifndef GRINGO_INPUT_AGGREGATES_HH
+#define GRINGO_INPUT_AGGREGATES_HH
 
 #include <gringo/input/aggregate.hh>
 #include <gringo/terms.hh>
@@ -531,4 +531,4 @@ private:
 
 } } // namespace Input Gringo
 
-#endif // _GRINGO_INPUT_AGGREGATES_HH
+#endif // GRINGO_INPUT_AGGREGATES_HH

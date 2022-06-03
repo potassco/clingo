@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_CLONABLE_HH
-#define _GRINGO_CLONABLE_HH
+#ifndef GRINGO_CLONABLE_HH
+#define GRINGO_CLONABLE_HH
 
 namespace Gringo {
 
@@ -46,15 +46,15 @@ public:
 
 } // namespace Gringo
 
-#define GRINGO_CALL_CLONE(T) \
+#define GRINGO_CALL_CLONE(T) /* NOLINT */ \
 namespace Gringo { \
 template <> \
 struct clone<T> { \
-    inline T operator()(T const &x) const { \
+    inline T operator()(T const &x) const { /* NOLINT */ \
         return x.clone(); \
     } \
 }; \
 }
 
-#endif // _GRINGO_CLONABLE_HH
+#endif // GRINGO_CLONABLE_HH
 

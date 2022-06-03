@@ -22,28 +22,42 @@
 
 // }}}
 
-#ifndef _GRINGO_GROUND_LITERAL_HH
-#define _GRINGO_GROUND_LITERAL_HH
+#ifndef GRINGO_GROUND_LITERAL_HH
+#define GRINGO_GROUND_LITERAL_HH
 
 #include <gringo/ground/types.hh>
 #include <gringo/ground/dependency.hh>
 #include <gringo/ground/instantiation.hh>
+#include <gringo/output/types.hh>
 
 namespace Gringo { namespace Ground {
+
+using Output::DomainData;
+using Output::PredicateDomain;
 
 // {{{ declaration of HeadOccurrence
 
 class HeadOccurrence {
 public:
+    HeadOccurrence() = default;
+    HeadOccurrence(HeadOccurrence const &other) = default;
+    HeadOccurrence(HeadOccurrence &&other) noexcept = default;
+    HeadOccurrence &operator=(HeadOccurrence const &other) = default;
+    HeadOccurrence &operator=(HeadOccurrence &&other) noexcept = default;
+    virtual ~HeadOccurrence() noexcept = default;
+
     virtual void defines(IndexUpdater &update, Instantiator *inst) = 0;
-    virtual ~HeadOccurrence() { }
 };
+using BodyOcc = BodyOccurrence<HeadOccurrence>;
 
 // }}}
 
 // {{{ declaration of Literal
 
-using BodyOcc = BodyOccurrence<HeadOccurrence>;
+class Literal;
+using ULit = std::unique_ptr<Literal>;
+using ULitVec = std::vector<ULit>;
+
 class Literal : public Printable {
 public:
     using Score   = double;
@@ -55,12 +69,11 @@ public:
     virtual void collectImportant(Term::VarSet &vars);
     virtual std::pair<Output::LiteralId,bool> toOutput(Logger &log) = 0;
     virtual Score score(Term::VarSet const &bound, Logger &log) = 0;
-    virtual ~Literal() { }
 };
 
 // }}}
 
 } } // namespace Ground Gringo
 
-#endif // _GRINGO_GROUND_LITERAL_HH
+#endif // GRINGO_GROUND_LITERAL_HH
 

@@ -108,11 +108,11 @@ S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr
         idx->match(module.logger);
         while (idx->next()) {
             ret.back().emplace_back();
-            if (lit.offset == std::numeric_limits<PredicateDomain::SizeType>::max()) {
+            if (!lit.hasOffset()) {
                 ret.back().back() += "#false";
             }
             else {
-                ret.back().back() += to_string(static_cast<Symbol>(dom[lit.offset]));
+                ret.back().back() += to_string(static_cast<Symbol>(dom[lit.getOffset()]));
             }
         }
         std::sort(ret.back().begin(), ret.back().end());

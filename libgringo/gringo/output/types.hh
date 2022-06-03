@@ -30,17 +30,6 @@
 
 namespace Gringo { namespace Output {
 
-class Translator;
-class TheoryData;
-class PredicateDomain;
-class LiteralId;
-class DisjointElement;
-class Statement;
-struct PrintPlain;
-class DomainData;
-class OutputBase;
-
-using LitVec = std::vector<LiteralId>;
 using ClauseId = std::pair<Id_t, Id_t>;
 using FormulaId = std::pair<Id_t, Id_t>;
 using Formula = std::vector<ClauseId>;
@@ -48,10 +37,6 @@ using AssignmentLookup = std::function<std::pair<bool, Potassco::Value_t>(unsign
 using IsTrueLookup = std::function<bool(unsigned)>;
 using OutputPredicates = std::vector<std::pair<Location, Sig>>;
 using CoefVarVec = std::vector<std::pair<int, Symbol>>;
-
-struct UPredDomHash;
-struct UPredDomEqualTo;
-using PredDomMap = UniqueVec<std::unique_ptr<PredicateDomain>, UPredDomHash, UPredDomEqualTo>;
 
 enum class OutputDebug { NONE, TEXT, TRANSLATE, ALL };
 enum class OutputFormat { TEXT, INTERMEDIATE, SMODELS, REIFY };

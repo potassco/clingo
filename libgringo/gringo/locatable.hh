@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_LOCATABLE_HH
-#define _GRINGO_LOCATABLE_HH
+#ifndef GRINGO_LOCATABLE_HH
+#define GRINGO_LOCATABLE_HH
 
 #include <gringo/symbol.hh>
 #include <gringo/utility.hh>
@@ -175,4 +175,4 @@ std::unique_ptr<T> make_locatable(Location const &loc, Args&&... args) {
 
 } // namespace Gringo
 
-#endif // _GRINGO_LOCATABLE_HH
+#endif // GRINGO_LOCATABLE_HH

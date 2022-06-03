@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_GROUND_PROGRAM_HH
-#define _GRINGO_GROUND_PROGRAM_HH
+#ifndef GRINGO_GROUND_PROGRAM_HH
+#define GRINGO_GROUND_PROGRAM_HH
 
 #include <gringo/ground/statement.hh>
 
@@ -37,35 +37,46 @@ using SEdbVec   = std::vector<SEdb>;
 using SymVecSet = std::set<SymVec>;
 using ParamSet  = std::map<Sig, SymVecSet>;
 
-struct Parameters {
-    Parameters();
+class Parameters {
+public:
     void add(String name, SymVec &&args);
     bool find(Sig sig) const;
     ParamSet::const_iterator begin() const;
     ParamSet::const_iterator end() const;
     bool empty() const;
     void clear();
-    ~Parameters();
-    ParamSet params;
+
+private:
+    ParamSet params_;
 };
 
-struct Program {
+class Program {
+public:
+    using const_iterator = Statement::Dep::ComponentVec::const_iterator;
+
     Program(SEdbVec &&edb, Statement::Dep::ComponentVec &&stms);
     void linearize(Context &context, Logger &log);
     //! Prepare the ground program before grounding.
     void prepare(Parameters const &params, Output::OutputBase &out, Logger &log);
     //! Ground a prepared program.
     void ground(Context &context, Output::OutputBase &out, Logger &log);
+    const_iterator begin() const {
+        return stms_.begin();
+    }
+    const_iterator end() const {
+        return stms_.end();
+    }
 
-    SEdbVec                      edb;
-    bool                         linearized = false;
-    Statement::Dep::ComponentVec stms;
+private:
+    SEdbVec                      edb_;
+    Statement::Dep::ComponentVec stms_;
+    bool                         linearized_ = false;
 };
 
-std::ostream &operator<<(std::ostream &out, Program const &x);
+std::ostream &operator<<(std::ostream &out, Program const &prg);
 
 // }}}
 
 } } // namespace Ground Gringo
 
-#endif // _GRINGO_GROUND_PROGRAM_HH
+#endif // GRINGO_GROUND_PROGRAM_HH
