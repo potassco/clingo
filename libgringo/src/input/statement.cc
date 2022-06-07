@@ -266,6 +266,26 @@ void _rewriteAssignments(UBodyAggrVec &body) {
 
 } // namespace
 
+void Statement::gatherIEs(IESolver &solver) const {
+    for (auto const &lit : body_) {
+        lit->addToSolver(solver);
+    }
+}
+
+void Statement::addIEBounds(IESolver const &solver, IEBoundMap const &bounds) {
+    for (auto const &bound : bounds) {
+        if (solver.isImproving(bound.first, bound.second)) {
+            auto loc = bound.first->loc();
+            body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(
+                make_locatable<RangeLiteral>(
+                    loc,
+                    UTerm{bound.first->clone()},
+                    make_locatable<ValTerm>(loc, Symbol::createNum(bound.second.bound(IEBound::Lower))),
+                    make_locatable<ValTerm>(loc, Symbol::createNum(bound.second.bound(IEBound::Upper))))));
+        }
+    }
+}
+
 void Statement::rewrite() {
     AuxGen auxGen;
     { // rewrite aggregates
@@ -289,22 +309,8 @@ void Statement::rewrite() {
         arith.pop_back();
     }
     {
-        // TODO: maybe require options?
-        IESolver solver;
-        for (auto const &lit : body_) {
-            lit->addToSolver(solver);
-        }
-        for (auto const &bound : solver.compute_bounds()) {
-            if (solver.isImproving(bound.first, bound.second)) {
-                auto loc = bound.first->loc();
-                body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(
-                    make_locatable<RangeLiteral>(
-                        loc,
-                        UTerm{bound.first->clone()},
-                        make_locatable<ValTerm>(loc, Symbol::createNum(bound.second.bound(IEBound::Lower))),
-                        make_locatable<ValTerm>(loc, Symbol::createNum(bound.second.bound(IEBound::Upper))))));
-            }
-        }
+        // TODO: add an option
+        IESolver{*this}.compute();
     }
     _rewriteAssignments(body_);
 }

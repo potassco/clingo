@@ -231,11 +231,28 @@ struct VarTermCmp {
 };
 using IEBoundMap = std::map<VarTerm const *, IEBound, VarTermCmp>;
 
+class IESolver;
+
+class IEContext {
+public:
+    IEContext() = default;
+    IEContext(IEContext const &other) = default;
+    IEContext(IEContext &&other) noexcept = default;
+    IEContext &operator=(IEContext const &other) = default;
+    IEContext &operator=(IEContext &&other) noexcept = default;
+    virtual ~IEContext() noexcept = default;
+
+    virtual void gatherIEs(IESolver &solver) const = 0;
+    virtual void addIEBounds(IESolver const &solver, IEBoundMap const &bounds) = 0;
+};
+
 class IESolver {
 public:
+    IESolver(IEContext &ctx)
+    : ctx_{ctx} { }
     void add(IE ie, bool ignoreIfFixed);
-    bool isImproving(VarTerm const *var, IEBound const &bound);
-    IEBoundMap const &compute_bounds();
+    bool isImproving(VarTerm const *var, IEBound const &bound) const;
+    void compute();
 
 private:
     template<typename I>
@@ -246,6 +263,7 @@ private:
     bool update_bound_(IETerm const &term, int slack, int num_unbounded);
     void update_slack_(IETerm const &term, int &slack, int &num_unbounded);
 
+    IEContext &ctx_;
     IEBoundMap bounds_;
     IEBoundMap fixed_;
     IEVec ies_;

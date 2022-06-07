@@ -3,6 +3,16 @@
 
 namespace Gringo { namespace Input { namespace Test {
 
+struct DummyContext : IEContext {
+    void gatherIEs(IESolver &solver) const override {
+        static_cast<void>(solver);
+    }
+    void addIEBounds(IESolver const &solver, IEBoundMap const &bounds) override {
+        this->bounds = bounds;
+    }
+    IEBoundMap bounds;
+};
+
 TEST_CASE("iesolver", "[iesolver]") {
     SECTION("base") {
         auto valX = std::make_shared<Symbol>(Symbol::createNum(0));
@@ -10,12 +20,14 @@ TEST_CASE("iesolver", "[iesolver]") {
         Location loc{"", 0, 0, "", 0, 0};
         auto X = make_locatable<VarTerm>(loc, "X", valX);
         auto Y = make_locatable<VarTerm>(loc, "Y", valY);
-        IESolver slv;
+        DummyContext ctx;
+        IESolver slv{ctx};
         slv.add({{{1, X.get()}}, 2}, false);
         slv.add({{{1, Y.get()}, {-1, X.get()}}, 1}, false);
         slv.add({{{-1, X.get()}, {-1, Y.get()}}, -100}, false);
 
-        auto const &bounds = slv.compute_bounds();
+        slv.compute();
+        auto const bounds = std::move(ctx.bounds);
         auto itX = bounds.find(X.get());
         auto itY = bounds.find(Y.get());
         REQUIRE(!bounds.empty());

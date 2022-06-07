@@ -202,7 +202,7 @@ bool VarTermCmp::operator()(VarTerm const *a, VarTerm const *b) const {
     return a->name < b->name;
 }
 
-bool IESolver::isImproving(VarTerm const *var, IEBound const &bound) {
+bool IESolver::isImproving(VarTerm const *var, IEBound const &bound) const {
     auto it = fixed_.find(var);
     if (it == fixed_.end()) {
         return bound.isBounded();
@@ -273,7 +273,7 @@ void IESolver::add(IE ie, bool ignoreIfFixed) {
     }
 }
 
-IEBoundMap const &IESolver::compute_bounds() {
+void IESolver::compute() {
 #ifdef CLINGO_DEBUG_INEQUALITIES
     for (auto &ie : ies_) {
         bool comma = false;
@@ -290,7 +290,18 @@ IEBoundMap const &IESolver::compute_bounds() {
         std::cerr << " >= " << ie.bound << std::endl;
     }
 #endif
+    // class Solver:
+    //   Solver(context)
+    //     create a solver for some conjunctive context
+    //   Solver(context, parent)
+    //     create a solver for a nested context
+    //   compute()
+    //     compute bounds for the given context
+    //
+    //   nested
+    //     solvers for nested contexts
     bounds_.clear();
+    ctx_.gatherIEs(*this);
     bool changed = true;
     while (changed) {
         changed = false;
@@ -308,7 +319,7 @@ IEBoundMap const &IESolver::compute_bounds() {
                         bounds_[term.variable].setBound(IEBound::Upper, 0);
                     }
                 }
-                return bounds_;
+                return ctx_.addIEBounds(*this, bounds_);
             }
             if (num_unbounded <= 1) {
                 for (auto const &term : ie.terms) {
@@ -317,7 +328,7 @@ IEBoundMap const &IESolver::compute_bounds() {
             }
         }
     }
-    return bounds_;
+    ctx_.addIEBounds(*this, bounds_);
 }
 
 template<typename I>
