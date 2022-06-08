@@ -45,8 +45,8 @@ public:
     Statement &operator=(Statement &&other) noexcept = default;
     ~Statement() noexcept override = default;
 
-    UStmVec unpool(bool beforeRewrite);
-    bool hasPool(bool beforeRewrite) const;
+    UStmVec unpool();
+    bool hasPool() const;
     UStmVec unpoolComparison();
     void assignLevels(VarTermBoundVec &bound);
     bool simplify(Projections &project, Logger &log);

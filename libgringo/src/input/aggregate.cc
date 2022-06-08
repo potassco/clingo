@@ -158,14 +158,14 @@ UTerm ToGroundArg::newId(UTermVec &&global, Location const &loc, bool increment)
 
 // {{{ definition of BodyAggregate
 
-void BodyAggregate::addToSolver(IESolver &solver) const {
+void BodyAggregate::addToSolver(IESolver &solver) {
     static_cast<void>(solver);
 }
 
 // }}}
 // {{{ definition of HeadAggregate
 
-void HeadAggregate::addToSolver(IESolver &solver) const {
+void HeadAggregate::addToSolver(IESolver &solver) {
     static_cast<void>(solver);
 }
 

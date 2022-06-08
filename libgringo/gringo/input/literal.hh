@@ -101,9 +101,9 @@ public:
     //! Returns all unpooled incarnations of the literal.
     //! \note The literal becomes unusable after the method returns.
     //! \post The returned pool does not contain PoolTerm instances.
-    virtual ULitVec unpool(bool beforeRewrite, bool head) const = 0;
+    virtual ULitVec unpool(bool head) const = 0;
     //! Check if the literal has occurrences of pool terms.
-    virtual bool hasPool(bool beforeRewrite, bool head) const = 0;
+    virtual bool hasPool(bool head) const = 0;
     //! Unpool a comparision.
     //!
     //! Comparisons with more than one relation have to be unpooled after the

@@ -25,6 +25,7 @@
 #ifndef GRINGO_TERM_HH
 #define GRINGO_TERM_HH
 
+#include <forward_list>
 #include <gringo/bug.hh>
 #include <gringo/symbol.hh>
 #include <gringo/printable.hh>
@@ -251,10 +252,12 @@ public:
     IESolver(IEContext &ctx)
     : ctx_{ctx} { }
     void add(IE ie, bool ignoreIfFixed);
+    void add(IEContext &context);
     bool isImproving(VarTerm const *var, IEBound const &bound) const;
     void compute();
 
 private:
+    using SubSolvers = std::forward_list<IESolver>;
     template<typename I>
     static I floordiv_(I n, I m);
     template<typename I>
@@ -264,6 +267,7 @@ private:
     void update_slack_(IETerm const &term, int &slack, int &num_unbounded);
 
     IEContext &ctx_;
+    SubSolvers subSolvers_;
     IEBoundMap bounds_;
     IEBoundMap fixed_;
     IEVec ies_;

@@ -29,6 +29,7 @@
 #include "gringo/ground/statements.hh"
 #include "gringo/safetycheck.hh"
 
+#include <algorithm>
 #include <numeric>
 
 namespace Gringo { namespace Input {
@@ -57,24 +58,16 @@ Symbol Statement::isEDB() const {
     return body_.empty() ? head_->isEDB() : Symbol();
 }
 
-UStmVec Statement::unpool(bool beforeRewrite) {
+UStmVec Statement::unpool() {
     std::vector<UBodyAggrVec> bodies;
-    if (beforeRewrite) {
-        Term::unpool(body_.begin(), body_.end(),
-            [] (UBodyAggr &x) -> UBodyAggrVec {
-                UBodyAggrVec body;
-                x->unpool(body, true);
-                return body;
-            }, [&bodies](UBodyAggrVec &&x) { bodies.push_back(std::move(x)); });
-    }
-    else {
-        bodies.emplace_back();
-        for (auto &y : body_) {
-            y->unpool(bodies.back(), beforeRewrite);
-        }
-    }
+    Term::unpool(body_.begin(), body_.end(),
+        [] (UBodyAggr &x) -> UBodyAggrVec {
+            UBodyAggrVec body;
+            x->unpool(body);
+            return body;
+        }, [&bodies](UBodyAggrVec &&x) { bodies.push_back(std::move(x)); });
     UHeadAggrVec heads;
-    head_->unpool(heads, beforeRewrite);
+    head_->unpool(heads);
     UStmVec x;
     for (auto &body : bodies) {
         for (auto &head : heads) {
@@ -84,13 +77,9 @@ UStmVec Statement::unpool(bool beforeRewrite) {
     return x;
 }
 
-bool Statement::hasPool(bool beforeRewrite) const {
-    for (auto const &x : body_) {
-        if (x->hasPool(beforeRewrite)) {
-            return true;
-        }
-    }
-    return head_->hasPool(beforeRewrite);
+bool Statement::hasPool() const {
+    return std::any_of(body_.begin(), body_.end(), [](auto const &lit) { return lit->hasPool(); }) ||
+           head_->hasPool();
 }
 
 UStmVec Statement::unpoolComparison() {

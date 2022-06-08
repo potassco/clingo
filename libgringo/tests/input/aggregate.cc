@@ -122,13 +122,13 @@ std::string rewrite(UHeadAggr &&x) {
 
 UHeadAggrVec unpool(UHeadAggr &&x) {
     UHeadAggrVec y;
-    x->unpool(y, true);
+    x->unpool(y);
     return y;
 }
 
 UBodyAggrVec unpool(UBodyAggr &&x) {
     UBodyAggrVec y;
-    x->unpool(y, true);
+    x->unpool(y);
     return y;
 }
 

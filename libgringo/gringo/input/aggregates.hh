@@ -27,8 +27,41 @@
 
 #include <gringo/input/aggregate.hh>
 #include <gringo/terms.hh>
+#include <ostream>
 
 namespace Gringo { namespace Input {
+
+// {{{1 declaration of AggregateElement
+
+class BodyAggrElem : public IEContext {
+public:
+    BodyAggrElem(UTermVec tuple, ULitVec condition)
+    : tuple_{std::move(tuple)}
+    , condition_{std::move(condition)} { }
+
+    bool hasPool() const;
+    void unpool(BodyAggrElemVec &pool);
+    bool hasUnpoolComparison() const;
+    void unpoolComparison(BodyAggrElemVec &elems) const;
+    void collect(VarTermBoundVec &vars, bool tupleOnly = false) const;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log);
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen);
+    void check(ChkLvlVec &levels) const;
+    void replace(Defines &defs);
+    template <class T, class C>
+    std::unique_ptr<T> toGround(ToGroundArg &x, C &completeRef, Ground::ULitVec &&lits) const;
+
+    void gatherIEs(IESolver &solver) const override;
+    void addIEBounds(IESolver const &solver, IEBoundMap const &bounds) override;
+
+    friend std::ostream &operator<<(std::ostream &out, BodyAggrElem const &elem);
+    friend bool operator==(BodyAggrElem const &a, BodyAggrElem const &b);
+    friend size_t get_value_hash(BodyAggrElem const &elem);
+    friend BodyAggrElem get_clone(BodyAggrElem const &elem);
+
+    UTermVec tuple_;
+    ULitVec condition_;
+};
 
 // {{{1 declaration of TupleBodyAggregate
 
@@ -36,13 +69,8 @@ class TupleBodyAggregate : public BodyAggregate {
 public:
     TupleBodyAggregate(NAF naf, bool removedAssignment, bool translated, AggregateFunction fun, BoundVec &&bounds, BodyAggrElemVec &&elems); // NOTE: private
     TupleBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bounds, BodyAggrElemVec &&elems);
-    TupleBodyAggregate(TupleBodyAggregate const &other) = delete;
-    TupleBodyAggregate(TupleBodyAggregate &&other) noexcept = default;
-    TupleBodyAggregate &operator=(TupleBodyAggregate const &other) = delete;
-    TupleBodyAggregate &operator=(TupleBodyAggregate &&other) noexcept = default;
-    ~TupleBodyAggregate() noexcept override;
 
-
+    void addToSolver(IESolver &solver) override;
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     bool isAssignment() const override;
     void removeAssignment() override;
@@ -51,8 +79,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     TupleBodyAggregate *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UBodyAggrVec &x) override;
     bool hasUnpoolComparison() const override;
     UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
@@ -90,8 +118,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     LitBodyAggregate *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UBodyAggrVec &x) override;
     bool hasUnpoolComparison() const override;
     UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
@@ -132,8 +160,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     Conjunction *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UBodyAggrVec &x) override;
     bool hasUnpoolComparison() const override;
     UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
@@ -158,7 +186,7 @@ public:
     SimpleBodyLiteral &operator=(SimpleBodyLiteral &&other) noexcept = default;
     ~SimpleBodyLiteral() noexcept override;
 
-    void addToSolver(IESolver &solver) const override;
+    void addToSolver(IESolver &solver) override;
     unsigned projectScore() const override { return lit_->projectScore(); }
     Location const &loc() const override;
     void loc(Location const &loc) override;
@@ -170,8 +198,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     SimpleBodyLiteral *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UBodyAggrVec &x) override;
     bool hasUnpoolComparison() const override;
     UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
@@ -205,8 +233,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     TupleHeadAggregate *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -239,8 +267,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     LitHeadAggregate *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -278,8 +306,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     Disjunction *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -303,7 +331,7 @@ public:
     SimpleHeadLiteral &operator=(SimpleHeadLiteral &&other) noexcept = default;
     ~SimpleHeadLiteral() noexcept override;
 
-    void addToSolver(IESolver &solver) const override;
+    void addToSolver(IESolver &solver) override;
     bool isPredicate() const override { return true; }
     Location const &loc() const override;
     void loc(Location const &loc) override;
@@ -313,8 +341,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     SimpleHeadLiteral *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -348,8 +376,8 @@ public:
     void printWithCondition(std::ostream &out, UBodyAggrVec const &condition) const override;
     size_t hash() const override;
     MinimizeHeadLiteral *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -383,8 +411,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     EdgeHeadAtom *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -415,8 +443,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     ProjectHeadAtom *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -447,8 +475,8 @@ public:
     void printWithCondition(std::ostream &out, UBodyAggrVec const &condition) const override;
     size_t hash() const override;
     ExternalHeadAtom *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -479,8 +507,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     HeuristicHeadAtom *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -513,8 +541,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     ShowHeadLiteral *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;

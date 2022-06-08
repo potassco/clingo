@@ -178,8 +178,8 @@ void Program::rewrite(Defines &defs, Logger &log) {
             x->replace(defs);
             x->replace(incDefs);
             x->assignLevels(blockBound);
-            if (x->hasPool(true)) {
-                for (auto &y : x->unpool(true)) {
+            if (x->hasPool()) {
+                for (auto &y : x->unpool()) {
                     rewrite1(y);
                 }
             }

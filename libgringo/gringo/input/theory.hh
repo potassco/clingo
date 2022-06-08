@@ -58,8 +58,8 @@ public:
     void print(std::ostream &out) const;
     bool operator==(TheoryElement const &other) const;
     size_t hash() const;
-    bool hasPool(bool beforeRewrite) const;
-    void unpool(TheoryElementVec &elems, bool beforeRewrite);
+    bool hasPool() const;
+    void unpool(TheoryElementVec &elems);
     bool hasUnpoolComparison() const;
     TheoryElementVec unpoolComparison();
     void replace(Defines &x);
@@ -95,9 +95,9 @@ public:
     void print(std::ostream &out) const;
     bool hasGuard() const;
     size_t hash() const;
-    bool hasPool(bool beforeRewrite) const;
+    bool hasPool() const;
     template <class T>
-    void unpool(T f, bool beforeRewrite);
+    void unpool(T f);
     bool hasUnpoolComparison() const;
     void unpoolComparison();
     void replace(Defines &x);
@@ -131,7 +131,7 @@ public:
     BodyTheoryLiteral &operator=(BodyTheoryLiteral &&other) noexcept = default;
     ~BodyTheoryLiteral() noexcept override = default;
     // {{{2 BodyAggregate interface
-    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    void unpool(UBodyAggrVec &x) override;
     bool hasUnpoolComparison() const override;
     UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
@@ -142,7 +142,7 @@ public:
     void removeAssignment() override;
     bool isAssignment() const override;
     void collect(VarTermBoundVec &vars) const override;
-    bool hasPool(bool beforeRewrite) const override;
+    bool hasPool() const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     void initTheory(TheoryDefs &def, Logger &log) override;
@@ -178,8 +178,8 @@ public:
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;

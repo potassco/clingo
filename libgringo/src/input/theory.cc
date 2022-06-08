@@ -57,18 +57,18 @@ size_t TheoryElement::hash() const {
     return get_value_hash(tuple_, cond_);
 }
 
-bool TheoryElement::hasPool(bool beforeRewrite) const {
+bool TheoryElement::hasPool() const {
     for (auto const &lit : cond_) {
-        if (lit->hasPool(beforeRewrite, false)) {
+        if (lit->hasPool(false)) {
             return true;
         }
     }
     return false;
 }
 
-void TheoryElement::unpool(TheoryElementVec &elems, bool beforeRewrite) {
-    Term::unpool(cond_.begin(), cond_.end(), [beforeRewrite](ULit &lit) {
-        return lit->unpool(beforeRewrite, false);
+void TheoryElement::unpool(TheoryElementVec &elems) {
+    Term::unpool(cond_.begin(), cond_.end(), [](ULit &lit) {
+        return lit->unpool(false);
     }, [&](ULitVec &&cond) {
         elems.emplace_back(get_clone(tuple_), std::move(cond));
     });
@@ -239,17 +239,17 @@ size_t TheoryAtom::hash() const {
     return hash;
 }
 
-bool TheoryAtom::hasPool(bool beforeRewrite) const {
-    return (beforeRewrite && name_->hasPool()) ||
+bool TheoryAtom::hasPool() const {
+    return name_->hasPool() ||
            std::any_of(elems_.begin(), elems_.end(),
-                       [&](auto const &elem) { return elem.hasPool(beforeRewrite); });
+                       [&](auto const &elem) { return elem.hasPool(); });
 }
 
 template <class T>
-void TheoryAtom::unpool(T f, bool beforeRewrite) {
+void TheoryAtom::unpool(T f) {
     TheoryElementVec elems;
     for (auto &elem : elems_) {
-        elem.unpool(elems, beforeRewrite);
+        elem.unpool(elems);
     }
     UTermVec names;
     name_->unpool(names);
@@ -491,8 +491,8 @@ void HeadTheoryLiteral::collect(VarTermBoundVec &vars) const {
     atom_.collect(vars);
 }
 
-void HeadTheoryLiteral::unpool(UHeadAggrVec &x, bool beforeRewrite) {
-    atom_.unpool([&](TheoryAtom &&atom) { x.emplace_back(make_locatable<HeadTheoryLiteral>(loc(), std::move(atom))); }, beforeRewrite);
+void HeadTheoryLiteral::unpool(UHeadAggrVec &x) {
+    atom_.unpool([&](TheoryAtom &&atom) { x.emplace_back(make_locatable<HeadTheoryLiteral>(loc(), std::move(atom))); });
 }
 
 UHeadAggr HeadTheoryLiteral::unpoolComparison(UBodyAggrVec &body) {
@@ -513,8 +513,8 @@ void HeadTheoryLiteral::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &
     atom_.rewriteArithmetics(arith, auxGen);
 }
 
-bool HeadTheoryLiteral::hasPool(bool beforeRewrite) const {
-    return atom_.hasPool(beforeRewrite);
+bool HeadTheoryLiteral::hasPool() const {
+    return atom_.hasPool();
 }
 
 void HeadTheoryLiteral::check(ChkLvlVec &lvl, Logger &log) const {
@@ -557,12 +557,12 @@ BodyTheoryLiteral::BodyTheoryLiteral(NAF naf, TheoryAtom &&atom, bool rewritten)
 , rewritten_(rewritten)
 { }
 
-bool BodyTheoryLiteral::hasPool(bool beforeRewrite) const {
-    return atom_.hasPool(beforeRewrite);
+bool BodyTheoryLiteral::hasPool() const {
+    return atom_.hasPool();
 }
 
-void BodyTheoryLiteral::unpool(UBodyAggrVec &x, bool beforeRewrite) {
-    atom_.unpool([&](TheoryAtom &&atom) { x.emplace_back(make_locatable<BodyTheoryLiteral>(loc(), naf_, std::move(atom))); }, beforeRewrite);
+void BodyTheoryLiteral::unpool(UBodyAggrVec &x) {
+    atom_.unpool([&](TheoryAtom &&atom) { x.emplace_back(make_locatable<BodyTheoryLiteral>(loc(), naf_, std::move(atom))); });
 }
 
 bool BodyTheoryLiteral::hasUnpoolComparison() const {

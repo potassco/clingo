@@ -229,7 +229,7 @@ using UHeadAggr = std::unique_ptr<HeadAggregate>;
 using UBodyAggr = std::unique_ptr<BodyAggregate>;
 using UStm = std::unique_ptr<Statement>;
 using BoundVec = std::vector<Bound>;
-using BodyAggrElem = std::pair<UTermVec, ULitVec>;
+class BodyAggrElem;
 using BodyAggrElemVec = std::vector<BodyAggrElem>;
 using CondLit = std::pair<ULit, ULitVec>;
 using CondLitVec = std::vector<CondLit>;

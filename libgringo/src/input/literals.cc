@@ -103,7 +103,7 @@ size_t PredicateLiteral::hash() const {
     return get_value_hash(typeid(PredicateLiteral).hash_code(), size_t(naf_), repr_);
 }
 
-ULitVec PredicateLiteral::unpool(bool beforeRewrite, bool head) const {
+ULitVec PredicateLiteral::unpool(bool head) const {
     ULitVec value;
     auto f = [&](UTerm &&y){ value.emplace_back(make_locatable<PredicateLiteral>(loc(), naf_, std::move(y))); };
     Term::unpool(repr_, Gringo::unpool, f);
@@ -125,7 +125,7 @@ Symbol PredicateLiteral::isEDB() const {
     return naf_ == NAF::POS ? repr_->isEDB() : Symbol();
 }
 
-bool PredicateLiteral::hasPool(bool beforeRewrite, bool head) const {
+bool PredicateLiteral::hasPool(bool head) const {
     return repr_->hasPool();
 }
 
@@ -168,7 +168,7 @@ ProjectionLiteral *ProjectionLiteral::clone() const {
     throw std::logic_error("ProjectionLiteral::clone must not be called!!!");
 }
 
-ULitVec ProjectionLiteral::unpool(bool beforeRewrite, bool head) const {
+ULitVec ProjectionLiteral::unpool(bool head) const {
     throw std::logic_error("ProjectionLiteral::unpool must not be called!!!");
 }
 
@@ -376,8 +376,7 @@ size_t RelationLiteral::hash() const {
     return get_value_hash(typeid(RelationLiteral).hash_code(), naf_, left_, right_);
 }
 
-ULitVec RelationLiteral::unpool(bool beforeRewrite, bool head) const {
-    static_cast<void>(beforeRewrite);
+ULitVec RelationLiteral::unpool(bool head) const {
     // unpool a term with a relation
     auto unpoolTerm = [&](Terms::value_type const &term) -> Terms {
         Terms ret;
@@ -441,8 +440,7 @@ void RelationLiteral::toTuple(UTermVec &tuple, int &id) const {
     ++id;
 }
 
-bool RelationLiteral::hasPool(bool beforeRewrite, bool head) const  {
-    static_cast<void>(beforeRewrite);
+bool RelationLiteral::hasPool(bool head) const  {
     static_cast<void>(head);
     if (left_->hasPool()) {
         return true;
@@ -570,7 +568,7 @@ size_t RangeLiteral::hash() const {
     return get_value_hash(typeid(RangeLiteral).hash_code(), assign_, lower_, upper_);
 }
 
-ULitVec RangeLiteral::unpool(bool beforeRewrite, bool head) const {
+ULitVec RangeLiteral::unpool(bool head) const {
     ULitVec value;
     value.emplace_back(ULit(clone()));
     return value;
@@ -580,7 +578,7 @@ void RangeLiteral::toTuple(UTermVec &tuple, int &id) const {
     throw std::logic_error("RangeLiteral::toTuple should never be called if used properly");
 }
 
-bool RangeLiteral::hasPool(bool beforeRewrite, bool head) const {
+bool RangeLiteral::hasPool(bool head) const {
     return false;
 }
 
@@ -660,7 +658,7 @@ size_t ScriptLiteral::hash() const {
     return get_value_hash(typeid(RangeLiteral).hash_code(), assign_, name_, args_);
 }
 
-ULitVec ScriptLiteral::unpool(bool beforeRewrite, bool head) const {
+ULitVec ScriptLiteral::unpool(bool head) const {
     ULitVec value;
     value.emplace_back(ULit(clone()));
     return value;
@@ -670,7 +668,7 @@ void ScriptLiteral::toTuple(UTermVec &tuple, int &id) const {
     throw std::logic_error("ScriptLiteral::toTuple should never be called if used properly");
 }
 
-bool ScriptLiteral::hasPool(bool beforeRewrite, bool head) const {
+bool ScriptLiteral::hasPool(bool head) const {
     return false;
 }
 
@@ -728,7 +726,7 @@ size_t VoidLiteral::hash() const {
     return get_value_hash(typeid(VoidLiteral).hash_code());
 }
 
-ULitVec VoidLiteral::unpool(bool beforeRewrite, bool head) const {
+ULitVec VoidLiteral::unpool(bool head) const {
     ULitVec value;
     value.emplace_back(ULit(clone()));
     return value;
@@ -739,7 +737,7 @@ void VoidLiteral::toTuple(UTermVec &tuple, int &id) const {
     ++id;
 }
 
-bool VoidLiteral::hasPool(bool beforeRewrite, bool head) const {
+bool VoidLiteral::hasPool(bool head) const {
     return false;
 }
 

@@ -331,6 +331,10 @@ void IESolver::compute() {
     ctx_.addIEBounds(*this, bounds_);
 }
 
+void IESolver::add(IEContext &context) {
+    subSolvers_.emplace_front(context);
+}
+
 template<typename I>
 I IESolver::floordiv_(I n, I m) {
     using std::div;
