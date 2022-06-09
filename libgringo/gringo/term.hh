@@ -211,10 +211,11 @@ class IEBound {
 public:
     enum Type { Lower, Upper };
 
-    bool hasBound(Type type) const;
-    int bound(Type type) const;
-    void setBound(Type type, int bound);
-    bool refineBound(Type type, int bound);
+    bool isSet(Type type) const;
+    int get(Type type) const;
+    void set(Type type, int bound);
+    bool refine(Type type, int bound);
+    bool refine(IEBound const &bound);
     bool isBounded() const;
     bool isImproving(IEBound const &other) const;
     friend bool operator<(IEBound const &a, IEBound const &b);
@@ -244,7 +245,7 @@ public:
     virtual ~IEContext() noexcept = default;
 
     virtual void gatherIEs(IESolver &solver) const = 0;
-    virtual void addIEBounds(IESolver const &solver, IEBoundMap const &bounds) = 0;
+    virtual void addIEBound(VarTerm const &var, IEBound const &bound) = 0;
 };
 
 class IESolver {
@@ -257,6 +258,10 @@ public:
     void compute();
 
 private:
+    IESolver(IEContext &ctx, IESolver &parent)
+    : ctx_{ctx}
+    , parent_{&parent} { }
+
     using SubSolvers = std::forward_list<IESolver>;
     template<typename I>
     static I floordiv_(I n, I m);
@@ -266,6 +271,7 @@ private:
     bool update_bound_(IETerm const &term, int slack, int num_unbounded);
     void update_slack_(IETerm const &term, int &slack, int &num_unbounded);
 
+    IESolver *parent_ = nullptr;
     IEContext &ctx_;
     SubSolvers subSolvers_;
     IEBoundMap bounds_;

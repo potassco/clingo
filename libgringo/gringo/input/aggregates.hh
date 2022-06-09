@@ -52,7 +52,7 @@ public:
     std::unique_ptr<T> toGround(ToGroundArg &x, C &completeRef, Ground::ULitVec &&lits) const;
 
     void gatherIEs(IESolver &solver) const override;
-    void addIEBounds(IESolver const &solver, IEBoundMap const &bounds) override;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override;
 
     friend std::ostream &operator<<(std::ostream &out, BodyAggrElem const &elem);
     friend bool operator==(BodyAggrElem const &a, BodyAggrElem const &b);

@@ -146,6 +146,7 @@ public:
     ~RangeLiteral() noexcept override = default;
 
     static ULit make(SimplifyState::DotsMap::value_type &dots);
+    static ULit make(VarTerm const &var, IEBound const &bound);
 
     void addToSolver(IESolver &solver, bool invert) const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;

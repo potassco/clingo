@@ -152,15 +152,15 @@ void Defines::apply(Symbol x, Symbol &retVal, UTerm &retTerm, bool replace) {
 
 // {{{ definition of IESolver
 
-bool IEBound::hasBound(Type type) const {
+bool IEBound::isSet(Type type) const {
     return type == Lower ? hasLower_ : hasUpper_;
 }
 
-int IEBound::bound(Type type) const {
+int IEBound::get(Type type) const {
     return type == Lower ? lower_ : upper_;
 }
 
-void IEBound::setBound(Type type, int bound) {
+void IEBound::set(Type type, int bound) {
     if (type == Lower) {
         hasLower_ = true;
         lower_ = bound;
@@ -171,9 +171,9 @@ void IEBound::setBound(Type type, int bound) {
     }
 }
 
-bool IEBound::refineBound(Type type, int bound) {
-    if (!hasBound(type)) {
-        setBound(type, bound);
+bool IEBound::refine(Type type, int bound) {
+    if (!isSet(type)) {
+        set(type, bound);
         return true;
     }
     if (type == Lower && bound > lower_) {
@@ -185,6 +185,17 @@ bool IEBound::refineBound(Type type, int bound) {
         return true;
     }
     return false;
+}
+
+bool IEBound::refine(IEBound const &bound) {
+    bool ret = false;
+    if (bound.isSet(Lower)) {
+        ret = refine(Lower, bound.get(Lower)) || ret;
+    }
+    if (bound.isSet(Upper)) {
+        ret = refine(Upper, bound.get(Upper)) || ret;
+    }
+    return ret;
 }
 
 bool IEBound::isBounded() const {
@@ -265,10 +276,10 @@ void IESolver::add(IE ie, bool ignoreIfFixed) {
     if (ies_.back().terms.size() == 1 && ignoreIfFixed) {
         auto term = ies_.back().terms.back();
         if (term.coefficient == 1) {
-            fixed_[term.variable].refineBound(IEBound::Lower, ies_.back().bound);
+            fixed_[term.variable].refine(IEBound::Lower, ies_.back().bound);
         }
         else if (term.coefficient == -1) {
-            fixed_[term.variable].refineBound(IEBound::Upper, -ies_.back().bound);
+            fixed_[term.variable].refine(IEBound::Upper, -ies_.back().bound);
         }
     }
 }
@@ -290,18 +301,17 @@ void IESolver::compute() {
         std::cerr << " >= " << ie.bound << std::endl;
     }
 #endif
-    // class Solver:
-    //   Solver(context)
-    //     create a solver for some conjunctive context
-    //   Solver(context, parent)
-    //     create a solver for a nested context
-    //   compute()
-    //     compute bounds for the given context
-    //
-    //   nested
-    //     solvers for nested contexts
+    // initialize bound computation and incorporate bounds from parent
     bounds_.clear();
     ctx_.gatherIEs(*this);
+    if (parent_ != nullptr) {
+        for (auto &bound : parent_->bounds_) {
+            fixed_[bound.first].refine(bound.second);
+            bounds_[bound.first].refine(bound.second);
+        }
+    }
+
+    // compute bounds
     bool changed = true;
     while (changed) {
         changed = false;
@@ -315,11 +325,12 @@ void IESolver::compute() {
                 // we simply set all bounds to empty intervals
                 for (auto const &ie : ies_) {
                     for (auto const &term : ie.terms) {
-                        bounds_[term.variable].setBound(IEBound::Lower, 1);
-                        bounds_[term.variable].setBound(IEBound::Upper, 0);
+                        bounds_[term.variable].set(IEBound::Lower, 1);
+                        bounds_[term.variable].set(IEBound::Upper, 0);
                     }
                 }
-                return ctx_.addIEBounds(*this, bounds_);
+                changed = false;
+                break;
             }
             if (num_unbounded <= 1) {
                 for (auto const &term : ie.terms) {
@@ -328,7 +339,16 @@ void IESolver::compute() {
             }
         }
     }
-    ctx_.addIEBounds(*this, bounds_);
+
+    // add computed bounds and then compute bounds for nested scopes
+    for (auto const &bound : bounds_) {
+        if (isImproving(bound.first, bound.second)) {
+            ctx_.addIEBound(*bound.first, bound.second);
+        }
+    }
+    for (auto &solver : subSolvers_) {
+        solver.compute();
+    }
 }
 
 void IESolver::add(IEContext &context) {
@@ -363,20 +383,20 @@ bool IESolver::update_bound_(IETerm const &term, int slack, int num_unbounded) {
     bool positive = term.coefficient > 0;
     auto type = positive ? IEBound::Upper : IEBound::Lower;
     if (num_unbounded == 0) {
-        slack += term.coefficient * bounds_[term.variable].bound(type);
+        slack += term.coefficient * bounds_[term.variable].get(type);
     }
-    else if (num_unbounded > 1 || bounds_[term.variable].hasBound(type)) {
+    else if (num_unbounded > 1 || bounds_[term.variable].isSet(type)) {
         return false;
     }
 
     auto value = div_(positive, slack, term.coefficient);
-    return bounds_[term.variable].refineBound(positive ? IEBound::Lower : IEBound::Upper, value);
+    return bounds_[term.variable].refine(positive ? IEBound::Lower : IEBound::Upper, value);
 }
 
 void IESolver::update_slack_(IETerm const &term, int &slack, int &num_unbounded) {
     auto type = term.coefficient > 0 ? IEBound::Upper : IEBound::Lower;
-    if (bounds_[term.variable].hasBound(type)) {
-        slack -= term.coefficient * bounds_[term.variable].bound(type);
+    if (bounds_[term.variable].isSet(type)) {
+        slack -= term.coefficient * bounds_[term.variable].get(type);
     }
     else {
         ++num_unbounded;

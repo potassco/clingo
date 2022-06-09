@@ -261,18 +261,8 @@ void Statement::gatherIEs(IESolver &solver) const {
     }
 }
 
-void Statement::addIEBounds(IESolver const &solver, IEBoundMap const &bounds) {
-    for (auto const &bound : bounds) {
-        if (solver.isImproving(bound.first, bound.second)) {
-            auto loc = bound.first->loc();
-            body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(
-                make_locatable<RangeLiteral>(
-                    loc,
-                    UTerm{bound.first->clone()},
-                    make_locatable<ValTerm>(loc, Symbol::createNum(bound.second.bound(IEBound::Lower))),
-                    make_locatable<ValTerm>(loc, Symbol::createNum(bound.second.bound(IEBound::Upper))))));
-        }
-    }
+void Statement::addIEBound(VarTerm const &var, IEBound const &bound) {
+    body_.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RangeLiteral::make(var, bound)));
 }
 
 void Statement::rewrite() {

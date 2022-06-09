@@ -200,11 +200,13 @@ void BodyAggrElem::collect(VarTermBoundVec &vars, bool tupleOnly) const {
 }
 
 void BodyAggrElem::gatherIEs(IESolver &solver) const {
-    throw std::logic_error("implement me!!!");
+    for (auto const &lit : condition_) {
+        lit->addToSolver(solver, false);
+    }
 }
 
-void BodyAggrElem::addIEBounds(IESolver const &solver, IEBoundMap const &bounds) {
-    throw std::logic_error("implement me!!!");
+void BodyAggrElem::addIEBound(VarTerm const &var, IEBound const &bound) {
+    condition_.emplace_back(RangeLiteral::make(var, bound));
 }
 
 bool BodyAggrElem::simplify(Projections &project, SimplifyState &state, Logger &log) {

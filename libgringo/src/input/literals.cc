@@ -508,6 +508,15 @@ ULit RangeLiteral::make(SimplifyState::DotsMap::value_type &dot) {
     return make_locatable<RangeLiteral>(loc, std::move(std::get<0>(dot)), std::move(std::get<1>(dot)), std::move(std::get<2>(dot)));
 }
 
+ULit RangeLiteral::make(VarTerm const &var, IEBound const &bound) {
+    auto loc = var.loc();
+    return make_locatable<RangeLiteral>(
+        loc,
+        UTerm{var.clone()},
+        make_locatable<ValTerm>(loc, Symbol::createNum(bound.get(IEBound::Lower))),
+        make_locatable<ValTerm>(loc, Symbol::createNum(bound.get(IEBound::Upper))));
+}
+
 void RangeLiteral::addToSolver(IESolver &solver, bool invert) const {
     if (invert) {
         return;

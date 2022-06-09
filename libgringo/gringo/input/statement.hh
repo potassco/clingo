@@ -60,7 +60,7 @@ public:
     void initTheory(TheoryDefs &def, Logger &log);
 
     void gatherIEs(IESolver &solver) const override;
-    void addIEBounds(IESolver const &solver, IEBoundMap const &bounds) override;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override;;
 private:
     UHeadAggr     head_;
     UBodyAggrVec  body_;

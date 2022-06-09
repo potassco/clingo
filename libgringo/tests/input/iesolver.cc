@@ -7,8 +7,8 @@ struct DummyContext : IEContext {
     void gatherIEs(IESolver &solver) const override {
         static_cast<void>(solver);
     }
-    void addIEBounds(IESolver const &solver, IEBoundMap const &bounds) override {
-        this->bounds = bounds;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override {
+        bounds.emplace(&var, bound);
     }
     IEBoundMap bounds;
 };
@@ -33,14 +33,14 @@ TEST_CASE("iesolver", "[iesolver]") {
         REQUIRE(!bounds.empty());
         REQUIRE(itX != bounds.end());
         REQUIRE(itY != bounds.end());
-        REQUIRE(itX->second.hasBound(IEBound::Lower));
-        REQUIRE(itX->second.hasBound(IEBound::Upper));
-        REQUIRE(itY->second.hasBound(IEBound::Lower));
-        REQUIRE(itY->second.hasBound(IEBound::Upper));
-        REQUIRE(itX->second.bound(IEBound::Lower) == 2);
-        REQUIRE(itX->second.bound(IEBound::Upper) == 97);
-        REQUIRE(itY->second.bound(IEBound::Lower) == 3);
-        REQUIRE(itY->second.bound(IEBound::Upper) == 98);
+        REQUIRE(itX->second.isSet(IEBound::Lower));
+        REQUIRE(itX->second.isSet(IEBound::Upper));
+        REQUIRE(itY->second.isSet(IEBound::Lower));
+        REQUIRE(itY->second.isSet(IEBound::Upper));
+        REQUIRE(itX->second.get(IEBound::Lower) == 2);
+        REQUIRE(itX->second.get(IEBound::Upper) == 97);
+        REQUIRE(itY->second.get(IEBound::Lower) == 3);
+        REQUIRE(itY->second.get(IEBound::Upper) == 98);
     }
 }
 
