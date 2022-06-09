@@ -31,7 +31,7 @@
 
 namespace Gringo { namespace Input {
 
-// {{{1 declaration of AggregateElement
+// {{{1 declaration of BodyAggrElem
 
 class BodyAggrElem : public IEContext {
 public:
@@ -59,6 +59,7 @@ public:
     friend size_t get_value_hash(BodyAggrElem const &elem);
     friend BodyAggrElem get_clone(BodyAggrElem const &elem);
 
+private:
     UTermVec tuple_;
     ULitVec condition_;
 };
@@ -215,6 +216,49 @@ private:
 
 // }}}1
 
+// {{{1 declaration of HeadAggrElem
+
+class HeadAggrElem : public IEContext {
+public:
+    HeadAggrElem(UTermVec tuple, ULit lit, ULitVec condition)
+    : tuple_{std::move(tuple)}
+    , lit_{std::move(lit)}
+    , condition_{std::move(condition)} { }
+
+    bool hasPool() const;
+    void unpool(HeadAggrElemVec &pool);
+    bool hasUnpoolComparison() const;
+    void unpoolComparison(HeadAggrElemVec &elems) const;
+    void collect(VarTermBoundVec &vars, bool tupleOnly = false) const;
+    void shiftLit();
+    void shiftCondition(UBodyAggrVec &aggr, bool weight);
+    bool simplify(Projections &project, SimplifyState &state, Logger &log);
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen);
+    void check(ChkLvlVec &levels) const;
+    void replace(Defines &defs);
+    bool isSimple() const;
+    UTerm headRepr() const;
+    template <class T, class C>
+    std::unique_ptr<T> toGround(ToGroundArg &x, C &completeRef) const;
+
+    void gatherIEs(IESolver &solver) const override;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override;
+
+    friend std::ostream &operator<<(std::ostream &out, HeadAggrElem const &elem);
+    friend bool operator==(HeadAggrElem const &a, HeadAggrElem const &b);
+    friend size_t get_value_hash(HeadAggrElem const &elem);
+    friend HeadAggrElem get_clone(HeadAggrElem const &elem);
+
+private:
+    template <class T>
+    void zeroLevel_(VarTermBoundVec &bound, T const &x);
+
+
+    UTermVec tuple_;
+    ULit lit_;
+    ULitVec condition_;
+};
+
 // {{{1 declaration of TupleHeadAggregate
 
 class TupleHeadAggregate : public HeadAggregate {
@@ -227,6 +271,7 @@ public:
     TupleHeadAggregate &operator=(TupleHeadAggregate &&other) noexcept = default;
     ~TupleHeadAggregate() noexcept override;
 
+    void addToSolver(IESolver &solver) override;
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
     bool operator==(HeadAggregate const &other) const override;

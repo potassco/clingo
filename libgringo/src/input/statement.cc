@@ -256,6 +256,7 @@ void _rewriteAssignments(UBodyAggrVec &body) {
 } // namespace
 
 void Statement::gatherIEs(IESolver &solver) const {
+    head_->addToSolver(solver);
     for (auto const &lit : body_) {
         lit->addToSolver(solver);
     }

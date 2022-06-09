@@ -49,7 +49,7 @@ using CondLitVec = std::vector<CondLit>;
 class BodyAggrElem;
 using BodyAggrElemVec = std::vector<BodyAggrElem>;
 
-using HeadAggrElem = std::tuple<UTermVec, ULit, ULitVec>;
+class HeadAggrElem;
 using HeadAggrElemVec = std::vector<HeadAggrElem>;
 
 class BodyAggregate;

@@ -250,18 +250,15 @@ public:
 
 class IESolver {
 public:
-    IESolver(IEContext &ctx)
-    : ctx_{ctx} { }
+    IESolver(IEContext &ctx, IESolver *parent = nullptr)
+    : ctx_{ctx}
+    , parent_{parent} { }
     void add(IE ie, bool ignoreIfFixed);
     void add(IEContext &context);
     bool isImproving(VarTerm const *var, IEBound const &bound) const;
     void compute();
 
 private:
-    IESolver(IEContext &ctx, IESolver &parent)
-    : ctx_{ctx}
-    , parent_{&parent} { }
-
     using SubSolvers = std::forward_list<IESolver>;
     template<typename I>
     static I floordiv_(I n, I m);
@@ -271,7 +268,7 @@ private:
     bool update_bound_(IETerm const &term, int slack, int num_unbounded);
     void update_slack_(IETerm const &term, int &slack, int &num_unbounded);
 
-    IESolver *parent_ = nullptr;
+    IESolver *parent_;
     IEContext &ctx_;
     SubSolvers subSolvers_;
     IEBoundMap bounds_;

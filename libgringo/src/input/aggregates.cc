@@ -30,7 +30,9 @@
 #include "gringo/logger.hh"
 #include "gringo/term.hh"
 #include "gringo/utility.hh"
+#include <algorithm>
 #include <cmath>
+#include <ostream>
 #include <tuple>
 #ifdef _MSC_VER
 #pragma warning (disable : 4503) // decorated name length exceeded
@@ -1187,6 +1189,210 @@ void SimpleBodyLiteral::removeAssignment() { }
 
 // }}}1
 
+// {{{1 definition of HeadAggrElem
+
+bool HeadAggrElem::hasPool() const {
+    for (auto const &term : tuple_) {
+        if (term->hasPool()) {
+            return true;
+        }
+    }
+    if (lit_->hasPool(false)) {
+        return true;
+    }
+    for (auto const &lit : condition_) {
+        if (lit->hasPool(false)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void HeadAggrElem::unpool(HeadAggrElemVec &pool) {
+    Term::unpool(tuple_.begin(), tuple_.end(), Gringo::unpool, [&](UTermVec &&tuple) {
+        Term::unpool(condition_.begin(), condition_.end(), _unpool_lit(false), [&](ULitVec &&cond) {
+            Term::unpool(lit_, _unpool_lit(false), [&](ULit &&lit) {
+                pool.emplace_back(get_clone(tuple), std::move(lit), get_clone(cond));
+            });
+        });
+    });
+}
+
+bool HeadAggrElem::hasUnpoolComparison() const {
+    return lit_->hasUnpoolComparison() ||
+           std::any_of(condition_.begin(),
+                       condition_.end(),
+                       [](auto const &lit) { return lit->hasUnpoolComparison(); });
+}
+
+void HeadAggrElem::shiftLit() {
+    if (ULit shifted = lit_->shift(false)) {
+        lit_ = make_locatable<VoidLiteral>(lit_->loc());
+        condition_.emplace_back(std::move(shifted));
+    }
+}
+
+void HeadAggrElem::unpoolComparison(HeadAggrElemVec &elems) const {
+    // Note: requires that comparisons in the head have been shifted
+    for (auto &unpooled : unpoolComparison_(condition_)) {
+        elems.emplace_back(get_clone(tuple_), get_clone(lit_), std::move(unpooled));
+    }
+}
+
+void HeadAggrElem::collect(VarTermBoundVec &vars, bool tupleOnly) const {
+    for (auto const &term : tuple_) {
+        term->collect(vars, false);
+    }
+    if (!tupleOnly) {
+        lit_->collect(vars, false);
+        for (auto const &lit : condition_) {
+            lit->collect(vars, false);
+        }
+    }
+}
+
+template <class T>
+void HeadAggrElem::zeroLevel_(VarTermBoundVec &bound, T const &x) {
+    bound.clear();
+    x->collect(bound, false);
+    for (auto &var : bound) {
+        var.first->level = 0;
+    }
+}
+
+void HeadAggrElem::shiftCondition(UBodyAggrVec &aggr, bool weight) {
+    VarTermBoundVec bound;
+    // Note: to handle undefinedness in tuples
+    Location l = tuple_.empty() ? lit_->loc() : tuple_.front()->loc();
+    for (auto &term : tuple_) {
+        // NOTE: there could be special predicates for is_integer and is_defined
+        zeroLevel_(bound, term);
+        UTerm first = get_clone(term);
+        if (weight) {
+            first = make_locatable<BinOpTerm>(l, BinOp::ADD, std::move(first), make_locatable<ValTerm>(l, Symbol::createNum(0)));
+            weight = false;
+        }
+        aggr.emplace_back(gringo_make_unique<SimpleBodyLiteral>(make_locatable<RelationLiteral>(l, Relation::LEQ, std::move(first), std::move(term))));
+    }
+    tuple_.clear();
+    tuple_.emplace_back(make_locatable<ValTerm>(l, Symbol::createNum(0)));
+    for (auto &lit : condition_) {
+        zeroLevel_(bound, lit);
+        aggr.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(lit)));
+    }
+    condition_.clear();
+    zeroLevel_(bound, lit_);
+}
+
+void HeadAggrElem::gatherIEs(IESolver &solver) const {
+    for (auto const &lit : condition_) {
+        lit->addToSolver(solver, false);
+    }
+}
+
+void HeadAggrElem::addIEBound(VarTerm const &var, IEBound const &bound) {
+    condition_.emplace_back(RangeLiteral::make(var, bound));
+}
+
+bool HeadAggrElem::simplify(Projections &project, SimplifyState &state, Logger &log) {
+    for (auto &term : tuple_) {
+        if (term->simplify(state, false, false, log).update(term, false).undefined()) {
+            return false;
+        }
+    }
+    if (!lit_->simplify(log, project, state, false)) {
+        return false;
+    }
+    for (auto &lit : condition_) {
+        if (!lit->simplify(log, project, state)) {
+            return false;
+        }
+    }
+    for (auto &dot : state.dots()) {
+        condition_.emplace_back(RangeLiteral::make(dot));
+    }
+    for (auto &script : state.scripts()) {
+        condition_.emplace_back(ScriptLiteral::make(script));
+    }
+    return true;
+}
+
+void HeadAggrElem::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) {
+    for (auto &y : condition_) {
+        y->rewriteArithmetics(arith, assign, auxGen);
+    }
+    for (auto &y : *arith.back()) {
+        condition_.emplace_back(RelationLiteral::make(y));
+    }
+    for (auto &y : assign) {
+        condition_.emplace_back(RelationLiteral::make(y));
+    }
+}
+
+void HeadAggrElem::check(ChkLvlVec &levels) const {
+    _add(levels, tuple_);
+    _add(levels, lit_, false);
+    _add(levels, condition_);
+}
+
+void HeadAggrElem::replace(Defines &defs) {
+    for (auto &y : tuple_) {
+        Term::replace(y, y->replace(defs, true));
+    }
+    lit_->replace(defs);
+    for (auto &y : condition_) {
+        y->replace(defs);
+    }
+}
+
+bool HeadAggrElem::isSimple() const {
+    return condition_.empty();
+}
+
+UTerm HeadAggrElem::headRepr() const {
+    return lit_->headRepr();
+}
+
+template <class T, class C>
+std::unique_ptr<T> HeadAggrElem::toGround(ToGroundArg &x, C &completeRef) const {
+    Ground::ULitVec lits;
+    for (auto const &lit : condition_) {
+        lits.emplace_back(lit->toGround(x.domains, false));
+    }
+    lits.emplace_back(gringo_make_unique<Ground::HeadAggregateLiteral>(completeRef));
+    UTerm headRep(headRepr());
+    PredicateDomain *predDom = headRep ? &x.domains.add(headRep->getSig()) : nullptr;
+    auto ret = gringo_make_unique<T>(completeRef,
+                                     get_clone(tuple_),
+                                     predDom,
+                                     std::move(headRep),
+                                     std::move(lits));
+    completeRef.addAccuDom(*ret);
+    return ret;
+
+}
+
+std::ostream &operator<<(std::ostream &out, HeadAggrElem const &elem) {
+    print_comma(out, elem.tuple_, ",", [](std::ostream &out, UTerm const &term) { term->print(out); });
+    out << ":";
+    elem.lit_->print(out);
+    out << ":";
+    print_comma(out, elem.condition_, ",", [](std::ostream &out, ULit const &lit) { lit->print(out); });
+    return out;
+}
+
+bool operator==(HeadAggrElem const &a, HeadAggrElem const &b) {
+    return is_value_equal_to(a.tuple_, b.tuple_) && is_value_equal_to(a.lit_, b.lit_) && is_value_equal_to(a.condition_, b.condition_);
+}
+
+size_t get_value_hash(HeadAggrElem const &elem) {
+    return get_value_hash(typeid(HeadAggrElem).hash_code(), elem.tuple_, elem.lit_, elem.condition_);
+}
+
+HeadAggrElem get_clone(HeadAggrElem const &elem) {
+    return {get_clone(elem.tuple_), get_clone(elem.lit_), get_clone(elem.condition_)};
+}
+
 // {{{1 definition of TupleHeadAggregate
 
 TupleHeadAggregate::TupleHeadAggregate(AggregateFunction fun, BoundVec &&bounds, HeadAggrElemVec &&elems)
@@ -1201,15 +1407,7 @@ TupleHeadAggregate::TupleHeadAggregate(AggregateFunction fun, bool translated, B
 TupleHeadAggregate::~TupleHeadAggregate() noexcept = default;
 
 void TupleHeadAggregate::print(std::ostream &out) const {
-    auto f = [](std::ostream &out, HeadAggrElem const &y) {
-        using namespace std::placeholders;
-        print_comma(out, std::get<0>(y), ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
-        out << ":";
-        std::get<1>(y)->print(out);
-        out << ":";
-        print_comma(out, std::get<2>(y), ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
-    };
-    printAggr_(out, fun_, bounds_, elems_, f);
+    printAggr_(out, fun_, bounds_, elems_, [](std::ostream &out, HeadAggrElem const &elem) { out << elem; });
 }
 
 size_t TupleHeadAggregate::hash() const {
@@ -1229,55 +1427,35 @@ TupleHeadAggregate *TupleHeadAggregate::clone() const {
 }
 
 void TupleHeadAggregate::unpool(UHeadAggrVec &x) {
-    HeadAggrElemVec e;
+    HeadAggrElemVec elems;
     for (auto &elem : elems_) {
-        auto f = [&](UTermVec &&y) { e.emplace_back(std::move(y), get_clone(std::get<1>(elem)), get_clone(std::get<2>(elem))); };
-        Term::unpool(std::get<0>(elem).begin(), std::get<0>(elem).end(), Gringo::unpool, f);
+        elem.unpool(elems);
     }
-    elems_.clear();
-    for (auto &elem : e) {
-        auto f = [&](ULit &&y) { elems_.emplace_back(get_clone(std::get<0>(elem)), std::move(y), get_clone(std::get<2>(elem))); };
-        Term::unpool(std::get<1>(elem), _unpool_lit(false), f);
-    }
-    e.clear();
-    for (auto &elem : elems_) {
-        auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(std::get<0>(elem)), get_clone(std::get<1>(elem)), std::move(y)); };
-        Term::unpool(std::get<2>(elem).begin(), std::get<2>(elem).end(), _unpool_lit(false), f);
-    }
-    auto f = [&](BoundVec &&y) { x.emplace_back(make_locatable<TupleHeadAggregate>(loc(), fun_, translated_, std::move(y), get_clone(e))); };
-    Term::unpool(bounds_.begin(), bounds_.end(), _unpool_bound, f);
+    Term::unpool(bounds_.begin(), bounds_.end(), _unpool_bound, [&](BoundVec &&bounds) {
+        x.emplace_back(make_locatable<TupleHeadAggregate>(loc(), fun_, translated_, std::move(bounds), get_clone(elems)));
+    });
 }
 
 UHeadAggr TupleHeadAggregate::unpoolComparison(UBodyAggrVec &body) {
     static_cast<void>(body);
-    // shift comparisons
-    for (auto &x : elems_) {
-        if (ULit shifted = std::get<1>(x)->shift(false)) {
-            std::get<1>(x) = make_locatable<VoidLiteral>(std::get<1>(x)->loc());
-            std::get<2>(x).emplace_back(std::move(shifted));
-        }
-    }
-    // extract elements that need unpooling
     HeadAggrElemVec elems;
-    move_if(elems_, elems, [](auto const &elem) {
-        for (auto &lit : std::get<2>(elem)) {
-            if (lit->hasUnpoolComparison()) {
-                return true;
-            }
+    for (auto &elem : elems_) {
+        elem.shiftLit();
+        if (elem.hasUnpoolComparison()) {
+            elem.unpoolComparison(elems);
         }
-        return false;
-    });
-    // unpool conditions
-    for (auto &elem : elems) {
-        for (auto &cond : unpoolComparison_(std::get<2>(elem))) {
-            elems_.emplace_back(
-                get_clone(std::get<0>(elem)),
-                get_clone(std::get<1>(elem)),
-                std::move(cond));
+        else {
+            elems.emplace_back(std::move(elem));
         }
-
     }
+    elems_.swap(elems);
     return nullptr;
+}
+
+void TupleHeadAggregate::addToSolver(IESolver &solver) {
+    for (auto &elem: elems_) {
+        solver.add(elem);
+    }
 }
 
 void TupleHeadAggregate::collect(VarTermBoundVec &vars) const {
@@ -1285,57 +1463,15 @@ void TupleHeadAggregate::collect(VarTermBoundVec &vars) const {
         bound.bound->collect(vars, false);
     }
     for (auto const &elem : elems_) {
-        for (auto const &term : std::get<0>(elem)) {
-            term->collect(vars, false);
-        }
-        std::get<1>(elem)->collect(vars, false);
-        for (auto const &lit : std::get<2>(elem)) {
-            lit->collect(vars, false);
-        }
+        elem.collect(vars, false);
     }
 }
-
-namespace {
-
-template <class T>
-void zeroLevel(VarTermBoundVec &bound, T const &x) {
-    bound.clear();
-    x->collect(bound, false);
-    for (auto &var : bound) {
-        var.first->level = 0;
-    }
-}
-
-} // namspace
 
 UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
     // NOTE: if it were possible to add further rules here,
     // then also aggregates with more than one element could be supported
     if (elems_.size() == 1 && bounds_.empty()) {
-        VarTermBoundVec bound;
-        auto &elem = elems_.front();
-        // Note: to handle undefinedness in tuples
-        bool weight = fun_ == AggregateFunction::SUM || fun_ == AggregateFunction::SUMP;
-        auto &tuple = std::get<0>(elem);
-        Location l = tuple.empty() ? loc() : tuple.front()->loc();
-        for (auto &term : tuple) {
-            // NOTE: there could be special predicates for is_integer and is_defined
-            zeroLevel(bound, term);
-            UTerm first = get_clone(term);
-            if (weight) {
-                first = make_locatable<BinOpTerm>(l, BinOp::ADD, std::move(first), make_locatable<ValTerm>(l, Symbol::createNum(0)));
-                weight = false;
-            }
-            aggr.emplace_back(gringo_make_unique<SimpleBodyLiteral>(make_locatable<RelationLiteral>(l, Relation::LEQ, std::move(first), std::move(term))));
-        }
-        tuple.clear();
-        tuple.emplace_back(make_locatable<ValTerm>(l, Symbol::createNum(0)));
-        for (auto &lit : std::get<2>(elem)) {
-            zeroLevel(bound, lit);
-            aggr.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(lit)));
-        }
-        std::get<2>(elem).clear();
-        zeroLevel(bound, std::get<1>(elem));
+        elems_.front().shiftCondition(aggr, fun_ == AggregateFunction::SUM || fun_ == AggregateFunction::SUMP);
     }
     return nullptr;
 }
@@ -1348,26 +1484,7 @@ bool TupleHeadAggregate::simplify(Projections &project, SimplifyState &state, Lo
     }
     elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](HeadAggrElemVec::value_type &elem) {
         auto elemState = SimplifyState::make_substate(state);
-        for (auto &term : std::get<0>(elem)) {
-            if (term->simplify(elemState, false, false, log).update(term, false).undefined()) {
-                return true;
-            }
-        }
-        if (!std::get<1>(elem)->simplify(log, project, elemState, false)) {
-            return true;
-        }
-        for (auto &lit : std::get<2>(elem)) {
-            if (!lit->simplify(log, project, elemState)) {
-                return true;
-            }
-        }
-        for (auto &dot : elemState.dots()) {
-            std::get<2>(elem).emplace_back(RangeLiteral::make(dot));
-        }
-        for (auto &script : elemState.scripts()) {
-            std::get<2>(elem).emplace_back(ScriptLiteral::make(script));
-        }
-        return false;
+        return !elem.simplify(project, elemState, log);
     }), elems_.end());
     return true;
 }
@@ -1379,15 +1496,7 @@ void TupleHeadAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen 
     for (auto &elem : elems_) {
         Literal::RelationVec assign;
         arith.emplace_back(gringo_make_unique<Term::LevelMap>());
-        for (auto &y : std::get<2>(elem)) {
-            y->rewriteArithmetics(arith, assign, auxGen);
-        }
-        for (auto &y : *arith.back()) {
-            std::get<2>(elem).emplace_back(RelationLiteral::make(y));
-        }
-        for (auto &y : assign) {
-            std::get<2>(elem).emplace_back(RelationLiteral::make(y));
-        }
+        elem.rewriteArithmetics(arith, assign, auxGen);
         arith.pop_back();
     }
 }
@@ -1401,13 +1510,7 @@ void TupleHeadAggregate::assignLevels(AssignLevel &lvl) {
     for (auto &elem : elems_) {
         AssignLevel &local(lvl.subLevel());
         VarTermBoundVec vars;
-        for (auto &term : std::get<0>(elem)) {
-            term->collect(vars, false);
-        }
-        std::get<1>(elem)->collect(vars, false);
-        for (auto &lit : std::get<2>(elem)) {
-            lit->collect(vars, false);
-        }
+        elem.collect(vars);
         local.add(vars);
     }
 }
@@ -1415,44 +1518,25 @@ void TupleHeadAggregate::assignLevels(AssignLevel &lvl) {
 void TupleHeadAggregate::check(ChkLvlVec &levels, Logger &log) const {
     auto f = [&]() {
         VarTermBoundVec vars;
-        for (auto const &y : elems_) {
+        for (auto const &elem : elems_) {
             levels.emplace_back(loc(), *this);
-            _add(levels, std::get<0>(y));
-            _add(levels, std::get<1>(y), false);
-            _add(levels, std::get<2>(y));
+            elem.check(levels);
             levels.back().check(log);
             levels.pop_back();
-            for (auto const &term : std::get<0>(y)) {
-                term->collect(vars, false);
-            }
+            elem.collect(vars, true);
         }
         warnGlobal(vars, !translated_, log);
     };
-    _aggr(levels, bounds_, f, false);
+    return _aggr(levels, bounds_, f, false);
 }
 
 bool TupleHeadAggregate::hasPool() const {
-    for (auto const &bound : bounds_) {
-        if (bound.bound->hasPool()) {
-            return true;
-        }
-    }
-    for (auto const &elem : elems_) {
-        for (auto const &term : std::get<0>(elem)) {
-            if (term->hasPool()) {
-                return true;
-            }
-        }
-        if (std::get<1>(elem)->hasPool(false)) {
-            return true;
-        }
-        for (auto const &lit : std::get<2>(elem)) {
-            if (lit->hasPool(false)) {
-                return true;
-            }
-        }
-    }
-    return false;
+    return std::any_of(bounds_.begin(),
+                       bounds_.end(),
+                       [](auto const &bound) { return bound.bound->hasPool(); }) ||
+           std::any_of(elems_.begin(),
+                       elems_.end(),
+                       [](auto const &elem) { return elem.hasPool(); });
 }
 
 void TupleHeadAggregate::replace(Defines &x) {
@@ -1460,32 +1544,18 @@ void TupleHeadAggregate::replace(Defines &x) {
         Term::replace(bound.bound, bound.bound->replace(x, true));
     }
     for (auto &elem : elems_) {
-        for (auto &y : std::get<0>(elem)) {
-            Term::replace(y, y->replace(x, true));
-        }
-        std::get<1>(elem)->replace(x);
-        for (auto &y : std::get<2>(elem)) {
-            y->replace(x);
-        }
+        elem.replace(x);
     }
 }
 
 CreateHead TupleHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
-    bool isSimple = bounds_.empty();
-    if (isSimple) {
-        for (auto const &elem  : elems_) {
-            if (!std::get<2>(elem).empty()) {
-                isSimple = false;
-                break;
-            }
-        }
-    }
+    bool isSimple = bounds_.empty() && std::all_of(elems_.begin(), elems_.end(), [](auto const &elem) { return elem.isSimple(); });
     if (isSimple) {
         DomainData &data = x.domains;
         return [&](Ground::ULitVec &&lits) {
             Ground::AbstractRule::HeadVec heads;
             for (auto const &elem : elems_) {
-                if (UTerm headRepr = std::get<1>(elem)->headRepr()) {
+                if (UTerm headRepr = elem.headRepr()) {
                     PredicateDomain *headDom = &data.add(headRepr->getSig());
                     heads.emplace_back(std::move(headRepr), headDom);
                 }
@@ -1496,17 +1566,8 @@ CreateHead TupleHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
 
     stms.emplace_back(gringo_make_unique<Ground::HeadAggregateComplete>(x.domains, x.newId(*this), fun_, get_clone(bounds_)));
     auto &completeRef = static_cast<Ground::HeadAggregateComplete&>(*stms.back()); // NOLINT
-    for (auto const &y : elems_) {
-        Ground::ULitVec lits;
-        for (auto const &z : std::get<2>(y)) {
-            lits.emplace_back(z->toGround(x.domains, false));
-        }
-        lits.emplace_back(gringo_make_unique<Ground::HeadAggregateLiteral>(completeRef));
-        UTerm headRep(std::get<1>(y)->headRepr());
-        PredicateDomain *predDom = headRep ? &x.domains.add(headRep->getSig()) : nullptr;
-        auto ret = gringo_make_unique<Ground::HeadAggregateAccumulate>(completeRef, get_clone(std::get<0>(y)), predDom, std::move(headRep), std::move(lits));
-        completeRef.addAccuDom(*ret);
-        stms.emplace_back(std::move(ret));
+    for (auto const &elem : elems_) {
+        stms.emplace_back(elem.toGround<Ground::HeadAggregateAccumulate>(x, completeRef));
     }
     return [&completeRef](Ground::ULitVec &&lits) {
         return gringo_make_unique<Ground::HeadAggregateRule>(completeRef, std::move(lits));

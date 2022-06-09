@@ -233,7 +233,7 @@ class BodyAggrElem;
 using BodyAggrElemVec = std::vector<BodyAggrElem>;
 using CondLit = std::pair<ULit, ULitVec>;
 using CondLitVec = std::vector<CondLit>;
-using HeadAggrElem = std::tuple<UTermVec, ULit, ULitVec>;
+class HeadAggrElem;
 using HeadAggrElemVec = std::vector<HeadAggrElem>;
 using UBodyAggrVec = std::vector<UBodyAggr>;
 using IdVec = std::vector<std::pair<Location, String>>;

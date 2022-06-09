@@ -352,7 +352,7 @@ void IESolver::compute() {
 }
 
 void IESolver::add(IEContext &context) {
-    subSolvers_.emplace_front(context);
+    subSolvers_.emplace_front(context, this);
 }
 
 template<typename I>
