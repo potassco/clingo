@@ -565,8 +565,6 @@ LitBodyAggregate::LitBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bo
 , bounds_(std::move(bounds))
 , elems_(std::move(elems)) { }
 
-LitBodyAggregate::~LitBodyAggregate() noexcept = default;
-
 void LitBodyAggregate::print(std::ostream &out) const {
     out << naf_;
     printAggr_(out, fun_, bounds_, elems_, printCond_);
@@ -775,8 +773,6 @@ Conjunction::Conjunction(ULit &&head, ULitVec &&cond) {
 
 Conjunction::Conjunction(ElemVec &&elems)
 : elems_(std::move(elems)) { }
-
-Conjunction::~Conjunction() noexcept = default;
 
 void Conjunction::print(std::ostream &out) const {
     auto f = [](std::ostream &out, Elem const &y) {
@@ -1092,8 +1088,6 @@ void SimpleBodyLiteral::loc(Location const &loc) {
     lit_->loc(loc);
 }
 
-SimpleBodyLiteral::~SimpleBodyLiteral() noexcept = default;
-
 void SimpleBodyLiteral::addToSolver(IESolver &solver) {
     lit_->addToSolver(solver, false);
 }
@@ -1404,8 +1398,6 @@ TupleHeadAggregate::TupleHeadAggregate(AggregateFunction fun, bool translated, B
 , bounds_(std::move(bounds))
 , elems_(std::move(elems)) { }
 
-TupleHeadAggregate::~TupleHeadAggregate() noexcept = default;
-
 void TupleHeadAggregate::print(std::ostream &out) const {
     printAggr_(out, fun_, bounds_, elems_, [](std::ostream &out, HeadAggrElem const &elem) { out << elem; });
 }
@@ -1580,8 +1572,6 @@ LitHeadAggregate::LitHeadAggregate(AggregateFunction fun, BoundVec &&bounds, Con
 : fun_(fun)
 , bounds_(std::move(bounds))
 , elems_(std::move(elems)) { }
-
-LitHeadAggregate::~LitHeadAggregate() noexcept = default;
 
 void LitHeadAggregate::print(std::ostream &out) const {
     printAggr_(out, fun_, bounds_, elems_, printCond_);
@@ -1777,8 +1767,6 @@ Disjunction::Disjunction(CondLitVec &&elems) {
 
 Disjunction::Disjunction(ElemVec &&elems)
 : elems_(std::move(elems)) { }
-
-Disjunction::~Disjunction() noexcept = default;
 
 void Disjunction::print(std::ostream &out) const {
     auto f = [](std::ostream &out, Elem const &y) {
@@ -2168,8 +2156,6 @@ CreateHead Disjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
 SimpleHeadLiteral::SimpleHeadLiteral(ULit &&lit)
 : lit_(std::move(lit)) { }
 
-SimpleHeadLiteral::~SimpleHeadLiteral() noexcept = default;
-
 Location const &SimpleHeadLiteral::loc() const {
     return lit_->loc();
 }
@@ -2282,8 +2268,6 @@ MinimizeHeadLiteral::MinimizeHeadLiteral(UTermVec &&tuple)
 : tuple_(std::move(tuple)) {
     assert(tuple_.size() >= 2);
 }
-
-MinimizeHeadLiteral::~MinimizeHeadLiteral() noexcept = default;
 
 void MinimizeHeadLiteral::print(std::ostream &out) const {
     out << "[";
@@ -2409,8 +2393,6 @@ EdgeHeadAtom::EdgeHeadAtom(UTerm &&u, UTerm &&v)
 , v_(std::move(v))
 { }
 
-EdgeHeadAtom::~EdgeHeadAtom() noexcept = default;
-
 void EdgeHeadAtom::print(std::ostream &out) const {
     out << "#edge(" << *u_ << "," << *v_ << ")";
 }
@@ -2501,8 +2483,6 @@ CreateHead EdgeHeadAtom::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
 ProjectHeadAtom::ProjectHeadAtom(UTerm &&atom)
 : atom_(std::move(atom)) { }
 
-ProjectHeadAtom::~ProjectHeadAtom() noexcept = default;
-
 void ProjectHeadAtom::print(std::ostream &out) const {
     out << "#project " << *atom_;
 }
@@ -2586,8 +2566,6 @@ ExternalHeadAtom::ExternalHeadAtom(UTerm &&atom, UTerm &&type)
 : atom_(std::move(atom))
 , type_(std::move(type))
 { }
-
-ExternalHeadAtom::~ExternalHeadAtom() noexcept = default;
 
 void ExternalHeadAtom::print(std::ostream &out) const {
     out << "#external " << *atom_;
@@ -2694,8 +2672,6 @@ HeuristicHeadAtom::HeuristicHeadAtom(UTerm &&atom, UTerm &&bias, UTerm &&priorit
 , mod_(std::move(mod))
 { }
 
-HeuristicHeadAtom::~HeuristicHeadAtom() noexcept = default;
-
 void HeuristicHeadAtom::print(std::ostream &out) const {
     out << "#heuristic " << *atom_ << "[" << *value_ << "@" << *priority_ << "," << *mod_ << "]";
 }
@@ -2796,8 +2772,6 @@ CreateHead HeuristicHeadAtom::toGround(ToGroundArg &x, Ground::UStmVec &stms) co
 
 ShowHeadLiteral::ShowHeadLiteral(UTerm &&term)
 : term_(std::move(term)) { }
-
-ShowHeadLiteral::~ShowHeadLiteral() noexcept = default;
 
 void ShowHeadLiteral::print(std::ostream &out) const {
     out << "#show " << *term_;
