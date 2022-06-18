@@ -62,7 +62,6 @@ void printAggr_(std::ostream &out, AggregateFunction fun, T const &x, U const &y
 }
 
 void printCond_(std::ostream &out, CondLit const &x) {
-    using namespace std::placeholders;
     x.first->print(out);
     out << ":";
     print_comma(out, x.second, ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
@@ -763,271 +762,211 @@ bool LitBodyAggregate::isAssignment() const {
 
 void LitBodyAggregate::removeAssignment()  { }
 
-// {{{1 definition of Conjunction
+// {{{1 definition of ConjunctionElem
 
-Conjunction::Conjunction(ULit &&head, ULitVec &&cond) {
-    elems_.emplace_back(ULitVecVec(), std::move(cond));
-    elems_.back().first.emplace_back();
-    elems_.back().first.back().emplace_back(std::move(head));
+void ConjunctionElem::print(std::ostream &out) const {
+    auto print_lit = [](std::ostream &out, ULit const &lit) { lit->print(out); };
+    print_comma(out, head_, "|", [&](std::ostream &out, ULitVec const &clause) {
+        print_comma(out, clause, "&", print_lit);
+    });
+    out << ":";
+    print_comma(out, cond_, ",", print_lit);
 }
 
-Conjunction::Conjunction(ElemVec &&elems)
-: elems_(std::move(elems)) { }
-
-void Conjunction::print(std::ostream &out) const {
-    auto f = [](std::ostream &out, Elem const &y) {
-        using namespace std::placeholders;
-        print_comma(out, y.first, "|", [](std::ostream &out, ULitVec const &z) {
-            print_comma(out, z, "&", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
-        });
-        out << ":";
-        print_comma(out, y.second, ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
-    };
-    print_comma(out, elems_, ";", f);
-}
-
-size_t Conjunction::hash() const {
-    return get_value_hash(typeid(Conjunction).hash_code(), elems_);
-}
-
-bool Conjunction::operator==(BodyAggregate const &other) const {
-    const auto *t = dynamic_cast<Conjunction const *>(&other);
-    return t != nullptr &&
-           is_value_equal_to(elems_, t->elems_);
-}
-
-Conjunction *Conjunction::clone() const {
-    return make_locatable<Conjunction>(loc(), get_clone(elems_)).release();
-}
-
-bool Conjunction::hasPool() const {
-    for (auto const &elem : elems_) {
-        for (auto const &disj : elem.first) {
-            for (auto const &lit : disj) {
-                if (lit->hasPool(false)) {
-                    return true;
-                }
-            }
-        }
-        for (auto const &lit : elem.second) {
+bool ConjunctionElem::hasPool() const {
+    for (auto const &clause : head_) {
+        for (auto const &lit : clause) {
             if (lit->hasPool(false)) {
                 return true;
             }
         }
     }
+    for (auto const &lit : cond_) {
+        if (lit->hasPool(false)) {
+            return true;
+        }
+    }
     return false;
 }
 
-void Conjunction::unpool(UBodyAggrVec &x) {
-    ElemVec e;
-    for (auto &elem : elems_) {
-        ULitVecVec heads;
-        for (auto &head : elem.first) {
-            auto g = [&](ULitVec &&z) { heads.emplace_back(std::move(z)); };
-            Term::unpool(head.begin(), head.end(), _unpool_lit(false), g);
-        }
-        elem.first = std::move(heads);
-        auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(elem.first), std::move(y)); };
-        Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(false), f);
+void ConjunctionElem::unpool(ConjunctionElemVec &elems) const {
+    ULitVecVec head;
+    for (auto const &clause : head_) {
+        Term::unpool(clause.begin(), clause.end(), _unpool_lit(false), [&head](ULitVec &&clause) {
+            head.emplace_back(std::move(clause));
+        });
     }
-    x.emplace_back(make_locatable<Conjunction>(loc(), std::move(e)));
+    Term::unpool(cond_.begin(), cond_.end(), _unpool_lit(false), [&](ULitVec &&cond) {
+        elems.emplace_back(get_clone(head), std::move(cond));
+    });
 }
 
-bool Conjunction::hasUnpoolComparison() const {
-    for (auto const &elem : elems_) {
-        for (auto const &disj : elem.first) {
-            for (auto const &lit : disj) {
-                if (lit->hasUnpoolComparison()) {
-                    return true;
-                }
-            }
-        }
-        for (auto const &lit : elem.second) {
+bool ConjunctionElem::hasUnpoolComparison() const {
+    for (auto const &clause : head_) {
+        for (auto const &lit : clause) {
             if (lit->hasUnpoolComparison()) {
                 return true;
             }
         }
     }
+    for (auto const &lit : cond_) {
+        if (lit->hasUnpoolComparison()) {
+            return true;
+        }
+    }
     return false;
 }
 
-UBodyAggrVecVec Conjunction::unpoolComparison() const {
-    // a conjunction has form:
-    //   Condiditon -> Clause & ... & Clause
-    // clauses have form:
-    //   Lit | ... | Lit
-    UBodyAggrVecVec ret;
-    ret.emplace_back();
-    for (auto const &elem : elems_) {
-        ULitVecVec heads;
-        for (auto const &head : elem.first) {
-            auto unpooled = unpoolComparison_(head);
-            std::move(unpooled.begin(), unpooled.end(), std::back_inserter(heads));
-        }
-        for (auto &cond : unpoolComparison_(elem.second)) {
-            ElemVec elems;
-            elems.emplace_back(get_clone(heads), std::move(cond));
-            ret.back().emplace_back(make_locatable<Conjunction>(loc(), std::move(elems)));
-        }
+ConjunctionElemVecVec ConjunctionElem::unpoolComparison() const {
+    ConjunctionElemVecVec ret;
+    ULitVecVec heads;
+    for (auto const &head : head_) {
+        auto unpooled = unpoolComparison_(head);
+        std::move(unpooled.begin(), unpooled.end(), std::back_inserter(heads));
+    }
+    for (auto &cond : unpoolComparison_(cond_)) {
+        ret.emplace_back();
+        ret.back().emplace_back(get_clone(heads), std::move(cond));
     }
     return ret;
 }
 
-void Conjunction::collect(VarTermBoundVec &vars) const {
-    for (auto const &elem : elems_) {
-        for (auto const &disj : elem.first) {
-            for (auto const &lit : disj) {
-                lit->collect(vars, false);
-            }
-        }
-        for (auto const &lit : elem.second) {
+void ConjunctionElem::collect(VarTermBoundVec &vars) const {
+    for (auto const &clause : head_) {
+        for (auto const &lit : clause) {
             lit->collect(vars, false);
         }
     }
+    for (auto const &lit : cond_) {
+        lit->collect(vars, false);
+    }
 }
 
-bool Conjunction::rewriteAggregates(UBodyAggrVec &aggr) {
-    while (elems_.size() > 1) {
-        ElemVec vec;
-        vec.emplace_back(std::move(elems_.back()));
-        aggr.emplace_back(make_locatable<Conjunction>(loc(), std::move(vec)));
-        elems_.pop_back();
-    }
-    return !elems_.empty();
-}
-
-bool Conjunction::simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) {
-    static_cast<void>(singleton);
-    for (auto &elem : elems_) {
-        elem.first.erase(std::remove_if(elem.first.begin(), elem.first.end(), [&](ULitVec &clause) {
-            auto elemState = SimplifyState::make_substate(state);
-            for (auto &lit : clause) {
-                if (!lit->simplify(log, project, elemState)) {
-                    return true;
-                }
-            }
-            for (auto &dot : elemState.dots()) {
-                clause.emplace_back(RangeLiteral::make(dot));
-            }
-            for (auto &script : elemState.scripts()) {
-                clause.emplace_back(ScriptLiteral::make(script));
-            }
-            return false;
-        }), elem.first.end());
-    }
-    elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](ElemVec::value_type &elem) {
+bool ConjunctionElem::simplify(Projections &project, SimplifyState &state, Logger &log) {
+    head_.erase(std::remove_if(head_.begin(), head_.end(), [&](ULitVec &clause) {
         auto elemState = SimplifyState::make_substate(state);
-        for (auto &lit : elem.second) {
-            // NOTE: projection disabled with singelton=true
-            if (!lit->simplify(log, project, elemState, true, true)) {
+        for (auto &lit : clause) {
+            if (!lit->simplify(log, project, elemState)) {
                 return true;
             }
         }
         for (auto &dot : elemState.dots()) {
-            elem.second.emplace_back(RangeLiteral::make(dot));
+            clause.emplace_back(RangeLiteral::make(dot));
         }
         for (auto &script : elemState.scripts()) {
-            elem.second.emplace_back(ScriptLiteral::make(script));
+            clause.emplace_back(ScriptLiteral::make(script));
         }
         return false;
-    }), elems_.end());
+    }), head_.end());
+
+    auto elemState = SimplifyState::make_substate(state);
+    for (auto &lit : cond_) {
+        // NOTE: projection disabled with singelton=true
+        if (!lit->simplify(log, project, elemState, true, true)) {
+            return false;
+        }
+    }
+    for (auto &dot : elemState.dots()) {
+        cond_.emplace_back(RangeLiteral::make(dot));
+    }
+    for (auto &script : elemState.scripts()) {
+        cond_.emplace_back(ScriptLiteral::make(script));
+    }
     return true;
 }
 
-void Conjunction::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) {
-    static_cast<void>(assign);
-    for (auto &elem : elems_) {
-        for (auto &y : elem.first) {
-            Literal::RelationVec assign;
-            arith.emplace_back(gringo_make_unique<Term::LevelMap>());
-            for (auto &z : y) {
-                z->rewriteArithmetics(arith, assign, auxGen);
-            }
-            for (auto &z : *arith.back()) {
-                y.emplace_back(RelationLiteral::make(z));
-            }
-            for (auto &z : assign) {
-                y.emplace_back(RelationLiteral::make(z));
-            }
-            arith.pop_back();
-        }
+void ConjunctionElem::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) {
+    for (auto &clause : head_) {
         Literal::RelationVec assign;
         arith.emplace_back(gringo_make_unique<Term::LevelMap>());
-        for (auto &y : elem.second) {
-            y->rewriteArithmetics(arith, assign, auxGen);
+        for (auto &lit : clause) {
+            lit->rewriteArithmetics(arith, assign, auxGen);
         }
-        for (auto &y : *arith.back()) {
-            elem.second.emplace_back(RelationLiteral::make(y));
+        for (auto &x : *arith.back()) {
+            clause.emplace_back(RelationLiteral::make(x));
         }
-        for (auto &y : assign) {
-            elem.second.emplace_back(RelationLiteral::make(y));
+        for (auto &x : assign) {
+            clause.emplace_back(RelationLiteral::make(x));
         }
         arith.pop_back();
     }
-}
-
-void Conjunction::assignLevels(AssignLevel &lvl) {
-    for (auto &elem : elems_) {
-        AssignLevel &local(lvl.subLevel());
-        VarTermBoundVec vars;
-        for (auto &disj : elem.first) {
-            for (auto &lit : disj) {
-                lit->collect(vars, false);
-            }
-        }
-        for (auto &lit : elem.second) {
-            lit->collect(vars, false);
-        }
-        local.add(vars);
+    Literal::RelationVec assign;
+    arith.emplace_back(gringo_make_unique<Term::LevelMap>());
+    for (auto &lit : cond_) {
+        lit->rewriteArithmetics(arith, assign, auxGen);
     }
+    for (auto &x : *arith.back()) {
+        cond_.emplace_back(RelationLiteral::make(x));
+    }
+    for (auto &x : assign) {
+        cond_.emplace_back(RelationLiteral::make(x));
+    }
+    arith.pop_back();
 }
 
-void Conjunction::check(ChkLvlVec &levels, Logger &log) const {
-    levels.back().current = &levels.back().dep.insertEnt();
-    for (auto const &elem : elems_) {
-        levels.emplace_back(loc(), *this);
-        _add(levels, elem.second);
-        // check safety of condition
+void ConjunctionElem::assignLevels(AssignLevel &lvl) const {
+    AssignLevel &local(lvl.subLevel());
+    VarTermBoundVec vars;
+    collect(vars);
+    local.add(vars);
+}
+
+void ConjunctionElem::check(BodyAggregate const &parent, ChkLvlVec &levels, Logger &log) const {
+    levels.emplace_back(parent.loc(), parent);
+    _add(levels, cond_);
+    // check safety of condition
+    levels.back().check(log);
+    levels.pop_back();
+    for (auto const &disj : head_) {
+        levels.emplace_back(parent.loc(), parent);
+        _add(levels, disj);
+        _add(levels, cond_);
+        // check safty of head it can contain pure variables!
         levels.back().check(log);
         levels.pop_back();
-        for (auto const &disj : elem.first) {
-            levels.emplace_back(loc(), *this);
-            _add(levels, disj);
-            _add(levels, elem.second);
-            // check safty of head it can contain pure variables!
-            levels.back().check(log);
-            levels.pop_back();
-        }
     }
 }
 
-void Conjunction::replace(Defines &x) {
-    for (auto &elem : elems_) {
-        for (auto &y : elem.first) {
-            for (auto &z : y) {
-                z->replace(x);
-            }
+void ConjunctionElem::replace(Defines &x) {
+    for (auto &clause : head_) {
+        for (auto &lit : clause) {
+            lit->replace(x);
         }
-        for (auto &y : elem.second) {
-            y->replace(x);
-        }
+    }
+    for (auto &lit : cond_) {
+        lit->replace(x);
     }
 }
 
-CreateBody Conjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
-    assert(elems_.size() == 1);
+std::ostream &operator<<(std::ostream &out, ConjunctionElem const &elem) {
+    elem.print(out);
+    return out;
+}
 
+bool operator==(ConjunctionElem const &a, ConjunctionElem const &b) {
+    return is_value_equal_to(a.head_, b.head_) && is_value_equal_to(a.cond_, b.cond_);
+}
+
+size_t get_value_hash(ConjunctionElem const &elem) {
+    return get_value_hash(typeid(ConjunctionElem).hash_code(), elem.head_, elem.cond_);
+}
+
+ConjunctionElem get_clone(ConjunctionElem const &elem) {
+    return {get_clone(elem.head_), get_clone(elem.cond_)};
+}
+
+CreateBody ConjunctionElem::toGround(UTerm id, ToGroundArg &x, Ground::UStmVec &stms) const {
     UTermVec local;
     std::unordered_set<String> seen;
     VarTermBoundVec varsHead;
     VarTermBoundVec varsBody;
-    for (auto const &x : elems_.front().first) {
-        for (auto const &y : x) {
-            y->collect(varsHead, false);
+    for (auto const &clause : head_) {
+        for (auto const &lit : clause) {
+            lit->collect(varsHead, false);
         }
     }
-    for (auto const &x : elems_.front().second) {
-        x->collect(varsBody, false);
+    for (auto const &lit : cond_) {
+        lit->collect(varsBody, false);
     }
     for (auto &occ : varsBody) {
         if (occ.first->level != 0) {
@@ -1039,19 +978,19 @@ CreateBody Conjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
             local.emplace_back(occ.first->clone());
         }
     }
-    stms.emplace_back(gringo_make_unique<Ground::ConjunctionComplete>(x.domains, x.newId(*this), std::move(local)));
+    stms.emplace_back(gringo_make_unique<Ground::ConjunctionComplete>(x.domains, std::move(id), std::move(local)));
     auto &completeRef = static_cast<Ground::ConjunctionComplete&>(*stms.back()); // NOLINT
 
     Ground::ULitVec condLits;
-    for (auto const &y : elems_.front().second) {
-        condLits.emplace_back(y->toGround(x.domains, false));
+    for (auto const &lit : cond_) {
+        condLits.emplace_back(lit->toGround(x.domains, false));
     }
     stms.emplace_back(gringo_make_unique<Ground::ConjunctionAccumulateCond>(completeRef, std::move(condLits)));
 
-    for (auto const &y : elems_.front().first)  {
+    for (auto const &clause : head_)  {
         Ground::ULitVec headLits;
-        for (auto const &z : y) {
-            headLits.emplace_back(z->toGround(x.domains, false));
+        for (auto const &lit : clause) {
+            headLits.emplace_back(lit->toGround(x.domains, false));
         }
         stms.emplace_back(gringo_make_unique<Ground::ConjunctionAccumulateHead>(completeRef, std::move(headLits)));
     }
@@ -1067,6 +1006,115 @@ CreateBody Conjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
             lits.emplace_back(gringo_make_unique<Ground::ConjunctionLiteral>(completeRef, auxiliary));
         }
     }, std::move(split)};
+}
+
+// {{{1 definition of Conjunction
+
+void Conjunction::print(std::ostream &out) const {
+    print_comma(out, elems_, ";", [](std::ostream &out, ConjunctionElem const &elem){ elem.print(out); });
+}
+
+size_t Conjunction::hash() const {
+    using Gringo::get_value_hash;
+    return get_value_hash(typeid(Conjunction).hash_code(), elems_);
+}
+
+bool Conjunction::operator==(BodyAggregate const &other) const {
+    const auto *t = dynamic_cast<Conjunction const *>(&other);
+    return t != nullptr &&
+           is_value_equal_to(elems_, t->elems_);
+}
+
+Conjunction *Conjunction::clone() const {
+    using Gringo::get_clone;
+    return make_locatable<Conjunction>(loc(), get_clone(elems_)).release();
+}
+
+bool Conjunction::hasPool() const {
+    return std::any_of(elems_.begin(), elems_.end(), [](ConjunctionElem const &elem) { return elem.hasPool(); });
+}
+
+void Conjunction::unpool(UBodyAggrVec &x) {
+    ConjunctionElemVec elems;
+    for (auto &elem : elems_) {
+        elem.unpool(elems);
+    }
+    x.emplace_back(make_locatable<Conjunction>(loc(), std::move(elems)));
+}
+
+bool Conjunction::hasUnpoolComparison() const {
+    return std::any_of(elems_.begin(), elems_.end(), [](ConjunctionElem const &elem) { return elem.hasUnpoolComparison(); });
+}
+
+UBodyAggrVecVec Conjunction::unpoolComparison() const {
+    // a conjunction has form:
+    //   Condiditon -> Clause & ... & Clause
+    // clauses have form:
+    //   Lit | ... | Lit
+    UBodyAggrVecVec ret;
+    ret.emplace_back();
+    for (auto const &elem : elems_) {
+        for (auto &elems : elem.unpoolComparison()) {
+            ret.back().emplace_back(make_locatable<Conjunction>(loc(), std::move(elems)));
+        }
+    }
+    return ret;
+}
+
+void Conjunction::collect(VarTermBoundVec &vars) const {
+    for (auto const &elem : elems_) {
+        elem.collect(vars);
+    }
+}
+
+bool Conjunction::rewriteAggregates(UBodyAggrVec &aggr) {
+    while (elems_.size() > 1) {
+        ConjunctionElemVec elems;
+        elems.emplace_back(std::move(elems_.back()));
+        aggr.emplace_back(make_locatable<Conjunction>(loc(), std::move(elems)));
+        elems_.pop_back();
+    }
+    return !elems_.empty();
+}
+
+bool Conjunction::simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) {
+    static_cast<void>(singleton);
+    elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](ConjunctionElem &elem) {
+        return !elem.simplify(project, state, log);
+    }), elems_.end());
+    return true;
+}
+
+void Conjunction::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen) {
+    static_cast<void>(assign);
+    for (auto &elem : elems_) {
+        elem.rewriteArithmetics(arith, auxGen);
+    }
+}
+
+void Conjunction::assignLevels(AssignLevel &lvl) {
+    for (auto &elem : elems_) {
+        elem.assignLevels(lvl);
+    }
+}
+
+void Conjunction::check(ChkLvlVec &levels, Logger &log) const {
+    levels.back().current = &levels.back().dep.insertEnt();
+    for (auto const &elem : elems_) {
+        elem.check(*this, levels, log);
+    }
+}
+
+void Conjunction::replace(Defines &x) {
+    for (auto &elem : elems_) {
+        elem.replace(x);
+    }
+}
+
+CreateBody Conjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
+    assert(elems_.size() == 1);
+
+    return elems_.front().toGround(x.newId(*this), x, stms);
 }
 
 bool Conjunction::isAssignment() const {
@@ -1770,7 +1818,6 @@ Disjunction::Disjunction(ElemVec &&elems)
 
 void Disjunction::print(std::ostream &out) const {
     auto f = [](std::ostream &out, Elem const &y) {
-        using namespace std::placeholders;
         print_comma(out, y.first, "&", [](std::ostream &out, Head const &z) {
             out << *z.first << ":";
             print_comma(out, z.second, ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });

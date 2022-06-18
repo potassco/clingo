@@ -132,16 +132,56 @@ private:
     CondLitVec elems_;
 };
 
+// {{{1 declaration of ConjunctionElem
+
+class ConjunctionElem;
+using ConjunctionElemVec = std::vector<ConjunctionElem>;
+using ConjunctionElemVecVec = std::vector<ConjunctionElemVec>;
+
+class ConjunctionElem {
+public:
+    using ULitVecVec = std::vector<ULitVec>;
+    ConjunctionElem(ULit head, ULitVec cond)
+    : cond_{std::move(cond)} {
+        head_.emplace_back();
+        head_.back().emplace_back(std::move(head));
+    }
+    ConjunctionElem(ULitVecVec head, ULitVec cond)
+    : head_{std::move(head)}
+    , cond_{std::move(cond)} { }
+
+    void print(std::ostream &out) const;
+    bool hasPool() const;
+    void unpool(ConjunctionElemVec &elems) const;
+    bool hasUnpoolComparison() const;
+    ConjunctionElemVecVec unpoolComparison() const;
+    void collect(VarTermBoundVec &vars) const;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log);
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
+    void assignLevels(AssignLevel &lvl) const;
+    void check(BodyAggregate const &parent, ChkLvlVec &levels, Logger &log) const;
+    void replace(Defines &x);
+    CreateBody toGround(UTerm id, ToGroundArg &x, Ground::UStmVec &stms) const;
+
+    friend std::ostream &operator<<(std::ostream &out, ConjunctionElem const &elem);
+    friend bool operator==(ConjunctionElem const &a, ConjunctionElem const &b);
+    friend size_t get_value_hash(ConjunctionElem const &elem);
+    friend ConjunctionElem get_clone(ConjunctionElem const &elem);
+
+private:
+    ULitVecVec head_;
+    ULitVec cond_;
+};
+
 // {{{1 declaration of Conjunction
 
 class Conjunction : public BodyAggregate {
 public:
-    using ULitVecVec = std::vector<ULitVec>;
-    using Elem = std::pair<ULitVecVec, ULitVec>;
-    using ElemVec = std::vector<Elem>;
-
-    Conjunction(ULit &&head, ULitVec &&cond);
-    Conjunction(ElemVec &&elems);
+    Conjunction(ULit head, ULitVec cond) {
+        elems_.emplace_back(std::move(head), std::move(cond));
+    }
+    Conjunction(ConjunctionElemVec elems)
+    : elems_{std::move(elems)} { }
 
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     bool isAssignment() const override;
@@ -163,7 +203,7 @@ public:
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
 private:
-    ElemVec elems_;
+    ConjunctionElemVec elems_;
 };
 
 // {{{1 declaration of SimpleBodyLiteral
