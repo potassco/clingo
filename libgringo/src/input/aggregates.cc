@@ -61,10 +61,21 @@ void printAggr_(std::ostream &out, AggregateFunction fun, T const &x, U const &y
     }
 }
 
+struct Printer {
+    template <class T>
+    void operator()(std::ostream &out, std::unique_ptr<T> const &prt) const {
+        out << *prt;
+    };
+    template <class T>
+    void operator()(std::ostream &out, T const &prt) const {
+        out << prt;
+    };
+};
+
 void printCond_(std::ostream &out, CondLit const &x) {
     x.first->print(out);
     out << ":";
-    print_comma(out, x.second, ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
+    print_comma(out, x.second, ",", Printer{});
 };
 
 std::function<ULitVec(ULit const &)> _unpool_lit(bool head) {
@@ -268,9 +279,9 @@ std::unique_ptr<T> BodyAggrElem::toGround(ToGroundArg &x, C &completeRef, Ground
 }
 
 std::ostream &operator<<(std::ostream &out, BodyAggrElem const &elem) {
-    print_comma(out, elem.tuple_, ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
+    print_comma(out, elem.tuple_, ",", Printer{});
     out << ":";
-    print_comma(out, elem.condition_, ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
+    print_comma(out, elem.condition_, ",", Printer{});
     return out;
 }
 
@@ -301,7 +312,7 @@ TupleBodyAggregate::TupleBodyAggregate(NAF naf, bool removedAssignment, bool tra
 
 void TupleBodyAggregate::print(std::ostream &out) const {
     out << naf_;
-    printAggr_(out, fun_, bounds_, elems_, [](std::ostream &out, BodyAggrElem const &elem) { out << elem; });
+    printAggr_(out, fun_, bounds_, elems_, Printer{});
 }
 
 size_t TupleBodyAggregate::hash() const {
@@ -765,12 +776,11 @@ void LitBodyAggregate::removeAssignment()  { }
 // {{{1 definition of ConjunctionElem
 
 void ConjunctionElem::print(std::ostream &out) const {
-    auto print_lit = [](std::ostream &out, ULit const &lit) { lit->print(out); };
     print_comma(out, head_, "|", [&](std::ostream &out, ULitVec const &clause) {
-        print_comma(out, clause, "&", print_lit);
+        print_comma(out, clause, "&", Printer{});
     });
     out << ":";
-    print_comma(out, cond_, ",", print_lit);
+    print_comma(out, cond_, ",", Printer{});
 }
 
 bool ConjunctionElem::hasPool() const {
@@ -1027,7 +1037,7 @@ void Conjunction::addToSolver(IESolver &solver) {
 }
 
 void Conjunction::print(std::ostream &out) const {
-    print_comma(out, elems_, ";", [](std::ostream &out, ConjunctionElem const &elem){ elem.print(out); });
+    print_comma(out, elems_, ";", Printer{});
 }
 
 size_t Conjunction::hash() const {
@@ -1431,11 +1441,11 @@ std::unique_ptr<T> HeadAggrElem::toGround(ToGroundArg &x, C &completeRef) const 
 }
 
 std::ostream &operator<<(std::ostream &out, HeadAggrElem const &elem) {
-    print_comma(out, elem.tuple_, ",", [](std::ostream &out, UTerm const &term) { term->print(out); });
+    print_comma(out, elem.tuple_, ",", Printer{});
     out << ":";
     elem.lit_->print(out);
     out << ":";
-    print_comma(out, elem.condition_, ",", [](std::ostream &out, ULit const &lit) { lit->print(out); });
+    print_comma(out, elem.condition_, ",", Printer{});
     return out;
 }
 
@@ -1463,7 +1473,7 @@ TupleHeadAggregate::TupleHeadAggregate(AggregateFunction fun, bool translated, B
 , elems_(std::move(elems)) { }
 
 void TupleHeadAggregate::print(std::ostream &out) const {
-    printAggr_(out, fun_, bounds_, elems_, [](std::ostream &out, HeadAggrElem const &elem) { out << elem; });
+    printAggr_(out, fun_, bounds_, elems_, Printer{});
 }
 
 size_t TupleHeadAggregate::hash() const {
@@ -1836,10 +1846,10 @@ void Disjunction::print(std::ostream &out) const {
     auto f = [](std::ostream &out, Elem const &y) {
         print_comma(out, y.first, "&", [](std::ostream &out, Head const &z) {
             out << *z.first << ":";
-            print_comma(out, z.second, ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
+            print_comma(out, z.second, ",", Printer{});
         });
         out << ":";
-        print_comma(out, y.second, ",", [](auto && PH1, auto && PH2) { PH2->print(PH1); });
+        print_comma(out, y.second, ",", Printer{});
     };
     print_comma(out, elems_, ";", f);
 }
@@ -2346,8 +2356,7 @@ void MinimizeHeadLiteral::print(std::ostream &out) const {
 
 void MinimizeHeadLiteral::printWithCondition(std::ostream &out, UBodyAggrVec const &condition) const {
     out << ":~";
-    auto f = [](std::ostream &out, UBodyAggr const &x) { out << *x; };
-    print_comma(out, condition, ";", f);
+    print_comma(out, condition, ";", Printer{});
     out << "." << *this;
 }
 
@@ -2638,8 +2647,7 @@ void ExternalHeadAtom::printWithCondition(std::ostream &out, UBodyAggrVec const 
     out << *this;
     if (!condition.empty()) {
         out << ":";
-        auto f = [](std::ostream &out, UBodyAggr const &x) { out << *x; };
-        print_comma(out, condition, ";", f);
+        print_comma(out, condition, ";", Printer{});
     }
     out << "." << "[" << *type_ << "]";
 }
