@@ -1008,7 +1008,23 @@ CreateBody ConjunctionElem::toGround(UTerm id, ToGroundArg &x, Ground::UStmVec &
     }, std::move(split)};
 }
 
+void ConjunctionElem::gatherIEs(IESolver &solver) const {
+    for (auto const &lit : cond_) {
+        lit->addToSolver(solver, false);
+    }
+}
+
+void ConjunctionElem::addIEBound(VarTerm const &var, IEBound const &bound) {
+    cond_.emplace_back(RangeLiteral::make(var, bound));
+}
+
 // {{{1 definition of Conjunction
+
+void Conjunction::addToSolver(IESolver &solver) {
+    for (auto &elem : elems_) {
+        solver.add(elem);
+    }
+}
 
 void Conjunction::print(std::ostream &out) const {
     print_comma(out, elems_, ";", [](std::ostream &out, ConjunctionElem const &elem){ elem.print(out); });

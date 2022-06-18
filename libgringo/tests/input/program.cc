@@ -166,7 +166,9 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("h:-a:1<(#Range0+0),(#Range0+0)<4,#range(#Range0,2,3)." == rewrite(parse("h:-a:1<(2..3)<4.")));
         // Note: should be correct
         REQUIRE("h:-1>=(#Range0+0)&#range(#Range0,2,3)|(#Range0+0)>=4&#range(#Range0,2,3):a." == rewrite(parse("h:-not 1<(2..3)<4:a.")));
-        REQUIRE("h:-a:(#Range0+0)>=4,#range(#Range0,2,3);a:1>=(#Range0+0),#range(#Range0,2,3)." == rewrite(parse("h:-a:not 1<(2..3)<4.")));
+        REQUIRE("h:-"
+                "a:(#Range0+0)>=4,#range(#Range0,2,3),#range(#Range0,1,0);"
+                "a:1>=(#Range0+0),#range(#Range0,2,3),#range(#Range0,1,0)." == rewrite(parse("h:-a:not 1<(2..3)<4.")));
         // set based head aggregates
         REQUIRE("1<=#count{3:#void:1<2}:-q." == rewrite(parse("{ 1<2 } >= 1:-q.")));
         REQUIRE("1<=#count{"

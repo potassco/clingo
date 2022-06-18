@@ -138,7 +138,7 @@ class ConjunctionElem;
 using ConjunctionElemVec = std::vector<ConjunctionElem>;
 using ConjunctionElemVecVec = std::vector<ConjunctionElemVec>;
 
-class ConjunctionElem {
+class ConjunctionElem : public IEContext {
 public:
     using ULitVecVec = std::vector<ULitVec>;
     ConjunctionElem(ULit head, ULitVec cond)
@@ -163,6 +163,9 @@ public:
     void replace(Defines &x);
     CreateBody toGround(UTerm id, ToGroundArg &x, Ground::UStmVec &stms) const;
 
+    void gatherIEs(IESolver &solver) const override;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override;
+
     friend std::ostream &operator<<(std::ostream &out, ConjunctionElem const &elem);
     friend bool operator==(ConjunctionElem const &a, ConjunctionElem const &b);
     friend size_t get_value_hash(ConjunctionElem const &elem);
@@ -183,6 +186,7 @@ public:
     Conjunction(ConjunctionElemVec elems)
     : elems_{std::move(elems)} { }
 
+    void addToSolver(IESolver &solver) override;
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     bool isAssignment() const override;
     void removeAssignment() override;
