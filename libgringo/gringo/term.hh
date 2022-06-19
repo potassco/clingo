@@ -251,8 +251,8 @@ public:
 class IESolver {
 public:
     IESolver(IEContext &ctx, IESolver *parent = nullptr)
-    : ctx_{ctx}
-    , parent_{parent} { }
+    : parent_{parent}
+    , ctx_{ctx} { }
     void add(IE ie, bool ignoreIfFixed);
     void add(IEContext &context);
     bool isImproving(VarTerm const *var, IEBound const &bound) const;

@@ -585,8 +585,8 @@ UTheoryTerm TermTheoryTerm::initTheory(TheoryParser &p, Logger &log) {
 
 TheoryData::TheoryData(Potassco::TheoryData &data)
 : data_(data)
-, aSeen_{0}
 , out_(nullptr)
+, aSeen_{0}
 { }
 
 void TheoryData::print(Potassco::Id_t termId, const Potassco::TheoryTerm& term) {

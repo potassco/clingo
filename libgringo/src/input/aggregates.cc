@@ -2289,7 +2289,6 @@ void Disjunction::replace(Defines &x) {
 
 CreateHead Disjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     if (std::all_of(elems_.begin(), elems_.end(), [](auto const &elem) { return elem.isSimple(); })) {
-        DomainData &data = x.domains;
         return [&](Ground::ULitVec &&lits) {
             Ground::AbstractRule::HeadVec heads;
             for (auto const &elem : elems_) {

@@ -247,7 +247,6 @@ public:
     }
 
     HdAggrElemVecUid headaggrelemvec(HdAggrElemVecUid uid, TermVecUid termvec, LitUid litUid, LitVecUid litvec) override {
-        auto &loc = get<Location>(*lits_[litUid], clingo_ast_attribute_location);
         hdaggrelemvecs_[uid].emplace_back(ast(clingo_ast_type_head_aggregate_element)
             .set(clingo_ast_attribute_terms, termvecs_.erase(termvec))
             .set(clingo_ast_attribute_condition, condlit(litUid, litvec)));
