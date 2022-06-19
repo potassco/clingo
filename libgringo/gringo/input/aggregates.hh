@@ -347,18 +347,63 @@ private:
     CondLitVec elems_;
 };
 
+// {{{1 declaration of DisjunctionElem
+
+class DisjunctionElem;
+using DisjunctionElemVec = std::vector<DisjunctionElem>;
+
+class DisjunctionElem : public IEContext {
+    using Head = std::pair<ULit, ULitVec>;
+    using HeadVec = std::vector<Head>;
+public:
+    DisjunctionElem(HeadVec head, ULitVec cond)
+    : heads_{std::move(head)}
+    , cond_{std::move(cond)} {}
+    DisjunctionElem(CondLit lit)
+    : cond_{std::move(lit.second)} {
+        heads_.emplace_back();
+        heads_.back().first = std::move(lit.first);
+    }
+    void print(std::ostream &out) const;
+    void unpool(DisjunctionElemVec &elems);
+    bool hasUnpoolComparison() const;
+    void unpoolComparison(DisjunctionElemVec &elems);
+    void collect(VarTermBoundVec &vars) const;
+    void rewriteAggregates(Location const &loc, UBodyAggrVec &aggr);
+    bool simplify(Projections &project, SimplifyState &state, Logger &log);
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
+    void assignLevels(AssignLevel &lvl);
+    void check(HeadAggregate const &parent, ChkLvlVec &levels, Logger &log) const;
+    bool hasPool() const;
+    void replace(Defines &x);
+    bool isSimple() const;
+    template <class T>
+    void toGroundSimple(ToGroundArg &x, T &heads) const;
+    template <class T>
+    void toGround(Location const &loc, T &complete, ToGroundArg &x, Ground::UStmVec &stms) const;
+
+    void gatherIEs(IESolver &solver) const override;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override;
+
+    friend std::ostream &operator<<(std::ostream &out, DisjunctionElem const &elem);
+    friend bool operator==(DisjunctionElem const &a, DisjunctionElem const &b);
+    friend size_t get_value_hash(DisjunctionElem const &elem);
+    friend DisjunctionElem get_clone(DisjunctionElem const &elem);
+
+private:
+    HeadVec heads_;
+    ULitVec cond_;
+};
+
 // {{{1 declaration of Disjunction
 
 class Disjunction : public HeadAggregate {
 public:
-    using Head = std::pair<ULit, ULitVec>;
-    using HeadVec = std::vector<Head>;
-    using Elem = std::pair<HeadVec, ULitVec>;
-    using ElemVec = std::vector<Elem>;
 
-    Disjunction(CondLitVec &&elems);
-    Disjunction(ElemVec &&elems);
+    Disjunction(CondLitVec elems);
+    Disjunction(DisjunctionElemVec elems);
 
+    void addToSolver(IESolver &solver) override;
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
     bool operator==(HeadAggregate const &other) const override;
@@ -376,7 +421,7 @@ public:
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
 private:
-    ElemVec elems_;
+    DisjunctionElemVec elems_;
 };
 
 // {{{1 declaration of SimpleHeadLiteral

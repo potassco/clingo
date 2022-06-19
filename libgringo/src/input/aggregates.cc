@@ -1828,33 +1828,382 @@ CreateHead LitHeadAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) con
     throw std::logic_error("Aggregate::rewriteAggregates must be called before LitAggregate::toGround");
 }
 
-// {{{1 definition of Disjunction
+// {{{1 definition of DisjunctionElem
 
-Disjunction::Disjunction(CondLitVec &&elems) {
-    for (auto &x : elems) {
-        elems_.emplace_back();
-        elems_.back().second = std::move(x.second);
-        elems_.back().first.emplace_back();
-        elems_.back().first.back().first = std::move(x.first);
+void DisjunctionElem::gatherIEs(IESolver &solver) const {
+    for (auto const &lit : cond_) {
+        lit->addToSolver(solver, false);
     }
 }
 
-Disjunction::Disjunction(ElemVec &&elems)
+void DisjunctionElem::addIEBound(VarTerm const &var, IEBound const &bound) {
+    cond_.emplace_back(RangeLiteral::make(var, bound));
+}
+
+void DisjunctionElem::print(std::ostream &out) const {
+    print_comma(out, heads_, "&", [](std::ostream &out, Head const &head) {
+        out << *head.first << ":";
+        print_comma(out, head.second, ",", Printer{});
+    });
+    out << ":";
+    print_comma(out, cond_, ",", Printer{});
+}
+
+void DisjunctionElem::unpool(DisjunctionElemVec &elems) {
+    HeadVec heads;
+    for (auto &head : heads_) {
+        for (auto &lit : head.first->unpool(true)) {
+            Term::unpool(head.second.begin(), head.second.end(), _unpool_lit(false), [&](ULitVec &&expand) {
+                heads.emplace_back(get_clone(lit), std::move(expand));
+            });
+        }
+    }
+    Term::unpool(cond_.begin(), cond_.end(), _unpool_lit(false), [&](ULitVec &&cond) {
+        elems.emplace_back(get_clone(heads), std::move(cond));
+    });
+}
+
+bool DisjunctionElem::hasUnpoolComparison() const {
+    for (auto const &head : heads_) {
+        for (auto const &lit : head.second) {
+            if (lit->hasUnpoolComparison()) {
+                return true;
+            }
+        }
+    }
+    for (auto const &lit : cond_) {
+        if (lit->hasUnpoolComparison()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void DisjunctionElem::unpoolComparison(DisjunctionElemVec &elems) {
+    // shift comparisons
+    for (auto &head : heads_) {
+        if (ULit shifted = head.first->shift(true)) {
+            head.first = make_locatable<VoidLiteral>(head.first->loc());
+            head.second.emplace_back(std::move(shifted));
+        }
+    }
+    // skip unpooling if there are no comparisons
+    if (!hasUnpoolComparison()) {
+        elems.emplace_back(std::move(*this));
+        return;
+    }
+    // unpool comparisons
+    HeadVec heads;
+    for (auto const &head : heads_) {
+        for (auto &cond : unpoolComparison_(head.second)) {
+            heads.emplace_back(get_clone(head.first), std::move(cond));
+        }
+    }
+    // compute cross-product of the unpooled conditions
+    for (auto &cond : unpoolComparison_(cond_)) {
+        elems.emplace_back(get_clone(heads), std::move(cond));
+    }
+}
+
+void DisjunctionElem::collect(VarTermBoundVec &vars) const {
+    for (auto const &head : heads_) {
+        head.first->collect(vars, false);
+        for (auto const &lit : head.second) {
+            lit->collect(vars, false);
+        }
+    }
+    for (auto const &lit : cond_) {
+        lit->collect(vars, false);
+    }
+}
+
+void DisjunctionElem::rewriteAggregates(Location const &loc, UBodyAggrVec &aggr) {
+    for (auto &head : heads_) {
+        if (ULit shifted = head.first->shift(true)) {
+            head.first = make_locatable<VoidLiteral>(head.first->loc());
+            if (!shifted->triviallyTrue()) {
+                head.second.emplace_back(std::move(shifted));
+            }
+        }
+    }
+    if (cond_.empty() && heads_.size() == 1) {
+        auto &head = heads_.front();
+        VarTermBoundVec vars;
+        head.first->collect(vars, false);
+        for (auto &var : vars) {
+            var.first->level = 0;
+        }
+        vars.clear();
+        for (auto &lit : head.second) {
+            lit->collect(vars, false);
+            for (auto &var : vars) {
+                var.first->level = 0;
+            }
+            vars.clear();
+            aggr.emplace_back(make_locatable<SimpleBodyLiteral>(loc, std::move(lit)));
+        }
+        head.second.clear();
+    }
+}
+
+bool DisjunctionElem::simplify(Projections &project, SimplifyState &state, Logger &log) {
+    for (auto &head : heads_) {
+        bool replace = false;
+        auto elemState = SimplifyState::make_substate(state);
+        if (head.first->simplify(log, project, elemState)) {
+            for (auto &lit : head.second) {
+                if (!lit->simplify(log, project, elemState)) {
+                    replace = true;
+                    break;
+                }
+            }
+        }
+        else {
+            replace = true;
+        }
+        if (replace) {
+            auto loc = head.first->loc();
+            head.first = Gringo::make_locatable<RelationLiteral>(loc, Relation::EQ, make_locatable<ValTerm>(
+                loc, Symbol::createNum(0)), make_locatable<ValTerm>(loc, Symbol::createNum(0)));
+            head.second.clear();
+        }
+        else {
+            for (auto &dot : elemState.dots()) {
+                head.second.emplace_back(RangeLiteral::make(dot));
+            }
+            for (auto &script : elemState.scripts()) {
+                head.second.emplace_back(ScriptLiteral::make(script));
+            }
+        }
+    }
+    auto elemState = SimplifyState::make_substate(state);
+    for (auto &lit : cond_) {
+        if (!lit->simplify(log, project, elemState)) {
+            return false;
+        }
+    }
+    for (auto &dot : elemState.dots()) {
+        cond_.emplace_back(RangeLiteral::make(dot));
+    }
+    for (auto &script : elemState.scripts()) {
+        cond_.emplace_back(ScriptLiteral::make(script));
+    }
+    return true;
+}
+
+void DisjunctionElem::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) {
+    for (auto &head : heads_) {
+        Literal::RelationVec assign;
+        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
+        for (auto &lit : head.second) {
+            lit->rewriteArithmetics(arith, assign, auxGen);
+        }
+        for (auto &y : *arith.back()) {
+            head.second.emplace_back(RelationLiteral::make(y));
+        }
+        for (auto &y : assign) {
+            head.second.emplace_back(RelationLiteral::make(y));
+        }
+        arith.pop_back();
+    }
+    Literal::RelationVec assign;
+    arith.emplace_back(gringo_make_unique<Term::LevelMap>());
+    for (auto &lit : cond_) {
+        lit->rewriteArithmetics(arith, assign, auxGen);
+    }
+    for (auto &y : *arith.back()) {
+        cond_.emplace_back(RelationLiteral::make(y));
+    }
+    for (auto &y : assign) {
+        cond_.emplace_back(RelationLiteral::make(y));
+    }
+    arith.pop_back();
+}
+
+void DisjunctionElem::assignLevels(AssignLevel &lvl) {
+    AssignLevel &local(lvl.subLevel());
+    VarTermBoundVec vars;
+    for (auto &head : heads_) {
+        head.first->collect(vars, false);
+        for (auto &lit : head.second) {
+            lit->collect(vars, false);
+        }
+    }
+    for (auto &lit : cond_) {
+        lit->collect(vars, false);
+    }
+    local.add(vars);
+}
+
+void DisjunctionElem::check(HeadAggregate const &parent, ChkLvlVec &levels, Logger &log) const {
+    levels.emplace_back(parent.loc(), parent);
+    _add(levels, cond_);
+    // check condition first
+    // (although by construction it cannot happen that something in expand binds something in condition)
+    levels.back().check(log);
+    levels.pop_back();
+    for (auto const &head : heads_) {
+        levels.emplace_back(parent.loc(), parent);
+        _add(levels, head.first, false);
+        _add(levels, head.second);
+        _add(levels, cond_);
+        levels.back().check(log);
+        levels.pop_back();
+    }
+}
+
+bool DisjunctionElem::hasPool() const {
+    for (auto const &head : heads_) {
+        if (head.first->hasPool(true)) {
+            return true;
+        }
+        for (auto const &lit : head.second) {
+            if (lit->hasPool(false)) {
+                return true;
+            }
+        }
+    }
+    for (auto const &lit : cond_) {
+        if (lit->hasPool(false)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void DisjunctionElem::replace(Defines &x) {
+    for (auto &head : heads_) {
+        head.first->replace(x);
+        for (auto &lit : head.second) {
+            lit->replace(x);
+        }
+    }
+    for (auto &lit : cond_) {
+        lit->replace(x);
+    }
+}
+
+bool DisjunctionElem::isSimple() const {
+    return heads_.size() <= 1 && cond_.empty();
+}
+
+template <class T>
+void DisjunctionElem::toGroundSimple(ToGroundArg &x, T &heads) const {
+    DomainData &data = x.domains;
+    for (auto const &head : heads_) {
+        if (UTerm headRepr = head.first->headRepr()) {
+            PredicateDomain *headDom = &data.add(headRepr->getSig());
+            heads.emplace_back(std::move(headRepr), headDom);
+        }
+    }
+}
+
+template <class T>
+void DisjunctionElem::toGround(Location const &loc, T &complete, ToGroundArg &x, Ground::UStmVec &stms) const {
+    UTermVec elemVars;
+    std::unordered_set<String> seen;
+    VarTermBoundVec vars;
+    for (auto const &x : cond_) {
+        x->collect(vars, false);
+    }
+    for (auto &occ : vars) {
+        if (occ.first->level != 0) {
+            seen.emplace(occ.first->name);
+        }
+    }
+    vars.clear();
+    for (auto const &head : heads_) {
+        head.first->collect(vars, false);
+        for (auto const &x : head.second) {
+            x->collect(vars, false);
+        }
+    }
+    for (auto &occ : vars) {
+        if (occ.first->level != 0 && seen.find(occ.first->name) != seen.end()) {
+            elemVars.emplace_back(occ.first->clone());
+            seen.emplace(occ.first->name);
+        }
+    }
+    UTerm elemRepr = x.newId(std::move(elemVars), loc, true);
+    if (heads_.empty()) {
+        Ground::ULitVec elemCond;
+        for (auto const &z : cond_) {
+            elemCond.emplace_back(z->toGround(x.domains, false));
+        }
+        Ground::ULitVec headCond;
+        headCond.emplace_back(make_locatable<RelationLiteral>(loc,
+                                                              Relation::NEQ,
+                                                              make_locatable<ValTerm>(loc, Symbol::createNum(0)),
+                                                              make_locatable<ValTerm>(loc, Symbol::createNum(0)))->toGround(x.domains, true));
+        stms.emplace_back(gringo_make_unique<Ground::DisjunctionAccumulate>(complete,
+                                                                            nullptr,
+                                                                            nullptr,
+                                                                            std::move(headCond),
+                                                                            std::move(elemRepr),
+                                                                            std::move(elemCond)));
+    }
+    else {
+        for (auto const &head : heads_) {
+            Ground::ULitVec elemCond;
+            for (auto const &z : cond_) {
+                elemCond.emplace_back(z->toGround(x.domains, false));
+            }
+            Ground::ULitVec headCond;
+            for (auto const &z : head.second) {
+                headCond.emplace_back(z->toGround(x.domains, false));
+            }
+            UTerm headRepr = head.first->headRepr();
+            PredicateDomain *headDom = headRepr ? &x.domains.add(headRepr->getSig()) : nullptr;
+            stms.emplace_back(gringo_make_unique<Ground::DisjunctionAccumulate>(complete,
+                                                                                headDom,
+                                                                                std::move(headRepr),
+                                                                                std::move(headCond),
+                                                                                get_clone(elemRepr),
+                                                                                std::move(elemCond)));
+        }
+    }
+}
+
+std::ostream &operator<<(std::ostream &out, DisjunctionElem const &elem) {
+    elem.print(out);
+    return out;
+}
+
+bool operator==(DisjunctionElem const &a, DisjunctionElem const &b) {
+    return is_value_equal_to(a.heads_, b.heads_) && is_value_equal_to(a.cond_, b.cond_);
+}
+
+size_t get_value_hash(DisjunctionElem const &elem) {
+    return get_value_hash(typeid(DisjunctionElem).hash_code(), elem.heads_, elem.cond_);
+}
+
+DisjunctionElem get_clone(DisjunctionElem const &elem) {
+    return {get_clone(elem.heads_), get_clone(elem.cond_)};
+}
+
+// {{{1 definition of Disjunction
+
+void Disjunction::addToSolver(IESolver &solver) {
+    for (auto &elem : elems_) {
+        solver.add(elem);
+    }
+}
+
+Disjunction::Disjunction(CondLitVec elems) {
+    for (auto &lit : elems) {
+        elems_.emplace_back(std::move(lit));
+    }
+}
+
+Disjunction::Disjunction(DisjunctionElemVec elems)
 : elems_(std::move(elems)) { }
 
 void Disjunction::print(std::ostream &out) const {
-    auto f = [](std::ostream &out, Elem const &y) {
-        print_comma(out, y.first, "&", [](std::ostream &out, Head const &z) {
-            out << *z.first << ":";
-            print_comma(out, z.second, ",", Printer{});
-        });
-        out << ":";
-        print_comma(out, y.second, ",", Printer{});
-    };
-    print_comma(out, elems_, ";", f);
+    print_comma(out, elems_, ";", Printer{});
 }
 
 size_t Disjunction::hash() const {
+    using Gringo::get_value_hash;
     return get_value_hash(typeid(Disjunction).hash_code(), elems_);
 }
 
@@ -1865,359 +2214,94 @@ bool Disjunction::operator==(HeadAggregate const &other) const {
 }
 
 Disjunction *Disjunction::clone() const {
+    using Gringo::get_clone;
     return make_locatable<Disjunction>(loc(), get_clone(elems_)).release();
 }
 
 void Disjunction::unpool(UHeadAggrVec &x) {
-    ElemVec e;
+    DisjunctionElemVec elems;
     for (auto &elem : elems_) {
-        HeadVec heads;
-        for (auto &head : elem.first) {
-            for (auto &lit : head.first->unpool(true)) {
-                Term::unpool(head.second.begin(), head.second.end(), _unpool_lit(false), [&](ULitVec &&expand) {
-                    heads.emplace_back(get_clone(lit), std::move(expand));
-                });
-            }
-        }
-        elem.first = std::move(heads);
-        auto f = [&](ULitVec &&y) { e.emplace_back(get_clone(elem.first), std::move(y)); };
-        Term::unpool(elem.second.begin(), elem.second.end(), _unpool_lit(false), f);
+        elem.unpool(elems);
     }
-    x.emplace_back(make_locatable<Disjunction>(loc(), std::move(e)));
+    x.emplace_back(make_locatable<Disjunction>(loc(), std::move(elems)));
 }
 
 UHeadAggr Disjunction::unpoolComparison(UBodyAggrVec &body) {
     static_cast<void>(body);
-    // shift comparisons
-    for (auto &elem : elems_) {
-        for (auto &head : elem.first) {
-            if (ULit shifted = head.first->shift(true)) {
-                head.first = make_locatable<VoidLiteral>(head.first->loc());
-                head.second.emplace_back(std::move(shifted));
-            }
-        }
-    }
-    // extract elements that need unpooling
-    ElemVec elems;
-    move_if(elems_, elems, [](auto const &elem) {
-        for (auto &head : elem.first) {
-            for (auto &lit : head.second) {
-                if (lit->hasUnpoolComparison()) {
-                    return true;
-                }
-            }
-        }
-        for (auto &lit : elem.second) {
-            if (lit->hasUnpoolComparison()) {
-                return true;
-            }
-        }
-        return false;
-    });
     // unpool elements
-    for (auto const &elem : elems) {
+    DisjunctionElemVec elems;
+    for (auto &elem : elems_) {
         // compute cross-product of unpooled head conditions
-        HeadVec newHeads;
-        for (auto const &head : elem.first) {
-            for (auto &cond : unpoolComparison_(head.second)) {
-                newHeads.emplace_back(get_clone(head.first), std::move(cond));
-            }
-        }
-        // compute cross-product of the unpooled conditions
-        for (auto &cond : unpoolComparison_(elem.second)) {
-            elems_.emplace_back(get_clone(newHeads), std::move(cond));
-        }
+        elem.unpoolComparison(elems);
     }
+    elems_ = std::move(elems);
     return nullptr;
 }
 
 void Disjunction::collect(VarTermBoundVec &vars) const {
     for (auto const &elem : elems_) {
-        for (auto const &head : elem.first) {
-            head.first->collect(vars, false);
-            for (auto const &lit : head.second) {
-                lit->collect(vars, false);
-            }
-        }
-        for (auto const &lit : elem.second) {
-            lit->collect(vars, false);
-        }
+        elem.collect(vars);
     }
 }
 
 UHeadAggr Disjunction::rewriteAggregates(UBodyAggrVec &aggr) {
     for (auto &elem : elems_) {
-        for (auto &head : elem.first) {
-            if (ULit shifted = head.first->shift(true)) {
-                head.first = make_locatable<VoidLiteral>(head.first->loc());
-                if (!shifted->triviallyTrue()) {
-                    head.second.emplace_back(std::move(shifted));
-                }
-            }
-        }
-        if (elem.second.empty() && elem.first.size() == 1) {
-            auto &head = elem.first.front();
-            VarTermBoundVec vars;
-            head.first->collect(vars, false);
-            for (auto &var : vars) {
-                var.first->level = 0;
-            }
-            vars.clear();
-            for (auto &lit : head.second) {
-                lit->collect(vars, false);
-                for (auto &var : vars) {
-                    var.first->level = 0;
-                }
-                vars.clear();
-                aggr.emplace_back(make_locatable<SimpleBodyLiteral>(loc(), std::move(lit)));
-            }
-            head.second.clear();
-        }
+        elem.rewriteAggregates(loc(), aggr);
     }
     return nullptr;
 }
 
 bool Disjunction::simplify(Projections &project, SimplifyState &state, Logger &log) {
-    for (auto &elem : elems_) {
-        for (auto &head : elem.first) {
-            bool replace = false;
-            auto elemState = SimplifyState::make_substate(state);
-            if (head.first->simplify(log, project, elemState)) {
-                for (auto &lit : head.second) {
-                    if (!lit->simplify(log, project, elemState)) {
-                        replace = true;
-                        break;
-                    }
-                }
-            }
-            else {
-                replace = true;
-            }
-            if (replace) {
-                auto loc = head.first->loc();
-                head.first = Gringo::make_locatable<RelationLiteral>(loc, Relation::EQ, make_locatable<ValTerm>(
-                    loc, Symbol::createNum(0)), make_locatable<ValTerm>(loc, Symbol::createNum(0)));
-                head.second.clear();
-            }
-            else {
-                for (auto &dot : elemState.dots()) {
-                    head.second.emplace_back(RangeLiteral::make(dot));
-                }
-                for (auto &script : elemState.scripts()) {
-                    head.second.emplace_back(ScriptLiteral::make(script));
-                }
-            }
-        }
-    }
-    elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](ElemVec::value_type &elem) -> bool {
-        auto elemState = SimplifyState::make_substate(state);
-        for (auto &lit : elem.second) {
-            if (!lit->simplify(log, project, elemState)) {
-                return true;
-            }
-        }
-        for (auto &dot : elemState.dots()) {
-            elem.second.emplace_back(RangeLiteral::make(dot));
-        }
-        for (auto &script : elemState.scripts()) {
-            elem.second.emplace_back(ScriptLiteral::make(script));
-        }
-        return false;
+    elems_.erase(std::remove_if(elems_.begin(), elems_.end(), [&](DisjunctionElem &elem) -> bool {
+        return !elem.simplify(project, state, log);
     }), elems_.end());
     return true;
 }
 
 void Disjunction::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) {
     for (auto &elem : elems_) {
-        for (auto &head : elems_) {
-            Literal::RelationVec assign;
-            arith.emplace_back(gringo_make_unique<Term::LevelMap>());
-            for (auto &y : head.second) {
-                y->rewriteArithmetics(arith, assign, auxGen);
-            }
-            for (auto &y : *arith.back()) {
-                head.second.emplace_back(RelationLiteral::make(y));
-            }
-            for (auto &y : assign) {
-                head.second.emplace_back(RelationLiteral::make(y));
-            }
-            arith.pop_back();
-        }
-        Literal::RelationVec assign;
-        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
-        for (auto &y : elem.second) {
-            y->rewriteArithmetics(arith, assign, auxGen);
-        }
-        for (auto &y : *arith.back()) {
-            elem.second.emplace_back(RelationLiteral::make(y));
-        }
-        for (auto &y : assign) {
-            elem.second.emplace_back(RelationLiteral::make(y));
-        }
-        arith.pop_back();
+        elem.rewriteArithmetics(arith, auxGen);
     }
 }
 
 void Disjunction::assignLevels(AssignLevel &lvl) {
     for (auto &elem : elems_) {
-        AssignLevel &local(lvl.subLevel());
-        VarTermBoundVec vars;
-        for (auto &head : elem.first) {
-            head.first->collect(vars, false);
-            for (auto &lit : head.second) {
-                lit->collect(vars, false);
-            }
-        }
-        for (auto &lit : elem.second) {
-            lit->collect(vars, false);
-        }
-        local.add(vars);
+        elem.assignLevels(lvl);
     }
 }
 
 void Disjunction::check(ChkLvlVec &levels, Logger &log) const {
     levels.back().current = &levels.back().dep.insertEnt();
-    for (auto const &y : elems_) {
-        levels.emplace_back(loc(), *this);
-        _add(levels, y.second);
-        // check condition first
-        // (although by construction it cannot happen that something in expand binds something in condition)
-        levels.back().check(log);
-        levels.pop_back();
-        for (auto const &head : y.first) {
-            levels.emplace_back(loc(), *this);
-            _add(levels, head.first, false);
-            _add(levels, head.second);
-            _add(levels, y.second);
-            levels.back().check(log);
-            levels.pop_back();
-        }
+    for (auto const &elem : elems_) {
+        elem.check(*this, levels, log);
     }
 }
 
 bool Disjunction::hasPool() const {
-    for (auto const &elem : elems_) {
-        for (auto const &head : elem.first) {
-            if (head.first->hasPool(true)) {
-                return true;
-            }
-            for (auto const &lit : head.second) {
-                if (lit->hasPool(false)) {
-                    return true;
-                }
-            }
-        }
-        for (auto const &lit : elem.second) {
-            if (lit->hasPool(false)) {
-                return true;
-            }
-        }
-    }
-    return false;
+    return std::any_of(elems_.begin(), elems_.end(), [](auto const &elem) { return elem.hasPool(); });
 }
 
 void Disjunction::replace(Defines &x) {
     for (auto &elem : elems_) {
-        for (auto &head : elem.first) {
-            head.first->replace(x);
-            for (auto &y : elem.second) {
-                y->replace(x);
-            }
-        }
-        for (auto &y : elem.second) {
-            y->replace(x);
-        }
+        elem.replace(x);
     }
 }
 
 CreateHead Disjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
-    bool isSimple = true;
-    for (auto const &y : elems_) {
-        if (y.first.size() > 1 || !y.second.empty()) {
-            isSimple = false;
-            break;
-        }
-    }
-    if (isSimple) {
+    if (std::all_of(elems_.begin(), elems_.end(), [](auto const &elem) { return elem.isSimple(); })) {
         DomainData &data = x.domains;
         return [&](Ground::ULitVec &&lits) {
             Ground::AbstractRule::HeadVec heads;
             for (auto const &elem : elems_) {
-                for (auto const &head : elem.first) {
-                    if (UTerm headRepr = head.first->headRepr()) {
-                        PredicateDomain *headDom = &data.add(headRepr->getSig());
-                        heads.emplace_back(std::move(headRepr), headDom);
-                    }
-                }
+                elem.toGroundSimple(x, heads);
             }
             return gringo_make_unique<Ground::Rule<true>>(std::move(heads), std::move(lits));
         };
     }
     stms.emplace_back(gringo_make_unique<Ground::DisjunctionComplete>(x.domains, x.newId(*this)));
     auto &complete = static_cast<Ground::DisjunctionComplete&>(*stms.back()); // NOLINT
-    for (auto const &y : elems_) {
-        UTermVec elemVars;
-        std::unordered_set<String> seen;
-        VarTermBoundVec vars;
-        for (auto const &x : y.second) {
-            x->collect(vars, false);
-        }
-        for (auto &occ : vars) {
-            if (occ.first->level != 0) {
-                seen.emplace(occ.first->name);
-            }
-        }
-        vars.clear();
-        for (auto const &head : y.first) {
-            head.first->collect(vars, false);
-            for (auto const &x : head.second) {
-                x->collect(vars, false);
-            }
-        }
-        for (auto &occ : vars) {
-            if (occ.first->level != 0 && seen.find(occ.first->name) != seen.end()) {
-                elemVars.emplace_back(occ.first->clone());
-                seen.emplace(occ.first->name);
-            }
-        }
-        UTerm elemRepr = x.newId(std::move(elemVars), loc(), true);
-        if (y.first.empty()) {
-            Ground::ULitVec elemCond;
-            for (auto const &z : y.second) {
-                elemCond.emplace_back(z->toGround(x.domains, false));
-            }
-            Ground::ULitVec headCond;
-            headCond.emplace_back(make_locatable<RelationLiteral>(loc(),
-                                                                  Relation::NEQ,
-                                                                  make_locatable<ValTerm>(loc(), Symbol::createNum(0)),
-                                                                  make_locatable<ValTerm>(loc(), Symbol::createNum(0)))->toGround(x.domains, true));
-            stms.emplace_back(gringo_make_unique<Ground::DisjunctionAccumulate>(complete,
-                                                                                nullptr,
-                                                                                nullptr,
-                                                                                std::move(headCond),
-                                                                                std::move(elemRepr),
-                                                                                std::move(elemCond)));
-        }
-        else {
-            for (auto const &head : y.first) {
-                Ground::ULitVec elemCond;
-                for (auto const &z : y.second) {
-                    elemCond.emplace_back(z->toGround(x.domains, false));
-                }
-                Ground::ULitVec headCond;
-                for (auto const &z : head.second) {
-                    headCond.emplace_back(z->toGround(x.domains, false));
-                }
-                UTerm headRepr = head.first->headRepr();
-                PredicateDomain *headDom = headRepr ? &x.domains.add(headRepr->getSig()) : nullptr;
-                stms.emplace_back(gringo_make_unique<Ground::DisjunctionAccumulate>(complete,
-                                                                                    headDom,
-                                                                                    std::move(headRepr),
-                                                                                    std::move(headCond),
-                                                                                    get_clone(elemRepr),
-                                                                                    std::move(elemCond)));
-            }
-        }
+    for (auto const &elem : elems_) {
+        elem.toGround(loc(), complete, x, stms);
     }
     return [&](Ground::ULitVec &&lits) {
         return gringo_make_unique<Ground::DisjunctionRule>(complete, std::move(lits));

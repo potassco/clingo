@@ -409,7 +409,8 @@ TEST_CASE("input-aggregate", "[input]") {
         // head lit aggregate
         REQUIRE("(#Arith0>#sum{p((C+D)):p(#Arith1),#Arith1=(E+F)},[{(A+B):#Arith0}])" == rewrite(hdaggr(AggregateFunction::SUM, boundvec(Relation::LT, aterm("A","B")), condlitvec(alit("C","D"), litvec(alit("E","F"))))));
         // disjunction
-        REQUIRE("(p((C+D))::p(#Arith0),#Arith0=(E+F),#Arith1=(E+F),#Arith1=#Arith0,[{}])" == rewrite(hdaggr(condlitvec(alit("C","D"), litvec(alit("E","F"))))));
+        std::cerr << hdaggr(condlitvec(alit("C","D"), litvec(alit("E","F")))) << std::endl;
+        REQUIRE("(p((C+D))::p(#Arith0),#Arith0=(E+F),[{}])" == rewrite(hdaggr(condlitvec(alit("C","D"), litvec(alit("E","F"))))));
     }
 
 }
