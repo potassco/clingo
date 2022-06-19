@@ -249,6 +249,20 @@ TEST_CASE("input-program", "[input]") {
                 "}." == rewrite(parse("q :- #count{ 1:not 1<(2;3)<4 } >= 1.")));
     }
 
+    SECTION("iesolve") {
+        // conjunction
+        REQUIRE("q:-p(X):1<=X,X<=3,#range(X,1,3)." ==  rewrite(parse("q :- p(X): 1 <= X <= 3.")));
+        // disjunction
+        REQUIRE("p(X)::1<=X,X<=3,#range(X,1,3)." ==  rewrite(parse("p(X): 1 <= X <= 3.")));
+        // head aggregate
+        REQUIRE("2<=#count{X:p(X):1<=X,X<=3,#range(X,1,3)}<=3." ==  rewrite(parse("2 #count { X: p(X): 1 <= X <= 3 } 3.")));
+        // body aggregate
+        REQUIRE("q:-2<=#count{0,p(X):1<=X,X<=3,p(X),#range(X,1,3)}<=3." ==  rewrite(parse("q :- 2 { p(X): 1 <= X <= 3 } 3.")));
+        REQUIRE("q:-2<=#count{X:p(X),1<=X,X<=3,#range(X,1,3)}<=3." ==  rewrite(parse("q :- 2 #count { X: p(X), 1 <= X <= 3 } 3.")));
+        // rule
+        REQUIRE("q:-#range(X,1,3);p(X);1<=X;X<=3." ==  rewrite(parse("q :- p(X), 1 <= X <= 3.")));
+    }
+
     SECTION("defines") {
         REQUIRE("p(1):-q." ==  rewrite(parse("#const a=1.#const b=a.#const c=b.#const d=c.p(d):-q.")));
         REQUIRE("p(2):-q." ==  rewrite(parse("#const c=a+b.#const b=a.#const a=1.p(c):-q.")));
