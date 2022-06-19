@@ -27,3 +27,4 @@ dist
 MANIFEST
 libgringo/gen/
 .cache
+.gdb_history
