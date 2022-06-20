@@ -30,6 +30,16 @@ class TestControl(TestCase):
     '''
     Tests basic functions of the control object.
     '''
+    def test_default(self):
+        '''
+        Test grounding with context and parameters.
+        '''
+        ctl = Control()
+        ctl.add('p.')
+        ctl.ground()
+        symbols = [atom.symbol for atom in ctl.symbolic_atoms]
+        self.assertEqual(sorted(symbols), [Function('p', [])])
+
     def test_ground(self):
         '''
         Test grounding with context and parameters.
