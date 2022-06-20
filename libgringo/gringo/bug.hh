@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef __GRINGO_MINGW_H
-#define __GRINGO_MINGW_H
+#ifndef GRINGO_BUG_H
+#define GRINGO_BUG_H
 
 #include <iterator>
 
@@ -33,8 +33,8 @@
 #undef _GLIBCXX_MAKE_MOVE_ITERATOR
 #undef _GLIBCXX_MAKE_MOVE_IF_NOEXCEPT_ITERATOR
 
-#define _GLIBCXX_MAKE_MOVE_ITERATOR(_Iter) std::make_move_iterator(_Iter)
-#define _GLIBCXX_MAKE_MOVE_IF_NOEXCEPT_ITERATOR(_Iter) std::make_move_iterator(_Iter)
+#define _GLIBCXX_MAKE_MOVE_ITERATOR(_Iter) std::make_move_iterator(_Iter) // NOLINT
+#define _GLIBCXX_MAKE_MOVE_IF_NOEXCEPT_ITERATOR(_Iter) std::make_move_iterator(_Iter) // NOLINT
 
 #ifdef MISSING_STD_TO_STRING
 
@@ -82,4 +82,4 @@ inline string to_string(unsigned long long x) {
 
 #endif // MISSING_STD_TO_STRING
 
-#endif // __GRINGO_MINGW_H
+#endif // GRINGO_BUG_H

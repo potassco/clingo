@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_SAFETYCHECK_HH
-#define _GRINGO_SAFETYCHECK_HH
+#ifndef GRINGO_SAFETYCHECK_HH
+#define GRINGO_SAFETYCHECK_HH
 
 #include <vector>
 #include <forward_list>
@@ -184,4 +184,4 @@ typename SafetyChecker<Var, Ent>::VarVec SafetyChecker<Var, Ent>::open() {
 
 } // namespace Gringo
 
-#endif // _GRINGO_SAFETYCHECK_HH
+#endif // GRINGO_SAFETYCHECK_HH

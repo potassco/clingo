@@ -28,7 +28,6 @@
 
 namespace Gringo { namespace Input {
 
-GroundTermParser::GroundTermParser() { }
 Symbol GroundTermParser::parse(std::string const &str, Logger &log) {
     log_ = &log;
     undefined_ = false;
@@ -36,7 +35,7 @@ Symbol GroundTermParser::parse(std::string const &str, Logger &log) {
     push(gringo_make_unique<std::stringstream>(str), 0);
     GroundTermGrammar::parser parser(this);
     parser.parse();
-    return undefined_ ? Symbol() : value;
+    return undefined_ ? Symbol() : value_;
 }
 
 Symbol GroundTermParser::term(BinOp op, Symbol a, Symbol b) {
@@ -73,9 +72,7 @@ Symbol GroundTermParser::tuple(unsigned uid, bool forceTuple) {
     if (!forceTuple && args.size() == 1) {
         return args.front();
     }
-    else {
-        return Symbol::createTuple(Potassco::toSpan(args));
-    }
+    return Symbol::createTuple(Potassco::toSpan(args));
 }
 
 unsigned GroundTermParser::terms(unsigned uid, Symbol a) {
@@ -87,14 +84,16 @@ SymVec GroundTermParser::terms(unsigned uid) {
     return terms_.erase(uid);
 }
 
-void GroundTermParser::parseError(std::string const &message, Logger &) {
+void GroundTermParser::parseError(std::string const &message, Logger &log) {
+    static_cast<void>(log);
     Location loc("<string>", line(), column(), "<string>", line(), column());
     std::ostringstream oss;
     oss << loc << ": " << "error: " << message << "\n";
     throw GringoError(oss.str().c_str());
 }
 
-void GroundTermParser::lexerError(StringSpan token, Logger &) {
+void GroundTermParser::lexerError(StringSpan token, Logger &log) {
+    static_cast<void>(log);
     Location loc("<string>", line(), column(), "<string>", line(), column());
     std::ostringstream oss;
     oss << loc << ": " << "error: unexpected token:\n"
@@ -106,7 +105,9 @@ int GroundTermParser::lex(void *pValue, Logger &log) {
     return lex_impl(pValue, log);
 }
 
-GroundTermParser::~GroundTermParser() { }
+void GroundTermParser::setValue(Symbol value) {
+    value_ = value;
+}
 
 } }
 

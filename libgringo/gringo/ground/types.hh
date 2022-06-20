@@ -22,24 +22,10 @@
 
 // }}}
 
-#ifndef _GRINGO_GROUND_TYPES_HH
-#define _GRINGO_GROUND_TYPES_HH
+#ifndef GRINGO_GROUND_TYPES_HH
+#define GRINGO_GROUND_TYPES_HH
 
 #include <gringo/output/types.hh>
 
-namespace Gringo { namespace Ground {
-
-class Statement;
-class Literal;
-using ULit = std::unique_ptr<Literal>;
-using ULitVec = std::vector<ULit>;
-using Gringo::Output::PredicateDomain;
-using Gringo::Output::PredDomMap;
-using Gringo::Output::DomainData;
-using UStm = std::unique_ptr<Statement>;
-using UStmVec = std::vector<UStm>;
-
-} } // namespace Input Gringo
-
-#endif // _GRINGO_GROUND_TYPES_HH
+#endif // GRINGO_GROUND_TYPES_HH
 

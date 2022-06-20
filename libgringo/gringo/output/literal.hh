@@ -22,14 +22,25 @@
 
 // }}}
 
-#ifndef _GRINGO_OUTPUT_LITERAL_HH
-#define _GRINGO_OUTPUT_LITERAL_HH
+#ifndef GRINGO_OUTPUT_LITERAL_HH
+#define GRINGO_OUTPUT_LITERAL_HH
 
 #include <gringo/domain.hh>
 #include <gringo/output/types.hh>
 #include <potassco/theory_data.h>
 
 namespace Gringo { namespace Output {
+
+// TODO: There should not be any forward declarations here. The
+// PredicateLiteral and Domain can simply be defined here as well. The
+// translator is more difficult. Doing this cleanly requires a Translator
+// interface. This is probably worth it to obtain a nicer interface.
+class DomainData;
+class Translator;
+class PredicateDomain;
+struct UPredDomHash;
+struct UPredDomEqualTo;
+using PredDomMap = UniqueVec<std::unique_ptr<PredicateDomain>, UPredDomHash, UPredDomEqualTo>;
 
 // {{{1 declaration of PrintPlain
 
@@ -60,27 +71,61 @@ enum class AtomType : uint32_t {
     // TODO: consider a hidden predicate domain for internal purposes
 };
 
+class LiteralId;
+using LitVec = std::vector<LiteralId>;
+
 class LiteralId {
 public:
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
     explicit LiteralId(uint64_t repr)
     : repr_(repr) { }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
     LiteralId()
     : repr_(std::numeric_limits<uint64_t>::max()) { }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
     LiteralId(NAF sign, AtomType type, Potassco::Id_t offset, Potassco::Id_t domain)
     : data_{static_cast<uint32_t>(sign), static_cast<uint32_t>(type), domain, offset} { }
-    Potassco::Id_t offset() const { return data_.offset; }
-    Potassco::Id_t domain() const { return data_.domain; }
-    AtomType type() const { return static_cast<AtomType>(data_.type); }
-    NAF sign() const { return static_cast<NAF>(data_.sign); }
-    bool invertible() const { return sign() != NAF::POS; }
-    LiteralId negate(bool recursive=true) const { return LiteralId(inv(sign(), recursive), type(), offset(), domain()); }
-    bool operator==(LiteralId const &other) const { return repr_ == other.repr_; }
-    bool operator<(LiteralId const &other) const { return repr_ < other.repr_; }
-    uint64_t repr() const { return repr_; }
-    bool valid() const { return repr_ != std::numeric_limits<uint64_t>::max(); }
-    LiteralId withSign(NAF naf) const { return {naf, type(), offset(), domain()}; }
-    LiteralId withOffset(Id_t offset) const { return {sign(), type(), offset, domain()}; }
-    operator bool() const { return valid(); }
+    Potassco::Id_t offset() const {
+        return data_.offset;
+    }
+    Potassco::Id_t domain() const {
+        return data_.domain;
+    }
+    AtomType type() const {
+        return static_cast<AtomType>(data_.type);
+    }
+    NAF sign() const {
+        return static_cast<NAF>(data_.sign);
+    }
+    bool invertible() const {
+        return sign() != NAF::POS;
+    }
+    LiteralId negate(bool recursive=true) const {
+        return {inv(sign(), recursive), type(), offset(), domain()};
+    }
+    bool operator==(LiteralId const &other) const {
+        return repr_ == other.repr_;
+    }
+    bool operator<(LiteralId const &other) const {
+        return repr_ < other.repr_;
+    }
+    uint64_t repr() const {
+        return repr_;
+    }
+    bool valid() const {
+        return repr_ != std::numeric_limits<uint64_t>::max();
+    }
+    LiteralId withSign(NAF naf) const {
+        return {naf, type(), offset(), domain()};
+    }
+    LiteralId withOffset(Id_t offset) const {
+        return {sign(), type(), offset, domain()};
+    }
+    operator bool() const {
+        return valid();
+    }
+    // NOLINTEND(cppcoreguidelines-pro-type-union-access)
 
 private:
     struct Data {
@@ -133,6 +178,13 @@ using Mappings = std::vector<Mapping>;
 
 class Literal {
 public:
+    Literal() = default;
+    Literal(Literal const &other) = default;
+    Literal(Literal &&other) noexcept = default;
+    Literal &operator=(Literal const &other) = default;
+    Literal &operator=(Literal &&other) noexcept = default;
+    virtual ~Literal() noexcept = default;
+
     // Shall return true if the literal was defined in a previous step.
     // Modularity guarantees that there is no cycle involing atoms from
     // the current step through such a literal.
@@ -157,14 +209,13 @@ public:
     virtual bool needsSemicolon() const;
     virtual bool isPositive() const;
     // Maps true and false literals to a unique literal and remaps the offsets of predicate literals.
-    virtual LiteralId simplify(Mappings &mappings, AssignmentLookup lookup) const;
-    virtual bool isTrue(IsTrueLookup) const;
+    virtual LiteralId simplify(Mappings &mappings, AssignmentLookup const &lookup) const;
+    virtual bool isTrue(IsTrueLookup const &lookup) const;
     virtual Lit_t uid() const = 0;
-    virtual ~Literal() { }
 };
 
 // returns true if all literals in lits are true
-bool isTrueClause(DomainData &data, LitVec &lits, IsTrueLookup lookup);
+bool isTrueClause(DomainData &data, LitVec &lits, IsTrueLookup const &lookup);
 
 // {{{1 declaration of TupleId
 
@@ -195,10 +246,12 @@ struct hash<Gringo::Output::LiteralId> : private std::hash<uint64_t> {
 
 template <>
 struct hash<Gringo::Output::TupleId> {
-    size_t operator()(Gringo::Output::TupleId t) const { return Gringo::get_value_hash(t.offset, t.size); }
+    size_t operator()(Gringo::Output::TupleId t) const {
+        return Gringo::get_value_hash(t.offset, t.size);
+    }
 };
 
 } // namespace std
 
-#endif // _GRINGO_OUTPUT_LITERAL_HH
+#endif // GRINGO_OUTPUT_LITERAL_HH
 

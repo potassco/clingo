@@ -120,17 +120,18 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("#void:-1>=2;q.#void:-2>=3;q." == rewrite(parse("1<2<3:-q.")));
         REQUIRE("#void:-2<3;1<2;q." == rewrite(parse("not 1<2<3:-q.")));
         REQUIRE("#void::;#void:::-5<6;4<5;2<3;1<2;q." == rewrite(parse("not 1<2<3|not 4<5<6:-q.")));
-        REQUIRE("#void:-#range(#Range0,1,2);q;1>=(#Range0+0).#void:-#range(#Range0,1,2);q;(#Range0+0)>=3." == rewrite(parse("1<1..2<3:-q.")));
-        REQUIRE("#void:-#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
+        REQUIRE("#void:-#range(#Range0,1,1);#range(#Range0,1,2);q;1>=(#Range0+0)."
+                "#void:-#range(#Range0,1,0);#range(#Range0,1,2);q;(#Range0+0)>=3." == rewrite(parse("1<1..2<3:-q.")));
+        REQUIRE("#void:-#range(#Range0,2,2);#range(#Range0,1,2);q;1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("not 1<1..2<3:-q.")));
         REQUIRE("#void:-1>=2;q.#void:-2>=4;q.#void:-1>=3;q.#void:-3>=4;q." == rewrite(parse("1<(2;3)<4:-q.")));
         REQUIRE("#void:-2<4;1<2;q.#void:-3<4;1<3;q." == rewrite(parse("not 1<(2;3)<4:-q.")));
         // body
         REQUIRE("q:-2<3;1<2." == rewrite(parse("q :- 1<2<3.")));
         REQUIRE("q:-1>=2."
                 "q:-2>=3." == rewrite(parse("q :- not 1<2<3.")));
-        REQUIRE("q:-#range(#Range0,1,2);1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("q :- 1<1..2<3.")));
-        REQUIRE("q:-#range(#Range0,1,2);1>=(#Range0+0)."
-                "q:-#range(#Range0,1,2);(#Range0+0)>=3." == rewrite(parse("q :- not 1<1..2<3.")));
+        REQUIRE("q:-#range(#Range0,2,2);#range(#Range0,1,2);1<(#Range0+0);(#Range0+0)<3." == rewrite(parse("q :- 1<1..2<3.")));
+        REQUIRE("q:-#range(#Range0,1,1);#range(#Range0,1,2);1>=(#Range0+0)."
+                "q:-#range(#Range0,1,0);#range(#Range0,1,2);(#Range0+0)>=3." == rewrite(parse("q :- not 1<1..2<3.")));
         REQUIRE("q:-2<4;1<2."
                 "q:-3<4;1<3." == rewrite(parse("q :- 1<(2;3)<4.")));
         REQUIRE("q:-1>=2."
@@ -165,7 +166,9 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("h:-a:1<(#Range0+0),(#Range0+0)<4,#range(#Range0,2,3)." == rewrite(parse("h:-a:1<(2..3)<4.")));
         // Note: should be correct
         REQUIRE("h:-1>=(#Range0+0)&#range(#Range0,2,3)|(#Range0+0)>=4&#range(#Range0,2,3):a." == rewrite(parse("h:-not 1<(2..3)<4:a.")));
-        REQUIRE("h:-a:(#Range0+0)>=4,#range(#Range0,2,3);a:1>=(#Range0+0),#range(#Range0,2,3)." == rewrite(parse("h:-a:not 1<(2..3)<4.")));
+        REQUIRE("h:-"
+                "a:(#Range0+0)>=4,#range(#Range0,2,3),#range(#Range0,1,0);"
+                "a:1>=(#Range0+0),#range(#Range0,2,3),#range(#Range0,1,0)." == rewrite(parse("h:-a:not 1<(2..3)<4.")));
         // set based head aggregates
         REQUIRE("1<=#count{3:#void:1<2}:-q." == rewrite(parse("{ 1<2 } >= 1:-q.")));
         REQUIRE("1<=#count{"
@@ -244,6 +247,20 @@ TEST_CASE("input-program", "[input]") {
                 "1:1>=3;"
                 "1:3>=4"
                 "}." == rewrite(parse("q :- #count{ 1:not 1<(2;3)<4 } >= 1.")));
+    }
+
+    SECTION("iesolve") {
+        // conjunction
+        REQUIRE("q:-p(X):1<=X,X<=3,#range(X,1,3)." ==  rewrite(parse("q :- p(X): 1 <= X <= 3.")));
+        // disjunction
+        REQUIRE("p(X)::1<=X,X<=3,#range(X,1,3)." ==  rewrite(parse("p(X): 1 <= X <= 3.")));
+        // head aggregate
+        REQUIRE("2<=#count{X:p(X):1<=X,X<=3,#range(X,1,3)}<=3." ==  rewrite(parse("2 #count { X: p(X): 1 <= X <= 3 } 3.")));
+        // body aggregate
+        REQUIRE("q:-2<=#count{0,p(X):1<=X,X<=3,p(X),#range(X,1,3)}<=3." ==  rewrite(parse("q :- 2 { p(X): 1 <= X <= 3 } 3.")));
+        REQUIRE("q:-2<=#count{X:p(X),1<=X,X<=3,#range(X,1,3)}<=3." ==  rewrite(parse("q :- 2 #count { X: p(X), 1 <= X <= 3 } 3.")));
+        // rule
+        REQUIRE("q:-#range(X,1,3);p(X);1<=X;X<=3." ==  rewrite(parse("q :- p(X), 1 <= X <= 3.")));
     }
 
     SECTION("defines") {

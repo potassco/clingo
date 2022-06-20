@@ -43,19 +43,34 @@ namespace {
 Output::DisjunctiveBounds _initBounds(BoundVec const &bounds, Logger &log) {
     Output::DisjunctiveBounds set;
     set.add({{Symbol::createInf(),true}, {Symbol::createSup(),true}});
-    for (auto &x : bounds) {
+    for (auto const &x : bounds) {
         bool undefined = false;
         Symbol v(x.bound->eval(undefined, log));
         assert(!undefined);
         switch (x.rel) {
-            case Relation::GEQ: { set.remove({{Symbol::createInf(),true},{v,false}          }); break; }
-            case Relation::GT:  { set.remove({{Symbol::createInf(),true},{v,true}           }); break; }
-            case Relation::LEQ: { set.remove({{v,false},                {Symbol::createSup(),true}}); break; }
-            case Relation::LT:  { set.remove({{v,true},                 {Symbol::createSup(),true}}); break; }
-            case Relation::NEQ: { set.remove({{v,true},                 {v,true}           }); break; }
+            case Relation::GEQ: {
+                set.remove({{Symbol::createInf(), true}, {v, false}});
+                break;
+            }
+            case Relation::GT:  {
+                set.remove({{Symbol::createInf(), true}, {v, true}});
+                break;
+            }
+            case Relation::LEQ: {
+                set.remove({{v, false}, {Symbol::createSup(), true}});
+                break;
+            }
+            case Relation::LT:  {
+                set.remove({{v, true}, {Symbol::createSup(), true}});
+                break;
+            }
+            case Relation::NEQ: {
+                set.remove({{v, true}, {v, true}});
+                break;
+            }
             case Relation::EQ: {
-                set.remove({{v,false},                {Symbol::createSup(),true}});
-                set.remove({{Symbol::createInf(),true},{v,false}          });
+                set.remove({{v, false}, {Symbol::createSup(), true}});
+                set.remove({{Symbol::createInf(), true}, {v, false}});
                 break;
             }
         }
@@ -74,14 +89,16 @@ struct Ent {
 };
 using SC  = SafetyChecker<unsigned, Ent>;
 
-InstVec _linearize(Logger &log, Context &context, bool positive, SolutionCallback &cb, Term::VarSet &&important, ULitVec const &lits, Term::VarSet boundInitially = Term::VarSet()) {
+InstVec _linearize(Logger &log, Context &context, bool positive, SolutionCallback &cb, Term::VarSet &&important, ULitVec const &lits, Term::VarSet const &boundInitially = Term::VarSet()) {
     InstVec insts;
     std::vector<unsigned> rec;
     std::vector<std::vector<std::pair<BinderType,Literal*>>> todo{1};
     unsigned i{0};
-    for (auto &x : lits) {
+    for (auto const &x : lits) {
         todo.back().emplace_back(BinderType::ALL, x.get());
-        if (x->isRecursive() && x->occurrence() && !x->occurrence()->isNegative()) { rec.emplace_back(i); }
+        if (x->isRecursive() && x->occurrence() != nullptr && !x->occurrence()->isNegative()) {
+            rec.emplace_back(i);
+        }
         ++i;
     }
     todo.reserve(std::max(std::vector<unsigned>::size_type(1), rec.size()));
@@ -94,8 +111,10 @@ InstVec _linearize(Logger &log, Context &context, bool positive, SolutionCallbac
         }
     }
     if (!positive) {
-        for (auto &lit : lits) {
-            if (!lit->auxiliary()) { lit->collectImportant(important); }
+        for (auto const &lit : lits) {
+            if (!lit->auxiliary()) {
+                lit->collectImportant(important);
+            }
         }
     }
     for (auto &x : todo) {
@@ -111,12 +130,16 @@ InstVec _linearize(Logger &log, Context &context, bool positive, SolutionCallbac
             for (auto &occ : vars) {
                 if (bound.find(occ.first->name) == bound.end()) {
                     auto &varNode(varMap[occ.first->name]);
-                    if (!varNode)   {
+                    if (varNode == nullptr)   {
                         varNode = &s.insertVar(numeric_cast<unsigned>(boundBy.size()));
                         boundBy.emplace_back(occ.first->name, std::vector<unsigned>{});
                     }
-                    if (occ.second) { s.insertEdge(entNode, *varNode); }
-                    else            { s.insertEdge(*varNode, entNode); }
+                    if (occ.second) {
+                        s.insertEdge(entNode, *varNode);
+                    }
+                    else {
+                        s.insertEdge(*varNode, entNode);
+                    }
                     entNode.data.vars.emplace_back(varNode->data);
                 }
             }
@@ -127,8 +150,12 @@ InstVec _linearize(Logger &log, Context &context, bool positive, SolutionCallbac
             double sx(x.lit.score(bound, log));
             double sy(y.lit.score(bound, log));
             //std::cerr << "  " << x.lit << "@" << sx << " < " << y.lit << "@" << sy << " with " << bound.size() << std::endl;
-            if (sx < 0 || sy < 0) { return sx < sy; }
-            if ((x.type == BinderType::NEW || y.type == BinderType::NEW) && x.type != y.type) { return x.type < y.type; }
+            if (sx < 0 || sy < 0) {
+                return sx < sy;
+            }
+            if ((x.type == BinderType::NEW || y.type == BinderType::NEW) && x.type != y.type) {
+                return x.type < y.type;
+            }
             return sx < sy;
         };
 
@@ -136,21 +163,29 @@ InstVec _linearize(Logger &log, Context &context, bool positive, SolutionCallbac
         s.init(open);
         while (!open.empty()) {
             for (auto it = open.begin(), end = open.end() - 1; it != end; ++it) {
-                if (pred((*it)->data, open.back()->data)) { std::swap(open.back(), *it); }
+                if (pred((*it)->data, open.back()->data)) {
+                    std::swap(open.back(), *it);
+                }
             }
-            auto y = open.back();
+            auto *y = open.back();
             for (auto &var : y->data.vars) {
                 auto &bb(boundBy[var]);
                 if (bound.find(bb.first) == bound.end()) {
                     bb.second.emplace_back(uid);
-                    if ((depend.empty() || depend.back() != uid) && important.find(bb.first) != important.end()) { depend.emplace_back(uid); }
+                    if ((depend.empty() || depend.back() != uid) && important.find(bb.first) != important.end()) {
+                        depend.emplace_back(uid);
+                    }
                 }
-                else { y->data.depends.insert(y->data.depends.end(), bb.second.begin(), bb.second.end()); }
+                else {
+                    y->data.depends.insert(y->data.depends.end(), bb.second.begin(), bb.second.end());
+                }
             }
             auto index(y->data.lit.index(context, y->data.type, bound));
-            if (auto update = index->getUpdater()) {
+            if (auto *update = index->getUpdater()) {
                 if (BodyOcc *occ = y->data.lit.occurrence()) {
-                    for (HeadOccurrence &x : occ->definedBy()) { x.defines(*update, y->data.type == BinderType::NEW ? &insts.back() : nullptr); }
+                    for (HeadOccurrence &x : occ->definedBy()) {
+                        x.defines(*update, y->data.type == BinderType::NEW ? &insts.back() : nullptr);
+                    }
                 }
             }
             std::sort(y->data.depends.begin(), y->data.depends.end());
@@ -175,17 +210,33 @@ UTerm completeRepr_(UTerm const &repr) {
 
 // {{{2 definition of BindOnce
 
-struct BindOnce : Binder, IndexUpdater {
-    IndexUpdater *getUpdater() override { return this; }
-    bool update() override { return true; }
-    void match(Logger &) override { once = true; }
+class BindOnce : public Binder, public IndexUpdater {
+public:
+    IndexUpdater *getUpdater() override {
+        return this;
+    }
+
+    bool update() override {
+        return true;
+    }
+
+    void match(Logger &log) override {
+        static_cast<void>(log);
+        once_ = true;
+    }
+
     bool next() override {
-        bool ret = once;
-        once = false;
+        bool ret = once_;
+        once_ = false;
         return ret;
     }
-    void print(std::ostream &out) const override { out << "#once"; }
-    bool once;
+
+    void print(std::ostream &out) const override {
+        out << "#once_";
+    }
+
+private:
+    bool once_ = false;
 };
 
 // {{{2 operator <<
@@ -201,17 +252,29 @@ std::ostream &operator <<(std::ostream &out, std::vector<T> const &x) {
     if (!x.empty()) {
         for (auto it = x.begin(), ie = x.end(); ; ) {
             out << *it;
-            if (++it != ie) { out << ","; }
-            else { break; }
+            if (++it != ie) {
+                out << ",";
+            }
+            else {
+                break;
+            }
         }
     }
     return out;
 }
 std::ostream &operator <<(std::ostream &out, OccurrenceType x) {
     switch (x) {
-        case OccurrenceType::POSITIVELY_STRATIFIED: { break; }
-        case OccurrenceType::STRATIFIED:            { out << "!"; break; }
-        case OccurrenceType::UNSTRATIFIED:          { out << "?"; break; }
+        case OccurrenceType::POSITIVELY_STRATIFIED: {
+            break;
+        }
+        case OccurrenceType::STRATIFIED: {
+            out << "!";
+            break;
+        }
+        case OccurrenceType::UNSTRATIFIED: {
+            out << "?";
+            break;
+        }
     }
     return out;
 }
@@ -223,21 +286,29 @@ std::ostream &operator <<(std::ostream &out, OccurrenceType x) {
 // }}}1
 // {{{1 definition of HeadDefinition
 
-HeadDefinition::HeadDefinition(UTerm &&repr, Domain *domain)
+HeadDefinition::HeadDefinition(UTerm repr, Domain *domain)
 : repr_(std::move(repr))
 , domain_(domain) { }
 
 void HeadDefinition::defines(IndexUpdater &update, Instantiator *inst) {
     auto ret(offsets_.emplace(&update, numeric_cast<unsigned>(enqueueVec_.size())));
-    if (ret.second) { enqueueVec_.emplace_back(&update, RInstVec{}); }
-    if (active_ && inst) { enqueueVec_[ret.first->second].second.emplace_back(*inst); }
+    if (ret.second) {
+        enqueueVec_.emplace_back(&update, RInstVec{});
+    }
+    if (active_ && inst != nullptr) {
+        enqueueVec_[ret.first->second].second.emplace_back(*inst);
+    }
 }
 
 void HeadDefinition::enqueue(Queue &queue) {
-    if (domain_) { queue.enqueue(*domain_); }
+    if (domain_ != nullptr) {
+        queue.enqueue(*domain_);
+    }
     for (auto &x : enqueueVec_) {
         if (x.first->update()) {
-            for (Instantiator &y : x.second) { y.enqueue(queue); }
+            for (Instantiator &y : x.second) {
+                y.enqueue(queue);
+            }
         }
     }
 }
@@ -246,22 +317,20 @@ void HeadDefinition::collectImportant(Term::VarSet &vars) {
     if (repr_) {
         VarTermBoundVec x;
         repr_->collect(x, false);
-        for (auto &occ : x) { vars.emplace(occ.first->name); }
+        for (auto &occ : x) {
+            vars.emplace(occ.first->name);
+        }
     }
 }
 
-HeadDefinition::~HeadDefinition() noexcept = default;
-
 //{{{1 definition of AbstractStatement
 
-AbstractStatement::AbstractStatement(UTerm &&repr, Domain *domain, ULitVec &&lits)
+AbstractStatement::AbstractStatement(UTerm repr, Domain *domain, ULitVec lits)
 : def_(std::move(repr), domain)
 , lits_(std::move(lits)) { }
 
-AbstractStatement::~AbstractStatement() noexcept = default;
-
 bool AbstractStatement::isOutputRecursive() const {
-    for (auto &x : lits_) {
+    for (auto const &x : lits_) {
         // TODO: only postive literals are relevant here!
         if (!x->auxiliary() && x->isRecursive()) {
             return true;
@@ -270,19 +339,25 @@ bool AbstractStatement::isOutputRecursive() const {
     return false;
 }
 
-bool AbstractStatement::isNormal() const { return false; }
+bool AbstractStatement::isNormal() const {
+    return false;
+}
 
 void AbstractStatement::analyze(Dep::Node &node, Dep &dep) {
     def_.analyze(node, dep);
     for (auto &x : lits_) {
-        auto occ(x->occurrence());
-        if (occ) { dep.depends(node, *occ, false); }
+        auto *occ(x->occurrence());
+        if (occ != nullptr) {
+            dep.depends(node, *occ, false);
+        }
     }
 }
 
 void AbstractStatement::startLinearize(bool active) {
     def_.setActive(active);
-    if (active) { insts_.clear(); }
+    if (active) {
+        insts_.clear();
+    }
 }
 
 void AbstractStatement::collectImportant(Term::VarSet &vars) {
@@ -296,12 +371,18 @@ void AbstractStatement::linearize(Context &context, bool positive, Logger &log) 
 
 void AbstractStatement::enqueue(Queue &q) {
     def_.init();
-    for (auto &x : insts_) { x.enqueue(q); }
+    for (auto &x : insts_) {
+        x.enqueue(q);
+    }
 }
 
 void AbstractStatement::printHead(std::ostream &out) const {
-    if (def_) { out << *def_.domRepr(); }
-    else      { out << "#false"; }
+    if (def_) {
+        out << *def_.domRepr();
+    }
+    else {
+        out << "#false";
+    }
 }
 void AbstractStatement::printBody(std::ostream &out) const {
     out << lits_;
@@ -329,7 +410,9 @@ void AbstractStatement::propagate(Queue &queue) {
 ExternalRule::ExternalRule()
 : def_(make_locatable<ValTerm>(Location("#external", 1, 1, "#external", 1, 1), Symbol::createId("#external")), nullptr) { }
 
-bool ExternalRule::isNormal() const { return false; }
+bool ExternalRule::isNormal() const {
+    return false;
+}
 
 void ExternalRule::analyze(Dep::Node &node, Dep &dep) {
     def_.analyze(node, dep);
@@ -339,19 +422,23 @@ void ExternalRule::startLinearize(bool active) {
     def_.setActive(active);
 }
 
-void ExternalRule::linearize(Context &, bool, Logger &) { }
+void ExternalRule::linearize(Context &context, bool positive, Logger &logger) {
+    static_cast<void>(context);
+    static_cast<void>(positive);
+    static_cast<void>(logger);
+}
 
-void ExternalRule::enqueue(Queue &) { }
+void ExternalRule::enqueue(Queue &queue) {
+    static_cast<void>(queue);
+}
 
 void ExternalRule::print(std::ostream &out) const {
     out << "#external.";
 }
 
-ExternalRule::~ExternalRule() noexcept = default;
-
 //{{{1 definition of AbstractRule
 
-AbstractRule::AbstractRule(HeadVec &&heads, ULitVec &&lits)
+AbstractRule::AbstractRule(HeadVec heads, ULitVec lits)
 : lits_(std::move(lits)) {
     defs_.reserve(heads.size());
     for (auto &head : heads) {
@@ -360,56 +447,77 @@ AbstractRule::AbstractRule(HeadVec &&heads, ULitVec &&lits)
     }
 }
 
-AbstractRule::~AbstractRule() noexcept = default;
-
 void AbstractRule::analyze(Dep::Node &node, Dep &dep) {
-    for (auto &def : defs_) { def.analyze(node, dep); }
+    for (auto &def : defs_) {
+        def.analyze(node, dep);
+    }
     for (auto &x : lits_) {
-        auto occ(x->occurrence());
-        if (occ) { dep.depends(node, *occ, false); }
+        auto *occ(x->occurrence());
+        if (occ != nullptr) {
+            dep.depends(node, *occ, false);
+        }
     }
 }
 
 void AbstractRule::startLinearize(bool active) {
-    for (auto &def : defs_) { def.setActive(active); }
-    if (active) { insts_.clear(); }
+    for (auto &def : defs_) {
+        def.setActive(active);
+    }
+    if (active) {
+        insts_.clear();
+    }
 }
 
 void AbstractRule::linearize(Context &context, bool positive, Logger &log) {
     Term::VarSet important;
-    for (auto &def : defs_) { def.collectImportant(important); }
+    for (auto &def : defs_) {
+        def.collectImportant(important);
+    }
     insts_ = _linearize(log, context, positive, *this, std::move(important), lits_);
 }
 
 void AbstractRule::enqueue(Queue &q) {
-    for (auto &def : defs_) { def.init(); }
-    for (auto &x : insts_) { x.enqueue(q); }
+    for (auto &def : defs_) {
+        def.init();
+    }
+    for (auto &x : insts_) {
+        x.enqueue(q);
+    }
 }
 
 void AbstractRule::propagate(Queue &queue) {
-    for (auto &def : defs_) { def.enqueue(queue); }
+    for (auto &def : defs_) {
+        def.enqueue(queue);
+    }
 }
 
 //{{{1 definition of Rule
 
 template <bool disjunctive>
-Rule<disjunctive>::Rule(HeadVec &&heads, ULitVec &&lits)
+Rule<disjunctive>::Rule(HeadVec heads, ULitVec lits)
 : AbstractRule(std::move(heads), std::move(lits)) { }
 
 template <bool disjunctive>
-Rule<disjunctive>::~Rule() noexcept = default;
-
-template <bool disjunctive>
 void Rule<disjunctive>::printHead(std::ostream &out) const {
-    if (!disjunctive)       { out << "{"; }
-    else if (defs_.empty()) { out << "#false"; }
+    if (!disjunctive) {
+        out << "{";
+    }
+    else if (defs_.empty()) {
+        out << "#false";
+    }
     bool sep = false;
     for (auto &def : defs_) {
-        if (sep) { out << ";"; }
-        else { sep = true; }
+        if (sep) {
+            out << ";";
+        }
+        else {
+            sep = true;
+        }
         out << *def.domRepr();
     }
-    if (!disjunctive) { out << "}"; }
+    if (!disjunctive) {
+        out << "}";
+    }
 }
 
 template <bool disjunctive>
@@ -432,19 +540,25 @@ void Rule<disjunctive>::report(Output::OutputBase &out, Logger &log) {
     Output::Rule &rule(out.tempRule(!disjunctive));
     bool fact = true;
     for (auto &x : lits_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto ret = x->toOutput(log);
         if (ret.first.valid() && (out.keepFacts || !ret.second)) {
             rule.addBody(ret.first);
         }
-        if (!ret.second) { fact = false; }
+        if (!ret.second) {
+            fact = false;
+        }
     }
     for (auto &def : defs_) {
         bool undefined = false;
         Symbol val = def.domRepr()->eval(undefined, log);
         if (undefined) {
-            if (!disjunctive) { continue; }
-            else              { return; }
+            if (!disjunctive) {
+                continue;
+            }
+            return;
         }
         auto &dom = static_cast<PredicateDomain&>(def.dom());
         auto ret(dom.define(val));
@@ -452,10 +566,14 @@ void Rule<disjunctive>::report(Output::OutputBase &out, Logger &log) {
             Potassco::Id_t offset = static_cast<Potassco::Id_t>(ret.first - dom.begin());
             rule.addHead({NAF::POS, Output::AtomType::Predicate, offset, dom.domainOffset()});
         }
-        else if (!!disjunctive) { return; }
+        else if (disjunctive) {
+            return;
+        }
     }
-    if (!disjunctive && rule.numHeads() == 0) { return; }
-    if (!!disjunctive && fact && rule.numHeads() == 1) {
+    if (!disjunctive && rule.numHeads() == 0) {
+        return;
+    }
+    if (disjunctive && fact && rule.numHeads() == 1) {
         Output::LiteralId head = rule.heads().front();
         auto &dom = *out.predDoms()[head.domain()];
         dom[head.offset()].setFact(true);
@@ -468,18 +586,20 @@ template class Rule<false>;
 
 //{{{1 definition of ExternalStatement
 
-ExternalStatement::ExternalStatement(HeadVec &&heads, ULitVec &&lits, UTerm &&type)
+ExternalStatement::ExternalStatement(HeadVec heads, ULitVec lits, UTerm type)
 : AbstractRule(std::move(heads), std::move(lits))
 , type_(std::move(type)) { }
-
-ExternalStatement::~ExternalStatement() noexcept = default;
 
 void ExternalStatement::printHead(std::ostream &out) const {
     out << "#external ";
     bool sep = false;
-    for (auto &def : defs_) {
-        if (sep) { out << ";"; }
-        else { sep = true; }
+    for (auto const &def : defs_) {
+        if (sep) {
+            out << ";";
+        }
+        else {
+            sep = true;
+        }
         out << *def.domRepr();
     }
 }
@@ -501,19 +621,32 @@ void ExternalStatement::report(Output::OutputBase &out, Logger &log) {
     for (auto &def : defs_) {
         bool undefined = false;
         Symbol val(def.domRepr()->eval(undefined, log));
-        if (undefined) { continue; }
+        if (undefined) {
+            continue;
+        }
         Gringo::Symbol term = type_->eval(undefined, log);
-        if (undefined) { continue; }
+        if (undefined) {
+            continue;
+        }
         bool id = term.type() == Gringo::SymbolType::Fun && term.arity() == 0;
         Potassco::Value_t value;
-        if (id && term.name() == "false")         { value = Potassco::Value_t::False; }
-        else if (id && term.name() == "true")     { value = Potassco::Value_t::True; }
-        else if (id && term.name() == "free")     { value = Potassco::Value_t::Free; }
-        else if (id && term.name() == "release")  { value = Potassco::Value_t::Release; }
+        if (id && term.name() == "false") {
+            value = Potassco::Value_t::False;
+        }
+        else if (id && term.name() == "true") {
+            value = Potassco::Value_t::True;
+        }
+        else if (id && term.name() == "free") {
+            value = Potassco::Value_t::Free;
+        }
+        else if (id && term.name() == "release") {
+            value = Potassco::Value_t::Release;
+        }
         else {
             // TODO: report something
             continue;
         }
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         auto &dom = static_cast<PredicateDomain&>(def.dom());
         auto ret = dom.define(val, false);
         Potassco::Id_t offset = static_cast<Potassco::Id_t>(std::get<0>(ret) - dom.begin());
@@ -528,8 +661,8 @@ void ExternalStatement::report(Output::OutputBase &out, Logger &log) {
 
 // {{{1 definition of ShowStatement
 
-ShowStatement::ShowStatement(UTerm &&term, ULitVec &&lits)
-: AbstractStatement(nullptr, nullptr, std::move(lits))
+ShowStatement::ShowStatement(UTerm term, ULitVec body)
+: AbstractStatement(nullptr, nullptr, std::move(body))
 , term_(std::move(term)) { }
 
 void ShowStatement::report(Output::OutputBase &out, Logger &log) {
@@ -538,9 +671,13 @@ void ShowStatement::report(Output::OutputBase &out, Logger &log) {
     if (!undefined) {
         Output::LitVec &cond = out.tempLits();
         for (auto &x : lits_) {
-            if (x->auxiliary()) { continue; }
+            if (x->auxiliary()) {
+                continue;
+            }
             auto lit = x->toOutput(log);
-            if (!lit.second) { cond.emplace_back(lit.first); }
+            if (!lit.second) {
+                cond.emplace_back(lit.first);
+            }
         }
         Output::ShowStatement ss(term, cond);
         out.output(ss);
@@ -566,12 +703,10 @@ void ShowStatement::print(std::ostream &out) const {
     out << ":" << lits_ << ".";
 }
 
-ShowStatement::~ShowStatement() noexcept = default;
-
 // {{{1 definition of EdgeStatement
 
-EdgeStatement::EdgeStatement(UTerm &&u, UTerm &&v, ULitVec &&lits)
-: AbstractStatement(nullptr, nullptr, std::move(lits))
+EdgeStatement::EdgeStatement(UTerm u, UTerm v, ULitVec body)
+: AbstractStatement(nullptr, nullptr, std::move(body))
 , u_(std::move(u))
 , v_(std::move(v))
 { }
@@ -592,9 +727,13 @@ void EdgeStatement::report(Output::OutputBase &out, Logger &log) {
     }
     Output::LitVec &cond = out.tempLits();
     for (auto &x : lits_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto lit = x->toOutput(log);
-        if (!lit.second) { cond.emplace_back(lit.first); }
+        if (!lit.second) {
+            cond.emplace_back(lit.first);
+        }
     }
     Output::EdgeStatement es(u, v, cond);
     out.output(es);
@@ -614,12 +753,10 @@ void EdgeStatement::print(std::ostream &out) const {
     out << ":" << lits_ << ".";
 }
 
-EdgeStatement::~EdgeStatement() noexcept = default;
-
 // {{{1 definition of ProjectStatement
 
-ProjectStatement::ProjectStatement(UTerm &&atom, ULitVec &&lits)
-: AbstractStatement(nullptr, nullptr, std::move(lits))
+ProjectStatement::ProjectStatement(UTerm atom, ULitVec body)
+: AbstractStatement(nullptr, nullptr, std::move(body))
 , atom_(std::move(atom))
 { }
 
@@ -649,11 +786,9 @@ void ProjectStatement::print(std::ostream &out) const {
     out << ":" << lits_ << ".";
 }
 
-ProjectStatement::~ProjectStatement() noexcept = default;
-
 // {{{1 definition of HeuristicStatement
 
-HeuristicStatement::HeuristicStatement(UTerm &&atom, UTerm &&value, UTerm &&bias, UTerm &&mod, ULitVec &&body)
+HeuristicStatement::HeuristicStatement(UTerm atom, UTerm value, UTerm bias, UTerm mod, ULitVec body)
 : AbstractStatement(nullptr, nullptr, std::move(body))
 , atom_(std::move(atom))
 , value_(std::move(value))
@@ -686,14 +821,28 @@ void HeuristicStatement::report(Output::OutputBase &out, Logger &log) {
     }
     // check modifier
     Symbol mod = mod_->eval(undefined, log);
-    if (undefined) { mod = Symbol::createId(""); }
+    if (undefined) {
+        mod = Symbol::createId("");
+    }
     Potassco::Heuristic_t heuMod;
-    if      (mod == Symbol::createId("true"))   { heuMod = Potassco::Heuristic_t::True; }
-    else if (mod == Symbol::createId("false"))  { heuMod = Potassco::Heuristic_t::False; }
-    else if (mod == Symbol::createId("level"))  { heuMod = Potassco::Heuristic_t::Level; }
-    else if (mod == Symbol::createId("factor")) { heuMod = Potassco::Heuristic_t::Factor; }
-    else if (mod == Symbol::createId("init"))   { heuMod = Potassco::Heuristic_t::Init; }
-    else if (mod == Symbol::createId("sign"))   { heuMod = Potassco::Heuristic_t::Sign; }
+    if      (mod == Symbol::createId("true")) {
+        heuMod = Potassco::Heuristic_t::True;
+    }
+    else if (mod == Symbol::createId("false")) {
+        heuMod = Potassco::Heuristic_t::False;
+    }
+    else if (mod == Symbol::createId("level"))  {
+        heuMod = Potassco::Heuristic_t::Level;
+    }
+    else if (mod == Symbol::createId("factor")) {
+        heuMod = Potassco::Heuristic_t::Factor;
+    }
+    else if (mod == Symbol::createId("init"))   {
+        heuMod = Potassco::Heuristic_t::Init;
+    }
+    else if (mod == Symbol::createId("sign")) {
+        heuMod = Potassco::Heuristic_t::Sign;
+    }
     else {
         GRINGO_REPORT(log, Warnings::OperationUndefined)
             << mod_->loc() << ": info: heuristic directive ignored\n";
@@ -702,9 +851,13 @@ void HeuristicStatement::report(Output::OutputBase &out, Logger &log) {
     // TODO: this loop appears far too often...
     Output::LitVec &cond = out.tempLits();
     for (auto &x : lits_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto lit = x->toOutput(log);
-        if (!lit.second) { cond.emplace_back(lit.first); }
+        if (!lit.second) {
+            cond.emplace_back(lit.first);
+        }
     }
     Id_t offset = numeric_cast<Id_t>(atom - (*domain)->begin());
     auto atomId = Output::LiteralId{NAF::POS, Output::AtomType::Predicate, offset, (*domain)->domainOffset()};
@@ -729,24 +882,28 @@ void HeuristicStatement::print(std::ostream &out) const {
     out << ":" << lits_ << ".";
 }
 
-HeuristicStatement::~HeuristicStatement() noexcept = default;
-
 // {{{1 definition of WeakConstraint
 
-WeakConstraint::WeakConstraint(UTermVec &&tuple, ULitVec &&lits)
-: AbstractStatement(nullptr, nullptr, std::move(lits))
+WeakConstraint::WeakConstraint(UTermVec tuple, ULitVec body)
+: AbstractStatement(nullptr, nullptr, std::move(body))
 , tuple_(std::move(tuple)) { }
 
 void WeakConstraint::report(Output::OutputBase &out, Logger &log) {
     SymVec &tempVals = out.tempVals();
     bool undefined = false;
-    for (auto &x : tuple_) { tempVals.emplace_back(x->eval(undefined, log)); }
+    for (auto &x : tuple_) {
+        tempVals.emplace_back(x->eval(undefined, log));
+    }
     if (!undefined && tempVals[0].type() == SymbolType::Num && tempVals[1].type() == SymbolType::Num) {
         Output::LitVec &tempLits = out.tempLits();
         for (auto &x : lits_) {
-            if (x->auxiliary()) { continue; }
+            if (x->auxiliary()) {
+                continue;
+            }
             auto lit = x->toOutput(log);
-            if (!lit.second) { tempLits.emplace_back(lit.first); }
+            if (!lit.second) {
+                tempLits.emplace_back(lit.first);
+            }
         }
         Output::WeakConstraint min(tempVals, tempLits);
         out.output(min);
@@ -759,14 +916,18 @@ void WeakConstraint::report(Output::OutputBase &out, Logger &log) {
 }
 
 void WeakConstraint::collectImportant(Term::VarSet &vars) {
-    for (auto &x : tuple_) { x->collect(vars); }
+    for (auto &x : tuple_) {
+        x->collect(vars);
+    }
 }
 
 void WeakConstraint::printHead(std::ostream &out) const {
     assert(tuple_.size() > 1);
     out << "[";
     out << tuple_.front() << "@" << tuple_[1];
-    for (auto it(tuple_.begin() + 2), ie(tuple_.end()); it != ie; ++it) { out << "," << *it; }
+    for (auto it(tuple_.begin() + 2), ie(tuple_.end()); it != ie; ++it) {
+        out << "," << *it;
+    }
     out << "]";
 }
 
@@ -775,15 +936,13 @@ void WeakConstraint::print(std::ostream &out) const {
     printHead(out);
 }
 
-WeakConstraint::~WeakConstraint() noexcept = default;
-
 // }}}1
 
 // Body Aggregates
 
 // {{{1 definition of BodyAggregateComplete
 
-BodyAggregateComplete::BodyAggregateComplete(DomainData &data, UTerm &&repr, AggregateFunction fun, BoundVec &&bounds)
+BodyAggregateComplete::BodyAggregateComplete(DomainData &data, UTerm repr, AggregateFunction fun, BoundVec bounds)
 : def_(std::move(repr), &data.add<BodyAggregateDomain>())
 , accuRepr_(completeRepr_(def_.domRepr()))
 , fun_(fun)
@@ -794,17 +953,26 @@ BodyAggregateComplete::BodyAggregateComplete(DomainData &data, UTerm &&repr, Agg
         case AggregateFunction::SUMP:
         case AggregateFunction::MAX: {
             for (auto &x : bounds_) {
-                if (x.rel != Relation::GT && x.rel != Relation::GEQ) { monotone_ = false; break; }
+                if (x.rel != Relation::GT && x.rel != Relation::GEQ) {
+                    monotone_ = false;
+                    break;
+                }
             }
             break;
         }
         case AggregateFunction::MIN: {
             for (auto &x : bounds_) {
-                if (x.rel != Relation::LT && x.rel != Relation::LEQ) { monotone_ = false; break; }
+                if (x.rel != Relation::LT && x.rel != Relation::LEQ) {
+                    monotone_ = false;
+                    break;
+                }
             }
             break;
         }
-        default: { monotone_ = false; break; }
+        default: {
+            monotone_ = false;
+            break;
+        }
     }
 }
 
@@ -819,12 +987,19 @@ void BodyAggregateComplete::analyze(Dep::Node &node, Dep &dep) {
 
 void BodyAggregateComplete::startLinearize(bool active) {
     def_.setActive(active);
-    if (active) { inst_ = Instantiator(*this); }
+    if (active) {
+        inst_ = Instantiator(*this);
+    }
 }
 
-void BodyAggregateComplete::linearize(Context &, bool, Logger &) {
+void BodyAggregateComplete::linearize(Context &context, bool positive, Logger &log) {
+    static_cast<void>(context);
+    static_cast<void>(positive);
+    static_cast<void>(log);
     auto binder  = gringo_make_unique<BindOnce>();
-    for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
+    for (HeadOccurrence &x : defBy_) {
+        x.defines(*binder->getUpdater(), &inst_);
+    }
     inst_.add(std::move(binder), Instantiator::DependVec{});
     inst_.finalize(Instantiator::DependVec{});
 }
@@ -842,12 +1017,16 @@ void BodyAggregateComplete::propagate(Queue &queue) {
     def_.enqueue(queue);
 }
 
-void BodyAggregateComplete::report(Output::OutputBase &, Logger &) {
+void BodyAggregateComplete::report(Output::OutputBase &out, Logger &log) {
+    static_cast<void>(out);
+    static_cast<void>(log);
     auto &dom = this->dom();
     for (auto &offset : todo_) {
         auto &atm = dom[offset];
         assert(offset < dom.size());
-        if (atm.satisfiable()) { dom.define(offset); }
+        if (atm.satisfiable()) {
+            dom.define(offset);
+        }
         atm.setRecursive(outputRecursive_);
         atm.setEnqueued(false);
     }
@@ -885,7 +1064,10 @@ BodyAggregateComplete::DefinedBy &BodyAggregateComplete::definedBy() {
     return defBy_;
 }
 
-void BodyAggregateComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) const {
+void BodyAggregateComplete::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
 }
 
 void BodyAggregateComplete::enqueue(BodyAggregateDomain::Iterator atom) {
@@ -895,35 +1077,41 @@ void BodyAggregateComplete::enqueue(BodyAggregateDomain::Iterator atom) {
     }
 }
 
-BodyAggregateComplete::~BodyAggregateComplete() noexcept = default;
-
 // {{{1 definition of BodyAggregateAccumulate
 
-BodyAggregateAccumulate::BodyAggregateAccumulate(BodyAggregateComplete &complete, UTermVec &&tuple, ULitVec &&lits)
+BodyAggregateAccumulate::BodyAggregateAccumulate(BodyAggregateComplete &complete, UTermVec tuple, ULitVec lits)
 : AbstractStatement(get_clone(complete.accuRepr()), nullptr, std::move(lits))
 , complete_(complete)
 , tuple_(std::move(tuple)) {}
 
-BodyAggregateAccumulate::~BodyAggregateAccumulate() noexcept = default;
-
 void BodyAggregateAccumulate::collectImportant(Term::VarSet &vars) {
     VarTermBoundVec bound;
     def_.domRepr()->collect(bound, false);
-    for (auto &x : tuple_) { x->collect(bound, false); }
-    for (auto &x : bound) { vars.emplace(x.first->name); }
+    for (auto &x : tuple_) {
+        x->collect(bound, false);
+    }
+    for (auto &x : bound) {
+        vars.emplace(x.first->name);
+    }
 }
 
 void BodyAggregateAccumulate::report(Output::OutputBase &out, Logger &log) {
     auto &vals = out.tempVals();
     bool undefined = false;
-    for (auto &x : tuple_) { vals.emplace_back(x->eval(undefined, log)); }
+    for (auto &x : tuple_) {
+        vals.emplace_back(x->eval(undefined, log));
+    }
     Symbol repr(complete_.domRepr()->eval(undefined, log));
     if (!undefined) {
         auto &tempLits = out.tempLits();
         for (auto &x : lits_) {
-            if (x->auxiliary()) { continue; }
+            if (x->auxiliary()) {
+                continue;
+            }
             auto lit = x->toOutput(log);
-            if (!lit.second) { tempLits.emplace_back(lit.first); }
+            if (!lit.second) {
+                tempLits.emplace_back(lit.first);
+            }
         }
         auto &dom = complete_.dom();
         auto atom = dom.reserve(repr);
@@ -937,7 +1125,9 @@ void BodyAggregateAccumulate::report(Output::OutputBase &out, Logger &log) {
 
 void BodyAggregateAccumulate::linearize(Context &context, bool positive, Logger &log) {
     AbstractStatement::linearize(context, positive, log);
-    if (isOutputRecursive()) { complete_.setOutputRecursive(); }
+    if (isOutputRecursive()) {
+        complete_.setOutputRecursive();
+    }
 }
 
 void BodyAggregateAccumulate::printHead(std::ostream &out) const {
@@ -950,8 +1140,6 @@ BodyAggregateLiteral::BodyAggregateLiteral(BodyAggregateComplete &complete, NAF 
 : complete_(complete)
 , naf_(naf)
 , auxiliary_(auxiliary) { }
-
-BodyAggregateLiteral::~BodyAggregateLiteral() noexcept = default;
 
 UGTerm BodyAggregateLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
@@ -977,11 +1165,16 @@ BodyOcc::DefinedBy &BodyAggregateLiteral::definedBy() {
     return defs_;
 }
 
-void BodyAggregateLiteral::checkDefined(LocSet &, SigSet const &, UndefVec &) const { }
+void BodyAggregateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
+}
 
 void BodyAggregateLiteral::print(std::ostream &out) const {
     out << naf_;
-    auto it = std::begin(complete_.bounds()), ie = std::end(complete_.bounds());
+    auto it = std::begin(complete_.bounds());
+    auto ie = std::end(complete_.bounds());
     if (it != ie) {
         it->bound->print(out);
         out << inv(it->rel);
@@ -1006,15 +1199,18 @@ void BodyAggregateLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, naf_ == NAF::POS);
 }
 
-UIdx BodyAggregateLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
+UIdx BodyAggregateLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(context);
     return make_binder(complete_.dom(), naf_, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
-Literal::Score BodyAggregateLiteral::score(Term::VarSet const &bound, Logger &) {
+Literal::Score BodyAggregateLiteral::score(Term::VarSet const &bound, Logger &log) {
+    static_cast<void>(log);
     return naf_ == NAF::POS ? estimate(complete_.dom().size(), *complete_.domRepr(), bound) : 0;
 }
 
-std::pair<Output::LiteralId, bool> BodyAggregateLiteral::toOutput(Logger &) {
+std::pair<Output::LiteralId, bool> BodyAggregateLiteral::toOutput(Logger &log) {
+    static_cast<void>(log);
     if (offset_ == std::numeric_limits<PredicateDomain::SizeType>::max()) {
         assert(naf_ == NAF::NOT);
         return {Output::LiteralId(), true};
@@ -1042,7 +1238,7 @@ std::pair<Output::LiteralId, bool> BodyAggregateLiteral::toOutput(Logger &) {
 
 // {{{1 definition of AssignmentAggregateComplete
 
-AssignmentAggregateComplete::AssignmentAggregateComplete(DomainData &data, UTerm &&repr, UTerm &&dataRepr, AggregateFunction fun)
+AssignmentAggregateComplete::AssignmentAggregateComplete(DomainData &data, UTerm repr, UTerm dataRepr, AggregateFunction fun)
 : def_(std::move(repr), &data.add<AssignmentAggregateDomain>())
 , dataRepr_(std::move(dataRepr))
 , fun_(fun)
@@ -1060,12 +1256,19 @@ void AssignmentAggregateComplete::analyze(Dep::Node &node, Dep &dep) {
 
 void AssignmentAggregateComplete::startLinearize(bool active) {
     def_.setActive(active);
-    if (active) { inst_ = Instantiator(*this); }
+    if (active) {
+        inst_ = Instantiator(*this);
+    }
 }
 
-void AssignmentAggregateComplete::linearize(Context &, bool, Logger &) {
+void AssignmentAggregateComplete::linearize(Context &context, bool positive, Logger &log) {
+    static_cast<void>(context);
+    static_cast<void>(positive);
+    static_cast<void>(log);
     auto binder  = gringo_make_unique<BindOnce>();
-    for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
+    for (HeadOccurrence &x : defBy_) {
+        x.defines(*binder->getUpdater(), &inst_);
+    }
     inst_.add(std::move(binder), Instantiator::DependVec{});
     inst_.finalize(Instantiator::DependVec{});
 }
@@ -1083,7 +1286,8 @@ void AssignmentAggregateComplete::propagate(Queue &queue) {
     def_.enqueue(queue);
 }
 
-void AssignmentAggregateComplete::report(Output::OutputBase &out, Logger &) {
+void AssignmentAggregateComplete::report(Output::OutputBase &out, Logger &log) {
+    static_cast<void>(log);
     for (auto &dataOffset : todo_) {
         auto &dom = this->dom();
         auto &data = dom.data(dataOffset);
@@ -1098,7 +1302,9 @@ void AssignmentAggregateComplete::report(Output::OutputBase &out, Logger &) {
         for (auto &y : values) {
             atmArgs.back() = y;
             auto ret = dom.define(Symbol::createFun(dataVal.name(), Potassco::toSpan(atmArgs)));
-            if (values.size() == 1) { ret.first->setFact(true); }
+            if (values.size() == 1) {
+                ret.first->setFact(true);
+            }
             std::get<0>(ret)->setData(dataOffset);
             std::get<0>(ret)->setRecursive(outputRecursive_);
         }
@@ -1138,7 +1344,10 @@ AssignmentAggregateComplete::DefinedBy &AssignmentAggregateComplete::definedBy()
     return defBy_;
 }
 
-void AssignmentAggregateComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) const {
+void AssignmentAggregateComplete::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
 }
 
 void AssignmentAggregateComplete::enqueue(Id_t dataId) {
@@ -1149,40 +1358,50 @@ void AssignmentAggregateComplete::enqueue(Id_t dataId) {
     }
 }
 
-AssignmentAggregateComplete::~AssignmentAggregateComplete() noexcept = default;
-
 // {{{1 Definition of AssignmentAggregateAccumulate
 
-AssignmentAggregateAccumulate::AssignmentAggregateAccumulate(AssignmentAggregateComplete &complete, UTermVec &&tuple, ULitVec &&lits)
+AssignmentAggregateAccumulate::AssignmentAggregateAccumulate(AssignmentAggregateComplete &complete, UTermVec tuple, ULitVec lits)
 : AbstractStatement(get_clone(complete.dataRepr()), nullptr, std::move(lits))
 , complete_(complete)
 , tuple_(std::move(tuple)) { }
 
-AssignmentAggregateAccumulate::~AssignmentAggregateAccumulate() noexcept = default;
-
 void AssignmentAggregateAccumulate::linearize(Context &context, bool positive, Logger &log) {
     AbstractStatement::linearize(context, positive, log);
-    if (isOutputRecursive()) { complete_.setOutputRecursive(); }
+    if (isOutputRecursive()) {
+        complete_.setOutputRecursive();
+    }
 }
 
 void AssignmentAggregateAccumulate::collectImportant(Term::VarSet &vars) {
     VarTermBoundVec bound;
     def_.domRepr()->collect(bound, false);
-    for (auto &x : tuple_) { x->collect(bound, false); }
-    for (auto &x : bound) { vars.emplace(x.first->name); }
+    for (auto &x : tuple_) {
+        x->collect(bound, false);
+    }
+    for (auto &x : bound) {
+        vars.emplace(x.first->name);
+    }
 }
 
 void AssignmentAggregateAccumulate::report(Output::OutputBase &out, Logger &log) {
     auto &tempVals = out.tempVals();
     bool undefined = false;
-    for (auto &x : tuple_) { tempVals.emplace_back(x->eval(undefined, log)); }
+    for (auto &x : tuple_) {
+        tempVals.emplace_back(x->eval(undefined, log));
+    }
     Symbol dataRepr(complete_.dataRepr()->eval(undefined, log));
-    if (undefined) { return; }
+    if (undefined) {
+        return;
+    }
     auto &tempLits = out.tempLits();
     for (auto &x : lits_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto lit = x->toOutput(log);
-        if (!lit.second) { tempLits.emplace_back(lit.first); }
+        if (!lit.second) {
+            tempLits.emplace_back(lit.first);
+        }
     }
     auto &dom = complete_.dom();
     auto dataId = dom.data(dataRepr, complete_.fun());
@@ -1200,8 +1419,6 @@ void AssignmentAggregateAccumulate::printHead(std::ostream &out) const {
 AssignmentAggregateLiteral::AssignmentAggregateLiteral(AssignmentAggregateComplete &complete, bool auxiliary)
 : complete_(complete)
 , auxiliary_(auxiliary) { }
-
-AssignmentAggregateLiteral::~AssignmentAggregateLiteral() noexcept = default;
 
 UGTerm AssignmentAggregateLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
@@ -1227,10 +1444,14 @@ BodyOcc::DefinedBy &AssignmentAggregateLiteral::definedBy() {
     return defs_;
 }
 
-void AssignmentAggregateLiteral::checkDefined(LocSet &, SigSet const &, UndefVec &) const {
+void AssignmentAggregateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
 }
 
 void AssignmentAggregateLiteral::print(std::ostream &out) const {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
     out << static_cast<FunctionTerm&>(*complete_.domRepr()).arguments().back() << "=" << complete_.fun() << "{" << *complete_.domRepr() << "}" << type_;
 }
 
@@ -1246,15 +1467,18 @@ void AssignmentAggregateLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, true);
 }
 
-UIdx AssignmentAggregateLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
+UIdx AssignmentAggregateLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(context);
     return make_binder(complete_.dom(), NAF::POS, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
-Literal::Score AssignmentAggregateLiteral::score(Term::VarSet const &bound, Logger &) {
+Literal::Score AssignmentAggregateLiteral::score(Term::VarSet const &bound, Logger &log) {
+    static_cast<void>(log);
     return estimate(complete_.dom().size(), *complete_.domRepr(), bound);
 }
 
-std::pair<Output::LiteralId,bool> AssignmentAggregateLiteral::toOutput(Logger &) {
+std::pair<Output::LiteralId, bool> AssignmentAggregateLiteral::toOutput(Logger &log) {
+    static_cast<void>(log);
     assert(offset_ != InvalidId);
     auto &atm = complete_.dom()[offset_];
     return atm.fact()
@@ -1269,8 +1493,6 @@ std::pair<Output::LiteralId,bool> AssignmentAggregateLiteral::toOutput(Logger &)
 ConjunctionLiteral::ConjunctionLiteral(ConjunctionComplete &complete, bool auxiliary)
 : complete_(complete)
 , auxiliary_(auxiliary) { }
-
-ConjunctionLiteral::~ConjunctionLiteral() noexcept = default;
 
 UGTerm ConjunctionLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
@@ -1296,7 +1518,10 @@ BodyOcc::DefinedBy &ConjunctionLiteral::definedBy() {
     return defs_;
 }
 
-void ConjunctionLiteral::checkDefined(LocSet &, SigSet const &, UndefVec &) const {
+void ConjunctionLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
 }
 
 void ConjunctionLiteral::print(std::ostream &out) const {
@@ -1315,15 +1540,18 @@ void ConjunctionLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, true);
 }
 
-UIdx ConjunctionLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
+UIdx ConjunctionLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(context);
     return make_binder(complete_.dom(), NAF::POS, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
-Literal::Score ConjunctionLiteral::score(Term::VarSet const &bound, Logger &) {
+Literal::Score ConjunctionLiteral::score(Term::VarSet const &bound, Logger &log) {
+    static_cast<void>(log);
     return estimate(complete_.dom().size(), *complete_.domRepr(), bound);
 }
 
-std::pair<Output::LiteralId,bool> ConjunctionLiteral::toOutput(Logger &) {
+std::pair<Output::LiteralId, bool> ConjunctionLiteral::toOutput(Logger &log) {
+    static_cast<void>(log);
     assert(offset_ != InvalidId);
     auto &atm = complete_.dom()[offset_];
     return atm.fact()
@@ -1333,17 +1561,16 @@ std::pair<Output::LiteralId,bool> ConjunctionLiteral::toOutput(Logger &) {
 
 // {{{1 definition of ConjunctionAccumulateEmpty
 
-ConjunctionAccumulateEmpty::ConjunctionAccumulateEmpty(ConjunctionComplete &complete, ULitVec &&lits)
+ConjunctionAccumulateEmpty::ConjunctionAccumulateEmpty(ConjunctionComplete &complete, ULitVec lits)
 : AbstractStatement(complete.emptyRepr(), &complete.emptyDom(), std::move(lits))
 , complete_(complete) { }
-
-ConjunctionAccumulateEmpty::~ConjunctionAccumulateEmpty() noexcept = default;
 
 bool ConjunctionAccumulateEmpty::isNormal() const {
     return true;
 }
 
-void ConjunctionAccumulateEmpty::report(Output::OutputBase &, Logger &log) {
+void ConjunctionAccumulateEmpty::report(Output::OutputBase &out, Logger &log) {
+    static_cast<void>(log);
     complete_.reportEmpty(log);
     bool undefined = false;
     complete_.emptyDom().define(def_.domRepr()->eval(undefined, log), false);
@@ -1352,24 +1579,26 @@ void ConjunctionAccumulateEmpty::report(Output::OutputBase &, Logger &log) {
 
 // {{{1 definition of ConjunctionAccumulateCond
 
-ConjunctionAccumulateCond::ConjunctionAccumulateCond(ConjunctionComplete &complete, ULitVec &&lits)
+ConjunctionAccumulateCond::ConjunctionAccumulateCond(ConjunctionComplete &complete, ULitVec lits)
 : AbstractStatement(complete.condRepr(), &complete.condDom(), std::move(lits))
 , complete_(complete) {
     lits_.emplace_back(gringo_make_unique<PredicateLiteral>(true, complete_.emptyDom(), NAF::POS, complete.emptyRepr()));
 }
 
-ConjunctionAccumulateCond::~ConjunctionAccumulateCond() noexcept = default;
-
 void ConjunctionAccumulateCond::linearize(Context &context, bool positive, Logger &log) {
     AbstractStatement::linearize(context, positive, log);
-    if (isOutputRecursive()) { complete_.setCondRecursive(); }
+    if (isOutputRecursive()) {
+        complete_.setCondRecursive();
+    }
 }
 
 void ConjunctionAccumulateCond::analyze(Dep::Node &node, Dep &dep) {
     def_.analyze(node, dep);
     for (auto &x : lits_) {
-        auto occ(x->occurrence());
-        if (occ) { dep.depends(node, *occ, true); }
+        auto *occ(x->occurrence());
+        if (occ != nullptr) {
+            dep.depends(node, *occ, true);
+        }
     }
 }
 
@@ -1384,9 +1613,13 @@ void ConjunctionAccumulateCond::report(Output::OutputBase &out, Logger &log) {
 
     Output::LitVec &cond = out.tempLits();
     for (auto &x : lits_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto y = x->toOutput(log);
-        if (!y.second) { cond.emplace_back(y.first); }
+        if (!y.second) {
+            cond.emplace_back(y.first);
+        }
     }
     complete_.condDom().define(condRepr, cond.empty());
     complete_.reportCond(out.data, condRepr.args()[2], cond, log);
@@ -1394,17 +1627,17 @@ void ConjunctionAccumulateCond::report(Output::OutputBase &out, Logger &log) {
 
 // {{{1 definition of ConjunctionAccumulateHead
 
-ConjunctionAccumulateHead::ConjunctionAccumulateHead(ConjunctionComplete &complete, ULitVec &&lits)
+ConjunctionAccumulateHead::ConjunctionAccumulateHead(ConjunctionComplete &complete, ULitVec lits)
 : AbstractStatement(complete.headRepr(), nullptr, std::move(lits))
 , complete_(complete) {
     lits_.emplace_back(gringo_make_unique<PredicateLiteral>(true, complete_.condDom(), NAF::POS, complete.condRepr()));
 }
 
-ConjunctionAccumulateHead::~ConjunctionAccumulateHead() noexcept = default;
-
 void ConjunctionAccumulateHead::linearize(Context &context, bool positive, Logger &log) {
     AbstractStatement::linearize(context, positive, log);
-    if (isOutputRecursive()) { complete_.setHeadRecursive(); }
+    if (isOutputRecursive()) {
+        complete_.setHeadRecursive();
+    }
 }
 
 bool ConjunctionAccumulateHead::isNormal() const {
@@ -1418,9 +1651,13 @@ void ConjunctionAccumulateHead::report(Output::OutputBase &out, Logger &log) {
 
     Output::LitVec head;
     for (auto &x : lits_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto y = x->toOutput(log);
-        if (!y.second) { head.emplace_back(y.first); }
+        if (!y.second) {
+            head.emplace_back(y.first);
+        }
     }
 
     complete_.reportHead(out.data, condRepr.args()[2], head, log);
@@ -1428,7 +1665,7 @@ void ConjunctionAccumulateHead::report(Output::OutputBase &out, Logger &log) {
 
 // {{{1 definition of ConjunctionComplete
 
-ConjunctionComplete::ConjunctionComplete(DomainData &data, UTerm &&repr, UTermVec &&local)
+ConjunctionComplete::ConjunctionComplete(DomainData &data, UTerm repr, UTermVec local)
 : def_(std::move(repr), &data.add<ConjunctionDomain>())
 , domEmpty_(def_.domRepr()->getSig()) // Note: any sig will do
 , domCond_(def_.domRepr()->getSig()) // Note: any sig will do
@@ -1471,24 +1708,31 @@ bool ConjunctionComplete::isNormal() const {
     return true;
 }
 
-void ConjunctionComplete::analyze(Dep::Node &node, Dep &dep){
+void ConjunctionComplete::analyze(Dep::Node &node, Dep &dep) {
     dep.depends(node, *this);
     def_.analyze(node, dep);
 }
 
-void ConjunctionComplete::startLinearize(bool active){
+void ConjunctionComplete::startLinearize(bool active) {
     def_.setActive(active);
-    if (active) { inst_ = Instantiator(*this); }
+    if (active) {
+        inst_ = Instantiator(*this);
+    }
 }
 
-void ConjunctionComplete::linearize(Context &, bool, Logger &){
+void ConjunctionComplete::linearize(Context &context, bool positive, Logger &log) {
+    static_cast<void>(context);
+    static_cast<void>(positive);
+    static_cast<void>(log);
     auto binder  = gringo_make_unique<BindOnce>();
-    for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
+    for (HeadOccurrence &x : defBy_) {
+        x.defines(*binder->getUpdater(), &inst_);
+    }
     inst_.add(std::move(binder), Instantiator::DependVec{});
     inst_.finalize(Instantiator::DependVec{});
 }
 
-void ConjunctionComplete::enqueue(Queue &q){
+void ConjunctionComplete::enqueue(Queue &q) {
     def_.init();
     q.enqueue(inst_);
 }
@@ -1525,7 +1769,9 @@ void ConjunctionComplete::reportHead(DomainData &data, Symbol cond, Output::LitV
     reportOther([&](ConjunctionDomain::Iterator atom) { atom->accumulateHead(data, cond, lits); }, log);
 }
 
-void ConjunctionComplete::report(Output::OutputBase &, Logger &) {
+void ConjunctionComplete::report(Output::OutputBase &out, Logger &log) {
+    static_cast<void>(out);
+    static_cast<void>(log);
     // NOTE: this code relies on priority set to 1!
     // NOTE about handling incompleteness:
     //   - if both the condition and the head are stratified
@@ -1572,15 +1818,17 @@ ConjunctionComplete::DefinedBy &ConjunctionComplete::definedBy() {
     return defBy_;
 }
 
-void ConjunctionComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) const { }
-
-ConjunctionComplete::~ConjunctionComplete() noexcept = default;
+void ConjunctionComplete::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
+}
 
 // }}}1
 
 // {{{1 definition of TheoryComplete
 
-TheoryComplete::TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType type, UTerm &&name)
+TheoryComplete::TheoryComplete(DomainData &data, UTerm repr, TheoryAtomType type, UTerm name)
 : def_(std::move(repr), &data.add<TheoryDomain>())
 , accuRepr_(completeRepr_(def_.domRepr()))
 , op_("")
@@ -1588,7 +1836,7 @@ TheoryComplete::TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType ty
 , inst_(*this)
 , type_(type) { }
 
-TheoryComplete::TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType type, UTerm &&name, String op, Output::UTheoryTerm &&guard)
+TheoryComplete::TheoryComplete(DomainData &data, UTerm repr, TheoryAtomType type, UTerm name, String op, Output::UTheoryTerm guard)
 : def_(std::move(repr), &data.add<TheoryDomain>())
 , accuRepr_(completeRepr_(def_.domRepr()))
 , op_(op)
@@ -1608,12 +1856,19 @@ void TheoryComplete::analyze(Dep::Node &node, Dep &dep) {
 
 void TheoryComplete::startLinearize(bool active) {
     def_.setActive(active);
-    if (active) { inst_ = Instantiator(*this); }
+    if (active) {
+        inst_ = Instantiator(*this);
+    }
 }
 
-void TheoryComplete::linearize(Context &, bool, Logger &) {
+void TheoryComplete::linearize(Context &context, bool positive, Logger &log) {
+    static_cast<void>(context);
+    static_cast<void>(positive);
+    static_cast<void>(log);
     auto binder  = gringo_make_unique<BindOnce>();
-    for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
+    for (HeadOccurrence &x : defBy_) {
+        x.defines(*binder->getUpdater(), &inst_);
+    }
     inst_.add(std::move(binder), Instantiator::DependVec{});
     inst_.finalize(Instantiator::DependVec{});
 }
@@ -1642,7 +1897,9 @@ void TheoryComplete::propagate(Queue &queue) {
     def_.enqueue(queue);
 }
 
-void TheoryComplete::report(Output::OutputBase &, Logger &) {
+void TheoryComplete::report(Output::OutputBase &out, Logger &log) {
+    static_cast<void>(out);
+    static_cast<void>(log);
     for (auto &x : todo_) {
         auto &atm = dom()[x];
         dom().define(x);
@@ -1683,36 +1940,41 @@ TheoryComplete::DefinedBy &TheoryComplete::definedBy() {
     return defBy_;
 }
 
-void TheoryComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) const {
+void TheoryComplete::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
 }
-
-TheoryComplete::~TheoryComplete() noexcept = default;
 
 // {{{1 definition of TheoryAccumulate
 
-TheoryAccumulate::TheoryAccumulate(TheoryComplete &complete, ULitVec &&lits)
-    : AbstractStatement(get_clone(complete.accuRepr()), nullptr, std::move(lits))
-    , complete_(complete)
-    , neutral_(true) { }
+TheoryAccumulate::TheoryAccumulate(TheoryComplete &complete, ULitVec lits)
+: AbstractStatement(get_clone(complete.accuRepr()), nullptr, std::move(lits))
+, complete_(complete)
+, neutral_(true) { }
 
-TheoryAccumulate::TheoryAccumulate(TheoryComplete &complete, Output::UTheoryTermVec &&tuple, ULitVec &&lits)
-    : AbstractStatement(get_clone(complete.accuRepr()), nullptr, std::move(lits))
-    , complete_(complete)
-    , tuple_(std::move(tuple))
-    , neutral_(false) { }
-
-TheoryAccumulate::~TheoryAccumulate() noexcept = default;
+TheoryAccumulate::TheoryAccumulate(TheoryComplete &complete, Output::UTheoryTermVec tuple, ULitVec lits)
+: AbstractStatement(get_clone(complete.accuRepr()), nullptr, std::move(lits))
+, complete_(complete)
+, tuple_(std::move(tuple))
+, neutral_(false) { }
 
 void TheoryAccumulate::linearize(Context &context, bool positive, Logger &log) {
     AbstractStatement::linearize(context, positive, log);
-    if (isOutputRecursive()) { complete_.setOutputRecursive(); }
+    if (isOutputRecursive()) {
+        complete_.setOutputRecursive();
+    }
 }
 
 void TheoryAccumulate::collectImportant(Term::VarSet &vars) {
     VarTermBoundVec bound;
     def_.domRepr()->collect(bound, false);
-    for (auto &x : tuple_) { x->collect(bound); }
-    for (auto &x : bound) { vars.emplace(x.first->name); }
+    for (auto &x : tuple_) {
+        x->collect(bound);
+    }
+    for (auto &x : bound) {
+        vars.emplace(x.first->name);
+    }
 }
 
 void TheoryAccumulate::report(Output::OutputBase &out, Logger &log) {
@@ -1734,9 +1996,13 @@ void TheoryAccumulate::report(Output::OutputBase &out, Logger &log) {
             }
             Output::LitVec outLits;
             for (auto &x : lits_) {
-                if (x->auxiliary()) { continue; }
+                if (x->auxiliary()) {
+                    continue;
+                }
                 auto lit = x->toOutput(log);
-                if (!lit.second) { outLits.emplace_back(lit.first); }
+                if (!lit.second) {
+                    outLits.emplace_back(lit.first);
+                }
             }
             auto elemId = out.data.theory().addElem(Potassco::toSpan(outTuple), std::move(outLits));
             atom->accumulate(elemId);
@@ -1763,8 +2029,6 @@ TheoryLiteral::TheoryLiteral(TheoryComplete &complete, NAF naf, bool auxiliary)
 , naf_(naf)
 , auxiliary_(auxiliary) { }
 
-TheoryLiteral::~TheoryLiteral() noexcept = default;
-
 UGTerm TheoryLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
 }
@@ -1789,7 +2053,10 @@ BodyOcc::DefinedBy &TheoryLiteral::definedBy() {
     return defs_;
 }
 
-void TheoryLiteral::checkDefined(LocSet &, SigSet const &, UndefVec &) const {
+void TheoryLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
 }
 
 void TheoryLiteral::print(std::ostream &out) const {
@@ -1814,15 +2081,18 @@ void TheoryLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, naf_ == NAF::POS);
 }
 
-UIdx TheoryLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
+UIdx TheoryLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(context);
     return make_binder(complete_.dom(), naf_, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
-Literal::Score TheoryLiteral::score(Term::VarSet const &bound, Logger &) {
+Literal::Score TheoryLiteral::score(Term::VarSet const &bound, Logger &log) {
+    static_cast<void>(log);
     return naf_ == NAF::POS ? estimate(complete_.dom().size(), *complete_.domRepr(), bound) : 0;
 }
 
-std::pair<Output::LiteralId,bool> TheoryLiteral::toOutput(Logger &) {
+std::pair<Output::LiteralId, bool> TheoryLiteral::toOutput(Logger &log) {
+    static_cast<void>(log);
     if (offset_ == std::numeric_limits<PredicateDomain::SizeType>::max()) {
         assert(naf_ == NAF::NOT);
         return {Output::LiteralId(), true};
@@ -1833,11 +2103,9 @@ std::pair<Output::LiteralId,bool> TheoryLiteral::toOutput(Logger &) {
 
 // {{{1 definition of TheoryRule
 
-TheoryRule::TheoryRule(TheoryLiteral &lit, ULitVec &&lits)
+TheoryRule::TheoryRule(TheoryLiteral &lit, ULitVec lits)
     : AbstractStatement(nullptr, nullptr, std::move(lits))
     , lit_(lit) { }
-
-TheoryRule::~TheoryRule() noexcept = default;
 
 void TheoryRule::collectImportant(Term::VarSet &vars) {
     lit_.collectImportant(vars);
@@ -1851,7 +2119,9 @@ void TheoryRule::report(Output::OutputBase &out, Logger &log) {
     else {
         Output::Rule rule;
         for (auto &x : lits_) {
-            if (x->auxiliary()) { continue; }
+            if (x->auxiliary()) {
+                continue;
+            }
             auto ret = x->toOutput(log);
             if (ret.first && (out.keepFacts || !ret.second)) {
                 rule.addBody(ret.first);
@@ -1872,16 +2142,16 @@ void TheoryRule::printHead(std::ostream &out) const {
 
 // {{{1 definition of HeadAggregateRule
 
-HeadAggregateRule::HeadAggregateRule(HeadAggregateComplete &complete, ULitVec &&lits)
+HeadAggregateRule::HeadAggregateRule(HeadAggregateComplete &complete, ULitVec lits)
 : AbstractStatement(get_clone(complete.domRepr()), &complete.dom(), std::move(lits))
 , complete_(complete) { }
-
-HeadAggregateRule::~HeadAggregateRule() noexcept = default;
 
 void HeadAggregateRule::report(Output::OutputBase &out, Logger &log) {
     Output::Rule &rule(out.tempRule(false));
     for (auto &x : lits_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto ret = x->toOutput(log);
         if (ret.first.valid() && (out.keepFacts || !ret.second)) {
             rule.addBody(ret.first);
@@ -1902,7 +2172,8 @@ void HeadAggregateRule::report(Output::OutputBase &out, Logger &log) {
 }
 
 void HeadAggregateRule::print(std::ostream &out) const {
-    auto it(complete_.bounds().begin()), ie(complete_.bounds().end());
+    auto it = complete_.bounds().begin();
+    auto ie = complete_.bounds().end();
     if (it != ie) {
         out << *it->bound;
         out << inv(it->rel);
@@ -1923,34 +2194,46 @@ void HeadAggregateRule::print(std::ostream &out) const {
 
 // {{{1 definition of HeadAggregateAccumulate
 
-HeadAggregateAccumulate::HeadAggregateAccumulate(HeadAggregateComplete &complete, UTermVec &&tuple, PredicateDomain *predDom, UTerm &&predRepr, ULitVec &&lits)
+HeadAggregateAccumulate::HeadAggregateAccumulate(HeadAggregateComplete &complete, UTermVec tuple, PredicateDomain *predDom, UTerm predRepr, ULitVec lits)
 : AbstractStatement(completeRepr_(complete.domRepr()), nullptr, std::move(lits))
 , complete_(complete)
 , predDef_(std::move(predRepr), predDom)
 , tuple_(std::move(tuple)) { }
 
-HeadAggregateAccumulate::~HeadAggregateAccumulate() noexcept = default;
-
 void HeadAggregateAccumulate::collectImportant(Term::VarSet &vars) {
     VarTermBoundVec bound;
     def_.domRepr()->collect(bound, false);
     predDef_.collectImportant(vars);
-    for (auto &x : tuple_) { x->collect(bound, false); }
-    for (auto &x : bound) { vars.emplace(x.first->name); }
+    for (auto &x : tuple_) {
+        x->collect(bound, false);
+    }
+    for (auto &x : bound) {
+        vars.emplace(x.first->name);
+    }
 }
 
 void HeadAggregateAccumulate::report(Output::OutputBase &out, Logger &log) {
     auto &vals = out.tempVals();
     bool undefined = false;
-    for (auto &x : tuple_) { vals.emplace_back(x->eval(undefined, log)); }
-    if (undefined) { return; }
+    for (auto &x : tuple_) {
+        vals.emplace_back(x->eval(undefined, log));
+    }
+    if (undefined) {
+        return;
+    }
     Symbol predVal(predDef_ ? predDef_.domRepr()->eval(undefined, log) : Symbol());
-    if (undefined) { return; }
+    if (undefined) {
+        return;
+    }
     auto &tempLits = out.tempLits();
     for (auto &x : lits_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto lit = x->toOutput(log);
-        if (!lit.second) { tempLits.emplace_back(lit.first); }
+        if (!lit.second) {
+            tempLits.emplace_back(lit.first);
+        }
     }
     Symbol headVal(complete_.domRepr()->eval(undefined, log));
     assert(!undefined);
@@ -1959,6 +2242,7 @@ void HeadAggregateAccumulate::report(Output::OutputBase &out, Logger &log) {
     assert(atm != dom.end());
     Output::LiteralId lit;
     if (predDef_) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         auto &predDom = static_cast<PredicateDomain&>(predDef_.dom());
         auto predAtm = predDom.reserve(predVal);
         if (!predAtm->fact()) {
@@ -1974,27 +2258,31 @@ void HeadAggregateAccumulate::printHead(std::ostream &out) const {
     if (predDef_) {
         out << *predDef_.domRepr() << ",tuple(" << tuple_ << ")";
     }
-    else { out << "#true"; }
+    else {
+        out << "#true";
+    }
     out << ")";
 }
 
 // {{{1 definition of HeadAggregateComplete
 
-HeadAggregateComplete::HeadAggregateComplete(DomainData &data, UTerm &&repr, AggregateFunction fun, BoundVec &&bounds)
+HeadAggregateComplete::HeadAggregateComplete(DomainData &data, UTerm repr, AggregateFunction fun, BoundVec bounds)
 : repr_(std::move(repr))
 , domain_(data.add<HeadAggregateDomain>())
 , inst_(*this)
 , fun_(fun)
 , bounds_(std::move(bounds)) { }
 
-void HeadAggregateComplete::enqueue(HeadAggregateDomain::Iterator atm) {
-    if (!atm->enqueued()) {
-        todo_.emplace_back(numeric_cast<TodoVec::value_type>(atm - dom().begin()));
-        atm->setEnqueued(true);
+void HeadAggregateComplete::enqueue(HeadAggregateDomain::Iterator atom) {
+    if (!atom->enqueued()) {
+        todo_.emplace_back(numeric_cast<TodoVec::value_type>(atom - dom().begin()));
+        atom->setEnqueued(true);
     }
 }
 
-bool HeadAggregateComplete::isNormal() const { return false; }
+bool HeadAggregateComplete::isNormal() const {
+    return false;
+}
 
 void HeadAggregateComplete::analyze(Dep::Node &node, Dep &dep) {
     for (HeadAggregateAccumulate &x : accuDoms_) {
@@ -2002,26 +2290,40 @@ void HeadAggregateComplete::analyze(Dep::Node &node, Dep &dep) {
     }
     dep.depends(node, *this);
 }
+
 void HeadAggregateComplete::startLinearize(bool active) {
     for (HeadAggregateAccumulate &x : accuDoms_) {
         x.predDef().setActive(active);
     }
-    if (active) { inst_ = Instantiator(*this); }
+    if (active) {
+        inst_ = Instantiator(*this);
+    }
 }
-void HeadAggregateComplete::linearize(Context &, bool, Logger &) {
+
+void HeadAggregateComplete::linearize(Context &context, bool positive, Logger &log) {
+    static_cast<void>(context);
+    static_cast<void>(positive);
+    static_cast<void>(log);
     auto binder  = gringo_make_unique<BindOnce>();
-    for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
+    for (HeadOccurrence &x : defBy_) {
+        x.defines(*binder->getUpdater(), &inst_);
+    }
     inst_.add(std::move(binder), Instantiator::DependVec{});
     inst_.finalize(Instantiator::DependVec{});
 }
+
 void HeadAggregateComplete::enqueue(Queue &q) {
     for (HeadAggregateAccumulate &x : accuDoms_) {
-        if (x.predDef()) { x.predDef().init(); }
+        if (x.predDef()) {
+            x.predDef().init();
+        }
     }
     q.enqueue(inst_);
 }
+
 void HeadAggregateComplete::printHead(std::ostream &out) const {
-    auto it(bounds_.begin()), ie(bounds_.end());
+    auto it = bounds_.begin();
+    auto ie = bounds_.end();
     if (it != ie) {
         out << *it->bound;
         out << inv(it->rel);
@@ -2046,24 +2348,32 @@ void HeadAggregateComplete::printHead(std::ostream &out) const {
         out << *it->bound;
     }
 }
+
 void HeadAggregateComplete::propagate(Queue &queue) {
     for (HeadAggregateAccumulate &x : accuDoms_) {
-        if (x.predDef()) { x.predDef().enqueue(queue); }
+        if (x.predDef()) {
+            x.predDef().enqueue(queue);
+        }
     }
 }
+
 void HeadAggregateComplete::print(std::ostream &out) const {
     printHead(out);
     out << ":-" << repr_ << occType_ << ".";
 }
-void HeadAggregateComplete::report(Output::OutputBase &out, Logger &) {
+
+void HeadAggregateComplete::report(Output::OutputBase &out, Logger &log) {
+    static_cast<void>(log);
     for (auto &x : todo_) {
         auto &atm = dom()[x];
         if (atm.satisfiable()) {
             // Note: this is not as lazy at is could be
             //       in the recursive case this would define atoms more that once ...
-            for (auto &elem : atm.elems()) {
-                for (auto &cond : elem.second) {
-                    if (cond.first) { out.data.predDoms()[cond.first.domain()]->define(cond.first.offset()); }
+            for (auto const &elem : atm.elems()) {
+                for (auto const &cond : elem.second) {
+                    if (cond.first) {
+                        out.data.predDoms()[cond.first.domain()]->define(cond.first.offset());
+                    }
                 }
             }
         }
@@ -2100,16 +2410,16 @@ HeadAggregateDomain &HeadAggregateComplete::dom() {
     return domain_;
 }
 
-void HeadAggregateComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) const { }
-
-HeadAggregateComplete::~HeadAggregateComplete() noexcept = default;
+void HeadAggregateComplete::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
+}
 
 // {{{1 definition of HeadAggregateLiteral
 
 HeadAggregateLiteral::HeadAggregateLiteral(HeadAggregateComplete &complete)
 : complete_(complete) { }
-
-HeadAggregateLiteral::~HeadAggregateLiteral() noexcept = default;
 
 UGTerm HeadAggregateLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
@@ -2135,7 +2445,11 @@ BodyOcc::DefinedBy &HeadAggregateLiteral::definedBy() {
     return defs_;
 }
 
-void HeadAggregateLiteral::checkDefined(LocSet &, SigSet const &, UndefVec &) const { }
+void HeadAggregateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
+}
 
 void HeadAggregateLiteral::print(std::ostream &out) const {
     out << *complete_.domRepr() << type_;
@@ -2153,15 +2467,18 @@ void HeadAggregateLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, true);
 }
 
-UIdx HeadAggregateLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
+UIdx HeadAggregateLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(context);
     return make_binder(complete_.dom(), NAF::POS, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
-Literal::Score HeadAggregateLiteral::score(Term::VarSet const &bound, Logger &) {
+Literal::Score HeadAggregateLiteral::score(Term::VarSet const &bound, Logger &log) {
+    static_cast<void>(log);
     return estimate(complete_.dom().size(), *complete_.domRepr(), bound);
 }
 
-std::pair<Output::LiteralId,bool> HeadAggregateLiteral::toOutput(Logger &) {
+std::pair<Output::LiteralId, bool> HeadAggregateLiteral::toOutput(Logger &log) {
+    static_cast<void>(log);
     return {Output::LiteralId{}, true};
 }
 
@@ -2169,7 +2486,7 @@ std::pair<Output::LiteralId,bool> HeadAggregateLiteral::toOutput(Logger &) {
 
 // {{{1 definition of DisjunctionRule
 
-DisjunctionRule::DisjunctionRule(DisjunctionComplete &complete, ULitVec &&lits)
+DisjunctionRule::DisjunctionRule(DisjunctionComplete &complete, ULitVec lits)
 : AbstractStatement(get_clone(complete.domRepr()), &complete.dom(), std::move(lits))
 , complete_(complete) {
 }
@@ -2178,23 +2495,27 @@ bool DisjunctionRule::isNormal() const {
     return false;
 }
 
-DisjunctionRule::~DisjunctionRule() noexcept = default;
-
 void DisjunctionRule::report(Output::OutputBase &out, Logger &log) {
     Output::Rule &rule(out.tempRule(false));
     bool fact = true;
     for (auto &x : lits_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto ret = x->toOutput(log);
         if (ret.first.valid() && (out.keepFacts || !ret.second)) {
             rule.addBody(ret.first);
-            if (!ret.second) { fact = false; }
+            if (!ret.second) {
+                fact = false;
+            }
         }
     }
     auto &dom = complete_.dom();
     bool undefined = false;
     auto ret(dom.define(def_.domRepr()->eval(undefined, log)));
-    if (fact) { ret.first->setFact(true); }
+    if (fact) {
+        ret.first->setFact(true);
+    }
     assert(!undefined);
     complete_.enqueue(ret.first);
     Id_t offset = numeric_cast<Id_t>(ret.first - dom.begin());
@@ -2206,8 +2527,6 @@ void DisjunctionRule::report(Output::OutputBase &out, Logger &log) {
 
 DisjunctionLiteral::DisjunctionLiteral(DisjunctionComplete &complete)
 : complete_(complete) { }
-
-DisjunctionLiteral::~DisjunctionLiteral() noexcept = default;
 
 UGTerm DisjunctionLiteral::getRepr() const {
     return complete_.domRepr()->gterm();
@@ -2233,7 +2552,11 @@ BodyOcc::DefinedBy &DisjunctionLiteral::definedBy() {
     return defs_;
 }
 
-void DisjunctionLiteral::checkDefined(LocSet &, SigSet const &, UndefVec &) const { }
+void DisjunctionLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
+}
 
 void DisjunctionLiteral::print(std::ostream &out) const {
     out << "[" << *complete_.domRepr() << type_ << "]";
@@ -2251,21 +2574,24 @@ void DisjunctionLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, true);
 }
 
-UIdx DisjunctionLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
+UIdx DisjunctionLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(context);
     return make_binder(complete_.dom(), NAF::POS, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
-Literal::Score DisjunctionLiteral::score(Term::VarSet const &bound, Logger &) {
+Literal::Score DisjunctionLiteral::score(Term::VarSet const &bound, Logger &log) {
+    static_cast<void>(log);
     return estimate(complete_.dom().size(), *complete_.domRepr(), bound);
 }
 
-std::pair<Output::LiteralId,bool> DisjunctionLiteral::toOutput(Logger &) {
+std::pair<Output::LiteralId, bool> DisjunctionLiteral::toOutput(Logger &log) {
+    static_cast<void>(log);
     return {Output::LiteralId{}, true};
 }
 
 // {{{1 definition of DisjunctionComplete
 
-DisjunctionComplete::DisjunctionComplete(DomainData &data, UTerm &&repr)
+DisjunctionComplete::DisjunctionComplete(DomainData &data, UTerm repr)
 : repr_(std::move(repr))
 , domain_(data.add<DisjunctionDomain>())
 , inst_(*this) { }
@@ -2276,19 +2602,28 @@ bool DisjunctionComplete::isNormal() const {
 
 void DisjunctionComplete::analyze(Dep::Node &node, Dep &dep) {
     dep.depends(node, *this);
-    for (DisjunctionAccumulate &accu : accu_) { accu.predDef().analyze(node, dep); }
+    for (DisjunctionAccumulate &accu : accu_) {
+        accu.predDef().analyze(node, dep);
+    }
 }
 
 void DisjunctionComplete::startLinearize(bool active) {
     for (DisjunctionAccumulate &accu : accu_) {
         accu.predDef().setActive(active);
     }
-    if (active) { inst_ = Instantiator(*this); }
+    if (active) {
+        inst_ = Instantiator(*this);
+    }
 }
 
-void DisjunctionComplete::linearize(Context &, bool, Logger &) {
+void DisjunctionComplete::linearize(Context &context, bool positive, Logger &log) {
+    static_cast<void>(context);
+    static_cast<void>(positive);
+    static_cast<void>(log);
     auto binder  = gringo_make_unique<BindOnce>();
-    for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
+    for (HeadOccurrence &x : defBy_) {
+        x.defines(*binder->getUpdater(), &inst_);
+    }
     inst_.add(std::move(binder), Instantiator::DependVec{});
     inst_.finalize(Instantiator::DependVec{});
 }
@@ -2303,7 +2638,9 @@ void DisjunctionComplete::enqueue(Queue &q) {
 void DisjunctionComplete::printHead(std::ostream &out) const {
     bool comma = false;
     for (DisjunctionAccumulate &accu : accu_) {
-        if (comma) { out << ";"; }
+        if (comma) {
+            out << ";";
+        }
         comma = true;
         accu.printPred(out);
     }
@@ -2322,7 +2659,8 @@ void DisjunctionComplete::enqueue(DisjunctionDomain::Iterator atom) {
     }
 }
 
-void DisjunctionComplete::report(Output::OutputBase &out, Logger &) {
+void DisjunctionComplete::report(Output::OutputBase &out, Logger &log) {
+    static_cast<void>(log);
     for (auto &offset : todo_) {
         auto &atm = dom()[offset];
         atm.init(occType_ == OccurrenceType::UNSTRATIFIED);
@@ -2332,9 +2670,9 @@ void DisjunctionComplete::report(Output::OutputBase &out, Logger &) {
         if (!atm.headFact()) {
             // Note: this is not as lazy at is could be
             //       in the recursive case this would define atoms more that once ...
-            for (auto &elem : atm.elems()) {
-                for (auto &clauseId : elem.heads()) {
-                    for (auto &lit : out.data.clause(clauseId)) {
+            for (auto const &elem : atm.elems()) {
+                for (auto const &clauseId : elem.heads()) {
+                    for (auto const &lit : out.data.clause(clauseId)) {
                         // Note: for singleton disjunctions with empty bodies facts could be derived here
                         //       (it wouldn't even be that difficult)
                         if (lit.sign() == NAF::POS && lit.type() == Gringo::Output::AtomType::Predicate) {
@@ -2376,9 +2714,11 @@ DisjunctionComplete::DefinedBy &DisjunctionComplete::definedBy() {
     return defBy_;
 }
 
-void DisjunctionComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) const { }
-
-DisjunctionComplete::~DisjunctionComplete() noexcept = default;
+void DisjunctionComplete::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    static_cast<void>(done);
+    static_cast<void>(edb);
+    static_cast<void>(undef);
+}
 
 // {{{1 definition of DisjunctionAccumulate
 
@@ -2389,10 +2729,12 @@ void DisjunctionAccumulateHead::printHead(std::ostream &out) const {
     if (accu_.predDef()) {
         out << *accu_.predDef().domRepr();
     }
-    else { out << "#false"; }
+    else {
+        out << "#false";
+    }
 }
 
-DisjunctionAccumulate::DisjunctionAccumulate(DisjunctionComplete &complete, PredicateDomain *predDom, UTerm &&predRepr, ULitVec &&headCond, UTerm &&elemRepr, ULitVec &&lits)
+DisjunctionAccumulate::DisjunctionAccumulate(DisjunctionComplete &complete, PredicateDomain *predDom, UTerm predRepr, ULitVec headCond, UTerm elemRepr, ULitVec lits)
 : AbstractStatement(completeRepr_(complete.domRepr()), nullptr, std::move(lits))
 , complete_(complete)
 , elemRepr_(std::move(elemRepr))
@@ -2404,20 +2746,22 @@ DisjunctionAccumulate::DisjunctionAccumulate(DisjunctionComplete &complete, Pred
     lits_.emplace_back(gringo_make_unique<DisjunctionLiteral>(complete_));
 }
 
-DisjunctionAccumulate::~DisjunctionAccumulate() noexcept = default;
-
 void DisjunctionAccumulate::analyze(Dep::Node &node, Dep &dep) {
     AbstractStatement::analyze(node, dep);
     for (auto &x : headCond_) {
-        auto occ(x->occurrence());
-        if (occ) { dep.depends(node, *occ, false); }
+        auto *occ(x->occurrence());
+        if (occ != nullptr) {
+            dep.depends(node, *occ, false);
+        }
     }
 }
 
 void DisjunctionAccumulate::linearize(Context &context, bool positive, Logger &log) {
     AbstractStatement::linearize(context, positive, log);
     Term::VarSet important;
-    if (predDef_) { predDef_.collectImportant(important); }
+    if (predDef_) {
+        predDef_.collectImportant(important);
+    }
     Term::VarSet boundInitially;
     // Note: this performs a nested instantiation
     //       to do this, the linearization is initialized with the variables bound by the outer instantiator
@@ -2432,14 +2776,20 @@ void DisjunctionAccumulate::linearize(Context &context, bool positive, Logger &l
 void DisjunctionAccumulate::collectImportant(Term::VarSet &vars) {
     predDef_.collectImportant(vars);
     AbstractStatement::collectImportant(vars);
-    for (auto &x : headCond_) { x->collectImportant(vars); }
+    for (auto &x : headCond_) {
+        x->collectImportant(vars);
+    }
 }
 
 void DisjunctionAccumulate::printPred(std::ostream &out) const {
-    if (predDef_) { out << *predDef_.domRepr(); }
-    else { out << "#false"; }
+    if (predDef_) {
+        out << *predDef_.domRepr();
+    }
+    else {
+        out << "#false";
+    }
     bool sep = false;
-    for (auto &x : headCond_) {
+    for (auto const &x : headCond_) {
         out << (sep ? "," : ":");
         sep = true;
         x->print(out);
@@ -2449,8 +2799,12 @@ void DisjunctionAccumulate::printPred(std::ostream &out) const {
 void DisjunctionAccumulate::reportHead(Output::OutputBase &out, Logger &log) {
     bool undefined = false;
     Symbol predRepr;
-    if (predDef_) { predRepr = predDef_.domRepr()->eval(undefined, log); }
-    if (undefined) { return; }
+    if (predDef_) {
+        predRepr = predDef_.domRepr()->eval(undefined, log);
+    }
+    if (undefined) {
+        return;
+    }
     Symbol domRepr(complete_.domRepr()->eval(undefined, log));
     Symbol elemRepr(elemRepr_->eval(undefined, log));
     assert(!undefined);
@@ -2459,14 +2813,21 @@ void DisjunctionAccumulate::reportHead(Output::OutputBase &out, Logger &log) {
     assert(atm != dom.end());
     auto &tempLits = out.tempLits();
     for (auto &x : headCond_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto lit = x->toOutput(log);
-        if (!lit.second) { tempLits.emplace_back(lit.first.negate()); }
+        if (!lit.second) {
+            tempLits.emplace_back(lit.first.negate());
+        }
     }
     if (predDef_) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         auto &predDom = static_cast<PredicateDomain&>(predDef_.dom());
         auto predAtm = predDom.reserve(predRepr);
-        if (predAtm->fact()) { return; }
+        if (predAtm->fact()) {
+            return;
+        }
         tempLits.emplace_back(Output::LiteralId(NAF::POS, Output::AtomType::Predicate, numeric_cast<Id_t>(predAtm - predDom.begin()), predDom.domainOffset()));
     }
     complete_.enqueue(atm);
@@ -2480,9 +2841,13 @@ void DisjunctionAccumulate::report(Output::OutputBase &out, Logger &log) {
     assert(!undefined);
     auto &tempLits = out.tempLits();
     for (auto &x : lits_) {
-        if (x->auxiliary()) { continue; }
+        if (x->auxiliary()) {
+            continue;
+        }
         auto lit = x->toOutput(log);
-        if (!lit.second) { tempLits.emplace_back(lit.first); }
+        if (!lit.second) {
+            tempLits.emplace_back(lit.first);
+        }
     }
     auto &dom = complete_.dom();
     auto atm = dom.find(domRepr);
@@ -2494,4 +2859,3 @@ void DisjunctionAccumulate::report(Output::OutputBase &out, Logger &log) {
 // }}}1
 
 } } // namespace Ground Gringo
-

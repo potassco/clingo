@@ -57,12 +57,10 @@ typename Indexed<T, R>::IndexType Indexed<T, R>::emplace(Args&&... args) {
         values_.emplace_back(std::forward<Args>(args)...);
         return IndexType(values_.size() - 1);
     }
-    else {
-        IndexType uid = free_.back();
-        values_[uid] = ValueType(std::forward<Args>(args)...);
-        free_.pop_back();
-        return uid;
-    }
+    IndexType uid = free_.back();
+    values_[uid] = ValueType(std::forward<Args>(args)...);
+    free_.pop_back();
+    return uid;
 }
 
 template <class T, class R>
@@ -71,12 +69,10 @@ typename Indexed<T, R>::IndexType Indexed<T, R>::insert(ValueType &&value) {
         values_.push_back(std::move(value));
         return IndexType(values_.size() - 1);
     }
-    else {
-        IndexType uid = free_.back();
-        values_[uid] = std::move(value);
-        free_.pop_back();
-        return uid;
-    }
+    IndexType uid = free_.back();
+    values_[uid] = std::move(value);
+    free_.pop_back();
+    return uid;
 }
 
 template <class T, class R>

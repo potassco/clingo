@@ -35,177 +35,258 @@ namespace {
 
 // {{{ declaration of RangeBinder
 
-struct RangeBinder : Binder {
-    RangeBinder(UTerm &&assign, RangeLiteralShared &range)
-        : assign(std::move(assign))
-        , range(range) { }
-    IndexUpdater *getUpdater() override { return nullptr; }
+class RangeBinder : public Binder {
+public:
+    RangeBinder(UTerm assign, RangeLiteralShared &range)
+    : assign_(std::move(assign))
+    , range_(range) { }
+
+    IndexUpdater *getUpdater() override {
+        return nullptr;
+    }
+
     void match(Logger &log) override {
         bool undefined = false;
-        Symbol l{range.first->eval(undefined, log)}, r{range.second->eval(undefined, log)};
+        Symbol l{range_.first->eval(undefined, log)};
+        Symbol r{range_.second->eval(undefined, log)};
         if (!undefined && l.type() == SymbolType::Num && r.type() == SymbolType::Num) {
-            current = l.num();
-            end     = r.num();
+            current_ = l.num();
+            end_     = r.num();
         }
         else {
             if (!undefined) {
                 GRINGO_REPORT(log, Warnings::OperationUndefined)
-                    << (range.first->loc() + range.second->loc()) << ": info: interval undefined:\n"
-                    << "  " << *range.first << ".." << *range.second << "\n";
+                    << (range_.first->loc() + range_.second->loc()) << ": info: interval undefined:\n"
+                    << "  " << *range_.first << ".." << *range_.second << "\n";
             }
-            current = 1;
-            end     = 0;
+            current_ = 1;
+            end_     = 0;
         }
     }
+
     bool next() override {
         // Note: if assign does not match it is not a variable and will not match at all
         //       if assign is just a number, then this is handled in the corresponding Binder
-        return current <= end && assign->match(Symbol::createNum(current++));
+        return current_ <= end_ && assign_->match(Symbol::createNum(current_++));
     }
-    void print(std::ostream &out) const override { out << *assign << "=" << *range.first << ".." << *range.second; }
-    virtual ~RangeBinder() { }
 
-    UTerm               assign;
-    RangeLiteralShared &range;
-    int                 current = 0;
-    int                 end     = 0;
+    void print(std::ostream &out) const override {
+        out << *assign_ << "=" << *range_.first << ".." << *range_.second;
+    }
+
+private:
+    UTerm               assign_;
+    RangeLiteralShared &range_;
+    int                 current_ = 0;
+    int                 end_     = 0;
 
 };
 
 // }}}
 // {{{ declaration of RangeMatcher
 
-struct RangeMatcher : Binder {
+class RangeMatcher : public Binder {
+public:
     RangeMatcher(Term &assign, RangeLiteralShared &range)
-        : assign(assign)
-        , range(range) { }
-    IndexUpdater *getUpdater() override { return nullptr; }
+    : assign_(assign)
+    , range_(range) { }
+
+    IndexUpdater *getUpdater() override {
+        return nullptr;
+    }
+
     void match(Logger &log) override {
         bool undefined = false;
-        Symbol l{range.first->eval(undefined, log)}, r{range.second->eval(undefined, log)}, a{assign.eval(undefined, log)};
+        Symbol l{range_.first->eval(undefined, log)};
+        Symbol r{range_.second->eval(undefined, log)};
+        Symbol a{assign_.eval(undefined, log)};
         if (!undefined && l.type() == SymbolType::Num && r.type() == SymbolType::Num) {
-            firstMatch = a.type() == SymbolType::Num && l.num() <= a.num() && a.num() <= r.num();
+            firstMatch_ = a.type() == SymbolType::Num && l.num() <= a.num() && a.num() <= r.num();
         }
         else {
             if (!undefined) {
                 GRINGO_REPORT(log, Warnings::OperationUndefined)
-                    << (range.first->loc() + range.second->loc()) << ": info: interval undefined:\n"
-                    << "  " << *range.first << ".." << *range.second << "\n";
+                    << (range_.first->loc() + range_.second->loc()) << ": info: interval undefined:\n"
+                    << "  " << *range_.first << ".." << *range_.second << "\n";
             }
-            firstMatch = false;
+            firstMatch_ = false;
         }
     }
+
     bool next() override {
-        bool m = firstMatch;
-        firstMatch = false;
+        bool m = firstMatch_;
+        firstMatch_ = false;
         return m;
     }
-    void print(std::ostream &out) const override { out << assign << "=" << *range.first << ".." << *range.second; }
-    Term               &assign;
-    RangeLiteralShared &range;
-    bool                firstMatch = false;
+
+    void print(std::ostream &out) const override {
+        out << assign_ << "=" << *range_.first << ".." << *range_.second;
+    }
+
+private:
+    Term               &assign_;
+    RangeLiteralShared &range_;
+    bool                firstMatch_ = false;
 };
 
 // }}}
 
 // {{{ declaration of ScriptBinder
 
-struct ScriptBinder : Binder {
-    ScriptBinder(Context &context, UTerm &&assign, ScriptLiteralShared &shared)
-        : context(context)
-        , assign(std::move(assign))
-        , shared(shared) { }
-    IndexUpdater *getUpdater() override { return nullptr; }
+class ScriptBinder : public Binder {
+public:
+    ScriptBinder(Context &context, UTerm assign, ScriptLiteralShared &shared)
+    : context_(context)
+    , assign_(std::move(assign))
+    , shared_(shared) { }
+
+    IndexUpdater *getUpdater() override {
+        return nullptr;
+    }
+
     void match(Logger &log) override {
         SymVec args;
         bool undefined = false;
-        for (auto &x : std::get<1>(shared)) { args.emplace_back(x->eval(undefined, log)); }
-        if (!undefined) {
-            matches = context.call(assign->loc(), std::get<0>(shared), Potassco::toSpan(args), log);
+        for (auto &x : std::get<1>(shared_)) {
+            args.emplace_back(x->eval(undefined, log));
         }
-        else { matches = {}; }
-        current = matches.begin();
+        if (!undefined) {
+            matches_ = context_.call(assign_->loc(), std::get<0>(shared_), Potassco::toSpan(args), log);
+        }
+        else {
+            matches_ = {};
+        }
+        current_ = matches_.begin();
     }
+
     bool next() override {
-        while (current != matches.end()) {
-            if (assign->match(*current++)) { return true; }
+        while (current_ != matches_.end()) {
+            if (assign_->match(*current_++)) {
+                return true;
+            }
         }
         return false;
     }
     void print(std::ostream &out) const override {
-        out << *assign << "=" << std::get<0>(shared) << "(";
-        print_comma(out, std::get<1>(shared), ",", [](std::ostream &out, UTerm const &term) { out << *term; });
+        out << *assign_ << "=" << std::get<0>(shared_) << "(";
+        print_comma(out, std::get<1>(shared_), ",", [](std::ostream &out, UTerm const &term) { out << *term; });
         out << ")";
     }
-    virtual ~ScriptBinder() { }
 
-    Context             &context;
-    UTerm                assign;
-    ScriptLiteralShared &shared;
-    SymVec               matches;
-    SymVec::iterator     current;
+private:
+    Context             &context_;
+    UTerm                assign_;
+    ScriptLiteralShared &shared_;
+    SymVec               matches_;
+    SymVec::iterator     current_;
 };
 
 // }}}
 
 // {{{ declaration of RelationMatcher
 
-struct RelationMatcher : Binder {
+class RelationMatcher : public Binder {
+public:
     RelationMatcher(RelationShared &shared)
-        : shared(shared) { }
-    IndexUpdater *getUpdater() override { return nullptr; }
+    : shared_(shared) { }
+
+    IndexUpdater *getUpdater() override {
+        return nullptr;
+    }
+
     void match(Logger &log) override {
         bool undefined = false;
-        Symbol l(std::get<1>(shared)->eval(undefined, log));
-        if (undefined) { firstMatch = false; return; }
-        Symbol r(std::get<2>(shared)->eval(undefined, log));
-        if (undefined) { firstMatch = false; return; }
-        switch (std::get<0>(shared)) {
-            case Relation::GT:  { firstMatch = l >  r; break; }
-            case Relation::LT:  { firstMatch = l <  r; break; }
-            case Relation::GEQ: { firstMatch = l >= r; break; }
-            case Relation::LEQ: { firstMatch = l <= r; break; }
-            case Relation::NEQ: { firstMatch = l != r; break; }
-            case Relation::EQ:  { firstMatch = l == r; break; }
+        Symbol l(std::get<1>(shared_)->eval(undefined, log));
+        if (undefined) {
+            firstMatch_ = false;
+            return;
+        }
+        Symbol r(std::get<2>(shared_)->eval(undefined, log));
+        if (undefined) {
+            firstMatch_ = false;
+            return;
+        }
+        switch (std::get<0>(shared_)) {
+            case Relation::GT:  {
+                firstMatch_ = l >  r;
+                break;
+            }
+            case Relation::LT:  {
+                firstMatch_ = l <  r;
+                break;
+            }
+            case Relation::GEQ: {
+                firstMatch_ = l >= r;
+                break;
+            }
+            case Relation::LEQ: {
+                firstMatch_ = l <= r;
+                break;
+            }
+            case Relation::NEQ: {
+                firstMatch_ = l != r;
+                break;
+            }
+            case Relation::EQ:  {
+                firstMatch_ = l == r;
+                break;
+            }
         }
     }
+
     bool next() override {
-        bool ret = firstMatch;
-        firstMatch = false;
+        bool ret = firstMatch_;
+        firstMatch_ = false;
         return ret;
     }
-    void print(std::ostream &out) const override { out << *std::get<1>(shared) << std::get<0>(shared) << *std::get<2>(shared); }
-    virtual ~RelationMatcher() { }
 
-    RelationShared &shared;
-    bool firstMatch = false;
+    void print(std::ostream &out) const override {
+        out << *std::get<1>(shared_) << std::get<0>(shared_) << *std::get<2>(shared_);
+    }
+
+private:
+    RelationShared &shared_;
+    bool firstMatch_ = false;
 };
 
 // }}}
 // {{{ declaration of AssignBinder
 
-struct AssignBinder : Binder {
+class AssignBinder : public Binder {
+public:
     AssignBinder(UTerm &&lhs, Term &rhs)
-        : lhs(std::move(lhs))
-        , rhs(rhs) { }
-    IndexUpdater *getUpdater() override { return nullptr; }
+    : lhs_(std::move(lhs))
+    , rhs_(rhs) { }
+
+    IndexUpdater *getUpdater() override {
+        return nullptr;
+    }
+
     void match(Logger &log) override {
         bool undefined = false;
-        Symbol valRhs = rhs.eval(undefined, log);
+        Symbol valRhs = rhs_.eval(undefined, log);
         if (!undefined) {
-            firstMatch = lhs->match(valRhs);
+            firstMatch_ = lhs_->match(valRhs);
         }
-        else { firstMatch = false; }
+        else {
+            firstMatch_ = false;
+        }
     }
+
     bool next() override {
-        bool ret = firstMatch;
-        firstMatch = false;
+        bool ret = firstMatch_;
+        firstMatch_ = false;
         return ret;
     }
-    void print(std::ostream &out) const override { out << *lhs << "=" << rhs; }
-    UTerm lhs;
-    Term &rhs;
-    bool firstMatch = false;
+
+    void print(std::ostream &out) const override {
+        out << *lhs_ << "=" << rhs_;
+    }
+
+private:
+    UTerm lhs_;
+    Term &rhs_;
+    bool firstMatch_ = false;
 };
 
 
@@ -213,204 +294,271 @@ struct AssignBinder : Binder {
 
 } // namespace
 
-// {{{ definition of PredicateLiteral::BodyOccurrence
+// {{{1 definition of PredicateLiteral
 
-UGTerm PredicateLiteral::getRepr() const          { return repr->gterm(); }
-bool PredicateLiteral::isPositive() const         { return naf == NAF::POS; }
-bool PredicateLiteral::isNegative() const         { return naf != NAF::POS; }
-void PredicateLiteral::setType(OccurrenceType x)  { type = x; }
-OccurrenceType PredicateLiteral::getType() const  {
-    if (type == OccurrenceType::POSITIVELY_STRATIFIED && domain.hasChoice()) {
-        return OccurrenceType::STRATIFIED;
-    }
-    return type;
-}
-BodyOcc::DefinedBy &PredicateLiteral::definedBy() { return defs; }
-void PredicateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
-    if (!auxiliary_ && defs.empty() && done.find(repr->loc()) == done.end() && edb.find(repr->getSig()) == edb.end() && domain.empty()) {
-        // accumulate warnings in array of printables ..
-        done.insert(repr->loc());
-        undef.emplace_back(repr->loc(), repr.get());
-    }
+RangeLiteral::RangeLiteral(UTerm assign, UTerm left, UTerm right)
+: assign_(std::move(assign))
+, range_(std::move(left), std::move(right)) { }
+
+void RangeLiteral::print(std::ostream &out) const {
+    out << *assign_ << "=" << *range_.first << ".." << *range_.second;
 }
 
-// }}}
-
-// {{{ definition of *Literal::*Literal
-
-RangeLiteral::RangeLiteral(UTerm &&assign, UTerm &&lower, UTerm &&upper)
-: assign(std::move(assign))
-, range(std::move(lower), std::move(upper)) { }
-
-ScriptLiteral::ScriptLiteral(UTerm &&assign, String name, UTermVec &&args)
-: assign(std::move(assign))
-, shared(name, std::move(args)) { }
-
-RelationLiteral::RelationLiteral(Relation rel, UTerm &&left, UTerm &&right)
-: shared(rel, std::move(left), std::move(right)) { }
-
-PredicateLiteral::PredicateLiteral(bool auxiliary, PredicateDomain &domain, NAF naf, UTerm &&repr)
-: auxiliary_(auxiliary)
-, repr(std::move(repr))
-, domain(domain)
-, naf(naf) { }
-
-ProjectionLiteral::ProjectionLiteral(bool auxiliary, PredicateDomain &domain, UTerm &&repr, bool initialized)
-: PredicateLiteral(auxiliary, domain, NAF::POS, std::move(repr))
-, initialized_(initialized) { }
-
-// }}}
-// {{{ definition of *Literal::print
-
-void RangeLiteral::print(std::ostream &out) const     { out << *assign << "=" << *range.first << ".." << *range.second; }
-void ScriptLiteral::print(std::ostream &out) const    {
-    out << *assign << "=" << std::get<0>(shared) << "(";
-    print_comma(out, std::get<1>(shared), ",", [](std::ostream &out, UTerm const &term) { out << *term; });
-    out << ")";
-}
-void RelationLiteral::print(std::ostream &out) const  { out << *std::get<1>(shared) << std::get<0>(shared) << *std::get<2>(shared); }
-void PredicateLiteral::print(std::ostream &out) const {
-    if (auxiliary()) { out << "["; }
-    out << naf << *repr;
-    switch (type) {
-        case OccurrenceType::POSITIVELY_STRATIFIED: { break; }
-        case OccurrenceType::STRATIFIED:            { out << "!"; break; }
-        case OccurrenceType::UNSTRATIFIED:          { out << "?"; break; }
-    }
-    if (auxiliary()) { out << "]"; }
+bool RangeLiteral::isRecursive() const {
+    return false;
 }
 
-// }}}
-// {{{ definition of *Literal::isRecursive
-
-bool RangeLiteral::isRecursive() const     { return false; }
-bool ScriptLiteral::isRecursive() const    { return false; }
-bool RelationLiteral::isRecursive() const  { return false; }
-bool PredicateLiteral::isRecursive() const { return type == OccurrenceType::UNSTRATIFIED; }
-
-// }}}
-// {{{ definition of *Literal::occurrence
-
-BodyOcc *RangeLiteral::occurrence()     { return nullptr; }
-BodyOcc *ScriptLiteral::occurrence()    { return nullptr; }
-BodyOcc *RelationLiteral::occurrence()  { return nullptr; }
-BodyOcc *PredicateLiteral::occurrence() { return this; }
-
-// }}}
-// {{{ definition of *Literal::collect
+BodyOcc *RangeLiteral::occurrence() {
+    return nullptr;
+}
 
 void RangeLiteral::collect(VarTermBoundVec &vars) const {
-    assign->collect(vars, true);
-    range.first->collect(vars, false);
-    range.second->collect(vars, false);
+    assign_->collect(vars, true);
+    range_.first->collect(vars, false);
+    range_.second->collect(vars, false);
 }
-void ScriptLiteral::collect(VarTermBoundVec &vars) const {
-    assign->collect(vars, true);
-    for (auto &x : std::get<1>(shared)) { x->collect(vars, false); }
-}
-void RelationLiteral::collect(VarTermBoundVec &vars) const {
-    std::get<1>(shared)->collect(vars, std::get<0>(shared) == Relation::EQ);
-    std::get<2>(shared)->collect(vars, false);
-}
-void PredicateLiteral::collect(VarTermBoundVec &vars) const { repr->collect(vars, naf == NAF::POS); }
 
-// }}}
-// {{{ definition of Literal::collectImportant
-
-void Literal::collectImportant(Term::VarSet &vars) {
-    auto occ(occurrence());
-    if (occ && occ->getType() != OccurrenceType::POSITIVELY_STRATIFIED) {
-        VarTermBoundVec x;
-        collect(x);
-        for (auto &occ : x) { vars.emplace(occ.first->name); }
+UIdx RangeLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(context);
+    static_cast<void>(type);
+    if (assign_->bind(bound)) {
+        return gringo_make_unique<RangeBinder>(get_clone(assign_), range_);
     }
+    return gringo_make_unique<RangeMatcher>(*assign_, range_);
 }
 
-// }}}
-// {{{ definition of *Literal::index
-
-UIdx RangeLiteral::index(Context &, BinderType, Term::VarSet &bound) {
-    if (assign->bind(bound)) { return gringo_make_unique<RangeBinder>(get_clone(assign), range); }
-    else                     { return gringo_make_unique<RangeMatcher>(*assign, range); }
-}
-UIdx ScriptLiteral::index(Context &context, BinderType, Term::VarSet &bound) {
-    UTerm clone(assign->clone());
-    clone->bind(bound);
-    return gringo_make_unique<ScriptBinder>(context, std::move(clone), shared);
-}
-UIdx RelationLiteral::index(Context &, BinderType, Term::VarSet &bound) {
-    if (std::get<0>(shared) == Relation::EQ) {
-        UTerm clone(std::get<1>(shared)->clone());
-        VarTermVec occBound;
-        if (clone->bind(bound)) { return gringo_make_unique<AssignBinder>(std::move(clone), *std::get<2>(shared)); }
-    }
-    return gringo_make_unique<RelationMatcher>(shared);
-}
-UIdx PredicateLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
-    return make_binder(domain, naf, *repr, offset, type, isRecursive(), bound, 0);
-}
-UIdx ProjectionLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
-    assert(bound.empty());
-    assert(type == BinderType::ALL || type == BinderType::NEW);
-    return make_binder(domain, naf, *repr, offset, type, isRecursive(), bound, initialized_ ? domain.incOffset() : 0);
-}
-
-// }}}
-// {{{ definition of *Literal::score
-
-Literal::Score RangeLiteral::score(Term::VarSet const &, Logger &log) {
-    if (range.first->getInvertibility() == Term::CONSTANT && range.second->getInvertibility() == Term::CONSTANT) {
+Literal::Score RangeLiteral::score(Term::VarSet const &bound, Logger &log) {
+    static_cast<void>(bound);
+    if (range_.first->getInvertibility() == Term::CONSTANT && range_.second->getInvertibility() == Term::CONSTANT) {
         bool undefined = false;
-        Symbol l(range.first->eval(undefined, log));
-        Symbol r(range.second->eval(undefined, log));
+        Symbol l(range_.first->eval(undefined, log));
+        Symbol r(range_.second->eval(undefined, log));
         return (l.type() == SymbolType::Num && r.type() == SymbolType::Num) ? r.num() - l.num() : -1;
     }
     return 0;
 }
-Literal::Score ScriptLiteral::score(Term::VarSet const &, Logger &) {
+std::pair<Output::LiteralId, bool> RangeLiteral::toOutput(Logger &log) {
+    return {Output::LiteralId(), true};
+}
+
+// {{{1 definition of ScriptLiteral
+
+
+ScriptLiteral::ScriptLiteral(UTerm assign, String name, UTermVec args)
+: assign_(std::move(assign))
+, shared_(name, std::move(args)) { }
+
+void ScriptLiteral::print(std::ostream &out) const    {
+    out << *assign_ << "=" << std::get<0>(shared_) << "(";
+    print_comma(out, std::get<1>(shared_), ",", [](std::ostream &out, UTerm const &term) { out << *term; });
+    out << ")";
+}
+
+bool ScriptLiteral::isRecursive() const {
+    return false;
+}
+
+BodyOcc *ScriptLiteral::occurrence() {
+    return nullptr;
+}
+
+void ScriptLiteral::collect(VarTermBoundVec &vars) const {
+    assign_->collect(vars, true);
+    for (auto const &x : std::get<1>(shared_)) {
+        x->collect(vars, false);
+    }
+}
+
+UIdx ScriptLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(type);
+    UTerm clone(assign_->clone());
+    clone->bind(bound);
+    return gringo_make_unique<ScriptBinder>(context, std::move(clone), shared_);
+}
+
+Literal::Score ScriptLiteral::score(Term::VarSet const &bound, Logger &log) {
+    static_cast<void>(bound);
+    static_cast<void>(log);
     return 0;
 }
-Literal::Score RelationLiteral::score(Term::VarSet const &, Logger &) {
+
+std::pair<Output::LiteralId, bool> ScriptLiteral::toOutput(Logger &log) {
+    static_cast<void>(log);
+    return {Output::LiteralId(), true};
+}
+
+// {{{1 definition of PredicateLiteral
+
+RelationLiteral::RelationLiteral(Relation rel, UTerm left, UTerm right)
+: shared_(rel, std::move(left), std::move(right)) { }
+
+void RelationLiteral::print(std::ostream &out) const  {
+    out << *std::get<1>(shared_) << std::get<0>(shared_) << *std::get<2>(shared_);
+}
+
+bool RelationLiteral::isRecursive() const  {
+    return false;
+}
+
+BodyOcc *RelationLiteral::occurrence()  {
+    return nullptr;
+}
+
+void RelationLiteral::collect(VarTermBoundVec &vars) const {
+    std::get<1>(shared_)->collect(vars, std::get<0>(shared_) == Relation::EQ);
+    std::get<2>(shared_)->collect(vars, false);
+}
+
+UIdx RelationLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(context);
+    static_cast<void>(type);
+    if (std::get<0>(shared_) == Relation::EQ) {
+        UTerm clone(std::get<1>(shared_)->clone());
+        VarTermVec occBound;
+        if (clone->bind(bound)) {
+            return gringo_make_unique<AssignBinder>(std::move(clone), *std::get<2>(shared_));
+        }
+    }
+    return gringo_make_unique<RelationMatcher>(shared_);
+}
+
+Literal::Score RelationLiteral::score(Term::VarSet const &bound, Logger &log) {
+    static_cast<void>(bound);
+    static_cast<void>(log);
     return -1;
 }
-Literal::Score PredicateLiteral::score(Term::VarSet const &bound, Logger &) {
-    return naf == NAF::POS ? estimate(domain.size(), *repr, bound) : 0;
+
+std::pair<Output::LiteralId,bool> RelationLiteral::toOutput(Logger &log)  {
+    static_cast<void>(log);
+    return {Output::LiteralId(), true};
 }
 
-// }}}
-// {{{ definition of *Literal::toOutput
+// {{{1 definition of PredicateLiteral
 
-std::pair<Output::LiteralId,bool> RangeLiteral::toOutput(Logger &)     { return {Output::LiteralId(), true}; }
-std::pair<Output::LiteralId,bool> ScriptLiteral::toOutput(Logger &)    { return {Output::LiteralId(), true}; }
-std::pair<Output::LiteralId,bool> RelationLiteral::toOutput(Logger &)  { return {Output::LiteralId(), true}; }
-std::pair<Output::LiteralId,bool> PredicateLiteral::toOutput(Logger &) {
-    if (offset == InvalidId) {
-        assert(naf == NAF::NOT);
+PredicateLiteral::PredicateLiteral(bool auxiliary, PredicateDomain &domain, NAF naf, UTerm &&repr)
+: auxiliary_(auxiliary)
+, repr_(std::move(repr))
+, domain_(domain)
+, naf_(naf) { }
+
+void PredicateLiteral::print(std::ostream &out) const {
+    if (auxiliary()) {
+        out << "[";
+    }
+    out << naf_ << *repr_;
+    switch (type_) {
+        case OccurrenceType::POSITIVELY_STRATIFIED: {
+            break;
+        }
+        case OccurrenceType::STRATIFIED: {
+            out << "!";
+            break;
+        }
+        case OccurrenceType::UNSTRATIFIED: {
+            out << "?";
+            break;
+        }
+    }
+    if (auxiliary()) {
+        out << "]";
+    }
+}
+
+bool PredicateLiteral::isRecursive() const {
+    return type_ == OccurrenceType::UNSTRATIFIED;
+}
+
+Literal::Score PredicateLiteral::score(Term::VarSet const &bound, Logger &log) {
+    static_cast<void>(log);
+    return naf_ == NAF::POS ? estimate(domain_.size(), *repr_, bound) : 0;
+}
+
+void PredicateLiteral::collect(VarTermBoundVec &vars) const {
+    repr_->collect(vars, naf_ == NAF::POS);
+}
+
+std::pair<Output::LiteralId, bool> PredicateLiteral::toOutput(Logger &log) {
+    static_cast<void>(log);
+    if (offset_ == InvalidId) {
+        assert(naf_ == NAF::NOT);
         return {Output::LiteralId(), true};
     }
-    auto &atom = domain[offset];
+    auto &atom = domain_[offset_];
     if (static_cast<Symbol>(atom).name().startsWith("#inc_")) {
         return {Output::LiteralId(), true};
     }
-    switch (naf) {
+    switch (naf_) {
         case NAF::POS:
-        case NAF::NOTNOT: { return {Output::LiteralId{naf, Output::AtomType::Predicate, offset, domain.domainOffset()}, atom.fact()}; }
-        case NAF::NOT:    { return {Output::LiteralId{naf, Output::AtomType::Predicate, offset, domain.domainOffset()}, false}; }
+        case NAF::NOTNOT: {
+            return {Output::LiteralId{naf_, Output::AtomType::Predicate, offset_, domain_.domainOffset()}, atom.fact()};
+        }
+        case NAF::NOT: {
+            return {Output::LiteralId{naf_, Output::AtomType::Predicate, offset_, domain_.domainOffset()}, false};
+        }
     }
     assert(false);
     return {Output::LiteralId(),true};
 }
 
-// }}}
-// {{{ definition of *Literal::~*Literal
+UIdx PredicateLiteral::make_index(BinderType type, Term::VarSet &bound, bool initialized) {
+    return make_binder(domain_, naf_, *repr_, offset_, type, isRecursive(), bound, initialized ? numeric_cast<int>(domain_.incOffset()) : 0);
+}
 
-RangeLiteral::~RangeLiteral() { }
-ScriptLiteral::~ScriptLiteral() { }
-RelationLiteral::~RelationLiteral() { }
-PredicateLiteral::~PredicateLiteral() { }
-ProjectionLiteral::~ProjectionLiteral() { }
+UIdx PredicateLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(context);
+    return make_index(type, bound, false);
+}
 
-// }}}
+BodyOcc *PredicateLiteral::occurrence() {
+    return this;
+}
+
+UGTerm PredicateLiteral::getRepr() const {
+    return repr_->gterm();
+}
+
+bool PredicateLiteral::isPositive() const {
+    return naf_ == NAF::POS;
+}
+
+bool PredicateLiteral::isNegative() const {
+    return naf_ != NAF::POS;
+}
+
+void PredicateLiteral::setType(OccurrenceType x) {
+    type_ = x;
+}
+
+OccurrenceType PredicateLiteral::getType() const {
+    if (type_ == OccurrenceType::POSITIVELY_STRATIFIED && domain_.hasChoice()) {
+        return OccurrenceType::STRATIFIED;
+    }
+    return type_;
+}
+
+BodyOcc::DefinedBy &PredicateLiteral::definedBy() {
+    return defs_;
+}
+
+void PredicateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    if (!auxiliary_ && defs_.empty() && done.find(repr_->loc()) == done.end() && edb.find(repr_->getSig()) == edb.end() && domain_.empty()) {
+        // accumulate warnings in array of printables ..
+        done.insert(repr_->loc());
+        undef.emplace_back(repr_->loc(), repr_.get());
+    }
+}
+
+ProjectionLiteral::ProjectionLiteral(bool auxiliary, PredicateDomain &domain, UTerm repr, bool initialized)
+: PredicateLiteral(auxiliary, domain, NAF::POS, std::move(repr))
+, initialized_(initialized) { }
+
+UIdx ProjectionLiteral::index(Context &context, BinderType type, Term::VarSet &bound) {
+    static_cast<void>(context);
+    assert(bound.empty());
+    assert(type == BinderType::ALL || type == BinderType::NEW);
+    return make_index(type, bound, initialized_);
+}
+
+// }}}1
 
 } } // namespace Ground Gringo
-

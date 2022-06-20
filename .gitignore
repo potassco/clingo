@@ -26,3 +26,5 @@ dist
 *.egg-info/
 MANIFEST
 libgringo/gen/
+.cache
+.gdb_history

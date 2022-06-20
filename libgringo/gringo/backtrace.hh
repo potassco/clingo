@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_BACKTRACE_HH
-#define _GRINGO_BACKTRACE_HH
+#ifndef GRINGO_BACKTRACE_HH
+#define GRINGO_BACKTRACE_HH
 
 #include <libunwind.h>
 #include <cstring>
@@ -40,15 +40,18 @@
 
 namespace Gringo {
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays,cppcoreguidelines-no-malloc,cppcoreguidelines-pro-type-vararg,cppcoreguidelines-avoid-magic-numbers,cppcoreguidelines-owning-memory,cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
 inline const char* getExecutableName() {
-    static char* exe = 0;
-    if (!exe) {
-        char link[4096];
-        static char _exe[4096];
-        _exe[0] = '\0';
-        snprintf(link, sizeof(link), "/proc/%d/exe", getpid());
-        readlink(link, _exe, sizeof(link));
-        exe = _exe;
+    static char const * exe = nullptr;
+    if (exe == nullptr) {
+        char tmp[4096];
+        static char buf[4096];
+        buf[0] = '\0';
+        snprintf(tmp, sizeof(tmp), "/proc/%d/exe", getpid());
+        // NOLINTNEXTLINE(bugprone-unused-return-value)
+        readlink(tmp, buf, sizeof(tmp));
+        exe = buf;
     }
     return exe;
 }
@@ -63,7 +66,7 @@ inline int getFileAndLine (unw_word_t addr, char *file, int *line) {
     else {
         snprintf (buf, sizeof(buf), "/home/wv/bin/linux/64/binutils-2.23.1/bin/addr2line -C -e %s -f -i %lx", getExecutableName(), addr);
         FILE* f = popen (buf, "r");
-        if (f == NULL) {
+        if (f == nullptr) {
             perror (buf);
             return 0;
         }
@@ -91,11 +94,13 @@ inline int getFileAndLine (unw_word_t addr, char *file, int *line) {
     return 1;
 }
 
-inline void showBacktrace (void) {
+inline void showBacktrace() {
     char name[4096];
-    int  status;
+    int  status{0};
     unw_cursor_t cursor; unw_context_t uc;
-    unw_word_t ip, sp, offp;
+    unw_word_t ip{0};
+    unw_word_t sp{0};
+    unw_word_t offp{0};
 
     unw_getcontext(&uc);
     unw_init_local(&cursor, &uc);
@@ -109,15 +114,19 @@ inline void showBacktrace (void) {
         unw_get_reg(&cursor, UNW_REG_IP, &ip);
         unw_get_reg(&cursor, UNW_REG_SP, &sp);
 
-        if (strcmp(name, "__libc_start_main") == 0 || strcmp(name, "_start") == 0) { continue; }
+        if (strcmp(name, "__libc_start_main") == 0 || strcmp(name, "_start") == 0) {
+            continue;
+        }
 
-        char *realname = abi::__cxa_demangle(name, 0, 0, &status);
+        char *realname = abi::__cxa_demangle(name, nullptr, nullptr, &status);
         getFileAndLine((long)ip, file, &line);
-        printf("%s in %s:%d\n", !status ? realname : name, file, line);
+        printf("%s in %s:%d\n", status == 0 ? realname : name, file, line);
         free(realname);
     }
 }
 
 } // namespace Gringo
 
-#endif // _GRINGO_BACKTRACE_HH
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays,cppcoreguidelines-no-malloc,cppcoreguidelines-pro-type-vararg,cppcoreguidelines-avoid-magic-numbers,cppcoreguidelines-owning-memory,cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
+#endif // GRINGO_BACKTRACE_HH

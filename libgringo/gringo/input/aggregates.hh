@@ -22,13 +22,47 @@
 
 // }}}
 
-#ifndef _GRINGO_INPUT_AGGREGATES_HH
-#define _GRINGO_INPUT_AGGREGATES_HH
+#ifndef GRINGO_INPUT_AGGREGATES_HH
+#define GRINGO_INPUT_AGGREGATES_HH
 
 #include <gringo/input/aggregate.hh>
 #include <gringo/terms.hh>
+#include <ostream>
 
 namespace Gringo { namespace Input {
+
+// {{{1 declaration of BodyAggrElem
+
+class BodyAggrElem : public IEContext {
+public:
+    BodyAggrElem(UTermVec tuple, ULitVec condition)
+    : tuple_{std::move(tuple)}
+    , condition_{std::move(condition)} { }
+
+    bool hasPool() const;
+    void unpool(BodyAggrElemVec &pool);
+    bool hasUnpoolComparison() const;
+    void unpoolComparison(BodyAggrElemVec &elems) const;
+    void collect(VarTermBoundVec &vars, bool tupleOnly = false) const;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log);
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen);
+    void check(ChkLvlVec &levels) const;
+    void replace(Defines &defs);
+    template <class T, class C>
+    std::unique_ptr<T> toGround(ToGroundArg &x, C &completeRef, Ground::ULitVec &&lits) const;
+
+    void gatherIEs(IESolver &solver) const override;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override;
+
+    friend std::ostream &operator<<(std::ostream &out, BodyAggrElem const &elem);
+    friend bool operator==(BodyAggrElem const &a, BodyAggrElem const &b);
+    friend size_t get_value_hash(BodyAggrElem const &elem);
+    friend BodyAggrElem get_clone(BodyAggrElem const &elem);
+
+private:
+    UTermVec tuple_;
+    ULitVec condition_;
+};
 
 // {{{1 declaration of TupleBodyAggregate
 
@@ -36,13 +70,8 @@ class TupleBodyAggregate : public BodyAggregate {
 public:
     TupleBodyAggregate(NAF naf, bool removedAssignment, bool translated, AggregateFunction fun, BoundVec &&bounds, BodyAggrElemVec &&elems); // NOTE: private
     TupleBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bounds, BodyAggrElemVec &&elems);
-    TupleBodyAggregate(TupleBodyAggregate const &other) = delete;
-    TupleBodyAggregate(TupleBodyAggregate &&other) noexcept = default;
-    TupleBodyAggregate &operator=(TupleBodyAggregate const &other) = delete;
-    TupleBodyAggregate &operator=(TupleBodyAggregate &&other) noexcept = default;
-    ~TupleBodyAggregate() noexcept override;
 
-
+    void addToSolver(IESolver &solver) override;
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     bool isAssignment() const override;
     void removeAssignment() override;
@@ -51,8 +80,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     TupleBodyAggregate *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UBodyAggrVec &x) override;
     bool hasUnpoolComparison() const override;
     UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
@@ -76,11 +105,6 @@ private:
 class LitBodyAggregate : public BodyAggregate {
 public:
     LitBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems);
-    LitBodyAggregate(LitBodyAggregate const &other) = delete;
-    LitBodyAggregate(LitBodyAggregate &&other) noexcept = default;
-    LitBodyAggregate &operator=(LitBodyAggregate const &other) = delete;
-    LitBodyAggregate &operator=(LitBodyAggregate &&other) noexcept = default;
-    ~LitBodyAggregate() noexcept override;
 
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     bool isAssignment() const override;
@@ -90,8 +114,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     LitBodyAggregate *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UBodyAggrVec &x) override;
     bool hasUnpoolComparison() const override;
     UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
@@ -108,22 +132,61 @@ private:
     CondLitVec elems_;
 };
 
+// {{{1 declaration of ConjunctionElem
+
+class ConjunctionElem;
+using ConjunctionElemVec = std::vector<ConjunctionElem>;
+using ConjunctionElemVecVec = std::vector<ConjunctionElemVec>;
+
+class ConjunctionElem : public IEContext {
+public:
+    using ULitVecVec = std::vector<ULitVec>;
+    ConjunctionElem(ULit head, ULitVec cond)
+    : cond_{std::move(cond)} {
+        head_.emplace_back();
+        head_.back().emplace_back(std::move(head));
+    }
+    ConjunctionElem(ULitVecVec head, ULitVec cond)
+    : head_{std::move(head)}
+    , cond_{std::move(cond)} { }
+
+    void print(std::ostream &out) const;
+    bool hasPool() const;
+    void unpool(ConjunctionElemVec &elems) const;
+    bool hasUnpoolComparison() const;
+    ConjunctionElemVecVec unpoolComparison() const;
+    void collect(VarTermBoundVec &vars) const;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log);
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
+    void assignLevels(AssignLevel &lvl) const;
+    void check(BodyAggregate const &parent, ChkLvlVec &levels, Logger &log) const;
+    void replace(Defines &x);
+    CreateBody toGround(UTerm id, ToGroundArg &x, Ground::UStmVec &stms) const;
+
+    void gatherIEs(IESolver &solver) const override;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override;
+
+    friend std::ostream &operator<<(std::ostream &out, ConjunctionElem const &elem);
+    friend bool operator==(ConjunctionElem const &a, ConjunctionElem const &b);
+    friend size_t get_value_hash(ConjunctionElem const &elem);
+    friend ConjunctionElem get_clone(ConjunctionElem const &elem);
+
+private:
+    ULitVecVec head_;
+    ULitVec cond_;
+};
+
 // {{{1 declaration of Conjunction
 
 class Conjunction : public BodyAggregate {
 public:
-    using ULitVecVec = std::vector<ULitVec>;
-    using Elem = std::pair<ULitVecVec, ULitVec>;
-    using ElemVec = std::vector<Elem>;
+    Conjunction(ULit head, ULitVec cond) {
+        elems_.emplace_back(std::move(head), std::move(cond));
+    }
+    Conjunction(ConjunctionElemVec elems)
+    : elems_{std::move(elems)} { }
 
-    Conjunction(ULit &&head, ULitVec &&cond);
-    Conjunction(ElemVec &&elems);
-    Conjunction(Conjunction const &other) = delete;
-    Conjunction(Conjunction &&other) noexcept = default;
-    Conjunction &operator=(Conjunction const &other) = delete;
-    Conjunction &operator=(Conjunction &&other) noexcept = default;
-    ~Conjunction() noexcept override;
-
+    void addToSolver(IESolver &solver) override;
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     bool isAssignment() const override;
     void removeAssignment() override;
@@ -132,8 +195,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     Conjunction *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UBodyAggrVec &x) override;
     bool hasUnpoolComparison() const override;
     UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
@@ -144,7 +207,7 @@ public:
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
 private:
-    ElemVec elems_;
+    ConjunctionElemVec elems_;
 };
 
 // {{{1 declaration of SimpleBodyLiteral
@@ -152,12 +215,8 @@ private:
 class SimpleBodyLiteral : public BodyAggregate {
 public:
     SimpleBodyLiteral(ULit &&lit);
-    SimpleBodyLiteral(SimpleBodyLiteral const &other) = delete;
-    SimpleBodyLiteral(SimpleBodyLiteral &&other) noexcept = default;
-    SimpleBodyLiteral &operator=(SimpleBodyLiteral const &other) = delete;
-    SimpleBodyLiteral &operator=(SimpleBodyLiteral &&other) noexcept = default;
-    ~SimpleBodyLiteral() noexcept override;
 
+    void addToSolver(IESolver &solver) override;
     unsigned projectScore() const override { return lit_->projectScore(); }
     Location const &loc() const override;
     void loc(Location const &loc) override;
@@ -169,8 +228,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     SimpleBodyLiteral *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UBodyAggrVec &x) override;
     bool hasUnpoolComparison() const override;
     UBodyAggrVecVec unpoolComparison() const override;
     bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
@@ -186,26 +245,65 @@ private:
 
 // }}}1
 
+// {{{1 declaration of HeadAggrElem
+
+class HeadAggrElem : public IEContext {
+public:
+    HeadAggrElem(UTermVec tuple, ULit lit, ULitVec condition)
+    : tuple_{std::move(tuple)}
+    , lit_{std::move(lit)}
+    , condition_{std::move(condition)} { }
+
+    bool hasPool() const;
+    void unpool(HeadAggrElemVec &pool);
+    bool hasUnpoolComparison() const;
+    void unpoolComparison(HeadAggrElemVec &elems) const;
+    void collect(VarTermBoundVec &vars, bool tupleOnly = false) const;
+    void shiftLit();
+    void shiftCondition(UBodyAggrVec &aggr, bool weight);
+    bool simplify(Projections &project, SimplifyState &state, Logger &log);
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::RelationVec &assign, AuxGen &auxGen);
+    void check(ChkLvlVec &levels) const;
+    void replace(Defines &defs);
+    bool isSimple() const;
+    UTerm headRepr() const;
+    template <class T, class C>
+    std::unique_ptr<T> toGround(ToGroundArg &x, C &completeRef) const;
+
+    void gatherIEs(IESolver &solver) const override;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override;
+
+    friend std::ostream &operator<<(std::ostream &out, HeadAggrElem const &elem);
+    friend bool operator==(HeadAggrElem const &a, HeadAggrElem const &b);
+    friend size_t get_value_hash(HeadAggrElem const &elem);
+    friend HeadAggrElem get_clone(HeadAggrElem const &elem);
+
+private:
+    template <class T>
+    void zeroLevel_(VarTermBoundVec &bound, T const &x);
+
+
+    UTermVec tuple_;
+    ULit lit_;
+    ULitVec condition_;
+};
+
 // {{{1 declaration of TupleHeadAggregate
 
 class TupleHeadAggregate : public HeadAggregate {
 public:
     TupleHeadAggregate(AggregateFunction fun, bool translated, BoundVec &&bounds, HeadAggrElemVec &&elems);
     TupleHeadAggregate(AggregateFunction fun, BoundVec &&bounds, HeadAggrElemVec &&elems);
-    TupleHeadAggregate(TupleHeadAggregate const &other) = delete;
-    TupleHeadAggregate(TupleHeadAggregate &&other) noexcept = default;
-    TupleHeadAggregate &operator=(TupleHeadAggregate const &other) = delete;
-    TupleHeadAggregate &operator=(TupleHeadAggregate &&other) noexcept = default;
-    ~TupleHeadAggregate() noexcept override;
 
+    void addToSolver(IESolver &solver) override;
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
     bool operator==(HeadAggregate const &other) const override;
     void print(std::ostream &out) const override;
     size_t hash() const override;
     TupleHeadAggregate *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -226,11 +324,6 @@ private:
 class LitHeadAggregate : public HeadAggregate {
 public:
     LitHeadAggregate(AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems);
-    LitHeadAggregate(LitHeadAggregate const &other) = delete;
-    LitHeadAggregate(LitHeadAggregate &&other) noexcept = default;
-    LitHeadAggregate &operator=(LitHeadAggregate const &other) = delete;
-    LitHeadAggregate &operator=(LitHeadAggregate &&other) noexcept = default;
-    ~LitHeadAggregate() noexcept override;
 
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
@@ -238,8 +331,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     LitHeadAggregate *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -254,31 +347,71 @@ private:
     CondLitVec elems_;
 };
 
+// {{{1 declaration of DisjunctionElem
+
+class DisjunctionElem;
+using DisjunctionElemVec = std::vector<DisjunctionElem>;
+
+class DisjunctionElem : public IEContext {
+    using Head = std::pair<ULit, ULitVec>;
+    using HeadVec = std::vector<Head>;
+public:
+    DisjunctionElem(HeadVec head, ULitVec cond)
+    : heads_{std::move(head)}
+    , cond_{std::move(cond)} {}
+    DisjunctionElem(CondLit lit)
+    : cond_{std::move(lit.second)} {
+        heads_.emplace_back();
+        heads_.back().first = std::move(lit.first);
+    }
+    void print(std::ostream &out) const;
+    void unpool(DisjunctionElemVec &elems);
+    bool hasUnpoolComparison() const;
+    void unpoolComparison(DisjunctionElemVec &elems);
+    void collect(VarTermBoundVec &vars) const;
+    void rewriteAggregates(Location const &loc, UBodyAggrVec &aggr);
+    bool simplify(Projections &project, SimplifyState &state, Logger &log);
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
+    void assignLevels(AssignLevel &lvl);
+    void check(HeadAggregate const &parent, ChkLvlVec &levels, Logger &log) const;
+    bool hasPool() const;
+    void replace(Defines &x);
+    bool isSimple() const;
+    template <class T>
+    void toGroundSimple(ToGroundArg &x, T &heads) const;
+    template <class T>
+    void toGround(Location const &loc, T &complete, ToGroundArg &x, Ground::UStmVec &stms) const;
+
+    void gatherIEs(IESolver &solver) const override;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override;
+
+    friend std::ostream &operator<<(std::ostream &out, DisjunctionElem const &elem);
+    friend bool operator==(DisjunctionElem const &a, DisjunctionElem const &b);
+    friend size_t get_value_hash(DisjunctionElem const &elem);
+    friend DisjunctionElem get_clone(DisjunctionElem const &elem);
+
+private:
+    HeadVec heads_;
+    ULitVec cond_;
+};
+
 // {{{1 declaration of Disjunction
 
 class Disjunction : public HeadAggregate {
 public:
-    using Head = std::pair<ULit, ULitVec>;
-    using HeadVec = std::vector<Head>;
-    using Elem = std::pair<HeadVec, ULitVec>;
-    using ElemVec = std::vector<Elem>;
 
-    Disjunction(CondLitVec &&elems);
-    Disjunction(ElemVec &&elems);
-    Disjunction(Disjunction const &other) = delete;
-    Disjunction(Disjunction &&other) noexcept = default;
-    Disjunction &operator=(Disjunction const &other) = delete;
-    Disjunction &operator=(Disjunction &&other) noexcept = default;
-    ~Disjunction() noexcept override;
+    Disjunction(CondLitVec elems);
+    Disjunction(DisjunctionElemVec elems);
 
+    void addToSolver(IESolver &solver) override;
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
     bool operator==(HeadAggregate const &other) const override;
     void print(std::ostream &out) const override;
     size_t hash() const override;
     Disjunction *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -288,7 +421,7 @@ public:
     CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
 
 private:
-    ElemVec elems_;
+    DisjunctionElemVec elems_;
 };
 
 // {{{1 declaration of SimpleHeadLiteral
@@ -296,12 +429,8 @@ private:
 class SimpleHeadLiteral : public HeadAggregate {
 public:
     SimpleHeadLiteral(ULit &&lit);
-    SimpleHeadLiteral(SimpleHeadLiteral const &other) = delete;
-    SimpleHeadLiteral(SimpleHeadLiteral &&other) noexcept = default;
-    SimpleHeadLiteral &operator=(SimpleHeadLiteral const &other) = delete;
-    SimpleHeadLiteral &operator=(SimpleHeadLiteral &&other) noexcept = default;
-    ~SimpleHeadLiteral() noexcept override;
 
+    void addToSolver(IESolver &solver) override;
     bool isPredicate() const override { return true; }
     Location const &loc() const override;
     void loc(Location const &loc) override;
@@ -311,8 +440,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     SimpleHeadLiteral *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -333,11 +462,6 @@ class MinimizeHeadLiteral : public HeadAggregate {
 public:
     MinimizeHeadLiteral(UTerm &&weight, UTerm &&priority, UTermVec &&tuple);
     MinimizeHeadLiteral(UTermVec &&tuple);
-    MinimizeHeadLiteral(MinimizeHeadLiteral const &other) = delete;
-    MinimizeHeadLiteral(MinimizeHeadLiteral &&other) noexcept = default;
-    MinimizeHeadLiteral &operator=(MinimizeHeadLiteral const &other) = delete;
-    MinimizeHeadLiteral &operator=(MinimizeHeadLiteral &&other) noexcept = default;
-    ~MinimizeHeadLiteral() noexcept override;
 
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
@@ -346,8 +470,8 @@ public:
     void printWithCondition(std::ostream &out, UBodyAggrVec const &condition) const override;
     size_t hash() const override;
     MinimizeHeadLiteral *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -369,11 +493,6 @@ private:
 class EdgeHeadAtom : public HeadAggregate {
 public:
     EdgeHeadAtom(UTerm &&u, UTerm &&v);
-    EdgeHeadAtom(EdgeHeadAtom const &other) = delete;
-    EdgeHeadAtom(EdgeHeadAtom &&other) noexcept = default;
-    EdgeHeadAtom &operator=(EdgeHeadAtom const &other) = delete;
-    EdgeHeadAtom &operator=(EdgeHeadAtom &&other) noexcept = default;
-    ~EdgeHeadAtom() noexcept override;
 
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
@@ -381,8 +500,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     EdgeHeadAtom *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -401,11 +520,6 @@ private:
 class ProjectHeadAtom : public HeadAggregate {
 public:
     ProjectHeadAtom(UTerm &&atom);
-    ProjectHeadAtom(ProjectHeadAtom const &other) = delete;
-    ProjectHeadAtom(ProjectHeadAtom &&other) noexcept = default;
-    ProjectHeadAtom &operator=(ProjectHeadAtom const &other) = delete;
-    ProjectHeadAtom &operator=(ProjectHeadAtom &&other) noexcept = default;
-    ~ProjectHeadAtom() noexcept override;
 
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
@@ -413,8 +527,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     ProjectHeadAtom *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -432,11 +546,6 @@ private:
 class ExternalHeadAtom : public HeadAggregate {
 public:
     ExternalHeadAtom(UTerm &&atom, UTerm &&type);
-    ExternalHeadAtom(ExternalHeadAtom const &other) = delete;
-    ExternalHeadAtom(ExternalHeadAtom &&other) noexcept = default;
-    ExternalHeadAtom &operator=(ExternalHeadAtom const &other) = delete;
-    ExternalHeadAtom &operator=(ExternalHeadAtom &&other) noexcept = default;
-    ~ExternalHeadAtom() noexcept override;
 
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
@@ -445,8 +554,8 @@ public:
     void printWithCondition(std::ostream &out, UBodyAggrVec const &condition) const override;
     size_t hash() const override;
     ExternalHeadAtom *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -465,11 +574,6 @@ private:
 class HeuristicHeadAtom : public HeadAggregate {
 public:
     HeuristicHeadAtom(UTerm &&atom, UTerm &&bias, UTerm &&priority, UTerm &&mod);
-    HeuristicHeadAtom(HeuristicHeadAtom const &other) = delete;
-    HeuristicHeadAtom(HeuristicHeadAtom &&other) noexcept = default;
-    HeuristicHeadAtom &operator=(HeuristicHeadAtom const &other) = delete;
-    HeuristicHeadAtom &operator=(HeuristicHeadAtom &&other) noexcept = default;
-    ~HeuristicHeadAtom() noexcept override;
 
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
@@ -477,8 +581,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     HeuristicHeadAtom *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -499,11 +603,6 @@ private:
 class ShowHeadLiteral : public HeadAggregate {
 public:
     ShowHeadLiteral(UTerm &&term);
-    ShowHeadLiteral(ShowHeadLiteral const &other) = delete;
-    ShowHeadLiteral(ShowHeadLiteral &&other) noexcept = default;
-    ShowHeadLiteral &operator=(ShowHeadLiteral const &other) = delete;
-    ShowHeadLiteral &operator=(ShowHeadLiteral &&other) noexcept = default;
-    ~ShowHeadLiteral() noexcept override;
 
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
@@ -511,8 +610,8 @@ public:
     void print(std::ostream &out) const override;
     size_t hash() const override;
     ShowHeadLiteral *clone() const override;
-    bool hasPool(bool beforeRewrite) const override;
-    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool hasPool() const override;
+    void unpool(UHeadAggrVec &x) override;
     UHeadAggr unpoolComparison(UBodyAggrVec &body) override;
     bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
@@ -529,4 +628,4 @@ private:
 
 } } // namespace Input Gringo
 
-#endif // _GRINGO_INPUT_AGGREGATES_HH
+#endif // GRINGO_INPUT_AGGREGATES_HH

@@ -30,9 +30,7 @@
 #include <gringo/terms.hh>
 #include <list>
 
-namespace Gringo {
-
-namespace Ground {
+namespace Gringo { namespace Ground {
 
 enum class RuleType : unsigned short;
 using ULitVec = std::vector<ULit>;
@@ -48,10 +46,10 @@ namespace Input {
 
 using CondLit = std::pair<ULit, ULitVec>;
 using CondLitVec = std::vector<CondLit>;
-using BodyAggrElem = std::pair<UTermVec, ULitVec>;
+class BodyAggrElem;
 using BodyAggrElemVec = std::vector<BodyAggrElem>;
 
-using HeadAggrElem = std::tuple<UTermVec, ULit, ULitVec>;
+class HeadAggrElem;
 using HeadAggrElemVec = std::vector<HeadAggrElem>;
 
 class BodyAggregate;
@@ -166,13 +164,15 @@ public:
     BodyAggregate &operator=(BodyAggregate &&other) noexcept = default;
     ~BodyAggregate() noexcept override = default;
 
+    //! Add inequalities bounding variables to the given solver.
+    virtual void addToSolver(IESolver &solver);
     //! Removes RawTheoryTerms from TheoryLiterals
     virtual void initTheory(TheoryDefs &def, Logger &log) { (void)def; (void)log; };
     virtual unsigned projectScore() const { return 2; }
     //! Check if the aggregate needs unpooling.
-    virtual bool hasPool(bool beforeRewrite) const = 0;
+    virtual bool hasPool() const = 0;
     //! Unpool the aggregate and aggregate elements.
-    virtual void unpool(UBodyAggrVec &x, bool beforeRewrite) = 0;
+    virtual void unpool(UBodyAggrVec &x) = 0;
     //! Check if the aggregate needs unpooling.
     virtual bool hasUnpoolComparison() const = 0;
     //! Unpool the aggregate and aggregate elements.
@@ -218,13 +218,15 @@ public:
     HeadAggregate &operator=(HeadAggregate &&other) noexcept = default;
     ~HeadAggregate() noexcept override = default;
 
+    //! Add inequalities bounding variables to the given solver.
+    virtual void addToSolver(IESolver &solver);
     //! Removes RawTheoryTerms from TheoryLiterals
-    virtual void initTheory(TheoryDefs &def, bool hasBody, Logger &log) { (void)def; (void)hasBody; (void)log; }
+    virtual void initTheory(TheoryDefs &def, bool hasBody, Logger &log);
     virtual bool isPredicate() const { return false; }
     //! Check if the aggregate needs unpooling.
-    virtual bool hasPool(bool beforeRewrite) const = 0;
+    virtual bool hasPool() const = 0;
     //! Unpool the aggregate and aggregate elements.
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite) = 0;
+    virtual void unpool(UHeadAggrVec &x) = 0;
     //! Unpool comparisons within the aggregate.
     virtual UHeadAggr unpoolComparison(UBodyAggrVec &body) = 0;
     //! Simplify the aggregate and aggregate elements.

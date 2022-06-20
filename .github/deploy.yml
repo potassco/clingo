@@ -30,6 +30,7 @@ pip:
             check_call(['cmake', '--build', 're2c_build', '--target', 'install'])
         else:
             check_call(['yum', 'install', '-y', 're2c', 'bison'])
+        check_call(['yum', 'install', '-y', 'libffi-devel'])
     winmac_images:
         macos-latest:
             depends: |
@@ -151,6 +152,7 @@ conda:
       - 3.7
       - 3.8
       - 3.9
+      - 3.10
 
       # from https://github.com/phracker/MacOSX-SDKs
       CONDA_BUILD_SYSROOT:

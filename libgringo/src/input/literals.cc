@@ -103,7 +103,7 @@ size_t PredicateLiteral::hash() const {
     return get_value_hash(typeid(PredicateLiteral).hash_code(), size_t(naf_), repr_);
 }
 
-ULitVec PredicateLiteral::unpool(bool beforeRewrite, bool head) const {
+ULitVec PredicateLiteral::unpool(bool head) const {
     ULitVec value;
     auto f = [&](UTerm &&y){ value.emplace_back(make_locatable<PredicateLiteral>(loc(), naf_, std::move(y))); };
     Term::unpool(repr_, Gringo::unpool, f);
@@ -125,7 +125,7 @@ Symbol PredicateLiteral::isEDB() const {
     return naf_ == NAF::POS ? repr_->isEDB() : Symbol();
 }
 
-bool PredicateLiteral::hasPool(bool beforeRewrite, bool head) const {
+bool PredicateLiteral::hasPool(bool head) const {
     return repr_->hasPool();
 }
 
@@ -168,7 +168,7 @@ ProjectionLiteral *ProjectionLiteral::clone() const {
     throw std::logic_error("ProjectionLiteral::clone must not be called!!!");
 }
 
-ULitVec ProjectionLiteral::unpool(bool beforeRewrite, bool head) const {
+ULitVec ProjectionLiteral::unpool(bool head) const {
     throw std::logic_error("ProjectionLiteral::unpool must not be called!!!");
 }
 
@@ -218,6 +218,74 @@ ULit RelationLiteral::make(Term::LevelMap::value_type &x) {
 ULit RelationLiteral::make(Literal::RelationVec::value_type &x) {
     Location loc(std::get<1>(x)->loc() + std::get<2>(x)->loc());
     return make_locatable<RelationLiteral>(loc, NAF::POS, std::get<0>(x), std::move(std::get<1>(x)), get_clone(std::get<2>(x)));
+}
+
+void RelationLiteral::addToSolver(IESolver &solver, bool invert) const {
+    if (right_.size() != 1) {
+        return;
+    }
+    auto rel = right_.front().first;
+    if (invert) {
+        rel = neg(rel);
+    }
+    if (naf_ == NAF::NOT) {
+        rel = neg(rel);
+    }
+    if (rel == Relation::NEQ) {
+        return;
+    }
+    IETermVec left;
+    if (!left_->addToLinearTerm(left)) {
+        return;
+    }
+    IETermVec right;
+    if (!right_.front().second->addToLinearTerm(right)) {
+        return;
+    }
+    // TODO: it should be possible to make this nicer!!!
+    switch (rel) {
+        case Relation::NEQ: {
+            return;
+        }
+        case Relation::EQ: {
+            // ignore assignements of X=number
+            bool ignoreIfFixed =
+                dynamic_cast<VarTerm*>(left_.get()) != nullptr &&
+                dynamic_cast<ValTerm*>(right_.front().second.get()) != nullptr;
+            auto temp = right;
+            for (auto const &term : left) {
+                subIETerm(right, term);
+            }
+            solver.add({right, 0}, ignoreIfFixed);
+            for (auto const &term : temp) {
+                subIETerm(left, term);
+            }
+            solver.add({left, 0}, ignoreIfFixed);
+            return;
+        }
+        case Relation::LT: {
+            addIETerm(left, {1, nullptr});
+        }
+        case Relation::LEQ: {
+            // right - left >= 0
+            for (auto const &term : left) {
+                subIETerm(right, term);
+            }
+            solver.add({right, 0}, false);
+            return;
+        }
+        case Relation::GT: {
+            addIETerm(right, {1, nullptr});
+        }
+        case Relation::GEQ: {
+            // left - right >= 0
+            for (auto const &term : right) {
+                subIETerm(left, term);
+            }
+            solver.add({left, 0}, false);
+            return;
+        }
+    }
 }
 
 bool RelationLiteral::needSetShift() const {
@@ -308,8 +376,7 @@ size_t RelationLiteral::hash() const {
     return get_value_hash(typeid(RelationLiteral).hash_code(), naf_, left_, right_);
 }
 
-ULitVec RelationLiteral::unpool(bool beforeRewrite, bool head) const {
-    static_cast<void>(beforeRewrite);
+ULitVec RelationLiteral::unpool(bool head) const {
     // unpool a term with a relation
     auto unpoolTerm = [&](Terms::value_type const &term) -> Terms {
         Terms ret;
@@ -373,8 +440,7 @@ void RelationLiteral::toTuple(UTermVec &tuple, int &id) const {
     ++id;
 }
 
-bool RelationLiteral::hasPool(bool beforeRewrite, bool head) const  {
-    static_cast<void>(beforeRewrite);
+bool RelationLiteral::hasPool(bool head) const  {
     static_cast<void>(head);
     if (left_->hasPool()) {
         return true;
@@ -442,6 +508,41 @@ ULit RangeLiteral::make(SimplifyState::DotsMap::value_type &dot) {
     return make_locatable<RangeLiteral>(loc, std::move(std::get<0>(dot)), std::move(std::get<1>(dot)), std::move(std::get<2>(dot)));
 }
 
+ULit RangeLiteral::make(VarTerm const &var, IEBound const &bound) {
+    auto loc = var.loc();
+    return make_locatable<RangeLiteral>(
+        loc,
+        UTerm{var.clone()},
+        make_locatable<ValTerm>(loc, Symbol::createNum(bound.get(IEBound::Lower))),
+        make_locatable<ValTerm>(loc, Symbol::createNum(bound.get(IEBound::Upper))));
+}
+
+void RangeLiteral::addToSolver(IESolver &solver, bool invert) const {
+    if (invert) {
+        return;
+    }
+    IETermVec assign;
+    if (!assign_->addToLinearTerm(assign)) {
+        return;
+    }
+    IETermVec upper;
+    if (upper_->addToLinearTerm(upper)) {
+        // we get constraint upper - assign >= 0
+        for (auto const &term : assign) {
+            subIETerm(upper, term);
+        }
+        solver.add({std::move(upper), 0}, true);
+    }
+    IETermVec lower;
+    if (lower_->addToLinearTerm(lower)) {
+        // we get constraint assign - lower >= 0
+        for (auto const &term : lower) {
+            subIETerm(assign, term);
+        }
+        solver.add({std::move(assign), 0}, true);
+    }
+}
+
 void RangeLiteral::print(std::ostream &out) const {
     out << "#range(" << *assign_ << "," << *lower_ << "," << *upper_ << ")";
 }
@@ -476,7 +577,7 @@ size_t RangeLiteral::hash() const {
     return get_value_hash(typeid(RangeLiteral).hash_code(), assign_, lower_, upper_);
 }
 
-ULitVec RangeLiteral::unpool(bool beforeRewrite, bool head) const {
+ULitVec RangeLiteral::unpool(bool head) const {
     ULitVec value;
     value.emplace_back(ULit(clone()));
     return value;
@@ -486,7 +587,7 @@ void RangeLiteral::toTuple(UTermVec &tuple, int &id) const {
     throw std::logic_error("RangeLiteral::toTuple should never be called if used properly");
 }
 
-bool RangeLiteral::hasPool(bool beforeRewrite, bool head) const {
+bool RangeLiteral::hasPool(bool head) const {
     return false;
 }
 
@@ -566,7 +667,7 @@ size_t ScriptLiteral::hash() const {
     return get_value_hash(typeid(RangeLiteral).hash_code(), assign_, name_, args_);
 }
 
-ULitVec ScriptLiteral::unpool(bool beforeRewrite, bool head) const {
+ULitVec ScriptLiteral::unpool(bool head) const {
     ULitVec value;
     value.emplace_back(ULit(clone()));
     return value;
@@ -576,7 +677,7 @@ void ScriptLiteral::toTuple(UTermVec &tuple, int &id) const {
     throw std::logic_error("ScriptLiteral::toTuple should never be called if used properly");
 }
 
-bool ScriptLiteral::hasPool(bool beforeRewrite, bool head) const {
+bool ScriptLiteral::hasPool(bool head) const {
     return false;
 }
 
@@ -634,7 +735,7 @@ size_t VoidLiteral::hash() const {
     return get_value_hash(typeid(VoidLiteral).hash_code());
 }
 
-ULitVec VoidLiteral::unpool(bool beforeRewrite, bool head) const {
+ULitVec VoidLiteral::unpool(bool head) const {
     ULitVec value;
     value.emplace_back(ULit(clone()));
     return value;
@@ -645,7 +746,7 @@ void VoidLiteral::toTuple(UTermVec &tuple, int &id) const {
     ++id;
 }
 
-bool VoidLiteral::hasPool(bool beforeRewrite, bool head) const {
+bool VoidLiteral::hasPool(bool head) const {
     return false;
 }
 

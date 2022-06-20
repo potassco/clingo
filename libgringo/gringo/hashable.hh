@@ -22,16 +22,16 @@
 
 // }}}
 
-#ifndef _GRINGO_HASHABLE_HH
-#define _GRINGO_HASHABLE_HH
+#ifndef GRINGO_HASHABLE_HH
+#define GRINGO_HASHABLE_HH
 
 #include <ostream>
 #include <typeinfo>
 #include <functional>
 #include <gringo/utility.hh>
 
-#define GRINGO_HASH(T) namespace std { template <> struct hash<T> : hash<Gringo::Hashable> { }; }
-#define GRINGO_CALL_HASH(T) namespace std { template <> struct hash<T> { size_t operator()(T const &x) const { return x.hash(); } }; }
+#define GRINGO_HASH(T) namespace std { template <> struct hash<T> : hash<Gringo::Hashable> { }; } // NOLINT
+#define GRINGO_CALL_HASH(T) namespace std { template <> struct hash<T> { size_t operator()(T const &x) const { return x.hash(); } }; } // NOLINT
 
 namespace Gringo {
 
@@ -74,5 +74,5 @@ struct hash<Gringo::Hashable> {
 
 } // namespace std
 
-#endif // _GRINGO_HASHABLE_HH
+#endif // GRINGO_HASHABLE_HH
 

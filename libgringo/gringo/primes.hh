@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_PRIMES_HH
-#define _GRINGO_PRIMES_HH
+#ifndef GRINGO_PRIMES_HH
+#define GRINGO_PRIMES_HH
 
 #include <cstdint>
 #include <type_traits>
@@ -34,10 +34,14 @@ template <class T>
 T constexpr maxPrime();
 
 template <>
-inline constexpr uint32_t maxPrime<uint32_t>() { return 0xfffffffb; }
+inline constexpr uint32_t maxPrime<uint32_t>() {
+    return 0xfffffffb; // NOLINT(cppcoreguidelines-avoid-magic-numbers)
+}
 
 template <>
-inline constexpr uint64_t maxPrime<uint64_t>() { return 0xffffffffffffffc5; }
+inline constexpr uint64_t maxPrime<uint64_t>() {
+    return 0xffffffffffffffc5; // NOLINT(cppcoreguidelines-avoid-magic-numbers)
+}
 
 uint32_t nextPrime(uint32_t n);
 uint64_t nextPrime(uint64_t n);

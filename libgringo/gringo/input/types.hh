@@ -27,30 +27,4 @@
 
 #include <gringo/ground/types.hh>
 
-namespace Gringo { namespace Input {
-
-using Gringo::Output::PredicateDomain;
-using Gringo::Output::PredDomMap;
-using Gringo::Output::DomainData;
-
-class ToGroundArg;
-class Projections;
-
-class Literal;
-using ULit    = std::unique_ptr<Literal>;
-using ULitVec = std::vector<ULit>;
-
-class Statement;
-using UStm = std::unique_ptr<Statement>;
-using UStmVec = std::vector<UStm>;
-
-class BodyAggregate;
-using UBodyAggr    = std::unique_ptr<BodyAggregate>;
-
-class HeadAggregate;
-using UHeadAggr    = std::unique_ptr<HeadAggregate>;
-using UBodyAggrVec = std::vector<UBodyAggr>;
-
-} } // namespace Input Gringo
-
 #endif // GRINGO_INPUT_TYPES_HH

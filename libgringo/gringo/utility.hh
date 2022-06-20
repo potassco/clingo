@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_UTILITY_HH
-#define _GRINGO_UTILITY_HH
+#ifndef GRINGO_UTILITY_HH
+#define GRINGO_UTILITY_HH
 
 #include <memory>
 #include <vector>
@@ -43,18 +43,21 @@ namespace Gringo {
 namespace detail {
     template <int X> using int_type = std::integral_constant<int, X>;
     template <class T, class S>
-    inline void nc_check(S s, int_type<0>) { // same sign
-        (void)s;
+    inline void nc_check(S s, int_type<0> t) { // same sign
+        static_cast<void>(s);
+        static_cast<void>(t);
         assert((std::is_same<T, S>::value) || (s >= std::numeric_limits<T>::min() && s <= std::numeric_limits<T>::max()));
     }
     template <class T, class S>
-    inline void nc_check(S s, int_type<-1>) { // Signed -> Unsigned
-        (void)s;
+    inline void nc_check(S s, int_type<-1> t) { // Signed -> Unsigned
+        static_cast<void>(s);
+        static_cast<void>(t);
         assert(s >= 0 && static_cast<S>(static_cast<T>(s)) == s);
     }
     template <class T, class S>
-    inline void nc_check(S s, int_type<1>) { // Unsigned -> Signed
-        (void)s;
+    inline void nc_check(S s, int_type<1> t) { // Unsigned -> Signed
+        static_cast<void>(s);
+        static_cast<void>(t);
         assert(!(s > static_cast<typename std::make_unsigned<T>::type>(std::numeric_limits<T>::max())));
     }
 } // namespace detail
@@ -77,11 +80,11 @@ public:
     : ptr_(0) { }
     explicit single_owner_ptr(T* ptr, bool owner)
     : ptr_(uintptr_t(ptr) | (owner && ptr)) { }
-    single_owner_ptr(single_owner_ptr &&p)
+    single_owner_ptr(single_owner_ptr &&p) noexcept
     : ptr_(p.ptr_) {
         p.release();
     }
-    single_owner_ptr(std::unique_ptr<T>&& p)
+    single_owner_ptr(std::unique_ptr<T>&& p) noexcept // NOLINT
     : single_owner_ptr(p.release(), true) { }
     single_owner_ptr(const single_owner_ptr&) = delete;
     ~single_owner_ptr() {
@@ -89,14 +92,14 @@ public:
             delete get();
         }
     }
-    single_owner_ptr& operator=(single_owner_ptr&& p) {
+    single_owner_ptr& operator=(single_owner_ptr&& p) noexcept {
         bool owner = p.is_owner();
         reset(p.release(), owner);
         return *this;
     }
     single_owner_ptr& operator=(const single_owner_ptr&) = delete;
     bool is_owner() const {
-        return ptr_ & 1;
+        return (ptr_ & 1) == 1;
     }
     T* get() const {
         return (T*)(ptr_ & ~1);
@@ -325,7 +328,8 @@ protected:
         count_++;
         return ch;
     }
-    std::streamsize xsputn(const char_type*, std::streamsize count) override {
+    std::streamsize xsputn(char_type const *c, std::streamsize count) override {
+        static_cast<void>(c);
         count_ += count;
         return count;
     }
@@ -346,8 +350,10 @@ private:
 class ArrayBuf : public std::streambuf {
 public:
     ArrayBuf(char *begin, size_t size) {
+        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         setg(begin, begin, begin + size);
         setp(begin, begin + size);
+        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
     pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
         if (dir == std::ios_base::cur)      { off += offset(which); }
@@ -356,8 +362,8 @@ public:
     }
     pos_type seekpos(pos_type off, std::ios_base::openmode which) override {
         if (off >= 0 && off <= size()) {
-            if (which & std::ios_base::in) { gbump(static_cast<int>(off - offset(which))); }
-            else                           { pbump(static_cast<int>(off - offset(which))); }
+            if ((which & std::ios_base::in) != 0) { gbump(static_cast<int>(off - offset(which))); }
+            else                                  { pbump(static_cast<int>(off - offset(which))); }
             return off;
         }
         return std::streambuf::seekpos(off, which);
@@ -365,7 +371,7 @@ public:
 private:
     off_type size() const { return egptr() - eback(); }
     off_type offset(std::ios_base::openmode which) const {
-        return (which & std::ios_base::out)
+        return ((which & std::ios_base::out) != 0)
             ? pptr() - pbase()
             : gptr() - eback();
     }
@@ -384,14 +390,24 @@ private:
 
 // {{{1 onExit
 
+// NOTE: decorating with noexcept requires C++17
+
+// NOLINTBEGIN(performance-noexcept-move-constructor)
 template <class T>
 class ScopeExit {
 public:
     ScopeExit(T &&exit) : exit_(std::forward<T>(exit)) { }
-    ~ScopeExit() { exit_(); }
+    ScopeExit(ScopeExit const &other) = default;
+    ScopeExit(ScopeExit &&other) = default;
+    ScopeExit &operator=(ScopeExit const &other) = default;
+    ScopeExit &operator=(ScopeExit &&other) = default;
+    ~ScopeExit() {
+        exit_();
+    }
 private:
     T exit_;
 };
+// NOLINTEND(performance-noexcept-move-constructor)
 
 template <typename T>
 ScopeExit<T> onExit(T &&exit) {
@@ -453,7 +469,9 @@ namespace detail {
     template <>
     struct equal<0> {
         template <class... T>
-        bool operator()(std::tuple<T...> const &, std::tuple<T...> const &) const {
+        bool operator()(std::tuple<T...> const &a, std::tuple<T...> const &b) const {
+            static_cast<void>(a);
+            static_cast<void>(b);
             return true;
         }
     };
@@ -483,6 +501,8 @@ inline bool is_value_equal_to(T const &a, T const &b) {
 // {{{ definition of helpers to calculate hashes
 
 namespace Detail {
+
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
 
 // Note: the following functions have been taken from MurmurHash3
 //       see: https://code.google.com/p/smhasher/
@@ -528,16 +548,22 @@ template <size_t bytes> struct Select;
 template <> struct Select<4> { using Type = uint32_t; };
 template <> struct Select<8> { using Type = uint64_t; };
 
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
+
 }
 
 template <class T, class U>
 void hash_combine(U& seed, T const &v) {
-    Detail::hash_combine(reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), v, std::hash<T>());
+    Detail::hash_combine(
+        reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        v, std::hash<T>());
 }
 
 template <class T, class H, class U>
 void hash_combine(U& seed, T const &v, H h) {
-    Detail::hash_combine(reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), v, h);
+    Detail::hash_combine(
+        reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        v, h);
 }
 
 template <class T>
@@ -607,7 +633,8 @@ namespace detail {
     template <>
     struct hash<0> {
         template <class... T>
-        size_t operator()(std::tuple<T...> const &) const {
+        size_t operator()(std::tuple<T...> const &x) const {
+            static_cast<void>(x);
             return 2;
         }
     };
@@ -641,13 +668,17 @@ inline size_t get_value_hash(T const &x, U const &y, V const &... args) {
 
 inline size_t strhash(char const *x) {
     size_t seed = 0;
-    for ( ; *x; ++x) { hash_combine(seed, *x); }
+    for ( ; *x != '\0'; ++x) { // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        hash_combine(seed, *x);
+    }
     return seed;
 }
 
 inline size_t strhash(StringSpan x) {
     size_t seed = 0;
-    for (auto &c : x) { hash_combine(seed, c); }
+    for (auto const &c : x) {
+        hash_combine(seed, c);
+    }
     return seed;
 }
 
@@ -693,11 +724,12 @@ namespace detail {
 
     template <int ...S>
     struct gens<0, S...> {
-        typedef seq<S...> type;
+        using type = seq<S...>;
     };
 
     template <class... T, int... S>
-    std::tuple<T...> clone(const std::tuple<T...> &x, seq<S...>) {
+    std::tuple<T...> clone(const std::tuple<T...> &x, seq<S...> s) {
+        static_cast<void>(s);
         return std::tuple<T...> { get_clone(std::get<S>(x))... };
     }
 }
@@ -727,7 +759,8 @@ template <class S, class T, class U>
 void print_comma(S &out, T const &x, const char *sep, U const &f) {
     using std::begin;
     using std::end;
-    auto it(begin(x)), ie(end(x));
+    auto it = begin(x);
+    auto ie = end(x);
     if (it != ie) {
         f(out, *it);
         for (++it; it != ie; ++it) { out << sep; f(out, *it); }
@@ -737,7 +770,8 @@ void print_comma(S &out, T const &x, const char *sep, U const &f) {
 template <class S, class T>
 void print_comma(S &out, T const &x, const char *sep) {
     using namespace std;
-    auto it(begin(x)), ie(end(x));
+    auto it = begin(x);
+    auto ie = end(x);
     if (it != ie) {
         out << *it;
         for (++it; it != ie; ++it) { out << sep << *it; }
@@ -812,4 +846,4 @@ void move_if(A &a, B &b, Pred p) {
 
 } // namespace Gringo
 
-#endif // _GRINGO_UTILITY_HH
+#endif // GRINGO_UTILITY_HH

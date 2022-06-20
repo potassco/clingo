@@ -50,9 +50,9 @@ public:
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    ULitVec unpool(bool head) const override;
     Symbol isEDB() const override;
-    bool hasPool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
@@ -76,7 +76,7 @@ public:
     ~ProjectionLiteral() noexcept override = default;
 
     ProjectionLiteral *clone() const override;
-    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    ULitVec unpool(bool head) const override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
 
@@ -104,6 +104,7 @@ public:
     static ULit make(Literal::RelationVec::value_type &x);
 
     // {{{ Term interface
+    void addToSolver(IESolver &solver, bool invert) const override;
     bool needSetShift() const override;
     unsigned projectScore() const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
@@ -114,10 +115,10 @@ public:
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite, bool head) const override;
+    ULitVec unpool(bool head) const override;
     ULitVecVec unpoolComparison() const override;
     bool hasUnpoolComparison() const override;
-    bool hasPool(bool beforeRewrite, bool head) const override;
+    bool hasPool(bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     UTerm headRepr() const override;
@@ -145,7 +146,9 @@ public:
     ~RangeLiteral() noexcept override = default;
 
     static ULit make(SimplifyState::DotsMap::value_type &dots);
+    static ULit make(VarTerm const &var, IEBound const &bound);
 
+    void addToSolver(IESolver &solver, bool invert) const override;
     void collect(VarTermBoundVec &vars, bool bound) const override;
     void toTuple(UTermVec &tuple, int &id) const override;
     RangeLiteral *clone() const override;
@@ -154,8 +157,8 @@ public:
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite, bool head) const override;
-    bool hasPool(bool beforeRewrite, bool head) const override;
+    ULitVec unpool(bool head) const override;
+    bool hasPool(bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
@@ -191,8 +194,8 @@ public:
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite, bool head) const override;
-    bool hasPool(bool beforeRewrite, bool head) const override;
+    ULitVec unpool(bool head) const override;
+    bool hasPool(bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;
@@ -227,8 +230,8 @@ public:
     size_t hash() const override;
     bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, RelationVec &assign, AuxGen &auxGen) override;
-    ULitVec unpool(bool beforeRewrite, bool head) const override;
-    bool hasPool(bool beforeRewrite, bool head) const override;
+    ULitVec unpool(bool head) const override;
+    bool hasPool(bool head) const override;
     void replace(Defines &dx) override;
     Ground::ULit toGround(DomainData &x, bool auxiliary) const override;
     ULit shift(bool negate) override;

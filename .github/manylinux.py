@@ -99,6 +99,7 @@ def run():
         check_call(['cmake', '--build', 're2c_build', '--target', 'install'])
     else:
         check_call(['yum', 'install', '-y', 're2c', 'bison'])
+    check_call(['yum', 'install', '-y', 'libffi-devel'])
 
     compile_wheels(idx)
 

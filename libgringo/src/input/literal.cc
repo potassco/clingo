@@ -58,6 +58,11 @@ UTerm Projections::add(Term &term) {
 
 // {{{ definition of Literal
 
+void Literal::addToSolver(IESolver &solver, bool invert) const {
+    static_cast<void>(solver);
+    static_cast<void>(invert);
+}
+
 ULitVecVec Literal::unpoolComparison() const {
     ULitVecVec ret;
     ret.emplace_back();

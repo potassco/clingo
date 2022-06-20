@@ -22,29 +22,19 @@
 
 // }}}
 
-#ifndef GRINGO_OUTPUT_BACKENDS_HH
-#define GRINGO_OUTPUT_BACKENDS_HH
+#include "gringo/ground/literal.hh"
 
-#include <gringo/backend.hh>
-#include <potassco/convert.h>
-#include <potassco/aspif.h>
-#include <potassco/smodels.h>
-#include <potassco/theory_data.h>
+namespace Gringo { namespace Ground {
 
-namespace Gringo { namespace Output {
+void Literal::collectImportant(Term::VarSet &vars) {
+    auto *occ(occurrence());
+    if (occ != nullptr && occ->getType() != OccurrenceType::POSITIVELY_STRATIFIED) {
+        VarTermBoundVec x;
+        collect(x);
+        for (auto &var : x) {
+            vars.emplace(var.first->name);
+        }
+    }
+}
 
-class SmodelsFormatBackend : public Potassco::SmodelsConvert {
-public:
-    SmodelsFormatBackend(std::ostream& os)
-    : Potassco::SmodelsConvert(out_, true)
-    , out_(os, true, 0) { }
-private:
-    Potassco::SmodelsOutput out_;
-};
-
-using IntermediateFormatBackend = Potassco::AspifOutput;
-
-} } // namespace Output Gringo
-
-#endif // GRINGO_OUTPUT_BACKENDS_HH
-
+} } // namespace Ground Gringo

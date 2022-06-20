@@ -165,10 +165,14 @@ public:
     static Symbol createNum(int num);
     static Symbol createInf();
     static Symbol createSup();
-    static Symbol createTuple(SymSpan val);
-    static Symbol createTuple(SymVec const &val) { return createTuple(Potassco::toSpan(val)); }
-    static Symbol createFun(String name, SymSpan val, bool sign = false);
-    static Symbol createFun(String name, SymVec const &val, bool sign = false) { return createFun(name, Potassco::toSpan(val), sign); }
+    static Symbol createTuple(SymSpan args);
+    static Symbol createTuple(SymVec const &args) {
+        return createTuple(Potassco::toSpan(args));
+    }
+    static Symbol createFun(String name, SymSpan args, bool sign = false);
+    static Symbol createFun(String name, SymVec const &args, bool sign = false) {
+        return createFun(name, Potassco::toSpan(args), sign);
+    }
 
     // value retrieval
     SymbolType type() const;
@@ -182,7 +186,7 @@ public:
     bool sign() const;
 
     // modifying values
-    Symbol replace(IdSymMap const &rep) const;
+    Symbol replace(IdSymMap const &map) const;
     Symbol flipSign() const;
 
     // comparison

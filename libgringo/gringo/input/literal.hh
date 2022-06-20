@@ -28,8 +28,13 @@
 #include <gringo/term.hh>
 #include <gringo/domain.hh>
 #include <gringo/input/types.hh>
+#include <gringo/ground/literal.hh>
 
 namespace Gringo { namespace Input {
+
+using Output::PredicateDomain;
+using Output::PredDomMap;
+using Output::DomainData;
 
 // {{{ declaration of Literal
 
@@ -68,6 +73,9 @@ public:
     ProjectionMap proj;
 };
 
+class Literal;
+using ULit    = std::unique_ptr<Literal>;
+using ULitVec = std::vector<ULit>;
 using ULitVecVec = std::vector<ULitVec>;
 
 class Literal : public Printable, public Hashable, public Locatable, public Comparable<Literal>, public Clonable<Literal> {
@@ -81,6 +89,8 @@ public:
     Literal &operator=(Literal &&other) noexcept = default;
     ~Literal() noexcept override = default;
 
+    //! Add inequalities bounding variables to the given solver.
+    virtual void addToSolver(IESolver &solver, bool invert) const;
     virtual unsigned projectScore() const { return 2; }
     //! Returns true if the literal needs to be shifted before unpooling to
     //! support counting in aggregates.
@@ -91,9 +101,9 @@ public:
     //! Returns all unpooled incarnations of the literal.
     //! \note The literal becomes unusable after the method returns.
     //! \post The returned pool does not contain PoolTerm instances.
-    virtual ULitVec unpool(bool beforeRewrite, bool head) const = 0;
+    virtual ULitVec unpool(bool head) const = 0;
     //! Check if the literal has occurrences of pool terms.
-    virtual bool hasPool(bool beforeRewrite, bool head) const = 0;
+    virtual bool hasPool(bool head) const = 0;
     //! Unpool a comparision.
     //!
     //! Comparisons with more than one relation have to be unpooled after the

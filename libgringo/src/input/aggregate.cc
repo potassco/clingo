@@ -125,7 +125,7 @@ String ToGroundArg::newId(bool increment) {
     return ("#d" + std::to_string(auxNames - inc)).c_str();
 }
 
-UTermVec ToGroundArg::getGlobal(VarTermBoundVec const &vars) {
+UTermVec ToGroundArg::getGlobal(VarTermBoundVec const &vars) { // NOLINT(readability-convert-member-functions-to-static)
     std::unordered_set<String> seen;
     UTermVec global;
     for (auto const &occ : vars) {
@@ -136,7 +136,7 @@ UTermVec ToGroundArg::getGlobal(VarTermBoundVec const &vars) {
     return global;
 }
 
-UTermVec ToGroundArg::getLocal(VarTermBoundVec const &vars) {
+UTermVec ToGroundArg::getLocal(VarTermBoundVec const &vars) { // NOLINT(readability-convert-member-functions-to-static)
     std::unordered_set<String> seen;
     UTermVec local;
     for (auto const &occ : vars) {
@@ -156,7 +156,24 @@ UTerm ToGroundArg::newId(UTermVec &&global, Location const &loc, bool increment)
 
 // }}}
 
+// {{{ definition of BodyAggregate
+
+void BodyAggregate::addToSolver(IESolver &solver) {
+    static_cast<void>(solver);
+}
+
+// }}}
 // {{{ definition of HeadAggregate
+
+void HeadAggregate::addToSolver(IESolver &solver) {
+    static_cast<void>(solver);
+}
+
+void HeadAggregate::initTheory(TheoryDefs &def, bool hasBody, Logger &log) {
+    static_cast<void>(def);
+    static_cast<void>(hasBody);
+    static_cast<void>(log);
+}
 
 Symbol HeadAggregate::isEDB() const {
     return {};

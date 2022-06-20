@@ -22,8 +22,8 @@
 
 // }}}
 
-#ifndef _GRINGO_HASH_SET_HH
-#define _GRINGO_HASH_SET_HH
+#ifndef GRINGO_HASH_SET_HH
+#define GRINGO_HASH_SET_HH
 
 #include <memory>
 #include <cassert>
@@ -59,11 +59,12 @@ class HashSet {
 public:
     using ValueType = Value;
     using SizeType = uint32_t;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
     using TableType = std::unique_ptr<ValueType[]>;
 
     // at least n value can be inserted without reallocation
     // and the container is larger by a constant factor c > 1 than c*r
-    HashSet(SizeType n = 0, SizeType r = 0) : size_(0), reserved_(0) {
+    HashSet(SizeType n = 0, SizeType r = 0) {
         if (n > 0) {
             reserved_ = grow_(n, r);
             table_.reset(new ValueType[reserved_]);
@@ -90,11 +91,11 @@ public:
     SizeType reserved() const { return reserved_; }
     SizeType maxSize() const { return maxPrime<SizeType>(); }
     bool reserveNeedsRebuild(SizeType n) const {
-        if (n <= 11) { return n > reserved(); }
-        else {
-            double load = double(n) / reserved_;
-            return (load > loadMax() && reserved_ < maxSize()) || n > maxSize();
+        if (n <= 11) {
+            return n > reserved();
         }
+        double load = double(n) / reserved_;
+        return (load > loadMax() && reserved_ < maxSize()) || n > maxSize();
     }
     template <typename Hasher, typename EqualTo>
     void reserve(Hasher const &hasher, EqualTo const &equalTo, SizeType n) {
@@ -170,11 +171,11 @@ private:
                     if (!first) { first = &table_[i]; }
                     return {first, false};
                 }
-                else if (table_[i] == Literals::deleted) {
+                if (table_[i] == Literals::deleted) {
                     if (!first) { first = &table_[i]; }
                     continue;
                 }
-                else if (equalTo(table_[i], val...)) {
+                if (equalTo(table_[i], val...)) {
                     return {&table_[i], true};
                 }
             }
@@ -226,9 +227,9 @@ private:
         }
         return {*ret.first, !ret.second};
     }
-private:
-    SizeType size_;
-    SizeType reserved_;
+
+    SizeType size_{0};
+    SizeType reserved_{0};
     TableType table_;
 };
 
@@ -305,7 +306,7 @@ public:
 
     template <typename T, typename... A>
     std::pair<Iterator,bool> findPush(T const &key, A&&... args) {
-        SizeType offset = static_cast<SizeType>(vec_.size());
+        auto offset = static_cast<SizeType>(vec_.size());
         auto res = set_.insert(
             [this, offset, &key](SizeType a) { return a != offset ? Hash::operator()(vec_[a]) : Hash::operator()(key); },
             [this, offset, &key](SizeType a, SizeType b) { return b != offset ? a == b : EqualTo::operator()(vec_[a], key); },
@@ -316,7 +317,7 @@ public:
         return {vec_.begin() + res.first, res.second};
     }
     std::pair<Iterator,bool> push(Value &&val) {
-        SizeType offset = static_cast<SizeType>(vec_.size());
+        auto offset = static_cast<SizeType>(vec_.size());
         auto res = set_.insert(
             [this, offset, &val](SizeType a) { return a != offset ? Hash::operator()(vec_[a]) : Hash::operator()(val); },
             [this, offset, &val](SizeType a, SizeType b) { return b != offset ? a == b : EqualTo::operator()(vec_[a], val); },
@@ -335,7 +336,7 @@ public:
     }
     template <class U>
     Iterator find(U const &val) {
-        SizeType offset = static_cast<SizeType>(vec_.size());
+        auto offset = static_cast<SizeType>(vec_.size());
         auto res = set_.find(
             [this, offset, &val](SizeType a) { return a != offset ? Hash::operator()(vec_[a]) : Hash::operator()(val); },
             [this, offset, &val](SizeType a, SizeType b) { return b != offset ? a == b : EqualTo::operator()(vec_[a], val); },
@@ -344,6 +345,7 @@ public:
     }
     template <class U>
     ConstIterator find(U const &val) const {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
         return const_cast<UniqueVec*>(this)->find(val);
     }
     void pop() {
@@ -383,7 +385,7 @@ public:
     // Note that it is inserted again after the next call to rebuild, erase or sort.
     // It is best not to use this function!
     void hide(Iterator it) {
-        SizeType offset = static_cast<SizeType>(it - begin());
+        auto offset = static_cast<SizeType>(it - begin());
         set_.erase(
             [this](SizeType a) { return Hash::operator()(vec_[a]); },
             [](SizeType a, SizeType b) { return a == b; },
@@ -424,28 +426,21 @@ public:
     using Iterrator = It;
     using ReferenceType = decltype(*std::declval<It>());
     using ValueType = typename std::remove_reference<ReferenceType>::type;
-    template <class T>
-    IteratorRange(T &&t)
-    : begin_(std::begin(t))
-    , end_(std::end(t)) { }
     IteratorRange(It a, It b)
     : begin_(a)
     , end_(b) { }
     It begin() const { return begin_; }
     It end() const { return end_; }
-    template <class T>
-    ReferenceType front() { return *begin(); }
-    ReferenceType const front() const { return *begin(); }
-    ReferenceType back() { return *(end()-1); }
-    ReferenceType const back() const { *(end()-1); }
+    ReferenceType front() const { return *begin(); }
+    ReferenceType back() const { *(end()-1); }
     bool empty() const { return begin_ == end_; }
     size_t size() const { return std::distance(begin_, end_); }
-    ReferenceType operator[](size_t p) { return *(begin_ + p); }
-    ReferenceType const operator[](size_t p) const { return *(begin_ + p); }
+    ReferenceType operator[](size_t p) const { return *(begin_ + p); }
 private:
     It begin_;
     It end_;
 };
+
 template <class It>
 typename IteratorRange<It>::Iterrator begin(IteratorRange<It> rng) {
     return rng.begin();
@@ -454,17 +449,6 @@ typename IteratorRange<It>::Iterrator begin(IteratorRange<It> rng) {
 template <class It>
 typename IteratorRange<It>::Iterrator end(IteratorRange<It> rng) {
     return rng.end();
-}
-
-template <class It>
-IteratorRange<It> make_range(It a, It b) {
-    return IteratorRange<It>(a, b);
-}
-
-template <class T>
-auto make_range(T &&c) -> IteratorRange<decltype(std::begin(c))> {
-    using namespace std;
-    return IteratorRange<decltype(begin(c))>(begin(c), end(c));
 }
 
 template <unsigned small, typename Value, typename Hash=std::hash<Value>, typename EqualTo=std::equal_to<Value>>
@@ -603,14 +587,17 @@ private:
     using SmallVec = std::array<Data, small>;
     using BigMap = UniqueVec<std::pair<SizeType, Data>, HashFirst<SizeType>, EqualToFirst<SizeType>>;
     Data &data(SizeType size) {
-        if (size < small) { return small_[size]; }
-        else {
-            auto ret = big_.find(size);
-            if (ret != big_.end()) { return ret->second; }
-            else { return big_.push(size, Data()).first->second; }
+        if (size < small) {
+            return small_[size];
         }
+        auto ret = big_.find(size);
+        if (ret != big_.end()) {
+            return ret->second;
+        }
+        return big_.push(size, Data()).first->second;
     }
     Data const &data(SizeType size) const {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
         return const_cast<UniqueVecVec*>(this)->data(size);
     }
 
@@ -620,4 +607,4 @@ private:
 
 } // namespace Gringo
 
-#endif // _GRINGO_HASH_SET_HH
+#endif // GRINGO_HASH_SET_HH

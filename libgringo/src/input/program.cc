@@ -178,8 +178,8 @@ void Program::rewrite(Defines &defs, Logger &log) {
             x->replace(defs);
             x->replace(incDefs);
             x->assignLevels(blockBound);
-            if (x->hasPool(true)) {
-                for (auto &y : x->unpool(true)) {
+            if (x->hasPool()) {
+                for (auto &y : x->unpool()) {
                     rewrite1(y);
                 }
             }
@@ -320,8 +320,8 @@ Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains
         domains.add(sig);
     }
     Ground::UndefVec undef;
-    for (auto &x : dep.depend.occs) {
-        for (auto &y : x.second.first->depend) {
+    for (auto const &x : dep.depend) {
+        for (auto const &y : x.second.first->depend) {
             (*std::get<0>(y)).checkDefined(locs_, sigs_, undef);
         }
     }

@@ -32,7 +32,11 @@ namespace Gringo { namespace Input {
 
 // {{{ declaration of Statement
 
-class Statement : public Printable, public Locatable {
+class Statement;
+using UStm = std::unique_ptr<Statement>;
+using UStmVec = std::vector<UStm>;
+
+class Statement : public Printable, public Locatable, private IEContext {
 public:
     Statement(UHeadAggr &&head, UBodyAggrVec &&body);
     Statement(Statement const &other) = delete;
@@ -41,8 +45,8 @@ public:
     Statement &operator=(Statement &&other) noexcept = default;
     ~Statement() noexcept override = default;
 
-    UStmVec unpool(bool beforeRewrite);
-    bool hasPool(bool beforeRewrite) const;
+    UStmVec unpool();
+    bool hasPool() const;
     UStmVec unpoolComparison();
     void assignLevels(VarTermBoundVec &bound);
     bool simplify(Projections &project, Logger &log);
@@ -55,6 +59,8 @@ public:
     void add(ULit &&lit);
     void initTheory(TheoryDefs &def, Logger &log);
 
+    void gatherIEs(IESolver &solver) const override;
+    void addIEBound(VarTerm const &var, IEBound const &bound) override;;
 private:
     UHeadAggr     head_;
     UBodyAggrVec  body_;
