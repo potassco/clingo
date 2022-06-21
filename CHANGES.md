@@ -4,6 +4,7 @@
 
   * add support for comparisons with more than one relation (#368)
   * extend safety by computing intervals from comparisons (#375)
+  * add and ground base part by default in Python API (#378)
   * remove experimental CSP extensions (#367)
   * require at least MSVC 15.0 to build on Windows
 

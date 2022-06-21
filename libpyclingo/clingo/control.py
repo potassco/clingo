@@ -4,30 +4,43 @@ controling grounding and solving.
 
 Examples
 --------
-The following example shows basic (multishot) grounding and solving.
+The following example shows the basic ground solve process:
 
     >>> from clingo.symbol import Number
     >>> from clingo.control import Control
     >>>
     >>> ctl = Control()
-    >>> ctl.add("base", [], "q.")
-    >>> ctl.add("p", ["t"], "q(t).")
+    >>> ctl.add("q.")
     >>>
-    >>> ctl.ground([("base", [])])
+    >>> ctl.ground()
     >>> print(ctl.solve(on_model=print))
     q
     SAT
-    >>> ctl.ground([("p", [Number(1)]), ("p", [Number(2)])])
+
+The following example shows basic (multishot) grounding and solving:
+
+    >>> from clingo.symbol import Number
+    >>> from clingo.control import Control
+    >>>
+    >>> ctl = Control()
+    >>> ctl.add("a", [], "q.")
+    >>> ctl.add("b", ["t"], "q(t).")
+    >>>
+    >>> ctl.ground([("a", [])])
+    >>> print(ctl.solve(on_model=print))
+    q
+    SAT
+    >>> ctl.ground([("b", [Number(1)]), ("p", [Number(2)])])
     >>> print(ctl.solve(on_model=print))
     q q(1) q(2)
     SAT
-    >>> ctl.ground([("p", [Number(3)])])
+    >>> ctl.ground([("b", [Number(3)])])
     >>> print(ctl.solve(on_model=print))
     q q(1) q(2) q(3)
     SAT
 '''
 
-from typing import Any, Callable, Iterator, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Iterator, Optional, Sequence, Tuple, Union, cast, overload
 from collections import abc
 import sys
 
@@ -171,6 +184,7 @@ class Control:
         if self._free:
             _lib.clingo_control_free(self._rep)
 
+    @overload
     def add(self, name: str, parameters: Sequence[str], program: str) -> None:
         '''
         Extend the logic program with the given non-ground logic program in string form.
@@ -188,6 +202,65 @@ class Control:
         --------
         Control.ground
         '''
+        c_mem = []
+        c_params = _ffi.new('char*[]', len(parameters))
+        for i, param in enumerate(parameters):
+            c_mem.append(_ffi.new("char[]", param.encode()))
+            c_params[i] = c_mem[-1]
+        _handle_error(_lib.clingo_control_add(self._rep, name.encode(), c_params, len(parameters), program.encode()))
+
+    @overload
+    def add(self, program: str) -> None:
+        '''
+        Extend the logic program with the given non-ground logic program in string form.
+
+        Parameters
+        ----------
+        name
+            The name of program block to add.
+
+        Notes
+        -----
+        This function is equivalent to calling `add("base", [], program)`.
+        '''
+
+    def add(self, *args, **kwargs) -> None:
+        '''
+        Extend the logic program with the given non-ground logic program in string form.
+
+        This function provides two overloads:
+
+        ```python
+        def add(self, name: str, parameters: Sequence[str], program: str) -> None:
+            ...
+
+        def add(self, program: str) -> None:
+            return self.add("base", [], program)
+        ```
+
+        Parameters
+        ----------
+        name
+            The name of program block to add.
+        parameters
+            The parameters of the program block to add.
+        program
+            The non-ground program in string form.
+
+        See Also
+        --------
+        Control.ground
+        '''
+        n = len(args) + len(kwargs)
+        if n == 1:
+            self._add1(*args, **kwargs)
+        else:
+            self._add2(*args, **kwargs)
+
+    def _add1(self, program: str) -> None:
+        return self._add2("base", [], program)
+
+    def _add2(self, name: str, parameters: Sequence[str], program: str) -> None:
         c_mem = []
         c_params = _ffi.new('char*[]', len(parameters))
         for i, param in enumerate(parameters):
@@ -299,7 +372,7 @@ class Control:
 
         return Symbol(_c_call('clingo_symbol_t', _lib.clingo_control_get_const, self._rep, name.encode()))
 
-    def ground(self, parts: Sequence[Tuple[str,Sequence[Symbol]]], context: Any=None) -> None:
+    def ground(self, parts: Sequence[Tuple[str,Sequence[Symbol]]]=(("base", ()),), context: Any=None) -> None:
         '''
         Ground the given list of program parts specified by tuples of names and
         arguments.
