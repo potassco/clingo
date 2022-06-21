@@ -192,6 +192,7 @@ ppa:
     sync_script: |
         sed -i "s/export CLINGO_BUILD_REVISION =.*/export CLINGO_BUILD_REVISION = $(git rev-parse --short HEAD)/" ${rep}/debian/rules
     distributions:
+        jammy:
         focal:
         bionic:
             source:
