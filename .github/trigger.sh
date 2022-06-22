@@ -1,10 +1,12 @@
 #!/bin/bash
 
+repo=clingo
+
 function list() {
     curl \
       -X GET \
       -H "Accept: application/vnd.github.v3+json" \
-      "https://api.github.com/repos/potassco/clingo/actions/workflows" \
+      "https://api.github.com/repos/potassco/${repo}/actions/workflows" \
       -d "{\"ref\":\"ref\"}"
 }
 
@@ -14,7 +16,7 @@ function dispatch() {
       -u "rkaminsk:$token" \
       -X POST \
       -H "Accept: application/vnd.github.v3+json" \
-      "https://api.github.com/repos/potassco/clingo/actions/workflows/$1/dispatches" \
+      "https://api.github.com/repos/potassco/${repo}/actions/workflows/$1/dispatches" \
       -d "{\"ref\":\"$3\",\"inputs\":{\"wip\":\"$2\"${4:+,$4}}}"
 }
 
