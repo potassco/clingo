@@ -77,7 +77,15 @@ mkdir -p build/lua53-${VERSION}
 
 (
 cd "${bin}"
-for x in gringo clingo reify; do
+for x in gringo clingo; do
+    rm -f "${x}-banane${suffix}"
+    cat <<EOF > "${x}-banane${suffix}"
+#!/bin/bash
+PYTHONPATH=${prefix}/lib/python/3.7 exec ${prefix}/bin/${x} "\${@}"
+EOF
+    chmod +x "${x}-banane${suffix}"
+done
+for x in reify lpconvert clasp; do
     ln -fs "${prefix}/bin/${x}" "${x}-banane${suffix}"
 done
 )
