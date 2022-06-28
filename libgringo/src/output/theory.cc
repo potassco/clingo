@@ -26,6 +26,8 @@
 #include "gringo/output/literal.hh"
 #include "gringo/backend.hh"
 #include "gringo/logger.hh"
+#include "gringo/output/literals.hh"
+#include "potassco/basic_types.h"
 #include <cstring>
 
 namespace Gringo { namespace Output {
@@ -715,6 +717,15 @@ Potassco::Id_t TheoryData::addTerm(Symbol value) {
     }
     assert(false);
     return 0;
+}
+
+Potassco::Id_t TheoryData::addElem(Potassco::IdSpan const &tuple, Potassco::LitSpan const &cond) {
+    LitVec lits;
+    for (auto uid : cond) {
+        auto offset = static_cast<Potassco::Id_t>(uid > 0 ? uid : -uid);
+        lits.emplace_back(LiteralId{uid > 0 ? NAF::POS : NAF::NOT, Gringo::Output::AtomType::Aux, offset, 0});
+    }
+    return addElem(tuple, std::move(lits));
 }
 
 Potassco::Id_t TheoryData::addElem(Potassco::IdSpan const &tuple, LitVec cond) {
