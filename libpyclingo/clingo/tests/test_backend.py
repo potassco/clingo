@@ -4,7 +4,8 @@ Tests for the backend/observer.
 
 from unittest import TestCase
 from typing import Sequence, Tuple
-from clingo import Control, Function, HeuristicType, Observer, Symbol, TruthValue
+from clingo.symbol import parse_term
+from clingo import Control, Function, HeuristicType, Observer, Symbol, TheorySequenceType, TruthValue
 
 class TestObserverBackend(Observer):
     '''
@@ -191,6 +192,41 @@ class TestBackend(TestCase):
         self.assertIn('theory_element', obs.called)
         self.assertIn('theory_atom', obs.called)
         ctl.solve()
+
+    def test_adding_theory(self):
+        '''
+        Test theory related functions in backend.
+        '''
+        ctl = Control()
+        with ctl.backend() as backend:
+            num_one = backend.add_theory_term_number(1)
+            num_two = backend.add_theory_term_number(2)
+            str_x = backend.add_theory_term_string("x")
+            fun = backend.add_theory_term_function("f", [num_one, num_two, str_x])
+            seq = backend.add_theory_term_sequence(TheorySequenceType.Set, [num_one, num_two, str_x])
+            fseq = backend.add_theory_term_function("f", [seq])
+
+            self.assertEqual(num_one, backend.add_theory_term_number(1))
+            self.assertEqual(num_two, backend.add_theory_term_number(2))
+            self.assertEqual(str_x, backend.add_theory_term_string("x"))
+            self.assertEqual(num_one, backend.add_theory_term_symbol(parse_term("1")))
+            self.assertEqual(num_two, backend.add_theory_term_symbol(parse_term("2")))
+            self.assertEqual(fun, backend.add_theory_term_symbol(parse_term("f(1,2,x)")))
+
+            elem = backend.add_theory_element([num_one, num_two, seq, fun], [1, -2, 3])
+
+            # Tests with guards and elements
+            backend.add_theory_atom(0, fun, [])
+            backend.add_theory_atom(0, backend.add_theory_term_symbol(parse_term("g(1,2)")), [])
+            backend.add_theory_atom(0, fseq, [elem])
+
+        atoms = list(ctl.theory_atoms)
+        self.assertListEqual(
+            [str(atom) for atom in atoms],
+            ['&f(1,2,x){}',
+             '&g(1,2){}',
+             '&f({1,2,x}){1,2,{1,2,x},f(1,2,x): #aux(1),not #aux(2),#aux(3)}'])
+        self.assertEqual(atoms[-1].elements[-1].condition, [1, -2, 3])
 
     def test_theory_with_guard(self):
         '''
