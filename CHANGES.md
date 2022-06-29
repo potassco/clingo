@@ -2,6 +2,7 @@
 
 ## clingo 5.6.0
 
+  * add theory related functions to backend (#381)
   * add support for comparisons with more than one relation (#368)
   * extend safety by computing intervals from comparisons (#375)
   * add and ground base part by default in Python API (#378)
