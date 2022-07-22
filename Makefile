@@ -1,4 +1,4 @@
-LUA_DIR=$(HOME)/local/opt/lua-js
+LUA_VERSION=5.4.4
 BUILD_TYPE=debug
 CC=/usr/bin/cc
 CXX=/usr/bin/c++
@@ -38,12 +38,12 @@ test: build/$(BUILD_TYPE)
 	$(MAKE) -C build/$(BUILD_TYPE)
 	$(MAKE) -C build/$(BUILD_TYPE) $@ CTEST_OUTPUT_ON_FAILURE=TRUE
 
-web:
+web: lua
 	mkdir -p build/web
-	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && source $$(which emsdk)_env.sh && emcmake cmake \
+	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake \
 		-DCLINGO_BUILD_WEB=On \
 		-DCLINGO_BUILD_WITH_PYTHON=Off \
-		-DCLINGO_BUILD_WITH_LUA=On \
+		-DCLINGO_BUILD_WITH_LUA=Off \
 		-DCLINGO_BUILD_SHARED=Off \
 		-DCLASP_BUILD_WITH_THREADS=Off \
 		-DCMAKE_VERBOSE_MAKEFILE=On \
@@ -52,14 +52,25 @@ web:
 		-DCMAKE_CXX_FLAGS_RELEASE="-Os -DNDEBUG" \
 		-DCMAKE_EXE_LINKER_FLAGS="" \
 		-DCMAKE_EXE_LINKER_FLAGS_RELEASE="" \
-		-DLUA_LIBRARIES=$(LUA_DIR)/lib/liblua.a \
-		-DLUA_INCLUDE_DIR=$(LUA_DIR)/include \
+		-DLUA_LIBRARIES=build/lua/install/lib/liblua.a \
+		-DLUA_INCLUDE_DIR=build/lua/install/include \
 		"$${current}"
 	$(MAKE) -C build/web web
+
+lua: build/lua/source/CMakeLists.txt
+	source "emsdk_env.sh" && emcmake cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=build/lua/install -Hbuild/lua/source -Bbuild/lua/build
+	$(MAKE) -C build/lua/build
+	$(MAKE) -C build/lua/build install
+
+build/lua/source/CMakeLists.txt:
+	mkdir -p build/lua/source
+	wget -O build/lua/lua.tar.gz https://www.lua.org/ftp/lua-$(LUA_VERSION).tar.gz
+	tar xf build/lua/lua.tar.gz -C build/lua/source --strip-components 1
+	cp scratch/lua/CMakeLists.txt build/lua/source/CMakeLists.txt
 
 glob:
 	find app libclingo libgringo libreify libluaclingo libpyclingo -name CMakeLists.txt | xargs ./cmake/glob-paths.py
 
 FORCE:
 
-.PHONY: all test web glob FORCE
+.PHONY: all lua test web glob FORCE
