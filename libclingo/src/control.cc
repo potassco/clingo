@@ -22,6 +22,7 @@
 
 // }}}
 
+#include "potassco/basic_types.h"
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
@@ -1108,6 +1109,64 @@ extern "C" bool clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_
 
 extern "C" bool clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v, clingo_literal_t const *condition, size_t condition_n) {
     GRINGO_CLINGO_TRY { backend->getBackend()->acycEdge(node_u, node_v, {condition, condition_n}); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_backend_theory_term_number(clingo_backend_t *backend, int number, clingo_id_t *term_id) {
+    GRINGO_CLINGO_TRY { *term_id = backend->theoryData().addTerm(number); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_backend_theory_term_string(clingo_backend_t *backend, char const *string, clingo_id_t *term_id) {
+    GRINGO_CLINGO_TRY { *term_id = backend->theoryData().addTerm(string); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_backend_theory_term_function(clingo_backend_t *backend, char const *name, clingo_id_t const *arguments, size_t size, clingo_id_t *term_id) {
+    GRINGO_CLINGO_TRY {
+        auto &theory = backend->theoryData();
+        auto name_id  = theory.addTerm(name);
+        *term_id = theory.addTermFun(name_id, Potassco::IdSpan{arguments, size});
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_backend_theory_term_symbol(clingo_backend_t *backend, clingo_symbol_t symbol, clingo_id_t *term_id) {
+    GRINGO_CLINGO_TRY {
+        *term_id  = backend->theoryData().addTerm(Gringo::Symbol{symbol});
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_backend_theory_term_sequence(clingo_backend_t *backend, clingo_theory_sequence_type_t type, clingo_id_t const *arguments, size_t size, clingo_id_t *term_id) {
+    GRINGO_CLINGO_TRY {
+        *term_id  = backend->theoryData().addTermTup(Potassco::Tuple_t{-static_cast<int>(type)}, Potassco::IdSpan{arguments, size});
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_backend_theory_element(clingo_backend_t *backend, clingo_id_t const *tuple, size_t tuple_size, clingo_literal_t const *condition, size_t condition_size, clingo_id_t *element_id) {
+    GRINGO_CLINGO_TRY {
+        *element_id = backend->theoryData().addElem(Potassco::IdSpan{tuple, tuple_size}, Potassco::LitSpan{condition, condition_size});
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_backend_theory_atom(clingo_backend_t *backend, clingo_atom_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size) {
+    GRINGO_CLINGO_TRY {
+        auto newAtom = [atom_id_or_zero]() -> Atom_t { return atom_id_or_zero; };
+        backend->theoryData().addAtom(newAtom, term_id, Potassco::IdSpan{elements, size});
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_backend_theory_atom_with_guard(clingo_backend_t *backend, clingo_atom_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, char const *operator_name, clingo_id_t right_hand_side_id) {
+    GRINGO_CLINGO_TRY {
+        auto &theory = backend->theoryData();
+        auto op_id = theory.addTerm(operator_name);
+        auto newAtom = [atom_id_or_zero]() -> Atom_t { return atom_id_or_zero; };
+        theory.addAtom(newAtom, term_id, Potassco::IdSpan{elements, size}, op_id, right_hand_side_id);
+    }
     GRINGO_CLINGO_CATCH;
 }
 

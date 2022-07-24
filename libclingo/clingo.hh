@@ -460,12 +460,23 @@ public:
     ReferenceType operator[](size_t offset) const { return *(begin() + offset); }
     ReferenceType front() const { return *begin(); }
     ReferenceType back() const { return *I::operator()(end_-1); }
+    T const *data() const { return begin_; }
     size_t size() const { return end_ - begin_; }
     bool empty() const { return begin_ == end_; }
 private:
     T const *begin_;
     T const *end_;
 };
+
+template <class T, class I>
+inline typename Span<T, I>::IteratorType begin(Span<T, I> const &span) {
+    return span.begin();
+}
+
+template <class T, class I>
+inline typename Span<T, I>::IteratorType end(Span<T, I> const& span) {
+    return span.end();
+}
 
 template <class T, class I = ToIterator<T>>
 inline Span<T, I> make_span(T const *begin, size_t size, I to_it = I()) {
@@ -478,13 +489,11 @@ bool equal_range(T const &a, U const &b) {
     return a.size() == b.size() && std::equal(begin(a), end(a), begin(b));
 }
 
-template <class T, class I, class V>
-bool operator==(Span<T, I> span, V const &v) { return equal_range(span, v); }
-template <class T, class I, class V>
-bool operator==(V const &v, Span<T, I> span) { return equal_range(span, v); }
+template <class T, class I>
+bool operator==(Span<T, I> const &a, Span<T, I> const &b) { return equal_range(a, b); }
 
 template <class T, class I>
-std::ostream &operator<<(std::ostream &out, Span<T, I> span) {
+std::ostream &operator<<(std::ostream &out, Span<T, I> const &span) {
     out << "{";
     bool comma = false;
     for (auto &x : span) {
@@ -1442,6 +1451,12 @@ inline std::ostream &operator<<(std::ostream &out, Location loc) {
 
 // {{{1 backend
 
+enum class TheorySequenceType {
+    Tuple = clingo_theory_sequence_type_tuple,
+    List = clingo_theory_sequence_type_list,
+    Set = clingo_theory_sequence_type_set,
+};
+
 class Backend {
 public:
     explicit Backend(clingo_backend_t *backend);
@@ -1461,6 +1476,14 @@ public:
     void acyc_edge(int node_u, int node_v, LiteralSpan condition);
     atom_t add_atom();
     atom_t add_atom(Symbol symbol);
+    id_t add_theory_term_number(int number);
+    id_t add_theory_term_string(char const *string);
+    id_t add_theory_term_sequence(TheorySequenceType type, IdSpan elements);
+    id_t add_theory_term_function(char const *name, IdSpan elements);
+    id_t add_theory_term_symbol(Symbol symbol);
+    id_t add_theory_element(IdSpan tuple, LiteralSpan condition);
+    void theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements);
+    void theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements, char const *operator_name, id_t right_hand_side_id);
     clingo_backend_t *to_c() const { return backend_; }
 private:
     clingo_backend_t *backend_;
@@ -1807,11 +1830,7 @@ private:
 
 namespace AST {
 
-enum class TheorySequenceType {
-    Tuple = clingo_ast_theory_sequence_type_tuple,
-    List = clingo_ast_theory_sequence_type_list,
-    Set = clingo_ast_theory_sequence_type_set,
-};
+using Clingo::TheorySequenceType;
 
 enum class ComparisonOperator {
     GreaterThan = clingo_ast_comparison_operator_greater_than,
@@ -3103,6 +3122,50 @@ inline atom_t Backend::add_atom(Symbol symbol) {
     clingo_symbol_t sym = symbol.to_c();
     Detail::handle_error(clingo_backend_add_atom(backend_, &sym, &ret));
     return ret;
+}
+
+inline id_t Backend::add_theory_term_number(int number) {
+    clingo_id_t ret = 0;
+    Detail::handle_error(clingo_backend_theory_term_number(backend_, number, &ret));
+    return ret;
+}
+
+inline id_t Backend::add_theory_term_string(char const *string) {
+    clingo_id_t ret = 0;
+    Detail::handle_error(clingo_backend_theory_term_string(backend_, string, &ret));
+    return ret;
+}
+
+inline id_t Backend::add_theory_term_sequence(TheorySequenceType type, IdSpan elements) {
+    clingo_id_t ret = 0;
+    Detail::handle_error(clingo_backend_theory_term_sequence(backend_, static_cast<clingo_theory_sequence_type_e>(type), elements.data(), elements.size(), &ret));
+    return ret;
+}
+
+inline id_t Backend::add_theory_term_function(char const *name, IdSpan elements) {
+    clingo_id_t ret = 0;
+    Detail::handle_error(clingo_backend_theory_term_function(backend_, name, elements.data(), elements.size(), &ret));
+    return ret;
+}
+
+inline id_t Backend::add_theory_term_symbol(Symbol symbol) {
+    clingo_id_t ret = 0;
+    Detail::handle_error(clingo_backend_theory_term_symbol(backend_, symbol.to_c(), &ret));
+    return ret;
+}
+
+inline id_t Backend::add_theory_element(IdSpan tuple, LiteralSpan condition) {
+    clingo_id_t ret = 0;
+    Detail::handle_error(clingo_backend_theory_element(backend_, tuple.data(), tuple.size(), condition.begin(), condition.size(), &ret));
+    return ret;
+}
+
+inline void Backend::theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements) {
+    Detail::handle_error(clingo_backend_theory_atom(backend_, atom_id_or_zero, term_id, elements.begin(), elements.size()));
+}
+
+inline void Backend::theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements, char const *operator_name, id_t right_hand_side_id) {
+    Detail::handle_error(clingo_backend_theory_atom_with_guard(backend_, atom_id_or_zero, term_id, elements.begin(), elements.size(), operator_name, right_hand_side_id));
 }
 
 // {{{2 statistics

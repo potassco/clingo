@@ -1481,6 +1481,15 @@ typedef struct clingo_propagator {
 //! @addtogroup ProgramBuilder
 //! @{
 
+//! Enumeration of theory sequence types.
+enum clingo_theory_sequence_type_e {
+    clingo_theory_sequence_type_tuple, //!< Theory tuples "(t1,...,tn)".
+    clingo_theory_sequence_type_list,  //!< Theory lists "[t1,...,tn]".
+    clingo_theory_sequence_type_set    //!< Theory sets "{t1,...,tn}".
+};
+//! Corresponding type to ::clingo_theory_sequence_type_e.
+typedef int clingo_theory_sequence_type_t;
+
 //! Enumeration of different heuristic modifiers.
 //! @ingroup ProgramInspection
 enum clingo_heuristic_type_e {
@@ -1610,6 +1619,83 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_acyc_edge(clingo_backend_t *backen
 //! @param[out] atom the resulting atom
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t *symbol, clingo_atom_t *atom);
+//! Add a numeric theory term.
+//!
+//! @param[in] backend the target backend
+//! @param[in] number the value of the term
+//! @param[out] term_id the resulting term id
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_number(clingo_backend_t *backend, int number, clingo_id_t *term_id);
+//! Add a theory term representing a string.
+//!
+//! @param[in] backend the target backend
+//! @param[in] string the value of the term
+//! @param[out] term_id the resulting term id
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_string(clingo_backend_t *backend, char const *string, clingo_id_t *term_id);
+//! Add a theory term representing a sequence of theory terms.
+//!
+//! @param[in] backend the target backend
+//! @param[in] type the type of the sequence
+//! @param[in] arguments the term ids of the terms in the sequence
+//! @param[in] size the number of elements of the sequence
+//! @param[out] term_id the resulting term id
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_sequence(clingo_backend_t *backend, clingo_theory_sequence_type_t type, clingo_id_t const *arguments, size_t size, clingo_id_t *term_id);
+//! Add a theory term representing a function.
+//!
+//! @param[in] backend the target backend
+//! @param[in] name the name of the function
+//! @param[in] arguments an array of term ids for the theory terms in the arguments
+//! @param[in] size the number of arguments
+//! @param[out] term_id the resulting term id
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_function(clingo_backend_t *backend, char const *name, clingo_id_t const *arguments, size_t size, clingo_id_t *term_id);
+//! Convert the given symbol into a theory term.
+//!
+//! @param[in] backend the target backend
+//! @param[in] symbol the symbol to convert
+//! @param[out] term_id the resulting term id
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_symbol(clingo_backend_t *backend, clingo_symbol_t symbol, clingo_id_t *term_id);
+//! Add a theory atom element.
+//!
+//! @param[in] backend the target backend
+//! @param[in] tuple the array of term ids represeting the tuple
+//! @param[in] tuple_size the size of the tuple
+//! @param[in] condition an array of program literals represeting the condition
+//! @param[in] condition_size the size of the condition
+//! @param[out] element_id the resulting element id
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_element(clingo_backend_t *backend, clingo_id_t const *tuple, size_t tuple_size, clingo_literal_t const *condition, size_t condition_size, clingo_id_t *element_id);
+//! Add a theory atom without a guard.
+//!
+//! @param[in] backend the target backend
+//! @param[in] atom_id_or_zero a program atom or zero for theory directives
+//! @param[in] term_id the term id of the term associated with the theory atom
+//! @param[in] elements an array of element ids for the theory atoms's elements
+//! @param[in] size the number of elements
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_atom(clingo_backend_t *backend, clingo_atom_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size);
+//! Add a theory atom with a guard.
+//!
+//! @param[in] backend the target backend
+//! @param[in] atom_id_or_zero a program atom or zero for theory directives
+//! @param[in] term_id the term id of the term associated with the theory atom
+//! @param[in] elements an array of element ids for the theory atoms's elements
+//! @param[in] size the number of elements
+//! @param[in] operator_name the string representation of a theory operator
+//! @param[in] right_hand_side_id the term id of the right hand side term
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_atom_with_guard(clingo_backend_t *backend, clingo_atom_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, char const *operator_name, clingo_id_t right_hand_side_id);
 
 //! @}
 
@@ -2330,10 +2416,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 //! @{
 
 //! Enumeration of theory sequence types.
+//!
+//! Same as clingo_theory_sequence_type_e but kept for backward compatibility.
 enum clingo_ast_theory_sequence_type_e {
-    clingo_ast_theory_sequence_type_tuple, //!< Theory tuples "(t1,...,tn)".
-    clingo_ast_theory_sequence_type_list,  //!< Theory lists "[t1,...,tn]".
-    clingo_ast_theory_sequence_type_set    //!< Theory sets "{t1,...,tn}".
+    clingo_ast_theory_sequence_type_tuple = clingo_theory_sequence_type_tuple, //!< Theory tuples "(t1,...,tn)".
+    clingo_ast_theory_sequence_type_list = clingo_theory_sequence_type_list,   //!< Theory lists "[t1,...,tn]".
+    clingo_ast_theory_sequence_type_set = clingo_theory_sequence_type_set      //!< Theory sets "{t1,...,tn}".
 };
 //! Corresponding type to ::clingo_ast_theory_sequence_type_e.
 typedef int clingo_ast_theory_sequence_type_t;

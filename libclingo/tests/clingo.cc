@@ -22,6 +22,7 @@
 
 // }}}
 
+#include "clingo.hh"
 #include "tests.hh"
 #include <iostream>
 #include <fstream>
@@ -287,6 +288,42 @@ TEST_CASE("solving", "[clingo]") {
             test_solve(ctl.solve(), models);
             REQUIRE(models == (ModelVec{{ a(2), b(1), e(3) }, { a(2), e(3) }, { b(1), e(3) }, { e(3) }}));
 
+        }
+        SECTION("backend-theory") {
+            ctl.with_backend([](Backend &backend) {
+                auto num_one = backend.add_theory_term_number(1);
+                auto num_two = backend.add_theory_term_number(2);
+                auto str_x = backend.add_theory_term_string("x");
+                auto fun = backend.add_theory_term_function("f", {num_one, num_two, str_x});
+                auto seq = backend.add_theory_term_sequence(TheorySequenceType::Set, {num_one, num_two, str_x});
+                auto fseq = backend.add_theory_term_function("f", {seq});
+
+                REQUIRE(num_one == backend.add_theory_term_number(1));
+                REQUIRE(num_two == backend.add_theory_term_number(2));
+                REQUIRE(str_x == backend.add_theory_term_string("x"));
+                REQUIRE(num_one == backend.add_theory_term_symbol(parse_term("1")));
+                REQUIRE(num_two == backend.add_theory_term_symbol(parse_term("2")));
+                REQUIRE(fun == backend.add_theory_term_symbol(parse_term("f(1,2,x)")));
+
+                auto elem = backend.add_theory_element({num_one, num_two, seq, fun}, {1, -2, 3});
+
+                backend.theory_atom(0, fun, {});
+                backend.theory_atom(0, backend.add_theory_term_symbol(parse_term("g(1,2)")), {});
+                backend.theory_atom(0, fseq, {elem});
+            });
+            auto atoms = ctl.theory_atoms();
+            using SV = std::vector<S>;
+            SV str_atoms;
+            TheoryAtom last{nullptr, 0};
+            for (auto atom : atoms) {
+                str_atoms.emplace_back(atom.to_string());
+                last = atom;
+            }
+            REQUIRE(str_atoms == SV{
+                "&f(1,2,x){}",
+                "&g(1,2){}",
+                "&f({1,2,x}){1,2,{1,2,x},f(1,2,x): #aux(1),not #aux(2),#aux(3)}"});
+            REQUIRE(last.elements().back().condition() == LiteralSpan{{1, -2, 3}});
         }
         SECTION("optimize") {
             ctl.add("base", {}, "2 {a; b; c; d}.\n"

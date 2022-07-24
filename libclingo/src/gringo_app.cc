@@ -233,6 +233,9 @@ struct IncrementalControl : Control {
         if (!backend_) { throw std::runtime_error("backend not available"); }
         return backend_;
     }
+    Output::TheoryData &theoryData() override {
+        return out.data.theory();
+    }
     Id_t addAtom(Symbol sym) override {
         bool added = false;
         auto atom  = out.addAtom(sym, &added);

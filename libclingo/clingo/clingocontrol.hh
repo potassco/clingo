@@ -335,6 +335,9 @@ public:
     void interrupt() override;
     void *claspFacade() override;
     bool beginAddBackend() override;
+    Gringo::Output::TheoryData &theoryData() override {
+        return out_->data.theory();
+    }
     Id_t addAtom(Symbol sym) override;
     void addFact(Potassco::Atom_t uid) override;
     Backend *getBackend() override {

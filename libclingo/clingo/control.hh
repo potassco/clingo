@@ -30,7 +30,7 @@
 #include <gringo/locatable.hh>
 #include <gringo/backend.hh>
 #include <gringo/logger.hh>
-#include <gringo/output/literal.hh>
+#include <gringo/output/literals.hh>
 #include <potassco/clingo.h>
 #include <clingo.h>
 
@@ -253,6 +253,7 @@ struct clingo_control {
     virtual void registerObserver(Gringo::UBackend program, bool replace) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
     virtual bool beginAddBackend() = 0;
+    virtual Gringo::Output::TheoryData &theoryData() = 0;
     virtual Gringo::Id_t addAtom(Gringo::Symbol sym) = 0;
     virtual void addFact(Potassco::Atom_t uid) = 0;
     virtual Gringo::Backend *getBackend() = 0;

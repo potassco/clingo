@@ -37,7 +37,24 @@ from ._internal import _c_call, _cb_error_handler, _ffi, _handle_error, _lib, _t
 from .core import OrderedEnum, TruthValue
 from .symbol import Symbol
 
-__all__ = [ 'Backend', 'HeuristicType', 'Observer' ]
+__all__ = [ 'Backend', 'HeuristicType', 'Observer', 'TheorySequenceType' ]
+
+class TheorySequenceType(OrderedEnum):
+    '''
+    Enumeration of the different heuristic types.
+    '''
+    Tuple = _lib.clingo_theory_sequence_type_tuple
+    '''
+    Type for tuples.
+    '''
+    List = _lib.clingo_theory_sequence_type_list
+    '''
+    Type for lists.
+    '''
+    Set = _lib.clingo_theory_sequence_type_set
+    '''
+    Type fo sets.
+    '''
 
 class HeuristicType(OrderedEnum):
     '''
@@ -646,3 +663,142 @@ class Backend(ContextManager['Backend']):
             Whether to add a disjunctive or choice rule.
         '''
         _handle_error(_lib.clingo_backend_weight_rule(self._rep, choice, head, len(head), lower, body, len(body)))
+
+    def add_theory_term_number(self, number: int) -> int:
+        '''
+        Add a numeric theory term.
+
+        Parameters
+        ----------
+        number
+            The value of the term.
+
+        Returns
+        -------
+        The id of the added term.
+        '''
+        return _c_call('clingo_id_t', _lib.clingo_backend_theory_term_number, self._rep, number, handler=self._error)
+
+    def add_theory_term_string(self, string: str) -> int:
+        '''
+        Add a theory term representing a string.
+
+        Parameters
+        ----------
+        string
+            The value of the term.
+
+        Returns
+        -------
+        The id of the added term.
+        '''
+        return _c_call('clingo_id_t', _lib.clingo_backend_theory_term_string, self._rep, string.encode(), handler=self._error)
+
+    def add_theory_term_function(self, name: str, arguments: Sequence[int]) -> int:
+        '''
+        Add a theory term representing a function.
+
+        Parameters
+        ----------
+        name
+            The name of the function.
+        arguments
+            Sequence of term ids for the function arguments.
+
+        Returns
+        -------
+        The id of the added term.
+        '''
+        return _c_call('clingo_id_t', _lib.clingo_backend_theory_term_function, self._rep, name.encode(), arguments, len(arguments), handler=self._error)
+
+    def add_theory_term_sequence(self, sequence_type: TheorySequenceType, arguments: Sequence[int]) -> int:
+        '''
+        Add a theory term representing a sequence of theory terms.
+
+        Parameters
+        ----------
+        sequence_type
+            The type of the sequence
+        arguments
+            Sequence of term ids for the function arguments.
+
+        Returns
+        -------
+        The id of the added term.
+        '''
+        return _c_call('clingo_id_t', _lib.clingo_backend_theory_term_sequence, self._rep, sequence_type.value, arguments, len(arguments), handler=self._error)
+
+    def add_theory_term_symbol(self, symbol: Symbol) -> int:
+        '''
+        Create a theory term from a symbol.
+
+        Parameters
+        ----------
+        symbol
+            The symbol to convert.
+
+        Returns
+        -------
+        The id of the added term.
+        '''
+        return _c_call('clingo_id_t', _lib.clingo_backend_theory_term_symbol, self._rep, symbol._rep, handler=self._error)
+
+    def add_theory_element(self, terms: Sequence[int], condition: Sequence[int]) -> None:
+        '''
+        Create a theory atom element.
+
+        Parameters
+        ----------
+        terms
+            A sequence of term ids.
+        condition
+            A sequence of program literals.
+
+        Returns
+        -------
+        The id of the added element.
+        '''
+        return _c_call('clingo_id_t', _lib.clingo_backend_theory_element, self._rep, terms, len(terms), condition, len(condition), handler=self._error)
+
+    def add_theory_atom(self, atom_id_or_zero: int, term_id: int, elements: Sequence[int]) -> None:
+        '''
+        Add a theory atom without a guard.
+
+        Note that if an equivalent theory atom already exists, the given atom
+        is ignored. To declare a defined theory atom, a rule defining the atom
+        should be added. Otherwise, the theory atom is consider an external
+        body occurrence.
+
+        Parameters
+        ----------
+        atom_id_or_zero
+            A program atom or zero for theory directives.
+        term_id
+            The id of the term associated with the theory atom.
+        elements
+            A sequence of ids of theory atom elements.
+        '''
+        _handle_error(_lib.clingo_backend_theory_atom(self._rep, atom_id_or_zero, term_id, elements, len(elements)))
+
+    def add_theory_atom_with_guard(self, atom_id_or_zero: int, term_id: int, elements: Sequence[int], operator: str, right_hand_side_id: int) -> None:
+        '''
+        Add a theory atom with a guard.
+
+        Parameters
+        ----------
+        atom_id_or_zero
+            A program atom or zero for theory directives.
+        term_id
+            The id of the term associated with the theory atom.
+        elements
+            A sequence of ids of theory atom elements.
+        operator:
+            String representing a theory operator.
+        right_hand_side_id:
+            Term id for the term on the right hand side.
+
+        See Also
+        --------
+        Backend.add_theory_atom
+        '''
+        _handle_error(_lib.clingo_backend_theory_atom(self._rep, atom_id_or_zero, term_id, elements, len(elements), operator, right_hand_side_id))
