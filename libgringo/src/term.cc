@@ -23,9 +23,12 @@
 // }}}
 
 #include "gringo/term.hh"
+#include "gringo/base.hh"
 #include "gringo/logger.hh"
 #include "gringo/graph.hh"
 #include <cmath>
+
+// #define CLINGO_DEBUG_INEQUALITIES
 
 namespace Gringo {
 
@@ -284,21 +287,53 @@ void IESolver::add(IE ie, bool ignoreIfFixed) {
     }
 }
 
+#ifdef CLINGO_DEBUG_INEQUALITIES
+
+namespace {
+
+std::ostream &operator<<(std::ostream &out, IEBound const &bound) {
+    out << "[";
+    if (bound.isSet(IEBound::Lower)) {
+        out << bound.get(IEBound::Lower);
+    }
+    else {
+        out << "-inf";
+    }
+    out << ",";
+    if (bound.isSet(IEBound::Upper)) {
+        out << bound.get(IEBound::Upper);
+    }
+    else {
+        out << "+inf";
+    }
+    out << "]";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, IE const &ie) {
+    bool comma = false;
+    if (ie.terms.empty()) {
+        out << "0";
+    }
+    for (auto const &term : ie.terms) {
+        if (comma) {
+            out << " + ";
+        }
+        comma = true;
+        out << term.coefficient << "*" << term.variable->name;
+    }
+    out << " >= " << ie.bound;
+    return out;
+}
+
+} // namespace
+
+#endif
+
 void IESolver::compute() {
 #ifdef CLINGO_DEBUG_INEQUALITIES
     for (auto &ie : ies_) {
-        bool comma = false;
-        if (ie.terms.empty()) {
-            std::cerr << "0";
-        }
-        for (auto const &term : ie.terms) {
-            if (comma) {
-                std::cerr << " + ";
-            }
-            comma = true;
-            std::cerr << term.coefficient << "*" << term.variable->name;
-        }
-        std::cerr << " >= " << ie.bound << std::endl;
+        std::cerr << ie << std::endl;
     }
 #endif
     // initialize bound computation and incorporate bounds from parent
@@ -334,7 +369,17 @@ void IESolver::compute() {
             }
             if (num_unbounded <= 1) {
                 for (auto const &term : ie.terms) {
+#ifdef CLINGO_DEBUG_INEQUALITIES
+                    bool bound_changed = update_bound_(term, slack, num_unbounded);
+                    if (bound_changed) {
+                        bool comma = false;
+                        std::cerr << "  update bound using " << ie << std::endl;
+                        std::cerr << "    the new bound for " << *term.variable << " is "<< bounds_[term.variable] << std::endl;
+                    }
+                    changed = bound_changed || changed;
+#else
                     changed = update_bound_(term, slack, num_unbounded) || changed;
+#endif
                 }
             }
         }
@@ -376,7 +421,7 @@ I IESolver::ceildiv_(I n, I m) {
 }
 
 int IESolver::div_(bool positive, int a, int b) {
-    return positive ? ceildiv_(a, b) : floordiv_(a, b);
+    return positive ? floordiv_(a, b) : ceildiv_(a, b);
 }
 
 bool IESolver::update_bound_(IETerm const &term, int slack, int num_unbounded) {
