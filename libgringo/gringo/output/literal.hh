@@ -28,6 +28,7 @@
 #include <gringo/domain.hh>
 #include <gringo/output/types.hh>
 #include <potassco/theory_data.h>
+#include <unordered_map>
 
 namespace Gringo { namespace Output {
 
@@ -144,35 +145,20 @@ using LitVec  = std::vector<LiteralId>;
 // {{{1 declaration of Literal
 
 class Mapping {
-private:
-    using Value = std::pair<std::pair<Id_t, Id_t>, Id_t>; // (range, offset)
-    using Map = std::vector<Value>;
 public:
     void add(Id_t oldOffset, Id_t newOffset) {
-        if (map_.empty() || map_.back().first.second < oldOffset) {
-            map_.emplace_back(std::make_pair(oldOffset, oldOffset+1), newOffset);
-        }
-        else {
-            assert(map_.back().first.second == oldOffset);
-            ++map_.back().first.second;
-        }
+        assert(map_.find(oldOffset) == map_.end());
+        map_.emplace(oldOffset, newOffset);
     }
-    Id_t get(Id_t oldOffset) {
-        auto it = std::upper_bound(map_.begin(), map_.end(), oldOffset, [](Id_t offset, Value const &val) { return offset < val.first.second; });
-        return (it == map_.end() || oldOffset < it->first.first) ? InvalidId : it->second + (oldOffset - it->first.first);
-    }
-    Id_t bound(Id_t oldOffset) {
-        auto it = std::upper_bound(map_.begin(), map_.end(), oldOffset, [](Id_t offset, Value const &val) { return offset < val.first.second; });
-        if (it != map_.end() && oldOffset >= it->first.first) {
-            return it->second + (oldOffset - it->first.first);
+    Id_t get(Id_t oldOffset) const {
+        auto it = map_.find(oldOffset);
+        if (it != map_.end()) {
+            return it->second;
         }
-        if (it == map_.begin() && (it == map_.end() || oldOffset < it->first.first)) {
-            return 0;
-        }
-        return (it-1)->second + ((it-1)->first.second - (it-1)->first.first);
+        return InvalidId;
     }
 private:
-    Map map_;
+    std::unordered_map<Id_t, Id_t> map_;
 };
 using Mappings = std::vector<Mapping>;
 

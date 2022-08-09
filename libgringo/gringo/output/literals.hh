@@ -754,16 +754,6 @@ public:
     }
 
     void incNext() {
-        // It is necessary to hide undefined literals because they should not interfere
-        // with future definitions of the same atom.
-        // In fact, they could be completely removed from the domain.
-        // This cannot be done here but the cleanup function of the output,
-        // will remove such atoms.
-        for (auto it = begin() + incOffset(), ie = end(); it != ie; ++it) {
-            if (!it->defined()) {
-                hide_(it);
-            }
-        }
         incOffset_ = size();
     }
 

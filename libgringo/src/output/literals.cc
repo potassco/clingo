@@ -885,13 +885,10 @@ void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec
 std::pair<Id_t, Id_t> PredicateDomain::cleanup(AssignmentLookup assignment, Mapping &map) {
     Id_t facts = 0;
     Id_t deleted = 0;
-    Id_t oldOffset = 0;
-    Id_t newOffset = 0;
     //std::cerr << "cleaning " << sig_ << std::endl;
-    cleanup_([&](PredicateAtom &atom) {
+    cleanup_([&](PredicateAtom &atom, Id_t oldOffset, Id_t newOffset) {
         if (!atom.defined()) {
             ++deleted;
-            ++oldOffset;
             return true;
         }
         if (atom.hasUid()) {
@@ -912,7 +909,6 @@ std::pair<Id_t, Id_t> PredicateDomain::cleanup(AssignmentLookup assignment, Mapp
                     }
                     case Potassco::Value_t::False: {
                         ++deleted;
-                        ++oldOffset;
                         return true;
                     }
                     default: {
@@ -925,16 +921,14 @@ std::pair<Id_t, Id_t> PredicateDomain::cleanup(AssignmentLookup assignment, Mapp
         atom.setGeneration(0);
         atom.unmarkDelayed();
         map.add(oldOffset, newOffset);
-        ++oldOffset;
-        ++newOffset;
         return false;
     });
     //std::cerr << "remaining atoms: ";
     //for (auto &atom : atoms_) {
     //    std::cerr << "  " << static_cast<Symbol>(atom) << "=" << (atoms_.find(static_cast<Symbol>(atom)) != atoms_.end()) << "/" << atom.generation() << "/" << atom.defined() << "/" << atom.delayed() << std::endl;
     //}
-    incOffset_ = map.bound(incOffset_);
-    showOffset_ = map.bound(showOffset_);
+    incOffset_ = size();
+    showOffset_ = size();
     return {facts, deleted};
 }
 
