@@ -6,3 +6,5 @@ if (CLINGO_BUILD_TESTS AND NOT TARGET Catch2::Catch2WithMain)
         find_package(Catch2 2.13 REQUIRED)
     endif()
 endif()
+
+add_subdirectory(ordered-map)
