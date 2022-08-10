@@ -22,13 +22,13 @@
 
 // }}}
 
-#include "tsl/hopscotch_growth_policy.h"
 #include <algorithm>
 #include <cstring>
 #include <gringo/symbol.hh>
 #include <gringo/hash_set.hh>
 #include <iterator>
 #include <tsl/hopscotch_set.h>
+#include <tsl/hopscotch_growth_policy.h>
 #include <mutex>
 #ifdef _MSC_VER
 #pragma warning (disable : 4200) // nonstandard extension used: zero-sized array in struct/union
@@ -103,23 +103,18 @@ String toString(uint64_t rep) {
 template <class T>
 struct UniqueConstruct {
 public:
-    using Set = tsl::hopscotch_set<T, typename T::Hash, typename T::EqualTo, std::allocator<T>, 30, true, tsl::hh::prime_growth_policy>;
+    using Set = tsl::hopscotch_set<T, typename T::Hash, typename T::EqualTo, std::allocator<T>, 62, false, tsl::hh::prime_growth_policy>;
 
     template <class U>
     static T const &construct(U &&x) {
+        // TODO: in C++17 this can use a read/write lock to not block reading threads
+        size_t hash = typename T::Hash{}(x);
         std::lock_guard<std::mutex> g(mutex_);
-        // equivalent to but less efficient than
-        //   `*set_.insert(T{std::forward<U>(x)}).first`
-        // if the key is expensive to construct and already exists
-#if PATCHED
-        return *set_.transparent_insert(std::forward<U>(x)).first;
-#else
-        auto it = set_.find(x);
+        auto it = set_.find(x, hash);
         if (it != set_.end()) {
             return *it;
         }
-        return *set_.insert(T{std::forward<U>(x)}).first;
-#endif
+        return *set_.insert(T{std::forward<U>(x), hash}).first;
     }
 
 private:
@@ -138,99 +133,55 @@ T const &construct_unique(U &&x) {
     return UniqueConstruct<T>::construct(std::forward<U>(x));
 }
 
-// {{{1 definition of MString
-
-struct MString {
-public:
-        struct Hash {
-        size_t operator()(MString const &str) const {
-            return hash_mix(strhash(str.str_));
-        }
-        size_t operator()(char const *str) const {
-            return hash_mix(strhash(str));
-        }
-        size_t operator()(StringSpan const &str) const {
-            return hash_mix(strhash(str));
-        }
-    };
-    struct EqualTo {
-        using is_transparent = void;
-        bool operator()(StringSpan const &span_a, MString const &b) const {
-            StringSpan span_b = {b.str_, std::strlen(b.str_)};
-            return span_a.size == span_b.size && std::equal(begin(span_a), end(span_a), begin(span_b));
-        }
-        bool operator()(MString const &a, StringSpan const &span_b) const {
-            return operator()(span_b, a);
-        }
-        template <class T, class U>
-        bool operator()(T const &a, U const &b) const {
-            return std::strcmp(as_char(a), as_char(b)) == 0;
-        }
-    };
-
-    explicit MString(char const *str)
-    : str_{new char[std::strlen(str) + 1]} {
-        std::strcpy(str_, str); // NOLINT
-    }
-    explicit MString(StringSpan str)
-    : str_{new char[str.size + 1]} {
-        std::memcpy(str_, str.first, str.size); // NOLINT
-        str_[str.size] = '\0'; // NOLINT
-    }
-    MString() = delete;
-    MString(MString const &other) = delete;
-    MString(MString &&other) noexcept {
-        std::swap(str_, other.str_);
-    }
-    MString &operator=(MString const &other) = delete;
-    MString &operator=(MString &&other) noexcept {
-        std::swap(str_, other.str_);
-        return *this;
-    }
-    ~MString() noexcept {
-        delete [] str_; // NOLINT
-    }
-
-    char const *as_char() const {
-        return str_;
-    }
-
-private:
-    static char const *as_char(char const *str) {
-        return str;
-    }
-    static char const *as_char(MString const &str) {
-        return str.str_;
-    }
-
-    char *str_ = nullptr;
-};
-
 // {{{1 definition of USig
 
 class MSig {
 public:
+    using Cons = std::pair<String, uint32_t>;
+
     struct Hash {
         size_t operator()(MSig const &sig) const {
-            return hash_mix(get_value_hash(sig.sig_));
+            return sig.hash_;
+        }
+        size_t operator()(Cons const &sig) const {
+            return hash_mix(get_value_hash(sig));
         }
     };
     struct EqualTo {
         using is_transparent = void;
-        bool operator()(MSig const &a, MSig const &b) const {
-            return a.sig_ == b.sig_;
+        template <class A, class B>
+        size_t operator()(A const &a, B const &b) const {
+            return name(a) == name(b) && arity(a) == arity(b);
         }
     };
 
-    explicit MSig(String name, uint32_t arity)
-    : sig_{name, arity} {}
+    explicit MSig(Cons const &cons, size_t hash)
+    : sig_{cons.first, cons.second}
+    , hash_{hash} {}
 
-    std::pair<String, uint32_t> const &as_sig() const {
+    Cons const &as_sig() const {
         return sig_;
     }
 
 private:
+    static String name(MSig const &a) {
+        return a.sig_.first;
+    }
+
+    static String name(Cons const &a) {
+        return a.first;
+    }
+
+    static uint32_t arity(MSig const &a) {
+        return a.sig_.second;
+    }
+
+    static uint32_t arity(Cons const &a) {
+        return a.second;
+    }
+
     std::pair<String, uint32_t> sig_;
+    size_t hash_;
 };
 
 uint64_t encodeSig(String name, uint32_t arity, bool sign) {
@@ -238,7 +189,7 @@ uint64_t encodeSig(String name, uint32_t arity, bool sign) {
     return arity < upperMax
         ? combine(arity, String::toRep(name), isign)
         : combine(upperMax,
-                  reinterpret_cast<uintptr_t>(&construct_unique<MSig>(MSig{name, arity}).as_sig()), // NOLINT
+                  reinterpret_cast<uintptr_t>(&construct_unique<MSig>(std::make_pair(name, arity)).as_sig()), // NOLINT
                   isign);
 }
 
@@ -251,6 +202,16 @@ public:
     Fun &operator=(Fun const &other) = delete;
     Fun &operator=(Fun &&other) noexcept = delete;
 
+    static Fun *make(Sig sig, SymSpan args, size_t hash) {
+        auto *mem = ::operator new(sizeof(Fun) + args.size * sizeof(Symbol));
+        return new(mem) Fun(sig, args, hash); // NOLINT
+    }
+
+    void destroy() noexcept {
+        this->~Fun();
+        ::operator delete(this);
+    }
+
     Sig sig() const {
         return sig_;
     }
@@ -259,25 +220,21 @@ public:
         return {args_, sig().arity()};
     }
 
-    static Fun *make(Sig sig, SymSpan args) {
-        auto *mem = ::operator new(sizeof(Fun) + args.size * sizeof(Symbol));
-        return new(mem) Fun(sig, args); // NOLINT
-    }
-
-    void destroy() noexcept {
-        this->~Fun();
-        ::operator delete(this);
+    size_t hash() const {
+        return hash_;
     }
 
 private:
     ~Fun() noexcept = default;
 
-    Fun(Sig sig, SymSpan args) noexcept
-    : sig_(sig) {
+    Fun(Sig sig, SymSpan args, size_t hash) noexcept
+    : sig_(sig)
+    , hash_{hash} {
         std::memcpy(static_cast<void*>(args_), args.first, args.size * sizeof(Symbol));
     }
 
     Sig const sig_;
+    size_t hash_;
     Symbol args_[0]; // NOLINT
 };
 
@@ -286,10 +243,11 @@ public:
     using Cons = std::pair<Sig, SymSpan>;
 
     struct Hash {
-        template <class A>
-        size_t operator()(A const &a) const {
-            auto args_a = args(a);
-            return hash_mix(get_value_hash(sig(a), hash_range(begin(args_a), end(args_a))));
+        size_t operator()(MFun const &a) const {
+            return a.fun_->hash();
+        }
+        size_t operator()(Cons const &a) const {
+            return hash_mix(get_value_hash(a.first, hash_range(begin(a.second), end(a.second))));
         }
     };
     struct EqualTo {
@@ -302,8 +260,8 @@ public:
         }
     };
 
-    explicit MFun(Cons fun)
-    : fun_{Fun::make(fun.first, fun.second)} { }
+    explicit MFun(Cons fun, size_t hash)
+    : fun_{Fun::make(fun.first, fun.second, hash)} { }
     MFun() = delete;
     MFun(MFun const &other) = delete;
     MFun(MFun &&other) noexcept {
@@ -350,17 +308,142 @@ private:
 
 // {{{1 definition of String
 
+// {{{1 definition of MString
+
+class String::Impl {
+public:
+    class MString;
+
+    Impl(Impl const &other) = delete;
+    Impl(Impl &&other) noexcept = delete;
+    Impl &operator=(Impl const &other) = delete;
+    Impl &operator=(Impl &&other) noexcept = delete;
+
+    static Impl *make(StringSpan const &span, size_t hash) {
+        size_t n = span.size;
+        auto *mem = ::operator new(sizeof(Impl) + (n + 1) * sizeof(char));
+        return new(mem) Impl(span.first, n, hash); // NOLINT
+    }
+
+    static Impl *make(char const *str, size_t hash) {
+        size_t n = strlen(str);
+        auto *mem = ::operator new(sizeof(Impl) + (n + 1) * sizeof(char));
+        return new(mem) Impl(str, n, hash); // NOLINT
+    }
+
+    void destroy() noexcept {
+        this->~Impl();
+        ::operator delete(this);
+    }
+
+    char const *str() const {
+        return str_;
+    }
+
+    size_t hash() const {
+        return hash_;
+    }
+
+private:
+    Impl(char const *str, size_t n, size_t hash) noexcept
+    : hash_{hash} {
+        std::memcpy(str_, str, n * sizeof(char));
+        str_[n] = '\0'; // NOLINT
+    }
+    ~Impl() noexcept = default;
+
+    size_t hash_;
+    char str_[0]; // NOLINT
+};
+
+struct String::Impl::MString {
+public:
+    struct Hash {
+        size_t operator()(MString const &str) const {
+            return str.str_->hash();
+        }
+        size_t operator()(char const *str) const {
+            return hash_mix(strhash(str));
+        }
+        size_t operator()(StringSpan const &str) const {
+            return hash_mix(strhash(str));
+        }
+    };
+    struct EqualTo {
+        using is_transparent = void;
+        bool operator()(StringSpan const &span_a, MString const &b) const {
+            StringSpan span_b = {as_char(b), std::strlen(as_char(b))};
+            return span_a.size == span_b.size && std::equal(begin(span_a), end(span_a), begin(span_b));
+        }
+        bool operator()(MString const &a, StringSpan const &span_b) const {
+            return operator()(span_b, a);
+        }
+        template <class T, class U>
+        bool operator()(T const &a, U const &b) const {
+            return std::strcmp(as_char(a), as_char(b)) == 0;
+        }
+    };
+
+    explicit MString(char const *str, size_t hash)
+    : str_{String::Impl::make(str, hash)} {
+    }
+    explicit MString(StringSpan str, size_t hash)
+    : str_{String::Impl::make(str, hash)} {
+    }
+    MString() = delete;
+    MString(MString const &other) = delete;
+    MString(MString &&other) noexcept {
+        std::swap(str_, other.str_);
+    }
+    MString &operator=(MString const &other) = delete;
+    MString &operator=(MString &&other) noexcept {
+        std::swap(str_, other.str_);
+        return *this;
+    }
+    ~MString() noexcept {
+        if (str_ != nullptr) {
+            str_->destroy();
+        }
+    }
+
+    Impl *as_impl() const {
+        return str_;
+    }
+
+private:
+    static char const *as_char(char const *str) {
+        return str;
+    }
+    static char const *as_char(MString const &str) {
+        return str.as_impl()->str();
+    }
+
+    String::Impl *str_ = nullptr;
+};
+
 String::String(char const *str)
-: str_(construct_unique<MString>(str).as_char()) { }
+: str_(construct_unique<Impl::MString>(str).as_impl()) { }
 
 String::String(StringSpan str)
-: str_(construct_unique<MString>(str).as_char()) { }
+: str_(construct_unique<Impl::MString>(str).as_impl()) { }
 
 String::String(uintptr_t r) noexcept
-: str_(reinterpret_cast<char const *>(r)) { } // NOLINT
+: str_(reinterpret_cast<Impl*>(r)) { } // NOLINT
+
+const char *String::c_str() const {
+    return str_->str();
+}
 
 bool String::empty() const {
-    return str_[0] == '\0'; // NOLINT
+    return *c_str() == '\0'; // NOLINT
+}
+
+size_t String::length() const {
+    return std::strlen(c_str());
+}
+
+bool String::startsWith(char const *prefix) const {
+    return std::strncmp(prefix, c_str(), strlen(prefix)) == 0;
 }
 
 size_t String::hash() const {
