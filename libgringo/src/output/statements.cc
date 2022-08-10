@@ -614,7 +614,7 @@ void Translator::translateMinimize(DomainData &data) {
                 condLits.emplace_back(it++->second);
             }
             while (it != iE && it->first == tuple);
-            int weight(data.tuple(tuple).front().num());
+            int weight(data.tuple(tuple).first->num());
             // Note: extends the minimize constraint incrementally
             auto ret = tuples_.push(tuple, LiteralId{});
             if (!ret.second) {

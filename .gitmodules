@@ -14,3 +14,6 @@
 [submodule "third_party/sparse-map"]
 	path = third_party/sparse-map
 	url = ../../Tessil/sparse-map.git
+[submodule "third_party/optional"]
+	path = third_party/optional
+	url = ../../TartanLlama/optional.git

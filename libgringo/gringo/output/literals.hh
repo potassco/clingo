@@ -25,6 +25,9 @@
 #ifndef GRINGO_OUTPUT_LITERALS_HH
 #define GRINGO_OUTPUT_LITERALS_HH
 
+#include "gringo/hash_set.hh"
+#include "gringo/symbol.hh"
+#include "potassco/basic_types.h"
 #include <gringo/terms.hh>
 #include <gringo/domain.hh>
 #include <gringo/intervals.hh>
@@ -258,6 +261,7 @@ int toInt(IntervalSet<Symbol>::LBound const &x);
 int toInt(IntervalSet<Symbol>::RBound const &x);
 Symbol getWeight(AggregateFunction fun, SymVec const &x);
 Symbol getWeight(AggregateFunction fun, IteratorRange<SymVec::const_iterator> rng);
+Symbol getWeight(AggregateFunction fun, Potassco::Span<Symbol> rng);
 
 // {{{1 declaration of AggregateAtomRange
 
@@ -1090,7 +1094,7 @@ enum class TheoryTermType : int {
 };
 
 class DomainData {
-    using Tuples = UniqueVecVec<2, Symbol>;
+    using Tuples = array_set<Symbol>;
     using Clauses = UniqueVecVec<2, LiteralId>;
     using Formulas = UniqueVecVec<2, std::pair<Id_t,Id_t>, value_hash<std::pair<Id_t,Id_t>>>;
 public:
@@ -1150,11 +1154,11 @@ public:
     Gringo::Output::TheoryData &theory() { return theory_; }
     Gringo::Output::TheoryData const &theory() const { return theory_; }
     TupleId tuple(SymVec const &cond) {
-        return {tuples_.push(cond).first, static_cast<Id_t>(cond.size())};
+        auto idx = tuples_.insert(SymSpan{cond.data(), cond.size()}).first;
+        return {idx.first, idx.second};
     }
-    IteratorRange<SymVec::const_iterator> tuple(TupleId pos) {
-        auto it = tuples_.at(pos.offset, pos.size);
-        return {it, it + pos.size};
+    Potassco::Span<Symbol> tuple(TupleId pos) {
+        return tuples_.at({pos.offset, pos.size});
     }
     std::pair<Id_t,Id_t> clause(LitVec &cond) {
         sort_unique(cond);

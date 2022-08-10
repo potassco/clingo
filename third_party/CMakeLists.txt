@@ -10,3 +10,6 @@ endif()
 add_subdirectory(ordered-map)
 add_subdirectory(hopscotch-map)
 add_subdirectory(sparse-map)
+
+set(OPTIONAL_BUILD_TESTS OFF CACHE INTERNAL "" FORCE)
+add_subdirectory(optional)

@@ -25,6 +25,8 @@
 #ifndef GRINGO_HASH_SET_HH
 #define GRINGO_HASH_SET_HH
 
+#include "potassco/basic_types.h"
+#include <iterator>
 #include <memory>
 #include <cassert>
 #include <algorithm>
@@ -32,6 +34,9 @@
 #include <array>
 #include <gringo/primes.hh>
 #include <gringo/utility.hh>
+
+#include <tsl/sparse_set.h>
+#include <tl/optional.hpp>
 
 // This shoud really be benchmarked on a large set of problems.
 // I would expect double hashing to be more robust but slower than linear probing.
@@ -603,6 +608,127 @@ private:
 
     BigMap big_;
     SmallVec small_;
+};
+
+template <typename Key, typename Hash=std::hash<Key>, typename KeyEqual=std::equal_to<Key>>
+class array_set {
+public:
+    using key_type = typename Potassco::Span<Key>;
+    using value_type = typename Potassco::Span<Key>;
+    using index_type = std::pair<uint32_t, uint32_t>;
+    using size_type = uint32_t;
+    using difference_type = int32_t;
+    using hasher = Hash;
+    using key_equal = KeyEqual;
+
+    std::pair<index_type, bool> insert(key_type const &key) {
+        if (!impl_) {
+            impl_ = std::make_unique<Impl>();
+        }
+        return impl_->insert(key);
+    }
+    tl::optional<index_type> find(key_type const &key) const {
+        if (!impl_) {
+            impl_ = std::make_unique<Impl>();
+        }
+        return impl_->find(key);
+    }
+    key_type at(index_type const &idx) const {
+        return impl_->at(idx);
+    }
+    void clear() {
+        impl_.reset();
+    }
+    bool empty() const {
+        return !impl_ || impl_->empty();
+    }
+    template <class F>
+    void erase_if(F f) {
+        if (impl_) {
+            impl_ = impl_->erase_if(std::move(f));
+        }
+    }
+private:
+    struct Impl : private Hash, private KeyEqual {
+        struct Index {
+            index_type index{0, 0};
+            size_t hash{0};
+        };
+        struct Hasher {
+            size_t operator()(Index const &idx) const {
+                return idx.hash;
+            }
+            friend void swap(Hasher &a, Hasher &b) {
+                static_cast<void>(a);
+                static_cast<void>(b);
+            }
+        };
+        struct EqualTo {
+            using is_transparent = void;
+            bool operator()(Index const &a, Index const &b) const {
+                auto it_a = values->begin() + a.index.first;
+                auto it_b = values->begin() + b.index.first;
+                return
+                    a.index.second == b.index.second &&
+                    std::equal(it_a, it_a + a.index.second, it_b);
+            }
+            bool operator()(Index const &a, key_type const &b) const {
+                auto it_a = values->begin() + a.index.first;
+                return
+                    a.index.second == b.size &&
+                    std::equal(it_a, it_a + a.index.second, begin(b));
+            }
+            friend void swap(EqualTo &a, EqualTo &b) {
+                std::swap(a.values, b.values);
+            }
+            std::vector<Key> const *values;
+        };
+
+        Impl()
+        : data{0, Hasher{}, EqualTo{&values}} { }
+
+        std::pair<index_type, bool> insert(key_type const &key) {
+            size_t hash = hash_range(begin(key), end(key), static_cast<Hash&>(*this));
+            uint32_t index = numeric_cast<uint32_t>(values.size());
+            values.insert(values.end(), begin(key), end(key));
+            auto ret = data.insert(Index{{index, numeric_cast<uint32_t>(key.size)}, hash});
+            if (!ret.second) {
+                values.resize(index);
+            }
+            return {ret.first->index, ret.second};
+        }
+
+        tl::optional<index_type> find(key_type const &key) const {
+            size_t hash = hash_range(begin(key), end(key), static_cast<Hash&>(*this));
+            auto it = data.find(key, hash);
+            return it == data.end() ? tl::nullopt : tl::make_optional(it->index);
+        }
+
+        key_type at(index_type const &idx) const {
+            return {values.data() + idx.first, idx.second};
+        }
+
+        bool empty() const {
+            return data.empty();
+        }
+
+        template <class F>
+        void erase_if(F f) {
+            // Note: could be made more space efficient by grouping elements by size
+            //       and then backfilling removed elements
+            auto impl = std::make_unique<Impl>();
+            for (auto &idx : data) {
+                auto key = at(idx);
+                if (f(key)) {
+                    impl->insert(key);
+                }
+            }
+        }
+        std::vector<Key> values;
+        tsl::sparse_set<Index, Hasher, EqualTo> data;
+    };
+
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace Gringo

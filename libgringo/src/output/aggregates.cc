@@ -173,11 +173,11 @@ AggregateAnalyzer::AggregateAnalyzer(DomainData &data, NAF naf, DisjunctiveBound
                     }
                 }
                 auto tuple = data.tuple(x.first);
-                if (hasPositiveLiteral && !tuple.empty() && tuple.front().type() == SymbolType::Num) {
-                    if (tuple.front().num() < 0) {
+                if (hasPositiveLiteral && tuple.size > 0 && tuple.first->type() == SymbolType::Num) {
+                    if (tuple.first->num() < 0) {
                         hasNegativeWeight = true;
                     }
-                    if (tuple.front().num() > 0) {
+                    if (tuple.first->num() > 0) {
                         hasPositiveWeight = true;
                     }
                 }
