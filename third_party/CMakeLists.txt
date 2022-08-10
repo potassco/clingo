@@ -8,3 +8,4 @@ if (CLINGO_BUILD_TESTS AND NOT TARGET Catch2::Catch2WithMain)
 endif()
 
 add_subdirectory(ordered-map)
+add_subdirectory(hopscotch-map)

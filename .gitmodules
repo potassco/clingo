@@ -8,3 +8,6 @@
 [submodule "third_party/ordered-map"]
 	path = third_party/ordered-map
 	url = ../../Tessil/ordered-map.git
+[submodule "third_party/hopscotch-map"]
+	path = third_party/hopscotch-map
+	url = ../../Tessil/hopscotch-map.git
