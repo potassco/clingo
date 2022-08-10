@@ -28,7 +28,8 @@
 #include <gringo/input/programbuilder.hh>
 #include <clingo.h>
 #include <clingo/variant.hh>
-#include <clingo/optional.hh>
+
+#include <tl/optional.hpp>
 
 // TODO:
 // - the way OAST and SAST are handled is really realy ugly
