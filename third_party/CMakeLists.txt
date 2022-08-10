@@ -9,3 +9,4 @@ endif()
 
 add_subdirectory(ordered-map)
 add_subdirectory(hopscotch-map)
+add_subdirectory(sparse-map)

@@ -27,9 +27,21 @@
 #include <gringo/symbol.hh>
 #include <gringo/hash_set.hh>
 #include <iterator>
-#include <tsl/hopscotch_set.h>
-#include <tsl/hopscotch_growth_policy.h>
 #include <mutex>
+
+// NOLINTNEXTLINE
+#define CLINGO_MAP_TYPE_HOPSCOTCH 0
+// NOLINTNEXTLINE
+#define CLINGO_MAP_TYPE_SPARSE 1
+
+#define CLINGO_MAP_TYPE CLINGO_MAP_TYPE_SPARSE
+
+#if CLINGO_MAP_TYPE == CLINGO_MAP_TYPE_HOPSCOTCH
+#   include <tsl/hopscotch_map.h>
+#elif CLINGO_MAP_TYPE == CLINGO_MAP_TYPE_SPARSE
+#   include <tsl/sparse_set.h>
+#endif
+
 #ifdef _MSC_VER
 #pragma warning (disable : 4200) // nonstandard extension used: zero-sized array in struct/union
 #endif
@@ -103,7 +115,11 @@ String toString(uint64_t rep) {
 template <class T>
 struct UniqueConstruct {
 public:
+#if CLINGO_MAP_TYPE == CLINGO_MAP_TYPE_HOPSCOTCH
     using Set = tsl::hopscotch_set<T, typename T::Hash, typename T::EqualTo, std::allocator<T>, 62, false, tsl::hh::prime_growth_policy>;
+#elif CLINGO_MAP_TYPE == CLINGO_MAP_TYPE_SPARSE
+    using Set = tsl::sparse_set<T, typename T::Hash, typename T::EqualTo>;
+#endif
 
     template <class U>
     static T const &construct(U &&x) {
