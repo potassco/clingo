@@ -506,11 +506,16 @@ private:
         Impl()
         : data{0, Hasher{}, EqualTo{&values}} { }
 
-        std::pair<index_type, bool> insert(key_type const &key) {
+        size_t hash_(key_type const &key) {
             size_t hash = hash_range(begin(key), end(key), static_cast<Hash&>(*this));
+            hash_combine(hash, key.size);
+            return hash;
+        }
+
+        std::pair<index_type, bool> insert(key_type const &key) {
             uint32_t index = numeric_cast<uint32_t>(values.size());
             values.insert(values.end(), begin(key), end(key));
-            auto ret = data.insert(Index{{index, numeric_cast<uint32_t>(key.size)}, hash});
+            auto ret = data.insert(Index{{index, numeric_cast<uint32_t>(key.size)}, hash_(key)});
             if (!ret.second) {
                 values.resize(index);
             }
@@ -518,8 +523,7 @@ private:
         }
 
         tl::optional<index_type> find(key_type const &key) const {
-            size_t hash = hash_range(begin(key), end(key), static_cast<Hash&>(*this));
-            auto it = data.find(key, hash);
+            auto it = data.find(key, hash_(key));
             return it == data.end() ? tl::nullopt : tl::make_optional(it->index);
         }
 
@@ -544,7 +548,7 @@ private:
             }
         }
         std::vector<Key> values;
-        tsl::sparse_set<Index, Hasher, EqualTo> data;
+        tsl::sparse_pg_set<Index, Hasher, EqualTo> data;
     };
 
     std::unique_ptr<Impl> impl_;

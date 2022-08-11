@@ -116,9 +116,9 @@ template <class T>
 struct UniqueConstruct {
 public:
 #if CLINGO_MAP_TYPE == CLINGO_MAP_TYPE_HOPSCOTCH
-    using Set = tsl::hopscotch_set<T, typename T::Hash, typename T::EqualTo, std::allocator<T>, 62, false, tsl::hh::prime_growth_policy>;
+    using Set = tsl::hopscotch_pg_set<T, typename T::Hash, typename T::EqualTo>;
 #elif CLINGO_MAP_TYPE == CLINGO_MAP_TYPE_SPARSE
-    using Set = tsl::sparse_set<T, typename T::Hash, typename T::EqualTo>;
+    using Set = tsl::sparse_pg_set<T, typename T::Hash, typename T::EqualTo>;
 #endif
 
     template <class U>
