@@ -67,8 +67,8 @@ template <class Key,
           class Value,
           class Hash = mix_hash<Key>,
           class KeyEqual = std::equal_to<Key>,
-          class Allocator = std::allocator<Key>,
-          class ValueTypeContainer = std::deque<Key, Allocator>,
+          class Allocator = std::allocator<std::pair<Key, Value>>,
+          class ValueTypeContainer = std::deque<std::pair<Key, Value>, Allocator>,
           class IndexType = std::uint_least32_t>
 using ordered_map = tsl::ordered_map<Key, Value, Hash, KeyEqual, Allocator, ValueTypeContainer, IndexType>;
 
@@ -78,7 +78,7 @@ template <class Key, class Hash = mix_hash<Key>,
           class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<Key>,
           unsigned int NeighborhoodSize = 62, bool StoreHash = false>
-using hash_set = tsl::hopscotch_pg_set<Key, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
+using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
 
 template <class Key,
           class Value,
@@ -87,21 +87,21 @@ template <class Key,
           class Allocator = std::allocator<std::pair<Key, Value>>,
           unsigned int NeighborhoodSize = 62,
           bool StoreHash = false>
-using hash_map = tsl::hopscotch_pg_map<Key, Value, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
+using hash_map = tsl::hopscotch_map<Key, Value, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
 
 #elif CLINGO_MAP_TYPE == 1
 
 template <class Key, class Hash = mix_hash<Key>,
           class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<Key>>
-using hash_set = tsl::sparse_pg_set<Key, mix_hash, KeyEqual, Allocator>;
+using hash_set = tsl::sparse_set<Key, mix_hash, KeyEqual, Allocator>;
 
 template <class Key,
           class Value,
           class Hash = mix_hash<Key>,
           class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<std::pair<Key, Value>>>
-using hash_map = tsl::sparse_pg_map<Key, Value, mix_Hash, KeyEqual, Allocator>;
+using hash_map = tsl::sparse_map<Key, Value, mix_Hash, KeyEqual, Allocator>;
 
 #endif
 template <typename Value>

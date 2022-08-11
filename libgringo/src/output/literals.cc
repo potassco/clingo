@@ -705,11 +705,11 @@ void ConjunctionElement::accumulateHead(DomainData &data, LitVec &cond, Id_t &bl
 }
 
 void ConjunctionAtom::accumulateCond(DomainData &data, Symbol elem, LitVec &cond) {
-    elems_.findPush(elem, elem).first->accumulateCond(data, cond, blocked_, fact_);
+    elems_.try_emplace(elem).first.value().accumulateCond(data, cond, blocked_, fact_);
 }
 
 void ConjunctionAtom::accumulateHead(DomainData &data, Symbol elem, LitVec &cond) {
-    elems_.findPush(elem, elem).first->accumulateHead(data, cond, blocked_, fact_);
+    elems_.try_emplace(elem).first.value().accumulateHead(data, cond, blocked_, fact_);
 }
 
 bool ConjunctionAtom::recursive() const {
@@ -1442,8 +1442,8 @@ void ConjunctionLiteral::printPlain(PrintPlain out) const {
                     break;
                 }
             }
-            out << x;
-            sep = x.needsSemicolon() ? 2 : 1;
+            out << x.second;
+            sep = x.second.needsSemicolon() ? 2 : 1;
         }
     }
     else {
@@ -1456,38 +1456,39 @@ LiteralId ConjunctionLiteral::translate(Translator &x) {
     if (!atm.translated()) {
         atm.setTranslated();
         LitVec bd;
-        for (auto const &y : atm.elems()) {
-            if ((y.heads().size() == 1 && y.heads().front().second == 0) || y.bodies().empty()) {
+        for (auto const &sym_lit : atm.elems()) {
+            auto const &lit = sym_lit.second;
+            if ((lit.heads().size() == 1 && lit.heads().front().second == 0) || lit.bodies().empty()) {
                 // this part of the conditional literal is a fact
                 continue;
             }
-            if (y.isSimple(data_)) {
-                if (y.bodies().size() == 1 && y.bodies().front().second == 0) {
-                    assert(y.heads().size() <= 1);
-                    if (y.heads().empty()) {
+            if (lit.isSimple(data_)) {
+                if (lit.bodies().size() == 1 && lit.bodies().front().second == 0) {
+                    assert(lit.heads().size() <= 1);
+                    if (lit.heads().empty()) {
                         if (!atm.lit()) {
                             atm.setLit(data_.newAux());
                         }
                         return atm.lit();
                     }
-                    bd.emplace_back(*data_.clause(y.heads().front()).first);
+                    bd.emplace_back(*data_.clause(lit.heads().front()).first);
                 }
                 else {
-                    bd.emplace_back(data_.clause(y.bodies().front()).first->negate());
+                    bd.emplace_back(data_.clause(lit.bodies().front()).first->negate());
                 }
             }
             else {
                 LiteralId aux = data_.newAux();
                 LiteralId auxHead = data_.newAux();
-                for (auto const &head : y.heads()) {
-                    // auxHead :- y.head.
+                for (auto const &head : lit.heads()) {
+                    // auxHead :- lit.head.
                     Rule().addHead(auxHead).addBody(data_.clause(head)).translate(data_, x);
                     Rule().addHead(aux).addBody(auxHead).translate(data_, x);
                 }
                 // chk <=> body.
-                LiteralId chk = getEqualFormula(data_, x, y.bodies(), false, atm.nonmonotone() && !y.heads().empty());
+                LiteralId chk = getEqualFormula(data_, x, lit.bodies(), false, atm.nonmonotone() && !lit.heads().empty());
                 Rule().addHead(aux).addBody(chk.negate()).translate(data_, x);
-                if (atm.nonmonotone() && !y.heads().empty()) {
+                if (atm.nonmonotone() && !lit.heads().empty()) {
                     // aux | chk | ~x.first.
                     Rule().addHead(aux).addHead(chk).addHead(auxHead.negate()).translate(data_, x);
                 }
@@ -1533,7 +1534,7 @@ std::pair<LiteralId,bool> ConjunctionLiteral::delayedLit() {
 
 bool ConjunctionLiteral::needsSemicolon() const {
     auto &atm = dom()[id_.offset()];
-    return !atm.elems().empty() && atm.elems().back().needsSemicolon();
+    return !atm.elems().empty() && atm.elems().back().second.needsSemicolon();
 }
 
 // {{{1 definition of HeadAggregateLiteral

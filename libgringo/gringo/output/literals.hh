@@ -493,15 +493,6 @@ private:
 
 class ConjunctionElement {
 public:
-    ConjunctionElement(Symbol value)
-    : value_(value) { }
-    ConjunctionElement(ConjunctionElement &&) = default;
-    ConjunctionElement(ConjunctionElement const &) = default;
-    ConjunctionElement &operator=(ConjunctionElement &&) = default;
-    ConjunctionElement &operator=(ConjunctionElement const &) = default;
-    ~ConjunctionElement() noexcept = default;
-
-    operator Symbol const & () const { return value_; }
     bool needsSemicolon() const;
     bool isSimple(DomainData &data) const;
     void print(PrintPlain out) const;
@@ -511,7 +502,6 @@ public:
     Formula const &bodies() const { return bodies_; }
 
 private:
-    Symbol value_;
     Formula heads_;
     Formula bodies_;
 };
@@ -524,7 +514,7 @@ inline PrintPlain &operator<<(PrintPlain &out, ConjunctionElement const &x) {
 class ConjunctionAtom {
 public:
     // NOLINTNEXTLINE(modernize-use-transparent-functors)
-    using Elements = UniqueVec<ConjunctionElement, std::hash<Symbol>, std::equal_to<Symbol>>;
+    using Elements = ordered_map<Symbol, ConjunctionElement, mix_value_hash<Symbol>>;
     ConjunctionAtom(ConjunctionAtom &&) = default;
     ConjunctionAtom(ConjunctionAtom const &) = delete;
     ConjunctionAtom &operator=(ConjunctionAtom &&) = default;
