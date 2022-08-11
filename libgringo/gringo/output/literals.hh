@@ -514,7 +514,7 @@ inline PrintPlain &operator<<(PrintPlain &out, ConjunctionElement const &x) {
 class ConjunctionAtom {
 public:
     // NOLINTNEXTLINE(modernize-use-transparent-functors)
-    using Elements = ordered_map<Symbol, ConjunctionElement, mix_value_hash<Symbol>>;
+    using Elements = ordered_map<Symbol, ConjunctionElement>;
     ConjunctionAtom(ConjunctionAtom &&) = default;
     ConjunctionAtom(ConjunctionAtom const &) = delete;
     ConjunctionAtom &operator=(ConjunctionAtom &&) = default;
@@ -570,15 +570,6 @@ private:
 
 class DisjunctionElement {
 public:
-    DisjunctionElement(Symbol value)
-    : value_(value) { }
-    DisjunctionElement(DisjunctionElement &&) = default;
-    DisjunctionElement(DisjunctionElement const &) = default;
-    DisjunctionElement &operator=(DisjunctionElement &&) = default;
-    DisjunctionElement &operator=(DisjunctionElement const &) = default;
-    ~DisjunctionElement() noexcept = default;
-
-    operator Symbol const & () const { return value_; }
     void print(PrintPlain out) const;
     void accumulateCond(DomainData &data, LitVec &cond, Id_t &fact);
     void accumulateHead(DomainData &data, LitVec &cond, Id_t &fact);
@@ -590,7 +581,6 @@ public:
     Formula const &bodies() const { return bodies_; }
 
 private:
-    Symbol value_;
     Formula heads_;
     Formula bodies_;
 };
@@ -603,7 +593,7 @@ inline PrintPlain &operator<<(PrintPlain &out, DisjunctionElement const &x) {
 class DisjunctionAtom {
 public:
     // NOLINTNEXTLINE(modernize-use-transparent-functors)
-    using Elements = UniqueVec<DisjunctionElement, std::hash<Symbol>, std::equal_to<Symbol>>;
+    using Elements = ordered_map<Symbol, DisjunctionElement>;
     DisjunctionAtom(DisjunctionAtom &&) = default;
     DisjunctionAtom(DisjunctionAtom const &) = delete;
     DisjunctionAtom &operator=(DisjunctionAtom &&) = default;

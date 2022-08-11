@@ -2671,7 +2671,7 @@ void DisjunctionComplete::report(Output::OutputBase &out, Logger &log) {
             // Note: this is not as lazy at is could be
             //       in the recursive case this would define atoms more that once ...
             for (auto const &elem : atm.elems()) {
-                for (auto const &clauseId : elem.heads()) {
+                for (auto const &clauseId : elem.second.heads()) {
                     for (auto const &lit : out.data.clause(clauseId)) {
                         // Note: for singleton disjunctions with empty bodies facts could be derived here
                         //       (it wouldn't even be that difficult)

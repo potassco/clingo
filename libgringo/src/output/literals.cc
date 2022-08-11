@@ -22,6 +22,7 @@
 
 // }}}
 
+#include "gringo/utility.hh"
 #include <gringo/output/literal.hh>
 #include <gringo/output/statements.hh>
 #include <gringo/logger.hh>
@@ -814,21 +815,26 @@ void DisjunctionElement::accumulateHead(DomainData &data, LitVec &cond, Id_t &fa
 
 void DisjunctionAtom::simplify(bool &headFact) {
     headFact_ = 0;
-    elems_.erase([this](DisjunctionElement &elem) {
-        if (elem.headIsTrue() && elem.bodyIsTrue()) {
-        ++headFact_;
+    for (auto it = elems_.begin(); it != elems_.end();) {
+        if (it.value().headIsTrue() && it.value().bodyIsTrue()) {
+            ++headFact_;
         }
-        return elem.bodyIsFalse() || elem.headIsFalse();
-    });
+        if (it.value().bodyIsFalse() || it.value().headIsFalse()) {
+            it = elems_.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
     headFact = headFact_ > 0;
 }
 
 void DisjunctionAtom::accumulateCond(DomainData &data, Symbol elem, LitVec &cond) {
-    elems_.findPush(elem, elem).first->accumulateCond(data, cond, headFact_);
+    elems_.try_emplace(elem).first.value().accumulateCond(data, cond, headFact_);
 }
 
 void DisjunctionAtom::accumulateHead(DomainData &data, Symbol elem, LitVec &cond) {
-    elems_.findPush(elem, elem).first->accumulateHead(data, cond, headFact_);
+    elems_.try_emplace(elem).first.value().accumulateHead(data, cond, headFact_);
 }
 
 // {{{1 definition of TheoryAtom
@@ -1316,7 +1322,8 @@ LiteralId DisjunctionLiteral::toId() const {
 void DisjunctionLiteral::printPlain(PrintPlain out) const {
     auto &atm = dom()[id_.offset()];
     if (!atm.elems().empty()) {
-        print_comma(out, atm.elems(), ";");
+        print_comma(out, atm.elems(), ";",
+                    [](PrintPlain &out, std::pair<Symbol, DisjunctionElement> const &x) { x.second.print(out); });
     }
     else {
         out << "#false";
@@ -1337,7 +1344,8 @@ LiteralId DisjunctionLiteral::translate(Translator &x) {
         }
         Rule dj;
         dj.addBody(atm.lit());
-        for (auto const &elem : atm.elems()) {
+        for (auto const &item : atm.elems()) {
+            auto const &elem = item.second;
             assert (!elem.bodies().empty());
             LiteralId cond; // cond :- elem.bodies()
             if (!elem.bodyIsTrue()) {
