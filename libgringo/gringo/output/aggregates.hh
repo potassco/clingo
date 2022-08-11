@@ -78,7 +78,7 @@ inline Symbol getNeutral(AggregateFunction fun) {
     return {};
 }
 
-LiteralId getEqualClause(DomainData &data, Translator &x, std::pair<Id_t, Id_t> clause, bool conjunctive, bool equivalence);
+LiteralId getEqualClause(DomainData &data, Translator &x, ClauseId clause, bool conjunctive, bool equivalence);
 LiteralId getEqualFormula(DomainData &data, Translator &x, Formula const &formula, bool conjunctive, bool equivalence);
 LiteralId getEqualAggregate(DomainData &data, Translator &x, AggregateFunction fun, NAF naf, DisjunctiveBounds const &bounds, Interval const &range, BodyAggregateElements const &bdElems, bool recursive);
 

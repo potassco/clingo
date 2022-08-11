@@ -26,6 +26,7 @@
 #define GRINGO_OUTPUT_LITERALS_HH
 
 #include "gringo/hash_set.hh"
+#include "gringo/output/types.hh"
 #include "gringo/symbol.hh"
 #include "potassco/basic_types.h"
 #include <gringo/terms.hh>
@@ -260,7 +261,6 @@ bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc, Lo
 int toInt(IntervalSet<Symbol>::LBound const &x);
 int toInt(IntervalSet<Symbol>::RBound const &x);
 Symbol getWeight(AggregateFunction fun, SymVec const &x);
-Symbol getWeight(AggregateFunction fun, IteratorRange<SymVec::const_iterator> rng);
 Symbol getWeight(AggregateFunction fun, Potassco::Span<Symbol> rng);
 
 // {{{1 declaration of AggregateAtomRange
@@ -1095,8 +1095,8 @@ enum class TheoryTermType : int {
 
 class DomainData {
     using Tuples = array_set<Symbol>;
-    using Clauses = UniqueVecVec<2, LiteralId>;
-    using Formulas = UniqueVecVec<2, std::pair<Id_t,Id_t>, value_hash<std::pair<Id_t,Id_t>>>;
+    using Clauses = array_set<LiteralId>;
+    using Formulas = array_set<std::pair<Id_t,Id_t>, value_hash<std::pair<Id_t,Id_t>>>;
 public:
     DomainData(Potassco::TheoryData &theory)
     : theory_(theory) { }
@@ -1154,31 +1154,35 @@ public:
     Gringo::Output::TheoryData &theory() { return theory_; }
     Gringo::Output::TheoryData const &theory() const { return theory_; }
     TupleId tuple(SymVec const &cond) {
-        auto idx = tuples_.insert(SymSpan{cond.data(), cond.size()}).first;
+        auto idx = tuples_.insert(make_span(cond)).first;
         return {idx.first, idx.second};
     }
     Potassco::Span<Symbol> tuple(TupleId pos) {
         return tuples_.at({pos.offset, pos.size});
     }
-    std::pair<Id_t,Id_t> clause(LitVec &cond) {
+    ClauseId clause(LitVec &cond) {
         sort_unique(cond);
-        return {clauses_.push(cond).first, numeric_cast<Id_t>(cond.size())};
+        return clauses_.insert(make_span(cond)).first;
     }
-    std::pair<Id_t,Id_t> clause(LitVec &&cond) { return clause(cond); }
-    IteratorRange<LitVec::const_iterator> clause(std::pair<Id_t, Id_t> pos) { return clause(pos.first, pos.second); }
-    IteratorRange<LitVec::const_iterator> clause(Id_t id, Id_t size) {
-        auto it = clauses_.at(id, size);
-        return {it, it + size};
+    ClauseId clause(LitVec &&cond) {
+        return clause(cond);
     }
-    std::pair<Id_t,Id_t> formula(Formula &&lits) {
+    LitSpan clause(std::pair<Id_t, Id_t> pos) {
+        return clause(pos.first, pos.second);
+    }
+    LitSpan clause(Id_t id, Id_t size) {
+        return clauses_.at({id, size});
+    }
+    FormulaId formula(Formula &&lits) {
         sort_unique(lits);
-        return {formulas_.push(lits).first, numeric_cast<Id_t>(lits.size())};
+        return formulas_.insert(make_span(lits)).first;
     }
-    IteratorRange<Formula::iterator> formula(Id_t id, Id_t size) {
-        auto it = formulas_.at(id, size);
-        return {it, it + size};
+    ClauseSpan formula(Id_t id, Id_t size) {
+        return formulas_.at({id, size});
     }
-    IteratorRange<Formula::iterator> formula(std::pair<Id_t, Id_t> pos) { return formula(pos.first, pos.second); }
+    ClauseSpan formula(std::pair<Id_t, Id_t> pos) {
+        return formula(pos.first, pos.second);
+    }
     // This should be called before grounding a new step
     // to get rid of unnecessary temporary data.
     void reset(bool resetData) {

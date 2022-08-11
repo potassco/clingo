@@ -425,190 +425,10 @@ private:
     Set set_;
 };
 
-template <class It>
-class IteratorRange {
-public:
-    using Iterrator = It;
-    using ReferenceType = decltype(*std::declval<It>());
-    using ValueType = typename std::remove_reference<ReferenceType>::type;
-    IteratorRange(It a, It b)
-    : begin_(a)
-    , end_(b) { }
-    It begin() const { return begin_; }
-    It end() const { return end_; }
-    ReferenceType front() const { return *begin(); }
-    ReferenceType back() const { *(end()-1); }
-    bool empty() const { return begin_ == end_; }
-    size_t size() const { return std::distance(begin_, end_); }
-    ReferenceType operator[](size_t p) const { return *(begin_ + p); }
-private:
-    It begin_;
-    It end_;
-};
-
-template <class It>
-typename IteratorRange<It>::Iterrator begin(IteratorRange<It> rng) {
-    return rng.begin();
+template <typename C>
+Potassco::Span<typename C::value_type> make_span(C const &container) {
+    return {container.data(), container.size()};
 }
-
-template <class It>
-typename IteratorRange<It>::Iterrator end(IteratorRange<It> rng) {
-    return rng.end();
-}
-
-template <unsigned small, typename Value, typename Hash=std::hash<Value>, typename EqualTo=std::equal_to<Value>>
-class UniqueVecVec : private Hash, private EqualTo {
-public:
-    using SizeType = unsigned;
-    using Vec = std::vector<Value>;
-    using ValueType = Value;
-    using Iterator = typename Vec::iterator;
-    using ConstIterator = typename Vec::const_iterator;
-
-    template <typename It>
-    std::pair<SizeType, bool> push(It ib, SizeType size) {
-        auto &d = data(size);
-        SizeType offset = size > 0 ? static_cast<SizeType>(d.values.size()) / size : 0;
-        auto ret = d.set.insert(
-            [this, offset, &d, ib, size](SizeType a) {
-                auto it = d.values.begin() + size_t(a) * size;
-                return a == offset ? hash_range(ib, ib + size, hasher()) : hash_range(it, it + size, hasher());
-            },
-            [this, offset, &d, ib, size](SizeType a, SizeType b) {
-                auto it = d.values.begin() + size_t(a) * size;
-                return b == offset ? std::equal(it, it + size, ib, equalTo()) : a == b;
-            },
-            offset);
-        if (ret.second) {
-            d.values.insert(d.values.end(), ib, ib + size);
-        }
-        return ret;
-    }
-    template <typename It>
-    std::pair<SizeType,bool> push(It ib, It ie) {
-        return push(ib, std::distance(ie, ib));
-    }
-    std::pair<SizeType,bool> push(Vec const &val) {
-        return push(val.begin(), static_cast<SizeType>(val.size()));
-    }
-    std::pair<SizeType,bool> push(std::initializer_list<ValueType> val) {
-        return push(val.begin(), val.size());
-    }
-    template <typename It>
-    std::pair<SizeType,bool> find(It it, SizeType size) const {
-        auto &d = data(size);
-        SizeType offset = size > 0 ? d.values.size() / size : 0;
-        auto res = d.set.find(
-            [this, offset, &d, it, size](SizeType a) {
-                auto jt = d.values.begin() + size_t(a) * size;
-                return a == offset ? hash_range(it, it + size, hasher()) : hash_range(jt, jt + size, hasher());
-            },
-            [this, offset, &d, it, size](SizeType a, SizeType b) {
-                auto jt = d.values.begin() + size_t(a) * size;
-                return b == offset ? std::equal(it, it + size, jt, equalTo()) : a == b;
-            },
-            offset);
-        return {res ? *res : 0, static_cast<bool>(res)};
-    }
-    template <typename It>
-    std::pair<SizeType,bool> find(It ib, It ie) const {
-        return find(ib, std::distance(ie, ib));
-    }
-    std::pair<SizeType,bool> find(Vec const &val) const {
-        return find(val.begin(), val.size());
-    }
-    std::pair<SizeType,bool> find(std::initializer_list<ValueType> val) const {
-        return find(val.begin(), val.size());
-    }
-    Iterator at(SizeType offset, SizeType size) {
-        return data(size).values.begin() + size_t(offset) * size;
-    }
-    Iterator const &at(SizeType offset, SizeType size) const {
-        return data(size).values.begin() + size_t(offset) * size;;
-    }
-    template <class F>
-    void erase(F f) {
-        auto eraseBySize = [this,f](SizeType size, Data &d) {
-            if (size > 0) {
-                auto jt = d.values.begin();
-                for (auto it = jt, ie = d.values.end(); it != ie; it+= size) {
-                    if (!f(it, it + size)) {
-                        if (it != jt) { std::move(it, it+size, jt); }
-                        jt += size;
-                    }
-                }
-                d.values.erase(jt, d.values.end());
-                d.set.clear();
-                for (SizeType i = 0, e = d.values.size() / size; i != e; ++i) {
-                    d.set.insert(
-                        [this, &d, size](SizeType a) {
-                            auto it = d.values.begin() + size_t(a) * size;
-                            return hash_range(it, it + size, hasher());
-                        },
-                        [](SizeType, SizeType) { return false; },
-                        i);
-                }
-            }
-            else if (!d.set.empty() && f(d.values.begin(), d.values.begin())) {
-                d.set.clear();
-            }
-        };
-        SizeType size = 0;;
-        for (auto &d : small_) {
-            eraseBySize(size, d);
-            ++size;
-        }
-        for (auto it = big_.begin(), ie = big_.end(); it != ie; ++it) {
-            eraseBySize(it->first, it->second);
-        }
-        big_.erase([](typename BigMap::ValueType const &d) { return d.second.set.empty(); });
-    }
-    void clear() {
-        for (auto &d : small_) {
-            d.values.clear();
-            d.set.clear();
-        }
-        big_.clear();
-    }
-    bool empty() const {
-        for (auto &d : small_) {
-            if (!d.set.empty()) { return false; }
-        }
-        for (auto &d : big_) {
-            if (!d.second.set.empty()) { return false; }
-        }
-        return true;
-
-    }
-    Hash hasher() const { return *this; }
-    EqualTo equalTo() const { return *this; }
-
-private:
-    using Set = HashSet<SizeType>;
-    struct Data {
-        Set set;
-        Vec values;
-    };
-    using SmallVec = std::array<Data, small>;
-    using BigMap = UniqueVec<std::pair<SizeType, Data>, HashFirst<SizeType>, EqualToFirst<SizeType>>;
-    Data &data(SizeType size) {
-        if (size < small) {
-            return small_[size];
-        }
-        auto ret = big_.find(size);
-        if (ret != big_.end()) {
-            return ret->second;
-        }
-        return big_.push(size, Data()).first->second;
-    }
-    Data const &data(SizeType size) const {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-        return const_cast<UniqueVecVec*>(this)->data(size);
-    }
-
-    BigMap big_;
-    SmallVec small_;
-};
 
 template <typename Key, typename Hash=std::hash<Key>, typename KeyEqual=std::equal_to<Key>>
 class array_set {
@@ -672,11 +492,10 @@ private:
                     a.index.second == b.index.second &&
                     std::equal(it_a, it_a + a.index.second, it_b);
             }
-            bool operator()(Index const &a, key_type const &b) const {
-                auto it_a = values->begin() + a.index.first;
-                return
-                    a.index.second == b.size &&
-                    std::equal(it_a, it_a + a.index.second, begin(b));
+            bool operator()(key_type const &a, Index const &b) const {
+                auto it_a = begin(a);
+                auto it_b = values->begin() + b.index.first;
+                return a.size == b.index.second && std::equal(it_a, it_a + a.size, it_b);
             }
             friend void swap(EqualTo &a, EqualTo &b) {
                 std::swap(a.values, b.values);

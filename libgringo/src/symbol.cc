@@ -388,15 +388,15 @@ public:
     struct EqualTo {
         using is_transparent = void;
         bool operator()(StringSpan const &span_a, MString const &b) const {
-            StringSpan span_b = {as_char(b), std::strlen(as_char(b))};
+            auto const *str_b = b.as_impl()->str();
+            StringSpan span_b = {str_b, std::strlen(str_b)};
             return span_a.size == span_b.size && std::equal(begin(span_a), end(span_a), begin(span_b));
         }
-        bool operator()(MString const &a, StringSpan const &span_b) const {
-            return operator()(span_b, a);
+        bool operator()(MString const &a, MString const &b) const {
+            return std::strcmp(a.as_impl()->str(), b.as_impl()->str()) == 0;
         }
-        template <class T, class U>
-        bool operator()(T const &a, U const &b) const {
-            return std::strcmp(as_char(a), as_char(b)) == 0;
+        bool operator()(char const *a, MString const &b) const {
+            return std::strcmp(a, b.as_impl()->str()) == 0;
         }
     };
 
@@ -427,13 +427,6 @@ public:
     }
 
 private:
-    static char const *as_char(char const *str) {
-        return str;
-    }
-    static char const *as_char(MString const &str) {
-        return str.as_impl()->str();
-    }
-
     String::Impl *str_ = nullptr;
 };
 

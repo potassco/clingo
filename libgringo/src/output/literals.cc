@@ -214,10 +214,6 @@ Symbol getWeight(AggregateFunction fun, SymVec const &x) {
     return fun == AggregateFunction::COUNT ? Symbol::createNum(1) : x.front();
 }
 
-Symbol getWeight(AggregateFunction fun, IteratorRange<SymVec::const_iterator> rng) {
-    return fun == AggregateFunction::COUNT ? Symbol::createNum(1) : rng.front();
-}
-
 Symbol getWeight(AggregateFunction fun, Potassco::Span<Symbol> rng) {
     return fun == AggregateFunction::COUNT ? Symbol::createNum(1) : *rng.first;
 }
@@ -631,7 +627,7 @@ Interval AssignmentAggregateData::range() const {
 //   disjunction of heads is spanned by Y
 
 bool ConjunctionElement::isSimple(DomainData &data) const {
-    return (heads_.empty() && bodies_.size() == 1 && bodies_.front().second == 1 && data.clause(bodies_.front()).front().invertible()) ||
+    return (heads_.empty() && bodies_.size() == 1 && bodies_.front().second == 1 && data.clause(bodies_.front()).first->invertible()) ||
            (bodies_.size() == 1 && bodies_.front().second == 0 && heads_.size() <= 1);
 }
 
@@ -1363,7 +1359,7 @@ LiteralId DisjunctionLiteral::translate(Translator &x) {
                 }
                 else {
                     // the head literals can be pushed directly into djHead
-                    dj.addHead(headClause.front());
+                    dj.addHead(*headClause.first);
                 }
             }
             else {
@@ -1371,9 +1367,9 @@ LiteralId DisjunctionLiteral::translate(Translator &x) {
                 Rule conjunction;
                 for (auto const &headId : elem.heads()) {
                     auto head = data_.clause(headId);
-                    if (head.size() == 1) {
-                        Rule().addHead(head.front()).addBody(conjunctionAtom).translate(data_, x);
-                        conjunction.addBody(head.front());
+                    if (head.size == 1) {
+                        Rule().addHead(*head.first).addBody(conjunctionAtom).translate(data_, x);
+                        conjunction.addBody(*head.first);
                     }
                     else {
                         LiteralId disjunctionAtom = data_.newAux();
@@ -1472,10 +1468,10 @@ LiteralId ConjunctionLiteral::translate(Translator &x) {
                         }
                         return atm.lit();
                     }
-                    bd.emplace_back(data_.clause(y.heads().front()).front());
+                    bd.emplace_back(*data_.clause(y.heads().front()).first);
                 }
                 else {
-                    bd.emplace_back(data_.clause(y.bodies().front()).front().negate());
+                    bd.emplace_back(data_.clause(y.bodies().front()).first->negate());
                 }
             }
             else {

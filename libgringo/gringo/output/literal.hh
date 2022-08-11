@@ -25,6 +25,7 @@
 #ifndef GRINGO_OUTPUT_LITERAL_HH
 #define GRINGO_OUTPUT_LITERAL_HH
 
+#include "potassco/basic_types.h"
 #include <gringo/domain.hh>
 #include <gringo/output/types.hh>
 #include <potassco/theory_data.h>
@@ -74,6 +75,7 @@ enum class AtomType : uint32_t {
 
 class LiteralId;
 using LitVec = std::vector<LiteralId>;
+using LitSpan = Potassco::Span<LiteralId>;
 
 class LiteralId {
 public:

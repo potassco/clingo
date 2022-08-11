@@ -419,17 +419,17 @@ private:
 
 namespace {
 
-LiteralId getEqualClause(DomainData &data, Translator &x, IteratorRange<LitVec::const_iterator> clause, bool conjunctive, bool equivalence) {
-    if (clause.empty()) {
+LiteralId getEqualClause(DomainData &data, Translator &x, LitSpan clause, bool conjunctive, bool equivalence) {
+    if (clause.size == 0) {
         return conjunctive ? data.getTrueLit() : data.getTrueLit().negate();
     }
-    if (clause.size() == 1) {
-        LiteralId lit = clause.front();
-        if (equivalence && call(data, clause.front(), &Literal::isAtomFromPreviousStep)) {
+    if (clause.size == 1) {
+        LiteralId lit = *clause.first;
+        if (equivalence && call(data, *clause.first, &Literal::isAtomFromPreviousStep)) {
             lit = lit.negate();
             lit = lit.negate();
         }
-        return clause.front();
+        return *clause.first;
     }
     LiteralId aux = data.newAux();
     if (conjunctive) {
