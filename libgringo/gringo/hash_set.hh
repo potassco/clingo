@@ -37,6 +37,7 @@
 #include <tl/optional.hpp>
 #include <tsl/ordered_set.h>
 #include <tsl/ordered_map.h>
+#include <unordered_set>
 #if CLINGO_MAP_TYPE == 0
 #   include <tsl/hopscotch_set.h>
 #   include <tsl/hopscotch_map.h>
@@ -486,7 +487,7 @@ Potassco::Span<typename C::value_type> make_span(C const &container) {
     return {container.data(), container.size()};
 }
 
-template <typename Key, typename Hash=mix_hash<Key>, typename KeyEqual=std::equal_to<Key>>
+template <typename Key, typename Hash=std::hash<Key>, typename KeyEqual=std::equal_to<Key>>
 class array_set {
 public:
     using key_type = typename Potassco::Span<Key>;
@@ -498,31 +499,41 @@ public:
     using key_equal = KeyEqual;
 
     std::pair<index_type, bool> insert(key_type const &key) {
-        if (!impl_) {
-            impl_ = std::make_unique<Impl>();
+        if (key.size > 0) {
+            return impl_[key.size].insert(key);
         }
-        return impl_->insert(key);
+        // the special case that the key is empty is handled by inserting an
+        // empty Impl object
+        auto it = impl_.find(0);
+        if (it == impl_.end()) {
+            impl_.emplace(0, Impl{});
+            return {{0, 0}, true};
+        }
+        return {{0, 0}, false};
     }
     tl::optional<index_type> find(key_type const &key) const {
-        if (!impl_) {
-            impl_ = std::make_unique<Impl>();
+        auto it = impl_.find(key.size);
+        if (it == impl_.end()) {
+            return tl::nullopt;
         }
-        return impl_->find(key);
+        if (key.size > 0) {
+            return impl_->find(key);
+        }
+        // if the key is empty and there is an Impl object, then it has already
+        // been inserted
+        return index_type{0, 0};
     }
     key_type at(index_type const &idx) const {
-        return impl_->at(idx);
+        if (idx.second > 0) {
+            return impl_.find(idx.second)->second.at(idx);
+        }
+        return key_type{nullptr, 0};
     }
     void clear() {
-        impl_.reset();
+        impl_.clear();
     }
     bool empty() const {
-        return !impl_ || impl_->empty();
-    }
-    template <class F>
-    void erase_if(F f) {
-        if (impl_) {
-            impl_ = impl_->erase_if(std::move(f));
-        }
+        return impl_.empty();
     }
 private:
     struct Impl : private Hash, private KeyEqual {
@@ -538,36 +549,35 @@ private:
         struct EqualTo {
             using is_transparent = void;
             bool operator()(index_type const &a, index_type const &b) const {
-                auto it_a = values->begin() + a.first;
-                auto it_b = values->begin() + b.first;
-                return
-                    a.second == b.second &&
-                    std::equal(it_a, it_a + a.second, it_b);
+                auto span_a = impl->at(a);
+                auto span_b = impl->at(b);
+                return std::equal(begin(span_a), end(span_a), begin(span_b));
+            }
+            bool operator()(index_type const &a, key_type const &b) const {
+                auto span_a = impl->at(a);
+                return std::equal(begin(span_a), end(span_a), begin(b));
             }
             bool operator()(key_type const &a, index_type const &b) const {
-                auto it_a = begin(a);
-                auto it_b = values->begin() + b.first;
-                return a.size == b.second && std::equal(it_a, it_a + a.size, it_b);
+                return operator()(b, a);
             }
             friend void swap(EqualTo &a, EqualTo &b) {
-                std::swap(a.values, b.values);
+                std::swap(a.impl, b.impl);
             }
-            std::vector<Key> const *values;
+            Impl *impl;
         };
 
         Impl()
-        : data{0, Hasher{this}, EqualTo{&values}} { }
+        : data{0, Hasher{this}, EqualTo{this}} { }
 
         size_t hash_(key_type const &key) {
-            size_t hash = hash_range(begin(key), end(key), static_cast<Hash&>(*this));
-            hash_combine(hash, key.size);
-            return hash;
+            return hash_mix(hash_range(begin(key), end(key), static_cast<Hash&>(*this)));
         }
 
         std::pair<index_type, bool> insert(key_type const &key) {
-            uint32_t index = numeric_cast<uint32_t>(values.size());
+            size_t index = values.size();
             values.insert(values.end(), begin(key), end(key));
-            auto ret = data.insert({index, numeric_cast<uint32_t>(key.size)});
+            auto ret = data.insert({numeric_cast<uint32_t>(index / key.size),
+                                    numeric_cast<uint32_t>(key.size)});
             if (!ret.second) {
                 values.resize(index);
             }
@@ -580,30 +590,14 @@ private:
         }
 
         key_type at(index_type const &idx) const {
-            return {values.data() + idx.first, idx.second};
+            return {values.data() + static_cast<size_t>(idx.first) * idx.second, idx.second};
         }
 
-        bool empty() const {
-            return data.empty();
-        }
-
-        template <class F>
-        void erase_if(F f) {
-            // Note: could be made more space efficient by grouping elements by size
-            //       and then backfilling removed elements
-            auto impl = std::make_unique<Impl>();
-            for (auto &idx : data) {
-                auto key = at(idx);
-                if (f(key)) {
-                    impl->insert(key);
-                }
-            }
-        }
         std::vector<Key> values;
         hash_set<index_type, Hasher, EqualTo> data;
     };
 
-    std::unique_ptr<Impl> impl_;
+    std::unordered_map<size_t, Impl> impl_;
 };
 
 } // namespace Gringo
