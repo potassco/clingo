@@ -25,9 +25,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # build targets
-option(CLINGO_BUILD_WEB 
+option(CLINGO_BUILD_WEB
 "Enable the web target. This option is meant to be used with emscripten to \
-compile a library exporting just one function to run clingo." 
+compile a library exporting just one function to run clingo."
 OFF)
 option(CLINGO_BUILD_TESTS
 "Enable unit and system tests."
@@ -66,6 +66,8 @@ ON)
 option(CLINGO_USE_LOCAL_CATCH
 "Advanced option to build against bundled or installed catch."
 ON)
+set(CLINGO_MAP_TYPE "sparse" CACH STRING
+"Select hash table implementation. (sparse, hopscotch)")
 
 
 # Python configuration
@@ -201,7 +203,7 @@ else()
             set_property(TARGET Python::Python PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PYTHON_INCLUDE_DIRS}")
             set_property(TARGET Python::Module PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PYTHON_INCLUDE_DIRS}")
             set_property(TARGET Python::Python PROPERTY INTERFACE_LINK_LIBRARIES "${PYTHON_LIBRARIES}")
-            if (MSVC) 
+            if (MSVC)
                 set_property(TARGET Python::Module PROPERTY INTERFACE_LINK_LIBRARIES "${PYTHON_LIBRARIES}")
             endif()
         endif()

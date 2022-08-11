@@ -574,7 +574,7 @@ AssignmentAggregateData::Values AssignmentAggregateData::values() const {
             return values;
         }
         default: {
-            tsl::ordered_set<Symbol> values;
+            ordered_set<Symbol> values;
             auto it = values_.begin();
             values.insert(*it++);
             for (auto ie = values_.end(); it != ie; ++it) {

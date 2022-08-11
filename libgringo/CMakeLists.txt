@@ -135,6 +135,11 @@ target_include_directories(libgringo
     PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/input/clingopath.hh.in" "${CMAKE_CURRENT_BINARY_DIR}/src/input/clingopath.hh")
+if (CLINGO_MAP_TYPE STREQUAL "hopscotch")
+    target_compile_definitions(libgringo PUBLIC CLINGO_MAP_TYPE=0)
+elseif (CLINGO_MAP_TYPE STREQUAL "sparse")
+    target_compile_definitions(libgringo PUBLIC CLINGO_MAP_TYPE=1)
+endif()
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libgringo PUBLIC CLINGO_NO_VISIBILITY)
 endif()

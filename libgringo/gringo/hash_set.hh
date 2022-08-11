@@ -34,9 +34,16 @@
 #include <array>
 #include <gringo/primes.hh>
 #include <gringo/utility.hh>
-
-#include <tsl/sparse_set.h>
 #include <tl/optional.hpp>
+#include <tsl/ordered_set.h>
+#include <tsl/ordered_map.h>
+#if CLINGO_MAP_TYPE == 0
+#   include <tsl/hopscotch_set.h>
+#   include <tsl/hopscotch_map.h>
+#elif CLINGO_MAP_TYPE == 1
+#   include <tsl/sparse_set.h>
+#   include <tsl/sparse_map.h>
+#endif
 
 // This shoud really be benchmarked on a large set of problems.
 // I would expect double hashing to be more robust but slower than linear probing.
@@ -47,6 +54,42 @@
 
 namespace Gringo {
 
+
+using tsl::ordered_set;
+using tsl::ordered_map;
+
+#if CLINGO_MAP_TYPE == 0
+
+template <class Key, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>,
+          class Allocator = std::allocator<Key>,
+          unsigned int NeighborhoodSize = 62, bool StoreHash = false>
+using hash_set = tsl::hopscotch_pg_set<Key, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
+
+template <class Key,
+          class Value,
+          class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>,
+          class Allocator = std::allocator<std::pair<Key, Value>>,
+          unsigned int NeighborhoodSize = 62,
+          bool StoreHash = false>
+using hash_map = tsl::hopscotch_pg_map<Key, Value, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
+
+#elif CLINGO_MAP_TYPE == 1
+
+template <class Key, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>,
+          class Allocator = std::allocator<Key>>
+using hash_set = tsl::sparse_pg_set<Key, Hash, KeyEqual, Allocator>;
+
+template <class Key,
+          class Value,
+          class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>,
+          class Allocator = std::allocator<std::pair<Key, Value>>>
+using hash_map = tsl::sparse_pg_map<Key, Value, Hash, KeyEqual, Allocator>;
+
+#endif
 template <typename Value>
 struct HashSetLiterals {
     static constexpr Value deleted = std::numeric_limits<Value>::max() - 1;
@@ -548,7 +591,7 @@ private:
             }
         }
         std::vector<Key> values;
-        tsl::sparse_pg_set<Index, Hasher, EqualTo> data;
+        hash_set<Index, Hasher, EqualTo> data;
     };
 
     std::unique_ptr<Impl> impl_;

@@ -72,7 +72,7 @@ private:
 // {{{ declaration of BodyOccurrence
 
 using LocSet = std::set<Location>;
-using SigSet = tsl::ordered_set<Sig>;
+using SigSet = ordered_set<Sig>;
 using UndefVec = std::vector<std::pair<Location, Printable const *>>;
 
 enum class OccurrenceType { POSITIVELY_STRATIFIED, STRATIFIED, UNSTRATIFIED };
@@ -254,8 +254,8 @@ std::tuple<typename Dependency<Stm, HeadOcc>::ComponentVec, UGTermVec, UGTermVec
     }
     std::vector<bool> positive;
     ComponentVec components;
-    tsl::ordered_set<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>, std::allocator<UGTerm>, std::vector<UGTerm>> phead;
-    tsl::ordered_set<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>, std::allocator<UGTerm>, std::vector<UGTerm>> nhead;
+    ordered_set<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>, std::allocator<UGTerm>, std::vector<UGTerm>> phead;
+    ordered_set<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>, std::allocator<UGTerm>, std::vector<UGTerm>> nhead;
     positive.push_back(true);
     for (auto &scc : g.tarjan()) {
         // dependency analysis

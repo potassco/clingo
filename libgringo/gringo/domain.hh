@@ -175,7 +175,7 @@ public:
     using OffsetVec = std::vector<SizeType>;
     using Iterator  = SizeType const *;
     using Entry     = BindIndexEntry<Domain>;
-    using Index     = tsl::ordered_set<Entry, typename Entry::Hash, EqualTo>;
+    using Index     = ordered_set<Entry, typename Entry::Hash, EqualTo>;
 
     struct OffsetRange {
         bool next(Id_t &offset, Term const &repr, BindIndex &idx) {
@@ -404,7 +404,7 @@ template <class T>
 class AbstractDomain : public Domain {
 public:
     using Atom            = T;
-    using Atoms           = tsl::ordered_set<Atom, HashKey<Symbol>, EqualToKey<Symbol>, std::allocator<Atom>, std::vector<Atom>>;
+    using Atoms           = ordered_set<Atom, HashKey<Symbol>, EqualToKey<Symbol>, std::allocator<Atom>, std::vector<Atom>>;
     using BindIndex       = Gringo::BindIndex<AbstractDomain>;
     using FullIndex       = Gringo::FullIndex<AbstractDomain>;
     using BindIndices     = std::unordered_set<BindIndex, call_hash<BindIndex>>;

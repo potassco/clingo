@@ -29,19 +29,6 @@
 #include <iterator>
 #include <mutex>
 
-// NOLINTNEXTLINE
-#define CLINGO_MAP_TYPE_HOPSCOTCH 0
-// NOLINTNEXTLINE
-#define CLINGO_MAP_TYPE_SPARSE 1
-
-#define CLINGO_MAP_TYPE CLINGO_MAP_TYPE_SPARSE
-
-#if CLINGO_MAP_TYPE == CLINGO_MAP_TYPE_HOPSCOTCH
-#   include <tsl/hopscotch_map.h>
-#elif CLINGO_MAP_TYPE == CLINGO_MAP_TYPE_SPARSE
-#   include <tsl/sparse_set.h>
-#endif
-
 #ifdef _MSC_VER
 #pragma warning (disable : 4200) // nonstandard extension used: zero-sized array in struct/union
 #endif
@@ -115,11 +102,7 @@ String toString(uint64_t rep) {
 template <class T>
 struct UniqueConstruct {
 public:
-#if CLINGO_MAP_TYPE == CLINGO_MAP_TYPE_HOPSCOTCH
-    using Set = tsl::hopscotch_pg_set<T, typename T::Hash, typename T::EqualTo>;
-#elif CLINGO_MAP_TYPE == CLINGO_MAP_TYPE_SPARSE
-    using Set = tsl::sparse_pg_set<T, typename T::Hash, typename T::EqualTo>;
-#endif
+    using Set = hash_set<T, typename T::Hash, typename T::EqualTo>;
 
     template <class U>
     static T const &construct(U &&x) {
@@ -387,16 +370,22 @@ public:
     };
     struct EqualTo {
         using is_transparent = void;
-        bool operator()(StringSpan const &span_a, MString const &b) const {
-            auto const *str_b = b.as_impl()->str();
-            StringSpan span_b = {str_b, std::strlen(str_b)};
+        bool operator()(MString const &a, char const *b) const {
+            return std::strcmp(a.as_impl()->str(), b) == 0;
+        }
+        bool operator()(MString const &a, StringSpan const &span_b) const {
+            auto const *str_a = a.as_impl()->str();
+            StringSpan span_a = {str_a, std::strlen(str_a)};
             return span_a.size == span_b.size && std::equal(begin(span_a), end(span_a), begin(span_b));
         }
         bool operator()(MString const &a, MString const &b) const {
-            return std::strcmp(a.as_impl()->str(), b.as_impl()->str()) == 0;
+            return operator()(a, b.as_impl()->str());
         }
         bool operator()(char const *a, MString const &b) const {
-            return std::strcmp(a, b.as_impl()->str()) == 0;
+            return operator()(b, a);
+        }
+        bool operator()(StringSpan const &a, MString const &b) const {
+            return operator()(b, a);
         }
     };
 
