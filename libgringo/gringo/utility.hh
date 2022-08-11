@@ -239,6 +239,20 @@ struct value_hash<std::vector<T>> {
     size_t operator()(std::vector<T> const &v) const;
 };
 
+template <class T, class U=std::hash<T>>
+struct mix_hash : U {
+    using U::U;
+    template <class K>
+    size_t operator()(K const &x) const {
+        size_t hash = U::operator()(x);
+        hash_mix(hash);
+        return hash;
+    }
+};
+
+template <class T>
+using mix_value_hash = mix_hash<T, value_hash<T>>;
+
 template <class T>
 inline size_t get_value_hash(T const &x);
 

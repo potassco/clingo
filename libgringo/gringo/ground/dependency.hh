@@ -254,8 +254,8 @@ std::tuple<typename Dependency<Stm, HeadOcc>::ComponentVec, UGTermVec, UGTermVec
     }
     std::vector<bool> positive;
     ComponentVec components;
-    ordered_set<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>, std::allocator<UGTerm>, std::vector<UGTerm>> phead;
-    ordered_set<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>, std::allocator<UGTerm>, std::vector<UGTerm>> nhead;
+    ordered_set<UGTerm, mix_value_hash<UGTerm>, value_equal_to<UGTerm>, std::allocator<UGTerm>, std::vector<UGTerm>> phead;
+    ordered_set<UGTerm, mix_value_hash<UGTerm>, value_equal_to<UGTerm>, std::allocator<UGTerm>, std::vector<UGTerm>> nhead;
     positive.push_back(true);
     for (auto &scc : g.tarjan()) {
         // dependency analysis

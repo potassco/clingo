@@ -1096,7 +1096,7 @@ enum class TheoryTermType : int {
 class DomainData {
     using Tuples = array_set<Symbol>;
     using Clauses = array_set<LiteralId>;
-    using Formulas = array_set<std::pair<Id_t,Id_t>, value_hash<std::pair<Id_t,Id_t>>>;
+    using Formulas = array_set<std::pair<Id_t,Id_t>, mix_value_hash<std::pair<Id_t,Id_t>>>;
 public:
     DomainData(Potassco::TheoryData &theory)
     : theory_(theory) { }

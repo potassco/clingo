@@ -66,7 +66,7 @@ ON)
 option(CLINGO_USE_LOCAL_CATCH
 "Advanced option to build against bundled or installed catch."
 ON)
-set(CLINGO_MAP_TYPE "sparse" CACH STRING
+set(CLINGO_MAP_TYPE "hopscotch" CACH STRING
 "Select hash table implementation. (sparse, hopscotch)")
 
 

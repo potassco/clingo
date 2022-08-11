@@ -54,13 +54,26 @@
 
 namespace Gringo {
 
+template <class Key,
+          class Hash = mix_hash<Key>,
+          class KeyEqual = std::equal_to<Key>,
+          class Allocator = std::allocator<Key>,
+          class ValueTypeContainer = std::deque<Key, Allocator>,
+          class IndexType = std::uint_least32_t>
+using ordered_set = tsl::ordered_set<Key, Hash, KeyEqual, Allocator, ValueTypeContainer, IndexType>;
 
-using tsl::ordered_set;
-using tsl::ordered_map;
+template <class Key,
+          class Value,
+          class Hash = mix_hash<Key>,
+          class KeyEqual = std::equal_to<Key>,
+          class Allocator = std::allocator<Key>,
+          class ValueTypeContainer = std::deque<Key, Allocator>,
+          class IndexType = std::uint_least32_t>
+using ordered_map = tsl::ordered_map<Key, Value, Hash, KeyEqual, Allocator, ValueTypeContainer, IndexType>;
 
 #if CLINGO_MAP_TYPE == 0
 
-template <class Key, class Hash = std::hash<Key>,
+template <class Key, class Hash = mix_hash<Key>,
           class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<Key>,
           unsigned int NeighborhoodSize = 62, bool StoreHash = false>
@@ -68,7 +81,7 @@ using hash_set = tsl::hopscotch_pg_set<Key, Hash, KeyEqual, Allocator, Neighborh
 
 template <class Key,
           class Value,
-          class Hash = std::hash<Key>,
+          class Hash = mix_hash<Key>,
           class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<std::pair<Key, Value>>,
           unsigned int NeighborhoodSize = 62,
@@ -77,17 +90,17 @@ using hash_map = tsl::hopscotch_pg_map<Key, Value, Hash, KeyEqual, Allocator, Ne
 
 #elif CLINGO_MAP_TYPE == 1
 
-template <class Key, class Hash = std::hash<Key>,
+template <class Key, class Hash = mix_hash<Key>,
           class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<Key>>
-using hash_set = tsl::sparse_pg_set<Key, Hash, KeyEqual, Allocator>;
+using hash_set = tsl::sparse_pg_set<Key, mix_hash, KeyEqual, Allocator>;
 
 template <class Key,
           class Value,
-          class Hash = std::hash<Key>,
+          class Hash = mix_hash<Key>,
           class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<std::pair<Key, Value>>>
-using hash_map = tsl::sparse_pg_map<Key, Value, Hash, KeyEqual, Allocator>;
+using hash_map = tsl::sparse_pg_map<Key, Value, mix_Hash, KeyEqual, Allocator>;
 
 #endif
 template <typename Value>
@@ -473,7 +486,7 @@ Potassco::Span<typename C::value_type> make_span(C const &container) {
     return {container.data(), container.size()};
 }
 
-template <typename Key, typename Hash=std::hash<Key>, typename KeyEqual=std::equal_to<Key>>
+template <typename Key, typename Hash=mix_hash<Key>, typename KeyEqual=std::equal_to<Key>>
 class array_set {
 public:
     using key_type = typename Potassco::Span<Key>;
@@ -513,32 +526,28 @@ public:
     }
 private:
     struct Impl : private Hash, private KeyEqual {
-        struct Index {
-            index_type index{0, 0};
-            size_t hash{0};
-        };
         struct Hasher {
-            size_t operator()(Index const &idx) const {
-                return idx.hash;
+            size_t operator()(index_type const &idx) const {
+                return impl->hash_(impl->at(idx));
             }
             friend void swap(Hasher &a, Hasher &b) {
-                static_cast<void>(a);
-                static_cast<void>(b);
+                std::swap(a.impl, b.impl);
             }
+            Impl *impl;
         };
         struct EqualTo {
             using is_transparent = void;
-            bool operator()(Index const &a, Index const &b) const {
-                auto it_a = values->begin() + a.index.first;
-                auto it_b = values->begin() + b.index.first;
+            bool operator()(index_type const &a, index_type const &b) const {
+                auto it_a = values->begin() + a.first;
+                auto it_b = values->begin() + b.first;
                 return
-                    a.index.second == b.index.second &&
-                    std::equal(it_a, it_a + a.index.second, it_b);
+                    a.second == b.second &&
+                    std::equal(it_a, it_a + a.second, it_b);
             }
-            bool operator()(key_type const &a, Index const &b) const {
+            bool operator()(key_type const &a, index_type const &b) const {
                 auto it_a = begin(a);
-                auto it_b = values->begin() + b.index.first;
-                return a.size == b.index.second && std::equal(it_a, it_a + a.size, it_b);
+                auto it_b = values->begin() + b.first;
+                return a.size == b.second && std::equal(it_a, it_a + a.size, it_b);
             }
             friend void swap(EqualTo &a, EqualTo &b) {
                 std::swap(a.values, b.values);
@@ -547,7 +556,7 @@ private:
         };
 
         Impl()
-        : data{0, Hasher{}, EqualTo{&values}} { }
+        : data{0, Hasher{this}, EqualTo{&values}} { }
 
         size_t hash_(key_type const &key) {
             size_t hash = hash_range(begin(key), end(key), static_cast<Hash&>(*this));
@@ -558,11 +567,11 @@ private:
         std::pair<index_type, bool> insert(key_type const &key) {
             uint32_t index = numeric_cast<uint32_t>(values.size());
             values.insert(values.end(), begin(key), end(key));
-            auto ret = data.insert(Index{{index, numeric_cast<uint32_t>(key.size)}, hash_(key)});
+            auto ret = data.insert({index, numeric_cast<uint32_t>(key.size)});
             if (!ret.second) {
                 values.resize(index);
             }
-            return {ret.first->index, ret.second};
+            return {*ret.first, ret.second};
         }
 
         tl::optional<index_type> find(key_type const &key) const {
@@ -591,7 +600,7 @@ private:
             }
         }
         std::vector<Key> values;
-        hash_set<Index, Hasher, EqualTo> data;
+        hash_set<index_type, Hasher, EqualTo> data;
     };
 
     std::unique_ptr<Impl> impl_;
