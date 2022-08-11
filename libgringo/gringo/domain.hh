@@ -25,6 +25,7 @@
 #ifndef GRINGO_DOMAIN_HH
 #define GRINGO_DOMAIN_HH
 
+#include <algorithm>
 #include <cassert>
 #include <gringo/base.hh>
 #include <gringo/types.hh>
@@ -75,14 +76,6 @@ template <class Domain>
 class BindIndexEntry {
 public:
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    struct Hash {
-        size_t operator()(BindIndexEntry const &e) const {
-            return e.hash();
-        };
-        size_t operator()(SymVec const &e) const {
-            return hash_range(e.begin(), e.end());
-        };
-    };
     using SizeType  = typename Domain::SizeType;
     BindIndexEntry(SymVec const &bound) {
         // NOLINTNEXTLINE
@@ -143,11 +136,14 @@ public:
     size_t hash() const {
         return hash_range(data_, asUint64_());
     }
-    bool operator==(BindIndexEntry const &x) const {
-        return std::equal(x.data_, x.asUint64_(), data_, [](uint64_t a, uint64_t b) { return a == b; });
+    friend bool operator==(BindIndexEntry const &x, BindIndexEntry const &y) {
+        return std::equal(x.data_, x.asUint64_(), y.data_, [](uint64_t a, uint64_t b) { return a == b; });
     }
-    bool operator==(SymVec const &vec) const {
-        return std::equal(vec.begin(), vec.end(), data_, [](Symbol const &a, uint64_t b) { return a.rep() == b; });
+    friend bool operator==(BindIndexEntry const &x, SymVec const &y) {
+        return std::equal(y.begin(), y.end(), x.data_, [](Symbol const &a, uint64_t b) { return a.rep() == b; });
+    }
+    friend bool operator==(SymVec const &x, BindIndexEntry const &y) {
+        return y == x;
     }
 private:
     // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -166,6 +162,24 @@ private:
     SizeType* begin_{nullptr};
 };
 
+} // namespace Gringo
+
+namespace std {
+
+template <class Domain>
+struct hash<Gringo::BindIndexEntry<Domain>> {
+    size_t operator()(Gringo::BindIndexEntry<Domain> const &entry) const {
+        return entry.hash();
+    }
+    size_t operator()(Gringo::SymVec const &e) const {
+        return hash_range(e.begin(), e.end());
+    };
+};
+
+} // namespace std
+
+namespace Gringo {
+
 // An index for a positive literal occurrence
 // with at least one variable bound and one variable unbound.
 template <class Domain>
@@ -175,7 +189,7 @@ public:
     using OffsetVec = std::vector<SizeType>;
     using Iterator  = SizeType const *;
     using Entry     = BindIndexEntry<Domain>;
-    using Index     = ordered_set<Entry, typename Entry::Hash, EqualTo>;
+    using Index     = ordered_set<Entry>;
 
     struct OffsetRange {
         bool next(Id_t &offset, Term const &repr, BindIndex &idx) {
@@ -250,6 +264,21 @@ private:
     Id_t        imported_ = 0;
     Id_t        importedDelayed_ = 0;
 };
+
+} // namespace Gringo
+
+namespace std {
+
+template <class Domain>
+struct hash<Gringo::BindIndex<Domain>> {
+    size_t operator()(Gringo::BindIndex<Domain> const &entry) const {
+        return entry.hash();
+    }
+};
+
+} // namespace std
+
+namespace Gringo {
 
 // }}}
 // {{{ declaration of FullIndex
@@ -372,6 +401,19 @@ private:
     Id_t        initialImport_;
 };
 
+} // namespace Gringo
+
+namespace std {
+
+template <class Domain>
+struct hash<Gringo::FullIndex<Domain>> {
+    size_t operator()(Gringo::FullIndex<Domain> const &entry) const { return entry.hash(); }
+};
+
+} // namespace std
+
+namespace Gringo {
+
 // }}}
 // {{{ declaration of Domain
 
@@ -404,11 +446,12 @@ template <class T>
 class AbstractDomain : public Domain {
 public:
     using Atom            = T;
-    using Atoms           = ordered_set<Atom, HashKey<Symbol>, EqualToKey<Symbol>, std::allocator<Atom>, std::vector<Atom>>;
+    // TODO: this should be refactored to use an ordered_map instead
+    using Atoms           = ordered_set<Atom, HashKey<Symbol, Cast<Symbol>, mix_value_hash<Symbol>>, EqualToKey<Symbol>>;
     using BindIndex       = Gringo::BindIndex<AbstractDomain>;
     using FullIndex       = Gringo::FullIndex<AbstractDomain>;
-    using BindIndices     = std::unordered_set<BindIndex, call_hash<BindIndex>>;
-    using FullIndices     = std::unordered_set<FullIndex, call_hash<FullIndex>>;
+    using BindIndices     = std::unordered_set<BindIndex, mix_value_hash<BindIndex>>;
+    using FullIndices     = std::unordered_set<FullIndex, mix_value_hash<FullIndex>>;
     using AtomVec         = typename Atoms::values_container_type;
     using Iterator        = typename AtomVec::iterator;
     using ConstIterator   = typename AtomVec::const_iterator;

@@ -820,7 +820,7 @@ void DisjunctionAtom::simplify(bool &headFact) {
             ++headFact_;
         }
         if (it.value().bodyIsFalse() || it.value().headIsFalse()) {
-            it = elems_.erase(it);
+            it = elems_.unordered_erase(it);
         }
         else {
             ++it;

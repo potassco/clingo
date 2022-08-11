@@ -57,25 +57,25 @@ namespace Gringo {
 
 template <class Key,
           class Hash = mix_hash<Key>,
-          class KeyEqual = std::equal_to<Key>,
+          class KeyEqual = std::equal_to<>,
           class Allocator = std::allocator<Key>,
-          class ValueTypeContainer = std::deque<Key, Allocator>,
+          class ValueTypeContainer = std::vector<Key, Allocator>,
           class IndexType = std::uint_least32_t>
 using ordered_set = tsl::ordered_set<Key, Hash, KeyEqual, Allocator, ValueTypeContainer, IndexType>;
 
 template <class Key,
           class Value,
           class Hash = mix_hash<Key>,
-          class KeyEqual = std::equal_to<Key>,
+          class KeyEqual = std::equal_to<>,
           class Allocator = std::allocator<std::pair<Key, Value>>,
-          class ValueTypeContainer = std::deque<std::pair<Key, Value>, Allocator>,
+          class ValueTypeContainer = std::vector<std::pair<Key, Value>, Allocator>,
           class IndexType = std::uint_least32_t>
 using ordered_map = tsl::ordered_map<Key, Value, Hash, KeyEqual, Allocator, ValueTypeContainer, IndexType>;
 
 #if CLINGO_MAP_TYPE == 0
 
 template <class Key, class Hash = mix_hash<Key>,
-          class KeyEqual = std::equal_to<Key>,
+          class KeyEqual = std::equal_to<>,
           class Allocator = std::allocator<Key>,
           unsigned int NeighborhoodSize = 62, bool StoreHash = false>
 using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
@@ -83,7 +83,7 @@ using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, Neighborhood
 template <class Key,
           class Value,
           class Hash = mix_hash<Key>,
-          class KeyEqual = std::equal_to<Key>,
+          class KeyEqual = std::equal_to<>,
           class Allocator = std::allocator<std::pair<Key, Value>>,
           unsigned int NeighborhoodSize = 62,
           bool StoreHash = false>
@@ -92,14 +92,14 @@ using hash_map = tsl::hopscotch_map<Key, Value, Hash, KeyEqual, Allocator, Neigh
 #elif CLINGO_MAP_TYPE == 1
 
 template <class Key, class Hash = mix_hash<Key>,
-          class KeyEqual = std::equal_to<Key>,
+          class KeyEqual = std::equal_to<>,
           class Allocator = std::allocator<Key>>
 using hash_set = tsl::sparse_set<Key, mix_hash, KeyEqual, Allocator>;
 
 template <class Key,
           class Value,
           class Hash = mix_hash<Key>,
-          class KeyEqual = std::equal_to<Key>,
+          class KeyEqual = std::equal_to<>,
           class Allocator = std::allocator<std::pair<Key, Value>>>
 using hash_map = tsl::sparse_map<Key, Value, mix_Hash, KeyEqual, Allocator>;
 
