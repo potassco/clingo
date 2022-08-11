@@ -28,6 +28,8 @@
 #include <gringo/output/aggregates.hh>
 #include <gringo/output/theory.hh>
 
+#include <tsl/ordered_set.h>
+
 namespace Gringo { namespace Output {
 
 // {{{1 definition of functions to work with BodyAggregates
@@ -572,12 +574,12 @@ AssignmentAggregateData::Values AssignmentAggregateData::values() const {
             return values;
         }
         default: {
-            UniqueVec<Symbol> values;
+            tsl::ordered_set<Symbol> values;
             auto it = values_.begin();
-            values.push(*it++);
+            values.insert(*it++);
             for (auto ie = values_.end(); it != ie; ++it) {
                 for (Id_t jt = 0, je = values.size(); jt != je; ++jt) {
-                    values.push(Symbol::createNum(values[jt].num() + it->num()));
+                    values.insert(Symbol::createNum(values.nth(jt)->num() + it->num()));
                 }
             }
             return {values.begin(), values.end()};

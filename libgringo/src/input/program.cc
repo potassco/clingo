@@ -81,7 +81,7 @@ void Program::add(UStm &&stm) {
 }
 
 void Program::addInput(Sig sig) {
-    sigs_.push(sig);
+    sigs_.insert(sig);
 }
 
 void Program::add(TheoryDef &&def, Logger &log) {
@@ -109,7 +109,7 @@ void Program::rewrite(Defines &defs, Logger &log) {
             args.emplace_back(gen.uniqueVar(param.first, 0, "#Inc"));
             incDefs.add(param.first, param.second, get_clone(args.back()), false, log);
         }
-        sigs_.push(Sig(block.name, static_cast<uint32_t>(args.size()), false));
+        sigs_.insert(Sig(block.name, static_cast<uint32_t>(args.size()), false));
         UTerm blockTerm(args.empty()
             ? (UTerm)make_locatable<ValTerm>(block.loc, Symbol::createId(block.name))
             : make_locatable<FunctionTerm>(block.loc, block.name, get_clone(args)));
@@ -117,7 +117,9 @@ void Program::rewrite(Defines &defs, Logger &log) {
         blockTerm->collect(blockBound, true);
         incDefs.init(log);
 
-        for (auto &fact : block.addedEdb) { sigs_.push(fact.sig()); }
+        for (auto &fact : block.addedEdb) {
+            sigs_.insert(fact.sig());
+        }
         auto replace = [&](Defines &defs, Symbol fact) -> Symbol {
             if (defs.empty() || fact.type() == SymbolType::Special) { return fact; }
             UTerm rt;
@@ -164,7 +166,9 @@ void Program::rewrite(Defines &defs, Logger &log) {
                 block.stms.emplace_back(std::move(x));
                 std::get<1>(*block.edb).pop_back();
             }
-            else { sigs_.push(std::get<1>(*block.edb).back().sig()); }
+            else {
+                sigs_.insert(std::get<1>(*block.edb).back().sig());
+            }
         };
         auto rewrite1 = [&](UStm &x) -> void {
             x->initTheory(theoryDefs_, log);
@@ -316,7 +320,7 @@ Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains
     Ground::Program prg(std::move(edb), std::move(std::get<0>(ret)));
     pheads = std::move(std::get<1>(ret));
     nheads = std::move(std::get<2>(ret));
-    for (auto &sig : sigs_) {
+    for (auto const &sig : sigs_) {
         domains.add(sig);
     }
     Ground::UndefVec undef;

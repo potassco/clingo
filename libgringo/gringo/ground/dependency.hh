@@ -28,6 +28,8 @@
 #include <gringo/graph.hh>
 #include <gringo/term.hh>
 #include <gringo/hash_set.hh>
+#include <iterator>
+#include <tsl/ordered_set.h>
 
 namespace Gringo { namespace Ground {
 
@@ -70,7 +72,7 @@ private:
 // {{{ declaration of BodyOccurrence
 
 using LocSet = std::set<Location>;
-using SigSet = UniqueVec<Sig>;
+using SigSet = tsl::ordered_set<Sig>;
 using UndefVec = std::vector<std::pair<Location, Printable const *>>;
 
 enum class OccurrenceType { POSITIVELY_STRATIFIED, STRATIFIED, UNSTRATIFIED };
@@ -252,8 +254,8 @@ std::tuple<typename Dependency<Stm, HeadOcc>::ComponentVec, UGTermVec, UGTermVec
     }
     std::vector<bool> positive;
     ComponentVec components;
-    UniqueVec<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>> phead;
-    UniqueVec<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>> nhead;
+    tsl::ordered_set<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>, std::allocator<UGTerm>, std::vector<UGTerm>> phead;
+    tsl::ordered_set<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>, std::allocator<UGTerm>, std::vector<UGTerm>> nhead;
     positive.push_back(true);
     for (auto &scc : g.tarjan()) {
         // dependency analysis
@@ -323,10 +325,10 @@ std::tuple<typename Dependency<Stm, HeadOcc>::ComponentVec, UGTermVec, UGTermVec
                 for (auto &x : graphNode->data->provide) {
                     if (std::strncmp("#", x.second->sig().name().c_str(), 1) != 0) {
                         if (positive.back()) {
-                            phead.push(std::move(x.second));
+                            phead.insert(std::move(x.second));
                         }
                         else {
-                            nhead.push(std::move(x.second));
+                            nhead.insert(std::move(x.second));
                         }
                     }
                 }
@@ -336,9 +338,20 @@ std::tuple<typename Dependency<Stm, HeadOcc>::ComponentVec, UGTermVec, UGTermVec
             posSCC++;
         }
     }
-    auto head = phead.to_vec();
-    head.erase(std::remove_if(head.begin(), head.end(), [&nhead](UGTerm const &term) { return nhead.find(term) != nhead.end(); }), head.end());
-    return std::make_tuple( std::move(components), std::move(head), nhead.to_vec() );
+
+    // NOTE: This hijacks the vector from the ordered_set This is safe because
+    // the destructor of the ordered_set just uses default generated
+    // destructors. Maybe open a PR to request something like a release
+    // function for the ordered set.
+    UGTermVec phead_vec = std::move(const_cast<std::vector<UGTerm>&>(phead.values_container())); // NOLINT
+    phead_vec.erase(
+        std::remove_if(
+            phead_vec.begin(),
+            phead_vec.end(),
+            [&nhead](UGTerm const &term) { return nhead.find(term) != nhead.end(); }),
+        phead_vec.end());
+    UGTermVec nhead_vec = std::move(const_cast<std::vector<UGTerm>&>(nhead.values_container())); // NOLINT
+    return std::make_tuple( std::move(components), std::move(phead_vec), std::move(nhead_vec) );
 }
 // }}}
 
