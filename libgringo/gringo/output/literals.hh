@@ -317,15 +317,13 @@ private:
 class AssignmentAggregateData {
 public:
     using Values = std::vector<Symbol>;
-    AssignmentAggregateData(Symbol value, AggregateFunction fun)
-    : value_(value)
-    , fun_(fun) { values_.emplace_back(getNeutral(fun)); }
+    AssignmentAggregateData(AggregateFunction fun)
+    : fun_(fun) { values_.emplace_back(getNeutral(fun)); }
     AssignmentAggregateData(AssignmentAggregateData &&) = default;
     AssignmentAggregateData(AssignmentAggregateData const &) = delete;
     AssignmentAggregateData &operator=(AssignmentAggregateData &&) = default;
     AssignmentAggregateData &operator=(AssignmentAggregateData const &) = delete;
     ~AssignmentAggregateData() noexcept = default;
-    operator Symbol const &() const { return value_; }
     void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &cond, Logger &log);
     BodyAggregateElements const &elems() const { return elems_; }
     void setEnqueued(bool enqueued) { enqueued_ = enqueued; }
@@ -336,7 +334,6 @@ public:
     Interval range() const;
 
 private:
-    Symbol value_;
     BodyAggregateElements elems_;
     Values values_;
     AggregateFunction fun_;
@@ -633,14 +630,14 @@ private:
 
 class AssignmentAggregateDomain : public AbstractDomain<AssignmentAggregateAtom> {
 private:
-    using Data = UniqueVec<AssignmentAggregateData, HashKey<Symbol>, EqualToKey<Symbol>>;
+    using Data = ordered_map<Symbol, AssignmentAggregateData>;
 public:
     Id_t data(Symbol value, AggregateFunction fun) {
-        auto ret = data_.findPush(value, value, fun);
-        return data_.offset(ret.first);
+        auto ret = data_.try_emplace(value, fun);
+        return numeric_cast<Id_t>(ret.first - data_.begin());
     }
-    AssignmentAggregateData &data(Id_t offset) { return data_[offset]; }
-    AssignmentAggregateData const &data(Id_t offset) const { return data_[offset]; }
+    Data::iterator data(Id_t offset) { return data_.nth(offset); }
+    Data::const_iterator data(Id_t offset) const { return data_.nth(offset); }
 private:
     Data data_;
 };

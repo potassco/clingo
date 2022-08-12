@@ -1289,18 +1289,19 @@ void AssignmentAggregateComplete::report(Output::OutputBase &out, Logger &log) {
     static_cast<void>(log);
     for (auto &dataOffset : todo_) {
         auto &dom = this->dom();
-        auto &data = dom.data(dataOffset);
+        auto it = dom.data(dataOffset);
+        auto &data = it.value();
+        auto val = it.key();
         auto values = data.values();
 
         SymVec &atmArgs = out.tempVals();
-        Symbol dataVal(data);
-        if (dataVal.type() == SymbolType::Fun) {
-            atmArgs.assign(begin(dataVal.args()), end(dataVal.args()));
+        if (val.type() == SymbolType::Fun) {
+            atmArgs.assign(begin(val.args()), end(val.args()));
         }
         atmArgs.emplace_back();
-        for (auto &y : values) {
+        for (auto const &y : values) {
             atmArgs.back() = y;
-            auto ret = dom.define(Symbol::createFun(dataVal.name(), Potassco::toSpan(atmArgs)));
+            auto ret = dom.define(Symbol::createFun(val.name(), Potassco::toSpan(atmArgs)));
             if (values.size() == 1) {
                 ret.first->setFact(true);
             }
@@ -1350,7 +1351,7 @@ void AssignmentAggregateComplete::checkDefined(LocSet &done, SigSet const &edb, 
 }
 
 void AssignmentAggregateComplete::enqueue(Id_t dataId) {
-    auto &data = dom().data(dataId);
+    auto &data = dom().data(dataId).value();
     if (!data.enqueued()) {
         data.setEnqueued(true);
         todo_.emplace_back(dataId);
@@ -1404,7 +1405,7 @@ void AssignmentAggregateAccumulate::report(Output::OutputBase &out, Logger &log)
     }
     auto &dom = complete_.dom();
     auto dataId = dom.data(dataRepr, complete_.fun());
-    auto &data = dom.data(dataId);
+    auto &data = dom.data(dataId).value();
     data.accumulate(out.data, tuple_.empty() ? def_.domRepr()->loc() : tuple_.front()->loc(), tempVals, tempLits, log);
     complete_.enqueue(dataId);
 }

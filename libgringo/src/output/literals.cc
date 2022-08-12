@@ -583,7 +583,9 @@ AssignmentAggregateData::Values AssignmentAggregateData::values() const {
                     values.insert(Symbol::createNum(values.nth(jt)->num() + it->num()));
                 }
             }
-            return {values.begin(), values.end()};
+            // Note: a release function would be nice
+            // NOLINTNEXTLINE
+            return std::move(const_cast<Values&>(values.values_container()));
         }
     }
 }
@@ -1256,7 +1258,7 @@ AssignmentAggregateDomain &AssignmentAggregateLiteral::dom() const {
 void AssignmentAggregateLiteral::printPlain(PrintPlain out) const {
     auto &dom = this->dom();
     auto &atm = dom[id_.offset()];
-    auto &data = dom.data(atm.data());
+    auto &data = dom.data(atm.data()).value();
     Symbol repr = atm;
     out << id_.sign();
     out << data.fun() << "{";
@@ -1273,7 +1275,7 @@ LiteralId AssignmentAggregateLiteral::toId() const {
 LiteralId AssignmentAggregateLiteral::translate(Translator &x) {
     auto &dom = this->dom();
     auto &atm = dom[id_.offset()];
-    auto &data = dom.data(atm.data());
+    auto &data = dom.data(atm.data()).value();
     if (!atm.translated()) {
         atm.setTranslated();
         assert(atm.defined());
