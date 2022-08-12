@@ -465,26 +465,26 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
         }
     }
     // show terms
-    for (auto &todo : termOutput_.todo) {
-        if (todo.cond.empty()) { continue; }
-        showValue(data, todo.term, updateCond(data, termOutput_.table, todo));
+    for (auto const &todo : termOutput_.todo) {
+        if (todo.second.empty()) { continue; }
+        showValue(data, todo.first, updateCond(data, todo));
     }
     termOutput_.todo.clear();
 }
 
-LitVec Translator::updateCond(DomainData &data, OutputTable::Table &table, OutputTable::Todo::ValueType &todo) {
+LitVec Translator::updateCond(DomainData &data, OutputTable::Todo::value_type const &todo) {
     LiteralId excludeOldCond;
-    auto entry = table.push(todo.term, LiteralId{});
+    auto entry = termOutput_.table.try_emplace(todo.first);
     if (!entry.second) {
-        LiteralId oldCond = entry.first->cond;
-        LiteralId newCond = getEqualFormula(data, *this, todo.cond, false, false);
+        LiteralId oldCond = entry.first.value();
+        LiteralId newCond = getEqualFormula(data, *this, todo.second, false, false);
         LiteralId includeOldCond = getEqualClause(data, *this, data.clause(LitVec{oldCond, newCond}), false, false);
         excludeOldCond = getEqualClause(data, *this, data.clause(LitVec{oldCond.negate(), newCond}), true, false);
-        entry.first->cond = includeOldCond;
+        entry.first.value() = includeOldCond;
     }
     else {
-        excludeOldCond = getEqualFormula(data, *this, todo.cond, false, false);
-        entry.first->cond = excludeOldCond;
+        excludeOldCond = getEqualFormula(data, *this, todo.second, false, false);
+        entry.first.value() = excludeOldCond;
     }
     return {excludeOldCond};
 }
@@ -511,9 +511,9 @@ void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup const &i
         }
     }
     if (showTerms || showShown) {
-        for (auto &entry : termOutput_.table) {
-            if (isComp(call(data, entry.cond, &Literal::uid))) {
-                atoms.emplace_back(entry.term);
+        for (auto const &entry : termOutput_.table) {
+            if (isComp(call(data, entry.second, &Literal::uid))) {
+                atoms.emplace_back(entry.first);
             }
         }
     }
@@ -533,10 +533,15 @@ void Translator::simplify(DomainData &data, Mappings &mappings, AssignmentLookup
             ++it;
         }
     }
-    termOutput_.table.erase([&](OutputTable::Table::ValueType &elem) {
-        elem.cond = call(data, elem.cond, &Literal::simplify, mappings, assignment);
-        return elem.cond == data.getTrueLit().negate();
-    });
+    for (auto it = termOutput_.table.begin(); it != termOutput_.table.end();) {
+        it.value() = call(data, it.value(), &Literal::simplify, mappings, assignment);
+        if (it.value() == data.getTrueLit().negate()) {
+            it = termOutput_.table.unordered_erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
 }
 
 void Translator::output(DomainData &data, Statement &x) {
@@ -637,11 +642,11 @@ void Translator::translateMinimize(DomainData &data) {
 }
 
 void Translator::showTerm(DomainData &data, Symbol term, LitVec cond) {
-    termOutput_.todo.push(term, Formula{}).first->cond.emplace_back(data.clause(std::move(cond)));
+    termOutput_.todo.try_emplace(term, Formula{}).first.value().emplace_back(data.clause(std::move(cond)));
 }
 
 unsigned Translator::nodeUid(Symbol v) {
-    return nodeUids_.offset(nodeUids_.push(v).first);
+    return nodeUids_.try_emplace(v, nodeUids_.size()).first.value();
 }
 
 LiteralId Translator::removeNotNot(DomainData &data, LiteralId lit) {

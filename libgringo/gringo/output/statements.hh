@@ -216,27 +216,9 @@ enum class ShowType : unsigned {
 
 class Translator {
 private:
-    struct OutputEntry {
-        OutputEntry(Symbol term, LiteralId cond)
-        : term(term)
-        , cond(cond) { }
-        Symbol term;
-        LiteralId cond;
-        operator const Symbol&() const { return term; }
-    };
-    struct TodoOutputEntry {
-        TodoOutputEntry(Symbol term, Formula cond)
-        : term(term)
-        , cond(std::move(cond)) { }
-        operator const Symbol&() const { return term; }
-        Symbol term;
-        Formula cond;
-    };
     struct OutputTable {
-        // NOLINTNEXTLINE(modernize-use-transparent-functors)
-        using Table = UniqueVec<OutputEntry, std::hash<Symbol>, std::equal_to<Symbol>>;
-        // NOLINTNEXTLINE(modernize-use-transparent-functors)
-        using Todo = UniqueVec<TodoOutputEntry, std::hash<Symbol>, std::equal_to<Symbol>>;
+        using Table = ordered_map<Symbol, LiteralId>;
+        using Todo = ordered_map<Symbol, Formula>;
         Table table;
         Todo todo;
     };
@@ -266,7 +248,7 @@ public:
     }
 
 private:
-    LitVec updateCond(DomainData &data, OutputTable::Table &table, OutputTable::Todo::ValueType &todo);
+    LitVec updateCond(DomainData &data, OutputTable::Todo::value_type const &todo);
     void showAtom(DomainData &data, PredDomMap::iterator it);
     void showValue(DomainData &data, Symbol value, LitVec const &cond);
     void showValue(DomainData &data, Bound const &bound, LitVec const &cond);
@@ -278,7 +260,7 @@ private:
     TupleLitMap tuples_;      // to incrementally extend minimize constraint
     HashSet<uint64_t> seenSigs_;
     UAbstractOutput out_;
-    UniqueVec<Symbol> nodeUids_;
+    hash_map<Symbol, uint32_t> nodeUids_;
     struct ClauseKey {
         uint64_t offset : 32;
         uint64_t size : 30;
