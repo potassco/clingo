@@ -38,10 +38,8 @@ using IdVec = Ground::IdVec;
 
 struct Block {
     struct Hash {
-        // Note: workaround for (buggy) vc++ compiler
-        Hash() { } // NOLINT
         size_t operator()(Ground::SEdb const &edb) const {
-            return edb->first->hash();
+            return hash_mix(edb->first->hash());
         }
     };
 
@@ -66,7 +64,7 @@ struct Block {
     UStmVec         stms;
 };
 
-using BlockMap = ordered_map<Ground::SEdb, Block, mix_hash<Ground::SEdb, Block::Hash>, Block::Equal>;
+using BlockMap = ordered_map<Ground::SEdb, Block, Block::Hash, Block::Equal>;
 
 class Program {
 public:
