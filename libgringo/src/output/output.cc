@@ -28,6 +28,7 @@
 #include "gringo/output/backends.hh"
 #include "reify/program.hh"
 #include <cstring>
+#include <stdexcept>
 
 namespace Gringo { namespace Output {
 
@@ -543,19 +544,6 @@ void OutputBase::endGround(Logger &log) {
         outPredsForce.clear();
     }
     EndGroundStatement(outPreds, log).passTo(data, *out_);
-    // TODO: it would be better not to have this...
-    uint32_t offset = 0;
-    for (auto it = doms.begin(); it != doms.end();) {
-        auto &dom = *it.key();
-        if (dom.sig().name().startsWith("#d")) {
-            it = doms.unordered_erase(it);
-        }
-        else {
-            it.key()->setDomainOffset(offset);
-            ++offset;
-            ++it;
-        }
-    }
 }
 
 void OutputBase::endStep(Assumptions const &ass) {
