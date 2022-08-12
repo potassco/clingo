@@ -79,7 +79,7 @@ void Program::addInput(Sig sig) {
 void Program::add(TheoryDef &&def, Logger &log) {
     auto it = theoryDefs_.find(def.name());
     if (it == theoryDefs_.end()) {
-        theoryDefs_.push(std::move(def));
+        theoryDefs_.insert(std::move(def));
     }
     else {
         GRINGO_REPORT(log, Warnings::RuntimeError)

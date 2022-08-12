@@ -339,7 +339,12 @@ struct HashKey : private Get, private Hash {
 
 template <typename T, typename Get=Cast<T>, typename EqualTo=std::equal_to<T>>
 struct EqualToKey : private Get, private EqualTo {
+    using is_transparent = void;
     // Note: to support lookup with key
+    template <typename U>
+    bool operator()(T const &a, U const &b) const {
+        return EqualTo::operator()(a, Get::operator()(b));
+    }
     template <typename U>
     bool operator()(U const &a, T const &b) const {
         return EqualTo::operator()(Get::operator()(a), b);

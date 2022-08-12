@@ -485,7 +485,7 @@ TheoryTermDefUid NongroundProgramBuilder::theorytermdef(Location const &loc, Str
     for (auto &opDef : theoryOpDefVecs_.erase(defs)) {
         def.addOpDef(std::move(opDef), log);
     }
-    return theoryTermDefs_.emplace(std::move(def));
+    return theoryTermDefs_.insert(std::move(def));
 }
 
 TheoryAtomDefUid NongroundProgramBuilder::theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) {
