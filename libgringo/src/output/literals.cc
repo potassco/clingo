@@ -64,7 +64,7 @@ void printCond(PrintPlain out, TupleId tuple, HeadFormula::value_type const &con
     }
 }
 
-void printBodyElem(PrintPlain out, BodyAggregateElements::ValueType const &x) {
+void printBodyElem(PrintPlain out, BodyAggregateElements::value_type const &x) {
     if (x.second.empty()) {
         print_comma(out, out.domain.tuple(x.first), ",");
     }
@@ -73,7 +73,7 @@ void printBodyElem(PrintPlain out, BodyAggregateElements::ValueType const &x) {
     }
 }
 
-void printHeadElem(PrintPlain out, HeadAggregateElements::ValueType const &x) {
+void printHeadElem(PrintPlain out, HeadAggregateElements::value_type const &x) {
     print_comma(out, x.second, ";", [&x](PrintPlain out, HeadFormula::value_type const &cond) { printCond(out, x.first, cond); });
 }
 
@@ -464,11 +464,11 @@ BodyAggregateElements BodyAggregateElements_::elems() const {
     const_cast<BodyAggregateElements_*>(this)->visitClause([&](uint32_t const &to, ClauseId cond) {
         TupleOffset fo(tuples_.at(to >> 1));
         TupleId tuple{fo.offset(), fo.size()};
-        auto ret = elems.push(std::piecewise_construct, std::forward_as_tuple(tuple), std::forward_as_tuple());
+        auto ret = elems.try_emplace(tuple);
         if (fo.fact()) {
-            ret.first->second.clear();
+            ret.first.value().clear();
         }
-        ret.first->second.emplace_back(cond);
+        ret.first.value().emplace_back(cond);
     });
     return elems;
 }
@@ -506,8 +506,8 @@ void AssignmentAggregateData::accumulate(DomainData &data, Location const &loc, 
     if (neutral(tuple, fun_, loc, log)) {
         return;
     }
-    auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple()));
-    auto &elem = ret.first->second;
+    auto ret(elems_.try_emplace(data.tuple(tuple)));
+    auto &elem = ret.first.value();
     // the tuple was fact
     if (elem.size() == 1 && elem.front().second == 0) {
         return;
@@ -866,8 +866,8 @@ void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec
     if (!Gringo::Output::defined(tuple, range_.fun, loc, log)) {
         return;
     }
-    auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple()));
-    auto &elem = ret.first->second;
+    auto ret(elems_.try_emplace(data.tuple(tuple)));
+    auto &elem = ret.first.value();
     bool fact = cond.empty() && !head.valid();
     bool wasFact = !elem.empty() && !elem.front().first.valid() && elem.front().second.second == 0;
     if (wasFact && fact) {
@@ -1586,7 +1586,7 @@ LiteralId HeadAggregateLiteral::translate(Translator &x) {
                     choice.addHead(head);
                 }
                 // e :- h, c.
-                auto bdElem = bdElems.push(std::piecewise_construct, std::forward_as_tuple(it->second.first), std::forward_as_tuple());
+                auto bdElem = bdElems.try_emplace(it->second.first);
                 LitVec cond;
                 if (condLit) {
                     cond.emplace_back(condLit);
@@ -1594,7 +1594,7 @@ LiteralId HeadAggregateLiteral::translate(Translator &x) {
                 if (head) {
                     cond.emplace_back(head);
                 }
-                bdElem.first->second.emplace_back(data_.clause(cond));
+                bdElem.first.value().emplace_back(data_.clause(cond));
                 ++it;
             }
             while (it != ie && it->first == condId);
