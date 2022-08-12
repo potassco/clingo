@@ -25,6 +25,7 @@
 #ifndef GRINGO_GROUND_DEPENDENCY_HH
 #define GRINGO_GROUND_DEPENDENCY_HH
 
+#include "gringo/utility.hh"
 #include <gringo/graph.hh>
 #include <gringo/term.hh>
 #include <gringo/hash_set.hh>
@@ -254,8 +255,8 @@ std::tuple<typename Dependency<Stm, HeadOcc>::ComponentVec, UGTermVec, UGTermVec
     }
     std::vector<bool> positive;
     ComponentVec components;
-    ordered_set<UGTerm> phead;
-    ordered_set<UGTerm> nhead;
+    ordered_set<UGTerm, mix_value_hash<UGTerm>, value_equal_to<UGTerm>> phead;
+    ordered_set<UGTerm, mix_value_hash<UGTerm>, value_equal_to<UGTerm>> nhead;
     positive.push_back(true);
     for (auto &scc : g.tarjan()) {
         // dependency analysis

@@ -25,6 +25,7 @@
 #ifndef GRINGO_INPUT_LITERAL_HH
 #define GRINGO_INPUT_LITERAL_HH
 
+#include "gringo/utility.hh"
 #include <gringo/term.hh>
 #include <gringo/domain.hh>
 #include <gringo/input/types.hh>
@@ -38,25 +39,9 @@ using Output::DomainData;
 
 // {{{ declaration of Literal
 
-class Projection {
-public:
-    Projection(UTerm &&projected, UTerm &&project);
-    Projection(Projection const &other) = delete;
-    Projection(Projection &&other) noexcept = default;
-    Projection &operator=(Projection const &other) = delete;
-    Projection &operator=(Projection &&other) noexcept = default;
-    ~Projection() noexcept = default;
-
-    operator Term const &() const;
-
-    UTerm projected;
-    UTerm project;
-    bool done = false;
-};
-
 class Projections {
 public:
-    using ProjectionMap = UniqueVec<Projection, std::hash<Term>, std::equal_to<Term>>; // NOLINT
+    using ProjectionMap = ordered_map<UTerm, std::pair<UTerm, bool>, mix_value_hash<UTerm>, value_equal_to<UTerm>>; // NOLINT
 
     Projections() = default;
     Projections(Projections const &other) = delete;
@@ -65,8 +50,8 @@ public:
     Projections &operator=(Projections &&other) noexcept = default;
     ~Projections() noexcept = default;
 
-    ProjectionMap::Iterator begin();
-    ProjectionMap::Iterator end();
+    ProjectionMap::iterator begin();
+    ProjectionMap::iterator end();
 
     UTerm add(Term &term);
 

@@ -188,16 +188,16 @@ void Program::rewrite(Defines &defs, Logger &log) {
         block.addedStms.clear();
     }
     // projection
-    for (auto &x : project_) {
-        if (!x.done) {
-            Location loc(x.project->loc());
+    for (auto it = project_.begin(), ie = project_.end(); it != ie; ++it) {
+        if (!it.value().second) {
+            Location loc(it.value().first->loc());
             UBodyAggrVec body;
-            body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(make_locatable<ProjectionLiteral>(loc, get_clone(x.project))));
+            body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(make_locatable<ProjectionLiteral>(loc, get_clone(it.value().first))));
             stms_.emplace_back(make_locatable<Statement>(
                 loc,
-                gringo_make_unique<SimpleHeadLiteral>(make_locatable<PredicateLiteral>(loc, NAF::POS, get_clone(x.projected))),
+                gringo_make_unique<SimpleHeadLiteral>(make_locatable<PredicateLiteral>(loc, NAF::POS, get_clone(it.key()))),
                 std::move(body)));
-            x.done = true;
+            it.value().second = true;
         }
     }
     // }}}3
