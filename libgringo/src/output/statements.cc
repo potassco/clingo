@@ -522,15 +522,20 @@ void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup const &i
 void Translator::simplify(DomainData &data, Mappings &mappings, AssignmentLookup assignment) {
     minimize_.erase(std::remove_if(minimize_.begin(), minimize_.end(), [&](MinimizeList::value_type &elem) {
         elem.second = call(data, elem.second, &Literal::simplify, mappings, assignment);
-        return elem.second != data.getTrueLit().negate();
+        return elem.second == data.getTrueLit().negate();
     }), minimize_.end());
-    tuples_.erase([&](TupleLitMap::ValueType &elem) {
-        elem.second = call(data, elem.second, &Literal::simplify, mappings, assignment);
-        return elem.second != data.getTrueLit().negate();
-    });
+    for (auto it = tuples_.begin(); it != tuples_.end();) {
+        it.value() = call(data, it.value(), &Literal::simplify, mappings, assignment);
+        if (it.value() == data.getTrueLit().negate()) {
+            it = tuples_.unordered_erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
     termOutput_.table.erase([&](OutputTable::Table::ValueType &elem) {
         elem.cond = call(data, elem.cond, &Literal::simplify, mappings, assignment);
-        return elem.cond != data.getTrueLit().negate();
+        return elem.cond == data.getTrueLit().negate();
     });
 }
 
@@ -616,13 +621,13 @@ void Translator::translateMinimize(DomainData &data) {
             while (it != iE && it->first == tuple);
             int weight(data.tuple(tuple).first->num());
             // Note: extends the minimize constraint incrementally
-            auto ret = tuples_.push(tuple, LiteralId{});
+            auto ret = tuples_.try_emplace(tuple);
             if (!ret.second) {
                 lm.add(ret.first->second, -weight);
                 condLits.emplace_back(ret.first->second);
             }
             LiteralId lit = getEqualClause(data, *this, data.clause(std::move(condLits)), false, false);
-            ret.first->second = lit;
+            ret.first.value() = lit;
             lm.add(lit, weight);
         }
         while (it != iE && data.tuple(it->first)[1].num() == priority);

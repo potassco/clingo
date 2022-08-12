@@ -626,7 +626,7 @@ std::pair<Id_t, Id_t> OutputBase::simplify(AssignmentLookup assignment) {
     Id_t deleted = 0;
     if (data.canSimplify()) {
         std::vector<Mapping> mappings;
-        for (auto &dom : data.predDoms()) {
+        for (auto const &dom : data.predDoms()) {
             mappings.emplace_back();
             auto ret = dom->cleanup(assignment, mappings.back());
             facts+= ret.first;

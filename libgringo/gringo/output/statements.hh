@@ -244,7 +244,7 @@ public:
     using TupleLit        = std::pair<TupleId, LiteralId>;
     using MinimizeList    = std::vector<TupleLit>;
     using ProjectionVec   = std::vector<std::pair<Potassco::Id_t, Potassco::Id_t>>;
-    using TupleLitMap     = UniqueVec<TupleLit, HashFirst<TupleId>, EqualToFirst<TupleId>>;
+    using TupleLitMap     = ordered_map<TupleId, LiteralId>;
 
     Translator(UAbstractOutput out);
 
