@@ -39,7 +39,7 @@ using IdVec = Ground::IdVec;
 struct Block {
     struct Hash {
         // Note: workaround for (buggy) vc++ compiler
-        Hash() = default;
+        Hash() { } // NOLINT
         size_t operator()(Ground::SEdb const &edb) const {
             return edb->first->hash();
         }
