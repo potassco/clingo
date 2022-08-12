@@ -267,7 +267,7 @@ public:
 
 private:
     LitVec updateCond(DomainData &data, OutputTable::Table &table, OutputTable::Todo::ValueType &todo);
-    void showAtom(DomainData &data, PredDomMap::Iterator it);
+    void showAtom(DomainData &data, PredDomMap::iterator it);
     void showValue(DomainData &data, Symbol value, LitVec const &cond);
     void showValue(DomainData &data, Bound const &bound, LitVec const &cond);
     void translateMinimize(DomainData &data);

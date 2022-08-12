@@ -1007,12 +1007,11 @@ bool PredicateLiteral::isHeadAtom() const {
 }
 
 bool PredicateLiteral::isAtomFromPreviousStep() const {
-    auto &domain = *data_.predDoms()[id_.domain()];
-    return id_.offset() < domain.incOffset();
+    return id_.offset() < data_.predDom(id_.domain()).incOffset();
 }
 
 void PredicateLiteral::printPlain(PrintPlain out) const {
-    auto &atom = data_.predDoms()[id_.domain()]->operator[](id_.offset());
+    auto &atom = data_.predDom(id_.domain())[id_.offset()];
     out << id_.sign() << static_cast<Symbol>(atom);
 }
 
@@ -1029,7 +1028,7 @@ LiteralId PredicateLiteral::translate(Translator &x) {
 }
 
 int PredicateLiteral::uid() const {
-    auto &atom = data_.predDoms()[id_.domain()]->operator[](id_.offset());
+    auto &atom = data_.predDom(id_.domain())[id_.offset()];
     if (!atom.hasUid()) {
         atom.setUid(data_.newAtom());
     }
@@ -1057,7 +1056,7 @@ LiteralId PredicateLiteral::simplify(Mappings &mappings, AssignmentLookup const 
         }
         return ret;
     }
-    auto &atom = data_.predDoms()[id_.domain()]->operator[](offset);
+    auto &atom = data_.predDom(id_.domain())[offset];
     if (!atom.defined()) {
         return data_.getTrueLit().negate();
     }
@@ -1078,7 +1077,7 @@ LiteralId PredicateLiteral::simplify(Mappings &mappings, AssignmentLookup const 
 }
 
 bool PredicateLiteral::isTrue(IsTrueLookup const &lookup) const {
-    auto &atom = data_.predDoms()[id_.domain()]->operator[](id_.offset());
+    auto &atom = data_.predDom(id_.domain())[id_.offset()];
     assert(atom.hasUid());
     return (id_.sign() == NAF::NOT) ^ lookup(atom.uid());
 }

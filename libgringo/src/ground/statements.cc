@@ -575,8 +575,7 @@ void Rule<disjunctive>::report(Output::OutputBase &out, Logger &log) {
     }
     if (disjunctive && fact && rule.numHeads() == 1) {
         Output::LiteralId head = rule.heads().front();
-        auto &dom = *out.predDoms()[head.domain()];
-        dom[head.offset()].setFact(true);
+        out.predDom(head.domain())[head.offset()].setFact(true);
     }
     out.output(rule);
 }
@@ -2372,7 +2371,7 @@ void HeadAggregateComplete::report(Output::OutputBase &out, Logger &log) {
             for (auto const &elem : atm.elems()) {
                 for (auto const &cond : elem.second) {
                     if (cond.first) {
-                        out.data.predDoms()[cond.first.domain()]->define(cond.first.offset());
+                        out.data.predDom(cond.first.domain()).define(cond.first.offset());
                     }
                 }
             }
@@ -2676,7 +2675,7 @@ void DisjunctionComplete::report(Output::OutputBase &out, Logger &log) {
                         // Note: for singleton disjunctions with empty bodies facts could be derived here
                         //       (it wouldn't even be that difficult)
                         if (lit.sign() == NAF::POS && lit.type() == Gringo::Output::AtomType::Predicate) {
-                            out.data.predDoms()[lit.domain()]->define(lit.offset());
+                            out.data.predDom(lit.domain()).define(lit.offset());
                         }
                     }
                 }

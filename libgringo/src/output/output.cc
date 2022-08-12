@@ -543,17 +543,18 @@ void OutputBase::endGround(Logger &log) {
         outPredsForce.clear();
     }
     EndGroundStatement(outPreds, log).passTo(data, *out_);
-    // TODO: get rid of such things #d domains should be stored somewhere else
-    std::set<Sig> rm;
-    for (auto &x : predDoms()) {
-        if (x->sig().name().startsWith("#d")) {
-            rm.emplace(x->sig());
+    // TODO: it would be better not to have this...
+    uint32_t offset = 0;
+    for (auto it = doms.begin(); it != doms.end();) {
+        auto &dom = *it.key();
+        if (dom.sig().name().startsWith("#d")) {
+            it = doms.unordered_erase(it);
         }
-    }
-    if (!rm.empty()) {
-        predDoms().erase([&rm](UPredDom const &dom) {
-            return rm.find(dom->sig()) != rm.end();
-        });
+        else {
+            it.key()->setDomainOffset(offset);
+            ++offset;
+            ++it;
+        }
     }
 }
 

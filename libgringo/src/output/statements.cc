@@ -497,7 +497,7 @@ void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup const &i
     bool showShown = (atomset & static_cast<unsigned>(ShowType::Shown)) != 0;
     bool showTerms = (atomset & static_cast<unsigned>(ShowType::Terms)) != 0;
     if (showAtoms || showShown) {
-        for (auto &x : data.predDoms()) {
+        for (auto const &x : data.predDoms()) {
             Sig sig = *x;
             auto name = sig.name();
             bool show = showAtoms || (showShown && showSig(outPreds, sig));
@@ -576,7 +576,7 @@ private:
 
 } // namespace
 
-void Translator::showAtom(DomainData &data, PredDomMap::Iterator it) {
+void Translator::showAtom(DomainData &data, PredDomMap::iterator it) {
     for (auto jt = (*it)->begin() + (*it)->showOffset(), je = (*it)->end(); jt != je; ++jt) {
         if (jt->defined()) {
             LitVec cond;

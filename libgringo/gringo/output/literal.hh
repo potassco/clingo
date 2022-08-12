@@ -33,16 +33,212 @@
 
 namespace Gringo { namespace Output {
 
-// TODO: There should not be any forward declarations here. The
-// PredicateLiteral and Domain can simply be defined here as well. The
-// translator is more difficult. Doing this cleanly requires a Translator
-// interface. This is probably worth it to obtain a nicer interface.
+// TODO: There should not be any forward declarations here.
 class DomainData;
 class Translator;
-class PredicateDomain;
-struct UPredDomHash;
-struct UPredDomEqualTo;
-using PredDomMap = UniqueVec<std::unique_ptr<PredicateDomain>, UPredDomHash, UPredDomEqualTo>;
+
+// {{{1 declaration of Mapping
+
+class Mapping {
+public:
+    void add(Id_t oldOffset, Id_t newOffset) {
+        // TODO: this can be stored more compactly!
+        assert(map_.find(oldOffset) == map_.end());
+        map_.emplace(oldOffset, newOffset);
+    }
+    Id_t get(Id_t oldOffset) const {
+        auto it = map_.find(oldOffset);
+        if (it != map_.end()) {
+            return it->second;
+        }
+        return InvalidId;
+    }
+private:
+    hash_map<Id_t, Id_t> map_;
+};
+using Mappings = std::vector<Mapping>;
+
+// {{{1 declaration of PredicateAtom
+
+struct PredicateAtom {
+public:
+    // {{{2 Atom interface
+
+    // Constructs a valid atom without uid and generation.
+    PredicateAtom(Symbol value)
+    : value_(value)
+    , uid_(0)
+    , fact_(false)
+    , generation_(0)
+    , external_(false)
+    , delayed_(false) { }
+
+    // Functions that have to be implemented by all atoms.
+
+    // Atoms can be marked as facts.
+    // Atoms that are not monotone (like some aggregate atoms) are not considered
+    // monotone in the recursive case because their fact status can still change
+    // during grounding
+    bool fact() const {
+        return fact_;
+    }
+    // Defined and undefined atoms are distinguished.
+    // Only recursion through negative literals can lead to undefined atoms.
+    // Such atoms must not be imported in indices.
+    // They can be defined later though, in which case they have to be imported.
+    // Example: a :- not b.  b :- not a.
+    bool defined() const {
+        return generation_ > 0;
+    }
+    // The generation of the atom. This value is used by indices to determine
+    // what is new and old.
+    Id_t generation() const {
+        assert(defined());
+        return generation_ - 1;
+    }
+    void setGeneration(unsigned x) {
+        generation_ = x + 1;
+    }
+    void markDelayed() {
+        delayed_ = 1;
+    }
+    bool delayed() const {
+        return delayed_;
+    }
+    // Returns the value associated with the atom.
+    operator Symbol const &() const {
+        return value_;
+    }
+    // }}}2
+
+    // The functions below are not necessary for domain elements.
+    // This are additional functions in symbolic atoms.
+
+    void setFact(bool x) {
+        fact_ = x;
+    }
+    // These functions are used to handle external atoms.
+    // The sole reason for this function is to workaround a problem with libclasp,
+    // which might find equivalences between external and non-external atoms.
+    // In such a case it is not possible to determine which atom is the external
+    // one using the clasp API. Note that the external status is never unset;
+    // only the solver knows about this.
+    bool isExternal() const {
+        return external_;
+    }
+    void setExternal(bool x) {
+        external_ = x;
+    }
+    // The uid of an atom is used in various outputs.
+    bool hasUid() const {
+        return uid_ > 0;
+    }
+    void setUid(unsigned x) {
+        assert(!hasUid());
+        uid_ = x + 1;
+    }
+    void resetUid(unsigned x) {
+        assert(hasUid());
+        uid_ = x + 1;
+    }
+    Id_t uid() const {
+        assert(hasUid());
+        return uid_ - 1;
+    }
+    void unmarkDelayed() {
+        delayed_ = 0;
+    }
+private:
+    Symbol value_;
+    uint32_t uid_ : 31;
+    uint32_t fact_ : 1;
+    uint32_t generation_ : 30;
+    uint32_t external_ : 1;
+    uint32_t delayed_ : 1;
+};
+
+// {{{1 declaration of PredicateDomain
+
+class PredicateDomain : public AbstractDomain<PredicateAtom> {
+public:
+    explicit PredicateDomain(Sig sig)
+    : sig_(sig) { }
+
+    using AbstractDomain<PredicateAtom>::define;
+    // Defines (adds) an atom setting its generation and fact status.
+    // Returns a tuple indicating its postion, wheather it was inserted, and wheather it was a fact before.
+    std::tuple<Iterator, bool, bool> define(Symbol x, bool fact) {
+        auto ret = define(x);
+        bool wasfact = !ret.second && ret.first->fact();
+        if (fact) { ret.first->setFact(true); }
+        return std::forward_as_tuple(ret.first, ret.second, wasfact);
+    }
+
+    // This offset divides elements added at the current and previous incremental steps.
+    // It is used to only output newly inserted atoms, for projection, and classical negation.
+    SizeType incOffset() const {
+        return incOffset_;
+    }
+
+    void incNext() {
+        incOffset_ = size();
+    }
+
+    // This offset keeps track of atoms already added to the output table.
+    // TODO: maybe this can be merged with incNext.
+    SizeType showOffset() const {
+        return showOffset_;
+    }
+
+    void showNext() {
+        showOffset_ = size();
+    }
+
+    void clear() {
+        AbstractDomain<PredicateAtom>::clear();
+        incOffset_  = 0;
+        showOffset_ = 0;
+    }
+
+    Sig const &sig() const {
+        return sig_;
+    }
+
+    operator Sig const &() const {
+        return sig_;
+    }
+
+    std::pair<Id_t, Id_t> cleanup(AssignmentLookup assignment, Mapping &map);
+private:
+    Sig sig_;
+    SizeType incOffset_ = 0;
+    SizeType showOffset_ = 0;
+};
+using UPredDom = std::unique_ptr<PredicateDomain>;
+
+struct UPredDomHash : std::hash<Sig> {
+    using std::hash<Sig>::operator();
+    size_t operator()(UPredDom const &dom) const {
+        return std::hash<Sig>::operator()(*dom);
+    }
+};
+
+// NOLINTNEXTLINE(modernize-use-transparent-functors)
+struct UPredDomEqualTo : private std::equal_to<Sig> {
+    using is_transparent = void;
+    bool operator()(UPredDom const &a, Sig const &b) const {
+        return std::equal_to<Sig>::operator()(*a, b);
+    }
+    bool operator()(Sig const &a, UPredDom const &b) const {
+        return std::equal_to<Sig>::operator()(a, *b);
+    }
+    bool operator()(UPredDom const &a, UPredDom const &b) const {
+        return std::equal_to<Sig>::operator()(*a, *b);
+    }
+};
+
+// TODO: using a map could avoid some akwardness in usage
+using PredDomMap = ordered_set<UPredDom, mix_hash<UPredDom, UPredDomHash>, UPredDomEqualTo>;
 
 // {{{1 declaration of PrintPlain
 
@@ -146,24 +342,6 @@ using LitVec  = std::vector<LiteralId>;
 
 // {{{1 declaration of Literal
 
-class Mapping {
-public:
-    void add(Id_t oldOffset, Id_t newOffset) {
-        assert(map_.find(oldOffset) == map_.end());
-        map_.emplace(oldOffset, newOffset);
-    }
-    Id_t get(Id_t oldOffset) const {
-        auto it = map_.find(oldOffset);
-        if (it != map_.end()) {
-            return it->second;
-        }
-        return InvalidId;
-    }
-private:
-    std::unordered_map<Id_t, Id_t> map_;
-};
-using Mappings = std::vector<Mapping>;
-
 class Literal {
 public:
     Literal() = default;
@@ -242,4 +420,3 @@ struct hash<Gringo::Output::TupleId> {
 } // namespace std
 
 #endif // GRINGO_OUTPUT_LITERAL_HH
-

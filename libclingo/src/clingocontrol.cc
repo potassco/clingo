@@ -653,7 +653,7 @@ void advance(Output::OutputBase &out, SymbolicAtomIter &it) {
 
 Output::PredicateAtom &domainElem(Output::PredDomMap &map, SymbolicAtomIter it) {
     auto &off = toOffset(it).data;
-    return (*map[off.domain_offset])[off.atom_offset];
+    return map.nth(off.domain_offset).key()->operator[](off.atom_offset);
 }
 
 } // namespace
@@ -683,7 +683,7 @@ SymbolicAtomIter ClingoControl::next(SymbolicAtomIter it) const {
 
 bool ClingoControl::valid(SymbolicAtomIter it) const {
     auto &off = toOffset(it).data;
-    return off.domain_offset < out_->predDoms().size() && off.atom_offset < out_->predDoms()[off.domain_offset]->size();
+    return off.domain_offset < out_->predDoms().size() && off.atom_offset < out_->predDom(off.domain_offset).size();
 }
 
 std::vector<Sig> ClingoControl::signatures() const {
@@ -695,7 +695,7 @@ std::vector<Sig> ClingoControl::signatures() const {
 }
 
 SymbolicAtomIter ClingoControl::begin(Sig sig) const {
-    return init(*out_, out_->predDoms().offset(out_->predDoms().find(sig)), false);
+    return init(*out_, out_->predDoms().find(sig).key()->domainOffset(), false);
 }
 
 SymbolicAtomIter ClingoControl::begin() const {
@@ -703,7 +703,7 @@ SymbolicAtomIter ClingoControl::begin() const {
 }
 
 SymbolicAtomIter ClingoControl::end() const {
-    return SymbolicAtomOffset{out_->predDoms().size(), false, 0, false}.repr;
+    return SymbolicAtomOffset{numeric_cast<uint32_t>(out_->predDoms().size()), false, 0, false}.repr;
 }
 
 bool ClingoControl::eq(SymbolicAtomIter it, SymbolicAtomIter jt) const {
@@ -716,7 +716,7 @@ SymbolicAtomIter ClingoControl::lookup(Symbol atom) const {
         if (it != out_->predDoms().end()) {
             auto jt = (*it)->find(atom);
             if (jt != (*it)->end()) {
-                return SymbolicAtomOffset(out_->predDoms().offset(it), true, numeric_cast<uint32_t>(jt - (*it)->begin()), true).repr;
+                return SymbolicAtomOffset(it.key()->domainOffset(), true, numeric_cast<uint32_t>(jt - (*it)->begin()), true).repr;
             }
         }
     }
