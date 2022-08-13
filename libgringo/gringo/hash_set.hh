@@ -46,13 +46,6 @@
 #   include <tsl/sparse_map.h>
 #endif
 
-// This shoud really be benchmarked on a large set of problems.
-// I would expect double hashing to be more robust but slower than linear probing.
-// Also the load factor should be benchmarked.
-// The internet says 70% is good but I am using 80% at the moment.
-// Double hashing is supposed to work with especially high load factors.
-#define GRINGO_PROBE_LINEAR
-
 namespace Gringo {
 
 template <class Key,
@@ -104,6 +97,10 @@ template <class Key,
 using hash_map = tsl::sparse_map<Key, Value, mix_Hash, KeyEqual, Allocator>;
 
 #endif
+
+// To Be Removed...
+#define GRINGO_PROBE_LINEAR
+
 template <typename Value>
 struct HashSetLiterals {
     static constexpr Value deleted = std::numeric_limits<Value>::max() - 1;
@@ -360,132 +357,6 @@ using HashFirst = HashKey<T,First<T>,Hash>;
 
 template <typename T, typename EqualTo=std::equal_to<T>>
 using EqualToFirst = EqualToKey<T,First<T>,EqualTo>;
-
-template <typename Value, typename Hash=std::hash<Value>, typename EqualTo=std::equal_to<Value>>
-class UniqueVec : private Hash, private EqualTo {
-public:
-    using SizeType = unsigned;
-    using Vec = std::vector<Value>;
-    using Set = HashSet<SizeType>;
-    using ValueType = Value;
-    using Iterator = typename Vec::iterator;
-    using ConstIterator = typename Vec::const_iterator;
-
-    template <typename T, typename... A>
-    std::pair<Iterator,bool> findPush(T const &key, A&&... args) {
-        auto offset = static_cast<SizeType>(vec_.size());
-        auto res = set_.insert(
-            [this, offset, &key](SizeType a) { return a != offset ? Hash::operator()(vec_[a]) : Hash::operator()(key); },
-            [this, offset, &key](SizeType a, SizeType b) { return b != offset ? a == b : EqualTo::operator()(vec_[a], key); },
-            offset);
-        if (res.second) {
-            vec_.emplace_back(std::forward<A>(args)...);
-        }
-        return {vec_.begin() + res.first, res.second};
-    }
-    std::pair<Iterator,bool> push(Value &&val) {
-        auto offset = static_cast<SizeType>(vec_.size());
-        auto res = set_.insert(
-            [this, offset, &val](SizeType a) { return a != offset ? Hash::operator()(vec_[a]) : Hash::operator()(val); },
-            [this, offset, &val](SizeType a, SizeType b) { return b != offset ? a == b : EqualTo::operator()(vec_[a], val); },
-            offset);
-        if (res.second) {
-            vec_.push_back(std::forward<Value>(val));
-        }
-        return {vec_.begin() + res.first, res.second};
-    }
-    SizeType offset(ConstIterator it) const {
-        return static_cast<SizeType>(it - begin());
-    }
-    template <typename... A>
-    std::pair<Iterator,bool> push(A&&... args) {
-        return push(Value(std::forward<A>(args)...));
-    }
-    template <class U>
-    Iterator find(U const &val) {
-        auto offset = static_cast<SizeType>(vec_.size());
-        auto res = set_.find(
-            [this, offset, &val](SizeType a) { return a != offset ? Hash::operator()(vec_[a]) : Hash::operator()(val); },
-            [this, offset, &val](SizeType a, SizeType b) { return b != offset ? a == b : EqualTo::operator()(vec_[a], val); },
-            offset);
-        return res ? vec_.begin() + *res : vec_.end();
-    }
-    template <class U>
-    ConstIterator find(U const &val) const {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-        return const_cast<UniqueVec*>(this)->find(val);
-    }
-    void pop() {
-        assert(!vec_.empty());
-        set_.erase(
-            [this](SizeType a) { return Hash::operator()(vec_[a]); },
-            [this](SizeType a, SizeType b) { return a == b; },
-            numeric_cast<SizeType>(vec_.size() - 1));
-        vec_.pop_back();
-    }
-    Value &back() { return vec_.back(); }
-    Value const &back() const { return vec_.back(); }
-    Value &front() { return vec_.front(); }
-    Value const &front() const { return vec_.front(); }
-    void rebuild() {
-        set_.clear();
-        for (SizeType i = 0, e = static_cast<SizeType>(vec_.size()); i != e; ++i) {
-            set_.insert(
-                [this](SizeType a) { return Hash::operator()(vec_[a]); },
-                [](SizeType, SizeType) { return false; },
-                i);
-        }
-    }
-    void reserve(SizeType size) {
-        vec_.reserve(size);
-        set_.reserve(
-            [this](SizeType a) { return Hash::operator()(vec_[a]); },
-            [](SizeType, SizeType) { return false; },
-            size);
-    }
-    template <class F>
-    void erase(F f) {
-        vec_.erase(std::remove_if(vec_.begin(), vec_.end(), f), vec_.end());
-        rebuild();
-    }
-    // This function keeps an element in the vector but deletes it from the set.
-    // Note that it is inserted again after the next call to rebuild, erase or sort.
-    // It is best not to use this function!
-    void hide(Iterator it) {
-        auto offset = static_cast<SizeType>(it - begin());
-        set_.erase(
-            [this](SizeType a) { return Hash::operator()(vec_[a]); },
-            [](SizeType a, SizeType b) { return a == b; },
-            offset);
-    }
-    template <class F>
-    void sort(F f = std::less<ValueType>()) {
-        std::sort(vec_.begin(), vec_.end(), f);
-        rebuild();
-    }
-    Iterator begin() { return vec_.begin(); }
-    Iterator end() { return vec_.end(); }
-    ConstIterator begin() const { return vec_.begin(); }
-    ConstIterator end() const { return vec_.end(); }
-    SizeType size() const { return static_cast<SizeType>(vec_.size()); }
-    bool empty() const { return vec_.empty(); }
-    void clear() {
-        vec_.clear();
-        set_.clear();
-    }
-    ValueType &at(SizeType offset) { return vec_.at(offset); }
-    ValueType const &at(SizeType offset) const { return vec_.at(offset); }
-    ValueType &operator[](SizeType offset) { return vec_[offset]; }
-    ValueType const &operator[](SizeType offset) const { return vec_[offset]; }
-    Vec to_vec() {
-        set_.clear();
-        return std::move(vec_);
-    }
-
-private:
-    Vec vec_;
-    Set set_;
-};
 
 template <typename C>
 Potassco::Span<typename C::value_type> make_span(C const &container) {

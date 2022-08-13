@@ -662,18 +662,12 @@ constexpr Translator::ClauseKey Translator::ClauseKeyLiterals::open;
 constexpr Translator::ClauseKey Translator::ClauseKeyLiterals::deleted;
 
 LiteralId Translator::clause(ClauseId id, bool conjunctive, bool equivalence) {
-    auto *ret = clauses_.find(
-        [](ClauseKey const &a) { return a.hash(); },
-        [](ClauseKey const &a, ClauseKey const &b) { return a == b; },
-        ClauseKey{id.first, id.second, conjunctive ? 1U : 0U, equivalence ? 1U : 0U, LiteralId().repr()});
-    return ret != nullptr ? LiteralId{ret->literal} : LiteralId{};
+    auto it = clauses_.find(ClauseKey{id.first, id.second, conjunctive ? 1U : 0U, equivalence ? 1U : 0U, LiteralId().repr()});
+    return it != clauses_.end() ? LiteralId{it->literal} : LiteralId{};
 }
 
 void Translator::clause(LiteralId lit, ClauseId id, bool conjunctive, bool equivalence) {
-    auto ret = clauses_.insert(
-        [](ClauseKey const &a) { return a.hash(); },
-        [](ClauseKey const &a, ClauseKey const &b) { return a == b; },
-        ClauseKey{ id.first, id.second, conjunctive ? 1U : 0U, equivalence ? 1U : 0U, lit.repr() });
+    auto ret = clauses_.insert(ClauseKey{id.first, id.second, conjunctive ? 1U : 0U, equivalence ? 1U : 0U, lit.repr()});
     static_cast<void>(ret);
     assert(ret.second);
 }

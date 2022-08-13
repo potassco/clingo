@@ -258,7 +258,6 @@ private:
     OutputTable termOutput_;
     MinimizeList minimize_;   // stores minimize constraint for current step
     TupleLitMap tuples_;      // to incrementally extend minimize constraint
-    HashSet<uint64_t> seenSigs_;
     UAbstractOutput out_;
     hash_map<Symbol, uint32_t> nodeUids_;
     struct ClauseKey {
@@ -272,7 +271,7 @@ private:
             return static_cast<uint64_t>(offset) << 32 | size << 2 | conjunctive << 1 | equivalence;
         }
         size_t hash() const {
-            return std::hash<uint64_t>()(lower());
+            return hash_mix(std::hash<uint64_t>()(lower()));
         }
         bool operator==(ClauseKey const &other) const {
             return lower() == other.lower();
@@ -282,7 +281,7 @@ private:
         static constexpr ClauseKey open = { 0xffffffff, 0x3fffffff, 1, 1, std::numeric_limits<uint64_t>::max() };
         static constexpr ClauseKey deleted = { 0xffffffff, 0x3fffffff, 1, 1, std::numeric_limits<uint64_t>::max() - 1 };
     };
-    HashSet<ClauseKey, ClauseKeyLiterals> clauses_;
+    hash_set<ClauseKey, CallHash> clauses_;
 };
 
 // {{{1 declaration of Minimize
