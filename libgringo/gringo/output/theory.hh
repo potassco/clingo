@@ -62,7 +62,107 @@ public:
 };
 
 class TheoryData : private Potassco::TheoryData::Visitor {
-    using TIdSet = HashSet<Potassco::Id_t>;
+    struct TermHash {
+        TermHash(Potassco::TheoryData const &data)
+        : data{&data} { }
+
+        size_t operator()(Potassco::Id_t x) const {
+            return operator()(data->getTerm(x));
+        }
+
+        size_t operator()(std::tuple<int> const &x) const {
+            return hash_mix(get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Number), std::get<0>(x)));
+        }
+
+        size_t operator()(std::tuple<char const *> const &x) const {
+            return hash_mix(get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Symbol), strhash(std::get<0>(x))));
+        }
+
+        size_t operator()(std::tuple<Potassco::Id_t, Potassco::IdSpan> const &x) const {
+            size_t seed = get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Compound), std::get<0>(x));
+            for (auto const &t : std::get<1>(x)) {
+                hash_combine(seed, t);
+            }
+            return hash_mix(seed);
+        }
+
+        size_t operator()(std::tuple<Potassco::Tuple_t, Potassco::IdSpan> const &x) const {
+            size_t seed = get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Compound), static_cast<unsigned>(std::get<0>(x)));
+            for (auto const &t : std::get<1>(x)) {
+                hash_combine(seed, t);
+            }
+            return hash_mix(seed);
+        }
+
+        size_t operator()(Potassco::TheoryTerm const &term) const {
+            switch (term.type()) {
+                case Potassco::Theory_t::Number: {
+                    return operator()(std::make_tuple(term.number()));
+                }
+                case Potassco::Theory_t::Symbol: {
+                    return operator()(std::make_tuple(term.symbol()));
+                }
+                case Potassco::Theory_t::Compound: {
+                    break;
+                }
+            }
+            return term.isTuple() ?
+                operator()(std::make_tuple(term.tuple(), term.terms())) :
+                operator()(std::make_tuple(term.function(), term.terms()));
+        }
+
+        Potassco::TheoryData const *data;
+    };
+    struct TermEqual {
+        using is_transparent = void;
+
+        TermEqual(Potassco::TheoryData const &data)
+        : data{&data} { }
+
+        bool operator()(Potassco::Id_t x, Potassco::Id_t y) const {
+            return x == y;
+        }
+
+        template <class T>
+        bool operator()(Potassco::Id_t x, T const &y) const {
+            return operator()(data->getTerm(x), y);
+        }
+
+        template <class T>
+        bool operator()(T const &x, Potassco::Id_t y) const {
+            return operator()(data->getTerm(y), x);
+        }
+
+        bool operator()(Potassco::TheoryTerm const &x, std::tuple<int> const &y) const {
+            return x.type() == Potassco::Theory_t::Number &&
+                   x.number() == std::get<0>(y);
+        }
+
+        bool operator()(Potassco::TheoryTerm const &x, std::tuple<char const *> const &y) const {
+            return x.type() == Potassco::Theory_t::Symbol &&
+                   strcmp(x.symbol(), std::get<0>(y)) == 0;
+        }
+
+        bool operator()(Potassco::TheoryTerm const &x, std::tuple<Potassco::Tuple_t, Potassco::IdSpan> const &y) const {
+            return x.type() == Potassco::Theory_t::Compound &&
+                   x.isTuple() &&
+                   x.tuple() == std::get<0>(y) &&
+                   x.size() == std::get<1>(y).size &&
+                   std::equal(x.begin(), x.end(), Potassco::begin(std::get<1>(y)));
+        }
+
+        bool operator()(Potassco::TheoryTerm const &x, std::tuple<Potassco::Id_t, Potassco::IdSpan> const &y) const {
+            return x.type() == Potassco::Theory_t::Compound &&
+                   x.isFunction() &&
+                   x.function() == std::get<0>(y) &&
+                   x.size() == std::get<1>(y).size &&
+                   std::equal(x.begin(), x.end(), Potassco::begin(std::get<1>(y)));
+        }
+
+        Potassco::TheoryData const *data;
+    };
+    using TIdSet = ordered_set<Potassco::Id_t, TermHash, TermEqual>;
+    using EIdSet = HashSet<Potassco::Id_t>;
     using AtomSet = HashSet<uintptr_t>;
     using ConditionVec = std::vector<LitVec>;
     using PrintLit = std::function<void (std::ostream &out, LiteralId const &)>;
@@ -105,10 +205,10 @@ private:
     template <typename ...Args>
     std::pair<Potassco::TheoryAtom const &, bool> addAtom_(std::function<Potassco::Id_t()> const &newAtom, Args ...args);
 
-    TIdSet terms_;
-    TIdSet elems_;
-    AtomSet atoms_;
     Potassco::TheoryData &data_;
+    TIdSet terms_;
+    EIdSet elems_;
+    AtomSet atoms_;
     ConditionVec conditions_;
     std::vector<bool> tSeen_;
     std::vector<bool> eSeen_;

@@ -29,38 +29,13 @@
 #include "gringo/output/literals.hh"
 #include "potassco/basic_types.h"
 #include <cstring>
+#include <tuple>
 
 namespace Gringo { namespace Output {
 
 namespace {
 
 // {{{1 definition of comparison operators
-
-bool termEqual(Potassco::TheoryTerm const &term, int number) {
-    return term.type() == Potassco::Theory_t::Number &&
-           term.number() == number;
-}
-
-bool termEqual(Potassco::TheoryTerm const &term, char const *symbol) {
-    return term.type() == Potassco::Theory_t::Symbol &&
-           strcmp(term.symbol(), symbol) == 0;
-}
-
-bool termEqual(Potassco::TheoryTerm const &term, Potassco::Tuple_t type, Potassco::IdSpan const &terms) {
-    return term.type() == Potassco::Theory_t::Compound &&
-           term.isTuple() &&
-           term.tuple() == type &&
-           term.size() == terms.size &&
-           std::equal(term.begin(), term.end(), Potassco::begin(terms));
-}
-
-bool termEqual(Potassco::TheoryTerm const &term, Potassco::Id_t name, Potassco::IdSpan const &terms) {
-    return term.type() == Potassco::Theory_t::Compound &&
-           term.isFunction() &&
-           term.function() == name &&
-           term.size() == terms.size &&
-           std::equal(term.begin(), term.end(), Potassco::begin(terms));
-}
 
 bool elementEqual(Potassco::TheoryElement const &a, LitVec const &condA, Potassco::IdSpan const &tuple, LitVec const &condB) {
     return is_value_equal_to(condA, condB) &&
@@ -92,46 +67,6 @@ bool atomEqual(Potassco::TheoryAtom const &a, Potassco::TheoryAtom const &b) {
 
 // }}}1
 // {{{1 definition of hash functions
-
-size_t termHash(int number) {
-    return Gringo::get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Number), number);
-}
-
-size_t termHash(char const *symbol) {
-    return Gringo::get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Symbol), strhash(symbol));
-}
-
-size_t termHash(Potassco::Id_t name, Potassco::IdSpan const &terms) {
-    size_t seed = Gringo::get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Compound), name);
-    for (auto const &t : terms) {
-        Gringo::hash_combine(seed, t);
-    }
-    return seed;
-}
-
-size_t termHash(Potassco::Tuple_t type, Potassco::IdSpan const &terms) {
-    size_t seed = Gringo::get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Compound), static_cast<unsigned>(type));
-    for (auto const &t : terms) {
-        Gringo::hash_combine(seed, t);
-    }
-    return seed;
-}
-
-size_t termHash(Potassco::TheoryTerm const &term) {
-    switch (term.type()) {
-        case Potassco::Theory_t::Number: {
-            return termHash(term.number());
-        }
-        case Potassco::Theory_t::Symbol: {
-            return termHash(term.symbol());
-        }
-        case Potassco::Theory_t::Compound: {
-            return term.isTuple() ? termHash(term.tuple(), term.terms()) : termHash(term.function(), term.terms());
-        }
-    }
-    assert(false);
-    return 0;
-}
 
 size_t elementHash(Potassco::IdSpan const &tuple, LitVec const &cond) {
     size_t seed = get_value_hash(cond);
@@ -587,6 +522,7 @@ UTheoryTerm TermTheoryTerm::initTheory(TheoryParser &p, Logger &log) {
 
 TheoryData::TheoryData(Potassco::TheoryData &data)
 : data_(data)
+, terms_{0, TermHash{data_}, TermEqual{data_}}
 , out_(nullptr)
 , aSeen_{0}
 { }
@@ -638,16 +574,14 @@ void TheoryData::output(TheoryOutput &out) {
 
 template <typename ...Args>
 Potassco::Id_t TheoryData::addTerm_(Args ...args) {
+    auto it = terms_.find(std::make_tuple(args...));
+    if (it != terms_.end()) {
+        return *it;
+    }
     auto size = terms_.size();
-    auto ret = terms_.insert([&](Potassco::Id_t const &a) {
-        assert(a != std::numeric_limits<Potassco::Id_t>::max());
-        return a == size ? termHash(args...) : termHash(data_.getTerm(a));
-    }, [&](Potassco::Id_t const &a, Potassco::Id_t const &b) {
-        assert(a < size);
-        return b == size ? termEqual(data_.getTerm(a), args...) : a == b;
-    }, size);
-    if (ret.second) { data_.addTerm(size, args...); }
-    return ret.first;
+    data_.addTerm(size, args...);
+    terms_.insert(size);
+    return size;
 }
 
 Potassco::Id_t TheoryData::addTerm(int number) {
@@ -729,6 +663,10 @@ Potassco::Id_t TheoryData::addElem(Potassco::IdSpan const &tuple, Potassco::LitS
 }
 
 Potassco::Id_t TheoryData::addElem(Potassco::IdSpan const &tuple, LitVec cond) {
+    // TODO: can use a map as well: id -> cond
+    //       at the expense of a double hash computation,
+    //       this can use a find/insert combination
+    // TODO: the COND_DEFERRED logic looks very strange -> investigate!!!
     assert(conditions_.size() == elems_.size());
     auto size = elems_.size();
     auto ret = elems_.insert([&](Potassco::Id_t const &a) {
@@ -856,8 +794,8 @@ void TheoryData::reset(bool resetData) {
     aSeen_ = 0;
     tSeen_.clear();
     eSeen_.clear();
-    TIdSet().swap(terms_);
-    TIdSet().swap(elems_);
+    TIdSet(0, TermHash{data_}, TermEqual{data_}).swap(terms_);
+    EIdSet().swap(elems_);
     AtomSet().swap(atoms_);
     ConditionVec().swap(conditions_);
     if (resetData) {
