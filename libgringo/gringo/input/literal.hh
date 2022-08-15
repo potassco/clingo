@@ -25,7 +25,7 @@
 #ifndef GRINGO_INPUT_LITERAL_HH
 #define GRINGO_INPUT_LITERAL_HH
 
-#include "gringo/utility.hh"
+#include <gringo/utility.hh>
 #include <gringo/term.hh>
 #include <gringo/domain.hh>
 #include <gringo/input/types.hh>

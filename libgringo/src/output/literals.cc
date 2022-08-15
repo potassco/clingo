@@ -22,7 +22,8 @@
 
 // }}}
 
-#include "gringo/utility.hh"
+#include <gringo/output/statement.hh>
+#include <gringo/utility.hh>
 #include <gringo/output/literal.hh>
 #include <gringo/output/statements.hh>
 #include <gringo/logger.hh>
@@ -1137,8 +1138,9 @@ LiteralId TheoryLiteral::translate(Translator &x) {
         if (atm.defined()) {
             atm.simplify(data_.theory());
             for (auto const &elemId : atm.elems()) {
-                auto &cond = data_.theory().getCondition(elemId);
-                Gringo::Output::translate(data_, x, cond);
+                data_.theory().updateCondition(elemId, [&x, this](LitVec &cond) {
+                    Gringo::Output::translate(data_, x, cond);
+                });
             }
             auto newAtom = [&]() -> Atom_t {
                 if (atm.type() == TheoryAtomType::Directive) {

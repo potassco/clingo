@@ -25,7 +25,7 @@
 #ifndef GRINGO_TERMS_HH
 #define GRINGO_TERMS_HH
 
-#include "gringo/utility.hh"
+#include <gringo/utility.hh>
 #include <gringo/base.hh>
 #include <gringo/term.hh>
 #include <gringo/hash_set.hh>

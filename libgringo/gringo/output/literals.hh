@@ -25,10 +25,10 @@
 #ifndef GRINGO_OUTPUT_LITERALS_HH
 #define GRINGO_OUTPUT_LITERALS_HH
 
-#include "gringo/hash_set.hh"
-#include "gringo/output/types.hh"
-#include "gringo/symbol.hh"
-#include "potassco/basic_types.h"
+#include <gringo/hash_set.hh>
+#include <gringo/output/types.hh>
+#include <gringo/symbol.hh>
+#include <potassco/basic_types.h>
 #include <gringo/terms.hh>
 #include <gringo/domain.hh>
 #include <gringo/intervals.hh>

@@ -34,6 +34,7 @@ using Atom_t = Potassco::Atom_t;
 using Weight_t = Potassco::Weight_t;
 using Lit_t = Potassco::Lit_t;
 using Id_t = Potassco::Id_t;
+using Potassco::IdSpan;
 
 static constexpr Id_t InvalidId = std::numeric_limits<Id_t>::max();
 

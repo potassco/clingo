@@ -25,7 +25,7 @@
 #ifndef GRINGO_GROUND_DEPENDENCY_HH
 #define GRINGO_GROUND_DEPENDENCY_HH
 
-#include "gringo/utility.hh"
+#include <gringo/utility.hh>
 #include <gringo/graph.hh>
 #include <gringo/term.hh>
 #include <gringo/hash_set.hh>
