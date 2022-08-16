@@ -26,6 +26,7 @@
 #define GRINGO_OUTPUT_LITERAL_HH
 
 #include "potassco/basic_types.h"
+#include <algorithm>
 #include <gringo/domain.hh>
 #include <gringo/output/types.hh>
 #include <potassco/theory_data.h>
@@ -42,19 +43,41 @@ class Translator;
 class Mapping {
 public:
     void add(Id_t oldOffset, Id_t newOffset) {
-        // TODO: this can be stored more compactly!
-        assert(map_.find(oldOffset) == map_.end());
-        map_.emplace(oldOffset, newOffset);
+        // Note: this assumes that identical indices are added in order.
+        // (This is particular to the unordered_delete of the ordered_set being used for remapping.)
+        if (oldOffset == newOffset) {
+            if (id_.empty() || id_.back().second < oldOffset - 1) {
+                id_.emplace_back(oldOffset, oldOffset);
+            }
+            else {
+                assert(id_.back().second == oldOffset - 1);
+                ++id_.back().second;
+            }
+        }
+        else {
+            assert(map_.find(oldOffset) == map_.end());
+            map_.emplace(oldOffset, newOffset);
+        }
     }
     Id_t get(Id_t oldOffset) const {
         auto it = map_.find(oldOffset);
         if (it != map_.end()) {
             return it->second;
         }
+        auto jt = std::lower_bound(
+            id_.begin(),
+            id_.end(),
+            oldOffset,
+            [](std::pair<Id_t, Id_t> const &a, Id_t const &b) { return a.second < b; });
+        if (jt != id_.end() && jt->first <= oldOffset) {
+            assert(oldOffset <= jt->second);
+            return oldOffset;
+        }
         return InvalidId;
     }
 private:
     hash_map<Id_t, Id_t> map_;
+    std::vector<std::pair<Id_t, Id_t>> id_;
 };
 using Mappings = std::vector<Mapping>;
 
