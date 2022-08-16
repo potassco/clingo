@@ -345,128 +345,69 @@ void AggregateAtomRange::accumulate(SymVec const &tuple, bool fact, bool remove)
 
 // {{{1 definition of BodyAggregateAtom
 
-class BodyAggregateElements_::TupleOffset {
-public:
-    TupleOffset(Id_t offset, Id_t size, bool fact)
-    : repr_(static_cast<uint64_t>(fact) | (static_cast<uint64_t>(size) << 1) | (static_cast<uint64_t>(offset) << 32)) { }
-    TupleOffset(uint64_t repr)
-    : repr_(repr) { }
-    bool fact() const {
-        return (repr_ & 1) != 0;
-    }
-    Id_t size() const {
-        return static_cast<uint32_t>(repr_) >> 1;
-    }
-    Id_t offset() const {
-        return static_cast<uint32_t>(repr_ >> 32);
-    }
-    uint64_t repr() const {
-        return repr_;
-    }
-    operator uint64_t() const {
-        return repr();
-    }
-
-private:
-    uint64_t repr_;
-};
-
-class BodyAggregateElements_::ClauseOffset {
-public:
-    ClauseOffset(Id_t offset, Id_t size)
-    : repr_(std::min(size-1, Id_t(3)) | (offset << 2)) {
-        assert(size > 0);
-    }
-    ClauseOffset(uint32_t repr)
-    : repr_(repr) { }
-    Id_t size() const {
-        return (repr_ & 3) < 3 ? (repr_ & 3) + 1 : InvalidId;
-    }
-    Id_t offset() const {
-        return static_cast<uint32_t>(repr_ >> 2);
-    }
-    uint32_t repr() const {
-        return repr_;
-    }
-    operator uint32_t() const {
-        return repr();
-    }
-
-private:
-    uint32_t repr_;
-};
-
-std::pair<uint64_t &, bool> BodyAggregateElements_::insertTuple(uint64_t to) {
-    return tuples_.insert(
-        [](uint64_t a) { return std::hash<uint64_t>()(a >> 1); },
-        [](uint64_t a, uint64_t b){ return (a >> 1) == (b >> 1); },
-        to);
-}
-
 template <class F>
-void BodyAggregateElements_::visitClause(F f) {
+void BodyAggregateElements_::visitClause(F f) const {
     for (auto it = conditions_.begin(), ie = conditions_.end(); it != ie; ) {
-        auto &to = *it++;
-        Id_t size = 0;
-        Id_t offset = 0;
-        if (to & 1) {
-            ClauseOffset co(*it++);
-            offset = co.offset();
-            size = co.size();
-            if (size == InvalidId) {
-                size = *it++;
-            }
+        // get compressedd tuple offset (the size stores the fact bit)
+        auto ct_offset = CompressedOffset{*it++};
+        Id_t t_offset = ct_offset.offset();
+        Id_t t_size_fact = ct_offset.has_size() ? ct_offset.size() : *it++;
+        bool t_fact = (t_size_fact & 1) == 0;
+        auto t_size = t_size_fact >> 1;
+        // get compressed clause offset (empty conditions are not stored)
+        Id_t c_offset = 0;
+        Id_t c_size = 0;
+        if (!t_fact) {
+            auto cc_offset = CompressedOffset{*it++};
+            c_offset = cc_offset.offset();
+            c_size = cc_offset.has_size() ? (cc_offset.size() + 1) : *it++;
         }
-        f(to, ClauseId(offset, size));
+        f(TupleId{t_offset, t_size}, ClauseId(c_offset, c_size));
     }
 }
 
 void BodyAggregateElements_::accumulate(DomainData &data, TupleId tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove) {
-    if (tuples_.reserveNeedsRebuild(tuples_.size() + 1)) {
-        // remap tuple offsets if rebuild is necessary
-        HashSet<uint64_t> tuples(tuples_.size() + 1, tuples_.reserved());
-        tuples.swap(tuples_);
-        assert(tuples.reserved() < tuples_.reserved());
-        visitClause([&](uint32_t &to, ClauseId) {
-            to = (tuples_.offset(insertTuple(tuples.at(to >> 1)).first) << 1) | (to & 1);
-        });
-    }
-    TupleOffset newTO(tuple.offset, tuple.size, lits.empty());
-    auto ret = insertTuple(newTO);
+    TupleOffset offset{tuple.offset, tuple.size, lits.empty()};
+    auto ret = tuples_.insert(offset);
     inserted = ret.second;
     remove = false;
     if (!inserted) {
-        TupleOffset oldTO = ret.first;
-        if (!oldTO.fact() && newTO.fact()) {
-            ret.first = newTO;
+        auto old_offset = *ret.first;
+        if (!old_offset.fact() && offset.fact()) {
+            tuples_.erase(old_offset);
+            tuples_.insert(offset);
             remove = true;
         }
         else {
-            newTO = oldTO;
+            offset = old_offset;
         }
     }
-    fact = newTO.fact();
+    fact = offset.fact();
     if (!fact || inserted || remove) {
         auto clause = data.clause(std::move(lits));
-        auto size = clause.second;
-        conditions_.emplace_back((tuples_.offset(ret.first) << 1) | (size > 0 ? 1 : 0));
-        if (size > 0) {
-            ClauseOffset co(clause.first, size);
-            conditions_.emplace_back(co);
-            if (co.size() == InvalidId) {
-                conditions_.emplace_back(size);
+        // add compressed tuple offset with fact bit to condition vector
+        uint32_t t_size_fact = (offset.size() << 1) | (fact ? 0U : 1U);
+        CompressedOffset ct_offset{offset.offset(), t_size_fact};
+        conditions_.emplace_back(ct_offset.repr());
+        if (!ct_offset.has_size()) {
+            conditions_.emplace_back(t_size_fact);
+        }
+        if (!fact) {
+            // add compressed clause offset to condition vector
+            CompressedOffset cc_offset(clause.first, clause.second - 1);
+            conditions_.emplace_back(cc_offset.repr());
+            if (!cc_offset.has_size()) {
+                conditions_.emplace_back(clause.second);
             }
         }
     }
 }
+
 BodyAggregateElements BodyAggregateElements_::elems() const {
     BodyAggregateElements elems;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-    const_cast<BodyAggregateElements_*>(this)->visitClause([&](uint32_t const &to, ClauseId cond) {
-        TupleOffset fo(tuples_.at(to >> 1));
-        TupleId tuple{fo.offset(), fo.size()};
+    visitClause([&](TupleId tuple, ClauseId cond) {
         auto ret = elems.try_emplace(tuple);
-        if (fo.fact()) {
+        if (cond.second == 0) {
             ret.first.value().clear();
         }
         ret.first.value().emplace_back(cond);

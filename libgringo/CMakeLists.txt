@@ -16,7 +16,6 @@ set(header-group-gringo
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/lexerstate.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/locatable.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/logger.hh"
-    "${CMAKE_CURRENT_SOURCE_DIR}/gringo/primes.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/printable.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/safetycheck.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/symbol.hh"
@@ -73,7 +72,6 @@ bison_target_or_gen("src/input/nongroundgrammar.yy")
 re2c_target_or_gen("/src/input/nongroundlexer.xch")
 set(ide_source_group "Source Files")
 set(source-group
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/primes.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/symbol.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/term.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/terms.cc")

@@ -35,6 +35,7 @@
 #include <gringo/output/aggregates.hh>
 #include <gringo/output/theory.hh>
 #include <gringo/backend.hh>
+#include <stdexcept>
 
 namespace Gringo { namespace Output {
 
@@ -226,8 +227,86 @@ struct AggregateAtomRange {
 // {{{1 declaration of BodyAggregateAtom
 
 class BodyAggregateElements_ {
-    class TupleOffset;
-    class ClauseOffset;
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access,cppcoreguidelines-pro-type-member-init)
+    class TupleOffset {
+    public:
+        TupleOffset(Id_t offset, Id_t size, bool fact)
+        : offset_{offset}
+        , size_{size}
+        , fact_{fact ? 1U : 0U} {
+            if (size >= 0x80000000) {
+                throw std::range_error("size limit exceeded");
+            }
+        }
+
+        bool fact() const {
+            return fact_ > 0;
+        }
+
+        Id_t size() const {
+            return size_;
+        }
+
+        Id_t offset() const {
+            return offset_;
+        }
+
+        uint64_t repr() const {
+            return static_cast<uint64_t>(offset_) << 32U | size_;
+        }
+
+        size_t hash() const {
+            return hash_mix(get_value_hash(repr()));
+        }
+
+        friend bool operator==(TupleOffset const &a, TupleOffset const &b) {
+            return a.repr() == b.repr();
+        }
+
+    private:
+        uint64_t offset_: 32;
+        uint64_t size_: 31;
+        uint64_t fact_: 1;
+    };
+
+    class CompressedOffset {
+    public:
+        CompressedOffset(Id_t offset, Id_t size)
+        : offset_{offset}
+        , size_{size < 3U ? size : 3U} {
+            if (offset >= 0x40000000) {
+                throw std::range_error("offset size limit exceeded");
+            }
+        }
+
+        CompressedOffset(uint32_t repr)
+        : offset_{repr >> 2U}
+        , size_{repr & 3U} { }
+
+        bool has_size() const {
+            return size_ < 3U;
+        }
+
+        Id_t size() const {
+            return size_;
+        }
+
+        Id_t offset() const {
+            return offset_;
+        }
+
+        uint32_t repr() const {
+            return (offset_ << 2U) | size_;
+        }
+
+        friend bool operator==(CompressedOffset const &a, CompressedOffset const &b) {
+            return a.repr() == b.repr();
+        }
+    private:
+        uint32_t offset_: 30;
+        uint32_t size_: 2;
+    };
+    // NOLINTEND(cppcoreguidelines-pro-type-union-access,cppcoreguidelines-pro-type-member-init)
 
 public:
     void accumulate(DomainData &data, TupleId tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove);
@@ -235,11 +314,10 @@ public:
     BodyAggregateElements elems() const;
 
 private:
-    std::pair<uint64_t &, bool> insertTuple(uint64_t to);
     template <class F>
-    void visitClause(F f);
+    void visitClause(F f) const;
 
-    HashSet<uint64_t> tuples_;
+    hash_set<TupleOffset, CallHash> tuples_;
     std::vector<uint32_t> conditions_;
 };
 
