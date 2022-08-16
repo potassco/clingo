@@ -25,6 +25,7 @@
 #ifndef GRINGO_OUTPUT_THEORY_HH
 #define GRINGO_OUTPUT_THEORY_HH
 
+#include <potassco/basic_types.h>
 #include <gringo/utility.hh>
 #include <gringo/base.hh>
 #include <gringo/terms.hh>
@@ -64,7 +65,7 @@ class TheoryData : private Potassco::TheoryData::Visitor {
         TermHash(Potassco::TheoryData const &data)
         : data{&data} { }
 
-        size_t operator()(Potassco::Id_t x) const {
+        size_t operator()(Id_t x) const {
             return operator()(data->getTerm(x));
         }
 
@@ -76,7 +77,7 @@ class TheoryData : private Potassco::TheoryData::Visitor {
             return hash_mix(get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Symbol), strhash(std::get<0>(x))));
         }
 
-        size_t operator()(std::tuple<Potassco::Id_t, IdSpan> const &x) const {
+        size_t operator()(std::tuple<Id_t, IdSpan> const &x) const {
             size_t seed = get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Compound), std::get<0>(x));
             for (auto const &t : std::get<1>(x)) {
                 hash_combine(seed, t);
@@ -117,17 +118,17 @@ class TheoryData : private Potassco::TheoryData::Visitor {
         TermEqual(Potassco::TheoryData const &data)
         : data{&data} { }
 
-        bool operator()(Potassco::Id_t x, Potassco::Id_t y) const {
+        bool operator()(Id_t x, Id_t y) const {
             return x == y;
         }
 
         template <class T>
-        bool operator()(Potassco::Id_t x, T const &y) const {
+        bool operator()(Id_t x, T const &y) const {
             return operator()(data->getTerm(x), y);
         }
 
         template <class T>
-        bool operator()(T const &x, Potassco::Id_t y) const {
+        bool operator()(T const &x, Id_t y) const {
             return operator()(data->getTerm(y), x);
         }
 
@@ -149,7 +150,7 @@ class TheoryData : private Potassco::TheoryData::Visitor {
                    std::equal(x.begin(), x.end(), Potassco::begin(std::get<1>(y)));
         }
 
-        bool operator()(Potassco::TheoryTerm const &x, std::tuple<Potassco::Id_t, IdSpan> const &y) const {
+        bool operator()(Potassco::TheoryTerm const &x, std::tuple<Id_t, IdSpan> const &y) const {
             return x.type() == Potassco::Theory_t::Compound &&
                    x.isFunction() &&
                    x.function() == std::get<0>(y) &&
@@ -205,30 +206,99 @@ class TheoryData : private Potassco::TheoryData::Visitor {
         TheoryData const *self;
     };
 
+    struct AtomHash {
+        AtomHash(Potassco::TheoryData const &data)
+        : data{&data} { }
+
+        size_t operator()(std::tuple<Id_t, Potassco::IdSpan> const &x) const {
+            size_t seed = std::get<0>(x);
+            Gringo::hash_combine(seed, get_value_hash(std::get<1>(x)));
+            return hash_mix(seed);
+        }
+
+        size_t operator()(std::tuple<Id_t, Potassco::IdSpan, Id_t, Id_t> const &x) const {
+            size_t seed = std::get<0>(x);
+            Gringo::hash_combine(seed, get_value_hash(std::get<1>(x)));
+            Gringo::hash_combine(seed, std::get<2>(x));
+            Gringo::hash_combine(seed, std::get<3>(x));
+            return hash_mix(seed);
+        }
+
+        size_t operator()(Id_t const &x) const {
+            auto const &atom = **(data->begin() + x);
+            return atom.guard() != nullptr
+                ? operator()({atom.term(), atom.elements(), *atom.guard(), *atom.rhs()})
+                : operator()({atom.term(), atom.elements()});
+        }
+
+        Potassco::TheoryData const *data;
+    };
+
+    struct AtomEqual {
+        AtomEqual(Potassco::TheoryData const &data)
+        : data{&data} { }
+
+        using is_transparent = void;
+        using TAtom = std::tuple<Id_t, Potassco::IdSpan>;
+        using TAtomG = std::tuple<Id_t, Potassco::IdSpan, Id_t, Id_t>;
+
+        bool operator()(Id_t const &x, Id_t const &y) const {
+            return x == y;
+        }
+
+        bool operator()(Id_t const &x, TAtom const &y) const {
+            auto const &atom = **(data->begin() + x);
+            return atom.guard() == nullptr &&
+                   atom.term() == std::get<0>(y) &&
+                   atom.size() == std::get<1>(y).size &&
+                   std::equal(atom.begin(), atom.end(), begin(std::get<1>(y)));
+        }
+
+        bool operator()(TAtom const &x, Id_t const &y) const {
+            return operator()(y, x);
+        }
+
+        bool operator()(Id_t const &x, TAtomG const &y) const {
+            auto const &atom = **(data->begin() + x);
+            return atom.guard() != nullptr &&
+                   *atom.guard() == std::get<2>(y) &&
+                   *atom.rhs() == std::get<3>(y) &&
+                   atom.term() == std::get<0>(y) &&
+                   atom.size() == std::get<1>(y).size &&
+                   std::equal(atom.begin(), atom.end(), begin(std::get<1>(y)));
+        }
+
+        bool operator()(TAtomG const &x, Id_t const &y) const {
+            return operator()(y, x);
+        }
+
+        Potassco::TheoryData const *data;
+    };
+
     using TermSet = hash_set<Id_t, TermHash, TermEqual>;
     using ElementSet = hash_set<Id_t, ElementHash, ElementEqual>;
-    using AtomSet = HashSet<uintptr_t>;
+    using AtomSet = hash_set<Id_t, AtomHash, AtomEqual>;
     using ConditionVec = std::vector<LitVec>;
     using PrintLit = std::function<void (std::ostream &out, LiteralId const &)>;
 
 public:
     TheoryData(Potassco::TheoryData &data);
 
-    Potassco::Id_t addTerm(int number);
-    Potassco::Id_t addTerm(char const *name);
-    Potassco::Id_t addTermFun(Potassco::Id_t funcSym, IdSpan const& terms);
-    Potassco::Id_t addTermTup(Potassco::Tuple_t type, IdSpan const& terms);
-    Potassco::Id_t addTerm(Symbol value);
-    Potassco::Id_t addElem(IdSpan const &tuple, Potassco::LitSpan const &cond);
-    Potassco::Id_t addElem(IdSpan const &tuple, LitVec cond);
-    std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Potassco::Id_t()> const &newAtom, Potassco::Id_t termId, IdSpan const &elems);
-    std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Potassco::Id_t()> const &newAtom, Potassco::Id_t termId, IdSpan const &elems, Potassco::Id_t op, Potassco::Id_t rhs);
-    void printTerm(std::ostream &out, Potassco::Id_t termId) const;
-    void printElem(std::ostream &out, Potassco::Id_t elemId, PrintLit printLit) const;
+    Id_t addTerm(int number);
+    Id_t addTerm(char const *name);
+    Id_t addTermFun(Id_t funcSym, IdSpan const& terms);
+    Id_t addTermTup(Potassco::Tuple_t type, IdSpan const& terms);
+    Id_t addTerm(Symbol value);
+    Id_t addElem(IdSpan const &tuple, Potassco::LitSpan const &cond);
+    Id_t addElem(IdSpan const &tuple, LitVec cond);
+    std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Id_t()> const &newAtom, Id_t termId, IdSpan const &elems);
+    std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Id_t()> const &newAtom, Id_t termId, IdSpan const &elems, Id_t op, Id_t rhs);
+    void printTerm(std::ostream &out, Id_t termId) const;
+    void printElem(std::ostream &out, Id_t elemId, PrintLit printLit) const;
     bool empty() const;
-    LitVec const &getCondition(Potassco::Id_t elemId) const;
+    LitVec const &getCondition(Id_t elemId) const;
     Potassco::TheoryData const &data() const;
-    void setCondition(Potassco::Id_t elementId, Potassco::Id_t newCond);
+    void setCondition(Id_t elementId, Id_t newCond);
     void reset(bool resetData);
     void output(TheoryOutput &tout);
     Potassco::TheoryAtom const &getAtom(Id_t offset) const {
@@ -242,16 +312,16 @@ public:
     }
 
 private:
-    void print(Potassco::Id_t termId, const Potassco::TheoryTerm& term);
+    void print(Id_t termId, const Potassco::TheoryTerm& term);
     void print(const Potassco::TheoryAtom& a);
-    void visit(Potassco::TheoryData const &data, Potassco::Id_t termId, Potassco::TheoryTerm const &t) override;
-    void visit(Potassco::TheoryData const &data, Potassco::Id_t elemId, Potassco::TheoryElement const &e) override;
+    void visit(Potassco::TheoryData const &data, Id_t termId, Potassco::TheoryTerm const &t) override;
+    void visit(Potassco::TheoryData const &data, Id_t elemId, Potassco::TheoryElement const &e) override;
     void visit(Potassco::TheoryData const &data, Potassco::TheoryAtom const &a) override;
 
     template <typename ...Args>
-    Potassco::Id_t addTerm_(Args ...args);
+    Id_t addTerm_(Args ...args);
     template <typename ...Args>
-    std::pair<Potassco::TheoryAtom const &, bool> addAtom_(std::function<Potassco::Id_t()> const &newAtom, Args ...args);
+    std::pair<Potassco::TheoryAtom const &, bool> addAtom_(std::function<Id_t()> const &newAtom, Args ...args);
 
     Potassco::TheoryData &data_;
     TermSet terms_;
@@ -272,7 +342,7 @@ using UTheoryTerm = std::unique_ptr<TheoryTerm>;
 using UTheoryTermVec = std::vector<UTheoryTerm>;
 class TheoryTerm : public Hashable, public Comparable<TheoryTerm>, public Printable, public Clonable<TheoryTerm> {
 public:
-    virtual Potassco::Id_t eval(TheoryData &data, Logger &log) const = 0;
+    virtual Id_t eval(TheoryData &data, Logger &log) const = 0;
     virtual void collect(VarTermBoundVec &vars) = 0;
     virtual void replace(Defines &defs) = 0;
     virtual UTheoryTerm initTheory(TheoryParser &p, Logger &log) = 0;
@@ -289,7 +359,7 @@ public:
 
     void append(StringVec ops, UTheoryTerm term);
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
+    Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
     UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
@@ -350,7 +420,7 @@ public:
     UnaryTheoryTerm(String op, UTheoryTerm arg);
 
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
+    Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
     UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
@@ -376,7 +446,7 @@ public:
     BinaryTheoryTerm(UTheoryTerm left, String op, UTheoryTerm right);
 
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
+    Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
     UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
@@ -405,7 +475,7 @@ public:
     TupleTheoryTerm(Type type, UTheoryTermVec args);
 
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
+    Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
     UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
@@ -431,7 +501,7 @@ public:
     FunctionTheoryTerm(String name, UTheoryTermVec args);
 
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
+    Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
     UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
@@ -458,7 +528,7 @@ public:
     TermTheoryTerm(UTerm term);
 
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
+    Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
     UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
