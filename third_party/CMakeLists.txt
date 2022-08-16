@@ -7,9 +7,18 @@ if (CLINGO_BUILD_TESTS AND NOT TARGET Catch2::Catch2WithMain)
     endif()
 endif()
 
-add_subdirectory(ordered-map)
-add_subdirectory(hopscotch-map)
-add_subdirectory(sparse-map)
+add_library(sparse_map INTERFACE)
+target_include_directories(sparse_map INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sparse-map/include>)
+add_library(tsl::sparse_map ALIAS sparse_map)
 
-set(OPTIONAL_BUILD_TESTS OFF CACHE INTERNAL "" FORCE)
-add_subdirectory(optional)
+add_library(hopscotch_map INTERFACE)
+target_include_directories(hopscotch_map INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/hopscotch-map/include>)
+add_library(tsl::hopscotch_map ALIAS hopscotch_map)
+
+add_library(ordered_map INTERFACE)
+target_include_directories(ordered_map INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ordered-map/include>)
+add_library(tsl::ordered_map ALIAS ordered_map)
+
+add_library(optional INTERFACE)
+target_include_directories(optional INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/optional/include>)
+add_library(tl::optional ALIAS optional)
