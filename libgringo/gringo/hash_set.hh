@@ -86,14 +86,14 @@ using hash_map = tsl::hopscotch_map<Key, Value, Hash, KeyEqual, Allocator, Neigh
 template <class Key, class Hash = mix_hash<Key>,
           class KeyEqual = std::equal_to<>,
           class Allocator = std::allocator<Key>>
-using hash_set = tsl::sparse_set<Key, mix_hash, KeyEqual, Allocator>;
+using hash_set = tsl::sparse_set<Key, Hash, KeyEqual, Allocator>;
 
 template <class Key,
           class Value,
           class Hash = mix_hash<Key>,
           class KeyEqual = std::equal_to<>,
           class Allocator = std::allocator<std::pair<Key, Value>>>
-using hash_map = tsl::sparse_map<Key, Value, mix_Hash, KeyEqual, Allocator>;
+using hash_map = tsl::sparse_map<Key, Value, Hash, KeyEqual, Allocator>;
 
 #endif
 
