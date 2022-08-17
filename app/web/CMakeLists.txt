@@ -8,7 +8,7 @@ set(source
 # ]]]
 
 add_executable(web ${header} ${source})
-target_link_libraries(web libclingo libclasp libluaclingo libpyclingo)
+target_link_libraries(web libclingo libgringo libclasp libluaclingo libpyclingo)
 set_target_properties(web PROPERTIES FOLDER exe)
 target_include_directories(web PRIVATE
     "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libgringo>"

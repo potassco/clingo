@@ -355,7 +355,7 @@ private:
     char str_[0]; // NOLINT
 };
 
-struct String::Impl::MString {
+class String::Impl::MString {
 public:
     struct Hash {
         size_t operator()(MString const &str) const {
