@@ -50,15 +50,6 @@ public:
 };
 
 // }}}
-// {{{ definition of call_hash
-
-template <class T>
-struct call_hash {
-    size_t operator()(T const &x) const { return x.hash(); }
-};
-
-// }}}
-
 } // namespace Gringo
 
 namespace std {

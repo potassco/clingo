@@ -26,31 +26,20 @@
 
 namespace Gringo { namespace Input {
 
-// {{{ definition of Projection
-
-Projection::Projection(UTerm &&projected, UTerm &&project)
-: projected(std::move(projected))
-, project(std::move(project)) { }
-
-Projection::operator Term const &() const {
-    return *projected;
-}
-
-// }}}
 // {{{ definition of Projections
 
-Projections::ProjectionMap::Iterator Projections::begin() {
+Projections::ProjectionMap::iterator Projections::begin() {
     return proj.begin();
 }
 
-Projections::ProjectionMap::Iterator Projections::end() {
+Projections::ProjectionMap::iterator Projections::end() {
     return proj.end();
 }
 
 UTerm Projections::add(Term &term) {
     AuxGen gen;
     auto ret(term.project(true, gen));
-    proj.push(std::move(std::get<1>(ret)), std::move(std::get<2>(ret)));
+    proj.try_emplace(std::move(std::get<1>(ret)), std::move(std::get<2>(ret)), false);
     return std::move(std::get<0>(ret));
 }
 

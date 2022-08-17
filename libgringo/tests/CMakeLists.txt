@@ -8,7 +8,6 @@ set(source-group
     "${CMAKE_CURRENT_SOURCE_DIR}/term.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/term_helper.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/tests.hh"
-    "${CMAKE_CURRENT_SOURCE_DIR}/unique_vec.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/utility.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source-group-ground

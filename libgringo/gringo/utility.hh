@@ -240,6 +240,25 @@ struct value_hash<std::vector<T>> {
 };
 
 template <class T>
+struct value_hash<Potassco::Span<T>> {
+    size_t operator()(Potassco::Span<T> const &v) const;
+};
+
+template <class T, class U=std::hash<T>>
+struct mix_hash : U {
+    using U::U;
+    template <class K>
+    size_t operator()(K const &x) const {
+        size_t hash = U::operator()(x);
+        hash_mix(hash);
+        return hash;
+    }
+};
+
+template <class T>
+using mix_value_hash = mix_hash<T, value_hash<T>>;
+
+template <class T>
 inline size_t get_value_hash(T const &x);
 
 template <class T, class U, class... V>
@@ -648,6 +667,15 @@ inline size_t value_hash<std::tuple<T...>>::operator()(std::tuple<T...> const &x
 template <class T>
 inline size_t value_hash<std::vector<T>>::operator()(std::vector<T> const &v) const {
     size_t seed = 3;
+    for (auto const &x : v) {
+        hash_combine(seed, get_value_hash(x));
+    }
+    return seed;
+}
+
+template <class T>
+inline size_t value_hash<Potassco::Span<T>>::operator()(Potassco::Span<T> const &v) const {
+    size_t seed = 4;
     for (auto const &x : v) {
         hash_combine(seed, get_value_hash(x));
     }

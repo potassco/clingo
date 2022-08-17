@@ -25,11 +25,13 @@
 #ifndef GRINGO_DOMAIN_HH
 #define GRINGO_DOMAIN_HH
 
+#include <algorithm>
 #include <cassert>
 #include <gringo/base.hh>
 #include <gringo/types.hh>
 #include <deque>
 #include <gringo/hash_set.hh>
+#include <stdexcept>
 
 namespace Gringo {
 
@@ -73,14 +75,6 @@ template <class Domain>
 class BindIndexEntry {
 public:
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    struct Hash {
-        size_t operator()(BindIndexEntry const &e) const {
-            return e.hash();
-        };
-        size_t operator()(SymVec const &e) const {
-            return hash_range(e.begin(), e.end());
-        };
-    };
     using SizeType  = typename Domain::SizeType;
     BindIndexEntry(SymVec const &bound) {
         // NOLINTNEXTLINE
@@ -141,11 +135,14 @@ public:
     size_t hash() const {
         return hash_range(data_, asUint64_());
     }
-    bool operator==(BindIndexEntry const &x) const {
-        return std::equal(x.data_, x.asUint64_(), data_, [](uint64_t a, uint64_t b) { return a == b; });
+    friend bool operator==(BindIndexEntry const &x, BindIndexEntry const &y) {
+        return std::equal(x.data_, x.asUint64_(), y.data_, [](uint64_t a, uint64_t b) { return a == b; });
     }
-    bool operator==(SymVec const &vec) const {
-        return std::equal(vec.begin(), vec.end(), data_, [](Symbol const &a, uint64_t b) { return a.rep() == b; });
+    friend bool operator==(BindIndexEntry const &x, SymVec const &y) {
+        return std::equal(y.begin(), y.end(), x.data_, [](Symbol const &a, uint64_t b) { return a.rep() == b; });
+    }
+    friend bool operator==(SymVec const &x, BindIndexEntry const &y) {
+        return y == x;
     }
 private:
     // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -164,6 +161,24 @@ private:
     SizeType* begin_{nullptr};
 };
 
+} // namespace Gringo
+
+namespace std {
+
+template <class Domain>
+struct hash<Gringo::BindIndexEntry<Domain>> {
+    size_t operator()(Gringo::BindIndexEntry<Domain> const &entry) const {
+        return entry.hash();
+    }
+    size_t operator()(Gringo::SymVec const &e) const {
+        return hash_range(e.begin(), e.end());
+    };
+};
+
+} // namespace std
+
+namespace Gringo {
+
 // An index for a positive literal occurrence
 // with at least one variable bound and one variable unbound.
 template <class Domain>
@@ -173,7 +188,7 @@ public:
     using OffsetVec = std::vector<SizeType>;
     using Iterator  = SizeType const *;
     using Entry     = BindIndexEntry<Domain>;
-    using Index     = UniqueVec<Entry, typename Entry::Hash, EqualTo>;
+    using Index     = ordered_set<Entry>;
 
     struct OffsetRange {
         bool next(Id_t &offset, Term const &repr, BindIndex &idx) {
@@ -236,8 +251,8 @@ private:
     void add(Id_t offset) {
         boundVals_.clear();
         for (auto &y : bound_) { boundVals_.emplace_back(*y); }
-        auto jt = data_.findPush(boundVals_, boundVals_).first;
-        jt->push(offset);
+        auto jt = data_.insert(boundVals_).first;
+        const_cast<Entry &>(*jt).push(offset);
     }
 
     UTerm const repr_;
@@ -248,6 +263,21 @@ private:
     Id_t        imported_ = 0;
     Id_t        importedDelayed_ = 0;
 };
+
+} // namespace Gringo
+
+namespace std {
+
+template <class Domain>
+struct hash<Gringo::BindIndex<Domain>> {
+    size_t operator()(Gringo::BindIndex<Domain> const &entry) const {
+        return entry.hash();
+    }
+};
+
+} // namespace std
+
+namespace Gringo {
 
 // }}}
 // {{{ declaration of FullIndex
@@ -370,6 +400,19 @@ private:
     Id_t        initialImport_;
 };
 
+} // namespace Gringo
+
+namespace std {
+
+template <class Domain>
+struct hash<Gringo::FullIndex<Domain>> {
+    size_t operator()(Gringo::FullIndex<Domain> const &entry) const { return entry.hash(); }
+};
+
+} // namespace std
+
+namespace Gringo {
+
 // }}}
 // {{{ declaration of Domain
 
@@ -402,15 +445,16 @@ template <class T>
 class AbstractDomain : public Domain {
 public:
     using Atom            = T;
-    using Atoms           = UniqueVec<Atom, HashKey<Symbol>, EqualToKey<Symbol>>;
+    // TODO: this should be refactored to use an ordered_map instead
+    using Atoms           = ordered_set<Atom, HashKey<Symbol, Cast<Symbol>, mix_value_hash<Symbol>>, EqualToKey<Symbol>>;
     using BindIndex       = Gringo::BindIndex<AbstractDomain>;
     using FullIndex       = Gringo::FullIndex<AbstractDomain>;
-    using BindIndices     = std::unordered_set<BindIndex, call_hash<BindIndex>>;
-    using FullIndices     = std::unordered_set<FullIndex, call_hash<FullIndex>>;
-    using AtomVec         = typename Atoms::Vec;
+    using BindIndices     = std::unordered_set<BindIndex, mix_value_hash<BindIndex>>;
+    using FullIndices     = std::unordered_set<FullIndex, mix_value_hash<FullIndex>>;
+    using AtomVec         = typename Atoms::values_container_type;
     using Iterator        = typename AtomVec::iterator;
     using ConstIterator   = typename AtomVec::const_iterator;
-    using SizeType        = typename Atoms::SizeType;
+    using SizeType        = uint32_t;
     using OffsetVec       = std::vector<SizeType>;
 
     AbstractDomain() = default;
@@ -445,7 +489,7 @@ public:
                 // Note: intended for non-recursive case only
                 auto it = atoms_.find(repr.eval(undefined, log));
                 if (!undefined && it != atoms_.end() && it->defined()) {
-                    offset = static_cast<SizeType>(it - begin());
+                    offset = static_cast<SizeType>(it - atoms_.begin());
                     return true;
                 }
                 break;
@@ -454,7 +498,7 @@ public:
                 auto it = atoms_.find(repr.eval(undefined, log));
                 if (!undefined && it != atoms_.end()) {
                     if (!it->fact()) {
-                        offset = static_cast<SizeType>(it - begin());
+                        offset = static_cast<SizeType>(it - atoms_.begin());
                         return true;
                     }
                 }
@@ -497,21 +541,21 @@ public:
             switch (type) {
                 case BinderType::OLD: {
                     if (it->generation() <  generation_) {
-                        offset = static_cast<SizeType>(it - begin());
+                        offset = static_cast<SizeType>(it - atoms_.begin());
                         return true;
                     }
                     break;
                 }
                 case BinderType::ALL: {
                     if (it->generation() <=  generation_) {
-                        offset = static_cast<SizeType>(it - begin());
+                        offset = static_cast<SizeType>(it - atoms_.begin());
                         return true;
                     }
                     break;
                 }
                 case BinderType::NEW: {
                     if (it->generation() == generation_) {
-                        offset = static_cast<SizeType>(it - begin());
+                        offset = static_cast<SizeType>(it - atoms_.begin());
                         return true;
                     }
                     break;
@@ -524,7 +568,7 @@ public:
 
     // Loops over all atoms that might have to be imported into an index.
     // Already seen atoms are indicated with the two offset parameters.
-    // Returns true if a maching atom was falls.
+    // Returns true if a maching atom was false.
     // Furthermore, accepts a callback f that receives the offset of a matching atom.
     // If the callback returns false the search for matching atoms is stopped and the function returns true.
     template <typename F>
@@ -537,7 +581,9 @@ public:
                     f(imported);
                 }
             }
-            else { it->markDelayed(); }
+            else {
+                const_cast<Atom&>(*it).markDelayed();
+            }
         }
         for (auto it(delayed_.begin() + importedDelayed), ie(delayed_.end()); it < ie; ++it) {
             auto &atom = operator[](*it);
@@ -576,27 +622,39 @@ public:
         fullIndices_.clear();
     }
 
+    std::vector<Atom> &container() {
+        return const_cast<AtomVec&>(atoms_.values_container());
+    }
+    std::vector<Atom> const &container() const {
+        return atoms_.values_container();
+    }
+
+
     // Returns the current generation.
     // The generation corresponds to the number of grounding iterations
     // the domain was involved in.
     SizeType generation() const { return generation_; }
     // Resevers an atom for a recursive negative literal.
     // This does not set a generation.
-    Iterator reserve(Symbol x) { return atoms_.findPush(x, x).first; }
+    Iterator reserve(Symbol x) {
+        return convert_(atoms_.insert(x).first);
+    }
     // Defines (adds) an atom setting its generation.
     std::pair<Iterator, bool> define(Symbol value) {
-        auto ret = atoms_.findPush(value, value);
+        auto ret = atoms_.insert(value);
+        auto offset = numeric_cast<typename OffsetVec::value_type>(ret.first - atoms_.begin());
+        auto it = begin() + offset;
         if (ret.second) {
-            ret.first->setGeneration(generation() + 1);
+            it->setGeneration(generation() + 1);
         }
         else if (!ret.first->defined()) {
             ret.second = true;
-            ret.first->setGeneration(generation() + 1);
+            it->setGeneration(generation() + 1);
             if (ret.first->delayed()) {
-                delayed_.emplace_back(numeric_cast<typename OffsetVec::value_type>(ret.first - begin()));
+                delayed_.emplace_back(offset);
             }
         }
-        return ret;
+        return {it, ret.second};
     }
     void define(SizeType offset) {
         auto &atm = operator[](offset);
@@ -631,16 +689,32 @@ public:
     bool isEnqueued() const override { return enqueued_ > 0; }
     void nextGeneration() override { ++generation_; }
     OffsetVec &delayed() { return delayed_; }
-    Iterator find(Symbol x) { return atoms_.find(x); }
+    Iterator find(Symbol x) {
+        return convert_(atoms_.find(x));
+    }
     ConstIterator find(Symbol x) const { return atoms_.find(x); }
     Id_t size() const { return atoms_.size(); }
-    Iterator begin() { return atoms_.begin(); }
-    Iterator end() { return atoms_.end(); }
-    ConstIterator begin() const { return atoms_.begin(); }
-    ConstIterator end() const { return atoms_.end(); }
-    Atom &operator[](Id_t x) { return atoms_[x]; }
-    void setDomainOffset(Id_t offset) override { domainOffset_ = offset; }
-    Id_t domainOffset() const override { return domainOffset_; }
+    Iterator begin() {
+        return container().begin();
+    }
+    Iterator end() {
+        return container().end();
+    }
+    ConstIterator begin() const {
+        return container().begin();
+    }
+    ConstIterator end() const {
+        return container().end();
+    }
+    Atom &operator[](Id_t x) {
+        return const_cast<Atom &>(*atoms_.nth(x));
+    }
+    void setDomainOffset(Id_t offset) override {
+        domainOffset_ = offset;
+    }
+    Id_t domainOffset() const override {
+        return domainOffset_;
+    }
 
 protected:
     // Assumes that cleanup sets the generation back to 1 and removes delayed
@@ -649,18 +723,35 @@ protected:
     template <class F>
     void cleanup_(F f) {
         reset();
-        atoms_.erase(f);
+        Id_t offset = 0;
+        Id_t revOffset = atoms_.size();
+        Id_t oldOffset = 0;
+        for (auto it = atoms_.begin(); it != atoms_.end();) {
+            assert(it - atoms_.begin() == offset);
+            if (f(const_cast<Atom&>(*it), oldOffset, offset)) {
+                it = atoms_.unordered_erase(it);
+                --revOffset;
+                oldOffset = revOffset;
+            }
+            else {
+                ++it;
+                ++offset;
+                oldOffset = offset;
+            }
+        }
         delayed_.clear();
         generation_ = 1;
         initOffset_ = atoms_.size();
         initDelayedOffset_ = 0;
     }
 
-    void hide_(Iterator it) {
-        atoms_.hide(it);
-    }
-
 private:
+    ConstIterator convert_(typename Atoms::const_iterator it) {
+        return begin() + (it - atoms_.begin());
+    }
+    Iterator convert_(typename Atoms::iterator it) {
+        return begin() + (it - atoms_.begin());
+    }
 
     BindIndices indices_;
     FullIndices fullIndices_;

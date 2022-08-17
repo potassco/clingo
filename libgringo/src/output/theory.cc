@@ -29,145 +29,11 @@
 #include "gringo/output/literals.hh"
 #include "potassco/basic_types.h"
 #include <cstring>
+#include <tuple>
 
 namespace Gringo { namespace Output {
 
 namespace {
-
-// {{{1 definition of comparison operators
-
-bool termEqual(Potassco::TheoryTerm const &term, int number) {
-    return term.type() == Potassco::Theory_t::Number &&
-           term.number() == number;
-}
-
-bool termEqual(Potassco::TheoryTerm const &term, char const *symbol) {
-    return term.type() == Potassco::Theory_t::Symbol &&
-           strcmp(term.symbol(), symbol) == 0;
-}
-
-bool termEqual(Potassco::TheoryTerm const &term, Potassco::Tuple_t type, Potassco::IdSpan const &terms) {
-    return term.type() == Potassco::Theory_t::Compound &&
-           term.isTuple() &&
-           term.tuple() == type &&
-           term.size() == terms.size &&
-           std::equal(term.begin(), term.end(), Potassco::begin(terms));
-}
-
-bool termEqual(Potassco::TheoryTerm const &term, Potassco::Id_t name, Potassco::IdSpan const &terms) {
-    return term.type() == Potassco::Theory_t::Compound &&
-           term.isFunction() &&
-           term.function() == name &&
-           term.size() == terms.size &&
-           std::equal(term.begin(), term.end(), Potassco::begin(terms));
-}
-
-bool elementEqual(Potassco::TheoryElement const &a, LitVec const &condA, Potassco::IdSpan const &tuple, LitVec const &condB) {
-    return is_value_equal_to(condA, condB) &&
-           a.size() == tuple.size &&
-           std::equal(a.begin(), a.end(), Potassco::begin(tuple));
-}
-
-bool atomEqual(Potassco::TheoryAtom const &a, Potassco::Id_t termId, Potassco::IdSpan const &elems) {
-    return a.guard() == nullptr &&
-           a.term() == termId &&
-           a.size() == elems.size &&
-           std::equal(a.begin(), a.end(), Potassco::begin(elems));
-}
-
-bool atomEqual(Potassco::TheoryAtom const &a, Potassco::Id_t termId, Potassco::IdSpan const &elems, Potassco::Id_t guard, Potassco::Id_t rhs) {
-    return a.guard() != nullptr &&
-           *a.guard() == guard &&
-           *a.rhs() == rhs &&
-           a.term() == termId &&
-           a.size() == elems.size &&
-           std::equal(a.begin(), a.end(), Potassco::begin(elems));
-}
-
-bool atomEqual(Potassco::TheoryAtom const &a, Potassco::TheoryAtom const &b) {
-    return b.guard() != nullptr
-        ? atomEqual(a, b.term(), b.elements(), *b.guard(), *b.rhs())
-        : atomEqual(a, b.term(), b.elements());
-}
-
-// }}}1
-// {{{1 definition of hash functions
-
-size_t termHash(int number) {
-    return Gringo::get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Number), number);
-}
-
-size_t termHash(char const *symbol) {
-    return Gringo::get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Symbol), strhash(symbol));
-}
-
-size_t termHash(Potassco::Id_t name, Potassco::IdSpan const &terms) {
-    size_t seed = Gringo::get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Compound), name);
-    for (auto const &t : terms) {
-        Gringo::hash_combine(seed, t);
-    }
-    return seed;
-}
-
-size_t termHash(Potassco::Tuple_t type, Potassco::IdSpan const &terms) {
-    size_t seed = Gringo::get_value_hash(static_cast<unsigned>(Potassco::Theory_t::Compound), static_cast<unsigned>(type));
-    for (auto const &t : terms) {
-        Gringo::hash_combine(seed, t);
-    }
-    return seed;
-}
-
-size_t termHash(Potassco::TheoryTerm const &term) {
-    switch (term.type()) {
-        case Potassco::Theory_t::Number: {
-            return termHash(term.number());
-        }
-        case Potassco::Theory_t::Symbol: {
-            return termHash(term.symbol());
-        }
-        case Potassco::Theory_t::Compound: {
-            return term.isTuple() ? termHash(term.tuple(), term.terms()) : termHash(term.function(), term.terms());
-        }
-    }
-    assert(false);
-    return 0;
-}
-
-size_t elementHash(Potassco::IdSpan const &tuple, LitVec const &cond) {
-    size_t seed = get_value_hash(cond);
-    for (auto const &t : tuple) {
-        Gringo::hash_combine(seed, t);
-    }
-    return seed;
-}
-
-size_t elementHash(Potassco::TheoryElement const &elem, LitVec const &cond) {
-    return elementHash(elem.terms(), cond);
-}
-
-size_t atomHash(Potassco::Id_t termId, Potassco::IdSpan const &elems) {
-    size_t seed = 0;
-    Gringo::hash_combine(seed, termId);
-    for (auto const &t : elems) {
-        Gringo::hash_combine(seed, t);
-    }
-    return seed;
-}
-
-size_t atomHash(Potassco::Id_t termId, Potassco::IdSpan const &elems, Potassco::Id_t guard, Potassco::Id_t rhs) {
-    size_t seed = atomHash(termId, elems);
-    Gringo::hash_combine(seed, guard);
-    Gringo::hash_combine(seed, rhs);
-    return seed;
-}
-
-size_t atomHash(Potassco::TheoryAtom const &atom) {
-    return atom.guard() != nullptr
-        ? atomHash(atom.term(), atom.elements(), *atom.guard(), *atom.rhs())
-        : atomHash(atom.term(), atom.elements());
-}
-
-// }}}1
 
 bool addSeen(std::vector<bool>& vec, Potassco::Id_t id) {
     if (vec.size() <= id) { vec.resize(id + 1, false); }
@@ -175,8 +41,6 @@ bool addSeen(std::vector<bool>& vec, Potassco::Id_t id) {
     if (!seen) { vec[id] = true; }
     return !seen;
 }
-
-
 
 } // namespace
 
@@ -587,6 +451,9 @@ UTheoryTerm TermTheoryTerm::initTheory(TheoryParser &p, Logger &log) {
 
 TheoryData::TheoryData(Potassco::TheoryData &data)
 : data_(data)
+, terms_{0, TermHash{data_}, TermEqual{data_}}
+, elems_{0, ElementHash{*this}, ElementEqual{*this}}
+, atoms_{0, AtomHash{data_}, AtomEqual{data_}}
 , out_(nullptr)
 , aSeen_{0}
 { }
@@ -638,16 +505,14 @@ void TheoryData::output(TheoryOutput &out) {
 
 template <typename ...Args>
 Potassco::Id_t TheoryData::addTerm_(Args ...args) {
-    auto size = terms_.size();
-    auto ret = terms_.insert([&](Potassco::Id_t const &a) {
-        assert(a != std::numeric_limits<Potassco::Id_t>::max());
-        return a == size ? termHash(args...) : termHash(data_.getTerm(a));
-    }, [&](Potassco::Id_t const &a, Potassco::Id_t const &b) {
-        assert(a < size);
-        return b == size ? termEqual(data_.getTerm(a), args...) : a == b;
-    }, size);
-    if (ret.second) { data_.addTerm(size, args...); }
-    return ret.first;
+    auto it = terms_.find(std::make_tuple(args...));
+    if (it != terms_.end()) {
+        return *it;
+    }
+    auto size = numeric_cast<Id_t>(terms_.size());
+    data_.addTerm(size, args...);
+    terms_.insert(size);
+    return size;
 }
 
 Potassco::Id_t TheoryData::addTerm(int number) {
@@ -729,41 +594,27 @@ Potassco::Id_t TheoryData::addElem(Potassco::IdSpan const &tuple, Potassco::LitS
 }
 
 Potassco::Id_t TheoryData::addElem(Potassco::IdSpan const &tuple, LitVec cond) {
-    assert(conditions_.size() == elems_.size());
-    auto size = elems_.size();
-    auto ret = elems_.insert([&](Potassco::Id_t const &a) {
-        assert(a != std::numeric_limits<Potassco::Id_t>::max());
-        return a == size ? elementHash(tuple, cond) : elementHash(data_.getElement(a), conditions_[a]);
-    }, [&](Potassco::Id_t const &a, Potassco::Id_t const &b) {
-        assert(a < size);
-        return b == size ? elementEqual(data_.getElement(a), conditions_[a], tuple, cond) : a == b;
-    }, numeric_cast<unsigned>(conditions_.size()));
-    if (ret.second) {
-        data_.addElement(size, tuple, cond.empty() ? 0 : Potassco::TheoryData::COND_DEFERRED);
-        conditions_.emplace_back(std::move(cond));
+    auto it = elems_.find(std::make_pair(tuple, make_span(cond)));
+    if (it != elems_.end()) {
+        return *it;
     }
-    return ret.first;
+    auto size = numeric_cast<Id_t>(elems_.size());
+    data_.addElement(size, tuple, cond.empty() ? 0 : Potassco::TheoryData::COND_DEFERRED);
+    conditions_.emplace_back(std::move(cond));
+    elems_.insert(size);
+    return size;
 }
 
 template <typename ...Args>
 std::pair<Potassco::TheoryAtom const&, bool> TheoryData::addAtom_(std::function<Potassco::Id_t()> const &newAtom, Args ...args) {
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
-    auto **ret = reinterpret_cast<Potassco::TheoryAtom const **>(atoms_.find([&]() {
-        return atomHash(args...);
-    }, [&](uintptr_t a) {
-        return atomEqual(*reinterpret_cast<Potassco::TheoryAtom const *>(a), args...);
-    }));
-    if (!ret) {
-        auto &atom = data_.addAtom(newAtom(), args...);
-        atoms_.insert([&](uintptr_t a) {
-            return atomHash(*reinterpret_cast<Potassco::TheoryAtom const *>(a));
-        }, [&](uintptr_t a, uintptr_t b) {
-            return atomEqual(*reinterpret_cast<Potassco::TheoryAtom const *>(a), *reinterpret_cast<Potassco::TheoryAtom const *>(b));
-        }, reinterpret_cast<uintptr_t>(&atom));
-        return {atom, true};
+    auto it = atoms_.find(std::make_tuple(args...));
+    if (it != atoms_.end()) {
+        return {**(data_.begin() + *it), false};
     }
-    return {**ret, false};
-    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
+    auto size = atoms_.size();
+    auto &atom = data_.addAtom(newAtom(), args...);
+    atoms_.insert(size);
+    return {atom, true};
 }
 
 std::pair<Potassco::TheoryAtom const &, bool> TheoryData::addAtom(std::function<Potassco::Id_t()> const &newAtom, Potassco::Id_t termId, Potassco::IdSpan const &elems) {
@@ -838,13 +689,8 @@ Potassco::TheoryData const &TheoryData::data() const {
     return data_;
 }
 
-LitVec &TheoryData::getCondition(Potassco::Id_t elemId) {
-    assert(elemId < conditions_.size());
-    return conditions_[elemId];
-}
-
 LitVec const &TheoryData::getCondition(Potassco::Id_t elemId) const {
-    assert(elemId < conditions_.size());
+    assert(elemId < elems_.size());
     return conditions_[elemId];
 }
 
@@ -856,19 +702,14 @@ void TheoryData::reset(bool resetData) {
     aSeen_ = 0;
     tSeen_.clear();
     eSeen_.clear();
-    TIdSet().swap(terms_);
-    TIdSet().swap(elems_);
-    AtomSet().swap(atoms_);
+    TermSet(0, TermHash{data_}, TermEqual{data_}).swap(terms_);
+    ElementSet(0, ElementHash{*this}, ElementEqual{*this}).swap(elems_);
+    AtomSet(0, AtomHash{data_}, AtomEqual{data_}).swap(atoms_);
     ConditionVec().swap(conditions_);
     if (resetData) {
         data_.reset();
     }
 }
-
-bool TheoryData::hasConditions() const {
-    return !conditions_.empty();
-}
-
 
 // }}}1
 

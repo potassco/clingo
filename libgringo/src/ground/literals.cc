@@ -493,7 +493,10 @@ std::pair<Output::LiteralId, bool> PredicateLiteral::toOutput(Logger &log) {
             return {Output::LiteralId{naf_, Output::AtomType::Predicate, offset_, domain_.domainOffset()}, atom.fact()};
         }
         case NAF::NOT: {
-            return {Output::LiteralId{naf_, Output::AtomType::Predicate, offset_, domain_.domainOffset()}, false};
+            if (atom.defined() || type_ == OccurrenceType::UNSTRATIFIED) {
+                return {Output::LiteralId{naf_, Output::AtomType::Predicate, offset_, domain_.domainOffset()}, false};
+            }
+            return {Output::LiteralId(), true};
         }
     }
     assert(false);

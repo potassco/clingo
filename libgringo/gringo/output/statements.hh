@@ -216,27 +216,9 @@ enum class ShowType : unsigned {
 
 class Translator {
 private:
-    struct OutputEntry {
-        OutputEntry(Symbol term, LiteralId cond)
-        : term(term)
-        , cond(cond) { }
-        Symbol term;
-        LiteralId cond;
-        operator const Symbol&() const { return term; }
-    };
-    struct TodoOutputEntry {
-        TodoOutputEntry(Symbol term, Formula cond)
-        : term(term)
-        , cond(std::move(cond)) { }
-        operator const Symbol&() const { return term; }
-        Symbol term;
-        Formula cond;
-    };
     struct OutputTable {
-        // NOLINTNEXTLINE(modernize-use-transparent-functors)
-        using Table = UniqueVec<OutputEntry, std::hash<Symbol>, std::equal_to<Symbol>>;
-        // NOLINTNEXTLINE(modernize-use-transparent-functors)
-        using Todo = UniqueVec<TodoOutputEntry, std::hash<Symbol>, std::equal_to<Symbol>>;
+        using Table = ordered_map<Symbol, LiteralId>;
+        using Todo = ordered_map<Symbol, Formula>;
         Table table;
         Todo todo;
     };
@@ -244,7 +226,7 @@ public:
     using TupleLit        = std::pair<TupleId, LiteralId>;
     using MinimizeList    = std::vector<TupleLit>;
     using ProjectionVec   = std::vector<std::pair<Potassco::Id_t, Potassco::Id_t>>;
-    using TupleLitMap     = UniqueVec<TupleLit, HashFirst<TupleId>, EqualToFirst<TupleId>>;
+    using TupleLitMap     = ordered_map<TupleId, LiteralId>;
 
     Translator(UAbstractOutput out);
 
@@ -266,8 +248,8 @@ public:
     }
 
 private:
-    LitVec updateCond(DomainData &data, OutputTable::Table &table, OutputTable::Todo::ValueType &todo);
-    void showAtom(DomainData &data, PredDomMap::Iterator it);
+    LitVec updateCond(DomainData &data, OutputTable::Todo::value_type const &todo);
+    void showAtom(DomainData &data, PredDomMap::iterator it);
     void showValue(DomainData &data, Symbol value, LitVec const &cond);
     void showValue(DomainData &data, Bound const &bound, LitVec const &cond);
     void translateMinimize(DomainData &data);
@@ -276,9 +258,8 @@ private:
     OutputTable termOutput_;
     MinimizeList minimize_;   // stores minimize constraint for current step
     TupleLitMap tuples_;      // to incrementally extend minimize constraint
-    HashSet<uint64_t> seenSigs_;
     UAbstractOutput out_;
-    UniqueVec<Symbol> nodeUids_;
+    hash_map<Symbol, uint32_t> nodeUids_;
     struct ClauseKey {
         uint64_t offset : 32;
         uint64_t size : 30;
@@ -290,7 +271,7 @@ private:
             return static_cast<uint64_t>(offset) << 32 | size << 2 | conjunctive << 1 | equivalence;
         }
         size_t hash() const {
-            return std::hash<uint64_t>()(lower());
+            return hash_mix(std::hash<uint64_t>()(lower()));
         }
         bool operator==(ClauseKey const &other) const {
             return lower() == other.lower();
@@ -300,7 +281,7 @@ private:
         static constexpr ClauseKey open = { 0xffffffff, 0x3fffffff, 1, 1, std::numeric_limits<uint64_t>::max() };
         static constexpr ClauseKey deleted = { 0xffffffff, 0x3fffffff, 1, 1, std::numeric_limits<uint64_t>::max() - 1 };
     };
-    HashSet<ClauseKey, ClauseKeyLiterals> clauses_;
+    hash_set<ClauseKey, CallHash> clauses_;
 };
 
 // {{{1 declaration of Minimize

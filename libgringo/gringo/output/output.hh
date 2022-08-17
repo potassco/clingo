@@ -82,6 +82,7 @@ public:
     std::pair<PredicateDomain::Iterator, PredicateDomain*> find(Symbol val);
     std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> find(Symbol val) const;
     PredDomMap &predDoms() { return data.predDoms(); }
+    PredicateDomain &predDom(uint32_t idx) { return **data.predDoms().nth(idx); }
     PredDomMap const &predDoms() const { return data.predDoms(); }
     Rule &tempRule(bool choice) { return tempRule_.reset(choice); }
     SymVec &tempVals() { tempVals_.clear(); return tempVals_; }

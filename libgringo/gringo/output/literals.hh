@@ -25,113 +25,19 @@
 #ifndef GRINGO_OUTPUT_LITERALS_HH
 #define GRINGO_OUTPUT_LITERALS_HH
 
+#include <gringo/hash_set.hh>
+#include <gringo/output/types.hh>
+#include <gringo/symbol.hh>
+#include <potassco/basic_types.h>
 #include <gringo/terms.hh>
 #include <gringo/domain.hh>
 #include <gringo/intervals.hh>
 #include <gringo/output/aggregates.hh>
 #include <gringo/output/theory.hh>
 #include <gringo/backend.hh>
+#include <stdexcept>
 
 namespace Gringo { namespace Output {
-
-// {{{1 declaration of PredicateAtom
-
-struct PredicateAtom {
-public:
-    // {{{2 Atom interface
-
-    // Constructs a valid atom without uid and generation.
-    PredicateAtom(Symbol value)
-    : value_(value)
-    , uid_(0)
-    , fact_(false)
-    , generation_(0)
-    , external_(false)
-    , delayed_(false) { }
-
-    // Functions that have to be implemented by all atoms.
-
-    // Atoms can be marked as facts.
-    // Atoms that are not monotone (like some aggregate atoms) are not considered
-    // monotone in the recursive case because their fact status can still change
-    // during grounding
-    bool fact() const {
-        return fact_;
-    }
-    // Defined and undefined atoms are distinguished.
-    // Only recursion through negative literals can lead to undefined atoms.
-    // Such atoms must not be imported in indices.
-    // They can be defined later though, in which case they have to be imported.
-    // Example: a :- not b.  b :- not a.
-    bool defined() const {
-        return generation_ > 0;
-    }
-    // The generation of the atom. This value is used by indices to determine
-    // what is new and old.
-    Id_t generation() const {
-        assert(defined());
-        return generation_ - 1;
-    }
-    void setGeneration(unsigned x) {
-        generation_ = x + 1;
-    }
-    void markDelayed() {
-        delayed_ = 1;
-    }
-    bool delayed() const {
-        return delayed_;
-    }
-    // Returns the value associated with the atom.
-    operator Symbol const &() const {
-        return value_;
-    }
-    // }}}2
-
-    // The functions below are not necessary for domain elements.
-    // This are additional functions in symbolic atoms.
-
-    void setFact(bool x) {
-        fact_ = x;
-    }
-    // These functions are used to handle external atoms.
-    // The sole reason for this function is to workaround a problem with libclasp,
-    // which might find equivalences between external and non-external atoms.
-    // In such a case it is not possible to determine which atom is the external
-    // one using the clasp API. Note that the external status is never unset;
-    // only the solver knows about this.
-    bool isExternal() const {
-        return external_;
-    }
-    void setExternal(bool x) {
-        external_ = x;
-    }
-    // The uid of an atom is used in various outputs.
-    bool hasUid() const {
-        return uid_ > 0;
-    }
-    void setUid(unsigned x) {
-        assert(!hasUid());
-        uid_ = x + 1;
-    }
-    void resetUid(unsigned x) {
-        assert(hasUid());
-        uid_ = x + 1;
-    }
-    Id_t uid() const {
-        assert(hasUid());
-        return uid_ - 1;
-    }
-    void unmarkDelayed() {
-        delayed_ = 0;
-    }
-private:
-    Symbol value_;
-    uint32_t uid_ : 31;
-    uint32_t fact_ : 1;
-    uint32_t generation_ : 30;
-    uint32_t external_ : 1;
-    uint32_t delayed_ : 1;
-};
 
 // {{{1 declaration of TheoryAtom
 
@@ -257,7 +163,7 @@ bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc, Lo
 int toInt(IntervalSet<Symbol>::LBound const &x);
 int toInt(IntervalSet<Symbol>::RBound const &x);
 Symbol getWeight(AggregateFunction fun, SymVec const &x);
-Symbol getWeight(AggregateFunction fun, IteratorRange<SymVec::const_iterator> rng);
+Symbol getWeight(AggregateFunction fun, Potassco::Span<Symbol> rng);
 
 // {{{1 declaration of AggregateAtomRange
 
@@ -321,8 +227,86 @@ struct AggregateAtomRange {
 // {{{1 declaration of BodyAggregateAtom
 
 class BodyAggregateElements_ {
-    class TupleOffset;
-    class ClauseOffset;
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access,cppcoreguidelines-pro-type-member-init)
+    class TupleOffset {
+    public:
+        TupleOffset(Id_t offset, Id_t size, bool fact)
+        : offset_{offset}
+        , size_{size}
+        , fact_{fact ? 1U : 0U} {
+            if (size >= 0x80000000) {
+                throw std::range_error("size limit exceeded");
+            }
+        }
+
+        bool fact() const {
+            return fact_ > 0;
+        }
+
+        Id_t size() const {
+            return size_;
+        }
+
+        Id_t offset() const {
+            return offset_;
+        }
+
+        uint64_t repr() const {
+            return static_cast<uint64_t>(offset_) << 32U | size_;
+        }
+
+        size_t hash() const {
+            return hash_mix(get_value_hash(repr()));
+        }
+
+        friend bool operator==(TupleOffset const &a, TupleOffset const &b) {
+            return a.repr() == b.repr();
+        }
+
+    private:
+        uint64_t offset_: 32;
+        uint64_t size_: 31;
+        uint64_t fact_: 1;
+    };
+
+    class CompressedOffset {
+    public:
+        CompressedOffset(Id_t offset, Id_t size)
+        : offset_{offset}
+        , size_{size < 3U ? size : 3U} {
+            if (offset >= 0x40000000) {
+                throw std::range_error("offset size limit exceeded");
+            }
+        }
+
+        CompressedOffset(uint32_t repr)
+        : offset_{repr >> 2U}
+        , size_{repr & 3U} { }
+
+        bool has_size() const {
+            return size_ < 3U;
+        }
+
+        Id_t size() const {
+            return size_;
+        }
+
+        Id_t offset() const {
+            return offset_;
+        }
+
+        uint32_t repr() const {
+            return (offset_ << 2U) | size_;
+        }
+
+        friend bool operator==(CompressedOffset const &a, CompressedOffset const &b) {
+            return a.repr() == b.repr();
+        }
+    private:
+        uint32_t offset_: 30;
+        uint32_t size_: 2;
+    };
+    // NOLINTEND(cppcoreguidelines-pro-type-union-access,cppcoreguidelines-pro-type-member-init)
 
 public:
     void accumulate(DomainData &data, TupleId tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove);
@@ -330,11 +314,10 @@ public:
     BodyAggregateElements elems() const;
 
 private:
-    std::pair<uint64_t &, bool> insertTuple(uint64_t to);
     template <class F>
-    void visitClause(F f);
+    void visitClause(F f) const;
 
-    HashSet<uint64_t> tuples_;
+    hash_set<TupleOffset, CallHash> tuples_;
     std::vector<uint32_t> conditions_;
 };
 
@@ -412,15 +395,13 @@ private:
 class AssignmentAggregateData {
 public:
     using Values = std::vector<Symbol>;
-    AssignmentAggregateData(Symbol value, AggregateFunction fun)
-    : value_(value)
-    , fun_(fun) { values_.emplace_back(getNeutral(fun)); }
+    AssignmentAggregateData(AggregateFunction fun)
+    : fun_(fun) { values_.emplace_back(getNeutral(fun)); }
     AssignmentAggregateData(AssignmentAggregateData &&) = default;
     AssignmentAggregateData(AssignmentAggregateData const &) = delete;
     AssignmentAggregateData &operator=(AssignmentAggregateData &&) = default;
     AssignmentAggregateData &operator=(AssignmentAggregateData const &) = delete;
     ~AssignmentAggregateData() noexcept = default;
-    operator Symbol const &() const { return value_; }
     void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &cond, Logger &log);
     BodyAggregateElements const &elems() const { return elems_; }
     void setEnqueued(bool enqueued) { enqueued_ = enqueued; }
@@ -431,7 +412,6 @@ public:
     Interval range() const;
 
 private:
-    Symbol value_;
     BodyAggregateElements elems_;
     Values values_;
     AggregateFunction fun_;
@@ -489,15 +469,6 @@ private:
 
 class ConjunctionElement {
 public:
-    ConjunctionElement(Symbol value)
-    : value_(value) { }
-    ConjunctionElement(ConjunctionElement &&) = default;
-    ConjunctionElement(ConjunctionElement const &) = default;
-    ConjunctionElement &operator=(ConjunctionElement &&) = default;
-    ConjunctionElement &operator=(ConjunctionElement const &) = default;
-    ~ConjunctionElement() noexcept = default;
-
-    operator Symbol const & () const { return value_; }
     bool needsSemicolon() const;
     bool isSimple(DomainData &data) const;
     void print(PrintPlain out) const;
@@ -507,7 +478,6 @@ public:
     Formula const &bodies() const { return bodies_; }
 
 private:
-    Symbol value_;
     Formula heads_;
     Formula bodies_;
 };
@@ -520,7 +490,7 @@ inline PrintPlain &operator<<(PrintPlain &out, ConjunctionElement const &x) {
 class ConjunctionAtom {
 public:
     // NOLINTNEXTLINE(modernize-use-transparent-functors)
-    using Elements = UniqueVec<ConjunctionElement, std::hash<Symbol>, std::equal_to<Symbol>>;
+    using Elements = ordered_map<Symbol, ConjunctionElement>;
     ConjunctionAtom(ConjunctionAtom &&) = default;
     ConjunctionAtom(ConjunctionAtom const &) = delete;
     ConjunctionAtom &operator=(ConjunctionAtom &&) = default;
@@ -576,15 +546,6 @@ private:
 
 class DisjunctionElement {
 public:
-    DisjunctionElement(Symbol value)
-    : value_(value) { }
-    DisjunctionElement(DisjunctionElement &&) = default;
-    DisjunctionElement(DisjunctionElement const &) = default;
-    DisjunctionElement &operator=(DisjunctionElement &&) = default;
-    DisjunctionElement &operator=(DisjunctionElement const &) = default;
-    ~DisjunctionElement() noexcept = default;
-
-    operator Symbol const & () const { return value_; }
     void print(PrintPlain out) const;
     void accumulateCond(DomainData &data, LitVec &cond, Id_t &fact);
     void accumulateHead(DomainData &data, LitVec &cond, Id_t &fact);
@@ -596,7 +557,6 @@ public:
     Formula const &bodies() const { return bodies_; }
 
 private:
-    Symbol value_;
     Formula heads_;
     Formula bodies_;
 };
@@ -609,7 +569,7 @@ inline PrintPlain &operator<<(PrintPlain &out, DisjunctionElement const &x) {
 class DisjunctionAtom {
 public:
     // NOLINTNEXTLINE(modernize-use-transparent-functors)
-    using Elements = UniqueVec<DisjunctionElement, std::hash<Symbol>, std::equal_to<Symbol>>;
+    using Elements = ordered_map<Symbol, DisjunctionElement>;
     DisjunctionAtom(DisjunctionAtom &&) = default;
     DisjunctionAtom(DisjunctionAtom const &) = delete;
     DisjunctionAtom &operator=(DisjunctionAtom &&) = default;
@@ -730,94 +690,6 @@ private:
 
 // }}}1
 
-// {{{1 declaration of PredicateDomain
-
-class PredicateDomain : public AbstractDomain<PredicateAtom> {
-public:
-    explicit PredicateDomain(Sig sig)
-    : sig_(sig) { }
-
-    using AbstractDomain<PredicateAtom>::define;
-    // Defines (adds) an atom setting its generation and fact status.
-    // Returns a tuple indicating its postion, wheather it was inserted, and wheather it was a fact before.
-    std::tuple<Iterator, bool, bool> define(Symbol x, bool fact) {
-        auto ret = define(x);
-        bool wasfact = !ret.second && ret.first->fact();
-        if (fact) { ret.first->setFact(true); }
-        return std::forward_as_tuple(ret.first, ret.second, wasfact);
-    }
-
-    // This offset divides elements added at the current and previous incremental steps.
-    // It is used to only output newly inserted atoms, for projection, and classical negation.
-    SizeType incOffset() const {
-        return incOffset_;
-    }
-
-    void incNext() {
-        // It is necessary to hide undefined literals because they should not interfere
-        // with future definitions of the same atom.
-        // In fact, they could be completely removed from the domain.
-        // This cannot be done here but the cleanup function of the output,
-        // will remove such atoms.
-        for (auto it = begin() + incOffset(), ie = end(); it != ie; ++it) {
-            if (!it->defined()) {
-                hide_(it);
-            }
-        }
-        incOffset_ = size();
-    }
-
-    // This offset keeps track of atoms already added to the output table.
-    // TODO: maybe this can be merged with incNext.
-    SizeType showOffset() const {
-        return showOffset_;
-    }
-
-    void showNext() {
-        showOffset_ = size();
-    }
-
-    void clear() {
-        AbstractDomain<PredicateAtom>::clear();
-        incOffset_  = 0;
-        showOffset_ = 0;
-    }
-
-    Sig const &sig() const {
-        return sig_;
-    }
-
-    operator Sig const &() const {
-        return sig_;
-    }
-
-    std::pair<Id_t, Id_t> cleanup(AssignmentLookup assignment, Mapping &map);
-private:
-    Sig sig_;
-    SizeType incOffset_ = 0;
-    SizeType showOffset_ = 0;
-};
-using UPredDom = std::unique_ptr<PredicateDomain>;
-
-struct UPredDomHash : std::hash<Sig> {
-    using std::hash<Sig>::operator();
-    size_t operator()(UPredDom const &dom) const {
-        return std::hash<Sig>::operator()(*dom);
-    }
-};
-
-// NOLINTNEXTLINE(modernize-use-transparent-functors)
-struct UPredDomEqualTo : private std::equal_to<Sig> {
-    bool operator()(UPredDom const &a, Sig const &b) const {
-        return std::equal_to<Sig>::operator()(*a, b);
-    }
-    bool operator()(UPredDom const &a, UPredDom const &b) const {
-        return std::equal_to<Sig>::operator()(*a, *b);
-    }
-};
-
-using PredDomMap = UniqueVec<std::unique_ptr<PredicateDomain>, UPredDomHash, UPredDomEqualTo>;
-
 // {{{1 declaration of TheoryDomain
 
 class TheoryDomain : public AbstractDomain<TheoryAtom> {
@@ -836,14 +708,14 @@ private:
 
 class AssignmentAggregateDomain : public AbstractDomain<AssignmentAggregateAtom> {
 private:
-    using Data = UniqueVec<AssignmentAggregateData, HashKey<Symbol>, EqualToKey<Symbol>>;
+    using Data = ordered_map<Symbol, AssignmentAggregateData>;
 public:
     Id_t data(Symbol value, AggregateFunction fun) {
-        auto ret = data_.findPush(value, value, fun);
-        return data_.offset(ret.first);
+        auto ret = data_.try_emplace(value, fun);
+        return numeric_cast<Id_t>(ret.first - data_.begin());
     }
-    AssignmentAggregateData &data(Id_t offset) { return data_[offset]; }
-    AssignmentAggregateData const &data(Id_t offset) const { return data_[offset]; }
+    Data::iterator data(Id_t offset) { return data_.nth(offset); }
+    Data::const_iterator data(Id_t offset) const { return data_.nth(offset); }
 private:
     Data data_;
 };
@@ -1100,9 +972,9 @@ enum class TheoryTermType : int {
 };
 
 class DomainData {
-    using Tuples = UniqueVecVec<2, Symbol>;
-    using Clauses = UniqueVecVec<2, LiteralId>;
-    using Formulas = UniqueVecVec<2, std::pair<Id_t,Id_t>, value_hash<std::pair<Id_t,Id_t>>>;
+    using Tuples = array_set<Symbol>;
+    using Clauses = array_set<LiteralId>;
+    using Formulas = array_set<std::pair<Id_t,Id_t>, mix_value_hash<std::pair<Id_t,Id_t>>>;
 public:
     DomainData(Potassco::TheoryData &theory)
     : theory_(theory) { }
@@ -1115,15 +987,15 @@ public:
     PredicateDomain &add(Sig const &sig) {
         auto it(predDomains_.find(sig));
         if (it == predDomains_.end()) {
-            it = predDomains_.push(gringo_make_unique<PredicateDomain>(sig)).first;
-            it->get()->setDomainOffset(predDomains_.offset(it));
+            it = predDomains_.insert(gringo_make_unique<PredicateDomain>(sig)).first;
+            it->get()->setDomainOffset(numeric_cast<uint32_t>(predDomains_.size() - 1));
         }
         return **it;
     }
     PredDomMap &predDoms() { return predDomains_; }
     PredDomMap const &predDoms() const { return predDomains_; }
-    PredicateDomain &predDom(Id_t offset) { return *predDomains_[offset]; }
-    PredicateDomain const &predDom(Id_t offset) const { return *predDomains_[offset]; }
+    PredicateDomain &predDom(Id_t offset) { return **predDomains_.nth(offset); }
+    PredicateDomain const &predDom(Id_t offset) const { return **predDomains_.nth(offset); }
     template <class D, typename... Args>
     D &add(Args &&... args) {
         domains_.emplace_back(gringo_make_unique<D>(std::forward<Args>(args)...));
@@ -1160,31 +1032,35 @@ public:
     Gringo::Output::TheoryData &theory() { return theory_; }
     Gringo::Output::TheoryData const &theory() const { return theory_; }
     TupleId tuple(SymVec const &cond) {
-        return {tuples_.push(cond).first, static_cast<Id_t>(cond.size())};
+        auto idx = tuples_.insert(make_span(cond)).first;
+        return {idx.first, idx.second};
     }
-    IteratorRange<SymVec::const_iterator> tuple(TupleId pos) {
-        auto it = tuples_.at(pos.offset, pos.size);
-        return {it, it + pos.size};
+    Potassco::Span<Symbol> tuple(TupleId pos) {
+        return tuples_.at({pos.offset, pos.size});
     }
-    std::pair<Id_t,Id_t> clause(LitVec &cond) {
+    ClauseId clause(LitVec &cond) {
         sort_unique(cond);
-        return {clauses_.push(cond).first, numeric_cast<Id_t>(cond.size())};
+        return clauses_.insert(make_span(cond)).first;
     }
-    std::pair<Id_t,Id_t> clause(LitVec &&cond) { return clause(cond); }
-    IteratorRange<LitVec::const_iterator> clause(std::pair<Id_t, Id_t> pos) { return clause(pos.first, pos.second); }
-    IteratorRange<LitVec::const_iterator> clause(Id_t id, Id_t size) {
-        auto it = clauses_.at(id, size);
-        return {it, it + size};
+    ClauseId clause(LitVec &&cond) {
+        return clause(cond);
     }
-    std::pair<Id_t,Id_t> formula(Formula &&lits) {
+    LitSpan clause(std::pair<Id_t, Id_t> pos) {
+        return clause(pos.first, pos.second);
+    }
+    LitSpan clause(Id_t id, Id_t size) {
+        return clauses_.at({id, size});
+    }
+    FormulaId formula(Formula &&lits) {
         sort_unique(lits);
-        return {formulas_.push(lits).first, numeric_cast<Id_t>(lits.size())};
+        return formulas_.insert(make_span(lits)).first;
     }
-    IteratorRange<Formula::iterator> formula(Id_t id, Id_t size) {
-        auto it = formulas_.at(id, size);
-        return {it, it + size};
+    ClauseSpan formula(Id_t id, Id_t size) {
+        return formulas_.at({id, size});
     }
-    IteratorRange<Formula::iterator> formula(std::pair<Id_t, Id_t> pos) { return formula(pos.first, pos.second); }
+    ClauseSpan formula(std::pair<Id_t, Id_t> pos) {
+        return formula(pos.first, pos.second);
+    }
     // This should be called before grounding a new step
     // to get rid of unnecessary temporary data.
     void reset(bool resetData) {

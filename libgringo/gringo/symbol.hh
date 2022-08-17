@@ -50,19 +50,19 @@ public:
     String(StringSpan str);
     String(char const *str);
 
-    const char *c_str() const { return str_; }
+    const char *c_str() const;
     bool empty() const;
-    size_t length() { return std::strlen(str_); }
-    bool startsWith(char const *prefix) const {
-        return std::strncmp(prefix, str_, strlen(prefix)) == 0;
-    }
+    size_t length() const;
+    bool startsWith(char const *prefix) const;
     size_t hash() const;
     static uintptr_t toRep(String s) noexcept;
     static String fromRep(uintptr_t t) noexcept;
 
 private:
+    class Impl;
+
     String(uintptr_t) noexcept;
-    char const *str_;
+    Impl *str_;
 };
 
 inline bool operator==(String a, String b) { return std::strcmp(a.c_str(), b.c_str()) == 0; }

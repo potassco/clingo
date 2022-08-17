@@ -22,9 +22,13 @@
 
 // }}}
 
+#include <algorithm>
+#include <cstring>
 #include <gringo/symbol.hh>
 #include <gringo/hash_set.hh>
+#include <iterator>
 #include <mutex>
+
 #ifdef _MSC_VER
 #pragma warning (disable : 4200) // nonstandard extension used: zero-sized array in struct/union
 #endif
@@ -96,176 +100,95 @@ String toString(uint64_t rep) {
 // {{{1 definition of Unique
 
 template <class T>
-class Unique {
+struct UniqueConstruct {
 public:
-    using Type = typename T::Type;
-    struct Hash {
-        size_t operator()(Unique const &s) const {
-            return T::hash(*s.ptr_);
-        }
-        template <class U>
-        size_t operator()(U const &s) const {
-            return T::hash(s);
-        }
-    };
-    struct Create { };
-    struct Open { };
-    struct Deleted { };
-    struct EqualTo {
-        bool operator()(Unique const &a, Unique const &b) const {
-            return a.ptr_ == b.ptr_;
-        }
-
-        template <class U>
-        bool operator()(Unique const &a, U const &b) const {
-            return T::equal(*a.ptr_, b);
-        }
-    };
-    struct Literals {
-        static constexpr Deleted deleted = {};
-        static constexpr Open open = {};
-    };
-
-    Unique() = default;
-    Unique(Unique &&s) noexcept { std::swap(ptr_, s.ptr_); }
-    Unique(Unique const &other) = delete;
-    Unique &operator=(Unique &&s) noexcept { std::swap(ptr_, s.ptr_); return *this; }
-    Unique &operator=(Unique const &other) = delete;
+    using Set = hash_set<T, typename T::Hash, typename T::EqualTo>;
 
     template <class U>
-    Unique(U &&t) // NOLINT
-    : ptr_(T::construct(std::forward<U>(t))) { }
-
-    ~Unique() noexcept {
-        if (ptr_ && ptr_ != deleted_) { T::destroy(ptr_); }
-    }
-
-    Unique &operator=(Open tag) noexcept {
-        static_cast<void>(tag);
-        this->~Unique();
-        ptr_ = nullptr;
-        return *this;
-    }
-
-    Unique &operator=(Deleted tag) noexcept {
-        static_cast<void>(tag);
-        this->~Unique();
-        ptr_ = deleted_;
-        return *this;
-    }
-
-    bool operator==(Open tag) const {
-        static_cast<void>(tag);
-        return ptr_ == nullptr;
-    }
-
-    bool operator==(Deleted tag) const {
-        static_cast<void>(tag);
-        return ptr_ == deleted_;
-    }
-
-    template <class U>
-    static Type const *encode(U &&x) {
+    static T const &construct(U &&x) {
+        // TODO: in C++17 this can use a read/write lock to not block reading threads
+        size_t hash = typename T::Hash{}(x);
         std::lock_guard<std::mutex> g(mutex_);
-        return set_.insert(Hash(), EqualTo(), std::forward<U>(x)).first.ptr_;
+        auto it = set_.find(x, hash);
+        if (it != set_.end()) {
+            return *it;
+        }
+        return *set_.insert(T{std::forward<U>(x), hash}).first;
     }
 
 private:
-    using Set = HashSet<Unique, Literals>;
     static Set set_; // NOLINT
     static std::mutex mutex_; // NOLINT
-    static Type const *deleted_; // NOLINT
-    Type *ptr_ = nullptr;
-
 };
 
 template <class T>
-constexpr typename Unique<T>::Deleted Unique<T>::Literals::deleted;
+typename UniqueConstruct<T>::Set UniqueConstruct<T>::set_; // NOLINT
 
 template <class T>
-constexpr typename Unique<T>::Open Unique<T>::Literals::open;
+typename std::mutex UniqueConstruct<T>::mutex_; // NOLINT
 
-template <class T>
-typename Unique<T>::Set Unique<T>::set_; // NOLINT
-                                         //
-template <class T>
-std::mutex Unique<T>::mutex_; // NOLINT
-                              //
-// NOTE: this is just a sentinel address that is never malloced and never dereferenced
-template <class T>
-typename Unique<T>::Type const *Unique<T>::deleted_ = reinterpret_cast<typename Unique<T>::Type const *>(&Unique<T>::deleted_); // NOLINT
-
-
-// {{{1 definition of UString
-
-struct MString {
-    using Type = char;
-
-    static size_t hash(char const &str) {
-        return strhash(&str);
-    }
-
-    static size_t hash(StringSpan str) {
-        return strhash(str);
-    }
-
-    static bool equal(char const &a, char const &b) {
-        return std::strcmp(&a, &b) == 0;
-    }
-
-    static bool equal(char const &a, StringSpan b) {
-        return std::strncmp(&a, b.first, b.size) == 0 && (&a)[b.size] == '\0'; // NOLINT
-    }
-
-    static char *construct(char const &str) {
-        std::unique_ptr<char[]> buf{new char[std::strlen(&str) + 1]}; // NOLINT
-        std::strcpy(buf.get(), &str); // NOLINT
-        return buf.release();
-    }
-
-    static char *construct(StringSpan str) {
-        std::unique_ptr<char[]> buf{new char[str.size + 1]}; // NOLINT
-        std::memcpy(buf.get(), str.first, sizeof(char) * str.size);
-        buf[str.size] = '\0';
-        return buf.release();
-    }
-
-    static void destroy(char const *str) {
-        delete [] str; // NOLINT
-    }
-};
-
-using UString = Unique<MString>;
+template <class T, class U>
+T const &construct_unique(U &&x) {
+    return UniqueConstruct<T>::construct(std::forward<U>(x));
+}
 
 // {{{1 definition of USig
 
-struct MSig {
-    using Type = std::pair<String, uint32_t>;
+class MSig {
+public:
+    using Cons = std::pair<String, uint32_t>;
 
-    static size_t hash(Type const &sig) {
-        return get_value_hash(sig);
+    struct Hash {
+        size_t operator()(MSig const &sig) const {
+            return sig.hash_;
+        }
+        size_t operator()(Cons const &sig) const {
+            return hash_mix(get_value_hash(sig));
+        }
+    };
+    struct EqualTo {
+        using is_transparent = void;
+        template <class A, class B>
+        size_t operator()(A const &a, B const &b) const {
+            return name(a) == name(b) && arity(a) == arity(b);
+        }
+    };
+
+    explicit MSig(Cons const &cons, size_t hash)
+    : sig_{cons.first, cons.second}
+    , hash_{hash} {}
+
+    Cons const &as_sig() const {
+        return sig_;
     }
 
-    static bool equal(Type const &a, Type const &b) {
-        return a == b;
+private:
+    static String name(MSig const &a) {
+        return a.sig_.first;
     }
 
-    static Type *construct(Type const &sig) {
-        return gringo_make_unique<Type>(sig).release();
+    static String name(Cons const &a) {
+        return a.first;
     }
 
-    static void destroy(Type *sig) {
-        delete sig; // NOLINT
+    static uint32_t arity(MSig const &a) {
+        return a.sig_.second;
     }
+
+    static uint32_t arity(Cons const &a) {
+        return a.second;
+    }
+
+    std::pair<String, uint32_t> sig_;
+    size_t hash_;
 };
-using USig = Unique<MSig>;
 
 uint64_t encodeSig(String name, uint32_t arity, bool sign) {
     uint8_t isign = sign ? 1 : 0;
     return arity < upperMax
         ? combine(arity, String::toRep(name), isign)
         : combine(upperMax,
-                  reinterpret_cast<uintptr_t>(USig::encode(MSig::Type{name, arity})), // NOLINT
+                  reinterpret_cast<uintptr_t>(&construct_unique<MSig>(std::make_pair(name, arity)).as_sig()), // NOLINT
                   isign);
 }
 
@@ -278,6 +201,16 @@ public:
     Fun &operator=(Fun const &other) = delete;
     Fun &operator=(Fun &&other) noexcept = delete;
 
+    static Fun *make(Sig sig, SymSpan args, size_t hash) {
+        auto *mem = ::operator new(sizeof(Fun) + args.size * sizeof(Symbol));
+        return new(mem) Fun(sig, args, hash); // NOLINT
+    }
+
+    void destroy() noexcept {
+        this->~Fun();
+        ::operator delete(this);
+    }
+
     Sig sig() const {
         return sig_;
     }
@@ -286,69 +219,87 @@ public:
         return {args_, sig().arity()};
     }
 
-    static Fun *make(Sig sig, SymSpan args) {
-        auto *mem = ::operator new(sizeof(Fun) + args.size * sizeof(Symbol));
-        return new(mem) Fun(sig, args); // NOLINT
-    }
-
-    bool equal(Sig sig, SymSpan args) const {
-        return sig_ == sig && std::equal(begin(args), end(args), args_);
-    }
-
-    static size_t hash(Sig sig, SymSpan args) {
-        return get_value_hash(sig, hash_range(begin(args), end(args)));
-    }
-
-    void destroy() noexcept {
-        this->~Fun();
-        ::operator delete(this);
+    size_t hash() const {
+        return hash_;
     }
 
 private:
     ~Fun() noexcept = default;
 
-    Fun(Sig sig, SymSpan args) noexcept
-    : sig_(sig) {
+    Fun(Sig sig, SymSpan args, size_t hash) noexcept
+    : sig_(sig)
+    , hash_{hash} {
         std::memcpy(static_cast<void*>(args_), args.first, args.size * sizeof(Symbol));
     }
 
     Sig const sig_;
+    size_t hash_;
     Symbol args_[0]; // NOLINT
 };
 
-struct MFun {
-    using Type = Fun;
+class MFun {
+public:
     using Cons = std::pair<Sig, SymSpan>;
 
-    static size_t hash(Type const &fun) {
-        return Fun::hash(fun.sig(), fun.args());
+    struct Hash {
+        size_t operator()(MFun const &a) const {
+            return a.fun_->hash();
+        }
+        size_t operator()(Cons const &a) const {
+            return hash_mix(get_value_hash(a.first, hash_range(begin(a.second), end(a.second))));
+        }
+    };
+    struct EqualTo {
+        using is_transparent = void;
+        template <class A, class B>
+        size_t operator()(A const &a, B const &b) const {
+            auto args_a = args(a);
+            auto args_b = args(b);
+            return sig(a) == sig(b) && std::equal(begin(args_a), end(args_a), begin(args_b));
+        }
+    };
+
+    explicit MFun(Cons fun, size_t hash)
+    : fun_{Fun::make(fun.first, fun.second, hash)} { }
+    MFun() = delete;
+    MFun(MFun const &other) = delete;
+    MFun(MFun &&other) noexcept {
+        std::swap(fun_, other.fun_);
+    }
+    MFun &operator=(MFun const &other) = delete;
+    MFun &operator=(MFun &&other) noexcept {
+        std::swap(fun_, other.fun_);
+        return *this;
+    }
+    ~MFun() noexcept {
+        if (fun_ != nullptr) {
+            fun_->destroy();
+        }
     }
 
-    static size_t hash(Cons const &fun) {
-        return Fun::hash(fun.first, fun.second);
+    Fun const &as_fun() const {
+        return *fun_;
     }
 
-    static size_t cons(Type const &fun) {
-        return Fun::hash(fun.sig(), fun.args());
+private:
+    static Sig sig(MFun const &a) {
+        return a.fun_->sig();
     }
 
-    static bool equal(Type const &a, Type const &b) {
-        return a.equal(b.sig(), b.args());
+    static Sig sig(Cons const &a) {
+        return a.first;
     }
 
-    static bool equal(Type const &a, Cons const &b) {
-        return a.equal(b.first, b.second);
+    static SymSpan args(MFun const &a) {
+        return a.fun_->args();
     }
 
-    static Type *construct(Cons fun) {
-        return Fun::make(fun.first, fun.second);
+    static SymSpan args(Cons const &a) {
+        return a.second;
     }
 
-    static void destroy(Type *fun) {
-        const_cast<Fun*>(fun)->destroy(); // NOLINT
-    }
+    Fun *fun_ = nullptr;
 };
-using UFun = Unique<MFun>;
 
 // }}}1
 
@@ -356,17 +307,141 @@ using UFun = Unique<MFun>;
 
 // {{{1 definition of String
 
+// {{{1 definition of MString
+
+class String::Impl {
+public:
+    class MString;
+
+    Impl(Impl const &other) = delete;
+    Impl(Impl &&other) noexcept = delete;
+    Impl &operator=(Impl const &other) = delete;
+    Impl &operator=(Impl &&other) noexcept = delete;
+
+    static Impl *make(StringSpan const &span, size_t hash) {
+        size_t n = span.size;
+        auto *mem = ::operator new(sizeof(Impl) + (n + 1) * sizeof(char));
+        return new(mem) Impl(span.first, n, hash); // NOLINT
+    }
+
+    static Impl *make(char const *str, size_t hash) {
+        size_t n = strlen(str);
+        auto *mem = ::operator new(sizeof(Impl) + (n + 1) * sizeof(char));
+        return new(mem) Impl(str, n, hash); // NOLINT
+    }
+
+    void destroy() noexcept {
+        this->~Impl();
+        ::operator delete(this);
+    }
+
+    char const *str() const {
+        return str_;
+    }
+
+    size_t hash() const {
+        return hash_;
+    }
+
+private:
+    Impl(char const *str, size_t n, size_t hash) noexcept
+    : hash_{hash} {
+        std::memcpy(str_, str, n * sizeof(char));
+        str_[n] = '\0'; // NOLINT
+    }
+    ~Impl() noexcept = default;
+
+    size_t hash_;
+    char str_[0]; // NOLINT
+};
+
+struct String::Impl::MString {
+public:
+    struct Hash {
+        size_t operator()(MString const &str) const {
+            return str.str_->hash();
+        }
+        size_t operator()(char const *str) const {
+            return hash_mix(strhash(str));
+        }
+        size_t operator()(StringSpan const &str) const {
+            return hash_mix(strhash(str));
+        }
+    };
+    struct EqualTo {
+        using is_transparent = void;
+        bool operator()(MString const &a, char const *b) const {
+            return std::strcmp(a.as_impl()->str(), b) == 0;
+        }
+        bool operator()(MString const &a, StringSpan const &span_b) const {
+            auto const *str_a = a.as_impl()->str();
+            StringSpan span_a = {str_a, std::strlen(str_a)};
+            return span_a.size == span_b.size && std::equal(begin(span_a), end(span_a), begin(span_b));
+        }
+        bool operator()(MString const &a, MString const &b) const {
+            return operator()(a, b.as_impl()->str());
+        }
+        bool operator()(char const *a, MString const &b) const {
+            return operator()(b, a);
+        }
+        bool operator()(StringSpan const &a, MString const &b) const {
+            return operator()(b, a);
+        }
+    };
+
+    explicit MString(char const *str, size_t hash)
+    : str_{String::Impl::make(str, hash)} {
+    }
+    explicit MString(StringSpan str, size_t hash)
+    : str_{String::Impl::make(str, hash)} {
+    }
+    MString() = delete;
+    MString(MString const &other) = delete;
+    MString(MString &&other) noexcept {
+        std::swap(str_, other.str_);
+    }
+    MString &operator=(MString const &other) = delete;
+    MString &operator=(MString &&other) noexcept {
+        std::swap(str_, other.str_);
+        return *this;
+    }
+    ~MString() noexcept {
+        if (str_ != nullptr) {
+            str_->destroy();
+        }
+    }
+
+    Impl *as_impl() const {
+        return str_;
+    }
+
+private:
+    String::Impl *str_ = nullptr;
+};
+
 String::String(char const *str)
-: str_(UString::encode(*str)) { }
+: str_(construct_unique<Impl::MString>(str).as_impl()) { }
 
 String::String(StringSpan str)
-: str_(UString::encode(str)) { }
+: str_(construct_unique<Impl::MString>(str).as_impl()) { }
 
 String::String(uintptr_t r) noexcept
-: str_(reinterpret_cast<char const *>(r)) { } // NOLINT
+: str_(reinterpret_cast<Impl*>(r)) { } // NOLINT
+
+const char *String::c_str() const {
+    return str_->str();
+}
 
 bool String::empty() const {
-    return str_[0] == '\0'; // NOLINT
+    return *c_str() == '\0'; // NOLINT
+}
+
+size_t String::length() const {
+    return std::strlen(c_str());
+}
+
+bool String::startsWith(char const *prefix) const {
+    return std::strncmp(prefix, c_str(), strlen(prefix)) == 0;
 }
 
 size_t String::hash() const {
@@ -388,7 +463,7 @@ Sig::Sig(String name, uint32_t arity, bool sign)
 
 String Sig::name() const {
     uint16_t u = upper(rep());
-    return u < upperMax ? toString(rep()) : cast<USig::Type>(rep())->first;
+    return u < upperMax ? toString(rep()) : cast<std::pair<String, uint32_t>>(rep())->first;
 }
 
 Sig Sig::flipSign() const {
@@ -397,7 +472,7 @@ Sig Sig::flipSign() const {
 
 uint32_t Sig::arity() const {
     uint16_t u = upper(rep());
-    return u < upperMax ? u : cast<USig::Type>(rep())->second;
+    return u < upperMax ? u : cast<std::pair<String, uint32_t>>(rep())->second;
 }
 
 bool Sig::sign() const {
@@ -476,7 +551,7 @@ Symbol Symbol::createTuple(SymSpan args) {
 Symbol Symbol::createFun(String name, SymSpan args, bool sign) {
     return args.size != 0
         ?  Symbol(combine(static_cast<uint16_t>(SymbolType_::Fun),
-                          reinterpret_cast<uintptr_t>(UFun::encode(std::make_pair(Sig(name, numeric_cast<uint32_t>(args.size), sign), args))), // NOLINT
+                          reinterpret_cast<uintptr_t>(&construct_unique<MFun>(std::make_pair(Sig(name, numeric_cast<uint32_t>(args.size), sign), args)).as_fun()), // NOLINT
                           0))
         : createId(name, sign);
 }

@@ -22,6 +22,8 @@
 
 // }}}
 
+#include <gringo/output/statement.hh>
+#include <gringo/utility.hh>
 #include <gringo/output/literal.hh>
 #include <gringo/output/statements.hh>
 #include <gringo/logger.hh>
@@ -61,7 +63,7 @@ void printCond(PrintPlain out, TupleId tuple, HeadFormula::value_type const &con
     }
 }
 
-void printBodyElem(PrintPlain out, BodyAggregateElements::ValueType const &x) {
+void printBodyElem(PrintPlain out, BodyAggregateElements::value_type const &x) {
     if (x.second.empty()) {
         print_comma(out, out.domain.tuple(x.first), ",");
     }
@@ -70,7 +72,7 @@ void printBodyElem(PrintPlain out, BodyAggregateElements::ValueType const &x) {
     }
 }
 
-void printHeadElem(PrintPlain out, HeadAggregateElements::ValueType const &x) {
+void printHeadElem(PrintPlain out, HeadAggregateElements::value_type const &x) {
     print_comma(out, x.second, ";", [&x](PrintPlain out, HeadFormula::value_type const &cond) { printCond(out, x.first, cond); });
 }
 
@@ -214,8 +216,8 @@ Symbol getWeight(AggregateFunction fun, SymVec const &x) {
     return fun == AggregateFunction::COUNT ? Symbol::createNum(1) : x.front();
 }
 
-Symbol getWeight(AggregateFunction fun, IteratorRange<SymVec::const_iterator> rng) {
-    return fun == AggregateFunction::COUNT ? Symbol::createNum(1) : rng.front();
+Symbol getWeight(AggregateFunction fun, Potassco::Span<Symbol> rng) {
+    return fun == AggregateFunction::COUNT ? Symbol::createNum(1) : *rng.first;
 }
 
 // {{{1 definition of AggregateAtomRange
@@ -341,131 +343,72 @@ void AggregateAtomRange::accumulate(SymVec const &tuple, bool fact, bool remove)
 
 // {{{1 definition of BodyAggregateAtom
 
-class BodyAggregateElements_::TupleOffset {
-public:
-    TupleOffset(Id_t offset, Id_t size, bool fact)
-    : repr_(static_cast<uint64_t>(fact) | (static_cast<uint64_t>(size) << 1) | (static_cast<uint64_t>(offset) << 32)) { }
-    TupleOffset(uint64_t repr)
-    : repr_(repr) { }
-    bool fact() const {
-        return (repr_ & 1) != 0;
-    }
-    Id_t size() const {
-        return static_cast<uint32_t>(repr_) >> 1;
-    }
-    Id_t offset() const {
-        return static_cast<uint32_t>(repr_ >> 32);
-    }
-    uint64_t repr() const {
-        return repr_;
-    }
-    operator uint64_t() const {
-        return repr();
-    }
-
-private:
-    uint64_t repr_;
-};
-
-class BodyAggregateElements_::ClauseOffset {
-public:
-    ClauseOffset(Id_t offset, Id_t size)
-    : repr_(std::min(size-1, Id_t(3)) | (offset << 2)) {
-        assert(size > 0);
-    }
-    ClauseOffset(uint32_t repr)
-    : repr_(repr) { }
-    Id_t size() const {
-        return (repr_ & 3) < 3 ? (repr_ & 3) + 1 : InvalidId;
-    }
-    Id_t offset() const {
-        return static_cast<uint32_t>(repr_ >> 2);
-    }
-    uint32_t repr() const {
-        return repr_;
-    }
-    operator uint32_t() const {
-        return repr();
-    }
-
-private:
-    uint32_t repr_;
-};
-
-std::pair<uint64_t &, bool> BodyAggregateElements_::insertTuple(uint64_t to) {
-    return tuples_.insert(
-        [](uint64_t a) { return std::hash<uint64_t>()(a >> 1); },
-        [](uint64_t a, uint64_t b){ return (a >> 1) == (b >> 1); },
-        to);
-}
-
 template <class F>
-void BodyAggregateElements_::visitClause(F f) {
+void BodyAggregateElements_::visitClause(F f) const {
     for (auto it = conditions_.begin(), ie = conditions_.end(); it != ie; ) {
-        auto &to = *it++;
-        Id_t size = 0;
-        Id_t offset = 0;
-        if (to & 1) {
-            ClauseOffset co(*it++);
-            offset = co.offset();
-            size = co.size();
-            if (size == InvalidId) {
-                size = *it++;
-            }
+        // get compressedd tuple offset (the size stores the fact bit)
+        auto ct_offset = CompressedOffset{*it++};
+        Id_t t_offset = ct_offset.offset();
+        Id_t t_size_fact = ct_offset.has_size() ? ct_offset.size() : *it++;
+        bool t_fact = (t_size_fact & 1) == 0;
+        auto t_size = t_size_fact >> 1;
+        // get compressed clause offset (empty conditions are not stored)
+        Id_t c_offset = 0;
+        Id_t c_size = 0;
+        if (!t_fact) {
+            auto cc_offset = CompressedOffset{*it++};
+            c_offset = cc_offset.offset();
+            c_size = cc_offset.has_size() ? (cc_offset.size() + 1) : *it++;
         }
-        f(to, ClauseId(offset, size));
+        f(TupleId{t_offset, t_size}, ClauseId(c_offset, c_size));
     }
 }
 
 void BodyAggregateElements_::accumulate(DomainData &data, TupleId tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove) {
-    if (tuples_.reserveNeedsRebuild(tuples_.size() + 1)) {
-        // remap tuple offsets if rebuild is necessary
-        HashSet<uint64_t> tuples(tuples_.size() + 1, tuples_.reserved());
-        tuples.swap(tuples_);
-        assert(tuples.reserved() < tuples_.reserved());
-        visitClause([&](uint32_t &to, ClauseId) {
-            to = (tuples_.offset(insertTuple(tuples.at(to >> 1)).first) << 1) | (to & 1);
-        });
-    }
-    TupleOffset newTO(tuple.offset, tuple.size, lits.empty());
-    auto ret = insertTuple(newTO);
+    TupleOffset offset{tuple.offset, tuple.size, lits.empty()};
+    auto ret = tuples_.insert(offset);
     inserted = ret.second;
     remove = false;
     if (!inserted) {
-        TupleOffset oldTO = ret.first;
-        if (!oldTO.fact() && newTO.fact()) {
-            ret.first = newTO;
+        auto old_offset = *ret.first;
+        if (!old_offset.fact() && offset.fact()) {
+            tuples_.erase(old_offset);
+            tuples_.insert(offset);
             remove = true;
         }
         else {
-            newTO = oldTO;
+            offset = old_offset;
         }
     }
-    fact = newTO.fact();
+    fact = offset.fact();
     if (!fact || inserted || remove) {
         auto clause = data.clause(std::move(lits));
-        auto size = clause.second;
-        conditions_.emplace_back((tuples_.offset(ret.first) << 1) | (size > 0 ? 1 : 0));
-        if (size > 0) {
-            ClauseOffset co(clause.first, size);
-            conditions_.emplace_back(co);
-            if (co.size() == InvalidId) {
-                conditions_.emplace_back(size);
+        // add compressed tuple offset with fact bit to condition vector
+        uint32_t t_size_fact = (offset.size() << 1) | (fact ? 0U : 1U);
+        CompressedOffset ct_offset{offset.offset(), t_size_fact};
+        conditions_.emplace_back(ct_offset.repr());
+        if (!ct_offset.has_size()) {
+            conditions_.emplace_back(t_size_fact);
+        }
+        if (!fact) {
+            // add compressed clause offset to condition vector
+            CompressedOffset cc_offset(clause.first, clause.second - 1);
+            conditions_.emplace_back(cc_offset.repr());
+            if (!cc_offset.has_size()) {
+                conditions_.emplace_back(clause.second);
             }
         }
     }
 }
+
 BodyAggregateElements BodyAggregateElements_::elems() const {
     BodyAggregateElements elems;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-    const_cast<BodyAggregateElements_*>(this)->visitClause([&](uint32_t const &to, ClauseId cond) {
-        TupleOffset fo(tuples_.at(to >> 1));
-        TupleId tuple{fo.offset(), fo.size()};
-        auto ret = elems.push(std::piecewise_construct, std::forward_as_tuple(tuple), std::forward_as_tuple());
-        if (fo.fact()) {
-            ret.first->second.clear();
+    visitClause([&](TupleId tuple, ClauseId cond) {
+        auto ret = elems.try_emplace(tuple);
+        if (cond.second == 0) {
+            ret.first.value().clear();
         }
-        ret.first->second.emplace_back(cond);
+        ret.first.value().emplace_back(cond);
     });
     return elems;
 }
@@ -503,8 +446,8 @@ void AssignmentAggregateData::accumulate(DomainData &data, Location const &loc, 
     if (neutral(tuple, fun_, loc, log)) {
         return;
     }
-    auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple()));
-    auto &elem = ret.first->second;
+    auto ret(elems_.try_emplace(data.tuple(tuple)));
+    auto &elem = ret.first.value();
     // the tuple was fact
     if (elem.size() == 1 && elem.front().second == 0) {
         return;
@@ -572,15 +515,17 @@ AssignmentAggregateData::Values AssignmentAggregateData::values() const {
             return values;
         }
         default: {
-            UniqueVec<Symbol> values;
+            ordered_set<Symbol> values;
             auto it = values_.begin();
-            values.push(*it++);
+            values.insert(*it++);
             for (auto ie = values_.end(); it != ie; ++it) {
                 for (Id_t jt = 0, je = values.size(); jt != je; ++jt) {
-                    values.push(Symbol::createNum(values[jt].num() + it->num()));
+                    values.insert(Symbol::createNum(values.nth(jt)->num() + it->num()));
                 }
             }
-            return {values.begin(), values.end()};
+            // Note: a release function would be nice
+            // NOLINTNEXTLINE
+            return std::move(const_cast<Values&>(values.values_container()));
         }
     }
 }
@@ -627,7 +572,7 @@ Interval AssignmentAggregateData::range() const {
 //   disjunction of heads is spanned by Y
 
 bool ConjunctionElement::isSimple(DomainData &data) const {
-    return (heads_.empty() && bodies_.size() == 1 && bodies_.front().second == 1 && data.clause(bodies_.front()).front().invertible()) ||
+    return (heads_.empty() && bodies_.size() == 1 && bodies_.front().second == 1 && data.clause(bodies_.front()).first->invertible()) ||
            (bodies_.size() == 1 && bodies_.front().second == 0 && heads_.size() <= 1);
 }
 
@@ -703,11 +648,11 @@ void ConjunctionElement::accumulateHead(DomainData &data, LitVec &cond, Id_t &bl
 }
 
 void ConjunctionAtom::accumulateCond(DomainData &data, Symbol elem, LitVec &cond) {
-    elems_.findPush(elem, elem).first->accumulateCond(data, cond, blocked_, fact_);
+    elems_.try_emplace(elem).first.value().accumulateCond(data, cond, blocked_, fact_);
 }
 
 void ConjunctionAtom::accumulateHead(DomainData &data, Symbol elem, LitVec &cond) {
-    elems_.findPush(elem, elem).first->accumulateHead(data, cond, blocked_, fact_);
+    elems_.try_emplace(elem).first.value().accumulateHead(data, cond, blocked_, fact_);
 }
 
 bool ConjunctionAtom::recursive() const {
@@ -812,21 +757,26 @@ void DisjunctionElement::accumulateHead(DomainData &data, LitVec &cond, Id_t &fa
 
 void DisjunctionAtom::simplify(bool &headFact) {
     headFact_ = 0;
-    elems_.erase([this](DisjunctionElement &elem) {
-        if (elem.headIsTrue() && elem.bodyIsTrue()) {
-        ++headFact_;
+    for (auto it = elems_.begin(); it != elems_.end();) {
+        if (it.value().headIsTrue() && it.value().bodyIsTrue()) {
+            ++headFact_;
         }
-        return elem.bodyIsFalse() || elem.headIsFalse();
-    });
+        if (it.value().bodyIsFalse() || it.value().headIsFalse()) {
+            it = elems_.unordered_erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
     headFact = headFact_ > 0;
 }
 
 void DisjunctionAtom::accumulateCond(DomainData &data, Symbol elem, LitVec &cond) {
-    elems_.findPush(elem, elem).first->accumulateCond(data, cond, headFact_);
+    elems_.try_emplace(elem).first.value().accumulateCond(data, cond, headFact_);
 }
 
 void DisjunctionAtom::accumulateHead(DomainData &data, Symbol elem, LitVec &cond) {
-    elems_.findPush(elem, elem).first->accumulateHead(data, cond, headFact_);
+    elems_.try_emplace(elem).first.value().accumulateHead(data, cond, headFact_);
 }
 
 // {{{1 definition of TheoryAtom
@@ -858,8 +808,8 @@ void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec
     if (!Gringo::Output::defined(tuple, range_.fun, loc, log)) {
         return;
     }
-    auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple()));
-    auto &elem = ret.first->second;
+    auto ret(elems_.try_emplace(data.tuple(tuple)));
+    auto &elem = ret.first.value();
     bool fact = cond.empty() && !head.valid();
     bool wasFact = !elem.empty() && !elem.front().first.valid() && elem.front().second.second == 0;
     if (wasFact && fact) {
@@ -885,13 +835,10 @@ void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec
 std::pair<Id_t, Id_t> PredicateDomain::cleanup(AssignmentLookup assignment, Mapping &map) {
     Id_t facts = 0;
     Id_t deleted = 0;
-    Id_t oldOffset = 0;
-    Id_t newOffset = 0;
     //std::cerr << "cleaning " << sig_ << std::endl;
-    cleanup_([&](PredicateAtom &atom) {
+    cleanup_([&](PredicateAtom &atom, Id_t oldOffset, Id_t newOffset) {
         if (!atom.defined()) {
             ++deleted;
-            ++oldOffset;
             return true;
         }
         if (atom.hasUid()) {
@@ -912,7 +859,6 @@ std::pair<Id_t, Id_t> PredicateDomain::cleanup(AssignmentLookup assignment, Mapp
                     }
                     case Potassco::Value_t::False: {
                         ++deleted;
-                        ++oldOffset;
                         return true;
                     }
                     default: {
@@ -925,16 +871,14 @@ std::pair<Id_t, Id_t> PredicateDomain::cleanup(AssignmentLookup assignment, Mapp
         atom.setGeneration(0);
         atom.unmarkDelayed();
         map.add(oldOffset, newOffset);
-        ++oldOffset;
-        ++newOffset;
         return false;
     });
     //std::cerr << "remaining atoms: ";
     //for (auto &atom : atoms_) {
     //    std::cerr << "  " << static_cast<Symbol>(atom) << "=" << (atoms_.find(static_cast<Symbol>(atom)) != atoms_.end()) << "/" << atom.generation() << "/" << atom.defined() << "/" << atom.delayed() << std::endl;
     //}
-    incOffset_ = map.bound(incOffset_);
-    showOffset_ = map.bound(showOffset_);
+    incOffset_ = size();
+    showOffset_ = size();
     return {facts, deleted};
 }
 
@@ -1005,12 +949,11 @@ bool PredicateLiteral::isHeadAtom() const {
 }
 
 bool PredicateLiteral::isAtomFromPreviousStep() const {
-    auto &domain = *data_.predDoms()[id_.domain()];
-    return id_.offset() < domain.incOffset();
+    return id_.offset() < data_.predDom(id_.domain()).incOffset();
 }
 
 void PredicateLiteral::printPlain(PrintPlain out) const {
-    auto &atom = data_.predDoms()[id_.domain()]->operator[](id_.offset());
+    auto &atom = data_.predDom(id_.domain())[id_.offset()];
     out << id_.sign() << static_cast<Symbol>(atom);
 }
 
@@ -1027,7 +970,7 @@ LiteralId PredicateLiteral::translate(Translator &x) {
 }
 
 int PredicateLiteral::uid() const {
-    auto &atom = data_.predDoms()[id_.domain()]->operator[](id_.offset());
+    auto &atom = data_.predDom(id_.domain())[id_.offset()];
     if (!atom.hasUid()) {
         atom.setUid(data_.newAtom());
     }
@@ -1055,7 +998,7 @@ LiteralId PredicateLiteral::simplify(Mappings &mappings, AssignmentLookup const 
         }
         return ret;
     }
-    auto &atom = data_.predDoms()[id_.domain()]->operator[](offset);
+    auto &atom = data_.predDom(id_.domain())[offset];
     if (!atom.defined()) {
         return data_.getTrueLit().negate();
     }
@@ -1076,7 +1019,7 @@ LiteralId PredicateLiteral::simplify(Mappings &mappings, AssignmentLookup const 
 }
 
 bool PredicateLiteral::isTrue(IsTrueLookup const &lookup) const {
-    auto &atom = data_.predDoms()[id_.domain()]->operator[](id_.offset());
+    auto &atom = data_.predDom(id_.domain())[id_.offset()];
     assert(atom.hasUid());
     return (id_.sign() == NAF::NOT) ^ lookup(atom.uid());
 }
@@ -1134,8 +1077,9 @@ LiteralId TheoryLiteral::translate(Translator &x) {
         if (atm.defined()) {
             atm.simplify(data_.theory());
             for (auto const &elemId : atm.elems()) {
-                auto &cond = data_.theory().getCondition(elemId);
-                Gringo::Output::translate(data_, x, cond);
+                data_.theory().updateCondition(elemId, [&x, this](LitVec &cond) {
+                    Gringo::Output::translate(data_, x, cond);
+                });
             }
             auto newAtom = [&]() -> Atom_t {
                 if (atm.type() == TheoryAtomType::Directive) {
@@ -1255,7 +1199,7 @@ AssignmentAggregateDomain &AssignmentAggregateLiteral::dom() const {
 void AssignmentAggregateLiteral::printPlain(PrintPlain out) const {
     auto &dom = this->dom();
     auto &atm = dom[id_.offset()];
-    auto &data = dom.data(atm.data());
+    auto &data = dom.data(atm.data()).value();
     Symbol repr = atm;
     out << id_.sign();
     out << data.fun() << "{";
@@ -1272,7 +1216,7 @@ LiteralId AssignmentAggregateLiteral::toId() const {
 LiteralId AssignmentAggregateLiteral::translate(Translator &x) {
     auto &dom = this->dom();
     auto &atm = dom[id_.offset()];
-    auto &data = dom.data(atm.data());
+    auto &data = dom.data(atm.data()).value();
     if (!atm.translated()) {
         atm.setTranslated();
         assert(atm.defined());
@@ -1320,7 +1264,8 @@ LiteralId DisjunctionLiteral::toId() const {
 void DisjunctionLiteral::printPlain(PrintPlain out) const {
     auto &atm = dom()[id_.offset()];
     if (!atm.elems().empty()) {
-        print_comma(out, atm.elems(), ";");
+        print_comma(out, atm.elems(), ";",
+                    [](PrintPlain &out, std::pair<Symbol, DisjunctionElement> const &x) { x.second.print(out); });
     }
     else {
         out << "#false";
@@ -1341,7 +1286,8 @@ LiteralId DisjunctionLiteral::translate(Translator &x) {
         }
         Rule dj;
         dj.addBody(atm.lit());
-        for (auto const &elem : atm.elems()) {
+        for (auto const &item : atm.elems()) {
+            auto const &elem = item.second;
             assert (!elem.bodies().empty());
             LiteralId cond; // cond :- elem.bodies()
             if (!elem.bodyIsTrue()) {
@@ -1365,7 +1311,7 @@ LiteralId DisjunctionLiteral::translate(Translator &x) {
                 }
                 else {
                     // the head literals can be pushed directly into djHead
-                    dj.addHead(headClause.front());
+                    dj.addHead(*headClause.first);
                 }
             }
             else {
@@ -1373,9 +1319,9 @@ LiteralId DisjunctionLiteral::translate(Translator &x) {
                 Rule conjunction;
                 for (auto const &headId : elem.heads()) {
                     auto head = data_.clause(headId);
-                    if (head.size() == 1) {
-                        Rule().addHead(head.front()).addBody(conjunctionAtom).translate(data_, x);
-                        conjunction.addBody(head.front());
+                    if (head.size == 1) {
+                        Rule().addHead(*head.first).addBody(conjunctionAtom).translate(data_, x);
+                        conjunction.addBody(*head.first);
                     }
                     else {
                         LiteralId disjunctionAtom = data_.newAux();
@@ -1446,8 +1392,8 @@ void ConjunctionLiteral::printPlain(PrintPlain out) const {
                     break;
                 }
             }
-            out << x;
-            sep = x.needsSemicolon() ? 2 : 1;
+            out << x.second;
+            sep = x.second.needsSemicolon() ? 2 : 1;
         }
     }
     else {
@@ -1460,38 +1406,39 @@ LiteralId ConjunctionLiteral::translate(Translator &x) {
     if (!atm.translated()) {
         atm.setTranslated();
         LitVec bd;
-        for (auto const &y : atm.elems()) {
-            if ((y.heads().size() == 1 && y.heads().front().second == 0) || y.bodies().empty()) {
+        for (auto const &sym_lit : atm.elems()) {
+            auto const &lit = sym_lit.second;
+            if ((lit.heads().size() == 1 && lit.heads().front().second == 0) || lit.bodies().empty()) {
                 // this part of the conditional literal is a fact
                 continue;
             }
-            if (y.isSimple(data_)) {
-                if (y.bodies().size() == 1 && y.bodies().front().second == 0) {
-                    assert(y.heads().size() <= 1);
-                    if (y.heads().empty()) {
+            if (lit.isSimple(data_)) {
+                if (lit.bodies().size() == 1 && lit.bodies().front().second == 0) {
+                    assert(lit.heads().size() <= 1);
+                    if (lit.heads().empty()) {
                         if (!atm.lit()) {
                             atm.setLit(data_.newAux());
                         }
                         return atm.lit();
                     }
-                    bd.emplace_back(data_.clause(y.heads().front()).front());
+                    bd.emplace_back(*data_.clause(lit.heads().front()).first);
                 }
                 else {
-                    bd.emplace_back(data_.clause(y.bodies().front()).front().negate());
+                    bd.emplace_back(data_.clause(lit.bodies().front()).first->negate());
                 }
             }
             else {
                 LiteralId aux = data_.newAux();
                 LiteralId auxHead = data_.newAux();
-                for (auto const &head : y.heads()) {
-                    // auxHead :- y.head.
+                for (auto const &head : lit.heads()) {
+                    // auxHead :- lit.head.
                     Rule().addHead(auxHead).addBody(data_.clause(head)).translate(data_, x);
                     Rule().addHead(aux).addBody(auxHead).translate(data_, x);
                 }
                 // chk <=> body.
-                LiteralId chk = getEqualFormula(data_, x, y.bodies(), false, atm.nonmonotone() && !y.heads().empty());
+                LiteralId chk = getEqualFormula(data_, x, lit.bodies(), false, atm.nonmonotone() && !lit.heads().empty());
                 Rule().addHead(aux).addBody(chk.negate()).translate(data_, x);
-                if (atm.nonmonotone() && !y.heads().empty()) {
+                if (atm.nonmonotone() && !lit.heads().empty()) {
                     // aux | chk | ~x.first.
                     Rule().addHead(aux).addHead(chk).addHead(auxHead.negate()).translate(data_, x);
                 }
@@ -1537,7 +1484,7 @@ std::pair<LiteralId,bool> ConjunctionLiteral::delayedLit() {
 
 bool ConjunctionLiteral::needsSemicolon() const {
     auto &atm = dom()[id_.offset()];
-    return !atm.elems().empty() && atm.elems().back().needsSemicolon();
+    return !atm.elems().empty() && atm.elems().back().second.needsSemicolon();
 }
 
 // {{{1 definition of HeadAggregateLiteral
@@ -1582,7 +1529,7 @@ LiteralId HeadAggregateLiteral::translate(Translator &x) {
                     choice.addHead(head);
                 }
                 // e :- h, c.
-                auto bdElem = bdElems.push(std::piecewise_construct, std::forward_as_tuple(it->second.first), std::forward_as_tuple());
+                auto bdElem = bdElems.try_emplace(it->second.first);
                 LitVec cond;
                 if (condLit) {
                     cond.emplace_back(condLit);
@@ -1590,7 +1537,7 @@ LiteralId HeadAggregateLiteral::translate(Translator &x) {
                 if (head) {
                     cond.emplace_back(head);
                 }
-                bdElem.first->second.emplace_back(data_.clause(cond));
+                bdElem.first.value().emplace_back(data_.clause(cond));
                 ++it;
             }
             while (it != ie && it->first == condId);

@@ -28,6 +28,7 @@
 #include "gringo/output/backends.hh"
 #include "reify/program.hh"
 #include <cstring>
+#include <stdexcept>
 
 namespace Gringo { namespace Output {
 
@@ -543,18 +544,6 @@ void OutputBase::endGround(Logger &log) {
         outPredsForce.clear();
     }
     EndGroundStatement(outPreds, log).passTo(data, *out_);
-    // TODO: get rid of such things #d domains should be stored somewhere else
-    std::set<Sig> rm;
-    for (auto &x : predDoms()) {
-        if (x->sig().name().startsWith("#d")) {
-            rm.emplace(x->sig());
-        }
-    }
-    if (!rm.empty()) {
-        predDoms().erase([&rm](UPredDom const &dom) {
-            return rm.find(dom->sig()) != rm.end();
-        });
-    }
 }
 
 void OutputBase::endStep(Assumptions const &ass) {
@@ -625,7 +614,7 @@ std::pair<Id_t, Id_t> OutputBase::simplify(AssignmentLookup assignment) {
     Id_t deleted = 0;
     if (data.canSimplify()) {
         std::vector<Mapping> mappings;
-        for (auto &dom : data.predDoms()) {
+        for (auto const &dom : data.predDoms()) {
             mappings.emplace_back();
             auto ret = dom->cleanup(assignment, mappings.back());
             facts+= ret.first;

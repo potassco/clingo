@@ -173,11 +173,11 @@ AggregateAnalyzer::AggregateAnalyzer(DomainData &data, NAF naf, DisjunctiveBound
                     }
                 }
                 auto tuple = data.tuple(x.first);
-                if (hasPositiveLiteral && !tuple.empty() && tuple.front().type() == SymbolType::Num) {
-                    if (tuple.front().num() < 0) {
+                if (hasPositiveLiteral && tuple.size > 0 && tuple.first->type() == SymbolType::Num) {
+                    if (tuple.first->num() < 0) {
                         hasNegativeWeight = true;
                     }
-                    if (tuple.front().num() > 0) {
+                    if (tuple.first->num() > 0) {
                         hasPositiveWeight = true;
                     }
                 }
@@ -419,17 +419,17 @@ private:
 
 namespace {
 
-LiteralId getEqualClause(DomainData &data, Translator &x, IteratorRange<LitVec::const_iterator> clause, bool conjunctive, bool equivalence) {
-    if (clause.empty()) {
+LiteralId getEqualClause(DomainData &data, Translator &x, LitSpan clause, bool conjunctive, bool equivalence) {
+    if (clause.size == 0) {
         return conjunctive ? data.getTrueLit() : data.getTrueLit().negate();
     }
-    if (clause.size() == 1) {
-        LiteralId lit = clause.front();
-        if (equivalence && call(data, clause.front(), &Literal::isAtomFromPreviousStep)) {
+    if (clause.size == 1) {
+        LiteralId lit = *clause.first;
+        if (equivalence && call(data, *clause.first, &Literal::isAtomFromPreviousStep)) {
             lit = lit.negate();
             lit = lit.negate();
         }
-        return clause.front();
+        return *clause.first;
     }
     LiteralId aux = data.newAux();
     if (conjunctive) {

@@ -29,6 +29,14 @@
 
 namespace Gringo { namespace Test {
 
+TEST_CASE("symbol_bug", "[base]") {
+    SECTION("fun") {
+        auto a = Symbol::createId(std::string{"x"}.c_str());
+        auto b = Symbol::createId(std::string{"x"}.c_str());
+        REQUIRE(a == b);
+    }
+}
+
 TEST_CASE("symbol", "[base]") {
     SymVec args = { Symbol::createNum(42), Symbol::createId("a") };
     SymVec symbols = {

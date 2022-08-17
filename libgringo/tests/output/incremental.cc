@@ -255,14 +255,6 @@ TEST_CASE("output-incremental", "[output]") {
         REQUIRE(Id_t(2) == m.get(4));
         REQUIRE(Id_t(3) == m.get(5));
         REQUIRE(InvalidId == m.get(6));
-
-        REQUIRE(Id_t(0) == m.bound(0));
-        REQUIRE(Id_t(0) == m.bound(1));
-        REQUIRE(Id_t(1) == m.bound(2));
-        REQUIRE(Id_t(2) == m.bound(3));
-        REQUIRE(Id_t(2) == m.bound(4));
-        REQUIRE(Id_t(3) == m.bound(5));
-        REQUIRE(Id_t(4) == m.bound(6));
     }
 }
 

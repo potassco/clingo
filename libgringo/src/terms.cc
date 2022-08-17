@@ -40,7 +40,7 @@ String TheoryOpDef::op() const {
     return op_;
 }
 
-TheoryOpDef::Key TheoryOpDef::key() const {
+TheoryOpDef::Key TheoryOpDef::key() const noexcept {
     return {op_, type_ == TheoryOperatorType::Unary};
 }
 
@@ -66,10 +66,10 @@ TheoryTermDef::TheoryTermDef(Location const &loc, String name)
 : loc_(loc)
 , name_(name) { }
 
-void TheoryTermDef::addOpDef(TheoryOpDef &&def, Logger &log) {
+void TheoryTermDef::addOpDef(TheoryOpDef &&def, Logger &log) const {
     auto it = opDefs_.find(def.key());
     if (it == opDefs_.end()) {
-        opDefs_.push(std::move(def));
+        opDefs_.insert(std::move(def));
     }
     else {
         GRINGO_REPORT(log, Warnings::RuntimeError)
@@ -79,7 +79,7 @@ void TheoryTermDef::addOpDef(TheoryOpDef &&def, Logger &log) {
     }
 }
 
-String TheoryTermDef::name() const {
+String const &TheoryTermDef::name() const noexcept {
     return name_;
 }
 
@@ -171,7 +171,7 @@ TheoryDef::TheoryDef(Location const &loc, String name)
 : loc_(loc)
 , name_(name) { }
 
-String TheoryDef::name() const {
+String const &TheoryDef::name() const noexcept {
     return name_;
 }
 
@@ -179,10 +179,10 @@ Location const &TheoryDef::loc() const {
     return loc_;
 }
 
-void TheoryDef::addAtomDef(TheoryAtomDef &&def, Logger &log) {
+void TheoryDef::addAtomDef(TheoryAtomDef &&def, Logger &log) const {
     auto it = atomDefs_.find(def.sig());
     if (it == atomDefs_.end()) {
-        atomDefs_.push(std::move(def));
+        atomDefs_.insert(std::move(def));
     }
     else {
         GRINGO_REPORT(log, Warnings::RuntimeError)
@@ -192,10 +192,10 @@ void TheoryDef::addAtomDef(TheoryAtomDef &&def, Logger &log) {
     }
 }
 
-void TheoryDef::addTermDef(TheoryTermDef &&def, Logger &log) {
+void TheoryDef::addTermDef(TheoryTermDef &&def, Logger &log) const {
     auto it = termDefs_.find(def.name());
     if (it == termDefs_.end()) {
-        termDefs_.push(std::move(def));
+        termDefs_.insert(std::move(def));
     }
     else {
         GRINGO_REPORT(log, Warnings::RuntimeError)

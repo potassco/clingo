@@ -465,26 +465,26 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
         }
     }
     // show terms
-    for (auto &todo : termOutput_.todo) {
-        if (todo.cond.empty()) { continue; }
-        showValue(data, todo.term, updateCond(data, termOutput_.table, todo));
+    for (auto const &todo : termOutput_.todo) {
+        if (todo.second.empty()) { continue; }
+        showValue(data, todo.first, updateCond(data, todo));
     }
     termOutput_.todo.clear();
 }
 
-LitVec Translator::updateCond(DomainData &data, OutputTable::Table &table, OutputTable::Todo::ValueType &todo) {
+LitVec Translator::updateCond(DomainData &data, OutputTable::Todo::value_type const &todo) {
     LiteralId excludeOldCond;
-    auto entry = table.push(todo.term, LiteralId{});
+    auto entry = termOutput_.table.try_emplace(todo.first);
     if (!entry.second) {
-        LiteralId oldCond = entry.first->cond;
-        LiteralId newCond = getEqualFormula(data, *this, todo.cond, false, false);
+        LiteralId oldCond = entry.first.value();
+        LiteralId newCond = getEqualFormula(data, *this, todo.second, false, false);
         LiteralId includeOldCond = getEqualClause(data, *this, data.clause(LitVec{oldCond, newCond}), false, false);
         excludeOldCond = getEqualClause(data, *this, data.clause(LitVec{oldCond.negate(), newCond}), true, false);
-        entry.first->cond = includeOldCond;
+        entry.first.value() = includeOldCond;
     }
     else {
-        excludeOldCond = getEqualFormula(data, *this, todo.cond, false, false);
-        entry.first->cond = excludeOldCond;
+        excludeOldCond = getEqualFormula(data, *this, todo.second, false, false);
+        entry.first.value() = excludeOldCond;
     }
     return {excludeOldCond};
 }
@@ -497,7 +497,7 @@ void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup const &i
     bool showShown = (atomset & static_cast<unsigned>(ShowType::Shown)) != 0;
     bool showTerms = (atomset & static_cast<unsigned>(ShowType::Terms)) != 0;
     if (showAtoms || showShown) {
-        for (auto &x : data.predDoms()) {
+        for (auto const &x : data.predDoms()) {
             Sig sig = *x;
             auto name = sig.name();
             bool show = showAtoms || (showShown && showSig(outPreds, sig));
@@ -511,9 +511,9 @@ void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup const &i
         }
     }
     if (showTerms || showShown) {
-        for (auto &entry : termOutput_.table) {
-            if (isComp(call(data, entry.cond, &Literal::uid))) {
-                atoms.emplace_back(entry.term);
+        for (auto const &entry : termOutput_.table) {
+            if (isComp(call(data, entry.second, &Literal::uid))) {
+                atoms.emplace_back(entry.first);
             }
         }
     }
@@ -522,16 +522,26 @@ void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup const &i
 void Translator::simplify(DomainData &data, Mappings &mappings, AssignmentLookup assignment) {
     minimize_.erase(std::remove_if(minimize_.begin(), minimize_.end(), [&](MinimizeList::value_type &elem) {
         elem.second = call(data, elem.second, &Literal::simplify, mappings, assignment);
-        return elem.second != data.getTrueLit().negate();
+        return elem.second == data.getTrueLit().negate();
     }), minimize_.end());
-    tuples_.erase([&](TupleLitMap::ValueType &elem) {
-        elem.second = call(data, elem.second, &Literal::simplify, mappings, assignment);
-        return elem.second != data.getTrueLit().negate();
-    });
-    termOutput_.table.erase([&](OutputTable::Table::ValueType &elem) {
-        elem.cond = call(data, elem.cond, &Literal::simplify, mappings, assignment);
-        return elem.cond != data.getTrueLit().negate();
-    });
+    for (auto it = tuples_.begin(); it != tuples_.end();) {
+        it.value() = call(data, it.value(), &Literal::simplify, mappings, assignment);
+        if (it.value() == data.getTrueLit().negate()) {
+            it = tuples_.unordered_erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+    for (auto it = termOutput_.table.begin(); it != termOutput_.table.end();) {
+        it.value() = call(data, it.value(), &Literal::simplify, mappings, assignment);
+        if (it.value() == data.getTrueLit().negate()) {
+            it = termOutput_.table.unordered_erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
 }
 
 void Translator::output(DomainData &data, Statement &x) {
@@ -576,7 +586,7 @@ private:
 
 } // namespace
 
-void Translator::showAtom(DomainData &data, PredDomMap::Iterator it) {
+void Translator::showAtom(DomainData &data, PredDomMap::iterator it) {
     for (auto jt = (*it)->begin() + (*it)->showOffset(), je = (*it)->end(); jt != je; ++jt) {
         if (jt->defined()) {
             LitVec cond;
@@ -614,15 +624,15 @@ void Translator::translateMinimize(DomainData &data) {
                 condLits.emplace_back(it++->second);
             }
             while (it != iE && it->first == tuple);
-            int weight(data.tuple(tuple).front().num());
+            int weight(data.tuple(tuple).first->num());
             // Note: extends the minimize constraint incrementally
-            auto ret = tuples_.push(tuple, LiteralId{});
+            auto ret = tuples_.try_emplace(tuple);
             if (!ret.second) {
                 lm.add(ret.first->second, -weight);
                 condLits.emplace_back(ret.first->second);
             }
             LiteralId lit = getEqualClause(data, *this, data.clause(std::move(condLits)), false, false);
-            ret.first->second = lit;
+            ret.first.value() = lit;
             lm.add(lit, weight);
         }
         while (it != iE && data.tuple(it->first)[1].num() == priority);
@@ -632,11 +642,11 @@ void Translator::translateMinimize(DomainData &data) {
 }
 
 void Translator::showTerm(DomainData &data, Symbol term, LitVec cond) {
-    termOutput_.todo.push(term, Formula{}).first->cond.emplace_back(data.clause(std::move(cond)));
+    termOutput_.todo.try_emplace(term, Formula{}).first.value().emplace_back(data.clause(std::move(cond)));
 }
 
 unsigned Translator::nodeUid(Symbol v) {
-    return nodeUids_.offset(nodeUids_.push(v).first);
+    return nodeUids_.try_emplace(v, nodeUids_.size()).first.value();
 }
 
 LiteralId Translator::removeNotNot(DomainData &data, LiteralId lit) {
@@ -652,18 +662,12 @@ constexpr Translator::ClauseKey Translator::ClauseKeyLiterals::open;
 constexpr Translator::ClauseKey Translator::ClauseKeyLiterals::deleted;
 
 LiteralId Translator::clause(ClauseId id, bool conjunctive, bool equivalence) {
-    auto *ret = clauses_.find(
-        [](ClauseKey const &a) { return a.hash(); },
-        [](ClauseKey const &a, ClauseKey const &b) { return a == b; },
-        ClauseKey{id.first, id.second, conjunctive ? 1U : 0U, equivalence ? 1U : 0U, LiteralId().repr()});
-    return ret != nullptr ? LiteralId{ret->literal} : LiteralId{};
+    auto it = clauses_.find(ClauseKey{id.first, id.second, conjunctive ? 1U : 0U, equivalence ? 1U : 0U, LiteralId().repr()});
+    return it != clauses_.end() ? LiteralId{it->literal} : LiteralId{};
 }
 
 void Translator::clause(LiteralId lit, ClauseId id, bool conjunctive, bool equivalence) {
-    auto ret = clauses_.insert(
-        [](ClauseKey const &a) { return a.hash(); },
-        [](ClauseKey const &a, ClauseKey const &b) { return a == b; },
-        ClauseKey{ id.first, id.second, conjunctive ? 1U : 0U, equivalence ? 1U : 0U, lit.repr() });
+    auto ret = clauses_.insert(ClauseKey{id.first, id.second, conjunctive ? 1U : 0U, equivalence ? 1U : 0U, lit.repr()});
     static_cast<void>(ret);
     assert(ret.second);
 }

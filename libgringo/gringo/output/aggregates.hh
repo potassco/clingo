@@ -32,9 +32,9 @@
 
 namespace Gringo { namespace Output {
 
-using BodyAggregateElements = UniqueVec<std::pair<TupleId, Formula>, HashFirst<TupleId>, EqualToFirst<TupleId>>;
+using BodyAggregateElements = ordered_map<TupleId, Formula>;
 using HeadFormula = std::vector<std::pair<LiteralId, ClauseId>>;
-using HeadAggregateElements = UniqueVec<std::pair<TupleId, HeadFormula>, HashFirst<TupleId>, EqualToFirst<TupleId>>;
+using HeadAggregateElements = ordered_map<TupleId, HeadFormula>;
 using DisjunctiveBounds = IntervalSet<Symbol>;
 using Interval = DisjunctiveBounds::Interval;
 using ConjunctiveBounds = std::vector<std::pair<Interval, Interval>>;
@@ -78,7 +78,7 @@ inline Symbol getNeutral(AggregateFunction fun) {
     return {};
 }
 
-LiteralId getEqualClause(DomainData &data, Translator &x, std::pair<Id_t, Id_t> clause, bool conjunctive, bool equivalence);
+LiteralId getEqualClause(DomainData &data, Translator &x, ClauseId clause, bool conjunctive, bool equivalence);
 LiteralId getEqualFormula(DomainData &data, Translator &x, Formula const &formula, bool conjunctive, bool equivalence);
 LiteralId getEqualAggregate(DomainData &data, Translator &x, AggregateFunction fun, NAF naf, DisjunctiveBounds const &bounds, Interval const &range, BodyAggregateElements const &bdElems, bool recursive);
 

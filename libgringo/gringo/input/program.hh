@@ -37,25 +37,34 @@ namespace Gringo { namespace Input {
 using IdVec = Ground::IdVec;
 
 struct Block {
-    Block(Location const &loc, String name, IdVec &&params);
-    Block(Block const &other) = default;
-    Block(Block &&other) noexcept = default;
-    Block &operator=(Block const &other) = default;
-    Block &operator=(Block &&other) noexcept = default;
-    ~Block() noexcept = default;
+    struct Hash {
+        size_t operator()(Ground::SEdb const &edb) const {
+            return hash_mix(edb->first->hash());
+        }
+    };
 
-    Term const &sig() const;
-    operator Term const &() const;
+    struct Equal {
+        bool operator()(Ground::SEdb const &a, Ground::SEdb const &b) const {
+            return *a->first == *b->first;
+        }
+    };
+
+    Block(Location const &loc, String name, IdVec &&params)
+    : loc(loc)
+    , name(name)
+    , params(std::move(params)) { }
+
+    Ground::SEdb make_sig() const;
 
     Location        loc;
     String          name;
     IdVec           params;
     SymVec          addedEdb;
-    Ground::SEdb    edb;
     UStmVec         addedStms;
     UStmVec         stms;
 };
-using BlockMap = UniqueVec<Block, HashKey<Term>, EqualToKey<Term>>;
+
+using BlockMap = ordered_map<Ground::SEdb, Block, Block::Hash, Block::Equal>;
 
 class Program {
 public:

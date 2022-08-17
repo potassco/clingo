@@ -16,7 +16,6 @@ set(header-group-gringo
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/lexerstate.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/locatable.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/logger.hh"
-    "${CMAKE_CURRENT_SOURCE_DIR}/gringo/primes.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/printable.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/safetycheck.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/gringo/symbol.hh"
@@ -73,7 +72,6 @@ bison_target_or_gen("src/input/nongroundgrammar.yy")
 re2c_target_or_gen("/src/input/nongroundlexer.xch")
 set(ide_source_group "Source Files")
 set(source-group
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/primes.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/symbol.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/term.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/terms.cc")
@@ -128,13 +126,18 @@ set(source
 # ]]]
 
 add_library(libgringo STATIC ${header} ${source})
-target_link_libraries(libgringo PUBLIC libpotassco libreify)
+target_link_libraries(libgringo PUBLIC libpotassco libreify tsl::ordered_map tsl::hopscotch_map tsl::sparse_map tl::optional mpark::variant)
 target_include_directories(libgringo
     PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
     PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/input/clingopath.hh.in" "${CMAKE_CURRENT_BINARY_DIR}/src/input/clingopath.hh")
+if (CLINGO_MAP_TYPE STREQUAL "hopscotch")
+    target_compile_definitions(libgringo PUBLIC CLINGO_MAP_TYPE=0)
+elseif (CLINGO_MAP_TYPE STREQUAL "sparse")
+    target_compile_definitions(libgringo PUBLIC CLINGO_MAP_TYPE=1)
+endif()
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libgringo PUBLIC CLINGO_NO_VISIBILITY)
 endif()

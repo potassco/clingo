@@ -31,12 +31,12 @@
 namespace Gringo { namespace Output {
 
 using ClauseId = std::pair<Id_t, Id_t>;
+using ClauseSpan = Potassco::Span<ClauseId>;
 using FormulaId = std::pair<Id_t, Id_t>;
 using Formula = std::vector<ClauseId>;
 using AssignmentLookup = std::function<std::pair<bool, Potassco::Value_t>(unsigned)>; // (isExternal, truthValue)
 using IsTrueLookup = std::function<bool(unsigned)>;
 using OutputPredicates = std::vector<std::pair<Location, Sig>>;
-using CoefVarVec = std::vector<std::pair<int, Symbol>>;
 
 enum class OutputDebug { NONE, TEXT, TRANSLATE, ALL };
 enum class OutputFormat { TEXT, INTERMEDIATE, SMODELS, REIFY };
