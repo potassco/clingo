@@ -16,5 +16,10 @@ include libpyclingo/CMakeLists.txt
 recursive-include libpyclingo/clingo *.py *.typed
 recursive-include libreify *
 include third_party/CMakeLists.txt
+recursive-include third_party/hopscotch-map/include *
+recursive-include third_party/optional/include *
+recursive-include third_party/ordered-map/include *
+recursive-include third_party/sparse-map/include *
+recursive-include third_party/variant/include *
 prune _skbuild
 global-exclude *.py[cod]
