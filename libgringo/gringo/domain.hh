@@ -32,7 +32,6 @@
 #include <deque>
 #include <gringo/hash_set.hh>
 #include <stdexcept>
-#include <tsl/ordered_set.h>
 
 namespace Gringo {
 

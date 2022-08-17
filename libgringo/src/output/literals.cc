@@ -30,8 +30,6 @@
 #include <gringo/output/aggregates.hh>
 #include <gringo/output/theory.hh>
 
-#include <tsl/ordered_set.h>
-
 namespace Gringo { namespace Output {
 
 // {{{1 definition of functions to work with BodyAggregates

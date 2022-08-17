@@ -22,3 +22,7 @@ add_library(tsl::ordered_map ALIAS ordered_map)
 add_library(optional INTERFACE)
 target_include_directories(optional INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/optional/include>)
 add_library(tl::optional ALIAS optional)
+
+add_library(variant INTERFACE)
+target_include_directories(variant INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/variant/include>)
+add_library(mpark::variant ALIAS variant)

@@ -27,8 +27,8 @@
 
 #include <gringo/input/programbuilder.hh>
 #include <clingo.h>
-#include <clingo/variant.hh>
 
+#include <mpark/variant.hpp>
 #include <tl/optional.hpp>
 
 // TODO:

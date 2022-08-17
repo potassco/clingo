@@ -10,8 +10,7 @@ set(header-group-clingo
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/clingocontrol.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/control.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/incmode.hh"
-    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/scripts.hh"
-    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/variant.hh")
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/scripts.hh")
 source_group("${ide_header_group}\\clingo" FILES ${header-group-clingo})
 set(header
     ${header-group}

@@ -30,7 +30,6 @@
 #include <gringo/term.hh>
 #include <gringo/hash_set.hh>
 #include <iterator>
-#include <tsl/ordered_set.h>
 
 namespace Gringo { namespace Ground {
 

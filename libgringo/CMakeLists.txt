@@ -126,7 +126,7 @@ set(source
 # ]]]
 
 add_library(libgringo STATIC ${header} ${source})
-target_link_libraries(libgringo PUBLIC libpotassco libreify tsl::ordered_map tsl::hopscotch_map tsl::sparse_map tl::optional)
+target_link_libraries(libgringo PUBLIC libpotassco libreify tsl::ordered_map tsl::hopscotch_map tsl::sparse_map tl::optional mpark::variant)
 target_include_directories(libgringo
     PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"

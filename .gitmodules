@@ -17,3 +17,6 @@
 [submodule "third_party/optional"]
 	path = third_party/optional
 	url = ../../TartanLlama/optional.git
+[submodule "third_party/variant"]
+	path = third_party/variant
+	url = ../../mpark/variant.git
