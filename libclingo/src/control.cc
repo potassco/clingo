@@ -43,13 +43,21 @@
 #   include <mutex>
 #endif
 
+#define CLINGO_QUOTE_(name) #name
+#define CLINGO_QUOTE(name) CLINGO_QUOTE_(name)
+#ifdef CLINGO_BUILD_REVISION
+#   define CLINGO_VERSION_STRING CLINGO_VERSION " (" CLINGO_QUOTE(CLINGO_BUILD_REVISION) ")"
+#else
+#   define CLINGO_VERSION_STRING CLINGO_VERSION
+#endif
+
 // {{{1 error handling
 
 using namespace Gringo;
 
 namespace {
 
-// {{{1 declaration of ClingoError
+// {{{2 declaration of ClingoError
 
 struct ClingoError : std::exception {
     ClingoError()
@@ -153,8 +161,7 @@ void clingo_terminate(char const *loc) {
     std::_Exit(1);
 }
 
-// }}}1
-// {{{1
+// {{{2
 
 clingo_location_t conv(Location const &loc) {
     return {loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
@@ -169,8 +176,19 @@ Location conv(clingo_location_t const &loc) {
              static_cast<unsigned int>(loc.end_column)};
 }
 
-// 1}}}
 } // namespace
+
+// 2}}}
+
+// 1}}}
+
+namespace Gringo {
+
+char const *clingo_version_string() noexcept {
+    return CLINGO_VERSION_STRING;
+}
+
+} // namespace Gringo
 
 // c interface
 

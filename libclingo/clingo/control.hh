@@ -34,15 +34,9 @@
 #include <potassco/clingo.h>
 #include <clingo.h>
 
-#define CLINGO_QUOTE_(name) #name
-#define CLINGO_QUOTE(name) CLINGO_QUOTE_(name)
-#ifdef CLINGO_BUILD_REVISION
-#   define CLINGO_VERSION_STRING CLINGO_VERSION " (" CLINGO_QUOTE(CLINGO_BUILD_REVISION) ")"
-#else
-#   define CLINGO_VERSION_STRING CLINGO_VERSION
-#endif
-
 namespace Gringo {
+
+char const *clingo_version_string() noexcept;
 
 // {{{1 declaration of SymbolicAtoms
 

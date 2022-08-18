@@ -25,6 +25,7 @@
 #ifndef CLINGO_CLINGOCONTROL_HH
 #define CLINGO_CLINGOCONTROL_HH
 
+#include "clingo.h"
 #include <clingo/control.hh>
 #include <clingo/scripts.hh>
 #include <clingo/astv2.hh>
@@ -177,7 +178,7 @@ class IClingoApp {
 public:
     virtual unsigned message_limit() const { return 20; }
     virtual char const *program_name() const { return "clingo"; }
-    virtual char const *version() const { return CLINGO_VERSION_STRING; }
+    virtual char const *version() const { return clingo_version_string(); }
     virtual bool has_main() const { return false; }
     virtual void main(ClingoControl &ctl, std::vector<std::string> const &files) {
         static_cast<void>(ctl);
