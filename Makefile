@@ -20,6 +20,7 @@ build/$(BUILD_TYPE):
 		-DLIB_POTASSCO_BUILD_TESTS=On \
 		-DCLINGO_BUILD_EXAMPLES=On \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=On \
+		-DCLINGO_BUILD_REVISION="$$(git rev-parse --short HEAD)" \
 		"$${current}"
 
 # compdb can be installed with pip
@@ -54,6 +55,7 @@ web: lua
 		-DCMAKE_EXE_LINKER_FLAGS_RELEASE="" \
 		-DLUA_LIBRARIES=build/lua/install/lib/liblua.a \
 		-DLUA_INCLUDE_DIR=build/lua/install/include \
+		-DCLINGO_BUILD_REVISION="$$(git rev-parse --short HEAD)" \
 		"$${current}"
 	$(MAKE) -C build/web web
 
