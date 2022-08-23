@@ -350,7 +350,7 @@ Location &NonGroundParser::eof(Location &loc) {
 
 bool NonGroundParser::parse(Logger &log) {
     log_ = &log;
-    condition(yycnormal);
+    condition(yycstart);
     theoryLexing_ = TheoryLexing::Disabled;
     injectSymbol_ = NonGroundGrammar::parser::token::PARSE_LP;
     if (empty()) { return true; }

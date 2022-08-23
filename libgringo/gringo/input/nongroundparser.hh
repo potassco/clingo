@@ -42,7 +42,7 @@ enum class TheoryLexing { Disabled, Theory, Definition };
 
 class NonGroundParser : private LexerState<std::pair<String, std::pair<String, IdVec>>> {
 private:
-    enum Condition { yyccomment, yycblockcomment, yycscript, yycscript_body, yycnormal, yyctheory, yycdefinition };
+    enum Condition { yyccomment, yycblockcomment, yycscript, yycscript_body, yycnormal, yyctheory, yycdefinition, yycstart, yycaspif };
 public:
     NonGroundParser(INongroundProgramBuilder &pb, bool &incmode);
     NonGroundParser(NonGroundParser const &other) = delete;
@@ -102,7 +102,7 @@ private:
     };
     Indexed<Aggr> aggregates_;
     int           injectSymbol_;
-    Condition     condition_ = yycnormal;
+    Condition     condition_ = yycstart;
     String        filename_;
     Logger *log_ = nullptr;
 };

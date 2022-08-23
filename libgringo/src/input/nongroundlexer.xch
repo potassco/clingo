@@ -43,6 +43,7 @@
     ANY        = [\000-\377];
     WS         = [\t\r ]*;
     NL         = "\n";
+    ASPIF      = "asp ";
     IDENTIFIER = [_']*[a-z]['A-Za-z0-9_]*;
     VARIABLE   = [_']*[A-Z]['A-Za-z0-9_]*;
     ANONYMOUS  = "_";
@@ -62,6 +63,8 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
     start(loc);
     for (;;) {
         /*!re2c
+        <start> ASPIF / DEC                          => aspif  { continue; }
+        <start> "" / ANY                             => normal { continue; }
         <normal,theory,definition,script> WS         { start(loc); continue; }
         <normal,theory,definition,script> NL         { if(eof()) return 0; step(); start(loc); continue; }
         <normal,theory> INF                          { return NonGroundGrammar::parser::token::INFIMUM; }
@@ -189,6 +192,8 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
             continue;
         }
         <comment> ANY { continue; }
+
+        <aspif> ANY { throw std::runtime_error("implement me!!!"); }
         */
     }
     assert(false);
