@@ -106,6 +106,28 @@ private:
     Condition condition() const;
     String filename() const;
 
+    void aspif_error_(Location const &loc, char const *msg);
+    int aspif_(Location &loc);
+    void aspif_preamble_(Location &loc);
+    void aspif_ws_(Location &loc);
+    void aspif_nl_(Location &loc);
+    void aspif_eof_(Location &loc);
+    int32_t aspif_signed_(Location &loc);
+    uint32_t aspif_unsigned_(Location &loc);
+    StringSpan aspif_string_(Location &loc, uint32_t n);
+    void aspif_solve_(Location &loc);
+    void aspif_rule_(Location &loc);
+    void aspif_minimize_(Location &loc);
+    void aspif_project_(Location &loc);
+    void aspif_output_(Location &loc);
+    void aspif_external_(Location &loc);
+    void aspif_assumption_(Location &loc);
+    void aspif_heuristic_(Location &loc);
+    void aspif_edge_(Location &loc);
+    void aspif_theory_(Location &loc);
+    void aspif_comment_(Location &loc);
+
+
     std::set<std::string> filenames_;
     bool &incmode_;
     TheoryLexing theoryLexing_ = TheoryLexing::Disabled;

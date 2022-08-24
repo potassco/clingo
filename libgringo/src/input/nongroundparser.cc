@@ -24,6 +24,7 @@
 
 #ifndef _GNU_SOURCE
 #  define _GNU_SOURCE
+#include "potassco/basic_types.h"
 #endif
 #include <cstdlib>
 #ifdef __USE_GNU
@@ -176,6 +177,31 @@ std::pair<std::string, std::string> check_file(std::string const &filename, std:
         }
     }
     return ret;
+}
+
+void format_(std::ostringstream &out) {
+}
+
+template <class T>
+void format_(std::ostringstream &out, T const &x) {
+    out << x;
+}
+
+void format_(std::ostringstream &out, StringSpan const &x) {
+    out << std::string(begin(x), end(x));
+}
+
+template <class T, class... Args>
+void format_(std::ostringstream &out, T const &x, Args const &... args) {
+    format_(out, x);
+    format_(out, args...);
+}
+
+template <class... Args>
+std::string format(Args const &... args) {
+    std::ostringstream out;
+    format_(out, args...);
+    return out.str();
 }
 
 } // namespace
@@ -395,6 +421,139 @@ BoundVecUid NonGroundParser::boundvec(Relation ra, TermUid ta, Relation rb, Term
     if (ta != undef) { builder().boundvec(bound, inv(ra), ta); }
     if (tb != undef) { builder().boundvec(bound, rb, tb); }
     return bound;
+}
+
+// NOLINTNEXTLINE
+void NonGroundParser::aspif_error_(Location const &loc, char const *msg) {
+    std::ostringstream out;
+    out << loc << ": error: aspif error, " << msg << "\n";
+    throw std::runtime_error(out.str());
+}
+
+int NonGroundParser::aspif_(Location &loc) {
+    aspif_preamble_(loc);
+    for (;;) {
+        auto stm_type = aspif_unsigned_(loc);
+        switch (stm_type) {
+            case 0:  { aspif_solve_(loc); return 0; }
+            case 1:  { aspif_rule_(loc); break; }
+            case 2:  { aspif_minimize_(loc); break; }
+            case 3:  { aspif_project_(loc); break; }
+            case 4:  { aspif_output_(loc); break; }
+            case 5:  { aspif_external_(loc); break; }
+            case 6:  { aspif_assumption_(loc); break; }
+            case 7:  { aspif_heuristic_(loc); break; }
+            case 8:  { aspif_edge_(loc); break; }
+            case 9:  { aspif_theory_(loc); break; }
+            case 10: { aspif_comment_(loc); break; }
+            default: { aspif_error_(loc, format("unsupported statement type: ", stm_type).c_str()); }
+        }
+    }
+    return 0;
+}
+
+void NonGroundParser::aspif_solve_(Location &loc) {
+    aspif_nl_(loc);
+    aspif_eof_(loc);
+}
+
+void NonGroundParser::aspif_rule_(Location &loc) {
+    aspif_ws_(loc);
+    auto stm_type = aspif_unsigned_(loc);
+    bool choice = true;
+    switch (stm_type) {
+        case 0: {
+            choice = true;
+            break;
+        }
+        case 1: {
+            choice = false;
+            break;
+        }
+        default:  {
+            aspif_error_(loc, format("unsupported rule type: ", stm_type).c_str());
+        }
+    }
+    aspif_ws_(loc);
+    auto num_hd = aspif_unsigned_(loc);
+    std::vector<Potassco::Atom_t> hd;
+    hd.reserve(num_hd);
+    for (uint32_t i = 0; i < num_hd; ++i) {
+        aspif_ws_(loc);
+        hd.emplace_back(aspif_signed_(loc));
+    }
+    aspif_ws_(loc);
+    auto bd_type = aspif_unsigned_(loc);
+    switch (bd_type) {
+        case 0: {
+            aspif_ws_(loc);
+            auto num_bd = aspif_unsigned_(loc);
+            std::vector<Potassco::Lit_t> bd;
+            bd.reserve(num_bd);
+            for (uint32_t i = 0; i < num_bd; ++i) {
+                aspif_ws_(loc);
+                bd.emplace_back(aspif_signed_(loc));
+            }
+            break;
+        }
+        case 1: {
+            throw std::runtime_error("handle weight bodies");
+        }
+        default:  {
+            aspif_error_(loc, format("unsupported body type: ", bd_type).c_str());
+        }
+    }
+    aspif_nl_(loc);
+}
+
+void NonGroundParser::aspif_minimize_(Location &loc) {
+    throw std::logic_error("implement me: minimize");
+}
+
+void NonGroundParser::aspif_project_(Location &loc) {
+    throw std::logic_error("implement me: project");
+}
+
+void NonGroundParser::aspif_output_(Location &loc) {
+    aspif_ws_(loc);
+    uint32_t num_str = aspif_unsigned_(loc);
+    aspif_ws_(loc);
+    auto str_span = aspif_string_(loc, num_str);
+    using Potassco::end;
+    auto str = std::string(begin(str_span), end(str_span));
+    aspif_ws_(loc);
+    uint32_t num_cond = aspif_unsigned_(loc);
+    std::vector<Potassco::Lit_t> cond;
+    cond.reserve(num_cond);
+    for (uint32_t i = 0; i < num_cond; ++i) {
+        aspif_ws_(loc);
+        cond.emplace_back(aspif_signed_(loc));
+    }
+    aspif_nl_(loc);
+}
+
+void NonGroundParser::aspif_external_(Location &loc) {
+    throw std::logic_error("implement me: external");
+}
+
+void NonGroundParser::aspif_assumption_(Location &loc) {
+    throw std::logic_error("implement me: assumption");
+}
+
+void NonGroundParser::aspif_heuristic_(Location &loc) {
+    throw std::logic_error("implement me: heuristic");
+}
+
+void NonGroundParser::aspif_edge_(Location &loc) {
+    throw std::logic_error("implement me: edge");
+}
+
+void NonGroundParser::aspif_theory_(Location &loc) {
+    throw std::logic_error("implement me: theory");
+}
+
+void NonGroundParser::aspif_comment_(Location &loc) {
+    throw std::logic_error("implement me: comment");
 }
 
 // }}}

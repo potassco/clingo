@@ -58,14 +58,15 @@
     KEYWORD    = "#" [a-zA-Z0-9_]*;
 */
 
-int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
+namespace Gringo { namespace Input {
+
+int NonGroundParser::lex_impl(void *pValue, Location &loc) {
     int bc = 0;
-    Condition aspif_next_{yycnormal};
-    auto &value = *static_cast<Gringo::Input::NonGroundGrammar::parser::semantic_type*>(pValue);
+    auto &value = *static_cast<NonGroundGrammar::parser::semantic_type*>(pValue);
     start(loc);
     for (;;) {
         /*!re2c
-        <start> "asp" / " " DEC                      => aspif_ws { aspif_next_ = yycaspif_preamble_major; continue; }
+        <start> "asp" / " " DEC                      => normal { return aspif_(loc); }
         <start> "" / ANY                             :=> normal
         <normal,theory,definition,script> SKIP       { start(loc); continue; }
         <normal,theory,definition,script> NL         { if(eof()) return 0; step(); start(loc); continue; }
@@ -194,66 +195,111 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
             continue;
         }
         <comment> ANY { continue; }
-        
-        // Note: Could be done more compactly using submatch extraction.
-        // Unfortunately, this does not fit in the current design and requiring
-        // changes to the lexer state.
-
-        <aspif_ws> WS {
-            start();
-            condition(aspif_next_);
-            continue;
-        }
-        <aspif_nl> NL => aspif_statement {
-            if (eof()) {
-                lexerError(eof(loc), Potassco::toSpan("<EOF>", 5));
-                return 0;
-            }
-            step();
-            continue;
-        }
-
-        <aspif_preamble_major>    DEC                => aspif_ws { std::cerr << "got here 1: " << string() << std::endl; start(loc); aspif_next_ = yycaspif_preamble_minor; continue; }
-        <aspif_preamble_minor>    DEC                => aspif_ws { std::cerr << "got here 2: " << string() << std::endl; start(loc); aspif_next_ = yycaspif_preamble_revision; continue; }
-        <aspif_preamble_revision> DEC / WS           => aspif_ws { std::cerr << "got here 3: " << string() << std::endl; start(loc); aspif_next_ = yycaspif_preamble_tags; continue; }
-        <aspif_preamble_revision> DEC / NL           => aspif_nl { std::cerr << "got here 4: " << string() << std::endl; start(loc); continue; }
-        <aspif_preamble_tags>     "incremental" / NL => aspif_nl { std::cerr << "got here 5: " << string() << std::endl; start(loc); continue; }
-
-        <aspif_statement> "0" / NL { throw std::runtime_error("handle end of input"); }
-        <aspif_statement> "1" / WS { throw std::runtime_error("parse rule"); }
-        <aspif_statement> "2" / WS { throw std::runtime_error("parse minimize"); }
-        <aspif_statement> "3" / WS { throw std::runtime_error("parse project"); }
-        <aspif_statement> "4" / WS { throw std::runtime_error("parse show"); }
-        <aspif_statement> "5" / WS { throw std::runtime_error("parse external"); }
-        <aspif_statement> "6" / WS { throw std::runtime_error("parse assumption"); }
-        <aspif_statement> "7" / WS { throw std::runtime_error("parse heurisitic"); }
-        <aspif_statement> "8" / WS { throw std::runtime_error("parse edge"); }
-        <aspif_statement> "9" / WS { throw std::runtime_error("parse theory"); }
-
-        <aspif_preamble_major,aspif_preamble_minor,aspif_preamble_revision,aspif_preamble_tags,aspif_ws,aspif_statement> NL {
-            if (eof()) {
-                lexerError(eof(loc), Potassco::toSpan("<EOF>", 5));
-            }
-            else {
-                lexerError(end(loc), Potassco::toSpan("<EOL>", 5));
-            }
-            return 0;
-        }
-        <aspif_preamble_major,aspif_preamble_minor,aspif_preamble_revision,aspif_preamble_tags,aspif_nl,aspif_statement> WS {
-            end(loc);
-            lexerError(loc, Potassco::toSpan("<WS>", 4));
-            return 0;
-        }
-        <aspif_preamble_major,aspif_preamble_minor,aspif_preamble_revision,aspif_preamble_tags,aspif_statement> NOWSNL+ {
-            end(loc);
-            lexerError(loc, string());
-            return 0;
-        }
         */
     }
     assert(false);
     return 0;
 }
+
+StringSpan NonGroundParser::aspif_string_(Location &loc, uint32_t n) {
+    // TODO: check if this is valid...
+    start(loc);
+    char yych;
+    for (uint32_t i = 0; i < n; ++i) {
+        /*!re2c
+        <normal> NL  { aspif_error_(loc, format("expected non-newline character but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+        <normal> ANY { continue; }
+        */
+    }
+    return string();
+}
+
+void NonGroundParser::aspif_preamble_(Location &loc) {
+    aspif_ws_(loc);
+    auto major = aspif_unsigned_(loc);
+    aspif_ws_(loc);
+    auto minor = aspif_unsigned_(loc);
+    aspif_ws_(loc);
+    auto revision = aspif_unsigned_(loc);
+    bool incremental = false;
+    char yych;
+    for (;;) {
+        /*!re2c
+        <normal> "incremental" / (NL | WS) { incremental = true; break; }
+        <normal> "" / ANY                  { break; }
+        */
+    }
+    aspif_nl_(loc);
+}
+
+void NonGroundParser::aspif_ws_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <normal> WS       { return; }
+    <normal> NL       { aspif_error_(loc, format("expected <SPACE> but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <normal> NOWSNL+  { aspif_error_(loc, format("expected <SPACE> but got ", string()).c_str()); }
+    */
+}
+
+void NonGroundParser::aspif_eof_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <normal> NL {
+        if (eof()) {
+           return;
+        }
+        aspif_error_(loc, format("expected <EOF> but got <EOL>").c_str());
+    }
+    <normal> WS       { aspif_error_(loc, format("expected <EOF> but got <SPACE>").c_str()); }
+    <normal> NOWSNL+  { aspif_error_(loc, format("expected <EOF> but got ", string()).c_str()); }
+    */
+}
+
+void NonGroundParser::aspif_nl_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <normal> NL {
+        if (eof()) {
+           aspif_error_(loc, format("expected <EOL> but got <EOF>").c_str());
+        }
+        step();
+        return;
+    }
+    <normal> WS       { aspif_error_(loc, format("expected <EOL> but got <SPACE>").c_str()); }
+    <normal> NOWSNL+  { aspif_error_(loc, format("expected <EOL> but got ", string()).c_str()); }
+    */
+}
+
+int32_t NonGroundParser::aspif_signed_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <normal> DEC      { return integer(); }
+    <normal> "-" DEC  { return -integer(); }
+    <normal> NL       { aspif_error_(loc, format("expected unsigned integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <normal> WS       { aspif_error_(loc, "expected unsigned integer but got <SPACE>"); }
+    <normal> NOWSNL+  { aspif_error_(loc, format("expected unsigned integer but got token ", string()).c_str()); }
+    */
+    return 0;
+}
+
+uint32_t NonGroundParser::aspif_unsigned_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <normal> DEC      { return integer(); }
+    <normal> NL       { aspif_error_(loc, format("expected integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <normal> WS       { aspif_error_(loc, "expected integer but got <SPACE>"); }
+    <normal> NOWSNL+  { aspif_error_(loc, format("expected integer but got token ", string()).c_str()); }
+    */
+    return 0;
+
+}
+
+} } // namespace Input Gringo
 
 #undef YYCTYPE
 #undef YYCURSOR
