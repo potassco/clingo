@@ -41,9 +41,10 @@
     BIN        = "0b"([0-1]+);
     NUMBER     = DEC | HEX | OCT | BIN;
     ANY        = [\000-\377];
-    WS         = [\t\r ]*;
+    NOWSNL     = [^\n ];
+    SKIP       = [\t\r ]*;
+    WS         = " ";
     NL         = "\n";
-    ASPIF      = "asp ";
     IDENTIFIER = [_']*[a-z]['A-Za-z0-9_]*;
     VARIABLE   = [_']*[A-Z]['A-Za-z0-9_]*;
     ANONYMOUS  = "_";
@@ -59,13 +60,14 @@
 
 int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
     int bc = 0;
+    Condition aspif_next_{yycnormal};
     auto &value = *static_cast<Gringo::Input::NonGroundGrammar::parser::semantic_type*>(pValue);
     start(loc);
     for (;;) {
         /*!re2c
-        <start> ASPIF / DEC                          => aspif  { continue; }
-        <start> "" / ANY                             => normal { continue; }
-        <normal,theory,definition,script> WS         { start(loc); continue; }
+        <start> "asp" / " " DEC                      => aspif_ws { aspif_next_ = yycaspif_preamble_major; continue; }
+        <start> "" / ANY                             :=> normal
+        <normal,theory,definition,script> SKIP       { start(loc); continue; }
         <normal,theory,definition,script> NL         { if(eof()) return 0; step(); start(loc); continue; }
         <normal,theory> INF                          { return NonGroundGrammar::parser::token::INFIMUM; }
         <normal,theory> SUP                          { return NonGroundGrammar::parser::token::SUPREMUM; }
@@ -120,7 +122,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal,theory> "]"                          { return NonGroundGrammar::parser::token::RBRACK; }
         <normal,theory,script> "("                   { return NonGroundGrammar::parser::token::LPAREN; }
         <normal,theory> ")"                          { return NonGroundGrammar::parser::token::RPAREN; }
-        <script> ")" WS                              => script_body { start(loc); return NonGroundGrammar::parser::token::RPAREN; }
+        <script> ")" SKIP                            => script_body { start(loc); return NonGroundGrammar::parser::token::RPAREN; }
         <normal,theory,definition> "{"               { return NonGroundGrammar::parser::token::LBRACE; }
         <normal,theory,definition> "}"               { return NonGroundGrammar::parser::token::RBRACE; }
         <normal> "+"                                 { return NonGroundGrammar::parser::token::ADD; }
@@ -149,7 +151,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal,theory,definition,script> KEYWORD    { lexerError(end(loc), string()); continue; }
         <normal,theory,definition,script> ANY        { lexerError(end(loc), string()); continue; }
 
-        <script_body> WS "#end" => normal {
+        <script_body> SKIP "#end" => normal {
             auto span = string();
             size_t size = span.size - 4;
             for (; size > 0; --size) {
@@ -192,8 +194,61 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
             continue;
         }
         <comment> ANY { continue; }
+        
+        // Note: Could be done more compactly using submatch extraction.
+        // Unfortunately, this does not fit in the current design and requiring
+        // changes to the lexer state.
 
-        <aspif> ANY { throw std::runtime_error("implement me!!!"); }
+        <aspif_ws> WS {
+            start();
+            condition(aspif_next_);
+            continue;
+        }
+        <aspif_nl> NL => aspif_statement {
+            if (eof()) {
+                lexerError(eof(loc), Potassco::toSpan("<EOF>", 5));
+                return 0;
+            }
+            step();
+            continue;
+        }
+
+        <aspif_preamble_major>    DEC                => aspif_ws { std::cerr << "got here 1: " << string() << std::endl; start(loc); aspif_next_ = yycaspif_preamble_minor; continue; }
+        <aspif_preamble_minor>    DEC                => aspif_ws { std::cerr << "got here 2: " << string() << std::endl; start(loc); aspif_next_ = yycaspif_preamble_revision; continue; }
+        <aspif_preamble_revision> DEC / WS           => aspif_ws { std::cerr << "got here 3: " << string() << std::endl; start(loc); aspif_next_ = yycaspif_preamble_tags; continue; }
+        <aspif_preamble_revision> DEC / NL           => aspif_nl { std::cerr << "got here 4: " << string() << std::endl; start(loc); continue; }
+        <aspif_preamble_tags>     "incremental" / NL => aspif_nl { std::cerr << "got here 5: " << string() << std::endl; start(loc); continue; }
+
+        <aspif_statement> "0" / NL { throw std::runtime_error("handle end of input"); }
+        <aspif_statement> "1" / WS { throw std::runtime_error("parse rule"); }
+        <aspif_statement> "2" / WS { throw std::runtime_error("parse minimize"); }
+        <aspif_statement> "3" / WS { throw std::runtime_error("parse project"); }
+        <aspif_statement> "4" / WS { throw std::runtime_error("parse show"); }
+        <aspif_statement> "5" / WS { throw std::runtime_error("parse external"); }
+        <aspif_statement> "6" / WS { throw std::runtime_error("parse assumption"); }
+        <aspif_statement> "7" / WS { throw std::runtime_error("parse heurisitic"); }
+        <aspif_statement> "8" / WS { throw std::runtime_error("parse edge"); }
+        <aspif_statement> "9" / WS { throw std::runtime_error("parse theory"); }
+
+        <aspif_preamble_major,aspif_preamble_minor,aspif_preamble_revision,aspif_preamble_tags,aspif_ws,aspif_statement> NL {
+            if (eof()) {
+                lexerError(eof(loc), Potassco::toSpan("<EOF>", 5));
+            }
+            else {
+                lexerError(end(loc), Potassco::toSpan("<EOL>", 5));
+            }
+            return 0;
+        }
+        <aspif_preamble_major,aspif_preamble_minor,aspif_preamble_revision,aspif_preamble_tags,aspif_nl,aspif_statement> WS {
+            end(loc);
+            lexerError(loc, Potassco::toSpan("<WS>", 4));
+            return 0;
+        }
+        <aspif_preamble_major,aspif_preamble_minor,aspif_preamble_revision,aspif_preamble_tags,aspif_statement> NOWSNL+ {
+            end(loc);
+            lexerError(loc, string());
+            return 0;
+        }
         */
     }
     assert(false);

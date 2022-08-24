@@ -42,7 +42,25 @@ enum class TheoryLexing { Disabled, Theory, Definition };
 
 class NonGroundParser : private LexerState<std::pair<String, std::pair<String, IdVec>>> {
 private:
-    enum Condition { yyccomment, yycblockcomment, yycscript, yycscript_body, yycnormal, yyctheory, yycdefinition, yycstart, yycaspif };
+    enum Condition {
+        yyccomment,
+        yycblockcomment,
+        yycscript,
+        yycscript_body,
+        yycnormal,
+        yyctheory,
+        yycdefinition,
+        yycstart,
+        // aspif statement
+        yycaspif_nl,
+        yycaspif_ws,
+        yycaspif_statement,
+        // aspif preamble
+        yycaspif_preamble_major,
+        yycaspif_preamble_minor,
+        yycaspif_preamble_revision,
+        yycaspif_preamble_tags,
+    };
 public:
     NonGroundParser(INongroundProgramBuilder &pb, bool &incmode);
     NonGroundParser(NonGroundParser const &other) = delete;
