@@ -33,9 +33,11 @@
 #  include <sys/stat.h>
 #endif
 #include "gringo/input/nongroundparser.hh"
+#include "gringo/input/groundtermparser.hh"
 #include "gringo/lexerstate.hh"
 #include "gringo/symbol.hh"
 #include "gringo/logger.hh"
+#include "gringo/hash_set.hh"
 #include "input/nongroundgrammar/grammar.hh"
 #include <cstddef>
 #include <climits>
@@ -208,10 +210,11 @@ std::string format(Args const &... args) {
 
 // {{{ defintion of NonGroundParser
 
-NonGroundParser::NonGroundParser(INongroundProgramBuilder &pb, bool &incmode)
+NonGroundParser::NonGroundParser(INongroundProgramBuilder &pb, Backend &bck, bool &incmode)
 : incmode_(incmode)
 , not_("not")
 , pb_(pb)
+, bck_{bck}
 , injectSymbol_(0)
 , filename_("") { }
 
@@ -374,17 +377,21 @@ Location &NonGroundParser::eof(Location &loc) {
     return loc;
 }
 
-bool NonGroundParser::parse(Logger &log) {
+ParseResult NonGroundParser::parse(Logger &log) {
     log_ = &log;
-    condition(yycstart);
     theoryLexing_ = TheoryLexing::Disabled;
     injectSymbol_ = NonGroundGrammar::parser::token::PARSE_LP;
-    if (empty()) { return true; }
+    if (empty()) {
+        disable_aspif();
+        return ParseResult::Gringo;
+    }
     NonGroundGrammar::parser parser(this);
     init_();
-    auto ret = parser.parse();
+    parser.parse();
     filenames_.clear();
-    return ret == 0;
+    auto ret = condition() == yycaspif ? ParseResult::ASPIF : ParseResult::Gringo;
+    disable_aspif();
+    return ret;
 }
 
 INongroundProgramBuilder &NonGroundParser::builder() { return pb_; }
@@ -432,6 +439,7 @@ void NonGroundParser::aspif_error_(Location const &loc, char const *msg) {
 
 int NonGroundParser::aspif_(Location &loc) {
     aspif_preamble_(loc);
+    bck_.beginStep();
     for (;;) {
         auto stm_type = aspif_unsigned_(loc);
         switch (stm_type) {
@@ -449,6 +457,7 @@ int NonGroundParser::aspif_(Location &loc) {
             default: { aspif_error_(loc, format("unsupported statement type: ", stm_type).c_str()); }
         }
     }
+    bck_.endStep();
     return 0;
 }
 
@@ -459,15 +468,10 @@ void NonGroundParser::aspif_solve_(Location &loc) {
 
 void NonGroundParser::aspif_rule_(Location &loc) {
     aspif_ws_(loc);
-    auto stm_type = aspif_unsigned_(loc);
-    bool choice = true;
+    auto stm_type = Potassco::Head_t(aspif_unsigned_(loc));
     switch (stm_type) {
-        case 0: {
-            choice = true;
-            break;
-        }
-        case 1: {
-            choice = false;
+        case Potassco::Head_t::Choice:
+        case Potassco::Head_t::Disjunctive: {
             break;
         }
         default:  {
@@ -494,6 +498,7 @@ void NonGroundParser::aspif_rule_(Location &loc) {
                 aspif_ws_(loc);
                 bd.emplace_back(aspif_signed_(loc));
             }
+            bck_.rule(stm_type, make_span(hd), make_span(bd));
             break;
         }
         case 1: {
@@ -514,6 +519,15 @@ void NonGroundParser::aspif_project_(Location &loc) {
     throw std::logic_error("implement me: project");
 }
 
+Symbol NonGroundParser::aspif_symbol_(std::string const &str) {
+    GroundTermParser parser;
+    Symbol sym = parser.parse(str, logger());
+    if (sym.type() == SymbolType::Special) {
+        throw std::runtime_error("parsing failed");
+    }
+    return sym;
+}
+
 void NonGroundParser::aspif_output_(Location &loc) {
     aspif_ws_(loc);
     uint32_t num_str = aspif_unsigned_(loc);
@@ -529,6 +543,7 @@ void NonGroundParser::aspif_output_(Location &loc) {
         aspif_ws_(loc);
         cond.emplace_back(aspif_signed_(loc));
     }
+    bck_.output(aspif_symbol_({begin(str_span), end(str_span)}), make_span(cond));
     aspif_nl_(loc);
 }
 

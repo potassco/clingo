@@ -66,7 +66,7 @@ int NonGroundParser::lex_impl(void *pValue, Location &loc) {
     start(loc);
     for (;;) {
         /*!re2c
-        <start> "asp" / " " DEC                      => normal { return aspif_(loc); }
+        <start> "asp" / " " DEC                      => aspif { return aspif_(loc); }
         <start> "" / ANY                             :=> normal
         <normal,theory,definition,script> SKIP       { start(loc); continue; }
         <normal,theory,definition,script> NL         { if(eof()) return 0; step(); start(loc); continue; }
@@ -207,8 +207,8 @@ StringSpan NonGroundParser::aspif_string_(Location &loc, uint32_t n) {
     char yych;
     for (uint32_t i = 0; i < n; ++i) {
         /*!re2c
-        <normal> NL  { aspif_error_(loc, format("expected non-newline character but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
-        <normal> ANY { continue; }
+        <aspif> NL  { aspif_error_(loc, format("expected non-newline character but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+        <aspif> ANY { continue; }
         */
     }
     return string();
@@ -225,8 +225,8 @@ void NonGroundParser::aspif_preamble_(Location &loc) {
     char yych;
     for (;;) {
         /*!re2c
-        <normal> "incremental" / (NL | WS) { incremental = true; break; }
-        <normal> "" / ANY                  { break; }
+        <aspif> "incremental" / (NL | WS) { incremental = true; break; }
+        <aspif> "" / ANY                  { break; }
         */
     }
     aspif_nl_(loc);
@@ -236,9 +236,9 @@ void NonGroundParser::aspif_ws_(Location &loc) {
     start(loc);
     char yych;
     /*!re2c
-    <normal> WS       { return; }
-    <normal> NL       { aspif_error_(loc, format("expected <SPACE> but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
-    <normal> NOWSNL+  { aspif_error_(loc, format("expected <SPACE> but got ", string()).c_str()); }
+    <aspif> WS       { return; }
+    <aspif> NL       { aspif_error_(loc, format("expected <SPACE> but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <aspif> NOWSNL+  { aspif_error_(loc, format("expected <SPACE> but got ", string()).c_str()); }
     */
 }
 
@@ -246,14 +246,14 @@ void NonGroundParser::aspif_eof_(Location &loc) {
     start(loc);
     char yych;
     /*!re2c
-    <normal> NL {
+    <aspif> NL {
         if (eof()) {
            return;
         }
         aspif_error_(loc, format("expected <EOF> but got <EOL>").c_str());
     }
-    <normal> WS       { aspif_error_(loc, format("expected <EOF> but got <SPACE>").c_str()); }
-    <normal> NOWSNL+  { aspif_error_(loc, format("expected <EOF> but got ", string()).c_str()); }
+    <aspif> WS       { aspif_error_(loc, format("expected <EOF> but got <SPACE>").c_str()); }
+    <aspif> NOWSNL+  { aspif_error_(loc, format("expected <EOF> but got ", string()).c_str()); }
     */
 }
 
@@ -261,15 +261,15 @@ void NonGroundParser::aspif_nl_(Location &loc) {
     start(loc);
     char yych;
     /*!re2c
-    <normal> NL {
+    <aspif> NL {
         if (eof()) {
            aspif_error_(loc, format("expected <EOL> but got <EOF>").c_str());
         }
         step();
         return;
     }
-    <normal> WS       { aspif_error_(loc, format("expected <EOL> but got <SPACE>").c_str()); }
-    <normal> NOWSNL+  { aspif_error_(loc, format("expected <EOL> but got ", string()).c_str()); }
+    <aspif> WS       { aspif_error_(loc, format("expected <EOL> but got <SPACE>").c_str()); }
+    <aspif> NOWSNL+  { aspif_error_(loc, format("expected <EOL> but got ", string()).c_str()); }
     */
 }
 
@@ -277,11 +277,11 @@ int32_t NonGroundParser::aspif_signed_(Location &loc) {
     start(loc);
     char yych;
     /*!re2c
-    <normal> DEC      { return integer(); }
-    <normal> "-" DEC  { return -integer(); }
-    <normal> NL       { aspif_error_(loc, format("expected unsigned integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
-    <normal> WS       { aspif_error_(loc, "expected unsigned integer but got <SPACE>"); }
-    <normal> NOWSNL+  { aspif_error_(loc, format("expected unsigned integer but got token ", string()).c_str()); }
+    <aspif> DEC      { return integer(); }
+    <aspif> "-" DEC  { return -integer(); }
+    <aspif> NL       { aspif_error_(loc, format("expected unsigned integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <aspif> WS       { aspif_error_(loc, "expected unsigned integer but got <SPACE>"); }
+    <aspif> NOWSNL+  { aspif_error_(loc, format("expected unsigned integer but got token ", string()).c_str()); }
     */
     return 0;
 }
@@ -290,10 +290,10 @@ uint32_t NonGroundParser::aspif_unsigned_(Location &loc) {
     start(loc);
     char yych;
     /*!re2c
-    <normal> DEC      { return integer(); }
-    <normal> NL       { aspif_error_(loc, format("expected integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
-    <normal> WS       { aspif_error_(loc, "expected integer but got <SPACE>"); }
-    <normal> NOWSNL+  { aspif_error_(loc, format("expected integer but got token ", string()).c_str()); }
+    <aspif> DEC      { return integer(); }
+    <aspif> NL       { aspif_error_(loc, format("expected integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <aspif> WS       { aspif_error_(loc, "expected integer but got <SPACE>"); }
+    <aspif> NOWSNL+  { aspif_error_(loc, format("expected integer but got token ", string()).c_str()); }
     */
     return 0;
 

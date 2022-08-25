@@ -27,6 +27,7 @@
 
 #include <gringo/input/programbuilder.hh>
 #include <gringo/lexerstate.hh>
+#include <gringo/backend.hh>
 #include <memory>
 #include <iosfwd>
 #include <set>
@@ -39,6 +40,7 @@ using StringVec   = std::vector<std::string>;
 using ProgramVec  = std::vector<std::tuple<String, IdVec, std::string>>;
 
 enum class TheoryLexing { Disabled, Theory, Definition };
+enum class ParseResult { ASPIF, Gringo };
 
 class NonGroundParser : private LexerState<std::pair<String, std::pair<String, IdVec>>> {
 private:
@@ -51,18 +53,10 @@ private:
         yyctheory,
         yycdefinition,
         yycstart,
-        // aspif statement
-        yycaspif_nl,
-        yycaspif_ws,
-        yycaspif_statement,
-        // aspif preamble
-        yycaspif_preamble_major,
-        yycaspif_preamble_minor,
-        yycaspif_preamble_revision,
-        yycaspif_preamble_tags,
+        yycaspif,
     };
 public:
-    NonGroundParser(INongroundProgramBuilder &pb, bool &incmode);
+    NonGroundParser(INongroundProgramBuilder &pb, Backend &bck, bool &incmode);
     NonGroundParser(NonGroundParser const &other) = delete;
     NonGroundParser(NonGroundParser &&other) noexcept = default;
     NonGroundParser &operator=(NonGroundParser const &other) = delete;
@@ -75,10 +69,13 @@ public:
     void pushBlock(std::string const &name, IdVec const &vec, std::string const &block, Logger &log);
     int lex(void *pValue, Location &loc);
     bool parseDefine(std::string const &define, Logger &log);
-    bool parse(Logger &log);
+    ParseResult parse(Logger &log);
     bool empty() { return LexerState::empty(); }
     void include(String file, Location const &loc, bool inbuilt, Logger &log);
     void theoryLexing(TheoryLexing mode);
+    void disable_aspif() {
+        condition(yycnormal);
+    }
     INongroundProgramBuilder &builder();
     // Note: only to be used during parsing
     Logger &logger() { assert(log_); return *log_; }
@@ -106,6 +103,7 @@ private:
     Condition condition() const;
     String filename() const;
 
+    Symbol aspif_symbol_(std::string const &str);
     void aspif_error_(Location const &loc, char const *msg);
     int aspif_(Location &loc);
     void aspif_preamble_(Location &loc);
@@ -133,6 +131,7 @@ private:
     TheoryLexing theoryLexing_ = TheoryLexing::Disabled;
     String not_;
     INongroundProgramBuilder &pb_;
+    Backend &bck_;
     struct Aggr
     {
         AggregateFunction fun;

@@ -255,6 +255,7 @@ private:
 
 class ClingoSolveFuture;
 class ClingoControl : public clingo_control, private ConfigProxy, private SymbolicAtoms, private Potassco::AbstractHeuristic {
+    class ControlBackend;
 public:
     using StringVec        = std::vector<std::string>;
     using ExternalVec      = std::vector<std::pair<Symbol, Potassco::Value_t>>;
@@ -350,7 +351,11 @@ public:
     Logger &logger() override { return logger_; }
     void beginAdd() override { parse(); }
     void add(clingo_ast_t const &ast) override { Input::parse(*pb_, logger_, ast.ast); }
-    void endAdd() override { defs_.init(logger_); parsed = true; }
+    void endAdd() override {
+        parser_->disable_aspif();
+        defs_.init(logger_);
+        parsed_ = true;
+    }
     void registerObserver(UBackend obs, bool replace) override {
         if (replace) { clingoMode_ = false; }
         out_->registerObserver(std::move(obs), replace);
@@ -363,6 +368,7 @@ public:
     Scripts                                                   &scripts_;
     Input::Program                                             prg_;
     Defines                                                    defs_;
+    std::unique_ptr<Backend>                                   aspif_bck_;
     std::unique_ptr<Input::NongroundProgramBuilder>            pb_;
     std::unique_ptr<Input::NonGroundParser>                    parser_;
     USolveEventHandler                                         eventHandler_;
@@ -387,9 +393,9 @@ public:
     bool                                                       enableCleanup_         = true;
     bool                                                       clingoMode_;
     bool                                                       verbose_               = false;
-    bool                                                       parsed                 = false;
-    bool                                                       grounded               = false;
+    bool                                                       parsed_                = false;
     bool                                                       configUpdate_          = false;
+    bool                                                       grounded_              = false;
     bool                                                       initialized_           = false;
     bool                                                       incmode_               = false;
     bool                                                       canClean_              = false;

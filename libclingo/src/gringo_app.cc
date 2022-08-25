@@ -94,7 +94,7 @@ struct IncrementalControl : Control {
     : out(out)
     , scripts(g_scripts())
     , pb(scripts, prg, out, defs, opts.rewriteMinimize)
-    , parser(pb, incmode)
+    , parser(pb, bck_, incmode)
     , opts(opts) {
         using namespace Gringo;
         // TODO: should go where python script is once refactored
@@ -265,6 +265,7 @@ struct IncrementalControl : Control {
     }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
 
+    NullBackend                    bck_;
     Input::GroundTermParser        termParser;
     Output::OutputBase            &out;
     Scripts                       &scripts;

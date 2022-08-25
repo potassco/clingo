@@ -1721,7 +1721,9 @@ extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback
             forwardError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
         });
         bool incmode = false;
-        Input::NonGroundParser parser{*builder, incmode};
+        NullBackend bck;
+        Input::NonGroundParser parser{*builder, bck, incmode};
+        parser.disable_aspif();
         Logger::Printer printer;
         if (logger != nullptr) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
         Logger log(printer, message_limit);
@@ -1738,7 +1740,9 @@ extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, cling
             forwardError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
         });
         bool incmode = false;
-        Input::NonGroundParser parser(*builder, incmode);
+        NullBackend bck;
+        Input::NonGroundParser parser(*builder, bck, incmode);
+        parser.disable_aspif();
         Logger::Printer printer;
         if (logger != nullptr) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
         Logger log(printer, message_limit);

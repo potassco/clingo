@@ -883,7 +883,8 @@ std::string parse(std::string const &str) {
     Gringo::Test::TestGringoModule log;
     TestNongroundProgramBuilder pb;
     bool incmode;
-    NonGroundParser ngp(pb, incmode);
+    NullBackend bck;
+    NonGroundParser ngp(pb, bck, incmode);
     ngp.pushStream("-", std::unique_ptr<std::istream>(new std::stringstream(str)), log);
     ngp.parse(log);
     return pb.toString();

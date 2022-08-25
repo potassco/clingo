@@ -30,6 +30,10 @@
 #include <clasp/clause.h>
 #include <clasp/weight_constraint.h>
 #include "clingo.h"
+#include "gringo/backend.hh"
+#include "gringo/hash_set.hh"
+#include "gringo/output/output.hh"
+#include "potassco/theory_data.h"
 #include <csignal>
 #include <clingo/incmode.hh>
 
@@ -37,26 +41,28 @@ namespace Gringo {
 
 // {{{1 definition of ClaspAPIBackend
 
-void ClaspAPIBackend::initProgram(bool) { }
+void ClaspAPIBackend::initProgram(bool incremental) {
+    static_cast<void>(incremental);
+}
 
 void ClaspAPIBackend::endStep() { }
 
 void ClaspAPIBackend::beginStep() { }
 
 void ClaspAPIBackend::rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body) {
-    if (auto p = prg()) { p->addRule(ht, head, body); }
+    if (auto *p = prg()) { p->addRule(ht, head, body); }
 }
 
 void ClaspAPIBackend::rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& body) {
-    if (auto p = prg()) { p->addRule(ht, head, bound, body); }
+    if (auto *p = prg()) { p->addRule(ht, head, bound, body); }
 }
 
 void ClaspAPIBackend::minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) {
-    if (auto p = prg()) { p->addMinimize(prio, lits); }
+    if (auto *p = prg()) { p->addMinimize(prio, lits); }
 }
 
 void ClaspAPIBackend::project(const Potassco::AtomSpan& atoms) {
-    if (auto p = prg()) { p->addProject(atoms); }
+    if (auto *p = prg()) { p->addProject(atoms); }
 }
 
 void ClaspAPIBackend::output(Symbol sym, Potassco::Atom_t atom) {
@@ -64,33 +70,33 @@ void ClaspAPIBackend::output(Symbol sym, Potassco::Atom_t atom) {
     out << sym;
     if (atom != 0) {
         Potassco::Lit_t lit = atom;
-        if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{&lit, 1}); }
+        if (auto *p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{&lit, 1}); }
     }
     else {
-        if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{nullptr, 0}); }
+        if (auto *p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{nullptr, 0}); }
     }
 }
 
 void ClaspAPIBackend::output(Symbol sym, Potassco::LitSpan const& condition) {
     std::ostringstream out;
     out << sym;
-    if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), condition); }
+    if (auto *p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), condition); }
 }
 
 void ClaspAPIBackend::acycEdge(int s, int t, const Potassco::LitSpan& condition) {
-    if (auto p = prg()) { p->addAcycEdge(s, t, condition); }
+    if (auto *p = prg()) { p->addAcycEdge(s, t, condition); }
 }
 
 void ClaspAPIBackend::heuristic(Potassco::Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& condition) {
-    if (auto p = prg()) { p->addDomHeuristic(a, t, bias, prio, condition); }
+    if (auto *p = prg()) { p->addDomHeuristic(a, t, bias, prio, condition); }
 }
 
 void ClaspAPIBackend::assume(const Potassco::LitSpan& lits) {
-    if (auto p = prg()) { p->addAssumption(lits); }
+    if (auto *p = prg()) { p->addAssumption(lits); }
 }
 
 void ClaspAPIBackend::external(Potassco::Atom_t a, Potassco::Value_t v) {
-    if (auto p = prg()) {
+    if (auto *p = prg()) {
         switch (v) {
             case Potassco::Value_t::False:   { p->freeze(a, Clasp::value_false); break; }
             case Potassco::Value_t::True:    { p->freeze(a, Clasp::value_true); break; }
@@ -125,23 +131,181 @@ ClaspAPIBackend::~ClaspAPIBackend() noexcept = default;
 
 // {{{1 definition of ClingoControl
 
+class ClingoControl::ControlBackend : public Backend, private Potassco::TheoryData::Visitor {
+public:
+    ControlBackend(ClingoControl &ctl)
+    : ctl_{ctl} {
+    }
+
+    void initProgram(bool incremental) override {
+        static_cast<void>(incremental);
+    }
+    void beginStep() override {
+        ctl_.beginAddBackend();
+        bck_ = ctl_.out_->backend();
+    }
+
+    void rule(Head_t ht, AtomSpan const &head, LitSpan const &body) override {
+        bck_->rule(ht, head, body);
+    }
+    void rule(Head_t ht, AtomSpan const &head, Weight_t bound, WeightLitSpan const &body) override {
+        bck_->rule(ht, head, bound, body);
+    }
+    void minimize(Weight_t prio, WeightLitSpan const &lits) override {
+        bck_->minimize(prio, lits);
+    }
+
+    void project(AtomSpan const &atoms) override {
+        bck_->project(atoms);
+    }
+    void output(Symbol sym, Potassco::Atom_t atom) override {
+        bck_->output(sym, atom);
+    }
+    void output(Symbol sym, Potassco::LitSpan const &condition) override {
+        bck_->output(sym, condition);
+    }
+    void external(Atom_t a, Value_t v) override {
+        bck_->external(a, v);
+    }
+    void assume(const LitSpan& lits) override {
+        bck_->assume(lits);
+    }
+    void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, LitSpan const &condition) override {
+        bck_->heuristic(a, t, bias, prio, condition);
+    }
+    void acycEdge(int s, int t, LitSpan const &condition) override {
+        bck_->acycEdge(s, t, condition);
+    }
+
+    void theoryTerm(Id_t termId, int number) override {
+        ensure_term(termId);
+        theory_.addTerm(termId, number);
+    }
+    void theoryTerm(Id_t termId, StringSpan const &name) override {
+        ensure_term(termId);
+        theory_.addTerm(termId, name);
+    }
+    void theoryTerm(Id_t termId, int cId, IdSpan const &args) override {
+        ensure_term(termId);
+        theory_.addTerm(termId, cId, args);
+    }
+    void theoryElement(Id_t elementId, IdSpan const &terms, LitSpan const &cond) override {
+        while (elements_.size() <= elementId) {
+            elements_.emplace_back(std::numeric_limits<Id_t>::max(), std::vector<Potassco::Lit_t>{});
+        }
+        elements_[elementId].second.assign(Potassco::begin(cond), Potassco::end(cond));
+        theory_.addElement(elementId, terms);
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &elements) override {
+        theory_.addAtom(atomOrZero, termId, elements);
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &elements, Id_t op, Id_t rhs) override {
+        theory_.addAtom(atomOrZero, termId, elements, op, rhs);
+    }
+
+    void endStep() override {
+        theory_.accept(*this);
+        ctl_.endAddBackend();
+        bck_ = nullptr;
+    }
+private:
+    void visit(const Potassco::TheoryData &data, Id_t termId, const Potassco::TheoryTerm &t) override {
+        if (terms_[termId] == std::numeric_limits<Id_t>::max()) {
+            theory_.accept(t, *this);
+            auto &theory = ctl_.out_->data.theory();
+            switch (t.type()) {
+                case Potassco::Theory_t::Number: {
+                    terms_[termId] = theory.addTerm(t.number());
+                    break;
+                }
+                case Potassco::Theory_t::Symbol: {
+                    terms_[termId] = theory.addTerm(t.symbol());
+                    break;
+                }
+                case Potassco::Theory_t::Compound: {
+                    std::vector<Id_t> terms;
+                    terms.reserve(t.terms().size);
+                    for (auto const &x : t.terms()) {
+                        terms.emplace_back(terms_[x]);
+                    }
+                    if (t.isTuple()) {
+                        terms_[termId] = theory.addTermTup(t.tuple(), make_span(terms));
+                    }
+                    else {
+                        terms_[termId] = theory.addTermFun(terms_[t.function()], make_span(terms));
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    void visit(const Potassco::TheoryData &data, Id_t elemId, const Potassco::TheoryElement &e) override {
+        if (elements_[elemId].first == std::numeric_limits<Id_t>::max()) {
+            theory_.accept(e, *this);
+            auto &theory = ctl_.out_->data.theory();
+            std::vector<Id_t> tuple;
+            tuple.reserve(e.size());
+            for (auto const &x : e) {
+                tuple.emplace_back(terms_[x]);
+            }
+            // one could alse remap to named literals
+            elements_[elemId].first = theory.addElem(make_span(tuple), make_span(elements_[elemId].second));
+        }
+    }
+    void visit(const Potassco::TheoryData &data, const Potassco::TheoryAtom &a) override {
+        theory_.accept(a, *this);
+        auto &theory = ctl_.out_->data.theory();
+        std::vector<Id_t> elements;
+        elements.reserve(a.elements().size);
+        for (auto const &x : a.elements()) {
+            elements.emplace_back(elements_[x].first);
+        }
+        if (a.rhs() == nullptr) {
+            theory.addAtom([&a]() { return a.atom(); }, terms_[a.term()], make_span(elements));
+        }
+        else {
+            theory.addAtom([&a]() { return a.atom(); }, terms_[a.term()], make_span(elements), terms_[*a.guard()], terms_[*a.rhs()]);
+        }
+    }
+
+    void ensure_term(Id_t termId) {
+        while (terms_.size() <= termId) {
+            terms_.emplace_back(std::numeric_limits<Id_t>::max());
+        }
+    }
+
+    // Note: would be reusable if there were a function to obtain a backend and theory...
+    ClingoControl &ctl_;
+    Potassco::TheoryData theory_;
+    std::vector<std::pair<Id_t, std::vector<Potassco::Lit_t>>> elements_;
+    std::vector<Id_t> terms_;
+    Backend *bck_ = nullptr;
+};
+
 #define LOG if (verbose_) std::cerr
 ClingoControl::ClingoControl(Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Logger::Printer printer, unsigned messageLimit)
 : scripts_(scripts)
 , clasp_(clasp)
 , claspConfig_(claspConfig)
-, pgf_(pgf)
-, psf_(psf)
-, logger_(printer, messageLimit)
+, pgf_(std::move(pgf))
+, psf_(std::move(psf))
+, logger_(std::move(printer), messageLimit)
 , clingoMode_(clingoMode) {
     clasp->ctx.output.theory = &theory_;
 }
 
 void ClingoControl::parse() {
     if (!parser_->empty()) {
-        parser_->parse(logger_);
-        defs_.init(logger_);
-        parsed = true;
+        switch (parser_->parse(logger_)) {
+            case Input::ParseResult::Gringo: {
+                defs_.init(logger_);
+                parsed_ = true;
+                break;
+            }
+            case Input::ParseResult::ASPIF: {
+                break;
+            }
+        }
     }
     if (logger_.hasError()) {
         throw std::runtime_error("parsing failed");
@@ -158,10 +322,10 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
     logger_.enable(Warnings::Other, !opts.wNoOther);
     verbose_ = opts.verbose;
     Output::OutputPredicates outPreds;
-    for (auto &x : opts.foobar) {
+    for (auto const &x : opts.foobar) {
         outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x);
     }
-    if (claspOut) {
+    if (claspOut != nullptr) {
         out_ = gringo_make_unique<Output::OutputBase>(claspOut->theoryData(), std::move(outPreds), gringo_make_unique<ClaspAPIBackend>(*this), opts.outputOptions);
     }
     else {
@@ -169,9 +333,10 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
         out_ = gringo_make_unique<Output::OutputBase>(*data_, std::move(outPreds), std::cout, opts.outputFormat, opts.outputOptions);
     }
     out_->keepFacts = opts.keepFacts;
+    aspif_bck_ = gringo_make_unique<ControlBackend>(*this);
     pb_ = gringo_make_unique<Input::NongroundProgramBuilder>(scripts_, prg_, *out_, defs_, opts.rewriteMinimize);
-    parser_ = gringo_make_unique<Input::NonGroundParser>(*pb_, incmode_);
-    for (auto &x : opts.defines) {
+    parser_ = gringo_make_unique<Input::NonGroundParser>(*pb_, *aspif_bck_, incmode_);
+    for (auto const &x : opts.defines) {
         LOG << "define: " << x << std::endl;
         parser_->parseDefine(x, logger_);
     }
@@ -194,20 +359,20 @@ bool ClingoControl::update() {
         configUpdate_ = false;
         if (!clasp_->ok()) { return false; }
     }
-    if (!grounded) {
+    if (!grounded_) {
         if (!initialized_) {
             out_->init(clasp_->incremental());
             initialized_ = true;
         }
         out_->beginStep();
-        grounded = true;
+        grounded_ = true;
     }
     return true;
 }
 
 void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
     if (!update()) { return; }
-    if (parsed) {
+    if (parsed_) {
         LOG << "************** parsed program **************" << std::endl << prg_;
         prg_.rewrite(defs_, logger_);
         LOG << "************* rewritten program ************" << std::endl << prg_;
@@ -215,7 +380,7 @@ void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
         if (logger_.hasError()) {
             throw std::runtime_error("grounding stopped because of errors");
         }
-        parsed = false;
+        parsed_ = false;
     }
     if (!parts.empty()) {
         Ground::Parameters params;
@@ -469,7 +634,7 @@ void ClingoControl::prepare(Assumptions ass) {
     eventHandler_ = nullptr;
     // finalize the program
     if (update()) { out_->endStep(ass); }
-    grounded = false;
+    grounded_ = false;
     if (clingoMode_) {
         Clasp::ProgramBuilder *prg = clasp_->program();
         postGround(*prg);
@@ -558,7 +723,8 @@ std::string ClingoControl::str() {
 
 void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) {
     if (update()) {
-        if (auto backend = out_->backend()) {
+        auto *backend = out_->backend();
+        if (backend != nullptr) {
             backend->external(ext, val);
         }
     }
