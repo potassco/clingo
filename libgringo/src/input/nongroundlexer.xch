@@ -201,8 +201,9 @@ int NonGroundParser::lex_impl(void *pValue, Location &loc) {
     return 0;
 }
 
-StringSpan NonGroundParser::aspif_string_(Location &loc, uint32_t n) {
-    // TODO: check if this is valid...
+StringSpan NonGroundParser::aspif_string_(Location &loc) {
+    auto n = aspif_unsigned_(loc);
+    aspif_ws_(loc);
     start(loc);
     char yych;
     for (uint32_t i = 0; i < n; ++i) {
@@ -211,6 +212,15 @@ StringSpan NonGroundParser::aspif_string_(Location &loc, uint32_t n) {
         <aspif> ANY { continue; }
         */
     }
+    return string();
+}
+
+StringSpan NonGroundParser::aspif_nonl_string_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <aspif> [^\n]* { return string(); }
+    */
     return string();
 }
 

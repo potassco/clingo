@@ -103,7 +103,13 @@ private:
     Condition condition() const;
     String filename() const;
 
-    Symbol aspif_symbol_(std::string const &str);
+    Symbol aspif_symbol_(Location &loc);
+    std::vector<Potassco::Id_t> aspif_ids_(Location &loc);
+    std::vector<Potassco::Atom_t> aspif_atoms_(Location &loc);
+    std::vector<Potassco::Lit_t> aspif_lits_(Location &loc);
+    std::vector<Potassco::WeightLit_t> aspif_wlits_(Location &loc);
+    StringSpan aspif_string_(Location &loc);
+    StringSpan aspif_nonl_string_(Location &loc);
     void aspif_error_(Location const &loc, char const *msg);
     int aspif_(Location &loc);
     void aspif_preamble_(Location &loc);
@@ -112,7 +118,6 @@ private:
     void aspif_eof_(Location &loc);
     int32_t aspif_signed_(Location &loc);
     uint32_t aspif_unsigned_(Location &loc);
-    StringSpan aspif_string_(Location &loc, uint32_t n);
     void aspif_solve_(Location &loc);
     void aspif_rule_(Location &loc);
     void aspif_minimize_(Location &loc);

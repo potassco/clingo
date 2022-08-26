@@ -25,6 +25,7 @@
 #ifndef _GNU_SOURCE
 #  define _GNU_SOURCE
 #include "potassco/basic_types.h"
+#include "potassco/theory_data.h"
 #endif
 #include <cstdlib>
 #ifdef __USE_GNU
@@ -437,6 +438,77 @@ void NonGroundParser::aspif_error_(Location const &loc, char const *msg) {
     throw std::runtime_error(out.str());
 }
 
+Symbol NonGroundParser::aspif_symbol_(Location &loc) {
+    auto str_span = aspif_string_(loc);
+    auto str = std::string(Potassco::begin(str_span), Potassco::end(str_span));
+    GroundTermParser parser;
+    Symbol sym = parser.parse(str, logger());
+    if (sym.type() == SymbolType::Special) {
+        aspif_error_(loc, "symbol expected");
+    }
+    return sym;
+}
+
+std::vector<Potassco::Id_t> NonGroundParser::aspif_ids_(Location &loc) {
+    auto num_ids = aspif_unsigned_(loc);
+    std::vector<Potassco::Id_t> ids;
+    ids.reserve(num_ids);
+    for (uint32_t i = 0; i < num_ids; ++i) {
+        aspif_ws_(loc);
+        ids.emplace_back(aspif_unsigned_(loc));
+    }
+    return ids;
+}
+
+std::vector<Potassco::Atom_t> NonGroundParser::aspif_atoms_(Location &loc) {
+    auto num_atoms = aspif_unsigned_(loc);
+    std::vector<Potassco::Atom_t> atoms;
+    atoms.reserve(num_atoms);
+    for (uint32_t i = 0; i < num_atoms; ++i) {
+        aspif_ws_(loc);
+        atoms.emplace_back(aspif_unsigned_(loc));
+        if (atoms.back() == 0) {
+            aspif_error_(loc, "atom expected");
+        }
+    }
+    return atoms;
+}
+
+std::vector<Potassco::Lit_t> NonGroundParser::aspif_lits_(Location &loc) {
+    auto num_lits = aspif_unsigned_(loc);
+    std::vector<Potassco::Lit_t> lits;
+    lits.reserve(num_lits);
+    for (uint32_t i = 0; i < num_lits; ++i) {
+        aspif_ws_(loc);
+        lits.emplace_back(aspif_signed_(loc));
+        if (lits.back() == 0) {
+            aspif_error_(loc, "literal expected");
+        }
+    }
+    return lits;
+}
+
+std::vector<Potassco::WeightLit_t> NonGroundParser::aspif_wlits_(Location &loc) {
+    auto num_wlits = aspif_unsigned_(loc);
+    std::vector<Potassco::WeightLit_t> wlits;
+    wlits.reserve(num_wlits);
+    for (uint32_t i = 0; i < num_wlits; ++i) {
+        aspif_ws_(loc);
+        auto lit = aspif_signed_(loc);
+        if (lit == 0) {
+            aspif_error_(loc, "literal expected");
+        }
+        auto weight = aspif_signed_(loc);
+        wlits.emplace_back(Potassco::WeightLit_t{lit, weight});
+    }
+    return wlits;
+}
+
+void NonGroundParser::aspif_solve_(Location &loc) {
+    aspif_nl_(loc);
+    aspif_eof_(loc);
+}
+
 int NonGroundParser::aspif_(Location &loc) {
     aspif_preamble_(loc);
     bck_.beginStep();
@@ -464,11 +536,6 @@ int NonGroundParser::aspif_(Location &loc) {
     return 0;
 }
 
-void NonGroundParser::aspif_solve_(Location &loc) {
-    aspif_nl_(loc);
-    aspif_eof_(loc);
-}
-
 void NonGroundParser::aspif_rule_(Location &loc) {
     aspif_ws_(loc);
     auto stm_type = Potassco::Head_t(aspif_unsigned_(loc));
@@ -482,96 +549,207 @@ void NonGroundParser::aspif_rule_(Location &loc) {
         }
     }
     aspif_ws_(loc);
-    auto num_hd = aspif_unsigned_(loc);
-    std::vector<Potassco::Atom_t> hd;
-    hd.reserve(num_hd);
-    for (uint32_t i = 0; i < num_hd; ++i) {
-        aspif_ws_(loc);
-        hd.emplace_back(aspif_signed_(loc));
-    }
+    auto hd = aspif_atoms_(loc);
     aspif_ws_(loc);
     auto bd_type = aspif_unsigned_(loc);
     switch (bd_type) {
         case 0: {
             aspif_ws_(loc);
-            auto num_bd = aspif_unsigned_(loc);
-            std::vector<Potassco::Lit_t> bd;
-            bd.reserve(num_bd);
-            for (uint32_t i = 0; i < num_bd; ++i) {
-                aspif_ws_(loc);
-                bd.emplace_back(aspif_signed_(loc));
-            }
+            auto bd = aspif_lits_(loc);
             bck_.rule(stm_type, make_span(hd), make_span(bd));
+            aspif_nl_(loc);
             break;
         }
         case 1: {
-            throw std::runtime_error("handle weight bodies");
+            aspif_ws_(loc);
+            auto lower = aspif_signed_(loc);
+            aspif_ws_(loc);
+            auto bd = aspif_wlits_(loc);
+            aspif_nl_(loc);
+            bck_.rule(stm_type, make_span(hd), lower, make_span(bd));
+            break;
         }
         default:  {
             aspif_error_(loc, format("unsupported body type: ", bd_type).c_str());
         }
     }
-    aspif_nl_(loc);
 }
 
 void NonGroundParser::aspif_minimize_(Location &loc) {
-    throw std::logic_error("implement me: minimize");
+    aspif_ws_(loc);
+    auto priority = aspif_signed_(loc);
+    aspif_ws_(loc);
+    auto wlits = aspif_wlits_(loc);
+    aspif_nl_(loc);
+    bck_.minimize(priority, make_span(wlits));
 }
 
 void NonGroundParser::aspif_project_(Location &loc) {
-    throw std::logic_error("implement me: project");
-}
-
-Symbol NonGroundParser::aspif_symbol_(std::string const &str) {
-    GroundTermParser parser;
-    Symbol sym = parser.parse(str, logger());
-    if (sym.type() == SymbolType::Special) {
-        throw std::runtime_error("parsing failed");
-    }
-    return sym;
+    aspif_ws_(loc);
+    auto atoms = aspif_atoms_(loc);
+    aspif_nl_(loc);
+    bck_.project(make_span(atoms));
 }
 
 void NonGroundParser::aspif_output_(Location &loc) {
     aspif_ws_(loc);
-    uint32_t num_str = aspif_unsigned_(loc);
+    auto sym = aspif_symbol_(loc);
     aspif_ws_(loc);
-    auto str_span = aspif_string_(loc, num_str);
-    using Potassco::end;
-    auto str = std::string(begin(str_span), end(str_span));
-    aspif_ws_(loc);
-    uint32_t num_cond = aspif_unsigned_(loc);
-    std::vector<Potassco::Lit_t> cond;
-    cond.reserve(num_cond);
-    for (uint32_t i = 0; i < num_cond; ++i) {
-        aspif_ws_(loc);
-        cond.emplace_back(aspif_signed_(loc));
-    }
-    bck_.output(aspif_symbol_({begin(str_span), end(str_span)}), make_span(cond));
+    auto cond = aspif_lits_(loc);
     aspif_nl_(loc);
+    bck_.output(sym, make_span(cond));
 }
 
 void NonGroundParser::aspif_external_(Location &loc) {
-    throw std::logic_error("implement me: external");
+    aspif_ws_(loc);
+    auto atom = aspif_unsigned_(loc);
+    if (atom == 0) {
+        aspif_error_(loc, "atom expected");
+    }
+    aspif_ws_(loc);
+    auto value = static_cast<Potassco::Value_t>(aspif_unsigned_(loc));
+    switch (value) {
+        case Potassco::Value_t::Free:
+        case Potassco::Value_t::True:
+        case Potassco::Value_t::False: { break; }
+        default: {
+            aspif_error_(loc, "truth value expected");
+        }
+    }
+    aspif_nl_(loc);
+    bck_.external(atom, value);
 }
 
 void NonGroundParser::aspif_assumption_(Location &loc) {
-    throw std::logic_error("implement me: assumption");
+    aspif_ws_(loc);
+    auto lits = aspif_lits_(loc);
+    aspif_nl_(loc);
+    bck_.assume(make_span(lits));
 }
 
 void NonGroundParser::aspif_heuristic_(Location &loc) {
-    throw std::logic_error("implement me: heuristic");
+    aspif_ws_(loc);
+    auto modifier = static_cast<Potassco::Heuristic_t>(aspif_unsigned_(loc));
+    switch (modifier) {
+        case Potassco::Heuristic_t::Level:
+        case Potassco::Heuristic_t::Sign:
+        case Potassco::Heuristic_t::Factor:
+        case Potassco::Heuristic_t::Init:
+        case Potassco::Heuristic_t::True:
+        case Potassco::Heuristic_t::False: { break; }
+        default: {
+            aspif_error_(loc, "heuristic modifier expected");
+        }
+    }
+    aspif_ws_(loc);
+    auto atom = aspif_unsigned_(loc);
+    if (atom == 0) {
+        aspif_error_(loc, "atom expected");
+    }
+    aspif_ws_(loc);
+    auto value = aspif_signed_(loc);
+    aspif_ws_(loc);
+    auto priority = aspif_unsigned_(loc);
+    aspif_ws_(loc);
+    auto lits = aspif_lits_(loc);
+    aspif_nl_(loc);
+    bck_.heuristic(atom, modifier, value, priority, make_span(lits));
 }
 
 void NonGroundParser::aspif_edge_(Location &loc) {
-    throw std::logic_error("implement me: edge");
+    aspif_ws_(loc);
+    auto u = aspif_signed_(loc);
+    aspif_ws_(loc);
+    auto v = aspif_signed_(loc);
+    aspif_ws_(loc);
+    auto lits = aspif_lits_(loc);
+    aspif_nl_(loc);
+    bck_.acycEdge(u, v, make_span(lits));
 }
 
 void NonGroundParser::aspif_theory_(Location &loc) {
-    throw std::logic_error("implement me: theory");
+    aspif_ws_(loc);
+    auto type = static_cast<Potassco::Theory_t>(aspif_unsigned_(loc));
+    switch (type) {
+        case Potassco::Theory_t::Number: {
+            aspif_ws_(loc);
+            auto idx = aspif_unsigned_(loc);
+            aspif_ws_(loc);
+            auto num = aspif_signed_(loc);
+            aspif_nl_(loc);
+            bck_.theoryTerm(idx, num);
+            break;
+        }
+        case Potassco::Theory_t::Symbol: {
+            aspif_ws_(loc);
+            auto idx = aspif_unsigned_(loc);
+            aspif_ws_(loc);
+            auto str = aspif_string_(loc);
+            aspif_nl_(loc);
+            bck_.theoryTerm(idx, str);
+            break;
+        }
+        case Potassco::Theory_t::Compound: {
+            aspif_ws_(loc);
+            auto idx = aspif_unsigned_(loc);
+            aspif_ws_(loc);
+            auto type_or_index = aspif_signed_(loc);
+            if (type_or_index < -3) {
+                aspif_error_(loc, "unknown compound theory term type");
+            }
+            aspif_ws_(loc);
+            auto args = aspif_ids_(loc);
+            aspif_nl_(loc);
+            bck_.theoryTerm(idx, type_or_index, make_span(args)); // NOLINT
+            break;
+        }
+        case Potassco::Theory_t::Element: {
+            aspif_ws_(loc);
+            auto idx = aspif_unsigned_(loc);
+            aspif_ws_(loc);
+            auto tuple = aspif_ids_(loc);
+            aspif_ws_(loc);
+            auto cond = aspif_lits_(loc);
+            aspif_nl_(loc);
+            bck_.theoryElement(idx, make_span(tuple), make_span(cond));
+            break;
+        }
+        case Potassco::Theory_t::Atom: {
+            aspif_ws_(loc);
+            auto atom_or_zero = aspif_unsigned_(loc);
+            aspif_ws_(loc);
+            auto name = aspif_unsigned_(loc);
+            aspif_ws_(loc);
+            auto elems = aspif_ids_(loc);
+            aspif_nl_(loc);
+            bck_.theoryAtom(atom_or_zero, name, make_span(elems));
+            break;
+        }
+        case Potassco::Theory_t::AtomWithGuard: {
+            aspif_ws_(loc);
+            auto atom_or_zero = aspif_unsigned_(loc);
+            aspif_ws_(loc);
+            auto name = aspif_unsigned_(loc);
+            aspif_ws_(loc);
+            auto elems = aspif_ids_(loc);
+            aspif_ws_(loc);
+            auto guard = aspif_unsigned_(loc);
+            aspif_ws_(loc);
+            auto term = aspif_unsigned_(loc);
+            aspif_nl_(loc);
+            bck_.theoryAtom(atom_or_zero, name, make_span(elems), guard, term); // NOLINT
+            break;
+        }
+        default: {
+            aspif_error_(loc, "unexpected theory type");
+        }
+    }
 }
 
 void NonGroundParser::aspif_comment_(Location &loc) {
-    throw std::logic_error("implement me: comment");
+    aspif_ws_(loc);
+    aspif_nonl_string_(loc);
+    aspif_nl_(loc);
 }
 
 // }}}
@@ -579,4 +757,3 @@ void NonGroundParser::aspif_comment_(Location &loc) {
 } } // namespace Input Gringo
 
 #include "input/nongroundlexer.hh"
-
