@@ -25,6 +25,7 @@
 #ifndef GRINGO_OUTPUT_OUTPUT_HH
 #define GRINGO_OUTPUT_OUTPUT_HH
 
+#include "gringo/types.hh"
 #include <gringo/output/types.hh>
 #include <gringo/output/statements.hh>
 #include <gringo/output/theory.hh>
@@ -90,6 +91,17 @@ public:
     Backend *backend();
     void registerObserver(UBackend prg, bool replace);
     void reset(bool resetData);
+    bool addAtom(Symbol sym, Atom_t id, bool fact) {
+        auto &atm = *data.add(sym.sig()).define(sym).first;
+        if (fact) {
+            atm.setFact(true);
+        }
+        if (!atm.hasUid()) {
+            atm.setUid(id);
+            return true;
+        }
+        return false;
+    }
     Id_t addAtom(Symbol sym, bool *added = nullptr) {
         auto &atm = *data.add(sym.sig()).define(sym).first;
         if (!atm.hasUid()) {

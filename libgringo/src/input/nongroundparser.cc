@@ -443,7 +443,11 @@ int NonGroundParser::aspif_(Location &loc) {
     for (;;) {
         auto stm_type = aspif_unsigned_(loc);
         switch (stm_type) {
-            case 0:  { aspif_solve_(loc); return 0; }
+            case 0:  {
+                aspif_solve_(loc);
+                bck_.endStep();
+                return 0;
+            }
             case 1:  { aspif_rule_(loc); break; }
             case 2:  { aspif_minimize_(loc); break; }
             case 3:  { aspif_project_(loc); break; }
@@ -457,7 +461,6 @@ int NonGroundParser::aspif_(Location &loc) {
             default: { aspif_error_(loc, format("unsupported statement type: ", stm_type).c_str()); }
         }
     }
-    bck_.endStep();
     return 0;
 }
 

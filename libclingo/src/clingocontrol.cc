@@ -36,6 +36,7 @@
 #include "potassco/theory_data.h"
 #include <csignal>
 #include <clingo/incmode.hh>
+#include <stdexcept>
 
 namespace Gringo {
 
@@ -141,11 +142,15 @@ public:
         static_cast<void>(incremental);
     }
     void beginStep() override {
+        // TODO: ensure that this function is only called once!
         ctl_.beginAddBackend();
         bck_ = ctl_.out_->backend();
     }
 
     void rule(Head_t ht, AtomSpan const &head, LitSpan const &body) override {
+        if (ht == Head_t::Disjunctive && body.size == 0 && head.size == 1) {
+            facts_.emplace(*head.first);
+        }
         bck_->rule(ht, head, body);
     }
     void rule(Head_t ht, AtomSpan const &head, Weight_t bound, WeightLitSpan const &body) override {
@@ -159,10 +164,13 @@ public:
         bck_->project(atoms);
     }
     void output(Symbol sym, Potassco::Atom_t atom) override {
-        bck_->output(sym, atom);
+        auto res = sym_tab_.try_emplace(sym);
+        res.first.value().emplace_back();
+        res.first.value().back().emplace_back(atom);
     }
     void output(Symbol sym, Potassco::LitSpan const &condition) override {
-        bck_->output(sym, condition);
+        auto res = sym_tab_.try_emplace(sym);
+        res.first.value().emplace_back(Potassco::begin(condition), Potassco::end(condition));
     }
     void external(Atom_t a, Value_t v) override {
         bck_->external(a, v);
@@ -204,7 +212,20 @@ public:
     }
 
     void endStep() override {
+        // TODO: domain data has to be made aware of maximum atom introduced
         theory_.accept(*this);
+        for (auto const &entry : sym_tab_) {
+            if (entry.second.size() == 1 && entry.second.front().size() == 1 && entry.second.front().front() > 0 && entry.first.hasSig()) {
+                auto atom = entry.second.front().front();
+                ctl_.out_->addAtom(entry.first, atom, facts_.find(atom) != facts_.end());
+            }
+            else if (entry.second.size() == 1 && entry.second.front().empty() && entry.first.hasSig()) {
+                ctl_.out_->addAtom(entry.first, fact_id(), true);
+            }
+            else {
+                throw std::runtime_error("TODO: handle more complicated conditions");
+            }
+        }
         ctl_.endAddBackend();
         bck_ = nullptr;
     }
@@ -248,7 +269,7 @@ private:
             for (auto const &x : e) {
                 tuple.emplace_back(terms_[x]);
             }
-            // one could alse remap to named literals
+            // one could alse remap to named literals but would have to store the mapping
             elements_[elemId].first = theory.addElem(make_span(tuple), make_span(elements_[elemId].second));
         }
     }
@@ -274,12 +295,28 @@ private:
         }
     }
 
+    Atom_t fact_id() {
+        if (fact_id_ == 0) {
+            auto it = std::min_element(facts_.begin(), facts_.end());
+            if (it == facts_.end()) {
+                auto atom = ctl_.out_->data.newAtom();
+                rule(Potassco::Head_t::Disjunctive, {&atom, 1}, {nullptr, 0});
+                it = facts_.begin();
+            }
+            fact_id_ = *it;
+        }
+        return fact_id_;
+    }
+
     // Note: would be reusable if there were a function to obtain a backend and theory...
     ClingoControl &ctl_;
     Potassco::TheoryData theory_;
     std::vector<std::pair<Id_t, std::vector<Potassco::Lit_t>>> elements_;
     std::vector<Id_t> terms_;
+    ordered_map<Gringo::Symbol, std::vector<std::vector<Lit_t>>> sym_tab_;
+    hash_set<Id_t> facts_;
     Backend *bck_ = nullptr;
+    Atom_t fact_id_ = 0;
 };
 
 #define LOG if (verbose_) std::cerr
