@@ -54,7 +54,6 @@ struct GringoOptions {
     bool                          wNoOperationUndefined = false;
     bool                          wNoAtomUndef          = false;
     bool                          wNoFileIncluded       = false;
-    bool                          wNoVariableUnbounded  = false;
     bool                          wNoGlobalVariable     = false;
     bool                          wNoOther              = false;
     bool                          rewriteMinimize       = false;
@@ -101,7 +100,6 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
         out.keepFacts = opts.keepFacts;
         logger_.enable(Warnings::OperationUndefined, !opts.wNoOperationUndefined);
         logger_.enable(Warnings::AtomUndefined, !opts.wNoAtomUndef);
-        logger_.enable(Warnings::VariableUnbounded, !opts.wNoVariableUnbounded);
         logger_.enable(Warnings::FileIncluded, !opts.wNoFileIncluded);
         logger_.enable(Warnings::GlobalVariable, !opts.wNoGlobalVariable);
         logger_.enable(Warnings::Other, !opts.wNoOther);
@@ -322,7 +320,6 @@ inline void enableAll(GringoOptions& out, bool enable) {
     out.wNoAtomUndef          = !enable;
     out.wNoFileIncluded       = !enable;
     out.wNoOperationUndefined = !enable;
-    out.wNoVariableUnbounded  = !enable;
     out.wNoGlobalVariable     = !enable;
     out.wNoOther              = !enable;
 }
@@ -336,8 +333,6 @@ inline bool parseWarning(const std::string& str, GringoOptions& out) {
     if (str ==    "file-included")         { out.wNoFileIncluded       = false; return true; }
     if (str == "no-operation-undefined")   { out.wNoOperationUndefined = true;  return true; }
     if (str ==    "operation-undefined")   { out.wNoOperationUndefined = false; return true; }
-    if (str == "no-variable-unbounded")    { out.wNoVariableUnbounded  = true;  return true; }
-    if (str ==    "variable-unbounded")    { out.wNoVariableUnbounded  = false; return true; }
     if (str == "no-global-variable")       { out.wNoGlobalVariable     = true;  return true; }
     if (str ==    "global-variable")       { out.wNoGlobalVariable     = false; return true; }
     if (str == "no-other")                 { out.wNoOther              = true;  return true; }
@@ -388,7 +383,6 @@ struct GringoApp : public Potassco::Application {
              "      [no-]atom-undefined:      a :- b.\n"
              "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
              "      [no-]operation-undefined: p(1/0).\n"
-             "      [no-]variable-unbounded:  $x > 10.\n"
              "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
              "      [no-]other:               uncategorized warnings")
             ("rewrite-minimize,@1", flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")

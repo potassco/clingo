@@ -187,7 +187,6 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
     using namespace Gringo;
     logger_.enable(Warnings::OperationUndefined, !opts.wNoOperationUndefined);
     logger_.enable(Warnings::AtomUndefined, !opts.wNoAtomUndef);
-    logger_.enable(Warnings::VariableUnbounded, !opts.wNoVariableUnbounded);
     logger_.enable(Warnings::FileIncluded, !opts.wNoFileIncluded);
     logger_.enable(Warnings::GlobalVariable, !opts.wNoGlobalVariable);
     logger_.enable(Warnings::Other, !opts.wNoOther);
@@ -920,7 +919,6 @@ void ClingoLib::initOptions(Potassco::ProgramOptions::OptionContext& root) {
          "      [no-]atom-undefined:      a :- b.\n"
          "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
          "      [no-]operation-undefined: p(1/0).\n"
-         "      [no-]variable-unbounded:  $x > 10.\n"
          "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
          "      [no-]other:               clasp related and uncategorized warnings")
         ("rewrite-minimize"         , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
