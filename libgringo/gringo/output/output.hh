@@ -131,6 +131,62 @@ public:
     bool keepFacts = false;
 };
 
+class ASPIFOutBackend : public Backend, private Potassco::TheoryData::Visitor {
+public:
+    virtual OutputBase &beginOutput() = 0;
+    virtual void endOutput() = 0;
+
+    void initProgram(bool incremental) override;
+    void beginStep() override;
+
+    void rule(Head_t ht, AtomSpan const &head, LitSpan const &body) override;
+    void rule(Head_t ht, AtomSpan const &head, Weight_t bound, WeightLitSpan const &body) override;
+    void minimize(Weight_t prio, WeightLitSpan const &lits) override;
+
+    void project(AtomSpan const &atoms) override;
+    void output(Symbol sym, Potassco::Atom_t atom) override;
+    void output(Symbol sym, Potassco::LitSpan const &condition) override;
+    void external(Atom_t a, Value_t v) override;
+    void assume(const LitSpan& lits) override;
+    void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, LitSpan const &condition) override;
+    void acycEdge(int s, int t, LitSpan const &condition) override;
+
+    void theoryTerm(Id_t termId, int number) override;
+    void theoryTerm(Id_t termId, StringSpan const &name) override;
+    void theoryTerm(Id_t termId, int cId, IdSpan const &args) override;
+    void theoryElement(Id_t elementId, IdSpan const &terms, LitSpan const &cond) override;
+    void theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &elements) override;
+    void theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &elements, Id_t op, Id_t rhs) override;
+
+    void endStep() override;
+private:
+    void update_(Atom_t const &atom);
+    void update_(Lit_t const &lit);
+    void update_(AtomSpan const &atoms);
+    void update_(LitSpan const &lits);
+    void update_(WeightLitSpan const &wlits);
+    template <class T, class... Args>
+    void update_(T const &x, Args const &... args);
+
+    void visit(const Potassco::TheoryData &data, Id_t termId, const Potassco::TheoryTerm &t) override;
+    void visit(const Potassco::TheoryData &data, Id_t elemId, const Potassco::TheoryElement &e) override;
+    void visit(const Potassco::TheoryData &data, const Potassco::TheoryAtom &a) override;
+
+    void ensure_term(Id_t termId);
+
+    Atom_t fact_id();
+
+    Potassco::TheoryData theory_;
+    std::vector<std::pair<Id_t, std::vector<Potassco::Lit_t>>> elements_;
+    std::vector<Id_t> terms_;
+    ordered_map<Gringo::Symbol, std::vector<std::vector<Lit_t>>> sym_tab_;
+    hash_set<Id_t> facts_;
+    OutputBase *out_ = nullptr;
+    Backend *bck_ = nullptr;
+    size_t steps_ = 0;
+    Atom_t fact_id_ = 0;
+};
+
 } } // namespace Output Gringo
 
 #endif // GRINGO_OUTPUT_OUTPUT_HH
