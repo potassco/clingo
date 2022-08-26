@@ -32,7 +32,10 @@
 #include "clingo.h"
 #include "gringo/backend.hh"
 #include "gringo/hash_set.hh"
+#include "gringo/output/literal.hh"
+#include "gringo/output/literals.hh"
 #include "gringo/output/output.hh"
+#include "gringo/output/statements.hh"
 #include "potassco/theory_data.h"
 #include <csignal>
 #include <clingo/incmode.hh>
@@ -142,46 +145,67 @@ public:
         static_cast<void>(incremental);
     }
     void beginStep() override {
-        // TODO: ensure that this function is only called once!
+        if (steps_ > 0) {
+            // In hindsight, one could probably have designed this differently
+            // by not exposing the backend at all. The aspif statements could
+            // have been passed to the output by specialized statements as
+            // well. The whole process would then look like the standard
+            // grounding process.
+            throw std::runtime_error("incremental aspif programs are not supported");
+        }
+        ++steps_;
         ctl_.beginAddBackend();
         bck_ = ctl_.out_->backend();
+        if (bck_ == nullptr) {
+            throw std::runtime_error("backend not available");
+        }
     }
 
     void rule(Head_t ht, AtomSpan const &head, LitSpan const &body) override {
+        update_(head, body);
         if (ht == Head_t::Disjunctive && body.size == 0 && head.size == 1) {
             facts_.emplace(*head.first);
         }
         bck_->rule(ht, head, body);
     }
     void rule(Head_t ht, AtomSpan const &head, Weight_t bound, WeightLitSpan const &body) override {
+        update_(head, body);
         bck_->rule(ht, head, bound, body);
     }
     void minimize(Weight_t prio, WeightLitSpan const &lits) override {
+        update_(lits);
         bck_->minimize(prio, lits);
     }
 
     void project(AtomSpan const &atoms) override {
+        update_(atoms);
         bck_->project(atoms);
     }
     void output(Symbol sym, Potassco::Atom_t atom) override {
+        update_(atom);
         auto res = sym_tab_.try_emplace(sym);
         res.first.value().emplace_back();
         res.first.value().back().emplace_back(atom);
     }
     void output(Symbol sym, Potassco::LitSpan const &condition) override {
+        update_(condition);
         auto res = sym_tab_.try_emplace(sym);
         res.first.value().emplace_back(Potassco::begin(condition), Potassco::end(condition));
     }
     void external(Atom_t a, Value_t v) override {
+        update_(a);
         bck_->external(a, v);
     }
     void assume(const LitSpan& lits) override {
+        update_(lits);
         bck_->assume(lits);
     }
     void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, LitSpan const &condition) override {
+        update_(a, condition);
         bck_->heuristic(a, t, bias, prio, condition);
     }
     void acycEdge(int s, int t, LitSpan const &condition) override {
+        update_(condition);
         bck_->acycEdge(s, t, condition);
     }
 
@@ -198,6 +222,7 @@ public:
         theory_.addTerm(termId, cId, args);
     }
     void theoryElement(Id_t elementId, IdSpan const &terms, LitSpan const &cond) override {
+        update_(cond);
         while (elements_.size() <= elementId) {
             elements_.emplace_back(std::numeric_limits<Id_t>::max(), std::vector<Potassco::Lit_t>{});
         }
@@ -208,28 +233,84 @@ public:
         theory_.addAtom(atomOrZero, termId, elements);
     }
     void theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &elements, Id_t op, Id_t rhs) override {
+        update_(atomOrZero);
         theory_.addAtom(atomOrZero, termId, elements, op, rhs);
     }
 
     void endStep() override {
-        // TODO: domain data has to be made aware of maximum atom introduced
+        // transfer stored theory atoms to the ouputs theory class
         theory_.accept(*this);
-        for (auto const &entry : sym_tab_) {
-            if (entry.second.size() == 1 && entry.second.front().size() == 1 && entry.second.front().front() > 0 && entry.first.hasSig()) {
-                auto atom = entry.second.front().front();
-                ctl_.out_->addAtom(entry.first, atom, facts_.find(atom) != facts_.end());
+        for (auto it = sym_tab_.begin(), ie = sym_tab_.end(); it != ie; ++it) {
+            auto const &sym = it.key();
+            auto &formula = it.value();
+            if (sym.hasSig() && !sym.name().empty()) {
+                if (formula.size() == 1) {
+                    // show atom-like symbols directly associated with an atom
+                    auto &clause = formula.front();
+                    if (clause.size() == 1 && clause.front() > 0) {
+                        auto atom = clause.front();
+                        ctl_.out_->addAtom(sym, atom, facts_.find(atom) != facts_.end());
+                        continue;
+                    }
+                    // show atom-like symbols directly associated with facts
+                    if (clause.empty()) {
+                        ctl_.out_->addAtom(sym, fact_id(), true);
+                        continue;
+                    }
+                }
+                // show atom-like symbols associated with formulas
+                auto atom = ctl_.out_->data.newAtom();
+                for (auto &clause : formula) {
+                    rule(Potassco::Head_t::Disjunctive, {&atom, 1}, make_span(clause));
+                }
+                ctl_.out_->addAtom(sym, atom, false);
+                continue;
             }
-            else if (entry.second.size() == 1 && entry.second.front().empty() && entry.first.hasSig()) {
-                ctl_.out_->addAtom(entry.first, fact_id(), true);
-            }
-            else {
-                throw std::runtime_error("TODO: handle more complicated conditions");
+            // show symbols associated with formulas
+            // (could be made a function of the output to hide the mess)
+            for (auto &clause : formula) {
+                Output::LitVec cond;
+                cond.reserve(clause.size());
+                for (auto &lit : clause) {
+                    Atom_t atom = std::abs(lit);
+                    Output::LiteralId aux{lit > 0 ? NAF::POS : NAF::NOT, Gringo::Output::AtomType::Aux, atom, 0};
+                    cond.emplace_back(aux);
+                }
+                Output::ShowStatement stm{sym, std::move(cond)};
+                ctl_.out_->output(stm);
             }
         }
-        ctl_.endAddBackend();
         bck_ = nullptr;
+        ctl_.endAddBackend();
     }
 private:
+    void update_(Atom_t const &atom) {
+        ctl_.out_->data.ensureAtom(atom);
+    }
+    void update_(Lit_t const &lit) {
+        ctl_.out_->data.ensureAtom(std::abs(lit));
+    }
+    void update_(AtomSpan const &atoms) {
+        for (auto const &atom : atoms) {
+            update_(atom);
+        }
+    }
+    void update_(LitSpan const &lits) {
+        for (auto const &lit : lits) {
+            update_(lit);
+        }
+    }
+    void update_(WeightLitSpan const &wlits) {
+        for (auto const &wlit : wlits) {
+            update_(wlit.lit);
+        }
+    }
+    template <class T, class... Args>
+    void update_(T const &x, Args const &... args) {
+        update_(x);
+        update_(args...);
+    }
+
     void visit(const Potassco::TheoryData &data, Id_t termId, const Potassco::TheoryTerm &t) override {
         if (terms_[termId] == std::numeric_limits<Id_t>::max()) {
             theory_.accept(t, *this);
@@ -316,6 +397,7 @@ private:
     ordered_map<Gringo::Symbol, std::vector<std::vector<Lit_t>>> sym_tab_;
     hash_set<Id_t> facts_;
     Backend *bck_ = nullptr;
+    size_t steps_ = 0;
     Atom_t fact_id_ = 0;
 };
 
