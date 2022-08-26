@@ -38,7 +38,7 @@ branch. Releases already include the necessary generated files.
   - version 3.0 produces harmless warnings
     (to stay backwards-compatible)
 - the [re2c](https://re2c.org/) lexer generator
-  - *at least* version 0.13 is required
+  - *at least* version 1.1.1 is required
 
 ## Optional Dependencies
 
