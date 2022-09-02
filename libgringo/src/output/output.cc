@@ -642,7 +642,12 @@ void ASPIFOutBackend::initProgram(bool incremental) {
     static_cast<void>(incremental);
 }
 void ASPIFOutBackend::beginStep() {
-    if (steps_ > 0) {
+    out_ = &beginOutput();
+    bck_ = out_->backend();
+    if (bck_ == nullptr) {
+        throw std::runtime_error("backend not available");
+    }
+    if (steps_ > 0 || !out_->data.empty()) {
         // In hindsight, one could probably have designed this differently
         // by not exposing the backend at all. The aspif statements could
         // have been passed to the output by specialized statements as
@@ -651,11 +656,6 @@ void ASPIFOutBackend::beginStep() {
         throw std::runtime_error("incremental aspif programs are not supported");
     }
     ++steps_;
-    out_ = &beginOutput();
-    bck_ = out_->backend();
-    if (bck_ == nullptr) {
-        throw std::runtime_error("backend not available");
-    }
 }
 
 void ASPIFOutBackend::rule(Head_t ht, AtomSpan const &head, LitSpan const &body) {

@@ -1087,6 +1087,9 @@ public:
         wb_.clear();
         return wb_;
     }
+    bool empty() const {
+        return atoms_ == 0 && theory_.empty();
+    }
 
     TheoryTermType termType(Id_t) const;
     int termNum(Id_t value) const;

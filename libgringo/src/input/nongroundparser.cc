@@ -268,6 +268,8 @@ void NonGroundParser::pushBlock(std::string const &name, IdVec const &vec, std::
 }
 
 void NonGroundParser::init_() {
+    theoryLexing_ = TheoryLexing::Disabled;
+    condition_ = yycstart;
     if (!empty()) {
         Location loc(filename(), 1, 1, filename(), 1, 1);
         IdVecUid params = pb_.idvec();
@@ -504,21 +506,18 @@ std::vector<Potassco::WeightLit_t> NonGroundParser::aspif_wlits_(Location &loc) 
     return wlits;
 }
 
-void NonGroundParser::aspif_solve_(Location &loc) {
-    aspif_nl_(loc);
-    aspif_eof_(loc);
-}
-
-int NonGroundParser::aspif_(Location &loc) {
+void NonGroundParser::aspif_(Location &loc) {
     aspif_preamble_(loc);
     bck_.beginStep();
     for (;;) {
         auto stm_type = aspif_unsigned_(loc);
         switch (stm_type) {
             case 0:  {
-                aspif_solve_(loc);
+                aspif_nl_(loc);
                 bck_.endStep();
-                return 0;
+                start(loc);
+                condition(yycnormal);
+                return;
             }
             case 1:  { aspif_rule_(loc); break; }
             case 2:  { aspif_minimize_(loc); break; }
@@ -533,7 +532,6 @@ int NonGroundParser::aspif_(Location &loc) {
             default: { aspif_error_(loc, format("unsupported statement type: ", stm_type).c_str()); }
         }
     }
-    return 0;
 }
 
 void NonGroundParser::aspif_rule_(Location &loc) {
