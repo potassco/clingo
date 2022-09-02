@@ -506,7 +506,7 @@ void OutputBase::beginStep() {
 
 void OutputBase::endGround(Logger &log) {
     auto &doms = predDoms();
-    for (auto &neg : doms) {
+    for (auto const &neg : doms) {
         auto sig = neg->sig();
         if (!sig.sign()) {
             continue;
@@ -515,7 +515,7 @@ void OutputBase::endGround(Logger &log) {
         if (it_pos == doms.end()) {
             continue;
         }
-        auto &pos = *it_pos;
+        auto const &pos = *it_pos;
         auto rule = [&](auto it, auto jt) {
             output(tempRule(false)
                 .addBody({NAF::POS, AtomType::Predicate, static_cast<Potassco::Id_t>(it - pos->begin()), pos->domainOffset()})
@@ -539,10 +539,6 @@ void OutputBase::endGround(Logger &log) {
     BackendTheoryOutput bto{data, *out_};
     data.theory().output(bto);
 
-    if (!outPreds.empty()) {
-        std::move(outPredsForce.begin(), outPredsForce.end(), std::back_inserter(outPreds));
-        outPredsForce.clear();
-    }
     EndGroundStatement(outPreds, log).passTo(data, *out_);
 }
 
@@ -562,15 +558,7 @@ void OutputBase::reset(bool resetData) {
 }
 
 void OutputBase::checkOutPreds(Logger &log) {
-    auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
-        return x.second < y.second;
-    };
-    auto eq = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) {
-        return x.second == y.second;
-    };
-    std::sort(outPreds.begin(), outPreds.end(), le);
-    outPreds.erase(std::unique(outPreds.begin(), outPreds.end(), eq), outPreds.end());
-    for (auto &x : outPreds) {
+    for (auto const &x : outPreds) {
         if (!x.second.match("", 0)) {
             auto it(predDoms().find(std::get<1>(x)));
             if (it == predDoms().end()) {

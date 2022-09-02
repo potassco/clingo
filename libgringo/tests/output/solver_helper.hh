@@ -80,7 +80,7 @@ public:
 struct ClingoState {
     ClingoState()
     : out(td, {}, ss, OutputFormat::INTERMEDIATE)
-    , pb(context, prg, out, defs)
+    , pb(context, prg, out.outPreds, defs)
     , parser(pb, bck, incmode) {
     }
     Gringo::Test::TestGringoModule module;

@@ -92,7 +92,7 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
     IncrementalControl(Output::OutputBase &out, StrVec const &files, GringoOptions const &opts)
     : out(out)
     , scripts(g_scripts())
-    , pb(scripts, prg, out, defs, opts.rewriteMinimize)
+    , pb(scripts, prg, out.outPreds, defs, opts.rewriteMinimize)
     , parser(pb, *this, incmode)
     , opts(opts) {
         using namespace Gringo;
@@ -456,7 +456,7 @@ struct GringoApp : public Potassco::Application {
             grOpts_.verbose = verbose() == UINT_MAX;
             Output::OutputPredicates outPreds;
             for (auto &x : grOpts_.foobar) {
-                outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x);
+                outPreds.add(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
             }
             Potassco::TheoryData data;
             data.update();

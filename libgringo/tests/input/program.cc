@@ -42,7 +42,7 @@ namespace {
 struct Grounder {
     Grounder()
     : out(td, {}, oss)
-    , pb( context, p, out, d )
+    , pb( context, p, out.outPreds, d )
     , ngp( pb, bck, incmode )
     { }
     Gringo::Test::TestGringoModule module;

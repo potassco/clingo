@@ -48,7 +48,7 @@ Program parse(std::string const &str) {
     Defines defs;
     Gringo::Test::TestContext context;
     NullBackend bck;
-    Input::NongroundProgramBuilder pb{ context, prg, out, defs };
+    Input::NongroundProgramBuilder pb{ context, prg, out.outPreds, defs };
     bool incmode;
     Input::NonGroundParser ngp{pb, bck, incmode};
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);

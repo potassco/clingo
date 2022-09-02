@@ -50,7 +50,7 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     Gringo::Test::TestGringoModule module;
     Gringo::Test::TestContext context;
     NullBackend bck;
-    Input::NongroundProgramBuilder pb{ context, prg, out, defs };
+    Input::NongroundProgramBuilder pb{ context, prg, out.outPreds, defs };
     bool incmode;
     Input::NonGroundParser ngp{ pb, bck, incmode };
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module);

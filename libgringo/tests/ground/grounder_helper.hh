@@ -45,7 +45,7 @@ inline void ground(std::string const &str, Output::OutputFormat fmt, std::ostrea
     Defines defs;
     Gringo::Test::TestContext context;
     NullBackend bck;
-    Input::NongroundProgramBuilder pb{ context, prg, out, defs };
+    Input::NongroundProgramBuilder pb{ context, prg, out.outPreds, defs };
     bool incmode;
     Input::NonGroundParser ngp{ pb, bck, incmode };
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);

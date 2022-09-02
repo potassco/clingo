@@ -26,6 +26,7 @@
 #define GRINGO_OUTPUT_OUTPUT_HH
 
 #include "gringo/types.hh"
+#include <cstdio>
 #include <gringo/output/types.hh>
 #include <gringo/output/statements.hh>
 #include <gringo/output/theory.hh>
@@ -62,6 +63,45 @@ struct OutputOptions {
     OutputDebug debug      = OutputDebug::NONE;
     bool        reifySCCs  = false;
     bool        reifySteps = false;
+};
+
+class OutputPredicates {
+public:
+    struct SigCmp {
+        using is_transparent = void;
+        bool operator()(std::pair<Location, Sig> const &a, std::pair<Location, Sig> const &b) const{
+            return a.second < b.second;
+        }
+        bool operator()(Sig const &a, std::pair<Location, Sig> const &b) const{
+            return a < b.second;
+        }
+        bool operator()(std::pair<Location, Sig> const &a, Sig const &b) const{
+            return a.second < b;
+        }
+    };
+    using SigSet = std::set<std::pair<Location, Sig>, SigCmp>;
+    using value_type =  SigSet::value_type;
+    void add(Location loc, Sig sig, bool force) {
+        if (!force) {
+            active_ = true;
+        }
+        preds_.emplace(loc, sig);
+    }
+    bool active() const {
+        return active_;
+    }
+    SigSet::const_iterator begin() const {
+        return active_ ? preds_.begin() : preds_.end();
+    }
+    SigSet::const_iterator end() const {
+        return preds_.end();
+    }
+    bool contains(Sig sig) const {
+        return !active_ || preds_.find(sig) != preds_.end();
+    }
+private:
+    SigSet preds_;
+    bool active_ = false;
 };
 
 using Assumptions = Potassco::LitSpan;
@@ -126,7 +166,6 @@ public:
     LitVec delayed_;
     OutputPredicates outPreds;
     DomainData data;
-    OutputPredicates outPredsForce;
     UAbstractOutput out_;
     bool keepFacts = false;
 };

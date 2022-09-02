@@ -25,6 +25,7 @@
 #ifndef GRINGO_INPUT_PROGRAMBUILDER_HH
 #define GRINGO_INPUT_PROGRAMBUILDER_HH
 
+#include "gringo/output/types.hh"
 #include <gringo/locatable.hh>
 #include <gringo/symbol.hh>
 #include <gringo/indexed.hh>
@@ -58,7 +59,7 @@ namespace Output {
 
 class TheoryTerm;
 class RawTheoryTerm;
-class OutputBase;
+class OutputPredicates;
 using UTheoryTerm = std::unique_ptr<TheoryTerm>;
 
 } } // namespace Output Gringo
@@ -240,7 +241,9 @@ using IdVec = std::vector<std::pair<Location, String>>;
 
 class NongroundProgramBuilder : public INongroundProgramBuilder {
 public:
-    NongroundProgramBuilder(Context &context, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize = false);
+    using OutputPredicates = Output::OutputPredicates;
+
+    NongroundProgramBuilder(Context &context, Program &prg, OutputPredicates &out_preds, Defines &defs, bool rewriteMinimize = false);
     NongroundProgramBuilder(NongroundProgramBuilder const &other) = delete;
     NongroundProgramBuilder(NongroundProgramBuilder &&other) noexcept = default;
     NongroundProgramBuilder &operator=(NongroundProgramBuilder &&other) noexcept = delete;
@@ -417,7 +420,7 @@ private:
     TheoryDefVecs       theoryDefVecs_;
     Context            &context_;
     Program            &prg_;
-    Output::OutputBase &out;
+    OutputPredicates   &output_preds_;
     Defines            &defs_;
     bool                rewriteMinimize_;
 };

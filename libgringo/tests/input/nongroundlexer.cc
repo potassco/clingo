@@ -41,7 +41,7 @@ TEST_CASE("input-nongroundlexer", "[input]") {
     Program prg;
     Defines defs;
     Gringo::Test::TestContext context;
-    NongroundProgramBuilder pb(context, prg, out, defs);
+    NongroundProgramBuilder pb(context, prg, out.outPreds, defs);
     bool incmode;
     NullBackend bck;
     NonGroundParser ngp(pb, bck, incmode);

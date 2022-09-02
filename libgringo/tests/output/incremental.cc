@@ -44,7 +44,7 @@ std::string iground(std::string in, int last = 3) {
     Defines defs;
     Gringo::Test::TestContext context;
     NullBackend bck;
-    Input::NongroundProgramBuilder pb(context, prg, out, defs);
+    Input::NongroundProgramBuilder pb(context, prg, out.outPreds, defs);
     bool incmode;
     Input::NonGroundParser parser(pb, bck, incmode);
     parser.pushStream("-", gringo_make_unique<std::stringstream>(in), module.logger);

@@ -193,7 +193,7 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
     verbose_ = opts.verbose;
     Output::OutputPredicates outPreds;
     for (auto const &x : opts.foobar) {
-        outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x);
+        outPreds.add(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
     }
     if (claspOut != nullptr) {
         out_ = gringo_make_unique<Output::OutputBase>(claspOut->theoryData(), std::move(outPreds), gringo_make_unique<ClaspAPIBackend>(*this), opts.outputOptions);
@@ -204,7 +204,7 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
     }
     out_->keepFacts = opts.keepFacts;
     aspif_bck_ = gringo_make_unique<ControlBackend>(*this);
-    pb_ = gringo_make_unique<Input::NongroundProgramBuilder>(scripts_, prg_, *out_, defs_, opts.rewriteMinimize);
+    pb_ = gringo_make_unique<Input::NongroundProgramBuilder>(scripts_, prg_, out_->outPreds, defs_, opts.rewriteMinimize);
     parser_ = gringo_make_unique<Input::NonGroundParser>(*pb_, *aspif_bck_, incmode_);
     for (auto const &x : opts.defines) {
         LOG << "define: " << x << std::endl;
