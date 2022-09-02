@@ -235,7 +235,7 @@ void NonGroundParser::aspif_preamble_(Location &loc) {
     char yych;
     for (;;) {
         /*!re2c
-        <aspif> "incremental" / (NL | WS) { incremental = true; break; }
+        <aspif> " incremental" / (NL | WS) { incremental = true; break; }
         <aspif> "" / ANY                  { break; }
         */
     }
