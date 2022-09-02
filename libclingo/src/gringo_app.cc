@@ -117,6 +117,9 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
         }
         parse();
     }
+    Backend &getASPIFBackend() override {
+        return *this;
+    }
     Output::OutputBase &beginOutput() override {
         beginAddBackend();
         return out;

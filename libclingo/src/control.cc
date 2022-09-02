@@ -1715,14 +1715,26 @@ extern "C" bool clingo_ast_attribute_insert_ast_at(clingo_ast_t *ast, clingo_ast
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
+namespace {
+
+Backend &get_backend(clingo_control_t *control) {
+    static NullBackend null_bck;
+    Backend *bck = &null_bck;
+    if (control != nullptr) {
+        bck = &control->getASPIFBackend();
+    }
+    return *bck;
+}
+
+} // namespace
+
+extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback_t cb, void *cb_data, clingo_control_t *control, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         auto builder = Input::build([cb, cb_data](Input::SAST ast) {
             forwardError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
         });
         bool incmode = false;
-        NullBackend bck;
-        Input::NonGroundParser parser{*builder, bck, incmode};
+        Input::NonGroundParser parser{*builder, get_backend(control), incmode};
         parser.disable_aspif();
         Logger::Printer printer;
         if (logger != nullptr) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
@@ -1734,14 +1746,13 @@ extern "C" bool clingo_ast_parse_string(char const *program, clingo_ast_callback
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
+extern "C" bool clingo_ast_parse_files(char const * const *file, size_t n, clingo_ast_callback_t cb, void *cb_data, clingo_control_t *control, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         auto builder = Input::build([cb, cb_data](Input::SAST ast) {
             forwardError(cb(reinterpret_cast<clingo_ast_t*>(ast.get()), cb_data));
         });
         bool incmode = false;
-        NullBackend bck;
-        Input::NonGroundParser parser(*builder, bck, incmode);
+        Input::NonGroundParser parser(*builder, get_backend(control), incmode);
         parser.disable_aspif();
         Logger::Printer printer;
         if (logger != nullptr) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
@@ -1926,7 +1937,7 @@ extern "C" bool clingo_control_release_external(clingo_control_t *ctl, clingo_li
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_program_builder(clingo_control_t *ctl, clingo_program_builder_t **ret) {
+extern "C" bool clingo_program_builder_init(clingo_control_t *ctl, clingo_program_builder_t **ret) {
     GRINGO_CLINGO_TRY { *ret = static_cast<clingo_program_builder_t*>(ctl); }
     GRINGO_CLINGO_CATCH;
 }

@@ -159,7 +159,7 @@ int main(int argc, char const **argv) {
   if (!clingo_control_new(argv+1, argc-1, NULL, NULL, 20, &ctl) != 0) { goto error; }
 
   // get the program builder
-  if (!clingo_control_program_builder(ctl, &data.builder)) { goto error; }
+  if (!clingo_program_builder_init(ctl, &data.builder)) { goto error; }
 
   // initialize the location
   location.begin_line   = location.end_line   = 0;
@@ -181,7 +181,7 @@ int main(int argc, char const **argv) {
   if (!clingo_program_builder_begin(data.builder)) { goto error; }
 
   // get the AST of the program
-  if (!clingo_ast_parse_string("a :- not b. b :- not a.", (clingo_ast_callback_t)on_statement, &data, NULL, NULL, 20)) { goto error; }
+  if (!clingo_ast_parse_string("a :- not b. b :- not a.", (clingo_ast_callback_t)on_statement, &data, NULL, NULL, NULL, 20)) { goto error; }
 
   // finish building a program
   if (!clingo_program_builder_end(data.builder)) { goto error; }

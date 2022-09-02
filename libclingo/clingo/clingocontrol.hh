@@ -342,6 +342,9 @@ public:
         if (!backend_) { throw std::runtime_error("backend not available"); }
         return backend_;
     };
+    Backend &getASPIFBackend() override {
+        return *aspif_bck_;
+    };
     void endAddBackend() override;
     Potassco::Atom_t addProgramAtom() override;
     Logger &logger() override { return logger_; }

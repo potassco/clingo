@@ -9,20 +9,49 @@
    the same works for the other two macros.  Py_DEBUG implies them,
    but not the other way around.
 
-   Issue #350 is still open: on Windows, the code here causes it to link
-   with PYTHON36.DLL (for example) instead of PYTHON3.DLL.  A fix was
-   attempted in 164e526a5515 and 14ce6985e1c3, but reverted: virtualenv
-   does not make PYTHON3.DLL available, and so the "correctly" compiled
-   version would not run inside a virtualenv.  We will re-apply the fix
-   after virtualenv has been fixed for some time.  For explanation, see
-   issue #355.  For a workaround if you want PYTHON3.DLL and don't worry
-   about virtualenv, see issue #350.  See also 'py_limited_api' in
-   setuptools_ext.py.
+   The implementation is messy (issue #350): on Windows, with _MSC_VER,
+   we have to define Py_LIMITED_API even before including pyconfig.h.
+   In that case, we guess what pyconfig.h will do to the macros above,
+   and check our guess after the #include.
+
+   Note that on Windows, with CPython 3.x, you need >= 3.5 and virtualenv
+   version >= 16.0.0.  With older versions of either, you don't get a
+   copy of PYTHON3.DLL in the virtualenv.  We can't check the version of
+   CPython *before* we even include pyconfig.h.  ffi.set_source() puts
+   a ``#define _CFFI_NO_LIMITED_API'' at the start of this file if it is
+   running on Windows < 3.5, as an attempt at fixing it, but that's
+   arguably wrong because it may not be the target version of Python.
+   Still better than nothing I guess.  As another workaround, you can
+   remove the definition of Py_LIMITED_API here.
+
+   See also 'py_limited_api' in cffi/setuptools_ext.py.
 */
 #if !defined(_CFFI_USE_EMBEDDING) && !defined(Py_LIMITED_API)
-#  include <pyconfig.h>
-#  if !defined(Py_DEBUG) && !defined(Py_TRACE_REFS) && !defined(Py_REF_DEBUG)
-#    define Py_LIMITED_API
+#  ifdef _MSC_VER
+#    if !defined(_DEBUG) && !defined(Py_DEBUG) && !defined(Py_TRACE_REFS) && !defined(Py_REF_DEBUG) && !defined(_CFFI_NO_LIMITED_API)
+#      define Py_LIMITED_API
+#    endif
+#    include <pyconfig.h>
+     /* sanity-check: Py_LIMITED_API will cause crashes if any of these
+        are also defined.  Normally, the Python file PC/pyconfig.h does not
+        cause any of these to be defined, with the exception that _DEBUG
+        causes Py_DEBUG.  Double-check that. */
+#    ifdef Py_LIMITED_API
+#      if defined(Py_DEBUG)
+#        error "pyconfig.h unexpectedly defines Py_DEBUG, but Py_LIMITED_API is set"
+#      endif
+#      if defined(Py_TRACE_REFS)
+#        error "pyconfig.h unexpectedly defines Py_TRACE_REFS, but Py_LIMITED_API is set"
+#      endif
+#      if defined(Py_REF_DEBUG)
+#        error "pyconfig.h unexpectedly defines Py_REF_DEBUG, but Py_LIMITED_API is set"
+#      endif
+#    endif
+#  else
+#    include <pyconfig.h>
+#    if !defined(Py_DEBUG) && !defined(Py_TRACE_REFS) && !defined(Py_REF_DEBUG) && !defined(_CFFI_NO_LIMITED_API)
+#      define Py_LIMITED_API
+#    endif
 #  endif
 #endif
 
@@ -539,16 +568,16 @@ static void (*_cffi_call_python_org)(struct _cffi_externpy_s *, char *);
 #define _CFFI_MODULE_NAME  "_clingo"
 static const char _CFFI_PYTHON_STARTUP_CODE[] = {
 // # NB. this is not a string because of a size limit in MSVC
-// import os
+// 'import os\n
 105,109,112,111,114,116,32,111,115,10,
-// import sys
+// 'import sys\n
 105,109,112,111,114,116,32,115,121,115,10,
-// import clingo.script
+// 'import clingo.script\n
 105,109,112,111,114,116,32,99,108,105,110,103,111,46,115,99,114,105,112,116,
 10,
-//
+// '\n
 10,
-// sys.path.insert(0, os.getcwd())
+// 'sys.path.insert(0, os.getcwd())\n
 115,121,115,46,112,97,116,104,46,105,110,115,101,114,116,40,48,44,32,111,115,
 46,103,101,116,99,119,100,40,41,41,10,
 0 };
@@ -583,7 +612,8 @@ extern "C" {
 
    * _cffi_call_python_org, which on CPython is actually part of the
      _cffi_exports[] array, is the function pointer copied from
-     _cffi_backend.
+     _cffi_backend.  If _cffi_start_python() fails, then this is set
+     to NULL; otherwise, it should never be NULL.
 
    After initialization is complete, both are equal.  However, the
    first one remains equal to &_cffi_start_and_call_python until the
@@ -731,6 +761,8 @@ static PyObject *_cffi_start_error_capture(void)
         "      of.write(x)\n"
         "    except: pass\n"
         "    self.buf += x\n"
+        "  def flush(self):\n"
+        "    pass\n"
         "fl = FileLike()\n"
         "fl.buf = ''\n"
         "of = sys.stderr\n"
@@ -931,7 +963,7 @@ static int _cffi_initialize_python(void)
 
         if (f != NULL && f != Py_None) {
             PyFile_WriteString("\nFrom: " _CFFI_MODULE_NAME
-                               "\ncompiled with cffi version: 1.14.0"
+                               "\ncompiled with cffi version: 1.15.1"
                                "\n_cffi_backend module: ", f);
             modules = PyImport_GetModuleDict();
             mod = PyDict_GetItemString(modules, "_cffi_backend");
@@ -953,7 +985,9 @@ static int _cffi_initialize_python(void)
     goto done;
 }
 
+#if PY_VERSION_HEX < 0x03080000
 PyAPI_DATA(char *) _PyParser_TokenNames[];  /* from CPython */
+#endif
 
 static int _cffi_carefully_make_gil(void)
 {
@@ -1036,15 +1070,20 @@ static int _cffi_carefully_make_gil(void)
     /* call Py_InitializeEx() */
     if (!Py_IsInitialized()) {
         _cffi_py_initialize();
+#if PY_VERSION_HEX < 0x03070000
         PyEval_InitThreads();
+#endif
         PyEval_SaveThread();  /* release the GIL */
         /* the returned tstate must be the one that has been stored into the
            autoTLSkey by _PyGILState_Init() called from Py_Initialize(). */
     }
     else {
+#if PY_VERSION_HEX < 0x03070000
+        /* PyEval_InitThreads() is always a no-op from CPython 3.7 */
         PyGILState_STATE state = PyGILState_Ensure();
         PyEval_InitThreads();
         PyGILState_Release(state);
+#endif
     }
 
 #ifdef WITH_THREAD
@@ -1068,11 +1107,11 @@ PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(const void *[]);   /* forward */
 
 static struct _cffi_pypy_init_s {
     const char *name;
-    void (*func)(const void *[]);
+    void *func;    /* function pointer */
     const char *code;
 } _cffi_pypy_init = {
     _CFFI_MODULE_NAME,
-    (void(*)(const void *[]))_CFFI_PYTHON_STARTUP_FUNC,
+    _CFFI_PYTHON_STARTUP_FUNC,
     _CFFI_PYTHON_STARTUP_CODE,
 };
 
@@ -1251,18 +1290,18 @@ void pyclingo_finalize() {
 static void *_cffi_types[] = {
 /*  0 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(_Bool, uint32_t const *, size_t, int32_t const *, size_t, void *)
 /*  1 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1), // _Bool
-/*  2 */ _CFFI_OP(_CFFI_OP_POINTER, 67), // uint32_t const *
+/*  2 */ _CFFI_OP(_CFFI_OP_POINTER, 69), // uint32_t const *
 /*  3 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28), // size_t
 /*  4 */ _CFFI_OP(_CFFI_OP_POINTER, 12), // int32_t const *
 /*  5 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/*  6 */ _CFFI_OP(_CFFI_OP_POINTER, 1299), // void *
+/*  6 */ _CFFI_OP(_CFFI_OP_POINTER, 1301), // void *
 /*  7 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
 /*  8 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(_Bool, uint32_t const *, size_t, int32_t, clingo_weighted_literal_t const *, size_t, void *)
 /*  9 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
 /* 10 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
 /* 11 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
 /* 12 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21), // int32_t
-/* 13 */ _CFFI_OP(_CFFI_OP_POINTER, 1264), // clingo_weighted_literal_t const *
+/* 13 */ _CFFI_OP(_CFFI_OP_POINTER, 1266), // clingo_weighted_literal_t const *
 /* 14 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
 /* 15 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
 /* 16 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
@@ -1270,1285 +1309,1287 @@ static void *_cffi_types[] = {
 /* 18 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
 /* 19 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
 /* 20 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 21 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const * const *, size_t, _Bool(*)(clingo_ast_t *, void *), void *, void(*)(int, char const *, void *), void *, unsigned int)
-/* 22 */ _CFFI_OP(_CFFI_OP_POINTER, 39), // char const * const *
+/* 21 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const * const *, size_t, _Bool(*)(clingo_ast_t *, void *), void *, clingo_control_t *, void(*)(int, char const *, void *), void *, unsigned int)
+/* 22 */ _CFFI_OP(_CFFI_OP_POINTER, 40), // char const * const *
 /* 23 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 24 */ _CFFI_OP(_CFFI_OP_POINTER, 250), // _Bool(*)(clingo_ast_t *, void *)
+/* 24 */ _CFFI_OP(_CFFI_OP_POINTER, 252), // _Bool(*)(clingo_ast_t *, void *)
 /* 25 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 26 */ _CFFI_OP(_CFFI_OP_POINTER, 1186), // void(*)(int, char const *, void *)
-/* 27 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 28 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8), // unsigned int
-/* 29 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 30 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const * const *, size_t, void(*)(int, char const *, void *), void *, unsigned int, clingo_control_t * *)
-/* 31 */ _CFFI_OP(_CFFI_OP_NOOP, 22),
-/* 32 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 33 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
-/* 34 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 35 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
-/* 36 */ _CFFI_OP(_CFFI_OP_POINTER, 433), // clingo_control_t * *
-/* 37 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 38 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, _Bool *, void *)
-/* 39 */ _CFFI_OP(_CFFI_OP_POINTER, 1236), // char const *
-/* 40 */ _CFFI_OP(_CFFI_OP_POINTER, 1), // _Bool *
-/* 41 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 42 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 43 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, _Bool(*)(clingo_ast_t *, void *), void *, void(*)(int, char const *, void *), void *, unsigned int)
-/* 44 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 45 */ _CFFI_OP(_CFFI_OP_NOOP, 24),
-/* 46 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 47 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
-/* 48 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 49 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
-/* 50 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 51 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, _Bool, uint64_t *)
-/* 52 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 53 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 54 */ _CFFI_OP(_CFFI_OP_POINTER, 244), // uint64_t *
-/* 55 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 56 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, char const * *)
-/* 57 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 58 */ _CFFI_OP(_CFFI_OP_POINTER, 39), // char const * *
-/* 59 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 60 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, clingo_script_t const *, void *)
-/* 61 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 62 */ _CFFI_OP(_CFFI_OP_POINTER, 1258), // clingo_script_t const *
-/* 63 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 64 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 65 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, uint32_t, _Bool, uint64_t *)
-/* 66 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 67 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22), // uint32_t
-/* 68 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 69 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 70 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 71 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, uint64_t *)
-/* 72 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 73 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 74 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 75 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, uint64_t const *, size_t, _Bool, uint64_t *)
-/* 76 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 77 */ _CFFI_OP(_CFFI_OP_POINTER, 244), // uint64_t const *
-/* 78 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 79 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 80 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 81 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 82 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, void *)
-/* 83 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 84 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 85 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 86 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, void(*)(int, char const *, void *), void *, unsigned int, uint64_t *)
-/* 87 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 88 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
-/* 89 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 90 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
-/* 91 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 92 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 93 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *)
-/* 94 */ _CFFI_OP(_CFFI_OP_POINTER, 1238), // clingo_assignment_t const *
-/* 95 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 96 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, int32_t)
-/* 97 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 98 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 99 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 100 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, int32_t, _Bool *)
-/* 101 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 102 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 103 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 104 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 105 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, int32_t, int *)
-/* 106 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 107 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 108 */ _CFFI_OP(_CFFI_OP_POINTER, 153), // int *
-/* 109 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 110 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, int32_t, uint32_t *)
-/* 111 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 112 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 113 */ _CFFI_OP(_CFFI_OP_POINTER, 67), // uint32_t *
-/* 114 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 115 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, size_t, int32_t *)
-/* 116 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 117 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 118 */ _CFFI_OP(_CFFI_OP_POINTER, 12), // int32_t *
-/* 119 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 120 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, uint32_t *)
-/* 121 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 122 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 123 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 124 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, uint32_t, int32_t *)
-/* 125 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 126 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 127 */ _CFFI_OP(_CFFI_OP_NOOP, 118),
-/* 128 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 129 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, uint32_t, uint32_t *)
-/* 130 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 131 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 132 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 133 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 134 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, char *, size_t)
-/* 135 */ _CFFI_OP(_CFFI_OP_POINTER, 1245), // clingo_ast_t *
-/* 136 */ _CFFI_OP(_CFFI_OP_POINTER, 1236), // char *
-/* 137 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 138 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 139 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, clingo_ast_t * *)
-/* 140 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 141 */ _CFFI_OP(_CFFI_OP_POINTER, 135), // clingo_ast_t * *
-/* 142 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 143 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, clingo_ast_t *)
-/* 144 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 145 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 146 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 147 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int *)
-/* 148 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 149 */ _CFFI_OP(_CFFI_OP_NOOP, 108),
-/* 150 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 151 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, _Bool *)
-/* 152 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 153 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7), // int
-/* 154 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 155 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 156 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, _Bool(*)(clingo_ast_t *, void *), void *)
-/* 157 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 158 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 159 */ _CFFI_OP(_CFFI_OP_NOOP, 24),
-/* 160 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 161 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 162 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, char const * *)
-/* 163 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 164 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 165 */ _CFFI_OP(_CFFI_OP_NOOP, 58),
-/* 166 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 167 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, char const *)
-/* 168 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 169 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 170 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 171 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 172 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, clingo_ast_t * *)
-/* 173 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 174 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 175 */ _CFFI_OP(_CFFI_OP_NOOP, 141),
-/* 176 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 177 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, clingo_ast_t *)
-/* 178 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 179 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 180 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 181 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 182 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, clingo_location_t *)
-/* 183 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 184 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 185 */ _CFFI_OP(_CFFI_OP_POINTER, 1250), // clingo_location_t *
-/* 186 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 187 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, clingo_location_t const *)
-/* 188 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 189 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 190 */ _CFFI_OP(_CFFI_OP_POINTER, 1250), // clingo_location_t const *
-/* 191 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 192 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, int *)
-/* 193 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 194 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 195 */ _CFFI_OP(_CFFI_OP_NOOP, 108),
-/* 196 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 197 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, int)
-/* 198 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 199 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 200 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 201 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 202 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t *)
-/* 203 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 204 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 205 */ _CFFI_OP(_CFFI_OP_POINTER, 3), // size_t *
-/* 206 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 207 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t)
-/* 208 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 209 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 210 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 211 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 212 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t, char const * *)
-/* 213 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 214 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 215 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 216 */ _CFFI_OP(_CFFI_OP_NOOP, 58),
-/* 217 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 218 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t, char const *)
-/* 219 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 220 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 221 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 222 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 223 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 224 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t, clingo_ast_t * *)
-/* 225 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 226 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 227 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 228 */ _CFFI_OP(_CFFI_OP_NOOP, 141),
-/* 229 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 230 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t, clingo_ast_t *)
-/* 231 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 232 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 233 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 234 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 235 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 236 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, uint64_t *)
-/* 237 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 238 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 239 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 240 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 241 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, uint64_t)
-/* 242 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 243 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 244 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24), // uint64_t
-/* 245 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 246 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, size_t *)
-/* 247 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 248 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 249 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 250 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, void *)
-/* 251 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 252 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 253 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 254 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t const *, void *)
-/* 255 */ _CFFI_OP(_CFFI_OP_POINTER, 1245), // clingo_ast_t const *
-/* 256 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 257 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 258 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *)
-/* 259 */ _CFFI_OP(_CFFI_OP_POINTER, 1246), // clingo_backend_t *
-/* 260 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 261 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, _Bool, uint32_t const *, size_t, int32_t const *, size_t)
-/* 262 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 263 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 264 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 265 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 266 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 26 */ _CFFI_OP(_CFFI_OP_POINTER, 1250), // clingo_control_t *
+/* 27 */ _CFFI_OP(_CFFI_OP_POINTER, 1188), // void(*)(int, char const *, void *)
+/* 28 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 29 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8), // unsigned int
+/* 30 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 31 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const * const *, size_t, void(*)(int, char const *, void *), void *, unsigned int, clingo_control_t * *)
+/* 32 */ _CFFI_OP(_CFFI_OP_NOOP, 22),
+/* 33 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 34 */ _CFFI_OP(_CFFI_OP_NOOP, 27),
+/* 35 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 36 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
+/* 37 */ _CFFI_OP(_CFFI_OP_POINTER, 26), // clingo_control_t * *
+/* 38 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 39 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, _Bool *, void *)
+/* 40 */ _CFFI_OP(_CFFI_OP_POINTER, 1238), // char const *
+/* 41 */ _CFFI_OP(_CFFI_OP_POINTER, 1), // _Bool *
+/* 42 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 43 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 44 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, _Bool(*)(clingo_ast_t *, void *), void *, clingo_control_t *, void(*)(int, char const *, void *), void *, unsigned int)
+/* 45 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 46 */ _CFFI_OP(_CFFI_OP_NOOP, 24),
+/* 47 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 48 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 49 */ _CFFI_OP(_CFFI_OP_NOOP, 27),
+/* 50 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 51 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
+/* 52 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 53 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, _Bool, uint64_t *)
+/* 54 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 55 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 56 */ _CFFI_OP(_CFFI_OP_POINTER, 246), // uint64_t *
+/* 57 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 58 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, char const * *)
+/* 59 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 60 */ _CFFI_OP(_CFFI_OP_POINTER, 40), // char const * *
+/* 61 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 62 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, clingo_script_t const *, void *)
+/* 63 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 64 */ _CFFI_OP(_CFFI_OP_POINTER, 1260), // clingo_script_t const *
+/* 65 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 66 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 67 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, uint32_t, _Bool, uint64_t *)
+/* 68 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 69 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22), // uint32_t
+/* 70 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 71 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 72 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 73 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, uint64_t *)
+/* 74 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 75 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 76 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 77 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, uint64_t const *, size_t, _Bool, uint64_t *)
+/* 78 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 79 */ _CFFI_OP(_CFFI_OP_POINTER, 246), // uint64_t const *
+/* 80 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 81 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 82 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 83 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 84 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, void *)
+/* 85 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 86 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 87 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 88 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(char const *, void(*)(int, char const *, void *), void *, unsigned int, uint64_t *)
+/* 89 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 90 */ _CFFI_OP(_CFFI_OP_NOOP, 27),
+/* 91 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 92 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
+/* 93 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 94 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 95 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *)
+/* 96 */ _CFFI_OP(_CFFI_OP_POINTER, 1240), // clingo_assignment_t const *
+/* 97 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 98 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, int32_t)
+/* 99 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 100 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 101 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 102 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, int32_t, _Bool *)
+/* 103 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 104 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 105 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 106 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 107 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, int32_t, int *)
+/* 108 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 109 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 110 */ _CFFI_OP(_CFFI_OP_POINTER, 155), // int *
+/* 111 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 112 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, int32_t, uint32_t *)
+/* 113 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 114 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 115 */ _CFFI_OP(_CFFI_OP_POINTER, 69), // uint32_t *
+/* 116 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 117 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, size_t, int32_t *)
+/* 118 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 119 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 120 */ _CFFI_OP(_CFFI_OP_POINTER, 12), // int32_t *
+/* 121 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 122 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, uint32_t *)
+/* 123 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 124 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 125 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 126 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, uint32_t, int32_t *)
+/* 127 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 128 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 129 */ _CFFI_OP(_CFFI_OP_NOOP, 120),
+/* 130 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 131 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_assignment_t const *, uint32_t, uint32_t *)
+/* 132 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 133 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 134 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 135 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 136 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, char *, size_t)
+/* 137 */ _CFFI_OP(_CFFI_OP_POINTER, 1247), // clingo_ast_t *
+/* 138 */ _CFFI_OP(_CFFI_OP_POINTER, 1238), // char *
+/* 139 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 140 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 141 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, clingo_ast_t * *)
+/* 142 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 143 */ _CFFI_OP(_CFFI_OP_POINTER, 137), // clingo_ast_t * *
+/* 144 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 145 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, clingo_ast_t *)
+/* 146 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 147 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 148 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 149 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int *)
+/* 150 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 151 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
+/* 152 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 153 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, _Bool *)
+/* 154 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 155 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7), // int
+/* 156 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 157 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 158 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, _Bool(*)(clingo_ast_t *, void *), void *)
+/* 159 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 160 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 161 */ _CFFI_OP(_CFFI_OP_NOOP, 24),
+/* 162 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 163 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 164 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, char const * *)
+/* 165 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 166 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 167 */ _CFFI_OP(_CFFI_OP_NOOP, 60),
+/* 168 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 169 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, char const *)
+/* 170 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 171 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 172 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 173 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 174 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, clingo_ast_t * *)
+/* 175 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 176 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 177 */ _CFFI_OP(_CFFI_OP_NOOP, 143),
+/* 178 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 179 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, clingo_ast_t *)
+/* 180 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 181 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 182 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 183 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 184 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, clingo_location_t *)
+/* 185 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 186 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 187 */ _CFFI_OP(_CFFI_OP_POINTER, 1252), // clingo_location_t *
+/* 188 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 189 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, clingo_location_t const *)
+/* 190 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 191 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 192 */ _CFFI_OP(_CFFI_OP_POINTER, 1252), // clingo_location_t const *
+/* 193 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 194 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, int *)
+/* 195 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 196 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 197 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
+/* 198 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 199 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, int)
+/* 200 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 201 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 202 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 203 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 204 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t *)
+/* 205 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 206 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 207 */ _CFFI_OP(_CFFI_OP_POINTER, 3), // size_t *
+/* 208 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 209 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t)
+/* 210 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 211 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 212 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 213 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 214 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t, char const * *)
+/* 215 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 216 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 217 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 218 */ _CFFI_OP(_CFFI_OP_NOOP, 60),
+/* 219 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 220 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t, char const *)
+/* 221 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 222 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 223 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 224 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 225 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 226 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t, clingo_ast_t * *)
+/* 227 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 228 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 229 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 230 */ _CFFI_OP(_CFFI_OP_NOOP, 143),
+/* 231 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 232 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, size_t, clingo_ast_t *)
+/* 233 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 234 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 235 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 236 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 237 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 238 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, uint64_t *)
+/* 239 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 240 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 241 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 242 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 243 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, int, uint64_t)
+/* 244 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 245 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 246 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24), // uint64_t
+/* 247 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 248 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, size_t *)
+/* 249 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 250 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 251 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 252 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t *, void *)
+/* 253 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 254 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 255 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 256 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_ast_t const *, void *)
+/* 257 */ _CFFI_OP(_CFFI_OP_POINTER, 1247), // clingo_ast_t const *
+/* 258 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 259 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 260 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *)
+/* 261 */ _CFFI_OP(_CFFI_OP_POINTER, 1248), // clingo_backend_t *
+/* 262 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 263 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, _Bool, uint32_t const *, size_t, int32_t const *, size_t)
+/* 264 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 265 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 266 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
 /* 267 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 268 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 269 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, _Bool, uint32_t const *, size_t, int32_t, clingo_weighted_literal_t const *, size_t)
-/* 270 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 271 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 272 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 273 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 274 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 275 */ _CFFI_OP(_CFFI_OP_NOOP, 13),
-/* 276 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 277 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 278 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, char const *, uint32_t *)
-/* 279 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 280 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 281 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 282 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 283 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, char const *, uint32_t const *, size_t, uint32_t *)
-/* 284 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 285 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 286 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 287 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 288 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 289 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 290 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, int, int, int32_t const *, size_t)
-/* 291 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 292 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 293 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 294 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 295 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 296 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 297 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, int, uint32_t *)
-/* 298 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 299 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 300 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 301 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 302 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, int, uint32_t const *, size_t, uint32_t *)
-/* 303 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 304 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 305 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 306 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 307 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 308 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 309 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, int32_t const *, size_t)
-/* 310 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 311 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 312 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 313 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 314 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, int32_t, clingo_weighted_literal_t const *, size_t)
-/* 315 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 316 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 317 */ _CFFI_OP(_CFFI_OP_NOOP, 13),
-/* 318 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 319 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 320 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t const *, size_t)
-/* 321 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 322 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 323 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 324 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 325 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t const *, size_t, int32_t const *, size_t, uint32_t *)
-/* 326 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 327 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 328 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 329 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 268 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 269 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 270 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 271 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, _Bool, uint32_t const *, size_t, int32_t, clingo_weighted_literal_t const *, size_t)
+/* 272 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 273 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 274 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 275 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 276 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 277 */ _CFFI_OP(_CFFI_OP_NOOP, 13),
+/* 278 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 279 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 280 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, char const *, uint32_t *)
+/* 281 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 282 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 283 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 284 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 285 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, char const *, uint32_t const *, size_t, uint32_t *)
+/* 286 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 287 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 288 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 289 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 290 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 291 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 292 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, int, int, int32_t const *, size_t)
+/* 293 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 294 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 295 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 296 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 297 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 298 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 299 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, int, uint32_t *)
+/* 300 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 301 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 302 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 303 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 304 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, int, uint32_t const *, size_t, uint32_t *)
+/* 305 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 306 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 307 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 308 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 309 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 310 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 311 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, int32_t const *, size_t)
+/* 312 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 313 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 314 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 315 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 316 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, int32_t, clingo_weighted_literal_t const *, size_t)
+/* 317 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 318 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 319 */ _CFFI_OP(_CFFI_OP_NOOP, 13),
+/* 320 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 321 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 322 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t const *, size_t)
+/* 323 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 324 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 325 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 326 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 327 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t const *, size_t, int32_t const *, size_t, uint32_t *)
+/* 328 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 329 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
 /* 330 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 331 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 332 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 333 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t, int)
-/* 334 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 335 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 336 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 337 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 338 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t, int, int, unsigned int, int32_t const *, size_t)
-/* 339 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 340 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 341 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 342 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 343 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
-/* 344 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 345 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 346 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 347 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t, uint32_t, uint32_t const *, size_t)
-/* 348 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 349 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 350 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 351 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 352 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 353 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 354 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t, uint32_t, uint32_t const *, size_t, char const *, uint32_t)
-/* 355 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 356 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 357 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 358 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 359 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 360 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 361 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 362 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 363 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint64_t *, uint32_t *)
-/* 364 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 365 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 366 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 367 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 368 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint64_t, uint32_t *)
-/* 369 */ _CFFI_OP(_CFFI_OP_NOOP, 259),
-/* 370 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 371 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 372 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 373 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t *, uint32_t, char const *)
-/* 374 */ _CFFI_OP(_CFFI_OP_POINTER, 1247), // clingo_configuration_t *
-/* 375 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 376 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 377 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 378 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t *)
-/* 379 */ _CFFI_OP(_CFFI_OP_POINTER, 1247), // clingo_configuration_t const *
-/* 380 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 381 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 382 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, _Bool *)
-/* 383 */ _CFFI_OP(_CFFI_OP_NOOP, 379),
-/* 384 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 385 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 386 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 387 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, char *, size_t)
-/* 388 */ _CFFI_OP(_CFFI_OP_NOOP, 379),
-/* 389 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 390 */ _CFFI_OP(_CFFI_OP_NOOP, 136),
-/* 391 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 392 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 393 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, char const * *)
-/* 394 */ _CFFI_OP(_CFFI_OP_NOOP, 379),
-/* 395 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 396 */ _CFFI_OP(_CFFI_OP_NOOP, 58),
-/* 397 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 398 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, char const *, _Bool *)
-/* 399 */ _CFFI_OP(_CFFI_OP_NOOP, 379),
-/* 400 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 401 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 402 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 403 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 404 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, char const *, uint32_t *)
-/* 405 */ _CFFI_OP(_CFFI_OP_NOOP, 379),
-/* 406 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 407 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 408 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 409 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 410 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, size_t *)
-/* 411 */ _CFFI_OP(_CFFI_OP_NOOP, 379),
-/* 412 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 413 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 414 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 415 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, size_t, char const * *)
-/* 416 */ _CFFI_OP(_CFFI_OP_NOOP, 379),
-/* 417 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 418 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 419 */ _CFFI_OP(_CFFI_OP_NOOP, 58),
-/* 420 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 421 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, size_t, uint32_t *)
-/* 422 */ _CFFI_OP(_CFFI_OP_NOOP, 379),
-/* 423 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 424 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 425 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 426 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 427 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, unsigned int *)
-/* 428 */ _CFFI_OP(_CFFI_OP_NOOP, 379),
-/* 429 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 430 */ _CFFI_OP(_CFFI_OP_POINTER, 28), // unsigned int *
-/* 431 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 432 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *)
-/* 433 */ _CFFI_OP(_CFFI_OP_POINTER, 1248), // clingo_control_t *
-/* 434 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 435 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, _Bool)
-/* 436 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 437 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 438 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 439 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, char const * const *, size_t, void *)
-/* 440 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 441 */ _CFFI_OP(_CFFI_OP_NOOP, 22),
-/* 442 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 443 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 444 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 445 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, char const *)
-/* 446 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 447 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 448 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 449 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, char const *, char const * const *, size_t, char const *)
-/* 450 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 451 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 452 */ _CFFI_OP(_CFFI_OP_NOOP, 22),
-/* 453 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 454 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 455 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 456 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_backend_t * *)
-/* 457 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 458 */ _CFFI_OP(_CFFI_OP_POINTER, 259), // clingo_backend_t * *
-/* 459 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 460 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_configuration_t * *)
-/* 461 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 462 */ _CFFI_OP(_CFFI_OP_POINTER, 374), // clingo_configuration_t * *
-/* 463 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 464 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_ground_program_observer_t const *, _Bool, void *)
-/* 465 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 466 */ _CFFI_OP(_CFFI_OP_POINTER, 1249), // clingo_ground_program_observer_t const *
-/* 467 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 468 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 469 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 470 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_part_t const *, size_t, _Bool(*)(clingo_location_t const *, char const *, uint64_t const *, size_t, void *, _Bool(*)(uint64_t const *, size_t, void *), void *), void *)
-/* 471 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 472 */ _CFFI_OP(_CFFI_OP_POINTER, 1253), // clingo_part_t const *
-/* 473 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 474 */ _CFFI_OP(_CFFI_OP_POINTER, 561), // _Bool(*)(clingo_location_t const *, char const *, uint64_t const *, size_t, void *, _Bool(*)(uint64_t const *, size_t, void *), void *)
-/* 475 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 476 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 477 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_program_builder_t * *)
-/* 478 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 479 */ _CFFI_OP(_CFFI_OP_POINTER, 658), // clingo_program_builder_t * *
-/* 480 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 481 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_propagator_t const *, void *, _Bool)
-/* 482 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 483 */ _CFFI_OP(_CFFI_OP_POINTER, 1257), // clingo_propagator_t const *
-/* 484 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 485 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 486 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 487 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, int32_t)
-/* 488 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 489 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 490 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 491 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, int32_t, int)
-/* 492 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 493 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 494 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 495 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 496 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, unsigned int, int32_t const *, size_t, _Bool(*)(unsigned int, void *, void *, _Bool *), void *, clingo_solve_handle_t * *)
-/* 497 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 498 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
-/* 499 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 500 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 501 */ _CFFI_OP(_CFFI_OP_POINTER, 1070), // _Bool(*)(unsigned int, void *, void *, _Bool *)
-/* 502 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 503 */ _CFFI_OP(_CFFI_OP_POINTER, 764), // clingo_solve_handle_t * *
-/* 504 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 505 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, void * *)
-/* 506 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 507 */ _CFFI_OP(_CFFI_OP_POINTER, 6), // void * *
-/* 508 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 509 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, void *)
-/* 510 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 511 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 512 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 513 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *)
-/* 514 */ _CFFI_OP(_CFFI_OP_POINTER, 1248), // clingo_control_t const *
-/* 515 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 516 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *, char const *, _Bool *)
-/* 517 */ _CFFI_OP(_CFFI_OP_NOOP, 514),
-/* 518 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 519 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 520 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 521 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *, char const *, uint64_t *)
-/* 522 */ _CFFI_OP(_CFFI_OP_NOOP, 514),
-/* 523 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 524 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 525 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 526 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *, clingo_statistics_t const * *)
-/* 527 */ _CFFI_OP(_CFFI_OP_NOOP, 514),
-/* 528 */ _CFFI_OP(_CFFI_OP_POINTER, 798), // clingo_statistics_t const * *
-/* 529 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 530 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *, clingo_symbolic_atoms_t const * *)
-/* 531 */ _CFFI_OP(_CFFI_OP_NOOP, 514),
-/* 532 */ _CFFI_OP(_CFFI_OP_POINTER, 841), // clingo_symbolic_atoms_t const * *
-/* 533 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 534 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *, clingo_theory_atoms_t const * *)
-/* 535 */ _CFFI_OP(_CFFI_OP_NOOP, 514),
-/* 536 */ _CFFI_OP(_CFFI_OP_POINTER, 880), // clingo_theory_atoms_t const * *
-/* 537 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 538 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_location_t *, char const *, void *)
-/* 539 */ _CFFI_OP(_CFFI_OP_NOOP, 185),
-/* 540 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 541 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 542 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 543 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_location_t *, char const *, void *, size_t, void *, void *, void *)
-/* 544 */ _CFFI_OP(_CFFI_OP_NOOP, 185),
-/* 545 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 546 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 547 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 331 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 332 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 333 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 334 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 335 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t, int)
+/* 336 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 337 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 338 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 339 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 340 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t, int, int, unsigned int, int32_t const *, size_t)
+/* 341 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 342 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 343 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 344 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 345 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
+/* 346 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 347 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 348 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 349 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t, uint32_t, uint32_t const *, size_t)
+/* 350 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 351 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 352 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 353 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 354 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 355 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 356 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint32_t, uint32_t, uint32_t const *, size_t, char const *, uint32_t)
+/* 357 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 358 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 359 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 360 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 361 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 362 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 363 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 364 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 365 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint64_t *, uint32_t *)
+/* 366 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 367 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 368 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 369 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 370 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_backend_t *, uint64_t, uint32_t *)
+/* 371 */ _CFFI_OP(_CFFI_OP_NOOP, 261),
+/* 372 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 373 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 374 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 375 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t *, uint32_t, char const *)
+/* 376 */ _CFFI_OP(_CFFI_OP_POINTER, 1249), // clingo_configuration_t *
+/* 377 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 378 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 379 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 380 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t *)
+/* 381 */ _CFFI_OP(_CFFI_OP_POINTER, 1249), // clingo_configuration_t const *
+/* 382 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 383 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 384 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, _Bool *)
+/* 385 */ _CFFI_OP(_CFFI_OP_NOOP, 381),
+/* 386 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 387 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 388 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 389 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, char *, size_t)
+/* 390 */ _CFFI_OP(_CFFI_OP_NOOP, 381),
+/* 391 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 392 */ _CFFI_OP(_CFFI_OP_NOOP, 138),
+/* 393 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 394 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 395 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, char const * *)
+/* 396 */ _CFFI_OP(_CFFI_OP_NOOP, 381),
+/* 397 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 398 */ _CFFI_OP(_CFFI_OP_NOOP, 60),
+/* 399 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 400 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, char const *, _Bool *)
+/* 401 */ _CFFI_OP(_CFFI_OP_NOOP, 381),
+/* 402 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 403 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 404 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 405 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 406 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, char const *, uint32_t *)
+/* 407 */ _CFFI_OP(_CFFI_OP_NOOP, 381),
+/* 408 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 409 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 410 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 411 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 412 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, size_t *)
+/* 413 */ _CFFI_OP(_CFFI_OP_NOOP, 381),
+/* 414 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 415 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 416 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 417 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, size_t, char const * *)
+/* 418 */ _CFFI_OP(_CFFI_OP_NOOP, 381),
+/* 419 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 420 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 421 */ _CFFI_OP(_CFFI_OP_NOOP, 60),
+/* 422 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 423 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, size_t, uint32_t *)
+/* 424 */ _CFFI_OP(_CFFI_OP_NOOP, 381),
+/* 425 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 426 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 427 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 428 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 429 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_configuration_t const *, uint32_t, unsigned int *)
+/* 430 */ _CFFI_OP(_CFFI_OP_NOOP, 381),
+/* 431 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 432 */ _CFFI_OP(_CFFI_OP_POINTER, 29), // unsigned int *
+/* 433 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 434 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *)
+/* 435 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 436 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 437 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, _Bool)
+/* 438 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 439 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 440 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 441 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, char const * const *, size_t, void *)
+/* 442 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 443 */ _CFFI_OP(_CFFI_OP_NOOP, 22),
+/* 444 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 445 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 446 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 447 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, char const *)
+/* 448 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 449 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 450 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 451 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, char const *, char const * const *, size_t, char const *)
+/* 452 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 453 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 454 */ _CFFI_OP(_CFFI_OP_NOOP, 22),
+/* 455 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 456 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 457 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 458 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_backend_t * *)
+/* 459 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 460 */ _CFFI_OP(_CFFI_OP_POINTER, 261), // clingo_backend_t * *
+/* 461 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 462 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_configuration_t * *)
+/* 463 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 464 */ _CFFI_OP(_CFFI_OP_POINTER, 376), // clingo_configuration_t * *
+/* 465 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 466 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_ground_program_observer_t const *, _Bool, void *)
+/* 467 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 468 */ _CFFI_OP(_CFFI_OP_POINTER, 1251), // clingo_ground_program_observer_t const *
+/* 469 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 470 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 471 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 472 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_part_t const *, size_t, _Bool(*)(clingo_location_t const *, char const *, uint64_t const *, size_t, void *, _Bool(*)(uint64_t const *, size_t, void *), void *), void *)
+/* 473 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 474 */ _CFFI_OP(_CFFI_OP_POINTER, 1255), // clingo_part_t const *
+/* 475 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 476 */ _CFFI_OP(_CFFI_OP_POINTER, 563), // _Bool(*)(clingo_location_t const *, char const *, uint64_t const *, size_t, void *, _Bool(*)(uint64_t const *, size_t, void *), void *)
+/* 477 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 478 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 479 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_program_builder_t * *)
+/* 480 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 481 */ _CFFI_OP(_CFFI_OP_POINTER, 660), // clingo_program_builder_t * *
+/* 482 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 483 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, clingo_propagator_t const *, void *, _Bool)
+/* 484 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 485 */ _CFFI_OP(_CFFI_OP_POINTER, 1259), // clingo_propagator_t const *
+/* 486 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 487 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 488 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 489 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, int32_t)
+/* 490 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 491 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 492 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 493 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, int32_t, int)
+/* 494 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 495 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 496 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 497 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 498 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, unsigned int, int32_t const *, size_t, _Bool(*)(unsigned int, void *, void *, _Bool *), void *, clingo_solve_handle_t * *)
+/* 499 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 500 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
+/* 501 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 502 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 503 */ _CFFI_OP(_CFFI_OP_POINTER, 1072), // _Bool(*)(unsigned int, void *, void *, _Bool *)
+/* 504 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 505 */ _CFFI_OP(_CFFI_OP_POINTER, 766), // clingo_solve_handle_t * *
+/* 506 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 507 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, void * *)
+/* 508 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 509 */ _CFFI_OP(_CFFI_OP_POINTER, 6), // void * *
+/* 510 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 511 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t *, void *)
+/* 512 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 513 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 514 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 515 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *)
+/* 516 */ _CFFI_OP(_CFFI_OP_POINTER, 1250), // clingo_control_t const *
+/* 517 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 518 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *, char const *, _Bool *)
+/* 519 */ _CFFI_OP(_CFFI_OP_NOOP, 516),
+/* 520 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 521 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 522 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 523 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *, char const *, uint64_t *)
+/* 524 */ _CFFI_OP(_CFFI_OP_NOOP, 516),
+/* 525 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 526 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 527 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 528 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *, clingo_statistics_t const * *)
+/* 529 */ _CFFI_OP(_CFFI_OP_NOOP, 516),
+/* 530 */ _CFFI_OP(_CFFI_OP_POINTER, 800), // clingo_statistics_t const * *
+/* 531 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 532 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *, clingo_symbolic_atoms_t const * *)
+/* 533 */ _CFFI_OP(_CFFI_OP_NOOP, 516),
+/* 534 */ _CFFI_OP(_CFFI_OP_POINTER, 843), // clingo_symbolic_atoms_t const * *
+/* 535 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 536 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_control_t const *, clingo_theory_atoms_t const * *)
+/* 537 */ _CFFI_OP(_CFFI_OP_NOOP, 516),
+/* 538 */ _CFFI_OP(_CFFI_OP_POINTER, 882), // clingo_theory_atoms_t const * *
+/* 539 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 540 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_location_t *, char const *, void *)
+/* 541 */ _CFFI_OP(_CFFI_OP_NOOP, 187),
+/* 542 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 543 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 544 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 545 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_location_t *, char const *, void *, size_t, void *, void *, void *)
+/* 546 */ _CFFI_OP(_CFFI_OP_NOOP, 187),
+/* 547 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
 /* 548 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 549 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 549 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
 /* 550 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 551 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 552 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_location_t const *, char const *, uint64_t const *, size_t, _Bool(*)(uint64_t const *, size_t, void *), void *, void *)
-/* 553 */ _CFFI_OP(_CFFI_OP_NOOP, 190),
-/* 554 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 555 */ _CFFI_OP(_CFFI_OP_NOOP, 77),
-/* 556 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 557 */ _CFFI_OP(_CFFI_OP_POINTER, 1021), // _Bool(*)(uint64_t const *, size_t, void *)
-/* 558 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 559 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 560 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 561 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_location_t const *, char const *, uint64_t const *, size_t, void *, _Bool(*)(uint64_t const *, size_t, void *), void *)
-/* 562 */ _CFFI_OP(_CFFI_OP_NOOP, 190),
-/* 563 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 564 */ _CFFI_OP(_CFFI_OP_NOOP, 77),
-/* 565 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 566 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 567 */ _CFFI_OP(_CFFI_OP_NOOP, 557),
+/* 551 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 552 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 553 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 554 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_location_t const *, char const *, uint64_t const *, size_t, _Bool(*)(uint64_t const *, size_t, void *), void *, void *)
+/* 555 */ _CFFI_OP(_CFFI_OP_NOOP, 192),
+/* 556 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 557 */ _CFFI_OP(_CFFI_OP_NOOP, 79),
+/* 558 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 559 */ _CFFI_OP(_CFFI_OP_POINTER, 1023), // _Bool(*)(uint64_t const *, size_t, void *)
+/* 560 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 561 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 562 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 563 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_location_t const *, char const *, uint64_t const *, size_t, void *, _Bool(*)(uint64_t const *, size_t, void *), void *)
+/* 564 */ _CFFI_OP(_CFFI_OP_NOOP, 192),
+/* 565 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 566 */ _CFFI_OP(_CFFI_OP_NOOP, 79),
+/* 567 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
 /* 568 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 569 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 570 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_location_t const *, char const *, void *)
-/* 571 */ _CFFI_OP(_CFFI_OP_NOOP, 190),
-/* 572 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 573 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 574 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 575 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t *, uint64_t const *, size_t)
-/* 576 */ _CFFI_OP(_CFFI_OP_POINTER, 1251), // clingo_model_t *
-/* 577 */ _CFFI_OP(_CFFI_OP_NOOP, 77),
-/* 578 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 579 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 580 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, _Bool *)
-/* 581 */ _CFFI_OP(_CFFI_OP_POINTER, 1251), // clingo_model_t const *
-/* 582 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 583 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 584 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, _Bool(*)(void *), void *, void *)
-/* 585 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 586 */ _CFFI_OP(_CFFI_OP_POINTER, 1076), // _Bool(*)(void *)
-/* 587 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 588 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 589 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 590 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, clingo_solve_control_t * *)
-/* 591 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 592 */ _CFFI_OP(_CFFI_OP_POINTER, 755), // clingo_solve_control_t * *
-/* 593 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 594 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, int *)
-/* 595 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 596 */ _CFFI_OP(_CFFI_OP_NOOP, 108),
-/* 597 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 598 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, int32_t, _Bool *)
-/* 599 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 600 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 601 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 602 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 603 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, int64_t *, size_t)
-/* 604 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 605 */ _CFFI_OP(_CFFI_OP_POINTER, 1295), // int64_t *
-/* 606 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 607 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 608 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, size_t *)
-/* 609 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 610 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 611 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 612 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, uint32_t *)
-/* 613 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 614 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 615 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 616 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, uint64_t *)
-/* 617 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 618 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 619 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 620 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, uint64_t, _Bool *)
-/* 621 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 622 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 623 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 624 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 625 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, unsigned int, size_t *)
-/* 626 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 627 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
-/* 628 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 629 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 630 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, unsigned int, uint64_t *, size_t)
-/* 631 */ _CFFI_OP(_CFFI_OP_NOOP, 581),
-/* 632 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
-/* 633 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 634 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 635 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 636 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_options_t *, char const *, char const *, char const *, _Bool *)
-/* 637 */ _CFFI_OP(_CFFI_OP_POINTER, 1252), // clingo_options_t *
-/* 638 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 639 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 640 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
+/* 569 */ _CFFI_OP(_CFFI_OP_NOOP, 559),
+/* 570 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 571 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 572 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_location_t const *, char const *, void *)
+/* 573 */ _CFFI_OP(_CFFI_OP_NOOP, 192),
+/* 574 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 575 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 576 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 577 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t *, uint64_t const *, size_t)
+/* 578 */ _CFFI_OP(_CFFI_OP_POINTER, 1253), // clingo_model_t *
+/* 579 */ _CFFI_OP(_CFFI_OP_NOOP, 79),
+/* 580 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 581 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 582 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, _Bool *)
+/* 583 */ _CFFI_OP(_CFFI_OP_POINTER, 1253), // clingo_model_t const *
+/* 584 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 585 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 586 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, _Bool(*)(void *), void *, void *)
+/* 587 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 588 */ _CFFI_OP(_CFFI_OP_POINTER, 1078), // _Bool(*)(void *)
+/* 589 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 590 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 591 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 592 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, clingo_solve_control_t * *)
+/* 593 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 594 */ _CFFI_OP(_CFFI_OP_POINTER, 757), // clingo_solve_control_t * *
+/* 595 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 596 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, int *)
+/* 597 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 598 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
+/* 599 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 600 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, int32_t, _Bool *)
+/* 601 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 602 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 603 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 604 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 605 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, int64_t *, size_t)
+/* 606 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 607 */ _CFFI_OP(_CFFI_OP_POINTER, 1297), // int64_t *
+/* 608 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 609 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 610 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, size_t *)
+/* 611 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 612 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 613 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 614 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, uint32_t *)
+/* 615 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 616 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 617 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 618 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, uint64_t *)
+/* 619 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 620 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 621 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 622 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, uint64_t, _Bool *)
+/* 623 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 624 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 625 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 626 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 627 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, unsigned int, size_t *)
+/* 628 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 629 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
+/* 630 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 631 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 632 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, unsigned int, uint64_t *, size_t)
+/* 633 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
+/* 634 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
+/* 635 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 636 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 637 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 638 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_options_t *, char const *, char const *, char const *, _Bool *)
+/* 639 */ _CFFI_OP(_CFFI_OP_POINTER, 1254), // clingo_options_t *
+/* 640 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
 /* 641 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 642 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 643 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_options_t *, char const *, char const *, char const *, _Bool(*)(char const *, void *), void *, _Bool, char const *)
-/* 644 */ _CFFI_OP(_CFFI_OP_NOOP, 637),
-/* 645 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 646 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 647 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 648 */ _CFFI_OP(_CFFI_OP_POINTER, 82), // _Bool(*)(char const *, void *)
-/* 649 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 650 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 651 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 652 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 653 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_options_t *, void *)
-/* 654 */ _CFFI_OP(_CFFI_OP_NOOP, 637),
-/* 655 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 656 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 657 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_program_builder_t *)
-/* 658 */ _CFFI_OP(_CFFI_OP_POINTER, 1254), // clingo_program_builder_t *
-/* 659 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 660 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_program_builder_t *, clingo_ast_t *)
-/* 661 */ _CFFI_OP(_CFFI_OP_NOOP, 658),
-/* 662 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 663 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 664 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, _Bool *)
-/* 665 */ _CFFI_OP(_CFFI_OP_POINTER, 1255), // clingo_propagate_control_t *
-/* 666 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 667 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 668 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, int32_t *)
-/* 669 */ _CFFI_OP(_CFFI_OP_NOOP, 665),
-/* 670 */ _CFFI_OP(_CFFI_OP_NOOP, 118),
-/* 671 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 672 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, int32_t const *, size_t, int, _Bool *)
-/* 673 */ _CFFI_OP(_CFFI_OP_NOOP, 665),
-/* 674 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 675 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 676 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 677 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 678 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 679 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, int32_t const *, size_t, void *)
-/* 680 */ _CFFI_OP(_CFFI_OP_NOOP, 665),
-/* 681 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 682 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 683 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 684 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 685 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, int32_t)
-/* 686 */ _CFFI_OP(_CFFI_OP_NOOP, 665),
-/* 687 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 688 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 689 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, void *)
-/* 690 */ _CFFI_OP(_CFFI_OP_NOOP, 665),
-/* 691 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 692 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 693 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t const *, int32_t)
-/* 694 */ _CFFI_OP(_CFFI_OP_POINTER, 1255), // clingo_propagate_control_t const *
-/* 695 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 696 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 697 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, _Bool *)
-/* 698 */ _CFFI_OP(_CFFI_OP_POINTER, 1256), // clingo_propagate_init_t *
-/* 699 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 700 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 701 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, _Bool, int32_t *)
-/* 702 */ _CFFI_OP(_CFFI_OP_NOOP, 698),
-/* 703 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 704 */ _CFFI_OP(_CFFI_OP_NOOP, 118),
-/* 705 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 706 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, int32_t const *, size_t, _Bool *)
-/* 707 */ _CFFI_OP(_CFFI_OP_NOOP, 698),
-/* 708 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 709 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 710 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 711 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 712 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, int32_t)
-/* 713 */ _CFFI_OP(_CFFI_OP_NOOP, 698),
-/* 714 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 715 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 716 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, int32_t, clingo_weighted_literal_t const *, size_t, int32_t, int, _Bool, _Bool *)
-/* 717 */ _CFFI_OP(_CFFI_OP_NOOP, 698),
-/* 718 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 719 */ _CFFI_OP(_CFFI_OP_NOOP, 13),
-/* 720 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 721 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 722 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 723 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
-/* 724 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 725 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 726 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, int32_t, int32_t, int32_t)
-/* 727 */ _CFFI_OP(_CFFI_OP_NOOP, 698),
-/* 728 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 729 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 642 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 643 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 644 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 645 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_options_t *, char const *, char const *, char const *, _Bool(*)(char const *, void *), void *, _Bool, char const *)
+/* 646 */ _CFFI_OP(_CFFI_OP_NOOP, 639),
+/* 647 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 648 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 649 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 650 */ _CFFI_OP(_CFFI_OP_POINTER, 84), // _Bool(*)(char const *, void *)
+/* 651 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 652 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 653 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 654 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 655 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_options_t *, void *)
+/* 656 */ _CFFI_OP(_CFFI_OP_NOOP, 639),
+/* 657 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 658 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 659 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_program_builder_t *)
+/* 660 */ _CFFI_OP(_CFFI_OP_POINTER, 1256), // clingo_program_builder_t *
+/* 661 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 662 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_program_builder_t *, clingo_ast_t *)
+/* 663 */ _CFFI_OP(_CFFI_OP_NOOP, 660),
+/* 664 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 665 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 666 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, _Bool *)
+/* 667 */ _CFFI_OP(_CFFI_OP_POINTER, 1257), // clingo_propagate_control_t *
+/* 668 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 669 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 670 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, int32_t *)
+/* 671 */ _CFFI_OP(_CFFI_OP_NOOP, 667),
+/* 672 */ _CFFI_OP(_CFFI_OP_NOOP, 120),
+/* 673 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 674 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, int32_t const *, size_t, int, _Bool *)
+/* 675 */ _CFFI_OP(_CFFI_OP_NOOP, 667),
+/* 676 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 677 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 678 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 679 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 680 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 681 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, int32_t const *, size_t, void *)
+/* 682 */ _CFFI_OP(_CFFI_OP_NOOP, 667),
+/* 683 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 684 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 685 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 686 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 687 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, int32_t)
+/* 688 */ _CFFI_OP(_CFFI_OP_NOOP, 667),
+/* 689 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 690 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 691 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t *, void *)
+/* 692 */ _CFFI_OP(_CFFI_OP_NOOP, 667),
+/* 693 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 694 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 695 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_control_t const *, int32_t)
+/* 696 */ _CFFI_OP(_CFFI_OP_POINTER, 1257), // clingo_propagate_control_t const *
+/* 697 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 698 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 699 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, _Bool *)
+/* 700 */ _CFFI_OP(_CFFI_OP_POINTER, 1258), // clingo_propagate_init_t *
+/* 701 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 702 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 703 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, _Bool, int32_t *)
+/* 704 */ _CFFI_OP(_CFFI_OP_NOOP, 700),
+/* 705 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 706 */ _CFFI_OP(_CFFI_OP_NOOP, 120),
+/* 707 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 708 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, int32_t const *, size_t, _Bool *)
+/* 709 */ _CFFI_OP(_CFFI_OP_NOOP, 700),
+/* 710 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 711 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 712 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 713 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 714 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, int32_t)
+/* 715 */ _CFFI_OP(_CFFI_OP_NOOP, 700),
+/* 716 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 717 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 718 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, int32_t, clingo_weighted_literal_t const *, size_t, int32_t, int, _Bool, _Bool *)
+/* 719 */ _CFFI_OP(_CFFI_OP_NOOP, 700),
+/* 720 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 721 */ _CFFI_OP(_CFFI_OP_NOOP, 13),
+/* 722 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 723 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 724 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 725 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1),
+/* 726 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 727 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 728 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, int32_t, int32_t, int32_t)
+/* 729 */ _CFFI_OP(_CFFI_OP_NOOP, 700),
 /* 730 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 731 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 732 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, int32_t, uint32_t)
-/* 733 */ _CFFI_OP(_CFFI_OP_NOOP, 698),
-/* 734 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 735 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 736 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 737 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, void *)
-/* 738 */ _CFFI_OP(_CFFI_OP_NOOP, 698),
-/* 739 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 740 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 741 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t const *, clingo_symbolic_atoms_t const * *)
-/* 742 */ _CFFI_OP(_CFFI_OP_POINTER, 1256), // clingo_propagate_init_t const *
-/* 743 */ _CFFI_OP(_CFFI_OP_NOOP, 532),
-/* 744 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 745 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t const *, clingo_theory_atoms_t const * *)
-/* 746 */ _CFFI_OP(_CFFI_OP_NOOP, 742),
-/* 747 */ _CFFI_OP(_CFFI_OP_NOOP, 536),
-/* 748 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 749 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t const *, int32_t, int32_t *)
-/* 750 */ _CFFI_OP(_CFFI_OP_NOOP, 742),
-/* 751 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 752 */ _CFFI_OP(_CFFI_OP_NOOP, 118),
-/* 753 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 754 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_control_t *, int32_t const *, size_t)
-/* 755 */ _CFFI_OP(_CFFI_OP_POINTER, 1259), // clingo_solve_control_t *
-/* 756 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 757 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 758 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 759 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_control_t const *, clingo_symbolic_atoms_t const * *)
-/* 760 */ _CFFI_OP(_CFFI_OP_POINTER, 1259), // clingo_solve_control_t const *
-/* 761 */ _CFFI_OP(_CFFI_OP_NOOP, 532),
-/* 762 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 763 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_handle_t *)
-/* 764 */ _CFFI_OP(_CFFI_OP_POINTER, 1260), // clingo_solve_handle_t *
-/* 765 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 766 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_handle_t *, clingo_model_t const * *)
-/* 767 */ _CFFI_OP(_CFFI_OP_NOOP, 764),
-/* 768 */ _CFFI_OP(_CFFI_OP_POINTER, 581), // clingo_model_t const * *
-/* 769 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 770 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_handle_t *, int32_t const * *, size_t *)
-/* 771 */ _CFFI_OP(_CFFI_OP_NOOP, 764),
-/* 772 */ _CFFI_OP(_CFFI_OP_POINTER, 4), // int32_t const * *
-/* 773 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 774 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 775 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_handle_t *, unsigned int *)
-/* 776 */ _CFFI_OP(_CFFI_OP_NOOP, 764),
-/* 777 */ _CFFI_OP(_CFFI_OP_NOOP, 430),
-/* 778 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 779 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t *, uint64_t, char const *, int, uint64_t *)
-/* 780 */ _CFFI_OP(_CFFI_OP_POINTER, 1261), // clingo_statistics_t *
-/* 781 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 782 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 783 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 784 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 785 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 786 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t *, uint64_t, double)
-/* 787 */ _CFFI_OP(_CFFI_OP_NOOP, 780),
-/* 788 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 789 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 14), // double
-/* 790 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 791 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t *, uint64_t, int, uint64_t *)
-/* 792 */ _CFFI_OP(_CFFI_OP_NOOP, 780),
-/* 793 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 794 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 795 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 796 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 797 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t *)
-/* 798 */ _CFFI_OP(_CFFI_OP_POINTER, 1261), // clingo_statistics_t const *
-/* 799 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 800 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 801 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, char const *, _Bool *)
-/* 802 */ _CFFI_OP(_CFFI_OP_NOOP, 798),
-/* 803 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 804 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 805 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 806 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 807 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, char const *, uint64_t *)
-/* 808 */ _CFFI_OP(_CFFI_OP_NOOP, 798),
-/* 809 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 810 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 811 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 812 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 813 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, double *)
-/* 814 */ _CFFI_OP(_CFFI_OP_NOOP, 798),
-/* 815 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 816 */ _CFFI_OP(_CFFI_OP_POINTER, 789), // double *
-/* 817 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 818 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, int *)
-/* 819 */ _CFFI_OP(_CFFI_OP_NOOP, 798),
-/* 820 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 821 */ _CFFI_OP(_CFFI_OP_NOOP, 108),
-/* 822 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 823 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, size_t *)
-/* 824 */ _CFFI_OP(_CFFI_OP_NOOP, 798),
-/* 825 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 826 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 827 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 828 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, size_t, char const * *)
-/* 829 */ _CFFI_OP(_CFFI_OP_NOOP, 798),
-/* 830 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 831 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 832 */ _CFFI_OP(_CFFI_OP_NOOP, 58),
-/* 833 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 834 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, size_t, uint64_t *)
-/* 835 */ _CFFI_OP(_CFFI_OP_NOOP, 798),
-/* 836 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 837 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 838 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 839 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 840 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, size_t *)
-/* 841 */ _CFFI_OP(_CFFI_OP_POINTER, 1262), // clingo_symbolic_atoms_t const *
-/* 842 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 843 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 844 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t *)
-/* 845 */ _CFFI_OP(_CFFI_OP_NOOP, 841),
-/* 846 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 847 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 848 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t *, size_t)
-/* 849 */ _CFFI_OP(_CFFI_OP_NOOP, 841),
-/* 850 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 851 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 852 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 853 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t const *, uint64_t *)
-/* 854 */ _CFFI_OP(_CFFI_OP_NOOP, 841),
-/* 855 */ _CFFI_OP(_CFFI_OP_NOOP, 77),
-/* 856 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 857 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 858 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t, _Bool *)
-/* 859 */ _CFFI_OP(_CFFI_OP_NOOP, 841),
-/* 860 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 861 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 862 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 863 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t, int32_t *)
-/* 864 */ _CFFI_OP(_CFFI_OP_NOOP, 841),
-/* 865 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 866 */ _CFFI_OP(_CFFI_OP_NOOP, 118),
-/* 867 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 868 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t, uint64_t *)
-/* 869 */ _CFFI_OP(_CFFI_OP_NOOP, 841),
-/* 870 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 871 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 872 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 873 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t, uint64_t, _Bool *)
-/* 874 */ _CFFI_OP(_CFFI_OP_NOOP, 841),
-/* 875 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 876 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 877 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 878 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 879 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, size_t *)
-/* 880 */ _CFFI_OP(_CFFI_OP_POINTER, 1263), // clingo_theory_atoms_t const *
-/* 881 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 882 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 883 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, _Bool *)
-/* 884 */ _CFFI_OP(_CFFI_OP_NOOP, 880),
-/* 885 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 886 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 887 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 888 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, char *, size_t)
-/* 889 */ _CFFI_OP(_CFFI_OP_NOOP, 880),
-/* 890 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 891 */ _CFFI_OP(_CFFI_OP_NOOP, 136),
-/* 892 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 893 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 894 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, char const * *)
-/* 895 */ _CFFI_OP(_CFFI_OP_NOOP, 880),
-/* 896 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 897 */ _CFFI_OP(_CFFI_OP_NOOP, 58),
-/* 898 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 899 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, char const * *, uint32_t *)
-/* 900 */ _CFFI_OP(_CFFI_OP_NOOP, 880),
-/* 901 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 902 */ _CFFI_OP(_CFFI_OP_NOOP, 58),
-/* 903 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 904 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 905 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, int *)
-/* 906 */ _CFFI_OP(_CFFI_OP_NOOP, 880),
-/* 907 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 908 */ _CFFI_OP(_CFFI_OP_NOOP, 108),
-/* 909 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 910 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, int32_t *)
-/* 911 */ _CFFI_OP(_CFFI_OP_NOOP, 880),
-/* 912 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 913 */ _CFFI_OP(_CFFI_OP_NOOP, 118),
-/* 914 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 915 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, int32_t const * *, size_t *)
-/* 916 */ _CFFI_OP(_CFFI_OP_NOOP, 880),
-/* 917 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 918 */ _CFFI_OP(_CFFI_OP_NOOP, 772),
-/* 919 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 920 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 921 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, size_t *)
-/* 922 */ _CFFI_OP(_CFFI_OP_NOOP, 880),
-/* 923 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 924 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 925 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 926 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, uint32_t *)
-/* 927 */ _CFFI_OP(_CFFI_OP_NOOP, 880),
-/* 928 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 929 */ _CFFI_OP(_CFFI_OP_NOOP, 113),
-/* 930 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 931 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, uint32_t const * *, size_t *)
-/* 932 */ _CFFI_OP(_CFFI_OP_NOOP, 880),
-/* 933 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 934 */ _CFFI_OP(_CFFI_OP_POINTER, 2), // uint32_t const * *
-/* 935 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 936 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 937 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(int, clingo_ast_t * *, ...)
-/* 938 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 939 */ _CFFI_OP(_CFFI_OP_NOOP, 141),
-/* 940 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 1),
-/* 941 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(int, int, int32_t const *, size_t, void *)
-/* 942 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 943 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 944 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 945 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 946 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 947 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 948 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(int32_t const *, size_t, void *)
-/* 949 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 950 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 951 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 952 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 953 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(int32_t, clingo_weighted_literal_t const *, size_t, void *)
-/* 954 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 955 */ _CFFI_OP(_CFFI_OP_NOOP, 13),
-/* 956 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 957 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 958 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 959 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t const *, size_t, void *)
-/* 960 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 961 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 962 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 963 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 964 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, char const *, void *)
-/* 965 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 966 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 967 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 968 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 969 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, clingo_assignment_t const *, int32_t, void *, int32_t *)
-/* 970 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 971 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 972 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 973 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 974 */ _CFFI_OP(_CFFI_OP_NOOP, 118),
-/* 975 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 976 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, int, int, unsigned int, int32_t const *, size_t, void *)
-/* 977 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 978 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 979 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 980 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
-/* 981 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 982 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 983 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 984 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 985 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, int, uint32_t const *, size_t, void *)
-/* 986 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 987 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 988 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 989 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 990 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 991 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 992 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, int, void *)
-/* 993 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 994 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 995 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 996 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 997 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, uint32_t const *, size_t, int32_t const *, size_t, void *)
-/* 998 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 999 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 1000 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 1001 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 731 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 732 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 733 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 734 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, int32_t, uint32_t)
+/* 735 */ _CFFI_OP(_CFFI_OP_NOOP, 700),
+/* 736 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 737 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 738 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 739 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t *, void *)
+/* 740 */ _CFFI_OP(_CFFI_OP_NOOP, 700),
+/* 741 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 742 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 743 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t const *, clingo_symbolic_atoms_t const * *)
+/* 744 */ _CFFI_OP(_CFFI_OP_POINTER, 1258), // clingo_propagate_init_t const *
+/* 745 */ _CFFI_OP(_CFFI_OP_NOOP, 534),
+/* 746 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 747 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t const *, clingo_theory_atoms_t const * *)
+/* 748 */ _CFFI_OP(_CFFI_OP_NOOP, 744),
+/* 749 */ _CFFI_OP(_CFFI_OP_NOOP, 538),
+/* 750 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 751 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_propagate_init_t const *, int32_t, int32_t *)
+/* 752 */ _CFFI_OP(_CFFI_OP_NOOP, 744),
+/* 753 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 754 */ _CFFI_OP(_CFFI_OP_NOOP, 120),
+/* 755 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 756 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_control_t *, int32_t const *, size_t)
+/* 757 */ _CFFI_OP(_CFFI_OP_POINTER, 1261), // clingo_solve_control_t *
+/* 758 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 759 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 760 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 761 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_control_t const *, clingo_symbolic_atoms_t const * *)
+/* 762 */ _CFFI_OP(_CFFI_OP_POINTER, 1261), // clingo_solve_control_t const *
+/* 763 */ _CFFI_OP(_CFFI_OP_NOOP, 534),
+/* 764 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 765 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_handle_t *)
+/* 766 */ _CFFI_OP(_CFFI_OP_POINTER, 1262), // clingo_solve_handle_t *
+/* 767 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 768 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_handle_t *, clingo_model_t const * *)
+/* 769 */ _CFFI_OP(_CFFI_OP_NOOP, 766),
+/* 770 */ _CFFI_OP(_CFFI_OP_POINTER, 583), // clingo_model_t const * *
+/* 771 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 772 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_handle_t *, int32_t const * *, size_t *)
+/* 773 */ _CFFI_OP(_CFFI_OP_NOOP, 766),
+/* 774 */ _CFFI_OP(_CFFI_OP_POINTER, 4), // int32_t const * *
+/* 775 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 776 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 777 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_solve_handle_t *, unsigned int *)
+/* 778 */ _CFFI_OP(_CFFI_OP_NOOP, 766),
+/* 779 */ _CFFI_OP(_CFFI_OP_NOOP, 432),
+/* 780 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 781 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t *, uint64_t, char const *, int, uint64_t *)
+/* 782 */ _CFFI_OP(_CFFI_OP_POINTER, 1263), // clingo_statistics_t *
+/* 783 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 784 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 785 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 786 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 787 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 788 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t *, uint64_t, double)
+/* 789 */ _CFFI_OP(_CFFI_OP_NOOP, 782),
+/* 790 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 791 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 14), // double
+/* 792 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 793 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t *, uint64_t, int, uint64_t *)
+/* 794 */ _CFFI_OP(_CFFI_OP_NOOP, 782),
+/* 795 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 796 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 797 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 798 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 799 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t *)
+/* 800 */ _CFFI_OP(_CFFI_OP_POINTER, 1263), // clingo_statistics_t const *
+/* 801 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 802 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 803 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, char const *, _Bool *)
+/* 804 */ _CFFI_OP(_CFFI_OP_NOOP, 800),
+/* 805 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 806 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 807 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 808 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 809 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, char const *, uint64_t *)
+/* 810 */ _CFFI_OP(_CFFI_OP_NOOP, 800),
+/* 811 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 812 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 813 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 814 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 815 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, double *)
+/* 816 */ _CFFI_OP(_CFFI_OP_NOOP, 800),
+/* 817 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 818 */ _CFFI_OP(_CFFI_OP_POINTER, 791), // double *
+/* 819 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 820 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, int *)
+/* 821 */ _CFFI_OP(_CFFI_OP_NOOP, 800),
+/* 822 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 823 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
+/* 824 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 825 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, size_t *)
+/* 826 */ _CFFI_OP(_CFFI_OP_NOOP, 800),
+/* 827 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 828 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 829 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 830 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, size_t, char const * *)
+/* 831 */ _CFFI_OP(_CFFI_OP_NOOP, 800),
+/* 832 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 833 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 834 */ _CFFI_OP(_CFFI_OP_NOOP, 60),
+/* 835 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 836 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_statistics_t const *, uint64_t, size_t, uint64_t *)
+/* 837 */ _CFFI_OP(_CFFI_OP_NOOP, 800),
+/* 838 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 839 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 840 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 841 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 842 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, size_t *)
+/* 843 */ _CFFI_OP(_CFFI_OP_POINTER, 1264), // clingo_symbolic_atoms_t const *
+/* 844 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 845 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 846 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t *)
+/* 847 */ _CFFI_OP(_CFFI_OP_NOOP, 843),
+/* 848 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 849 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 850 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t *, size_t)
+/* 851 */ _CFFI_OP(_CFFI_OP_NOOP, 843),
+/* 852 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 853 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 854 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 855 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t const *, uint64_t *)
+/* 856 */ _CFFI_OP(_CFFI_OP_NOOP, 843),
+/* 857 */ _CFFI_OP(_CFFI_OP_NOOP, 79),
+/* 858 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 859 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 860 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t, _Bool *)
+/* 861 */ _CFFI_OP(_CFFI_OP_NOOP, 843),
+/* 862 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 863 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 864 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 865 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t, int32_t *)
+/* 866 */ _CFFI_OP(_CFFI_OP_NOOP, 843),
+/* 867 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 868 */ _CFFI_OP(_CFFI_OP_NOOP, 120),
+/* 869 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 870 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t, uint64_t *)
+/* 871 */ _CFFI_OP(_CFFI_OP_NOOP, 843),
+/* 872 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 873 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 874 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 875 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_symbolic_atoms_t const *, uint64_t, uint64_t, _Bool *)
+/* 876 */ _CFFI_OP(_CFFI_OP_NOOP, 843),
+/* 877 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 878 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 879 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 880 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 881 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, size_t *)
+/* 882 */ _CFFI_OP(_CFFI_OP_POINTER, 1265), // clingo_theory_atoms_t const *
+/* 883 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 884 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 885 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, _Bool *)
+/* 886 */ _CFFI_OP(_CFFI_OP_NOOP, 882),
+/* 887 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 888 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 889 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 890 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, char *, size_t)
+/* 891 */ _CFFI_OP(_CFFI_OP_NOOP, 882),
+/* 892 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 893 */ _CFFI_OP(_CFFI_OP_NOOP, 138),
+/* 894 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 895 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 896 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, char const * *)
+/* 897 */ _CFFI_OP(_CFFI_OP_NOOP, 882),
+/* 898 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 899 */ _CFFI_OP(_CFFI_OP_NOOP, 60),
+/* 900 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 901 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, char const * *, uint32_t *)
+/* 902 */ _CFFI_OP(_CFFI_OP_NOOP, 882),
+/* 903 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 904 */ _CFFI_OP(_CFFI_OP_NOOP, 60),
+/* 905 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 906 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 907 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, int *)
+/* 908 */ _CFFI_OP(_CFFI_OP_NOOP, 882),
+/* 909 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 910 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
+/* 911 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 912 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, int32_t *)
+/* 913 */ _CFFI_OP(_CFFI_OP_NOOP, 882),
+/* 914 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 915 */ _CFFI_OP(_CFFI_OP_NOOP, 120),
+/* 916 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 917 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, int32_t const * *, size_t *)
+/* 918 */ _CFFI_OP(_CFFI_OP_NOOP, 882),
+/* 919 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 920 */ _CFFI_OP(_CFFI_OP_NOOP, 774),
+/* 921 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 922 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 923 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, size_t *)
+/* 924 */ _CFFI_OP(_CFFI_OP_NOOP, 882),
+/* 925 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 926 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 927 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 928 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, uint32_t *)
+/* 929 */ _CFFI_OP(_CFFI_OP_NOOP, 882),
+/* 930 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 931 */ _CFFI_OP(_CFFI_OP_NOOP, 115),
+/* 932 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 933 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_theory_atoms_t const *, uint32_t, uint32_t const * *, size_t *)
+/* 934 */ _CFFI_OP(_CFFI_OP_NOOP, 882),
+/* 935 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 936 */ _CFFI_OP(_CFFI_OP_POINTER, 2), // uint32_t const * *
+/* 937 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 938 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 939 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(int, clingo_ast_t * *, ...)
+/* 940 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 941 */ _CFFI_OP(_CFFI_OP_NOOP, 143),
+/* 942 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 1),
+/* 943 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(int, int, int32_t const *, size_t, void *)
+/* 944 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 945 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 946 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 947 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 948 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 949 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 950 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(int32_t const *, size_t, void *)
+/* 951 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 952 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 953 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 954 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 955 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(int32_t, clingo_weighted_literal_t const *, size_t, void *)
+/* 956 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 957 */ _CFFI_OP(_CFFI_OP_NOOP, 13),
+/* 958 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 959 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 960 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 961 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t const *, size_t, void *)
+/* 962 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 963 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 964 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 965 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 966 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, char const *, void *)
+/* 967 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 968 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 969 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 970 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 971 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, clingo_assignment_t const *, int32_t, void *, int32_t *)
+/* 972 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 973 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 974 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 975 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 976 */ _CFFI_OP(_CFFI_OP_NOOP, 120),
+/* 977 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 978 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, int, int, unsigned int, int32_t const *, size_t, void *)
+/* 979 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 980 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 981 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 982 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
+/* 983 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 984 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 985 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 986 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 987 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, int, uint32_t const *, size_t, void *)
+/* 988 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 989 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 990 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 991 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 992 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 993 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 994 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, int, void *)
+/* 995 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 996 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 997 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 998 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 999 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, uint32_t const *, size_t, int32_t const *, size_t, void *)
+/* 1000 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 1001 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
 /* 1002 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 1003 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1004 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1005 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, uint32_t, uint32_t const *, size_t, uint32_t, uint32_t, void *)
-/* 1006 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 1007 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 1008 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 1009 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 1010 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 1011 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 1012 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1013 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1014 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, uint32_t, uint32_t const *, size_t, void *)
-/* 1015 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 1016 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 1017 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 1018 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 1019 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1020 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1021 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t const *, size_t, void *)
-/* 1022 */ _CFFI_OP(_CFFI_OP_NOOP, 77),
-/* 1023 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 1024 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1025 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1026 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t)
-/* 1027 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1028 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1029 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, _Bool *)
-/* 1030 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1031 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 1032 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1033 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, char *, size_t)
-/* 1034 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1035 */ _CFFI_OP(_CFFI_OP_NOOP, 136),
-/* 1036 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 1037 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1038 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, char const * *)
-/* 1039 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1040 */ _CFFI_OP(_CFFI_OP_NOOP, 58),
-/* 1041 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1042 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, int *)
-/* 1043 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1044 */ _CFFI_OP(_CFFI_OP_NOOP, 108),
-/* 1045 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1046 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, int32_t const *, size_t, void *)
-/* 1047 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1048 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 1049 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 1050 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1051 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1052 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, size_t *)
-/* 1053 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1054 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 1055 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1056 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, uint32_t, void *)
-/* 1057 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1058 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
-/* 1059 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1060 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1061 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, uint64_t const * *, size_t *)
-/* 1062 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1063 */ _CFFI_OP(_CFFI_OP_POINTER, 77), // uint64_t const * *
-/* 1064 */ _CFFI_OP(_CFFI_OP_NOOP, 205),
-/* 1065 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1066 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, uint64_t)
-/* 1067 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1068 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1069 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1070 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(unsigned int, void *, void *, _Bool *)
-/* 1071 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
-/* 1072 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1073 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1074 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 1075 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1076 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(void *)
-/* 1077 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1078 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1079 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(void *, char const *, void *)
-/* 1080 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1081 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
+/* 1003 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 1004 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 1005 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1006 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1007 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, uint32_t, uint32_t const *, size_t, uint32_t, uint32_t, void *)
+/* 1008 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 1009 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 1010 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 1011 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 1012 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 1013 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 1014 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1015 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1016 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint32_t, uint32_t, uint32_t const *, size_t, void *)
+/* 1017 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 1018 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 1019 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 1020 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 1021 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1022 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1023 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t const *, size_t, void *)
+/* 1024 */ _CFFI_OP(_CFFI_OP_NOOP, 79),
+/* 1025 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 1026 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1027 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1028 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t)
+/* 1029 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1030 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1031 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, _Bool *)
+/* 1032 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1033 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 1034 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1035 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, char *, size_t)
+/* 1036 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1037 */ _CFFI_OP(_CFFI_OP_NOOP, 138),
+/* 1038 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 1039 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1040 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, char const * *)
+/* 1041 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1042 */ _CFFI_OP(_CFFI_OP_NOOP, 60),
+/* 1043 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1044 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, int *)
+/* 1045 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1046 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
+/* 1047 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1048 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, int32_t const *, size_t, void *)
+/* 1049 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1050 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 1051 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 1052 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1053 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1054 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, size_t *)
+/* 1055 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1056 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 1057 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1058 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, uint32_t, void *)
+/* 1059 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1060 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 22),
+/* 1061 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1062 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1063 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, uint64_t const * *, size_t *)
+/* 1064 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1065 */ _CFFI_OP(_CFFI_OP_POINTER, 79), // uint64_t const * *
+/* 1066 */ _CFFI_OP(_CFFI_OP_NOOP, 207),
+/* 1067 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1068 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(uint64_t, uint64_t)
+/* 1069 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1070 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1071 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1072 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(unsigned int, void *, void *, _Bool *)
+/* 1073 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 8),
+/* 1074 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1075 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1076 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 1077 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1078 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(void *)
+/* 1079 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1080 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1081 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(void *, char const *, void *)
 /* 1082 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1083 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1084 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(void *, char const *, void *, size_t, void *, void *, void *)
-/* 1085 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1086 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
+/* 1083 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 1084 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1085 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1086 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(void *, char const *, void *, size_t, void *, void *, void *)
 /* 1087 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1088 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 1088 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
 /* 1089 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1090 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1090 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
 /* 1091 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1092 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1093 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(void *, void *)
-/* 1094 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1095 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1096 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1097 */ _CFFI_OP(_CFFI_OP_FUNCTION, 39), // char const *()(char const *)
-/* 1098 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 1099 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1100 */ _CFFI_OP(_CFFI_OP_FUNCTION, 39), // char const *()(int)
-/* 1101 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 1102 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1103 */ _CFFI_OP(_CFFI_OP_FUNCTION, 39), // char const *()(uint64_t)
-/* 1104 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1105 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1106 */ _CFFI_OP(_CFFI_OP_FUNCTION, 39), // char const *()(void *)
-/* 1107 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1108 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1109 */ _CFFI_OP(_CFFI_OP_FUNCTION, 39), // char const *()(void)
+/* 1092 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1093 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1094 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1095 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(void *, void *)
+/* 1096 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1097 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1098 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1099 */ _CFFI_OP(_CFFI_OP_FUNCTION, 40), // char const *()(char const *)
+/* 1100 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 1101 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1102 */ _CFFI_OP(_CFFI_OP_FUNCTION, 40), // char const *()(int)
+/* 1103 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 1104 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1105 */ _CFFI_OP(_CFFI_OP_FUNCTION, 40), // char const *()(uint64_t)
+/* 1106 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1107 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1108 */ _CFFI_OP(_CFFI_OP_FUNCTION, 40), // char const *()(void *)
+/* 1109 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
 /* 1110 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1111 */ _CFFI_OP(_CFFI_OP_FUNCTION, 94), // clingo_assignment_t const *()(clingo_propagate_control_t const *)
-/* 1112 */ _CFFI_OP(_CFFI_OP_NOOP, 694),
-/* 1113 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1114 */ _CFFI_OP(_CFFI_OP_FUNCTION, 94), // clingo_assignment_t const *()(clingo_propagate_init_t const *)
-/* 1115 */ _CFFI_OP(_CFFI_OP_NOOP, 742),
-/* 1116 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1117 */ _CFFI_OP(_CFFI_OP_FUNCTION, 153), // int()(clingo_application_t *, char const * const *, size_t, void *)
-/* 1118 */ _CFFI_OP(_CFFI_OP_POINTER, 1237), // clingo_application_t *
-/* 1119 */ _CFFI_OP(_CFFI_OP_NOOP, 22),
-/* 1120 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 1121 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1122 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1123 */ _CFFI_OP(_CFFI_OP_FUNCTION, 153), // int()(clingo_propagate_init_t const *)
-/* 1124 */ _CFFI_OP(_CFFI_OP_NOOP, 742),
-/* 1125 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1126 */ _CFFI_OP(_CFFI_OP_FUNCTION, 153), // int()(uint64_t)
-/* 1127 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1128 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1129 */ _CFFI_OP(_CFFI_OP_FUNCTION, 153), // int()(void)
+/* 1111 */ _CFFI_OP(_CFFI_OP_FUNCTION, 40), // char const *()(void)
+/* 1112 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1113 */ _CFFI_OP(_CFFI_OP_FUNCTION, 96), // clingo_assignment_t const *()(clingo_propagate_control_t const *)
+/* 1114 */ _CFFI_OP(_CFFI_OP_NOOP, 696),
+/* 1115 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1116 */ _CFFI_OP(_CFFI_OP_FUNCTION, 96), // clingo_assignment_t const *()(clingo_propagate_init_t const *)
+/* 1117 */ _CFFI_OP(_CFFI_OP_NOOP, 744),
+/* 1118 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1119 */ _CFFI_OP(_CFFI_OP_FUNCTION, 155), // int()(clingo_application_t *, char const * const *, size_t, void *)
+/* 1120 */ _CFFI_OP(_CFFI_OP_POINTER, 1239), // clingo_application_t *
+/* 1121 */ _CFFI_OP(_CFFI_OP_NOOP, 22),
+/* 1122 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 1123 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1124 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1125 */ _CFFI_OP(_CFFI_OP_FUNCTION, 155), // int()(clingo_propagate_init_t const *)
+/* 1126 */ _CFFI_OP(_CFFI_OP_NOOP, 744),
+/* 1127 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1128 */ _CFFI_OP(_CFFI_OP_FUNCTION, 155), // int()(uint64_t)
+/* 1129 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
 /* 1130 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1131 */ _CFFI_OP(_CFFI_OP_FUNCTION, 3), // size_t()(clingo_assignment_t const *)
-/* 1132 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 1133 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1134 */ _CFFI_OP(_CFFI_OP_FUNCTION, 3), // size_t()(clingo_ast_t *)
-/* 1135 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 1136 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1137 */ _CFFI_OP(_CFFI_OP_FUNCTION, 3), // size_t()(uint64_t)
-/* 1138 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1139 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1140 */ _CFFI_OP(_CFFI_OP_FUNCTION, 67), // uint32_t()(clingo_assignment_t const *)
-/* 1141 */ _CFFI_OP(_CFFI_OP_NOOP, 94),
-/* 1142 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1143 */ _CFFI_OP(_CFFI_OP_FUNCTION, 67), // uint32_t()(clingo_propagate_control_t const *)
-/* 1144 */ _CFFI_OP(_CFFI_OP_NOOP, 694),
-/* 1145 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1146 */ _CFFI_OP(_CFFI_OP_FUNCTION, 67), // uint32_t()(uint64_t)
-/* 1147 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 1148 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1149 */ _CFFI_OP(_CFFI_OP_FUNCTION, 28), // unsigned int()(void *)
-/* 1150 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1151 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1152 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(clingo_ast_t *)
-/* 1153 */ _CFFI_OP(_CFFI_OP_NOOP, 135),
-/* 1154 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1155 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(clingo_control_t *)
-/* 1156 */ _CFFI_OP(_CFFI_OP_NOOP, 433),
-/* 1157 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1158 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(clingo_propagate_control_t *, int32_t)
-/* 1159 */ _CFFI_OP(_CFFI_OP_NOOP, 665),
-/* 1160 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
-/* 1161 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1162 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(clingo_propagate_control_t const *, int32_t const *, size_t, void *)
-/* 1163 */ _CFFI_OP(_CFFI_OP_NOOP, 694),
-/* 1164 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 1165 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
-/* 1166 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1167 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1168 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(clingo_propagate_init_t *, int)
-/* 1169 */ _CFFI_OP(_CFFI_OP_NOOP, 698),
-/* 1170 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 1171 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1172 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(clingo_solve_handle_t *, double, _Bool *)
-/* 1173 */ _CFFI_OP(_CFFI_OP_NOOP, 764),
-/* 1174 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 14),
-/* 1175 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
-/* 1176 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1177 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(int *, int *, int *)
-/* 1178 */ _CFFI_OP(_CFFI_OP_NOOP, 108),
-/* 1179 */ _CFFI_OP(_CFFI_OP_NOOP, 108),
-/* 1180 */ _CFFI_OP(_CFFI_OP_NOOP, 108),
-/* 1181 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1182 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(int, char const *)
-/* 1183 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 1184 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 1185 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1186 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(int, char const *, void *)
-/* 1187 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 1188 */ _CFFI_OP(_CFFI_OP_NOOP, 39),
-/* 1189 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1190 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1191 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(int, uint64_t *)
-/* 1192 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 1193 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 1194 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1195 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(uint64_t *)
-/* 1196 */ _CFFI_OP(_CFFI_OP_NOOP, 54),
-/* 1197 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1198 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1299), // void()(void *)
-/* 1199 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
-/* 1200 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 1201 */ _CFFI_OP(_CFFI_OP_POINTER, 0), // _Bool(*)(_Bool, uint32_t const *, size_t, int32_t const *, size_t, void *)
-/* 1202 */ _CFFI_OP(_CFFI_OP_POINTER, 8), // _Bool(*)(_Bool, uint32_t const *, size_t, int32_t, clingo_weighted_literal_t const *, size_t, void *)
-/* 1203 */ _CFFI_OP(_CFFI_OP_POINTER, 17), // _Bool(*)(_Bool, void *)
-/* 1204 */ _CFFI_OP(_CFFI_OP_POINTER, 38), // _Bool(*)(char const *, _Bool *, void *)
-/* 1205 */ _CFFI_OP(_CFFI_OP_POINTER, 254), // _Bool(*)(clingo_ast_t const *, void *)
-/* 1206 */ _CFFI_OP(_CFFI_OP_POINTER, 439), // _Bool(*)(clingo_control_t *, char const * const *, size_t, void *)
-/* 1207 */ _CFFI_OP(_CFFI_OP_POINTER, 509), // _Bool(*)(clingo_control_t *, void *)
-/* 1208 */ _CFFI_OP(_CFFI_OP_POINTER, 538), // _Bool(*)(clingo_location_t *, char const *, void *)
-/* 1209 */ _CFFI_OP(_CFFI_OP_POINTER, 543), // _Bool(*)(clingo_location_t *, char const *, void *, size_t, void *, void *, void *)
-/* 1210 */ _CFFI_OP(_CFFI_OP_POINTER, 552), // _Bool(*)(clingo_location_t const *, char const *, uint64_t const *, size_t, _Bool(*)(uint64_t const *, size_t, void *), void *, void *)
-/* 1211 */ _CFFI_OP(_CFFI_OP_POINTER, 570), // _Bool(*)(clingo_location_t const *, char const *, void *)
-/* 1212 */ _CFFI_OP(_CFFI_OP_POINTER, 584), // _Bool(*)(clingo_model_t const *, _Bool(*)(void *), void *, void *)
-/* 1213 */ _CFFI_OP(_CFFI_OP_POINTER, 653), // _Bool(*)(clingo_options_t *, void *)
-/* 1214 */ _CFFI_OP(_CFFI_OP_POINTER, 679), // _Bool(*)(clingo_propagate_control_t *, int32_t const *, size_t, void *)
-/* 1215 */ _CFFI_OP(_CFFI_OP_POINTER, 689), // _Bool(*)(clingo_propagate_control_t *, void *)
-/* 1216 */ _CFFI_OP(_CFFI_OP_POINTER, 737), // _Bool(*)(clingo_propagate_init_t *, void *)
-/* 1217 */ _CFFI_OP(_CFFI_OP_POINTER, 937), // _Bool(*)(int, clingo_ast_t * *, ...)
-/* 1218 */ _CFFI_OP(_CFFI_OP_POINTER, 941), // _Bool(*)(int, int, int32_t const *, size_t, void *)
-/* 1219 */ _CFFI_OP(_CFFI_OP_POINTER, 948), // _Bool(*)(int32_t const *, size_t, void *)
-/* 1220 */ _CFFI_OP(_CFFI_OP_POINTER, 953), // _Bool(*)(int32_t, clingo_weighted_literal_t const *, size_t, void *)
-/* 1221 */ _CFFI_OP(_CFFI_OP_POINTER, 959), // _Bool(*)(uint32_t const *, size_t, void *)
-/* 1222 */ _CFFI_OP(_CFFI_OP_POINTER, 964), // _Bool(*)(uint32_t, char const *, void *)
-/* 1223 */ _CFFI_OP(_CFFI_OP_POINTER, 969), // _Bool(*)(uint32_t, clingo_assignment_t const *, int32_t, void *, int32_t *)
-/* 1224 */ _CFFI_OP(_CFFI_OP_POINTER, 976), // _Bool(*)(uint32_t, int, int, unsigned int, int32_t const *, size_t, void *)
-/* 1225 */ _CFFI_OP(_CFFI_OP_POINTER, 985), // _Bool(*)(uint32_t, int, uint32_t const *, size_t, void *)
-/* 1226 */ _CFFI_OP(_CFFI_OP_POINTER, 992), // _Bool(*)(uint32_t, int, void *)
-/* 1227 */ _CFFI_OP(_CFFI_OP_POINTER, 997), // _Bool(*)(uint32_t, uint32_t const *, size_t, int32_t const *, size_t, void *)
-/* 1228 */ _CFFI_OP(_CFFI_OP_POINTER, 1005), // _Bool(*)(uint32_t, uint32_t, uint32_t const *, size_t, uint32_t, uint32_t, void *)
-/* 1229 */ _CFFI_OP(_CFFI_OP_POINTER, 1014), // _Bool(*)(uint32_t, uint32_t, uint32_t const *, size_t, void *)
-/* 1230 */ _CFFI_OP(_CFFI_OP_POINTER, 1046), // _Bool(*)(uint64_t, int32_t const *, size_t, void *)
-/* 1231 */ _CFFI_OP(_CFFI_OP_POINTER, 1056), // _Bool(*)(uint64_t, uint32_t, void *)
-/* 1232 */ _CFFI_OP(_CFFI_OP_POINTER, 1079), // _Bool(*)(void *, char const *, void *)
-/* 1233 */ _CFFI_OP(_CFFI_OP_POINTER, 1084), // _Bool(*)(void *, char const *, void *, size_t, void *, void *, void *)
-/* 1234 */ _CFFI_OP(_CFFI_OP_POINTER, 1093), // _Bool(*)(void *, void *)
-/* 1235 */ _CFFI_OP(_CFFI_OP_POINTER, 1106), // char const *(*)(void *)
-/* 1236 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 2), // char
-/* 1237 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 0), // clingo_application_t
-/* 1238 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 1), // clingo_assignment_t
-/* 1239 */ _CFFI_OP(_CFFI_OP_POINTER, 1240), // clingo_ast_argument_t const *
-/* 1240 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 3), // clingo_ast_argument_t
-/* 1241 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 4), // clingo_ast_attribute_names_t
-/* 1242 */ _CFFI_OP(_CFFI_OP_POINTER, 1243), // clingo_ast_constructor_t const *
-/* 1243 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 5), // clingo_ast_constructor_t
-/* 1244 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 6), // clingo_ast_constructors_t
-/* 1245 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 2), // clingo_ast_t
-/* 1246 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 7), // clingo_backend_t
-/* 1247 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 8), // clingo_configuration_t
-/* 1248 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 9), // clingo_control_t
-/* 1249 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 10), // clingo_ground_program_observer_t
-/* 1250 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 11), // clingo_location_t
-/* 1251 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 12), // clingo_model_t
-/* 1252 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 13), // clingo_options_t
-/* 1253 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 14), // clingo_part_t
-/* 1254 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 15), // clingo_program_builder_t
-/* 1255 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 16), // clingo_propagate_control_t
-/* 1256 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 17), // clingo_propagate_init_t
-/* 1257 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 18), // clingo_propagator_t
-/* 1258 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 19), // clingo_script_t
-/* 1259 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 20), // clingo_solve_control_t
-/* 1260 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 21), // clingo_solve_handle_t
-/* 1261 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 22), // clingo_statistics_t
-/* 1262 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 23), // clingo_symbolic_atoms_t
-/* 1263 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 24), // clingo_theory_atoms_t
-/* 1264 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 25), // clingo_weighted_literal_t
-/* 1265 */ _CFFI_OP(_CFFI_OP_ENUM, 0), // enum clingo_ast_aggregate_function_e
-/* 1266 */ _CFFI_OP(_CFFI_OP_ENUM, 1), // enum clingo_ast_attribute_e
-/* 1267 */ _CFFI_OP(_CFFI_OP_ENUM, 2), // enum clingo_ast_attribute_type_e
-/* 1268 */ _CFFI_OP(_CFFI_OP_ENUM, 3), // enum clingo_ast_binary_operator_e
-/* 1269 */ _CFFI_OP(_CFFI_OP_ENUM, 4), // enum clingo_ast_comparison_operator_e
-/* 1270 */ _CFFI_OP(_CFFI_OP_ENUM, 5), // enum clingo_ast_sign_e
-/* 1271 */ _CFFI_OP(_CFFI_OP_ENUM, 6), // enum clingo_ast_theory_atom_definition_type_e
-/* 1272 */ _CFFI_OP(_CFFI_OP_ENUM, 7), // enum clingo_ast_theory_operator_type_e
-/* 1273 */ _CFFI_OP(_CFFI_OP_ENUM, 8), // enum clingo_ast_theory_sequence_type_e
-/* 1274 */ _CFFI_OP(_CFFI_OP_ENUM, 9), // enum clingo_ast_type_e
-/* 1275 */ _CFFI_OP(_CFFI_OP_ENUM, 10), // enum clingo_ast_unary_operator_e
-/* 1276 */ _CFFI_OP(_CFFI_OP_ENUM, 11), // enum clingo_ast_unpool_type_e
-/* 1277 */ _CFFI_OP(_CFFI_OP_ENUM, 12), // enum clingo_clause_type_e
-/* 1278 */ _CFFI_OP(_CFFI_OP_ENUM, 13), // enum clingo_configuration_type_e
-/* 1279 */ _CFFI_OP(_CFFI_OP_ENUM, 14), // enum clingo_error_e
-/* 1280 */ _CFFI_OP(_CFFI_OP_ENUM, 15), // enum clingo_external_type_e
-/* 1281 */ _CFFI_OP(_CFFI_OP_ENUM, 16), // enum clingo_heuristic_type_e
-/* 1282 */ _CFFI_OP(_CFFI_OP_ENUM, 17), // enum clingo_model_type_e
-/* 1283 */ _CFFI_OP(_CFFI_OP_ENUM, 18), // enum clingo_propagator_check_mode_e
-/* 1284 */ _CFFI_OP(_CFFI_OP_ENUM, 19), // enum clingo_show_type_e
-/* 1285 */ _CFFI_OP(_CFFI_OP_ENUM, 20), // enum clingo_solve_event_type_e
-/* 1286 */ _CFFI_OP(_CFFI_OP_ENUM, 21), // enum clingo_solve_mode_e
-/* 1287 */ _CFFI_OP(_CFFI_OP_ENUM, 22), // enum clingo_solve_result_e
-/* 1288 */ _CFFI_OP(_CFFI_OP_ENUM, 23), // enum clingo_statistics_type_e
-/* 1289 */ _CFFI_OP(_CFFI_OP_ENUM, 24), // enum clingo_symbol_type_e
-/* 1290 */ _CFFI_OP(_CFFI_OP_ENUM, 25), // enum clingo_theory_sequence_type_e
-/* 1291 */ _CFFI_OP(_CFFI_OP_ENUM, 26), // enum clingo_theory_term_type_e
-/* 1292 */ _CFFI_OP(_CFFI_OP_ENUM, 27), // enum clingo_truth_value_e
-/* 1293 */ _CFFI_OP(_CFFI_OP_ENUM, 28), // enum clingo_warning_e
-/* 1294 */ _CFFI_OP(_CFFI_OP_ENUM, 29), // enum clingo_weight_constraint_type_e
-/* 1295 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 23), // int64_t
-/* 1296 */ _CFFI_OP(_CFFI_OP_POINTER, 1149), // unsigned int(*)(void *)
-/* 1297 */ _CFFI_OP(_CFFI_OP_POINTER, 1162), // void(*)(clingo_propagate_control_t const *, int32_t const *, size_t, void *)
-/* 1298 */ _CFFI_OP(_CFFI_OP_POINTER, 1198), // void(*)(void *)
-/* 1299 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 0), // void
+/* 1131 */ _CFFI_OP(_CFFI_OP_FUNCTION, 155), // int()(void)
+/* 1132 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1133 */ _CFFI_OP(_CFFI_OP_FUNCTION, 3), // size_t()(clingo_assignment_t const *)
+/* 1134 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 1135 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1136 */ _CFFI_OP(_CFFI_OP_FUNCTION, 3), // size_t()(clingo_ast_t *)
+/* 1137 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 1138 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1139 */ _CFFI_OP(_CFFI_OP_FUNCTION, 3), // size_t()(uint64_t)
+/* 1140 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1141 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1142 */ _CFFI_OP(_CFFI_OP_FUNCTION, 69), // uint32_t()(clingo_assignment_t const *)
+/* 1143 */ _CFFI_OP(_CFFI_OP_NOOP, 96),
+/* 1144 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1145 */ _CFFI_OP(_CFFI_OP_FUNCTION, 69), // uint32_t()(clingo_propagate_control_t const *)
+/* 1146 */ _CFFI_OP(_CFFI_OP_NOOP, 696),
+/* 1147 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1148 */ _CFFI_OP(_CFFI_OP_FUNCTION, 69), // uint32_t()(uint64_t)
+/* 1149 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 1150 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1151 */ _CFFI_OP(_CFFI_OP_FUNCTION, 29), // unsigned int()(void *)
+/* 1152 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1153 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1154 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(clingo_ast_t *)
+/* 1155 */ _CFFI_OP(_CFFI_OP_NOOP, 137),
+/* 1156 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1157 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(clingo_control_t *)
+/* 1158 */ _CFFI_OP(_CFFI_OP_NOOP, 26),
+/* 1159 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1160 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(clingo_propagate_control_t *, int32_t)
+/* 1161 */ _CFFI_OP(_CFFI_OP_NOOP, 667),
+/* 1162 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 21),
+/* 1163 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1164 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(clingo_propagate_control_t const *, int32_t const *, size_t, void *)
+/* 1165 */ _CFFI_OP(_CFFI_OP_NOOP, 696),
+/* 1166 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 1167 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
+/* 1168 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1169 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1170 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(clingo_propagate_init_t *, int)
+/* 1171 */ _CFFI_OP(_CFFI_OP_NOOP, 700),
+/* 1172 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 1173 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1174 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(clingo_solve_handle_t *, double, _Bool *)
+/* 1175 */ _CFFI_OP(_CFFI_OP_NOOP, 766),
+/* 1176 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 14),
+/* 1177 */ _CFFI_OP(_CFFI_OP_NOOP, 41),
+/* 1178 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1179 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(int *, int *, int *)
+/* 1180 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
+/* 1181 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
+/* 1182 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
+/* 1183 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1184 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(int, char const *)
+/* 1185 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 1186 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 1187 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1188 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(int, char const *, void *)
+/* 1189 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 1190 */ _CFFI_OP(_CFFI_OP_NOOP, 40),
+/* 1191 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1192 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1193 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(int, uint64_t *)
+/* 1194 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 1195 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 1196 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1197 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(uint64_t *)
+/* 1198 */ _CFFI_OP(_CFFI_OP_NOOP, 56),
+/* 1199 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1200 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1301), // void()(void *)
+/* 1201 */ _CFFI_OP(_CFFI_OP_NOOP, 6),
+/* 1202 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 1203 */ _CFFI_OP(_CFFI_OP_POINTER, 0), // _Bool(*)(_Bool, uint32_t const *, size_t, int32_t const *, size_t, void *)
+/* 1204 */ _CFFI_OP(_CFFI_OP_POINTER, 8), // _Bool(*)(_Bool, uint32_t const *, size_t, int32_t, clingo_weighted_literal_t const *, size_t, void *)
+/* 1205 */ _CFFI_OP(_CFFI_OP_POINTER, 17), // _Bool(*)(_Bool, void *)
+/* 1206 */ _CFFI_OP(_CFFI_OP_POINTER, 39), // _Bool(*)(char const *, _Bool *, void *)
+/* 1207 */ _CFFI_OP(_CFFI_OP_POINTER, 256), // _Bool(*)(clingo_ast_t const *, void *)
+/* 1208 */ _CFFI_OP(_CFFI_OP_POINTER, 441), // _Bool(*)(clingo_control_t *, char const * const *, size_t, void *)
+/* 1209 */ _CFFI_OP(_CFFI_OP_POINTER, 511), // _Bool(*)(clingo_control_t *, void *)
+/* 1210 */ _CFFI_OP(_CFFI_OP_POINTER, 540), // _Bool(*)(clingo_location_t *, char const *, void *)
+/* 1211 */ _CFFI_OP(_CFFI_OP_POINTER, 545), // _Bool(*)(clingo_location_t *, char const *, void *, size_t, void *, void *, void *)
+/* 1212 */ _CFFI_OP(_CFFI_OP_POINTER, 554), // _Bool(*)(clingo_location_t const *, char const *, uint64_t const *, size_t, _Bool(*)(uint64_t const *, size_t, void *), void *, void *)
+/* 1213 */ _CFFI_OP(_CFFI_OP_POINTER, 572), // _Bool(*)(clingo_location_t const *, char const *, void *)
+/* 1214 */ _CFFI_OP(_CFFI_OP_POINTER, 586), // _Bool(*)(clingo_model_t const *, _Bool(*)(void *), void *, void *)
+/* 1215 */ _CFFI_OP(_CFFI_OP_POINTER, 655), // _Bool(*)(clingo_options_t *, void *)
+/* 1216 */ _CFFI_OP(_CFFI_OP_POINTER, 681), // _Bool(*)(clingo_propagate_control_t *, int32_t const *, size_t, void *)
+/* 1217 */ _CFFI_OP(_CFFI_OP_POINTER, 691), // _Bool(*)(clingo_propagate_control_t *, void *)
+/* 1218 */ _CFFI_OP(_CFFI_OP_POINTER, 739), // _Bool(*)(clingo_propagate_init_t *, void *)
+/* 1219 */ _CFFI_OP(_CFFI_OP_POINTER, 939), // _Bool(*)(int, clingo_ast_t * *, ...)
+/* 1220 */ _CFFI_OP(_CFFI_OP_POINTER, 943), // _Bool(*)(int, int, int32_t const *, size_t, void *)
+/* 1221 */ _CFFI_OP(_CFFI_OP_POINTER, 950), // _Bool(*)(int32_t const *, size_t, void *)
+/* 1222 */ _CFFI_OP(_CFFI_OP_POINTER, 955), // _Bool(*)(int32_t, clingo_weighted_literal_t const *, size_t, void *)
+/* 1223 */ _CFFI_OP(_CFFI_OP_POINTER, 961), // _Bool(*)(uint32_t const *, size_t, void *)
+/* 1224 */ _CFFI_OP(_CFFI_OP_POINTER, 966), // _Bool(*)(uint32_t, char const *, void *)
+/* 1225 */ _CFFI_OP(_CFFI_OP_POINTER, 971), // _Bool(*)(uint32_t, clingo_assignment_t const *, int32_t, void *, int32_t *)
+/* 1226 */ _CFFI_OP(_CFFI_OP_POINTER, 978), // _Bool(*)(uint32_t, int, int, unsigned int, int32_t const *, size_t, void *)
+/* 1227 */ _CFFI_OP(_CFFI_OP_POINTER, 987), // _Bool(*)(uint32_t, int, uint32_t const *, size_t, void *)
+/* 1228 */ _CFFI_OP(_CFFI_OP_POINTER, 994), // _Bool(*)(uint32_t, int, void *)
+/* 1229 */ _CFFI_OP(_CFFI_OP_POINTER, 999), // _Bool(*)(uint32_t, uint32_t const *, size_t, int32_t const *, size_t, void *)
+/* 1230 */ _CFFI_OP(_CFFI_OP_POINTER, 1007), // _Bool(*)(uint32_t, uint32_t, uint32_t const *, size_t, uint32_t, uint32_t, void *)
+/* 1231 */ _CFFI_OP(_CFFI_OP_POINTER, 1016), // _Bool(*)(uint32_t, uint32_t, uint32_t const *, size_t, void *)
+/* 1232 */ _CFFI_OP(_CFFI_OP_POINTER, 1048), // _Bool(*)(uint64_t, int32_t const *, size_t, void *)
+/* 1233 */ _CFFI_OP(_CFFI_OP_POINTER, 1058), // _Bool(*)(uint64_t, uint32_t, void *)
+/* 1234 */ _CFFI_OP(_CFFI_OP_POINTER, 1081), // _Bool(*)(void *, char const *, void *)
+/* 1235 */ _CFFI_OP(_CFFI_OP_POINTER, 1086), // _Bool(*)(void *, char const *, void *, size_t, void *, void *, void *)
+/* 1236 */ _CFFI_OP(_CFFI_OP_POINTER, 1095), // _Bool(*)(void *, void *)
+/* 1237 */ _CFFI_OP(_CFFI_OP_POINTER, 1108), // char const *(*)(void *)
+/* 1238 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 2), // char
+/* 1239 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 0), // clingo_application_t
+/* 1240 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 1), // clingo_assignment_t
+/* 1241 */ _CFFI_OP(_CFFI_OP_POINTER, 1242), // clingo_ast_argument_t const *
+/* 1242 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 3), // clingo_ast_argument_t
+/* 1243 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 4), // clingo_ast_attribute_names_t
+/* 1244 */ _CFFI_OP(_CFFI_OP_POINTER, 1245), // clingo_ast_constructor_t const *
+/* 1245 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 5), // clingo_ast_constructor_t
+/* 1246 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 6), // clingo_ast_constructors_t
+/* 1247 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 2), // clingo_ast_t
+/* 1248 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 7), // clingo_backend_t
+/* 1249 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 8), // clingo_configuration_t
+/* 1250 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 9), // clingo_control_t
+/* 1251 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 10), // clingo_ground_program_observer_t
+/* 1252 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 11), // clingo_location_t
+/* 1253 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 12), // clingo_model_t
+/* 1254 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 13), // clingo_options_t
+/* 1255 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 14), // clingo_part_t
+/* 1256 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 15), // clingo_program_builder_t
+/* 1257 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 16), // clingo_propagate_control_t
+/* 1258 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 17), // clingo_propagate_init_t
+/* 1259 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 18), // clingo_propagator_t
+/* 1260 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 19), // clingo_script_t
+/* 1261 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 20), // clingo_solve_control_t
+/* 1262 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 21), // clingo_solve_handle_t
+/* 1263 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 22), // clingo_statistics_t
+/* 1264 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 23), // clingo_symbolic_atoms_t
+/* 1265 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 24), // clingo_theory_atoms_t
+/* 1266 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 25), // clingo_weighted_literal_t
+/* 1267 */ _CFFI_OP(_CFFI_OP_ENUM, 0), // enum clingo_ast_aggregate_function_e
+/* 1268 */ _CFFI_OP(_CFFI_OP_ENUM, 1), // enum clingo_ast_attribute_e
+/* 1269 */ _CFFI_OP(_CFFI_OP_ENUM, 2), // enum clingo_ast_attribute_type_e
+/* 1270 */ _CFFI_OP(_CFFI_OP_ENUM, 3), // enum clingo_ast_binary_operator_e
+/* 1271 */ _CFFI_OP(_CFFI_OP_ENUM, 4), // enum clingo_ast_comparison_operator_e
+/* 1272 */ _CFFI_OP(_CFFI_OP_ENUM, 5), // enum clingo_ast_sign_e
+/* 1273 */ _CFFI_OP(_CFFI_OP_ENUM, 6), // enum clingo_ast_theory_atom_definition_type_e
+/* 1274 */ _CFFI_OP(_CFFI_OP_ENUM, 7), // enum clingo_ast_theory_operator_type_e
+/* 1275 */ _CFFI_OP(_CFFI_OP_ENUM, 8), // enum clingo_ast_theory_sequence_type_e
+/* 1276 */ _CFFI_OP(_CFFI_OP_ENUM, 9), // enum clingo_ast_type_e
+/* 1277 */ _CFFI_OP(_CFFI_OP_ENUM, 10), // enum clingo_ast_unary_operator_e
+/* 1278 */ _CFFI_OP(_CFFI_OP_ENUM, 11), // enum clingo_ast_unpool_type_e
+/* 1279 */ _CFFI_OP(_CFFI_OP_ENUM, 12), // enum clingo_clause_type_e
+/* 1280 */ _CFFI_OP(_CFFI_OP_ENUM, 13), // enum clingo_configuration_type_e
+/* 1281 */ _CFFI_OP(_CFFI_OP_ENUM, 14), // enum clingo_error_e
+/* 1282 */ _CFFI_OP(_CFFI_OP_ENUM, 15), // enum clingo_external_type_e
+/* 1283 */ _CFFI_OP(_CFFI_OP_ENUM, 16), // enum clingo_heuristic_type_e
+/* 1284 */ _CFFI_OP(_CFFI_OP_ENUM, 17), // enum clingo_model_type_e
+/* 1285 */ _CFFI_OP(_CFFI_OP_ENUM, 18), // enum clingo_propagator_check_mode_e
+/* 1286 */ _CFFI_OP(_CFFI_OP_ENUM, 19), // enum clingo_show_type_e
+/* 1287 */ _CFFI_OP(_CFFI_OP_ENUM, 20), // enum clingo_solve_event_type_e
+/* 1288 */ _CFFI_OP(_CFFI_OP_ENUM, 21), // enum clingo_solve_mode_e
+/* 1289 */ _CFFI_OP(_CFFI_OP_ENUM, 22), // enum clingo_solve_result_e
+/* 1290 */ _CFFI_OP(_CFFI_OP_ENUM, 23), // enum clingo_statistics_type_e
+/* 1291 */ _CFFI_OP(_CFFI_OP_ENUM, 24), // enum clingo_symbol_type_e
+/* 1292 */ _CFFI_OP(_CFFI_OP_ENUM, 25), // enum clingo_theory_sequence_type_e
+/* 1293 */ _CFFI_OP(_CFFI_OP_ENUM, 26), // enum clingo_theory_term_type_e
+/* 1294 */ _CFFI_OP(_CFFI_OP_ENUM, 27), // enum clingo_truth_value_e
+/* 1295 */ _CFFI_OP(_CFFI_OP_ENUM, 28), // enum clingo_warning_e
+/* 1296 */ _CFFI_OP(_CFFI_OP_ENUM, 29), // enum clingo_weight_constraint_type_e
+/* 1297 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 23), // int64_t
+/* 1298 */ _CFFI_OP(_CFFI_OP_POINTER, 1151), // unsigned int(*)(void *)
+/* 1299 */ _CFFI_OP(_CFFI_OP_POINTER, 1164), // void(*)(clingo_propagate_control_t const *, int32_t const *, size_t, void *)
+/* 1300 */ _CFFI_OP(_CFFI_OP_POINTER, 1200), // void(*)(void *)
+/* 1301 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 0), // void
 };
 
 static struct _cffi_externpy_s _cffi_externpy__pyclingo_call =
@@ -4708,19 +4749,19 @@ _cffi_f_clingo_add_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg0, (char **)&x0);
+      _cffi_type(40), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(58), arg1, (char **)&x1);
+      _cffi_type(60), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(58), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(60), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -4763,10 +4804,10 @@ _cffi_f_clingo_assignment_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -4776,10 +4817,10 @@ _cffi_f_clingo_assignment_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(118), arg2, (char **)&x2);
+      _cffi_type(120), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(118), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(120), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -4822,10 +4863,10 @@ _cffi_f_clingo_assignment_decision(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -4835,10 +4876,10 @@ _cffi_f_clingo_assignment_decision(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(118), arg2, (char **)&x2);
+      _cffi_type(120), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(118), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(120), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -4873,10 +4914,10 @@ _cffi_f_clingo_assignment_decision_level(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -4911,10 +4952,10 @@ _cffi_f_clingo_assignment_has_conflict(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -4955,10 +4996,10 @@ _cffi_f_clingo_assignment_has_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5005,10 +5046,10 @@ _cffi_f_clingo_assignment_is_false(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5018,10 +5059,10 @@ _cffi_f_clingo_assignment_is_false(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5064,10 +5105,10 @@ _cffi_f_clingo_assignment_is_fixed(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5077,10 +5118,10 @@ _cffi_f_clingo_assignment_is_fixed(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5115,10 +5156,10 @@ _cffi_f_clingo_assignment_is_total(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5161,10 +5202,10 @@ _cffi_f_clingo_assignment_is_true(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5174,10 +5215,10 @@ _cffi_f_clingo_assignment_is_true(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5220,10 +5261,10 @@ _cffi_f_clingo_assignment_level(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5233,10 +5274,10 @@ _cffi_f_clingo_assignment_level(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg2, (char **)&x2);
+      _cffi_type(115), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5271,10 +5312,10 @@ _cffi_f_clingo_assignment_root_level(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5309,10 +5350,10 @@ _cffi_f_clingo_assignment_size(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5355,10 +5396,10 @@ _cffi_f_clingo_assignment_trail_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5368,10 +5409,10 @@ _cffi_f_clingo_assignment_trail_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(118), arg2, (char **)&x2);
+      _cffi_type(120), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(118), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(120), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5414,10 +5455,10 @@ _cffi_f_clingo_assignment_trail_begin(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5427,10 +5468,10 @@ _cffi_f_clingo_assignment_trail_begin(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg2, (char **)&x2);
+      _cffi_type(115), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5473,10 +5514,10 @@ _cffi_f_clingo_assignment_trail_end(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5486,10 +5527,10 @@ _cffi_f_clingo_assignment_trail_end(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg2, (char **)&x2);
+      _cffi_type(115), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5530,19 +5571,19 @@ _cffi_f_clingo_assignment_trail_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg1, (char **)&x1);
+      _cffi_type(115), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5585,10 +5626,10 @@ _cffi_f_clingo_assignment_truth_value(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(94), arg0, (char **)&x0);
+      _cffi_type(96), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_assignment_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(94), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(96), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5598,10 +5639,10 @@ _cffi_f_clingo_assignment_truth_value(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg2, (char **)&x2);
+      _cffi_type(110), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5634,10 +5675,10 @@ _cffi_f_clingo_ast_acquire(PyObject *self, PyObject *arg0)
   struct _cffi_freeme_s *large_args_free = NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5680,10 +5721,10 @@ _cffi_f_clingo_ast_attribute_delete_ast_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5734,10 +5775,10 @@ _cffi_f_clingo_ast_attribute_delete_string_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5788,10 +5829,10 @@ _cffi_f_clingo_ast_attribute_get_ast(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5801,10 +5842,10 @@ _cffi_f_clingo_ast_attribute_get_ast(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(141), arg2, (char **)&x2);
+      _cffi_type(143), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (clingo_ast_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(141), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(143), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5849,10 +5890,10 @@ _cffi_f_clingo_ast_attribute_get_ast_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5866,10 +5907,10 @@ _cffi_f_clingo_ast_attribute_get_ast_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(141), arg3, (char **)&x3);
+      _cffi_type(143), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (clingo_ast_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(141), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(143), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5912,10 +5953,10 @@ _cffi_f_clingo_ast_attribute_get_location(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5925,10 +5966,10 @@ _cffi_f_clingo_ast_attribute_get_location(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(185), arg2, (char **)&x2);
+      _cffi_type(187), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (clingo_location_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(185), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(187), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5971,10 +6012,10 @@ _cffi_f_clingo_ast_attribute_get_number(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -5984,10 +6025,10 @@ _cffi_f_clingo_ast_attribute_get_number(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg2, (char **)&x2);
+      _cffi_type(110), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6030,10 +6071,10 @@ _cffi_f_clingo_ast_attribute_get_optional_ast(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6043,10 +6084,10 @@ _cffi_f_clingo_ast_attribute_get_optional_ast(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(141), arg2, (char **)&x2);
+      _cffi_type(143), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (clingo_ast_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(141), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(143), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6089,10 +6130,10 @@ _cffi_f_clingo_ast_attribute_get_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6102,10 +6143,10 @@ _cffi_f_clingo_ast_attribute_get_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(58), arg2, (char **)&x2);
+      _cffi_type(60), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(58), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(60), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6150,10 +6191,10 @@ _cffi_f_clingo_ast_attribute_get_string_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6167,10 +6208,10 @@ _cffi_f_clingo_ast_attribute_get_string_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(58), arg3, (char **)&x3);
+      _cffi_type(60), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (char const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(58), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(60), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6213,10 +6254,10 @@ _cffi_f_clingo_ast_attribute_get_symbol(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6226,10 +6267,10 @@ _cffi_f_clingo_ast_attribute_get_symbol(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg2, (char **)&x2);
+      _cffi_type(56), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6274,10 +6315,10 @@ _cffi_f_clingo_ast_attribute_insert_ast_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6291,10 +6332,10 @@ _cffi_f_clingo_ast_attribute_insert_ast_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg3, (char **)&x3);
+      _cffi_type(137), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6339,10 +6380,10 @@ _cffi_f_clingo_ast_attribute_insert_string_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6356,10 +6397,10 @@ _cffi_f_clingo_ast_attribute_insert_string_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg3, (char **)&x3);
+      _cffi_type(40), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6402,10 +6443,10 @@ _cffi_f_clingo_ast_attribute_set_ast(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6415,10 +6456,10 @@ _cffi_f_clingo_ast_attribute_set_ast(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg2, (char **)&x2);
+      _cffi_type(137), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6463,10 +6504,10 @@ _cffi_f_clingo_ast_attribute_set_ast_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6480,10 +6521,10 @@ _cffi_f_clingo_ast_attribute_set_ast_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg3, (char **)&x3);
+      _cffi_type(137), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6526,10 +6567,10 @@ _cffi_f_clingo_ast_attribute_set_location(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6539,10 +6580,10 @@ _cffi_f_clingo_ast_attribute_set_location(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(190), arg2, (char **)&x2);
+      _cffi_type(192), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (clingo_location_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(190), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(192), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6585,10 +6626,10 @@ _cffi_f_clingo_ast_attribute_set_number(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6639,10 +6680,10 @@ _cffi_f_clingo_ast_attribute_set_optional_ast(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6652,10 +6693,10 @@ _cffi_f_clingo_ast_attribute_set_optional_ast(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg2, (char **)&x2);
+      _cffi_type(137), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6698,10 +6739,10 @@ _cffi_f_clingo_ast_attribute_set_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6711,10 +6752,10 @@ _cffi_f_clingo_ast_attribute_set_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg2, (char **)&x2);
+      _cffi_type(40), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6759,10 +6800,10 @@ _cffi_f_clingo_ast_attribute_set_string_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6776,10 +6817,10 @@ _cffi_f_clingo_ast_attribute_set_string_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg3, (char **)&x3);
+      _cffi_type(40), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6822,10 +6863,10 @@ _cffi_f_clingo_ast_attribute_set_symbol(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6876,10 +6917,10 @@ _cffi_f_clingo_ast_attribute_size_ast_array(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6889,10 +6930,10 @@ _cffi_f_clingo_ast_attribute_size_ast_array(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6935,10 +6976,10 @@ _cffi_f_clingo_ast_attribute_size_string_array(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6948,10 +6989,10 @@ _cffi_f_clingo_ast_attribute_size_string_array(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -6994,10 +7035,10 @@ _cffi_f_clingo_ast_attribute_type(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7007,10 +7048,10 @@ _cffi_f_clingo_ast_attribute_type(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg2, (char **)&x2);
+      _cffi_type(110), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7056,19 +7097,19 @@ _cffi_f_clingo_ast_copy(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(141), arg1, (char **)&x1);
+      _cffi_type(143), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_ast_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(141), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(143), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7109,19 +7150,19 @@ _cffi_f_clingo_ast_deep_copy(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(141), arg1, (char **)&x1);
+      _cffi_type(143), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_ast_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(141), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(143), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7162,19 +7203,19 @@ _cffi_f_clingo_ast_equal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg1, (char **)&x1);
+      _cffi_type(137), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7215,19 +7256,19 @@ _cffi_f_clingo_ast_get_type(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg1, (char **)&x1);
+      _cffi_type(110), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7270,10 +7311,10 @@ _cffi_f_clingo_ast_has_attribute(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7283,10 +7324,10 @@ _cffi_f_clingo_ast_has_attribute(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7321,10 +7362,10 @@ _cffi_f_clingo_ast_hash(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7365,19 +7406,19 @@ _cffi_f_clingo_ast_less_than(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg1, (char **)&x1);
+      _cffi_type(137), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7397,9 +7438,9 @@ _cffi_f_clingo_ast_less_than(PyObject *self, PyObject *args)
 #  define _cffi_f_clingo_ast_less_than _cffi_d_clingo_ast_less_than
 #endif
 
-static _Bool _cffi_d_clingo_ast_parse_files(char const * const * x0, size_t x1, _Bool(* x2)(clingo_ast_t *, void *), void * x3, void(* x4)(int, char const *, void *), void * x5, unsigned int x6)
+static _Bool _cffi_d_clingo_ast_parse_files(char const * const * x0, size_t x1, _Bool(* x2)(clingo_ast_t *, void *), void * x3, clingo_control_t * x4, void(* x5)(int, char const *, void *), void * x6, unsigned int x7)
 {
-  return clingo_ast_parse_files(x0, x1, x2, x3, x4, x5, x6);
+  return clingo_ast_parse_files(x0, x1, x2, x3, x4, x5, x6, x7);
 }
 #ifndef PYPY_VERSION
 static PyObject *
@@ -7409,9 +7450,10 @@ _cffi_f_clingo_ast_parse_files(PyObject *self, PyObject *args)
   size_t x1;
   _Bool(* x2)(clingo_ast_t *, void *);
   void * x3;
-  void(* x4)(int, char const *, void *);
-  void * x5;
-  unsigned int x6;
+  clingo_control_t * x4;
+  void(* x5)(int, char const *, void *);
+  void * x6;
+  unsigned int x7;
   Py_ssize_t datasize;
   struct _cffi_freeme_s *large_args_free = NULL;
   _Bool result;
@@ -7423,8 +7465,9 @@ _cffi_f_clingo_ast_parse_files(PyObject *self, PyObject *args)
   PyObject *arg4;
   PyObject *arg5;
   PyObject *arg6;
+  PyObject *arg7;
 
-  if (!PyArg_UnpackTuple(args, "clingo_ast_parse_files", 7, 7, &arg0, &arg1, &arg2, &arg3, &arg4, &arg5, &arg6))
+  if (!PyArg_UnpackTuple(args, "clingo_ast_parse_files", 8, 8, &arg0, &arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7))
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
@@ -7453,7 +7496,109 @@ _cffi_f_clingo_ast_parse_files(PyObject *self, PyObject *args)
       return NULL;
   }
 
-  x4 = (void(*)(int, char const *, void *))_cffi_to_c_pointer(arg4, _cffi_type(26));
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(26), arg4, (char **)&x4);
+  if (datasize != 0) {
+    x4 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(26), arg4, (char **)&x4,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  x5 = (void(*)(int, char const *, void *))_cffi_to_c_pointer(arg5, _cffi_type(27));
+  if (x5 == (void(*)(int, char const *, void *))NULL && PyErr_Occurred())
+    return NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(6), arg6, (char **)&x6);
+  if (datasize != 0) {
+    x6 = ((size_t)datasize) <= 640 ? (void *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(6), arg6, (char **)&x6,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  x7 = _cffi_to_c_int(arg7, unsigned int);
+  if (x7 == (unsigned int)-1 && PyErr_Occurred())
+    return NULL;
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { result = clingo_ast_parse_files(x0, x1, x2, x3, x4, x5, x6, x7); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  pyresult = _cffi_from_c__Bool(result);
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  return pyresult;
+}
+#else
+#  define _cffi_f_clingo_ast_parse_files _cffi_d_clingo_ast_parse_files
+#endif
+
+static _Bool _cffi_d_clingo_ast_parse_string(char const * x0, _Bool(* x1)(clingo_ast_t *, void *), void * x2, clingo_control_t * x3, void(* x4)(int, char const *, void *), void * x5, unsigned int x6)
+{
+  return clingo_ast_parse_string(x0, x1, x2, x3, x4, x5, x6);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_clingo_ast_parse_string(PyObject *self, PyObject *args)
+{
+  char const * x0;
+  _Bool(* x1)(clingo_ast_t *, void *);
+  void * x2;
+  clingo_control_t * x3;
+  void(* x4)(int, char const *, void *);
+  void * x5;
+  unsigned int x6;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+  _Bool result;
+  PyObject *pyresult;
+  PyObject *arg0;
+  PyObject *arg1;
+  PyObject *arg2;
+  PyObject *arg3;
+  PyObject *arg4;
+  PyObject *arg5;
+  PyObject *arg6;
+
+  if (!PyArg_UnpackTuple(args, "clingo_ast_parse_string", 7, 7, &arg0, &arg1, &arg2, &arg3, &arg4, &arg5, &arg6))
+    return NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(40), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(40), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  x1 = (_Bool(*)(clingo_ast_t *, void *))_cffi_to_c_pointer(arg1, _cffi_type(24));
+  if (x1 == (_Bool(*)(clingo_ast_t *, void *))NULL && PyErr_Occurred())
+    return NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(6), arg2, (char **)&x2);
+  if (datasize != 0) {
+    x2 = ((size_t)datasize) <= 640 ? (void *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(6), arg2, (char **)&x2,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(26), arg3, (char **)&x3);
+  if (datasize != 0) {
+    x3 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(26), arg3, (char **)&x3,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  x4 = (void(*)(int, char const *, void *))_cffi_to_c_pointer(arg4, _cffi_type(27));
   if (x4 == (void(*)(int, char const *, void *))NULL && PyErr_Occurred())
     return NULL;
 
@@ -7472,89 +7617,7 @@ _cffi_f_clingo_ast_parse_files(PyObject *self, PyObject *args)
 
   Py_BEGIN_ALLOW_THREADS
   _cffi_restore_errno();
-  { result = clingo_ast_parse_files(x0, x1, x2, x3, x4, x5, x6); }
-  _cffi_save_errno();
-  Py_END_ALLOW_THREADS
-
-  (void)self; /* unused */
-  pyresult = _cffi_from_c__Bool(result);
-  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
-  return pyresult;
-}
-#else
-#  define _cffi_f_clingo_ast_parse_files _cffi_d_clingo_ast_parse_files
-#endif
-
-static _Bool _cffi_d_clingo_ast_parse_string(char const * x0, _Bool(* x1)(clingo_ast_t *, void *), void * x2, void(* x3)(int, char const *, void *), void * x4, unsigned int x5)
-{
-  return clingo_ast_parse_string(x0, x1, x2, x3, x4, x5);
-}
-#ifndef PYPY_VERSION
-static PyObject *
-_cffi_f_clingo_ast_parse_string(PyObject *self, PyObject *args)
-{
-  char const * x0;
-  _Bool(* x1)(clingo_ast_t *, void *);
-  void * x2;
-  void(* x3)(int, char const *, void *);
-  void * x4;
-  unsigned int x5;
-  Py_ssize_t datasize;
-  struct _cffi_freeme_s *large_args_free = NULL;
-  _Bool result;
-  PyObject *pyresult;
-  PyObject *arg0;
-  PyObject *arg1;
-  PyObject *arg2;
-  PyObject *arg3;
-  PyObject *arg4;
-  PyObject *arg5;
-
-  if (!PyArg_UnpackTuple(args, "clingo_ast_parse_string", 6, 6, &arg0, &arg1, &arg2, &arg3, &arg4, &arg5))
-    return NULL;
-
-  datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg0, (char **)&x0);
-  if (datasize != 0) {
-    x0 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg0, (char **)&x0,
-            datasize, &large_args_free) < 0)
-      return NULL;
-  }
-
-  x1 = (_Bool(*)(clingo_ast_t *, void *))_cffi_to_c_pointer(arg1, _cffi_type(24));
-  if (x1 == (_Bool(*)(clingo_ast_t *, void *))NULL && PyErr_Occurred())
-    return NULL;
-
-  datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(6), arg2, (char **)&x2);
-  if (datasize != 0) {
-    x2 = ((size_t)datasize) <= 640 ? (void *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(6), arg2, (char **)&x2,
-            datasize, &large_args_free) < 0)
-      return NULL;
-  }
-
-  x3 = (void(*)(int, char const *, void *))_cffi_to_c_pointer(arg3, _cffi_type(26));
-  if (x3 == (void(*)(int, char const *, void *))NULL && PyErr_Occurred())
-    return NULL;
-
-  datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(6), arg4, (char **)&x4);
-  if (datasize != 0) {
-    x4 = ((size_t)datasize) <= 640 ? (void *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(6), arg4, (char **)&x4,
-            datasize, &large_args_free) < 0)
-      return NULL;
-  }
-
-  x5 = _cffi_to_c_int(arg5, unsigned int);
-  if (x5 == (unsigned int)-1 && PyErr_Occurred())
-    return NULL;
-
-  Py_BEGIN_ALLOW_THREADS
-  _cffi_restore_errno();
-  { result = clingo_ast_parse_string(x0, x1, x2, x3, x4, x5); }
+  { result = clingo_ast_parse_string(x0, x1, x2, x3, x4, x5, x6); }
   _cffi_save_errno();
   Py_END_ALLOW_THREADS
 
@@ -7580,10 +7643,10 @@ _cffi_f_clingo_ast_release(PyObject *self, PyObject *arg0)
   struct _cffi_freeme_s *large_args_free = NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7626,19 +7689,19 @@ _cffi_f_clingo_ast_to_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(136), arg1, (char **)&x1);
+      _cffi_type(138), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(136), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(138), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7683,19 +7746,19 @@ _cffi_f_clingo_ast_to_string_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg1, (char **)&x1);
+      _cffi_type(207), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7740,10 +7803,10 @@ _cffi_f_clingo_ast_unpool(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg0, (char **)&x0);
+      _cffi_type(137), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7807,10 +7870,10 @@ _cffi_f_clingo_backend_acyc_edge(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7874,28 +7937,28 @@ _cffi_f_clingo_backend_add_atom(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg1, (char **)&x1);
+      _cffi_type(56), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg2, (char **)&x2);
+      _cffi_type(115), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7938,10 +8001,10 @@ _cffi_f_clingo_backend_assume(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -7989,10 +8052,10 @@ _cffi_f_clingo_backend_begin(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8027,10 +8090,10 @@ _cffi_f_clingo_backend_end(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8073,10 +8136,10 @@ _cffi_f_clingo_backend_external(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8135,10 +8198,10 @@ _cffi_f_clingo_backend_heuristic(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8212,10 +8275,10 @@ _cffi_f_clingo_backend_minimize(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8275,10 +8338,10 @@ _cffi_f_clingo_backend_project(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8340,10 +8403,10 @@ _cffi_f_clingo_backend_rule(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8420,10 +8483,10 @@ _cffi_f_clingo_backend_theory_atom(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8495,10 +8558,10 @@ _cffi_f_clingo_backend_theory_atom_with_guard(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8525,10 +8588,10 @@ _cffi_f_clingo_backend_theory_atom_with_guard(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg5, (char **)&x5);
+      _cffi_type(40), arg5, (char **)&x5);
   if (datasize != 0) {
     x5 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg5, (char **)&x5,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg5, (char **)&x5,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8581,10 +8644,10 @@ _cffi_f_clingo_backend_theory_element(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8616,10 +8679,10 @@ _cffi_f_clingo_backend_theory_element(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg5, (char **)&x5);
+      _cffi_type(115), arg5, (char **)&x5);
   if (datasize != 0) {
     x5 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg5, (char **)&x5,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg5, (char **)&x5,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8666,19 +8729,19 @@ _cffi_f_clingo_backend_theory_term_function(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg1, (char **)&x1);
+      _cffi_type(40), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8697,10 +8760,10 @@ _cffi_f_clingo_backend_theory_term_function(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg4, (char **)&x4);
+      _cffi_type(115), arg4, (char **)&x4);
   if (datasize != 0) {
     x4 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg4, (char **)&x4,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg4, (char **)&x4,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8743,10 +8806,10 @@ _cffi_f_clingo_backend_theory_term_number(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8756,10 +8819,10 @@ _cffi_f_clingo_backend_theory_term_number(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg2, (char **)&x2);
+      _cffi_type(115), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8806,10 +8869,10 @@ _cffi_f_clingo_backend_theory_term_sequence(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8832,10 +8895,10 @@ _cffi_f_clingo_backend_theory_term_sequence(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg4, (char **)&x4);
+      _cffi_type(115), arg4, (char **)&x4);
   if (datasize != 0) {
     x4 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg4, (char **)&x4,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg4, (char **)&x4,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8878,28 +8941,28 @@ _cffi_f_clingo_backend_theory_term_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg1, (char **)&x1);
+      _cffi_type(40), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg2, (char **)&x2);
+      _cffi_type(115), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8942,10 +9005,10 @@ _cffi_f_clingo_backend_theory_term_symbol(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -8955,10 +9018,10 @@ _cffi_f_clingo_backend_theory_term_symbol(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg2, (char **)&x2);
+      _cffi_type(115), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9009,10 +9072,10 @@ _cffi_f_clingo_backend_weight_rule(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(259), arg0, (char **)&x0);
+      _cffi_type(261), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_backend_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(259), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(261), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9091,10 +9154,10 @@ _cffi_f_clingo_configuration_array_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9108,10 +9171,10 @@ _cffi_f_clingo_configuration_array_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg3, (char **)&x3);
+      _cffi_type(115), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9154,10 +9217,10 @@ _cffi_f_clingo_configuration_array_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9167,10 +9230,10 @@ _cffi_f_clingo_configuration_array_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9213,10 +9276,10 @@ _cffi_f_clingo_configuration_description(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9226,10 +9289,10 @@ _cffi_f_clingo_configuration_description(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(58), arg2, (char **)&x2);
+      _cffi_type(60), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(58), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(60), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9274,10 +9337,10 @@ _cffi_f_clingo_configuration_map_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9287,19 +9350,19 @@ _cffi_f_clingo_configuration_map_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg2, (char **)&x2);
+      _cffi_type(40), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg3, (char **)&x3);
+      _cffi_type(115), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9344,10 +9407,10 @@ _cffi_f_clingo_configuration_map_has_subkey(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9357,19 +9420,19 @@ _cffi_f_clingo_configuration_map_has_subkey(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg2, (char **)&x2);
+      _cffi_type(40), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg3, (char **)&x3);
+      _cffi_type(41), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9412,10 +9475,10 @@ _cffi_f_clingo_configuration_map_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9425,10 +9488,10 @@ _cffi_f_clingo_configuration_map_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9473,10 +9536,10 @@ _cffi_f_clingo_configuration_map_subkey_name(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9490,10 +9553,10 @@ _cffi_f_clingo_configuration_map_subkey_name(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(58), arg3, (char **)&x3);
+      _cffi_type(60), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (char const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(58), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(60), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9534,19 +9597,19 @@ _cffi_f_clingo_configuration_root(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg1, (char **)&x1);
+      _cffi_type(115), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9589,10 +9652,10 @@ _cffi_f_clingo_configuration_type(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9602,10 +9665,10 @@ _cffi_f_clingo_configuration_type(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(430), arg2, (char **)&x2);
+      _cffi_type(432), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (unsigned int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(430), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(432), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9650,10 +9713,10 @@ _cffi_f_clingo_configuration_value_get(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9663,10 +9726,10 @@ _cffi_f_clingo_configuration_value_get(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(136), arg2, (char **)&x2);
+      _cffi_type(138), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(136), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(138), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9713,10 +9776,10 @@ _cffi_f_clingo_configuration_value_get_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9726,10 +9789,10 @@ _cffi_f_clingo_configuration_value_get_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9772,10 +9835,10 @@ _cffi_f_clingo_configuration_value_is_assigned(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(379), arg0, (char **)&x0);
+      _cffi_type(381), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(379), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(381), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9785,10 +9848,10 @@ _cffi_f_clingo_configuration_value_is_assigned(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9831,10 +9894,10 @@ _cffi_f_clingo_configuration_value_set(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(374), arg0, (char **)&x0);
+      _cffi_type(376), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_configuration_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(374), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(376), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9844,10 +9907,10 @@ _cffi_f_clingo_configuration_value_set(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg2, (char **)&x2);
+      _cffi_type(40), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9894,19 +9957,19 @@ _cffi_f_clingo_control_add(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg1, (char **)&x1);
+      _cffi_type(40), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9925,10 +9988,10 @@ _cffi_f_clingo_control_add(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg4, (char **)&x4);
+      _cffi_type(40), arg4, (char **)&x4);
   if (datasize != 0) {
     x4 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg4, (char **)&x4,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg4, (char **)&x4,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -9971,10 +10034,10 @@ _cffi_f_clingo_control_assign_external(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10023,19 +10086,19 @@ _cffi_f_clingo_control_backend(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(458), arg1, (char **)&x1);
+      _cffi_type(460), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_backend_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(458), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(460), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10076,19 +10139,19 @@ _cffi_f_clingo_control_clasp_facade(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(507), arg1, (char **)&x1);
+      _cffi_type(509), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (void * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(507), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(509), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10123,10 +10186,10 @@ _cffi_f_clingo_control_cleanup(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10167,19 +10230,19 @@ _cffi_f_clingo_control_configuration(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(462), arg1, (char **)&x1);
+      _cffi_type(464), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_configuration_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(462), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(464), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10212,10 +10275,10 @@ _cffi_f_clingo_control_free(PyObject *self, PyObject *arg0)
   struct _cffi_freeme_s *large_args_free = NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10258,28 +10321,28 @@ _cffi_f_clingo_control_get_const(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(514), arg0, (char **)&x0);
+      _cffi_type(516), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(514), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(516), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg1, (char **)&x1);
+      _cffi_type(40), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg2, (char **)&x2);
+      _cffi_type(56), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10314,10 +10377,10 @@ _cffi_f_clingo_control_get_enable_cleanup(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10352,10 +10415,10 @@ _cffi_f_clingo_control_get_enable_enumeration_assumption(PyObject *self, PyObjec
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10402,19 +10465,19 @@ _cffi_f_clingo_control_ground(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(472), arg1, (char **)&x1);
+      _cffi_type(474), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_part_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(472), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(474), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10423,7 +10486,7 @@ _cffi_f_clingo_control_ground(PyObject *self, PyObject *args)
   if (x2 == (size_t)-1 && PyErr_Occurred())
     return NULL;
 
-  x3 = (_Bool(*)(clingo_location_t const *, char const *, uint64_t const *, size_t, void *, _Bool(*)(uint64_t const *, size_t, void *), void *))_cffi_to_c_pointer(arg3, _cffi_type(474));
+  x3 = (_Bool(*)(clingo_location_t const *, char const *, uint64_t const *, size_t, void *, _Bool(*)(uint64_t const *, size_t, void *), void *))_cffi_to_c_pointer(arg3, _cffi_type(476));
   if (x3 == (_Bool(*)(clingo_location_t const *, char const *, uint64_t const *, size_t, void *, _Bool(*)(uint64_t const *, size_t, void *), void *))NULL && PyErr_Occurred())
     return NULL;
 
@@ -10474,28 +10537,28 @@ _cffi_f_clingo_control_has_const(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(514), arg0, (char **)&x0);
+      _cffi_type(516), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(514), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(516), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg1, (char **)&x1);
+      _cffi_type(40), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10528,10 +10591,10 @@ _cffi_f_clingo_control_interrupt(PyObject *self, PyObject *arg0)
   struct _cffi_freeme_s *large_args_free = NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10566,10 +10629,10 @@ _cffi_f_clingo_control_is_conflicting(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(514), arg0, (char **)&x0);
+      _cffi_type(516), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(514), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(516), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10610,19 +10673,19 @@ _cffi_f_clingo_control_load(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg1, (char **)&x1);
+      _cffi_type(40), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10683,7 +10746,7 @@ _cffi_f_clingo_control_new(PyObject *self, PyObject *args)
   if (x1 == (size_t)-1 && PyErr_Occurred())
     return NULL;
 
-  x2 = (void(*)(int, char const *, void *))_cffi_to_c_pointer(arg2, _cffi_type(26));
+  x2 = (void(*)(int, char const *, void *))_cffi_to_c_pointer(arg2, _cffi_type(27));
   if (x2 == (void(*)(int, char const *, void *))NULL && PyErr_Occurred())
     return NULL;
 
@@ -10701,10 +10764,10 @@ _cffi_f_clingo_control_new(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(36), arg5, (char **)&x5);
+      _cffi_type(37), arg5, (char **)&x5);
   if (datasize != 0) {
     x5 = ((size_t)datasize) <= 640 ? (clingo_control_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(36), arg5, (char **)&x5,
+    if (_cffi_convert_array_argument(_cffi_type(37), arg5, (char **)&x5,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10722,59 +10785,6 @@ _cffi_f_clingo_control_new(PyObject *self, PyObject *args)
 }
 #else
 #  define _cffi_f_clingo_control_new _cffi_d_clingo_control_new
-#endif
-
-static _Bool _cffi_d_clingo_control_program_builder(clingo_control_t * x0, clingo_program_builder_t * * x1)
-{
-  return clingo_control_program_builder(x0, x1);
-}
-#ifndef PYPY_VERSION
-static PyObject *
-_cffi_f_clingo_control_program_builder(PyObject *self, PyObject *args)
-{
-  clingo_control_t * x0;
-  clingo_program_builder_t * * x1;
-  Py_ssize_t datasize;
-  struct _cffi_freeme_s *large_args_free = NULL;
-  _Bool result;
-  PyObject *pyresult;
-  PyObject *arg0;
-  PyObject *arg1;
-
-  if (!PyArg_UnpackTuple(args, "clingo_control_program_builder", 2, 2, &arg0, &arg1))
-    return NULL;
-
-  datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
-  if (datasize != 0) {
-    x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
-            datasize, &large_args_free) < 0)
-      return NULL;
-  }
-
-  datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(479), arg1, (char **)&x1);
-  if (datasize != 0) {
-    x1 = ((size_t)datasize) <= 640 ? (clingo_program_builder_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(479), arg1, (char **)&x1,
-            datasize, &large_args_free) < 0)
-      return NULL;
-  }
-
-  Py_BEGIN_ALLOW_THREADS
-  _cffi_restore_errno();
-  { result = clingo_control_program_builder(x0, x1); }
-  _cffi_save_errno();
-  Py_END_ALLOW_THREADS
-
-  (void)self; /* unused */
-  pyresult = _cffi_from_c__Bool(result);
-  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
-  return pyresult;
-}
-#else
-#  define _cffi_f_clingo_control_program_builder _cffi_d_clingo_control_program_builder
 #endif
 
 static _Bool _cffi_d_clingo_control_register_observer(clingo_control_t * x0, clingo_ground_program_observer_t const * x1, _Bool x2, void * x3)
@@ -10802,19 +10812,19 @@ _cffi_f_clingo_control_register_observer(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(466), arg1, (char **)&x1);
+      _cffi_type(468), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_ground_program_observer_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(466), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(468), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10872,19 +10882,19 @@ _cffi_f_clingo_control_register_propagator(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(483), arg1, (char **)&x1);
+      _cffi_type(485), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_propagator_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(483), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(485), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10938,10 +10948,10 @@ _cffi_f_clingo_control_release_external(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -10986,10 +10996,10 @@ _cffi_f_clingo_control_set_enable_cleanup(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11034,10 +11044,10 @@ _cffi_f_clingo_control_set_enable_enumeration_assumption(PyObject *self, PyObjec
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11092,10 +11102,10 @@ _cffi_f_clingo_control_solve(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(433), arg0, (char **)&x0);
+      _cffi_type(26), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(433), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11117,7 +11127,7 @@ _cffi_f_clingo_control_solve(PyObject *self, PyObject *args)
   if (x3 == (size_t)-1 && PyErr_Occurred())
     return NULL;
 
-  x4 = (_Bool(*)(unsigned int, void *, void *, _Bool *))_cffi_to_c_pointer(arg4, _cffi_type(501));
+  x4 = (_Bool(*)(unsigned int, void *, void *, _Bool *))_cffi_to_c_pointer(arg4, _cffi_type(503));
   if (x4 == (_Bool(*)(unsigned int, void *, void *, _Bool *))NULL && PyErr_Occurred())
     return NULL;
 
@@ -11131,10 +11141,10 @@ _cffi_f_clingo_control_solve(PyObject *self, PyObject *args)
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(503), arg6, (char **)&x6);
+      _cffi_type(505), arg6, (char **)&x6);
   if (datasize != 0) {
     x6 = ((size_t)datasize) <= 640 ? (clingo_solve_handle_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(503), arg6, (char **)&x6,
+    if (_cffi_convert_array_argument(_cffi_type(505), arg6, (char **)&x6,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11175,19 +11185,19 @@ _cffi_f_clingo_control_statistics(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(514), arg0, (char **)&x0);
+      _cffi_type(516), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(514), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(516), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(528), arg1, (char **)&x1);
+      _cffi_type(530), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_statistics_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(528), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(530), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11228,19 +11238,19 @@ _cffi_f_clingo_control_symbolic_atoms(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(514), arg0, (char **)&x0);
+      _cffi_type(516), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(514), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(516), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(532), arg1, (char **)&x1);
+      _cffi_type(534), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(532), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(534), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11281,19 +11291,19 @@ _cffi_f_clingo_control_theory_atoms(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(514), arg0, (char **)&x0);
+      _cffi_type(516), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_control_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(514), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(516), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(536), arg1, (char **)&x1);
+      _cffi_type(538), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(536), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(538), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11358,7 +11368,7 @@ _cffi_f_clingo_error_message(PyObject *self, PyObject *noarg)
 
   (void)self; /* unused */
   (void)noarg; /* unused */
-  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(39));
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(40));
   return pyresult;
 }
 #else
@@ -11388,7 +11398,7 @@ _cffi_f_clingo_error_string(PyObject *self, PyObject *arg0)
   Py_END_ALLOW_THREADS
 
   (void)self; /* unused */
-  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(39));
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(40));
   return pyresult;
 }
 #else
@@ -11420,10 +11430,10 @@ _cffi_f_clingo_main(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(1118), arg0, (char **)&x0);
+      _cffi_type(1120), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_application_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(1118), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(1120), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11488,10 +11498,10 @@ _cffi_f_clingo_model_contains(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11501,10 +11511,10 @@ _cffi_f_clingo_model_contains(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11545,19 +11555,19 @@ _cffi_f_clingo_model_context(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(592), arg1, (char **)&x1);
+      _cffi_type(594), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_solve_control_t * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(592), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(594), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11600,19 +11610,19 @@ _cffi_f_clingo_model_cost(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(605), arg1, (char **)&x1);
+      _cffi_type(607), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (int64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(605), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(607), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11657,19 +11667,19 @@ _cffi_f_clingo_model_cost_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg1, (char **)&x1);
+      _cffi_type(207), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11712,19 +11722,19 @@ _cffi_f_clingo_model_extend(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(576), arg0, (char **)&x0);
+      _cffi_type(578), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(576), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(578), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(77), arg1, (char **)&x1);
+      _cffi_type(79), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(77), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(79), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11771,10 +11781,10 @@ _cffi_f_clingo_model_is_true(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11784,10 +11794,10 @@ _cffi_f_clingo_model_is_true(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11828,19 +11838,19 @@ _cffi_f_clingo_model_number(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg1, (char **)&x1);
+      _cffi_type(56), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11881,19 +11891,19 @@ _cffi_f_clingo_model_optimality_proven(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg1, (char **)&x1);
+      _cffi_type(41), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11938,10 +11948,10 @@ _cffi_f_clingo_model_symbols(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -11951,10 +11961,10 @@ _cffi_f_clingo_model_symbols(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg2, (char **)&x2);
+      _cffi_type(56), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12001,10 +12011,10 @@ _cffi_f_clingo_model_symbols_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12014,10 +12024,10 @@ _cffi_f_clingo_model_symbols_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12058,19 +12068,19 @@ _cffi_f_clingo_model_thread_id(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg1, (char **)&x1);
+      _cffi_type(115), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12111,19 +12121,19 @@ _cffi_f_clingo_model_type(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(581), arg0, (char **)&x0);
+      _cffi_type(583), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_model_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(581), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(583), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg1, (char **)&x1);
+      _cffi_type(110), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12176,42 +12186,42 @@ _cffi_f_clingo_options_add(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(637), arg0, (char **)&x0);
+      _cffi_type(639), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_options_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(637), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(639), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg1, (char **)&x1);
+      _cffi_type(40), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg2, (char **)&x2);
+      _cffi_type(40), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg3, (char **)&x3);
+      _cffi_type(40), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
-  x4 = (_Bool(*)(char const *, void *))_cffi_to_c_pointer(arg4, _cffi_type(648));
+  x4 = (_Bool(*)(char const *, void *))_cffi_to_c_pointer(arg4, _cffi_type(650));
   if (x4 == (_Bool(*)(char const *, void *))NULL && PyErr_Occurred())
     return NULL;
 
@@ -12229,10 +12239,10 @@ _cffi_f_clingo_options_add(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg7, (char **)&x7);
+      _cffi_type(40), arg7, (char **)&x7);
   if (datasize != 0) {
     x7 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg7, (char **)&x7,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg7, (char **)&x7,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12279,46 +12289,46 @@ _cffi_f_clingo_options_add_flag(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(637), arg0, (char **)&x0);
+      _cffi_type(639), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_options_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(637), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(639), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg1, (char **)&x1);
+      _cffi_type(40), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg2, (char **)&x2);
+      _cffi_type(40), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg3, (char **)&x3);
+      _cffi_type(40), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg4, (char **)&x4);
+      _cffi_type(41), arg4, (char **)&x4);
   if (datasize != 0) {
     x4 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg4, (char **)&x4,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg4, (char **)&x4,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12365,15 +12375,15 @@ _cffi_f_clingo_parse_term(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg0, (char **)&x0);
+      _cffi_type(40), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
-  x1 = (void(*)(int, char const *, void *))_cffi_to_c_pointer(arg1, _cffi_type(26));
+  x1 = (void(*)(int, char const *, void *))_cffi_to_c_pointer(arg1, _cffi_type(27));
   if (x1 == (void(*)(int, char const *, void *))NULL && PyErr_Occurred())
     return NULL;
 
@@ -12391,10 +12401,10 @@ _cffi_f_clingo_parse_term(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg4, (char **)&x4);
+      _cffi_type(56), arg4, (char **)&x4);
   if (datasize != 0) {
     x4 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg4, (char **)&x4,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg4, (char **)&x4,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12435,19 +12445,19 @@ _cffi_f_clingo_program_builder_add(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(658), arg0, (char **)&x0);
+      _cffi_type(660), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_program_builder_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(658), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(660), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(135), arg1, (char **)&x1);
+      _cffi_type(137), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_ast_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(135), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(137), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12482,10 +12492,10 @@ _cffi_f_clingo_program_builder_begin(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(658), arg0, (char **)&x0);
+      _cffi_type(660), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_program_builder_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(658), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(660), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12520,10 +12530,10 @@ _cffi_f_clingo_program_builder_end(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(658), arg0, (char **)&x0);
+      _cffi_type(660), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_program_builder_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(658), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(660), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12541,6 +12551,59 @@ _cffi_f_clingo_program_builder_end(PyObject *self, PyObject *arg0)
 }
 #else
 #  define _cffi_f_clingo_program_builder_end _cffi_d_clingo_program_builder_end
+#endif
+
+static _Bool _cffi_d_clingo_program_builder_init(clingo_control_t * x0, clingo_program_builder_t * * x1)
+{
+  return clingo_program_builder_init(x0, x1);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_clingo_program_builder_init(PyObject *self, PyObject *args)
+{
+  clingo_control_t * x0;
+  clingo_program_builder_t * * x1;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+  _Bool result;
+  PyObject *pyresult;
+  PyObject *arg0;
+  PyObject *arg1;
+
+  if (!PyArg_UnpackTuple(args, "clingo_program_builder_init", 2, 2, &arg0, &arg1))
+    return NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(26), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(481), arg1, (char **)&x1);
+  if (datasize != 0) {
+    x1 = ((size_t)datasize) <= 640 ? (clingo_program_builder_t * *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(481), arg1, (char **)&x1,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { result = clingo_program_builder_init(x0, x1); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  pyresult = _cffi_from_c__Bool(result);
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  return pyresult;
+}
+#else
+#  define _cffi_f_clingo_program_builder_init _cffi_d_clingo_program_builder_init
 #endif
 
 static _Bool _cffi_d_clingo_propagate_control_add_clause(clingo_propagate_control_t * x0, int32_t const * x1, size_t x2, int x3, _Bool * x4)
@@ -12570,10 +12633,10 @@ _cffi_f_clingo_propagate_control_add_clause(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(665), arg0, (char **)&x0);
+      _cffi_type(667), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(665), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(667), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12596,10 +12659,10 @@ _cffi_f_clingo_propagate_control_add_clause(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg4, (char **)&x4);
+      _cffi_type(41), arg4, (char **)&x4);
   if (datasize != 0) {
     x4 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg4, (char **)&x4,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg4, (char **)&x4,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12640,19 +12703,19 @@ _cffi_f_clingo_propagate_control_add_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(665), arg0, (char **)&x0);
+      _cffi_type(667), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(665), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(667), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(118), arg1, (char **)&x1);
+      _cffi_type(120), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (int32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(118), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(120), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12693,10 +12756,10 @@ _cffi_f_clingo_propagate_control_add_watch(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(665), arg0, (char **)&x0);
+      _cffi_type(667), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(665), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(667), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12735,10 +12798,10 @@ _cffi_f_clingo_propagate_control_assignment(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(694), arg0, (char **)&x0);
+      _cffi_type(696), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_control_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(694), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(696), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12750,7 +12813,7 @@ _cffi_f_clingo_propagate_control_assignment(PyObject *self, PyObject *arg0)
   Py_END_ALLOW_THREADS
 
   (void)self; /* unused */
-  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(94));
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(96));
   if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
   return pyresult;
 }
@@ -12779,10 +12842,10 @@ _cffi_f_clingo_propagate_control_has_watch(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(694), arg0, (char **)&x0);
+      _cffi_type(696), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_control_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(694), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(696), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12827,19 +12890,19 @@ _cffi_f_clingo_propagate_control_propagate(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(665), arg0, (char **)&x0);
+      _cffi_type(667), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(665), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(667), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg1, (char **)&x1);
+      _cffi_type(41), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12878,10 +12941,10 @@ _cffi_f_clingo_propagate_control_remove_watch(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(665), arg0, (char **)&x0);
+      _cffi_type(667), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(665), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(667), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12920,10 +12983,10 @@ _cffi_f_clingo_propagate_control_thread_id(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(694), arg0, (char **)&x0);
+      _cffi_type(696), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_control_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(694), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(696), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12968,10 +13031,10 @@ _cffi_f_clingo_propagate_init_add_clause(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -12990,10 +13053,10 @@ _cffi_f_clingo_propagate_init_add_clause(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg3, (char **)&x3);
+      _cffi_type(41), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13036,10 +13099,10 @@ _cffi_f_clingo_propagate_init_add_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13049,10 +13112,10 @@ _cffi_f_clingo_propagate_init_add_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(118), arg2, (char **)&x2);
+      _cffi_type(120), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(118), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(120), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13097,10 +13160,10 @@ _cffi_f_clingo_propagate_init_add_minimize(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13153,10 +13216,10 @@ _cffi_f_clingo_propagate_init_add_watch(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13203,10 +13266,10 @@ _cffi_f_clingo_propagate_init_add_watch_to_thread(PyObject *self, PyObject *args
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13267,10 +13330,10 @@ _cffi_f_clingo_propagate_init_add_weight_constraint(PyObject *self, PyObject *ar
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13305,10 +13368,10 @@ _cffi_f_clingo_propagate_init_add_weight_constraint(PyObject *self, PyObject *ar
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg7, (char **)&x7);
+      _cffi_type(41), arg7, (char **)&x7);
   if (datasize != 0) {
     x7 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg7, (char **)&x7,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg7, (char **)&x7,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13343,10 +13406,10 @@ _cffi_f_clingo_propagate_init_assignment(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(742), arg0, (char **)&x0);
+      _cffi_type(744), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(742), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(744), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13358,7 +13421,7 @@ _cffi_f_clingo_propagate_init_assignment(PyObject *self, PyObject *arg0)
   Py_END_ALLOW_THREADS
 
   (void)self; /* unused */
-  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(94));
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(96));
   if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
   return pyresult;
 }
@@ -13387,10 +13450,10 @@ _cffi_f_clingo_propagate_init_freeze_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13429,10 +13492,10 @@ _cffi_f_clingo_propagate_init_get_check_mode(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(742), arg0, (char **)&x0);
+      _cffi_type(744), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(742), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(744), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13467,10 +13530,10 @@ _cffi_f_clingo_propagate_init_number_of_threads(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(742), arg0, (char **)&x0);
+      _cffi_type(744), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(742), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(744), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13511,19 +13574,19 @@ _cffi_f_clingo_propagate_init_propagate(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg1, (char **)&x1);
+      _cffi_type(41), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13564,10 +13627,10 @@ _cffi_f_clingo_propagate_init_remove_watch(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13614,10 +13677,10 @@ _cffi_f_clingo_propagate_init_remove_watch_from_thread(PyObject *self, PyObject 
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13664,10 +13727,10 @@ _cffi_f_clingo_propagate_init_set_check_mode(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(698), arg0, (char **)&x0);
+      _cffi_type(700), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(698), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(700), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13714,10 +13777,10 @@ _cffi_f_clingo_propagate_init_solver_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(742), arg0, (char **)&x0);
+      _cffi_type(744), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(742), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(744), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13727,10 +13790,10 @@ _cffi_f_clingo_propagate_init_solver_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(118), arg2, (char **)&x2);
+      _cffi_type(120), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(118), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(120), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13771,19 +13834,19 @@ _cffi_f_clingo_propagate_init_symbolic_atoms(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(742), arg0, (char **)&x0);
+      _cffi_type(744), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(742), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(744), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(532), arg1, (char **)&x1);
+      _cffi_type(534), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(532), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(534), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13824,19 +13887,19 @@ _cffi_f_clingo_propagate_init_theory_atoms(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(742), arg0, (char **)&x0);
+      _cffi_type(744), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_propagate_init_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(742), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(744), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(536), arg1, (char **)&x1);
+      _cffi_type(538), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(536), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(538), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13879,19 +13942,19 @@ _cffi_f_clingo_register_script(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg0, (char **)&x0);
+      _cffi_type(40), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(62), arg1, (char **)&x1);
+      _cffi_type(64), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_script_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(62), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(64), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13935,10 +13998,10 @@ _cffi_f_clingo_script_version(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg0, (char **)&x0);
+      _cffi_type(40), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -13950,7 +14013,7 @@ _cffi_f_clingo_script_version(PyObject *self, PyObject *arg0)
   Py_END_ALLOW_THREADS
 
   (void)self; /* unused */
-  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(39));
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(40));
   if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
   return pyresult;
 }
@@ -13981,10 +14044,10 @@ _cffi_f_clingo_set_error(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg1, (char **)&x1);
+      _cffi_type(40), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14059,10 +14122,10 @@ _cffi_f_clingo_signature_create(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg0, (char **)&x0);
+      _cffi_type(40), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14076,10 +14139,10 @@ _cffi_f_clingo_signature_create(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg3, (char **)&x3);
+      _cffi_type(56), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14292,7 +14355,7 @@ _cffi_f_clingo_signature_name(PyObject *self, PyObject *arg0)
   Py_END_ALLOW_THREADS
 
   (void)self; /* unused */
-  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(39));
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(40));
   return pyresult;
 }
 #else
@@ -14322,10 +14385,10 @@ _cffi_f_clingo_solve_control_add_clause(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(755), arg0, (char **)&x0);
+      _cffi_type(757), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_solve_control_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(755), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(757), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14379,19 +14442,19 @@ _cffi_f_clingo_solve_control_symbolic_atoms(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(760), arg0, (char **)&x0);
+      _cffi_type(762), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_solve_control_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(760), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(762), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(532), arg1, (char **)&x1);
+      _cffi_type(534), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(532), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(534), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14426,10 +14489,10 @@ _cffi_f_clingo_solve_handle_cancel(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(764), arg0, (char **)&x0);
+      _cffi_type(766), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_solve_handle_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(764), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(766), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14464,10 +14527,10 @@ _cffi_f_clingo_solve_handle_close(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(764), arg0, (char **)&x0);
+      _cffi_type(766), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_solve_handle_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(764), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(766), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14510,28 +14573,28 @@ _cffi_f_clingo_solve_handle_core(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(764), arg0, (char **)&x0);
+      _cffi_type(766), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_solve_handle_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(764), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(766), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(772), arg1, (char **)&x1);
+      _cffi_type(774), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (int32_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(772), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(774), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14572,19 +14635,19 @@ _cffi_f_clingo_solve_handle_get(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(764), arg0, (char **)&x0);
+      _cffi_type(766), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_solve_handle_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(764), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(766), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(430), arg1, (char **)&x1);
+      _cffi_type(432), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (unsigned int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(430), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(432), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14625,19 +14688,19 @@ _cffi_f_clingo_solve_handle_model(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(764), arg0, (char **)&x0);
+      _cffi_type(766), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_solve_handle_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(764), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(766), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(768), arg1, (char **)&x1);
+      _cffi_type(770), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (clingo_model_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(768), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(770), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14672,10 +14735,10 @@ _cffi_f_clingo_solve_handle_resume(PyObject *self, PyObject *arg0)
   PyObject *pyresult;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(764), arg0, (char **)&x0);
+      _cffi_type(766), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_solve_handle_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(764), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(766), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14716,10 +14779,10 @@ _cffi_f_clingo_solve_handle_wait(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(764), arg0, (char **)&x0);
+      _cffi_type(766), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_solve_handle_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(764), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(766), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14729,10 +14792,10 @@ _cffi_f_clingo_solve_handle_wait(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14777,10 +14840,10 @@ _cffi_f_clingo_statistics_array_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(798), arg0, (char **)&x0);
+      _cffi_type(800), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(798), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(800), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14794,10 +14857,10 @@ _cffi_f_clingo_statistics_array_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg3, (char **)&x3);
+      _cffi_type(56), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14842,10 +14905,10 @@ _cffi_f_clingo_statistics_array_push(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(780), arg0, (char **)&x0);
+      _cffi_type(782), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(780), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(782), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14859,10 +14922,10 @@ _cffi_f_clingo_statistics_array_push(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg3, (char **)&x3);
+      _cffi_type(56), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14905,10 +14968,10 @@ _cffi_f_clingo_statistics_array_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(798), arg0, (char **)&x0);
+      _cffi_type(800), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(798), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(800), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14918,10 +14981,10 @@ _cffi_f_clingo_statistics_array_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14968,10 +15031,10 @@ _cffi_f_clingo_statistics_map_add_subkey(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(780), arg0, (char **)&x0);
+      _cffi_type(782), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(780), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(782), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14981,10 +15044,10 @@ _cffi_f_clingo_statistics_map_add_subkey(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg2, (char **)&x2);
+      _cffi_type(40), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -14994,10 +15057,10 @@ _cffi_f_clingo_statistics_map_add_subkey(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg4, (char **)&x4);
+      _cffi_type(56), arg4, (char **)&x4);
   if (datasize != 0) {
     x4 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg4, (char **)&x4,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg4, (char **)&x4,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15042,10 +15105,10 @@ _cffi_f_clingo_statistics_map_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(798), arg0, (char **)&x0);
+      _cffi_type(800), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(798), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(800), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15055,19 +15118,19 @@ _cffi_f_clingo_statistics_map_at(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg2, (char **)&x2);
+      _cffi_type(40), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg3, (char **)&x3);
+      _cffi_type(56), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15112,10 +15175,10 @@ _cffi_f_clingo_statistics_map_has_subkey(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(798), arg0, (char **)&x0);
+      _cffi_type(800), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(798), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(800), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15125,19 +15188,19 @@ _cffi_f_clingo_statistics_map_has_subkey(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg2, (char **)&x2);
+      _cffi_type(40), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg3, (char **)&x3);
+      _cffi_type(41), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15180,10 +15243,10 @@ _cffi_f_clingo_statistics_map_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(798), arg0, (char **)&x0);
+      _cffi_type(800), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(798), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(800), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15193,10 +15256,10 @@ _cffi_f_clingo_statistics_map_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15241,10 +15304,10 @@ _cffi_f_clingo_statistics_map_subkey_name(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(798), arg0, (char **)&x0);
+      _cffi_type(800), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(798), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(800), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15258,10 +15321,10 @@ _cffi_f_clingo_statistics_map_subkey_name(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(58), arg3, (char **)&x3);
+      _cffi_type(60), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (char const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(58), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(60), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15302,19 +15365,19 @@ _cffi_f_clingo_statistics_root(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(798), arg0, (char **)&x0);
+      _cffi_type(800), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(798), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(800), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg1, (char **)&x1);
+      _cffi_type(56), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15357,10 +15420,10 @@ _cffi_f_clingo_statistics_type(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(798), arg0, (char **)&x0);
+      _cffi_type(800), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(798), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(800), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15370,10 +15433,10 @@ _cffi_f_clingo_statistics_type(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg2, (char **)&x2);
+      _cffi_type(110), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15416,10 +15479,10 @@ _cffi_f_clingo_statistics_value_get(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(798), arg0, (char **)&x0);
+      _cffi_type(800), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(798), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(800), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15429,10 +15492,10 @@ _cffi_f_clingo_statistics_value_get(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(816), arg2, (char **)&x2);
+      _cffi_type(818), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(816), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(818), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15475,10 +15538,10 @@ _cffi_f_clingo_statistics_value_set(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(780), arg0, (char **)&x0);
+      _cffi_type(782), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_statistics_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(780), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(782), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15533,19 +15596,19 @@ _cffi_f_clingo_symbol_arguments(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(1063), arg1, (char **)&x1);
+      _cffi_type(1065), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(1063), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(1065), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15592,19 +15655,19 @@ _cffi_f_clingo_symbol_create_function(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg0, (char **)&x0);
+      _cffi_type(40), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(77), arg1, (char **)&x1);
+      _cffi_type(79), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(77), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(79), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15618,10 +15681,10 @@ _cffi_f_clingo_symbol_create_function(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg4, (char **)&x4);
+      _cffi_type(56), arg4, (char **)&x4);
   if (datasize != 0) {
     x4 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg4, (char **)&x4,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg4, (char **)&x4,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15664,10 +15727,10 @@ _cffi_f_clingo_symbol_create_id(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg0, (char **)&x0);
+      _cffi_type(40), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15677,10 +15740,10 @@ _cffi_f_clingo_symbol_create_id(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg2, (char **)&x2);
+      _cffi_type(56), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15713,10 +15776,10 @@ _cffi_f_clingo_symbol_create_infimum(PyObject *self, PyObject *arg0)
   struct _cffi_freeme_s *large_args_free = NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg0, (char **)&x0);
+      _cffi_type(56), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15759,10 +15822,10 @@ _cffi_f_clingo_symbol_create_number(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg1, (char **)&x1);
+      _cffi_type(56), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15803,19 +15866,19 @@ _cffi_f_clingo_symbol_create_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(39), arg0, (char **)&x0);
+      _cffi_type(40), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (char const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(39), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(40), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg1, (char **)&x1);
+      _cffi_type(56), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -15848,10 +15911,10 @@ _cffi_f_clingo_symbol_create_supremum(PyObject *self, PyObject *arg0)
   struct _cffi_freeme_s *large_args_free = NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg0, (char **)&x0);
+      _cffi_type(56), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16006,10 +16069,10 @@ _cffi_f_clingo_symbol_is_negative(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg1, (char **)&x1);
+      _cffi_type(41), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16054,10 +16117,10 @@ _cffi_f_clingo_symbol_is_positive(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg1, (char **)&x1);
+      _cffi_type(41), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16102,10 +16165,10 @@ _cffi_f_clingo_symbol_name(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(58), arg1, (char **)&x1);
+      _cffi_type(60), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(58), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(60), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16150,10 +16213,10 @@ _cffi_f_clingo_symbol_number(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg1, (char **)&x1);
+      _cffi_type(110), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16198,10 +16261,10 @@ _cffi_f_clingo_symbol_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(58), arg1, (char **)&x1);
+      _cffi_type(60), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(58), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(60), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16248,10 +16311,10 @@ _cffi_f_clingo_symbol_to_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(136), arg1, (char **)&x1);
+      _cffi_type(138), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (char *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(136), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(138), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16300,10 +16363,10 @@ _cffi_f_clingo_symbol_to_string_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg1, (char **)&x1);
+      _cffi_type(207), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16376,28 +16439,28 @@ _cffi_f_clingo_symbolic_atoms_begin(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(77), arg1, (char **)&x1);
+      _cffi_type(79), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(77), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(79), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg2, (char **)&x2);
+      _cffi_type(56), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16438,19 +16501,19 @@ _cffi_f_clingo_symbolic_atoms_end(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg1, (char **)&x1);
+      _cffi_type(56), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16493,10 +16556,10 @@ _cffi_f_clingo_symbolic_atoms_find(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16506,10 +16569,10 @@ _cffi_f_clingo_symbolic_atoms_find(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg2, (char **)&x2);
+      _cffi_type(56), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16552,10 +16615,10 @@ _cffi_f_clingo_symbolic_atoms_is_external(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16565,10 +16628,10 @@ _cffi_f_clingo_symbolic_atoms_is_external(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16611,10 +16674,10 @@ _cffi_f_clingo_symbolic_atoms_is_fact(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16624,10 +16687,10 @@ _cffi_f_clingo_symbolic_atoms_is_fact(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16670,10 +16733,10 @@ _cffi_f_clingo_symbolic_atoms_is_valid(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16683,10 +16746,10 @@ _cffi_f_clingo_symbolic_atoms_is_valid(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16731,10 +16794,10 @@ _cffi_f_clingo_symbolic_atoms_iterator_is_equal_to(PyObject *self, PyObject *arg
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16748,10 +16811,10 @@ _cffi_f_clingo_symbolic_atoms_iterator_is_equal_to(PyObject *self, PyObject *arg
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg3, (char **)&x3);
+      _cffi_type(41), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16794,10 +16857,10 @@ _cffi_f_clingo_symbolic_atoms_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16807,10 +16870,10 @@ _cffi_f_clingo_symbolic_atoms_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(118), arg2, (char **)&x2);
+      _cffi_type(120), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(118), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(120), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16853,10 +16916,10 @@ _cffi_f_clingo_symbolic_atoms_next(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16866,10 +16929,10 @@ _cffi_f_clingo_symbolic_atoms_next(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg2, (char **)&x2);
+      _cffi_type(56), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16912,19 +16975,19 @@ _cffi_f_clingo_symbolic_atoms_signatures(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg1, (char **)&x1);
+      _cffi_type(56), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -16969,19 +17032,19 @@ _cffi_f_clingo_symbolic_atoms_signatures_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg1, (char **)&x1);
+      _cffi_type(207), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17022,19 +17085,19 @@ _cffi_f_clingo_symbolic_atoms_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg1, (char **)&x1);
+      _cffi_type(207), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17077,10 +17140,10 @@ _cffi_f_clingo_symbolic_atoms_symbol(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(841), arg0, (char **)&x0);
+      _cffi_type(843), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_symbolic_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(841), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(843), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17090,10 +17153,10 @@ _cffi_f_clingo_symbolic_atoms_symbol(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(54), arg2, (char **)&x2);
+      _cffi_type(56), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint64_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(54), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(56), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17138,10 +17201,10 @@ _cffi_f_clingo_theory_atoms_atom_elements(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17151,19 +17214,19 @@ _cffi_f_clingo_theory_atoms_atom_elements(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(934), arg2, (char **)&x2);
+      _cffi_type(936), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(934), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(936), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg3, (char **)&x3);
+      _cffi_type(207), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17208,10 +17271,10 @@ _cffi_f_clingo_theory_atoms_atom_guard(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17221,19 +17284,19 @@ _cffi_f_clingo_theory_atoms_atom_guard(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(58), arg2, (char **)&x2);
+      _cffi_type(60), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(58), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(60), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg3, (char **)&x3);
+      _cffi_type(115), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17276,10 +17339,10 @@ _cffi_f_clingo_theory_atoms_atom_has_guard(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17289,10 +17352,10 @@ _cffi_f_clingo_theory_atoms_atom_has_guard(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(40), arg2, (char **)&x2);
+      _cffi_type(41), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (_Bool *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(40), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(41), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17335,10 +17398,10 @@ _cffi_f_clingo_theory_atoms_atom_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17348,10 +17411,10 @@ _cffi_f_clingo_theory_atoms_atom_literal(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(118), arg2, (char **)&x2);
+      _cffi_type(120), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(118), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(120), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17394,10 +17457,10 @@ _cffi_f_clingo_theory_atoms_atom_term(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17407,10 +17470,10 @@ _cffi_f_clingo_theory_atoms_atom_term(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(113), arg2, (char **)&x2);
+      _cffi_type(115), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(113), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(115), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17455,10 +17518,10 @@ _cffi_f_clingo_theory_atoms_atom_to_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17468,10 +17531,10 @@ _cffi_f_clingo_theory_atoms_atom_to_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(136), arg2, (char **)&x2);
+      _cffi_type(138), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(136), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(138), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17518,10 +17581,10 @@ _cffi_f_clingo_theory_atoms_atom_to_string_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17531,10 +17594,10 @@ _cffi_f_clingo_theory_atoms_atom_to_string_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17579,10 +17642,10 @@ _cffi_f_clingo_theory_atoms_element_condition(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17592,19 +17655,19 @@ _cffi_f_clingo_theory_atoms_element_condition(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(772), arg2, (char **)&x2);
+      _cffi_type(774), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int32_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(772), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(774), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg3, (char **)&x3);
+      _cffi_type(207), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17647,10 +17710,10 @@ _cffi_f_clingo_theory_atoms_element_condition_id(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17660,10 +17723,10 @@ _cffi_f_clingo_theory_atoms_element_condition_id(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(118), arg2, (char **)&x2);
+      _cffi_type(120), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int32_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(118), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(120), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17708,10 +17771,10 @@ _cffi_f_clingo_theory_atoms_element_to_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17721,10 +17784,10 @@ _cffi_f_clingo_theory_atoms_element_to_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(136), arg2, (char **)&x2);
+      _cffi_type(138), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(136), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(138), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17771,10 +17834,10 @@ _cffi_f_clingo_theory_atoms_element_to_string_size(PyObject *self, PyObject *arg
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17784,10 +17847,10 @@ _cffi_f_clingo_theory_atoms_element_to_string_size(PyObject *self, PyObject *arg
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17832,10 +17895,10 @@ _cffi_f_clingo_theory_atoms_element_tuple(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17845,19 +17908,19 @@ _cffi_f_clingo_theory_atoms_element_tuple(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(934), arg2, (char **)&x2);
+      _cffi_type(936), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(934), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(936), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg3, (char **)&x3);
+      _cffi_type(207), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17898,19 +17961,19 @@ _cffi_f_clingo_theory_atoms_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg1, (char **)&x1);
+      _cffi_type(207), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17955,10 +18018,10 @@ _cffi_f_clingo_theory_atoms_term_arguments(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -17968,19 +18031,19 @@ _cffi_f_clingo_theory_atoms_term_arguments(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(934), arg2, (char **)&x2);
+      _cffi_type(936), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (uint32_t const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(934), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(936), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg3, (char **)&x3);
+      _cffi_type(207), arg3, (char **)&x3);
   if (datasize != 0) {
     x3 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg3, (char **)&x3,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18023,10 +18086,10 @@ _cffi_f_clingo_theory_atoms_term_name(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18036,10 +18099,10 @@ _cffi_f_clingo_theory_atoms_term_name(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(58), arg2, (char **)&x2);
+      _cffi_type(60), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char const * *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(58), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(60), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18082,10 +18145,10 @@ _cffi_f_clingo_theory_atoms_term_number(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18095,10 +18158,10 @@ _cffi_f_clingo_theory_atoms_term_number(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg2, (char **)&x2);
+      _cffi_type(110), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18143,10 +18206,10 @@ _cffi_f_clingo_theory_atoms_term_to_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18156,10 +18219,10 @@ _cffi_f_clingo_theory_atoms_term_to_string(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(136), arg2, (char **)&x2);
+      _cffi_type(138), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (char *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(136), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(138), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18206,10 +18269,10 @@ _cffi_f_clingo_theory_atoms_term_to_string_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18219,10 +18282,10 @@ _cffi_f_clingo_theory_atoms_term_to_string_size(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(205), arg2, (char **)&x2);
+      _cffi_type(207), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (size_t *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(205), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(207), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18265,10 +18328,10 @@ _cffi_f_clingo_theory_atoms_term_type(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(880), arg0, (char **)&x0);
+      _cffi_type(882), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (clingo_theory_atoms_t const *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(880), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(882), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18278,10 +18341,10 @@ _cffi_f_clingo_theory_atoms_term_type(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg2, (char **)&x2);
+      _cffi_type(110), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18322,28 +18385,28 @@ _cffi_f_clingo_version(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg0, (char **)&x0);
+      _cffi_type(110), arg0, (char **)&x0);
   if (datasize != 0) {
     x0 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg0, (char **)&x0,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg1, (char **)&x1);
+      _cffi_type(110), arg1, (char **)&x1);
   if (datasize != 0) {
     x1 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg1, (char **)&x1,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(108), arg2, (char **)&x2);
+      _cffi_type(110), arg2, (char **)&x2);
   if (datasize != 0) {
     x2 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(108), arg2, (char **)&x2,
+    if (_cffi_convert_array_argument(_cffi_type(110), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -18386,7 +18449,7 @@ _cffi_f_clingo_warning_string(PyObject *self, PyObject *arg0)
   Py_END_ALLOW_THREADS
 
   (void)self; /* unused */
-  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(39));
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(40));
   return pyresult;
 }
 #else
@@ -18550,25 +18613,25 @@ static clingo_ast_constructors_t *_cffi_var_g_clingo_ast_constructors(void)
 }
 
 static const struct _cffi_global_s _cffi_globals[] = {
-  { "clingo_add_string", (void *)_cffi_f_clingo_add_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 56), (void *)_cffi_d_clingo_add_string },
-  { "clingo_assignment_at", (void *)_cffi_f_clingo_assignment_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 115), (void *)_cffi_d_clingo_assignment_at },
-  { "clingo_assignment_decision", (void *)_cffi_f_clingo_assignment_decision, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 124), (void *)_cffi_d_clingo_assignment_decision },
-  { "clingo_assignment_decision_level", (void *)_cffi_f_clingo_assignment_decision_level, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1140), (void *)_cffi_d_clingo_assignment_decision_level },
-  { "clingo_assignment_has_conflict", (void *)_cffi_f_clingo_assignment_has_conflict, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 93), (void *)_cffi_d_clingo_assignment_has_conflict },
-  { "clingo_assignment_has_literal", (void *)_cffi_f_clingo_assignment_has_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 96), (void *)_cffi_d_clingo_assignment_has_literal },
-  { "clingo_assignment_is_false", (void *)_cffi_f_clingo_assignment_is_false, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 100), (void *)_cffi_d_clingo_assignment_is_false },
-  { "clingo_assignment_is_fixed", (void *)_cffi_f_clingo_assignment_is_fixed, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 100), (void *)_cffi_d_clingo_assignment_is_fixed },
-  { "clingo_assignment_is_total", (void *)_cffi_f_clingo_assignment_is_total, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 93), (void *)_cffi_d_clingo_assignment_is_total },
-  { "clingo_assignment_is_true", (void *)_cffi_f_clingo_assignment_is_true, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 100), (void *)_cffi_d_clingo_assignment_is_true },
-  { "clingo_assignment_level", (void *)_cffi_f_clingo_assignment_level, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 110), (void *)_cffi_d_clingo_assignment_level },
-  { "clingo_assignment_root_level", (void *)_cffi_f_clingo_assignment_root_level, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1140), (void *)_cffi_d_clingo_assignment_root_level },
-  { "clingo_assignment_size", (void *)_cffi_f_clingo_assignment_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1131), (void *)_cffi_d_clingo_assignment_size },
-  { "clingo_assignment_trail_at", (void *)_cffi_f_clingo_assignment_trail_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 124), (void *)_cffi_d_clingo_assignment_trail_at },
-  { "clingo_assignment_trail_begin", (void *)_cffi_f_clingo_assignment_trail_begin, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 129), (void *)_cffi_d_clingo_assignment_trail_begin },
-  { "clingo_assignment_trail_end", (void *)_cffi_f_clingo_assignment_trail_end, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 129), (void *)_cffi_d_clingo_assignment_trail_end },
-  { "clingo_assignment_trail_size", (void *)_cffi_f_clingo_assignment_trail_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 120), (void *)_cffi_d_clingo_assignment_trail_size },
-  { "clingo_assignment_truth_value", (void *)_cffi_f_clingo_assignment_truth_value, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 105), (void *)_cffi_d_clingo_assignment_truth_value },
-  { "clingo_ast_acquire", (void *)_cffi_f_clingo_ast_acquire, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1152), (void *)_cffi_d_clingo_ast_acquire },
+  { "clingo_add_string", (void *)_cffi_f_clingo_add_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 58), (void *)_cffi_d_clingo_add_string },
+  { "clingo_assignment_at", (void *)_cffi_f_clingo_assignment_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 117), (void *)_cffi_d_clingo_assignment_at },
+  { "clingo_assignment_decision", (void *)_cffi_f_clingo_assignment_decision, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 126), (void *)_cffi_d_clingo_assignment_decision },
+  { "clingo_assignment_decision_level", (void *)_cffi_f_clingo_assignment_decision_level, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1142), (void *)_cffi_d_clingo_assignment_decision_level },
+  { "clingo_assignment_has_conflict", (void *)_cffi_f_clingo_assignment_has_conflict, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 95), (void *)_cffi_d_clingo_assignment_has_conflict },
+  { "clingo_assignment_has_literal", (void *)_cffi_f_clingo_assignment_has_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 98), (void *)_cffi_d_clingo_assignment_has_literal },
+  { "clingo_assignment_is_false", (void *)_cffi_f_clingo_assignment_is_false, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 102), (void *)_cffi_d_clingo_assignment_is_false },
+  { "clingo_assignment_is_fixed", (void *)_cffi_f_clingo_assignment_is_fixed, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 102), (void *)_cffi_d_clingo_assignment_is_fixed },
+  { "clingo_assignment_is_total", (void *)_cffi_f_clingo_assignment_is_total, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 95), (void *)_cffi_d_clingo_assignment_is_total },
+  { "clingo_assignment_is_true", (void *)_cffi_f_clingo_assignment_is_true, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 102), (void *)_cffi_d_clingo_assignment_is_true },
+  { "clingo_assignment_level", (void *)_cffi_f_clingo_assignment_level, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 112), (void *)_cffi_d_clingo_assignment_level },
+  { "clingo_assignment_root_level", (void *)_cffi_f_clingo_assignment_root_level, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1142), (void *)_cffi_d_clingo_assignment_root_level },
+  { "clingo_assignment_size", (void *)_cffi_f_clingo_assignment_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1133), (void *)_cffi_d_clingo_assignment_size },
+  { "clingo_assignment_trail_at", (void *)_cffi_f_clingo_assignment_trail_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 126), (void *)_cffi_d_clingo_assignment_trail_at },
+  { "clingo_assignment_trail_begin", (void *)_cffi_f_clingo_assignment_trail_begin, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 131), (void *)_cffi_d_clingo_assignment_trail_begin },
+  { "clingo_assignment_trail_end", (void *)_cffi_f_clingo_assignment_trail_end, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 131), (void *)_cffi_d_clingo_assignment_trail_end },
+  { "clingo_assignment_trail_size", (void *)_cffi_f_clingo_assignment_trail_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 122), (void *)_cffi_d_clingo_assignment_trail_size },
+  { "clingo_assignment_truth_value", (void *)_cffi_f_clingo_assignment_truth_value, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 107), (void *)_cffi_d_clingo_assignment_truth_value },
+  { "clingo_ast_acquire", (void *)_cffi_f_clingo_ast_acquire, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1154), (void *)_cffi_d_clingo_ast_acquire },
   { "clingo_ast_aggregate_function_count", (void *)_cffi_const_clingo_ast_aggregate_function_count, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_aggregate_function_max", (void *)_cffi_const_clingo_ast_aggregate_function_max, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_aggregate_function_min", (void *)_cffi_const_clingo_ast_aggregate_function_min, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
@@ -18586,25 +18649,25 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_ast_attribute_coefficient", (void *)_cffi_const_clingo_ast_attribute_coefficient, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_comparison", (void *)_cffi_const_clingo_ast_attribute_comparison, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_condition", (void *)_cffi_const_clingo_ast_attribute_condition, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_attribute_delete_ast_at", (void *)_cffi_f_clingo_ast_attribute_delete_ast_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 207), (void *)_cffi_d_clingo_ast_attribute_delete_ast_at },
-  { "clingo_ast_attribute_delete_string_at", (void *)_cffi_f_clingo_ast_attribute_delete_string_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 207), (void *)_cffi_d_clingo_ast_attribute_delete_string_at },
+  { "clingo_ast_attribute_delete_ast_at", (void *)_cffi_f_clingo_ast_attribute_delete_ast_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 209), (void *)_cffi_d_clingo_ast_attribute_delete_ast_at },
+  { "clingo_ast_attribute_delete_string_at", (void *)_cffi_f_clingo_ast_attribute_delete_string_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 209), (void *)_cffi_d_clingo_ast_attribute_delete_string_at },
   { "clingo_ast_attribute_elements", (void *)_cffi_const_clingo_ast_attribute_elements, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_external", (void *)_cffi_const_clingo_ast_attribute_external, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_external_type", (void *)_cffi_const_clingo_ast_attribute_external_type, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_function", (void *)_cffi_const_clingo_ast_attribute_function, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_attribute_get_ast", (void *)_cffi_f_clingo_ast_attribute_get_ast, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 172), (void *)_cffi_d_clingo_ast_attribute_get_ast },
-  { "clingo_ast_attribute_get_ast_at", (void *)_cffi_f_clingo_ast_attribute_get_ast_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 224), (void *)_cffi_d_clingo_ast_attribute_get_ast_at },
-  { "clingo_ast_attribute_get_location", (void *)_cffi_f_clingo_ast_attribute_get_location, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 182), (void *)_cffi_d_clingo_ast_attribute_get_location },
-  { "clingo_ast_attribute_get_number", (void *)_cffi_f_clingo_ast_attribute_get_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 192), (void *)_cffi_d_clingo_ast_attribute_get_number },
-  { "clingo_ast_attribute_get_optional_ast", (void *)_cffi_f_clingo_ast_attribute_get_optional_ast, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 172), (void *)_cffi_d_clingo_ast_attribute_get_optional_ast },
-  { "clingo_ast_attribute_get_string", (void *)_cffi_f_clingo_ast_attribute_get_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 162), (void *)_cffi_d_clingo_ast_attribute_get_string },
-  { "clingo_ast_attribute_get_string_at", (void *)_cffi_f_clingo_ast_attribute_get_string_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 212), (void *)_cffi_d_clingo_ast_attribute_get_string_at },
-  { "clingo_ast_attribute_get_symbol", (void *)_cffi_f_clingo_ast_attribute_get_symbol, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 236), (void *)_cffi_d_clingo_ast_attribute_get_symbol },
+  { "clingo_ast_attribute_get_ast", (void *)_cffi_f_clingo_ast_attribute_get_ast, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 174), (void *)_cffi_d_clingo_ast_attribute_get_ast },
+  { "clingo_ast_attribute_get_ast_at", (void *)_cffi_f_clingo_ast_attribute_get_ast_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 226), (void *)_cffi_d_clingo_ast_attribute_get_ast_at },
+  { "clingo_ast_attribute_get_location", (void *)_cffi_f_clingo_ast_attribute_get_location, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 184), (void *)_cffi_d_clingo_ast_attribute_get_location },
+  { "clingo_ast_attribute_get_number", (void *)_cffi_f_clingo_ast_attribute_get_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 194), (void *)_cffi_d_clingo_ast_attribute_get_number },
+  { "clingo_ast_attribute_get_optional_ast", (void *)_cffi_f_clingo_ast_attribute_get_optional_ast, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 174), (void *)_cffi_d_clingo_ast_attribute_get_optional_ast },
+  { "clingo_ast_attribute_get_string", (void *)_cffi_f_clingo_ast_attribute_get_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 164), (void *)_cffi_d_clingo_ast_attribute_get_string },
+  { "clingo_ast_attribute_get_string_at", (void *)_cffi_f_clingo_ast_attribute_get_string_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 214), (void *)_cffi_d_clingo_ast_attribute_get_string_at },
+  { "clingo_ast_attribute_get_symbol", (void *)_cffi_f_clingo_ast_attribute_get_symbol, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 238), (void *)_cffi_d_clingo_ast_attribute_get_symbol },
   { "clingo_ast_attribute_guard", (void *)_cffi_const_clingo_ast_attribute_guard, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_guards", (void *)_cffi_const_clingo_ast_attribute_guards, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_head", (void *)_cffi_const_clingo_ast_attribute_head, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_attribute_insert_ast_at", (void *)_cffi_f_clingo_ast_attribute_insert_ast_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 230), (void *)_cffi_d_clingo_ast_attribute_insert_ast_at },
-  { "clingo_ast_attribute_insert_string_at", (void *)_cffi_f_clingo_ast_attribute_insert_string_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 218), (void *)_cffi_d_clingo_ast_attribute_insert_string_at },
+  { "clingo_ast_attribute_insert_ast_at", (void *)_cffi_f_clingo_ast_attribute_insert_ast_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 232), (void *)_cffi_d_clingo_ast_attribute_insert_ast_at },
+  { "clingo_ast_attribute_insert_string_at", (void *)_cffi_f_clingo_ast_attribute_insert_string_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 220), (void *)_cffi_d_clingo_ast_attribute_insert_string_at },
   { "clingo_ast_attribute_is_default", (void *)_cffi_const_clingo_ast_attribute_is_default, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_left", (void *)_cffi_const_clingo_ast_attribute_left, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_left_guard", (void *)_cffi_const_clingo_ast_attribute_left_guard, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
@@ -18623,21 +18686,21 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_ast_attribute_right", (void *)_cffi_const_clingo_ast_attribute_right, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_right_guard", (void *)_cffi_const_clingo_ast_attribute_right_guard, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_sequence_type", (void *)_cffi_const_clingo_ast_attribute_sequence_type, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_attribute_set_ast", (void *)_cffi_f_clingo_ast_attribute_set_ast, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 177), (void *)_cffi_d_clingo_ast_attribute_set_ast },
-  { "clingo_ast_attribute_set_ast_at", (void *)_cffi_f_clingo_ast_attribute_set_ast_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 230), (void *)_cffi_d_clingo_ast_attribute_set_ast_at },
-  { "clingo_ast_attribute_set_location", (void *)_cffi_f_clingo_ast_attribute_set_location, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 187), (void *)_cffi_d_clingo_ast_attribute_set_location },
-  { "clingo_ast_attribute_set_number", (void *)_cffi_f_clingo_ast_attribute_set_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 197), (void *)_cffi_d_clingo_ast_attribute_set_number },
-  { "clingo_ast_attribute_set_optional_ast", (void *)_cffi_f_clingo_ast_attribute_set_optional_ast, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 177), (void *)_cffi_d_clingo_ast_attribute_set_optional_ast },
-  { "clingo_ast_attribute_set_string", (void *)_cffi_f_clingo_ast_attribute_set_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 167), (void *)_cffi_d_clingo_ast_attribute_set_string },
-  { "clingo_ast_attribute_set_string_at", (void *)_cffi_f_clingo_ast_attribute_set_string_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 218), (void *)_cffi_d_clingo_ast_attribute_set_string_at },
-  { "clingo_ast_attribute_set_symbol", (void *)_cffi_f_clingo_ast_attribute_set_symbol, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 241), (void *)_cffi_d_clingo_ast_attribute_set_symbol },
+  { "clingo_ast_attribute_set_ast", (void *)_cffi_f_clingo_ast_attribute_set_ast, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 179), (void *)_cffi_d_clingo_ast_attribute_set_ast },
+  { "clingo_ast_attribute_set_ast_at", (void *)_cffi_f_clingo_ast_attribute_set_ast_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 232), (void *)_cffi_d_clingo_ast_attribute_set_ast_at },
+  { "clingo_ast_attribute_set_location", (void *)_cffi_f_clingo_ast_attribute_set_location, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 189), (void *)_cffi_d_clingo_ast_attribute_set_location },
+  { "clingo_ast_attribute_set_number", (void *)_cffi_f_clingo_ast_attribute_set_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 199), (void *)_cffi_d_clingo_ast_attribute_set_number },
+  { "clingo_ast_attribute_set_optional_ast", (void *)_cffi_f_clingo_ast_attribute_set_optional_ast, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 179), (void *)_cffi_d_clingo_ast_attribute_set_optional_ast },
+  { "clingo_ast_attribute_set_string", (void *)_cffi_f_clingo_ast_attribute_set_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 169), (void *)_cffi_d_clingo_ast_attribute_set_string },
+  { "clingo_ast_attribute_set_string_at", (void *)_cffi_f_clingo_ast_attribute_set_string_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 220), (void *)_cffi_d_clingo_ast_attribute_set_string_at },
+  { "clingo_ast_attribute_set_symbol", (void *)_cffi_f_clingo_ast_attribute_set_symbol, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 243), (void *)_cffi_d_clingo_ast_attribute_set_symbol },
   { "clingo_ast_attribute_sign", (void *)_cffi_const_clingo_ast_attribute_sign, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_attribute_size_ast_array", (void *)_cffi_f_clingo_ast_attribute_size_ast_array, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 202), (void *)_cffi_d_clingo_ast_attribute_size_ast_array },
-  { "clingo_ast_attribute_size_string_array", (void *)_cffi_f_clingo_ast_attribute_size_string_array, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 202), (void *)_cffi_d_clingo_ast_attribute_size_string_array },
+  { "clingo_ast_attribute_size_ast_array", (void *)_cffi_f_clingo_ast_attribute_size_ast_array, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 204), (void *)_cffi_d_clingo_ast_attribute_size_ast_array },
+  { "clingo_ast_attribute_size_string_array", (void *)_cffi_f_clingo_ast_attribute_size_string_array, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 204), (void *)_cffi_d_clingo_ast_attribute_size_string_array },
   { "clingo_ast_attribute_symbol", (void *)_cffi_const_clingo_ast_attribute_symbol, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_term", (void *)_cffi_const_clingo_ast_attribute_term, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_terms", (void *)_cffi_const_clingo_ast_attribute_terms, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_attribute_type", (void *)_cffi_f_clingo_ast_attribute_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 192), (void *)_cffi_d_clingo_ast_attribute_type },
+  { "clingo_ast_attribute_type", (void *)_cffi_f_clingo_ast_attribute_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 194), (void *)_cffi_d_clingo_ast_attribute_type },
   { "clingo_ast_attribute_type_ast", (void *)_cffi_const_clingo_ast_attribute_type_ast, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_type_ast_array", (void *)_cffi_const_clingo_ast_attribute_type_ast_array, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_attribute_type_location", (void *)_cffi_const_clingo_ast_attribute_type_location, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
@@ -18658,23 +18721,23 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_ast_binary_operator_plus", (void *)_cffi_const_clingo_ast_binary_operator_plus, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_binary_operator_power", (void *)_cffi_const_clingo_ast_binary_operator_power, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_binary_operator_xor", (void *)_cffi_const_clingo_ast_binary_operator_xor, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_build", (void *)_cffi_const_clingo_ast_build, _CFFI_OP(_CFFI_OP_CONSTANT, 1217), (void *)0 },
+  { "clingo_ast_build", (void *)_cffi_const_clingo_ast_build, _CFFI_OP(_CFFI_OP_CONSTANT, 1219), (void *)0 },
   { "clingo_ast_comparison_operator_equal", (void *)_cffi_const_clingo_ast_comparison_operator_equal, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_comparison_operator_greater_equal", (void *)_cffi_const_clingo_ast_comparison_operator_greater_equal, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_comparison_operator_greater_than", (void *)_cffi_const_clingo_ast_comparison_operator_greater_than, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_comparison_operator_less_equal", (void *)_cffi_const_clingo_ast_comparison_operator_less_equal, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_comparison_operator_less_than", (void *)_cffi_const_clingo_ast_comparison_operator_less_than, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_comparison_operator_not_equal", (void *)_cffi_const_clingo_ast_comparison_operator_not_equal, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_copy", (void *)_cffi_f_clingo_ast_copy, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 139), (void *)_cffi_d_clingo_ast_copy },
-  { "clingo_ast_deep_copy", (void *)_cffi_f_clingo_ast_deep_copy, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 139), (void *)_cffi_d_clingo_ast_deep_copy },
-  { "clingo_ast_equal", (void *)_cffi_f_clingo_ast_equal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 143), (void *)_cffi_d_clingo_ast_equal },
-  { "clingo_ast_get_type", (void *)_cffi_f_clingo_ast_get_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 147), (void *)_cffi_d_clingo_ast_get_type },
-  { "clingo_ast_has_attribute", (void *)_cffi_f_clingo_ast_has_attribute, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 151), (void *)_cffi_d_clingo_ast_has_attribute },
-  { "clingo_ast_hash", (void *)_cffi_f_clingo_ast_hash, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1134), (void *)_cffi_d_clingo_ast_hash },
-  { "clingo_ast_less_than", (void *)_cffi_f_clingo_ast_less_than, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 143), (void *)_cffi_d_clingo_ast_less_than },
+  { "clingo_ast_copy", (void *)_cffi_f_clingo_ast_copy, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 141), (void *)_cffi_d_clingo_ast_copy },
+  { "clingo_ast_deep_copy", (void *)_cffi_f_clingo_ast_deep_copy, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 141), (void *)_cffi_d_clingo_ast_deep_copy },
+  { "clingo_ast_equal", (void *)_cffi_f_clingo_ast_equal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 145), (void *)_cffi_d_clingo_ast_equal },
+  { "clingo_ast_get_type", (void *)_cffi_f_clingo_ast_get_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 149), (void *)_cffi_d_clingo_ast_get_type },
+  { "clingo_ast_has_attribute", (void *)_cffi_f_clingo_ast_has_attribute, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 153), (void *)_cffi_d_clingo_ast_has_attribute },
+  { "clingo_ast_hash", (void *)_cffi_f_clingo_ast_hash, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1136), (void *)_cffi_d_clingo_ast_hash },
+  { "clingo_ast_less_than", (void *)_cffi_f_clingo_ast_less_than, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 145), (void *)_cffi_d_clingo_ast_less_than },
   { "clingo_ast_parse_files", (void *)_cffi_f_clingo_ast_parse_files, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 21), (void *)_cffi_d_clingo_ast_parse_files },
-  { "clingo_ast_parse_string", (void *)_cffi_f_clingo_ast_parse_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 43), (void *)_cffi_d_clingo_ast_parse_string },
-  { "clingo_ast_release", (void *)_cffi_f_clingo_ast_release, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1152), (void *)_cffi_d_clingo_ast_release },
+  { "clingo_ast_parse_string", (void *)_cffi_f_clingo_ast_parse_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 44), (void *)_cffi_d_clingo_ast_parse_string },
+  { "clingo_ast_release", (void *)_cffi_f_clingo_ast_release, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1154), (void *)_cffi_d_clingo_ast_release },
   { "clingo_ast_sign_double_negation", (void *)_cffi_const_clingo_ast_sign_double_negation, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_sign_negation", (void *)_cffi_const_clingo_ast_sign_negation, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_sign_no_sign", (void *)_cffi_const_clingo_ast_sign_no_sign, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
@@ -18688,8 +18751,8 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_ast_theory_sequence_type_list", (void *)_cffi_const_clingo_ast_theory_sequence_type_list, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_theory_sequence_type_set", (void *)_cffi_const_clingo_ast_theory_sequence_type_set, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_theory_sequence_type_tuple", (void *)_cffi_const_clingo_ast_theory_sequence_type_tuple, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_to_string", (void *)_cffi_f_clingo_ast_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 134), (void *)_cffi_d_clingo_ast_to_string },
-  { "clingo_ast_to_string_size", (void *)_cffi_f_clingo_ast_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 246), (void *)_cffi_d_clingo_ast_to_string_size },
+  { "clingo_ast_to_string", (void *)_cffi_f_clingo_ast_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 136), (void *)_cffi_d_clingo_ast_to_string },
+  { "clingo_ast_to_string_size", (void *)_cffi_f_clingo_ast_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 248), (void *)_cffi_d_clingo_ast_to_string_size },
   { "clingo_ast_type_aggregate", (void *)_cffi_const_clingo_ast_type_aggregate, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_type_binary_operation", (void *)_cffi_const_clingo_ast_type_binary_operation, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_type_body_aggregate", (void *)_cffi_const_clingo_ast_type_body_aggregate, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
@@ -18738,81 +18801,80 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_ast_unary_operator_absolute", (void *)_cffi_const_clingo_ast_unary_operator_absolute, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_unary_operator_minus", (void *)_cffi_const_clingo_ast_unary_operator_minus, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_unary_operator_negation", (void *)_cffi_const_clingo_ast_unary_operator_negation, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_ast_unpool", (void *)_cffi_f_clingo_ast_unpool, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 156), (void *)_cffi_d_clingo_ast_unpool },
+  { "clingo_ast_unpool", (void *)_cffi_f_clingo_ast_unpool, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 158), (void *)_cffi_d_clingo_ast_unpool },
   { "clingo_ast_unpool_type_all", (void *)_cffi_const_clingo_ast_unpool_type_all, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_unpool_type_condition", (void *)_cffi_const_clingo_ast_unpool_type_condition, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_ast_unpool_type_other", (void *)_cffi_const_clingo_ast_unpool_type_other, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_backend_acyc_edge", (void *)_cffi_f_clingo_backend_acyc_edge, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 290), (void *)_cffi_d_clingo_backend_acyc_edge },
-  { "clingo_backend_add_atom", (void *)_cffi_f_clingo_backend_add_atom, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 363), (void *)_cffi_d_clingo_backend_add_atom },
-  { "clingo_backend_assume", (void *)_cffi_f_clingo_backend_assume, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 309), (void *)_cffi_d_clingo_backend_assume },
-  { "clingo_backend_begin", (void *)_cffi_f_clingo_backend_begin, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 258), (void *)_cffi_d_clingo_backend_begin },
-  { "clingo_backend_end", (void *)_cffi_f_clingo_backend_end, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 258), (void *)_cffi_d_clingo_backend_end },
-  { "clingo_backend_external", (void *)_cffi_f_clingo_backend_external, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 333), (void *)_cffi_d_clingo_backend_external },
-  { "clingo_backend_heuristic", (void *)_cffi_f_clingo_backend_heuristic, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 338), (void *)_cffi_d_clingo_backend_heuristic },
-  { "clingo_backend_minimize", (void *)_cffi_f_clingo_backend_minimize, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 314), (void *)_cffi_d_clingo_backend_minimize },
-  { "clingo_backend_project", (void *)_cffi_f_clingo_backend_project, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 320), (void *)_cffi_d_clingo_backend_project },
-  { "clingo_backend_rule", (void *)_cffi_f_clingo_backend_rule, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 261), (void *)_cffi_d_clingo_backend_rule },
-  { "clingo_backend_theory_atom", (void *)_cffi_f_clingo_backend_theory_atom, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 347), (void *)_cffi_d_clingo_backend_theory_atom },
-  { "clingo_backend_theory_atom_with_guard", (void *)_cffi_f_clingo_backend_theory_atom_with_guard, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 354), (void *)_cffi_d_clingo_backend_theory_atom_with_guard },
-  { "clingo_backend_theory_element", (void *)_cffi_f_clingo_backend_theory_element, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 325), (void *)_cffi_d_clingo_backend_theory_element },
-  { "clingo_backend_theory_term_function", (void *)_cffi_f_clingo_backend_theory_term_function, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 283), (void *)_cffi_d_clingo_backend_theory_term_function },
-  { "clingo_backend_theory_term_number", (void *)_cffi_f_clingo_backend_theory_term_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 297), (void *)_cffi_d_clingo_backend_theory_term_number },
-  { "clingo_backend_theory_term_sequence", (void *)_cffi_f_clingo_backend_theory_term_sequence, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 302), (void *)_cffi_d_clingo_backend_theory_term_sequence },
-  { "clingo_backend_theory_term_string", (void *)_cffi_f_clingo_backend_theory_term_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 278), (void *)_cffi_d_clingo_backend_theory_term_string },
-  { "clingo_backend_theory_term_symbol", (void *)_cffi_f_clingo_backend_theory_term_symbol, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 368), (void *)_cffi_d_clingo_backend_theory_term_symbol },
-  { "clingo_backend_weight_rule", (void *)_cffi_f_clingo_backend_weight_rule, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 269), (void *)_cffi_d_clingo_backend_weight_rule },
+  { "clingo_backend_acyc_edge", (void *)_cffi_f_clingo_backend_acyc_edge, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 292), (void *)_cffi_d_clingo_backend_acyc_edge },
+  { "clingo_backend_add_atom", (void *)_cffi_f_clingo_backend_add_atom, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 365), (void *)_cffi_d_clingo_backend_add_atom },
+  { "clingo_backend_assume", (void *)_cffi_f_clingo_backend_assume, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 311), (void *)_cffi_d_clingo_backend_assume },
+  { "clingo_backend_begin", (void *)_cffi_f_clingo_backend_begin, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 260), (void *)_cffi_d_clingo_backend_begin },
+  { "clingo_backend_end", (void *)_cffi_f_clingo_backend_end, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 260), (void *)_cffi_d_clingo_backend_end },
+  { "clingo_backend_external", (void *)_cffi_f_clingo_backend_external, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 335), (void *)_cffi_d_clingo_backend_external },
+  { "clingo_backend_heuristic", (void *)_cffi_f_clingo_backend_heuristic, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 340), (void *)_cffi_d_clingo_backend_heuristic },
+  { "clingo_backend_minimize", (void *)_cffi_f_clingo_backend_minimize, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 316), (void *)_cffi_d_clingo_backend_minimize },
+  { "clingo_backend_project", (void *)_cffi_f_clingo_backend_project, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 322), (void *)_cffi_d_clingo_backend_project },
+  { "clingo_backend_rule", (void *)_cffi_f_clingo_backend_rule, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 263), (void *)_cffi_d_clingo_backend_rule },
+  { "clingo_backend_theory_atom", (void *)_cffi_f_clingo_backend_theory_atom, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 349), (void *)_cffi_d_clingo_backend_theory_atom },
+  { "clingo_backend_theory_atom_with_guard", (void *)_cffi_f_clingo_backend_theory_atom_with_guard, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 356), (void *)_cffi_d_clingo_backend_theory_atom_with_guard },
+  { "clingo_backend_theory_element", (void *)_cffi_f_clingo_backend_theory_element, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 327), (void *)_cffi_d_clingo_backend_theory_element },
+  { "clingo_backend_theory_term_function", (void *)_cffi_f_clingo_backend_theory_term_function, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 285), (void *)_cffi_d_clingo_backend_theory_term_function },
+  { "clingo_backend_theory_term_number", (void *)_cffi_f_clingo_backend_theory_term_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 299), (void *)_cffi_d_clingo_backend_theory_term_number },
+  { "clingo_backend_theory_term_sequence", (void *)_cffi_f_clingo_backend_theory_term_sequence, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 304), (void *)_cffi_d_clingo_backend_theory_term_sequence },
+  { "clingo_backend_theory_term_string", (void *)_cffi_f_clingo_backend_theory_term_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 280), (void *)_cffi_d_clingo_backend_theory_term_string },
+  { "clingo_backend_theory_term_symbol", (void *)_cffi_f_clingo_backend_theory_term_symbol, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 370), (void *)_cffi_d_clingo_backend_theory_term_symbol },
+  { "clingo_backend_weight_rule", (void *)_cffi_f_clingo_backend_weight_rule, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 271), (void *)_cffi_d_clingo_backend_weight_rule },
   { "clingo_clause_type_learnt", (void *)_cffi_const_clingo_clause_type_learnt, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_clause_type_static", (void *)_cffi_const_clingo_clause_type_static, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_clause_type_volatile", (void *)_cffi_const_clingo_clause_type_volatile, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_clause_type_volatile_static", (void *)_cffi_const_clingo_clause_type_volatile_static, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_configuration_array_at", (void *)_cffi_f_clingo_configuration_array_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 421), (void *)_cffi_d_clingo_configuration_array_at },
-  { "clingo_configuration_array_size", (void *)_cffi_f_clingo_configuration_array_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 410), (void *)_cffi_d_clingo_configuration_array_size },
-  { "clingo_configuration_description", (void *)_cffi_f_clingo_configuration_description, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 393), (void *)_cffi_d_clingo_configuration_description },
-  { "clingo_configuration_map_at", (void *)_cffi_f_clingo_configuration_map_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 404), (void *)_cffi_d_clingo_configuration_map_at },
-  { "clingo_configuration_map_has_subkey", (void *)_cffi_f_clingo_configuration_map_has_subkey, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 398), (void *)_cffi_d_clingo_configuration_map_has_subkey },
-  { "clingo_configuration_map_size", (void *)_cffi_f_clingo_configuration_map_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 410), (void *)_cffi_d_clingo_configuration_map_size },
-  { "clingo_configuration_map_subkey_name", (void *)_cffi_f_clingo_configuration_map_subkey_name, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 415), (void *)_cffi_d_clingo_configuration_map_subkey_name },
-  { "clingo_configuration_root", (void *)_cffi_f_clingo_configuration_root, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 378), (void *)_cffi_d_clingo_configuration_root },
-  { "clingo_configuration_type", (void *)_cffi_f_clingo_configuration_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 427), (void *)_cffi_d_clingo_configuration_type },
+  { "clingo_configuration_array_at", (void *)_cffi_f_clingo_configuration_array_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 423), (void *)_cffi_d_clingo_configuration_array_at },
+  { "clingo_configuration_array_size", (void *)_cffi_f_clingo_configuration_array_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 412), (void *)_cffi_d_clingo_configuration_array_size },
+  { "clingo_configuration_description", (void *)_cffi_f_clingo_configuration_description, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 395), (void *)_cffi_d_clingo_configuration_description },
+  { "clingo_configuration_map_at", (void *)_cffi_f_clingo_configuration_map_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 406), (void *)_cffi_d_clingo_configuration_map_at },
+  { "clingo_configuration_map_has_subkey", (void *)_cffi_f_clingo_configuration_map_has_subkey, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 400), (void *)_cffi_d_clingo_configuration_map_has_subkey },
+  { "clingo_configuration_map_size", (void *)_cffi_f_clingo_configuration_map_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 412), (void *)_cffi_d_clingo_configuration_map_size },
+  { "clingo_configuration_map_subkey_name", (void *)_cffi_f_clingo_configuration_map_subkey_name, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 417), (void *)_cffi_d_clingo_configuration_map_subkey_name },
+  { "clingo_configuration_root", (void *)_cffi_f_clingo_configuration_root, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 380), (void *)_cffi_d_clingo_configuration_root },
+  { "clingo_configuration_type", (void *)_cffi_f_clingo_configuration_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 429), (void *)_cffi_d_clingo_configuration_type },
   { "clingo_configuration_type_array", (void *)_cffi_const_clingo_configuration_type_array, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_configuration_type_map", (void *)_cffi_const_clingo_configuration_type_map, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_configuration_type_value", (void *)_cffi_const_clingo_configuration_type_value, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_configuration_value_get", (void *)_cffi_f_clingo_configuration_value_get, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 387), (void *)_cffi_d_clingo_configuration_value_get },
-  { "clingo_configuration_value_get_size", (void *)_cffi_f_clingo_configuration_value_get_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 410), (void *)_cffi_d_clingo_configuration_value_get_size },
-  { "clingo_configuration_value_is_assigned", (void *)_cffi_f_clingo_configuration_value_is_assigned, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 382), (void *)_cffi_d_clingo_configuration_value_is_assigned },
-  { "clingo_configuration_value_set", (void *)_cffi_f_clingo_configuration_value_set, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 373), (void *)_cffi_d_clingo_configuration_value_set },
-  { "clingo_control_add", (void *)_cffi_f_clingo_control_add, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 449), (void *)_cffi_d_clingo_control_add },
-  { "clingo_control_assign_external", (void *)_cffi_f_clingo_control_assign_external, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 491), (void *)_cffi_d_clingo_control_assign_external },
-  { "clingo_control_backend", (void *)_cffi_f_clingo_control_backend, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 456), (void *)_cffi_d_clingo_control_backend },
-  { "clingo_control_clasp_facade", (void *)_cffi_f_clingo_control_clasp_facade, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 505), (void *)_cffi_d_clingo_control_clasp_facade },
-  { "clingo_control_cleanup", (void *)_cffi_f_clingo_control_cleanup, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 432), (void *)_cffi_d_clingo_control_cleanup },
-  { "clingo_control_configuration", (void *)_cffi_f_clingo_control_configuration, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 460), (void *)_cffi_d_clingo_control_configuration },
-  { "clingo_control_free", (void *)_cffi_f_clingo_control_free, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1155), (void *)_cffi_d_clingo_control_free },
-  { "clingo_control_get_const", (void *)_cffi_f_clingo_control_get_const, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 521), (void *)_cffi_d_clingo_control_get_const },
-  { "clingo_control_get_enable_cleanup", (void *)_cffi_f_clingo_control_get_enable_cleanup, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 432), (void *)_cffi_d_clingo_control_get_enable_cleanup },
-  { "clingo_control_get_enable_enumeration_assumption", (void *)_cffi_f_clingo_control_get_enable_enumeration_assumption, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 432), (void *)_cffi_d_clingo_control_get_enable_enumeration_assumption },
-  { "clingo_control_ground", (void *)_cffi_f_clingo_control_ground, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 470), (void *)_cffi_d_clingo_control_ground },
-  { "clingo_control_has_const", (void *)_cffi_f_clingo_control_has_const, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 516), (void *)_cffi_d_clingo_control_has_const },
-  { "clingo_control_interrupt", (void *)_cffi_f_clingo_control_interrupt, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1155), (void *)_cffi_d_clingo_control_interrupt },
-  { "clingo_control_is_conflicting", (void *)_cffi_f_clingo_control_is_conflicting, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 513), (void *)_cffi_d_clingo_control_is_conflicting },
-  { "clingo_control_load", (void *)_cffi_f_clingo_control_load, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 445), (void *)_cffi_d_clingo_control_load },
-  { "clingo_control_new", (void *)_cffi_f_clingo_control_new, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 30), (void *)_cffi_d_clingo_control_new },
-  { "clingo_control_program_builder", (void *)_cffi_f_clingo_control_program_builder, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 477), (void *)_cffi_d_clingo_control_program_builder },
-  { "clingo_control_register_observer", (void *)_cffi_f_clingo_control_register_observer, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 464), (void *)_cffi_d_clingo_control_register_observer },
-  { "clingo_control_register_propagator", (void *)_cffi_f_clingo_control_register_propagator, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 481), (void *)_cffi_d_clingo_control_register_propagator },
-  { "clingo_control_release_external", (void *)_cffi_f_clingo_control_release_external, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 487), (void *)_cffi_d_clingo_control_release_external },
-  { "clingo_control_set_enable_cleanup", (void *)_cffi_f_clingo_control_set_enable_cleanup, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 435), (void *)_cffi_d_clingo_control_set_enable_cleanup },
-  { "clingo_control_set_enable_enumeration_assumption", (void *)_cffi_f_clingo_control_set_enable_enumeration_assumption, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 435), (void *)_cffi_d_clingo_control_set_enable_enumeration_assumption },
-  { "clingo_control_solve", (void *)_cffi_f_clingo_control_solve, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 496), (void *)_cffi_d_clingo_control_solve },
-  { "clingo_control_statistics", (void *)_cffi_f_clingo_control_statistics, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 526), (void *)_cffi_d_clingo_control_statistics },
-  { "clingo_control_symbolic_atoms", (void *)_cffi_f_clingo_control_symbolic_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 530), (void *)_cffi_d_clingo_control_symbolic_atoms },
-  { "clingo_control_theory_atoms", (void *)_cffi_f_clingo_control_theory_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 534), (void *)_cffi_d_clingo_control_theory_atoms },
+  { "clingo_configuration_value_get", (void *)_cffi_f_clingo_configuration_value_get, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 389), (void *)_cffi_d_clingo_configuration_value_get },
+  { "clingo_configuration_value_get_size", (void *)_cffi_f_clingo_configuration_value_get_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 412), (void *)_cffi_d_clingo_configuration_value_get_size },
+  { "clingo_configuration_value_is_assigned", (void *)_cffi_f_clingo_configuration_value_is_assigned, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 384), (void *)_cffi_d_clingo_configuration_value_is_assigned },
+  { "clingo_configuration_value_set", (void *)_cffi_f_clingo_configuration_value_set, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 375), (void *)_cffi_d_clingo_configuration_value_set },
+  { "clingo_control_add", (void *)_cffi_f_clingo_control_add, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 451), (void *)_cffi_d_clingo_control_add },
+  { "clingo_control_assign_external", (void *)_cffi_f_clingo_control_assign_external, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 493), (void *)_cffi_d_clingo_control_assign_external },
+  { "clingo_control_backend", (void *)_cffi_f_clingo_control_backend, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 458), (void *)_cffi_d_clingo_control_backend },
+  { "clingo_control_clasp_facade", (void *)_cffi_f_clingo_control_clasp_facade, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 507), (void *)_cffi_d_clingo_control_clasp_facade },
+  { "clingo_control_cleanup", (void *)_cffi_f_clingo_control_cleanup, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 434), (void *)_cffi_d_clingo_control_cleanup },
+  { "clingo_control_configuration", (void *)_cffi_f_clingo_control_configuration, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 462), (void *)_cffi_d_clingo_control_configuration },
+  { "clingo_control_free", (void *)_cffi_f_clingo_control_free, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1157), (void *)_cffi_d_clingo_control_free },
+  { "clingo_control_get_const", (void *)_cffi_f_clingo_control_get_const, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 523), (void *)_cffi_d_clingo_control_get_const },
+  { "clingo_control_get_enable_cleanup", (void *)_cffi_f_clingo_control_get_enable_cleanup, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 434), (void *)_cffi_d_clingo_control_get_enable_cleanup },
+  { "clingo_control_get_enable_enumeration_assumption", (void *)_cffi_f_clingo_control_get_enable_enumeration_assumption, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 434), (void *)_cffi_d_clingo_control_get_enable_enumeration_assumption },
+  { "clingo_control_ground", (void *)_cffi_f_clingo_control_ground, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 472), (void *)_cffi_d_clingo_control_ground },
+  { "clingo_control_has_const", (void *)_cffi_f_clingo_control_has_const, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 518), (void *)_cffi_d_clingo_control_has_const },
+  { "clingo_control_interrupt", (void *)_cffi_f_clingo_control_interrupt, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1157), (void *)_cffi_d_clingo_control_interrupt },
+  { "clingo_control_is_conflicting", (void *)_cffi_f_clingo_control_is_conflicting, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 515), (void *)_cffi_d_clingo_control_is_conflicting },
+  { "clingo_control_load", (void *)_cffi_f_clingo_control_load, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 447), (void *)_cffi_d_clingo_control_load },
+  { "clingo_control_new", (void *)_cffi_f_clingo_control_new, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 31), (void *)_cffi_d_clingo_control_new },
+  { "clingo_control_register_observer", (void *)_cffi_f_clingo_control_register_observer, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 466), (void *)_cffi_d_clingo_control_register_observer },
+  { "clingo_control_register_propagator", (void *)_cffi_f_clingo_control_register_propagator, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 483), (void *)_cffi_d_clingo_control_register_propagator },
+  { "clingo_control_release_external", (void *)_cffi_f_clingo_control_release_external, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 489), (void *)_cffi_d_clingo_control_release_external },
+  { "clingo_control_set_enable_cleanup", (void *)_cffi_f_clingo_control_set_enable_cleanup, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 437), (void *)_cffi_d_clingo_control_set_enable_cleanup },
+  { "clingo_control_set_enable_enumeration_assumption", (void *)_cffi_f_clingo_control_set_enable_enumeration_assumption, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 437), (void *)_cffi_d_clingo_control_set_enable_enumeration_assumption },
+  { "clingo_control_solve", (void *)_cffi_f_clingo_control_solve, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 498), (void *)_cffi_d_clingo_control_solve },
+  { "clingo_control_statistics", (void *)_cffi_f_clingo_control_statistics, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 528), (void *)_cffi_d_clingo_control_statistics },
+  { "clingo_control_symbolic_atoms", (void *)_cffi_f_clingo_control_symbolic_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 532), (void *)_cffi_d_clingo_control_symbolic_atoms },
+  { "clingo_control_theory_atoms", (void *)_cffi_f_clingo_control_theory_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 536), (void *)_cffi_d_clingo_control_theory_atoms },
   { "clingo_error_bad_alloc", (void *)_cffi_const_clingo_error_bad_alloc, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_error_code", (void *)_cffi_f_clingo_error_code, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_N, 1129), (void *)_cffi_d_clingo_error_code },
+  { "clingo_error_code", (void *)_cffi_f_clingo_error_code, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_N, 1131), (void *)_cffi_d_clingo_error_code },
   { "clingo_error_logic", (void *)_cffi_const_clingo_error_logic, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_error_message", (void *)_cffi_f_clingo_error_message, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_N, 1109), (void *)_cffi_d_clingo_error_message },
+  { "clingo_error_message", (void *)_cffi_f_clingo_error_message, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_N, 1111), (void *)_cffi_d_clingo_error_message },
   { "clingo_error_runtime", (void *)_cffi_const_clingo_error_runtime, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_error_string", (void *)_cffi_f_clingo_error_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1100), (void *)_cffi_d_clingo_error_string },
+  { "clingo_error_string", (void *)_cffi_f_clingo_error_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1102), (void *)_cffi_d_clingo_error_string },
   { "clingo_error_success", (void *)_cffi_const_clingo_error_success, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_error_unknown", (void *)_cffi_const_clingo_error_unknown, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_external_type_false", (void *)_cffi_const_clingo_external_type_false, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
@@ -18825,164 +18887,165 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_heuristic_type_level", (void *)_cffi_const_clingo_heuristic_type_level, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_heuristic_type_sign", (void *)_cffi_const_clingo_heuristic_type_sign, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_heuristic_type_true", (void *)_cffi_const_clingo_heuristic_type_true, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_main", (void *)_cffi_f_clingo_main, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1117), (void *)_cffi_d_clingo_main },
-  { "clingo_model_contains", (void *)_cffi_f_clingo_model_contains, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 620), (void *)_cffi_d_clingo_model_contains },
-  { "clingo_model_context", (void *)_cffi_f_clingo_model_context, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 590), (void *)_cffi_d_clingo_model_context },
-  { "clingo_model_cost", (void *)_cffi_f_clingo_model_cost, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 603), (void *)_cffi_d_clingo_model_cost },
-  { "clingo_model_cost_size", (void *)_cffi_f_clingo_model_cost_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 608), (void *)_cffi_d_clingo_model_cost_size },
-  { "clingo_model_extend", (void *)_cffi_f_clingo_model_extend, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 575), (void *)_cffi_d_clingo_model_extend },
-  { "clingo_model_is_true", (void *)_cffi_f_clingo_model_is_true, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 598), (void *)_cffi_d_clingo_model_is_true },
-  { "clingo_model_number", (void *)_cffi_f_clingo_model_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 616), (void *)_cffi_d_clingo_model_number },
-  { "clingo_model_optimality_proven", (void *)_cffi_f_clingo_model_optimality_proven, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 580), (void *)_cffi_d_clingo_model_optimality_proven },
-  { "clingo_model_symbols", (void *)_cffi_f_clingo_model_symbols, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 630), (void *)_cffi_d_clingo_model_symbols },
-  { "clingo_model_symbols_size", (void *)_cffi_f_clingo_model_symbols_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 625), (void *)_cffi_d_clingo_model_symbols_size },
-  { "clingo_model_thread_id", (void *)_cffi_f_clingo_model_thread_id, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 612), (void *)_cffi_d_clingo_model_thread_id },
-  { "clingo_model_type", (void *)_cffi_f_clingo_model_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 594), (void *)_cffi_d_clingo_model_type },
+  { "clingo_main", (void *)_cffi_f_clingo_main, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1119), (void *)_cffi_d_clingo_main },
+  { "clingo_model_contains", (void *)_cffi_f_clingo_model_contains, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 622), (void *)_cffi_d_clingo_model_contains },
+  { "clingo_model_context", (void *)_cffi_f_clingo_model_context, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 592), (void *)_cffi_d_clingo_model_context },
+  { "clingo_model_cost", (void *)_cffi_f_clingo_model_cost, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 605), (void *)_cffi_d_clingo_model_cost },
+  { "clingo_model_cost_size", (void *)_cffi_f_clingo_model_cost_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 610), (void *)_cffi_d_clingo_model_cost_size },
+  { "clingo_model_extend", (void *)_cffi_f_clingo_model_extend, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 577), (void *)_cffi_d_clingo_model_extend },
+  { "clingo_model_is_true", (void *)_cffi_f_clingo_model_is_true, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 600), (void *)_cffi_d_clingo_model_is_true },
+  { "clingo_model_number", (void *)_cffi_f_clingo_model_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 618), (void *)_cffi_d_clingo_model_number },
+  { "clingo_model_optimality_proven", (void *)_cffi_f_clingo_model_optimality_proven, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 582), (void *)_cffi_d_clingo_model_optimality_proven },
+  { "clingo_model_symbols", (void *)_cffi_f_clingo_model_symbols, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 632), (void *)_cffi_d_clingo_model_symbols },
+  { "clingo_model_symbols_size", (void *)_cffi_f_clingo_model_symbols_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 627), (void *)_cffi_d_clingo_model_symbols_size },
+  { "clingo_model_thread_id", (void *)_cffi_f_clingo_model_thread_id, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 614), (void *)_cffi_d_clingo_model_thread_id },
+  { "clingo_model_type", (void *)_cffi_f_clingo_model_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 596), (void *)_cffi_d_clingo_model_type },
   { "clingo_model_type_brave_consequences", (void *)_cffi_const_clingo_model_type_brave_consequences, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_model_type_cautious_consequences", (void *)_cffi_const_clingo_model_type_cautious_consequences, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_model_type_stable_model", (void *)_cffi_const_clingo_model_type_stable_model, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_options_add", (void *)_cffi_f_clingo_options_add, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 643), (void *)_cffi_d_clingo_options_add },
-  { "clingo_options_add_flag", (void *)_cffi_f_clingo_options_add_flag, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 636), (void *)_cffi_d_clingo_options_add_flag },
-  { "clingo_parse_term", (void *)_cffi_f_clingo_parse_term, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 86), (void *)_cffi_d_clingo_parse_term },
-  { "clingo_program_builder_add", (void *)_cffi_f_clingo_program_builder_add, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 660), (void *)_cffi_d_clingo_program_builder_add },
-  { "clingo_program_builder_begin", (void *)_cffi_f_clingo_program_builder_begin, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 657), (void *)_cffi_d_clingo_program_builder_begin },
-  { "clingo_program_builder_end", (void *)_cffi_f_clingo_program_builder_end, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 657), (void *)_cffi_d_clingo_program_builder_end },
-  { "clingo_propagate_control_add_clause", (void *)_cffi_f_clingo_propagate_control_add_clause, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 672), (void *)_cffi_d_clingo_propagate_control_add_clause },
-  { "clingo_propagate_control_add_literal", (void *)_cffi_f_clingo_propagate_control_add_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 668), (void *)_cffi_d_clingo_propagate_control_add_literal },
-  { "clingo_propagate_control_add_watch", (void *)_cffi_f_clingo_propagate_control_add_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 685), (void *)_cffi_d_clingo_propagate_control_add_watch },
-  { "clingo_propagate_control_assignment", (void *)_cffi_f_clingo_propagate_control_assignment, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1111), (void *)_cffi_d_clingo_propagate_control_assignment },
-  { "clingo_propagate_control_has_watch", (void *)_cffi_f_clingo_propagate_control_has_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 693), (void *)_cffi_d_clingo_propagate_control_has_watch },
-  { "clingo_propagate_control_propagate", (void *)_cffi_f_clingo_propagate_control_propagate, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 664), (void *)_cffi_d_clingo_propagate_control_propagate },
-  { "clingo_propagate_control_remove_watch", (void *)_cffi_f_clingo_propagate_control_remove_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1158), (void *)_cffi_d_clingo_propagate_control_remove_watch },
-  { "clingo_propagate_control_thread_id", (void *)_cffi_f_clingo_propagate_control_thread_id, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1143), (void *)_cffi_d_clingo_propagate_control_thread_id },
-  { "clingo_propagate_init_add_clause", (void *)_cffi_f_clingo_propagate_init_add_clause, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 706), (void *)_cffi_d_clingo_propagate_init_add_clause },
-  { "clingo_propagate_init_add_literal", (void *)_cffi_f_clingo_propagate_init_add_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 701), (void *)_cffi_d_clingo_propagate_init_add_literal },
-  { "clingo_propagate_init_add_minimize", (void *)_cffi_f_clingo_propagate_init_add_minimize, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 726), (void *)_cffi_d_clingo_propagate_init_add_minimize },
-  { "clingo_propagate_init_add_watch", (void *)_cffi_f_clingo_propagate_init_add_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 712), (void *)_cffi_d_clingo_propagate_init_add_watch },
-  { "clingo_propagate_init_add_watch_to_thread", (void *)_cffi_f_clingo_propagate_init_add_watch_to_thread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 732), (void *)_cffi_d_clingo_propagate_init_add_watch_to_thread },
-  { "clingo_propagate_init_add_weight_constraint", (void *)_cffi_f_clingo_propagate_init_add_weight_constraint, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 716), (void *)_cffi_d_clingo_propagate_init_add_weight_constraint },
-  { "clingo_propagate_init_assignment", (void *)_cffi_f_clingo_propagate_init_assignment, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1114), (void *)_cffi_d_clingo_propagate_init_assignment },
-  { "clingo_propagate_init_freeze_literal", (void *)_cffi_f_clingo_propagate_init_freeze_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 712), (void *)_cffi_d_clingo_propagate_init_freeze_literal },
-  { "clingo_propagate_init_get_check_mode", (void *)_cffi_f_clingo_propagate_init_get_check_mode, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1123), (void *)_cffi_d_clingo_propagate_init_get_check_mode },
-  { "clingo_propagate_init_number_of_threads", (void *)_cffi_f_clingo_propagate_init_number_of_threads, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1123), (void *)_cffi_d_clingo_propagate_init_number_of_threads },
-  { "clingo_propagate_init_propagate", (void *)_cffi_f_clingo_propagate_init_propagate, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 697), (void *)_cffi_d_clingo_propagate_init_propagate },
-  { "clingo_propagate_init_remove_watch", (void *)_cffi_f_clingo_propagate_init_remove_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 712), (void *)_cffi_d_clingo_propagate_init_remove_watch },
-  { "clingo_propagate_init_remove_watch_from_thread", (void *)_cffi_f_clingo_propagate_init_remove_watch_from_thread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 732), (void *)_cffi_d_clingo_propagate_init_remove_watch_from_thread },
-  { "clingo_propagate_init_set_check_mode", (void *)_cffi_f_clingo_propagate_init_set_check_mode, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1168), (void *)_cffi_d_clingo_propagate_init_set_check_mode },
-  { "clingo_propagate_init_solver_literal", (void *)_cffi_f_clingo_propagate_init_solver_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 749), (void *)_cffi_d_clingo_propagate_init_solver_literal },
-  { "clingo_propagate_init_symbolic_atoms", (void *)_cffi_f_clingo_propagate_init_symbolic_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 741), (void *)_cffi_d_clingo_propagate_init_symbolic_atoms },
-  { "clingo_propagate_init_theory_atoms", (void *)_cffi_f_clingo_propagate_init_theory_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 745), (void *)_cffi_d_clingo_propagate_init_theory_atoms },
+  { "clingo_options_add", (void *)_cffi_f_clingo_options_add, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 645), (void *)_cffi_d_clingo_options_add },
+  { "clingo_options_add_flag", (void *)_cffi_f_clingo_options_add_flag, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 638), (void *)_cffi_d_clingo_options_add_flag },
+  { "clingo_parse_term", (void *)_cffi_f_clingo_parse_term, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 88), (void *)_cffi_d_clingo_parse_term },
+  { "clingo_program_builder_add", (void *)_cffi_f_clingo_program_builder_add, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 662), (void *)_cffi_d_clingo_program_builder_add },
+  { "clingo_program_builder_begin", (void *)_cffi_f_clingo_program_builder_begin, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 659), (void *)_cffi_d_clingo_program_builder_begin },
+  { "clingo_program_builder_end", (void *)_cffi_f_clingo_program_builder_end, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 659), (void *)_cffi_d_clingo_program_builder_end },
+  { "clingo_program_builder_init", (void *)_cffi_f_clingo_program_builder_init, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 479), (void *)_cffi_d_clingo_program_builder_init },
+  { "clingo_propagate_control_add_clause", (void *)_cffi_f_clingo_propagate_control_add_clause, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 674), (void *)_cffi_d_clingo_propagate_control_add_clause },
+  { "clingo_propagate_control_add_literal", (void *)_cffi_f_clingo_propagate_control_add_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 670), (void *)_cffi_d_clingo_propagate_control_add_literal },
+  { "clingo_propagate_control_add_watch", (void *)_cffi_f_clingo_propagate_control_add_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 687), (void *)_cffi_d_clingo_propagate_control_add_watch },
+  { "clingo_propagate_control_assignment", (void *)_cffi_f_clingo_propagate_control_assignment, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1113), (void *)_cffi_d_clingo_propagate_control_assignment },
+  { "clingo_propagate_control_has_watch", (void *)_cffi_f_clingo_propagate_control_has_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 695), (void *)_cffi_d_clingo_propagate_control_has_watch },
+  { "clingo_propagate_control_propagate", (void *)_cffi_f_clingo_propagate_control_propagate, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 666), (void *)_cffi_d_clingo_propagate_control_propagate },
+  { "clingo_propagate_control_remove_watch", (void *)_cffi_f_clingo_propagate_control_remove_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1160), (void *)_cffi_d_clingo_propagate_control_remove_watch },
+  { "clingo_propagate_control_thread_id", (void *)_cffi_f_clingo_propagate_control_thread_id, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1145), (void *)_cffi_d_clingo_propagate_control_thread_id },
+  { "clingo_propagate_init_add_clause", (void *)_cffi_f_clingo_propagate_init_add_clause, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 708), (void *)_cffi_d_clingo_propagate_init_add_clause },
+  { "clingo_propagate_init_add_literal", (void *)_cffi_f_clingo_propagate_init_add_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 703), (void *)_cffi_d_clingo_propagate_init_add_literal },
+  { "clingo_propagate_init_add_minimize", (void *)_cffi_f_clingo_propagate_init_add_minimize, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 728), (void *)_cffi_d_clingo_propagate_init_add_minimize },
+  { "clingo_propagate_init_add_watch", (void *)_cffi_f_clingo_propagate_init_add_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 714), (void *)_cffi_d_clingo_propagate_init_add_watch },
+  { "clingo_propagate_init_add_watch_to_thread", (void *)_cffi_f_clingo_propagate_init_add_watch_to_thread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 734), (void *)_cffi_d_clingo_propagate_init_add_watch_to_thread },
+  { "clingo_propagate_init_add_weight_constraint", (void *)_cffi_f_clingo_propagate_init_add_weight_constraint, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 718), (void *)_cffi_d_clingo_propagate_init_add_weight_constraint },
+  { "clingo_propagate_init_assignment", (void *)_cffi_f_clingo_propagate_init_assignment, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1116), (void *)_cffi_d_clingo_propagate_init_assignment },
+  { "clingo_propagate_init_freeze_literal", (void *)_cffi_f_clingo_propagate_init_freeze_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 714), (void *)_cffi_d_clingo_propagate_init_freeze_literal },
+  { "clingo_propagate_init_get_check_mode", (void *)_cffi_f_clingo_propagate_init_get_check_mode, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1125), (void *)_cffi_d_clingo_propagate_init_get_check_mode },
+  { "clingo_propagate_init_number_of_threads", (void *)_cffi_f_clingo_propagate_init_number_of_threads, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1125), (void *)_cffi_d_clingo_propagate_init_number_of_threads },
+  { "clingo_propagate_init_propagate", (void *)_cffi_f_clingo_propagate_init_propagate, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 699), (void *)_cffi_d_clingo_propagate_init_propagate },
+  { "clingo_propagate_init_remove_watch", (void *)_cffi_f_clingo_propagate_init_remove_watch, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 714), (void *)_cffi_d_clingo_propagate_init_remove_watch },
+  { "clingo_propagate_init_remove_watch_from_thread", (void *)_cffi_f_clingo_propagate_init_remove_watch_from_thread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 734), (void *)_cffi_d_clingo_propagate_init_remove_watch_from_thread },
+  { "clingo_propagate_init_set_check_mode", (void *)_cffi_f_clingo_propagate_init_set_check_mode, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1170), (void *)_cffi_d_clingo_propagate_init_set_check_mode },
+  { "clingo_propagate_init_solver_literal", (void *)_cffi_f_clingo_propagate_init_solver_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 751), (void *)_cffi_d_clingo_propagate_init_solver_literal },
+  { "clingo_propagate_init_symbolic_atoms", (void *)_cffi_f_clingo_propagate_init_symbolic_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 743), (void *)_cffi_d_clingo_propagate_init_symbolic_atoms },
+  { "clingo_propagate_init_theory_atoms", (void *)_cffi_f_clingo_propagate_init_theory_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 747), (void *)_cffi_d_clingo_propagate_init_theory_atoms },
   { "clingo_propagator_check_mode_both", (void *)_cffi_const_clingo_propagator_check_mode_both, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_propagator_check_mode_fixpoint", (void *)_cffi_const_clingo_propagator_check_mode_fixpoint, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_propagator_check_mode_none", (void *)_cffi_const_clingo_propagator_check_mode_none, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_propagator_check_mode_total", (void *)_cffi_const_clingo_propagator_check_mode_total, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_register_script", (void *)_cffi_f_clingo_register_script, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 60), (void *)_cffi_d_clingo_register_script },
-  { "clingo_script_version", (void *)_cffi_f_clingo_script_version, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1097), (void *)_cffi_d_clingo_script_version },
-  { "clingo_set_error", (void *)_cffi_f_clingo_set_error, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1182), (void *)_cffi_d_clingo_set_error },
+  { "clingo_register_script", (void *)_cffi_f_clingo_register_script, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 62), (void *)_cffi_d_clingo_register_script },
+  { "clingo_script_version", (void *)_cffi_f_clingo_script_version, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1099), (void *)_cffi_d_clingo_script_version },
+  { "clingo_set_error", (void *)_cffi_f_clingo_set_error, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1184), (void *)_cffi_d_clingo_set_error },
   { "clingo_show_type_all", (void *)_cffi_const_clingo_show_type_all, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_show_type_atoms", (void *)_cffi_const_clingo_show_type_atoms, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_show_type_complement", (void *)_cffi_const_clingo_show_type_complement, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_show_type_shown", (void *)_cffi_const_clingo_show_type_shown, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_show_type_terms", (void *)_cffi_const_clingo_show_type_terms, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_show_type_theory", (void *)_cffi_const_clingo_show_type_theory, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_signature_arity", (void *)_cffi_f_clingo_signature_arity, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1146), (void *)_cffi_d_clingo_signature_arity },
-  { "clingo_signature_create", (void *)_cffi_f_clingo_signature_create, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 65), (void *)_cffi_d_clingo_signature_create },
-  { "clingo_signature_hash", (void *)_cffi_f_clingo_signature_hash, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1137), (void *)_cffi_d_clingo_signature_hash },
-  { "clingo_signature_is_equal_to", (void *)_cffi_f_clingo_signature_is_equal_to, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1066), (void *)_cffi_d_clingo_signature_is_equal_to },
-  { "clingo_signature_is_less_than", (void *)_cffi_f_clingo_signature_is_less_than, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1066), (void *)_cffi_d_clingo_signature_is_less_than },
-  { "clingo_signature_is_negative", (void *)_cffi_f_clingo_signature_is_negative, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1026), (void *)_cffi_d_clingo_signature_is_negative },
-  { "clingo_signature_is_positive", (void *)_cffi_f_clingo_signature_is_positive, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1026), (void *)_cffi_d_clingo_signature_is_positive },
-  { "clingo_signature_name", (void *)_cffi_f_clingo_signature_name, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1103), (void *)_cffi_d_clingo_signature_name },
-  { "clingo_solve_control_add_clause", (void *)_cffi_f_clingo_solve_control_add_clause, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 754), (void *)_cffi_d_clingo_solve_control_add_clause },
-  { "clingo_solve_control_symbolic_atoms", (void *)_cffi_f_clingo_solve_control_symbolic_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 759), (void *)_cffi_d_clingo_solve_control_symbolic_atoms },
+  { "clingo_signature_arity", (void *)_cffi_f_clingo_signature_arity, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1148), (void *)_cffi_d_clingo_signature_arity },
+  { "clingo_signature_create", (void *)_cffi_f_clingo_signature_create, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 67), (void *)_cffi_d_clingo_signature_create },
+  { "clingo_signature_hash", (void *)_cffi_f_clingo_signature_hash, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1139), (void *)_cffi_d_clingo_signature_hash },
+  { "clingo_signature_is_equal_to", (void *)_cffi_f_clingo_signature_is_equal_to, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1068), (void *)_cffi_d_clingo_signature_is_equal_to },
+  { "clingo_signature_is_less_than", (void *)_cffi_f_clingo_signature_is_less_than, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1068), (void *)_cffi_d_clingo_signature_is_less_than },
+  { "clingo_signature_is_negative", (void *)_cffi_f_clingo_signature_is_negative, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1028), (void *)_cffi_d_clingo_signature_is_negative },
+  { "clingo_signature_is_positive", (void *)_cffi_f_clingo_signature_is_positive, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1028), (void *)_cffi_d_clingo_signature_is_positive },
+  { "clingo_signature_name", (void *)_cffi_f_clingo_signature_name, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1105), (void *)_cffi_d_clingo_signature_name },
+  { "clingo_solve_control_add_clause", (void *)_cffi_f_clingo_solve_control_add_clause, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 756), (void *)_cffi_d_clingo_solve_control_add_clause },
+  { "clingo_solve_control_symbolic_atoms", (void *)_cffi_f_clingo_solve_control_symbolic_atoms, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 761), (void *)_cffi_d_clingo_solve_control_symbolic_atoms },
   { "clingo_solve_event_type_finish", (void *)_cffi_const_clingo_solve_event_type_finish, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_event_type_model", (void *)_cffi_const_clingo_solve_event_type_model, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_event_type_statistics", (void *)_cffi_const_clingo_solve_event_type_statistics, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_event_type_unsat", (void *)_cffi_const_clingo_solve_event_type_unsat, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_solve_handle_cancel", (void *)_cffi_f_clingo_solve_handle_cancel, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 763), (void *)_cffi_d_clingo_solve_handle_cancel },
-  { "clingo_solve_handle_close", (void *)_cffi_f_clingo_solve_handle_close, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 763), (void *)_cffi_d_clingo_solve_handle_close },
-  { "clingo_solve_handle_core", (void *)_cffi_f_clingo_solve_handle_core, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 770), (void *)_cffi_d_clingo_solve_handle_core },
-  { "clingo_solve_handle_get", (void *)_cffi_f_clingo_solve_handle_get, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 775), (void *)_cffi_d_clingo_solve_handle_get },
-  { "clingo_solve_handle_model", (void *)_cffi_f_clingo_solve_handle_model, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 766), (void *)_cffi_d_clingo_solve_handle_model },
-  { "clingo_solve_handle_resume", (void *)_cffi_f_clingo_solve_handle_resume, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 763), (void *)_cffi_d_clingo_solve_handle_resume },
-  { "clingo_solve_handle_wait", (void *)_cffi_f_clingo_solve_handle_wait, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1172), (void *)_cffi_d_clingo_solve_handle_wait },
+  { "clingo_solve_handle_cancel", (void *)_cffi_f_clingo_solve_handle_cancel, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 765), (void *)_cffi_d_clingo_solve_handle_cancel },
+  { "clingo_solve_handle_close", (void *)_cffi_f_clingo_solve_handle_close, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 765), (void *)_cffi_d_clingo_solve_handle_close },
+  { "clingo_solve_handle_core", (void *)_cffi_f_clingo_solve_handle_core, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 772), (void *)_cffi_d_clingo_solve_handle_core },
+  { "clingo_solve_handle_get", (void *)_cffi_f_clingo_solve_handle_get, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 777), (void *)_cffi_d_clingo_solve_handle_get },
+  { "clingo_solve_handle_model", (void *)_cffi_f_clingo_solve_handle_model, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 768), (void *)_cffi_d_clingo_solve_handle_model },
+  { "clingo_solve_handle_resume", (void *)_cffi_f_clingo_solve_handle_resume, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 765), (void *)_cffi_d_clingo_solve_handle_resume },
+  { "clingo_solve_handle_wait", (void *)_cffi_f_clingo_solve_handle_wait, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1174), (void *)_cffi_d_clingo_solve_handle_wait },
   { "clingo_solve_mode_async", (void *)_cffi_const_clingo_solve_mode_async, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_mode_yield", (void *)_cffi_const_clingo_solve_mode_yield, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_result_exhausted", (void *)_cffi_const_clingo_solve_result_exhausted, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_result_interrupted", (void *)_cffi_const_clingo_solve_result_interrupted, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_result_satisfiable", (void *)_cffi_const_clingo_solve_result_satisfiable, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_solve_result_unsatisfiable", (void *)_cffi_const_clingo_solve_result_unsatisfiable, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_statistics_array_at", (void *)_cffi_f_clingo_statistics_array_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 834), (void *)_cffi_d_clingo_statistics_array_at },
-  { "clingo_statistics_array_push", (void *)_cffi_f_clingo_statistics_array_push, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 791), (void *)_cffi_d_clingo_statistics_array_push },
-  { "clingo_statistics_array_size", (void *)_cffi_f_clingo_statistics_array_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 823), (void *)_cffi_d_clingo_statistics_array_size },
-  { "clingo_statistics_map_add_subkey", (void *)_cffi_f_clingo_statistics_map_add_subkey, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 779), (void *)_cffi_d_clingo_statistics_map_add_subkey },
-  { "clingo_statistics_map_at", (void *)_cffi_f_clingo_statistics_map_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 807), (void *)_cffi_d_clingo_statistics_map_at },
-  { "clingo_statistics_map_has_subkey", (void *)_cffi_f_clingo_statistics_map_has_subkey, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 801), (void *)_cffi_d_clingo_statistics_map_has_subkey },
-  { "clingo_statistics_map_size", (void *)_cffi_f_clingo_statistics_map_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 823), (void *)_cffi_d_clingo_statistics_map_size },
-  { "clingo_statistics_map_subkey_name", (void *)_cffi_f_clingo_statistics_map_subkey_name, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 828), (void *)_cffi_d_clingo_statistics_map_subkey_name },
-  { "clingo_statistics_root", (void *)_cffi_f_clingo_statistics_root, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 797), (void *)_cffi_d_clingo_statistics_root },
-  { "clingo_statistics_type", (void *)_cffi_f_clingo_statistics_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 818), (void *)_cffi_d_clingo_statistics_type },
+  { "clingo_statistics_array_at", (void *)_cffi_f_clingo_statistics_array_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 836), (void *)_cffi_d_clingo_statistics_array_at },
+  { "clingo_statistics_array_push", (void *)_cffi_f_clingo_statistics_array_push, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 793), (void *)_cffi_d_clingo_statistics_array_push },
+  { "clingo_statistics_array_size", (void *)_cffi_f_clingo_statistics_array_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 825), (void *)_cffi_d_clingo_statistics_array_size },
+  { "clingo_statistics_map_add_subkey", (void *)_cffi_f_clingo_statistics_map_add_subkey, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 781), (void *)_cffi_d_clingo_statistics_map_add_subkey },
+  { "clingo_statistics_map_at", (void *)_cffi_f_clingo_statistics_map_at, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 809), (void *)_cffi_d_clingo_statistics_map_at },
+  { "clingo_statistics_map_has_subkey", (void *)_cffi_f_clingo_statistics_map_has_subkey, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 803), (void *)_cffi_d_clingo_statistics_map_has_subkey },
+  { "clingo_statistics_map_size", (void *)_cffi_f_clingo_statistics_map_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 825), (void *)_cffi_d_clingo_statistics_map_size },
+  { "clingo_statistics_map_subkey_name", (void *)_cffi_f_clingo_statistics_map_subkey_name, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 830), (void *)_cffi_d_clingo_statistics_map_subkey_name },
+  { "clingo_statistics_root", (void *)_cffi_f_clingo_statistics_root, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 799), (void *)_cffi_d_clingo_statistics_root },
+  { "clingo_statistics_type", (void *)_cffi_f_clingo_statistics_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 820), (void *)_cffi_d_clingo_statistics_type },
   { "clingo_statistics_type_array", (void *)_cffi_const_clingo_statistics_type_array, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_statistics_type_empty", (void *)_cffi_const_clingo_statistics_type_empty, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_statistics_type_map", (void *)_cffi_const_clingo_statistics_type_map, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_statistics_type_value", (void *)_cffi_const_clingo_statistics_type_value, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_statistics_value_get", (void *)_cffi_f_clingo_statistics_value_get, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 813), (void *)_cffi_d_clingo_statistics_value_get },
-  { "clingo_statistics_value_set", (void *)_cffi_f_clingo_statistics_value_set, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 786), (void *)_cffi_d_clingo_statistics_value_set },
-  { "clingo_symbol_arguments", (void *)_cffi_f_clingo_symbol_arguments, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1061), (void *)_cffi_d_clingo_symbol_arguments },
-  { "clingo_symbol_create_function", (void *)_cffi_f_clingo_symbol_create_function, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 75), (void *)_cffi_d_clingo_symbol_create_function },
-  { "clingo_symbol_create_id", (void *)_cffi_f_clingo_symbol_create_id, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 51), (void *)_cffi_d_clingo_symbol_create_id },
-  { "clingo_symbol_create_infimum", (void *)_cffi_f_clingo_symbol_create_infimum, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1195), (void *)_cffi_d_clingo_symbol_create_infimum },
-  { "clingo_symbol_create_number", (void *)_cffi_f_clingo_symbol_create_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1191), (void *)_cffi_d_clingo_symbol_create_number },
-  { "clingo_symbol_create_string", (void *)_cffi_f_clingo_symbol_create_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 71), (void *)_cffi_d_clingo_symbol_create_string },
-  { "clingo_symbol_create_supremum", (void *)_cffi_f_clingo_symbol_create_supremum, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1195), (void *)_cffi_d_clingo_symbol_create_supremum },
-  { "clingo_symbol_hash", (void *)_cffi_f_clingo_symbol_hash, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1137), (void *)_cffi_d_clingo_symbol_hash },
-  { "clingo_symbol_is_equal_to", (void *)_cffi_f_clingo_symbol_is_equal_to, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1066), (void *)_cffi_d_clingo_symbol_is_equal_to },
-  { "clingo_symbol_is_less_than", (void *)_cffi_f_clingo_symbol_is_less_than, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1066), (void *)_cffi_d_clingo_symbol_is_less_than },
-  { "clingo_symbol_is_negative", (void *)_cffi_f_clingo_symbol_is_negative, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1029), (void *)_cffi_d_clingo_symbol_is_negative },
-  { "clingo_symbol_is_positive", (void *)_cffi_f_clingo_symbol_is_positive, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1029), (void *)_cffi_d_clingo_symbol_is_positive },
-  { "clingo_symbol_name", (void *)_cffi_f_clingo_symbol_name, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1038), (void *)_cffi_d_clingo_symbol_name },
-  { "clingo_symbol_number", (void *)_cffi_f_clingo_symbol_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1042), (void *)_cffi_d_clingo_symbol_number },
-  { "clingo_symbol_string", (void *)_cffi_f_clingo_symbol_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1038), (void *)_cffi_d_clingo_symbol_string },
-  { "clingo_symbol_to_string", (void *)_cffi_f_clingo_symbol_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1033), (void *)_cffi_d_clingo_symbol_to_string },
-  { "clingo_symbol_to_string_size", (void *)_cffi_f_clingo_symbol_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1052), (void *)_cffi_d_clingo_symbol_to_string_size },
-  { "clingo_symbol_type", (void *)_cffi_f_clingo_symbol_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1126), (void *)_cffi_d_clingo_symbol_type },
+  { "clingo_statistics_value_get", (void *)_cffi_f_clingo_statistics_value_get, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 815), (void *)_cffi_d_clingo_statistics_value_get },
+  { "clingo_statistics_value_set", (void *)_cffi_f_clingo_statistics_value_set, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 788), (void *)_cffi_d_clingo_statistics_value_set },
+  { "clingo_symbol_arguments", (void *)_cffi_f_clingo_symbol_arguments, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1063), (void *)_cffi_d_clingo_symbol_arguments },
+  { "clingo_symbol_create_function", (void *)_cffi_f_clingo_symbol_create_function, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 77), (void *)_cffi_d_clingo_symbol_create_function },
+  { "clingo_symbol_create_id", (void *)_cffi_f_clingo_symbol_create_id, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 53), (void *)_cffi_d_clingo_symbol_create_id },
+  { "clingo_symbol_create_infimum", (void *)_cffi_f_clingo_symbol_create_infimum, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1197), (void *)_cffi_d_clingo_symbol_create_infimum },
+  { "clingo_symbol_create_number", (void *)_cffi_f_clingo_symbol_create_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1193), (void *)_cffi_d_clingo_symbol_create_number },
+  { "clingo_symbol_create_string", (void *)_cffi_f_clingo_symbol_create_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 73), (void *)_cffi_d_clingo_symbol_create_string },
+  { "clingo_symbol_create_supremum", (void *)_cffi_f_clingo_symbol_create_supremum, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1197), (void *)_cffi_d_clingo_symbol_create_supremum },
+  { "clingo_symbol_hash", (void *)_cffi_f_clingo_symbol_hash, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1139), (void *)_cffi_d_clingo_symbol_hash },
+  { "clingo_symbol_is_equal_to", (void *)_cffi_f_clingo_symbol_is_equal_to, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1068), (void *)_cffi_d_clingo_symbol_is_equal_to },
+  { "clingo_symbol_is_less_than", (void *)_cffi_f_clingo_symbol_is_less_than, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1068), (void *)_cffi_d_clingo_symbol_is_less_than },
+  { "clingo_symbol_is_negative", (void *)_cffi_f_clingo_symbol_is_negative, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1031), (void *)_cffi_d_clingo_symbol_is_negative },
+  { "clingo_symbol_is_positive", (void *)_cffi_f_clingo_symbol_is_positive, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1031), (void *)_cffi_d_clingo_symbol_is_positive },
+  { "clingo_symbol_name", (void *)_cffi_f_clingo_symbol_name, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1040), (void *)_cffi_d_clingo_symbol_name },
+  { "clingo_symbol_number", (void *)_cffi_f_clingo_symbol_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1044), (void *)_cffi_d_clingo_symbol_number },
+  { "clingo_symbol_string", (void *)_cffi_f_clingo_symbol_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1040), (void *)_cffi_d_clingo_symbol_string },
+  { "clingo_symbol_to_string", (void *)_cffi_f_clingo_symbol_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1035), (void *)_cffi_d_clingo_symbol_to_string },
+  { "clingo_symbol_to_string_size", (void *)_cffi_f_clingo_symbol_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1054), (void *)_cffi_d_clingo_symbol_to_string_size },
+  { "clingo_symbol_type", (void *)_cffi_f_clingo_symbol_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1128), (void *)_cffi_d_clingo_symbol_type },
   { "clingo_symbol_type_function", (void *)_cffi_const_clingo_symbol_type_function, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_symbol_type_infimum", (void *)_cffi_const_clingo_symbol_type_infimum, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_symbol_type_number", (void *)_cffi_const_clingo_symbol_type_number, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_symbol_type_string", (void *)_cffi_const_clingo_symbol_type_string, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_symbol_type_supremum", (void *)_cffi_const_clingo_symbol_type_supremum, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_symbolic_atoms_begin", (void *)_cffi_f_clingo_symbolic_atoms_begin, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 853), (void *)_cffi_d_clingo_symbolic_atoms_begin },
-  { "clingo_symbolic_atoms_end", (void *)_cffi_f_clingo_symbolic_atoms_end, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 844), (void *)_cffi_d_clingo_symbolic_atoms_end },
-  { "clingo_symbolic_atoms_find", (void *)_cffi_f_clingo_symbolic_atoms_find, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 868), (void *)_cffi_d_clingo_symbolic_atoms_find },
-  { "clingo_symbolic_atoms_is_external", (void *)_cffi_f_clingo_symbolic_atoms_is_external, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 858), (void *)_cffi_d_clingo_symbolic_atoms_is_external },
-  { "clingo_symbolic_atoms_is_fact", (void *)_cffi_f_clingo_symbolic_atoms_is_fact, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 858), (void *)_cffi_d_clingo_symbolic_atoms_is_fact },
-  { "clingo_symbolic_atoms_is_valid", (void *)_cffi_f_clingo_symbolic_atoms_is_valid, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 858), (void *)_cffi_d_clingo_symbolic_atoms_is_valid },
-  { "clingo_symbolic_atoms_iterator_is_equal_to", (void *)_cffi_f_clingo_symbolic_atoms_iterator_is_equal_to, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 873), (void *)_cffi_d_clingo_symbolic_atoms_iterator_is_equal_to },
-  { "clingo_symbolic_atoms_literal", (void *)_cffi_f_clingo_symbolic_atoms_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 863), (void *)_cffi_d_clingo_symbolic_atoms_literal },
-  { "clingo_symbolic_atoms_next", (void *)_cffi_f_clingo_symbolic_atoms_next, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 868), (void *)_cffi_d_clingo_symbolic_atoms_next },
-  { "clingo_symbolic_atoms_signatures", (void *)_cffi_f_clingo_symbolic_atoms_signatures, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 848), (void *)_cffi_d_clingo_symbolic_atoms_signatures },
-  { "clingo_symbolic_atoms_signatures_size", (void *)_cffi_f_clingo_symbolic_atoms_signatures_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 840), (void *)_cffi_d_clingo_symbolic_atoms_signatures_size },
-  { "clingo_symbolic_atoms_size", (void *)_cffi_f_clingo_symbolic_atoms_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 840), (void *)_cffi_d_clingo_symbolic_atoms_size },
-  { "clingo_symbolic_atoms_symbol", (void *)_cffi_f_clingo_symbolic_atoms_symbol, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 868), (void *)_cffi_d_clingo_symbolic_atoms_symbol },
-  { "clingo_theory_atoms_atom_elements", (void *)_cffi_f_clingo_theory_atoms_atom_elements, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 931), (void *)_cffi_d_clingo_theory_atoms_atom_elements },
-  { "clingo_theory_atoms_atom_guard", (void *)_cffi_f_clingo_theory_atoms_atom_guard, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 899), (void *)_cffi_d_clingo_theory_atoms_atom_guard },
-  { "clingo_theory_atoms_atom_has_guard", (void *)_cffi_f_clingo_theory_atoms_atom_has_guard, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 883), (void *)_cffi_d_clingo_theory_atoms_atom_has_guard },
-  { "clingo_theory_atoms_atom_literal", (void *)_cffi_f_clingo_theory_atoms_atom_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 910), (void *)_cffi_d_clingo_theory_atoms_atom_literal },
-  { "clingo_theory_atoms_atom_term", (void *)_cffi_f_clingo_theory_atoms_atom_term, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 926), (void *)_cffi_d_clingo_theory_atoms_atom_term },
-  { "clingo_theory_atoms_atom_to_string", (void *)_cffi_f_clingo_theory_atoms_atom_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 888), (void *)_cffi_d_clingo_theory_atoms_atom_to_string },
-  { "clingo_theory_atoms_atom_to_string_size", (void *)_cffi_f_clingo_theory_atoms_atom_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 921), (void *)_cffi_d_clingo_theory_atoms_atom_to_string_size },
-  { "clingo_theory_atoms_element_condition", (void *)_cffi_f_clingo_theory_atoms_element_condition, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 915), (void *)_cffi_d_clingo_theory_atoms_element_condition },
-  { "clingo_theory_atoms_element_condition_id", (void *)_cffi_f_clingo_theory_atoms_element_condition_id, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 910), (void *)_cffi_d_clingo_theory_atoms_element_condition_id },
-  { "clingo_theory_atoms_element_to_string", (void *)_cffi_f_clingo_theory_atoms_element_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 888), (void *)_cffi_d_clingo_theory_atoms_element_to_string },
-  { "clingo_theory_atoms_element_to_string_size", (void *)_cffi_f_clingo_theory_atoms_element_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 921), (void *)_cffi_d_clingo_theory_atoms_element_to_string_size },
-  { "clingo_theory_atoms_element_tuple", (void *)_cffi_f_clingo_theory_atoms_element_tuple, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 931), (void *)_cffi_d_clingo_theory_atoms_element_tuple },
-  { "clingo_theory_atoms_size", (void *)_cffi_f_clingo_theory_atoms_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 879), (void *)_cffi_d_clingo_theory_atoms_size },
-  { "clingo_theory_atoms_term_arguments", (void *)_cffi_f_clingo_theory_atoms_term_arguments, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 931), (void *)_cffi_d_clingo_theory_atoms_term_arguments },
-  { "clingo_theory_atoms_term_name", (void *)_cffi_f_clingo_theory_atoms_term_name, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 894), (void *)_cffi_d_clingo_theory_atoms_term_name },
-  { "clingo_theory_atoms_term_number", (void *)_cffi_f_clingo_theory_atoms_term_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 905), (void *)_cffi_d_clingo_theory_atoms_term_number },
-  { "clingo_theory_atoms_term_to_string", (void *)_cffi_f_clingo_theory_atoms_term_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 888), (void *)_cffi_d_clingo_theory_atoms_term_to_string },
-  { "clingo_theory_atoms_term_to_string_size", (void *)_cffi_f_clingo_theory_atoms_term_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 921), (void *)_cffi_d_clingo_theory_atoms_term_to_string_size },
-  { "clingo_theory_atoms_term_type", (void *)_cffi_f_clingo_theory_atoms_term_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 905), (void *)_cffi_d_clingo_theory_atoms_term_type },
+  { "clingo_symbolic_atoms_begin", (void *)_cffi_f_clingo_symbolic_atoms_begin, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 855), (void *)_cffi_d_clingo_symbolic_atoms_begin },
+  { "clingo_symbolic_atoms_end", (void *)_cffi_f_clingo_symbolic_atoms_end, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 846), (void *)_cffi_d_clingo_symbolic_atoms_end },
+  { "clingo_symbolic_atoms_find", (void *)_cffi_f_clingo_symbolic_atoms_find, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 870), (void *)_cffi_d_clingo_symbolic_atoms_find },
+  { "clingo_symbolic_atoms_is_external", (void *)_cffi_f_clingo_symbolic_atoms_is_external, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 860), (void *)_cffi_d_clingo_symbolic_atoms_is_external },
+  { "clingo_symbolic_atoms_is_fact", (void *)_cffi_f_clingo_symbolic_atoms_is_fact, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 860), (void *)_cffi_d_clingo_symbolic_atoms_is_fact },
+  { "clingo_symbolic_atoms_is_valid", (void *)_cffi_f_clingo_symbolic_atoms_is_valid, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 860), (void *)_cffi_d_clingo_symbolic_atoms_is_valid },
+  { "clingo_symbolic_atoms_iterator_is_equal_to", (void *)_cffi_f_clingo_symbolic_atoms_iterator_is_equal_to, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 875), (void *)_cffi_d_clingo_symbolic_atoms_iterator_is_equal_to },
+  { "clingo_symbolic_atoms_literal", (void *)_cffi_f_clingo_symbolic_atoms_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 865), (void *)_cffi_d_clingo_symbolic_atoms_literal },
+  { "clingo_symbolic_atoms_next", (void *)_cffi_f_clingo_symbolic_atoms_next, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 870), (void *)_cffi_d_clingo_symbolic_atoms_next },
+  { "clingo_symbolic_atoms_signatures", (void *)_cffi_f_clingo_symbolic_atoms_signatures, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 850), (void *)_cffi_d_clingo_symbolic_atoms_signatures },
+  { "clingo_symbolic_atoms_signatures_size", (void *)_cffi_f_clingo_symbolic_atoms_signatures_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 842), (void *)_cffi_d_clingo_symbolic_atoms_signatures_size },
+  { "clingo_symbolic_atoms_size", (void *)_cffi_f_clingo_symbolic_atoms_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 842), (void *)_cffi_d_clingo_symbolic_atoms_size },
+  { "clingo_symbolic_atoms_symbol", (void *)_cffi_f_clingo_symbolic_atoms_symbol, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 870), (void *)_cffi_d_clingo_symbolic_atoms_symbol },
+  { "clingo_theory_atoms_atom_elements", (void *)_cffi_f_clingo_theory_atoms_atom_elements, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 933), (void *)_cffi_d_clingo_theory_atoms_atom_elements },
+  { "clingo_theory_atoms_atom_guard", (void *)_cffi_f_clingo_theory_atoms_atom_guard, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 901), (void *)_cffi_d_clingo_theory_atoms_atom_guard },
+  { "clingo_theory_atoms_atom_has_guard", (void *)_cffi_f_clingo_theory_atoms_atom_has_guard, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 885), (void *)_cffi_d_clingo_theory_atoms_atom_has_guard },
+  { "clingo_theory_atoms_atom_literal", (void *)_cffi_f_clingo_theory_atoms_atom_literal, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 912), (void *)_cffi_d_clingo_theory_atoms_atom_literal },
+  { "clingo_theory_atoms_atom_term", (void *)_cffi_f_clingo_theory_atoms_atom_term, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 928), (void *)_cffi_d_clingo_theory_atoms_atom_term },
+  { "clingo_theory_atoms_atom_to_string", (void *)_cffi_f_clingo_theory_atoms_atom_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 890), (void *)_cffi_d_clingo_theory_atoms_atom_to_string },
+  { "clingo_theory_atoms_atom_to_string_size", (void *)_cffi_f_clingo_theory_atoms_atom_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 923), (void *)_cffi_d_clingo_theory_atoms_atom_to_string_size },
+  { "clingo_theory_atoms_element_condition", (void *)_cffi_f_clingo_theory_atoms_element_condition, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 917), (void *)_cffi_d_clingo_theory_atoms_element_condition },
+  { "clingo_theory_atoms_element_condition_id", (void *)_cffi_f_clingo_theory_atoms_element_condition_id, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 912), (void *)_cffi_d_clingo_theory_atoms_element_condition_id },
+  { "clingo_theory_atoms_element_to_string", (void *)_cffi_f_clingo_theory_atoms_element_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 890), (void *)_cffi_d_clingo_theory_atoms_element_to_string },
+  { "clingo_theory_atoms_element_to_string_size", (void *)_cffi_f_clingo_theory_atoms_element_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 923), (void *)_cffi_d_clingo_theory_atoms_element_to_string_size },
+  { "clingo_theory_atoms_element_tuple", (void *)_cffi_f_clingo_theory_atoms_element_tuple, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 933), (void *)_cffi_d_clingo_theory_atoms_element_tuple },
+  { "clingo_theory_atoms_size", (void *)_cffi_f_clingo_theory_atoms_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 881), (void *)_cffi_d_clingo_theory_atoms_size },
+  { "clingo_theory_atoms_term_arguments", (void *)_cffi_f_clingo_theory_atoms_term_arguments, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 933), (void *)_cffi_d_clingo_theory_atoms_term_arguments },
+  { "clingo_theory_atoms_term_name", (void *)_cffi_f_clingo_theory_atoms_term_name, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 896), (void *)_cffi_d_clingo_theory_atoms_term_name },
+  { "clingo_theory_atoms_term_number", (void *)_cffi_f_clingo_theory_atoms_term_number, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 907), (void *)_cffi_d_clingo_theory_atoms_term_number },
+  { "clingo_theory_atoms_term_to_string", (void *)_cffi_f_clingo_theory_atoms_term_to_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 890), (void *)_cffi_d_clingo_theory_atoms_term_to_string },
+  { "clingo_theory_atoms_term_to_string_size", (void *)_cffi_f_clingo_theory_atoms_term_to_string_size, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 923), (void *)_cffi_d_clingo_theory_atoms_term_to_string_size },
+  { "clingo_theory_atoms_term_type", (void *)_cffi_f_clingo_theory_atoms_term_type, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 907), (void *)_cffi_d_clingo_theory_atoms_term_type },
   { "clingo_theory_sequence_type_list", (void *)_cffi_const_clingo_theory_sequence_type_list, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_theory_sequence_type_set", (void *)_cffi_const_clingo_theory_sequence_type_set, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_theory_sequence_type_tuple", (void *)_cffi_const_clingo_theory_sequence_type_tuple, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
@@ -18995,98 +19058,98 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_truth_value_false", (void *)_cffi_const_clingo_truth_value_false, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_truth_value_free", (void *)_cffi_const_clingo_truth_value_free, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_truth_value_true", (void *)_cffi_const_clingo_truth_value_true, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_version", (void *)_cffi_f_clingo_version, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1177), (void *)_cffi_d_clingo_version },
+  { "clingo_version", (void *)_cffi_f_clingo_version, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1179), (void *)_cffi_d_clingo_version },
   { "clingo_warning_atom_undefined", (void *)_cffi_const_clingo_warning_atom_undefined, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_warning_file_included", (void *)_cffi_const_clingo_warning_file_included, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_warning_global_variable", (void *)_cffi_const_clingo_warning_global_variable, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_warning_operation_undefined", (void *)_cffi_const_clingo_warning_operation_undefined, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_warning_other", (void *)_cffi_const_clingo_warning_other, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_warning_runtime_error", (void *)_cffi_const_clingo_warning_runtime_error, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "clingo_warning_string", (void *)_cffi_f_clingo_warning_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1100), (void *)_cffi_d_clingo_warning_string },
+  { "clingo_warning_string", (void *)_cffi_f_clingo_warning_string, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 1102), (void *)_cffi_d_clingo_warning_string },
   { "clingo_warning_variable_unbounded", (void *)_cffi_const_clingo_warning_variable_unbounded, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_weight_constraint_type_equivalence", (void *)_cffi_const_clingo_weight_constraint_type_equivalence, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_weight_constraint_type_implication_left", (void *)_cffi_const_clingo_weight_constraint_type_implication_left, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
   { "clingo_weight_constraint_type_implication_right", (void *)_cffi_const_clingo_weight_constraint_type_implication_right, _CFFI_OP(_CFFI_OP_ENUM, -1), (void *)0 },
-  { "g_clingo_ast_attribute_names", (void *)_cffi_var_g_clingo_ast_attribute_names, _CFFI_OP(_CFFI_OP_GLOBAL_VAR_F, 1241), (void *)0 },
-  { "g_clingo_ast_constructors", (void *)_cffi_var_g_clingo_ast_constructors, _CFFI_OP(_CFFI_OP_GLOBAL_VAR_F, 1244), (void *)0 },
-  { "pyclingo_application_logger", (void *)&_cffi_externpy__pyclingo_application_logger, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 26), (void *)pyclingo_application_logger },
-  { "pyclingo_application_main", (void *)&_cffi_externpy__pyclingo_application_main, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1206), (void *)pyclingo_application_main },
-  { "pyclingo_application_message_limit", (void *)&_cffi_externpy__pyclingo_application_message_limit, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1296), (void *)pyclingo_application_message_limit },
-  { "pyclingo_application_options_parse", (void *)&_cffi_externpy__pyclingo_application_options_parse, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 648), (void *)pyclingo_application_options_parse },
-  { "pyclingo_application_print_model", (void *)&_cffi_externpy__pyclingo_application_print_model, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1212), (void *)pyclingo_application_print_model },
-  { "pyclingo_application_program_name", (void *)&_cffi_externpy__pyclingo_application_program_name, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1235), (void *)pyclingo_application_program_name },
-  { "pyclingo_application_register_options", (void *)&_cffi_externpy__pyclingo_application_register_options, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1213), (void *)pyclingo_application_register_options },
-  { "pyclingo_application_validate_options", (void *)&_cffi_externpy__pyclingo_application_validate_options, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 586), (void *)pyclingo_application_validate_options },
-  { "pyclingo_application_version", (void *)&_cffi_externpy__pyclingo_application_version, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1235), (void *)pyclingo_application_version },
-  { "pyclingo_ast_callback", (void *)&_cffi_externpy__pyclingo_ast_callback, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1205), (void *)pyclingo_ast_callback },
-  { "pyclingo_call", (void *)&_cffi_externpy__pyclingo_call, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1233), (void *)pyclingo_call },
-  { "pyclingo_callable", (void *)&_cffi_externpy__pyclingo_callable, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1204), (void *)pyclingo_callable },
-  { "pyclingo_execute", (void *)&_cffi_externpy__pyclingo_execute, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1232), (void *)pyclingo_execute },
-  { "pyclingo_ground_callback", (void *)&_cffi_externpy__pyclingo_ground_callback, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 474), (void *)pyclingo_ground_callback },
-  { "pyclingo_logger_callback", (void *)&_cffi_externpy__pyclingo_logger_callback, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 26), (void *)pyclingo_logger_callback },
-  { "pyclingo_main", (void *)&_cffi_externpy__pyclingo_main, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1234), (void *)pyclingo_main },
-  { "pyclingo_observer_acyc_edge", (void *)&_cffi_externpy__pyclingo_observer_acyc_edge, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1218), (void *)pyclingo_observer_acyc_edge },
-  { "pyclingo_observer_assume", (void *)&_cffi_externpy__pyclingo_observer_assume, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1219), (void *)pyclingo_observer_assume },
-  { "pyclingo_observer_begin_step", (void *)&_cffi_externpy__pyclingo_observer_begin_step, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 586), (void *)pyclingo_observer_begin_step },
-  { "pyclingo_observer_end_step", (void *)&_cffi_externpy__pyclingo_observer_end_step, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 586), (void *)pyclingo_observer_end_step },
-  { "pyclingo_observer_external", (void *)&_cffi_externpy__pyclingo_observer_external, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1226), (void *)pyclingo_observer_external },
-  { "pyclingo_observer_heuristic", (void *)&_cffi_externpy__pyclingo_observer_heuristic, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1224), (void *)pyclingo_observer_heuristic },
-  { "pyclingo_observer_init_program", (void *)&_cffi_externpy__pyclingo_observer_init_program, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1203), (void *)pyclingo_observer_init_program },
-  { "pyclingo_observer_minimize", (void *)&_cffi_externpy__pyclingo_observer_minimize, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1220), (void *)pyclingo_observer_minimize },
-  { "pyclingo_observer_output_atom", (void *)&_cffi_externpy__pyclingo_observer_output_atom, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1231), (void *)pyclingo_observer_output_atom },
-  { "pyclingo_observer_output_term", (void *)&_cffi_externpy__pyclingo_observer_output_term, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1230), (void *)pyclingo_observer_output_term },
-  { "pyclingo_observer_project", (void *)&_cffi_externpy__pyclingo_observer_project, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1221), (void *)pyclingo_observer_project },
-  { "pyclingo_observer_rule", (void *)&_cffi_externpy__pyclingo_observer_rule, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1201), (void *)pyclingo_observer_rule },
-  { "pyclingo_observer_theory_atom", (void *)&_cffi_externpy__pyclingo_observer_theory_atom, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1229), (void *)pyclingo_observer_theory_atom },
-  { "pyclingo_observer_theory_atom_with_guard", (void *)&_cffi_externpy__pyclingo_observer_theory_atom_with_guard, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1228), (void *)pyclingo_observer_theory_atom_with_guard },
-  { "pyclingo_observer_theory_element", (void *)&_cffi_externpy__pyclingo_observer_theory_element, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1227), (void *)pyclingo_observer_theory_element },
-  { "pyclingo_observer_theory_term_compound", (void *)&_cffi_externpy__pyclingo_observer_theory_term_compound, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1225), (void *)pyclingo_observer_theory_term_compound },
-  { "pyclingo_observer_theory_term_number", (void *)&_cffi_externpy__pyclingo_observer_theory_term_number, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1226), (void *)pyclingo_observer_theory_term_number },
-  { "pyclingo_observer_theory_term_string", (void *)&_cffi_externpy__pyclingo_observer_theory_term_string, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1222), (void *)pyclingo_observer_theory_term_string },
-  { "pyclingo_observer_weight_rule", (void *)&_cffi_externpy__pyclingo_observer_weight_rule, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1202), (void *)pyclingo_observer_weight_rule },
-  { "pyclingo_propagator_check", (void *)&_cffi_externpy__pyclingo_propagator_check, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1215), (void *)pyclingo_propagator_check },
-  { "pyclingo_propagator_decide", (void *)&_cffi_externpy__pyclingo_propagator_decide, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1223), (void *)pyclingo_propagator_decide },
-  { "pyclingo_propagator_init", (void *)&_cffi_externpy__pyclingo_propagator_init, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1216), (void *)pyclingo_propagator_init },
-  { "pyclingo_propagator_propagate", (void *)&_cffi_externpy__pyclingo_propagator_propagate, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1214), (void *)pyclingo_propagator_propagate },
-  { "pyclingo_propagator_undo", (void *)&_cffi_externpy__pyclingo_propagator_undo, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1297), (void *)pyclingo_propagator_undo },
-  { "pyclingo_script_call", (void *)&_cffi_externpy__pyclingo_script_call, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1209), (void *)pyclingo_script_call },
-  { "pyclingo_script_callable", (void *)&_cffi_externpy__pyclingo_script_callable, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1204), (void *)pyclingo_script_callable },
-  { "pyclingo_script_execute", (void *)&_cffi_externpy__pyclingo_script_execute, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1208), (void *)pyclingo_script_execute },
-  { "pyclingo_script_main", (void *)&_cffi_externpy__pyclingo_script_main, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1207), (void *)pyclingo_script_main },
-  { "pyclingo_solve_event_callback", (void *)&_cffi_externpy__pyclingo_solve_event_callback, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 501), (void *)pyclingo_solve_event_callback },
+  { "g_clingo_ast_attribute_names", (void *)_cffi_var_g_clingo_ast_attribute_names, _CFFI_OP(_CFFI_OP_GLOBAL_VAR_F, 1243), (void *)0 },
+  { "g_clingo_ast_constructors", (void *)_cffi_var_g_clingo_ast_constructors, _CFFI_OP(_CFFI_OP_GLOBAL_VAR_F, 1246), (void *)0 },
+  { "pyclingo_application_logger", (void *)&_cffi_externpy__pyclingo_application_logger, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 27), (void *)pyclingo_application_logger },
+  { "pyclingo_application_main", (void *)&_cffi_externpy__pyclingo_application_main, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1208), (void *)pyclingo_application_main },
+  { "pyclingo_application_message_limit", (void *)&_cffi_externpy__pyclingo_application_message_limit, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1298), (void *)pyclingo_application_message_limit },
+  { "pyclingo_application_options_parse", (void *)&_cffi_externpy__pyclingo_application_options_parse, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 650), (void *)pyclingo_application_options_parse },
+  { "pyclingo_application_print_model", (void *)&_cffi_externpy__pyclingo_application_print_model, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1214), (void *)pyclingo_application_print_model },
+  { "pyclingo_application_program_name", (void *)&_cffi_externpy__pyclingo_application_program_name, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1237), (void *)pyclingo_application_program_name },
+  { "pyclingo_application_register_options", (void *)&_cffi_externpy__pyclingo_application_register_options, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1215), (void *)pyclingo_application_register_options },
+  { "pyclingo_application_validate_options", (void *)&_cffi_externpy__pyclingo_application_validate_options, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 588), (void *)pyclingo_application_validate_options },
+  { "pyclingo_application_version", (void *)&_cffi_externpy__pyclingo_application_version, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1237), (void *)pyclingo_application_version },
+  { "pyclingo_ast_callback", (void *)&_cffi_externpy__pyclingo_ast_callback, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1207), (void *)pyclingo_ast_callback },
+  { "pyclingo_call", (void *)&_cffi_externpy__pyclingo_call, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1235), (void *)pyclingo_call },
+  { "pyclingo_callable", (void *)&_cffi_externpy__pyclingo_callable, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1206), (void *)pyclingo_callable },
+  { "pyclingo_execute", (void *)&_cffi_externpy__pyclingo_execute, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1234), (void *)pyclingo_execute },
+  { "pyclingo_ground_callback", (void *)&_cffi_externpy__pyclingo_ground_callback, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 476), (void *)pyclingo_ground_callback },
+  { "pyclingo_logger_callback", (void *)&_cffi_externpy__pyclingo_logger_callback, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 27), (void *)pyclingo_logger_callback },
+  { "pyclingo_main", (void *)&_cffi_externpy__pyclingo_main, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1236), (void *)pyclingo_main },
+  { "pyclingo_observer_acyc_edge", (void *)&_cffi_externpy__pyclingo_observer_acyc_edge, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1220), (void *)pyclingo_observer_acyc_edge },
+  { "pyclingo_observer_assume", (void *)&_cffi_externpy__pyclingo_observer_assume, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1221), (void *)pyclingo_observer_assume },
+  { "pyclingo_observer_begin_step", (void *)&_cffi_externpy__pyclingo_observer_begin_step, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 588), (void *)pyclingo_observer_begin_step },
+  { "pyclingo_observer_end_step", (void *)&_cffi_externpy__pyclingo_observer_end_step, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 588), (void *)pyclingo_observer_end_step },
+  { "pyclingo_observer_external", (void *)&_cffi_externpy__pyclingo_observer_external, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1228), (void *)pyclingo_observer_external },
+  { "pyclingo_observer_heuristic", (void *)&_cffi_externpy__pyclingo_observer_heuristic, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1226), (void *)pyclingo_observer_heuristic },
+  { "pyclingo_observer_init_program", (void *)&_cffi_externpy__pyclingo_observer_init_program, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1205), (void *)pyclingo_observer_init_program },
+  { "pyclingo_observer_minimize", (void *)&_cffi_externpy__pyclingo_observer_minimize, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1222), (void *)pyclingo_observer_minimize },
+  { "pyclingo_observer_output_atom", (void *)&_cffi_externpy__pyclingo_observer_output_atom, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1233), (void *)pyclingo_observer_output_atom },
+  { "pyclingo_observer_output_term", (void *)&_cffi_externpy__pyclingo_observer_output_term, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1232), (void *)pyclingo_observer_output_term },
+  { "pyclingo_observer_project", (void *)&_cffi_externpy__pyclingo_observer_project, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1223), (void *)pyclingo_observer_project },
+  { "pyclingo_observer_rule", (void *)&_cffi_externpy__pyclingo_observer_rule, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1203), (void *)pyclingo_observer_rule },
+  { "pyclingo_observer_theory_atom", (void *)&_cffi_externpy__pyclingo_observer_theory_atom, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1231), (void *)pyclingo_observer_theory_atom },
+  { "pyclingo_observer_theory_atom_with_guard", (void *)&_cffi_externpy__pyclingo_observer_theory_atom_with_guard, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1230), (void *)pyclingo_observer_theory_atom_with_guard },
+  { "pyclingo_observer_theory_element", (void *)&_cffi_externpy__pyclingo_observer_theory_element, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1229), (void *)pyclingo_observer_theory_element },
+  { "pyclingo_observer_theory_term_compound", (void *)&_cffi_externpy__pyclingo_observer_theory_term_compound, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1227), (void *)pyclingo_observer_theory_term_compound },
+  { "pyclingo_observer_theory_term_number", (void *)&_cffi_externpy__pyclingo_observer_theory_term_number, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1228), (void *)pyclingo_observer_theory_term_number },
+  { "pyclingo_observer_theory_term_string", (void *)&_cffi_externpy__pyclingo_observer_theory_term_string, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1224), (void *)pyclingo_observer_theory_term_string },
+  { "pyclingo_observer_weight_rule", (void *)&_cffi_externpy__pyclingo_observer_weight_rule, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1204), (void *)pyclingo_observer_weight_rule },
+  { "pyclingo_propagator_check", (void *)&_cffi_externpy__pyclingo_propagator_check, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1217), (void *)pyclingo_propagator_check },
+  { "pyclingo_propagator_decide", (void *)&_cffi_externpy__pyclingo_propagator_decide, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1225), (void *)pyclingo_propagator_decide },
+  { "pyclingo_propagator_init", (void *)&_cffi_externpy__pyclingo_propagator_init, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1218), (void *)pyclingo_propagator_init },
+  { "pyclingo_propagator_propagate", (void *)&_cffi_externpy__pyclingo_propagator_propagate, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1216), (void *)pyclingo_propagator_propagate },
+  { "pyclingo_propagator_undo", (void *)&_cffi_externpy__pyclingo_propagator_undo, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1299), (void *)pyclingo_propagator_undo },
+  { "pyclingo_script_call", (void *)&_cffi_externpy__pyclingo_script_call, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1211), (void *)pyclingo_script_call },
+  { "pyclingo_script_callable", (void *)&_cffi_externpy__pyclingo_script_callable, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1206), (void *)pyclingo_script_callable },
+  { "pyclingo_script_execute", (void *)&_cffi_externpy__pyclingo_script_execute, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1210), (void *)pyclingo_script_execute },
+  { "pyclingo_script_main", (void *)&_cffi_externpy__pyclingo_script_main, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 1209), (void *)pyclingo_script_main },
+  { "pyclingo_solve_event_callback", (void *)&_cffi_externpy__pyclingo_solve_event_callback, _CFFI_OP(_CFFI_OP_EXTERN_PYTHON, 503), (void *)pyclingo_solve_event_callback },
 };
 
 static const struct _cffi_field_s _cffi_fields[] = {
   { "program_name", offsetof(clingo_application_t, program_name),
                     sizeof(((clingo_application_t *)0)->program_name),
-                    _CFFI_OP(_CFFI_OP_NOOP, 1235) },
+                    _CFFI_OP(_CFFI_OP_NOOP, 1237) },
   { "version", offsetof(clingo_application_t, version),
                sizeof(((clingo_application_t *)0)->version),
-               _CFFI_OP(_CFFI_OP_NOOP, 1235) },
+               _CFFI_OP(_CFFI_OP_NOOP, 1237) },
   { "message_limit", offsetof(clingo_application_t, message_limit),
                      sizeof(((clingo_application_t *)0)->message_limit),
-                     _CFFI_OP(_CFFI_OP_NOOP, 1296) },
+                     _CFFI_OP(_CFFI_OP_NOOP, 1298) },
   { "main", offsetof(clingo_application_t, main),
             sizeof(((clingo_application_t *)0)->main),
-            _CFFI_OP(_CFFI_OP_NOOP, 1206) },
+            _CFFI_OP(_CFFI_OP_NOOP, 1208) },
   { "logger", offsetof(clingo_application_t, logger),
               sizeof(((clingo_application_t *)0)->logger),
-              _CFFI_OP(_CFFI_OP_NOOP, 26) },
+              _CFFI_OP(_CFFI_OP_NOOP, 27) },
   { "printer", offsetof(clingo_application_t, printer),
                sizeof(((clingo_application_t *)0)->printer),
-               _CFFI_OP(_CFFI_OP_NOOP, 1212) },
+               _CFFI_OP(_CFFI_OP_NOOP, 1214) },
   { "register_options", offsetof(clingo_application_t, register_options),
                         sizeof(((clingo_application_t *)0)->register_options),
-                        _CFFI_OP(_CFFI_OP_NOOP, 1213) },
+                        _CFFI_OP(_CFFI_OP_NOOP, 1215) },
   { "validate_options", offsetof(clingo_application_t, validate_options),
                         sizeof(((clingo_application_t *)0)->validate_options),
-                        _CFFI_OP(_CFFI_OP_NOOP, 586) },
+                        _CFFI_OP(_CFFI_OP_NOOP, 588) },
   { "attribute", offsetof(clingo_ast_argument_t, attribute),
                  sizeof(((clingo_ast_argument_t *)0)->attribute),
-                 _CFFI_OP(_CFFI_OP_NOOP, 153) },
+                 _CFFI_OP(_CFFI_OP_NOOP, 155) },
   { "type", offsetof(clingo_ast_argument_t, type),
             sizeof(((clingo_ast_argument_t *)0)->type),
-            _CFFI_OP(_CFFI_OP_NOOP, 153) },
+            _CFFI_OP(_CFFI_OP_NOOP, 155) },
   { "names", offsetof(clingo_ast_attribute_names_t, names),
              sizeof(((clingo_ast_attribute_names_t *)0)->names),
              _CFFI_OP(_CFFI_OP_NOOP, 22) },
@@ -19095,82 +19158,82 @@ static const struct _cffi_field_s _cffi_fields[] = {
             _CFFI_OP(_CFFI_OP_NOOP, 3) },
   { "name", offsetof(clingo_ast_constructor_t, name),
             sizeof(((clingo_ast_constructor_t *)0)->name),
-            _CFFI_OP(_CFFI_OP_NOOP, 39) },
+            _CFFI_OP(_CFFI_OP_NOOP, 40) },
   { "arguments", offsetof(clingo_ast_constructor_t, arguments),
                  sizeof(((clingo_ast_constructor_t *)0)->arguments),
-                 _CFFI_OP(_CFFI_OP_NOOP, 1239) },
+                 _CFFI_OP(_CFFI_OP_NOOP, 1241) },
   { "size", offsetof(clingo_ast_constructor_t, size),
             sizeof(((clingo_ast_constructor_t *)0)->size),
             _CFFI_OP(_CFFI_OP_NOOP, 3) },
   { "constructors", offsetof(clingo_ast_constructors_t, constructors),
                     sizeof(((clingo_ast_constructors_t *)0)->constructors),
-                    _CFFI_OP(_CFFI_OP_NOOP, 1242) },
+                    _CFFI_OP(_CFFI_OP_NOOP, 1244) },
   { "size", offsetof(clingo_ast_constructors_t, size),
             sizeof(((clingo_ast_constructors_t *)0)->size),
             _CFFI_OP(_CFFI_OP_NOOP, 3) },
   { "init_program", offsetof(clingo_ground_program_observer_t, init_program),
                     sizeof(((clingo_ground_program_observer_t *)0)->init_program),
-                    _CFFI_OP(_CFFI_OP_NOOP, 1203) },
+                    _CFFI_OP(_CFFI_OP_NOOP, 1205) },
   { "begin_step", offsetof(clingo_ground_program_observer_t, begin_step),
                   sizeof(((clingo_ground_program_observer_t *)0)->begin_step),
-                  _CFFI_OP(_CFFI_OP_NOOP, 586) },
+                  _CFFI_OP(_CFFI_OP_NOOP, 588) },
   { "end_step", offsetof(clingo_ground_program_observer_t, end_step),
                 sizeof(((clingo_ground_program_observer_t *)0)->end_step),
-                _CFFI_OP(_CFFI_OP_NOOP, 586) },
+                _CFFI_OP(_CFFI_OP_NOOP, 588) },
   { "rule", offsetof(clingo_ground_program_observer_t, rule),
             sizeof(((clingo_ground_program_observer_t *)0)->rule),
-            _CFFI_OP(_CFFI_OP_NOOP, 1201) },
+            _CFFI_OP(_CFFI_OP_NOOP, 1203) },
   { "weight_rule", offsetof(clingo_ground_program_observer_t, weight_rule),
                    sizeof(((clingo_ground_program_observer_t *)0)->weight_rule),
-                   _CFFI_OP(_CFFI_OP_NOOP, 1202) },
+                   _CFFI_OP(_CFFI_OP_NOOP, 1204) },
   { "minimize", offsetof(clingo_ground_program_observer_t, minimize),
                 sizeof(((clingo_ground_program_observer_t *)0)->minimize),
-                _CFFI_OP(_CFFI_OP_NOOP, 1220) },
+                _CFFI_OP(_CFFI_OP_NOOP, 1222) },
   { "project", offsetof(clingo_ground_program_observer_t, project),
                sizeof(((clingo_ground_program_observer_t *)0)->project),
-               _CFFI_OP(_CFFI_OP_NOOP, 1221) },
+               _CFFI_OP(_CFFI_OP_NOOP, 1223) },
   { "output_atom", offsetof(clingo_ground_program_observer_t, output_atom),
                    sizeof(((clingo_ground_program_observer_t *)0)->output_atom),
-                   _CFFI_OP(_CFFI_OP_NOOP, 1231) },
+                   _CFFI_OP(_CFFI_OP_NOOP, 1233) },
   { "output_term", offsetof(clingo_ground_program_observer_t, output_term),
                    sizeof(((clingo_ground_program_observer_t *)0)->output_term),
-                   _CFFI_OP(_CFFI_OP_NOOP, 1230) },
+                   _CFFI_OP(_CFFI_OP_NOOP, 1232) },
   { "external", offsetof(clingo_ground_program_observer_t, external),
                 sizeof(((clingo_ground_program_observer_t *)0)->external),
-                _CFFI_OP(_CFFI_OP_NOOP, 1226) },
+                _CFFI_OP(_CFFI_OP_NOOP, 1228) },
   { "assume", offsetof(clingo_ground_program_observer_t, assume),
               sizeof(((clingo_ground_program_observer_t *)0)->assume),
-              _CFFI_OP(_CFFI_OP_NOOP, 1219) },
+              _CFFI_OP(_CFFI_OP_NOOP, 1221) },
   { "heuristic", offsetof(clingo_ground_program_observer_t, heuristic),
                  sizeof(((clingo_ground_program_observer_t *)0)->heuristic),
-                 _CFFI_OP(_CFFI_OP_NOOP, 1224) },
+                 _CFFI_OP(_CFFI_OP_NOOP, 1226) },
   { "acyc_edge", offsetof(clingo_ground_program_observer_t, acyc_edge),
                  sizeof(((clingo_ground_program_observer_t *)0)->acyc_edge),
-                 _CFFI_OP(_CFFI_OP_NOOP, 1218) },
+                 _CFFI_OP(_CFFI_OP_NOOP, 1220) },
   { "theory_term_number", offsetof(clingo_ground_program_observer_t, theory_term_number),
                           sizeof(((clingo_ground_program_observer_t *)0)->theory_term_number),
-                          _CFFI_OP(_CFFI_OP_NOOP, 1226) },
+                          _CFFI_OP(_CFFI_OP_NOOP, 1228) },
   { "theory_term_string", offsetof(clingo_ground_program_observer_t, theory_term_string),
                           sizeof(((clingo_ground_program_observer_t *)0)->theory_term_string),
-                          _CFFI_OP(_CFFI_OP_NOOP, 1222) },
+                          _CFFI_OP(_CFFI_OP_NOOP, 1224) },
   { "theory_term_compound", offsetof(clingo_ground_program_observer_t, theory_term_compound),
                             sizeof(((clingo_ground_program_observer_t *)0)->theory_term_compound),
-                            _CFFI_OP(_CFFI_OP_NOOP, 1225) },
+                            _CFFI_OP(_CFFI_OP_NOOP, 1227) },
   { "theory_element", offsetof(clingo_ground_program_observer_t, theory_element),
                       sizeof(((clingo_ground_program_observer_t *)0)->theory_element),
-                      _CFFI_OP(_CFFI_OP_NOOP, 1227) },
+                      _CFFI_OP(_CFFI_OP_NOOP, 1229) },
   { "theory_atom", offsetof(clingo_ground_program_observer_t, theory_atom),
                    sizeof(((clingo_ground_program_observer_t *)0)->theory_atom),
-                   _CFFI_OP(_CFFI_OP_NOOP, 1229) },
+                   _CFFI_OP(_CFFI_OP_NOOP, 1231) },
   { "theory_atom_with_guard", offsetof(clingo_ground_program_observer_t, theory_atom_with_guard),
                               sizeof(((clingo_ground_program_observer_t *)0)->theory_atom_with_guard),
-                              _CFFI_OP(_CFFI_OP_NOOP, 1228) },
+                              _CFFI_OP(_CFFI_OP_NOOP, 1230) },
   { "begin_file", offsetof(clingo_location_t, begin_file),
                   sizeof(((clingo_location_t *)0)->begin_file),
-                  _CFFI_OP(_CFFI_OP_NOOP, 39) },
+                  _CFFI_OP(_CFFI_OP_NOOP, 40) },
   { "end_file", offsetof(clingo_location_t, end_file),
                 sizeof(((clingo_location_t *)0)->end_file),
-                _CFFI_OP(_CFFI_OP_NOOP, 39) },
+                _CFFI_OP(_CFFI_OP_NOOP, 40) },
   { "begin_line", offsetof(clingo_location_t, begin_line),
                   sizeof(((clingo_location_t *)0)->begin_line),
                   _CFFI_OP(_CFFI_OP_NOOP, 3) },
@@ -19185,46 +19248,46 @@ static const struct _cffi_field_s _cffi_fields[] = {
                   _CFFI_OP(_CFFI_OP_NOOP, 3) },
   { "name", offsetof(clingo_part_t, name),
             sizeof(((clingo_part_t *)0)->name),
-            _CFFI_OP(_CFFI_OP_NOOP, 39) },
+            _CFFI_OP(_CFFI_OP_NOOP, 40) },
   { "params", offsetof(clingo_part_t, params),
               sizeof(((clingo_part_t *)0)->params),
-              _CFFI_OP(_CFFI_OP_NOOP, 77) },
+              _CFFI_OP(_CFFI_OP_NOOP, 79) },
   { "size", offsetof(clingo_part_t, size),
             sizeof(((clingo_part_t *)0)->size),
             _CFFI_OP(_CFFI_OP_NOOP, 3) },
   { "init", offsetof(clingo_propagator_t, init),
             sizeof(((clingo_propagator_t *)0)->init),
-            _CFFI_OP(_CFFI_OP_NOOP, 1216) },
+            _CFFI_OP(_CFFI_OP_NOOP, 1218) },
   { "propagate", offsetof(clingo_propagator_t, propagate),
                  sizeof(((clingo_propagator_t *)0)->propagate),
-                 _CFFI_OP(_CFFI_OP_NOOP, 1214) },
+                 _CFFI_OP(_CFFI_OP_NOOP, 1216) },
   { "undo", offsetof(clingo_propagator_t, undo),
             sizeof(((clingo_propagator_t *)0)->undo),
-            _CFFI_OP(_CFFI_OP_NOOP, 1297) },
+            _CFFI_OP(_CFFI_OP_NOOP, 1299) },
   { "check", offsetof(clingo_propagator_t, check),
              sizeof(((clingo_propagator_t *)0)->check),
-             _CFFI_OP(_CFFI_OP_NOOP, 1215) },
+             _CFFI_OP(_CFFI_OP_NOOP, 1217) },
   { "decide", offsetof(clingo_propagator_t, decide),
               sizeof(((clingo_propagator_t *)0)->decide),
-              _CFFI_OP(_CFFI_OP_NOOP, 1223) },
+              _CFFI_OP(_CFFI_OP_NOOP, 1225) },
   { "execute", offsetof(clingo_script_t, execute),
                sizeof(((clingo_script_t *)0)->execute),
-               _CFFI_OP(_CFFI_OP_NOOP, 1211) },
+               _CFFI_OP(_CFFI_OP_NOOP, 1213) },
   { "call", offsetof(clingo_script_t, call),
             sizeof(((clingo_script_t *)0)->call),
-            _CFFI_OP(_CFFI_OP_NOOP, 1210) },
+            _CFFI_OP(_CFFI_OP_NOOP, 1212) },
   { "callable", offsetof(clingo_script_t, callable),
                 sizeof(((clingo_script_t *)0)->callable),
-                _CFFI_OP(_CFFI_OP_NOOP, 1204) },
+                _CFFI_OP(_CFFI_OP_NOOP, 1206) },
   { "main", offsetof(clingo_script_t, main),
             sizeof(((clingo_script_t *)0)->main),
-            _CFFI_OP(_CFFI_OP_NOOP, 1207) },
+            _CFFI_OP(_CFFI_OP_NOOP, 1209) },
   { "free", offsetof(clingo_script_t, free),
             sizeof(((clingo_script_t *)0)->free),
-            _CFFI_OP(_CFFI_OP_NOOP, 1298) },
+            _CFFI_OP(_CFFI_OP_NOOP, 1300) },
   { "version", offsetof(clingo_script_t, version),
                sizeof(((clingo_script_t *)0)->version),
-               _CFFI_OP(_CFFI_OP_NOOP, 39) },
+               _CFFI_OP(_CFFI_OP_NOOP, 40) },
   { "literal", offsetof(clingo_weighted_literal_t, literal),
                sizeof(((clingo_weighted_literal_t *)0)->literal),
                _CFFI_OP(_CFFI_OP_NOOP, 12) },
@@ -19234,199 +19297,199 @@ static const struct _cffi_field_s _cffi_fields[] = {
 };
 
 static const struct _cffi_struct_union_s _cffi_struct_unions[] = {
-  { "clingo_application", 1237, _CFFI_F_CHECK_FIELDS,
+  { "clingo_application", 1239, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_application_t), offsetof(struct _cffi_align__clingo_application_t, y), 0, 8 },
-  { "clingo_assignment", 1238, _CFFI_F_OPAQUE,
+  { "clingo_assignment", 1240, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_ast", 1245, _CFFI_F_OPAQUE,
+  { "clingo_ast", 1247, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_ast_argument", 1240, _CFFI_F_CHECK_FIELDS,
+  { "clingo_ast_argument", 1242, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_ast_argument_t), offsetof(struct _cffi_align__clingo_ast_argument_t, y), 8, 2 },
-  { "clingo_ast_attribute_names", 1241, _CFFI_F_CHECK_FIELDS,
+  { "clingo_ast_attribute_names", 1243, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_ast_attribute_names_t), offsetof(struct _cffi_align__clingo_ast_attribute_names_t, y), 10, 2 },
-  { "clingo_ast_constructor", 1243, _CFFI_F_CHECK_FIELDS,
+  { "clingo_ast_constructor", 1245, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_ast_constructor_t), offsetof(struct _cffi_align__clingo_ast_constructor_t, y), 12, 3 },
-  { "clingo_ast_constructors", 1244, _CFFI_F_CHECK_FIELDS,
+  { "clingo_ast_constructors", 1246, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_ast_constructors_t), offsetof(struct _cffi_align__clingo_ast_constructors_t, y), 15, 2 },
-  { "clingo_backend", 1246, _CFFI_F_OPAQUE,
+  { "clingo_backend", 1248, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_configuration", 1247, _CFFI_F_OPAQUE,
+  { "clingo_configuration", 1249, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_control", 1248, _CFFI_F_OPAQUE,
+  { "clingo_control", 1250, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_ground_program_observer", 1249, _CFFI_F_CHECK_FIELDS,
+  { "clingo_ground_program_observer", 1251, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_ground_program_observer_t), offsetof(struct _cffi_align__clingo_ground_program_observer_t, y), 17, 19 },
-  { "clingo_location", 1250, _CFFI_F_CHECK_FIELDS,
+  { "clingo_location", 1252, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_location_t), offsetof(struct _cffi_align__clingo_location_t, y), 36, 6 },
-  { "clingo_model", 1251, _CFFI_F_OPAQUE,
+  { "clingo_model", 1253, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_options", 1252, _CFFI_F_OPAQUE,
+  { "clingo_options", 1254, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_part", 1253, _CFFI_F_CHECK_FIELDS,
+  { "clingo_part", 1255, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_part_t), offsetof(struct _cffi_align__clingo_part_t, y), 42, 3 },
-  { "clingo_program_builder", 1254, _CFFI_F_OPAQUE,
+  { "clingo_program_builder", 1256, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_propagate_control", 1255, _CFFI_F_OPAQUE,
+  { "clingo_propagate_control", 1257, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_propagate_init", 1256, _CFFI_F_OPAQUE,
+  { "clingo_propagate_init", 1258, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_propagator", 1257, _CFFI_F_CHECK_FIELDS,
+  { "clingo_propagator", 1259, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_propagator_t), offsetof(struct _cffi_align__clingo_propagator_t, y), 45, 5 },
-  { "clingo_script", 1258, _CFFI_F_CHECK_FIELDS,
+  { "clingo_script", 1260, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_script_t), offsetof(struct _cffi_align__clingo_script_t, y), 50, 6 },
-  { "clingo_solve_control", 1259, _CFFI_F_OPAQUE,
+  { "clingo_solve_control", 1261, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_solve_handle", 1260, _CFFI_F_OPAQUE,
+  { "clingo_solve_handle", 1262, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_statistic", 1261, _CFFI_F_OPAQUE,
+  { "clingo_statistic", 1263, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_symbolic_atoms", 1262, _CFFI_F_OPAQUE,
+  { "clingo_symbolic_atoms", 1264, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_theory_atoms", 1263, _CFFI_F_OPAQUE,
+  { "clingo_theory_atoms", 1265, _CFFI_F_OPAQUE,
     (size_t)-1, -1, -1, 0 /* opaque */ },
-  { "clingo_weighted_literal", 1264, _CFFI_F_CHECK_FIELDS,
+  { "clingo_weighted_literal", 1266, _CFFI_F_CHECK_FIELDS,
     sizeof(clingo_weighted_literal_t), offsetof(struct _cffi_align__clingo_weighted_literal_t, y), 56, 2 },
 };
 
 static const struct _cffi_enum_s _cffi_enums[] = {
-  { "clingo_ast_aggregate_function_e", 1265, _cffi_prim_int(sizeof(enum clingo_ast_aggregate_function_e), ((enum clingo_ast_aggregate_function_e)-1) <= 0),
+  { "clingo_ast_aggregate_function_e", 1267, _cffi_prim_int(sizeof(enum clingo_ast_aggregate_function_e), ((enum clingo_ast_aggregate_function_e)-1) <= 0),
     "clingo_ast_aggregate_function_count,clingo_ast_aggregate_function_sum,clingo_ast_aggregate_function_sump,clingo_ast_aggregate_function_min,clingo_ast_aggregate_function_max" },
-  { "clingo_ast_attribute_e", 1266, _cffi_prim_int(sizeof(enum clingo_ast_attribute_e), ((enum clingo_ast_attribute_e)-1) <= 0),
+  { "clingo_ast_attribute_e", 1268, _cffi_prim_int(sizeof(enum clingo_ast_attribute_e), ((enum clingo_ast_attribute_e)-1) <= 0),
     "clingo_ast_attribute_argument,clingo_ast_attribute_arguments,clingo_ast_attribute_arity,clingo_ast_attribute_atom,clingo_ast_attribute_atoms,clingo_ast_attribute_atom_type,clingo_ast_attribute_bias,clingo_ast_attribute_body,clingo_ast_attribute_code,clingo_ast_attribute_coefficient,clingo_ast_attribute_comparison,clingo_ast_attribute_condition,clingo_ast_attribute_elements,clingo_ast_attribute_external,clingo_ast_attribute_external_type,clingo_ast_attribute_function,clingo_ast_attribute_guard,clingo_ast_attribute_guards,clingo_ast_attribute_head,clingo_ast_attribute_is_default,clingo_ast_attribute_left,clingo_ast_attribute_left_guard,clingo_ast_attribute_literal,clingo_ast_attribute_location,clingo_ast_attribute_modifier,clingo_ast_attribute_name,clingo_ast_attribute_node_u,clingo_ast_attribute_node_v,clingo_ast_attribute_operator_name,clingo_ast_attribute_operator_type,clingo_ast_attribute_operators,clingo_ast_attribute_parameters,clingo_ast_attribute_positive,clingo_ast_attribute_priority,clingo_ast_attribute_right,clingo_ast_attribute_right_guard,clingo_ast_attribute_sequence_type,clingo_ast_attribute_sign,clingo_ast_attribute_symbol,clingo_ast_attribute_term,clingo_ast_attribute_terms,clingo_ast_attribute_value,clingo_ast_attribute_variable,clingo_ast_attribute_weight" },
-  { "clingo_ast_attribute_type_e", 1267, _cffi_prim_int(sizeof(enum clingo_ast_attribute_type_e), ((enum clingo_ast_attribute_type_e)-1) <= 0),
+  { "clingo_ast_attribute_type_e", 1269, _cffi_prim_int(sizeof(enum clingo_ast_attribute_type_e), ((enum clingo_ast_attribute_type_e)-1) <= 0),
     "clingo_ast_attribute_type_number,clingo_ast_attribute_type_symbol,clingo_ast_attribute_type_location,clingo_ast_attribute_type_string,clingo_ast_attribute_type_ast,clingo_ast_attribute_type_optional_ast,clingo_ast_attribute_type_string_array,clingo_ast_attribute_type_ast_array" },
-  { "clingo_ast_binary_operator_e", 1268, _cffi_prim_int(sizeof(enum clingo_ast_binary_operator_e), ((enum clingo_ast_binary_operator_e)-1) <= 0),
+  { "clingo_ast_binary_operator_e", 1270, _cffi_prim_int(sizeof(enum clingo_ast_binary_operator_e), ((enum clingo_ast_binary_operator_e)-1) <= 0),
     "clingo_ast_binary_operator_xor,clingo_ast_binary_operator_or,clingo_ast_binary_operator_and,clingo_ast_binary_operator_plus,clingo_ast_binary_operator_minus,clingo_ast_binary_operator_multiplication,clingo_ast_binary_operator_division,clingo_ast_binary_operator_modulo,clingo_ast_binary_operator_power" },
-  { "clingo_ast_comparison_operator_e", 1269, _cffi_prim_int(sizeof(enum clingo_ast_comparison_operator_e), ((enum clingo_ast_comparison_operator_e)-1) <= 0),
+  { "clingo_ast_comparison_operator_e", 1271, _cffi_prim_int(sizeof(enum clingo_ast_comparison_operator_e), ((enum clingo_ast_comparison_operator_e)-1) <= 0),
     "clingo_ast_comparison_operator_greater_than,clingo_ast_comparison_operator_less_than,clingo_ast_comparison_operator_less_equal,clingo_ast_comparison_operator_greater_equal,clingo_ast_comparison_operator_not_equal,clingo_ast_comparison_operator_equal" },
-  { "clingo_ast_sign_e", 1270, _cffi_prim_int(sizeof(enum clingo_ast_sign_e), ((enum clingo_ast_sign_e)-1) <= 0),
+  { "clingo_ast_sign_e", 1272, _cffi_prim_int(sizeof(enum clingo_ast_sign_e), ((enum clingo_ast_sign_e)-1) <= 0),
     "clingo_ast_sign_no_sign,clingo_ast_sign_negation,clingo_ast_sign_double_negation" },
-  { "clingo_ast_theory_atom_definition_type_e", 1271, _cffi_prim_int(sizeof(enum clingo_ast_theory_atom_definition_type_e), ((enum clingo_ast_theory_atom_definition_type_e)-1) <= 0),
+  { "clingo_ast_theory_atom_definition_type_e", 1273, _cffi_prim_int(sizeof(enum clingo_ast_theory_atom_definition_type_e), ((enum clingo_ast_theory_atom_definition_type_e)-1) <= 0),
     "clingo_ast_theory_atom_definition_type_head,clingo_ast_theory_atom_definition_type_body,clingo_ast_theory_atom_definition_type_any,clingo_ast_theory_atom_definition_type_directive" },
-  { "clingo_ast_theory_operator_type_e", 1272, _cffi_prim_int(sizeof(enum clingo_ast_theory_operator_type_e), ((enum clingo_ast_theory_operator_type_e)-1) <= 0),
+  { "clingo_ast_theory_operator_type_e", 1274, _cffi_prim_int(sizeof(enum clingo_ast_theory_operator_type_e), ((enum clingo_ast_theory_operator_type_e)-1) <= 0),
     "clingo_ast_theory_operator_type_unary,clingo_ast_theory_operator_type_binary_left,clingo_ast_theory_operator_type_binary_right" },
-  { "clingo_ast_theory_sequence_type_e", 1273, _cffi_prim_int(sizeof(enum clingo_ast_theory_sequence_type_e), ((enum clingo_ast_theory_sequence_type_e)-1) <= 0),
+  { "clingo_ast_theory_sequence_type_e", 1275, _cffi_prim_int(sizeof(enum clingo_ast_theory_sequence_type_e), ((enum clingo_ast_theory_sequence_type_e)-1) <= 0),
     "clingo_ast_theory_sequence_type_tuple,clingo_ast_theory_sequence_type_list,clingo_ast_theory_sequence_type_set" },
-  { "clingo_ast_type_e", 1274, _cffi_prim_int(sizeof(enum clingo_ast_type_e), ((enum clingo_ast_type_e)-1) <= 0),
+  { "clingo_ast_type_e", 1276, _cffi_prim_int(sizeof(enum clingo_ast_type_e), ((enum clingo_ast_type_e)-1) <= 0),
     "clingo_ast_type_id,clingo_ast_type_variable,clingo_ast_type_symbolic_term,clingo_ast_type_unary_operation,clingo_ast_type_binary_operation,clingo_ast_type_interval,clingo_ast_type_function,clingo_ast_type_pool,clingo_ast_type_boolean_constant,clingo_ast_type_symbolic_atom,clingo_ast_type_comparison,clingo_ast_type_guard,clingo_ast_type_conditional_literal,clingo_ast_type_aggregate,clingo_ast_type_body_aggregate_element,clingo_ast_type_body_aggregate,clingo_ast_type_head_aggregate_element,clingo_ast_type_head_aggregate,clingo_ast_type_disjunction,clingo_ast_type_theory_sequence,clingo_ast_type_theory_function,clingo_ast_type_theory_unparsed_term_element,clingo_ast_type_theory_unparsed_term,clingo_ast_type_theory_guard,clingo_ast_type_theory_atom_element,clingo_ast_type_theory_atom,clingo_ast_type_literal,clingo_ast_type_theory_operator_definition,clingo_ast_type_theory_term_definition,clingo_ast_type_theory_guard_definition,clingo_ast_type_theory_atom_definition,clingo_ast_type_rule,clingo_ast_type_definition,clingo_ast_type_show_signature,clingo_ast_type_show_term,clingo_ast_type_minimize,clingo_ast_type_script,clingo_ast_type_program,clingo_ast_type_external,clingo_ast_type_edge,clingo_ast_type_heuristic,clingo_ast_type_project_atom,clingo_ast_type_project_signature,clingo_ast_type_defined,clingo_ast_type_theory_definition" },
-  { "clingo_ast_unary_operator_e", 1275, _cffi_prim_int(sizeof(enum clingo_ast_unary_operator_e), ((enum clingo_ast_unary_operator_e)-1) <= 0),
+  { "clingo_ast_unary_operator_e", 1277, _cffi_prim_int(sizeof(enum clingo_ast_unary_operator_e), ((enum clingo_ast_unary_operator_e)-1) <= 0),
     "clingo_ast_unary_operator_minus,clingo_ast_unary_operator_negation,clingo_ast_unary_operator_absolute" },
-  { "clingo_ast_unpool_type_e", 1276, _cffi_prim_int(sizeof(enum clingo_ast_unpool_type_e), ((enum clingo_ast_unpool_type_e)-1) <= 0),
+  { "clingo_ast_unpool_type_e", 1278, _cffi_prim_int(sizeof(enum clingo_ast_unpool_type_e), ((enum clingo_ast_unpool_type_e)-1) <= 0),
     "clingo_ast_unpool_type_condition,clingo_ast_unpool_type_other,clingo_ast_unpool_type_all" },
-  { "clingo_clause_type_e", 1277, _cffi_prim_int(sizeof(enum clingo_clause_type_e), ((enum clingo_clause_type_e)-1) <= 0),
+  { "clingo_clause_type_e", 1279, _cffi_prim_int(sizeof(enum clingo_clause_type_e), ((enum clingo_clause_type_e)-1) <= 0),
     "clingo_clause_type_learnt,clingo_clause_type_static,clingo_clause_type_volatile,clingo_clause_type_volatile_static" },
-  { "clingo_configuration_type_e", 1278, _cffi_prim_int(sizeof(enum clingo_configuration_type_e), ((enum clingo_configuration_type_e)-1) <= 0),
+  { "clingo_configuration_type_e", 1280, _cffi_prim_int(sizeof(enum clingo_configuration_type_e), ((enum clingo_configuration_type_e)-1) <= 0),
     "clingo_configuration_type_value,clingo_configuration_type_array,clingo_configuration_type_map" },
-  { "clingo_error_e", 1279, _cffi_prim_int(sizeof(enum clingo_error_e), ((enum clingo_error_e)-1) <= 0),
+  { "clingo_error_e", 1281, _cffi_prim_int(sizeof(enum clingo_error_e), ((enum clingo_error_e)-1) <= 0),
     "clingo_error_success,clingo_error_runtime,clingo_error_logic,clingo_error_bad_alloc,clingo_error_unknown" },
-  { "clingo_external_type_e", 1280, _cffi_prim_int(sizeof(enum clingo_external_type_e), ((enum clingo_external_type_e)-1) <= 0),
+  { "clingo_external_type_e", 1282, _cffi_prim_int(sizeof(enum clingo_external_type_e), ((enum clingo_external_type_e)-1) <= 0),
     "clingo_external_type_free,clingo_external_type_true,clingo_external_type_false,clingo_external_type_release" },
-  { "clingo_heuristic_type_e", 1281, _cffi_prim_int(sizeof(enum clingo_heuristic_type_e), ((enum clingo_heuristic_type_e)-1) <= 0),
+  { "clingo_heuristic_type_e", 1283, _cffi_prim_int(sizeof(enum clingo_heuristic_type_e), ((enum clingo_heuristic_type_e)-1) <= 0),
     "clingo_heuristic_type_level,clingo_heuristic_type_sign,clingo_heuristic_type_factor,clingo_heuristic_type_init,clingo_heuristic_type_true,clingo_heuristic_type_false" },
-  { "clingo_model_type_e", 1282, _cffi_prim_int(sizeof(enum clingo_model_type_e), ((enum clingo_model_type_e)-1) <= 0),
+  { "clingo_model_type_e", 1284, _cffi_prim_int(sizeof(enum clingo_model_type_e), ((enum clingo_model_type_e)-1) <= 0),
     "clingo_model_type_stable_model,clingo_model_type_brave_consequences,clingo_model_type_cautious_consequences" },
-  { "clingo_propagator_check_mode_e", 1283, _cffi_prim_int(sizeof(enum clingo_propagator_check_mode_e), ((enum clingo_propagator_check_mode_e)-1) <= 0),
+  { "clingo_propagator_check_mode_e", 1285, _cffi_prim_int(sizeof(enum clingo_propagator_check_mode_e), ((enum clingo_propagator_check_mode_e)-1) <= 0),
     "clingo_propagator_check_mode_none,clingo_propagator_check_mode_total,clingo_propagator_check_mode_fixpoint,clingo_propagator_check_mode_both" },
-  { "clingo_show_type_e", 1284, _cffi_prim_int(sizeof(enum clingo_show_type_e), ((enum clingo_show_type_e)-1) <= 0),
+  { "clingo_show_type_e", 1286, _cffi_prim_int(sizeof(enum clingo_show_type_e), ((enum clingo_show_type_e)-1) <= 0),
     "clingo_show_type_shown,clingo_show_type_atoms,clingo_show_type_terms,clingo_show_type_theory,clingo_show_type_all,clingo_show_type_complement" },
-  { "clingo_solve_event_type_e", 1285, _cffi_prim_int(sizeof(enum clingo_solve_event_type_e), ((enum clingo_solve_event_type_e)-1) <= 0),
+  { "clingo_solve_event_type_e", 1287, _cffi_prim_int(sizeof(enum clingo_solve_event_type_e), ((enum clingo_solve_event_type_e)-1) <= 0),
     "clingo_solve_event_type_model,clingo_solve_event_type_unsat,clingo_solve_event_type_statistics,clingo_solve_event_type_finish" },
-  { "clingo_solve_mode_e", 1286, _cffi_prim_int(sizeof(enum clingo_solve_mode_e), ((enum clingo_solve_mode_e)-1) <= 0),
+  { "clingo_solve_mode_e", 1288, _cffi_prim_int(sizeof(enum clingo_solve_mode_e), ((enum clingo_solve_mode_e)-1) <= 0),
     "clingo_solve_mode_async,clingo_solve_mode_yield" },
-  { "clingo_solve_result_e", 1287, _cffi_prim_int(sizeof(enum clingo_solve_result_e), ((enum clingo_solve_result_e)-1) <= 0),
+  { "clingo_solve_result_e", 1289, _cffi_prim_int(sizeof(enum clingo_solve_result_e), ((enum clingo_solve_result_e)-1) <= 0),
     "clingo_solve_result_satisfiable,clingo_solve_result_unsatisfiable,clingo_solve_result_exhausted,clingo_solve_result_interrupted" },
-  { "clingo_statistics_type_e", 1288, _cffi_prim_int(sizeof(enum clingo_statistics_type_e), ((enum clingo_statistics_type_e)-1) <= 0),
+  { "clingo_statistics_type_e", 1290, _cffi_prim_int(sizeof(enum clingo_statistics_type_e), ((enum clingo_statistics_type_e)-1) <= 0),
     "clingo_statistics_type_empty,clingo_statistics_type_value,clingo_statistics_type_array,clingo_statistics_type_map" },
-  { "clingo_symbol_type_e", 1289, _cffi_prim_int(sizeof(enum clingo_symbol_type_e), ((enum clingo_symbol_type_e)-1) <= 0),
+  { "clingo_symbol_type_e", 1291, _cffi_prim_int(sizeof(enum clingo_symbol_type_e), ((enum clingo_symbol_type_e)-1) <= 0),
     "clingo_symbol_type_infimum,clingo_symbol_type_number,clingo_symbol_type_string,clingo_symbol_type_function,clingo_symbol_type_supremum" },
-  { "clingo_theory_sequence_type_e", 1290, _cffi_prim_int(sizeof(enum clingo_theory_sequence_type_e), ((enum clingo_theory_sequence_type_e)-1) <= 0),
+  { "clingo_theory_sequence_type_e", 1292, _cffi_prim_int(sizeof(enum clingo_theory_sequence_type_e), ((enum clingo_theory_sequence_type_e)-1) <= 0),
     "clingo_theory_sequence_type_tuple,clingo_theory_sequence_type_list,clingo_theory_sequence_type_set" },
-  { "clingo_theory_term_type_e", 1291, _cffi_prim_int(sizeof(enum clingo_theory_term_type_e), ((enum clingo_theory_term_type_e)-1) <= 0),
+  { "clingo_theory_term_type_e", 1293, _cffi_prim_int(sizeof(enum clingo_theory_term_type_e), ((enum clingo_theory_term_type_e)-1) <= 0),
     "clingo_theory_term_type_tuple,clingo_theory_term_type_list,clingo_theory_term_type_set,clingo_theory_term_type_function,clingo_theory_term_type_number,clingo_theory_term_type_symbol" },
-  { "clingo_truth_value_e", 1292, _cffi_prim_int(sizeof(enum clingo_truth_value_e), ((enum clingo_truth_value_e)-1) <= 0),
+  { "clingo_truth_value_e", 1294, _cffi_prim_int(sizeof(enum clingo_truth_value_e), ((enum clingo_truth_value_e)-1) <= 0),
     "clingo_truth_value_free,clingo_truth_value_true,clingo_truth_value_false" },
-  { "clingo_warning_e", 1293, _cffi_prim_int(sizeof(enum clingo_warning_e), ((enum clingo_warning_e)-1) <= 0),
+  { "clingo_warning_e", 1295, _cffi_prim_int(sizeof(enum clingo_warning_e), ((enum clingo_warning_e)-1) <= 0),
     "clingo_warning_operation_undefined,clingo_warning_runtime_error,clingo_warning_atom_undefined,clingo_warning_file_included,clingo_warning_variable_unbounded,clingo_warning_global_variable,clingo_warning_other" },
-  { "clingo_weight_constraint_type_e", 1294, _cffi_prim_int(sizeof(enum clingo_weight_constraint_type_e), ((enum clingo_weight_constraint_type_e)-1) <= 0),
+  { "clingo_weight_constraint_type_e", 1296, _cffi_prim_int(sizeof(enum clingo_weight_constraint_type_e), ((enum clingo_weight_constraint_type_e)-1) <= 0),
     "clingo_weight_constraint_type_implication_left,clingo_weight_constraint_type_implication_right,clingo_weight_constraint_type_equivalence" },
 };
 
 static const struct _cffi_typename_s _cffi_typenames[] = {
-  { "clingo_application_t", 1237 },
-  { "clingo_assignment_t", 1238 },
-  { "clingo_ast_aggregate_function_t", 153 },
-  { "clingo_ast_argument_t", 1240 },
-  { "clingo_ast_attribute_names_t", 1241 },
-  { "clingo_ast_attribute_t", 153 },
-  { "clingo_ast_attribute_type_t", 153 },
-  { "clingo_ast_binary_operator_t", 153 },
+  { "clingo_application_t", 1239 },
+  { "clingo_assignment_t", 1240 },
+  { "clingo_ast_aggregate_function_t", 155 },
+  { "clingo_ast_argument_t", 1242 },
+  { "clingo_ast_attribute_names_t", 1243 },
+  { "clingo_ast_attribute_t", 155 },
+  { "clingo_ast_attribute_type_t", 155 },
+  { "clingo_ast_binary_operator_t", 155 },
   { "clingo_ast_callback_t", 24 },
-  { "clingo_ast_comparison_operator_t", 153 },
-  { "clingo_ast_constructor_t", 1243 },
-  { "clingo_ast_constructors_t", 1244 },
-  { "clingo_ast_sign_t", 153 },
-  { "clingo_ast_t", 1245 },
-  { "clingo_ast_theory_atom_definition_type_t", 153 },
-  { "clingo_ast_theory_operator_type_t", 153 },
-  { "clingo_ast_theory_sequence_type_t", 153 },
-  { "clingo_ast_type_t", 153 },
-  { "clingo_ast_unary_operator_t", 153 },
-  { "clingo_ast_unpool_type_bitset_t", 153 },
-  { "clingo_atom_t", 67 },
-  { "clingo_backend_t", 1246 },
-  { "clingo_clause_type_t", 153 },
-  { "clingo_configuration_t", 1247 },
-  { "clingo_configuration_type_bitset_t", 28 },
-  { "clingo_control_t", 1248 },
-  { "clingo_default_model_printer_t", 586 },
-  { "clingo_error_t", 153 },
-  { "clingo_external_type_t", 153 },
-  { "clingo_ground_callback_t", 474 },
-  { "clingo_ground_program_observer_t", 1249 },
-  { "clingo_heuristic_type_t", 153 },
-  { "clingo_id_t", 67 },
+  { "clingo_ast_comparison_operator_t", 155 },
+  { "clingo_ast_constructor_t", 1245 },
+  { "clingo_ast_constructors_t", 1246 },
+  { "clingo_ast_sign_t", 155 },
+  { "clingo_ast_t", 1247 },
+  { "clingo_ast_theory_atom_definition_type_t", 155 },
+  { "clingo_ast_theory_operator_type_t", 155 },
+  { "clingo_ast_theory_sequence_type_t", 155 },
+  { "clingo_ast_type_t", 155 },
+  { "clingo_ast_unary_operator_t", 155 },
+  { "clingo_ast_unpool_type_bitset_t", 155 },
+  { "clingo_atom_t", 69 },
+  { "clingo_backend_t", 1248 },
+  { "clingo_clause_type_t", 155 },
+  { "clingo_configuration_t", 1249 },
+  { "clingo_configuration_type_bitset_t", 29 },
+  { "clingo_control_t", 1250 },
+  { "clingo_default_model_printer_t", 588 },
+  { "clingo_error_t", 155 },
+  { "clingo_external_type_t", 155 },
+  { "clingo_ground_callback_t", 476 },
+  { "clingo_ground_program_observer_t", 1251 },
+  { "clingo_heuristic_type_t", 155 },
+  { "clingo_id_t", 69 },
   { "clingo_literal_t", 12 },
-  { "clingo_location_t", 1250 },
-  { "clingo_logger_t", 26 },
-  { "clingo_main_function_t", 1206 },
-  { "clingo_model_printer_t", 1212 },
-  { "clingo_model_t", 1251 },
-  { "clingo_model_type_t", 153 },
-  { "clingo_options_t", 1252 },
-  { "clingo_part_t", 1253 },
-  { "clingo_program_builder_t", 1254 },
-  { "clingo_propagate_control_t", 1255 },
-  { "clingo_propagate_init_t", 1256 },
-  { "clingo_propagator_check_callback_t", 1215 },
-  { "clingo_propagator_check_mode_t", 153 },
-  { "clingo_propagator_init_callback_t", 1216 },
-  { "clingo_propagator_propagate_callback_t", 1214 },
-  { "clingo_propagator_t", 1257 },
-  { "clingo_propagator_undo_callback_t", 1297 },
-  { "clingo_script_t", 1258 },
-  { "clingo_show_type_bitset_t", 28 },
-  { "clingo_signature_t", 244 },
-  { "clingo_solve_control_t", 1259 },
-  { "clingo_solve_event_callback_t", 501 },
-  { "clingo_solve_event_type_t", 28 },
-  { "clingo_solve_handle_t", 1260 },
-  { "clingo_solve_mode_bitset_t", 28 },
-  { "clingo_solve_result_bitset_t", 28 },
-  { "clingo_statistics_t", 1261 },
-  { "clingo_statistics_type_t", 153 },
-  { "clingo_symbol_callback_t", 557 },
-  { "clingo_symbol_t", 244 },
-  { "clingo_symbol_type_t", 153 },
-  { "clingo_symbolic_atom_iterator_t", 244 },
-  { "clingo_symbolic_atoms_t", 1262 },
-  { "clingo_theory_atoms_t", 1263 },
-  { "clingo_theory_sequence_type_t", 153 },
-  { "clingo_theory_term_type_t", 153 },
-  { "clingo_truth_value_t", 153 },
-  { "clingo_warning_t", 153 },
-  { "clingo_weight_constraint_type_t", 153 },
+  { "clingo_location_t", 1252 },
+  { "clingo_logger_t", 27 },
+  { "clingo_main_function_t", 1208 },
+  { "clingo_model_printer_t", 1214 },
+  { "clingo_model_t", 1253 },
+  { "clingo_model_type_t", 155 },
+  { "clingo_options_t", 1254 },
+  { "clingo_part_t", 1255 },
+  { "clingo_program_builder_t", 1256 },
+  { "clingo_propagate_control_t", 1257 },
+  { "clingo_propagate_init_t", 1258 },
+  { "clingo_propagator_check_callback_t", 1217 },
+  { "clingo_propagator_check_mode_t", 155 },
+  { "clingo_propagator_init_callback_t", 1218 },
+  { "clingo_propagator_propagate_callback_t", 1216 },
+  { "clingo_propagator_t", 1259 },
+  { "clingo_propagator_undo_callback_t", 1299 },
+  { "clingo_script_t", 1260 },
+  { "clingo_show_type_bitset_t", 29 },
+  { "clingo_signature_t", 246 },
+  { "clingo_solve_control_t", 1261 },
+  { "clingo_solve_event_callback_t", 503 },
+  { "clingo_solve_event_type_t", 29 },
+  { "clingo_solve_handle_t", 1262 },
+  { "clingo_solve_mode_bitset_t", 29 },
+  { "clingo_solve_result_bitset_t", 29 },
+  { "clingo_statistics_t", 1263 },
+  { "clingo_statistics_type_t", 155 },
+  { "clingo_symbol_callback_t", 559 },
+  { "clingo_symbol_t", 246 },
+  { "clingo_symbol_type_t", 155 },
+  { "clingo_symbolic_atom_iterator_t", 246 },
+  { "clingo_symbolic_atoms_t", 1264 },
+  { "clingo_theory_atoms_t", 1265 },
+  { "clingo_theory_sequence_type_t", 155 },
+  { "clingo_theory_term_type_t", 155 },
+  { "clingo_truth_value_t", 155 },
+  { "clingo_warning_t", 155 },
+  { "clingo_weight_constraint_type_t", 155 },
   { "clingo_weight_t", 12 },
-  { "clingo_weighted_literal_t", 1264 },
+  { "clingo_weighted_literal_t", 1266 },
 };
 
 static const struct _cffi_type_context_s _cffi_type_context = {
@@ -19441,7 +19504,7 @@ static const struct _cffi_type_context_s _cffi_type_context = {
   30,  /* num_enums */
   75,  /* num_typenames */
   NULL,  /* no includes */
-  1300,  /* num_types */
+  1302,  /* num_types */
   1,  /* flags */
 };
 
