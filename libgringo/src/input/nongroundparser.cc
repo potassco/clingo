@@ -500,6 +500,7 @@ std::vector<Potassco::WeightLit_t> NonGroundParser::aspif_wlits_(Location &loc) 
         if (lit == 0) {
             aspif_error_(loc, "literal expected");
         }
+        aspif_ws_(loc);
         auto weight = aspif_signed_(loc);
         wlits.emplace_back(Potassco::WeightLit_t{lit, weight});
     }
@@ -609,7 +610,8 @@ void NonGroundParser::aspif_external_(Location &loc) {
     switch (value) {
         case Potassco::Value_t::Free:
         case Potassco::Value_t::True:
-        case Potassco::Value_t::False: { break; }
+        case Potassco::Value_t::False:
+        case Potassco::Value_t::Release: { break; }
         default: {
             aspif_error_(loc, "truth value expected");
         }

@@ -28,6 +28,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
+#include <iterator>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -59,7 +60,9 @@ public:
     StringSpan string(int start = 0, int end = 0);
     void step(char s);
     void step();
-    int integer() const;
+    int32_t signed_integer() const;
+    uint32_t unsigned_integer() const;
+    int clingo_number() const;
     int line() const;
     int column() const;
     T const &data() const;
@@ -291,7 +294,36 @@ void LexerState<T>::step() {
 }
 
 template <class T>
-int LexerState<T>::integer() const {
+int32_t LexerState<T>::signed_integer() const {
+    int32_t r = 0;
+    int32_t s = 1;
+    char *i = state().start;
+    if (i != state().cursor && *i == '-') {
+        s = -1;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        ++i;
+    }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    for (; i != state().cursor; i++) {
+        r *= 10;
+        r += *i - '0';
+    }
+    return s * r;
+}
+
+template <class T>
+uint32_t LexerState<T>::unsigned_integer() const {
+    uint32_t r = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    for (char *i = state().start; i != state().cursor; i++) {
+        r *= 10;
+        r += *i - '0';
+    }
+    return r;
+}
+
+template <class T>
+int LexerState<T>::clingo_number() const {
     int s = 0;
     int base = 10;
     if (state().cursor - state().start >= 2) {

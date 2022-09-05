@@ -99,7 +99,7 @@ int NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal> "override"                          { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::OVERRIDE; }
         <normal> ANONYMOUS                           { return NonGroundGrammar::parser::token::ANONYMOUS; }
         <normal,theory,definition,script> IDENTIFIER { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::IDENTIFIER; }
-        <normal,theory,definition> NUMBER            { value.num = integer(); return NonGroundGrammar::parser::token::NUMBER; }
+        <normal,theory,definition> NUMBER            { value.num = clingo_number(); return NonGroundGrammar::parser::token::NUMBER; }
         <normal,theory> VARIABLE                     { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::VARIABLE; }
         <normal,theory> STRING                       { value.str = String::toRep(unquote(string(1, 1)).c_str()); return NonGroundGrammar::parser::token::STRING; }
 
@@ -287,8 +287,7 @@ int32_t NonGroundParser::aspif_signed_(Location &loc) {
     start(loc);
     char yych;
     /*!re2c
-    <aspif> DEC      { return integer(); }
-    <aspif> "-" DEC  { return -integer(); }
+    <aspif> "-"? DEC { return signed_integer(); }
     <aspif> NL       { aspif_error_(loc, format("expected unsigned integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
     <aspif> WS       { aspif_error_(loc, "expected unsigned integer but got <SPACE>"); }
     <aspif> NOWSNL+  { aspif_error_(loc, format("expected unsigned integer but got token ", string()).c_str()); }
@@ -300,7 +299,7 @@ uint32_t NonGroundParser::aspif_unsigned_(Location &loc) {
     start(loc);
     char yych;
     /*!re2c
-    <aspif> DEC      { return integer(); }
+    <aspif> DEC      { return unsigned_integer(); }
     <aspif> NL       { aspif_error_(loc, format("expected integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
     <aspif> WS       { aspif_error_(loc, "expected integer but got <SPACE>"); }
     <aspif> NOWSNL+  { aspif_error_(loc, format("expected integer but got token ", string()).c_str()); }
