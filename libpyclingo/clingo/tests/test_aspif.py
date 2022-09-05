@@ -14,6 +14,26 @@ def solve_aspif(prg):
     return solve(ctl)
 
 
+def theory(prg):
+    ctl = Control()
+    ctl.add(dedent(prg))
+    tab = {}
+    for atm in ctl.symbolic_atoms:
+        tab[atm.literal] = str(atm.symbol)
+
+    thy = []
+    for x in ctl.theory_atoms:
+        elems = []
+        for elem in x.elements:
+            terms = ", ".join(str(term) for term in elem.terms)
+            cond = ", ".join(sorted(tab[lit] for lit in elem.condition))
+            elems.append(f"{terms} : {cond}")
+        thy.append(f"&{x.term} {{ {'; '.join(sorted(elems))} }}")
+        if x.guard is not None:
+            thy[-1] += f" {x.guard[0]} {x.guard[1]}"
+    return sorted(thy)
+
+
 class TestASPIF(TestCase):
     '''
     Test ASPIF parsing.
@@ -177,3 +197,62 @@ class TestASPIF(TestCase):
         '''
         Test theory parsing.
         '''
+        # no guard
+        self.assertEqual(theory('''\
+            asp 1 0 0
+            1 1 1 1 0 0
+            1 0 1 2 0 0
+            9 1 0 1 b
+            9 0 1 1
+            9 4 0 1 1 1 1
+            9 5 2 0 1 0
+            4 1 x 1 1
+            0
+            '''), ['&b { 1 : x }'])
+        # with guard
+        self.assertEqual(theory('''\
+            asp 1 0 0
+            1 1 1 1 0 0
+            1 0 1 2 0 0
+            9 1 0 1 a
+            9 0 3 1
+            9 4 0 1 3 1 1
+            9 1 2 3 <=<
+            9 0 1 2
+            9 6 2 0 1 0 2 1
+            4 1 x 1 1
+            0
+            '''), ['&a { 1 : x } <=< 2'])
+        # complex terms
+        self.assertEqual(theory('''\
+            asp 1 0 0
+            1 0 1 1 0 0
+            9 1 0 1 b
+            9 0 3 1
+            9 0 4 2
+            9 1 2 3 +-*
+            9 2 5 2 2 3 4
+            9 2 6 -1 2 3 4
+            9 0 7 3
+            9 0 8 4
+            9 2 9 -3 2 7 8
+            9 0 10 5
+            9 0 11 6
+            9 2 12 -2 2 10 11
+            9 1 1 1 f
+            9 2 13 1 4 5 6 9 12
+            9 4 0 1 13 0
+            9 5 1 0 1 0
+            0
+            '''), ['&b { f((1+-*2),(1,2),[3,4],{5,6}) :  }'])
+
+    def test_comment(self):
+        '''
+        Test comment parsing.
+        '''
+        ctl = Control()
+        ctl.add(dedent("""\
+            asp 1 0 0
+            10 nothing!
+            0
+            """))
