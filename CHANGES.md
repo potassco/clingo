@@ -2,12 +2,16 @@
 
 ## clingo 5.6.0
 
+  * add support for parsing files in ASPIF format (#387)
   * add theory related functions to backend (#381)
   * add support for comparisons with more than one relation (#368)
   * extend safety by computing intervals from comparisons (#375)
   * add and ground base part by default in Python API (#378)
   * remove experimental CSP extensions (#367)
   * require at least MSVC 15.0 to build on Windows
+  * large code refactoring (#376)
+  * replace internal hash set implementation by external one (#386)
+  * update clasp
 
 ## clingo 5.5.2
   * fix `parse_files` in C++ API

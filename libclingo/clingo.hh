@@ -2138,7 +2138,13 @@ template <class Callback>
 void parse_string(char const *program, Callback &&cb, Logger logger = nullptr, unsigned message_limit = g_message_limit);
 
 template <class Callback>
+void parse_string(char const *program, Callback &&cb, Control &control, Logger logger = nullptr, unsigned message_limit = g_message_limit);
+
+template <class Callback>
 void parse_files(StringSpan files, Callback &&cb, Logger logger = nullptr, unsigned message_limit = g_message_limit);
+
+template <class Callback>
+void parse_files(StringSpan files, Callback &&cb, Control &control, Logger logger = nullptr, unsigned message_limit = g_message_limit);
 
 template <class F>
 inline void with_builder(Control &ctl, F f) {
@@ -3996,7 +4002,7 @@ inline Node const &StringVector::ast() const {
 
 inline ProgramBuilder::ProgramBuilder(Control &ctl)
 : builder_{nullptr} {
-    Detail::handle_error(clingo_control_program_builder(ctl.to_c(), &builder_));
+    Detail::handle_error(clingo_program_builder_init(ctl.to_c(), &builder_));
     Detail::handle_error(clingo_program_builder_begin(builder_));
 }
 
@@ -4022,8 +4028,10 @@ inline void ProgramBuilder::add(Node const &ast) {
 
 // functions
 
+namespace ASTDetail {
+
 template <class Callback>
-inline void parse_string(char const *program, Callback &&cb, Logger logger, unsigned message_limit) {
+inline void parse_string(char const *program, Callback &&cb, clingo_control_t *control, Logger logger, unsigned message_limit) {
     using Data = std::pair<Callback&, std::exception_ptr>;
     Data data(cb, nullptr);
     Detail::handle_error(clingo_ast_parse_string(program, [](clingo_ast_t *ast, void *data) -> bool {
@@ -4031,14 +4039,14 @@ inline void parse_string(char const *program, Callback &&cb, Logger logger, unsi
         clingo_ast_acquire(ast);
         CLINGO_CALLBACK_TRY { d.first(Node{ast}); }
         CLINGO_CALLBACK_CATCH(d.second);
-    }, &data, [](clingo_warning_t code, char const *msg, void *data) {
+    }, &data, nullptr, [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
     }, &logger, message_limit), data.second);
 }
 
 template <class Callback>
-inline void parse_files(StringSpan files, Callback &&cb, Logger logger, unsigned message_limit) {
+inline void parse_files(StringSpan files, Callback &&cb, clingo_control_t *control, Logger logger, unsigned message_limit) {
     using Data = std::pair<Callback&, std::exception_ptr>;
     Data data(cb, nullptr);
     Detail::handle_error(clingo_ast_parse_files(files.begin(), files.size(), [](clingo_ast_t *ast, void *data) -> bool {
@@ -4046,10 +4054,32 @@ inline void parse_files(StringSpan files, Callback &&cb, Logger logger, unsigned
         clingo_ast_acquire(ast);
         CLINGO_CALLBACK_TRY { d.first(Node{ast}); }
         CLINGO_CALLBACK_CATCH(d.second);
-    }, &data, [](clingo_warning_t code, char const *msg, void *data) {
+    }, &data, nullptr, [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
     }, &logger, message_limit), data.second);
+}
+
+} // namespace
+
+template <class Callback>
+inline void parse_string(char const *program, Callback &&cb, Logger logger, unsigned message_limit) {
+    ASTDetail::parse_string(program, cb, nullptr, logger, message_limit);
+}
+
+template <class Callback>
+inline void parse_string(char const *program, Callback &&cb, Control &control, Logger logger, unsigned message_limit) {
+    ASTDetail::parse_string(program, cb, control.to_c(), logger, message_limit);
+}
+
+template <class Callback>
+inline void parse_files(StringSpan files, Callback &&cb, Logger logger, unsigned message_limit) {
+    ASTDetail::parse_files(files, cb, nullptr, logger, message_limit);
+}
+
+template <class Callback>
+inline void parse_files(StringSpan files, Callback &&cb, Control &control, Logger logger, unsigned message_limit) {
+    ASTDetail::parse_files(files, cb, control.to_c(), logger, message_limit);
 }
 
 } // namespace AST

@@ -58,6 +58,10 @@ Program::Program() {
     begin(Location("<internal>", 1, 1, "<internal>", 1, 1), "base", IdVec({}));
 }
 
+bool Program::empty() const {
+    return blocks_.empty() && sigs_.empty() && theoryDefs_.empty();
+}
+
 void Program::begin(Location const &loc, String name, IdVec &&params) {
     auto block = Block{loc, (std::string("#inc_") + name.c_str()).c_str(), std::move(params)};
     auto sig = block.make_sig();

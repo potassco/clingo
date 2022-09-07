@@ -41,9 +41,10 @@ TEST_CASE("input-nongroundlexer", "[input]") {
     Program prg;
     Defines defs;
     Gringo::Test::TestContext context;
-    NongroundProgramBuilder pb(context, prg, out, defs);
+    NongroundProgramBuilder pb(context, prg, out.outPreds, defs);
     bool incmode;
-    NonGroundParser ngp(pb, incmode);
+    NullBackend bck;
+    NonGroundParser ngp(pb, bck, incmode);
     ngp.parse(module); // Just to set the logger
     std::string in =
         "#script (python) #end "

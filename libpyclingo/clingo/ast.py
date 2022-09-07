@@ -964,7 +964,7 @@ def _pyclingo_ast_callback(ast, data):
 
     return True
 
-def parse_files(files: Sequence[str], callback: Callable[[AST], None],
+def parse_files(files: Sequence[str], callback: Callable[[AST], None], control: Control=None,
                 logger: Optional[Logger]=None, message_limit: int=20) -> None:
     '''
     Parse the programs in the given files and return an abstract syntax tree for
@@ -974,12 +974,17 @@ def parse_files(files: Sequence[str], callback: Callable[[AST], None],
     `"-"` is treated as stdin and if an empty list is given, then the parser will
     read from stdin.
 
+    The optional control object can be added to enable parsing of files in
+    ASPIF format. The ground statements will be added to the control object.
+
     Parameters
     ----------
     files
         List of file names.
     callback
         Callable taking an ast as argument.
+    control
+        Control object to add ground rules to.
     logger
         Function to intercept messages normally printed to standard error.
     message_limit
@@ -989,6 +994,8 @@ def parse_files(files: Sequence[str], callback: Callable[[AST], None],
     --------
     ProgramBuilder
     '''
+    c_control = control._rep if control is not None else _ffi.NULL
+
     if logger is not None:
         c_logger_data = _ffi.new_handle(logger)
         c_logger = _lib.pyclingo_logger_callback
@@ -1002,14 +1009,17 @@ def parse_files(files: Sequence[str], callback: Callable[[AST], None],
 
     _handle_error(_lib.clingo_ast_parse_files([ _ffi.new('char[]', f.encode()) for f in files ], len(files),
                                               _lib.pyclingo_ast_callback, c_cb_data,
-                                              c_logger, c_logger_data,
+                                              c_control, c_logger, c_logger_data,
                                               message_limit), cb_data)
 
-def parse_string(program: str, callback: Callable[[AST], None],
+def parse_string(program: str, callback: Callable[[AST], None], control: Control=None,
                  logger: Optional[Logger]=None, message_limit: int=20) -> None:
     '''
     Parse the given program and return an abstract syntax tree for each
     statement via a callback.
+
+    The optional control object can be added to enable parsing of files in
+    ASPIF format. The ground statements will be added to the control object.
 
     Parameters
     ----------
@@ -1017,6 +1027,8 @@ def parse_string(program: str, callback: Callable[[AST], None],
         String representation of the program.
     callback
         Callable taking an ast as argument.
+    control
+        Control object to add ground rules to.
     logger
         Function to intercept messages normally printed to standard error.
     message_limit
@@ -1026,6 +1038,8 @@ def parse_string(program: str, callback: Callable[[AST], None],
     --------
     ProgramBuilder
     '''
+    c_control = control._rep if control is not None else _ffi.NULL
+
     if logger is not None:
         c_logger_data = _ffi.new_handle(logger)
         c_logger = _lib.pyclingo_logger_callback
@@ -1039,7 +1053,7 @@ def parse_string(program: str, callback: Callable[[AST], None],
 
     _handle_error(_lib.clingo_ast_parse_string(program.encode(),
                                                _lib.pyclingo_ast_callback, c_cb_data,
-                                               c_logger, c_logger_data,
+                                               c_control, c_logger, c_logger_data,
                                                message_limit), cb_data)
 
 class ProgramBuilder(ContextManager['ProgramBuilder']):
@@ -1061,7 +1075,7 @@ class ProgramBuilder(ContextManager['ProgramBuilder']):
     statement.
     '''
     def __init__(self, control: Control):
-        self._rep = _c_call('clingo_program_builder_t*', _lib.clingo_control_program_builder, control._rep)
+        self._rep = _c_call('clingo_program_builder_t*', _lib.clingo_program_builder_init, control._rep)
 
     def __enter__(self):
         _handle_error(_lib.clingo_program_builder_begin(self._rep))

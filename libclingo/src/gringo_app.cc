@@ -54,7 +54,6 @@ struct GringoOptions {
     bool                          wNoOperationUndefined = false;
     bool                          wNoAtomUndef          = false;
     bool                          wNoFileIncluded       = false;
-    bool                          wNoVariableUnbounded  = false;
     bool                          wNoGlobalVariable     = false;
     bool                          wNoOther              = false;
     bool                          rewriteMinimize       = false;
@@ -89,19 +88,18 @@ static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& fo
 }
 
 #define LOG if (opts.verbose) std::cerr
-struct IncrementalControl : Control {
+struct IncrementalControl : Control, private Output::ASPIFOutBackend {
     IncrementalControl(Output::OutputBase &out, StrVec const &files, GringoOptions const &opts)
     : out(out)
     , scripts(g_scripts())
-    , pb(scripts, prg, out, defs, opts.rewriteMinimize)
-    , parser(pb, incmode)
+    , pb(scripts, prg, out.outPreds, defs, opts.rewriteMinimize)
+    , parser(pb, *this, incmode)
     , opts(opts) {
         using namespace Gringo;
         // TODO: should go where python script is once refactored
         out.keepFacts = opts.keepFacts;
         logger_.enable(Warnings::OperationUndefined, !opts.wNoOperationUndefined);
         logger_.enable(Warnings::AtomUndefined, !opts.wNoAtomUndef);
-        logger_.enable(Warnings::VariableUnbounded, !opts.wNoVariableUnbounded);
         logger_.enable(Warnings::FileIncluded, !opts.wNoFileIncluded);
         logger_.enable(Warnings::GlobalVariable, !opts.wNoGlobalVariable);
         logger_.enable(Warnings::Other, !opts.wNoOther);
@@ -119,21 +117,55 @@ struct IncrementalControl : Control {
         }
         parse();
     }
+    Backend &getASPIFBackend() override {
+        return *this;
+    }
+    Output::OutputBase &beginOutput() override {
+        beginAddBackend();
+        return out;
+    }
+    void endOutput() override {
+        endAddBackend();
+    }
+
     Logger &logger() override {
         return logger_;
     }
+    void update() {
+        // This function starts a new step and has to be called at least once
+        // before anything that causes output at the beginning of excecution or
+        // after a solve step.
+        if (!grounded) {
+            if (!initialized_) {
+                initialized_ = true;
+                out.init(incremental_);
+            }
+            out.beginStep();
+            grounded = true;
+        }
+    }
     void parse() {
         if (!parser.empty()) {
-            parser.parse(logger_);
-            defs.init(logger_);
-            parsed = true;
+            switch (parser.parse(logger_)) {
+                case Input::ParseResult::Gringo: {
+                    defs.init(logger_);
+                    parsed = true;
+                    break;
+                }
+                case Input::ParseResult::ASPIF: {
+                    break;
+                }
+            }
+        }
+        if (logger_.hasError()) {
+            throw std::runtime_error("parsing failed");
         }
     }
     void ground(Control::GroundVec const &parts, Context *context) override {
+        update();
         // NOTE: it would be cool to have assumptions in the lparse output
         auto exit = onExit([this]{ scripts.resetContext(); });
         if (context) { scripts.setContext(*context); }
-        parse();
         if (parsed) {
             LOG << "************** parsed program **************" << std::endl << prg;
             prg.rewrite(defs, logger_);
@@ -143,14 +175,6 @@ struct IncrementalControl : Control {
                 throw std::runtime_error("grounding stopped because of errors");
             }
             parsed = false;
-        }
-        if (!grounded) {
-            if (!initialized_) {
-                initialized_ = true;
-                out.init(incremental_);
-            }
-            out.beginStep();
-            grounded = true;
         }
         if (!parts.empty()) {
             Ground::Parameters params;
@@ -188,6 +212,7 @@ struct IncrementalControl : Control {
     }
     bool blocked() override { return false; }
     USolveFuture solve(Assumptions ass, clingo_solve_mode_bitset_t, USolveEventHandler cb) override {
+        update();
         grounded = false;
         out.endStep(ass);
         out.reset(true);
@@ -212,6 +237,7 @@ struct IncrementalControl : Control {
     Potassco::AbstractStatistics const *statistics() const override { throw std::runtime_error("statistics not supported (yet)"); }
     bool isConflicting() const noexcept override { return false; }
     void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) override {
+        update();
         if (auto *b = out.backend()) { b->external(ext, val); }
     }
     SymbolicAtoms const &getDomain() const override { throw std::runtime_error("domain introspection not supported"); }
@@ -225,6 +251,7 @@ struct IncrementalControl : Control {
     virtual ~IncrementalControl() { }
     Output::DomainData const &theory() const override { return out.data; }
     bool beginAddBackend() override {
+        update();
         backend_prg_ = std::make_unique<Ground::Program>(prg.toGround({}, out.data, logger_));
         backend_prg_->prepare({}, out, logger_);
         backend_ = out.backend();
@@ -279,11 +306,11 @@ struct IncrementalControl : Control {
     Backend                       *backend_ = nullptr;
     std::unique_ptr<Ground::Program> backend_prg_;
     std::unique_ptr<Input::NongroundProgramBuilder> builder;
-    bool                                   incmode = false;
-    bool                                   parsed = false;
-    bool                                   grounded = false;
+    bool incmode = false;
+    bool parsed = false;
+    bool grounded = false;
     bool initialized_ = false;
-    bool incremental_ = true;
+    bool incremental_ = false;
 };
 #undef LOG
 
@@ -296,7 +323,6 @@ inline void enableAll(GringoOptions& out, bool enable) {
     out.wNoAtomUndef          = !enable;
     out.wNoFileIncluded       = !enable;
     out.wNoOperationUndefined = !enable;
-    out.wNoVariableUnbounded  = !enable;
     out.wNoGlobalVariable     = !enable;
     out.wNoOther              = !enable;
 }
@@ -310,8 +336,6 @@ inline bool parseWarning(const std::string& str, GringoOptions& out) {
     if (str ==    "file-included")         { out.wNoFileIncluded       = false; return true; }
     if (str == "no-operation-undefined")   { out.wNoOperationUndefined = true;  return true; }
     if (str ==    "operation-undefined")   { out.wNoOperationUndefined = false; return true; }
-    if (str == "no-variable-unbounded")    { out.wNoVariableUnbounded  = true;  return true; }
-    if (str ==    "variable-unbounded")    { out.wNoVariableUnbounded  = false; return true; }
     if (str == "no-global-variable")       { out.wNoGlobalVariable     = true;  return true; }
     if (str ==    "global-variable")       { out.wNoGlobalVariable     = false; return true; }
     if (str == "no-other")                 { out.wNoOther              = true;  return true; }
@@ -362,7 +386,6 @@ struct GringoApp : public Potassco::Application {
              "      [no-]atom-undefined:      a :- b.\n"
              "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
              "      [no-]operation-undefined: p(1/0).\n"
-             "      [no-]variable-unbounded:  $x > 10.\n"
              "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
              "      [no-]other:               uncategorized warnings")
             ("rewrite-minimize,@1", flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
@@ -436,7 +459,7 @@ struct GringoApp : public Potassco::Application {
             grOpts_.verbose = verbose() == UINT_MAX;
             Output::OutputPredicates outPreds;
             for (auto &x : grOpts_.foobar) {
-                outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x);
+                outPreds.add(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
             }
             Potassco::TheoryData data;
             data.update();

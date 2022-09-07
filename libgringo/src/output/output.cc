@@ -506,7 +506,7 @@ void OutputBase::beginStep() {
 
 void OutputBase::endGround(Logger &log) {
     auto &doms = predDoms();
-    for (auto &neg : doms) {
+    for (auto const &neg : doms) {
         auto sig = neg->sig();
         if (!sig.sign()) {
             continue;
@@ -515,11 +515,11 @@ void OutputBase::endGround(Logger &log) {
         if (it_pos == doms.end()) {
             continue;
         }
-        auto &pos = *it_pos;
+        auto const &pos = *it_pos;
         auto rule = [&](auto it, auto jt) {
             output(tempRule(false)
-                .addBody({NAF::POS, Output::AtomType::Predicate, static_cast<Potassco::Id_t>(it - pos->begin()), pos->domainOffset()})
-                .addBody({NAF::POS, Output::AtomType::Predicate, static_cast<Potassco::Id_t>(jt - neg->begin()), neg->domainOffset()}));
+                .addBody({NAF::POS, AtomType::Predicate, static_cast<Potassco::Id_t>(it - pos->begin()), pos->domainOffset()})
+                .addBody({NAF::POS, AtomType::Predicate, static_cast<Potassco::Id_t>(jt - neg->begin()), neg->domainOffset()}));
         };
         auto neg_begin = neg->begin() + neg->incOffset();
         for (auto it = neg_begin, ie = neg->end(); it != ie; ++it) {
@@ -539,10 +539,6 @@ void OutputBase::endGround(Logger &log) {
     BackendTheoryOutput bto{data, *out_};
     data.theory().output(bto);
 
-    if (!outPreds.empty()) {
-        std::move(outPredsForce.begin(), outPredsForce.end(), std::back_inserter(outPreds));
-        outPredsForce.clear();
-    }
     EndGroundStatement(outPreds, log).passTo(data, *out_);
 }
 
@@ -562,15 +558,7 @@ void OutputBase::reset(bool resetData) {
 }
 
 void OutputBase::checkOutPreds(Logger &log) {
-    auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
-        return x.second < y.second;
-    };
-    auto eq = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) {
-        return x.second == y.second;
-    };
-    std::sort(outPreds.begin(), outPreds.end(), le);
-    outPreds.erase(std::unique(outPreds.begin(), outPreds.end(), eq), outPreds.end());
-    for (auto &x : outPreds) {
+    for (auto const &x : outPreds) {
         if (!x.second.match("", 0)) {
             auto it(predDoms().find(std::get<1>(x)));
             if (it == predDoms().end()) {
@@ -649,5 +637,254 @@ void OutputBase::registerObserver(UBackend prg, bool replace) {
 }
 
 // }}}1
+
+void ASPIFOutBackend::initProgram(bool incremental) {
+    static_cast<void>(incremental);
+}
+void ASPIFOutBackend::beginStep() {
+    out_ = &beginOutput();
+    bck_ = out_->backend();
+    if (bck_ == nullptr) {
+        throw std::runtime_error("backend not available");
+    }
+    if (steps_ > 0 || !out_->data.empty()) {
+        // In hindsight, one could probably have designed this differently
+        // by not exposing the backend at all. The aspif statements could
+        // have been passed to the output by specialized statements as
+        // well. The whole process would then look like the standard
+        // grounding process.
+        throw std::runtime_error("incremental aspif programs are not supported");
+    }
+    ++steps_;
+}
+
+void ASPIFOutBackend::rule(Head_t ht, AtomSpan const &head, LitSpan const &body) {
+    update_(head, body);
+    if (ht == Head_t::Disjunctive && body.size == 0 && head.size == 1) {
+        facts_.emplace(*head.first);
+    }
+    bck_->rule(ht, head, body);
+}
+void ASPIFOutBackend::rule(Head_t ht, AtomSpan const &head, Weight_t bound, WeightLitSpan const &body) {
+    update_(head, body);
+    bck_->rule(ht, head, bound, body);
+}
+void ASPIFOutBackend::minimize(Weight_t prio, WeightLitSpan const &lits) {
+    update_(lits);
+    bck_->minimize(prio, lits);
+}
+
+void ASPIFOutBackend::project(AtomSpan const &atoms) {
+    update_(atoms);
+    bck_->project(atoms);
+}
+void ASPIFOutBackend::output(Symbol sym, Potassco::Atom_t atom) {
+    update_(atom);
+    auto res = sym_tab_.try_emplace(sym);
+    res.first.value().emplace_back();
+    res.first.value().back().emplace_back(atom);
+}
+void ASPIFOutBackend::output(Symbol sym, Potassco::LitSpan const &condition) {
+    update_(condition);
+    auto res = sym_tab_.try_emplace(sym);
+    res.first.value().emplace_back(Potassco::begin(condition), Potassco::end(condition));
+}
+void ASPIFOutBackend::external(Atom_t a, Value_t v) {
+    update_(a);
+    bck_->external(a, v);
+}
+void ASPIFOutBackend::assume(const LitSpan& lits) {
+    update_(lits);
+    bck_->assume(lits);
+}
+void ASPIFOutBackend::heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, LitSpan const &condition) {
+    update_(a, condition);
+    bck_->heuristic(a, t, bias, prio, condition);
+}
+void ASPIFOutBackend::acycEdge(int s, int t, LitSpan const &condition) {
+    update_(condition);
+    bck_->acycEdge(s, t, condition);
+}
+
+void ASPIFOutBackend::theoryTerm(Id_t termId, int number) {
+    ensure_term(termId);
+    theory_.addTerm(termId, number);
+}
+void ASPIFOutBackend::theoryTerm(Id_t termId, StringSpan const &name) {
+    ensure_term(termId);
+    theory_.addTerm(termId, name);
+}
+void ASPIFOutBackend::theoryTerm(Id_t termId, int cId, IdSpan const &args) {
+    ensure_term(termId);
+    theory_.addTerm(termId, cId, args);
+}
+void ASPIFOutBackend::theoryElement(Id_t elementId, IdSpan const &terms, LitSpan const &cond) {
+    update_(cond);
+    while (elements_.size() <= elementId) {
+        elements_.emplace_back(std::numeric_limits<Id_t>::max(), std::vector<Potassco::Lit_t>{});
+    }
+    elements_[elementId].second.assign(Potassco::begin(cond), Potassco::end(cond));
+    theory_.addElement(elementId, terms);
+}
+void ASPIFOutBackend::theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &elements) {
+    theory_.addAtom(atomOrZero, termId, elements);
+}
+void ASPIFOutBackend::theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &elements, Id_t op, Id_t rhs) {
+    update_(atomOrZero);
+    theory_.addAtom(atomOrZero, termId, elements, op, rhs);
+}
+
+void ASPIFOutBackend::endStep() {
+    // transfer stored theory atoms to the ouputs theory class
+    theory_.accept(*this);
+    for (auto it = sym_tab_.begin(), ie = sym_tab_.end(); it != ie; ++it) {
+        auto const &sym = it.key();
+        auto &formula = it.value();
+        if (sym.hasSig() && !sym.name().empty()) {
+            if (formula.size() == 1) {
+                // show atom-like symbols directly associated with an atom
+                auto &clause = formula.front();
+                if (clause.size() == 1 && clause.front() > 0) {
+                    auto atom = clause.front();
+                    out_->addAtom(sym, atom, facts_.find(atom) != facts_.end());
+                    continue;
+                }
+                // show atom-like symbols directly associated with facts
+                if (clause.empty()) {
+                    out_->addAtom(sym, fact_id(), true);
+                    continue;
+                }
+            }
+            // show atom-like symbols associated with formulas
+            auto atom = out_->data.newAtom();
+            for (auto &clause : formula) {
+                rule(Potassco::Head_t::Disjunctive, {&atom, 1}, make_span(clause));
+            }
+            out_->addAtom(sym, atom, false);
+            continue;
+        }
+        // show symbols associated with formulas
+        // (could be made a function of the output to hide the mess)
+        for (auto &clause : formula) {
+            LitVec cond;
+            cond.reserve(clause.size());
+            for (auto &lit : clause) {
+                Atom_t atom = std::abs(lit);
+                LiteralId aux{lit > 0 ? NAF::POS : NAF::NOT, AtomType::Aux, atom, 0};
+                cond.emplace_back(aux);
+            }
+            ShowStatement stm{sym, std::move(cond)};
+            out_->output(stm);
+        }
+    }
+    bck_ = nullptr;
+    out_ = nullptr;
+    endOutput();
+}
+
+void ASPIFOutBackend::update_(Atom_t const &atom) {
+    out_->data.ensureAtom(atom);
+}
+void ASPIFOutBackend::update_(Lit_t const &lit) {
+    out_->data.ensureAtom(std::abs(lit));
+}
+void ASPIFOutBackend::update_(AtomSpan const &atoms) {
+    for (auto const &atom : atoms) {
+        update_(atom);
+    }
+}
+void ASPIFOutBackend::update_(LitSpan const &lits) {
+    for (auto const &lit : lits) {
+        update_(lit);
+    }
+}
+void ASPIFOutBackend::update_(WeightLitSpan const &wlits) {
+    for (auto const &wlit : wlits) {
+        update_(wlit.lit);
+    }
+}
+template <class T, class... Args>
+void ASPIFOutBackend::update_(T const &x, Args const &... args) {
+    update_(x);
+    update_(args...);
+}
+
+void ASPIFOutBackend::visit(const Potassco::TheoryData &data, Id_t termId, const Potassco::TheoryTerm &t) {
+    if (terms_[termId] == std::numeric_limits<Id_t>::max()) {
+        theory_.accept(t, *this);
+        auto &theory = out_->data.theory();
+        switch (t.type()) {
+            case Potassco::Theory_t::Number: {
+                terms_[termId] = theory.addTerm(t.number());
+                break;
+            }
+            case Potassco::Theory_t::Symbol: {
+                terms_[termId] = theory.addTerm(t.symbol());
+                break;
+            }
+            case Potassco::Theory_t::Compound: {
+                std::vector<Id_t> terms;
+                terms.reserve(t.terms().size);
+                for (auto const &x : t.terms()) {
+                    terms.emplace_back(terms_[x]);
+                }
+                if (t.isTuple()) {
+                    terms_[termId] = theory.addTermTup(t.tuple(), make_span(terms));
+                }
+                else {
+                    terms_[termId] = theory.addTermFun(terms_[t.function()], make_span(terms));
+                }
+                break;
+            }
+        }
+    }
+}
+void ASPIFOutBackend::visit(const Potassco::TheoryData &data, Id_t elemId, const Potassco::TheoryElement &e) {
+    if (elements_[elemId].first == std::numeric_limits<Id_t>::max()) {
+        theory_.accept(e, *this);
+        auto &theory = out_->data.theory();
+        std::vector<Id_t> tuple;
+        tuple.reserve(e.size());
+        for (auto const &x : e) {
+            tuple.emplace_back(terms_[x]);
+        }
+        // one could alse remap to named literals but would have to store the mapping
+        elements_[elemId].first = theory.addElem(make_span(tuple), make_span(elements_[elemId].second));
+    }
+}
+void ASPIFOutBackend::visit(const Potassco::TheoryData &data, const Potassco::TheoryAtom &a) {
+    theory_.accept(a, *this);
+    auto &theory = out_->data.theory();
+    std::vector<Id_t> elements;
+    elements.reserve(a.elements().size);
+    for (auto const &x : a.elements()) {
+        elements.emplace_back(elements_[x].first);
+    }
+    if (a.rhs() == nullptr) {
+        theory.addAtom([&a]() { return a.atom(); }, terms_[a.term()], make_span(elements));
+    }
+    else {
+        theory.addAtom([&a]() { return a.atom(); }, terms_[a.term()], make_span(elements), terms_[*a.guard()], terms_[*a.rhs()]);
+    }
+}
+
+void ASPIFOutBackend::ensure_term(Id_t termId) {
+    while (terms_.size() <= termId) {
+        terms_.emplace_back(std::numeric_limits<Id_t>::max());
+    }
+}
+
+Atom_t ASPIFOutBackend::fact_id() {
+    if (fact_id_ == 0) {
+        auto it = std::min_element(facts_.begin(), facts_.end());
+        if (it == facts_.end()) {
+            auto atom = out_->data.newAtom();
+            rule(Potassco::Head_t::Disjunctive, {&atom, 1}, {nullptr, 0});
+            it = facts_.begin();
+        }
+        fact_id_ = *it;
+    }
+    return fact_id_;
+}
 
 } } // namespace Output Gringo

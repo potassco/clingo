@@ -37,10 +37,10 @@ namespace Gringo { namespace Input {
 
 // {{{1 definition of NongroundProgramBuilder
 
-NongroundProgramBuilder::NongroundProgramBuilder(Context &context, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize)
+NongroundProgramBuilder::NongroundProgramBuilder(Context &context, Program &prg, OutputPredicates &output_preds, Defines &defs, bool rewriteMinimize)
 : context_(context)
 , prg_(prg)
-, out(out)
+, output_preds_(output_preds)
 , defs_(defs)
 , rewriteMinimize_(rewriteMinimize)
 { }
@@ -297,7 +297,7 @@ void NongroundProgramBuilder::optimize(Location const &loc, TermUid weight, Term
         termvec(argsUid, term(loc, cond, true));
         auto predUid = predlit(loc, NAF::POS, term(loc, "_criteria", termvecvec(termvecvec(), argsUid), false));
         rule(loc, headlit(predUid), body);
-        out.outPredsForce.emplace_back(loc, Sig("_criteria", 3, false));
+        output_preds_.add(loc, Sig("_criteria", 3, false), true);
     }
     else {
         prg_.add(make_locatable<Statement>(loc, make_locatable<MinimizeHeadLiteral>(loc, terms_.erase(weight), terms_.erase(priority), termvecs_.erase(cond)), bodies_.erase(body)));
@@ -305,7 +305,7 @@ void NongroundProgramBuilder::optimize(Location const &loc, TermUid weight, Term
 }
 
 void NongroundProgramBuilder::showsig(Location const &loc, Sig sig) {
-    out.outPreds.emplace_back(loc, sig);
+    output_preds_.add(loc, sig, false);
 }
 
 void NongroundProgramBuilder::defined(Location const &loc, Sig sig) {

@@ -30,33 +30,43 @@
 #include <clasp/clause.h>
 #include <clasp/weight_constraint.h>
 #include "clingo.h"
+#include "gringo/backend.hh"
+#include "gringo/hash_set.hh"
+#include "gringo/output/literal.hh"
+#include "gringo/output/literals.hh"
+#include "gringo/output/output.hh"
+#include "gringo/output/statements.hh"
+#include "potassco/theory_data.h"
 #include <csignal>
 #include <clingo/incmode.hh>
+#include <stdexcept>
 
 namespace Gringo {
 
 // {{{1 definition of ClaspAPIBackend
 
-void ClaspAPIBackend::initProgram(bool) { }
+void ClaspAPIBackend::initProgram(bool incremental) {
+    static_cast<void>(incremental);
+}
 
 void ClaspAPIBackend::endStep() { }
 
 void ClaspAPIBackend::beginStep() { }
 
 void ClaspAPIBackend::rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body) {
-    if (auto p = prg()) { p->addRule(ht, head, body); }
+    if (auto *p = prg()) { p->addRule(ht, head, body); }
 }
 
 void ClaspAPIBackend::rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& body) {
-    if (auto p = prg()) { p->addRule(ht, head, bound, body); }
+    if (auto *p = prg()) { p->addRule(ht, head, bound, body); }
 }
 
 void ClaspAPIBackend::minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) {
-    if (auto p = prg()) { p->addMinimize(prio, lits); }
+    if (auto *p = prg()) { p->addMinimize(prio, lits); }
 }
 
 void ClaspAPIBackend::project(const Potassco::AtomSpan& atoms) {
-    if (auto p = prg()) { p->addProject(atoms); }
+    if (auto *p = prg()) { p->addProject(atoms); }
 }
 
 void ClaspAPIBackend::output(Symbol sym, Potassco::Atom_t atom) {
@@ -64,33 +74,33 @@ void ClaspAPIBackend::output(Symbol sym, Potassco::Atom_t atom) {
     out << sym;
     if (atom != 0) {
         Potassco::Lit_t lit = atom;
-        if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{&lit, 1}); }
+        if (auto *p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{&lit, 1}); }
     }
     else {
-        if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{nullptr, 0}); }
+        if (auto *p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{nullptr, 0}); }
     }
 }
 
 void ClaspAPIBackend::output(Symbol sym, Potassco::LitSpan const& condition) {
     std::ostringstream out;
     out << sym;
-    if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), condition); }
+    if (auto *p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), condition); }
 }
 
 void ClaspAPIBackend::acycEdge(int s, int t, const Potassco::LitSpan& condition) {
-    if (auto p = prg()) { p->addAcycEdge(s, t, condition); }
+    if (auto *p = prg()) { p->addAcycEdge(s, t, condition); }
 }
 
 void ClaspAPIBackend::heuristic(Potassco::Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& condition) {
-    if (auto p = prg()) { p->addDomHeuristic(a, t, bias, prio, condition); }
+    if (auto *p = prg()) { p->addDomHeuristic(a, t, bias, prio, condition); }
 }
 
 void ClaspAPIBackend::assume(const Potassco::LitSpan& lits) {
-    if (auto p = prg()) { p->addAssumption(lits); }
+    if (auto *p = prg()) { p->addAssumption(lits); }
 }
 
 void ClaspAPIBackend::external(Potassco::Atom_t a, Potassco::Value_t v) {
-    if (auto p = prg()) {
+    if (auto *p = prg()) {
         switch (v) {
             case Potassco::Value_t::False:   { p->freeze(a, Clasp::value_false); break; }
             case Potassco::Value_t::True:    { p->freeze(a, Clasp::value_true); break; }
@@ -125,23 +135,48 @@ ClaspAPIBackend::~ClaspAPIBackend() noexcept = default;
 
 // {{{1 definition of ClingoControl
 
+class ClingoControl::ControlBackend : public Output::ASPIFOutBackend {
+public:
+    ControlBackend(ClingoControl &ctl)
+    : ctl_{ctl} {
+    }
+
+    Output::OutputBase &beginOutput() override {
+        ctl_.beginAddBackend();
+        return *ctl_.out_;
+    }
+
+    void endOutput() override {
+        ctl_.endAddBackend();
+    }
+private:
+    ClingoControl &ctl_;
+};
+
 #define LOG if (verbose_) std::cerr
 ClingoControl::ClingoControl(Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Logger::Printer printer, unsigned messageLimit)
 : scripts_(scripts)
 , clasp_(clasp)
 , claspConfig_(claspConfig)
-, pgf_(pgf)
-, psf_(psf)
-, logger_(printer, messageLimit)
+, pgf_(std::move(pgf))
+, psf_(std::move(psf))
+, logger_(std::move(printer), messageLimit)
 , clingoMode_(clingoMode) {
     clasp->ctx.output.theory = &theory_;
 }
 
 void ClingoControl::parse() {
     if (!parser_->empty()) {
-        parser_->parse(logger_);
-        defs_.init(logger_);
-        parsed = true;
+        switch (parser_->parse(logger_)) {
+            case Input::ParseResult::Gringo: {
+                defs_.init(logger_);
+                parsed_ = true;
+                break;
+            }
+            case Input::ParseResult::ASPIF: {
+                break;
+            }
+        }
     }
     if (logger_.hasError()) {
         throw std::runtime_error("parsing failed");
@@ -152,16 +187,15 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
     using namespace Gringo;
     logger_.enable(Warnings::OperationUndefined, !opts.wNoOperationUndefined);
     logger_.enable(Warnings::AtomUndefined, !opts.wNoAtomUndef);
-    logger_.enable(Warnings::VariableUnbounded, !opts.wNoVariableUnbounded);
     logger_.enable(Warnings::FileIncluded, !opts.wNoFileIncluded);
     logger_.enable(Warnings::GlobalVariable, !opts.wNoGlobalVariable);
     logger_.enable(Warnings::Other, !opts.wNoOther);
     verbose_ = opts.verbose;
     Output::OutputPredicates outPreds;
-    for (auto &x : opts.foobar) {
-        outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x);
+    for (auto const &x : opts.foobar) {
+        outPreds.add(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
     }
-    if (claspOut) {
+    if (claspOut != nullptr) {
         out_ = gringo_make_unique<Output::OutputBase>(claspOut->theoryData(), std::move(outPreds), gringo_make_unique<ClaspAPIBackend>(*this), opts.outputOptions);
     }
     else {
@@ -169,9 +203,10 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
         out_ = gringo_make_unique<Output::OutputBase>(*data_, std::move(outPreds), std::cout, opts.outputFormat, opts.outputOptions);
     }
     out_->keepFacts = opts.keepFacts;
-    pb_ = gringo_make_unique<Input::NongroundProgramBuilder>(scripts_, prg_, *out_, defs_, opts.rewriteMinimize);
-    parser_ = gringo_make_unique<Input::NonGroundParser>(*pb_, incmode_);
-    for (auto &x : opts.defines) {
+    aspif_bck_ = gringo_make_unique<ControlBackend>(*this);
+    pb_ = gringo_make_unique<Input::NongroundProgramBuilder>(scripts_, prg_, out_->outPreds, defs_, opts.rewriteMinimize);
+    parser_ = gringo_make_unique<Input::NonGroundParser>(*pb_, *aspif_bck_, incmode_);
+    for (auto const &x : opts.defines) {
         LOG << "define: " << x << std::endl;
         parser_->parseDefine(x, logger_);
     }
@@ -194,20 +229,20 @@ bool ClingoControl::update() {
         configUpdate_ = false;
         if (!clasp_->ok()) { return false; }
     }
-    if (!grounded) {
+    if (!grounded_) {
         if (!initialized_) {
             out_->init(clasp_->incremental());
             initialized_ = true;
         }
         out_->beginStep();
-        grounded = true;
+        grounded_ = true;
     }
     return true;
 }
 
 void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
     if (!update()) { return; }
-    if (parsed) {
+    if (parsed_) {
         LOG << "************** parsed program **************" << std::endl << prg_;
         prg_.rewrite(defs_, logger_);
         LOG << "************* rewritten program ************" << std::endl << prg_;
@@ -215,7 +250,7 @@ void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
         if (logger_.hasError()) {
             throw std::runtime_error("grounding stopped because of errors");
         }
-        parsed = false;
+        parsed_ = false;
     }
     if (!parts.empty()) {
         Ground::Parameters params;
@@ -469,7 +504,7 @@ void ClingoControl::prepare(Assumptions ass) {
     eventHandler_ = nullptr;
     // finalize the program
     if (update()) { out_->endStep(ass); }
-    grounded = false;
+    grounded_ = false;
     if (clingoMode_) {
         Clasp::ProgramBuilder *prg = clasp_->program();
         postGround(*prg);
@@ -558,7 +593,8 @@ std::string ClingoControl::str() {
 
 void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) {
     if (update()) {
-        if (auto backend = out_->backend()) {
+        auto *backend = out_->backend();
+        if (backend != nullptr) {
             backend->external(ext, val);
         }
     }
@@ -883,7 +919,6 @@ void ClingoLib::initOptions(Potassco::ProgramOptions::OptionContext& root) {
          "      [no-]atom-undefined:      a :- b.\n"
          "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
          "      [no-]operation-undefined: p(1/0).\n"
-         "      [no-]variable-unbounded:  $x > 10.\n"
          "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
          "      [no-]other:               clasp related and uncategorized warnings")
         ("rewrite-minimize"         , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")

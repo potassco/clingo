@@ -49,9 +49,10 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     Defines defs;
     Gringo::Test::TestGringoModule module;
     Gringo::Test::TestContext context;
-    Input::NongroundProgramBuilder pb{ context, prg, out, defs };
+    NullBackend bck;
+    Input::NongroundProgramBuilder pb{ context, prg, out.outPreds, defs };
     bool incmode;
-    Input::NonGroundParser ngp{ pb, incmode };
+    Input::NonGroundParser ngp{ pb, bck, incmode };
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module);
     ngp.parse(module);
     prg.rewrite(defs, module);

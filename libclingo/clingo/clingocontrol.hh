@@ -91,7 +91,6 @@ struct ClingoOptions {
     bool                          wNoOperationUndefined = false;
     bool                          wNoAtomUndef          = false;
     bool                          wNoFileIncluded       = false;
-    bool                          wNoVariableUnbounded  = false;
     bool                          wNoGlobalVariable     = false;
     bool                          wNoOther              = false;
     bool                          rewriteMinimize       = false;
@@ -104,7 +103,6 @@ inline void enableAll(ClingoOptions& out, bool enable) {
     out.wNoAtomUndef          = !enable;
     out.wNoFileIncluded       = !enable;
     out.wNoOperationUndefined = !enable;
-    out.wNoVariableUnbounded  = !enable;
     out.wNoGlobalVariable     = !enable;
     out.wNoOther              = !enable;
 }
@@ -118,8 +116,6 @@ inline bool parseWarning(const std::string& str, ClingoOptions& out) {
     if (str ==    "file-included")         { out.wNoFileIncluded       = false; return true; }
     if (str == "no-operation-undefined")   { out.wNoOperationUndefined = true;  return true; }
     if (str ==    "operation-undefined")   { out.wNoOperationUndefined = false; return true; }
-    if (str == "no-variable-unbounded")    { out.wNoVariableUnbounded  = true;  return true; }
-    if (str ==    "variable-unbounded")    { out.wNoVariableUnbounded  = false; return true; }
     if (str == "no-global-variable")       { out.wNoGlobalVariable     = true;  return true; }
     if (str ==    "global-variable")       { out.wNoGlobalVariable     = false; return true; }
     if (str == "no-other")                 { out.wNoOther              = true;  return true; }
@@ -255,6 +251,7 @@ private:
 
 class ClingoSolveFuture;
 class ClingoControl : public clingo_control, private ConfigProxy, private SymbolicAtoms, private Potassco::AbstractHeuristic {
+    class ControlBackend;
 public:
     using StringVec        = std::vector<std::string>;
     using ExternalVec      = std::vector<std::pair<Symbol, Potassco::Value_t>>;
@@ -345,12 +342,19 @@ public:
         if (!backend_) { throw std::runtime_error("backend not available"); }
         return backend_;
     };
+    Backend &getASPIFBackend() override {
+        return *aspif_bck_;
+    };
     void endAddBackend() override;
     Potassco::Atom_t addProgramAtom() override;
     Logger &logger() override { return logger_; }
     void beginAdd() override { parse(); }
     void add(clingo_ast_t const &ast) override { Input::parse(*pb_, logger_, ast.ast); }
-    void endAdd() override { defs_.init(logger_); parsed = true; }
+    void endAdd() override {
+        parser_->disable_aspif();
+        defs_.init(logger_);
+        parsed_ = true;
+    }
     void registerObserver(UBackend obs, bool replace) override {
         if (replace) { clingoMode_ = false; }
         out_->registerObserver(std::move(obs), replace);
@@ -363,6 +367,7 @@ public:
     Scripts                                                   &scripts_;
     Input::Program                                             prg_;
     Defines                                                    defs_;
+    std::unique_ptr<Backend>                                   aspif_bck_;
     std::unique_ptr<Input::NongroundProgramBuilder>            pb_;
     std::unique_ptr<Input::NonGroundParser>                    parser_;
     USolveEventHandler                                         eventHandler_;
@@ -387,9 +392,9 @@ public:
     bool                                                       enableCleanup_         = true;
     bool                                                       clingoMode_;
     bool                                                       verbose_               = false;
-    bool                                                       parsed                 = false;
-    bool                                                       grounded               = false;
+    bool                                                       parsed_                = false;
     bool                                                       configUpdate_          = false;
+    bool                                                       grounded_              = false;
     bool                                                       initialized_           = false;
     bool                                                       incmode_               = false;
     bool                                                       canClean_              = false;

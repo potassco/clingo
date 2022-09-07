@@ -4,6 +4,7 @@ Helpers to simplify testing.
 
 from unittest import TestCase
 
+from ..control import Control
 from .. import SolveResult, parse_term
 
 def _p(*models):
@@ -36,3 +37,9 @@ def _check_sat(case: TestCase, ret: SolveResult) -> None:
     case.assertTrue(ret.unsatisfiable is False)
     case.assertTrue(ret.unknown is False)
     case.assertTrue(ret.exhausted is True)
+
+def solve(ctl: Control):
+    ctl.configuration.solve.models = "0"
+    mcb = _MCB()
+    ctl.solve(on_model=mcb.on_model)
+    return [[str(s) for s in m] for m in mcb.models]

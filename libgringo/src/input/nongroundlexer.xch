@@ -41,7 +41,9 @@
     BIN        = "0b"([0-1]+);
     NUMBER     = DEC | HEX | OCT | BIN;
     ANY        = [\000-\377];
-    WS         = [\t\r ]*;
+    NOWSNL     = [^\n ];
+    SKIP       = [\t\r ]*;
+    WS         = " ";
     NL         = "\n";
     IDENTIFIER = [_']*[a-z]['A-Za-z0-9_]*;
     VARIABLE   = [_']*[A-Z]['A-Za-z0-9_]*;
@@ -56,13 +58,17 @@
     KEYWORD    = "#" [a-zA-Z0-9_]*;
 */
 
-int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
+namespace Gringo { namespace Input {
+
+int NonGroundParser::lex_impl(void *pValue, Location &loc) {
     int bc = 0;
-    auto &value = *static_cast<Gringo::Input::NonGroundGrammar::parser::semantic_type*>(pValue);
+    auto &value = *static_cast<NonGroundGrammar::parser::semantic_type*>(pValue);
     start(loc);
     for (;;) {
         /*!re2c
-        <normal,theory,definition,script> WS         { start(loc); continue; }
+        <start> "asp" / " " DEC                      => aspif { aspif_(loc); continue; }
+        <start> "" / ANY                             :=> normal
+        <normal,theory,definition,script> SKIP       { start(loc); continue; }
         <normal,theory,definition,script> NL         { if(eof()) return 0; step(); start(loc); continue; }
         <normal,theory> INF                          { return NonGroundGrammar::parser::token::INFIMUM; }
         <normal,theory> SUP                          { return NonGroundGrammar::parser::token::SUPREMUM; }
@@ -93,7 +99,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal> "override"                          { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::OVERRIDE; }
         <normal> ANONYMOUS                           { return NonGroundGrammar::parser::token::ANONYMOUS; }
         <normal,theory,definition,script> IDENTIFIER { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::IDENTIFIER; }
-        <normal,theory,definition> NUMBER            { value.num = integer(); return NonGroundGrammar::parser::token::NUMBER; }
+        <normal,theory,definition> NUMBER            { value.num = clingo_number(); return NonGroundGrammar::parser::token::NUMBER; }
         <normal,theory> VARIABLE                     { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::VARIABLE; }
         <normal,theory> STRING                       { value.str = String::toRep(unquote(string(1, 1)).c_str()); return NonGroundGrammar::parser::token::STRING; }
 
@@ -117,7 +123,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal,theory> "]"                          { return NonGroundGrammar::parser::token::RBRACK; }
         <normal,theory,script> "("                   { return NonGroundGrammar::parser::token::LPAREN; }
         <normal,theory> ")"                          { return NonGroundGrammar::parser::token::RPAREN; }
-        <script> ")" WS                              => script_body { start(loc); return NonGroundGrammar::parser::token::RPAREN; }
+        <script> ")" SKIP                            => script_body { start(loc); return NonGroundGrammar::parser::token::RPAREN; }
         <normal,theory,definition> "{"               { return NonGroundGrammar::parser::token::LBRACE; }
         <normal,theory,definition> "}"               { return NonGroundGrammar::parser::token::RBRACE; }
         <normal> "+"                                 { return NonGroundGrammar::parser::token::ADD; }
@@ -146,7 +152,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal,theory,definition,script> KEYWORD    { lexerError(end(loc), string()); continue; }
         <normal,theory,definition,script> ANY        { lexerError(end(loc), string()); continue; }
 
-        <script_body> WS "#end" => normal {
+        <script_body> SKIP "#end" => normal {
             auto span = string();
             size_t size = span.size - 4;
             for (; size > 0; --size) {
@@ -194,6 +200,115 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
     assert(false);
     return 0;
 }
+
+StringSpan NonGroundParser::aspif_string_(Location &loc) {
+    auto n = aspif_unsigned_(loc);
+    aspif_ws_(loc);
+    start(loc);
+    char yych;
+    for (uint32_t i = 0; i < n; ++i) {
+        /*!re2c
+        <aspif> NL  { aspif_error_(loc, format("expected non-newline character but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+        <aspif> ANY { continue; }
+        */
+    }
+    return string();
+}
+
+StringSpan NonGroundParser::aspif_nonl_string_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <aspif> [^\n]* { return string(); }
+    */
+    return string();
+}
+
+void NonGroundParser::aspif_preamble_(Location &loc) {
+    aspif_ws_(loc);
+    auto major = aspif_unsigned_(loc);
+    aspif_ws_(loc);
+    auto minor = aspif_unsigned_(loc);
+    aspif_ws_(loc);
+    auto revision = aspif_unsigned_(loc);
+    bool incremental = false;
+    char yych;
+    for (;;) {
+        /*!re2c
+        <aspif> " incremental" / (NL | WS) { incremental = true; break; }
+        <aspif> "" / ANY                  { break; }
+        */
+    }
+    aspif_nl_(loc);
+}
+
+void NonGroundParser::aspif_ws_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <aspif> WS       { return; }
+    <aspif> NL       { aspif_error_(loc, format("expected <SPACE> but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <aspif> NOWSNL+  { aspif_error_(loc, format("expected <SPACE> but got ", string()).c_str()); }
+    */
+}
+
+void NonGroundParser::aspif_eof_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <aspif> NL {
+        if (eof()) {
+           return;
+        }
+        aspif_error_(loc, format("expected <EOF> but got <EOL>").c_str());
+    }
+    <aspif> WS       { aspif_error_(loc, format("expected <EOF> but got <SPACE>").c_str()); }
+    <aspif> NOWSNL+  { aspif_error_(loc, format("expected <EOF> but got ", string()).c_str()); }
+    */
+}
+
+void NonGroundParser::aspif_nl_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <aspif> NL {
+        if (eof()) {
+           aspif_error_(loc, format("expected <EOL> but got <EOF>").c_str());
+        }
+        step();
+        return;
+    }
+    <aspif> WS       { aspif_error_(loc, format("expected <EOL> but got <SPACE>").c_str()); }
+    <aspif> NOWSNL+  { aspif_error_(loc, format("expected <EOL> but got ", string()).c_str()); }
+    */
+}
+
+int32_t NonGroundParser::aspif_signed_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <aspif> "-"? DEC { return signed_integer(); }
+    <aspif> NL       { aspif_error_(loc, format("expected unsigned integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <aspif> WS       { aspif_error_(loc, "expected unsigned integer but got <SPACE>"); }
+    <aspif> NOWSNL+  { aspif_error_(loc, format("expected unsigned integer but got token ", string()).c_str()); }
+    */
+    return 0;
+}
+
+uint32_t NonGroundParser::aspif_unsigned_(Location &loc) {
+    start(loc);
+    char yych;
+    /*!re2c
+    <aspif> DEC      { return unsigned_integer(); }
+    <aspif> NL       { aspif_error_(loc, format("expected integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <aspif> WS       { aspif_error_(loc, "expected integer but got <SPACE>"); }
+    <aspif> NOWSNL+  { aspif_error_(loc, format("expected integer but got token ", string()).c_str()); }
+    */
+    return 0;
+
+}
+
+} } // namespace Input Gringo
 
 #undef YYCTYPE
 #undef YYCURSOR

@@ -2389,6 +2389,633 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t 
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
 
 //! @}
+// {{{1 ground program observer
+
+//! @defgroup ProgramInspection Program Inspection
+//! Functions and data structures to inspect programs.
+//! @ingroup Control
+
+//! @addtogroup ProgramInspection
+//! @{
+
+//! An instance of this struct has to be registered with a solver to observe ground directives as they are passed to the solver.
+//!
+//! @note This interface is closely modeled after the aspif format.
+//! For more information please refer to the specification of the aspif format.
+//!
+//! Not all callbacks have to be implemented and can be set to NULL if not needed.
+//! If one of the callbacks in the struct fails, grounding is stopped.
+//! If a non-recoverable clingo API call fails, a callback must return false.
+//! Otherwise ::clingo_error_unknown should be set and false returned.
+//!
+//! @see clingo_control_register_observer()
+typedef struct clingo_ground_program_observer {
+    //! Called once in the beginning.
+    //!
+    //! If the incremental flag is true, there can be multiple calls to @ref clingo_control_solve().
+    //!
+    //! @param[in] incremental whether the program is incremental
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*init_program)(bool incremental, void *data);
+    //! Marks the beginning of a block of directives passed to the solver.
+    //!
+    //! @see @ref end_step
+    //!
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*begin_step)(void *data);
+    //! Marks the end of a block of directives passed to the solver.
+    //!
+    //! This function is called before solving starts.
+    //!
+    //! @see @ref begin_step
+    //!
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*end_step)(void *data);
+
+    //! Observe rules passed to the solver.
+    //!
+    //! @param[in] choice determines if the head is a choice or a disjunction
+    //! @param[in] head the head atoms
+    //! @param[in] head_size the number of atoms in the head
+    //! @param[in] body the body literals
+    //! @param[in] body_size the number of literals in the body
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*rule)(bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size, void *data);
+    //! Observe weight rules passed to the solver.
+    //!
+    //! @param[in] choice determines if the head is a choice or a disjunction
+    //! @param[in] head the head atoms
+    //! @param[in] head_size the number of atoms in the head
+    //! @param[in] lower_bound the lower bound of the weight rule
+    //! @param[in] body the weighted body literals
+    //! @param[in] body_size the number of weighted literals in the body
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*weight_rule)(bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size, void *data);
+    //! Observe minimize constraints (or weak constraints) passed to the solver.
+    //!
+    //! @param[in] priority the priority of the constraint
+    //! @param[in] literals the weighted literals whose sum to minimize
+    //! @param[in] size the number of weighted literals
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*minimize)(clingo_weight_t priority, clingo_weighted_literal_t const* literals, size_t size, void *data);
+    //! Observe projection directives passed to the solver.
+    //!
+    //! @param[in] atoms the atoms to project on
+    //! @param[in] size the number of atoms
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*project)(clingo_atom_t const *atoms, size_t size, void *data);
+    //! Observe shown atoms passed to the solver.
+    //! \note Facts do not have an associated aspif atom.
+    //! The value of the atom is set to zero.
+    //!
+    //! @param[in] symbol the symbolic representation of the atom
+    //! @param[in] atom the aspif atom (0 for facts)
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*output_atom)(clingo_symbol_t symbol, clingo_atom_t atom, void *data);
+    //! Observe shown terms passed to the solver.
+    //!
+    //! @param[in] symbol the symbolic representation of the term
+    //! @param[in] condition the literals of the condition
+    //! @param[in] size the size of the condition
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*output_term)(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *data);
+    //! Observe external statements passed to the solver.
+    //!
+    //! @param[in] atom the external atom
+    //! @param[in] type the type of the external statement
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*external)(clingo_atom_t atom, clingo_external_type_t type, void *data);
+    //! Observe assumption directives passed to the solver.
+    //!
+    //! @param[in] literals the literals to assume (positive literals are true and negative literals false for the next solve call)
+    //! @param[in] size the number of atoms
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*assume)(clingo_literal_t const *literals, size_t size, void *data);
+    //! Observe heuristic directives passed to the solver.
+    //!
+    //! @param[in] atom the target atom
+    //! @param[in] type the type of the heuristic modification
+    //! @param[in] bias the heuristic bias
+    //! @param[in] priority the heuristic priority
+    //! @param[in] condition the condition under which to apply the heuristic modification
+    //! @param[in] size the number of atoms in the condition
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*heuristic)(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size, void *data);
+    //! Observe edge directives passed to the solver.
+    //!
+    //! @param[in] node_u the start vertex of the edge
+    //! @param[in] node_v the end vertex of the edge
+    //! @param[in] condition the condition under which the edge is part of the graph
+    //! @param[in] size the number of atoms in the condition
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*acyc_edge)(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data);
+
+    //! Observe numeric theory terms.
+    //!
+    //! @param[in] term_id the id of the term
+    //! @param[in] number the value of the term
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*theory_term_number)(clingo_id_t term_id, int number, void *data);
+    //! Observe string theory terms.
+    //!
+    //! @param[in] term_id the id of the term
+    //! @param[in] name the value of the term
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*theory_term_string)(clingo_id_t term_id, char const *name, void *data);
+    //! Observe compound theory terms.
+    //!
+    //! The name_id_or_type gives the type of the compound term:
+    //! - if it is -1, then it is a tuple
+    //! - if it is -2, then it is a set
+    //! - if it is -3, then it is a list
+    //! - otherwise, it is a function and name_id_or_type refers to the id of the name (in form of a string term)
+    //!
+    //! @param[in] term_id the id of the term
+    //! @param[in] name_id_or_type the name or type of the term
+    //! @param[in] arguments the arguments of the term
+    //! @param[in] size the number of arguments
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*theory_term_compound)(clingo_id_t term_id, int name_id_or_type, clingo_id_t const *arguments, size_t size, void *data);
+    //! Observe theory elements.
+    //!
+    //! @param element_id the id of the element
+    //! @param terms the term tuple of the element
+    //! @param terms_size the number of terms in the tuple
+    //! @param condition the condition of the elemnt
+    //! @param condition_size the number of literals in the condition
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*theory_element)(clingo_id_t element_id, clingo_id_t const *terms, size_t terms_size, clingo_literal_t const *condition, size_t condition_size, void *data);
+    //! Observe theory atoms without guard.
+    //!
+    //! @param[in] atom_id_or_zero the id of the atom or zero for directives
+    //! @param[in] term_id the term associated with the atom
+    //! @param[in] elements the elements of the atom
+    //! @param[in] size the number of elements
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*theory_atom)(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, void *data);
+    //! Observe theory atoms with guard.
+    //!
+    //! @param[in] atom_id_or_zero the id of the atom or zero for directives
+    //! @param[in] term_id the term associated with the atom
+    //! @param[in] elements the elements of the atom
+    //! @param[in] size the number of elements
+    //! @param[in] operator_id the id of the operator (a string term)
+    //! @param[in] right_hand_side_id the id of the term on the right hand side of the atom
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*theory_atom_with_guard)(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, clingo_id_t operator_id, clingo_id_t right_hand_side_id, void *data);
+} clingo_ground_program_observer_t;
+
+//! @}
+
+// {{{1 control
+
+//! @example control.c
+//! The example shows how to ground and solve a simple logic program, and print
+//! its answer sets.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./control 0
+//! Model: a
+//! Model: b
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
+//! @defgroup Control Grounding and Solving
+//! Functions to control the grounding and solving process.
+//!
+//! For an example, see @ref control.c.
+
+//! @addtogroup Control
+//! @{
+
+//! @enum clingo_solve_result_e
+//! Enumeration of bit masks for solve call results.
+//!
+//! @note Neither ::clingo_solve_result_satisfiable nor
+//! ::clingo_solve_result_exhausted is set if the search is interrupted and no
+//! model was found.
+//!
+//! @var clingo_solve_result::clingo_solve_result_satisfiable
+//! The last solve call found a solution.
+//! @var clingo_solve_result::clingo_solve_result_unsatisfiable
+//! The last solve call did not find a solution.
+//! @var clingo_solve_result::clingo_solve_result_exhausted
+//! The last solve call completely exhausted the search space.
+//! @var clingo_solve_result::clingo_solve_result_interrupted
+//! The last solve call was interrupted.
+//!
+//! @see clingo_control_interrupt()
+
+//! @typedef clingo_solve_result_bitset_t
+//! Corresponding type to ::clingo_solve_result_e.
+
+//! Struct used to specify the program parts that have to be grounded.
+//!
+//! Programs may be structured into parts, which can be grounded independently with ::clingo_control_ground.
+//! Program parts are mainly interesting for incremental grounding and multi-shot solving.
+//! For single-shot solving, program parts are not needed.
+//!
+//! @note Parts of a logic program without an explicit <tt>\#program</tt>
+//! specification are by default put into a program called `base` without
+//! arguments.
+//!
+//! @see clingo_control_ground()
+typedef struct clingo_part {
+    char const *name;              //!< name of the program part
+    clingo_symbol_t const *params; //!< array of parameters
+    size_t size;                   //!< number of parameters
+} clingo_part_t;
+
+//! Callback function to implement external functions.
+//!
+//! If an external function of form <tt>\@name(parameters)</tt> occurs in a logic program,
+//! then this function is called with its location, name, parameters, and a callback to inject symbols as arguments.
+//! The callback can be called multiple times; all symbols passed are injected.
+//!
+//! If a (non-recoverable) clingo API function fails in this callback, for example, the symbol callback, the callback must return false.
+//! In case of errors not related to clingo, this function can set error ::clingo_error_unknown and return false to stop grounding with an error.
+//!
+//! @param[in] location location from which the external function was called
+//! @param[in] name name of the called external function
+//! @param[in] arguments arguments of the called external function
+//! @param[in] arguments_size number of arguments
+//! @param[in] data user data of the callback
+//! @param[in] symbol_callback function to inject symbols
+//! @param[in] symbol_callback_data user data for the symbol callback
+//!            (must be passed untouched)
+//! @return whether the call was successful
+//! @see clingo_control_ground()
+//!
+//! The following example implements the external function <tt>\@f()</tt> returning 42.
+//! ~~~~~~~~~~~~~~~{.c}
+//! bool
+//! ground_callback(clingo_location_t const *location,
+//!                 char const *name,
+//!                 clingo_symbol_t const *arguments,
+//!                 size_t arguments_size,
+//!                 void *data,
+//!                 clingo_symbol_callback_t symbol_callback,
+//!                 void *symbol_callback_data) {
+//!   if (strcmp(name, "f") == 0 && arguments_size == 0) {
+//!     clingo_symbol_t sym;
+//!     clingo_symbol_create_number(42, &sym);
+//!     return symbol_callback(&sym, 1, symbol_callback_data);
+//!   }
+//!   clingo_set_error(clingo_error_runtime, "function not found");
+//!   return false;
+//! }
+//! ~~~~~~~~~~~~~~~
+typedef bool (*clingo_ground_callback_t) (clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data);
+
+//! Control object holding grounding and solving state.
+typedef struct clingo_control clingo_control_t;
+
+//! Create a new control object.
+//!
+//! A control object has to be freed using clingo_control_free().
+//!
+//! @note Only gringo options (without <code>\-\-output</code>) and clasp's options are supported as arguments,
+//! except basic options such as <code>\-\-help</code>.
+//! Furthermore, a control object is blocked while a search call is active;
+//! you must not call any member function during search.
+//!
+//! If the logger is NULL, messages are printed to stderr.
+//!
+//! @param[in] arguments C string array of command line arguments
+//! @param[in] arguments_size size of the arguments array
+//! @param[in] logger callback functions for warnings and info messages
+//! @param[in] logger_data user data for the logger callback
+//! @param[in] message_limit maximum number of times the logger callback is called
+//! @param[out] control resulting control object
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if argument parsing fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
+
+//! Free a control object created with clingo_control_new().
+//! @param[in] control the target
+CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
+
+//! @name Grounding Functions
+//! @{
+
+//! Extend the logic program with a program in a file.
+//!
+//! @param[in] control the target
+//! @param[in] file path to the file
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing or checking fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_load(clingo_control_t *control, char const *file);
+
+//! Extend the logic program with the given non-ground logic program in string form.
+//!
+//! This function puts the given program into a block of form: <tt>\#program name(parameters).</tt>
+//!
+//! After extending the logic program, the corresponding program parts are typically grounded with ::clingo_control_ground.
+//!
+//! @param[in] control the target
+//! @param[in] name name of the program block
+//! @param[in] parameters string array of parameters of the program block
+//! @param[in] parameters_size number of parameters
+//! @param[in] program string representation of the program
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_add(clingo_control_t *control, char const *name, char const * const * parameters, size_t parameters_size, char const *program);
+
+//! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
+//!
+//! After grounding, logic programs can be solved with ::clingo_control_solve().
+//!
+//! @note Parts of a logic program without an explicit <tt>\#program</tt>
+//! specification are by default put into a program called `base` without
+//! arguments.
+//!
+//! @param[in] control the target
+//! @param[in] parts array of parts to ground
+//! @param[in] parts_size size of the parts array
+//! @param[in] ground_callback callback to implement external functions
+//! @param[in] ground_callback_data user data for ground_callback
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - error code of ground callback
+//!
+//! @see clingo_part
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size, clingo_ground_callback_t ground_callback, void *ground_callback_data);
+
+//! @}
+
+//! @name Solving Functions
+//! @{
+
+//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program enumerating its models.
+//!
+//! See the @ref SolveHandle module for more information.
+//!
+//! @param[in] control the target
+//! @param[in] mode configures the search mode
+//! @param[in] assumptions array of assumptions to solve under
+//! @param[in] assumptions_size number of assumptions
+//! @param[in] notify the event handler to register
+//! @param[in] data the user data for the event handler
+//! @param[out] handle handle to the current search to enumerate models
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving could not be started
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_literal_t const *assumptions, size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle);
+//! Clean up the domains of the grounding component using the solving
+//! component's top level assignment.
+//!
+//! This function removes atoms from domains that are false and marks atoms as
+//! facts that are true.  With multi-shot solving, this can result in smaller
+//! groundings because less rules have to be instantiated and more
+//! simplifications can be applied.
+//!
+//! @note It is typically not necessary to call this function manually because
+//! automatic cleanups at the right time are enabled by default.
+//
+//! @param[in] control the target
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//!
+//! @see clingo_control_get_enable_cleanup()
+//! @see clingo_control_set_enable_cleanup()
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_cleanup(clingo_control_t *control);
+//! Assign a truth value to an external atom.
+//!
+//! If a negative literal is passed, the corresponding atom is assigned the
+//! inverted truth value.
+//!
+//! If the atom does not exist or is not external, this is a noop.
+//!
+//! @param[in] control the target
+//! @param[in] literal literal to assign
+//! @param[in] value the truth value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *control, clingo_literal_t literal, clingo_truth_value_t value);
+//! Release an external atom.
+//!
+//! If a negative literal is passed, the corresponding atom is released.
+//!
+//! After this call, an external atom is no longer external and subject to
+//! program simplifications.  If the atom does not exist or is not external,
+//! this is a noop.
+//!
+//! @param[in] control the target
+//! @param[in] literal literal to release
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t *control, clingo_literal_t literal);
+//! Register a custom propagator with the control object.
+//!
+//! If the sequential flag is set to true, the propagator is called
+//! sequentially when solving with multiple threads.
+//!
+//! See the @ref Propagator module for more information.
+//!
+//! @param[in] control the target
+//! @param[in] propagator the propagator
+//! @param[in] data user data passed to the propagator functions
+//! @param[in] sequential whether the propagator should be called sequentially
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t const *propagator, void *data, bool sequential);
+//! Check if the solver has determined that the internal program representation is conflicting.
+//!
+//! If this function returns true, solve calls will return immediately with an unsatisfiable solve result.
+//! Note that conflicts first have to be detected, e.g. -
+//! initial unit propagation results in an empty clause,
+//! or later if an empty clause is resolved during solving.
+//! Hence, the function might return false even if the problem is unsatisfiable.
+//!
+//! @param[in] control the target
+//! @return whether the program representation is conflicting
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t const *control);
+
+//! Get a statistics object to inspect solver statistics.
+//!
+//! Statistics are updated after a solve call.
+//!
+//! See the @ref Statistics module for more information.
+//!
+//! @attention
+//! The level of detail of the statistics depends on the stats option
+//! (which can be set using @ref Configuration module or passed as an option when @link clingo_control_new creating the control object@endlink).
+//! The default level zero only provides basic statistics,
+//! level one provides extended and accumulated statistics,
+//! and level two provides per-thread statistics.
+//! Furthermore, the statistics object is best accessed right after solving.
+//! Otherwise, not all of its entries have valid values.
+//!
+//! @param[in] control the target
+//! @param[out] statistics the statistics object
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t const *control, clingo_statistics_t const **statistics);
+//! Interrupt the active solve call (or the following solve call right at the beginning).
+//!
+//! @param[in] control the target
+CLINGO_VISIBILITY_DEFAULT void clingo_control_interrupt(clingo_control_t *control);
+//! Get low-level access to clasp.
+//!
+//! @attention
+//! This function is intended for experimental use only and not part of the stable API.
+//!
+//! This function may return a <code>nullptr</code>.
+//! Otherwise, the returned pointer can be casted to a ClaspFacade pointer.
+//!
+//! @param[in] control the target
+//! @param[out] clasp pointer to the ClaspFacade object (may be <code>nullptr</code>)
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_clasp_facade(clingo_control_t *control, void **clasp);
+
+//! @}
+
+//! @name Configuration Functions
+//! @{
+
+//! Get a configuration object to change the solver configuration.
+//!
+//! See the @ref Configuration module for more information.
+//!
+//! @param[in] control the target
+//! @param[out] configuration the configuration object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_configuration(clingo_control_t *control, clingo_configuration_t **configuration);
+
+//! Configure how learnt constraints are handled during enumeration.
+//!
+//! If the enumeration assumption is enabled, then all information learnt from
+//! the solver's various enumeration modes is removed after a solve call. This
+//! includes enumeration of cautious or brave consequences, enumeration of
+//! answer sets with or without projection, or finding optimal models, as well
+//! as clauses added with clingo_solve_control_add_clause().
+//!
+//! @attention For practical purposes, this option is only interesting for single-shot solving
+//! or before the last solve call to squeeze out a tiny bit of performance.
+//! Initially, the enumeration assumption is enabled.
+//!
+//! @param[in] control the target
+//! @param[in] enable whether to enable the assumption
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_enable_enumeration_assumption(clingo_control_t *control, bool enable);
+//! Check whether the enumeration assumption is enabled.
+//!
+//! See ::clingo_control_set_enable_enumeration_assumption().
+//! @param[in] control the target
+//! @return whether using the enumeration assumption is enabled
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_get_enable_enumeration_assumption(clingo_control_t *control);
+
+//! Enable automatic cleanup after solving.
+//!
+//! @note Cleanup is enabled by default.
+//!
+//! @param[in] control the target
+//! @param[in] enable whether to enable cleanups
+//! @return whether the call was successful
+//!
+//! @see clingo_control_cleanup()
+//! @see clingo_control_get_enable_cleanup()
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_enable_cleanup(clingo_control_t *control, bool enable);
+//! Check whether automatic cleanup is enabled.
+//!
+//! See ::clingo_control_set_enable_cleanup().
+//!
+//! @param[in] control the target
+//!
+//! @see clingo_control_cleanup()
+//! @see clingo_control_set_enable_cleanup()
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_get_enable_cleanup(clingo_control_t *control);
+
+//! @}
+
+//! @name Program Inspection Functions
+//! @{
+
+//! Return the symbol for a constant definition of form: <tt>\#const name = symbol</tt>.
+//!
+//! @param[in] control the target
+//! @param[in] name the name of the constant
+//! @param[out] symbol the resulting symbol
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_get_const(clingo_control_t const *control, char const *name, clingo_symbol_t *symbol);
+//! Check if there is a constant definition for the given constant.
+//!
+//! @param[in] control the target
+//! @param[in] name the name of the constant
+//! @param[out] exists whether a matching constant definition exists
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime if constant definition does not exist
+//!
+//! @see clingo_control_get_const()
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_has_const(clingo_control_t const *control, char const *name, bool *exists);
+//! Get an object to inspect symbolic atoms (the relevant Herbrand base) used
+//! for grounding.
+//!
+//! See the @ref SymbolicAtoms module for more information.
+//!
+//! @param[in] control the target
+//! @param[out] atoms the symbolic atoms object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_symbolic_atoms(clingo_control_t const *control, clingo_symbolic_atoms_t const **atoms);
+//! Get an object to inspect theory atoms that occur in the grounding.
+//!
+//! See the @ref TheoryAtoms module for more information.
+//!
+//! @param[in] control the target
+//! @param[out] atoms the theory atoms object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_theory_atoms(clingo_control_t const *control, clingo_theory_atoms_t const **atoms);
+//! Register a program observer with the control object.
+//!
+//! @param[in] control the target
+//! @param[in] observer the observer to register
+//! @param[in] replace just pass the grounding to the observer but not the solver
+//! @param[in] data user data passed to the observer functions
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t const *observer, bool replace, void *data);
+//! @}
+
+//! @name Program Modification Functions
+//! @{
+
+//! Get an object to add ground directives to the program.
+//!
+//! See the @ref ProgramBuilder module for more information.
+//!
+//! @param[in] control the target
+//! @param[out] backend the backend object
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend);
+//! @}
+
+//! @}
+
 // {{{1 ast
 
 //! @example ast.c
@@ -3036,32 +3663,38 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_insert_ast_at(clingo_ast_t *
 typedef bool (*clingo_ast_callback_t) (clingo_ast_t *ast, void *data);
 //! Parse the given program and return an abstract syntax tree for each statement via a callback.
 //!
+//! @note The control object can be set to a NULL to disable reading input in aspif format.
+//!
 //! @param[in] program the program in gringo syntax
 //! @param[in] callback the callback reporting statements
 //! @param[in] callback_data user data for the callback
+//! @param[in] control object to add ground statements to
 //! @param[in] logger callback to report messages during parsing
 //! @param[in] logger_data user data for the logger
 //! @param[in] message_limit the maximum number of times the logger is called
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if parsing fails
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(char const *program, clingo_ast_callback_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(char const *program, clingo_ast_callback_t callback, void *callback_data, clingo_control_t *control, clingo_logger_t logger, void *logger_data, unsigned message_limit);
 //! Parse the programs in the given list of files and return an abstract syntax tree for each statement via a callback.
 //!
 //! The function follows clingo's handling of files on the command line.
 //! Filename "-" is treated as "STDIN" and if an empty list is given, then the parser will read from "STDIN".
 //!
+//! @note The control object can be set to a NULL to disable reading input in aspif format.
+//!
 //! @param[in] files the beginning of the file name array
 //! @param[in] size the number of file names
 //! @param[in] callback the callback reporting statements
 //! @param[in] callback_data user data for the callback
+//! @param[in] control object to add ground statements to
 //! @param[in] logger callback to report messages during parsing
 //! @param[in] logger_data user data for the logger
 //! @param[in] message_limit the maximum number of times the logger is called
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if parsing fails
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const * const *files, size_t size, clingo_ast_callback_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const * const *files, size_t size, clingo_ast_callback_t callback, void *callback_data, clingo_control_t *control, clingo_logger_t logger, void *logger_data, unsigned message_limit);
 
 //! @}
 
@@ -3071,6 +3704,14 @@ typedef struct clingo_program_builder clingo_program_builder_t;
 //! @name Functions to add ASTs to logic programs
 //! @{
 
+//! Get an object to add non-ground directives to the program.
+//!
+//! See the @ref ProgramBuilder module for more information.
+//!
+//! @param[in] control the target
+//! @param[out] builder the program builder object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_init(clingo_control_t *control, clingo_program_builder_t **builder);
 //! Begin building a program.
 //!
 //! @param[in] builder the target program builder
@@ -3115,641 +3756,6 @@ typedef int clingo_ast_unpool_type_bitset_t;
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_unpool_type_bitset_t unpool_type, clingo_ast_callback_t callback, void *callback_data);
 
-//! @}
-
-//! @}
-
-// {{{1 ground program observer
-
-//! @defgroup ProgramInspection Program Inspection
-//! Functions and data structures to inspect programs.
-//! @ingroup Control
-
-//! @addtogroup ProgramInspection
-//! @{
-
-//! An instance of this struct has to be registered with a solver to observe ground directives as they are passed to the solver.
-//!
-//! @note This interface is closely modeled after the aspif format.
-//! For more information please refer to the specification of the aspif format.
-//!
-//! Not all callbacks have to be implemented and can be set to NULL if not needed.
-//! If one of the callbacks in the struct fails, grounding is stopped.
-//! If a non-recoverable clingo API call fails, a callback must return false.
-//! Otherwise ::clingo_error_unknown should be set and false returned.
-//!
-//! @see clingo_control_register_observer()
-typedef struct clingo_ground_program_observer {
-    //! Called once in the beginning.
-    //!
-    //! If the incremental flag is true, there can be multiple calls to @ref clingo_control_solve().
-    //!
-    //! @param[in] incremental whether the program is incremental
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*init_program)(bool incremental, void *data);
-    //! Marks the beginning of a block of directives passed to the solver.
-    //!
-    //! @see @ref end_step
-    //!
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*begin_step)(void *data);
-    //! Marks the end of a block of directives passed to the solver.
-    //!
-    //! This function is called before solving starts.
-    //!
-    //! @see @ref begin_step
-    //!
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*end_step)(void *data);
-
-    //! Observe rules passed to the solver.
-    //!
-    //! @param[in] choice determines if the head is a choice or a disjunction
-    //! @param[in] head the head atoms
-    //! @param[in] head_size the number of atoms in the head
-    //! @param[in] body the body literals
-    //! @param[in] body_size the number of literals in the body
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*rule)(bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size, void *data);
-    //! Observe weight rules passed to the solver.
-    //!
-    //! @param[in] choice determines if the head is a choice or a disjunction
-    //! @param[in] head the head atoms
-    //! @param[in] head_size the number of atoms in the head
-    //! @param[in] lower_bound the lower bound of the weight rule
-    //! @param[in] body the weighted body literals
-    //! @param[in] body_size the number of weighted literals in the body
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*weight_rule)(bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size, void *data);
-    //! Observe minimize constraints (or weak constraints) passed to the solver.
-    //!
-    //! @param[in] priority the priority of the constraint
-    //! @param[in] literals the weighted literals whose sum to minimize
-    //! @param[in] size the number of weighted literals
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*minimize)(clingo_weight_t priority, clingo_weighted_literal_t const* literals, size_t size, void *data);
-    //! Observe projection directives passed to the solver.
-    //!
-    //! @param[in] atoms the atoms to project on
-    //! @param[in] size the number of atoms
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*project)(clingo_atom_t const *atoms, size_t size, void *data);
-    //! Observe shown atoms passed to the solver.
-    //! \note Facts do not have an associated aspif atom.
-    //! The value of the atom is set to zero.
-    //!
-    //! @param[in] symbol the symbolic representation of the atom
-    //! @param[in] atom the aspif atom (0 for facts)
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*output_atom)(clingo_symbol_t symbol, clingo_atom_t atom, void *data);
-    //! Observe shown terms passed to the solver.
-    //!
-    //! @param[in] symbol the symbolic representation of the term
-    //! @param[in] condition the literals of the condition
-    //! @param[in] size the size of the condition
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*output_term)(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *data);
-    //! Observe external statements passed to the solver.
-    //!
-    //! @param[in] atom the external atom
-    //! @param[in] type the type of the external statement
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*external)(clingo_atom_t atom, clingo_external_type_t type, void *data);
-    //! Observe assumption directives passed to the solver.
-    //!
-    //! @param[in] literals the literals to assume (positive literals are true and negative literals false for the next solve call)
-    //! @param[in] size the number of atoms
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*assume)(clingo_literal_t const *literals, size_t size, void *data);
-    //! Observe heuristic directives passed to the solver.
-    //!
-    //! @param[in] atom the target atom
-    //! @param[in] type the type of the heuristic modification
-    //! @param[in] bias the heuristic bias
-    //! @param[in] priority the heuristic priority
-    //! @param[in] condition the condition under which to apply the heuristic modification
-    //! @param[in] size the number of atoms in the condition
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*heuristic)(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size, void *data);
-    //! Observe edge directives passed to the solver.
-    //!
-    //! @param[in] node_u the start vertex of the edge
-    //! @param[in] node_v the end vertex of the edge
-    //! @param[in] condition the condition under which the edge is part of the graph
-    //! @param[in] size the number of atoms in the condition
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*acyc_edge)(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data);
-
-    //! Observe numeric theory terms.
-    //!
-    //! @param[in] term_id the id of the term
-    //! @param[in] number the value of the term
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*theory_term_number)(clingo_id_t term_id, int number, void *data);
-    //! Observe string theory terms.
-    //!
-    //! @param[in] term_id the id of the term
-    //! @param[in] name the value of the term
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*theory_term_string)(clingo_id_t term_id, char const *name, void *data);
-    //! Observe compound theory terms.
-    //!
-    //! The name_id_or_type gives the type of the compound term:
-    //! - if it is -1, then it is a tuple
-    //! - if it is -2, then it is a set
-    //! - if it is -3, then it is a list
-    //! - otherwise, it is a function and name_id_or_type refers to the id of the name (in form of a string term)
-    //!
-    //! @param[in] term_id the id of the term
-    //! @param[in] name_id_or_type the name or type of the term
-    //! @param[in] arguments the arguments of the term
-    //! @param[in] size the number of arguments
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*theory_term_compound)(clingo_id_t term_id, int name_id_or_type, clingo_id_t const *arguments, size_t size, void *data);
-    //! Observe theory elements.
-    //!
-    //! @param element_id the id of the element
-    //! @param terms the term tuple of the element
-    //! @param terms_size the number of terms in the tuple
-    //! @param condition the condition of the elemnt
-    //! @param condition_size the number of literals in the condition
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*theory_element)(clingo_id_t element_id, clingo_id_t const *terms, size_t terms_size, clingo_literal_t const *condition, size_t condition_size, void *data);
-    //! Observe theory atoms without guard.
-    //!
-    //! @param[in] atom_id_or_zero the id of the atom or zero for directives
-    //! @param[in] term_id the term associated with the atom
-    //! @param[in] elements the elements of the atom
-    //! @param[in] size the number of elements
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*theory_atom)(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, void *data);
-    //! Observe theory atoms with guard.
-    //!
-    //! @param[in] atom_id_or_zero the id of the atom or zero for directives
-    //! @param[in] term_id the term associated with the atom
-    //! @param[in] elements the elements of the atom
-    //! @param[in] size the number of elements
-    //! @param[in] operator_id the id of the operator (a string term)
-    //! @param[in] right_hand_side_id the id of the term on the right hand side of the atom
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*theory_atom_with_guard)(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, clingo_id_t operator_id, clingo_id_t right_hand_side_id, void *data);
-} clingo_ground_program_observer_t;
-
-//! @}
-
-// {{{1 control
-
-//! @example control.c
-//! The example shows how to ground and solve a simple logic program, and print
-//! its answer sets.
-//!
-//! ## Output ##
-//!
-//! ~~~~~~~~~~~~
-//! ./control 0
-//! Model: a
-//! Model: b
-//! ~~~~~~~~~~~~
-//!
-//! ## Code ##
-
-//! @defgroup Control Grounding and Solving
-//! Functions to control the grounding and solving process.
-//!
-//! For an example, see @ref control.c.
-
-//! @addtogroup Control
-//! @{
-
-//! @enum clingo_solve_result_e
-//! Enumeration of bit masks for solve call results.
-//!
-//! @note Neither ::clingo_solve_result_satisfiable nor
-//! ::clingo_solve_result_exhausted is set if the search is interrupted and no
-//! model was found.
-//!
-//! @var clingo_solve_result::clingo_solve_result_satisfiable
-//! The last solve call found a solution.
-//! @var clingo_solve_result::clingo_solve_result_unsatisfiable
-//! The last solve call did not find a solution.
-//! @var clingo_solve_result::clingo_solve_result_exhausted
-//! The last solve call completely exhausted the search space.
-//! @var clingo_solve_result::clingo_solve_result_interrupted
-//! The last solve call was interrupted.
-//!
-//! @see clingo_control_interrupt()
-
-//! @typedef clingo_solve_result_bitset_t
-//! Corresponding type to ::clingo_solve_result_e.
-
-//! Struct used to specify the program parts that have to be grounded.
-//!
-//! Programs may be structured into parts, which can be grounded independently with ::clingo_control_ground.
-//! Program parts are mainly interesting for incremental grounding and multi-shot solving.
-//! For single-shot solving, program parts are not needed.
-//!
-//! @note Parts of a logic program without an explicit <tt>\#program</tt>
-//! specification are by default put into a program called `base` without
-//! arguments.
-//!
-//! @see clingo_control_ground()
-typedef struct clingo_part {
-    char const *name;              //!< name of the program part
-    clingo_symbol_t const *params; //!< array of parameters
-    size_t size;                   //!< number of parameters
-} clingo_part_t;
-
-//! Callback function to implement external functions.
-//!
-//! If an external function of form <tt>\@name(parameters)</tt> occurs in a logic program,
-//! then this function is called with its location, name, parameters, and a callback to inject symbols as arguments.
-//! The callback can be called multiple times; all symbols passed are injected.
-//!
-//! If a (non-recoverable) clingo API function fails in this callback, for example, the symbol callback, the callback must return false.
-//! In case of errors not related to clingo, this function can set error ::clingo_error_unknown and return false to stop grounding with an error.
-//!
-//! @param[in] location location from which the external function was called
-//! @param[in] name name of the called external function
-//! @param[in] arguments arguments of the called external function
-//! @param[in] arguments_size number of arguments
-//! @param[in] data user data of the callback
-//! @param[in] symbol_callback function to inject symbols
-//! @param[in] symbol_callback_data user data for the symbol callback
-//!            (must be passed untouched)
-//! @return whether the call was successful
-//! @see clingo_control_ground()
-//!
-//! The following example implements the external function <tt>\@f()</tt> returning 42.
-//! ~~~~~~~~~~~~~~~{.c}
-//! bool
-//! ground_callback(clingo_location_t const *location,
-//!                 char const *name,
-//!                 clingo_symbol_t const *arguments,
-//!                 size_t arguments_size,
-//!                 void *data,
-//!                 clingo_symbol_callback_t symbol_callback,
-//!                 void *symbol_callback_data) {
-//!   if (strcmp(name, "f") == 0 && arguments_size == 0) {
-//!     clingo_symbol_t sym;
-//!     clingo_symbol_create_number(42, &sym);
-//!     return symbol_callback(&sym, 1, symbol_callback_data);
-//!   }
-//!   clingo_set_error(clingo_error_runtime, "function not found");
-//!   return false;
-//! }
-//! ~~~~~~~~~~~~~~~
-typedef bool (*clingo_ground_callback_t) (clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data);
-
-//! Control object holding grounding and solving state.
-typedef struct clingo_control clingo_control_t;
-
-//! Create a new control object.
-//!
-//! A control object has to be freed using clingo_control_free().
-//!
-//! @note Only gringo options (without <code>\-\-output</code>) and clasp's options are supported as arguments,
-//! except basic options such as <code>\-\-help</code>.
-//! Furthermore, a control object is blocked while a search call is active;
-//! you must not call any member function during search.
-//!
-//! If the logger is NULL, messages are printed to stderr.
-//!
-//! @param[in] arguments C string array of command line arguments
-//! @param[in] arguments_size size of the arguments array
-//! @param[in] logger callback functions for warnings and info messages
-//! @param[in] logger_data user data for the logger callback
-//! @param[in] message_limit maximum number of times the logger callback is called
-//! @param[out] control resulting control object
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if argument parsing fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
-
-//! Free a control object created with clingo_control_new().
-//! @param[in] control the target
-CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
-
-//! @name Grounding Functions
-//! @{
-
-//! Extend the logic program with a program in a file.
-//!
-//! @param[in] control the target
-//! @param[in] file path to the file
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if parsing or checking fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_load(clingo_control_t *control, char const *file);
-
-//! Extend the logic program with the given non-ground logic program in string form.
-//!
-//! This function puts the given program into a block of form: <tt>\#program name(parameters).</tt>
-//!
-//! After extending the logic program, the corresponding program parts are typically grounded with ::clingo_control_ground.
-//!
-//! @param[in] control the target
-//! @param[in] name name of the program block
-//! @param[in] parameters string array of parameters of the program block
-//! @param[in] parameters_size number of parameters
-//! @param[in] program string representation of the program
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if parsing fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_add(clingo_control_t *control, char const *name, char const * const * parameters, size_t parameters_size, char const *program);
-
-//! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
-//!
-//! After grounding, logic programs can be solved with ::clingo_control_solve().
-//!
-//! @note Parts of a logic program without an explicit <tt>\#program</tt>
-//! specification are by default put into a program called `base` without
-//! arguments.
-//!
-//! @param[in] control the target
-//! @param[in] parts array of parts to ground
-//! @param[in] parts_size size of the parts array
-//! @param[in] ground_callback callback to implement external functions
-//! @param[in] ground_callback_data user data for ground_callback
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - error code of ground callback
-//!
-//! @see clingo_part
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size, clingo_ground_callback_t ground_callback, void *ground_callback_data);
-
-//! @}
-
-//! @name Solving Functions
-//! @{
-
-//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program enumerating its models.
-//!
-//! See the @ref SolveHandle module for more information.
-//!
-//! @param[in] control the target
-//! @param[in] mode configures the search mode
-//! @param[in] assumptions array of assumptions to solve under
-//! @param[in] assumptions_size number of assumptions
-//! @param[in] notify the event handler to register
-//! @param[in] data the user data for the event handler
-//! @param[out] handle handle to the current search to enumerate models
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving could not be started
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_literal_t const *assumptions, size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle);
-//! Clean up the domains of the grounding component using the solving
-//! component's top level assignment.
-//!
-//! This function removes atoms from domains that are false and marks atoms as
-//! facts that are true.  With multi-shot solving, this can result in smaller
-//! groundings because less rules have to be instantiated and more
-//! simplifications can be applied.
-//!
-//! @note It is typically not necessary to call this function manually because
-//! automatic cleanups at the right time are enabled by default.
-//
-//! @param[in] control the target
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//!
-//! @see clingo_control_get_enable_cleanup()
-//! @see clingo_control_set_enable_cleanup()
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_cleanup(clingo_control_t *control);
-//! Assign a truth value to an external atom.
-//!
-//! If a negative literal is passed, the corresponding atom is assigned the
-//! inverted truth value.
-//!
-//! If the atom does not exist or is not external, this is a noop.
-//!
-//! @param[in] control the target
-//! @param[in] literal literal to assign
-//! @param[in] value the truth value
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *control, clingo_literal_t literal, clingo_truth_value_t value);
-//! Release an external atom.
-//!
-//! If a negative literal is passed, the corresponding atom is released.
-//!
-//! After this call, an external atom is no longer external and subject to
-//! program simplifications.  If the atom does not exist or is not external,
-//! this is a noop.
-//!
-//! @param[in] control the target
-//! @param[in] literal literal to release
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t *control, clingo_literal_t literal);
-//! Register a custom propagator with the control object.
-//!
-//! If the sequential flag is set to true, the propagator is called
-//! sequentially when solving with multiple threads.
-//!
-//! See the @ref Propagator module for more information.
-//!
-//! @param[in] control the target
-//! @param[in] propagator the propagator
-//! @param[in] data user data passed to the propagator functions
-//! @param[in] sequential whether the propagator should be called sequentially
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t const *propagator, void *data, bool sequential);
-//! Check if the solver has determined that the internal program representation is conflicting.
-//!
-//! If this function returns true, solve calls will return immediately with an unsatisfiable solve result.
-//! Note that conflicts first have to be detected, e.g. -
-//! initial unit propagation results in an empty clause,
-//! or later if an empty clause is resolved during solving.
-//! Hence, the function might return false even if the problem is unsatisfiable.
-//!
-//! @param[in] control the target
-//! @return whether the program representation is conflicting
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t const *control);
-
-//! Get a statistics object to inspect solver statistics.
-//!
-//! Statistics are updated after a solve call.
-//!
-//! See the @ref Statistics module for more information.
-//!
-//! @attention
-//! The level of detail of the statistics depends on the stats option
-//! (which can be set using @ref Configuration module or passed as an option when @link clingo_control_new creating the control object@endlink).
-//! The default level zero only provides basic statistics,
-//! level one provides extended and accumulated statistics,
-//! and level two provides per-thread statistics.
-//! Furthermore, the statistics object is best accessed right after solving.
-//! Otherwise, not all of its entries have valid values.
-//!
-//! @param[in] control the target
-//! @param[out] statistics the statistics object
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t const *control, clingo_statistics_t const **statistics);
-//! Interrupt the active solve call (or the following solve call right at the beginning).
-//!
-//! @param[in] control the target
-CLINGO_VISIBILITY_DEFAULT void clingo_control_interrupt(clingo_control_t *control);
-//! Get low-level access to clasp.
-//!
-//! @attention
-//! This function is intended for experimental use only and not part of the stable API.
-//!
-//! This function may return a <code>nullptr</code>.
-//! Otherwise, the returned pointer can be casted to a ClaspFacade pointer.
-//!
-//! @param[in] control the target
-//! @param[out] clasp pointer to the ClaspFacade object (may be <code>nullptr</code>)
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_clasp_facade(clingo_control_t *control, void **clasp);
-
-//! @}
-
-//! @name Configuration Functions
-//! @{
-
-//! Get a configuration object to change the solver configuration.
-//!
-//! See the @ref Configuration module for more information.
-//!
-//! @param[in] control the target
-//! @param[out] configuration the configuration object
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_configuration(clingo_control_t *control, clingo_configuration_t **configuration);
-
-//! Configure how learnt constraints are handled during enumeration.
-//!
-//! If the enumeration assumption is enabled, then all information learnt from
-//! the solver's various enumeration modes is removed after a solve call. This
-//! includes enumeration of cautious or brave consequences, enumeration of
-//! answer sets with or without projection, or finding optimal models, as well
-//! as clauses added with clingo_solve_control_add_clause().
-//!
-//! @attention For practical purposes, this option is only interesting for single-shot solving
-//! or before the last solve call to squeeze out a tiny bit of performance.
-//! Initially, the enumeration assumption is enabled.
-//!
-//! @param[in] control the target
-//! @param[in] enable whether to enable the assumption
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_enable_enumeration_assumption(clingo_control_t *control, bool enable);
-//! Check whether the enumeration assumption is enabled.
-//!
-//! See ::clingo_control_set_enable_enumeration_assumption().
-//! @param[in] control the target
-//! @return whether using the enumeration assumption is enabled
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_get_enable_enumeration_assumption(clingo_control_t *control);
-
-//! Enable automatic cleanup after solving.
-//!
-//! @note Cleanup is enabled by default.
-//!
-//! @param[in] control the target
-//! @param[in] enable whether to enable cleanups
-//! @return whether the call was successful
-//!
-//! @see clingo_control_cleanup()
-//! @see clingo_control_get_enable_cleanup()
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_enable_cleanup(clingo_control_t *control, bool enable);
-//! Check whether automatic cleanup is enabled.
-//!
-//! See ::clingo_control_set_enable_cleanup().
-//!
-//! @param[in] control the target
-//!
-//! @see clingo_control_cleanup()
-//! @see clingo_control_set_enable_cleanup()
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_get_enable_cleanup(clingo_control_t *control);
-
-//! @}
-
-//! @name Program Inspection Functions
-//! @{
-
-//! Return the symbol for a constant definition of form: <tt>\#const name = symbol</tt>.
-//!
-//! @param[in] control the target
-//! @param[in] name the name of the constant
-//! @param[out] symbol the resulting symbol
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_get_const(clingo_control_t const *control, char const *name, clingo_symbol_t *symbol);
-//! Check if there is a constant definition for the given constant.
-//!
-//! @param[in] control the target
-//! @param[in] name the name of the constant
-//! @param[out] exists whether a matching constant definition exists
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_runtime if constant definition does not exist
-//!
-//! @see clingo_control_get_const()
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_has_const(clingo_control_t const *control, char const *name, bool *exists);
-//! Get an object to inspect symbolic atoms (the relevant Herbrand base) used
-//! for grounding.
-//!
-//! See the @ref SymbolicAtoms module for more information.
-//!
-//! @param[in] control the target
-//! @param[out] atoms the symbolic atoms object
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_symbolic_atoms(clingo_control_t const *control, clingo_symbolic_atoms_t const **atoms);
-//! Get an object to inspect theory atoms that occur in the grounding.
-//!
-//! See the @ref TheoryAtoms module for more information.
-//!
-//! @param[in] control the target
-//! @param[out] atoms the theory atoms object
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_theory_atoms(clingo_control_t const *control, clingo_theory_atoms_t const **atoms);
-//! Register a program observer with the control object.
-//!
-//! @param[in] control the target
-//! @param[in] observer the observer to register
-//! @param[in] replace just pass the grounding to the observer but not the solver
-//! @param[in] data user data passed to the observer functions
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t const *observer, bool replace, void *data);
-//! @}
-
-//! @name Program Modification Functions
-//! @{
-
-//! Get an object to add ground directives to the program.
-//!
-//! See the @ref ProgramBuilder module for more information.
-//!
-//! @param[in] control the target
-//! @param[out] backend the backend object
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend);
-//! Get an object to add non-ground directives to the program.
-//!
-//! See the @ref ProgramBuilder module for more information.
-//!
-//! @param[in] control the target
-//! @param[out] builder the program builder object
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_program_builder(clingo_control_t *control, clingo_program_builder_t **builder);
 //! @}
 
 //! @}

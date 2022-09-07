@@ -27,6 +27,7 @@
 
 #include <gringo/input/programbuilder.hh>
 #include <gringo/lexerstate.hh>
+#include <gringo/backend.hh>
 #include <memory>
 #include <iosfwd>
 #include <set>
@@ -39,12 +40,23 @@ using StringVec   = std::vector<std::string>;
 using ProgramVec  = std::vector<std::tuple<String, IdVec, std::string>>;
 
 enum class TheoryLexing { Disabled, Theory, Definition };
+enum class ParseResult { ASPIF, Gringo };
 
 class NonGroundParser : private LexerState<std::pair<String, std::pair<String, IdVec>>> {
 private:
-    enum Condition { yyccomment, yycblockcomment, yycscript, yycscript_body, yycnormal, yyctheory, yycdefinition };
+    enum Condition {
+        yyccomment,
+        yycblockcomment,
+        yycscript,
+        yycscript_body,
+        yycnormal,
+        yyctheory,
+        yycdefinition,
+        yycstart,
+        yycaspif,
+    };
 public:
-    NonGroundParser(INongroundProgramBuilder &pb, bool &incmode);
+    NonGroundParser(INongroundProgramBuilder &pb, Backend &bck, bool &incmode);
     NonGroundParser(NonGroundParser const &other) = delete;
     NonGroundParser(NonGroundParser &&other) noexcept = default;
     NonGroundParser &operator=(NonGroundParser const &other) = delete;
@@ -57,10 +69,13 @@ public:
     void pushBlock(std::string const &name, IdVec const &vec, std::string const &block, Logger &log);
     int lex(void *pValue, Location &loc);
     bool parseDefine(std::string const &define, Logger &log);
-    bool parse(Logger &log);
+    ParseResult parse(Logger &log);
     bool empty() { return LexerState::empty(); }
     void include(String file, Location const &loc, bool inbuilt, Logger &log);
     void theoryLexing(TheoryLexing mode);
+    void disable_aspif() {
+        condition(yycnormal);
+    }
     INongroundProgramBuilder &builder();
     // Note: only to be used during parsing
     Logger &logger() { assert(log_); return *log_; }
@@ -88,11 +103,39 @@ private:
     Condition condition() const;
     String filename() const;
 
+    Symbol aspif_symbol_(Location &loc);
+    std::vector<Potassco::Id_t> aspif_ids_(Location &loc);
+    std::vector<Potassco::Atom_t> aspif_atoms_(Location &loc);
+    std::vector<Potassco::Lit_t> aspif_lits_(Location &loc);
+    std::vector<Potassco::WeightLit_t> aspif_wlits_(Location &loc);
+    StringSpan aspif_string_(Location &loc);
+    StringSpan aspif_nonl_string_(Location &loc);
+    void aspif_error_(Location const &loc, char const *msg);
+    void aspif_(Location &loc);
+    void aspif_preamble_(Location &loc);
+    void aspif_ws_(Location &loc);
+    void aspif_nl_(Location &loc);
+    void aspif_eof_(Location &loc);
+    int32_t aspif_signed_(Location &loc);
+    uint32_t aspif_unsigned_(Location &loc);
+    void aspif_rule_(Location &loc);
+    void aspif_minimize_(Location &loc);
+    void aspif_project_(Location &loc);
+    void aspif_output_(Location &loc);
+    void aspif_external_(Location &loc);
+    void aspif_assumption_(Location &loc);
+    void aspif_heuristic_(Location &loc);
+    void aspif_edge_(Location &loc);
+    void aspif_theory_(Location &loc);
+    void aspif_comment_(Location &loc);
+
+
     std::set<std::string> filenames_;
     bool &incmode_;
     TheoryLexing theoryLexing_ = TheoryLexing::Disabled;
     String not_;
     INongroundProgramBuilder &pb_;
+    Backend &bck_;
     struct Aggr
     {
         AggregateFunction fun;
@@ -102,7 +145,7 @@ private:
     };
     Indexed<Aggr> aggregates_;
     int           injectSymbol_;
-    Condition     condition_ = yycnormal;
+    Condition     condition_ = yycstart;
     String        filename_;
     Logger *log_ = nullptr;
 };

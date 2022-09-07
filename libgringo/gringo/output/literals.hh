@@ -1022,6 +1022,9 @@ public:
     auto getAtom(LiteralId lit) const -> decltype(std::declval<D const>()[lit.offset()]) {
         return getDom<D const>(lit.domain())[lit.offset()];
     }
+    void ensureAtom(Potassco::Atom_t atom) {
+        atoms_ = std::max(atoms_, atom + 1);
+    }
     Potassco::Atom_t newAtom() { return ++atoms_; }
     LiteralId newAux(NAF naf = NAF::POS) { return {naf, Gringo::Output::AtomType::Aux, newAtom(), 0}; }
     LiteralId newDelayed(NAF naf = NAF::POS) { return {naf, Gringo::Output::AtomType::Aux, newAtom(), 1}; }
@@ -1083,6 +1086,9 @@ public:
     BackendLitWeightVec &tempWLits() {
         wb_.clear();
         return wb_;
+    }
+    bool empty() const {
+        return atoms_ == 0 && theory_.empty();
     }
 
     TheoryTermType termType(Id_t) const;

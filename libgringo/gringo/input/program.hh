@@ -82,6 +82,7 @@ public:
     void check(Logger &log);
     void print(std::ostream &out) const;
     void addInput(Sig sig);
+    bool empty() const;
     Ground::Program toGround(std::set<Sig> const &sigs, DomainData &domains, Logger &log);
 
 private:

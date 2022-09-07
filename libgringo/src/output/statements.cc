@@ -25,6 +25,7 @@
 #include <gringo/output/statements.hh>
 #include <gringo/output/theory.hh>
 #include <gringo/output/aggregates.hh>
+#include <gringo/output/output.hh>
 #include <gringo/logger.hh>
 
 namespace Gringo { namespace Output {
@@ -95,12 +96,7 @@ void printPlainHead(PrintPlain out, LitVec const &body, bool choice) {
 }
 
 bool showSig(OutputPredicates const &outPreds, Sig sig) {
-    if (outPreds.empty()) { return true; }
-    auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
-        return std::get<1>(x) < std::get<1>(y);
-    };
-    static Location loc("",1,1,"",1,1);
-    return std::binary_search(outPreds.begin(), outPreds.end(), OutputPredicates::value_type(loc, sig), le);
+    return outPreds.contains(sig);
 }
 
 } // namespace
@@ -448,7 +444,7 @@ void Translator::translate(DomainData &data, OutputPredicates const &outPreds, L
 
 void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPreds, Logger &log) {
     // show what was requested
-    if (!outPreds.empty()) {
+    if (outPreds.active()) {
         for (auto const &x : outPreds) {
             auto it(data.predDoms().find(std::get<1>(x)));
             if (it != data.predDoms().end()) {

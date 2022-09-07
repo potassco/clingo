@@ -87,7 +87,7 @@ using namespace Gringo::IO;
 Builder::Builder()
     : out(td, {}, oss)
     , l("dummy", 1, 1, "dummy", 1, 1)
-    , p(context, prg, out, defs) { }
+    , p(context, prg, out.outPreds, defs) { }
 
 void Builder::setUp() {
     defs.~Defines();
@@ -95,7 +95,7 @@ void Builder::setUp() {
     prg.~Program();
     new (&prg) Program();
     p.~NongroundProgramBuilder();
-    new (&p) NongroundProgramBuilder(context, prg, out, defs);
+    new (&p) NongroundProgramBuilder(context, prg, out.outPreds, defs);
 }
 
 // {{{ auxiliary functions
