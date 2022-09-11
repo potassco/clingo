@@ -3,6 +3,7 @@
 ## clingo 5.6.0
 
   * add support for parsing files in ASPIF format (#387)
+    (breaks C API)
   * add theory related functions to backend (#381)
   * add support for comparisons with more than one relation (#368)
   * extend safety by computing intervals from comparisons (#375)
@@ -11,13 +12,13 @@
   * require at least MSVC 15.0 to build on Windows
   * large code refactoring (#376)
   * replace internal hash set implementation by external one (#386)
-  * update clasp
+  * update to clasp version 3.3.9
 
 ## clingo 5.5.2
   * fix `parse_files` in C++ API
   * fix adding clauses during enumeration (#359)
   * fix incremental projection with backend (#362)
-  * update clasp
+  * update to clasp version 3.3.8
 
 ## clingo 5.5.1
   * extend theory class to get version information
@@ -25,6 +26,7 @@
   * tidy up `clingo.hh` header regarding C++17 deprecations (#344)
   * fix error handling while solving in Python API (#334)
   * fix various outher bugs
+  * update to clasp version 3.3.7
 
 ## clingo 5.5.0
 
