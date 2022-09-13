@@ -731,7 +731,12 @@ std::vector<Sig> ClingoControl::signatures() const {
 }
 
 SymbolicAtomIter ClingoControl::begin(Sig sig) const {
-    return init(*out_, out_->predDoms().find(sig).key()->domainOffset(), false);
+    auto &doms = out_->predDoms();
+    auto it = doms.find(sig);
+    if (it != doms.end()) {
+        return init(*out_, it.key()->domainOffset(), false);
+    }
+    return init(*out_, numeric_cast<uint32_t>(doms.size()), false);
 }
 
 SymbolicAtomIter ClingoControl::begin() const {

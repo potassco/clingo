@@ -110,6 +110,20 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(messages.empty());
             }
         }
+        SECTION("solve") {
+            ctl.add("base", {}, "x(1).");
+            ctl.ground({{"base", {}}});
+            int n = 0;
+            auto atms = ctl.symbolic_atoms();
+            for (auto it = atms.begin(Signature{"x", 1, false}), ie = atms.end(); it != ie; ++it) {
+                ++n;
+            }
+            REQUIRE(n == 0);
+            for (auto it = atms.begin(Signature{"x", 1, true}), ie = atms.end(); it != ie; ++it) {
+                ++n;
+            }
+            REQUIRE(n == 1);
+        }
         SECTION("get_statistics") {
             ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
                                           "1 {p(P,H) : H=1..h}1 :- P=1..p.");
