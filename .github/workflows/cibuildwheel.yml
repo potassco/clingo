@@ -7,10 +7,6 @@ on:
         description: 'Publish work in progress package.'
         required: false
         default: 'true'
-      image:
-        description: 'Manylinux image to use.'
-        required: false
-        default: 'manylinux2014_x86_64'
 
 jobs:
   build_sdist:
@@ -23,11 +19,11 @@ jobs:
 
       - name: Adjust version (wip))
         if: ${{ github.event.inputs.wip == 'true' }}
-        run: python .github/adjust_version.py --source
+        run: python .github/adjust_version.py
 
       - name: Adjust version (release)
         if: ${{ github.event.inputs.wip == 'false' }}
-        run: python .github/adjust_version.py --release --source
+        run: python .github/adjust_version.py --release
 
       - name: Build sdist
         run: pipx run build --sdist
