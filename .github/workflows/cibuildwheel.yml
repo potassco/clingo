@@ -48,32 +48,32 @@ jobs:
             name: ubuntu (manylinux-x86_64)
             env:
               CIBW_ARCHS_LINUX: x86_64
-              CIBW_BUILD: "*-manylinux-*"
+              CIBW_BUILD: "*-manylinux*"
           - os: ubuntu-20.04
             name: ubuntu (musllinux-x86_64)
             env:
               CIBW_ARCHS_LINUX: x86_64
-              CIBW_BUILD: "*-musllinux-*"
+              CIBW_BUILD: "*-musllinux*"
           - os: ubuntu-20.04
             name: ubuntu (manylinux-i686)
             env:
               CIBW_ARCHS_LINUX: i686
-              CIBW_BUILD: "*-manylinux-*"
+              CIBW_BUILD: "*-manylinux*"
           - os: ubuntu-20.04
             name: ubuntu (musllinux-i686)
             env:
               CIBW_ARCHS_LINUX: i686
-              CIBW_BUILD: "*-musllinux-*"
+              CIBW_BUILD: "*-musllinux*"
           - os: ubuntu-20.04
             name: ubuntu (manylinux-aarch64)
             env:
               CIBW_ARCHS_LINUX: aarch64
-              CIBW_BUILD: "*-manylinux-*"
+              CIBW_BUILD: "*-manylinux*"
           - os: ubuntu-20.04
             name: ubuntu (manylinux-ppc64le)
             env:
               CIBW_ARCHS_LINUX: ppc64le
-              CIBW_BUILD: "*-manylinux-*"
+              CIBW_BUILD: "*-manylinux*"
           - os: windows-2019
             name: windows
             env:
