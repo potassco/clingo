@@ -14,40 +14,6 @@ on:
         default: 'manylinux2014_x86_64'
 
 jobs:
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-2019, macos-11]
-        archs_linux: [x86_64]
-        include:
-          - os: windows-2019
-            skip: "pp*-win*"
-          - os: ubuntu-20.04
-            archs_linux: i686
-          - os: ubuntu-20.04
-            archs_linux: aarch64
-            skip: "*-musllinux-*"
-          - os: ubuntu-20.04
-            archs_linux: ppc64le
-            skip: "*-musllinux-*"
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.10.0
-        env:
-          CIBW_ARCHS_MACOS: x86_64 arm64
-          CIBW_ARCHS_LINUX: ${{ matrix.archs_linux }}
-          CIBW_SKIP: ${{ matrix.skip }}
-
-      - uses: actions/upload-artifact@v3
-        with:
-          path: ./wheelhouse/*.whl
-
   build_sdist:
     name: Build source distribution
     runs-on: ubuntu-latest
@@ -56,12 +22,72 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Adjust version (wip))
+        if: ${{ github.event.inputs.wip == 'true' }}
+        run: python .github/adjust_version.py --source
+
+      - name: Adjust version (release)
+        if: ${{ github.event.inputs.wip == 'false' }}
+        run: python .github/adjust_version.py --release --source
+
       - name: Build sdist
         run: pipx run build --sdist
 
       - uses: actions/upload-artifact@v3
         with:
           path: dist/*.tar.gz
+
+  build_wheels:
+    needs: [build_sdist]
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2019, macos-11]
+        archs_linux: []
+        build: []
+        include:
+          - os: ubuntu-20.04
+            archs_linux: x86_64
+            build: "*"
+          - os: ubuntu-20.04
+            archs_linux: i686
+            build: "*"
+          - os: ubuntu-20.04
+            archs_linux: aarch64
+            build: "*-manylinux-*"
+          - os: ubuntu-20.04
+            archs_linux: ppc64le
+            build: "*-manylinux-*"
+          - os: windows-2019
+            archs_linux: x86_64
+            build: "cp*-win*"
+          - os: macos-11
+            archs_linux: x86_64
+            build: "*"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Adjust version (wip))
+        if: ${{ github.event.inputs.wip == 'true' }}
+        run: python .github/adjust_version.py
+
+      - name: Adjust version (release)
+        if: ${{ github.event.inputs.wip == 'false' }}
+        run: python .github/adjust_version.py --release
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.10.0
+        env:
+          CIBW_ARCHS_MACOS: x86_64 arm64
+          CIBW_ARCHS_LINUX: ${{ matrix.archs_linux }}
+          CIBW_BUILD: ${{ matrix.build }}
+
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./wheelhouse/*.whl
 
 # upload_pypi:
 #   needs: [build_wheels, build_sdist]
