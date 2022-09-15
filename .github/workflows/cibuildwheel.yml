@@ -39,40 +39,50 @@ jobs:
 
   build_wheels:
     needs: [build_sdist]
-    name: Build wheels on ${{ matrix.cfg.os }}
+    name: Build wheels on ${{ matrix.cfg.name }}
     runs-on: ${{ matrix.cfg.os }}
     strategy:
       matrix:
         cfg:
           - os: ubuntu-20.04
+            name: ubuntu (manylinux-x86_64)
             env:
               CIBW_ARCHS_LINUX: x86_64
               CIBW_BUILD: "*-manylinux-*"
           - os: ubuntu-20.04
+            name: ubuntu (musllinux-x86_64)
             env:
               CIBW_ARCHS_LINUX: x86_64
               CIBW_BUILD: "*-musllinux-*"
+          - os: ubuntu-20.04
+            name: ubuntu (manylinux-i686)
+            env:
+              CIBW_ARCHS_LINUX: i686
+              CIBW_BUILD: "*-manylinux-*"
+          - os: ubuntu-20.04
+            name: ubuntu (musllinux-i686)
+            env:
+              CIBW_ARCHS_LINUX: i686
+              CIBW_BUILD: "*-musllinux-*"
+          - os: ubuntu-20.04
+            name: ubuntu (manylinux-aarch64)
+            env:
+              CIBW_ARCHS_LINUX: aarch64
+              CIBW_BUILD: "*-manylinux-*"
+          - os: ubuntu-20.04
+            name: ubuntu (manylinux-ppc64le)
+            env:
+              CIBW_ARCHS_LINUX: ppc64le
+              CIBW_BUILD: "*-manylinux-*"
+          - os: windows-2019
+            name: windows
+            env:
+              CIBW_BUILD: "cp*-win*"
+          - os: macos-11
+            name: macos-11
+            env:
+              CIBW_ARCHS_MACOS: x86_64 arm64
 
-#       os: [ubuntu-20.04, windows-2019, macos-11]
-#       archs_linux: [x86_64, i686, aarch64, ppc64le]
-#       build: ['*', "*-manylinux-*", "*-musllinux-*", "cp*-win*"]
-#       exclude:
-#         - os: ubuntu-20.04
-#           build: "cp*-win*"
-#         - os: ubuntu-20.04
-#           build: "*"
-#         - os: windows-2019
-#           build: '*'
-#         - os: windows-2019
-#           build: "*-manylinux-*"
-#         - os: windows-2019
-#           build: "*-musllinux-*"
-#         - os: macos-11
-#           build: '*'
-#         - os: macos-11
-#           build: "*-manylinux-*"
-#         - os: macos-11
-#           build: "*-musllinux-*"
     steps:
       - uses: actions/checkout@v3
         with:
