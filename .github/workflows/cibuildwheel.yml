@@ -1,7 +1,6 @@
 name: Build and upload to PyPI
 
 on:
-  push:
   workflow_dispatch:
     inputs:
       wip:
@@ -65,15 +64,25 @@ jobs:
               CIBW_ARCHS_LINUX: i686
               CIBW_BUILD: "*-musllinux*"
           - os: ubuntu-20.04
-            name: "*-manylinux-aarch64"
+            name: "cp*-manylinux-aarch64"
             env:
               CIBW_ARCHS_LINUX: aarch64
-              CIBW_BUILD: "*-manylinux*"
+              CIBW_BUILD: "cp*-manylinux*"
           - os: ubuntu-20.04
-            name: "*-manylinux-ppc64le"
+            name: "pp*-manylinux-aarch64"
+            env:
+              CIBW_ARCHS_LINUX: aarch64
+              CIBW_BUILD: "pp*-manylinux*"
+          - os: ubuntu-20.04
+            name: "cp*-manylinux-ppc64le"
             env:
               CIBW_ARCHS_LINUX: ppc64le
-              CIBW_BUILD: "*-manylinux*"
+              CIBW_BUILD: "cp*-manylinux*"
+          - os: ubuntu-20.04
+            name: "pp*-manylinux-ppc64le"
+            env:
+              CIBW_ARCHS_LINUX: ppc64le
+              CIBW_BUILD: "pp*-manylinux*"
           - os: windows-2019
             name: "cp*-win*"
             env:
