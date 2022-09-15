@@ -39,47 +39,47 @@ jobs:
 
   build_wheels:
     needs: [build_sdist]
-    name: Build wheels on ${{ matrix.cfg.name }}
+    name: Build ${{ matrix.cfg.name }} wheels
     runs-on: ${{ matrix.cfg.os }}
     strategy:
       matrix:
         cfg:
           - os: ubuntu-20.04
-            name: ubuntu (manylinux-x86_64)
+            name: "*-manylinux_x86_64"
             env:
               CIBW_ARCHS_LINUX: x86_64
               CIBW_BUILD: "*-manylinux*"
           - os: ubuntu-20.04
-            name: ubuntu (musllinux-x86_64)
+            name: "*-musllinux_x86_64"
             env:
               CIBW_ARCHS_LINUX: x86_64
               CIBW_BUILD: "*-musllinux*"
           - os: ubuntu-20.04
-            name: ubuntu (manylinux-i686)
+            name: "*-manylinux_i686"
             env:
               CIBW_ARCHS_LINUX: i686
               CIBW_BUILD: "*-manylinux*"
           - os: ubuntu-20.04
-            name: ubuntu (musllinux-i686)
+            name: "*-musllinux-i686"
             env:
               CIBW_ARCHS_LINUX: i686
               CIBW_BUILD: "*-musllinux*"
           - os: ubuntu-20.04
-            name: ubuntu (manylinux-aarch64)
+            name: "*-manylinux-aarch64"
             env:
               CIBW_ARCHS_LINUX: aarch64
               CIBW_BUILD: "*-manylinux*"
           - os: ubuntu-20.04
-            name: ubuntu (manylinux-ppc64le)
+            name: "*-manylinux-ppc64le"
             env:
               CIBW_ARCHS_LINUX: ppc64le
               CIBW_BUILD: "*-manylinux*"
           - os: windows-2019
-            name: windows
+            name: "cp*-win*"
             env:
               CIBW_BUILD: "cp*-win*"
           - os: macos-11
-            name: macos-11
+            name: "*-macos_{x86_64,arm64}"
             env:
               CIBW_ARCHS_MACOS: x86_64 arm64
 
@@ -87,6 +87,12 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
+
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: all
 
       - name: Adjust version (wip))
         if: ${{ github.event.inputs.wip == 'true' }}
