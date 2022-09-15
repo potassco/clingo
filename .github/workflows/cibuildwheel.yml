@@ -70,15 +70,10 @@ jobs:
               CIBW_ARCHS_LINUX: aarch64
               CIBW_BUILD: "pp*-manylinux*"
           - os: ubuntu-20.04
-            name: "cp*-manylinux-ppc64le"
+            name: "*-manylinux-ppc64le"
             env:
               CIBW_ARCHS_LINUX: ppc64le
-              CIBW_BUILD: "cp*-manylinux*"
-          - os: ubuntu-20.04
-            name: "pp*-manylinux-ppc64le"
-            env:
-              CIBW_ARCHS_LINUX: ppc64le
-              CIBW_BUILD: "pp*-manylinux*"
+              CIBW_BUILD: "*-manylinux*"
           - os: windows-2019
             name: "cp*-win*"
             env:
