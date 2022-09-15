@@ -31,7 +31,7 @@ def adjust_version(url):
         post = 1
 
     for m in finditer(r'{}-{}\.post([0-9]+)\.tar\.gz'.format(package_regex, escape(version)), pip):
-        post = max(post, m.group(1) + 1)
+        post = max(post, int(m.group(1)) + 1)
 
     with open('setup.py', 'w') as fw:
         if post > 0:
