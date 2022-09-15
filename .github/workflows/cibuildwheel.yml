@@ -20,7 +20,18 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, windows-2019, macos-11]
-
+        archs_linux: [x86_64]
+        include:
+          - os: windows-2019
+            skip: "pp*-win*"
+          - os: ubuntu-20.04
+            archs_linux: i686
+          - os: ubuntu-20.04
+            archs_linux: aarch64
+            skip: "*-musllinux-*"
+          - os: ubuntu-20.04
+            archs_linux: ppc64le
+            skip: "*-musllinux-*"
     steps:
       - uses: actions/checkout@v3
         with:
@@ -29,8 +40,9 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.10.0
         env:
-          CIBW_ARCHS_MACOS: x86_64 universal2
-          CIBW_SKIP: pp*-win*
+          CIBW_ARCHS_MACOS: x86_64 arm64
+          CIBW_ARCHS_LINUX: ${{ matrix.archs_linux }}
+          CIBW_SKIP: ${{ matrix.skip }}
 
       - uses: actions/upload-artifact@v3
         with:
