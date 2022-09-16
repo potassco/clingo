@@ -110,24 +110,24 @@ jobs:
         with:
           path: ./wheelhouse/*.whl
 
-upload_pypi:
-  needs: [build_wheels, build_sdist]
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: artifact
-        path: dist
+  upload_pypi:
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: artifact
+          path: dist
 
-    - uses: pypa/gh-action-pypi-publish@v1.5.0
-      if: ${{ github.event.inputs.wip == 'true' }}
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
-        repository_url: https://test.pypi.org/legacy/
+      - uses: pypa/gh-action-pypi-publish@v1.5.0
+        if: ${{ github.event.inputs.wip == 'true' }}
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
 
-    - uses: pypa/gh-action-pypi-publish@v1.5.0
-      if: ${{ github.event.inputs.wip == 'false' }}
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN_RELEASE }}
+      - uses: pypa/gh-action-pypi-publish@v1.5.0
+        if: ${{ github.event.inputs.wip == 'false' }}
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN_RELEASE }}
