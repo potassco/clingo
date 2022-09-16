@@ -1,46 +1,11 @@
 # do not edit the workflows, they are generated from this file
-pip:
-    pure: False
+cibw:
     version: |
-        version = None
         with open('libclingo/clingo.h') as fh:
             for line in fh:
                 m = match(r'#define CLINGO_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"', line)
                 if m is not None:
                     version = m.group(1)
-    build_depends: |
-        sudo apt-get install bison re2c gcc g++ cmake ninja-build
-        python3 -m pip install --user --upgrade scikit-build
-    manylinux_images:
-        - 'manylinux2014_x86_64'
-        - 'manylinux2014_ppc64le'
-        #- 'manylinux2014_aarch64'
-    generate: |
-        check_call(['cmake', '-G', 'Ninja', '-H.', '-Bbuild'])
-        check_call(['cmake', '--build', 'build', '--target', 'gen'])
-        check_call(['mkdir', '-p', 'libgringo/gen/src/'])
-        check_call(['rsync', '-ra', 'build/libgringo/src/input', 'libgringo/gen/src/'])
-    install: |
-        if ARCH != "x86_64":
-            check_call(['sed', '-i', 's/, "cmake"//', 'pyproject.toml'])
-            mkdir('re2c_source')
-            check_call(['curl', '-LJ', '-o', 're2c.tar.gz', 'https://github.com/skvadrik/re2c/archive/2.0.3.tar.gz'])
-            check_call(['tar', 'xzf', 're2c.tar.gz', '-C', 're2c_source', '--strip-components=1'])
-            check_call(['cmake', '-Hre2c_source', '-Bre2c_build', '-DRE2C_BUILD_RE2GO=OFF'])
-            check_call(['cmake', '--build', 're2c_build', '--target', 'install'])
-        else:
-            check_call(['yum', 'install', '-y', 're2c', 'bison'])
-        check_call(['yum', 'install', '-y', 'libffi-devel'])
-    winmac_images:
-        macos-latest:
-            depends: |
-                brew update
-                brew install re2c
-                brew install bison@2.7
-        windows-latest:
-            depends: |
-                choco install re2c
-                choco install winflexbison3
 
 conda:
     package_name:
