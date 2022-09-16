@@ -17,7 +17,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Adjust version (wip))
+      - name: Adjust version (wip)
         if: ${{ github.event.inputs.wip == 'true' }}
         run: python .github/adjust_version.py
 
@@ -94,7 +94,7 @@ jobs:
         with:
           platforms: all
 
-      - name: Adjust version (wip))
+      - name: Adjust version (wip)
         if: ${{ github.event.inputs.wip == 'true' }}
         run: python .github/adjust_version.py
 
