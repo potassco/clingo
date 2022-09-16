@@ -1,5 +1,9 @@
 # Changes
 
+## clingo 5.6.1
+
+  * fix symbolic atom iterator (#389)
+
 ## clingo 5.6.0
 
   * add support for parsing files in ASPIF format (#387)
@@ -15,12 +19,14 @@
   * update to clasp version 3.3.9
 
 ## clingo 5.5.2
+
   * fix `parse_files` in C++ API
   * fix adding clauses during enumeration (#359)
   * fix incremental projection with backend (#362)
   * update to clasp version 3.3.8
 
 ## clingo 5.5.1
+
   * extend theory class to get version information
   * improve performance of `Model.symbol` (#296)
   * tidy up `clingo.hh` header regarding C++17 deprecations (#344)
