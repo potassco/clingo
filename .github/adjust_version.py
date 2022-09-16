@@ -5,17 +5,29 @@ Script to build binary wheels in manylinux 2014 docker container.
 import argparse
 from re import finditer, escape, match, sub, search
 from subprocess import check_output
+from os.path import exists
 
 
 def adjust_version(url):
     '''
     Adjust version in setup.py.
     '''
-    with open('setup.py') as fr:
+    if exists('setup.cfg'):
+        setup_type = 'cfg'
+        setup_path = 'setup.cfg'
+    else:
+        setup_type = 'py'
+        setup_path = 'setup.py'
+
+    with open(setup_path) as fr:
         setup = fr.read()
 
-    package_name = search(r'''name[ ]*=[ ]*['"]([^'"]*)['"]''', setup).group(1)
-    package_regex = package_name.replace('-', '[-_]')
+    if setup_type == 'cfg':
+        package_name = search(r'name[ ]*=[ ]*(.*)[ ]*', setup).group(1)
+        package_regex = package_name.replace('-', '[-_]')
+    else:
+        package_name = search(r'''name[ ]*=[ ]*['"]([^'"]*)['"]''', setup).group(1)
+        package_regex = package_name.replace('-', '[-_]')
 
     pip = check_output(['curl', '-sL', '{}/{}'.format(url, package_name)]).decode()
     version = None
@@ -33,11 +45,17 @@ def adjust_version(url):
     for m in finditer(r'{}-{}\.post([0-9]+)\.tar\.gz'.format(package_regex, escape(version)), pip):
         post = max(post, int(m.group(1)) + 1)
 
-    with open('setup.py', 'w') as fw:
-        if post > 0:
-            fw.write(sub('version( *)=.*', 'version = \'{}.post{}\','.format(version, post), setup, 1))
+    with open(setup_path, 'w') as fw:
+        if setup_type == 'cfg':
+            if post > 0:
+                fw.write(sub('version( *)=.*', 'version = {}.post{}'.format(version, post), setup, 1))
+            else:
+                fw.write(sub('version( *)=.*', 'version = {}'.format(version), setup, 1))
         else:
-            fw.write(sub('version( *)=.*', 'version = \'{}\','.format(version), setup, 1))
+            if post > 0:
+                fw.write(sub('version( *)=.*', 'version = \'{}.post{}\','.format(version, post), setup, 1))
+            else:
+                fw.write(sub('version( *)=.*', 'version = \'{}\','.format(version), setup, 1))
 
 
 def run():
