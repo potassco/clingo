@@ -3,6 +3,8 @@
 ## clingo 5.6.1
 
   * fix symbolic atom iterator (#389)
+  * build wheels using cibuildwheel (#391, #392)
+    (this adds additional architectures)
 
 ## clingo 5.6.0
 

@@ -1,11 +1,12 @@
 '''
-Script to build pip source package.
+Script to build binary wheels in manylinux 2014 docker container.
 '''
 
 import argparse
 from re import finditer, escape, match, sub, search
-from subprocess import check_call, check_output
+from subprocess import check_output
 from os.path import exists
+
 
 def adjust_version(url):
     '''
@@ -38,14 +39,11 @@ def adjust_version(url):
     assert version is not None
 
     post = 0
-    for m in finditer(r'{}-{}\.tar\.gz'.format(package_regex, escape(version)), pip):
-        post = max(post, 1)
+    if search(r'{}-{}\.tar\.gz'.format(package_regex, escape(version)), pip) is not None:
+        post = 1
 
     for m in finditer(r'{}-{}\.post([0-9]+)\.tar\.gz'.format(package_regex, escape(version)), pip):
         post = max(post, int(m.group(1)) + 1)
-
-    for m in finditer(r'{}-{}\.post([0-9]+).*\.whl'.format(package_regex, escape(version)), pip):
-        post = max(post, int(m.group(1)))
 
     with open(setup_path, 'w') as fw:
         if setup_type == 'cfg':
@@ -59,21 +57,22 @@ def adjust_version(url):
             else:
                 fw.write(sub('version( *)=.*', 'version = \'{}\','.format(version), setup, 1))
 
+
 def run():
+    '''
+    Adjust version in setup.py depending on build type.
+    '''
     parser = argparse.ArgumentParser(description='Build source package.')
     parser.add_argument('--release', action='store_true', help='Build release package.')
     args = parser.parse_args()
+
     if args.release:
         url = 'https://pypi.org/simple'
     else:
         url = 'https://test.pypi.org/simple'
 
     adjust_version(url)
-    check_call(['cmake', '-G', 'Ninja', '-H.', '-Bbuild'])
-    check_call(['cmake', '--build', 'build', '--target', 'gen'])
-    check_call(['mkdir', '-p', 'libgringo/gen/src/'])
-    check_call(['rsync', '-ra', 'build/libgringo/src/input', 'libgringo/gen/src/'])
-    check_call(['python3', 'setup.py', 'sdist'])
+
 
 if __name__ == "__main__":
     run()

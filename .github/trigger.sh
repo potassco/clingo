@@ -90,23 +90,15 @@ case "$action" in
         list
         ;;
     release)
-        branch="${@:$OPTIND+1:1}"
         wip=false
-        # .github/workflows/manylinux.yml
-        dispatch 4811844 "$wip" "$branch" '"image":"manylinux2014_ppc64le"'
-        dispatch 4811844 "$wip" "$branch" '"image":"manylinux2014_aarch64"'
         ;&
     dev)
         branch="${@:$OPTIND+1:1}"
-        # .github/workflows/manylinux.yml
-        dispatch 4811844 "$wip" "$branch"
-        # .github/workflows/pipsource.yml
-        dispatch 4823035 "$wip" "$branch"
         # .github/workflows/ppa-dev.yml
         dispatch 4881510 "$wip" "$branch"
         # .github/workflows/conda-dev.yml
         dispatch 4923491 "$wip" "$branch"
-        # .github/workflows/pipwinmac-wip.yml
-        dispatch 4978730 "$wip" "$branch"
+        # .github/workflows/cibuildwheel.yml
+        dispatch 34889579 "$wip" "$branch"
         ;;
 esac
