@@ -3,7 +3,7 @@ if (CLINGO_BUILD_TESTS AND NOT TARGET Catch2::Catch2WithMain)
         set(CATCH_BUILD_STATIC_LIBRARY ON CACHE INTERNAL "" FORCE)
         add_subdirectory(catch)
     else()
-        find_package(Catch2 2.13 REQUIRED)
+        find_package(Catch2 3.1 REQUIRED)
     endif()
 endif()
 

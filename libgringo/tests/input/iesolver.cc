@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include "tests/tests.hh"
 #include "gringo/term.hh"
 
 namespace Gringo { namespace Input { namespace Test {
