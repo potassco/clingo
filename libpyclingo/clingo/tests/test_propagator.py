@@ -1,18 +1,29 @@
-'''
+"""
 Tests for the propagator.
-'''
+"""
 
 from unittest import TestCase
 from typing import cast
-from clingo import (Assignment, Control, Function, PropagateControl, PropagateInit, Propagator, PropagatorCheckMode,
-                    SolveResult, SymbolicAtom)
+from clingo import (
+    Assignment,
+    Control,
+    Function,
+    PropagateControl,
+    PropagateInit,
+    Propagator,
+    PropagatorCheckMode,
+    SolveResult,
+    SymbolicAtom,
+)
 
 from .util import _MCB, _check_sat, _p
 
+
 class TestPropagatorControl(Propagator):
-    '''
+    """
     Test functions in PropagateControl.
-    '''
+    """
+
     def __init__(self, case: TestCase):
         self._case = case
         self._lit_a = 0
@@ -21,7 +32,7 @@ class TestPropagatorControl(Propagator):
         init.check_mode = PropagatorCheckMode.Off
         self._case.assertEqual(init.check_mode, PropagatorCheckMode.Off)
         self._case.assertEqual(init.number_of_threads, 1)
-        a = init.symbolic_atoms[Function('a')]
+        a = init.symbolic_atoms[Function("a")]
         self._case.assertIsNotNone(a)
         self._lit_a = init.solver_literal(cast(SymbolicAtom, a).literal)
         init.add_watch(-self._lit_a)
@@ -36,7 +47,9 @@ class TestPropagatorControl(Propagator):
         self._case.assertGreaterEqual(len(trail), 1)
         self._case.assertGreaterEqual(len(list(trail)), 1)
         self._case.assertEqual(trail[trail.begin(lvl)], -self._lit_a)
-        self._case.assertEqual(list(trail[trail.begin(lvl):trail.end(lvl)]), [-self._lit_a])
+        self._case.assertEqual(
+            list(trail[trail.begin(lvl) : trail.end(lvl)]), [-self._lit_a]
+        )
         self._case.assertEqual(ass.decision(lvl), -self._lit_a)
         self._case.assertEqual(control.thread_id, 0)
         self._case.assertTrue(control.has_watch(-self._lit_a))
@@ -47,17 +60,19 @@ class TestPropagatorControl(Propagator):
         self._case.assertEqual(thread_id, 0)
         self._case.assertIn(-self._lit_a, changes)
 
+
 class TestPropagatorInit(Propagator):
-    '''
+    """
     Test functions in PropagateInit.
-    '''
+    """
+
     def __init__(self, case: TestCase):
         self._case = case
 
     def init(self, init: PropagateInit):
-        a = init.symbolic_atoms[Function('a')]
-        b = init.symbolic_atoms[Function('b')]
-        c = init.symbolic_atoms[Function('c')]
+        a = init.symbolic_atoms[Function("a")]
+        b = init.symbolic_atoms[Function("b")]
+        c = init.symbolic_atoms[Function("c")]
         self._case.assertIsNotNone(a)
         self._case.assertIsNotNone(b)
         self._case.assertIsNotNone(c)
@@ -90,10 +105,12 @@ class TestPropagatorInit(Propagator):
         self._case.assertEqual(len(init.assignment[0:4][0:4:2]), 2)
         self._case.assertEqual(init.assignment[0:4][0:4:2][1], init.assignment[2])
 
+
 class TestPropagator(Propagator):
-    '''
+    """
     Test adding literals while solving.
-    '''
+    """
+
     def __init__(self, case: TestCase):
         self._case = case
         self._added = False
@@ -108,18 +125,20 @@ class TestPropagator(Propagator):
             control.remove_watch(lit)
             self._case.assertFalse(control.has_watch(lit))
 
+
 class TestHeuristic(Propagator):
-    '''
+    """
     Test decide.
-    '''
+    """
+
     def __init__(self, case: TestCase):
         self._case = case
         self._lit_a = 0
         self._lit_b = 0
 
     def init(self, init: PropagateInit):
-        a = init.symbolic_atoms[Function('a')]
-        b = init.symbolic_atoms[Function('b')]
+        a = init.symbolic_atoms[Function("a")]
+        b = init.symbolic_atoms[Function("b")]
         self._case.assertIsNotNone(a)
         self._case.assertIsNotNone(b)
         self._lit_a = init.solver_literal(cast(SymbolicAtom, a).literal)
@@ -133,56 +152,75 @@ class TestHeuristic(Propagator):
             return -self._lit_b
         return fallback
 
+
 class TestSymbol(TestCase):
-    '''
+    """
     Tests basic solving and related functions.
-    '''
+    """
 
     def setUp(self):
         self.mcb = _MCB()
-        self.ctl = Control(['0'])
+        self.ctl = Control(["0"])
 
     def tearDown(self):
         self.mcb = None
         self.ctl = None
 
     def test_propagator_control(self):
-        '''
+        """
         Test PropagateControl.
-        '''
+        """
         self.ctl.add("base", [], "{a}.")
         self.ctl.ground([("base", [])])
         self.ctl.register_propagator(TestPropagatorControl(self))
-        _check_sat(self, cast(SolveResult, self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False)))
-        self.assertEqual(self.mcb.models, _p(['a']))
+        _check_sat(
+            self,
+            cast(
+                SolveResult,
+                self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
+            ),
+        )
+        self.assertEqual(self.mcb.models, _p(["a"]))
 
     def test_propagator_init(self):
-        '''
+        """
         Test PropagateInit and Assignment.
-        '''
+        """
         self.ctl.add("base", [], "{a; b; c}.")
         self.ctl.ground([("base", [])])
         self.ctl.register_propagator(TestPropagatorInit(self))
-        _check_sat(self, cast(SolveResult, self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False)))
-        self.assertEqual(self.mcb.models[-1:], _p(['a', 'b', 'c']))
+        _check_sat(
+            self,
+            cast(
+                SolveResult,
+                self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
+            ),
+        )
+        self.assertEqual(self.mcb.models[-1:], _p(["a", "b", "c"]))
 
     def test_propagator(self):
-        '''
+        """
         Test adding literals while solving.
-        '''
+        """
         self.ctl.add("base", [], "")
         self.ctl.ground([("base", [])])
         self.ctl.register_propagator(TestPropagator(self))
-        _check_sat(self, cast(SolveResult, self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False)))
+        _check_sat(
+            self,
+            cast(
+                SolveResult,
+                self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
+            ),
+        )
         self.assertEqual(self.mcb.models, _p([], []))
 
     def test_heurisitc(self):
-        '''
+        """
         Test decide.
-        '''
-        self.ctl = Control(['1'])
+        """
+        self.ctl = Control(["1"])
         self.ctl.add("base", [], "{a;b}.")
         self.ctl.ground([("base", [])])
         self.ctl.register_propagator(TestHeuristic(self))
         self.ctl.solve(on_model=self.mcb.on_model)
-        self.assertEqual(self.mcb.models, _p(['a']))
+        self.assertEqual(self.mcb.models, _p(["a"]))

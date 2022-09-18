@@ -1,6 +1,6 @@
-'''
+"""
 Tests for aspif parsing.
-'''
+"""
 from unittest import TestCase
 from textwrap import dedent
 
@@ -35,60 +35,98 @@ def theory(prg):
 
 
 class TestASPIF(TestCase):
-    '''
+    """
     Test ASPIF parsing.
-    '''
+    """
 
     def test_preamble(self):
-        '''
+        """
         Test preamble parsing.
-        '''
+        """
         ctl = Control()
-        ctl.add(dedent("""\
+        ctl.add(
+            dedent(
+                """\
             asp 1 0 0
             0
-            """))
+            """
+            )
+        )
         ctl = Control([], lambda msg, code: None)
-        self.assertRaises(RuntimeError, ctl.add, dedent("""\
+        self.assertRaises(
+            RuntimeError,
+            ctl.add,
+            dedent(
+                """\
             asp 1 0 0 unknown
             0
-            """))
+            """
+            ),
+        )
         ctl = Control([], lambda msg, code: None)
-        ctl.add(dedent("""\
+        ctl.add(
+            dedent(
+                """\
             asp 1 0 0 incremental
             0
-            """))
-        self.assertRaises(RuntimeError, ctl.add, dedent("""\
+            """
+            )
+        )
+        self.assertRaises(
+            RuntimeError,
+            ctl.add,
+            dedent(
+                """\
             asp 1 0 0 incremental
             0
-            """))
+            """
+            ),
+        )
         ctl = Control([], lambda msg, code: None)
-        self.assertRaises(RuntimeError, ctl.add, dedent("""\
+        self.assertRaises(
+            RuntimeError,
+            ctl.add,
+            dedent(
+                """\
             asp 1 0 0 incremental
             0
             0
-            """))
+            """
+            ),
+        )
 
     def test_rule(self):
-        '''
+        """
         Test rule parsing.
-        '''
+        """
         # a fact
-        self.assertEqual(solve_aspif("""\
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             1 0 1 1 0 0
             4 1 a 1 1
             0
-            """), [["a"]])
+            """
+            ),
+            [["a"]],
+        )
         # a choice
-        self.assertEqual(solve_aspif("""\
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             1 1 1 1 0 0
             4 1 a 1 1
             0
-            """), [[], ["a"]])
+            """
+            ),
+            [[], ["a"]],
+        )
         # a rule with normal body
-        self.assertEqual(solve_aspif("""\
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             1 1 1 1 0 0
             1 0 1 2 0 1 1
@@ -97,9 +135,14 @@ class TestASPIF(TestCase):
             4 1 b 1 2
             4 1 c 1 3
             0
-            """), [["a", "b"], ["c"]])
+            """
+            ),
+            [["a", "b"], ["c"]],
+        )
         # a rule with weight body
-        self.assertEqual(solve_aspif("""\
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             1 1 2 1 2 0 0
             1 0 1 3 1 2 2 1 1 2 1
@@ -107,13 +150,18 @@ class TestASPIF(TestCase):
             4 1 a 1 1
             4 1 b 1 2
             0
-            """), [["a", "b"]])
+            """
+            ),
+            [["a", "b"]],
+        )
 
     def test_minimize(self):
-        '''
+        """
         Test minimize parsing.
-        '''
-        self.assertEqual(solve_aspif("""\
+        """
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             1 1 2 1 2 0 0
             1 0 0 0 1 -2
@@ -123,82 +171,122 @@ class TestASPIF(TestCase):
             4 1 a 1 1
             4 1 b 1 2
             0
-            """), [["a", "b"]])
+            """
+            ),
+            [["a", "b"]],
+        )
 
     def test_external(self):
-        '''
+        """
         Test external parsing.
-        '''
-        self.assertEqual(solve_aspif("""\
+        """
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             5 1 0
             4 1 a 1 1
             0
-            """), [[], ["a"]])
-        self.assertEqual(solve_aspif("""\
+            """
+            ),
+            [[], ["a"]],
+        )
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             5 1 1
             4 1 a 1 1
             0
-            """), [["a"]])
-        self.assertEqual(solve_aspif("""\
+            """
+            ),
+            [["a"]],
+        )
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             5 1 2
             4 1 a 1 1
             0
-            """), [[]])
+            """
+            ),
+            [[]],
+        )
 
-        self.assertEqual(solve_aspif("""\
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             5 1 3
             4 1 a 1 1
             0
-            """), [[]])
+            """
+            ),
+            [[]],
+        )
 
     def test_assume(self):
-        '''
+        """
         Test assumption parsing.
-        '''
-        self.assertEqual(solve_aspif("""\
+        """
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             1 1 2 1 2 0 0
             6 2 1 -2
             4 1 a 1 1
             4 1 b 1 2
             0
-            """), [["a"]])
+            """
+            ),
+            [["a"]],
+        )
 
     def test_heuristic(self):
-        '''
+        """
         Test heuristic parsing.
-        '''
-        self.assertEqual(solve_aspif("""\
+        """
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             1 1 1 1 0 0
             7 4 1 1 2 0
             4 1 a 1 1
             0
-            """), [[], ["a"]])
+            """
+            ),
+            [[], ["a"]],
+        )
 
     def test_edge(self):
-        '''
+        """
         Test edge parsing.
-        '''
-        self.assertEqual(solve_aspif("""\
+        """
+        self.assertEqual(
+            solve_aspif(
+                """\
             asp 1 0 0
             1 1 1 1 0 0
             8 0 1 1 1
             8 1 0 0
             4 1 a 1 1
             0
-            """), [[]])
+            """
+            ),
+            [[]],
+        )
 
     def test_theory(self):
-        '''
+        """
         Test theory parsing.
-        '''
+        """
         # no guard
-        self.assertEqual(theory('''\
+        self.assertEqual(
+            theory(
+                """\
             asp 1 0 0
             1 1 1 1 0 0
             1 0 1 2 0 0
@@ -208,9 +296,14 @@ class TestASPIF(TestCase):
             9 5 2 0 1 0
             4 1 x 1 1
             0
-            '''), ['&b { 1 : x }'])
+            """
+            ),
+            ["&b { 1 : x }"],
+        )
         # with guard
-        self.assertEqual(theory('''\
+        self.assertEqual(
+            theory(
+                """\
             asp 1 0 0
             1 1 1 1 0 0
             1 0 1 2 0 0
@@ -222,9 +315,14 @@ class TestASPIF(TestCase):
             9 6 2 0 1 0 2 1
             4 1 x 1 1
             0
-            '''), ['&a { 1 : x } <=< 2'])
+            """
+            ),
+            ["&a { 1 : x } <=< 2"],
+        )
         # complex terms
-        self.assertEqual(theory('''\
+        self.assertEqual(
+            theory(
+                """\
             asp 1 0 0
             1 0 1 1 0 0
             9 1 0 1 b
@@ -244,15 +342,22 @@ class TestASPIF(TestCase):
             9 4 0 1 13 0
             9 5 1 0 1 0
             0
-            '''), ['&b { f((1+-*2),(1,2),[3,4],{5,6}) :  }'])
+            """
+            ),
+            ["&b { f((1+-*2),(1,2),[3,4],{5,6}) :  }"],
+        )
 
     def test_comment(self):
-        '''
+        """
         Test comment parsing.
-        '''
+        """
         ctl = Control()
-        ctl.add(dedent("""\
+        ctl.add(
+            dedent(
+                """\
             asp 1 0 0
             10 nothing!
             0
-            """))
+            """
+            )
+        )

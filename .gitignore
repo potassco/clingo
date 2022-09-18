@@ -26,3 +26,4 @@ dist
 MANIFEST
 .cache
 .gdb_history
+libpyclingo/env/

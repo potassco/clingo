@@ -109,4 +109,4 @@ from .statistics import *
 from .control import *
 from .application import *
 
-__version__ = '.'.join(map(str, version()))
+__version__ = ".".join(map(str, version()))

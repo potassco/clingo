@@ -1,6 +1,6 @@
-'''
+"""
 Tests for the ast module.
-'''
+"""
 from unittest import TestCase
 from typing import cast
 from textwrap import dedent
@@ -8,48 +8,62 @@ from collections.abc import Sequence
 from copy import copy, deepcopy
 
 from .. import ast
-from ..ast import (AST, ASTSequence, Id, Location, Program, ProgramBuilder, Position, StrSequence,
-                   SymbolicTerm, TheoryUnparsedTermElement,
-                   parse_string)
+from ..ast import (
+    AST,
+    ASTSequence,
+    Id,
+    Location,
+    Program,
+    ProgramBuilder,
+    Position,
+    StrSequence,
+    SymbolicTerm,
+    TheoryUnparsedTermElement,
+    parse_string,
+)
 from ..symbol import Function, Number
 from ..control import Control
 
+
 class VariableRenamer(ast.Transformer):
-    '''
+    """
     Add an underscore to all names of variables in an ast.
-    '''
-    def visit_Variable(self, node): #pylint: disable=no-self-use,invalid-name
-        '''
+    """
+
+    def visit_Variable(self, node):  # pylint: disable=no-self-use,invalid-name
+        """
         Rename a variable.
-        '''
-        return ast.Variable(node.location, '_' + node.name)
+        """
+        return ast.Variable(node.location, "_" + node.name)
+
 
 class TestAST(TestCase):
-    '''
+    """
     Tests for the ast module.
-    '''
+    """
+
     def _deepcopy(self, node: AST) -> AST:
-        '''
+        """
         This functions tests manual deep copying of ast nodes using all the
         constructor functions in the ast module.
 
         Since this functions visits all possible AST nodes, further
         functionality of the AST is tested here.
-        '''
-        cons_name = str(node.ast_type).split('.')[1]
+        """
+        cons_name = str(node.ast_type).split(".")[1]
         cons = getattr(ast, cons_name)
         args = cast(dict, dict(node.items()))
 
         def to_list(val):
             return list(val) if isinstance(val, Sequence) else val
 
-        items = [ to_list(val) for key, val in node.items() ]
-        zipped = [ to_list(val) for key, val in zip(node.keys(), node.values()) ]
+        items = [to_list(val) for key, val in node.items()]
+        zipped = [to_list(val) for key, val in zip(node.keys(), node.values())]
         self.assertEqual(items, zipped)
 
         for key in node.child_keys:
             if isinstance(args[key], Sequence):
-                args[key] = [ self._deepcopy(cast(AST, child)) for child in args[key] ]
+                args[key] = [self._deepcopy(cast(AST, child)) for child in args[key]]
             elif isinstance(args[key], AST):
                 args[key] = self._deepcopy(cast(AST, args[key]))
 
@@ -83,14 +97,16 @@ class TestAST(TestCase):
                 bld.add(prg[-1])
         except RuntimeError as e:
             msg = e.args[0]
-            if ("error: python support not available" not in msg and
-                "error: lua support not available" not in msg):
+            if (
+                "error: python support not available" not in msg
+                and "error: lua support not available" not in msg
+            ):
                 raise RuntimeError from e
 
     def test_terms(self):
-        '''
+        """
         Test terms.
-        '''
+        """
         self._str("a.")
         self._str("-a.")
         self._str("a(X).")
@@ -121,9 +137,9 @@ class TestAST(TestCase):
         self._str("-a(f(a);f(b);f(c)).")
 
     def test_theory_terms(self):
-        '''
+        """
         Test theory terms.
-        '''
+        """
         self._str("&a { 1 }.")
         self._str("&a { (- 1) }.")
         self._str("&a { X }.")
@@ -142,9 +158,9 @@ class TestAST(TestCase):
         self._str("&a { (+ a + - * b + c) }.")
 
     def test_literals(self):
-        '''
+        """
         Test literals.
-        '''
+        """
         self._str("a.")
         self._str("not a.")
         self._str("not not a.")
@@ -158,9 +174,9 @@ class TestAST(TestCase):
         self._str("#true.")
 
     def test_head_literals(self):
-        '''
+        """
         Test head literals.
-        '''
+        """
         self._str("{ }.")
         self._str("{ } < 2.", "2 > { }.")
         self._str("1 < { }.")
@@ -193,9 +209,9 @@ class TestAST(TestCase):
         self._str("&a(x) { }.")
 
     def test_body_literals(self):
-        '''
+        """
         Test body literals.
-        '''
+        """
         self._str("a :- { }.")
         self._str("a :- not { }.")
         self._str("a :- not not { }.")
@@ -243,9 +259,9 @@ class TestAST(TestCase):
         self._str("a :- #true.")
 
     def test_statements(self):
-        '''
+        """
         Test statements.
-        '''
+        """
         self._str("a.")
         self._str("#false.")
         self._str("#false :- a.")
@@ -275,7 +291,9 @@ class TestAST(TestCase):
         self._str("#project -a/0.")
         self._str("#project a/0.")
         self._str("#theory x {\n}.")
-        self._str(dedent("""\
+        self._str(
+            dedent(
+                """\
                          #theory x {
                            t {
                              + : 0, unary;
@@ -287,8 +305,9 @@ class TestAST(TestCase):
                            &c/0: t, directive;
                            &d/0: t, { }, t, any;
                            &e/0: t, { =, !=, + }, t, any
-                         }."""))
-
+                         }."""
+            )
+        )
 
     def test_compare(self):
         """
@@ -362,43 +381,39 @@ class TestAST(TestCase):
         prg = []
         parse_string(":- a(1;2): a(3;4).", prg.append)
         lit = prg[-1].body[0]
-        def unpool(other=True, condition=True):
-            return [ str(x) for x in lit.unpool(other, condition) ]
 
-        self.assertEqual(unpool(),
-                         ['a(1): a(3)',
-                          'a(1): a(4)',
-                          'a(2): a(3)',
-                          'a(2): a(4)'])
-        self.assertEqual(unpool(other=False),
-                         ['a(1;2): a(3)',
-                          'a(1;2): a(4)'])
-        self.assertEqual(unpool(condition=False),
-                         ['a(1): a(3;4)',
-                          'a(2): a(3;4)'])
-        self.assertEqual(unpool(other=False, condition=False),
-                         ['a(1;2): a(3;4)'])
+        def unpool(other=True, condition=True):
+            return [str(x) for x in lit.unpool(other, condition)]
+
+        self.assertEqual(
+            unpool(), ["a(1): a(3)", "a(1): a(4)", "a(2): a(3)", "a(2): a(4)"]
+        )
+        self.assertEqual(unpool(other=False), ["a(1;2): a(3)", "a(1;2): a(4)"])
+        self.assertEqual(unpool(condition=False), ["a(1): a(3;4)", "a(2): a(3;4)"])
+        self.assertEqual(unpool(other=False, condition=False), ["a(1;2): a(3;4)"])
 
     def test_transformer(self):
-        '''
+        """
         Test the transformer class.
-        '''
+        """
         prg = []
         vrt = VariableRenamer()
-        parse_string('p(X) :- q(X).', lambda stm: prg.append(str(vrt(stm))))
-        self.assertEqual(prg[-1], 'p(_X) :- q(_X).')
+        parse_string("p(X) :- q(X).", lambda stm: prg.append(str(vrt(stm))))
+        self.assertEqual(prg[-1], "p(_X) :- q(_X).")
 
     def test_repr(self):
-        '''
+        """
         Test the string representation of AST nodes.
-        '''
+        """
         # pylint: disable=eval-used
         stms = []
-        prg = dedent('''\
+        prg = dedent(
+            """\
             a :- &sum(body,second) { foo; (1 - 3) } > (4 * 17).
             &theory { (X * a ** stuff): dom(X); (1 - 3) }.
             &diff { (foo - bar) } <= 42.
             1 #max { X : a } :- a, X = #count { a }.
-            ''')
+            """
+        )
         parse_string(prg, stms.append)
         self.assertEqual(stms, eval(repr(stms)))

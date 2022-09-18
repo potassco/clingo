@@ -1,4 +1,4 @@
-'''
+"""
 Functions and classes related to configuration.
 
 Examples
@@ -27,16 +27,17 @@ a
 a b
 SAT
 ```
-'''
+"""
 
 from typing import List, Optional, Union
 
 from ._internal import _c_call, _ffi, _handle_error, _lib, _to_str
 
-__all__ = [ 'Configuration' ]
+__all__ = ["Configuration"]
+
 
 class Configuration:
-    '''
+    """
     Allows for changing the configuration of the underlying solver.
 
     Options are organized hierarchically. To change and inspect an option use:
@@ -64,7 +65,8 @@ class Configuration:
     See Also
     --------
     clingo.control.Control.configuration
-    '''
+    """
+
     def __init__(self, rep, key):
         # Note: we have to bypass __setattr__ to avoid infinite recursion
         super().__setattr__("_rep", rep)
@@ -72,48 +74,80 @@ class Configuration:
 
     @property
     def _type(self) -> int:
-        return _c_call('clingo_configuration_type_bitset_t', _lib.clingo_configuration_type, self._rep, self._key)
+        return _c_call(
+            "clingo_configuration_type_bitset_t",
+            _lib.clingo_configuration_type,
+            self._rep,
+            self._key,
+        )
 
     @property
     def is_array(self) -> bool:
-        '''
+        """
         This property is true if the configuration option is an array.
-        '''
+        """
         return bool(self._type & _lib.clingo_configuration_type_array)
 
     def _get_subkey(self, name: str) -> Optional[int]:
         if self._type & _lib.clingo_configuration_type_map:
-            if _c_call('bool', _lib.clingo_configuration_map_has_subkey, self._rep, self._key, name.encode()):
-                return _c_call('clingo_id_t', _lib.clingo_configuration_map_at, self._rep, self._key, name.encode())
+            if _c_call(
+                "bool",
+                _lib.clingo_configuration_map_has_subkey,
+                self._rep,
+                self._key,
+                name.encode(),
+            ):
+                return _c_call(
+                    "clingo_id_t",
+                    _lib.clingo_configuration_map_at,
+                    self._rep,
+                    self._key,
+                    name.encode(),
+                )
         return None
 
     def __len__(self):
         if self._type & _lib.clingo_configuration_type_array:
-            return _c_call('size_t', _lib.clingo_configuration_array_size, self._rep, self._key)
+            return _c_call(
+                "size_t", _lib.clingo_configuration_array_size, self._rep, self._key
+            )
         return 0
 
-    def __getitem__(self, idx: int) -> 'Configuration':
+    def __getitem__(self, idx: int) -> "Configuration":
         if idx < 0 or idx >= len(self):
             raise IndexError("invalid index")
 
-        key = _c_call('clingo_id_t', _lib.clingo_configuration_array_at, self._rep, self._key, idx)
+        key = _c_call(
+            "clingo_id_t", _lib.clingo_configuration_array_at, self._rep, self._key, idx
+        )
         return Configuration(self._rep, key)
 
-    def __getattr__(self, name: str) -> Union[None, str, 'Configuration']:
+    def __getattr__(self, name: str) -> Union[None, str, "Configuration"]:
         key = self._get_subkey(name)
         if key is None:
-            raise AttributeError(f'no attribute: {name}')
+            raise AttributeError(f"no attribute: {name}")
 
-        type_ = _c_call('clingo_configuration_type_bitset_t', _lib.clingo_configuration_type, self._rep, key)
+        type_ = _c_call(
+            "clingo_configuration_type_bitset_t",
+            _lib.clingo_configuration_type,
+            self._rep,
+            key,
+        )
 
         if type_ & _lib.clingo_configuration_type_value:
-            if not _c_call('bool', _lib.clingo_configuration_value_is_assigned, self._rep, key):
+            if not _c_call(
+                "bool", _lib.clingo_configuration_value_is_assigned, self._rep, key
+            ):
                 return None
 
-            size = _c_call('size_t', _lib.clingo_configuration_value_get_size, self._rep, key)
+            size = _c_call(
+                "size_t", _lib.clingo_configuration_value_get_size, self._rep, key
+            )
 
-            c_val = _ffi.new('char[]', size)
-            _handle_error(_lib.clingo_configuration_value_get(self._rep, key, c_val, size))
+            c_val = _ffi.new("char[]", size)
+            _handle_error(
+                _lib.clingo_configuration_value_get(self._rep, key, c_val, size)
+            )
             return _to_str(c_val)
 
         return Configuration(self._rep, key)
@@ -123,33 +157,47 @@ class Configuration:
         if key is None:
             super().__setattr__(name, val)
         else:
-            _handle_error(_lib.clingo_configuration_value_set(self._rep, key, str(val).encode()))
+            _handle_error(
+                _lib.clingo_configuration_value_set(self._rep, key, str(val).encode())
+            )
 
     def description(self, name: str) -> str:
-        '''
+        """
         Get a description for an option or option group.
 
         Parameters
         ----------
         name
             The name of the option.
-        '''
+        """
         key = self._get_subkey(name)
         if key is None:
-            raise RuntimeError(f'unknown option {name}')
-        return _to_str(_c_call('char*', _lib.clingo_configuration_description, self._rep, key))
+            raise RuntimeError(f"unknown option {name}")
+        return _to_str(
+            _c_call("char*", _lib.clingo_configuration_description, self._rep, key)
+        )
 
     @property
     def keys(self) -> Optional[List[str]]:
-        '''
+        """
         The list of names of sub-option groups or options.
 
         The list is `None` if the current object is not an option group.
-        '''
+        """
         ret = None
         if self._type & _lib.clingo_configuration_type_map:
             ret = []
-            for i in range(_c_call('size_t', _lib.clingo_configuration_map_size, self._rep, self._key)):
-                name = _c_call('char*', _lib.clingo_configuration_map_subkey_name, self._rep, self._key, i)
+            for i in range(
+                _c_call(
+                    "size_t", _lib.clingo_configuration_map_size, self._rep, self._key
+                )
+            ):
+                name = _c_call(
+                    "char*",
+                    _lib.clingo_configuration_map_subkey_name,
+                    self._rep,
+                    self._key,
+                    i,
+                )
                 ret.append(_to_str(name))
         return ret

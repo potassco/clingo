@@ -7,29 +7,35 @@ from collections import abc
 
 # pylint: disable=too-many-ancestors
 
+
 class Slice:
-    '''
+    """
     Wrapper for Python's slice that computes index ranges to slice sequences.
 
     Currently, the range is recomputed each time. It is probably also possible
     to combine the involved slices into one.
-    '''
-    def __init__(self, slc: slice, rec: Optional['Slice']=None):
+    """
+
+    def __init__(self, slc: slice, rec: Optional["Slice"] = None):
         self._slc = slc
         self._rec = rec
 
     def rng(self, size):
-        '''
+        """
         Return a range providing indices to access a sequence of length size.
-        '''
-        return (range(*self._slc.indices(size))
-                if self._rec is None else
-                self._rec.rng(size)[self._slc])
+        """
+        return (
+            range(*self._slc.indices(size))
+            if self._rec is None
+            else self._rec.rng(size)[self._slc]
+        )
+
 
 class SlicedSequence(abc.Sequence):
-    '''
+    """
     Helper to slice sequences.
-    '''
+    """
+
     def __init__(self, seq: abc.Sequence, slc: Slice):
         self._seq = seq
         self._slc = slc
@@ -64,9 +70,10 @@ class SlicedSequence(abc.Sequence):
 
 
 class SlicedMutableSequence(SlicedSequence, abc.MutableSequence):
-    '''
+    """
     Helper to slice sequences.
-    '''
+    """
+
     def __init__(self, seq: abc.MutableSequence, slc: Slice):
         super().__init__(seq, slc)
 
@@ -76,12 +83,12 @@ class SlicedMutableSequence(SlicedSequence, abc.MutableSequence):
 
     def __setitem__(self, index, ast):
         if isinstance(index, slice):
-            raise TypeError('slicing not implemented')
+            raise TypeError("slicing not implemented")
         self._mut_seq[self._rng[index]] = ast
 
     def __delitem__(self, index):
         if isinstance(index, slice):
-            raise TypeError('slicing not implemented')
+            raise TypeError("slicing not implemented")
         del self._mut_seq[self._rng[index]]
 
     def insert(self, index, value):
