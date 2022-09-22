@@ -332,6 +332,15 @@ class TestAST(TestCase):
         self.assertGreaterEqual(y, x)
         self.assertGreaterEqual(x, y)
 
+    def test_compare_bug(self):
+        """
+        Test comparisons.
+        """
+        r1, r2 = [], []
+        parse_string(":- b.", r1.append)
+        parse_string(":- not a.", r2.append)
+        self.assertTrue((r1[-1] < r2[-1]) != (r2[-1] < r1[-1]))
+
     def test_ast_sequence(self):
         """
         Test ast sequences.

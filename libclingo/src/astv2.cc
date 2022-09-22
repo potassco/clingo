@@ -221,8 +221,8 @@ bool operator<(AST const &a, AST const &b) {
         if (it_a->second.index() != it_b->second.index()) {
             return it_a->second.index() < it_b->second.index();
         }
-        if (mpark::visit(CompareLess{it_b->second}, it_a->second)) {
-            return true;
+        if (!mpark::visit(CompareEqual{it_b->second}, it_a->second)) {
+            return mpark::visit(CompareLess{it_b->second}, it_a->second);
         }
     }
     return false;
