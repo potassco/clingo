@@ -1,5 +1,9 @@
 # Changes
 
+## clingo 5.6.2
+
+  * fix AST comparison (#394)
+
 ## clingo 5.6.1
 
   * fix symbolic atom iterator (#389)
