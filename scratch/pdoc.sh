@@ -1,4 +1,7 @@
 #!/bin/zsh
+
+clingover="$(python3 -m clingo --version | sed -n 's/pyclingo version \([^.]*\.[^.]*\)\..*/\1/p')"
+
 pdoc3 -c http_server=True --html -f clingo clingox
 cat << EOF | base64 -d | zcat > html/index.html
 H4sICBIJNWAAA2luZGV4Lmh0bWwAxVnrjtu4Ff6fp+BqEGRm15Jle+yZkT3GJtntZpPsdpEmKYo0
@@ -47,7 +50,5 @@ oMUWNYaok05dpI88e1nJuP525rMQCuFcvYOY6tXctStjaUFhe7OXEqBvA7Zv/h/hPwyPH6ZYGAAA
 EOF
 
 sed -i '/^<script>$/{:a;N;/<\/script>$/!ba};/window\.location\.reload()/d' ./html/**/*(.)
-sed -i 's|href="/|href="https://potassco.org/clingo/python-api/5.5/|g' ./html/**/*(.)
-rsync -av --delete ./html/ ${HOME}/git/potassco/potassco.github.io/clingo/python-api/5.5/
-
-
+sed -i 's|href="/|href="https://potassco.org/clingo/python-api/'${clingover}'/|g' ./html/**/*(.)
+rsync -av --delete ./html/ ${HOME}/git/potassco/potassco.github.io/clingo/python-api/${clingover}/
