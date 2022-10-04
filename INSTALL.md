@@ -43,7 +43,7 @@ branch. Releases already include the necessary generated files.
 ## Optional Dependencies
 
 - the [Python](https://www.python.org/) script language and the
-  [CFFI](cffi.readthedocs.io/) package
+  [CFFI](https://cffi.readthedocs.io/) package
   - *at least* Python version 3.6
   - at least CFFI 1.14 is required (earlier versions have not been tested)
 - the [Lua](https://www.lua.org/) script language
