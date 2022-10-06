@@ -420,6 +420,7 @@ private:
         for (auto it = vec.begin() + 1, ie = vec.end(); it != ie; ++it) {
             auto rhs = get<SAST>(**it, clingo_ast_attribute_term);
             ret = prg_.rellitvec(get<Location>(*rhs, clingo_ast_attribute_location),
+                                 ret,
                                  parseRelation(get<int>(**it, clingo_ast_attribute_comparison)),
                                  parseTerm(*rhs));
         }
