@@ -3,6 +3,7 @@
 ## clingo 5.6.2
 
   * fix AST comparison (#394)
+  * fix handling of n-ary comparisons in AST (#396)
 
 ## clingo 5.6.1
 
