@@ -20,6 +20,7 @@ build/$(BUILD_TYPE):
 		-DLIB_POTASSCO_BUILD_TESTS=On \
 		-DCLINGO_BUILD_EXAMPLES=On \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=On \
+		-DCMAKE_INSTALL_PREFIX=${HOME}/.local/opt/potassco/$(BUILD_TYPE) \
 		-DCLINGO_BUILD_REVISION="$$(git rev-parse --short HEAD)" \
 		"$${current}"
 
