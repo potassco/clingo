@@ -43,7 +43,7 @@ test: build/$(BUILD_TYPE)
 gen: build/$(BUILD_TYPE)
 	$(MAKE) -C build/$(BUILD_TYPE) gen
 	mkdir -p libgringo/gen/src/
-	rsync -ra build/debug/libgringo/src/input libgringo/gen/src/
+	rsync -ra --exclude clingopath.hh build/debug/libgringo/src/input libgringo/gen/src/
 
 web: lua
 	mkdir -p build/web
