@@ -597,12 +597,18 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
             break;
         }
         case clingo_ast_type_show_signature: {
-            out << "#show "
-                << (get_bool(ast, clingo_ast_attribute_positive) ? "" : "-")
-                << print(ast, clingo_ast_attribute_name)
-                << "/"
-                << print(ast, clingo_ast_attribute_arity)
-                << ".";
+            auto name = get<String>(ast, clingo_ast_attribute_name);
+            if (!name.empty()) {
+                out << "#show "
+                    << (get_bool(ast, clingo_ast_attribute_positive) ? "" : "-")
+                    << name
+                    << "/"
+                    << print(ast, clingo_ast_attribute_arity)
+                    << ".";
+            }
+            else {
+                out << "#show.";
+            }
             break;
         }
         case clingo_ast_type_defined: {
