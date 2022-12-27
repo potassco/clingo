@@ -196,7 +196,7 @@ public:
 
     LitUid rellit(Location const &loc, NAF naf, TermUid termUidLeft, RelLitVecUid vecUidRight) override {
         return lits_.insert(ast(clingo_ast_type_literal, loc)
-            .set(clingo_ast_attribute_sign, static_cast<int>(clingo_ast_sign_no_sign))
+            .set(clingo_ast_attribute_sign, static_cast<int>(naf))
             .set(clingo_ast_attribute_atom, ast(clingo_ast_type_comparison)
                 .set(clingo_ast_attribute_term, terms_.erase(termUidLeft))
                 .set(clingo_ast_attribute_guards, guardvecs_.erase(vecUidRight))));
