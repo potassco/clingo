@@ -83,7 +83,7 @@ EOF
                 cd "${rep}"
                 pdebuild --buildresult .. --auto-debsign --debsign-k 744d959e10f5ad73f9cf17cc1d150536980033d5 -- --basetgz /var/cache/pbuilder/${ref}-${rep}.tgz --source-only-changes
                 sed -i '/\.buildinfo$/d' ../clingo_${VERSION}_source.changes
-                debsign --no-re-sign -k744d959e10f5ad73f9cf17cc1d150536980033d5 ../clingo_${VERSION}_source.changes
+                debsign --re-sign -k744d959e10f5ad73f9cf17cc1d150536980033d5 ../clingo_${VERSION}_source.changes
             )
             ;;
         put)
