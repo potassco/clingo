@@ -515,6 +515,17 @@ void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup const &i
     }
 }
 
+std::vector<int> Translator::priorities(DomainData &data) const {
+    std::vector<int> ret;
+    for (auto const &tuple_id : tuples_) {
+        auto tuple = data.tuple(tuple_id.first);
+        ret.emplace_back((tuple.first + 1)->num());
+    }
+    std::sort(ret.begin(), ret.end());
+    ret.erase(std::unique(ret.begin(), ret.end()), ret.end());
+    return ret;
+}
+
 void Translator::simplify(DomainData &data, Mappings &mappings, AssignmentLookup assignment) {
     minimize_.erase(std::remove_if(minimize_.begin(), minimize_.end(), [&](MinimizeList::value_type &elem) {
         elem.second = call(data, elem.second, &Literal::simplify, mappings, assignment);

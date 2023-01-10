@@ -422,6 +422,9 @@ public:
     Int64Vec optimization() const override {
         return model_->costs ? Int64Vec(model_->costs->begin(), model_->costs->end()) : Int64Vec();
     }
+    std::vector<int> priorities() const override {
+        return out().priorities();
+    }
     void addClause(Potassco::LitSpan const &lits) const override {
         Clasp::LitVec claspLits;
         for (auto &x : lits) {

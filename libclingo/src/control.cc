@@ -850,6 +850,15 @@ extern "C" bool clingo_model_cost(clingo_model_t const *m, int64_t *ret, size_t 
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_model_priority(clingo_model_t const *model, int *priorities, size_t size) {
+    GRINGO_CLINGO_TRY {
+        auto vec = model->priorities();
+        if (size < vec.size()) { throw std::length_error("not enough space"); }
+        std::copy(vec.begin(), vec.end(), priorities);
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_model_extend(clingo_model_t *model, clingo_symbol_t const *symbols, size_t size) {
     GRINGO_CLINGO_TRY { model->add({reinterpret_cast<Symbol const *>(symbols), size}); }
     GRINGO_CLINGO_CATCH;

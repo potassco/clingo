@@ -26,6 +26,7 @@
 #include "gringo/logger.hh"
 #include "gringo/output/aggregates.hh"
 #include "gringo/output/backends.hh"
+#include "gringo/output/statement.hh"
 #include "reify/program.hh"
 #include <cstring>
 #include <stdexcept>
@@ -405,6 +406,7 @@ void TranslatorOutput::output(DomainData &data, Statement &stm) {
     stm.translate(data, trans_);
 }
 
+
 // {{{1 definition of TextOutput
 
 TextOutput::TextOutput(std::string prefix, std::ostream &stream, UAbstractOutput out)
@@ -577,6 +579,15 @@ SymVec OutputBase::atoms(unsigned atomset, IsTrueLookup lookup) const {
         trans.atoms(data, atomset, lookup, atoms, outPreds);
     });
     return atoms;
+}
+
+std::vector<int> OutputBase::priorities() const {
+    std::vector<int> priorities;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    translateLambda(const_cast<DomainData&>(data), *out_, [&](DomainData &data, Translator &trans) {
+        priorities = trans.priorities(data);
+    });
+    return priorities;
 }
 
 std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> OutputBase::find(Symbol val) const {

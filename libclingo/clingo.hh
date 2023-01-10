@@ -1361,6 +1361,7 @@ private:
 };
 
 using CostVector = std::vector<int64_t>;
+using PriorityVector = std::vector<int>;
 
 class Model {
 public:
@@ -1374,6 +1375,7 @@ public:
     bool is_true(literal_t literal) const;
     bool optimality_proven() const;
     CostVector cost() const;
+    PriorityVector priorities() const;
     void extend(SymbolSpan symbols);
     SymbolVector symbols(ShowType show = ShowType::Shown) const;
     SolveControl context() const;
@@ -2950,6 +2952,15 @@ inline CostVector Model::cost() const {
     Detail::handle_error(clingo_model_cost_size(model_, &n));
     ret.resize(n);
     Detail::handle_error(clingo_model_cost(model_, ret.data(), n));
+    return ret;
+}
+
+inline PriorityVector Model::priorities() const {
+    PriorityVector ret;
+    size_t n = 0;
+    Detail::handle_error(clingo_model_cost_size(model_, &n));
+    ret.resize(n);
+    Detail::handle_error(clingo_model_priority(model_, ret.data(), n));
     return ret;
 }
 

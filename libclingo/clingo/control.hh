@@ -99,6 +99,7 @@ struct clingo_model {
     virtual bool contains(Gringo::Symbol atom) const = 0;
     virtual Gringo::SymSpan atoms(ShowType showset) const = 0;
     virtual Gringo::Int64Vec optimization() const = 0;
+    virtual std::vector<int> priorities() const = 0;
     virtual bool optimality_proven() const = 0;
     virtual void addClause(Potassco::LitSpan const &lits) const = 0;
     virtual uint64_t number() const = 0;

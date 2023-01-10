@@ -348,12 +348,15 @@ TEST_CASE("solving", "[clingo]") {
             ctl.ground({{"base", {}}});
             SymbolVector model;
             CostVector optimum;
-            for (auto &m : ctl.solve()) {
+            PriorityVector priorities;
+            for (auto const &m : ctl.solve()) {
                 model = m.symbols();
                 optimum = m.cost();
+                priorities = m.priorities();
             }
             REQUIRE(model == SymbolVector({ Id("a"), Id("d") }));
             REQUIRE(optimum == (CostVector{7,5}));
+            REQUIRE(priorities == (std::vector<int>{1, 2}));
             REQUIRE(messages.empty());
         }
 #if defined(CLASP_HAS_THREADS) && CLASP_HAS_THREADS == 1
