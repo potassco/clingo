@@ -26,7 +26,6 @@
 #include "gringo/logger.hh"
 #include "gringo/output/aggregates.hh"
 #include "gringo/output/backends.hh"
-#include "gringo/output/statement.hh"
 #include "reify/program.hh"
 #include <cstring>
 #include <stdexcept>
@@ -405,7 +404,6 @@ TranslatorOutput::TranslatorOutput(UAbstractOutput out)
 void TranslatorOutput::output(DomainData &data, Statement &stm) {
     stm.translate(data, trans_);
 }
-
 
 // {{{1 definition of TextOutput
 

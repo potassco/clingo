@@ -427,7 +427,7 @@ public:
         std::vector<Potassco::Weight_t> ret;
         auto *mini = ctx().minimizeNoCreate();
         if (mini != nullptr) {
-            std::copy(mini->prios.begin(), mini->prios.end(), std::back_inserter(ret));
+            ret.assign(mini->prios.begin(), mini->prios.end());
         }
         return ret;
     }
