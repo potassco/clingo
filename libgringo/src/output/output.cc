@@ -581,15 +581,6 @@ SymVec OutputBase::atoms(unsigned atomset, IsTrueLookup lookup) const {
     return atoms;
 }
 
-std::vector<int> OutputBase::priorities() const {
-    std::vector<int> priorities;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-    translateLambda(const_cast<DomainData&>(data), *out_, [&](DomainData &data, Translator &trans) {
-        priorities = trans.priorities(data);
-    });
-    return priorities;
-}
-
 std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> OutputBase::find(Symbol val) const {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     return const_cast<OutputBase*>(this)->find(val);

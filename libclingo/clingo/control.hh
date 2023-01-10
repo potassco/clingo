@@ -89,7 +89,7 @@ enum class ModelType : clingo_model_type_t {
     CautiousConsequences = clingo_model_type_cautious_consequences
 };
 using Model = clingo_model;
-using Int64Vec = std::vector<int64_t>;
+using Int64Vec = std::vector<Potassco::Weight_t>;
 
 } // namespace Gringo
 

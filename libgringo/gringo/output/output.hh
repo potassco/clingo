@@ -120,7 +120,6 @@ public:
     void endStep(Assumptions const &ass);
     void checkOutPreds(Logger &log);
     SymVec atoms(unsigned atomset, IsTrueLookup lookup) const;
-    std::vector<int> priorities() const;
     std::pair<PredicateDomain::Iterator, PredicateDomain*> find(Symbol val);
     std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> find(Symbol val) const;
     PredDomMap &predDoms() { return data.predDoms(); }

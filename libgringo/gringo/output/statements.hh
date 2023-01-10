@@ -232,7 +232,6 @@ public:
 
     void addMinimize(TupleId tuple, LiteralId cond);
     void atoms(DomainData &data, unsigned atomset, IsTrueLookup const &isTrue, SymVec &atoms, OutputPredicates const &outPreds);
-    std::vector<int> priorities(DomainData &data) const;
     void translate(DomainData &data, OutputPredicates const &outPreds, Logger &log);
     void output(DomainData &data, Statement &x);
     void simplify(DomainData &data, Mappings &mappings, AssignmentLookup assignment);

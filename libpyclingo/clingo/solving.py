@@ -431,7 +431,7 @@ class Model:
         """
         size = _c_call("size_t", _lib.clingo_model_cost_size, self._rep)
 
-        p_priorities = _ffi.new("int[]", size)
+        p_priorities = _ffi.new("clingo_weight_t[]", size)
         _handle_error(_lib.clingo_model_priority(self._rep, p_priorities, size))
 
         return list(p_priorities)

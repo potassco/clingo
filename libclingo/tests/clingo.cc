@@ -356,7 +356,7 @@ TEST_CASE("solving", "[clingo]") {
             }
             REQUIRE(model == SymbolVector({ Id("a"), Id("d") }));
             REQUIRE(optimum == (CostVector{7,5}));
-            REQUIRE(priorities == (std::vector<int>{1, 2}));
+            REQUIRE(priorities == (std::vector<int>{2, 1}));
             REQUIRE(messages.empty());
         }
 #if defined(CLASP_HAS_THREADS) && CLASP_HAS_THREADS == 1

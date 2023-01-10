@@ -1361,7 +1361,7 @@ private:
 };
 
 using CostVector = std::vector<int64_t>;
-using PriorityVector = std::vector<int>;
+using PriorityVector = std::vector<weight_t>;
 
 class Model {
 public:

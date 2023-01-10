@@ -1888,9 +1888,9 @@ static void *_cffi_types[] = {
 /* 597 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
 /* 598 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
 /* 599 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 600 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, int *, size_t)
+/* 600 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, int32_t *, size_t)
 /* 601 */ _CFFI_OP(_CFFI_OP_NOOP, 583),
-/* 602 */ _CFFI_OP(_CFFI_OP_NOOP, 110),
+/* 602 */ _CFFI_OP(_CFFI_OP_NOOP, 120),
 /* 603 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 28),
 /* 604 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
 /* 605 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // _Bool()(clingo_model_t const *, int32_t, _Bool *)
@@ -11928,7 +11928,7 @@ _cffi_f_clingo_model_optimality_proven(PyObject *self, PyObject *args)
 #  define _cffi_f_clingo_model_optimality_proven _cffi_d_clingo_model_optimality_proven
 #endif
 
-static _Bool _cffi_d_clingo_model_priority(clingo_model_t const * x0, int * x1, size_t x2)
+static _Bool _cffi_d_clingo_model_priority(clingo_model_t const * x0, int32_t * x1, size_t x2)
 {
   return clingo_model_priority(x0, x1, x2);
 }
@@ -11937,7 +11937,7 @@ static PyObject *
 _cffi_f_clingo_model_priority(PyObject *self, PyObject *args)
 {
   clingo_model_t const * x0;
-  int * x1;
+  int32_t * x1;
   size_t x2;
   Py_ssize_t datasize;
   struct _cffi_freeme_s *large_args_free = NULL;
@@ -11960,10 +11960,10 @@ _cffi_f_clingo_model_priority(PyObject *self, PyObject *args)
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(110), arg1, (char **)&x1);
+      _cffi_type(120), arg1, (char **)&x1);
   if (datasize != 0) {
-    x1 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(110), arg1, (char **)&x1,
+    x1 = ((size_t)datasize) <= 640 ? (int32_t *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(120), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }

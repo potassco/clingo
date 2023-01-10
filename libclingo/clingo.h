@@ -2188,7 +2188,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost(clingo_model_t const *model, in
 //! - ::clingo_error_runtime if the size is too small
 //!
 //! @see clingo_model_cost_size()
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_priority(clingo_model_t const *model, int *priorities, size_t size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_priority(clingo_model_t const *model, clingo_weight_t *priorities, size_t size);
 //! Whether the optimality of a model has been proven.
 //!
 //! @param[in] model the target
