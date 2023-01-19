@@ -111,11 +111,11 @@ extern "C" {
 //! Major version number.
 #define CLINGO_VERSION_MAJOR 5
 //! Minor version number.
-#define CLINGO_VERSION_MINOR 6
+#define CLINGO_VERSION_MINOR 7
 //! Revision number.
-#define CLINGO_VERSION_REVISION 3
+#define CLINGO_VERSION_REVISION 0
 //! String representation of version.
-#define CLINGO_VERSION "5.6.3"
+#define CLINGO_VERSION "5.7.0"
 
 //! Signed integer type used for aspif and solver literals.
 typedef int32_t clingo_literal_t;
@@ -2176,6 +2176,19 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost_size(clingo_model_t const *mode
 //! @see clingo_model_cost_size()
 //! @see clingo_model_optimality_proven()
 CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost(clingo_model_t const *model, int64_t *costs, size_t size);
+//! Get the priorities of the costs.
+//!
+//! The size of the array can be obtained with clingo_model_cost_size().
+//!
+//! @param[in] model the target
+//! @param[out] priorities the resulting priorities
+//! @param[in] size the number of priorities
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if the size is too small
+//!
+//! @see clingo_model_cost_size()
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_priority(clingo_model_t const *model, clingo_weight_t *priorities, size_t size);
 //! Whether the optimality of a model has been proven.
 //!
 //! @param[in] model the target

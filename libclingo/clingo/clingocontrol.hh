@@ -26,6 +26,7 @@
 #define CLINGO_CLINGOCONTROL_HH
 
 #include "clingo.h"
+#include <potassco/basic_types.h>
 #include <clingo/control.hh>
 #include <clingo/scripts.hh>
 #include <clingo/astv2.hh>
@@ -421,6 +422,14 @@ public:
     }
     Int64Vec optimization() const override {
         return model_->costs ? Int64Vec(model_->costs->begin(), model_->costs->end()) : Int64Vec();
+    }
+    std::vector<Potassco::Weight_t> priorities() const override {
+        std::vector<Potassco::Weight_t> ret;
+        auto const *mini = model_->ctx != nullptr ? model_->ctx->minimizer() : nullptr;
+        if (mini != nullptr) {
+            ret.assign(mini->prios.begin(), mini->prios.end());
+        }
+        return ret;
     }
     void addClause(Potassco::LitSpan const &lits) const override {
         Clasp::LitVec claspLits;
