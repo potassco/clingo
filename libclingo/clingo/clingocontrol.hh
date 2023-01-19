@@ -425,7 +425,7 @@ public:
     }
     std::vector<Potassco::Weight_t> priorities() const override {
         std::vector<Potassco::Weight_t> ret;
-        auto *mini = ctx().minimizeNoCreate();
+        auto const *mini = model_->ctx != nullptr ? model_->ctx->minimizer() : nullptr;
         if (mini != nullptr) {
             ret.assign(mini->prios.begin(), mini->prios.end());
         }
