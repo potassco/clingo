@@ -247,16 +247,6 @@ class Control:
         --------
         Control.ground
         """
-        c_mem = []
-        c_params = _ffi.new("char*[]", len(parameters))
-        for i, param in enumerate(parameters):
-            c_mem.append(_ffi.new("char[]", param.encode()))
-            c_params[i] = c_mem[-1]
-        _handle_error(
-            _lib.clingo_control_add(
-                self._rep, name.encode(), c_params, len(parameters), program.encode()
-            )
-        )
 
     @overload
     def add(self, program: str) -> None:
@@ -307,7 +297,7 @@ class Control:
             self._add2(*args, **kwargs)
 
     def _add1(self, program: str) -> None:
-        return self._add2("base", [], program)
+        self._add2("base", [], program)
 
     def _add2(self, name: str, parameters: Sequence[str], program: str) -> None:
         c_mem = []
