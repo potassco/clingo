@@ -1021,6 +1021,11 @@ enum PropagatorCheckMode : clingo_propagator_check_mode_t {
     Both    = clingo_propagator_check_mode_both,
 };
 
+enum class PropagatorUndoMode : clingo_propagator_undo_mode_t {
+    Default = clingo_propagator_undo_mode_default,
+    Always  = clingo_propagator_undo_mode_always,
+};
+
 enum WeightConstraintType : clingo_weight_constraint_type_t {
     LeftImplication  = clingo_weight_constraint_type_implication_left,
     RightImplication = clingo_weight_constraint_type_implication_right,
@@ -1042,7 +1047,9 @@ public:
     SymbolicAtoms symbolic_atoms() const;
     TheoryAtoms theory_atoms() const;
     PropagatorCheckMode get_check_mode() const;
+    PropagatorUndoMode get_undo_mode() const;
     void set_check_mode(PropagatorCheckMode mode);
+    void set_undo_mode(PropagatorUndoMode mode);
     literal_t add_literal(bool freeze = true);
     bool add_clause(LiteralSpan clause);
     bool add_weight_constraint(literal_t literal, WeightedLiteralSpan literals, weight_t bound, WeightConstraintType type, bool compare_equal = false);
@@ -2804,8 +2811,16 @@ inline PropagatorCheckMode PropagateInit::get_check_mode() const {
     return static_cast<PropagatorCheckMode>(clingo_propagate_init_get_check_mode(init_));
 }
 
+inline PropagatorUndoMode PropagateInit::get_undo_mode() const {
+    return static_cast<PropagatorUndoMode>(clingo_propagate_init_get_undo_mode(init_));
+}
+
 inline void PropagateInit::set_check_mode(PropagatorCheckMode mode) {
     clingo_propagate_init_set_check_mode(init_, mode);
+}
+
+inline void PropagateInit::set_undo_mode(PropagatorUndoMode mode) {
+    clingo_propagate_init_set_undo_mode(init_, static_cast<clingo_propagator_undo_mode_t>(mode));
 }
 
 inline literal_t PropagateInit::add_literal(bool freeze) {
