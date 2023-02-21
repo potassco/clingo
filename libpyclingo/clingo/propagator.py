@@ -52,6 +52,7 @@ __all__ = [
     "PropagateInit",
     "Propagator",
     "PropagatorCheckMode",
+    "PropagatorUndoMode",
     "Trail",
 ]
 

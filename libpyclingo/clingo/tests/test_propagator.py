@@ -12,6 +12,7 @@ from clingo import (
     PropagateInit,
     Propagator,
     PropagatorCheckMode,
+    PropagatorUndoMode,
     SolveResult,
     SymbolicAtom,
 )
@@ -59,6 +60,29 @@ class TestPropagatorControl(Propagator):
     def undo(self, thread_id, assignment, changes):
         self._case.assertEqual(thread_id, 0)
         self._case.assertIn(-self._lit_a, changes)
+
+
+class TestPropagatorMode(Propagator):
+    """
+    Test check/undo mode.
+    """
+    def __init__(self, case: TestCase):
+        self._case = case
+        self.num_check = 0
+        self.num_undo = 0
+
+    def init(self, init: PropagateInit):
+        init.check_mode = PropagatorCheckMode.Fixpoint
+        init.undo_mode = PropagatorUndoMode.Always
+
+        self._case.assertEqual(init.check_mode, PropagatorCheckMode.Fixpoint)
+        self._case.assertEqual(init.undo_mode, PropagatorUndoMode.Always)
+
+    def check(self, control: PropagateControl):
+        self.num_check += 1
+
+    def undo(self, thread_id, assignment, changes):
+        self.num_undo += 1
 
 
 class TestPropagatorInit(Propagator):
@@ -197,6 +221,20 @@ class TestSymbol(TestCase):
             ),
         )
         self.assertEqual(self.mcb.models[-1:], _p(["a", "b", "c"]))
+
+    def test_propagator_mode(self):
+        """
+        Test check and undo mode.
+        """
+        self.ctl = Control([])
+        self.ctl.add("base", [], "{a; b}.")
+        self.ctl.ground([("base", [])])
+        tpm = TestPropagatorMode(self)
+        self.ctl.register_propagator(tpm)
+        ret = self.ctl.solve()
+        self.assertTrue(ret.satisfiable)
+        self.assertEqual(tpm.num_check, 4)
+        self.assertEqual(tpm.num_undo, 3)
 
     def test_propagator(self):
         """
