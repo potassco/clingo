@@ -321,6 +321,25 @@ class PropagatorCheckMode(OrderedEnum):
     """
 
 
+class PropagatorUndoMode(OrderedEnum):
+    """
+    Enumeration of supported check modes for propagators.
+
+    Note that total checks are subject to the lock when a model is found. This
+    means that information from previously found models can be used to discard
+    assignments in check calls.
+    """
+
+    Default = _lib.clingo_propagator_undo_mode_default
+    """
+    Call `Propagator.undo` for decision levels with non-emty changes.
+    """
+    Always = _lib.clingo_propagator_undo_mode_always
+    """
+    Also call `Propagator.undo` when check has been called.
+    """
+
+
 class PropagateInit:
     """
     Object that is used to initialize a propagator before each solving step.
@@ -574,6 +593,17 @@ class PropagateInit:
     @check_mode.setter
     def check_mode(self, mode: PropagatorCheckMode) -> None:
         _lib.clingo_propagate_init_set_check_mode(self._rep, mode.value)
+
+    @property
+    def undo_mode(self) -> PropagatorUndoMode:
+        """
+        `PropagatorUndoMode` controlling when to call `Propagator.undo`.
+        """
+        return PropagatorUndoMode(_lib.clingo_propagate_init_get_undo_mode(self._rep))
+
+    @undo_mode.setter
+    def undo_mode(self, mode: PropagatorUndoMode) -> None:
+        _lib.clingo_propagate_init_set_undo_mode(self._rep, mode.value)
 
     @property
     def number_of_threads(self) -> int:
