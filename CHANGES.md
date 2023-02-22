@@ -2,7 +2,12 @@
 
 ## clingo 5.7.0
 
+  * add function to change undo mode (#409)
   * add function to access priorities to API (#406)
+  * fix AST bugs (#403)
+
+## clingo 5.6.2
+
   * fix AST comparison (#394)
   * fix handling of n-ary comparisons in AST (#396)
 
