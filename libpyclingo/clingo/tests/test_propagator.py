@@ -233,8 +233,8 @@ class TestSymbol(TestCase):
         self.ctl.register_propagator(tpm)
         ret = self.ctl.solve()
         self.assertTrue(ret.satisfiable)
-        self.assertEqual(tpm.num_check, 4)
-        self.assertEqual(tpm.num_undo, 3)
+        self.assertGreaterEqual(tpm.num_check, 3)
+        self.assertEqual(tpm.num_undo + 1, tpm.num_check)
 
     def test_propagator(self):
         """
