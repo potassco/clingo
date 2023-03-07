@@ -486,21 +486,17 @@ public:
         return ctx.master()->propagate();
     }
     void setCheckMode(clingo_propagator_check_mode_t checkMode) override {
-        p_.enableClingoPropagatorCheck(
-            static_cast<Clasp::ClingoPropagatorCheck_t::Type>(checkMode),
-            static_cast<Clasp::ClingoPropagatorUndo_t::Type>(getUndoMode()));
+        p_.enableClingoPropagatorCheck(static_cast<Clasp::ClingoPropagatorCheck_t::Type>(checkMode));
     }
     void setUndoMode(clingo_propagator_undo_mode_t undoMode) override {
-        p_.enableClingoPropagatorCheck(
-            static_cast<Clasp::ClingoPropagatorCheck_t::Type>(getCheckMode()),
-            static_cast<Clasp::ClingoPropagatorUndo_t::Type>(undoMode));
+        p_.enableClingoPropagatorUndo(static_cast<Clasp::ClingoPropagatorUndo_t::Type>(undoMode));
     }
     Potassco::AbstractAssignment const &assignment() const override { return a_; }
     clingo_propagator_check_mode_t getCheckMode() const override { return p_.checkMode(); }
     clingo_propagator_undo_mode_t getUndoMode() const override { return p_.undoMode(); }
 private:
     Clasp::ClaspFacade &facade_() const { return *static_cast<ClingoControl&>(c_).clasp_; }
-private:
+
     Control &c_;
     Clasp::ClingoPropagatorInit &p_;
     Clasp::ClingoAssignment a_;
