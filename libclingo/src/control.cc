@@ -711,8 +711,16 @@ extern "C" void clingo_propagate_init_set_check_mode(clingo_propagate_init_t *in
     init->setCheckMode(mode);
 }
 
+extern "C" void clingo_propagate_init_set_undo_mode(clingo_propagate_init_t *init, clingo_propagator_undo_mode_t mode) {
+    init->setUndoMode(mode);
+}
+
 extern "C" clingo_propagator_check_mode_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t const *init) {
     return init->getCheckMode();
+}
+
+extern "C" clingo_propagator_undo_mode_t clingo_propagate_init_get_undo_mode(clingo_propagate_init_t const *init) {
+    return init->getUndoMode();
 }
 
 extern "C" clingo_assignment_t const *clingo_propagate_init_assignment(clingo_propagate_init_t const *init) {

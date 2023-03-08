@@ -198,7 +198,9 @@ struct clingo_propagate_init {
     virtual Potassco::AbstractAssignment const &assignment() const = 0;
     virtual int threads() const = 0;
     virtual clingo_propagator_check_mode_t getCheckMode() const = 0;
+    virtual clingo_propagator_undo_mode_t getUndoMode() const = 0;
     virtual void setCheckMode(clingo_propagator_check_mode_t checkMode) = 0;
+    virtual void setUndoMode(clingo_propagator_undo_mode_t undoMode) = 0;
     virtual ~clingo_propagate_init() noexcept = default;
 };
 

@@ -1080,6 +1080,15 @@ enum clingo_propagator_check_mode_e {
 //! Corresponding type to ::clingo_propagator_check_mode_e.
 typedef int clingo_propagator_check_mode_t;
 
+//! Undo modes for propagators.
+enum clingo_propagator_undo_mode_e {
+    clingo_propagator_undo_mode_default  = 0, //!< call @ref ::clingo_propagator::undo() for non-empty change lists
+    clingo_propagator_undo_mode_always   = 1, //!< also call @ref ::clingo_propagator::check() when check has been called
+};
+//! Corresponding type to ::clingo_propagator_undo_mode_e.
+typedef int clingo_propagator_undo_mode_t;
+
+
 //! Enumeration of weight_constraint_types.
 enum clingo_weight_constraint_type_e {
     clingo_weight_constraint_type_implication_left  = -1, //!< the weight constraint implies the literal
@@ -1173,9 +1182,19 @@ CLINGO_VISIBILITY_DEFAULT void clingo_propagate_init_set_check_mode(clingo_propa
 //! Get the current check mode of the propagator.
 //!
 //! @param[in] init the target
-//! @return bitmask when to call the propagator
 //! @see clingo_propagate_init_set_check_mode()
 CLINGO_VISIBILITY_DEFAULT clingo_propagator_check_mode_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t const *init);
+//! Configure when to call the undo method of the propagator.
+//!
+//! @param[in] init the target
+//! @param[in] mode when to call the propagator
+//! @see @ref ::clingo_propagator::check()
+CLINGO_VISIBILITY_DEFAULT void clingo_propagate_init_set_undo_mode(clingo_propagate_init_t *init, clingo_propagator_undo_mode_t mode);
+//! Get the current undo mode of the propagator.
+//!
+//! @param[in] init the target
+//! @see clingo_propagate_init_set_undo_mode()
+CLINGO_VISIBILITY_DEFAULT clingo_propagator_undo_mode_t clingo_propagate_init_get_undo_mode(clingo_propagate_init_t const *init);
 //! Get the top level assignment solver.
 //!
 //! @param[in] init the target

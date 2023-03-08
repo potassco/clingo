@@ -24,6 +24,7 @@
 
 #include "clingo/clingocontrol.hh"
 #include <gringo/input/programbuilder.hh>
+#include "clasp/clingo.h"
 #include "clasp/solver.h"
 #include <potassco/program_opts/typed_value.h>
 #include <potassco/basic_types.h>
@@ -487,11 +488,15 @@ public:
     void setCheckMode(clingo_propagator_check_mode_t checkMode) override {
         p_.enableClingoPropagatorCheck(static_cast<Clasp::ClingoPropagatorCheck_t::Type>(checkMode));
     }
+    void setUndoMode(clingo_propagator_undo_mode_t undoMode) override {
+        p_.enableClingoPropagatorUndo(static_cast<Clasp::ClingoPropagatorUndo_t::Type>(undoMode));
+    }
     Potassco::AbstractAssignment const &assignment() const override { return a_; }
     clingo_propagator_check_mode_t getCheckMode() const override { return p_.checkMode(); }
+    clingo_propagator_undo_mode_t getUndoMode() const override { return p_.undoMode(); }
 private:
     Clasp::ClaspFacade &facade_() const { return *static_cast<ClingoControl&>(c_).clasp_; }
-private:
+
     Control &c_;
     Clasp::ClingoPropagatorInit &p_;
     Clasp::ClingoAssignment a_;

@@ -37,12 +37,11 @@ The following example shows how to solve asynchronously:
     >>> from clingo import Control
     >>>
     >>> ctl = Control(["0"])
-    >>> ctl = clingo.Control("0")
     >>> ctl.add("base", [], "1 { a; b } 1.")
     >>> ctl.ground([("base", [])])
     >>> with ctl.solve(on_model=print, async_=True) as hnd:
     ...     # some computation here
-    ...     hnd.wait():
+    ...     hnd.wait()
     ...     print(hnd.get())
     ...
     Answer: a
@@ -54,7 +53,6 @@ This example shows how to solve both iteratively and asynchronously:
     >>> from clingo import Control
     >>>
     >>> ctl = Control(["0"])
-    >>> ctl.configuration.solve.models = 0
     >>> ctl.add("base", [], "1 { a; b } 1.")
     >>> ctl.ground([("base", [])])
     >>> with ctl.solve(yield_=True, async_=True) as hnd:
