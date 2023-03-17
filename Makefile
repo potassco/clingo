@@ -50,7 +50,7 @@ web: lua
 	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake \
 		-DCLINGO_BUILD_WEB=On \
 		-DCLINGO_BUILD_WITH_PYTHON=Off \
-		-DCLINGO_BUILD_WITH_LUA=Off \
+		-DCLINGO_BUILD_WITH_LUA=On \
 		-DCLINGO_BUILD_SHARED=Off \
 		-DCLASP_BUILD_WITH_THREADS=Off \
 		-DCMAKE_VERBOSE_MAKEFILE=On \
@@ -59,8 +59,8 @@ web: lua
 		-DCMAKE_CXX_FLAGS_RELEASE="-Os -DNDEBUG" \
 		-DCMAKE_EXE_LINKER_FLAGS="" \
 		-DCMAKE_EXE_LINKER_FLAGS_RELEASE="" \
-		-DLUA_LIBRARIES=build/lua/install/lib/liblua.a \
-		-DLUA_INCLUDE_DIR=build/lua/install/include \
+		-DLUA_LIBRARIES="$${current}/build/lua/install/lib/liblua.a" \
+		-DLUA_INCLUDE_DIR="$${current}/build/lua/install/include" \
 		-DCLINGO_BUILD_REVISION="$$(git rev-parse --short HEAD)" \
 		"$${current}"
 	$(MAKE) -C build/web web
