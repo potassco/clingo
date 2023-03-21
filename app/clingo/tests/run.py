@@ -102,7 +102,7 @@ if parse_ret.action == "normalize":
     args = [clingo, "0", parse_ret.file, "-Wnone"]
     b = os.path.splitext(parse_ret.file)[0]
     if os.path.exists(b + ".cmd"):
-        with open(b + ".cmd", 'rU') as cmd_file:
+        with open(b + ".cmd", 'r') as cmd_file:
             for x in cmd_file:
                 args.extend(x.strip().split())
     args.extend(extra_argv)
@@ -121,7 +121,7 @@ if parse_ret.action == "run":
         for f in sorted(files):
             if f.endswith(".lp"):
                 b = os.path.join(root, f[:-3])
-                with open(b + ".lp", 'rU') as inst_file:
+                with open(b + ".lp", 'r') as inst_file:
                     inst = inst_file.read()
                     if (not with_python and re.search(r"#script[ ]*\(python\)", inst)) or \
                        (not with_lua and re.search(r"#script[ ]*\(lua\)", inst)) or \
@@ -134,13 +134,13 @@ if parse_ret.action == "run":
 
                 args = [clingo, "0", b + ".lp", "-Wnone"]
                 if os.path.exists(b + ".cmd"):
-                    with open(b + ".cmd", 'rU') as cmd_file:
+                    with open(b + ".cmd", 'r') as cmd_file:
                         for x in cmd_file:
                             args.extend(x.strip().split())
                 args.extend(extra_argv)
                 out, err = sp.Popen(args, stderr=sp.PIPE, stdout=sp.PIPE, universal_newlines=True).communicate()
                 norm = normalize(out)
-                with open(b + ".sol", 'rU') as sol_file:
+                with open(b + ".sol", 'r') as sol_file:
                     sol  = sol_file.read()
                 if norm != sol:
                     failed+= 1
@@ -178,4 +178,3 @@ if parse_ret.action == "run":
         print ("All tests passed ({} test cases)".format(total))
         print
         exit(0)
-
