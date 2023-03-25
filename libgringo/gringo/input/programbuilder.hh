@@ -109,6 +109,12 @@ public:
         if (neg) { t = term(loc, UnOp::NEG, t); }
         return t;
     }
+
+    // comments
+    virtual void comment(Location loc, String value, bool block) {
+        std::cerr << loc << ": we got a " << (block ? "block " : "") << "comment: '" << value << "'" <<  std::endl;
+    }
+
     // {{{2 terms
     virtual TermUid term(Location const &loc, Symbol val) = 0;                             // constant
     virtual TermUid term(Location const &loc, String name) = 0;                            // variable
