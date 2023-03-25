@@ -311,6 +311,10 @@ class TestAST(TestCase):
                          }."""
             )
         )
+        self._str("%* test *%\n")
+        self._str("%* test *%", "%* test *%\n")
+        self._str("% test\n")
+        self._str("% test", "% test\n")
 
     def test_compare(self):
         """
