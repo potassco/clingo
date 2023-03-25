@@ -465,6 +465,10 @@ public:
             .set(clingo_ast_attribute_positive, static_cast<int>(!sig.sign())));
     }
 
+    bool reportComment() const override {
+        return true;
+    }
+
     void comment(Location const &loc, String value, bool block) override {
         cb_(ast(clingo_ast_type_comment, loc)
             .set(clingo_ast_attribute_value, value)
