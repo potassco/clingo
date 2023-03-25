@@ -139,6 +139,10 @@ TEST_CASE("parse-ast-v2", "[clingo]") {
         REQUIRE(parse("#project a : b.") == "#project a : b.");
         REQUIRE(parse("#project a/2.") == "#project a/2.");
         REQUIRE(parse("#theory x {}.") == "#theory x {\n}.");
+        REQUIRE(parse("%* test *%\n") == "%* test *%\n");
+        REQUIRE(parse("%* test *%") == "%* test *%\n");
+        REQUIRE(parse("% test\n") == "% test\n");
+        REQUIRE(parse("% test") == "% test\n");
     }
     SECTION("theory definition") {
         REQUIRE(parse("#theory x { t { ++ : 1, unary } }.") == "#theory x {\n" "  t {\n" "    ++ : 1, unary\n" "  }\n" "}.");

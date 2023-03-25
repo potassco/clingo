@@ -1841,6 +1841,11 @@ namespace AST {
 
 using Clingo::TheorySequenceType;
 
+enum class CommentType {
+    Line = clingo_comment_type_line,
+    Block = clingo_comment_type_block,
+};
+
 enum class ComparisonOperator {
     GreaterThan = clingo_ast_comparison_operator_greater_than,
     LessThan = clingo_ast_comparison_operator_less_than,
@@ -1948,6 +1953,7 @@ enum class Type {
     ProjectSignature = clingo_ast_type_project_signature,
     Defined = clingo_ast_type_defined,
     TheoryDefinition = clingo_ast_type_theory_definition,
+    Comment = clingo_ast_type_comment,
 };
 
 enum class Attribute {
@@ -1995,6 +2001,7 @@ enum class Attribute {
     Value = clingo_ast_attribute_value,
     Variable = clingo_ast_attribute_variable,
     Weight = clingo_ast_attribute_weight,
+    CommentType = clingo_ast_attribute_comment_type,
 };
 
 class Node;
