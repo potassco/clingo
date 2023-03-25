@@ -138,6 +138,11 @@ public:
                                                                    get<AST::ASTVec>(ast, clingo_ast_attribute_atoms)),
                                       log_);
             }
+            case clingo_ast_type_comment: {
+                return prg_.comment(get<Location>(ast, clingo_ast_attribute_location),
+                             get<String>(ast, clingo_ast_attribute_value),
+                             parseCommentType(get<int>(ast, clingo_ast_attribute_comment_type)) == clingo_comment_type_block);
+            }
             default: {
                 throw std::runtime_error("invalid ast: statement expected");
             }
@@ -748,6 +753,21 @@ private:
         return uid;
     }
 
+    // {{{1 comments
+
+    static clingo_comment_type_t parseCommentType(int num) {
+        switch (num) {
+            case clingo_comment_type_line: {
+                return clingo_comment_type_line;
+            }
+            case clingo_comment_type_block: {
+                return clingo_comment_type_block;
+            }
+            default: {
+                throw std::runtime_error("invalid ast: invalid comment type");
+            }
+        }
+    }
     // 1}}}
 
     Logger &log_;

@@ -1318,6 +1318,7 @@ C(project_atom) { A(location, location), A(atom, ast), A(body, ast_array) };
 C(project_signature) { A(location, location), A(name, string), A(arity, number), A(positive, number) };
 C(defined) { A(location, location), A(name, string), A(arity, number), A(positive, number) };
 C(theory_definition) { A(location, location), A(name, string), A(terms, ast_array), A(atoms, ast_array) };
+C(comment) { A(location, location), A(value, string), A(comment_type, number) };
 
 clingo_ast_constructor_t const clingo_ast_constructor_list[] = {
     // terms
@@ -1371,7 +1372,8 @@ clingo_ast_constructor_t const clingo_ast_constructor_list[] = {
     E(project_atom),
     E(project_signature),
     E(defined),
-    E(theory_definition)
+    E(theory_definition),
+    E(comment)
 };
 
 clingo_ast_constructors_t g_clingo_ast_constructors = {
@@ -1423,6 +1425,7 @@ char const * attribute_list[] = {
     "value",
     "variable",
     "weight",
+    "comment_type",
 };
 
 clingo_ast_attribute_names_t g_clingo_ast_attribute_names = {

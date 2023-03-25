@@ -465,6 +465,12 @@ public:
             .set(clingo_ast_attribute_positive, static_cast<int>(!sig.sign())));
     }
 
+    void comment(Location const &loc, String value, bool block) override {
+        cb_(ast(clingo_ast_type_comment, loc)
+            .set(clingo_ast_attribute_value, value)
+            .set(clingo_ast_attribute_comment_type, block ? clingo_comment_type_block : clingo_comment_type_line));
+    }
+
     // {{{1 theory atoms
 
     TheoryTermUid theorytermseq(Location const &loc, TheoryOptermVecUid args, clingo_ast_theory_sequence_type_e type) {
