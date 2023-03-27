@@ -76,6 +76,9 @@ public:
     void disable_aspif() {
         condition(yycnormal);
     }
+    void reportComment(Location const &loc, String value, bool block);
+    void storeComments();
+    void flushComments();
     INongroundProgramBuilder &builder();
     // Note: only to be used during parsing
     Logger &logger() { assert(log_); return *log_; }
@@ -143,11 +146,13 @@ private:
         unsigned elems;
         BoundVecUid bounds;
     };
+    std::vector<std::tuple<Location, String, bool>> comments_;
     Indexed<Aggr> aggregates_;
     int           injectSymbol_;
     Condition     condition_ = yycstart;
     String        filename_;
     Logger *log_ = nullptr;
+    bool storeComments_ = false;
 };
 
 // }}}

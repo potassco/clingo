@@ -228,6 +228,28 @@ void NonGroundParser::lexerError(Location const &loc, StringSpan token) {
     GRINGO_REPORT(*log_, Warnings::RuntimeError) << loc << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
 }
 
+void NonGroundParser::reportComment(Location const &loc, String value, bool block) {
+    if (storeComments_) {
+        comments_.emplace_back(loc, value, block);
+    }
+    else {
+        pb_.comment(loc, value, block);
+    }
+}
+
+void NonGroundParser::flushComments() {
+    storeComments_ = false;
+    for (auto &comment : comments_) {
+        pb_.comment(std::get<0>(comment), std::get<1>(comment), std::get<2>(comment));
+    }
+    comments_.clear();
+}
+
+void NonGroundParser::storeComments() {
+    flushComments();
+    storeComments_ = true;
+}
+
 bool NonGroundParser::push(std::string const &filename, bool include) {
     return (include && !empty()) ?
         LexerState::push(filename.c_str(), {filename.c_str(), LexerState::data().second}) :
@@ -268,6 +290,8 @@ void NonGroundParser::pushBlock(std::string const &name, IdVec const &vec, std::
 }
 
 void NonGroundParser::init_() {
+    comments_.clear();
+    storeComments_ = false;
     theoryLexing_ = TheoryLexing::Disabled;
     condition_ = yycstart;
     if (!empty()) {

@@ -178,7 +178,7 @@ int NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <blockcomment> "*%" {
             if(--bc == 0) {
                 if (pb_.reportComment()) {
-                    pb_.comment(end(loc), string(), true);
+                    reportComment(end(loc), string(), true);
                 }
                 condition(yycnormal);
                 start(loc);
@@ -207,7 +207,7 @@ int NonGroundParser::lex_impl(void *pValue, Location &loc) {
                     loc.endFilename = loc.beginFilename;
                     loc.endLine     = loc.beginLine;
                     loc.endColumn   = loc.beginColumn + val.size;
-                    pb_.comment(loc, val, false);
+                    reportComment(loc, val, false);
                 }
                 condition(yycnormal);
                 start(loc);
