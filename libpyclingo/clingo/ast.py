@@ -270,6 +270,11 @@ statement = Rule
                                           )?
                            )*
              )
+          | Comment
+             ( location     : Location
+             , value        : str
+             , comment_type : CommentType
+             )
 ```
 
 Examples

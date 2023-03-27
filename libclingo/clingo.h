@@ -1502,8 +1502,8 @@ typedef struct clingo_propagator {
 
 //! Enumeration of comment types.
 enum clingo_comment_type_e {
-    clingo_comment_type_line, //!< Comments.
-    clingo_comment_type_block,  //!< Block comments.
+    clingo_comment_type_line,  //!< Comments.
+    clingo_comment_type_block, //!< Block comments.
 };
 //! Corresponding type to ::clingo_theory_sequence_type_e.
 typedef int clingo_comment_type_t;
@@ -3222,7 +3222,6 @@ enum clingo_ast_type_e {
     clingo_ast_type_project_signature,
     clingo_ast_type_defined,
     clingo_ast_type_theory_definition,
-    // comments
     clingo_ast_type_comment
 };
 //! Corresponding type to ::clingo_ast_type_e.
