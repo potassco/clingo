@@ -28,7 +28,6 @@
 namespace Gringo {
 
 bool Scripts::callable(String name) {
-    if (context_ && context_->callable(name)) { return true; }
     for (auto &&script : scripts_) {
         if (std::get<1>(script) && std::get<2>(script)->callable(name)) {
             return true;
@@ -47,7 +46,6 @@ void Scripts::main(Control &ctl) {
 }
 
 SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log) {
-    if (context_ && context_->callable(name)) { return context_->call(loc, name, args, log); }
     for (auto &&script : scripts_) {
         if (std::get<1>(script) && std::get<2>(script)->callable(name)) {
             return std::get<2>(script)->call(loc, name, args, log);

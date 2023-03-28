@@ -54,7 +54,6 @@ public:
     template <class F>
     void withContext(Context *ctx, F f);
 private:
-    Context *context_ = nullptr;
     UScriptVec scripts_;
 };
 
