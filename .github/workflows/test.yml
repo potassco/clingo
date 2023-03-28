@@ -1,8 +1,11 @@
 name: CI tests
 
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - master
+      - wip
+  pull_request:
 
 jobs:
   build:
