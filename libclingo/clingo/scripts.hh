@@ -46,8 +46,6 @@ public:
     SymVec call(Location const &loc, String name, SymSpan args, Logger &log) override;
     void main(Control &ctl);
     void registerScript(String type, UScript script);
-    void setContext(Context &ctx) { context_ = &ctx; }
-    void resetContext() { context_ = nullptr; }
     void exec(String type, Location loc, String code) override;
     char const *version(String type);
 
@@ -55,6 +53,31 @@ public:
 private:
     Context *context_ = nullptr;
     UScriptVec scripts_;
+};
+
+class ChainContext : public Context {
+public:
+    ChainContext(Context &a, Scripts &b)
+    : a_{a}, b_{b} { }
+
+    bool callable(String name) override {
+        return a_.callable(name) || b_.callable(name);
+    }
+
+    SymVec call(Location const &loc, String name, SymSpan args, Logger &log) override {
+        if (a_.callable(name)) {
+            return a_.call(loc, name, args, log);
+        }
+        return b_.call(loc, name, args, log);
+    }
+
+    void exec(String type, Location loc, String code) override {
+        b_.exec(type, loc, code);
+    }
+
+private:
+    Context &a_;
+    Scripts &b_;
 };
 
 Scripts &g_scripts();

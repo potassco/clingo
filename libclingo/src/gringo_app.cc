@@ -164,8 +164,6 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
     void ground(Control::GroundVec const &parts, Context *context) override {
         update();
         // NOTE: it would be cool to have assumptions in the lparse output
-        auto exit = onExit([this]{ scripts.resetContext(); });
-        if (context) { scripts.setContext(*context); }
         if (parsed) {
             LOG << "************** parsed program **************" << std::endl << prg;
             prg.rewrite(defs, logger_);
@@ -187,7 +185,13 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
             LOG << "************* intermediate program *************" << std::endl << gPrg << std::endl;
             LOG << "*************** grounded program ***************" << std::endl;
             gPrg.prepare(params, out, logger_);
-            gPrg.ground(scripts, out, logger_);
+            if (context != nullptr) {
+                ChainContext cc{*context, scripts};
+                gPrg.ground(cc, out, logger_);
+            }
+            else {
+                gPrg.ground(scripts, out, logger_);
+            }
         }
     }
     void add(std::string const &name, StringVec const &params, std::string const &part) override {
