@@ -32,7 +32,7 @@
 
 
 /**
- ** \file /home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/nongroundgrammar/grammar.hh
+ ** \file /mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/nongroundgrammar/grammar.hh
  ** Define the Gringo::Input::NonGroundGrammar::parser class.
  */
 
@@ -41,8 +41,8 @@
 // Undocumented macros, especially those whose name start with YY_,
 // are private implementation details.  Do not rely on them.
 
-#ifndef YY_GRINGONONGROUNDGRAMMAR_HOME_KAMINSKI_DOCUMENTS_GIT_POTASSCO_CLINGO_BUILD_DEBUG_LIBGRINGO_SRC_INPUT_NONGROUNDGRAMMAR_GRAMMAR_HH_INCLUDED
-# define YY_GRINGONONGROUNDGRAMMAR_HOME_KAMINSKI_DOCUMENTS_GIT_POTASSCO_CLINGO_BUILD_DEBUG_LIBGRINGO_SRC_INPUT_NONGROUNDGRAMMAR_GRAMMAR_HH_INCLUDED
+#ifndef YY_GRINGONONGROUNDGRAMMAR_MNT_SCRATCH_KAMINSKI_BUILD_CLINGO_DEBUG_LIBGRINGO_SRC_INPUT_NONGROUNDGRAMMAR_GRAMMAR_HH_INCLUDED
+# define YY_GRINGONONGROUNDGRAMMAR_MNT_SCRATCH_KAMINSKI_BUILD_CLINGO_DEBUG_LIBGRINGO_SRC_INPUT_NONGROUNDGRAMMAR_GRAMMAR_HH_INCLUDED
 // //                    "%code requires" blocks.
 #line 46 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/nongroundgrammar.yy" // lalr1.cc:401
 
@@ -56,7 +56,7 @@
     };
 
 
-#line 60 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/nongroundgrammar/grammar.hh" // lalr1.cc:401
+#line 60 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/nongroundgrammar/grammar.hh" // lalr1.cc:401
 
 
 # include <cstdlib> // std::abort
@@ -167,7 +167,7 @@
 
 #line 28 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/nongroundgrammar.yy" // lalr1.cc:401
 namespace Gringo { namespace Input { namespace NonGroundGrammar {
-#line 171 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/nongroundgrammar/grammar.hh" // lalr1.cc:401
+#line 171 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/nongroundgrammar/grammar.hh" // lalr1.cc:401
 
 
 
@@ -242,7 +242,7 @@ namespace Gringo { namespace Input { namespace NonGroundGrammar {
     TheoryDefVecUid theoryDefs;
     TheoryAtomType theoryAtomType;
 
-#line 246 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/nongroundgrammar/grammar.hh" // lalr1.cc:401
+#line 246 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/nongroundgrammar/grammar.hh" // lalr1.cc:401
     };
 #else
     typedef YYSTYPE semantic_type;
@@ -818,8 +818,8 @@ namespace Gringo { namespace Input { namespace NonGroundGrammar {
     enum
     {
       yyeof_ = 0,
-      yylast_ = 2042,     ///< Last index in yytable_.
-      yynnts_ = 78,  ///< Number of nonterminal symbols.
+      yylast_ = 1979,     ///< Last index in yytable_.
+      yynnts_ = 79,  ///< Number of nonterminal symbols.
       yyfinal_ = 10, ///< Termination state number.
       yyterror_ = 1,
       yyerrcode_ = 256,
@@ -834,9 +834,9 @@ namespace Gringo { namespace Input { namespace NonGroundGrammar {
 
 #line 28 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/nongroundgrammar.yy" // lalr1.cc:401
 } } } // Gringo::Input::NonGroundGrammar
-#line 838 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/nongroundgrammar/grammar.hh" // lalr1.cc:401
+#line 838 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/nongroundgrammar/grammar.hh" // lalr1.cc:401
 
 
 
 
-#endif // !YY_GRINGONONGROUNDGRAMMAR_HOME_KAMINSKI_DOCUMENTS_GIT_POTASSCO_CLINGO_BUILD_DEBUG_LIBGRINGO_SRC_INPUT_NONGROUNDGRAMMAR_GRAMMAR_HH_INCLUDED
+#endif // !YY_GRINGONONGROUNDGRAMMAR_MNT_SCRATCH_KAMINSKI_BUILD_CLINGO_DEBUG_LIBGRINGO_SRC_INPUT_NONGROUNDGRAMMAR_GRAMMAR_HH_INCLUDED

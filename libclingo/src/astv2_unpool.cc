@@ -304,7 +304,8 @@ tl::optional<AST::ASTVec> unpool(SAST &ast, clingo_ast_unpool_type_bitset_t type
         case clingo_ast_type_heuristic: {
             return unpool_chain_cross<true>(*ast, clingo_ast_attribute_body, clingo_ast_attribute_body, clingo_ast_attribute_atom, clingo_ast_attribute_bias, clingo_ast_attribute_priority, clingo_ast_attribute_modifier);
         }
-        case clingo_ast_type_project_atom: {
+        case clingo_ast_type_project_atom:
+        case clingo_ast_type_comment: {
             break;
         }
     }

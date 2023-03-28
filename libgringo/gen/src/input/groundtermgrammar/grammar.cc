@@ -53,7 +53,7 @@ int GringoGroundTermGrammar_lex(void *value, void *, GroundTermParser *lexer) {
 }
 
 
-#line 57 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:429
+#line 57 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:429
 
 #include "grammar.hh"
 
@@ -67,7 +67,7 @@ void GroundTermGrammar::parser::error(GroundTermGrammar::parser::location_type c
 }
 
 
-#line 71 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:435
+#line 71 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:435
 
 
 #ifndef YY_
@@ -162,7 +162,7 @@ void GroundTermGrammar::parser::error(GroundTermGrammar::parser::location_type c
 
 #line 26 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:510
 namespace Gringo { namespace Input { namespace GroundTermGrammar {
-#line 166 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:510
+#line 166 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:510
 
   /* Return YYSTR after stripping away unnecessary quotes and
      backslashes, so that it's suitable for yyerror.  The heuristic is
@@ -646,167 +646,167 @@ namespace Gringo { namespace Input { namespace GroundTermGrammar {
   case 2:
 #line 117 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { lexer->setValue(Symbol((yystack_[0].value.value))); }
-#line 650 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 650 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 3:
 #line 120 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(BinOp::XOR, Symbol((yystack_[2].value.value)), Symbol((yystack_[0].value.value))).rep(); }
-#line 656 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 656 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 4:
 #line 121 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(BinOp::OR,  Symbol((yystack_[2].value.value)), Symbol((yystack_[0].value.value))).rep(); }
-#line 662 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 662 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 5:
 #line 122 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(BinOp::AND, Symbol((yystack_[2].value.value)), Symbol((yystack_[0].value.value))).rep(); }
-#line 668 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 668 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 6:
 #line 123 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(BinOp::ADD, Symbol((yystack_[2].value.value)), Symbol((yystack_[0].value.value))).rep(); }
-#line 674 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 674 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 7:
 #line 124 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(BinOp::SUB, Symbol((yystack_[2].value.value)), Symbol((yystack_[0].value.value))).rep(); }
-#line 680 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 680 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 8:
 #line 125 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(BinOp::MUL, Symbol((yystack_[2].value.value)), Symbol((yystack_[0].value.value))).rep(); }
-#line 686 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 686 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 9:
 #line 126 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(BinOp::DIV, Symbol((yystack_[2].value.value)), Symbol((yystack_[0].value.value))).rep(); }
-#line 692 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 692 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 10:
 #line 127 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(BinOp::MOD, Symbol((yystack_[2].value.value)), Symbol((yystack_[0].value.value))).rep(); }
-#line 698 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 698 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 11:
 #line 128 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(BinOp::POW, Symbol((yystack_[2].value.value)), Symbol((yystack_[0].value.value))).rep(); }
-#line 704 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 704 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 12:
 #line 129 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(UnOp::NEG, Symbol((yystack_[0].value.value))).rep(); }
-#line 710 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 710 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 13:
 #line 130 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(UnOp::NOT, Symbol((yystack_[0].value.value))).rep(); }
-#line 716 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 716 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 14:
 #line 131 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = Symbol::createTuple(Potassco::toSpan<Symbol>()).rep(); }
-#line 722 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 722 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 15:
 #line 132 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = Symbol::createTuple(Potassco::toSpan<Symbol>()).rep(); }
-#line 728 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 728 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 16:
 #line 133 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->tuple((yystack_[1].value.uid), false).rep(); }
-#line 734 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 734 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 17:
 #line 134 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->tuple((yystack_[2].value.uid), true).rep(); }
-#line 740 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 740 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 18:
 #line 135 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = Symbol::createFun((yystack_[3].value.str), Potassco::toSpan(lexer->terms((yystack_[1].value.uid)))).rep(); }
-#line 746 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 746 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 19:
 #line 136 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = lexer->term(UnOp::ABS, Symbol((yystack_[1].value.value))).rep(); }
-#line 752 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 752 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 20:
 #line 137 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = Symbol::createId((yystack_[0].value.str)).rep(); }
-#line 758 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 758 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 21:
 #line 138 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = Symbol::createNum((yystack_[0].value.num)).rep(); }
-#line 764 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 764 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 22:
 #line 139 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = Symbol::createStr((yystack_[0].value.str)).rep(); }
-#line 770 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 770 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 23:
 #line 140 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = Symbol::createInf().rep(); }
-#line 776 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 776 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 24:
 #line 141 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.value) = Symbol::createSup().rep(); }
-#line 782 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 782 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 25:
 #line 145 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.uid) = lexer->terms(lexer->terms(), Symbol((yystack_[0].value.value)));  }
-#line 788 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 788 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 26:
 #line 146 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.uid) = lexer->terms((yystack_[2].value.uid), Symbol((yystack_[0].value.value)));  }
-#line 794 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 794 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 27:
 #line 150 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.uid) = (yystack_[0].value.uid);  }
-#line 800 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 800 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
   case 28:
 #line 151 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:919
     { (yylhs.value.uid) = lexer->terms();  }
-#line 806 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 806 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
     break;
 
 
-#line 810 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
+#line 810 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:919
             default:
               break;
             }
@@ -1277,4 +1277,4 @@ namespace Gringo { namespace Input { namespace GroundTermGrammar {
 
 #line 26 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:1242
 } } } // Gringo::Input::GroundTermGrammar
-#line 1281 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:1242
+#line 1281 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.cc" // lalr1.cc:1242

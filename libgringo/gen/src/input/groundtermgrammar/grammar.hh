@@ -32,7 +32,7 @@
 
 
 /**
- ** \file /home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.hh
+ ** \file /mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.hh
  ** Define the Gringo::Input::GroundTermGrammar::parser class.
  */
 
@@ -41,8 +41,8 @@
 // Undocumented macros, especially those whose name start with YY_,
 // are private implementation details.  Do not rely on them.
 
-#ifndef YY_GRINGOGROUNDTERMGRAMMAR_HOME_KAMINSKI_DOCUMENTS_GIT_POTASSCO_CLINGO_BUILD_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_GRAMMAR_HH_INCLUDED
-# define YY_GRINGOGROUNDTERMGRAMMAR_HOME_KAMINSKI_DOCUMENTS_GIT_POTASSCO_CLINGO_BUILD_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_GRAMMAR_HH_INCLUDED
+#ifndef YY_GRINGOGROUNDTERMGRAMMAR_MNT_SCRATCH_KAMINSKI_BUILD_CLINGO_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_GRAMMAR_HH_INCLUDED
+# define YY_GRINGOGROUNDTERMGRAMMAR_MNT_SCRATCH_KAMINSKI_BUILD_CLINGO_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_GRAMMAR_HH_INCLUDED
 
 
 # include <cstdlib> // std::abort
@@ -153,7 +153,7 @@
 
 #line 26 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:401
 namespace Gringo { namespace Input { namespace GroundTermGrammar {
-#line 157 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.hh" // lalr1.cc:401
+#line 157 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.hh" // lalr1.cc:401
 
 
 
@@ -172,7 +172,7 @@ namespace Gringo { namespace Input { namespace GroundTermGrammar {
     unsigned    uid;
     uint64_t    value;
 
-#line 176 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.hh" // lalr1.cc:401
+#line 176 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.hh" // lalr1.cc:401
     };
 #else
     typedef YYSTYPE semantic_type;
@@ -704,9 +704,9 @@ namespace Gringo { namespace Input { namespace GroundTermGrammar {
 
 #line 26 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // lalr1.cc:401
 } } } // Gringo::Input::GroundTermGrammar
-#line 708 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/grammar.hh" // lalr1.cc:401
+#line 708 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/grammar.hh" // lalr1.cc:401
 
 
 
 
-#endif // !YY_GRINGOGROUNDTERMGRAMMAR_HOME_KAMINSKI_DOCUMENTS_GIT_POTASSCO_CLINGO_BUILD_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_GRAMMAR_HH_INCLUDED
+#endif // !YY_GRINGOGROUNDTERMGRAMMAR_MNT_SCRATCH_KAMINSKI_BUILD_CLINGO_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_GRAMMAR_HH_INCLUDED

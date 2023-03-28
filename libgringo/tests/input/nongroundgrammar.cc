@@ -107,20 +107,23 @@ public:
     virtual BdLitVecUid conjunction(BdLitVecUid body, Location const &loc, LitUid head, LitVecUid litvec) override;
     // }}}
     // {{{ statements
-    virtual void rule(Location const &loc, HdLitUid head) override;
-    virtual void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
-    virtual void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) override;
-    virtual void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
-    virtual void showsig(Location const &loc, Sig sig) override;
-    virtual void defined(Location const &loc, Sig sig) override;
-    virtual void show(Location const &loc, TermUid t, BdLitVecUid body) override;
-    virtual void script(Location const &loc, String type, String code) override;
-    virtual void block(Location const &loc, String name, IdVecUid args) override;
-    virtual void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) override;
-    virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
-    virtual void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
-    virtual void project(Location const &loc, TermUid termUid, BdLitVecUid body) override;
-    virtual void project(Location const &loc, Sig sig) override;
+    void rule(Location const &loc, HdLitUid head) override;
+    void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
+    void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) override;
+    void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
+    void showsig(Location const &loc, Sig sig) override;
+    void defined(Location const &loc, Sig sig) override;
+    void show(Location const &loc, TermUid t, BdLitVecUid body) override;
+    void script(Location const &loc, String type, String code) override;
+    void block(Location const &loc, String name, IdVecUid args) override;
+    void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) override;
+    void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
+    void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
+    void project(Location const &loc, TermUid termUid, BdLitVecUid body) override;
+    void project(Location const &loc, Sig sig) override;
+    bool reportComment() const override { return true; }
+    void comment(Location const &loc, String value, bool block) override;
+
     // }}}
     // {{{ theory atoms
     virtual TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) override;
@@ -643,6 +646,13 @@ void TestNongroundProgramBuilder::project(Location const &, TermUid termUid, BdL
 
 void TestNongroundProgramBuilder::project(Location const &, Sig sig) {
     current_ << "#project " << sig << ".";
+    statements_.emplace_back(str());
+}
+
+void TestNongroundProgramBuilder::comment(Location const &loc, String value, bool block) {
+    static_cast<void>(loc);
+    static_cast<void>(block);
+    current_ << value;
     statements_.emplace_back(str());
 }
 
@@ -1270,6 +1280,12 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\n#theory t{x{};&a/0:x,any}." == parse("#theory t { x{}; &a/0: x, any }."));
         REQUIRE("#program base().\n#theory t{x{};&a/0:x,any;&b/0:x,head;&c/0:x,body;&d/0:x,directive}." == parse("#theory t { x{}; &a/0: x, any; &b/0: x, head; &c/0: x, body; &d/0: x, directive }."));
         REQUIRE("#program base().\n#theory t{x{};&a/0:x,{+,-,++,**},x,any}." == parse("#theory t { x{}; &a/0: x, {+,-, ++, **}, x, any }."));
+    }
+
+    SECTION("comment") {
+        REQUIRE("#program base().\n%* test *%" == parse("%* test *%"));
+        REQUIRE("#program base().\n% test" == parse("% test"));
+        REQUIRE("#program base().\n% before\na:-b.\n% after" == parse("a :- % before\n b. % after"));
     }
 
 }

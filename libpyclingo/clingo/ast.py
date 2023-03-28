@@ -270,6 +270,11 @@ statement = Rule
                                           )?
                            )*
              )
+          | Comment
+             ( location     : Location
+             , value        : str
+             , comment_type : CommentType
+             )
 ```
 
 Examples
@@ -358,6 +363,8 @@ __all__ = [
     "BodyAggregate",
     "BodyAggregateElement",
     "BooleanConstant",
+    "Comment",
+    "CommentType",
     "Comparison",
     "ComparisonOperator",
     "ConditionalLiteral",
@@ -464,6 +471,7 @@ class ASTType(OrderedEnum):
     ProjectSignature = _lib.clingo_ast_type_project_signature
     Defined = _lib.clingo_ast_type_defined
     TheoryDefinition = _lib.clingo_ast_type_theory_definition
+    Comment = _lib.clingo_ast_type_comment
 
 
 class AggregateFunction(IntEnum):
@@ -533,6 +541,21 @@ class BinaryOperator(IntEnum):
     XOr = _lib.clingo_ast_binary_operator_xor
     """
     For bitwise exclusive or.
+    """
+
+
+class CommentType(OrderedEnum):
+    """
+    Enumeration of comment types.
+    """
+
+    Line = _lib.clingo_comment_type_line
+    """
+    Line comments starting with `%` ending at a newline.
+    """
+    Block = _lib.clingo_comment_type_block
+    """
+    Block comments enclosed in `%*` and  `*%`.
     """
 
 
@@ -2333,6 +2356,24 @@ def TheoryDefinition(
             _ffi.cast("size_t", len(terms)),
             _ffi.new("clingo_ast_t*[]", [x._rep for x in atoms]),
             _ffi.cast("size_t", len(atoms)),
+        )
+    )
+    return AST(p_ast[0])
+
+
+def Comment(location: Location, value: str, comment_type: int) -> AST:
+    """
+    Construct an AST node of type `ASTType.Comment`.
+    """
+    p_ast = _ffi.new("clingo_ast_t**")
+    c_location = _c_location(location)
+    _handle_error(
+        _lib.clingo_ast_build(
+            _lib.clingo_ast_type_comment,
+            p_ast,
+            c_location[0],
+            _ffi.new("char const[]", value.encode()),
+            _ffi.cast("int", comment_type),
         )
     )
     return AST(p_ast[0])

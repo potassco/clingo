@@ -311,6 +311,10 @@ class TestAST(TestCase):
                          }."""
             )
         )
+        self._str("%* test *%")
+        self._str("%* test *%\n", "%* test *%")
+        self._str("% test")
+        self._str("% test\n", "% test")
 
     def test_compare(self):
         """
@@ -412,6 +416,52 @@ class TestAST(TestCase):
         vrt = VariableRenamer()
         parse_string("p(X) :- q(X).", lambda stm: prg.append(str(vrt(stm))))
         self.assertEqual(prg[-1], "p(_X) :- q(_X).")
+
+    def test_comment_order(self):
+        """
+        Test if comments are reported in proper order.
+        """
+        prg = dedent(
+            """\
+            % comment before `x=10`
+            #const x=10.
+            % comment after `x=10`
+            a.
+            % comment before `y=10`
+            #const y=10. [override]
+            % comment after `y=10`
+            b.
+            % comment before `#external a`
+            #external a.
+            % comment after `#external a`
+            a.
+            % comment before `#external b`
+            #external b. [true]
+            % comment after `#external b`
+            """
+        )
+
+        expected = [
+            "#program base.",
+            "% comment before `x=10`",
+            "#const x = 10.",
+            "% comment after `x=10`",
+            "a.",
+            "% comment before `y=10`",
+            "#const y = 10. [override]",
+            "% comment after `y=10`",
+            "b.",
+            "% comment before `#external a`",
+            "#external a. [false]",
+            "% comment after `#external a`",
+            "a.",
+            "% comment before `#external b`",
+            "#external b. [true]",
+            "% comment after `#external b`",
+        ]
+        result = []
+        parse_string(prg, lambda stm: result.append(str(stm)))
+        self.assertEqual(result, expected)
 
     def test_repr(self):
         """

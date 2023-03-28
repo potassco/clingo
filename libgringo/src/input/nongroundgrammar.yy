@@ -759,10 +759,13 @@ define
     : identifier[uid] EQ constterm[rhs] {  BUILDER.define(@$, String::fromRep($uid), $rhs, false, LOGGER); }
     ;
 
+// Instruct the lexer to store comments instead of printing them right away
+storecomment : { lexer->storeComments(); }
+
 statement
-    : CONST identifier[uid] EQ constterm[rhs] DOT                        { BUILDER.define(@$, String::fromRep($uid), $rhs, true, LOGGER); }
-    | CONST identifier[uid] EQ constterm[rhs] DOT LBRACK DEFAULT  RBRACK { BUILDER.define(@$, String::fromRep($uid), $rhs, true, LOGGER); }
-    | CONST identifier[uid] EQ constterm[rhs] DOT LBRACK OVERRIDE RBRACK { BUILDER.define(@$, String::fromRep($uid), $rhs, false, LOGGER); }
+    : CONST identifier[uid] EQ constterm[rhs] DOT storecomment { BUILDER.define(@$, String::fromRep($uid), $rhs, true, LOGGER); lexer->flushComments(); }
+    | CONST identifier[uid] EQ constterm[rhs] DOT storecomment LBRACK DEFAULT  RBRACK { lexer->flushComments(); BUILDER.define(@$, String::fromRep($uid), $rhs, true, LOGGER); }
+    | CONST identifier[uid] EQ constterm[rhs] DOT storecomment LBRACK OVERRIDE RBRACK { lexer->flushComments(); BUILDER.define(@$, String::fromRep($uid), $rhs, false, LOGGER); }
     ;
 
 // {{{2 scripts
@@ -798,12 +801,12 @@ statement
 // {{{2 external
 
 statement
-    : EXTERNAL atom[hd] COLON bodydot[bd]                       { BUILDER.external(@$, $hd, $bd, BUILDER.term(@$, Symbol::createId("false"))); }
-    | EXTERNAL atom[hd] COLON DOT                               { BUILDER.external(@$, $hd, BUILDER.body(), BUILDER.term(@$, Symbol::createId("false"))); }
-    | EXTERNAL atom[hd] DOT                                     { BUILDER.external(@$, $hd, BUILDER.body(), BUILDER.term(@$, Symbol::createId("false"))); }
-    | EXTERNAL atom[hd] COLON bodydot[bd] LBRACK term[t] RBRACK { BUILDER.external(@$, $hd, $bd, $t); }
-    | EXTERNAL atom[hd] COLON DOT         LBRACK term[t] RBRACK { BUILDER.external(@$, $hd, BUILDER.body(), $t); }
-    | EXTERNAL atom[hd] DOT               LBRACK term[t] RBRACK { BUILDER.external(@$, $hd, BUILDER.body(), $t); }
+    : EXTERNAL atom[hd] COLON bodydot[bd] storecomment { BUILDER.external(@$, $hd, $bd, BUILDER.term(@$, Symbol::createId("false"))); lexer->flushComments(); }
+    | EXTERNAL atom[hd] COLON DOT         storecomment { BUILDER.external(@$, $hd, BUILDER.body(), BUILDER.term(@$, Symbol::createId("false"))); lexer->flushComments(); }
+    | EXTERNAL atom[hd] DOT               storecomment { BUILDER.external(@$, $hd, BUILDER.body(), BUILDER.term(@$, Symbol::createId("false"))); lexer->flushComments(); }
+    | EXTERNAL atom[hd] COLON bodydot[bd] storecomment LBRACK term[t] RBRACK { lexer->flushComments(); BUILDER.external(@$, $hd, $bd, $t); }
+    | EXTERNAL atom[hd] COLON DOT         storecomment LBRACK term[t] RBRACK { lexer->flushComments(); BUILDER.external(@$, $hd, BUILDER.body(), $t); }
+    | EXTERNAL atom[hd] DOT               storecomment LBRACK term[t] RBRACK { lexer->flushComments(); BUILDER.external(@$, $hd, BUILDER.body(), $t); }
     ;
 
 // {{{1 theory

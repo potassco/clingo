@@ -175,7 +175,16 @@ int NonGroundParser::lex_impl(void *pValue, Location &loc) {
         }
         <script_body> ANY { continue; }
 
-        <blockcomment> "*%" { if(--bc == 0) { condition(yycnormal); start(loc); } continue; }
+        <blockcomment> "*%" {
+            if(--bc == 0) {
+                if (pb_.reportComment()) {
+                    reportComment(end(loc), string(), true);
+                }
+                condition(yycnormal);
+                start(loc);
+            }
+            continue;
+        }
         <blockcomment> "%*" { bc++; continue; }
         <blockcomment> "%"  :=> comment
         <blockcomment> NL   { if(eof()) { lexerError(eof(loc), Potassco::toSpan("<EOF>", 5)); return 0; } step(); continue; }
@@ -189,6 +198,17 @@ int NonGroundParser::lex_impl(void *pValue, Location &loc) {
             step();
             if (bc > 0) { condition(yycblockcomment); }
             else {
+                if (pb_.reportComment()) {
+                    // trim newline characters from end of string
+                    int offset = 0;
+                    for (char *last = cursor() - 1; *last == '\n' || *last == '\r'; --last, ++offset);
+                    auto val = string(0, offset);
+                    // compute end to avoid including newline characters
+                    loc.endFilename = loc.beginFilename;
+                    loc.endLine     = loc.beginLine;
+                    loc.endColumn   = loc.beginColumn + val.size;
+                    reportComment(loc, val, false);
+                }
                 condition(yycnormal);
                 start(loc);
             }

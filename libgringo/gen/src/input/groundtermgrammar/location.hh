@@ -31,12 +31,12 @@
 // version 2.2 of Bison.
 
 /**
- ** \file /home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/location.hh
+ ** \file /mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/location.hh
  ** Define the Gringo::Input::GroundTermGrammar::location class.
  */
 
-#ifndef YY_GRINGOGROUNDTERMGRAMMAR_HOME_KAMINSKI_DOCUMENTS_GIT_POTASSCO_CLINGO_BUILD_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_LOCATION_HH_INCLUDED
-# define YY_GRINGOGROUNDTERMGRAMMAR_HOME_KAMINSKI_DOCUMENTS_GIT_POTASSCO_CLINGO_BUILD_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_LOCATION_HH_INCLUDED
+#ifndef YY_GRINGOGROUNDTERMGRAMMAR_MNT_SCRATCH_KAMINSKI_BUILD_CLINGO_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_LOCATION_HH_INCLUDED
+# define YY_GRINGOGROUNDTERMGRAMMAR_MNT_SCRATCH_KAMINSKI_BUILD_CLINGO_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_LOCATION_HH_INCLUDED
 
 # include <algorithm> // std::max
 # include <iostream>
@@ -56,7 +56,7 @@
 
 #line 26 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // location.cc:339
 namespace Gringo { namespace Input { namespace GroundTermGrammar {
-#line 60 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/location.hh" // location.cc:339
+#line 60 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/location.hh" // location.cc:339
   /// A point in a source file.
   class position
   {
@@ -318,5 +318,5 @@ namespace Gringo { namespace Input { namespace GroundTermGrammar {
 
 #line 26 "/home/kaminski/Documents/git/potassco/clingo/libgringo/src/input/groundtermgrammar.yy" // location.cc:339
 } } } // Gringo::Input::GroundTermGrammar
-#line 322 "/home/kaminski/Documents/git/potassco/clingo/build/debug/libgringo/src/input/groundtermgrammar/location.hh" // location.cc:339
-#endif // !YY_GRINGOGROUNDTERMGRAMMAR_HOME_KAMINSKI_DOCUMENTS_GIT_POTASSCO_CLINGO_BUILD_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_LOCATION_HH_INCLUDED
+#line 322 "/mnt/scratch/kaminski/build/clingo/debug/libgringo/src/input/groundtermgrammar/location.hh" // location.cc:339
+#endif // !YY_GRINGOGROUNDTERMGRAMMAR_MNT_SCRATCH_KAMINSKI_BUILD_CLINGO_DEBUG_LIBGRINGO_SRC_INPUT_GROUNDTERMGRAMMAR_LOCATION_HH_INCLUDED

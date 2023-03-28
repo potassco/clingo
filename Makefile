@@ -1,7 +1,7 @@
 LUA_VERSION=5.4.4
 BUILD_TYPE=debug
-CC=/usr/bin/cc
-CXX=/usr/bin/c++
+CC=cc
+CXX=c++
 SHELL=/bin/bash
 
 all: build/$(BUILD_TYPE)
@@ -10,7 +10,7 @@ all: build/$(BUILD_TYPE)
 
 build/$(BUILD_TYPE):
 	mkdir -p build/$(BUILD_TYPE)
-	current="$$(pwd -P)" && cd build/$(BUILD_TYPE) && cd "$$(pwd -P)" && cmake \
+	rev="$$(git rev-parse --short HEAD)" && current="$$(pwd -P)" && cd build/$(BUILD_TYPE) && cd "$$(pwd -P)" && cmake \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DCMAKE_VERBOSE_MAKEFILE=On \
 		-DCMAKE_C_COMPILER="${CC}" \
@@ -21,7 +21,7 @@ build/$(BUILD_TYPE):
 		-DCLINGO_BUILD_EXAMPLES=On \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=On \
 		-DCMAKE_INSTALL_PREFIX=${HOME}/.local/opt/potassco/$(BUILD_TYPE) \
-		-DCLINGO_BUILD_REVISION="$$(git rev-parse --short HEAD)" \
+		-DCLINGO_BUILD_REVISION="$${rev}" \
 		"$${current}"
 
 # compdb can be installed with pip
@@ -47,7 +47,7 @@ gen: build/$(BUILD_TYPE)
 
 web: lua
 	mkdir -p build/web
-	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake \
+	rev="$$(git rev-parse --short HEAD)" && current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake \
 		-DCLINGO_BUILD_WEB=On \
 		-DCLINGO_BUILD_WITH_PYTHON=Off \
 		-DCLINGO_BUILD_WITH_LUA=On \
@@ -61,7 +61,7 @@ web: lua
 		-DCMAKE_EXE_LINKER_FLAGS_RELEASE="" \
 		-DLUA_LIBRARIES="$${current}/build/lua/install/lib/liblua.a" \
 		-DLUA_INCLUDE_DIR="$${current}/build/lua/install/include" \
-		-DCLINGO_BUILD_REVISION="$$(git rev-parse --short HEAD)" \
+		-DCLINGO_BUILD_REVISION="$${rev}" \
 		"$${current}"
 	$(MAKE) -C build/web web
 

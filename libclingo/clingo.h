@@ -1500,6 +1500,14 @@ typedef struct clingo_propagator {
 //! @addtogroup ProgramBuilder
 //! @{
 
+//! Enumeration of comment types.
+enum clingo_comment_type_e {
+    clingo_comment_type_line,  //!< Comments.
+    clingo_comment_type_block, //!< Block comments.
+};
+//! Corresponding type to ::clingo_theory_sequence_type_e.
+typedef int clingo_comment_type_t;
+
 //! Enumeration of theory sequence types.
 enum clingo_theory_sequence_type_e {
     clingo_theory_sequence_type_tuple, //!< Theory tuples "(t1,...,tn)".
@@ -3213,7 +3221,8 @@ enum clingo_ast_type_e {
     clingo_ast_type_project_atom,
     clingo_ast_type_project_signature,
     clingo_ast_type_defined,
-    clingo_ast_type_theory_definition
+    clingo_ast_type_theory_definition,
+    clingo_ast_type_comment
 };
 //! Corresponding type to ::clingo_ast_type_e.
 typedef int clingo_ast_type_t;
@@ -3278,6 +3287,7 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_value,
     clingo_ast_attribute_variable,
     clingo_ast_attribute_weight,
+    clingo_ast_attribute_comment_type,
 };
 //! Corresponding type to ::clingo_ast_attribute_e.
 typedef int clingo_ast_attribute_t;

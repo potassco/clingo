@@ -694,6 +694,10 @@ std::ostream &operator<<(std::ostream &out, AST const &ast) {
                 << ".";
             break;
         }
+        case clingo_ast_type_comment: {
+            out << print(ast, clingo_ast_attribute_value);
+            break;
+        }
         // 1}}}
     }
     return out;
