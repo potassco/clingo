@@ -265,13 +265,7 @@ void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
             << gPrg << std::endl;
         LOG << "************* grounded program *************" << std::endl;
         gPrg.prepare(params, *out_, logger_);
-        if (context != nullptr) {
-            ChainContext cc{*context, scripts_};
-            gPrg.ground(cc, *out_, logger_);
-        }
-        else {
-            gPrg.ground(scripts_, *out_, logger_);
-        }
+        scripts_.withContext(context, [&, this](Context &ctx) { gPrg.ground(ctx, *out_, logger_); });
     }
 }
 

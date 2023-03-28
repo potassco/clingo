@@ -42,6 +42,8 @@ using UScriptVec = std::vector<std::tuple<String, bool, UScript>>;
 class Scripts : public Context {
 public:
     Scripts() = default;
+    ~Scripts() override;
+
     bool callable(String name) override;
     SymVec call(Location const &loc, String name, SymSpan args, Logger &log) override;
     void main(Control &ctl);
@@ -49,7 +51,8 @@ public:
     void exec(String type, Location loc, String code) override;
     char const *version(String type);
 
-    ~Scripts() override;
+    template <class F>
+    void withContext(Context *ctx, F f);
 private:
     Context *context_ = nullptr;
     UScriptVec scripts_;
@@ -81,6 +84,17 @@ private:
 };
 
 Scripts &g_scripts();
+
+template <class F>
+inline void Scripts::withContext(Context *ctx, F f) {
+    if (ctx == nullptr) {
+        f(*this);
+    }
+    else {
+        ChainContext cctx{*ctx, *this};
+        f(cctx);
+    }
+}
 
 } // namespace Gringo
 

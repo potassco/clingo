@@ -185,13 +185,7 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
             LOG << "************* intermediate program *************" << std::endl << gPrg << std::endl;
             LOG << "*************** grounded program ***************" << std::endl;
             gPrg.prepare(params, out, logger_);
-            if (context != nullptr) {
-                ChainContext cc{*context, scripts};
-                gPrg.ground(cc, out, logger_);
-            }
-            else {
-                gPrg.ground(scripts, out, logger_);
-            }
+            scripts.withContext(context, [&, this](Context &ctx) { gPrg.ground(ctx, out, logger_); });
         }
     }
     void add(std::string const &name, StringVec const &params, std::string const &part) override {
