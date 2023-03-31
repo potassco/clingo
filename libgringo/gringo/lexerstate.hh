@@ -347,7 +347,7 @@ int LexerState<T>::clingo_number() const {
         if (*i <= '9') {
             r += *i - '0';
         }
-        else if (*i <= 'A') {
+        else if (*i <= 'F') {
             r += *i - 'A' + 10;
         }
         else {
