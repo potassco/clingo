@@ -60,6 +60,10 @@ TEST_CASE("input-parse_term", "[input]") {
         REQUIRE(STR("hallo") == m.parseValue("\"hallo\""));
         REQUIRE(INF() == m.parseValue("#inf"));
         REQUIRE(SUP() == m.parseValue("#sup"));
+        REQUIRE(NUM(11259375) == m.parseValue("0xabcdef"));
+        REQUIRE(NUM(11259375) == m.parseValue("0xABCDEF"));
+        REQUIRE(NUM(342391) == m.parseValue("0o1234567"));
+        REQUIRE(NUM(85) == m.parseValue("0b1010101"));
     }
 
 }
