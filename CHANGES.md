@@ -6,6 +6,7 @@
   * add function to change undo mode (#409)
   * add function to access priorities to API (#406)
   * fix AST bugs (#403)
+  * fix parsing of hexadecimal numbers (#421)
   * make sure `clingo_control_ground` is re-entrant (#418)
 
 ## clingo 5.6.2
