@@ -8,6 +8,7 @@
   * fix AST bugs (#403)
   * fix parsing of hexadecimal numbers (#421)
   * make sure `clingo_control_ground` is re-entrant (#418)
+  * update clasp
 
 ## clingo 5.6.2
 
