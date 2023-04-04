@@ -2132,6 +2132,16 @@ enum clingo_show_type_e {
 //! Corresponding type to ::clingo_show_type_e.
 typedef unsigned clingo_show_type_bitset_t;
 
+//! Enumeration for the different consequence types.
+enum clingo_consequence_e {
+    clingo_consequence_false   = 0, //!< The literal is not a consequence.
+    clingo_consequence_true    = 1, //!< The literal is a consequence.
+    clingo_consequence_unknown = 2, //!< The literal might or might not be a consequence.
+};
+typedef int clingo_consequence_t;
+
+//! Corresponding type to ::clingo_model_type_e.
+
 //! @name Functions for Inspecting Models
 //! @{
 
@@ -2185,6 +2195,19 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_contains(clingo_model_t const *model
 //! @param[out] result whether the literal is true
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_model_is_true(clingo_model_t const *model, clingo_literal_t literal, bool *result);
+//! Check if the given literal is a consequence.
+//!
+//! While enumerating cautious or brave consequences, there is partial
+//! information about which literals are consequences. The current state of a
+//! literal can be requested using this function. If this function is used
+//! during normal model enumeration, the function just returns whether a
+//! literal is true of false in the current model.
+//!
+//! @param[in] model the target
+//! @param[in] literal the literal to lookup
+//! @param[out] result whether the literal is a consequence
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_is_consequence(clingo_model_t const *model, clingo_literal_t literal, clingo_consequence_t *result);
 //! Get the number of cost values of a model.
 //!
 //! @param[in] model the target

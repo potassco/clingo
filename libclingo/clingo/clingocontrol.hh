@@ -456,6 +456,15 @@ public:
     bool isTrue(Potassco::Lit_t lit) const override {
       return model_->isTrue(lp().getLiteral(lit));
     }
+    ConsequenceType isConsequence(Potassco::Lit_t literal) const override {
+      if (model_->isDef(lp().getLiteral(literal))) {
+          return ConsequenceType::True;
+      }
+      if (model_->isEst(lp().getLiteral(literal))) {
+          return ConsequenceType::Unknown;
+      }
+      return ConsequenceType::False;
+    }
     ModelType type() const override {
         if (model_->type & Clasp::Model::Brave) { return ModelType::BraveConsequences; }
         if (model_->type & Clasp::Model::Cautious) { return ModelType::CautiousConsequences; }

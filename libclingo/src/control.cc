@@ -888,7 +888,11 @@ extern "C" bool clingo_model_type(clingo_model_t const *m, clingo_model_type_t *
 }
 
 extern "C" bool clingo_model_is_true(clingo_model_t const *m, clingo_literal_t lit, bool *result) {
-    GRINGO_CLINGO_TRY { *result = static_cast<clingo_model_type_t>(m->isTrue(lit)); }
+    GRINGO_CLINGO_TRY { *result = m->isTrue(lit); }
+    GRINGO_CLINGO_CATCH;
+}
+extern "C" bool clingo_model_is_consequence(clingo_model_t const *model, clingo_literal_t literal, clingo_consequence_t *result) {
+    GRINGO_CLINGO_TRY { *result = static_cast<clingo_consequence_t>(model->isConsequence(literal)); }
     GRINGO_CLINGO_CATCH;
 }
 

@@ -339,6 +339,38 @@ class Model:
         """
         return _c_call("bool", _lib.clingo_model_is_true, self._rep, literal)
 
+    def is_consequence(self, literal: int) -> Optional[bool]:
+        """
+        Check if the given program literal is a consequence.
+
+        The function returns `True`, `False`, or `None` if the literal is a
+        consequence, not a consequence, or it is not yet known whether it is a
+        consequence, respectively.
+
+        While enumerating cautious or brave consequences, there is partial
+        information about which literals are consequences. The current state of
+        a literal can be requested using this function. If this function is
+        used during normal model enumeration, the function just returns whether
+        a literal is true of false in the current model.
+
+        Parameters
+        ----------
+        literal
+            The given program literal.
+
+        Returns
+        -------
+        Whether the given program literal is a consequence.
+        """
+        res = _c_call(
+            "clingo_consequence_t", _lib.clingo_model_is_consequence, self._rep, literal
+        )
+        if res == _lib.clingo_consequence_true:
+            return True
+        if res == _lib.clingo_consequence_false:
+            return False
+        return None
+
     def symbols(
         self,
         atoms: bool = False,

@@ -196,6 +196,35 @@ class TestSolving(TestCase):
         self.ctl.ground([("base", [])])
         self.ctl.solve(on_model=on_model)
 
+    def test_consequences(self):
+        """
+        Test is_consequence function of model.
+        """
+
+        def lookup(m: Model, name: str):
+            return cast(SymbolicAtom, m.context.symbolic_atoms[Function(name)]).literal
+
+        def on_model(m: Model):
+            a = lookup(m, "a")
+            b = lookup(m, "b")
+            c = lookup(m, "c")
+            ca = m.is_consequence(a)
+            cb = m.is_consequence(b)
+            cc = m.is_consequence(c)
+            self.assertTrue(ca is True)
+            if m.number == 1:
+                self.assertTrue(cb is None or cb is False)
+                self.assertTrue(cc is None or cc is False)
+                self.assertTrue(cb != cc)
+            if m.number == 2:
+                self.assertTrue(cb is False)
+                self.assertTrue(cc is False)
+
+        self.ctl.configuration.solve.enum_mode = "cautious"
+        self.ctl.add("base", [], "a. b | c.")
+        self.ctl.ground([("base", [])])
+        self.ctl.solve(on_model=on_model)
+
     def test_control_clause(self):
         """
         Test adding clauses while solving.
