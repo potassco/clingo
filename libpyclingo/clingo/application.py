@@ -228,6 +228,9 @@ class Application(metaclass=ABCMeta):
         """
         Function to print additional information when the text output is used.
 
+        To avoid entangled output, `sys.stdout.flush` is automatically called
+        after this function.
+
         Parameters
         ----------
         model
@@ -367,6 +370,7 @@ def _pyclingo_application_print_model(model, printer, printer_data, data):
 
     app = _ffi.from_handle(data)[0]
     app.print_model(Model(model), py_printer)
+    sys.stdout.flush()
     return True
 
 
