@@ -259,6 +259,7 @@ class TestBackend(TestCase):
 
             # Tests with guards and elements
             backend.add_theory_atom(0, fun, [])
+            backend.add_theory_atom_with_guard(0, fun, [], "=", num_one)
             backend.add_theory_atom(
                 0, backend.add_theory_term_symbol(parse_term("g(1,2)")), []
             )
@@ -269,6 +270,7 @@ class TestBackend(TestCase):
             [str(atom) for atom in atoms],
             [
                 "&f(1,2,x){}",
+                "&f(1,2,x){}=1",
                 "&g(1,2){}",
                 "&f({1,2,x}){1,2,{1,2,x},f(1,2,x): #aux(1),not #aux(2),#aux(3)}",
             ],

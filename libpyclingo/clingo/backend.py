@@ -980,13 +980,13 @@ class Backend(ContextManager["Backend"]):
         Backend.add_theory_atom
         """
         _handle_error(
-            _lib.clingo_backend_theory_atom(
+            _lib.clingo_backend_theory_atom_with_guard(
                 self._rep,
                 atom_id_or_zero,
                 term_id,
                 elements,
                 len(elements),
-                operator,
+                operator.encode(),
                 right_hand_side_id,
             )
         )
