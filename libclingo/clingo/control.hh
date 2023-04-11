@@ -94,6 +94,12 @@ using Int64Vec = std::vector<Potassco::Weight_t>;
 } // namespace Gringo
 
 using ShowType = clingo_show_type_bitset_t;
+enum class ConsequenceType {
+    True = clingo_consequence_true,
+    False = clingo_consequence_false,
+    Unknown = clingo_consequence_unknown,
+};
+
 struct clingo_model {
     using LitVec = std::vector<std::pair<Gringo::Symbol, bool>>;
     virtual bool contains(Gringo::Symbol atom) const = 0;
@@ -106,6 +112,7 @@ struct clingo_model {
     virtual Potassco::Id_t threadId() const = 0;
     virtual Gringo::ModelType type() const = 0;
     virtual bool isTrue(Potassco::Lit_t literal) const = 0;
+    virtual ConsequenceType isConsequence(Potassco::Lit_t literal) const = 0;
     virtual Gringo::SymbolicAtoms const &getDomain() const = 0;
     virtual void add(Potassco::Span<Gringo::Symbol> symbols) = 0;
     virtual ~clingo_model() { }

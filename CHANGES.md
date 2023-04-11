@@ -5,6 +5,7 @@
   * add AST node for comments (#417)
   * add function to change undo mode (#409)
   * add function to access priorities to API (#406)
+  * add `Model::is_consequence` to API (#423)
   * fix `add_theory_atom_with_guard` in Python API
   * fix AST bugs (#403)
   * fix parsing of hexadecimal numbers (#421)

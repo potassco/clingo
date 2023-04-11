@@ -1367,6 +1367,12 @@ private:
     clingo_show_type_bitset_t type_;
 };
 
+enum class ConsequenceType {
+    True = clingo_consequence_true,
+    False = clingo_consequence_false,
+    Unknown = clingo_consequence_unknown,
+};
+
 using CostVector = std::vector<int64_t>;
 using PriorityVector = std::vector<weight_t>;
 
@@ -1380,6 +1386,7 @@ public:
     ~Model() = default;
     bool contains(Symbol atom) const;
     bool is_true(literal_t literal) const;
+    ConsequenceType is_consequence(literal_t literal) const;
     bool optimality_proven() const;
     CostVector cost() const;
     PriorityVector priorities() const;
@@ -2966,6 +2973,12 @@ inline bool Model::is_true(literal_t literal) const {
     bool ret = false;
     Detail::handle_error(clingo_model_is_true(model_, literal, &ret));
     return ret;
+}
+
+inline ConsequenceType Model::is_consequence(literal_t literal) const {
+    clingo_consequence_t ret = clingo_consequence_false;
+    Detail::handle_error(clingo_model_is_consequence(model_, literal, &ret));
+    return static_cast<ConsequenceType>(ret);
 }
 
 inline CostVector Model::cost() const {
