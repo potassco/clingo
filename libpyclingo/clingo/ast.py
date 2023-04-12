@@ -394,6 +394,7 @@ __all__ = [
     "ShowTerm",
     "Sign",
     "StrSequence",
+    "SymbolicAtom",
     "SymbolicTerm",
     "TheoryAtom",
     "TheoryAtomDefinition",
