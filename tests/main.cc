@@ -25,67 +25,123 @@ namespace {
     {};
 
     struct identifier
-        : pegtl::seq<pre_name, pegtl::if_must<lower, post_name>>
+        : pegtl::if_must<lower, post_name>
     {};
 
     struct variable
-        : pegtl::seq<pre_name, pegtl::if_must<upper, post_name>>
+        : pegtl::if_must<upper, post_name>
     {};
 
     struct number
         : pegtl::sor<
-            pegtl::one<'0'>,
-            pegtl::seq<pegtl::range<'1', '9'>, pegtl::star<pegtl::digit>>
+              pegtl::one<'0'>,
+              pegtl::seq<pegtl::range<'1', '9'>, pegtl::star<pegtl::digit>>
           >
     {};
 
-    struct term
+    struct sum_term;
+
+    struct atomic_term
         : pegtl::sor<
-            identifier,
-            variable,
-            number
+              pegtl::seq<pegtl::one<'('>, sum_term, pegtl::one<')'>>,
+              pegtl::seq<pre_name, pegtl::sor<identifier, variable>>,
+              number
           >
     {};
 
-   struct grammar
-      : pegtl::must<term, pegtl::eof>
-   {};
+    struct mul_term
+        : pegtl::list_must<atomic_term, pegtl::one<'*'>>
+    {};
 
-   template< typename Rule >
-   struct action
-   {};
+    struct sum_term
+        : pegtl::list_must<mul_term, pegtl::one<'+'>>
+    {};
 
-   template<>
-   struct action<identifier> {
-      template<typename ParseInput>
-      static void apply(const ParseInput& in) {
-          std::cerr << "got identifier: " << in.string() << std::endl;
-      }
-   };
+    struct term : sum_term {};
 
-   template<>
-   struct action<variable> {
-      template<typename ParseInput>
-      static void apply(const ParseInput& in) {
-          std::cerr << "got variable: " << in.string() << std::endl;
-      }
-   };
+    struct grammar
+        : pegtl::must<term, pegtl::eof>
+    {};
 
-   template<>
-   struct action<number> {
-      template<typename ParseInput>
-      static void apply(const ParseInput& in) {
-          std::cerr << "got number: " << in.string() << std::endl;
-      }
-   };
+    struct Builder {
+    };
+
+    struct TermBuilder {
+        std::string prefix;
+    };
+
+    template< typename Rule >
+    struct action : pegtl::nothing< Rule > { };
+
+    template<>
+    struct action<term>
+    : tao::pegtl::change_states<TermBuilder> {
+        template< typename ParseInput >
+        static void success(ParseInput const &, TermBuilder &tbld, Builder &bld) { }
+    };
+
+    template<>
+    struct action<sum_term> {
+        template<typename ParseInput>
+        static void apply(const ParseInput& in, TermBuilder &bld) {
+            std::cerr << "got sum b: " << in.string() << std::endl;
+        }
+    };
+
+    template<>
+    struct action<pre_name> {
+        template<typename ParseInput>
+        static void apply(const ParseInput& in, TermBuilder &bld) {
+            bld.prefix = in.string();
+        }
+    };
+
+    template<>
+    struct action<identifier> {
+        template<typename ParseInput>
+        static void apply(const ParseInput& in, TermBuilder &bld) {
+            std::cerr << "idr: " << bld.prefix << in.string() << std::endl;
+        }
+    };
+
+    template<>
+    struct action<variable> {
+        template<typename ParseInput>
+        static void apply(const ParseInput& in, TermBuilder &bld) {
+            std::cerr << "var: " << bld.prefix << in.string() << std::endl;
+        }
+    };
+
+    template<>
+    struct action<number> {
+        template<typename ParseInput>
+        static void apply(const ParseInput& in, TermBuilder &bld) {
+            std::cerr << "num: " << in.string() << std::endl;
+        }
+    };
+
+    template<>
+    struct action<atomic_term> {
+        template<typename ParseInput>
+        static void apply(const ParseInput& in, TermBuilder &bld) {
+            std::cerr << "atm: " << in.string() << std::endl;
+        }
+    };
+
+    template<>
+    struct action<mul_term> {
+        template<typename ParseInput>
+        static void apply(const ParseInput& in, TermBuilder &bld) {
+            std::cerr << "mul: " << in.string() << std::endl;
+        }
+    };
 }
 
 TEST_CASE("test") {
-    pegtl::parse<grammar, action>(pegtl::string_input{"__xX123", "from"});
-    pegtl::parse<grammar, action>(pegtl::string_input{"123", "from"});
-    pegtl::parse<grammar, action>(pegtl::string_input{"'X_7", "from"});
+    Builder bld;
+    pegtl::parse<grammar, action>(pegtl::string_input{"(__xX123+123+2)*'X7", "from"}, bld);
     try {
-        pegtl::parse<grammar, action>(pegtl::string_input{"fäil", "from"});
+        pegtl::parse<grammar, action>(pegtl::string_input{"fäil", "from"}, bld);
     }
     catch (std::exception &e) {
         static_cast<void>(e);
