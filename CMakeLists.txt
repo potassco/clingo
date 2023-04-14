@@ -7,5 +7,11 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_subdirectory(PEGTL)
+set(CATCH_BUILD_STATIC_LIBRARY ON CACHE INTERNAL "" FORCE)
+
+enable_testing()
+
+add_subdirectory(third_party/PEGTL)
+add_subdirectory(third_party/Catch2)
 add_subdirectory(src)
+add_subdirectory(tests)

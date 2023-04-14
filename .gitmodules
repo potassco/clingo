@@ -1,3 +1,6 @@
 [submodule "PEGTL"]
-	path = PEGTL
+	path = third_party/PEGTL
 	url = ../../taocpp/PEGTL.git
+[submodule "third_party/Catch2"]
+	path = third_party/Catch2
+	url = ../../catchorg/Catch2.git
