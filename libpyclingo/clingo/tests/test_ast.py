@@ -395,12 +395,14 @@ class TestAST(TestCase):
         Test unpooling.
         """
         prg = []
-        parse_string(":- a(1;2): a(3;4).", prg.append)
+        parse_string("%comment\n:- a(1;2): a(3;4).", prg.append)
+        com = prg[-2]
         lit = prg[-1].body[0]
 
         def unpool(other=True, condition=True):
             return [str(x) for x in lit.unpool(other, condition)]
 
+        self.assertEqual([str(x) for x in com.unpool()], ["%comment"])
         self.assertEqual(
             unpool(), ["a(1): a(3)", "a(1): a(4)", "a(2): a(3)", "a(2): a(4)"]
         )
