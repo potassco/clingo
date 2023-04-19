@@ -13,5 +13,6 @@ enable_testing()
 
 add_subdirectory(third_party/PEGTL)
 add_subdirectory(third_party/Catch2)
+add_subdirectory(third_party/lexy)
 add_subdirectory(src)
 add_subdirectory(tests)
