@@ -7,17 +7,28 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <ostream>
 #include <sstream>
 #include <tao/pegtl.hpp>
 
 #include <lexy/dsl.hpp>
-#include <lexy/input/range_input.hpp>
+#include <lexy/input/string_input.hpp>
+#include <lexy/action/scan.hpp>
+#include <lexy/action/parse.hpp>
+#include <lexy_ext/report_error.hpp>
 
 // lexy
 
 namespace {
 
 struct Color {
+    friend bool operator==(Color const &a, Color const &b) {
+        return a.r == b.r && a.g == b.g && a.b == b.b;
+    }
+    friend std::ostream &operator<<(std::ostream &out, Color const &c) {
+        out << "RGB(" << static_cast<int>(c.r) << "," << static_cast<int>(c.g) << "," << static_cast<int>(c.b) << ")";
+        return out;
+    }
     std::uint8_t r, g, b;
 };
 
@@ -25,16 +36,15 @@ namespace Grammar {
 
 namespace dsl = lexy::dsl;
 
-struct Channel {
-    static constexpr auto rule = dsl::n_digits<2, dsl::hex>;
+struct channel {
+    static constexpr auto rule = dsl::integer<std::uint8_t>(dsl::n_digits<2, dsl::hex>);
+    static constexpr auto value = lexy::forward<std::uint8_t>;
 };
 
-struct Color {
-    //static constexpr auto rule = dsl::hash_sign + dsl::p<Channel> + dsl::p<Channel> + dsl::p<Channel>;
-    static constexpr auto rule = dsl::hash_sign + dsl::times<3>(dsl::p<Channel>) + dsl::eof;
+struct color {
+    static constexpr auto rule = dsl::hash_sign + dsl::times<3>(dsl::p<channel>);
+    static constexpr auto value = lexy::construct<Color>;
 };
-
-
 
 } // namespace Grammar
 
@@ -303,9 +313,17 @@ TEST_CASE("test") {
         }
     }
     SECTION("lexy") {
-        std::istringstream stream{"#FF00FF"};
-        StreamBuffer sbuf{stream};
-        auto good = lexy::range_input(sbuf.begin(), sbuf.end());
-        REQUIRE(lexy::match<Grammar::Color>(good));
+        auto good = lexy::zstring_input("#FF00FF\n#AA00EE");
+        auto scanner = lexy::scan(good, lexy_ext::report_error);
+        auto c1 = scanner.parse<Grammar::color>();
+        REQUIRE(scanner);
+        REQUIRE(c1.has_value());
+        REQUIRE(c1.value() == Color{255, 0, 255});
+        scanner.parse(lexy::dsl::newline);
+        REQUIRE(scanner);
+        auto c2 = scanner.parse<Grammar::color>();
+        REQUIRE(scanner);
+        REQUIRE(c2.has_value());
+        REQUIRE(c2.value() == Color{170, 0, 238});
     }
 };
