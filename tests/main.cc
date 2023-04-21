@@ -12,6 +12,7 @@
 #include <tao/pegtl.hpp>
 
 #include <lexy/dsl.hpp>
+#include <lexy/input/range_input.hpp>
 #include <lexy/input/string_input.hpp>
 #include <lexy/action/scan.hpp>
 #include <lexy/action/parse.hpp>
@@ -32,7 +33,7 @@ struct Color {
     std::uint8_t r, g, b;
 };
 
-namespace Grammar {
+namespace grammar {
 
 namespace dsl = lexy::dsl;
 
@@ -46,7 +47,7 @@ struct color {
     static constexpr auto value = lexy::construct<Color>;
 };
 
-} // namespace Grammar
+} // namespace grammar
 
 } // namespace
 
@@ -108,7 +109,7 @@ namespace {
 
     struct term : sum_term {};
 
-    struct grammar
+    struct term_grammar
         : pegtl::must<term, pegtl::eof>
     {};
 
@@ -304,9 +305,9 @@ private:
 TEST_CASE("test") {
     SECTION("pegtl") {
         Builder bld;
-        pegtl::parse<grammar, action>(pegtl::string_input{"(__xX123+123+2)*'X7", "from"}, bld);
+        pegtl::parse<term_grammar, action>(pegtl::string_input{"(__xX123+123+2)*'X7", "from"}, bld);
         try {
-            pegtl::parse<grammar, action>(pegtl::string_input{"fäil", "from"}, bld);
+            pegtl::parse<term_grammar, action>(pegtl::string_input{"fäil", "from"}, bld);
         }
         catch (std::exception &e) {
             static_cast<void>(e);
@@ -314,14 +315,20 @@ TEST_CASE("test") {
     }
     SECTION("lexy") {
         auto good = lexy::zstring_input("#FF00FF\n#AA00EE");
+        // an input comes with a reader that maintains a current position
+        // my use case requires implementing an input together with a reader
+        // having a discard functionality
         auto scanner = lexy::scan(good, lexy_ext::report_error);
-        auto c1 = scanner.parse<Grammar::color>();
+        scanner.remaining_input();
+        auto c1 = scanner.parse<grammar::color>();
         REQUIRE(scanner);
         REQUIRE(c1.has_value());
         REQUIRE(c1.value() == Color{255, 0, 255});
+        auto ri = scanner.remaining_input();
+        REQUIRE(*ri.reader().position() == '\n');
         scanner.parse(lexy::dsl::newline);
         REQUIRE(scanner);
-        auto c2 = scanner.parse<Grammar::color>();
+        auto c2 = scanner.parse<grammar::color>();
         REQUIRE(scanner);
         REQUIRE(c2.has_value());
         REQUIRE(c2.value() == Color{170, 0, 238});
