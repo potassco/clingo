@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <iostream>
 #include <istream>
+#include <lexy/encoding.hpp>
 #include <list>
 #include <iterator>
 
@@ -187,8 +188,12 @@ namespace {
     };
 }
 
+template <typename Encoding = lexy::default_encoding>
 class StreamBuffer {
 public:
+    using encoding = Encoding;
+    class sentinel {
+    };
     class iterator {
     public:
         using difference_type = ptrdiff_t;
@@ -217,17 +222,19 @@ public:
         }
 
         bool operator==(iterator other) const {
-            if (buffer_ == other.buffer_) {
-                return offset_ == other.offset_;
-            }
-            if (buffer_ == nullptr) {
-                return !other.buffer_->read_(other.offset_);
-            }
-            assert (other.buffer_ == nullptr);
-            return !buffer_->read_(offset_);
+            return offset_ == other.offset_;
         }
 
         bool operator!=(iterator other) const {
+            return !(*this == other);
+        }
+
+        bool operator==(sentinel other) const {
+            static_cast<void>(other);
+            return false;
+        }
+
+        bool operator!=(sentinel other) const {
             return !(*this == other);
         }
 
@@ -253,8 +260,8 @@ public:
     }
 
     //! An iterator representing the end of input.
-    iterator end() {
-        return iterator{};
+    sentinel end() {
+        return sentinel{};
     }
 
     //! Discard all values before the given iterator.
@@ -267,33 +274,26 @@ public:
     }
 
 private:
-    //! Ensure that at least `n` bytes have been read.
-    //!
-    //! The function returns false if the end of file has been reached before
-    //! reading the required number of bytes.
-    bool read_(size_t n) {
-        // An efficient implementation should read a large chunk of bytes.
-        if (n >= start_ + buffer_.size()) {
-            buffer_.reserve(n - start_);
-            while (buffer_.size() <= n - start_) {
-                char c;
-                if (stream_.get(c)) {
-                    buffer_.emplace_back(c);
-                }
-                else {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
     //! Returns the `i`-th byte read from the stream.
     //!
     //! The byte must not have already been discarded.
     char get_(size_t i) {
         assert(i >= start_);
-        read_(i);
+        if (i >= start_ + buffer_.size()) {
+            buffer_.reserve(i - start_);
+            while (buffer_.size() <= i - start_) {
+                char c;
+                if (stream_.get(c)) {
+                    std::cerr << "c: " << c << std::endl;
+                    buffer_.emplace_back(c);
+                }
+                else {
+                    std::cerr << "c: eof" << std::endl;
+                    buffer_.emplace_back(-1);
+                    break;
+                }
+            }
+        }
         return buffer_[i - start_];
     }
 
@@ -314,12 +314,14 @@ TEST_CASE("test") {
         }
     }
     SECTION("lexy") {
-        auto good = lexy::zstring_input("#FF00FF\n#AA00EE");
+        std::istringstream in;
+        in.str("#FF00FF\n#AA00EE");
+        StreamBuffer buf{in};
+        auto rng = lexy::range_input{buf.begin(), buf.end()};
         // an input comes with a reader that maintains a current position
         // my use case requires implementing an input together with a reader
         // having a discard functionality
-        auto scanner = lexy::scan(good, lexy_ext::report_error);
-        scanner.remaining_input();
+        auto scanner = lexy::scan(rng, lexy_ext::report_error);
         auto c1 = scanner.parse<grammar::color>();
         REQUIRE(scanner);
         REQUIRE(c1.has_value());
@@ -332,5 +334,7 @@ TEST_CASE("test") {
         REQUIRE(scanner);
         REQUIRE(c2.has_value());
         REQUIRE(c2.value() == Color{170, 0, 238});
+        ri = scanner.remaining_input();
+        REQUIRE(*ri.reader().position() == -1);
     }
 };
