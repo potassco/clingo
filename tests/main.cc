@@ -2,21 +2,14 @@
 #include <cstddef>
 #include <iostream>
 #include <istream>
-#include <lexy/encoding.hpp>
-#include <list>
 #include <iterator>
+#include <sstream>
+#include <stdexcept>
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <ostream>
-#include <sstream>
-#include <tao/pegtl.hpp>
-
 #include <lexy/dsl.hpp>
-#include <lexy/input/range_input.hpp>
-#include <lexy/input/string_input.hpp>
 #include <lexy/action/scan.hpp>
-#include <lexy/action/parse.hpp>
 #include <lexy_ext/report_error.hpp>
 
 // lexy
@@ -50,150 +43,56 @@ struct color {
 
 } // namespace grammar
 
-} // namespace
-
-
-
-
-namespace pegtl = tao::pegtl;
-
-namespace {
-
-    struct lower
-        : pegtl::range<'a', 'z'>
-    {};
-
-    struct upper
-        : pegtl::range<'A', 'Z'>
-    {};
-
-    struct pre_name
-        : pegtl::star<pegtl::sor<pegtl::one<'_'>, pegtl::one<'\''>>>
-    {};
-
-    struct post_name
-        : pegtl::star<pegtl::sor<lower, upper, pegtl::digit, pegtl::one<'_'>, pegtl::one<'\''>>>
-    {};
-
-    struct identifier
-        : pegtl::if_must<lower, post_name>
-    {};
-
-    struct variable
-        : pegtl::if_must<upper, post_name>
-    {};
-
-    struct number
-        : pegtl::sor<
-              pegtl::one<'0'>,
-              pegtl::seq<pegtl::range<'1', '9'>, pegtl::star<pegtl::digit>>
-          >
-    {};
-
-    struct sum_term;
-
-    struct atomic_term
-        : pegtl::sor<
-              pegtl::seq<pegtl::one<'('>, sum_term, pegtl::one<')'>>,
-              pegtl::seq<pre_name, pegtl::sor<identifier, variable>>,
-              number
-          >
-    {};
-
-    struct mul_term
-        : pegtl::list_must<atomic_term, pegtl::one<'*'>>
-    {};
-
-    struct sum_term
-        : pegtl::list_must<mul_term, pegtl::one<'+'>>
-    {};
-
-    struct term : sum_term {};
-
-    struct term_grammar
-        : pegtl::must<term, pegtl::eof>
-    {};
-
-    struct Builder {
-    };
-
-    struct TermBuilder {
-        std::string prefix;
-    };
-
-    template< typename Rule >
-    struct action : pegtl::nothing< Rule > { };
-
-    template<>
-    struct action<term>
-    : tao::pegtl::change_states<TermBuilder> {
-        template< typename ParseInput >
-        static void success(ParseInput const &, TermBuilder &tbld, Builder &bld) { }
-    };
-
-    template<>
-    struct action<sum_term> {
-        template<typename ParseInput>
-        static void apply(const ParseInput& in, TermBuilder &bld) {
-            std::cerr << "got sum b: " << in.string() << std::endl;
-        }
-    };
-
-    template<>
-    struct action<pre_name> {
-        template<typename ParseInput>
-        static void apply(const ParseInput& in, TermBuilder &bld) {
-            bld.prefix = in.string();
-        }
-    };
-
-    template<>
-    struct action<identifier> {
-        template<typename ParseInput>
-        static void apply(const ParseInput& in, TermBuilder &bld) {
-            std::cerr << "idr: " << bld.prefix << in.string() << std::endl;
-        }
-    };
-
-    template<>
-    struct action<variable> {
-        template<typename ParseInput>
-        static void apply(const ParseInput& in, TermBuilder &bld) {
-            std::cerr << "var: " << bld.prefix << in.string() << std::endl;
-        }
-    };
-
-    template<>
-    struct action<number> {
-        template<typename ParseInput>
-        static void apply(const ParseInput& in, TermBuilder &bld) {
-            std::cerr << "num: " << in.string() << std::endl;
-        }
-    };
-
-    template<>
-    struct action<atomic_term> {
-        template<typename ParseInput>
-        static void apply(const ParseInput& in, TermBuilder &bld) {
-            std::cerr << "atm: " << in.string() << std::endl;
-        }
-    };
-
-    template<>
-    struct action<mul_term> {
-        template<typename ParseInput>
-        static void apply(const ParseInput& in, TermBuilder &bld) {
-            std::cerr << "mul: " << in.string() << std::endl;
-        }
-    };
-}
-
-template <typename Encoding = lexy::default_encoding>
 class StreamBuffer {
 public:
-    using encoding = Encoding;
-    class sentinel {
-    };
+    StreamBuffer(std::istream &in)
+    : in_{in} { }
+
+    bool is_eof(size_t id) {
+        while (id >= start_ + buffer_.size()) {
+            char c;
+            if (in_.get(c)) {
+                buffer_.emplace_back(c);
+            }
+            else {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void discard(size_t n) {
+        for (size_t i = 0; i < n; ++i) {
+            if (buffer_[i] == '\n') {
+                last_nl_ = start_ + i;
+                ++nl_;
+            }
+        }
+        start_ += n;
+        buffer_.erase(buffer_.begin(), buffer_.begin() + n);
+    }
+
+    char at(size_t id) const {
+        if (id >= start_) {
+            return buffer_[id - start_];
+        }
+        if (id == last_nl_ || id < nl_) {
+            return '\n';
+        }
+        return ' ';
+    }
+
+private:
+    std::istream &in_;
+    std::vector<char> buffer_;
+    size_t start_{0};
+    size_t last_nl_{0};
+    size_t nl_{0};
+};
+
+class StreamReader {
+public:
+    using encoding = lexy::utf8_char_encoding;
     class iterator {
     public:
         using difference_type = ptrdiff_t;
@@ -229,112 +128,87 @@ public:
             return !(*this == other);
         }
 
-        bool operator==(sentinel other) const {
-            static_cast<void>(other);
-            return false;
-        }
-
-        bool operator!=(sentinel other) const {
-            return !(*this == other);
-        }
-
         char operator*() const {
-            return buffer_->get_(offset_);
+            return buffer_->at(offset_);
         }
 
     private:
-        friend StreamBuffer;
+        friend class StreamReader;
         StreamBuffer *buffer_;
         size_t offset_;
     };
 
-    StreamBuffer(std::istream &stream)
-    : stream_{stream} {
+    explicit StreamReader(StreamBuffer &buffer)
+    : buffer_(&buffer) {
     }
 
-    //! An iterator representing the beginning of the stream.
-    //!
-    //! Iterators pointing to discarded values must not be dereferenced.
-    iterator begin() {
-        return iterator{*this, 0};
-    }
-
-    //! An iterator representing the end of input.
-    sentinel end() {
-        return sentinel{};
-    }
-
-    //! Discard all values before the given iterator.
-    void discard(iterator it) {
-        if (start_ < it.offset_) {
-            size_t n = it.offset_ - start_;
-            start_ = it.offset_;
-            buffer_.erase(buffer_.begin(), buffer_.begin() + n);
+    char peek() const {
+        if (buffer_->is_eof(id_)) {
+            return -1;
         }
+        else {
+            return buffer_->at(id_);
+        }
+    }
+
+    void bump() noexcept {
+        ++id_;
+    }
+
+    iterator position() const noexcept {
+        return iterator(*buffer_, id_);
+    }
+
+    void set_position(iterator new_pos) noexcept {
+        id_ = new_pos.offset_;
     }
 
 private:
-    //! Returns the `i`-th byte read from the stream.
-    //!
-    //! The byte must not have already been discarded.
-    char get_(size_t i) {
-        assert(i >= start_);
-        if (i >= start_ + buffer_.size()) {
-            buffer_.reserve(i - start_);
-            while (buffer_.size() <= i - start_) {
-                char c;
-                if (stream_.get(c)) {
-                    std::cerr << "c: " << c << std::endl;
-                    buffer_.emplace_back(c);
-                }
-                else {
-                    std::cerr << "c: eof" << std::endl;
-                    buffer_.emplace_back(-1);
-                    break;
-                }
-            }
-        }
-        return buffer_[i - start_];
-    }
-
-    std::istream &stream_;
-    std::vector<char> buffer_;
-    size_t start_{0};
+    StreamBuffer *buffer_;
+    std::size_t id_{0};
 };
 
+class StreamInput {
+public:
+    using encoding = lexy::default_encoding;
+    using buffer_type = std::vector<encoding::char_type>;
+
+    explicit StreamInput(StreamBuffer &buffer)
+    : buffer_(&buffer) {
+    }
+
+    StreamReader reader() const & {
+        return StreamReader{*buffer_};
+    }
+
+private:
+    StreamBuffer *buffer_;
+    std::size_t id_{0};
+};
+
+} // namespace
+
 TEST_CASE("test") {
-    SECTION("pegtl") {
-        Builder bld;
-        pegtl::parse<term_grammar, action>(pegtl::string_input{"(__xX123+123+2)*'X7", "from"}, bld);
-        try {
-            pegtl::parse<term_grammar, action>(pegtl::string_input{"fäil", "from"}, bld);
-        }
-        catch (std::exception &e) {
-            static_cast<void>(e);
-        }
-    }
-    SECTION("lexy") {
-        std::istringstream in;
-        in.str("#FF00FF\n#AA00EE");
-        StreamBuffer buf{in};
-        auto rng = lexy::range_input{buf.begin(), buf.end()};
-        // an input comes with a reader that maintains a current position
-        // my use case requires implementing an input together with a reader
-        // having a discard functionality
-        auto scanner = lexy::scan(rng, lexy_ext::report_error);
-        auto c1 = scanner.parse<grammar::color>();
-        REQUIRE(scanner);
-        REQUIRE(c1.has_value());
-        REQUIRE(c1.value() == Color{255, 0, 255});
-        auto ri = scanner.remaining_input();
-        REQUIRE(*ri.reader().position() == '\n');
-        scanner.parse(lexy::dsl::newline);
-        REQUIRE(scanner);
-        auto c2 = scanner.parse<grammar::color>();
-        REQUIRE(scanner);
-        REQUIRE(c2.has_value());
-        REQUIRE(c2.value() == Color{170, 0, 238});
-        ri = scanner.remaining_input();
-        REQUIRE(*ri.reader().position() == -1);
-    }
+    std::istringstream in;
+    in.str("#FF00FF\n#AA00EE\n#AA00XE");
+    StreamBuffer buf{in};
+    auto input = StreamInput{buf};
+    // an input comes with a reader that maintains a current position
+    // my use case requires implementing an input together with a reader
+    // having a discard functionality
+    auto scanner = lexy::scan(input, lexy_ext::report_error);
+    auto c1 = scanner.parse<grammar::color>();
+    REQUIRE(scanner);
+    REQUIRE(c1.has_value());
+    REQUIRE(c1.value() == Color{255, 0, 255});
+    scanner.parse(lexy::dsl::newline);
+    buf.discard(8);
+    REQUIRE(scanner);
+    auto c2 = scanner.parse<grammar::color>();
+    REQUIRE(scanner);
+    REQUIRE(c2.has_value());
+    REQUIRE(c2.value() == Color{170, 0, 238});
+    scanner.parse(lexy::dsl::newline);
+    buf.discard(8);
+    REQUIRE(!scanner.parse<grammar::color>().has_value());
 };
