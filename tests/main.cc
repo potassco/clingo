@@ -42,73 +42,26 @@ struct color {
 
 } // namespace grammar
 
-class StreamBuffer {
-public:
-    StreamBuffer(std::istream &in)
-    : in_{in} { }
+template <typename Encoding>
+using default_location_counting = std::conditional_t<
+    std::is_same_v<Encoding, lexy::byte_encoding>,
+    lexy::byte_location_counting<>, lexy::code_unit_location_counting>;
 
-    bool is_eof(size_t id) {
-        while (id >= start_ + buffer_.size()) {
-            char c;
-            // TODO: read a chunk
-            if (in_.get(c)) {
-                buffer_.emplace_back(c);
-            }
-            else {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    void discard(size_t n) {
-        for (size_t i = 0; i < n; ++i) {
-            if (buffer_[i] == '\n') {
-                last_nl_ = start_ + i;
-                ++nl_;
-            }
-        }
-        start_ += n;
-        buffer_.erase(buffer_.begin(), buffer_.begin() + n);
-    }
-
-    char at(size_t id) const {
-        if (id >= start_) {
-            return buffer_[id - start_];
-        }
-        if (id > last_nl_) {
-            // Note that this will mess up the column count with multibyte charaters
-            // this should be fixable using more clever counting in the discard function
-            // by adjusting the last_nl_ offset a bit.
-            //
-            // Maybe a counting strategy could be used here...
-            return ' ';
-        }
-        assert(id == last_nl_);
-        return '\n';
-    }
-
-    std::pair<size_t, unsigned> last_newline() const {
-        return {last_nl_, nl_};
-    }
-
-private:
-    std::istream &in_;
-    std::vector<char> buffer_;
-    size_t start_{0};
-    size_t last_nl_{0};
-    unsigned nl_{0};
-};
-
+/// Reader to read bytes from a buffer coupled with iterators that stay valid
+/// even if the underlying buffer is reallocated.
+template <typename StreamBuffer>
 class StreamReader {
 public:
-    using encoding = lexy::utf8_char_encoding;
+    using encoding = typename StreamBuffer::encoding;
+    using couning = typename StreamBuffer::counting;
+    using char_type = typename encoding::char_type;
+
     class iterator {
     public:
-        using difference_type = ptrdiff_t;
-        using value_type = char;
-        using pointer = char const *;
-        using reference = char const &;
+        using difference_type = std::ptrdiff_t;
+        using value_type = char_type;
+        using pointer = char_type const *;
+        using reference = char_type const &;
         using iterator_category = std::forward_iterator_tag;
 
         iterator()
@@ -131,14 +84,14 @@ public:
         }
 
         bool operator==(iterator other) const {
-            return offset_ == other.offset_;
+            return offset_ == other.offset_ && buffer_ == other.buffer_;
         }
 
         bool operator!=(iterator other) const {
             return !(*this == other);
         }
 
-        char operator*() const {
+        char_type operator*() const {
             return buffer_->at(offset_);
         }
 
@@ -148,52 +101,145 @@ public:
         size_t offset_;
     };
 
-    explicit StreamReader(StreamBuffer &buffer)
-    : buffer_(&buffer) {
+    explicit StreamReader(StreamBuffer &buffer, size_t id = 0)
+    : buffer_(&buffer)
+    , id_{id} {
     }
 
-    char peek() const {
-        if (buffer_->is_eof(id_)) {
-            return -1;
+    /// Obtain the next byte without changing the reader's position.
+    auto peek() const {
+        if (buffer_->is_eoi(id_)) {
+            return encoding::eof();
         }
         else {
-            return buffer_->at(id_);
+            return encoding::to_int_type(buffer_->at(id_));
         }
     }
 
+    /// Advance position to the next byte.
     void bump() noexcept {
         ++id_;
     }
 
-    iterator position() const noexcept {
+    /// Get an iterator to the current position of the reader.
+    auto position() const noexcept {
         return iterator(*buffer_, id_);
     }
 
+    /// Set the current position of the reader.
     void set_position(iterator new_pos) noexcept {
         id_ = new_pos.offset_;
     }
 
+    /// Discard all bytes before the current position.
+    void discard_before() {
+        buffer_->discard(id_);
+    }
 private:
     StreamBuffer *buffer_;
-    std::size_t id_{0};
+    std::size_t id_;
 };
 
+template <typename Encoding = lexy::default_encoding, typename Counting = default_location_counting<Encoding>>
+class StreamBuffer {
+public:
+    using encoding  = Encoding;
+    using counting = Counting;
+    using char_type = typename Encoding::char_type;
+    static_assert(sizeof(char_type) == sizeof(char), "only support single-byte encodings");
+
+    StreamBuffer(std::istream &in)
+    : in_{in} { }
+
+    /// Check if the given offset no longer points to valid input.
+    ///
+    /// This function might read bytes from the input stream to determine the
+    /// information.
+    bool is_eoi(size_t id) {
+        while (id >= start_ + buffer_.size()) {
+            char c;
+            // Note: better read a chunk
+            if (in_.get(c)) {
+                buffer_.emplace_back(c);
+            }
+            else {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// Discard bytes before the given offset.
+    void discard(size_t id) {
+        if (id > start_) {
+            unsigned col = 0;
+            Counting counting;
+            typename StreamReader<StreamBuffer>::iterator position{*this, id};
+            StreamReader<StreamBuffer> reader{*this, start_};
+            while (reader.position() != position) {
+                assert (reader.peek() != encoding::eof());
+                if (counting.try_match_newline(reader)) {
+                    ++nl_;
+                    col = 0;
+                }
+                else {
+                    counting.match_column(reader);
+                    ++col;
+                }
+            }
+            buffer_.erase(buffer_.begin(), buffer_.begin() + (id - start_));
+            start_ = id;
+            last_nl_ = start_ - col;
+        }
+    }
+
+    /// Get the byte at the given offset.
+    ///
+    /// The offset must either point to a byte in the buffer. Or, if the offset
+    /// points to a previously discarded byte after the last discarded newline
+    /// character, this function returns a space character.
+    char_type at(size_t id) const {
+        if (id >= start_) {
+            return buffer_[id - start_];
+        }
+        assert (id > last_nl_);
+        return ' ';
+    }
+
+    /// Get the offset where the first line still in the buffer starts together
+    /// with number of discarded lines.
+    std::pair<size_t, unsigned> last_newline() const {
+        return {last_nl_, nl_};
+    }
+
+private:
+    std::istream &in_;
+    std::vector<char_type> buffer_;
+    size_t start_{0};
+    size_t last_nl_{0};
+    unsigned nl_{1};
+};
+
+/// An input to read from a stream.
+template <typename StreamBuffer>
 class StreamInput {
 public:
-    using encoding = lexy::default_encoding;
-    using buffer_type = std::vector<encoding::char_type>;
+    using encoding = typename StreamBuffer::encoding;
+    using counting = typename StreamBuffer::counting;
 
     explicit StreamInput(StreamBuffer &buffer)
     : buffer_(&buffer) {
     }
 
-    StreamReader reader() const & {
-        return StreamReader{*buffer_};
+    auto reader() const & {
+        return StreamReader<StreamBuffer>{*buffer_};
     }
 
+    /// Get the beginning of the line w.r.t. the characters at the beginning of
+    /// the underlying buffer.
     auto anchor() const {
         auto last_nl = buffer_->last_newline();
-        return lexy::input_location_anchor<StreamInput>{StreamReader::iterator{*buffer_, last_nl.first}, last_nl.second};
+        return lexy::input_location_anchor<StreamInput>{typename StreamReader<StreamBuffer>::iterator{*buffer_, last_nl.first}, last_nl.second};
     }
 
 private:
@@ -209,9 +255,9 @@ OutputIt write_error(OutputIt out, const lexy::error_context<Input>& context,
 
     // Convert the context location and error location into line/column information.
     auto context_location
-        = lexy::get_input_location(context.input(), context.position(), context.input().anchor());
+        = lexy::get_input_location<typename Input::counting>(context.input(), context.position(), context.input().anchor());
     auto location
-        = lexy::get_input_location(context.input(), error.position(), context_location.anchor());
+        = lexy::get_input_location<typename Input::counting>(context.input(), error.position(), context_location.anchor());
 
     // Write the main error headline.
     out = writer.write_message(out, lexy_ext::diagnostic_kind::error,
@@ -351,22 +397,19 @@ TEST_CASE("test") {
     in.str("#FF00FF\n#AA00EE\n#AA00XE");
     StreamBuffer buf{in};
     auto input = StreamInput{buf};
-    // an input comes with a reader that maintains a current position
-    // my use case requires implementing an input together with a reader
-    // having a discard functionality
     auto scanner = lexy::scan(input, report_error);
     auto c1 = scanner.parse<grammar::color>();
     REQUIRE(scanner);
     REQUIRE(c1.has_value());
     REQUIRE(c1.value() == Color{255, 0, 255});
     scanner.parse(lexy::dsl::newline);
-    buf.discard(8);
+    scanner.remaining_input().reader().discard_before();
     REQUIRE(scanner);
     auto c2 = scanner.parse<grammar::color>();
     REQUIRE(scanner);
     REQUIRE(c2.has_value());
     REQUIRE(c2.value() == Color{170, 0, 238});
     scanner.parse(lexy::dsl::newline);
-    buf.discard(8);
+    scanner.remaining_input().reader().discard_before();
     REQUIRE(!scanner.parse<grammar::color>().has_value());
 };
