@@ -12,7 +12,6 @@
 #include <lexy/action/scan.hpp>
 #include <lexy_ext/report_error.hpp>
 
-// lexy
 
 namespace {
 
@@ -51,6 +50,7 @@ public:
     bool is_eof(size_t id) {
         while (id >= start_ + buffer_.size()) {
             char c;
+            // TODO: read a chunk
             if (in_.get(c)) {
                 buffer_.emplace_back(c);
             }
@@ -76,10 +76,18 @@ public:
         if (id >= start_) {
             return buffer_[id - start_];
         }
-        if (id == last_nl_ || id < nl_) {
-            return '\n';
+        if (id > last_nl_) {
+            // Note that this will mess up the column count with multibyte charaters
+            // this should be fixable using more clever counting in the discard function
+            // by adjusting the last_nl_ offset a bit.
+            return ' ';
         }
-        return ' ';
+        assert(id == last_nl_);
+        return '\n';
+    }
+
+    std::pair<size_t, unsigned> last_newline() const {
+        return {last_nl_, nl_};
     }
 
 private:
@@ -87,7 +95,7 @@ private:
     std::vector<char> buffer_;
     size_t start_{0};
     size_t last_nl_{0};
-    size_t nl_{0};
+    unsigned nl_{0};
 };
 
 class StreamReader {
@@ -181,36 +189,30 @@ public:
         return StreamReader{*buffer_};
     }
 
+    auto anchor() const {
+        auto last_nl = buffer_->last_newline();
+        return lexy::input_location_anchor<StreamInput>{StreamReader::iterator{*buffer_, last_nl.first}, last_nl.second};
+    }
+
 private:
     StreamBuffer *buffer_;
-    std::size_t id_{0};
 };
 
-} // namespace
-
-namespace lexy_ext::_detail
-{
 template <typename OutputIt, typename Input, typename Reader, typename Tag>
-OutputIt write_error2(OutputIt out, const lexy::error_context<Input>& context,
+OutputIt write_error(OutputIt out, const lexy::error_context<Input>& context,
                      const lexy::error<Reader, Tag>& error, lexy::visualization_options opts,
                      const char* path)
 {
-    diagnostic_writer<Input> writer(context.input(), opts);
-
-    // There should be an anchor obtained from the input pointing to the last
-    // newline before or equal to the beginning of the input buffer. The buffer
-    // should make sure to fill with spaces any characters after the anchor and
-    // befor the characters stored in the buffer.
-    //
-    // This does not look to complicated to obtain...
+    lexy_ext::diagnostic_writer<Input> writer(context.input(), opts);
 
     // Convert the context location and error location into line/column information.
-    auto context_location = lexy::get_input_location(context.input(), context.position());
+    auto context_location
+        = lexy::get_input_location(context.input(), context.position(), context.input().anchor());
     auto location
         = lexy::get_input_location(context.input(), error.position(), context_location.anchor());
 
     // Write the main error headline.
-    out = writer.write_message(out, diagnostic_kind::error,
+    out = writer.write_message(out, lexy_ext::diagnostic_kind::error,
                                [&](OutputIt out, lexy::visualization_options) {
                                    out = lexy::_detail::write_str(out, "while parsing ");
                                    out = lexy::_detail::write_str(out, context.production());
@@ -223,7 +225,7 @@ OutputIt write_error2(OutputIt out, const lexy::error_context<Input>& context,
     // Write an annotation for the context.
     if (location.line_nr() != context_location.line_nr())
     {
-        out = writer.write_annotation(out, annotation_kind::secondary, context_location,
+        out = writer.write_annotation(out, lexy_ext::annotation_kind::secondary, context_location,
                                       lexy::_detail::next(context.position()),
                                       [&](OutputIt out, lexy::visualization_options) {
                                           return lexy::_detail::write_str(out, "beginning here");
@@ -237,7 +239,7 @@ OutputIt write_error2(OutputIt out, const lexy::error_context<Input>& context,
         auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(),
                                                                                     error.length());
 
-        out = writer.write_annotation(out, annotation_kind::primary, location, error.index() + 1,
+        out = writer.write_annotation(out, lexy_ext::annotation_kind::primary, location, error.index() + 1,
                                       [&](OutputIt out, lexy::visualization_options opts) {
                                           out = lexy::_detail::write_str(out, "expected '");
                                           out = lexy::visualize_to(out, string, opts);
@@ -250,7 +252,7 @@ OutputIt write_error2(OutputIt out, const lexy::error_context<Input>& context,
         auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(),
                                                                                     error.length());
 
-        out = writer.write_annotation(out, annotation_kind::primary, location, error.end(),
+        out = writer.write_annotation(out, lexy_ext::annotation_kind::primary, location, error.end(),
                                       [&](OutputIt out, lexy::visualization_options opts) {
                                           out = lexy::_detail::write_str(out, "expected keyword '");
                                           out = lexy::visualize_to(out, string, opts);
@@ -260,7 +262,7 @@ OutputIt write_error2(OutputIt out, const lexy::error_context<Input>& context,
     }
     else if constexpr (std::is_same_v<Tag, lexy::expected_char_class>)
     {
-        out = writer.write_annotation(out, annotation_kind::primary, location, 1u,
+        out = writer.write_annotation(out, lexy_ext::annotation_kind::primary, location, 1u,
                                       [&](OutputIt out, lexy::visualization_options) {
                                           out = lexy::_detail::write_str(out, "expected ");
                                           out = lexy::_detail::write_str(out, error.name());
@@ -269,7 +271,7 @@ OutputIt write_error2(OutputIt out, const lexy::error_context<Input>& context,
     }
     else
     {
-        out = writer.write_annotation(out, annotation_kind::primary, location, error.end(),
+        out = writer.write_annotation(out, lexy_ext::annotation_kind::primary, location, error.end(),
                                       [&](OutputIt out, lexy::visualization_options) {
                                           return lexy::_detail::write_str(out, error.message());
                                       });
@@ -277,11 +279,9 @@ OutputIt write_error2(OutputIt out, const lexy::error_context<Input>& context,
 
     return out;
 }
-} // namespace lexy_ext::_detail
-namespace lexy_ext
-{
+
 template <typename OutputIterator = int>
-struct _report_error2
+struct _report_error
 {
     OutputIterator              _iter;
     lexy::visualization_options _opts;
@@ -301,10 +301,9 @@ struct _report_error2
                         const lexy::error<Reader, Tag>&   error)
         {
             if constexpr (std::is_same_v<OutputIterator, int>)
-                _detail::write_error2(lexy::cfile_output_iterator{stderr}, context, error, _opts,
-                                     _path);
+                write_error(lexy::cfile_output_iterator{stderr}, context, error, _opts, _path);
             else
-                _iter = _detail::write_error2(_iter, context, error, _opts, _path);
+                _iter = write_error(_iter, context, error, _opts, _path);
             ++_count;
         }
 
@@ -321,28 +320,29 @@ struct _report_error2
     }
 
     /// Specifies a path that will be printed alongside the diagnostic.
-    constexpr _report_error2 path(const char* path) const
+    constexpr _report_error path(const char* path) const
     {
         return {_iter, _opts, path};
     }
 
     /// Specifies an output iterator where the errors are written to.
     template <typename OI>
-    constexpr _report_error2<OI> to(OI out) const
+    constexpr _report_error<OI> to(OI out) const
     {
         return {out, _opts, _path};
     }
 
     /// Overrides visualization options.
-    constexpr _report_error2 opts(lexy::visualization_options opts) const
+    constexpr _report_error opts(lexy::visualization_options opts) const
     {
         return {_iter, opts, _path};
     }
 };
 
 /// An error callback that uses diagnostic_writer to print to stderr (by default).
-constexpr auto report_error2 = _report_error2<>{};
-} // namespace lexy_ext
+constexpr auto report_error = _report_error<>{};
+
+} // namespace
 
 TEST_CASE("test") {
     std::istringstream in;
@@ -352,7 +352,7 @@ TEST_CASE("test") {
     // an input comes with a reader that maintains a current position
     // my use case requires implementing an input together with a reader
     // having a discard functionality
-    auto scanner = lexy::scan(input, lexy_ext::report_error2);
+    auto scanner = lexy::scan(input, report_error);
     auto c1 = scanner.parse<grammar::color>();
     REQUIRE(scanner);
     REQUIRE(c1.has_value());
