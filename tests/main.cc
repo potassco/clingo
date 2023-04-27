@@ -80,6 +80,8 @@ public:
             // Note that this will mess up the column count with multibyte charaters
             // this should be fixable using more clever counting in the discard function
             // by adjusting the last_nl_ offset a bit.
+            //
+            // Maybe a counting strategy could be used here...
             return ' ';
         }
         assert(id == last_nl_);
