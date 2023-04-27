@@ -188,6 +188,162 @@ private:
 
 } // namespace
 
+namespace lexy_ext::_detail
+{
+template <typename OutputIt, typename Input, typename Reader, typename Tag>
+OutputIt write_error2(OutputIt out, const lexy::error_context<Input>& context,
+                     const lexy::error<Reader, Tag>& error, lexy::visualization_options opts,
+                     const char* path)
+{
+    diagnostic_writer<Input> writer(context.input(), opts);
+
+    // There should be an anchor obtained from the input pointing to the last
+    // newline before or equal to the beginning of the input buffer. The buffer
+    // should make sure to fill with spaces any characters after the anchor and
+    // befor the characters stored in the buffer.
+    //
+    // This does not look to complicated to obtain...
+
+    // Convert the context location and error location into line/column information.
+    auto context_location = lexy::get_input_location(context.input(), context.position());
+    auto location
+        = lexy::get_input_location(context.input(), error.position(), context_location.anchor());
+
+    // Write the main error headline.
+    out = writer.write_message(out, diagnostic_kind::error,
+                               [&](OutputIt out, lexy::visualization_options) {
+                                   out = lexy::_detail::write_str(out, "while parsing ");
+                                   out = lexy::_detail::write_str(out, context.production());
+                                   return out;
+                               });
+    if (path != nullptr)
+        out = writer.write_path(out, path);
+    out = writer.write_empty_annotation(out);
+
+    // Write an annotation for the context.
+    if (location.line_nr() != context_location.line_nr())
+    {
+        out = writer.write_annotation(out, annotation_kind::secondary, context_location,
+                                      lexy::_detail::next(context.position()),
+                                      [&](OutputIt out, lexy::visualization_options) {
+                                          return lexy::_detail::write_str(out, "beginning here");
+                                      });
+        out = writer.write_empty_annotation(out);
+    }
+
+    // Write the main annotation.
+    if constexpr (std::is_same_v<Tag, lexy::expected_literal>)
+    {
+        auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(),
+                                                                                    error.length());
+
+        out = writer.write_annotation(out, annotation_kind::primary, location, error.index() + 1,
+                                      [&](OutputIt out, lexy::visualization_options opts) {
+                                          out = lexy::_detail::write_str(out, "expected '");
+                                          out = lexy::visualize_to(out, string, opts);
+                                          out = lexy::_detail::write_str(out, "'");
+                                          return out;
+                                      });
+    }
+    else if constexpr (std::is_same_v<Tag, lexy::expected_keyword>)
+    {
+        auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(),
+                                                                                    error.length());
+
+        out = writer.write_annotation(out, annotation_kind::primary, location, error.end(),
+                                      [&](OutputIt out, lexy::visualization_options opts) {
+                                          out = lexy::_detail::write_str(out, "expected keyword '");
+                                          out = lexy::visualize_to(out, string, opts);
+                                          out = lexy::_detail::write_str(out, "'");
+                                          return out;
+                                      });
+    }
+    else if constexpr (std::is_same_v<Tag, lexy::expected_char_class>)
+    {
+        out = writer.write_annotation(out, annotation_kind::primary, location, 1u,
+                                      [&](OutputIt out, lexy::visualization_options) {
+                                          out = lexy::_detail::write_str(out, "expected ");
+                                          out = lexy::_detail::write_str(out, error.name());
+                                          return out;
+                                      });
+    }
+    else
+    {
+        out = writer.write_annotation(out, annotation_kind::primary, location, error.end(),
+                                      [&](OutputIt out, lexy::visualization_options) {
+                                          return lexy::_detail::write_str(out, error.message());
+                                      });
+    }
+
+    return out;
+}
+} // namespace lexy_ext::_detail
+namespace lexy_ext
+{
+template <typename OutputIterator = int>
+struct _report_error2
+{
+    OutputIterator              _iter;
+    lexy::visualization_options _opts;
+    const char*                 _path;
+
+    struct _sink
+    {
+        OutputIterator              _iter;
+        lexy::visualization_options _opts;
+        const char*                 _path;
+        std::size_t                 _count;
+
+        using return_type = std::size_t;
+
+        template <typename Input, typename Reader, typename Tag>
+        void operator()(const lexy::error_context<Input>& context,
+                        const lexy::error<Reader, Tag>&   error)
+        {
+            if constexpr (std::is_same_v<OutputIterator, int>)
+                _detail::write_error2(lexy::cfile_output_iterator{stderr}, context, error, _opts,
+                                     _path);
+            else
+                _iter = _detail::write_error2(_iter, context, error, _opts, _path);
+            ++_count;
+        }
+
+        std::size_t finish() &&
+        {
+            if (_count != 0)
+                std::fputs("\n", stderr);
+            return _count;
+        }
+    };
+    constexpr auto sink() const
+    {
+        return _sink{_iter, _opts, _path, 0};
+    }
+
+    /// Specifies a path that will be printed alongside the diagnostic.
+    constexpr _report_error2 path(const char* path) const
+    {
+        return {_iter, _opts, path};
+    }
+
+    /// Specifies an output iterator where the errors are written to.
+    template <typename OI>
+    constexpr _report_error2<OI> to(OI out) const
+    {
+        return {out, _opts, _path};
+    }
+
+    /// Overrides visualization options.
+    constexpr _report_error2 opts(lexy::visualization_options opts) const
+    {
+        return {_iter, opts, _path};
+    }
+};
+
+/// An error callback that uses diagnostic_writer to print to stderr (by default).
+constexpr auto report_error2 = _report_error2<>{};
+} // namespace lexy_ext
+
 TEST_CASE("test") {
     std::istringstream in;
     in.str("#FF00FF\n#AA00EE\n#AA00XE");
@@ -196,7 +352,7 @@ TEST_CASE("test") {
     // an input comes with a reader that maintains a current position
     // my use case requires implementing an input together with a reader
     // having a discard functionality
-    auto scanner = lexy::scan(input, lexy_ext::report_error);
+    auto scanner = lexy::scan(input, lexy_ext::report_error2);
     auto c1 = scanner.parse<grammar::color>();
     REQUIRE(scanner);
     REQUIRE(c1.has_value());
