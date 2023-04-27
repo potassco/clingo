@@ -3,6 +3,12 @@
 #include <iostream>
 #include <istream>
 #include <iterator>
+#include <lexy/dsl/ascii.hpp>
+#include <lexy/dsl/eof.hpp>
+#include <lexy/dsl/literal.hpp>
+#include <lexy/dsl/newline.hpp>
+#include <memory>
+#include <ostream>
 #include <sstream>
 #include <stdexcept>
 
@@ -10,37 +16,13 @@
 
 #include <lexy/dsl.hpp>
 #include <lexy/action/scan.hpp>
+#include <lexy/input/string_input.hpp>
 #include <lexy_ext/report_error.hpp>
+#include <lexy/callback.hpp>
+#include <string>
 
 
 namespace {
-
-struct Color {
-    friend bool operator==(Color const &a, Color const &b) {
-        return a.r == b.r && a.g == b.g && a.b == b.b;
-    }
-    friend std::ostream &operator<<(std::ostream &out, Color const &c) {
-        out << "RGB(" << static_cast<int>(c.r) << "," << static_cast<int>(c.g) << "," << static_cast<int>(c.b) << ")";
-        return out;
-    }
-    std::uint8_t r, g, b;
-};
-
-namespace grammar {
-
-namespace dsl = lexy::dsl;
-
-struct channel {
-    static constexpr auto rule = dsl::integer<std::uint8_t>(dsl::n_digits<2, dsl::hex>);
-    static constexpr auto value = lexy::forward<std::uint8_t>;
-};
-
-struct color {
-    static constexpr auto rule = dsl::hash_sign + dsl::times<3>(dsl::p<channel>);
-    static constexpr auto value = lexy::construct<Color>;
-};
-
-} // namespace grammar
 
 template <typename Encoding>
 using default_location_counting = std::conditional_t<
@@ -390,7 +372,211 @@ struct _report_error
 /// An error callback that uses diagnostic_writer to print to stderr (by default).
 constexpr auto report_error = _report_error<>{};
 
+struct Color {
+    friend bool operator==(Color const &a, Color const &b) {
+        return a.r == b.r && a.g == b.g && a.b == b.b;
+    }
+    friend std::ostream &operator<<(std::ostream &out, Color const &c) {
+        out << "RGB(" << static_cast<int>(c.r) << "," << static_cast<int>(c.g) << "," << static_cast<int>(c.b) << ")";
+        return out;
+    }
+    std::uint8_t r, g, b;
+};
+
+struct Term {
+    virtual ~Term() = default;
+    virtual void print(std::ostream &out) const = 0;
+    std::string to_string() {
+        std::ostringstream out;
+        out << *this;
+        return out.str();
+    }
+    friend std::ostream &operator<<(std::ostream &out, Term const &term) {
+        term.print(out);
+        return out;
+    }
+};
+
+using UTerm = std::unique_ptr<Term>;
+
+struct TermInteger : Term {
+    explicit TermInteger(int v)
+    : value(v) { }
+
+    void print(std::ostream &out) const override {
+        out << value;
+    }
+
+    int value;
+};
+
+enum class UnaryOperator {
+    negate,
+};
+
+std::ostream &operator<<(std::ostream &out, UnaryOperator op) {
+    assert(op == UnaryOperator::negate);
+    out << "-";
+    return out;
+}
+
+struct TermUnary : Term {
+    explicit TermUnary(UnaryOperator op, UTerm e)
+    : op(op)
+    , rhs(std::move(e)) { }
+
+    void print(std::ostream &out) const override {
+        out << "(" << op << *rhs << ")";
+    }
+
+    UnaryOperator op;
+    UTerm rhs;
+};
+
+enum BinaryOperator {
+    plus,
+    minus,
+    times,
+    div,
+    pow,
+};
+
+std::ostream &operator<<(std::ostream &out, BinaryOperator op) {
+    switch(op) {
+        case plus: {
+            out << "+";
+            break;
+        }
+        case minus: {
+            out << "-";
+            break;
+        }
+        case times: {
+            out << "*";
+            break;
+        }
+        case div: {
+            out << "/";
+            break;
+        }
+        case pow: {
+            out << "**";
+            break;
+        }
+    }
+    return out;
+}
+
+struct TermBinary : Term {
+    explicit TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs)
+    : op(op), lhs(std::move(lhs)), rhs(std::move(rhs))
+    {}
+
+    void print(std::ostream &out) const override {
+        out << "(" << *lhs << op << *rhs << ")";
+    }
+
+    BinaryOperator op;
+    UTerm lhs;
+    UTerm rhs;
+};
+
+namespace grammar {
+
+namespace dsl = lexy::dsl;
+
+struct channel {
+    static constexpr auto rule = dsl::integer<std::uint8_t>(dsl::n_digits<2, dsl::hex>);
+    static constexpr auto value = lexy::forward<std::uint8_t>;
+};
+
+struct color {
+    static constexpr auto rule = dsl::hash_sign + dsl::times<3>(dsl::p<channel>);
+    static constexpr auto value = lexy::construct<Color>;
+};
+
+constexpr auto escaped_newline = dsl::backslash >> dsl::newline;
+
+struct integer : lexy::token_production {
+    static constexpr auto rule = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> | dsl::integer<int>;
+    static constexpr auto value = lexy::forward<int>;
+};
+struct nested_expr : lexy::transparent_production {
+    static constexpr auto whitespace = dsl::ascii::space | dsl::newline;
+    static constexpr auto rule = dsl::recurse<struct expr>;
+    static constexpr auto value = lexy::forward<UTerm>;
+};
+
+struct expr : lexy::expression_production {
+    struct expected_operand {
+        static constexpr auto name = "expected operand";
+    };
+
+    // We need to specify the atomic part of an expression.
+    static constexpr auto atom = [] {
+        auto paren_expr = dsl::parenthesized(dsl::p<nested_expr>);
+        auto literal    = dsl::p<integer>;
+        return paren_expr | literal | dsl::error<expected_operand>;
+    }();
+
+    struct math_power : dsl::infix_op_right {
+        static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
+        using operand = dsl::atom;
+    };
+
+    struct math_prefix : dsl::prefix_op {
+        static constexpr auto op = dsl::op<UnaryOperator::negate>(LEXY_LIT("-"));
+        using operand = math_power;
+    };
+
+    struct math_product : dsl::infix_op_left {
+        static constexpr auto op = [] {
+            auto star = dsl::not_followed_by(LEXY_LIT("*"), dsl::lit_c<'*'>);
+            return dsl::op<BinaryOperator::times>(star) /
+                   dsl::op<BinaryOperator::div>(LEXY_LIT("/"));
+        }();
+        using operand = math_prefix;
+    };
+
+    struct math_sum : dsl::infix_op_left {
+        static constexpr auto op = dsl::op<BinaryOperator::plus>(LEXY_LIT("+")) /
+                                   dsl::op<BinaryOperator::minus>(LEXY_LIT("-"));
+        using operand = math_product;
+    };
+
+    using operation = math_sum;
+    static constexpr auto value =
+        lexy::callback(
+            lexy::forward<UTerm>,
+            lexy::new_<TermInteger, UTerm>,
+            lexy::new_<TermUnary, UTerm>,
+            lexy::new_<TermBinary, UTerm>);
+};
+} // namespace grammar
+
 } // namespace
+
+TEST_CASE("term-test") {
+    /*
+    std::istringstream in;
+    in.str("42  *-\n2-32**3;\n43a;43");
+    StreamBuffer buf{in};
+    auto input = StreamInput{buf};
+    */
+    auto input = lexy::zstring_input("42  *-\n2-32**3;\n43a");
+    auto scanner = lexy::scan(input, lexy_ext::report_error);
+    auto c1 = scanner.parse<grammar::nested_expr>();
+    REQUIRE(c1.has_value());
+    REQUIRE(c1.value()->to_string() == "((42*(-2))-(32**3))");
+    scanner.parse(LEXY_LIT(";"));
+    //scanner.remaining_input().reader().discard_before();
+    auto c2 = scanner.parse<grammar::nested_expr>();
+    REQUIRE(c2.has_value());
+    REQUIRE(c2.value()->to_string() == "43");
+    lexy::scan_result<void> result;
+    // does not work but should??
+    // scanner.parse(lexy::dsl::eof);
+}
 
 TEST_CASE("test") {
     std::istringstream in;
