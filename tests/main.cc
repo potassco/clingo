@@ -41,6 +41,14 @@ struct TermInteger : Term {
     int value;
 };
 
+struct TermVariable : Term {
+    explicit TermVariable(std::string name) : name(std::move(name)) {}
+
+    void print(std::ostream &out) const override { out << name; }
+
+    std::string name;
+};
+
 enum class UnaryOperator {
     negate,
 };
@@ -120,17 +128,47 @@ struct nested_expr : lexy::transparent_production {
     static constexpr auto value = lexy::forward<UTerm>;
 };
 
+struct atom_expr : lexy::scan_production<UTerm> {
+    struct expected_operand {
+        static constexpr auto name = "expected operand";
+    };
+
+    template <typename Reader, typename Context>
+    static constexpr auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        // parse a term in parenthesis
+        scan_result res;
+        if (scanner.branch(res, dsl::parenthesized(dsl::p<nested_expr>))) {
+            return res;
+        }
+        // parse a number
+        lexy::scan_result<int> num_res;
+        if (scanner.branch(num_res, dsl::p<integer>)) {
+            res = std::make_unique<TermInteger>(num_res.value());
+            return res;
+        }
+        // parse a variable
+        auto begin = scanner.position();
+
+        while (scanner.branch(LEXY_LIT("_") / LEXY_LIT("'"))) { }
+
+        // Note: error reporting with scanners just does not work
+        if (!scanner.peek(dsl::ascii::upper)) {
+            scanner.fatal_error("expected upper case character", scanner.position());
+            return lexy::scan_failed;
+        }
+
+        while (scanner.branch(dsl::ascii::alpha_underscore / LEXY_LIT("'"))) { }
+
+        return std::make_unique<TermVariable>(std::string{begin, scanner.position()});
+    }
+};
+
 struct expr : lexy::expression_production {
     struct expected_operand {
         static constexpr auto name = "expected operand";
     };
 
-    // We need to specify the atomic part of an expression.
-    static constexpr auto atom = [] {
-        auto paren_expr = dsl::parenthesized(dsl::p<nested_expr>);
-        auto literal = dsl::p<integer>;
-        return paren_expr | literal | dsl::error<expected_operand>;
-    }();
+    static constexpr auto atom = dsl::p<atom_expr>;
 
     struct math_power : dsl::infix_op_right {
         static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
@@ -157,7 +195,7 @@ struct expr : lexy::expression_production {
     };
 
     using operation = math_sum;
-    static constexpr auto value = lexy::callback(lexy::forward<UTerm>, lexy::new_<TermInteger, UTerm>,
+    static constexpr auto value = lexy::callback(lexy::forward<UTerm>, lexy::new_<TermVariable, UTerm>, lexy::new_<TermInteger, UTerm>,
                                                  lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
 };
 
@@ -172,11 +210,12 @@ struct statement {
 
 TEST_CASE("term-test-working") {
     std::istringstream in;
-    in.str("42  *-\n2-32**3;\n43a;");
+    in.str("42  *-\n2-32**3+'_Xa_'+_a;\n43a;");
     StreamBuffer buf{in};
     auto input = StreamInput{buf};
     auto stm = lexy::parse<grammar::statement>(input, report_error);
     REQUIRE(stm.has_value());
+    REQUIRE(stm.value().first->to_string() == "(((42*(-2))-(32**3))+'_Xa_')");
     input.discard_before(stm.value().second);
     stm = lexy::parse<grammar::statement>(input, report_error);
     REQUIRE(!stm.has_value());
