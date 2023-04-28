@@ -1,3 +1,5 @@
+SHELL := /bin/zsh
+
 all: configure
 	cmake --build build --target $@ --parallel
 
@@ -22,7 +24,6 @@ reconfigure-iwyn:
 		-DCMAKE_CXX_INCLUDE_WHAT_YOU_USE="include-what-you-use;-w;-Xiwyu" \
 		-DCMAKE_CXX_FLAGS="-stdlib=libc++"
 
-SHELL := /bin/zsh
 format:
 	clang-tidy --verify-config
 	clang-tidy -fix {lib,tests}/**/*{.cc,.hh}(N)
