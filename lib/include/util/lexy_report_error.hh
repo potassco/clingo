@@ -3,45 +3,38 @@
 #include <lexy_ext/report_error.hpp>
 
 template <typename OutputIt, typename Input, typename Reader, typename Tag>
-OutputIt write_error(OutputIt out, const lexy::error_context<Input>& context,
-                     const lexy::error<Reader, Tag>& error, lexy::visualization_options opts,
-                     const char* path)
-{
+auto write_error(OutputIt out, const lexy::error_context<Input> &context, const lexy::error<Reader, Tag> &error,
+                 lexy::visualization_options opts, const char *path) -> OutputIt {
     lexy_ext::diagnostic_writer<Input> writer(context.input(), opts);
 
-    // Convert the context location and error location into line/column information.
-    auto context_location
-        = lexy::get_input_location<typename Input::counting>(context.input(), context.position(), context.input().anchor());
-    auto location
-        = lexy::get_input_location<typename Input::counting>(context.input(), error.position(), context_location.anchor());
+    // Convert the context location and error location into line/column
+    // information.
+    auto context_location = lexy::get_input_location<typename Input::counting>(context.input(), context.position(),
+                                                                               context.input().anchor());
+    auto location = lexy::get_input_location<typename Input::counting>(context.input(), error.position(),
+                                                                       context_location.anchor());
 
     // Write the main error headline.
-    out = writer.write_message(out, lexy_ext::diagnostic_kind::error,
-                               [&](OutputIt out, lexy::visualization_options) {
-                                   out = lexy::_detail::write_str(out, "while parsing ");
-                                   out = lexy::_detail::write_str(out, context.production());
-                                   return out;
-                               });
+    out = writer.write_message(out, lexy_ext::diagnostic_kind::error, [&](OutputIt out, lexy::visualization_options) {
+        out = lexy::_detail::write_str(out, "while parsing ");
+        out = lexy::_detail::write_str(out, context.production());
+        return out;
+    });
     if (path != nullptr)
         out = writer.write_path(out, path);
     out = writer.write_empty_annotation(out);
 
     // Write an annotation for the context.
-    if (location.line_nr() != context_location.line_nr())
-    {
-        out = writer.write_annotation(out, lexy_ext::annotation_kind::secondary, context_location,
-                                      lexy::_detail::next(context.position()),
-                                      [&](OutputIt out, lexy::visualization_options) {
-                                          return lexy::_detail::write_str(out, "beginning here");
-                                      });
+    if (location.line_nr() != context_location.line_nr()) {
+        out = writer.write_annotation(
+            out, lexy_ext::annotation_kind::secondary, context_location, lexy::_detail::next(context.position()),
+            [&](OutputIt out, lexy::visualization_options) { return lexy::_detail::write_str(out, "beginning here"); });
         out = writer.write_empty_annotation(out);
     }
 
     // Write the main annotation.
-    if constexpr (std::is_same_v<Tag, lexy::expected_literal>)
-    {
-        auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(),
-                                                                                    error.length());
+    if constexpr (std::is_same_v<Tag, lexy::expected_literal>) {
+        auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(), error.length());
 
         out = writer.write_annotation(out, lexy_ext::annotation_kind::primary, location, error.index() + 1,
                                       [&](OutputIt out, lexy::visualization_options opts) {
@@ -50,11 +43,8 @@ OutputIt write_error(OutputIt out, const lexy::error_context<Input>& context,
                                           out = lexy::_detail::write_str(out, "'");
                                           return out;
                                       });
-    }
-    else if constexpr (std::is_same_v<Tag, lexy::expected_keyword>)
-    {
-        auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(),
-                                                                                    error.length());
+    } else if constexpr (std::is_same_v<Tag, lexy::expected_keyword>) {
+        auto string = lexy::_detail::make_literal_lexeme<typename Reader::encoding>(error.string(), error.length());
 
         out = writer.write_annotation(out, lexy_ext::annotation_kind::primary, location, error.end(),
                                       [&](OutputIt out, lexy::visualization_options opts) {
@@ -63,47 +53,37 @@ OutputIt write_error(OutputIt out, const lexy::error_context<Input>& context,
                                           out = lexy::_detail::write_str(out, "'");
                                           return out;
                                       });
-    }
-    else if constexpr (std::is_same_v<Tag, lexy::expected_char_class>)
-    {
-        out = writer.write_annotation(out, lexy_ext::annotation_kind::primary, location, 1u,
+    } else if constexpr (std::is_same_v<Tag, lexy::expected_char_class>) {
+        out = writer.write_annotation(out, lexy_ext::annotation_kind::primary, location, 1U,
                                       [&](OutputIt out, lexy::visualization_options) {
                                           out = lexy::_detail::write_str(out, "expected ");
                                           out = lexy::_detail::write_str(out, error.name());
                                           return out;
                                       });
-    }
-    else
-    {
-        out = writer.write_annotation(out, lexy_ext::annotation_kind::primary, location, error.end(),
-                                      [&](OutputIt out, lexy::visualization_options) {
-                                          return lexy::_detail::write_str(out, error.message());
-                                      });
+    } else {
+        out = writer.write_annotation(
+            out, lexy_ext::annotation_kind::primary, location, error.end(),
+            [&](OutputIt out, lexy::visualization_options) { return lexy::_detail::write_str(out, error.message()); });
     }
 
     return out;
 }
 
-template <typename OutputIterator = int>
-struct _report_error
-{
-    OutputIterator              _iter;
+template <typename OutputIterator = int> struct _report_error {
+    OutputIterator _iter;
     lexy::visualization_options _opts;
-    const char*                 _path;
+    const char *_path;
 
-    struct _sink
-    {
-        OutputIterator              _iter;
+    struct _sink {
+        OutputIterator _iter;
         lexy::visualization_options _opts;
-        const char*                 _path;
-        std::size_t                 _count;
+        const char *_path;
+        std::size_t _count;
 
         using return_type = std::size_t;
 
         template <typename Input, typename Reader, typename Tag>
-        void operator()(const lexy::error_context<Input>& context,
-                        const lexy::error<Reader, Tag>&   error)
-        {
+        void operator()(const lexy::error_context<Input> &context, const lexy::error<Reader, Tag> &error) {
             if constexpr (std::is_same_v<OutputIterator, int>)
                 write_error(lexy::cfile_output_iterator{stderr}, context, error, _opts, _path);
             else
@@ -111,37 +91,26 @@ struct _report_error
             ++_count;
         }
 
-        std::size_t finish() &&
-        {
+        auto finish() && -> std::size_t {
             if (_count != 0)
                 std::fputs("\n", stderr);
             return _count;
         }
     };
-    constexpr auto sink() const
-    {
-        return _sink{_iter, _opts, _path, 0};
-    }
+    [[nodiscard]] constexpr auto sink() const { return _sink{_iter, _opts, _path, 0}; }
 
     /// Specifies a path that will be printed alongside the diagnostic.
-    constexpr _report_error path(const char* path) const
-    {
-        return {_iter, _opts, path};
-    }
+    constexpr auto path(const char *path) const -> _report_error { return {_iter, _opts, path}; }
 
     /// Specifies an output iterator where the errors are written to.
-    template <typename OI>
-    constexpr _report_error<OI> to(OI out) const
-    {
-        return {out, _opts, _path};
-    }
+    template <typename OI> constexpr auto to(OI out) const -> _report_error<OI> { return {out, _opts, _path}; }
 
     /// Overrides visualization options.
-    constexpr _report_error opts(lexy::visualization_options opts) const
-    {
+    [[nodiscard]] constexpr auto opts(lexy::visualization_options opts) const -> _report_error {
         return {_iter, opts, _path};
     }
 };
 
-/// An error callback that uses diagnostic_writer to print to stderr (by default).
+/// An error callback that uses diagnostic_writer to print to stderr (by
+/// default).
 constexpr auto report_error = _report_error<>{};

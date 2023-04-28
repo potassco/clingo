@@ -13,7 +13,20 @@ build/CMakeCache.txt:
 configure: build/CMakeCache.txt
 
 reconfigure:
-	cmake -S. -Bbuild -DCMAKE_EXPORT_COMPILE_COMMANDS=On
+	cmake -S. -Bbuild -DCMAKE_EXPORT_COMPILE_COMMANDS=On \
+		-DCMAKE_CXX_INCLUDE_WHAT_YOU_USE="include-what-you-use;-w;-Xiwyu" \
+		-DCMAKE_CXX_FLAGS="-stdlib=libc++"
+
+reconfigure-iwyn:
+	cmake -S. -Bbuild -DCMAKE_EXPORT_COMPILE_COMMANDS=On \
+		-DCMAKE_CXX_INCLUDE_WHAT_YOU_USE="include-what-you-use;-w;-Xiwyu" \
+		-DCMAKE_CXX_FLAGS="-stdlib=libc++"
+
+SHELL := /bin/zsh
+format:
+	clang-tidy --verify-config
+	clang-tidy -fix {lib,tests}/**/*{.cc,.hh}(N)
+	clang-format -i {lib,tests}/**/*{.cc,.hh}(N)
 
 Makefile:
 	@:
@@ -21,5 +34,5 @@ Makefile:
 %: configure
 	cmake --build build --target $@ --parallel
 
-.PHONY: all test compdb configure reconfigure
+.PHONY: all test compdb configure reconfigure format
 

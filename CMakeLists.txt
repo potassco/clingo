@@ -11,7 +11,6 @@ set(CATCH_BUILD_STATIC_LIBRARY ON CACHE INTERNAL "" FORCE)
 
 enable_testing()
 
-add_subdirectory(third_party/PEGTL)
 add_subdirectory(third_party/Catch2)
 add_subdirectory(third_party/lexy)
 add_subdirectory(lib)
