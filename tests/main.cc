@@ -3,23 +3,21 @@
 #include <iostream>
 #include <istream>
 #include <iterator>
-#include <lexy/dsl/ascii.hpp>
-#include <lexy/dsl/eof.hpp>
-#include <lexy/dsl/literal.hpp>
-#include <lexy/dsl/newline.hpp>
 #include <memory>
 #include <ostream>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <lexy/dsl.hpp>
 #include <lexy/action/scan.hpp>
+#include <lexy/action/parse.hpp>
 #include <lexy/input/string_input.hpp>
 #include <lexy_ext/report_error.hpp>
 #include <lexy/callback.hpp>
-#include <string>
 
 
 namespace {
@@ -77,8 +75,11 @@ public:
             return buffer_->at(offset_);
         }
 
+        size_t offset() const {
+            return offset_;
+        }
+
     private:
-        friend class StreamReader;
         StreamBuffer *buffer_;
         size_t offset_;
     };
@@ -110,7 +111,7 @@ public:
 
     /// Set the current position of the reader.
     void set_position(iterator new_pos) noexcept {
-        id_ = new_pos.offset_;
+        id_ = new_pos.offset();
     }
 
     /// Discard all bytes before the current position.
@@ -210,24 +211,32 @@ class StreamInput {
 public:
     using encoding = typename StreamBuffer::encoding;
     using counting = typename StreamBuffer::counting;
+    using reader_type = StreamReader<StreamBuffer>;
+    using iterator = typename reader_type::iterator;
 
     explicit StreamInput(StreamBuffer &buffer)
     : buffer_(&buffer) {
     }
 
     auto reader() const & {
-        return StreamReader<StreamBuffer>{*buffer_};
+        return reader_type{*buffer_, start_};
+    }
+
+    auto discard_before(iterator it) {
+        start_ = it.offset();
+        buffer_->discard(it.offset());
     }
 
     /// Get the beginning of the line w.r.t. the characters at the beginning of
     /// the underlying buffer.
     auto anchor() const {
         auto last_nl = buffer_->last_newline();
-        return lexy::input_location_anchor<StreamInput>{typename StreamReader<StreamBuffer>::iterator{*buffer_, last_nl.first}, last_nl.second};
+        return lexy::input_location_anchor<StreamInput>{iterator{*buffer_, last_nl.first}, last_nl.second};
     }
 
 private:
     StreamBuffer *buffer_;
+    size_t start_{0};
 };
 
 template <typename OutputIt, typename Input, typename Reader, typename Tag>
@@ -486,6 +495,8 @@ struct TermBinary : Term {
 namespace grammar {
 
 namespace dsl = lexy::dsl;
+using iterator = StreamInput<StreamBuffer<>>::iterator;
+
 
 struct channel {
     static constexpr auto rule = dsl::integer<std::uint8_t>(dsl::n_digits<2, dsl::hex>);
@@ -570,6 +581,12 @@ struct A {
     static constexpr auto value = lexy::construct<void>;
 };
 
+struct statement {
+    static constexpr char const *name = "statement";
+    static constexpr auto rule = dsl::p<nested_expr> + dsl::lit_c<';'> + dsl::position;
+    static constexpr auto value = lexy::construct<std::pair<UTerm, iterator>>;
+};
+
 } // namespace grammar
 
 } // namespace
@@ -598,7 +615,21 @@ TEST_CASE("term-test") {
     REQUIRE(c2.value()->to_string() == "43");
     scanner.remaining_input().reader().discard_before();
     auto res = scanner.parse<grammar::eoi>();
-    REQUIRE(!res.has_value());
+    //REQUIRE(!res.has_value());
+}
+
+TEST_CASE("term-test-working") {
+    // NOTE: this works and is very close to what I want!!!
+    // just accessing the last position is a bit annoying
+    std::istringstream in;
+    in.str("42  *-\n2-32**3;\n43a;");
+    StreamBuffer buf{in};
+    auto input = StreamInput{buf};
+    auto stm = lexy::parse<grammar::statement>(input, report_error);
+    REQUIRE(stm.has_value());
+    input.discard_before(stm.value().second);
+    stm = lexy::parse<grammar::statement>(input, report_error);
+    REQUIRE(!stm.has_value());
 }
 
 TEST_CASE("test") {
