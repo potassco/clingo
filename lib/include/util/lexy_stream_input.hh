@@ -48,6 +48,8 @@ template <typename StreamBuffer> class StreamReader {
 
         [[nodiscard]] auto offset() const -> size_t { return offset_; }
 
+        [[nodiscard]] auto buffer() const { return buffer_; }
+
       private:
         StreamBuffer *buffer_;
         size_t offset_;

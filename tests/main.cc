@@ -134,7 +134,7 @@ struct atom_expr : lexy::scan_production<UTerm> {
     };
 
     template <typename Reader, typename Context>
-    static constexpr auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> lexy::scan_result<UTerm> {
         // parse a term in parenthesis
         scan_result res;
         if (scanner.branch(res, dsl::parenthesized(dsl::p<nested_expr>))) {
@@ -149,15 +149,16 @@ struct atom_expr : lexy::scan_production<UTerm> {
         // parse a variable
         auto begin = scanner.position();
 
-        while (scanner.branch(LEXY_LIT("_") / LEXY_LIT("'"))) { }
+        while (scanner.branch(LEXY_LIT("_") / LEXY_LIT("'"))) {
+        }
 
-        // Note: error reporting with scanners just does not work
         if (!scanner.peek(dsl::ascii::upper)) {
-            scanner.fatal_error("expected upper case character", scanner.position());
+            scanner.fatal_error("expected ASCII.upper", scanner.position());
             return lexy::scan_failed;
         }
 
-        while (scanner.branch(dsl::ascii::alpha_underscore / LEXY_LIT("'"))) { }
+        while (scanner.branch(dsl::ascii::alpha_underscore / LEXY_LIT("'"))) {
+        }
 
         return std::make_unique<TermVariable>(std::string{begin, scanner.position()});
     }
@@ -195,8 +196,9 @@ struct expr : lexy::expression_production {
     };
 
     using operation = math_sum;
-    static constexpr auto value = lexy::callback(lexy::forward<UTerm>, lexy::new_<TermVariable, UTerm>, lexy::new_<TermInteger, UTerm>,
-                                                 lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
+    static constexpr auto value =
+        lexy::callback(lexy::forward<UTerm>, lexy::new_<TermVariable, UTerm>, lexy::new_<TermInteger, UTerm>,
+                       lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
 };
 
 struct statement {
@@ -210,7 +212,7 @@ struct statement {
 
 TEST_CASE("term-test-working") {
     std::istringstream in;
-    in.str("42  *-\n2-32**3+'_Xa_'+_a;\n43a;");
+    in.str("42  *-\n2-32**3+'_Xa_';\n43+'_a;");
     StreamBuffer buf{in};
     auto input = StreamInput{buf};
     auto stm = lexy::parse<grammar::statement>(input, report_error);

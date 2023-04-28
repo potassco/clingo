@@ -9,8 +9,13 @@ auto write_error(OutputIt out, const lexy::error_context<Input> &context, const 
 
     // Convert the context location and error location into line/column
     // information.
-    auto context_location = lexy::get_input_location<typename Input::counting>(context.input(), context.position(),
-                                                                               context.input().anchor());
+    auto context_anchor = context.input().anchor();
+    auto context_position = context.position();
+    if (context_position == decltype(context_position){}) {
+        context_position = context_anchor._line_begin;
+    }
+    auto context_location =
+        lexy::get_input_location<typename Input::counting>(context.input(), context_position, context_anchor);
     auto location = lexy::get_input_location<typename Input::counting>(context.input(), error.position(),
                                                                        context_location.anchor());
 
@@ -27,7 +32,7 @@ auto write_error(OutputIt out, const lexy::error_context<Input> &context, const 
     // Write an annotation for the context.
     if (location.line_nr() != context_location.line_nr()) {
         out = writer.write_annotation(
-            out, lexy_ext::annotation_kind::secondary, context_location, lexy::_detail::next(context.position()),
+            out, lexy_ext::annotation_kind::secondary, context_location, lexy::_detail::next(context_position),
             [&](OutputIt out, lexy::visualization_options) { return lexy::_detail::write_str(out, "beginning here"); });
         out = writer.write_empty_annotation(out);
     }
