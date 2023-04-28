@@ -51,20 +51,3 @@ namespace hello
    };
 
 }  // namespace hello
-
-int main( int argc, char* argv[] )
-{
-   if( argc != 2 ) return 1;
-
-   // Start a parsing run of argv[1] with the string
-   // variable 'name' as additional argument to the
-   // action; then print what the action put there.
-
-   std::string name;
-
-   pegtl::argv_input in( argv, 1 );
-   pegtl::parse< hello::grammar, hello::action >( in, name );
-
-   std::cout << "Good bye, " << name << "!" << std::endl;
-   return 0;
-}
