@@ -49,6 +49,14 @@ struct TermVariable : Term {
     std::string name;
 };
 
+struct TermFunction : Term {
+    explicit TermFunction(std::string name) : name(std::move(name)) {}
+
+    void print(std::ostream &out) const override { out << name; }
+
+    std::string name;
+};
+
 enum class UnaryOperator {
     negate,
 };
@@ -152,15 +160,26 @@ struct atom_expr : lexy::scan_production<UTerm> {
         while (scanner.branch(LEXY_LIT("_") / LEXY_LIT("'"))) {
         }
 
-        if (!scanner.peek(dsl::ascii::upper)) {
-            scanner.fatal_error("expected ASCII.upper", scanner.position());
+        bool var = false;
+        if (scanner.peek(dsl::ascii::upper)) {
+            var = true;
+        }
+        else if (scanner.peek(dsl::ascii::lower)) {
+            var = false;
+        }
+        else {
+            scanner.fatal_error("expected ASCII.alpha", scanner.position());
             return lexy::scan_failed;
         }
 
         while (scanner.branch(dsl::ascii::alpha_underscore / LEXY_LIT("'"))) {
         }
 
-        return std::make_unique<TermVariable>(std::string{begin, scanner.position()});
+        if (var) {
+            return std::make_unique<TermVariable>(std::string{begin, scanner.position()});
+        }
+        // TODO: parse the arguments of the function
+        return std::make_unique<TermFunction>(std::string{begin, scanner.position()});
     }
 };
 
@@ -212,7 +231,7 @@ struct statement {
 
 TEST_CASE("term-test-working") {
     std::istringstream in;
-    in.str("42  *-\n2-32**3+'_Xa_';\n43+'_a;");
+    in.str("42  *-\n2-32**3+'_Xa_';\n43+'_$;");
     StreamBuffer buf{in};
     auto input = StreamInput{buf};
     auto stm = lexy::parse<grammar::statement>(input, report_error);
