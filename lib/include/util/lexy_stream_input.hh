@@ -62,9 +62,7 @@ class StreamInput {
         }
 
         /// Offsets before this value have been discarded.
-        auto offset() const {
-            return start_;
-        }
+        auto offset() const { return start_; }
 
       private:
         std::istream &in_;
@@ -178,9 +176,7 @@ class StreamInput {
 
     /// Get the beginning of the line w.r.t. the characters at the beginning of
     /// the underlying buffer.
-    auto anchor() const {
-        return lexy::input_location_anchor<StreamInput>{iterator{buffer_, last_nl_}, nl_};
-    }
+    auto anchor() const { return lexy::input_location_anchor<StreamInput>{iterator{buffer_, last_nl_}, nl_}; }
 
   private:
     mutable StreamBuffer buffer_;

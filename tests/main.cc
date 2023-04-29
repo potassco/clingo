@@ -1,5 +1,10 @@
 #include <cassert>
 #include <iostream>
+#include <lexy/callback/object.hpp>
+#include <lexy/dsl/capture.hpp>
+#include <lexy/dsl/literal.hpp>
+#include <lexy/dsl/loop.hpp>
+#include <lexy/dsl/token.hpp>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -33,12 +38,47 @@ struct Term {
 
 using UTerm = std::unique_ptr<Term>;
 
+enum class Constant {
+    supremum,
+    infimum,
+};
+
+auto operator<<(std::ostream &out, Constant op) -> std::ostream & {
+    switch (op) {
+        case Constant::supremum: {
+            out << "#sup";
+            break;
+        }
+        case Constant::infimum: {
+            out << "#inf";
+            break;
+        }
+    }
+    return out;
+}
+
+struct TermConstant : Term {
+    explicit TermConstant(Constant value) : value(value) {}
+
+    void print(std::ostream &out) const override { out << value; }
+
+    Constant value;
+};
+
 struct TermInteger : Term {
     explicit TermInteger(int v) : value(v) {}
 
     void print(std::ostream &out) const override { out << value; }
 
     int value;
+};
+
+struct TermString : Term {
+    explicit TermString(std::string value) : value(std::move(value)) {}
+
+    void print(std::ostream &out) const override { out << value; }
+
+    std::string value;
 };
 
 struct TermVariable : Term {
@@ -59,11 +99,11 @@ struct TermFunction : Term {
 
 enum class UnaryOperator {
     negate,
+    invert,
 };
 
 auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
-    assert(op == UnaryOperator::negate);
-    out << "-";
+    out << (op == UnaryOperator::negate ? "-" : "~");
     return out;
 }
 
@@ -76,33 +116,58 @@ struct TermUnary : Term {
     UTerm rhs;
 };
 
-enum BinaryOperator {
+enum class BinaryOperator {
+    dots,
+    xor_,
+    or_,
+    and_,
     plus,
     minus,
     times,
     div,
+    mod,
     pow,
 };
 
 auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
     switch (op) {
-        case plus: {
+        case BinaryOperator::dots: {
+            out << "^";
+            break;
+        }
+        case BinaryOperator::xor_: {
+            out << "^";
+            break;
+        }
+        case BinaryOperator::or_: {
+            out << "?";
+            break;
+        }
+        case BinaryOperator::and_: {
+            out << "&";
+            break;
+        }
+        case BinaryOperator::plus: {
             out << "+";
             break;
         }
-        case minus: {
+        case BinaryOperator::minus: {
             out << "-";
             break;
         }
-        case times: {
+        case BinaryOperator::times: {
             out << "*";
             break;
         }
-        case div: {
+        case BinaryOperator::div: {
             out << "/";
             break;
         }
-        case pow: {
+        case BinaryOperator::mod: {
+            out << "\\";
+            break;
+        }
+        case BinaryOperator::pow: {
             out << "**";
             break;
         }
@@ -123,15 +188,11 @@ struct TermBinary : Term {
 namespace grammar {
 
 namespace dsl = lexy::dsl;
-using iterator = StreamInput<>::iterator;
-using lexeme = lexy::lexeme_for<StreamInput<>>;
 
-struct integer : lexy::token_production {
-    static constexpr auto rule = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> | dsl::integer<int>;
-    static constexpr auto value = lexy::forward<int>;
-};
-
-// Note: the two productions below could be combined for performance
+using encoding = lexy::utf8_encoding;
+using input = StreamInput<encoding>;
+using iterator = input::iterator;
+using lexeme = lexy::lexeme_for<input>;
 
 struct variable : lexy::token_production {
     static constexpr auto rule = []() {
@@ -139,27 +200,77 @@ struct variable : lexy::token_production {
         auto suffix = dsl::while_(dsl::ascii::alpha_underscore / LEXY_LIT("'"));
         return dsl::capture(dsl::token(prefix + dsl::ascii::upper + suffix));
     }();
-    static constexpr auto value = lexy::callback<UTerm>([](lexeme lex) { return std::make_unique<TermVariable>(std::string(lex.begin(), lex.end())); });
+    static constexpr auto value = lexy::callback<UTerm>(
+        [](lexeme lex) { return std::make_unique<TermVariable>(std::string(lex.begin(), lex.end())); });
 };
 
 struct identifier : lexy::token_production {
     static constexpr auto rule = []() {
-        auto prefix = dsl::while_(LEXY_LIT("_") / LEXY_LIT("'"));
-        auto suffix = dsl::while_(dsl::ascii::alpha_underscore / LEXY_LIT("'"));
-        return dsl::capture(dsl::token(prefix + dsl::ascii::lower + suffix));
+        auto prefix = dsl::while_one(LEXY_LIT("_") / LEXY_LIT("'"));
+        auto head = dsl::ascii::lower;
+        auto tail = dsl::ascii::alpha_underscore / LEXY_LIT("'");
+        auto id = dsl::identifier(head, tail);
+        auto kw_not = LEXY_KEYWORD("not", id);
+
+        return id.reserve(kw_not) | dsl::capture(dsl::token(prefix + id));
     }();
-    static constexpr auto value = lexy::callback<UTerm>([](lexeme lex) { return std::make_unique<TermFunction>(std::string(lex.begin(), lex.end())); });
+    static constexpr auto value = lexy::callback<UTerm>(
+        [](lexeme lex) { return std::make_unique<TermFunction>(std::string(lex.begin(), lex.end())); });
 };
 
-struct upper {
-    static constexpr auto rule = dsl::ascii::upper;
-    static constexpr auto value = lexy::forward<void>;
+struct number : lexy::token_production {
+    static constexpr auto rule = []() {
+        auto digits = dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero();
+        return LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> | LEXY_LIT("0o") >> dsl::integer<int, dsl::octal> |
+               LEXY_LIT("0b") >> dsl::integer<int, dsl::binary> | dsl::integer<int>(digits);
+    }();
+    static constexpr auto value = lexy::forward<int>;
+};
+
+struct string : lexy::token_production {
+    static constexpr auto escaped_symbols = lexy::symbol_table<char> //
+                                                .map<'"'>('"')
+                                                .map<'\\'>('\\')
+                                                .map<'n'>('\n')
+                                                .map<'t'>('\t');
+
+    static constexpr auto rule = [] {
+        auto inner = -dsl::ascii::control;
+        auto escape = dsl::backslash_escape //
+                          .symbol<escaped_symbols>()
+                          .rule(dsl::lit_c<'u'> >> dsl::code_point_id<4>);
+        return dsl::quoted(inner, escape);
+    }();
+
+    static constexpr auto value = lexy::as_string<std::string, lexy::utf8_encoding> >> lexy::new_<TermString, UTerm>;
+};
+
+struct constant : lexy::token_production {
+    static constexpr auto constants = lexy::symbol_table<Constant> //
+                                          .map<LEXY_SYMBOL("infimum")>(Constant::infimum)
+                                          .map<LEXY_SYMBOL("inf")>(Constant::infimum)
+                                          .map<LEXY_SYMBOL("supremum")>(Constant::supremum)
+                                          .map<LEXY_SYMBOL("sup")>(Constant::supremum);
+
+    static constexpr auto rule = [] {
+        auto name = dsl::identifier(dsl::ascii::alpha);
+        auto reference = dsl::symbol<constants>(name);
+        return dsl::lit_c<'#'> >> reference;
+    }();
+
+    static constexpr auto value = lexy::new_<TermConstant, UTerm>;
 };
 
 struct nested_expr : lexy::transparent_production {
     static constexpr auto whitespace = dsl::ascii::space | dsl::newline;
     static constexpr auto rule = dsl::recurse<struct expr>;
     static constexpr auto value = lexy::forward<UTerm>;
+};
+
+/*
+struct upper {
+    static constexpr auto rule = dsl::ascii::upper;
+    static constexpr auto value = lexy::forward<void>;
 };
 
 struct atom_expr : lexy::scan_production<UTerm> {
@@ -176,7 +287,7 @@ struct atom_expr : lexy::scan_production<UTerm> {
         }
         // parse a number
         lexy::scan_result<int> num_res;
-        if (scanner.branch(num_res, dsl::p<integer>)) {
+        if (scanner.branch(num_res, dsl::p<number>)) {
             res = std::make_unique<TermInteger>(num_res.value());
             return res;
         }
@@ -214,14 +325,15 @@ struct atom_expr : lexy::scan_production<UTerm> {
         return std::make_unique<TermFunction>(std::string{begin, scanner.position()});
     }
 };
+*/
 
 struct expr : lexy::expression_production {
     struct expected_term {
         static constexpr auto name = "expected term";
     };
 
-    static constexpr auto atom =
-        dsl::p<integer> | dsl::parenthesized(dsl::p<nested_expr>) | dsl::p<variable> | dsl::p<identifier> | dsl::error<expected_term>;
+    static constexpr auto atom = dsl::p<number> | dsl::parenthesized(dsl::p<nested_expr>) | dsl::p<variable> |
+                                 dsl::p<identifier> | dsl::p<string> | dsl::p<constant> | dsl::error<expected_term>;
 
     struct math_power : dsl::infix_op_right {
         static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
@@ -229,14 +341,16 @@ struct expr : lexy::expression_production {
     };
 
     struct math_prefix : dsl::prefix_op {
-        static constexpr auto op = dsl::op<UnaryOperator::negate>(LEXY_LIT("-"));
+        static constexpr auto op =
+            dsl::op<UnaryOperator::negate>(LEXY_LIT("-")) / dsl::op<UnaryOperator::invert>(LEXY_LIT("~"));
         using operand = math_power;
     };
 
     struct math_product : dsl::infix_op_left {
         static constexpr auto op = [] {
             auto star = dsl::not_followed_by(LEXY_LIT("*"), dsl::lit_c<'*'>);
-            return dsl::op<BinaryOperator::times>(star) / dsl::op<BinaryOperator::div>(LEXY_LIT("/"));
+            return dsl::op<BinaryOperator::times>(star) / dsl::op<BinaryOperator::div>(LEXY_LIT("/")) /
+                   dsl::op<BinaryOperator::mod>(LEXY_LIT("\\"));
         }();
         using operand = math_prefix;
     };
@@ -247,7 +361,27 @@ struct expr : lexy::expression_production {
         using operand = math_product;
     };
 
-    using operation = math_sum;
+    struct math_and : dsl::infix_op_left {
+        static constexpr auto op = dsl::op<BinaryOperator::and_>(LEXY_LIT("&"));
+        using operand = math_sum;
+    };
+
+    struct math_or : dsl::infix_op_left {
+        static constexpr auto op = dsl::op<BinaryOperator::and_>(LEXY_LIT("?"));
+        using operand = math_and;
+    };
+
+    struct math_xor : dsl::infix_op_left {
+        static constexpr auto op = dsl::op<BinaryOperator::xor_>(LEXY_LIT("^"));
+        using operand = math_or;
+    };
+
+    struct math_dots : dsl::infix_op_left {
+        static constexpr auto op = dsl::op<BinaryOperator::xor_>(LEXY_LIT(".."));
+        using operand = math_xor;
+    };
+
+    using operation = math_dots;
     static constexpr auto value =
         lexy::callback(lexy::forward<UTerm>, lexy::new_<TermVariable, UTerm>, lexy::new_<TermInteger, UTerm>,
                        lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
@@ -265,7 +399,7 @@ struct statement {
 TEST_CASE("term-test-working") {
     std::istringstream in;
     in.str("42  *-\n2-32**3+'_Xa_'-_xA;\n43+'_$;");
-    auto input = StreamInput{in};
+    auto input = grammar::input{in};
     auto stm = lexy::parse<grammar::statement>(input, report_error);
     REQUIRE(stm.has_value());
     REQUIRE(stm.value().first->to_string() == "((((42*(-2))-(32**3))+'_Xa_')-_xA)");
