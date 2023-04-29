@@ -131,7 +131,7 @@ struct integer : lexy::token_production {
     static constexpr auto value = lexy::forward<int>;
 };
 
-// Note: the two productions below should be combined for performance
+// Note: the two productions below could be combined for performance
 
 struct variable : lexy::token_production {
     static constexpr auto rule = []() {
@@ -221,7 +221,7 @@ struct expr : lexy::expression_production {
     };
 
     static constexpr auto atom =
-        dsl::p<integer> | dsl::parenthesized(dsl::p<nested_expr>) | dsl::p<variable> | dsl::error<expected_term>;
+        dsl::p<integer> | dsl::parenthesized(dsl::p<nested_expr>) | dsl::p<variable> | dsl::p<identifier> | dsl::error<expected_term>;
 
     struct math_power : dsl::infix_op_right {
         static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
@@ -264,11 +264,11 @@ struct statement {
 
 TEST_CASE("term-test-working") {
     std::istringstream in;
-    in.str("42  *-\n2-32**3+'_Xa_';\n43+'_$;");
+    in.str("42  *-\n2-32**3+'_Xa_'-_xA;\n43+'_$;");
     auto input = StreamInput{in};
     auto stm = lexy::parse<grammar::statement>(input, report_error);
     REQUIRE(stm.has_value());
-    REQUIRE(stm.value().first->to_string() == "(((42*(-2))-(32**3))+'_Xa_')");
+    REQUIRE(stm.value().first->to_string() == "((((42*(-2))-(32**3))+'_Xa_')-_xA)");
     input.discard_before(stm.value().second);
     stm = lexy::parse<grammar::statement>(input, report_error);
     REQUIRE(!stm.has_value());
