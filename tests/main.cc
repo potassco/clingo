@@ -123,7 +123,7 @@ struct TermBinary : Term {
 namespace grammar {
 
 namespace dsl = lexy::dsl;
-using iterator = StreamInput<StreamBuffer<>>::iterator;
+using iterator = StreamInput<>::iterator;
 
 struct integer : lexy::token_production {
     static constexpr auto rule = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> | dsl::integer<int>;
@@ -232,8 +232,7 @@ struct statement {
 TEST_CASE("term-test-working") {
     std::istringstream in;
     in.str("42  *-\n2-32**3+'_Xa_';\n43+'_$;");
-    StreamBuffer buf{in};
-    auto input = StreamInput{buf};
+    auto input = StreamInput{in};
     auto stm = lexy::parse<grammar::statement>(input, report_error);
     REQUIRE(stm.has_value());
     REQUIRE(stm.value().first->to_string() == "(((42*(-2))-(32**3))+'_Xa_')");
