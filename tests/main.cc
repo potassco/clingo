@@ -124,10 +124,36 @@ namespace grammar {
 
 namespace dsl = lexy::dsl;
 using iterator = StreamInput<>::iterator;
+using lexeme = lexy::lexeme_for<StreamInput<>>;
 
 struct integer : lexy::token_production {
     static constexpr auto rule = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> | dsl::integer<int>;
     static constexpr auto value = lexy::forward<int>;
+};
+
+// Note: the two productions below should be combined for performance
+
+struct variable : lexy::token_production {
+    static constexpr auto rule = []() {
+        auto prefix = dsl::while_(LEXY_LIT("_") / LEXY_LIT("'"));
+        auto suffix = dsl::while_(dsl::ascii::alpha_underscore / LEXY_LIT("'"));
+        return dsl::capture(dsl::token(prefix + dsl::ascii::upper + suffix));
+    }();
+    static constexpr auto value = lexy::callback<UTerm>([](lexeme lex) { return std::make_unique<TermVariable>(std::string(lex.begin(), lex.end())); });
+};
+
+struct identifier : lexy::token_production {
+    static constexpr auto rule = []() {
+        auto prefix = dsl::while_(LEXY_LIT("_") / LEXY_LIT("'"));
+        auto suffix = dsl::while_(dsl::ascii::alpha_underscore / LEXY_LIT("'"));
+        return dsl::capture(dsl::token(prefix + dsl::ascii::lower + suffix));
+    }();
+    static constexpr auto value = lexy::callback<UTerm>([](lexeme lex) { return std::make_unique<TermFunction>(std::string(lex.begin(), lex.end())); });
+};
+
+struct upper {
+    static constexpr auto rule = dsl::ascii::upper;
+    static constexpr auto value = lexy::forward<void>;
 };
 
 struct nested_expr : lexy::transparent_production {
@@ -160,6 +186,12 @@ struct atom_expr : lexy::scan_production<UTerm> {
         while (scanner.branch(LEXY_LIT("_") / LEXY_LIT("'"))) {
         }
 
+        auto p_res = lexy::match<upper>(scanner.remaining_input());
+        if (!p_res) {
+            scanner.fatal_error("expected ASCII.alpha", scanner.position());
+            return lexy::scan_failed;
+        }
+
         bool var = false;
         if (scanner.peek(dsl::ascii::upper)) {
             var = true;
@@ -184,11 +216,12 @@ struct atom_expr : lexy::scan_production<UTerm> {
 };
 
 struct expr : lexy::expression_production {
-    struct expected_operand {
-        static constexpr auto name = "expected operand";
+    struct expected_term {
+        static constexpr auto name = "expected term";
     };
 
-    static constexpr auto atom = dsl::p<atom_expr>;
+    static constexpr auto atom =
+        dsl::p<integer> | dsl::parenthesized(dsl::p<nested_expr>) | dsl::p<variable> | dsl::error<expected_term>;
 
     struct math_power : dsl::infix_op_right {
         static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
