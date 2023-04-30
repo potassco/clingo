@@ -86,6 +86,26 @@ struct TermVariable : Term {
     std::string name;
 };
 
+struct TermAbs : Term {
+    explicit TermAbs(std::vector<UTerm> pool) : pool(std::move(pool)) {}
+
+    void print(std::ostream &out) const override {
+        out << "|";
+        bool comma = false;
+        for (auto &term : pool) {
+            if (comma) {
+                out << ";";
+            } else {
+                comma = true;
+            }
+            term->print(out);
+        }
+        out << "|";
+    }
+
+    std::vector<UTerm> pool;
+};
+
 struct TermFunction : Term {
     explicit TermFunction(std::string name, std::vector<std::vector<UTerm>> args, bool external)
         : name(std::move(name)), args{std::move(args)}, external{external} {}
@@ -317,12 +337,20 @@ static constexpr auto empty_args_ = [](std::optional<std::vector<std::vector<UTe
 
 struct function {
     static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<pool>);
-    static constexpr auto value = lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), false);
+    static constexpr auto value =
+        lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), false);
 };
 
 struct external_function {
     static constexpr auto rule = LEXY_LIT("@") >> dsl::p<identifier> + dsl::opt(dsl::p<pool>);
-    static constexpr auto value = lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), true);
+    static constexpr auto value =
+        lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), true);
+};
+
+struct math_abs {
+    static constexpr auto rule =
+        dsl::brackets(LEXY_LIT("|"), LEXY_LIT("|")).list(dsl::p<nested_expr>, dsl::sep(dsl::semicolon));
+    static constexpr auto value = lexy::as_list<std::vector<UTerm>> >> lexy::new_<TermAbs, UTerm>;
 };
 
 /*
@@ -391,7 +419,8 @@ struct expr : lexy::expression_production {
     };
 
     static constexpr auto atom = dsl::p<number> | dsl::parenthesized(dsl::p<nested_expr>) | dsl::p<variable> |
-                                 dsl::p<external_function> | dsl::p<function> | dsl::p<string> | dsl::p<constant> | dsl::error<expected_term>;
+                                 dsl::p<math_abs> | dsl::p<external_function> | dsl::p<function> | dsl::p<string> |
+                                 dsl::p<constant> | dsl::error<expected_term>;
 
     struct math_power : dsl::infix_op_right {
         static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
@@ -472,6 +501,8 @@ TEST_CASE("statements") {
     REQUIRE(parse("f ( 1 , 2 ; 4 )") == "f(1,2;4)");
     REQUIRE(parse("1 + f") == "(1+f)");
     REQUIRE(parse("@f(1,2)") == "@f(1,2)");
+    REQUIRE(parse("|42|") == "|42|");
+    REQUIRE(parse("||42||") == "||42||");
 }
 
 TEST_CASE("term-test-working") {
