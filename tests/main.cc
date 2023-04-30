@@ -362,18 +362,20 @@ struct nested_expr : lexy::transparent_production {
 };
 
 struct no_trailing_comma : lexy::scan_production<void> {
-    struct trailing_comma : control {
-        static constexpr auto rule = dsl::comma + (dsl::semicolon / LEXY_LIT(")"));
-    };
-
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        // Note: arbitrary lookahead to detect a trailing comma
-        //       (should not be overly expensive in most cases)
-        if (scanner.branch(dsl::token(dsl::p<trailing_comma>))) {
+        // check if we have a comma
+        if (!scanner.branch(dsl::comma)) {
             return lexy::scan_failed;
         }
-        return scanner.template parse<void>(dsl::comma);
+        // skip all whitespace
+        while (scanner.branch(control::whitespace)) {
+        }
+        // backtrack if this is a trailing comma
+        if (scanner.peek(dsl::semicolon / LEXY_LIT(")"))) {
+            return lexy::scan_failed;
+        }
+        return scan_result{true};
     }
 };
 
