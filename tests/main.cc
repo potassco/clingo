@@ -286,6 +286,10 @@ using input = StreamInput<encoding>;
 using iterator = input::iterator;
 using lexeme = lexy::lexeme_for<input>;
 
+struct control {
+    static constexpr auto whitespace = dsl::ascii::space | dsl::newline;
+};
+
 struct variable : lexy::token_production {
     static constexpr auto rule = []() {
         auto prefix = dsl::while_(LEXY_LIT("_") / LEXY_LIT("'"));
@@ -357,10 +361,24 @@ struct nested_expr : lexy::transparent_production {
     static constexpr auto value = lexy::forward<UTerm>;
 };
 
+struct no_trailing_comma : lexy::scan_production<void> {
+    struct trailing_comma : control {
+        static constexpr auto rule = dsl::comma + (dsl::semicolon / LEXY_LIT(")"));
+    };
+
+    template <typename Reader, typename Context>
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        // Note: arbitrary lookahead to detect a trailing comma
+        //       (should not be overly expensive in most cases)
+        if (scanner.branch(dsl::token(dsl::p<trailing_comma>))) {
+            return lexy::scan_failed;
+        }
+        return scanner.template parse<void>(dsl::comma);
+    }
+};
+
 struct tuple {
-    // NOTE: the not-followed by is to support trailing commas in tuple terms
-    static constexpr auto rule =
-        dsl::list(dsl::p<nested_expr>, dsl::sep(dsl::not_followed_by(dsl::comma, dsl::semicolon / LEXY_LIT(")"))));
+    static constexpr auto rule = dsl::list(dsl::p<nested_expr>, dsl::sep(dsl::token(dsl::p<no_trailing_comma>)));
     static constexpr auto value = lexy::as_list<std::vector<UTerm>>;
 };
 
@@ -443,66 +461,6 @@ struct anonymous_variable {
     static constexpr auto value = lexy::as_string<std::string> | lexy::new_<TermVariable, UTerm>;
 };
 
-/*
-struct upper {
-    static constexpr auto rule = dsl::ascii::upper;
-    static constexpr auto value = lexy::forward<void>;
-};
-
-struct atom_expr : lexy::scan_production<UTerm> {
-    struct expected_operand {
-        static constexpr auto name = "expected operand";
-    };
-
-    template <typename Reader, typename Context>
-    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> lexy::scan_result<UTerm> {
-        // parse a term in parenthesis
-        scan_result res;
-        if (scanner.branch(res, dsl::parenthesized(dsl::p<nested_expr>))) {
-            return res;
-        }
-        // parse a number
-        lexy::scan_result<int> num_res;
-        if (scanner.branch(num_res, dsl::p<number>)) {
-            res = std::make_unique<TermInteger>(num_res.value());
-            return res;
-        }
-        // parse a variable
-        auto begin = scanner.position();
-
-        while (scanner.branch(LEXY_LIT("_") / LEXY_LIT("'"))) {
-        }
-
-        auto p_res = lexy::match<upper>(scanner.remaining_input());
-        if (!p_res) {
-            scanner.fatal_error("expected ASCII.alpha", scanner.position());
-            return lexy::scan_failed;
-        }
-
-        bool var = false;
-        if (scanner.peek(dsl::ascii::upper)) {
-            var = true;
-        }
-        else if (scanner.peek(dsl::ascii::lower)) {
-            var = false;
-        }
-        else {
-            scanner.fatal_error("expected ASCII.alpha", scanner.position());
-            return lexy::scan_failed;
-        }
-
-        while (scanner.branch(dsl::ascii::alpha_underscore / LEXY_LIT("'"))) {
-        }
-
-        if (var) {
-            return std::make_unique<TermVariable>(std::string{begin, scanner.position()});
-        }
-        // TODO: parse the arguments of the function
-        return std::make_unique<TermFunction>(std::string{begin, scanner.position()});
-    }
-};
-*/
-
 struct expr : lexy::expression_production {
     struct expected_term {
         static constexpr auto name = "expected term";
@@ -563,8 +521,8 @@ struct expr : lexy::expression_production {
                                                  lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
 };
 
-struct statement {
-    static constexpr auto whitespace = dsl::ascii::space | dsl::newline;
+// TODO: better use a scanner in the test case
+struct statement : control {
     static constexpr auto rule = dsl::p<nested_expr> + dsl::lit_c<';'> + dsl::position;
     static constexpr auto value = lexy::construct<std::pair<UTerm, iterator>>;
 };
@@ -596,7 +554,7 @@ TEST_CASE("statements") {
     REQUIRE(parse("f(_,X)") == "f(_,X)");
     REQUIRE(parse("(a)") == "a");
     REQUIRE(parse("(a;a,b;a,b,c)") == "(a;a,b;a,b,c)");
-    REQUIRE(parse("(a,;a,b,;a,b,c,)") == "(a,;a,b;a,b,c)");
+    REQUIRE(parse("(a, ; a,b,;a,b,c, )") == "(a,;a,b;a,b,c)");
 }
 
 TEST_CASE("term-test-working") {
