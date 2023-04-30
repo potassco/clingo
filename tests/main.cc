@@ -1,11 +1,7 @@
 #include <cassert>
 #include <iostream>
-#include <lexy/callback/object.hpp>
-#include <lexy/dsl/capture.hpp>
-#include <lexy/dsl/literal.hpp>
-#include <lexy/dsl/loop.hpp>
-#include <lexy/dsl/token.hpp>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -16,6 +12,7 @@
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
 #include <lexy/grammar.hpp>
+#include <vector>
 
 #include "util/lexy_report_error.hh"
 #include "util/lexy_stream_input.hh"
@@ -90,11 +87,40 @@ struct TermVariable : Term {
 };
 
 struct TermFunction : Term {
-    explicit TermFunction(std::string name) : name(std::move(name)) {}
+    explicit TermFunction(std::string name, std::vector<std::vector<UTerm>> args, bool external)
+        : name(std::move(name)), args{std::move(args)}, external{external} {}
 
-    void print(std::ostream &out) const override { out << name; }
+    void print(std::ostream &out) const override {
+        if (external) {
+            out << "@";
+        }
+        out << name;
+        if (args.size() != 1 || !args.front().empty()) {
+            out << "(";
+            bool sem = false;
+            for (auto &tuple : args) {
+                if (sem) {
+                    out << ";";
+                } else {
+                    sem = true;
+                }
+                bool comma = false;
+                for (auto &term : tuple) {
+                    if (comma) {
+                        out << ",";
+                    } else {
+                        comma = true;
+                    }
+                    term->print(out);
+                }
+            }
+            out << ")";
+        }
+    }
 
     std::string name;
+    std::vector<std::vector<UTerm>> args;
+    bool external;
 };
 
 enum class UnaryOperator {
@@ -214,8 +240,11 @@ struct identifier : lexy::token_production {
 
         return id.reserve(kw_not) | dsl::capture(dsl::token(prefix + id));
     }();
-    static constexpr auto value = lexy::callback<UTerm>(
+    static constexpr auto value = lexy::as_string<std::string>;
+    /*
+        lexy::callback<UTerm>(
         [](lexeme lex) { return std::make_unique<TermFunction>(std::string(lex.begin(), lex.end())); });
+    */
 };
 
 struct number : lexy::token_production {
@@ -262,9 +291,38 @@ struct constant : lexy::token_production {
 };
 
 struct nested_expr : lexy::transparent_production {
-    static constexpr auto whitespace = dsl::ascii::space | dsl::newline;
     static constexpr auto rule = dsl::recurse<struct expr>;
     static constexpr auto value = lexy::forward<UTerm>;
+};
+
+struct tuple {
+    static constexpr auto rule = dsl::list(dsl::p<nested_expr>, dsl::sep(dsl::comma));
+    static constexpr auto value = lexy::as_list<std::vector<UTerm>>;
+};
+
+struct pool {
+    static constexpr auto rule = dsl::parenthesized.list(
+        dsl::opt(dsl::peek_not(dsl::semicolon / LEXY_LIT(")")) >> dsl::p<tuple>), dsl::sep(dsl::semicolon));
+    static constexpr auto value = lexy::collect<std::vector<std::vector<UTerm>>>(lexy::as_list<std::vector<UTerm>>);
+};
+
+static constexpr auto empty_args_ = [](std::optional<std::vector<std::vector<UTerm>>> value) {
+    if (value.has_value()) {
+        return std::move(value.value());
+    }
+    std::vector<std::vector<UTerm>> ret;
+    ret.emplace_back();
+    return ret;
+};
+
+struct function {
+    static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<pool>);
+    static constexpr auto value = lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), false);
+};
+
+struct external_function {
+    static constexpr auto rule = LEXY_LIT("@") >> dsl::p<identifier> + dsl::opt(dsl::p<pool>);
+    static constexpr auto value = lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), true);
 };
 
 /*
@@ -333,7 +391,7 @@ struct expr : lexy::expression_production {
     };
 
     static constexpr auto atom = dsl::p<number> | dsl::parenthesized(dsl::p<nested_expr>) | dsl::p<variable> |
-                                 dsl::p<identifier> | dsl::p<string> | dsl::p<constant> | dsl::error<expected_term>;
+                                 dsl::p<external_function> | dsl::p<function> | dsl::p<string> | dsl::p<constant> | dsl::error<expected_term>;
 
     struct math_power : dsl::infix_op_right {
         static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
@@ -382,19 +440,39 @@ struct expr : lexy::expression_production {
     };
 
     using operation = math_dots;
-    static constexpr auto value =
-        lexy::callback(lexy::forward<UTerm>, lexy::new_<TermVariable, UTerm>, lexy::new_<TermInteger, UTerm>,
-                       lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
+    static constexpr auto value = lexy::callback(lexy::forward<UTerm>, lexy::new_<TermInteger, UTerm>,
+                                                 lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
 };
 
 struct statement {
+    static constexpr auto whitespace = dsl::ascii::space | dsl::newline;
     static constexpr auto rule = dsl::p<nested_expr> + dsl::lit_c<';'> + dsl::position;
     static constexpr auto value = lexy::construct<std::pair<UTerm, iterator>>;
 };
 
 } // namespace grammar
 
+auto parse(std::string str) -> std::string {
+    std::istringstream in;
+    str.append(";");
+    in.str(std::move(str));
+    auto input = grammar::input{in};
+    auto stm = lexy::parse<grammar::statement>(input, report_error);
+    REQUIRE(stm.has_value());
+    return stm.value().first->to_string();
+}
+
 } // namespace
+
+TEST_CASE("statements") {
+    REQUIRE(parse("42") == "42");
+    REQUIRE(parse("f") == "f");
+    REQUIRE(parse("f(  )+5") == "(f+5)");
+    REQUIRE(parse("f(1)") == "f(1)");
+    REQUIRE(parse("f ( 1 , 2 ; 4 )") == "f(1,2;4)");
+    REQUIRE(parse("1 + f") == "(1+f)");
+    REQUIRE(parse("@f(1,2)") == "@f(1,2)");
+}
 
 TEST_CASE("term-test-working") {
     std::istringstream in;
