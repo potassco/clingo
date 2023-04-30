@@ -12,6 +12,7 @@
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
 #include <lexy/grammar.hpp>
+#include <variant>
 #include <vector>
 
 #include "util/lexy_report_error.hh"
@@ -68,6 +69,51 @@ struct TermInteger : Term {
     void print(std::ostream &out) const override { out << value; }
 
     int value;
+};
+
+struct TermTuple : Term {
+    using value_type = std::variant<std::vector<UTerm>, UTerm>;
+    explicit TermTuple(std::vector<value_type> args) : args(std::move(args)) {}
+
+    void print(std::ostream &out) const override {
+        if (args.size() == 1 && std::holds_alternative<UTerm>(args.front())) {
+            std::get<UTerm>(args.front())->print(out);
+        } else {
+            out << "(";
+            bool sem = false;
+            for (const auto &tuple : args) {
+                if (sem) {
+                    out << ";";
+                } else {
+                    sem = true;
+                }
+                std::visit(
+                    [&](auto &&arg) {
+                        using T = std::decay_t<decltype(arg)>;
+                        if constexpr (std::is_same_v<T, UTerm>) {
+                            arg->print(out);
+                        } else if constexpr (std::is_same_v<T, std::vector<UTerm>>) {
+                            bool comma = false;
+                            for (const auto &term : arg) {
+                                if (comma) {
+                                    out << ",";
+                                } else {
+                                    comma = true;
+                                }
+                                term->print(out);
+                            }
+                            if (arg.size() == 1) {
+                                out << ",";
+                            }
+                        }
+                    },
+                    tuple);
+            }
+            out << ")";
+        }
+    }
+
+    std::vector<value_type> args;
 };
 
 struct TermString : Term {
@@ -312,7 +358,9 @@ struct nested_expr : lexy::transparent_production {
 };
 
 struct tuple {
-    static constexpr auto rule = dsl::list(dsl::p<nested_expr>, dsl::sep(dsl::comma));
+    // NOTE: the not-followed by is to support trailing commas in tuple terms
+    static constexpr auto rule =
+        dsl::list(dsl::p<nested_expr>, dsl::sep(dsl::not_followed_by(dsl::comma, dsl::semicolon / LEXY_LIT(")"))));
     static constexpr auto value = lexy::as_list<std::vector<UTerm>>;
 };
 
@@ -343,11 +391,44 @@ struct external_function {
         lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), true);
 };
 
-// TODO:
-//   TupleTerm ::= '(' Tuple? ','? (';' Tuple? ','?)* ')'
+struct make_tuple {
+    using tuple_type = std::vector<UTerm>;
+    using return_type = std::variant<tuple_type, UTerm>;
+
+    [[nodiscard]] static auto make(std::optional<tuple_type> tuple, bool force_tuple) -> return_type {
+        if (tuple.has_value()) {
+            if (!force_tuple && tuple->size() == 1) {
+                return std::move(tuple->front());
+            }
+            return std::move(tuple.value());
+        }
+        auto ret = std::vector<UTerm>{};
+        ret.emplace_back();
+        return ret;
+    }
+    auto operator()(std::optional<tuple_type> tuple, lexy::nullopt /*unused*/) const -> return_type {
+        return make(std::move(tuple), false);
+    }
+    auto operator()(std::optional<tuple_type> tuple) const -> return_type { return make(std::move(tuple), true); }
+};
+
+struct make_pool {
+    using return_type = UTerm;
+    auto operator()(std::vector<make_tuple::return_type> pool) const -> UTerm {
+        if (pool.size() == 1 && std::holds_alternative<UTerm>(pool.front())) {
+            return std::move(std::get<UTerm>(pool.front()));
+        }
+        return std::make_unique<TermTuple>(std::move(pool));
+    }
+};
+
 struct term_tuple {
-    static constexpr auto rule = dsl::parenthesized(dsl::p<nested_expr>);
-    static constexpr auto value = lexy::forward<UTerm>;
+    static constexpr auto rule = []() {
+        auto opt_tuple = dsl::opt(dsl::peek_not(dsl::semicolon / LEXY_LIT(")") / LEXY_LIT(",")) >> dsl::p<tuple>);
+        auto opt_comma = dsl::opt(LEXY_LIT(","));
+        return dsl::parenthesized.list(opt_tuple + opt_comma, dsl::sep(dsl::semicolon));
+    }();
+    static constexpr auto value = lexy::collect<std::vector<make_tuple::return_type>>(make_tuple{}) >> make_pool();
 };
 
 struct math_abs {
@@ -513,6 +594,9 @@ TEST_CASE("statements") {
     REQUIRE(parse("|42|") == "|42|");
     REQUIRE(parse("||42||") == "||42||");
     REQUIRE(parse("f(_,X)") == "f(_,X)");
+    REQUIRE(parse("(a)") == "a");
+    REQUIRE(parse("(a;a,b;a,b,c)") == "(a;a,b;a,b,c)");
+    REQUIRE(parse("(a,;a,b,;a,b,c,)") == "(a,;a,b;a,b,c)");
 }
 
 TEST_CASE("term-test-working") {
