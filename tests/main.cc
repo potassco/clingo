@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -278,6 +279,74 @@ struct TermBinary : Term {
     UTerm rhs;
 };
 
+struct Literal {
+    virtual ~Literal() = default;
+    virtual void print(std::ostream &out) const = 0;
+    [[nodiscard]] auto to_string() const -> std::string {
+        std::ostringstream out;
+        out << *this;
+        return out.str();
+    }
+    friend auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream & {
+        literal.print(out);
+        return out;
+    }
+};
+
+using ULiteral = std::unique_ptr<Literal>;
+
+enum class Relation {
+    less,
+    less_equal,
+    greater,
+    greater_equal,
+    equal,
+    inequal,
+};
+
+auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
+    switch (op) {
+        case Relation::less: {
+            out << "<";
+            break;
+        }
+        case Relation::less_equal: {
+            out << "<=";
+            break;
+        }
+        case Relation::greater: {
+            out << ">";
+            break;
+        }
+        case Relation::greater_equal: {
+            out << ">=";
+            break;
+        }
+        case Relation::equal: {
+            out << "=";
+            break;
+        }
+        case Relation::inequal: {
+            out << "!=";
+            break;
+        }
+    }
+    return out;
+}
+
+struct LiteralRelation : Literal {
+    LiteralRelation(UTerm left, Relation relation, UTerm right)
+        : left(std::move(left)), relation(relation), right(std::move(right)) {}
+    void print(std::ostream &out) const override {
+        left->print(out);
+        out << relation;
+        right->print(out);
+    }
+    UTerm left;
+    Relation relation;
+    UTerm right;
+};
+
 namespace grammar {
 
 namespace dsl = lexy::dsl;
@@ -512,26 +581,55 @@ struct expr : lexy::expression_production {
                                                  lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
 };
 
+struct relation {
+    // Map names of the entities to their replacement value.
+    static constexpr auto entities = lexy::symbol_table<Relation> //
+                                         .map<LEXY_SYMBOL("<=")>(Relation::less_equal)
+                                         .map<LEXY_SYMBOL("<")>(Relation::less)
+                                         .map<LEXY_SYMBOL(">=")>(Relation::greater_equal)
+                                         .map<LEXY_SYMBOL(">")>(Relation::greater)
+                                         .map<LEXY_SYMBOL("!=")>(Relation::inequal)
+                                         .map<LEXY_SYMBOL("=")>(Relation::equal);
+
+    static constexpr auto rule = dsl::symbol<entities>;
+    static constexpr auto value = lexy::forward<Relation>;
+};
+
+struct atom {
+    static constexpr auto rule = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
+    static constexpr auto value = lexy::new_<LiteralRelation, ULiteral>;
+};
+
 struct statement : control {
-    static constexpr auto rule = dsl::p<nested_expr> + dsl::lit_c<';'>;
-    static constexpr auto value = lexy::forward<UTerm>;
+    static constexpr auto rule = dsl::p<atom> + dsl::lit_c<';'>;
+    static constexpr auto value = lexy::forward<ULiteral>;
 };
 
 } // namespace grammar
 
+namespace test {
+
+namespace dsl = lexy::dsl;
+
+struct term_root : grammar::control {
+    static constexpr auto rule = dsl::p<grammar::nested_expr> + dsl::eof;
+    static constexpr auto value = lexy::forward<UTerm>;
+};
+
+} // namespace test
+
 auto parse(std::string str) -> std::string {
     std::istringstream in;
-    str.append(";");
     in.str(std::move(str));
     auto input = grammar::input{in};
-    auto stm = lexy::parse<grammar::statement>(input, report_error);
+    auto stm = lexy::parse<test::term_root>(input, report_error);
     REQUIRE(stm.has_value());
     return stm.value()->to_string();
 }
 
 } // namespace
 
-TEST_CASE("statements") {
+TEST_CASE("terms") {
     REQUIRE(parse("42") == "42");
     REQUIRE(parse("f") == "f");
     REQUIRE(parse("f(  )+5") == "(f+5)");
@@ -549,12 +647,12 @@ TEST_CASE("statements") {
 
 TEST_CASE("scan") {
     std::istringstream in;
-    in.str("42  *-\n2-32**3+'_Xa_'-_xA;\n43+'_$;");
+    in.str("42  *-\n2-32**3+'_Xa_'-_xA<5;\n43+'_$;");
     auto input = grammar::input{in};
     auto scanner = lexy::scan<grammar::control>(input, report_error);
     auto stm = scanner.parse<grammar::statement>();
     REQUIRE(stm.has_value());
-    REQUIRE(stm.value()->to_string() == "((((42*(-2))-(32**3))+'_Xa_')-_xA)");
+    REQUIRE(stm.value()->to_string() == "((((42*(-2))-(32**3))+'_Xa_')-_xA)<5");
     input.discard_before(scanner.position());
     stm = scanner.parse<grammar::statement>();
     REQUIRE(!stm.has_value());
