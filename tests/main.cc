@@ -9,6 +9,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <lexy/action/parse.hpp>
+#include <lexy/action/scan.hpp>
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
 #include <lexy/grammar.hpp>
@@ -361,26 +362,14 @@ struct nested_expr : lexy::transparent_production {
     static constexpr auto value = lexy::forward<UTerm>;
 };
 
-struct no_trailing_comma : lexy::scan_production<void> {
-    template <typename Reader, typename Context>
-    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        // check if we have a comma
-        if (!scanner.branch(dsl::comma)) {
-            return lexy::scan_failed;
-        }
-        // skip all whitespace
-        while (scanner.branch(control::whitespace)) {
-        }
-        // backtrack if this is a trailing comma
-        if (scanner.peek(dsl::semicolon / LEXY_LIT(")"))) {
-            return lexy::scan_failed;
-        }
-        return scan_result{true};
-    }
-};
-
 struct tuple {
-    static constexpr auto rule = dsl::list(dsl::p<nested_expr>, dsl::sep(dsl::token(dsl::p<no_trailing_comma>)));
+    static constexpr auto rule = []() {
+        auto skip_ws = dsl::while_(control::whitespace);
+        auto peek = dsl::peek_not(dsl::semicolon / LEXY_LIT(")"));
+        auto item = dsl::p<nested_expr>;
+        auto sep = dsl::token(dsl::comma + skip_ws + peek);
+        return dsl::list(item, dsl::sep(sep));
+    }();
     static constexpr auto value = lexy::as_list<std::vector<UTerm>>;
 };
 
@@ -523,10 +512,9 @@ struct expr : lexy::expression_production {
                                                  lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
 };
 
-// TODO: better use a scanner in the test case
 struct statement : control {
-    static constexpr auto rule = dsl::p<nested_expr> + dsl::lit_c<';'> + dsl::position;
-    static constexpr auto value = lexy::construct<std::pair<UTerm, iterator>>;
+    static constexpr auto rule = dsl::p<nested_expr> + dsl::lit_c<';'>;
+    static constexpr auto value = lexy::forward<UTerm>;
 };
 
 } // namespace grammar
@@ -538,7 +526,7 @@ auto parse(std::string str) -> std::string {
     auto input = grammar::input{in};
     auto stm = lexy::parse<grammar::statement>(input, report_error);
     REQUIRE(stm.has_value());
-    return stm.value().first->to_string();
+    return stm.value()->to_string();
 }
 
 } // namespace
@@ -559,14 +547,15 @@ TEST_CASE("statements") {
     REQUIRE(parse("(a, ; a,b,;a,b,c, )") == "(a,;a,b;a,b,c)");
 }
 
-TEST_CASE("term-test-working") {
+TEST_CASE("scan") {
     std::istringstream in;
     in.str("42  *-\n2-32**3+'_Xa_'-_xA;\n43+'_$;");
     auto input = grammar::input{in};
-    auto stm = lexy::parse<grammar::statement>(input, report_error);
+    auto scanner = lexy::scan<grammar::control>(input, report_error);
+    auto stm = scanner.parse<grammar::statement>();
     REQUIRE(stm.has_value());
-    REQUIRE(stm.value().first->to_string() == "((((42*(-2))-(32**3))+'_Xa_')-_xA)");
-    input.discard_before(stm.value().second);
-    stm = lexy::parse<grammar::statement>(input, report_error);
+    REQUIRE(stm.value()->to_string() == "((((42*(-2))-(32**3))+'_Xa_')-_xA)");
+    input.discard_before(scanner.position());
+    stm = scanner.parse<grammar::statement>();
     REQUIRE(!stm.has_value());
 }
