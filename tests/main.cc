@@ -261,10 +261,6 @@ struct identifier : lexy::token_production {
         return id.reserve(kw_not) | dsl::capture(dsl::token(prefix + id));
     }();
     static constexpr auto value = lexy::as_string<std::string>;
-    /*
-        lexy::callback<UTerm>(
-        [](lexeme lex) { return std::make_unique<TermFunction>(std::string(lex.begin(), lex.end())); });
-    */
 };
 
 struct number : lexy::token_production {
@@ -353,6 +349,12 @@ struct math_abs {
     static constexpr auto value = lexy::as_list<std::vector<UTerm>> >> lexy::new_<TermAbs, UTerm>;
 };
 
+struct anonymous_variable {
+    static constexpr auto rule =
+        dsl::capture(dsl::not_followed_by(LEXY_LIT("_"), dsl::ascii::alpha_digit_underscore / LEXY_LIT("'")));
+    static constexpr auto value = lexy::as_string<std::string> | lexy::new_<TermVariable, UTerm>;
+};
+
 /*
 struct upper {
     static constexpr auto rule = dsl::ascii::upper;
@@ -420,7 +422,7 @@ struct expr : lexy::expression_production {
 
     static constexpr auto atom = dsl::p<number> | dsl::parenthesized(dsl::p<nested_expr>) | dsl::p<variable> |
                                  dsl::p<math_abs> | dsl::p<external_function> | dsl::p<function> | dsl::p<string> |
-                                 dsl::p<constant> | dsl::error<expected_term>;
+                                 dsl::p<constant> | dsl::p<anonymous_variable> | dsl::error<expected_term>;
 
     struct math_power : dsl::infix_op_right {
         static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
@@ -503,6 +505,7 @@ TEST_CASE("statements") {
     REQUIRE(parse("@f(1,2)") == "@f(1,2)");
     REQUIRE(parse("|42|") == "|42|");
     REQUIRE(parse("||42||") == "||42||");
+    REQUIRE(parse("f(_,X)") == "f(_,X)");
 }
 
 TEST_CASE("term-test-working") {
