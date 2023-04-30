@@ -5,6 +5,8 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <variant>
+#include <vector>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -13,8 +15,6 @@
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
 #include <lexy/grammar.hpp>
-#include <variant>
-#include <vector>
 
 #include "util/lexy_report_error.hh"
 #include "util/lexy_stream_input.hh"
