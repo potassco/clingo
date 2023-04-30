@@ -343,6 +343,13 @@ struct external_function {
         lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), true);
 };
 
+// TODO:
+//   TupleTerm ::= '(' Tuple? ','? (';' Tuple? ','?)* ')'
+struct term_tuple {
+    static constexpr auto rule = dsl::parenthesized(dsl::p<nested_expr>);
+    static constexpr auto value = lexy::forward<UTerm>;
+};
+
 struct math_abs {
     static constexpr auto rule =
         dsl::brackets(LEXY_LIT("|"), LEXY_LIT("|")).list(dsl::p<nested_expr>, dsl::sep(dsl::semicolon));
@@ -420,9 +427,9 @@ struct expr : lexy::expression_production {
         static constexpr auto name = "expected term";
     };
 
-    static constexpr auto atom = dsl::p<number> | dsl::parenthesized(dsl::p<nested_expr>) | dsl::p<variable> |
-                                 dsl::p<math_abs> | dsl::p<external_function> | dsl::p<function> | dsl::p<string> |
-                                 dsl::p<constant> | dsl::p<anonymous_variable> | dsl::error<expected_term>;
+    static constexpr auto atom = dsl::p<number> | dsl::p<term_tuple> | dsl::p<variable> | dsl::p<math_abs> |
+                                 dsl::p<external_function> | dsl::p<function> | dsl::p<string> | dsl::p<constant> |
+                                 dsl::p<anonymous_variable> | dsl::error<expected_term>;
 
     struct math_power : dsl::infix_op_right {
         static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
