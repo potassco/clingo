@@ -92,7 +92,7 @@ struct TermAbs : Term {
     void print(std::ostream &out) const override {
         out << "|";
         bool comma = false;
-        for (auto &term : pool) {
+        for (const auto &term : pool) {
             if (comma) {
                 out << ";";
             } else {
@@ -118,14 +118,14 @@ struct TermFunction : Term {
         if (args.size() != 1 || !args.front().empty()) {
             out << "(";
             bool sem = false;
-            for (auto &tuple : args) {
+            for (const auto &tuple : args) {
                 if (sem) {
                     out << ";";
                 } else {
                     sem = true;
                 }
                 bool comma = false;
-                for (auto &term : tuple) {
+                for (const auto &term : tuple) {
                     if (comma) {
                         out << ",";
                     } else {
@@ -322,7 +322,7 @@ struct pool {
     static constexpr auto value = lexy::collect<std::vector<std::vector<UTerm>>>(lexy::as_list<std::vector<UTerm>>);
 };
 
-static constexpr auto empty_args_ = [](std::optional<std::vector<std::vector<UTerm>>> value) {
+constexpr auto empty_args_ = [](std::optional<std::vector<std::vector<UTerm>>> value) {
     if (value.has_value()) {
         return std::move(value.value());
     }

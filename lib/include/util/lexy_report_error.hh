@@ -25,8 +25,9 @@ auto write_error(OutputIt out, const lexy::error_context<Input> &context, const 
         out = lexy::_detail::write_str(out, context.production());
         return out;
     });
-    if (path != nullptr)
+    if (path != nullptr) {
         out = writer.write_path(out, path);
+    }
     out = writer.write_empty_annotation(out);
 
     // Write an annotation for the context.
@@ -89,16 +90,18 @@ template <typename OutputIterator = int> struct _report_error {
 
         template <typename Input, typename Reader, typename Tag>
         void operator()(const lexy::error_context<Input> &context, const lexy::error<Reader, Tag> &error) {
-            if constexpr (std::is_same_v<OutputIterator, int>)
+            if constexpr (std::is_same_v<OutputIterator, int>) {
                 write_error(lexy::cfile_output_iterator{stderr}, context, error, _opts, _path);
-            else
+            } else {
                 _iter = write_error(_iter, context, error, _opts, _path);
+            }
             ++_count;
         }
 
         auto finish() && -> std::size_t {
-            if (_count != 0)
+            if (_count != 0) {
                 std::fputs("\n", stderr);
+            }
             return _count;
         }
     };
