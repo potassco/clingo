@@ -284,6 +284,29 @@ struct TermBinary : Term {
     UTerm rhs;
 };
 
+enum class Sign {
+    none,
+    once,
+    twice,
+};
+
+auto operator<<(std::ostream &out, Sign op) -> std::ostream & {
+    switch (op) {
+        case Sign::none: {
+            break;
+        }
+        case Sign::once: {
+            out << "not ";
+            break;
+        }
+        case Sign::twice: {
+            out << "not not ";
+            break;
+        }
+    }
+    return out;
+}
+
 struct Literal {
     virtual ~Literal() = default;
     virtual void print(std::ostream &out) const = 0;
@@ -340,27 +363,26 @@ auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
 }
 
 struct LiteralRelation : Literal {
-    LiteralRelation(UTerm left, Relation relation, UTerm right)
-        : left(std::move(left)), relation(relation), right(std::move(right)) {}
-    void print(std::ostream &out) const override {
-        left->print(out);
-        out << relation;
-        right->print(out);
-    }
+    LiteralRelation(Sign sign, UTerm left, Relation relation, UTerm right)
+        : sign(sign), left(std::move(left)), relation(relation), right(std::move(right)) {}
+    void print(std::ostream &out) const override { out << sign << *left << relation << *right; }
+    Sign sign;
     UTerm left;
     Relation relation;
     UTerm right;
 };
 
 struct LiteralBoolean : Literal {
-    LiteralBoolean(bool value) : value(value) {}
-    void print(std::ostream &out) const override { out << (value ? "#true" : "#false"); }
+    LiteralBoolean(Sign sign, bool value) : sign(sign), value(value) {}
+    void print(std::ostream &out) const override { out << sign << (value ? "#true" : "#false"); }
+    Sign sign;
     bool value;
 };
 
 struct LiteralSymbolic : Literal {
-    LiteralSymbolic(UTerm term) : term(std::move(term)) {}
-    void print(std::ostream &out) const override { term->print(out); }
+    LiteralSymbolic(Sign sign, UTerm term) : sign(sign), term(std::move(term)) {}
+    void print(std::ostream &out) const override { out << sign << *term; }
+    Sign sign;
     UTerm term;
 };
 
@@ -611,7 +633,18 @@ struct relation {
     static constexpr auto value = lexy::forward<Relation>;
 };
 
-struct atom : lexy::scan_production<ULiteral> {
+struct kw_not {
+    static constexpr auto rule = [] {
+        auto head = dsl::ascii::lower;
+        auto tail = dsl::ascii::alpha_digit_underscore / LEXY_LIT("'");
+        auto id = dsl::identifier(head, tail);
+
+        // Parse a keyword.
+        return LEXY_KEYWORD("not", id);
+    }();
+};
+
+struct literal : lexy::scan_production<ULiteral> {
     static constexpr auto bool_symbols = lexy::symbol_table<bool> //
                                              .map<LEXY_SYMBOL("#true")>(true)
                                              .map<LEXY_SYMBOL("#false")>(false);
@@ -621,9 +654,18 @@ struct atom : lexy::scan_production<ULiteral> {
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        auto sign = Sign::none;
+
+        if (scanner.branch(kw_not::rule)) {
+            sign = Sign::once;
+        }
+        if (scanner.branch(kw_not::rule)) {
+            sign = Sign::twice;
+        }
+
         lexy::scan_result<bool> res_bool;
         if (scanner.branch(res_bool, bool_atom)) {
-            return scan_result{std::make_unique<LiteralBoolean>(res_bool.value())};
+            return scan_result{std::make_unique<LiteralBoolean>(sign, res_bool.value())};
         }
 
         auto res_term = scanner.parse(nested_expr{});
@@ -637,19 +679,19 @@ struct atom : lexy::scan_production<ULiteral> {
             if (!scanner) {
                 return lexy::scan_failed;
             }
-            return scan_result{std::make_unique<LiteralRelation>(std::move(res_term).value(), res_rel.value(),
+            return scan_result{std::make_unique<LiteralRelation>(sign, std::move(res_term).value(), res_rel.value(),
                                                                  std::move(res_rhs).value())};
         }
         if (!res_term.value()->isAtom()) {
             scanner.error("relation expected", scanner.position());
             return lexy::scan_failed;
         }
-        return scan_result{std::make_unique<LiteralSymbolic>(std::move(res_term).value())};
+        return scan_result{std::make_unique<LiteralSymbolic>(sign, std::move(res_term).value())};
     }
 };
 
 struct statement : control {
-    static constexpr auto rule = dsl::p<atom> + dsl::lit_c<';'>;
+    static constexpr auto rule = dsl::p<literal> + dsl::lit_c<';'>;
     static constexpr auto value = lexy::forward<ULiteral>;
 };
 
@@ -659,15 +701,10 @@ namespace test {
 
 namespace dsl = lexy::dsl;
 
-struct term : grammar::control {
-    static constexpr auto rule = dsl::p<grammar::nested_expr> + dsl::eof;
-    static constexpr auto value = lexy::forward<UTerm>;
-};
+template <class P> struct root : P, grammar::control {};
 
-struct literal : grammar::control {
-    static constexpr auto rule = dsl::p<grammar::atom> + dsl::eof;
-    static constexpr auto value = lexy::forward<ULiteral>;
-};
+using term = root<grammar::nested_expr>;
+using literal = root<grammar::literal>;
 
 } // namespace test
 
@@ -705,6 +742,8 @@ TEST_CASE("literals") {
     REQUIRE(parse<test::literal>("p(X)") == "p(X)");
     // TODO: get rid of parenthesis
     REQUIRE(parse<test::literal>("-p(X)") == "(-p(X))");
+    REQUIRE(parse<test::literal>("not p") == "not p");
+    REQUIRE(parse<test::literal>("not not p") == "not not p");
 }
 
 TEST_CASE("scan") {
