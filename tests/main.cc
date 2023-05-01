@@ -582,7 +582,6 @@ struct expr : lexy::expression_production {
 };
 
 struct relation {
-    // Map names of the entities to their replacement value.
     static constexpr auto entities = lexy::symbol_table<Relation> //
                                          .map<LEXY_SYMBOL("<=")>(Relation::less_equal)
                                          .map<LEXY_SYMBOL("<")>(Relation::less)
@@ -597,6 +596,17 @@ struct relation {
 
 struct atom {
     static constexpr auto rule = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
+    // one of:
+    // 1. dsl::symbol<lexy::symbol_table<bool>.map<LEXY_SYMBOL("#true")>(true).map<LEXY_SYMBOL("#false")>(false)>
+    // 2. dsl::list(dsl::p<nested_expr>, dsl::p<relation>)
+    // 3. dsl::opt(LEXY_LIT("-")) + dsl::p<identifier> + dsl::opt(dsl::p<pool>)
+    // notes:
+    // - choice 1 can be detected with constant lookahead
+    // - choice 2. and 3. overlap:
+    //   - parse the first term
+    //   - if the term does not form an atom or the next symbol is not a comma, it must be a relation
+    //   - otherwisie, it must be a symbolic atom
+    //   - looks like this can be implemented very efficiently
     static constexpr auto value = lexy::new_<LiteralRelation, ULiteral>;
 };
 
