@@ -24,6 +24,7 @@ namespace {
 
 struct Term {
     virtual ~Term() = default;
+    [[nodiscard]] virtual auto isAtom() const -> bool { return false; }
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] auto to_string() const -> std::string {
         std::ostringstream out;
@@ -186,6 +187,8 @@ struct TermFunction : Term {
         }
     }
 
+    [[nodiscard]] auto isAtom() const -> bool override { return !external; }
+
     std::string name;
     std::vector<std::vector<UTerm>> args;
     bool external;
@@ -205,6 +208,8 @@ struct TermUnary : Term {
     explicit TermUnary(UnaryOperator op, UTerm e) : op(op), rhs(std::move(e)) {}
 
     void print(std::ostream &out) const override { out << "(" << op << *rhs << ")"; }
+
+    [[nodiscard]] auto isAtom() const -> bool override { return op == UnaryOperator::negate && rhs->isAtom(); }
 
     UnaryOperator op;
     UTerm rhs;
@@ -345,6 +350,18 @@ struct LiteralRelation : Literal {
     UTerm left;
     Relation relation;
     UTerm right;
+};
+
+struct LiteralBoolean : Literal {
+    LiteralBoolean(bool value) : value(value) {}
+    void print(std::ostream &out) const override { out << (value ? "#true" : "#false"); }
+    bool value;
+};
+
+struct LiteralSymbolic : Literal {
+    LiteralSymbolic(UTerm term) : term(std::move(term)) {}
+    void print(std::ostream &out) const override { term->print(out); }
+    UTerm term;
 };
 
 namespace grammar {
@@ -594,20 +611,41 @@ struct relation {
     static constexpr auto value = lexy::forward<Relation>;
 };
 
-struct atom {
-    static constexpr auto rule = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
-    // one of:
-    // 1. dsl::symbol<lexy::symbol_table<bool>.map<LEXY_SYMBOL("#true")>(true).map<LEXY_SYMBOL("#false")>(false)>
-    // 2. dsl::list(dsl::p<nested_expr>, dsl::p<relation>)
-    // 3. dsl::opt(LEXY_LIT("-")) + dsl::p<identifier> + dsl::opt(dsl::p<pool>)
-    // notes:
-    // - choice 1 can be detected with constant lookahead
-    // - choice 2. and 3. overlap:
-    //   - parse the first term
-    //   - if the term does not form an atom or the next symbol is not a comma, it must be a relation
-    //   - otherwisie, it must be a symbolic atom
-    //   - looks like this can be implemented very efficiently
-    static constexpr auto value = lexy::new_<LiteralRelation, ULiteral>;
+struct atom : lexy::scan_production<ULiteral> {
+    static constexpr auto bool_symbols = lexy::symbol_table<bool> //
+                                             .map<LEXY_SYMBOL("#true")>(true)
+                                             .map<LEXY_SYMBOL("#false")>(false);
+    static constexpr auto bool_atom = dsl::symbol<bool_symbols>;
+
+    static constexpr auto comp_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
+
+    template <typename Reader, typename Context>
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        lexy::scan_result<bool> res_bool;
+        if (scanner.branch(res_bool, bool_atom)) {
+            return scan_result{std::make_unique<LiteralBoolean>(res_bool.value())};
+        }
+
+        auto res_term = scanner.parse(nested_expr{});
+        if (!scanner) {
+            return lexy::scan_failed;
+        }
+
+        lexy::scan_result<Relation> res_rel;
+        if (scanner.branch(res_rel, dsl::p<relation>)) {
+            auto res_rhs = scanner.parse(nested_expr{});
+            if (!scanner) {
+                return lexy::scan_failed;
+            }
+            return scan_result{std::make_unique<LiteralRelation>(std::move(res_term).value(), res_rel.value(),
+                                                                 std::move(res_rhs).value())};
+        }
+        if (!res_term.value()->isAtom()) {
+            scanner.error("relation expected", scanner.position());
+            return lexy::scan_failed;
+        }
+        return scan_result{std::make_unique<LiteralSymbolic>(std::move(res_term).value())};
+    }
 };
 
 struct statement : control {
@@ -621,18 +659,23 @@ namespace test {
 
 namespace dsl = lexy::dsl;
 
-struct term_root : grammar::control {
+struct term : grammar::control {
     static constexpr auto rule = dsl::p<grammar::nested_expr> + dsl::eof;
     static constexpr auto value = lexy::forward<UTerm>;
 };
 
+struct literal : grammar::control {
+    static constexpr auto rule = dsl::p<grammar::atom> + dsl::eof;
+    static constexpr auto value = lexy::forward<ULiteral>;
+};
+
 } // namespace test
 
-auto parse(std::string str) -> std::string {
+template <typename Control> auto parse(std::string str) -> std::string {
     std::istringstream in;
     in.str(std::move(str));
     auto input = grammar::input{in};
-    auto stm = lexy::parse<test::term_root>(input, report_error);
+    auto stm = lexy::parse<Control>(input, report_error);
     REQUIRE(stm.has_value());
     return stm.value()->to_string();
 }
@@ -640,19 +683,28 @@ auto parse(std::string str) -> std::string {
 } // namespace
 
 TEST_CASE("terms") {
-    REQUIRE(parse("42") == "42");
-    REQUIRE(parse("f") == "f");
-    REQUIRE(parse("f(  )+5") == "(f+5)");
-    REQUIRE(parse("f(1)") == "f(1)");
-    REQUIRE(parse("f ( 1 , 2 ; 4 )") == "f(1,2;4)");
-    REQUIRE(parse("1 + f") == "(1+f)");
-    REQUIRE(parse("@f(1,2)") == "@f(1,2)");
-    REQUIRE(parse("|42|") == "|42|");
-    REQUIRE(parse("||42||") == "||42||");
-    REQUIRE(parse("f(_,X)") == "f(_,X)");
-    REQUIRE(parse("(a)") == "a");
-    REQUIRE(parse("(a;a,b;a,b,c)") == "(a;a,b;a,b,c)");
-    REQUIRE(parse("(a, ; a,b,;a,b,c, )") == "(a,;a,b;a,b,c)");
+    REQUIRE(parse<test::term>("42") == "42");
+    REQUIRE(parse<test::term>("f") == "f");
+    REQUIRE(parse<test::term>("f(  )+5") == "(f+5)");
+    REQUIRE(parse<test::term>("f(1)") == "f(1)");
+    REQUIRE(parse<test::term>("f ( 1 , 2 ; 4 )") == "f(1,2;4)");
+    REQUIRE(parse<test::term>("1 + f") == "(1+f)");
+    REQUIRE(parse<test::term>("@f(1,2)") == "@f(1,2)");
+    REQUIRE(parse<test::term>("|42|") == "|42|");
+    REQUIRE(parse<test::term>("||42||") == "||42||");
+    REQUIRE(parse<test::term>("f(_,X)") == "f(_,X)");
+    REQUIRE(parse<test::term>("(a)") == "a");
+    REQUIRE(parse<test::term>("(a;a,b;a,b,c)") == "(a;a,b;a,b,c)");
+    REQUIRE(parse<test::term>("(a, ; a,b,;a,b,c, )") == "(a,;a,b;a,b,c)");
+}
+
+TEST_CASE("literals") {
+    REQUIRE(parse<test::literal>("#true") == "#true");
+    REQUIRE(parse<test::literal>("#false") == "#false");
+    REQUIRE(parse<test::literal>("1 < 2") == "1<2");
+    REQUIRE(parse<test::literal>("p(X)") == "p(X)");
+    // TODO: get rid of parenthesis
+    REQUIRE(parse<test::literal>("-p(X)") == "(-p(X))");
 }
 
 TEST_CASE("scan") {
