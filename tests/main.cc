@@ -723,6 +723,7 @@ struct atom {
             return sign ? std::make_unique<TermUnary>(UnaryOperator::negate, std::move(term)) : std::move(term);
         }
         static auto term(std::string name, opt_arg_list args) -> UTerm {
+            // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
             return negate(std::make_unique<TermFunction>(std::move(name), empty_args_(std::move(args)), false));
         }
 
@@ -766,58 +767,12 @@ enum class AggregateFunction {
     max,
 };
 
-struct head_literal2 {
-    // This can be parsed without lookahead as shown below. However, it is
-    // worth to spend some more time to find a way to write this without a
-    // scan production. (Or at least with a smaller one.)
-    // not ->
-    //   disjunction
-    // & ->
-    //   theory atom
-    // #true | #false ->
-    //   boolean literal
-    // (1) aggregate function ->
-    //   aggregate
-    // (2) opening brace ->
-    //   set aggregate
-    // term ->
-    //   relation ->
-    //     (1)
-    //     (2)
-    //     else ->
-    //       disjunction
-    //   (1)
-    //   (2)
-    //   isAtom ->
-    //     disjunction
-    //   else ->
-    //     error
-    // else ->
-    //   error
-    static constexpr auto rel_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
-    static constexpr auto bool_symbols = lexy::symbol_table<bool> //
-                                             .map<LEXY_SYMBOL("#true")>(true)
-                                             .map<LEXY_SYMBOL("#false")>(false);
-    static constexpr auto bool_atom = dsl::symbol<bool_symbols>;
-
-    static constexpr auto sym_or_rel_atom = dsl::p<identifier> >>
-                                                 dsl::opt(dsl::p<pool>) + dsl::opt(dsl::p<relation> >>
-                                                                                   dsl::p<nested_expr>) |
-                                             dsl::else_ >> rel_atom;
-
-
-    static constexpr auto disjunction = bool_atom | dsl::else_ >> dsl::opt(LEXY_LIT("-")) + sym_or_rel_atom;
-
-    struct theory_atom {
-        static constexpr auto rule = LEXY_LIT("&") >> dsl::return_;
-        static constexpr auto value = lexy::callback<ULiteral>([](){ throw std::logic_error("implement me!!!"); });
-    };
-
-    static constexpr auto aggregate = LEXY_LIT("count") >> LEXY_LIT("{") + LEXY_LIT("}");
-    static constexpr auto set_aggregate = LEXY_LIT("{") >> LEXY_LIT("}");
-
-    static constexpr auto rule = dsl::p<theory_atom> | aggregate | set_aggregate;
-    // Grammar as a PEG taking limited branching into account:
+struct head_aggregate {
+    // The grammar for head elements bas been written to parse with simple
+    // branching. Unfortunately, it gets a bit complicated to read like this.
+    // Alternatively, one could also write a scanner to classify the next
+    // literal. It would have to classify the type of the next literal.
+    //
     //
     // head_literal = peek('&') >>                theory_atom
     //              | peek(aggregate_function) >> aggregate
@@ -853,148 +808,42 @@ struct head_literal2 {
     // theory_atom   =  '&' theory_term '{' ... '}' theory_operator theory_term
     // aggregate     = aggregate_funtction '{'... '}' (relation? term)?
     // set_aggregate = '{'... '}' (relation? term)?
-};
-
-struct head_literal : lexy::scan_production<ULiteral> {
+    static constexpr auto rel_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
     static constexpr auto bool_symbols = lexy::symbol_table<bool> //
                                              .map<LEXY_SYMBOL("#true")>(true)
                                              .map<LEXY_SYMBOL("#false")>(false);
     static constexpr auto bool_atom = dsl::symbol<bool_symbols>;
 
-    static constexpr auto aggregate_function_symbols = lexy::symbol_table<AggregateFunction> //
-                                                           .map<LEXY_SYMBOL("#count")>(AggregateFunction::count)
-                                                           .map<LEXY_SYMBOL("#sum")>(AggregateFunction::sum)
-                                                           .map<LEXY_SYMBOL("#sum+")>(AggregateFunction::sump)
-                                                           .map<LEXY_SYMBOL("#min")>(AggregateFunction::min)
-                                                           .map<LEXY_SYMBOL("#max")>(AggregateFunction::max);
-    static constexpr auto aggregate_function = dsl::symbol<aggregate_function_symbols>;
+    static constexpr auto sym_or_rel_atom = dsl::p<identifier> >>
+                                                dsl::opt(dsl::p<pool>) + dsl::opt(dsl::p<relation> >>
+                                                                                  dsl::p<nested_expr>) |
+                                            dsl::else_ >> rel_atom;
 
-    static constexpr auto rel_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
+    static constexpr auto theory_atom = LEXY_LIT("&") >> dsl::p<identifier> + LEXY_LIT("{") + LEXY_LIT("}");
+    static constexpr auto aggregate = LEXY_LIT("#count") >> LEXY_LIT("{") + LEXY_LIT("}");
+    static constexpr auto set_aggregate = LEXY_LIT("{") >> LEXY_LIT("}");
 
-    template <typename Reader, typename Context>
-    static auto scan_disjunction(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        throw std::logic_error("implement me: disjunction");
-    }
+    static constexpr auto condition = dsl::opt(LEXY_LIT(":") >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
+    static constexpr auto element = dsl::p<literal> + condition;
+    static constexpr auto elements = dsl::opt(dsl::list((LEXY_LIT(",") / LEXY_LIT(";") / LEXY_LIT("|")) >> element));
 
-    template <typename Reader, typename Context>
-    static auto scan_disjunction(lexy::rule_scanner<Context, Reader> &scanner, UTerm term) -> scan_result {
-        assert(term->isAtom());
-        throw std::logic_error("implement me: continue disjunction with atom");
-    }
+    static constexpr auto guards = dsl::list(dsl::p<relation> >> dsl::p<nested_expr>);
 
-    template <typename Reader, typename Context>
-    static auto scan_disjunction(lexy::rule_scanner<Context, Reader> &scanner, UTerm term, Relation rel)
-        -> scan_result {
-        throw std::logic_error("implement me: continue disjunction with atom and relation");
-    }
+    static constexpr auto cont_dis1 = condition + elements;
 
-    template <typename Reader, typename Context>
-    static auto scan_theory(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        throw std::logic_error("implement me: theory");
-    }
+    static constexpr auto cont_rel2 = set_aggregate | aggregate |
+                                      dsl::else_ >> dsl::p<nested_expr> + dsl::opt(guards) + cont_dis1;
+    static constexpr auto cont_rel1 = dsl::p<relation> >> cont_rel2 | set_aggregate | aggregate;
 
-    template <typename Reader, typename Context>
-    static auto scan_aggregate(lexy::rule_scanner<Context, Reader> &scanner, AggregateFunction fun) -> scan_result {
-        throw std::logic_error("implement me: aggregate");
-    }
+    static constexpr auto cont_sym2 =
+        dsl::p<relation> >> cont_rel2 | set_aggregate | aggregate | dsl::else_ >> cont_dis1;
+    static constexpr auto cont_sym1 = dsl::p<identifier> >> dsl::opt(dsl::p<pool>) + cont_sym2
+                                      | dsl::else_ >> dsl::p<nested_expr> + cont_rel1;
 
-    template <typename Reader, typename Context>
-    static auto scan_aggregate(lexy::rule_scanner<Context, Reader> &scanner, AggregateFunction fun, UTerm lhs,
-                               Relation lhs_rel) -> scan_result {
-        throw std::logic_error("implement me: aggregate with left guard");
-    }
+    static constexpr auto disjunction = dsl::p<kw_not> >> dsl::opt(dsl::p<kw_not>) + dsl::p<atom> + cont_dis1;
 
-    template <typename Reader, typename Context>
-    static auto scan_set_aggregate(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        throw std::logic_error("implement me: set aggregate");
-    }
-
-    template <typename Reader, typename Context>
-    static auto scan_set_aggregate(lexy::rule_scanner<Context, Reader> &scanner, UTerm lhs, Relation lhs_rel)
-        -> scan_result {
-        throw std::logic_error("implement me: set aggregate with left guard");
-    }
-
-    template <typename Reader, typename Context>
-    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        // This can be parsed without lookahead as shown below. However, it is
-        // worth to spend some more time to find a way to write this without a
-        // scan production. (Or at least with a smaller one.)
-        // not ->
-        //   disjunction
-        // & ->
-        //   theory atom
-        // #true | #false ->
-        //   boolean literal
-        // (1) aggregate function ->
-        //   aggregate
-        // (2) opening brace ->
-        //   set aggregate
-        // term ->
-        //   relation ->
-        //     (1)
-        //     (2)
-        //     else ->
-        //       disjunction
-        //   (1)
-        //   (2)
-        //   isAtom ->
-        //     disjunction
-        //   else ->
-        //     error
-        // else ->
-        //   error
-        if (scanner.peek(kw_not::rule) || scanner.peek(bool_atom)) {
-            return scan_disjunction(scanner);
-        }
-
-        lexy::scan_result<AggregateFunction> res_afun;
-        if (scanner.branch(res_afun, aggregate_function)) {
-            return scan_aggregate(scanner, res_afun.value());
-        }
-
-        if (scanner.branch(LEXY_LIT("&"))) {
-            return scan_theory(scanner);
-        }
-
-        if (scanner.branch(LEXY_LIT("{"))) {
-            return scan_set_aggregate(scanner);
-        }
-
-        // TODO: This seems to be the only reason to require a scanner. Maybe
-        // this can be isolated and more declarative syntax used for the
-        // remaining cases. Best investigate for the case of literals.
-        auto res_term = scanner.parse(nested_expr{});
-        if (!scanner) {
-            return lexy::scan_failed;
-        }
-
-        lexy::scan_result<Relation> res_rel;
-        if (scanner.branch(res_rel, dsl::p<relation>)) {
-            if (scanner.branch(LEXY_LIT("{"))) {
-                return scan_set_aggregate(scanner, std::move(res_term).value(), res_rel.value());
-            }
-            lexy::scan_result<AggregateFunction> res_afun;
-            if (scanner.branch(res_afun, aggregate_function)) {
-                return scan_aggregate(scanner, res_afun.value(), std::move(res_term).value(), res_rel.value());
-            }
-            return scan_disjunction(scanner, std::move(res_term).value(), res_rel.value());
-        }
-
-        if (scanner.branch(LEXY_LIT("{"))) {
-            return scan_set_aggregate(scanner, std::move(res_term).value(), Relation::less_equal);
-        }
-        if (scanner.branch(res_afun, aggregate_function)) {
-            return scan_aggregate(scanner, res_afun.value(), std::move(res_term).value(), Relation::less_equal);
-        }
-
-        if (res_term.value()->isAtom()) {
-            return scan_disjunction(scanner, std::move(res_term).value());
-        }
-
-        scanner.error("relation expected", scanner.position());
-        return lexy::scan_failed;
-    }
+    static constexpr auto rule = theory_atom | aggregate | set_aggregate | disjunction |
+                                 dsl::else_ >> dsl::opt(LEXY_LIT("-")) + cont_sym1;
 };
 
 struct statement : control {
@@ -1008,11 +857,18 @@ namespace test {
 
 namespace dsl = lexy::dsl;
 
-template <class P> struct root : P, grammar::control {};
+template <class P> struct parse_root : grammar::control {
+    static constexpr auto rule = dsl::p<P> + dsl::eof;
+    static constexpr auto value = lexy::forward<typename decltype(P::value)::return_type>;
+};
 
-using term = root<grammar::nested_expr>;
-using literal = root<grammar::literal>;
-using head_literal = root<grammar::head_literal>;
+template <class P> struct match_root : grammar::control {
+    static constexpr auto rule = dsl::p<P> + dsl::eof;
+};
+
+using term = parse_root<grammar::nested_expr>;
+using literal = parse_root<grammar::literal>;
+using head_aggregate = match_root<grammar::head_aggregate>;
 
 } // namespace test
 
@@ -1023,6 +879,14 @@ template <typename Control> auto parse(std::string str) -> std::string {
     auto stm = lexy::parse<Control>(input, report_error);
     REQUIRE(stm.has_value());
     return stm.value()->to_string();
+}
+
+template <typename Control> auto match(std::string str) {
+    std::istringstream in;
+    in.str(std::move(str));
+    auto input = grammar::input{in};
+    auto res = lexy::validate<Control>(input, report_error);
+    return res.is_success();
 }
 
 } // namespace
@@ -1047,6 +911,7 @@ TEST_CASE("literals") {
     REQUIRE(parse<test::literal>("#true") == "#true");
     REQUIRE(parse<test::literal>("#false") == "#false");
     REQUIRE(parse<test::literal>("1 < 2") == "1<2");
+    REQUIRE(parse<test::literal>("-f+1 < 2") == "-f+1<2");
     REQUIRE(parse<test::literal>("p(X)") == "p(X)");
     // TODO: get rid of parenthesis
     REQUIRE(parse<test::literal>("-p(X)") == "(-p(X))");
@@ -1054,7 +919,42 @@ TEST_CASE("literals") {
     REQUIRE(parse<test::literal>("not not p") == "not not p");
 }
 
-TEST_CASE("head literals") { REQUIRE(parse<test::head_literal>("#true") == "#true"); }
+TEST_CASE("head literals 2") {
+    // theory_atom | aggregate | set_aggregate | disjunction | '-'? ...
+    REQUIRE(match<test::head_aggregate>("&x{}"));
+    REQUIRE(match<test::head_aggregate>("#count{}"));
+    REQUIRE(match<test::head_aggregate>("{}"));
+    REQUIRE(match<test::head_aggregate>("not a"));
+    REQUIRE(match<test::head_aggregate>("-a"));
+    // identifier pool? relation ...
+    REQUIRE(match<test::head_aggregate>("a<{}"));
+    REQUIRE(match<test::head_aggregate>("a<#count{}"));
+    REQUIRE(match<test::head_aggregate>("a<b<c"));
+    REQUIRE(match<test::head_aggregate>("a<a:a"));
+    REQUIRE(match<test::head_aggregate>("a<a:a;a"));
+    REQUIRE(match<test::head_aggregate>("a<a,a"));
+    // identifier pool? ...
+    REQUIRE(match<test::head_aggregate>("a{}"));
+    REQUIRE(match<test::head_aggregate>("a#count{}"));
+    REQUIRE(match<test::head_aggregate>("-a(X)"));
+    REQUIRE(match<test::head_aggregate>("a:a"));
+    REQUIRE(match<test::head_aggregate>("a:a;a"));
+    REQUIRE(match<test::head_aggregate>("a,a"));
+    // term relation ...
+    REQUIRE(match<test::head_aggregate>("a+1{}"));
+    REQUIRE(match<test::head_aggregate>("a+1#count{}"));
+    REQUIRE(match<test::head_aggregate>("a+1<{}"));
+    REQUIRE(match<test::head_aggregate>("a+1<#count{}"));
+    REQUIRE(match<test::head_aggregate>("a+1<b<c"));
+    REQUIRE(match<test::head_aggregate>("a+1<a:a"));
+    REQUIRE(match<test::head_aggregate>("a+1<a:a;a"));
+    REQUIRE(match<test::head_aggregate>("a+1<a,a"));
+    REQUIRE(match<test::head_aggregate>("a+1<>a,a"));
+    // disjunctions
+    REQUIRE(match<test::head_aggregate>("a,b"));
+    REQUIRE(match<test::head_aggregate>("a;b"));
+    REQUIRE(match<test::head_aggregate>("a|b"));
+}
 
 TEST_CASE("scan") {
     std::istringstream in;
