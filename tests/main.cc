@@ -706,11 +706,11 @@ struct head_literal : lexy::scan_production<ULiteral> {
     static constexpr auto bool_atom = dsl::symbol<bool_symbols>;
 
     static constexpr auto aggregate_function_symbols = lexy::symbol_table<AggregateFunction> //
-                                             .map<LEXY_SYMBOL("#count")>(AggregateFunction::count)
-                                             .map<LEXY_SYMBOL("#sum")>(AggregateFunction::sum)
-                                             .map<LEXY_SYMBOL("#sum+")>(AggregateFunction::sump)
-                                             .map<LEXY_SYMBOL("#min")>(AggregateFunction::min)
-                                             .map<LEXY_SYMBOL("#max")>(AggregateFunction::max);
+                                                           .map<LEXY_SYMBOL("#count")>(AggregateFunction::count)
+                                                           .map<LEXY_SYMBOL("#sum")>(AggregateFunction::sum)
+                                                           .map<LEXY_SYMBOL("#sum+")>(AggregateFunction::sump)
+                                                           .map<LEXY_SYMBOL("#min")>(AggregateFunction::min)
+                                                           .map<LEXY_SYMBOL("#max")>(AggregateFunction::max);
     static constexpr auto aggregate_function = dsl::symbol<aggregate_function_symbols>;
 
     static constexpr auto comp_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
@@ -727,7 +727,8 @@ struct head_literal : lexy::scan_production<ULiteral> {
     }
 
     template <typename Reader, typename Context>
-    static auto scan_disjunction(lexy::rule_scanner<Context, Reader> &scanner, UTerm term, Relation rel) -> scan_result {
+    static auto scan_disjunction(lexy::rule_scanner<Context, Reader> &scanner, UTerm term, Relation rel)
+        -> scan_result {
         throw std::logic_error("implement me: continue disjunction with atom and relation");
     }
 
@@ -742,7 +743,8 @@ struct head_literal : lexy::scan_production<ULiteral> {
     }
 
     template <typename Reader, typename Context>
-    static auto scan_aggregate(lexy::rule_scanner<Context, Reader> &scanner, AggregateFunction fun, UTerm lhs, Relation lhs_rel) -> scan_result {
+    static auto scan_aggregate(lexy::rule_scanner<Context, Reader> &scanner, AggregateFunction fun, UTerm lhs,
+                               Relation lhs_rel) -> scan_result {
         throw std::logic_error("implement me: aggregate with left guard");
     }
 
@@ -752,7 +754,8 @@ struct head_literal : lexy::scan_production<ULiteral> {
     }
 
     template <typename Reader, typename Context>
-    static auto scan_set_aggregate(lexy::rule_scanner<Context, Reader> &scanner, UTerm lhs, Relation lhs_rel) -> scan_result {
+    static auto scan_set_aggregate(lexy::rule_scanner<Context, Reader> &scanner, UTerm lhs, Relation lhs_rel)
+        -> scan_result {
         throw std::logic_error("implement me: set aggregate with left guard");
     }
 
@@ -895,9 +898,7 @@ TEST_CASE("literals") {
     REQUIRE(parse<test::literal>("not not p") == "not not p");
 }
 
-TEST_CASE("head literals") {
-    REQUIRE(parse<test::head_literal>("#true") == "#true");
-}
+TEST_CASE("head literals") { REQUIRE(parse<test::head_literal>("#true") == "#true"); }
 
 TEST_CASE("scan") {
     std::istringstream in;
