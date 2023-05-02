@@ -291,6 +291,41 @@ enum class Sign {
     twice,
 };
 
+auto operator-(Sign a) {
+    switch (a) {
+        case Sign::none: {
+            return Sign::once;
+        }
+        case Sign::once: {
+            return Sign::twice;
+        }
+        case Sign::twice: {
+            break;
+        }
+    }
+    return Sign::once;
+}
+
+auto operator+(Sign a, Sign b) {
+    switch (a) {
+        case Sign::none: {
+            return b;
+        }
+        case Sign::once: {
+            return -b;
+        }
+        case Sign::twice: {
+            break;
+        }
+    }
+    return -(-b);
+}
+
+auto operator+=(Sign &a, Sign b) -> auto & {
+    a = a + b;
+    return a;
+}
+
 auto operator<<(std::ostream &out, Sign op) -> std::ostream & {
     switch (op) {
         case Sign::none: {
@@ -311,6 +346,7 @@ auto operator<<(std::ostream &out, Sign op) -> std::ostream & {
 struct Literal {
     virtual ~Literal() = default;
     virtual void print(std::ostream &out) const = 0;
+    virtual void add_sign(Sign sign) = 0;
     [[nodiscard]] auto to_string() const -> std::string {
         std::ostringstream out;
         out << *this;
@@ -364,25 +400,36 @@ auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
 }
 
 struct LiteralRelation : Literal {
-    LiteralRelation(Sign sign, UTerm left, Relation relation, UTerm right)
-        : sign(sign), left(std::move(left)), relation(relation), right(std::move(right)) {}
-    void print(std::ostream &out) const override { out << sign << *left << relation << *right; }
+    LiteralRelation(UTerm lhs, std::vector<std::pair<Relation, UTerm>> rhs)
+        : sign(Sign::none), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    LiteralRelation(Sign sign, UTerm lhs, std::vector<std::pair<Relation, UTerm>> rhs)
+        : sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    void print(std::ostream &out) const override {
+        out << sign << *lhs;
+        for (auto &&guard : rhs) {
+            out << guard.first << *guard.second;
+        }
+    }
+    void add_sign(Sign s) override { sign += s; }
     Sign sign;
-    UTerm left;
-    Relation relation;
-    UTerm right;
+    UTerm lhs;
+    std::vector<std::pair<Relation, UTerm>> rhs;
 };
 
 struct LiteralBoolean : Literal {
+    LiteralBoolean(bool value) : sign(Sign::none), value(value) {}
     LiteralBoolean(Sign sign, bool value) : sign(sign), value(value) {}
     void print(std::ostream &out) const override { out << sign << (value ? "#true" : "#false"); }
+    void add_sign(Sign s) override { sign += s; }
     Sign sign;
     bool value;
 };
 
 struct LiteralSymbolic : Literal {
+    LiteralSymbolic(UTerm term) : sign(Sign::none), term(std::move(term)) {}
     LiteralSymbolic(Sign sign, UTerm term) : sign(sign), term(std::move(term)) {}
     void print(std::ostream &out) const override { out << sign << *term; }
+    void add_sign(Sign s) override { sign += s; }
     Sign sign;
     UTerm term;
 };
@@ -640,55 +687,75 @@ struct kw_not {
         auto tail = dsl::ascii::alpha_digit_underscore / LEXY_LIT("'");
         auto id = dsl::identifier(head, tail);
 
-        // Parse a keyword.
         return LEXY_KEYWORD("not", id);
     }();
 };
 
-struct literal : lexy::scan_production<ULiteral> {
-    static constexpr auto bool_symbols = lexy::symbol_table<bool> //
-                                             .map<LEXY_SYMBOL("#true")>(true)
-                                             .map<LEXY_SYMBOL("#false")>(false);
-    static constexpr auto bool_atom = dsl::symbol<bool_symbols>;
+struct atom {
+    struct guard {
+        static constexpr auto rule = dsl::p<relation> >> dsl::p<nested_expr>;
+        static constexpr auto value = lexy::construct<std::pair<Relation, UTerm>>;
+    };
 
-    static constexpr auto comp_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
+    struct guards {
+        static constexpr auto rule = dsl::list(dsl::p<guard>);
+        static constexpr auto value = lexy::as_list<std::vector<std::pair<Relation, UTerm>>>;
+    };
 
-    template <typename Reader, typename Context>
-    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        auto sign = Sign::none;
+    struct bool_atom {
+        static constexpr auto bool_symbols = lexy::symbol_table<bool> //
+                                                 .map<LEXY_SYMBOL("#true")>(true)
+                                                 .map<LEXY_SYMBOL("#false")>(false);
+        static constexpr auto rule = dsl::symbol<bool_symbols>;
+        static constexpr auto value = lexy::new_<LiteralBoolean, ULiteral>;
+    };
 
-        if (scanner.branch(kw_not::rule)) {
-            sign = Sign::once;
+    static constexpr auto rel_atom = dsl::p<nested_expr> + dsl::p<guards>;
+    static constexpr auto
+        sym_or_rel_atom = dsl::p<identifier> >> dsl::opt(dsl::p<pool>) + dsl::opt(dsl::p<guards>) | dsl::else_
+                                                                                                        >> rel_atom;
+
+    template <bool sign> struct construct {
+        using guard_list = std::vector<std::pair<Relation, UTerm>>;
+        using opt_arg_list = std::optional<std::vector<std::vector<UTerm>>>;
+
+        static auto negate(UTerm term) -> UTerm {
+            return sign ? std::make_unique<TermUnary>(UnaryOperator::negate, std::move(term)) : std::move(term);
         }
-        if (scanner.branch(kw_not::rule)) {
-            sign = Sign::twice;
+        static auto term(std::string name, opt_arg_list args) -> UTerm {
+            return negate(std::make_unique<TermFunction>(std::move(name), empty_args_(std::move(args)), false));
         }
 
-        lexy::scan_result<bool> res_bool;
-        if (scanner.branch(res_bool, bool_atom)) {
-            return scan_result{std::make_unique<LiteralBoolean>(sign, res_bool.value())};
+        auto operator()(std::string name, opt_arg_list args, lexy::nullopt /* unused */) const {
+            return std::make_unique<LiteralSymbolic>(term(std::move(name), std::move(args)));
         }
+        auto operator()(UTerm lhs, guard_list rhs) const {
+            return std::make_unique<LiteralRelation>(negate(std::move(lhs)), std::move(rhs));
+        }
+        auto operator()(std::string name, opt_arg_list args, guard_list rhs) const {
+            return std::make_unique<LiteralRelation>(term(std::move(name), std::move(args)), std::move(rhs));
+        }
+    };
 
-        auto res_term = scanner.parse(nested_expr{});
-        if (!scanner) {
-            return lexy::scan_failed;
-        }
+    static constexpr auto rule = dsl::p<bool_atom> | dsl::else_ >> dsl::opt(LEXY_LIT("-")) + sym_or_rel_atom;
+    static constexpr auto value =
+        lexy::callback<ULiteral>(lexy::forward<ULiteral>, construct<true>{}, [](lexy::nullopt, auto &&...args) {
+            return construct<false>{}(std::forward<decltype(args)>(args)...);
+        });
+};
 
-        lexy::scan_result<Relation> res_rel;
-        if (scanner.branch(res_rel, dsl::p<relation>)) {
-            auto res_rhs = scanner.parse(nested_expr{});
-            if (!scanner) {
-                return lexy::scan_failed;
-            }
-            return scan_result{std::make_unique<LiteralRelation>(sign, std::move(res_term).value(), res_rel.value(),
-                                                                 std::move(res_rhs).value())};
-        }
-        if (!res_term.value()->isAtom()) {
-            scanner.error("relation expected", scanner.position());
-            return lexy::scan_failed;
-        }
-        return scan_result{std::make_unique<LiteralSymbolic>(sign, std::move(res_term).value())};
-    }
+struct literal {
+    static constexpr auto rule = dsl::opt(kw_not::rule) + dsl::opt(kw_not::rule) + dsl::p<atom>;
+    static constexpr auto value =
+        lexy::callback<ULiteral>([](lexy::nullopt, lexy::nullopt, ULiteral lit) { return std::move(lit); },
+                                 [](lexy::nullopt, ULiteral lit) {
+                                     lit->add_sign(Sign::once);
+                                     return std::move(lit);
+                                 },
+                                 [](ULiteral lit) {
+                                     lit->add_sign(Sign::twice);
+                                     return std::move(lit);
+                                 });
 };
 
 enum class AggregateFunction {
@@ -698,6 +765,86 @@ enum class AggregateFunction {
     min,
     max,
 };
+
+/*
+struct head_literal2 {
+    // This can be parsed without lookahead as shown below. However, it is
+    // worth to spend some more time to find a way to write this without a
+    // scan production. (Or at least with a smaller one.)
+    // not ->
+    //   disjunction
+    // & ->
+    //   theory atom
+    // #true | #false ->
+    //   boolean literal
+    // (1) aggregate function ->
+    //   aggregate
+    // (2) opening brace ->
+    //   set aggregate
+    // term ->
+    //   relation ->
+    //     (1)
+    //     (2)
+    //     else ->
+    //       disjunction
+    //   (1)
+    //   (2)
+    //   isAtom ->
+    //     disjunction
+    //   else ->
+    //     error
+    // else ->
+    //   error
+    static constexpr auto rel_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
+    static constexpr auto bool_symbols = lexy::symbol_table<bool> //
+                                             .map<LEXY_SYMBOL("#true")>(true)
+                                             .map<LEXY_SYMBOL("#false")>(false);
+    static constexpr auto bool_atom = dsl::symbol<bool_symbols>;
+
+    static constexpr auto sym_or_rel_atom = dsl::p<identifier> >>
+                                                 dsl::opt(dsl::p<pool>) + dsl::opt(dsl::p<relation> >>
+                                                                                   dsl::p<nested_expr>) |
+                                             dsl::else_ >> rel_atom;
+
+
+    static constexpr auto disjunction = bool_atom | dsl::else_ >> dsl::opt(LEXY_LIT("-")) + sym_or_rel_atom;
+
+    // Grammar as a PEG taking limited branching into account:
+    //
+    // head_literal = peek('&') >>                theory_atom
+    //              | peek(aggregate_function) >> aggregate
+    //              | peek('{') >>                set_aggregate
+    //              | peek('not') >>              disjunction
+    //              | else >>                     '-'? cont_sym1
+    //
+    // cont_sym1 = identifier >> pool? cont_sym2
+    //           | else       >> term cont_rel1
+    //
+    // cont_sym2 = peek(relation) >>            relation cont_rel2
+    //           | peek('{') >>                 set_aggregate
+    //           | peek(aggregate_funtction) >> aggregate
+    //           | else >>                      cont_dis1
+    //
+    // cont_rel1 = relation >> cont_rel2
+    //           | peek('{') >>                 set_aggregate
+    //           | peek(aggregate_funtction) >> aggregate
+    //
+    // cont_rel2 = peek('{') >>                 set_aggregate
+    //           | peek(aggregate_funtction) >> aggregate
+    //           | else >>                      term cont_dis1
+    //
+    // cont_dis1 = ':'
+    //           | ','
+    //           | ':'
+    //           | else
+    //
+    // theory_atom   =  '&' theory_term '{' ... '}' theory_operator theory_term
+    // aggregate     = aggregate_funtction '{'... '}' (relation? term)?
+    // set_aggregate = '{'... '}' (relation? term)?
+
+    static constexpr auto rule = bool_atom | dsl::else_ >> dsl::opt(LEXY_LIT("-")) + sym_or_rel_atom;
+};
+*/
 
 struct head_literal : lexy::scan_production<ULiteral> {
     static constexpr auto bool_symbols = lexy::symbol_table<bool> //
@@ -713,7 +860,7 @@ struct head_literal : lexy::scan_production<ULiteral> {
                                                            .map<LEXY_SYMBOL("#max")>(AggregateFunction::max);
     static constexpr auto aggregate_function = dsl::symbol<aggregate_function_symbols>;
 
-    static constexpr auto comp_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
+    static constexpr auto rel_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
 
     template <typename Reader, typename Context>
     static auto scan_disjunction(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
