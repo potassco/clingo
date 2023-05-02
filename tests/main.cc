@@ -833,10 +833,14 @@ struct head_literal2 {
     //           | peek(aggregate_funtction) >> aggregate
     //           | else >>                      term cont_dis1
     //
-    // cont_dis1 = ':'
-    //           | ','
-    //           | ':'
+    // cont_dis1 = ':' condition (sep element)*
+    //           | ',' element (sep element)*
+    //           | ';' element (sep element)*
+    //           | '|' element (sep element)*
     //           | else
+    //
+    // element = atom (: condition)?
+    // sep     = ',' | ';' '|'
     //
     // theory_atom   =  '&' theory_term '{' ... '}' theory_operator theory_term
     // aggregate     = aggregate_funtction '{'... '}' (relation? term)?
