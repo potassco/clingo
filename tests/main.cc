@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <variant>
@@ -690,6 +691,153 @@ struct literal : lexy::scan_production<ULiteral> {
     }
 };
 
+enum class AggregateFunction {
+    count,
+    sum,
+    sump,
+    min,
+    max,
+};
+
+struct head_literal : lexy::scan_production<ULiteral> {
+    static constexpr auto bool_symbols = lexy::symbol_table<bool> //
+                                             .map<LEXY_SYMBOL("#true")>(true)
+                                             .map<LEXY_SYMBOL("#false")>(false);
+    static constexpr auto bool_atom = dsl::symbol<bool_symbols>;
+
+    static constexpr auto aggregate_function_symbols = lexy::symbol_table<AggregateFunction> //
+                                             .map<LEXY_SYMBOL("#count")>(AggregateFunction::count)
+                                             .map<LEXY_SYMBOL("#sum")>(AggregateFunction::sum)
+                                             .map<LEXY_SYMBOL("#sum+")>(AggregateFunction::sump)
+                                             .map<LEXY_SYMBOL("#min")>(AggregateFunction::min)
+                                             .map<LEXY_SYMBOL("#max")>(AggregateFunction::max);
+    static constexpr auto aggregate_function = dsl::symbol<aggregate_function_symbols>;
+
+    static constexpr auto comp_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
+
+    template <typename Reader, typename Context>
+    static auto scan_disjunction(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        throw std::logic_error("implement me: disjunction");
+    }
+
+    template <typename Reader, typename Context>
+    static auto scan_disjunction(lexy::rule_scanner<Context, Reader> &scanner, UTerm term) -> scan_result {
+        assert(term->isAtom());
+        throw std::logic_error("implement me: continue disjunction with atom");
+    }
+
+    template <typename Reader, typename Context>
+    static auto scan_disjunction(lexy::rule_scanner<Context, Reader> &scanner, UTerm term, Relation rel) -> scan_result {
+        throw std::logic_error("implement me: continue disjunction with atom and relation");
+    }
+
+    template <typename Reader, typename Context>
+    static auto scan_theory(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        throw std::logic_error("implement me: theory");
+    }
+
+    template <typename Reader, typename Context>
+    static auto scan_aggregate(lexy::rule_scanner<Context, Reader> &scanner, AggregateFunction fun) -> scan_result {
+        throw std::logic_error("implement me: aggregate");
+    }
+
+    template <typename Reader, typename Context>
+    static auto scan_aggregate(lexy::rule_scanner<Context, Reader> &scanner, AggregateFunction fun, UTerm lhs, Relation lhs_rel) -> scan_result {
+        throw std::logic_error("implement me: aggregate with left guard");
+    }
+
+    template <typename Reader, typename Context>
+    static auto scan_set_aggregate(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        throw std::logic_error("implement me: set aggregate");
+    }
+
+    template <typename Reader, typename Context>
+    static auto scan_set_aggregate(lexy::rule_scanner<Context, Reader> &scanner, UTerm lhs, Relation lhs_rel) -> scan_result {
+        throw std::logic_error("implement me: set aggregate with left guard");
+    }
+
+    template <typename Reader, typename Context>
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        // This can be parsed without lookahead as shown below. However, it is
+        // worth to spend some more time to find a way to write this without a
+        // scan production. (Or at least with a smaller one.)
+        // not ->
+        //   disjunction
+        // & ->
+        //   theory atom
+        // #true | #false ->
+        //   boolean literal
+        // (1) aggregate function ->
+        //   aggregate
+        // (2) opening brace ->
+        //   set aggregate
+        // term ->
+        //   relation ->
+        //     (1)
+        //     (2)
+        //     else ->
+        //       disjunction
+        //   (1)
+        //   (2)
+        //   isAtom ->
+        //     disjunction
+        //   else ->
+        //     error
+        // else ->
+        //   error
+        if (scanner.peek(kw_not::rule) || scanner.peek(bool_atom)) {
+            return scan_disjunction(scanner);
+        }
+
+        lexy::scan_result<AggregateFunction> res_afun;
+        if (scanner.branch(res_afun, aggregate_function)) {
+            return scan_aggregate(scanner, res_afun.value());
+        }
+
+        if (scanner.branch(LEXY_LIT("&"))) {
+            return scan_theory(scanner);
+        }
+
+        if (scanner.branch(LEXY_LIT("{"))) {
+            return scan_set_aggregate(scanner);
+        }
+
+        // TODO: This seems to be the only reason to require a scanner. Maybe
+        // this can be isolated and more declarative syntax used for the
+        // remaining cases. Best investigate for the case of literals.
+        auto res_term = scanner.parse(nested_expr{});
+        if (!scanner) {
+            return lexy::scan_failed;
+        }
+
+        lexy::scan_result<Relation> res_rel;
+        if (scanner.branch(res_rel, dsl::p<relation>)) {
+            if (scanner.branch(LEXY_LIT("{"))) {
+                return scan_set_aggregate(scanner, std::move(res_term).value(), res_rel.value());
+            }
+            lexy::scan_result<AggregateFunction> res_afun;
+            if (scanner.branch(res_afun, aggregate_function)) {
+                return scan_aggregate(scanner, res_afun.value(), std::move(res_term).value(), res_rel.value());
+            }
+            return scan_disjunction(scanner, std::move(res_term).value(), res_rel.value());
+        }
+
+        if (scanner.branch(LEXY_LIT("{"))) {
+            return scan_set_aggregate(scanner, std::move(res_term).value(), Relation::less_equal);
+        }
+        if (scanner.branch(res_afun, aggregate_function)) {
+            return scan_aggregate(scanner, res_afun.value(), std::move(res_term).value(), Relation::less_equal);
+        }
+
+        if (res_term.value()->isAtom()) {
+            return scan_disjunction(scanner, std::move(res_term).value());
+        }
+
+        scanner.error("relation expected", scanner.position());
+        return lexy::scan_failed;
+    }
+};
+
 struct statement : control {
     static constexpr auto rule = dsl::p<literal> + dsl::lit_c<';'>;
     static constexpr auto value = lexy::forward<ULiteral>;
@@ -705,6 +853,7 @@ template <class P> struct root : P, grammar::control {};
 
 using term = root<grammar::nested_expr>;
 using literal = root<grammar::literal>;
+using head_literal = root<grammar::head_literal>;
 
 } // namespace test
 
@@ -744,6 +893,10 @@ TEST_CASE("literals") {
     REQUIRE(parse<test::literal>("-p(X)") == "(-p(X))");
     REQUIRE(parse<test::literal>("not p") == "not p");
     REQUIRE(parse<test::literal>("not not p") == "not not p");
+}
+
+TEST_CASE("head literals") {
+    REQUIRE(parse<test::head_literal>("#true") == "#true");
 }
 
 TEST_CASE("scan") {
