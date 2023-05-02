@@ -766,7 +766,6 @@ enum class AggregateFunction {
     max,
 };
 
-/*
 struct head_literal2 {
     // This can be parsed without lookahead as shown below. However, it is
     // worth to spend some more time to find a way to write this without a
@@ -809,6 +808,15 @@ struct head_literal2 {
 
     static constexpr auto disjunction = bool_atom | dsl::else_ >> dsl::opt(LEXY_LIT("-")) + sym_or_rel_atom;
 
+    struct theory_atom {
+        static constexpr auto rule = LEXY_LIT("&") >> dsl::return_;
+        static constexpr auto value = lexy::callback<ULiteral>([](){ throw std::logic_error("implement me!!!"); });
+    };
+
+    static constexpr auto aggregate = LEXY_LIT("count") >> LEXY_LIT("{") + LEXY_LIT("}");
+    static constexpr auto set_aggregate = LEXY_LIT("{") >> LEXY_LIT("}");
+
+    static constexpr auto rule = dsl::p<theory_atom> | aggregate | set_aggregate;
     // Grammar as a PEG taking limited branching into account:
     //
     // head_literal = peek('&') >>                theory_atom
@@ -845,10 +853,7 @@ struct head_literal2 {
     // theory_atom   =  '&' theory_term '{' ... '}' theory_operator theory_term
     // aggregate     = aggregate_funtction '{'... '}' (relation? term)?
     // set_aggregate = '{'... '}' (relation? term)?
-
-    static constexpr auto rule = bool_atom | dsl::else_ >> dsl::opt(LEXY_LIT("-")) + sym_or_rel_atom;
 };
-*/
 
 struct head_literal : lexy::scan_production<ULiteral> {
     static constexpr auto bool_symbols = lexy::symbol_table<bool> //
