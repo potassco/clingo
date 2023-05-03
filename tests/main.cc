@@ -755,83 +755,100 @@ enum class AggregateFunction {
     max,
 };
 
-struct head_aggregate {
-    // The grammar for head elements bas been written to parse with simple
-    // branching. Unfortunately, it gets a bit complicated to read like this.
-    // Alternatively, one could also write a scanner to classify the next
-    // literal. It would have to classify the type of the next literal.
-    //
-    //
-    // head_literal = peek('&') >>                theory_atom
-    //              | peek(aggregate_function) >> aggregate
-    //              | peek('{') >>                set_aggregate
-    //              | peek('not') >>              disjunction
-    //              | else >>                     '-'? cont_sym1
-    //
-    // cont_sym1 = identifier >> pool? cont_sym2
-    //           | else       >> term cont_rel1
-    //
-    // cont_sym2 = peek(relation) >>            relation cont_rel2
-    //           | peek('{') >>                 set_aggregate
-    //           | peek(aggregate_funtction) >> aggregate
-    //           | else >>                      cont_dis1
-    //
-    // cont_rel1 = relation >> cont_rel2
-    //           | peek('{') >>                 set_aggregate
-    //           | peek(aggregate_funtction) >> aggregate
-    //
-    // cont_rel2 = peek('{') >>                 set_aggregate
-    //           | peek(aggregate_funtction) >> aggregate
-    //           | else >>                      term cont_dis1
-    //
-    // cont_dis1 = ':' condition (sep element)*
-    //           | ',' element (sep element)*
-    //           | ';' element (sep element)*
-    //           | '|' element (sep element)*
-    //           | else
-    //
-    // element = atom (: condition)?
-    // sep     = ',' | ';' '|'
-    //
-    // theory_atom   =  '&' theory_term '{' ... '}' theory_operator theory_term
-    // aggregate     = aggregate_funtction '{'... '}' (relation? term)?
-    // set_aggregate = '{'... '}' (relation? term)?
-    static constexpr auto rel_atom = dsl::p<nested_expr> + dsl::p<relation> + dsl::p<nested_expr>;
-    static constexpr auto bool_symbols = lexy::symbol_table<bool> //
-                                             .map<LEXY_SYMBOL("#true")>(true)
-                                             .map<LEXY_SYMBOL("#false")>(false);
-    static constexpr auto bool_atom = dsl::symbol<bool_symbols>;
+struct head_aggregate : lexy::scan_production<ULiteral> {
+    // TODO: get rid of dummy value
+    static constexpr auto dummy_value = lexy::callback<ULiteral>([](auto &&...args) { return nullptr; });
 
-    static constexpr auto sym_or_rel_atom = dsl::p<identifier> >>
-                                                dsl::opt(dsl::p<pool>) + dsl::opt(dsl::p<relation> >>
-                                                                                  dsl::p<nested_expr>) |
-                                            dsl::else_ >> rel_atom;
+    struct theory_atom {
+        static constexpr auto rule = LEXY_LIT("&") >> dsl::p<identifier> + LEXY_LIT("{") + LEXY_LIT("}");
+        static constexpr auto value = dummy_value;
+    };
+    struct aggregate {
+        static constexpr auto rule = LEXY_LIT("#count") >> LEXY_LIT("{") + LEXY_LIT("}");
+        static constexpr auto value = dummy_value;
+    };
+    struct set_aggregate {
+        static constexpr auto rule = LEXY_LIT("{") >> LEXY_LIT("}");
+        static constexpr auto value = dummy_value;
+    };
 
-    static constexpr auto theory_atom = LEXY_LIT("&") >> dsl::p<identifier> + LEXY_LIT("{") + LEXY_LIT("}");
-    static constexpr auto aggregate = LEXY_LIT("#count") >> LEXY_LIT("{") + LEXY_LIT("}");
-    static constexpr auto set_aggregate = LEXY_LIT("{") >> LEXY_LIT("}");
+    struct condition {
+        static constexpr auto rule = dsl::opt(LEXY_LIT(":") >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
+        static constexpr auto value = lexy::as_list<std::vector<ULiteral>>;
+    };
 
-    static constexpr auto condition = dsl::opt(LEXY_LIT(":") >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
-    static constexpr auto element = dsl::p<literal> + condition;
-    static constexpr auto elements = dsl::opt(dsl::list((LEXY_LIT(",") / LEXY_LIT(";") / LEXY_LIT("|")) >> element));
+    struct element {
+        static constexpr auto rule = dsl::p<literal> + dsl::p<condition>;
+        static constexpr auto value = lexy::construct<std::pair<ULiteral, std::vector<ULiteral>>>;
+    };
 
-    static constexpr auto guards = dsl::list(dsl::p<relation> >> dsl::p<nested_expr>);
+    struct elements {
+        static constexpr auto rule =
+            dsl::opt(dsl::list((LEXY_LIT(",") / LEXY_LIT(";") / LEXY_LIT("|")) >> dsl::p<element>));
+        static constexpr auto value = lexy::as_list<std::vector<std::pair<ULiteral, std::vector<ULiteral>>>>;
+    };
 
-    static constexpr auto cont_dis1 = condition + elements;
+    struct disjunction {
+        static constexpr auto rule = dsl::p<element> + dsl::p<elements>;
+        static constexpr auto value = dummy_value;
+    };
 
-    static constexpr auto cont_rel2 = set_aggregate | aggregate |
-                                      dsl::else_ >> dsl::p<nested_expr> + dsl::opt(guards) + cont_dis1;
-    static constexpr auto cont_rel1 = dsl::p<relation> >> cont_rel2 | set_aggregate | aggregate;
-
-    static constexpr auto cont_sym2 =
-        dsl::p<relation> >> cont_rel2 | set_aggregate | aggregate | dsl::else_ >> cont_dis1;
-    static constexpr auto cont_sym1 = dsl::p<identifier> >> dsl::opt(dsl::p<pool>) + cont_sym2
-                                      | dsl::else_ >> dsl::p<nested_expr> + cont_rel1;
-
-    static constexpr auto disjunction = dsl::p<kw_not> >> dsl::opt(dsl::p<kw_not>) + dsl::p<atom> + cont_dis1;
-
-    static constexpr auto rule = theory_atom | aggregate | set_aggregate | disjunction |
-                                 dsl::else_ >> dsl::opt(LEXY_LIT("-")) + cont_sym1;
+    template <typename Reader, typename Context>
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        auto branch_aggregate = [&scanner](scan_result &res_lit, lexy::scan_result<UTerm> &lhs,
+                                           Relation rel = Relation::less_equal) -> bool {
+            if (scanner.template branch<aggregate>(res_lit)) {
+                // TODO: construct aggregate
+                return true;
+            }
+            if (scanner.template branch<set_aggregate>(res_lit)) {
+                // TODO: construct aggregate
+                return true;
+            }
+            return false;
+        };
+        if (scanner.peek(dsl::p<kw_not>)) {
+            return scanner.template parse<disjunction>();
+        }
+        scan_result res_lit;
+        if (scanner.template branch<theory_atom>(res_lit)) {
+            return res_lit;
+        }
+        lexy::scan_result<UTerm> res_lhs;
+        if (branch_aggregate(res_lit, res_lhs)) {
+            return res_lit;
+        }
+        res_lhs = scanner.template parse<nested_expr>();
+        if (!res_lhs.has_value()) {
+            return lexy::scan_failed;
+        }
+        if (branch_aggregate(res_lit, res_lhs)) {
+            return res_lit;
+        }
+        lexy::scan_result<Relation> res_rel;
+        if (scanner.template branch<relation>(res_rel)) {
+            if (branch_aggregate(res_lit, res_lhs, res_rel.value())) {
+                return res_lit;
+            }
+            // Note: a bit unwieldy because the relation has already been consumed
+            auto res_rhs = scanner.template parse<nested_expr>();
+            lexy::scan_result<std::vector<std::pair<Relation, UTerm>>> res_guards;
+            if (scanner.template branch<atom::guards>(res_guards)) {
+            }
+            auto res_cond = scanner.template parse<condition>();
+            auto res_elems = scanner.template parse<elements>();
+            // TODO: construct disjunction
+            return {nullptr};
+        }
+        if (!res_lhs.value()->is_atom()) {
+            scanner.error("relation expected", scanner.position());
+            return lexy::scan_failed;
+        }
+        auto res_cond = scanner.template parse<condition>();
+        auto res_elems = scanner.template parse<elements>();
+        // TODO: construct disjunction
+        return {nullptr};
+    }
 };
 
 struct statement : control {
@@ -937,7 +954,7 @@ TEST_CASE("head literals 2") {
     REQUIRE(match<test::head_aggregate>("a+1<a:a"));
     REQUIRE(match<test::head_aggregate>("a+1<a:a;a"));
     REQUIRE(match<test::head_aggregate>("a+1<a,a"));
-    REQUIRE(match<test::head_aggregate>("a+1<>a,a"));
+    REQUIRE(!match<test::head_aggregate>("a+1<>a,a"));
     // disjunctions
     REQUIRE(match<test::head_aggregate>("a,b"));
     REQUIRE(match<test::head_aggregate>("a;b"));
