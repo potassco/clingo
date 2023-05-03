@@ -23,6 +23,62 @@
 
 namespace {
 
+template <class T> struct p_elem {
+    p_elem(T const &elem) : elem(elem) {}
+    friend auto operator<<(std::ostream &out, p_elem const &elem) -> std::ostream & {
+        out << elem.elem;
+        return out;
+    }
+
+    T const &elem;
+};
+
+template <class T> struct p_elem<std::unique_ptr<T>> {
+    p_elem(std::unique_ptr<T> const &elem) : elem(elem) {}
+    friend auto operator<<(std::ostream &out, p_elem const &elem) -> std::ostream & {
+        out << *elem.elem;
+        return out;
+    }
+
+    std::unique_ptr<T> const &elem;
+};
+
+template <class T> struct p_range {
+    p_range(T const &rng, char const *sep = ",") : rng(rng), sep(sep) {}
+    friend auto operator<<(std::ostream &out, p_range const &rng) -> std::ostream & {
+        bool comma = false;
+        for (auto &elem : rng.rng) {
+            if (comma) {
+                out << rng.sep;
+            }
+            comma = true;
+            out << p_elem{elem};
+        }
+        return out;
+    }
+    T const &rng;
+    char const *sep;
+};
+
+template <class T, class F> struct p_range_with {
+    p_range_with(T const &rng, char const *sep, F &&f) : rng(rng), f(std::forward<F>(f)), sep(sep) {}
+    p_range_with(T const &rng, F &&f) : p_range_with(rng, ",", std::forward<F>(f)) {}
+    friend auto operator<<(std::ostream &out, p_range_with const &rng) -> std::ostream & {
+        bool comma = false;
+        for (auto &elem : rng.rng) {
+            if (comma) {
+                out << rng.sep;
+            }
+            comma = true;
+            rng.f(out, elem);
+        }
+        return out;
+    }
+    T const &rng;
+    F f;
+    char const *sep;
+};
+
 struct Term {
     virtual ~Term() = default;
     [[nodiscard]] virtual auto is_atom() const -> bool { return false; }
@@ -518,20 +574,28 @@ auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
 }
 
 struct HeadAggregate : HeadLiteral {
-    HeadAggregate(AggregateFunction fun) : fun(fun) {}
-    HeadAggregate(AggregateFunction fun, Relation rel, UTerm rhs)
-        : fun(fun), right_guard(std::make_pair(rel, std::move(rhs))) {}
+    using Element = std::tuple<std::vector<UTerm>, ULiteral, std::vector<ULiteral>>;
+    using Elements = std::vector<Element>;
+    HeadAggregate(AggregateFunction fun, Elements elems) : fun(fun), elements(std::move(elems)) {}
+    HeadAggregate(AggregateFunction fun, Elements elems, Relation rel, UTerm rhs)
+        : fun(fun), elements(std::move(elems)), right_guard(std::make_pair(rel, std::move(rhs))) {}
     void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
     void print(std::ostream &out) const override {
         if (left_guard) {
             out << *left_guard->first << left_guard->second;
         }
-        out << "#count{...}";
+        out << fun << "{" << p_range_with(elements, ";", [](std::ostream &out, auto const &elem) {
+            out << p_range{std::get<0>(elem), ","} << ":" << *std::get<1>(elem);
+            if (!std::get<2>(elem).empty()) {
+                out << ":" << p_range{std::get<2>(elem)};
+            }
+        }) << "}";
         if (right_guard) {
             out << right_guard->first << *right_guard->second;
         }
     }
     AggregateFunction fun;
+    Elements elements;
     std::optional<std::pair<UTerm, Relation>> left_guard;
     std::optional<std::pair<Relation, UTerm>> right_guard;
 };
@@ -868,11 +932,11 @@ struct literal {
 
 struct aggregate_function {
     static constexpr auto symbols = lexy::symbol_table<AggregateFunction> //
-                                        .map<LEXY_SYMBOL("#count")>(true)
-                                        .map<LEXY_SYMBOL("#sum")>(false)
-                                        .map<LEXY_SYMBOL("#sum+")>(false)
-                                        .map<LEXY_SYMBOL("#min")>(false)
-                                        .map<LEXY_SYMBOL("#max")>(false);
+                                        .map<LEXY_SYMBOL("#count")>(AggregateFunction::count)
+                                        .map<LEXY_SYMBOL("#sum")>(AggregateFunction::sum)
+                                        .map<LEXY_SYMBOL("#sum+")>(AggregateFunction::sump)
+                                        .map<LEXY_SYMBOL("#min")>(AggregateFunction::min)
+                                        .map<LEXY_SYMBOL("#max")>(AggregateFunction::max);
     static constexpr auto rule = dsl::symbol<symbols>;
     static constexpr auto value = lexy::forward<AggregateFunction>;
 };
@@ -888,12 +952,49 @@ struct head_aggregate : lexy::scan_production<UHeadLiteral> {
     static constexpr auto right_guard = dsl::peek(LEXY_LIT(":") / LEXY_LIT(".")) |
                                         dsl::else_ >> dsl::if_(dsl::p<relation>) + dsl::p<nested_expr>;
 
+    struct condition {
+        static constexpr auto rule = dsl::opt(LEXY_LIT(":") >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
+        static constexpr auto value = lexy::as_list<std::vector<ULiteral>>;
+    };
+
+    struct conditional_literal {
+        static constexpr auto rule = dsl::p<literal> + dsl::p<condition>;
+        static constexpr auto value = lexy::construct<std::pair<ULiteral, std::vector<ULiteral>>>;
+    };
+
+    struct aggregate_element {
+        // Note: gringo also accepts
+        //   HeadElem ::= Tuple? ':' Literal (':' Condition?)?
+        // It is probably not worth the effort to support an empty condition
+        // after a colon (but possible with a lookahead of [;}]).
+        static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<tuple>) + LEXY_LIT(":") +
+                                     dsl::p<literal> + dsl::p<condition>;
+        static constexpr auto value = lexy::callback<HeadAggregate::Element>(
+            [](std::optional<std::vector<UTerm>> tuple, ULiteral lit, std::optional<std::vector<ULiteral>> cond) {
+                auto ret = HeadAggregate::Element{std::vector<UTerm>{}, std::move(lit), std::vector<ULiteral>{}};
+                if (tuple) {
+                    std::get<0>(ret) = std::move(tuple).value();
+                }
+                if (cond) {
+                    std::get<2>(ret) = std::move(cond).value();
+                }
+                return ret;
+            });
+    };
+
+    struct aggregate_elements {
+        static constexpr auto rule =
+            dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<aggregate_element>, dsl::sep(LEXY_LIT(";"))));
+        static constexpr auto value = lexy::as_list<HeadAggregate::Elements>;
+    };
+
     struct aggregate {
-        // TODO: elements
-        static constexpr auto rule = dsl::p<aggregate_function> >> LEXY_LIT("{") + LEXY_LIT("}") + right_guard;
-        static constexpr auto value =
-            lexy::callback<UHeadLiteral>(lexy::new_<HeadAggregate, UHeadLiteral>, [](AggregateFunction fun, UTerm rhs) {
-                return std::make_unique<HeadAggregate>(fun, Relation::less_equal, std::move(rhs));
+        static constexpr auto rule = dsl::p<aggregate_function> >>
+                                     LEXY_LIT("{") + dsl::p<aggregate_elements> + LEXY_LIT("}") + right_guard;
+        static constexpr auto value = lexy::callback<UHeadLiteral>(
+            lexy::new_<HeadAggregate, UHeadLiteral>,
+            [](AggregateFunction fun, HeadAggregate::Elements elems, UTerm rhs) {
+                return std::make_unique<HeadAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
             });
     };
     struct set_aggregate {
@@ -905,25 +1006,15 @@ struct head_aggregate : lexy::scan_production<UHeadLiteral> {
             });
     };
 
-    struct condition {
-        static constexpr auto rule = dsl::opt(LEXY_LIT(":") >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
-        static constexpr auto value = lexy::as_list<std::vector<ULiteral>>;
-    };
-
-    struct element {
-        static constexpr auto rule = dsl::p<literal> + dsl::p<condition>;
-        static constexpr auto value = lexy::construct<std::pair<ULiteral, std::vector<ULiteral>>>;
-    };
-
     static constexpr auto sep = LEXY_LIT(",") / LEXY_LIT(";") / LEXY_LIT("|");
 
-    struct elements {
-        static constexpr auto rule = dsl::opt(dsl::list(sep >> dsl::p<element>));
+    struct conditional_literals {
+        static constexpr auto rule = dsl::opt(dsl::list(sep >> dsl::p<conditional_literal>));
         static constexpr auto value = lexy::as_list<std::vector<std::pair<ULiteral, std::vector<ULiteral>>>>;
     };
 
     struct disjunction {
-        static constexpr auto rule = dsl::list(dsl::p<element>, dsl::sep(sep));
+        static constexpr auto rule = dsl::list(dsl::p<conditional_literal>, dsl::sep(sep));
         static constexpr auto value = lexy::as_list<Disjunction::Elements> >> lexy::new_<Disjunction, UHeadLiteral>;
     };
 
@@ -975,7 +1066,7 @@ struct head_aggregate : lexy::scan_production<UHeadLiteral> {
             lexy::scan_result<std::vector<std::pair<Relation, UTerm>>> res_guards;
             scanner.template branch<atom::guards>(res_guards);
             auto res_cond = scanner.template parse<condition>();
-            auto res_elems = scanner.template parse<elements>();
+            auto res_elems = scanner.template parse<conditional_literals>();
             if (!scanner) {
                 return lexy::scan_failed;
             }
@@ -989,7 +1080,7 @@ struct head_aggregate : lexy::scan_production<UHeadLiteral> {
             elems = std::move(res_elems).value();
         } else if (res_lhs.value()->is_atom()) {
             auto res_cond = scanner.template parse<condition>();
-            auto res_elems = scanner.template parse<elements>();
+            auto res_elems = scanner.template parse<conditional_literals>();
             if (!scanner) {
                 return lexy::scan_failed;
             }
@@ -1091,12 +1182,12 @@ TEST_CASE("literals") {
 TEST_CASE("head literals") {
     // theory_atom | aggregate | set_aggregate | not disjunction
     REQUIRE(parse<test::head_aggregate>("&x{}") == "&p{...}");
-    REQUIRE(parse<test::head_aggregate>("#count{}") == "#count{...}");
+    REQUIRE(parse<test::head_aggregate>("#count{}") == "#count{}");
     REQUIRE(parse<test::head_aggregate>("{}") == "{...}");
     REQUIRE(parse<test::head_aggregate>("not a") == "not a");
     // atom_like relation aggregate
     REQUIRE(parse<test::head_aggregate>("a<{}") == "a<{...}");
-    REQUIRE(parse<test::head_aggregate>("a<#count{}") == "a<#count{...}");
+    REQUIRE(parse<test::head_aggregate>("a<#count{}") == "a<#count{}");
     // atom_like relation term ...
     REQUIRE(parse<test::head_aggregate>("a<b<c") == "a<b<c");
     REQUIRE(parse<test::head_aggregate>("a<a:a") == "a<a:a");
@@ -1104,13 +1195,13 @@ TEST_CASE("head literals") {
     REQUIRE(parse<test::head_aggregate>("a<a,a") == "a<a;a");
     // atom_like aggregate
     REQUIRE(parse<test::head_aggregate>("a{}") == "a<={...}");
-    REQUIRE(parse<test::head_aggregate>("a#count{}") == "a<=#count{...}");
+    REQUIRE(parse<test::head_aggregate>("a#count{}") == "a<=#count{}");
     // term aggregate
     REQUIRE(parse<test::head_aggregate>("a+1{}") == "(a+1)<={...}");
-    REQUIRE(parse<test::head_aggregate>("a+1#count{}") == "(a+1)<=#count{...}");
+    REQUIRE(parse<test::head_aggregate>("a+1#count{}") == "(a+1)<=#count{}");
     // term relation aggregate
     REQUIRE(parse<test::head_aggregate>("a+1<{}") == "(a+1)<{...}");
-    REQUIRE(parse<test::head_aggregate>("a+1<#count{}") == "(a+1)<#count{...}");
+    REQUIRE(parse<test::head_aggregate>("a+1<#count{}") == "(a+1)<#count{}");
     // term relation term ...
     REQUIRE(parse<test::head_aggregate>("a+1<b<c") == "(a+1)<b<c");
     REQUIRE(parse<test::head_aggregate>("a+1<a:a") == "(a+1)<a:a");
@@ -1128,6 +1219,8 @@ TEST_CASE("head literals") {
     // aggregates with guards
     REQUIRE(parse<test::head_aggregate>("a<{}<b") == "a<{...}<b");
     REQUIRE(parse<test::head_aggregate>("a{}b") == "a<={...}<=b");
+    // aggregate elements
+    REQUIRE(parse<test::head_aggregate>("#sum{:a;1:a;1,2:a:b,c}") == "#sum{:a;1:a;1,2:a:b,c}");
 }
 
 TEST_CASE("scan") {
