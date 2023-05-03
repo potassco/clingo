@@ -434,6 +434,63 @@ struct LiteralSymbolic : Literal {
     UTerm term;
 };
 
+struct HeadLiteral {
+    virtual ~HeadLiteral() = default;
+    virtual void print(std::ostream &out) const = 0;
+    [[nodiscard]] auto to_string() const -> std::string {
+        std::ostringstream out;
+        out << *this;
+        return out.str();
+    }
+    friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream & {
+        literal.print(out);
+        return out;
+    }
+};
+
+using UHeadLiteral = std::unique_ptr<HeadLiteral>;
+
+struct Disjunction : HeadLiteral {
+    using Element = std::pair<ULiteral, std::vector<ULiteral>>;
+    using Elements = std::vector<Element>;
+    Disjunction(Elements elems) : elems{std::move(elems)} {}
+    void print(std::ostream &out) const override {
+        bool sem = false;
+        for (const auto &elem : elems) {
+            if (sem) {
+                out << ";";
+            }
+            sem = true;
+            out << *elem.first;
+            if (!elem.second.empty()) {
+                out << ":";
+                bool comma = false;
+                for (const auto &lit : elem.second) {
+                    if (comma) {
+                        out << ",";
+                    }
+                    comma = true;
+                    out << *lit;
+                }
+            }
+        }
+    }
+
+    Elements elems;
+};
+
+struct HeadTheoryAtom : HeadLiteral {
+    void print(std::ostream &out) const override { out << "&p{...}"; }
+};
+
+struct HeadAggregate : HeadLiteral {
+    void print(std::ostream &out) const override { out << "#count{...}"; }
+};
+
+struct HeadSetAggregate : HeadLiteral {
+    void print(std::ostream &out) const override { out << "{...}"; }
+};
+
 namespace grammar {
 
 namespace dsl = lexy::dsl;
@@ -755,21 +812,24 @@ enum class AggregateFunction {
     max,
 };
 
-struct head_aggregate : lexy::scan_production<ULiteral> {
-    // TODO: get rid of dummy value
-    static constexpr auto dummy_value = lexy::callback<ULiteral>([](auto &&...args) { return nullptr; });
-
+struct head_aggregate : lexy::scan_production<UHeadLiteral> {
     struct theory_atom {
         static constexpr auto rule = LEXY_LIT("&") >> dsl::p<identifier> + LEXY_LIT("{") + LEXY_LIT("}");
-        static constexpr auto value = dummy_value;
+        // TODO: proper construction
+        static constexpr auto value =
+            lexy::callback<UHeadLiteral>([](auto &&...) { return std::make_unique<HeadTheoryAtom>(); });
     };
     struct aggregate {
         static constexpr auto rule = LEXY_LIT("#count") >> LEXY_LIT("{") + LEXY_LIT("}");
-        static constexpr auto value = dummy_value;
+        // TODO: proper construction
+        static constexpr auto value =
+            lexy::callback<UHeadLiteral>([](auto &&...) { return std::make_unique<HeadAggregate>(); });
     };
     struct set_aggregate {
         static constexpr auto rule = LEXY_LIT("{") >> LEXY_LIT("}");
-        static constexpr auto value = dummy_value;
+        // TODO: proper construction
+        static constexpr auto value =
+            lexy::callback<UHeadLiteral>([](auto &&...) { return std::make_unique<HeadSetAggregate>(); });
     };
 
     struct condition {
@@ -782,15 +842,16 @@ struct head_aggregate : lexy::scan_production<ULiteral> {
         static constexpr auto value = lexy::construct<std::pair<ULiteral, std::vector<ULiteral>>>;
     };
 
+    static constexpr auto sep = LEXY_LIT(",") / LEXY_LIT(";") / LEXY_LIT("|");
+
     struct elements {
-        static constexpr auto rule =
-            dsl::opt(dsl::list((LEXY_LIT(",") / LEXY_LIT(";") / LEXY_LIT("|")) >> dsl::p<element>));
+        static constexpr auto rule = dsl::opt(dsl::list(sep >> dsl::p<element>));
         static constexpr auto value = lexy::as_list<std::vector<std::pair<ULiteral, std::vector<ULiteral>>>>;
     };
 
     struct disjunction {
-        static constexpr auto rule = dsl::p<element> + dsl::p<elements>;
-        static constexpr auto value = dummy_value;
+        static constexpr auto rule = dsl::list(dsl::p<element>, dsl::sep(sep));
+        static constexpr auto value = lexy::as_list<Disjunction::Elements> >> lexy::new_<Disjunction, UHeadLiteral>;
     };
 
     template <typename Reader, typename Context>
@@ -798,11 +859,11 @@ struct head_aggregate : lexy::scan_production<ULiteral> {
         auto branch_aggregate = [&scanner](scan_result &res_lit, lexy::scan_result<UTerm> &lhs,
                                            Relation rel = Relation::less_equal) -> bool {
             if (scanner.template branch<aggregate>(res_lit)) {
-                // TODO: construct aggregate
+                // TODO: set left guard
                 return true;
             }
             if (scanner.template branch<set_aggregate>(res_lit)) {
-                // TODO: construct aggregate
+                // TODO: set left guard
                 return true;
             }
             return false;
@@ -825,6 +886,8 @@ struct head_aggregate : lexy::scan_production<ULiteral> {
         if (branch_aggregate(res_lit, res_lhs)) {
             return res_lit;
         }
+        Disjunction::Element elem;
+        Disjunction::Elements elems;
         lexy::scan_result<Relation> res_rel;
         if (scanner.template branch<relation>(res_rel)) {
             if (branch_aggregate(res_lit, res_lhs, res_rel.value())) {
@@ -833,21 +896,35 @@ struct head_aggregate : lexy::scan_production<ULiteral> {
             // Note: a bit unwieldy because the relation has already been consumed
             auto res_rhs = scanner.template parse<nested_expr>();
             lexy::scan_result<std::vector<std::pair<Relation, UTerm>>> res_guards;
-            if (scanner.template branch<atom::guards>(res_guards)) {
-            }
+            scanner.template branch<atom::guards>(res_guards);
             auto res_cond = scanner.template parse<condition>();
             auto res_elems = scanner.template parse<elements>();
-            // TODO: construct disjunction
-            return {nullptr};
-        }
-        if (!res_lhs.value()->is_atom()) {
+            if (!scanner) {
+                return lexy::scan_failed;
+            }
+            std::vector<std::pair<Relation, UTerm>> guards;
+            if (res_guards.has_value()) {
+                guards = std::move(res_guards).value();
+            }
+            guards.insert(guards.begin(), std::make_pair(res_rel.value(), std::move(res_rhs).value()));
+            elem.first = std::make_unique<LiteralRelation>(std::move(res_lhs).value(), std::move(guards));
+            elem.second = std::move(res_cond).value();
+            elems = std::move(res_elems).value();
+        } else if (res_lhs.value()->is_atom()) {
+            auto res_cond = scanner.template parse<condition>();
+            auto res_elems = scanner.template parse<elements>();
+            if (!scanner) {
+                return lexy::scan_failed;
+            }
+            elem.first = std::make_unique<LiteralSymbolic>(std::move(res_lhs).value());
+            elem.second = std::move(res_cond).value();
+            elems = std::move(res_elems).value();
+        } else {
             scanner.error("relation expected", scanner.position());
             return lexy::scan_failed;
         }
-        auto res_cond = scanner.template parse<condition>();
-        auto res_elems = scanner.template parse<elements>();
-        // TODO: construct disjunction
-        return {nullptr};
+        elems.insert(elems.begin(), std::move(elem));
+        return std::make_unique<Disjunction>(std::move(elems));
     }
 };
 
@@ -873,7 +950,7 @@ template <class P> struct match_root : grammar::control {
 
 using term = parse_root<grammar::nested_expr>;
 using literal = parse_root<grammar::literal>;
-using head_aggregate = match_root<grammar::head_aggregate>;
+using head_aggregate = parse_root<grammar::head_aggregate>;
 
 } // namespace test
 
@@ -882,8 +959,7 @@ template <typename Control> auto parse(std::string str) -> std::string {
     in.str(std::move(str));
     auto input = grammar::input{in};
     auto stm = lexy::parse<Control>(input, report_error);
-    REQUIRE(stm.has_value());
-    return stm.value()->to_string();
+    return stm.has_value() ? stm.value()->to_string() : "<failed>";
 }
 
 template <typename Control> auto match(std::string str) {
@@ -924,41 +1000,41 @@ TEST_CASE("literals") {
     REQUIRE(parse<test::literal>("not not p") == "not not p");
 }
 
-TEST_CASE("head literals 2") {
+TEST_CASE("head literals") {
     // theory_atom | aggregate | set_aggregate | disjunction | '-'? ...
-    REQUIRE(match<test::head_aggregate>("&x{}"));
-    REQUIRE(match<test::head_aggregate>("#count{}"));
-    REQUIRE(match<test::head_aggregate>("{}"));
-    REQUIRE(match<test::head_aggregate>("not a"));
-    REQUIRE(match<test::head_aggregate>("-a"));
+    REQUIRE(parse<test::head_aggregate>("&x{}") == "&p{...}");
+    REQUIRE(parse<test::head_aggregate>("#count{}") == "#count{...}");
+    REQUIRE(parse<test::head_aggregate>("{}") == "{...}");
+    REQUIRE(parse<test::head_aggregate>("not a") == "not a");
+    REQUIRE(parse<test::head_aggregate>("-a") == "(-a)");
     // identifier pool? relation ...
-    REQUIRE(match<test::head_aggregate>("a<{}"));
-    REQUIRE(match<test::head_aggregate>("a<#count{}"));
-    REQUIRE(match<test::head_aggregate>("a<b<c"));
-    REQUIRE(match<test::head_aggregate>("a<a:a"));
-    REQUIRE(match<test::head_aggregate>("a<a:a;a"));
-    REQUIRE(match<test::head_aggregate>("a<a,a"));
+    REQUIRE(parse<test::head_aggregate>("a<{}") == "{...}");
+    REQUIRE(parse<test::head_aggregate>("a<#count{}") == "#count{...}");
+    REQUIRE(parse<test::head_aggregate>("a<b<c") == "a<b<c");
+    REQUIRE(parse<test::head_aggregate>("a<a:a") == "a<a:a");
+    REQUIRE(parse<test::head_aggregate>("a<a:a;a") == "a<a:a;a");
+    REQUIRE(parse<test::head_aggregate>("a<a,a") == "a<a;a");
     // identifier pool? ...
-    REQUIRE(match<test::head_aggregate>("a{}"));
-    REQUIRE(match<test::head_aggregate>("a#count{}"));
-    REQUIRE(match<test::head_aggregate>("-a(X)"));
-    REQUIRE(match<test::head_aggregate>("a:a"));
-    REQUIRE(match<test::head_aggregate>("a:a;a"));
-    REQUIRE(match<test::head_aggregate>("a,a"));
+    REQUIRE(parse<test::head_aggregate>("a{}") == "{...}");
+    REQUIRE(parse<test::head_aggregate>("a#count{}") == "#count{...}");
+    REQUIRE(parse<test::head_aggregate>("-a(X)") == "(-a(X))");
+    REQUIRE(parse<test::head_aggregate>("a:a") == "a:a");
+    REQUIRE(parse<test::head_aggregate>("a:a;a") == "a:a;a");
+    REQUIRE(parse<test::head_aggregate>("a,a") == "a;a");
     // term relation ...
-    REQUIRE(match<test::head_aggregate>("a+1{}"));
-    REQUIRE(match<test::head_aggregate>("a+1#count{}"));
-    REQUIRE(match<test::head_aggregate>("a+1<{}"));
-    REQUIRE(match<test::head_aggregate>("a+1<#count{}"));
-    REQUIRE(match<test::head_aggregate>("a+1<b<c"));
-    REQUIRE(match<test::head_aggregate>("a+1<a:a"));
-    REQUIRE(match<test::head_aggregate>("a+1<a:a;a"));
-    REQUIRE(match<test::head_aggregate>("a+1<a,a"));
-    REQUIRE(!match<test::head_aggregate>("a+1<>a,a"));
+    REQUIRE(parse<test::head_aggregate>("a+1{}") == "{...}");
+    REQUIRE(parse<test::head_aggregate>("a+1#count{}") == "#count{...}");
+    REQUIRE(parse<test::head_aggregate>("a+1<{}") == "{...}");
+    REQUIRE(parse<test::head_aggregate>("a+1<#count{}") == "#count{...}");
+    REQUIRE(parse<test::head_aggregate>("a+1<b<c") == "(a+1)<b<c");
+    REQUIRE(parse<test::head_aggregate>("a+1<a:a") == "(a+1)<a:a");
+    REQUIRE(parse<test::head_aggregate>("a+1<a:a;a") == "(a+1)<a:a;a");
+    REQUIRE(parse<test::head_aggregate>("a+1<a,a") == "(a+1)<a;a");
+    REQUIRE(parse<test::head_aggregate>("a+1<>a,a") == "<failed>");
     // disjunctions
-    REQUIRE(match<test::head_aggregate>("a,b"));
-    REQUIRE(match<test::head_aggregate>("a;b"));
-    REQUIRE(match<test::head_aggregate>("a|b"));
+    REQUIRE(parse<test::head_aggregate>("a,b") == "a;b");
+    REQUIRE(parse<test::head_aggregate>("a;b") == "a;b");
+    REQUIRE(parse<test::head_aggregate>("a|b") == "a;b");
 }
 
 TEST_CASE("scan") {
