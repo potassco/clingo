@@ -25,7 +25,7 @@ namespace {
 
 struct Term {
     virtual ~Term() = default;
-    [[nodiscard]] virtual auto isAtom() const -> bool { return false; }
+    [[nodiscard]] virtual auto is_atom() const -> bool { return false; }
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] auto to_string() const -> std::string {
         std::ostringstream out;
@@ -188,7 +188,7 @@ struct TermFunction : Term {
         }
     }
 
-    [[nodiscard]] auto isAtom() const -> bool override { return !external; }
+    [[nodiscard]] auto is_atom() const -> bool override { return !external; }
 
     std::string name;
     std::vector<std::vector<UTerm>> args;
@@ -210,7 +210,7 @@ struct TermUnary : Term {
 
     void print(std::ostream &out) const override { out << "(" << op << *rhs << ")"; }
 
-    [[nodiscard]] auto isAtom() const -> bool override { return op == UnaryOperator::negate && rhs->isAtom(); }
+    [[nodiscard]] auto is_atom() const -> bool override { return op == UnaryOperator::negate && rhs->is_atom(); }
 
     UnaryOperator op;
     UTerm rhs;
@@ -691,7 +691,7 @@ struct kw_not {
     }();
 };
 
-struct atom {
+struct atom : lexy::scan_production<ULiteral> {
     struct guard {
         static constexpr auto rule = dsl::p<relation> >> dsl::p<nested_expr>;
         static constexpr auto value = lexy::construct<std::pair<Relation, UTerm>>;
@@ -710,39 +710,27 @@ struct atom {
         static constexpr auto value = lexy::new_<LiteralBoolean, ULiteral>;
     };
 
-    static constexpr auto rel_atom = dsl::p<nested_expr> + dsl::p<guards>;
-    static constexpr auto
-        sym_or_rel_atom = dsl::p<identifier> >> dsl::opt(dsl::p<pool>) + dsl::opt(dsl::p<guards>) | dsl::else_
-                                                                                                        >> rel_atom;
-
-    template <bool sign> struct construct {
-        using guard_list = std::vector<std::pair<Relation, UTerm>>;
-        using opt_arg_list = std::optional<std::vector<std::vector<UTerm>>>;
-
-        static auto negate(UTerm term) -> UTerm {
-            return sign ? std::make_unique<TermUnary>(UnaryOperator::negate, std::move(term)) : std::move(term);
+    template <typename Reader, typename Context>
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        scan_result res_lit;
+        if (scanner.template branch<bool_atom>(res_lit)) {
+            return res_lit;
         }
-        static auto term(std::string name, opt_arg_list args) -> UTerm {
-            // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
-            return negate(std::make_unique<TermFunction>(std::move(name), empty_args_(std::move(args)), false));
+        auto res_term = scanner.template parse<nested_expr>();
+        if (!res_term.has_value()) {
+            return lexy::scan_failed;
         }
-
-        auto operator()(std::string name, opt_arg_list args, lexy::nullopt /* unused */) const {
-            return std::make_unique<LiteralSymbolic>(term(std::move(name), std::move(args)));
+        lexy::scan_result<std::vector<std::pair<Relation, UTerm>>> res_guards;
+        if (scanner.template branch<guards>(res_guards)) {
+            return std::make_unique<LiteralRelation>(std::move(res_term).value(), std::move(res_guards).value());
         }
-        auto operator()(UTerm lhs, guard_list rhs) const {
-            return std::make_unique<LiteralRelation>(negate(std::move(lhs)), std::move(rhs));
+        // Note: we might have overparsed and have to remedy the situation.
+        if (!res_term.value()->is_atom()) {
+            scanner.error("relation expected", scanner.position());
+            return lexy::scan_failed;
         }
-        auto operator()(std::string name, opt_arg_list args, guard_list rhs) const {
-            return std::make_unique<LiteralRelation>(term(std::move(name), std::move(args)), std::move(rhs));
-        }
-    };
-
-    static constexpr auto rule = dsl::p<bool_atom> | dsl::else_ >> dsl::opt(LEXY_LIT("-")) + sym_or_rel_atom;
-    static constexpr auto value =
-        lexy::callback<ULiteral>(lexy::forward<ULiteral>, construct<true>{}, [](lexy::nullopt, auto &&...args) {
-            return construct<false>{}(std::forward<decltype(args)>(args)...);
-        });
+        return std::make_unique<LiteralSymbolic>(std::move(res_term).value());
+    }
 };
 
 struct literal {
@@ -911,7 +899,7 @@ TEST_CASE("literals") {
     REQUIRE(parse<test::literal>("#true") == "#true");
     REQUIRE(parse<test::literal>("#false") == "#false");
     REQUIRE(parse<test::literal>("1 < 2") == "1<2");
-    REQUIRE(parse<test::literal>("-f+1 < 2") == "-f+1<2");
+    REQUIRE(parse<test::literal>("-f+1 < 2") == "((-f)+1)<2");
     REQUIRE(parse<test::literal>("p(X)") == "p(X)");
     // TODO: get rid of parenthesis
     REQUIRE(parse<test::literal>("-p(X)") == "(-p(X))");
