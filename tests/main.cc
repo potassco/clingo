@@ -483,7 +483,44 @@ struct HeadTheoryAtom : HeadLiteral {
     void print(std::ostream &out) const override { out << "&p{...}"; }
 };
 
+enum class AggregateFunction {
+    count,
+    sum,
+    sump,
+    min,
+    max,
+};
+
+auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
+    switch (fun) {
+        case AggregateFunction::count: {
+            out << "#count";
+            break;
+        }
+        case AggregateFunction::sum: {
+            out << "#sum";
+            break;
+        }
+        case AggregateFunction::sump: {
+            out << "#sum+";
+            break;
+        }
+        case AggregateFunction::min: {
+            out << "#min";
+            break;
+        }
+        case AggregateFunction::max: {
+            out << "#max";
+            break;
+        }
+    }
+    return out;
+}
+
 struct HeadAggregate : HeadLiteral {
+    HeadAggregate(AggregateFunction fun) : fun(fun) {}
+    HeadAggregate(AggregateFunction fun, Relation rel, UTerm rhs)
+        : fun(fun), right_guard(std::make_pair(rel, std::move(rhs))) {}
     void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
     void print(std::ostream &out) const override {
         if (left_guard) {
@@ -491,14 +528,17 @@ struct HeadAggregate : HeadLiteral {
         }
         out << "#count{...}";
         if (right_guard) {
-            out << right_guard->first << right_guard->second;
+            out << right_guard->first << *right_guard->second;
         }
     }
+    AggregateFunction fun;
     std::optional<std::pair<UTerm, Relation>> left_guard;
     std::optional<std::pair<Relation, UTerm>> right_guard;
 };
 
 struct HeadSetAggregate : HeadLiteral {
+    HeadSetAggregate() = default;
+    HeadSetAggregate(Relation rel, UTerm rhs) : right_guard(std::make_pair(rel, std::move(rhs))) {}
     void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
     void print(std::ostream &out) const override {
         if (left_guard) {
@@ -506,7 +546,7 @@ struct HeadSetAggregate : HeadLiteral {
         }
         out << "{...}";
         if (right_guard) {
-            out << right_guard->first << right_guard->second;
+            out << right_guard->first << *right_guard->second;
         }
     }
     std::optional<std::pair<UTerm, Relation>> left_guard;
@@ -826,32 +866,43 @@ struct literal {
                                  });
 };
 
-enum class AggregateFunction {
-    count,
-    sum,
-    sump,
-    min,
-    max,
+struct aggregate_function {
+    static constexpr auto symbols = lexy::symbol_table<AggregateFunction> //
+                                        .map<LEXY_SYMBOL("#count")>(true)
+                                        .map<LEXY_SYMBOL("#sum")>(false)
+                                        .map<LEXY_SYMBOL("#sum+")>(false)
+                                        .map<LEXY_SYMBOL("#min")>(false)
+                                        .map<LEXY_SYMBOL("#max")>(false);
+    static constexpr auto rule = dsl::symbol<symbols>;
+    static constexpr auto value = lexy::forward<AggregateFunction>;
 };
 
 struct head_aggregate : lexy::scan_production<UHeadLiteral> {
     struct theory_atom {
-        static constexpr auto rule = LEXY_LIT("&") >> dsl::p<identifier> + LEXY_LIT("{") + LEXY_LIT("}");
         // TODO: proper construction
+        static constexpr auto rule = LEXY_LIT("&") >> dsl::p<identifier> + LEXY_LIT("{") + LEXY_LIT("}");
         static constexpr auto value =
             lexy::callback<UHeadLiteral>([](auto &&...) { return std::make_unique<HeadTheoryAtom>(); });
     };
+
+    static constexpr auto right_guard = dsl::peek(LEXY_LIT(":") / LEXY_LIT(".")) |
+                                        dsl::else_ >> dsl::if_(dsl::p<relation>) + dsl::p<nested_expr>;
+
     struct aggregate {
-        static constexpr auto rule = LEXY_LIT("#count") >> LEXY_LIT("{") + LEXY_LIT("}");
-        // TODO: proper construction
+        // TODO: elements
+        static constexpr auto rule = dsl::p<aggregate_function> >> LEXY_LIT("{") + LEXY_LIT("}") + right_guard;
         static constexpr auto value =
-            lexy::callback<UHeadLiteral>([](auto &&...) { return std::make_unique<HeadAggregate>(); });
+            lexy::callback<UHeadLiteral>(lexy::new_<HeadAggregate, UHeadLiteral>, [](AggregateFunction fun, UTerm rhs) {
+                return std::make_unique<HeadAggregate>(fun, Relation::less_equal, std::move(rhs));
+            });
     };
     struct set_aggregate {
-        static constexpr auto rule = LEXY_LIT("{") >> LEXY_LIT("}");
-        // TODO: proper construction
+        // TODO: elements
+        static constexpr auto rule = LEXY_LIT("{") >> LEXY_LIT("}") + right_guard;
         static constexpr auto value =
-            lexy::callback<UHeadLiteral>([](auto &&...) { return std::make_unique<HeadSetAggregate>(); });
+            lexy::callback<UHeadLiteral>(lexy::new_<HeadSetAggregate, UHeadLiteral>, [](UTerm rhs) {
+                return std::make_unique<HeadSetAggregate>(Relation::less_equal, std::move(rhs));
+            });
     };
 
     struct condition {
@@ -965,8 +1016,16 @@ namespace test {
 
 namespace dsl = lexy::dsl;
 
-template <class P> struct parse_root : grammar::control {
-    static constexpr auto rule = dsl::p<P> + dsl::eof;
+template <class P, char t = '\0'> struct parse_root : grammar::control {
+    static constexpr auto terminator() { return t; }
+    static constexpr auto eof() {
+        if constexpr (t == '\0') {
+            return dsl::eof;
+        } else {
+            return dsl::lit_c<t> + dsl::eof;
+        }
+    }
+    static constexpr auto rule = dsl::p<P> + eof();
     static constexpr auto value = lexy::forward<typename decltype(P::value)::return_type>;
 };
 
@@ -976,11 +1035,14 @@ template <class P> struct match_root : grammar::control {
 
 using term = parse_root<grammar::nested_expr>;
 using literal = parse_root<grammar::literal>;
-using head_aggregate = parse_root<grammar::head_aggregate>;
+using head_aggregate = parse_root<grammar::head_aggregate, '.'>;
 
 } // namespace test
 
 template <typename Control> auto parse(std::string str) -> std::string {
+    if (Control::terminator() != '\0') {
+        str.push_back('.');
+    }
     std::istringstream in;
     in.str(std::move(str));
     auto input = grammar::input{in};
@@ -1063,6 +1125,9 @@ TEST_CASE("head literals") {
     REQUIRE(parse<test::head_aggregate>("a,b") == "a;b");
     REQUIRE(parse<test::head_aggregate>("a;b") == "a;b");
     REQUIRE(parse<test::head_aggregate>("a|b") == "a;b");
+    // aggregates with guards
+    REQUIRE(parse<test::head_aggregate>("a<{}<b") == "a<{...}<b");
+    REQUIRE(parse<test::head_aggregate>("a{}b") == "a<={...}<=b");
 }
 
 TEST_CASE("scan") {
