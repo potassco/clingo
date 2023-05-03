@@ -484,11 +484,33 @@ struct HeadTheoryAtom : HeadLiteral {
 };
 
 struct HeadAggregate : HeadLiteral {
-    void print(std::ostream &out) const override { out << "#count{...}"; }
+    void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
+    void print(std::ostream &out) const override {
+        if (left_guard) {
+            out << *left_guard->first << left_guard->second;
+        }
+        out << "#count{...}";
+        if (right_guard) {
+            out << right_guard->first << right_guard->second;
+        }
+    }
+    std::optional<std::pair<UTerm, Relation>> left_guard;
+    std::optional<std::pair<Relation, UTerm>> right_guard;
 };
 
 struct HeadSetAggregate : HeadLiteral {
-    void print(std::ostream &out) const override { out << "{...}"; }
+    void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
+    void print(std::ostream &out) const override {
+        if (left_guard) {
+            out << *left_guard->first << left_guard->second;
+        }
+        out << "{...}";
+        if (right_guard) {
+            out << right_guard->first << right_guard->second;
+        }
+    }
+    std::optional<std::pair<UTerm, Relation>> left_guard;
+    std::optional<std::pair<Relation, UTerm>> right_guard;
 };
 
 namespace grammar {
@@ -859,11 +881,15 @@ struct head_aggregate : lexy::scan_production<UHeadLiteral> {
         auto branch_aggregate = [&scanner](scan_result &res_lit, lexy::scan_result<UTerm> &lhs,
                                            Relation rel = Relation::less_equal) -> bool {
             if (scanner.template branch<aggregate>(res_lit)) {
-                // TODO: set left guard
+                if (lhs.has_value()) {
+                    static_cast<HeadAggregate &>(*res_lit.value()).set_left_guard(std::move(lhs).value(), rel);
+                }
                 return true;
             }
             if (scanner.template branch<set_aggregate>(res_lit)) {
-                // TODO: set left guard
+                if (lhs.has_value()) {
+                    static_cast<HeadSetAggregate &>(*res_lit.value()).set_left_guard(std::move(lhs).value(), rel);
+                }
                 return true;
             }
             return false;
@@ -1001,37 +1027,39 @@ TEST_CASE("literals") {
 }
 
 TEST_CASE("head literals") {
-    // theory_atom | aggregate | set_aggregate | disjunction | '-'? ...
+    // theory_atom | aggregate | set_aggregate | not disjunction
     REQUIRE(parse<test::head_aggregate>("&x{}") == "&p{...}");
     REQUIRE(parse<test::head_aggregate>("#count{}") == "#count{...}");
     REQUIRE(parse<test::head_aggregate>("{}") == "{...}");
     REQUIRE(parse<test::head_aggregate>("not a") == "not a");
-    REQUIRE(parse<test::head_aggregate>("-a") == "(-a)");
-    // identifier pool? relation ...
-    REQUIRE(parse<test::head_aggregate>("a<{}") == "{...}");
-    REQUIRE(parse<test::head_aggregate>("a<#count{}") == "#count{...}");
+    // atom_like relation aggregate
+    REQUIRE(parse<test::head_aggregate>("a<{}") == "a<{...}");
+    REQUIRE(parse<test::head_aggregate>("a<#count{}") == "a<#count{...}");
+    // atom_like relation term ...
     REQUIRE(parse<test::head_aggregate>("a<b<c") == "a<b<c");
     REQUIRE(parse<test::head_aggregate>("a<a:a") == "a<a:a");
     REQUIRE(parse<test::head_aggregate>("a<a:a;a") == "a<a:a;a");
     REQUIRE(parse<test::head_aggregate>("a<a,a") == "a<a;a");
-    // identifier pool? ...
-    REQUIRE(parse<test::head_aggregate>("a{}") == "{...}");
-    REQUIRE(parse<test::head_aggregate>("a#count{}") == "#count{...}");
-    REQUIRE(parse<test::head_aggregate>("-a(X)") == "(-a(X))");
-    REQUIRE(parse<test::head_aggregate>("a:a") == "a:a");
-    REQUIRE(parse<test::head_aggregate>("a:a;a") == "a:a;a");
-    REQUIRE(parse<test::head_aggregate>("a,a") == "a;a");
-    // term relation ...
-    REQUIRE(parse<test::head_aggregate>("a+1{}") == "{...}");
-    REQUIRE(parse<test::head_aggregate>("a+1#count{}") == "#count{...}");
-    REQUIRE(parse<test::head_aggregate>("a+1<{}") == "{...}");
-    REQUIRE(parse<test::head_aggregate>("a+1<#count{}") == "#count{...}");
+    // atom_like aggregate
+    REQUIRE(parse<test::head_aggregate>("a{}") == "a<={...}");
+    REQUIRE(parse<test::head_aggregate>("a#count{}") == "a<=#count{...}");
+    // term aggregate
+    REQUIRE(parse<test::head_aggregate>("a+1{}") == "(a+1)<={...}");
+    REQUIRE(parse<test::head_aggregate>("a+1#count{}") == "(a+1)<=#count{...}");
+    // term relation aggregate
+    REQUIRE(parse<test::head_aggregate>("a+1<{}") == "(a+1)<{...}");
+    REQUIRE(parse<test::head_aggregate>("a+1<#count{}") == "(a+1)<#count{...}");
+    // term relation term ...
     REQUIRE(parse<test::head_aggregate>("a+1<b<c") == "(a+1)<b<c");
     REQUIRE(parse<test::head_aggregate>("a+1<a:a") == "(a+1)<a:a");
     REQUIRE(parse<test::head_aggregate>("a+1<a:a;a") == "(a+1)<a:a;a");
     REQUIRE(parse<test::head_aggregate>("a+1<a,a") == "(a+1)<a;a");
     REQUIRE(parse<test::head_aggregate>("a+1<>a,a") == "<failed>");
-    // disjunctions
+    // atom ...
+    REQUIRE(parse<test::head_aggregate>("-a") == "(-a)");
+    REQUIRE(parse<test::head_aggregate>("-a(X)") == "(-a(X))");
+    REQUIRE(parse<test::head_aggregate>("a:a") == "a:a");
+    REQUIRE(parse<test::head_aggregate>("a:a;a") == "a:a;a");
     REQUIRE(parse<test::head_aggregate>("a,b") == "a;b");
     REQUIRE(parse<test::head_aggregate>("a;b") == "a;b");
     REQUIRE(parse<test::head_aggregate>("a|b") == "a;b");
