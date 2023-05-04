@@ -604,7 +604,8 @@ struct HeadSetAggregate : HeadLiteral {
     using Element = std::pair<ULiteral, std::vector<ULiteral>>;
     using Elements = std::vector<Element>;
     HeadSetAggregate(Elements elements) : elements{std::move(elements)} {}
-    HeadSetAggregate(Elements elements, Relation rel, UTerm rhs) : elements{std::move(elements)}, right_guard(std::make_pair(rel, std::move(rhs))) {}
+    HeadSetAggregate(Elements elements, Relation rel, UTerm rhs)
+        : elements{std::move(elements)}, right_guard(std::make_pair(rel, std::move(rhs))) {}
     void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
     void print(std::ostream &out) const override {
         if (left_guard) {
@@ -1014,8 +1015,8 @@ struct head_aggregate : lexy::scan_production<UHeadLiteral> {
 
     struct set_aggregate {
         static constexpr auto rule = LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >> LEXY_LIT("}") + right_guard;
-        static constexpr auto value =
-            lexy::callback<UHeadLiteral>(lexy::new_<HeadSetAggregate, UHeadLiteral>, [](HeadSetAggregate::Elements elems, UTerm rhs) {
+        static constexpr auto value = lexy::callback<UHeadLiteral>(
+            lexy::new_<HeadSetAggregate, UHeadLiteral>, [](HeadSetAggregate::Elements elems, UTerm rhs) {
                 return std::make_unique<HeadSetAggregate>(std::move(elems), Relation::less_equal, std::move(rhs));
             });
     };
@@ -1032,24 +1033,95 @@ struct head_aggregate : lexy::scan_production<UHeadLiteral> {
         static constexpr auto value = lexy::as_list<Disjunction::Elements> >> lexy::new_<Disjunction, UHeadLiteral>;
     };
 
+    /// Continue parsing an aggregate with an optional left guard.
+    template <typename Reader, typename Context>
+    static auto cont_aggregate(lexy::rule_scanner<Context, Reader> &scanner, scan_result &res_lit,
+                               lexy::scan_result<UTerm> &lhs, Relation rel = Relation::less_equal) -> bool {
+        if (scanner.template branch<aggregate>(res_lit)) {
+            if (lhs.has_value()) {
+                static_cast<HeadAggregate &>(*res_lit.value()).set_left_guard(std::move(lhs).value(), rel);
+            }
+            return true;
+        }
+        if (scanner.template branch<set_aggregate>(res_lit)) {
+            if (lhs.has_value()) {
+                static_cast<HeadSetAggregate &>(*res_lit.value()).set_left_guard(std::move(lhs).value(), rel);
+            }
+            return true;
+        }
+        return false;
+    }
+    template <typename Reader, typename Context>
+
+    /// Continue parsing a relation literal at the beginning of a disjunction.
+    ///
+    /// Note that this could also be implemented without a scanner.
+    static auto cont_rel_lit(lexy::rule_scanner<Context, Reader> &scanner, UTerm lhs, Relation rel,
+                             Disjunction::Element &elem, Disjunction::Elements &elems) -> bool {
+        // Note: only that involved because relation has already been consumed
+        auto res_rhs = scanner.template parse<nested_expr>();
+        lexy::scan_result<std::vector<std::pair<Relation, UTerm>>> res_guards;
+        scanner.template branch<atom::guards>(res_guards);
+        auto res_cond = scanner.template parse<condition>();
+        auto res_elems = scanner.template parse<conditional_literals>();
+        if (!scanner) {
+            return false;
+        }
+        std::vector<std::pair<Relation, UTerm>> guards;
+        if (res_guards.has_value()) {
+            guards = std::move(res_guards).value();
+        }
+        guards.insert(guards.begin(), std::make_pair(rel, std::move(res_rhs).value()));
+        elem.first = std::make_unique<LiteralRelation>(std::move(lhs), std::move(guards));
+        elem.second = std::move(res_cond).value();
+        elems = std::move(res_elems).value();
+        return true;
+    }
+
+    /// Continue parsing a symbolic literal at the beginning of a disjunction.
+    ///
+    /// Note that this could also be implemented without a scanner.
+    template <typename Reader, typename Context>
+    static auto cont_sym_lit(lexy::rule_scanner<Context, Reader> &scanner, UTerm lhs, Disjunction::Element &elem,
+                             Disjunction::Elements &elems) -> bool {
+        auto res_cond = scanner.template parse<condition>();
+        auto res_elems = scanner.template parse<conditional_literals>();
+        if (!scanner) {
+            return false;
+        }
+        elem.first = std::make_unique<LiteralSymbolic>(std::move(lhs));
+        elem.second = std::move(res_cond).value();
+        elems = std::move(res_elems).value();
+        return true;
+    }
+
+    /// A scanner for head literals.
+    ///
+    /// This is implemented as a scanner because this allows us to parse the
+    /// literal with simple branching rules while discarding invalid branches
+    /// during post-processing.
+    ///
+    /// Note that this could also be implemented with a much smaller scanner.
+    /// In fact, only the `is_atom` check needs one.
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        auto branch_aggregate = [&scanner](scan_result &res_lit, lexy::scan_result<UTerm> &lhs,
-                                           Relation rel = Relation::less_equal) -> bool {
-            if (scanner.template branch<aggregate>(res_lit)) {
-                if (lhs.has_value()) {
-                    static_cast<HeadAggregate &>(*res_lit.value()).set_left_guard(std::move(lhs).value(), rel);
-                }
-                return true;
-            }
-            if (scanner.template branch<set_aggregate>(res_lit)) {
-                if (lhs.has_value()) {
-                    static_cast<HeadSetAggregate &>(*res_lit.value()).set_left_guard(std::move(lhs).value(), rel);
-                }
-                return true;
-            }
-            return false;
-        };
+        // Alternative way to parse this:
+        //
+        // is_atom = dsl::context_flag()
+        //
+        // head_literal = not >> disjunction
+        //              | theory_atom
+        //              | cont_aggregate
+        //              | else >> flagged_term + with_term
+        //
+        // with_term = cont_aggregate
+        //           | rel >> with_term_rel
+        //           | is_atom.is_set() >> cont_sym_lit
+        //           | else >> error("relation or aggregate expected")
+        //
+        // with_term_rel = cont_aggregate
+        //               | cont_rel_lit
+        //
         if (scanner.peek(dsl::p<kw_not>)) {
             return scanner.template parse<disjunction>();
         }
@@ -1058,49 +1130,30 @@ struct head_aggregate : lexy::scan_production<UHeadLiteral> {
             return res_lit;
         }
         lexy::scan_result<UTerm> res_lhs;
-        if (branch_aggregate(res_lit, res_lhs)) {
+        if (cont_aggregate(scanner, res_lit, res_lhs)) {
             return res_lit;
         }
         res_lhs = scanner.template parse<nested_expr>();
         if (!res_lhs.has_value()) {
             return lexy::scan_failed;
         }
-        if (branch_aggregate(res_lit, res_lhs)) {
+        if (cont_aggregate(scanner, res_lit, res_lhs)) {
             return res_lit;
         }
         Disjunction::Element elem;
         Disjunction::Elements elems;
         lexy::scan_result<Relation> res_rel;
         if (scanner.template branch<relation>(res_rel)) {
-            if (branch_aggregate(res_lit, res_lhs, res_rel.value())) {
+            if (cont_aggregate(scanner, res_lit, res_lhs, res_rel.value())) {
                 return res_lit;
             }
-            // Note: a bit unwieldy because the relation has already been consumed
-            auto res_rhs = scanner.template parse<nested_expr>();
-            lexy::scan_result<std::vector<std::pair<Relation, UTerm>>> res_guards;
-            scanner.template branch<atom::guards>(res_guards);
-            auto res_cond = scanner.template parse<condition>();
-            auto res_elems = scanner.template parse<conditional_literals>();
-            if (!scanner) {
+            if (!cont_rel_lit(scanner, std::move(res_lhs).value(), res_rel.value(), elem, elems)) {
                 return lexy::scan_failed;
             }
-            std::vector<std::pair<Relation, UTerm>> guards;
-            if (res_guards.has_value()) {
-                guards = std::move(res_guards).value();
-            }
-            guards.insert(guards.begin(), std::make_pair(res_rel.value(), std::move(res_rhs).value()));
-            elem.first = std::make_unique<LiteralRelation>(std::move(res_lhs).value(), std::move(guards));
-            elem.second = std::move(res_cond).value();
-            elems = std::move(res_elems).value();
         } else if (res_lhs.value()->is_atom()) {
-            auto res_cond = scanner.template parse<condition>();
-            auto res_elems = scanner.template parse<conditional_literals>();
-            if (!scanner) {
+            if (!cont_sym_lit(scanner, std::move(res_lhs).value(), elem, elems)) {
                 return lexy::scan_failed;
             }
-            elem.first = std::make_unique<LiteralSymbolic>(std::move(res_lhs).value());
-            elem.second = std::move(res_cond).value();
-            elems = std::move(res_elems).value();
         } else {
             scanner.error("relation expected", scanner.position());
             return lexy::scan_failed;
