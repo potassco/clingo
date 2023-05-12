@@ -516,27 +516,14 @@ struct Disjunction : HeadLiteral {
     using Element = std::pair<ULiteral, ULiteralVec>;
     using ElementVec = std::vector<Element>;
     Disjunction(ElementVec elems) : elems{std::move(elems)} {}
-    [[nodiscard]] auto print_empty() const override->bool { return elems.empty(); }
+    [[nodiscard]] auto print_empty() const -> bool override { return elems.empty(); }
     void print(std::ostream &out) const override {
-        bool sem = false;
-        for (const auto &elem : elems) {
-            if (sem) {
-                out << ";";
-            }
-            sem = true;
+        out << p_range_with(elems, ";", [](std::ostream &out, auto const &elem) {
             out << *elem.first;
             if (!elem.second.empty()) {
-                out << ":";
-                bool comma = false;
-                for (const auto &lit : elem.second) {
-                    if (comma) {
-                        out << ",";
-                    }
-                    comma = true;
-                    out << *lit;
-                }
+                out << ":" << p_range(elem.second);
             }
-        }
+        });
     }
 
     ElementVec elems;
