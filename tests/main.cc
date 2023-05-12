@@ -651,6 +651,7 @@ struct BodyLiteral {
 };
 
 using UBodyLiteral = std::unique_ptr<BodyLiteral>;
+using UBodyLiteralVec = std::vector<UBodyLiteral>;
 
 struct ConditionalLiteral : BodyLiteral {
     ConditionalLiteral(ULiteral literal, ULiteralVec condition)
@@ -734,6 +735,29 @@ struct BodyTheoryAtom : BodyLiteral {
     void add_sign(Sign s) override { sign += s; }
     void print(std::ostream &out) const override { out << sign << "&p{...}"; }
     Sign sign = Sign::none;
+};
+
+struct Statement {
+    virtual ~Statement() = default;
+    virtual void print(std::ostream &out) const = 0;
+    [[nodiscard]] auto to_string() const -> std::string {
+        std::ostringstream out;
+        out << *this;
+        return out.str();
+    }
+    friend auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream & {
+        stm.print(out);
+        return out;
+    }
+};
+
+using UStatement = std::unique_ptr<Statement>;
+
+struct Rule : Statement {
+    Rule(UHeadLiteral head, UBodyLiteralVec body) : head{std::move(head)}, body{std::move(body)} {}
+    void print(std::ostream &out) const override { out << *head << ":-" << p_range(body, ";") << "."; }
+    UHeadLiteral head;
+    UBodyLiteralVec body;
 };
 
 namespace grammar {
@@ -1074,7 +1098,8 @@ struct head_literal {
                                         dsl::else_ >> dsl::if_(dsl::p<relation>) + dsl::p<nested_expr>;
 
     struct condition {
-        static constexpr auto rule = dsl::opt(LEXY_LIT(":") >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
+        static constexpr auto rule = dsl::opt(dsl::not_followed_by(LEXY_LIT(":"), LEXY_LIT("-")) >>
+                                              dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
         static constexpr auto value = lexy::as_list<ULiteralVec>;
     };
 
@@ -1345,8 +1370,21 @@ struct body_literal {
 };
 
 struct statement : control {
-    static constexpr auto rule = dsl::p<literal> + dsl::lit_c<';'>;
-    static constexpr auto value = lexy::forward<ULiteral>;
+    struct body {
+        static constexpr auto sep = LEXY_LIT(",") / LEXY_LIT(";");
+        static constexpr auto rule =
+            dsl::opt(dsl::peek_not(LEXY_LIT(".")) >> dsl::list(dsl::p<body_literal>, dsl::sep(sep)));
+        static constexpr auto value = lexy::as_list<UBodyLiteralVec>;
+    };
+    static constexpr auto if_body = LEXY_LIT(":-") >> dsl::p<body> + LEXY_LIT(".");
+    static constexpr auto rule = if_body | dsl::else_ >> dsl::p<head_literal> + (LEXY_LIT(".") | if_body);
+    // static constexpr auto rule = dsl::p<head_literal> + LEXY_LIT(".");
+    static constexpr auto value = lexy::callback<UStatement>(
+        lexy::new_<Rule, UStatement>,
+        [](UHeadLiteral head) { return std::make_unique<Rule>(std::move(head), UBodyLiteralVec{}); },
+        [](UBodyLiteralVec body) {
+            return std::make_unique<Rule>(std::make_unique<Disjunction>(Disjunction::ElementVec{}), std::move(body));
+        });
 };
 
 } // namespace grammar
@@ -1376,6 +1414,7 @@ using term = parse_root<grammar::nested_expr>;
 using literal = parse_root<grammar::literal>;
 using head_literal = parse_root<grammar::head_literal, '.'>;
 using body_literal = parse_root<grammar::body_literal, '.'>;
+using statement = parse_root<grammar::statement>;
 
 } // namespace test
 
@@ -1513,14 +1552,32 @@ TEST_CASE("body literals") {
     REQUIRE(parse<test::body_literal>("{1<2;1<2:a;a:b;a:b,c}") == "{1<2;1<2:a;a:b;a:b,c}");
 }
 
-TEST_CASE("scan") {
+TEST_CASE("statement") {
+    // TODO
+    // 1. ensure `:` is never followed by `-`
+    // 2. print with spaces
+    REQUIRE(parse<test::statement>(":-.") == ":-.");
+    REQUIRE(parse<test::statement>("a.") == "a:-.");
+    REQUIRE(parse<test::statement>("a:-.") == "a:-.");
+    REQUIRE(parse<test::statement>("a:-b.") == "a:-b.");
+    REQUIRE(parse<test::statement>("a:-b,c.") == "a:-b;c.");
+    REQUIRE(parse<test::statement>("a:-b;c.") == "a:-b;c.");
+    REQUIRE(parse<test::statement>("a:-a:b,c;d.") == "a:-a:b,c;d.");
+    REQUIRE(parse<test::statement>(":-.") == ":-.");
+}
+
+TEST_CASE("program") {
     std::istringstream in;
-    in.str("42  *-\n2-32**3+'_Xa_'-_xA<5;\n43+'_$;");
+    in.str("a.b.c");
     auto input = grammar::input{in};
     auto scanner = lexy::scan<grammar::control>(input, report_error);
     auto stm = scanner.parse<grammar::statement>();
     REQUIRE(stm.has_value());
-    REQUIRE(stm.value()->to_string() == "((((42*(-2))-(32**3))+'_Xa_')-_xA)<5");
+    REQUIRE(stm.value()->to_string() == "a:-.");
+    input.discard_before(scanner.position());
+    stm = scanner.parse<grammar::statement>();
+    REQUIRE(stm.has_value());
+    REQUIRE(stm.value()->to_string() == "b:-.");
     input.discard_before(scanner.position());
     stm = scanner.parse<grammar::statement>();
     REQUIRE(!stm.has_value());
