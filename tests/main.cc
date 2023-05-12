@@ -883,7 +883,13 @@ struct kw_not {
     }();
 };
 
-struct atom : lexy::scan_production<ULiteral> {
+struct atom {
+    using scan_result = lexy::scan_result<UTerm>;
+
+    struct expected_relation {
+        static constexpr auto name = "expected relation";
+    };
+
     struct guard {
         static constexpr auto rule = dsl::p<relation> >> dsl::p<nested_expr>;
         static constexpr auto value = lexy::construct<std::pair<Relation, UTerm>>;
@@ -902,27 +908,22 @@ struct atom : lexy::scan_production<ULiteral> {
         static constexpr auto value = lexy::new_<LiteralBoolean, ULiteral>;
     };
 
+    static constexpr auto is_atom = dsl::context_flag<atom>;
+
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        scan_result res_lit;
-        if (scanner.template branch<bool_atom>(res_lit)) {
-            return res_lit;
-        }
         auto res_term = scanner.template parse<nested_expr>();
-        if (!res_term.has_value()) {
-            return lexy::scan_failed;
+        if (res_term.has_value() && res_term.value()->is_atom()) {
+            scanner.parse(is_atom.set());
         }
-        lexy::scan_result<std::vector<std::pair<Relation, UTerm>>> res_guards;
-        if (scanner.template branch<guards>(res_guards)) {
-            return std::make_unique<LiteralRelation>(std::move(res_term).value(), std::move(res_guards).value());
-        }
-        // Note: we might have overparsed and have to remedy the situation.
-        if (!res_term.value()->is_atom()) {
-            scanner.error("relation expected", scanner.position());
-            return lexy::scan_failed;
-        }
-        return std::make_unique<LiteralSymbolic>(std::move(res_term).value());
+        return res_term;
     }
+
+    static constexpr auto rule = dsl::p<bool_atom> | dsl::else_ >> is_atom.create() + dsl::scan + (dsl::p<guards> | is_atom.is_set() | dsl::error<expected_relation>);
+    static constexpr auto value = lexy::callback<ULiteral>(
+        lexy::forward<ULiteral>,
+        lexy::new_<LiteralSymbolic, ULiteral>,
+        lexy::new_<LiteralRelation, ULiteral>);
 };
 
 struct literal {
@@ -1244,6 +1245,7 @@ TEST_CASE("literals") {
     REQUIRE(parse<test::literal>("-p(X)") == "(-p(X))");
     REQUIRE(parse<test::literal>("not p") == "not p");
     REQUIRE(parse<test::literal>("not not p") == "not not p");
+    REQUIRE(parse<test::literal>("5") == "<failed>");
 }
 
 TEST_CASE("head literals") {
