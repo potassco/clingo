@@ -654,7 +654,8 @@ using UBodyLiteral = std::unique_ptr<BodyLiteral>;
 struct BodyAggregate : BodyLiteral {
     using Element = std::tuple<UTermVec, ULiteralVec>;
     using ElementVec = std::vector<Element>;
-    BodyAggregate(Sign sign, AggregateFunction fun, ElementVec elems) : sign(sign), fun(fun), elements(std::move(elems)) {}
+    BodyAggregate(Sign sign, AggregateFunction fun, ElementVec elems)
+        : sign(sign), fun(fun), elements(std::move(elems)) {}
     BodyAggregate(Sign sign, AggregateFunction fun, ElementVec elems, Relation rel, UTerm rhs)
         : fun(fun), elements(std::move(elems)), right_guard(std::make_pair(rel, std::move(rhs))) {}
     void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
@@ -1262,17 +1263,13 @@ struct body_literal {
 
     struct sign {
         static auto constexpr rule = dsl::opt(kw_not::rule) + dsl::opt(kw_not::rule);
-        static auto constexpr value = lexy::callback<Sign>(
-            [](lexy::nullopt, lexy::nullopt) { return Sign::none; },
-            [](lexy::nullopt) { return Sign::once; },
-            []() { return Sign::twice; });
-
+        static auto constexpr value =
+            lexy::callback<Sign>([](lexy::nullopt, lexy::nullopt) { return Sign::none; },
+                                 [](lexy::nullopt) { return Sign::once; }, []() { return Sign::twice; });
     };
 
-    static constexpr auto rule =
-        dsl::p<sign> + (
-            dsl::p<theory_atom> | dsl::p<aggregate> | dsl::p<set_aggregate> |
-            dsl::else_ >> is_atom.create() + dsl::scan + with_term);
+    static constexpr auto rule = dsl::p<sign> + (dsl::p<theory_atom> | dsl::p<aggregate> | dsl::p<set_aggregate> |
+                                                 dsl::else_ >> is_atom.create() + dsl::scan + with_term);
 
     /*
     static constexpr auto value = lexy::callback<UHeadLiteral>(
