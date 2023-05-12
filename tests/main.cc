@@ -463,10 +463,8 @@ using Guard = std::pair<Relation, UTerm>;
 using GuardVec = std::vector<Guard>;
 
 struct LiteralRelation : Literal {
-    LiteralRelation(UTerm lhs, GuardVec rhs)
-        : sign(Sign::none), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
-    LiteralRelation(Sign sign, UTerm lhs, GuardVec rhs)
-        : sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    LiteralRelation(UTerm lhs, GuardVec rhs) : sign(Sign::none), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    LiteralRelation(Sign sign, UTerm lhs, GuardVec rhs) : sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print(std::ostream &out) const override {
         out << sign << *lhs;
         for (auto &&guard : rhs) {
@@ -929,11 +927,11 @@ struct atom {
         return res_term;
     }
 
-    static constexpr auto rule = dsl::p<bool_atom> | dsl::else_ >> is_atom.create() + dsl::scan + (dsl::p<guards> | is_atom.is_set() | dsl::error<expected_relation>);
+    static constexpr auto rule = dsl::p<bool_atom> |
+                                 dsl::else_ >> is_atom.create() + dsl::scan +
+                                                   (dsl::p<guards> | is_atom.is_set() | dsl::error<expected_relation>);
     static constexpr auto value = lexy::callback<ULiteral>(
-        lexy::forward<ULiteral>,
-        lexy::new_<LiteralSymbolic, ULiteral>,
-        lexy::new_<LiteralRelation, ULiteral>);
+        lexy::forward<ULiteral>, lexy::new_<LiteralSymbolic, ULiteral>, lexy::new_<LiteralRelation, ULiteral>);
 };
 
 struct literal {
@@ -1061,17 +1059,18 @@ struct head_aggregate {
         static constexpr auto name = "relation or aggregate expected";
     };
 
-    static constexpr auto with_rel = //
+    static constexpr auto with_rel =                //
         dsl::p<aggregate> | dsl::p<set_aggregate> | //
-        dsl::else_ >> dsl::p<nested_expr> + dsl::opt(dsl::p<atom::guards>) + dsl::p<condition> + dsl::p<conditional_literals>;
+        dsl::else_ >>
+            dsl::p<nested_expr> + dsl::opt(dsl::p<atom::guards>) + dsl::p<condition> + dsl::p<conditional_literals>;
 
-    static constexpr auto with_term = //
+    static constexpr auto with_term =                                              //
         dsl::p<relation> >> with_rel | dsl::p<aggregate> | dsl::p<set_aggregate> | //
-        is_atom.is_set() >> dsl::p<condition> + dsl::p<conditional_literals> | //
+        is_atom.is_set() >> dsl::p<condition> + dsl::p<conditional_literals> |     //
         dsl::else_ >> dsl::error<rel_aggr_expected>;
 
-    static constexpr auto rule = //
-        dsl::peek(dsl::p<kw_not>) >> dsl::p<disjunction> | //
+    static constexpr auto rule =                                          //
+        dsl::peek(dsl::p<kw_not>) >> dsl::p<disjunction> |                //
         dsl::p<theory_atom> | dsl::p<aggregate> | dsl::p<set_aggregate> | //
         dsl::else_ >> is_atom.create() + dsl::scan + with_term;
 
@@ -1085,20 +1084,23 @@ struct head_aggregate {
             aggr->set_left_guard(std::move(term), rel);
             return std::move(aggr);
         },
-        [](UTerm term, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond, Disjunction::ElementVec elems) {
+        [](UTerm term, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond,
+           Disjunction::ElementVec elems) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
-            elems.insert(elems.begin(), Disjunction::Element{std::make_unique<LiteralRelation>(std::move(term), std::move(guards)), std::move(cond)});
+            elems.insert(elems.begin(),
+                         Disjunction::Element{std::make_unique<LiteralRelation>(std::move(term), std::move(guards)),
+                                              std::move(cond)});
             return std::make_unique<Disjunction>(std::move(elems));
         },
         [](UTerm term, ULiteralVec cond, Disjunction::ElementVec elems) {
-            elems.insert(elems.begin(), Disjunction::Element{std::make_unique<LiteralSymbolic>(std::move(term)), std::move(cond)});
+            elems.insert(elems.begin(),
+                         Disjunction::Element{std::make_unique<LiteralSymbolic>(std::move(term)), std::move(cond)});
             return std::make_unique<Disjunction>(std::move(elems));
-        }
-    );
+        });
 };
 
 struct statement : control {
