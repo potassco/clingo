@@ -637,6 +637,7 @@ using UHeadSetAggregate = std::unique_ptr<HeadSetAggregate>;
 
 struct BodyLiteral {
     virtual ~BodyLiteral() = default;
+    virtual void add_sign(Sign sign) = 0;
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] auto to_string() const -> std::string {
         std::ostringstream out;
@@ -651,13 +652,28 @@ struct BodyLiteral {
 
 using UBodyLiteral = std::unique_ptr<BodyLiteral>;
 
+struct ConditionalLiteral : BodyLiteral {
+    ConditionalLiteral(ULiteral literal, ULiteralVec condition)
+        : literal{std::move(literal)}, condition{std::move(condition)} {}
+    void add_sign(Sign s) override { literal->add_sign(s); }
+    void print(std::ostream &out) const override {
+        out << *literal;
+        if (!condition.empty()) {
+            out << ":" << p_range(condition);
+        }
+    }
+
+    ULiteral literal;
+    ULiteralVec condition;
+};
+
 struct BodyAggregate : BodyLiteral {
     using Element = std::tuple<UTermVec, ULiteralVec>;
     using ElementVec = std::vector<Element>;
-    BodyAggregate(Sign sign, AggregateFunction fun, ElementVec elems)
-        : sign(sign), fun(fun), elements(std::move(elems)) {}
-    BodyAggregate(Sign sign, AggregateFunction fun, ElementVec elems, Relation rel, UTerm rhs)
+    BodyAggregate(AggregateFunction fun, ElementVec elems) : fun(fun), elements(std::move(elems)) {}
+    BodyAggregate(AggregateFunction fun, ElementVec elems, Relation rel, UTerm rhs)
         : fun(fun), elements(std::move(elems)), right_guard(std::make_pair(rel, std::move(rhs))) {}
+    void add_sign(Sign s) override { sign += s; }
     void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
     void print(std::ostream &out) const override {
         out << sign;
@@ -674,7 +690,7 @@ struct BodyAggregate : BodyLiteral {
             out << right_guard->first << *right_guard->second;
         }
     }
-    Sign sign;
+    Sign sign = Sign::none;
     AggregateFunction fun;
     ElementVec elements;
     std::optional<std::pair<UTerm, Relation>> left_guard;
@@ -682,6 +698,43 @@ struct BodyAggregate : BodyLiteral {
 };
 
 using UBodyAggregate = std::unique_ptr<BodyAggregate>;
+
+struct BodySetAggregate : BodyLiteral {
+    using Element = std::pair<ULiteral, ULiteralVec>;
+    using ElementVec = std::vector<Element>;
+    BodySetAggregate(ElementVec elements) : elements{std::move(elements)} {}
+    BodySetAggregate(ElementVec elements, Relation rel, UTerm rhs)
+        : elements{std::move(elements)}, right_guard(std::make_pair(rel, std::move(rhs))) {}
+    void add_sign(Sign s) override { sign += s; }
+    void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
+    void print(std::ostream &out) const override {
+        out << sign;
+        if (left_guard) {
+            out << *left_guard->first << left_guard->second;
+        }
+        out << "{" << p_range_with(elements, ";", [](std::ostream &out, auto const &elem) {
+            out << *std::get<0>(elem);
+            if (!std::get<1>(elem).empty()) {
+                out << ":" << p_range{std::get<1>(elem)};
+            }
+        }) << "}";
+        if (right_guard) {
+            out << right_guard->first << *right_guard->second;
+        }
+    }
+    Sign sign = Sign::none;
+    ElementVec elements;
+    std::optional<std::pair<UTerm, Relation>> left_guard;
+    std::optional<std::pair<Relation, UTerm>> right_guard;
+};
+
+using UBodySetAggregate = std::unique_ptr<BodySetAggregate>;
+
+struct BodyTheoryAtom : BodyLiteral {
+    void add_sign(Sign s) override { sign += s; }
+    void print(std::ostream &out) const override { out << sign << "&p{...}"; }
+    Sign sign = Sign::none;
+};
 
 namespace grammar {
 
@@ -1095,7 +1148,7 @@ struct head_literal {
     static constexpr auto is_atom = dsl::context_flag<head_literal>;
 
     template <typename Reader, typename Context>
-    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner, auto &&...args) -> scan_result {
         auto res_term = scanner.template parse<nested_expr>();
         if (res_term.has_value() && res_term.value()->is_atom()) {
             scanner.parse(is_atom.set());
@@ -1151,14 +1204,14 @@ struct head_literal {
         });
 };
 
-struct body_literal {
+struct body_atom : lexy::transparent_production {
     using scan_result = lexy::scan_result<UTerm>;
 
     struct theory_atom {
         // TODO: proper construction
         static constexpr auto rule = LEXY_LIT("&") >> dsl::p<identifier> + LEXY_LIT("{") + LEXY_LIT("}");
         static constexpr auto value =
-            lexy::callback<UHeadLiteral>([](auto &&...) { return std::make_unique<HeadTheoryAtom>(); });
+            lexy::callback<UBodyLiteral>([](auto &&...) { return std::make_unique<BodyTheoryAtom>(); });
     };
 
     static constexpr auto right_guard = dsl::peek(LEXY_LIT(":") / LEXY_LIT(".")) |
@@ -1171,24 +1224,19 @@ struct body_literal {
 
     struct conditional_literal {
         static constexpr auto rule = dsl::p<literal> + dsl::p<condition>;
-        static constexpr auto value = lexy::construct<std::pair<ULiteral, ULiteralVec>>;
+        static constexpr auto value = lexy::new_<ConditionalLiteral, UBodyLiteral>;
     };
 
     struct aggregate_element {
-        // Note: gringo also accepts
-        //   HeadElem ::= Tuple? ':' Literal (':' Condition?)?
-        // It is probably not worth the effort to support an empty condition
-        // after a colon (but possible with a lookahead of [;}]).
-        static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<tuple>) + LEXY_LIT(":") +
-                                     dsl::p<literal> + dsl::p<condition>;
-        static constexpr auto value = lexy::callback<HeadAggregate::Element>(
-            [](std::optional<UTermVec> tuple, ULiteral lit, std::optional<ULiteralVec> cond) {
-                auto ret = HeadAggregate::Element{UTermVec{}, std::move(lit), ULiteralVec{}};
+        static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<tuple>) + dsl::p<condition>;
+        static constexpr auto value =
+            lexy::callback<BodyAggregate::Element>([](std::optional<UTermVec> tuple, std::optional<ULiteralVec> cond) {
+                auto ret = BodyAggregate::Element{UTermVec{}, ULiteralVec{}};
                 if (tuple) {
                     std::get<0>(ret) = std::move(tuple).value();
                 }
                 if (cond) {
-                    std::get<2>(ret) = std::move(cond).value();
+                    std::get<1>(ret) = std::move(cond).value();
                 }
                 return ret;
             });
@@ -1197,46 +1245,53 @@ struct body_literal {
     struct aggregate_elements {
         static constexpr auto rule =
             dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<aggregate_element>, dsl::sep(LEXY_LIT(";"))));
-        static constexpr auto value = lexy::as_list<HeadAggregate::ElementVec>;
+        static constexpr auto value = lexy::as_list<BodyAggregate::ElementVec>;
     };
 
     struct aggregate {
         static constexpr auto rule = dsl::p<aggregate_function> >>
                                      LEXY_LIT("{") + dsl::p<aggregate_elements> + LEXY_LIT("}") + right_guard;
-        static constexpr auto value = lexy::callback<UHeadAggregate>(
-            lexy::new_<HeadAggregate, UHeadAggregate>,
-            [](AggregateFunction fun, HeadAggregate::ElementVec elems, UTerm rhs) {
-                return std::make_unique<HeadAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
+        static constexpr auto value = lexy::callback<UBodyAggregate>(
+            lexy::new_<BodyAggregate, UBodyAggregate>,
+            [](AggregateFunction fun, BodyAggregate::ElementVec elems, UTerm rhs) {
+                return std::make_unique<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
             });
+    };
+
+    struct set_aggregate_element {
+        static constexpr auto rule = dsl::p<literal> + dsl::p<condition>;
+        static constexpr auto value = lexy::construct<BodySetAggregate::Element>;
     };
 
     struct set_aggregate_elements {
         static constexpr auto rule =
-            dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<conditional_literal>, dsl::sep(LEXY_LIT(";"))));
-        static constexpr auto value = lexy::as_list<HeadSetAggregate::ElementVec>;
+            dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<set_aggregate_element>, dsl::sep(LEXY_LIT(";"))));
+        static constexpr auto value = lexy::as_list<BodySetAggregate::ElementVec>;
     };
 
     struct set_aggregate {
         static constexpr auto rule = LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >> LEXY_LIT("}") + right_guard;
-        static constexpr auto value = lexy::callback<UHeadSetAggregate>(
-            lexy::new_<HeadSetAggregate, UHeadSetAggregate>, [](HeadSetAggregate::ElementVec elems, UTerm rhs) {
-                return std::make_unique<HeadSetAggregate>(std::move(elems), Relation::less_equal, std::move(rhs));
+        static constexpr auto value = lexy::callback<UBodySetAggregate>(
+            lexy::new_<BodySetAggregate, UBodySetAggregate>, [](BodySetAggregate::ElementVec elems, UTerm rhs) {
+                return std::make_unique<BodySetAggregate>(std::move(elems), Relation::less_equal, std::move(rhs));
             });
     };
 
-    static constexpr auto sep = LEXY_LIT(",") / LEXY_LIT(";") / LEXY_LIT("|");
+    static constexpr auto is_atom = dsl::context_flag<body_atom>;
 
-    struct conditional_literals {
-        static constexpr auto rule = dsl::opt(dsl::list(sep >> dsl::p<conditional_literal>));
-        static constexpr auto value = lexy::as_list<Disjunction::ElementVec>;
+    struct rel_aggr_expected {
+        static constexpr auto name = "relation or aggregate expected";
     };
 
-    struct disjunction {
-        static constexpr auto rule = dsl::list(dsl::p<conditional_literal>, dsl::sep(sep));
-        static constexpr auto value = lexy::as_list<Disjunction::ElementVec> >> lexy::new_<Disjunction, UHeadLiteral>;
-    };
+    static constexpr auto with_rel = dsl::p<aggregate> | dsl::p<set_aggregate> |
+                                     dsl::else_ >>
+                                         dsl::p<nested_expr> + dsl::opt(dsl::p<atom::guards>) + dsl::p<condition>;
 
-    static constexpr auto is_atom = dsl::context_flag<head_literal>;
+    static constexpr auto with_term =               //
+        dsl::p<relation> >> with_rel |              //
+        dsl::p<aggregate> | dsl::p<set_aggregate> | //
+        is_atom.is_set() >> dsl::p<condition> |     //
+        dsl::else_ >> dsl::error<rel_aggr_expected>;
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
@@ -1247,33 +1302,10 @@ struct body_literal {
         return res_term;
     }
 
-    struct rel_aggr_expected {
-        static constexpr auto name = "relation or aggregate expected";
-    };
-
-    static constexpr auto with_rel =                //
-        dsl::p<aggregate> | dsl::p<set_aggregate> | //
-        dsl::else_ >>
-            dsl::p<nested_expr> + dsl::opt(dsl::p<atom::guards>) + dsl::p<condition> + dsl::p<conditional_literals>;
-
-    static constexpr auto with_term =                                              //
-        dsl::p<relation> >> with_rel | dsl::p<aggregate> | dsl::p<set_aggregate> | //
-        is_atom.is_set() >> dsl::p<condition> + dsl::p<conditional_literals> |     //
-        dsl::else_ >> dsl::error<rel_aggr_expected>;
-
-    struct sign {
-        static auto constexpr rule = dsl::opt(kw_not::rule) + dsl::opt(kw_not::rule);
-        static auto constexpr value =
-            lexy::callback<Sign>([](lexy::nullopt, lexy::nullopt) { return Sign::none; },
-                                 [](lexy::nullopt) { return Sign::once; }, []() { return Sign::twice; });
-    };
-
-    static constexpr auto rule = dsl::p<sign> + (dsl::p<theory_atom> | dsl::p<aggregate> | dsl::p<set_aggregate> |
-                                                 dsl::else_ >> is_atom.create() + dsl::scan + with_term);
-
-    /*
-    static constexpr auto value = lexy::callback<UHeadLiteral>(
-        lexy::forward<UHeadLiteral>,
+    static constexpr auto rule = dsl::p<theory_atom> | dsl::p<aggregate> | dsl::p<set_aggregate> | //
+                                 dsl::else_ >> is_atom.create() + dsl::scan + with_term;
+    static constexpr auto value = lexy::callback<UBodyLiteral>(
+        lexy::forward<UBodyLiteral>,
         [](UTerm term, auto aggr) {
             aggr->set_left_guard(std::move(term), Relation::less_equal);
             return std::move(aggr);
@@ -1282,25 +1314,36 @@ struct body_literal {
             aggr->set_left_guard(std::move(term), rel);
             return std::move(aggr);
         },
-        [](UTerm term, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond,
-           Disjunction::ElementVec elems) {
+        [](UTerm term, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
-            elems.insert(elems.begin(),
-                         Disjunction::Element{std::make_unique<LiteralRelation>(std::move(term), std::move(guards)),
-                                              std::move(cond)});
-            return std::make_unique<Disjunction>(std::move(elems));
+            auto lit = std::make_unique<LiteralRelation>(std::move(term), std::move(guards));
+            return std::make_unique<ConditionalLiteral>(std::move(lit), std::move(cond));
         },
-        [](UTerm term, ULiteralVec cond, Disjunction::ElementVec elems) {
-            elems.insert(elems.begin(),
-                         Disjunction::Element{std::make_unique<LiteralSymbolic>(std::move(term)), std::move(cond)});
-            return std::make_unique<Disjunction>(std::move(elems));
+        [](UTerm term, ULiteralVec cond) {
+            auto lit = std::make_unique<LiteralSymbolic>(std::move(term));
+            return std::make_unique<ConditionalLiteral>(std::move(lit), std::move(cond));
         });
-    */
 };
+
+struct body_literal {
+    struct sign {
+        static auto constexpr rule = dsl::opt(kw_not::rule) + dsl::opt(kw_not::rule);
+        static auto constexpr value = lexy::callback<Sign>([](lexy::nullopt, lexy::nullopt) { return Sign::none; }, //
+                                                           [](lexy::nullopt) { return Sign::once; },                //
+                                                           []() { return Sign::twice; });
+    };
+
+    static constexpr auto rule = dsl::p<sign> + dsl::p<body_atom>;
+    static constexpr auto value = lexy::callback<UBodyLiteral>([](Sign sign, UBodyLiteral literal) {
+        literal->add_sign(sign);
+        return std::move(literal);
+    });
+};
+
 struct statement : control {
     static constexpr auto rule = dsl::p<literal> + dsl::lit_c<';'>;
     static constexpr auto value = lexy::forward<ULiteral>;
@@ -1332,6 +1375,7 @@ template <class P> struct match_root : grammar::control {
 using term = parse_root<grammar::nested_expr>;
 using literal = parse_root<grammar::literal>;
 using head_literal = parse_root<grammar::head_literal, '.'>;
+using body_literal = parse_root<grammar::body_literal, '.'>;
 
 } // namespace test
 
@@ -1428,6 +1472,45 @@ TEST_CASE("head literals") {
     // aggregate elements
     REQUIRE(parse<test::head_literal>("#sum{:a;1:a;1,2:a:b,c}") == "#sum{:a;1:a;1,2:a:b,c}");
     REQUIRE(parse<test::head_literal>("{1<2;1<2:a;a:b;a:b,c}") == "{1<2;1<2:a;a:b;a:b,c}");
+}
+
+TEST_CASE("body literals") {
+    // negation
+    REQUIRE(parse<test::body_literal>("a") == "a");
+    REQUIRE(parse<test::body_literal>("not a") == "not a");
+    REQUIRE(parse<test::body_literal>("not not a") == "not not a");
+    // theory_atom | aggregate | set_aggregate
+    REQUIRE(parse<test::body_literal>("&x{}") == "&p{...}");
+    REQUIRE(parse<test::body_literal>("#count{}") == "#count{}");
+    REQUIRE(parse<test::body_literal>("{}") == "{}");
+    // atom_like relation aggregate
+    REQUIRE(parse<test::body_literal>("a<{}") == "a<{}");
+    REQUIRE(parse<test::body_literal>("a<#count{}") == "a<#count{}");
+    // atom_like relation term ...
+    REQUIRE(parse<test::body_literal>("a<b<c") == "a<b<c");
+    REQUIRE(parse<test::body_literal>("a<a:a") == "a<a:a");
+    // atom_like aggregate
+    REQUIRE(parse<test::body_literal>("a{}") == "a<={}");
+    REQUIRE(parse<test::body_literal>("a#count{}") == "a<=#count{}");
+    // term aggregate
+    REQUIRE(parse<test::body_literal>("a+1{}") == "(a+1)<={}");
+    REQUIRE(parse<test::body_literal>("a+1#count{}") == "(a+1)<=#count{}");
+    // term relation aggregate
+    REQUIRE(parse<test::body_literal>("a+1<{}") == "(a+1)<{}");
+    REQUIRE(parse<test::body_literal>("a+1<#count{}") == "(a+1)<#count{}");
+    // term relation term ...
+    REQUIRE(parse<test::body_literal>("a+1<b<c") == "(a+1)<b<c");
+    REQUIRE(parse<test::body_literal>("a+1<a:a") == "(a+1)<a:a");
+    // atom ...
+    REQUIRE(parse<test::body_literal>("-a") == "(-a)");
+    REQUIRE(parse<test::body_literal>("-a(X)") == "(-a(X))");
+    REQUIRE(parse<test::body_literal>("a:b,c") == "a:b,c");
+    // aggregates with guards
+    REQUIRE(parse<test::body_literal>("a<{}<b") == "a<{}<b");
+    REQUIRE(parse<test::body_literal>("a{}b") == "a<={}<=b");
+    // aggregate elements
+    REQUIRE(parse<test::body_literal>("#sum{:a;1:a;1,2:a,b,c}") == "#sum{:a;1:a;1,2:a,b,c}");
+    REQUIRE(parse<test::body_literal>("{1<2;1<2:a;a:b;a:b,c}") == "{1<2;1<2:a;a:b;a:b,c}");
 }
 
 TEST_CASE("scan") {
