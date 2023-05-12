@@ -497,6 +497,7 @@ struct LiteralSymbolic : Literal {
 
 struct HeadLiteral {
     virtual ~HeadLiteral() = default;
+    [[nodiscard]] virtual auto print_empty() const -> bool { return false; }
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] auto to_string() const -> std::string {
         std::ostringstream out;
@@ -515,6 +516,7 @@ struct Disjunction : HeadLiteral {
     using Element = std::pair<ULiteral, ULiteralVec>;
     using ElementVec = std::vector<Element>;
     Disjunction(ElementVec elems) : elems{std::move(elems)} {}
+    [[nodiscard]] auto print_empty() const override->bool { return elems.empty(); }
     void print(std::ostream &out) const override {
         bool sem = false;
         for (const auto &elem : elems) {
@@ -755,7 +757,13 @@ using UStatement = std::unique_ptr<Statement>;
 
 struct Rule : Statement {
     Rule(UHeadLiteral head, UBodyLiteralVec body) : head{std::move(head)}, body{std::move(body)} {}
-    void print(std::ostream &out) const override { out << *head << ":-" << p_range(body, ";") << "."; }
+    void print(std::ostream &out) const override {
+        out << *head;
+        if (head->print_empty() || !body.empty()) {
+            out << ":-" << p_range(body, ";");
+        }
+        out << ".";
+    }
     UHeadLiteral head;
     UBodyLiteralVec body;
 };
@@ -1557,8 +1565,8 @@ TEST_CASE("statement") {
     // 1. ensure `:` is never followed by `-`
     // 2. print with spaces
     REQUIRE(parse<test::statement>(":-.") == ":-.");
-    REQUIRE(parse<test::statement>("a.") == "a:-.");
-    REQUIRE(parse<test::statement>("a:-.") == "a:-.");
+    REQUIRE(parse<test::statement>("a.") == "a.");
+    REQUIRE(parse<test::statement>("a:-.") == "a.");
     REQUIRE(parse<test::statement>("a:-b.") == "a:-b.");
     REQUIRE(parse<test::statement>("a:-b,c.") == "a:-b;c.");
     REQUIRE(parse<test::statement>("a:-b;c.") == "a:-b;c.");
@@ -1573,11 +1581,11 @@ TEST_CASE("program") {
     auto scanner = lexy::scan<grammar::control>(input, report_error);
     auto stm = scanner.parse<grammar::statement>();
     REQUIRE(stm.has_value());
-    REQUIRE(stm.value()->to_string() == "a:-.");
+    REQUIRE(stm.value()->to_string() == "a.");
     input.discard_before(scanner.position());
     stm = scanner.parse<grammar::statement>();
     REQUIRE(stm.has_value());
-    REQUIRE(stm.value()->to_string() == "b:-.");
+    REQUIRE(stm.value()->to_string() == "b.");
     input.discard_before(scanner.position());
     stm = scanner.parse<grammar::statement>();
     REQUIRE(!stm.has_value());
