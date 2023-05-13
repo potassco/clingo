@@ -1,0 +1,90 @@
+#pragma once
+
+#include <literal.hh>
+
+#include <parser/base.hh>
+#include <parser/term.hh>
+
+namespace grammar {
+
+struct relation {
+    static constexpr auto entities = lexy::symbol_table<Relation> //
+                                         .map<LEXY_SYMBOL("<=")>(Relation::less_equal)
+                                         .map<LEXY_SYMBOL("<")>(Relation::less)
+                                         .map<LEXY_SYMBOL(">=")>(Relation::greater_equal)
+                                         .map<LEXY_SYMBOL(">")>(Relation::greater)
+                                         .map<LEXY_SYMBOL("!=")>(Relation::inequal)
+                                         .map<LEXY_SYMBOL("=")>(Relation::equal);
+
+    static constexpr auto rule = dsl::symbol<entities>;
+    static constexpr auto value = lexy::forward<Relation>;
+};
+
+struct kw_not {
+    static constexpr auto rule = [] {
+        auto head = dsl::ascii::lower;
+        auto tail = dsl::ascii::alpha_digit_underscore / LEXY_LIT("'");
+        auto id = dsl::identifier(head, tail);
+
+        return LEXY_KEYWORD("not", id);
+    }();
+};
+
+struct atom {
+    using scan_result = lexy::scan_result<UTerm>;
+
+    struct expected_relation {
+        static constexpr auto name = "expected relation";
+    };
+
+    struct guard {
+        static constexpr auto rule = dsl::p<relation> >> dsl::p<term>;
+        static constexpr auto value = lexy::construct<std::pair<Relation, UTerm>>;
+    };
+
+    struct guards {
+        static constexpr auto rule = dsl::list(dsl::p<guard>);
+        static constexpr auto value = lexy::as_list<GuardVec>;
+    };
+
+    struct bool_atom {
+        static constexpr auto bool_symbols = lexy::symbol_table<bool> //
+                                                 .map<LEXY_SYMBOL("#true")>(true)
+                                                 .map<LEXY_SYMBOL("#false")>(false);
+        static constexpr auto rule = dsl::symbol<bool_symbols>;
+        static constexpr auto value = lexy::new_<LiteralBoolean, ULiteral>;
+    };
+
+    static constexpr auto is_atom = dsl::context_flag<atom>;
+
+    template <typename Reader, typename Context>
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        auto res_term = scanner.template parse<UTerm>(dsl::p<term>);
+        if (res_term.has_value() && res_term.value()->is_atom()) {
+            scanner.parse(is_atom.set());
+        }
+        return res_term;
+    }
+
+    static constexpr auto rule = dsl::p<bool_atom> |
+                                 dsl::else_ >> is_atom.create() + dsl::scan +
+                                                   (dsl::p<guards> | is_atom.is_set() | dsl::error<expected_relation>);
+    static constexpr auto value = lexy::callback<ULiteral>(
+        lexy::forward<ULiteral>, lexy::new_<LiteralSymbolic, ULiteral>, lexy::new_<LiteralRelation, ULiteral>);
+};
+
+struct literal {
+    static constexpr auto rule = dsl::opt(kw_not::rule) + dsl::opt(kw_not::rule) + dsl::p<atom>;
+    static constexpr auto value =
+        lexy::callback<ULiteral>([](lexy::nullopt, lexy::nullopt, ULiteral lit) { return std::move(lit); },
+                                 [](lexy::nullopt, ULiteral lit) {
+                                     lit->add_sign(Sign::once);
+                                     return std::move(lit);
+                                 },
+                                 [](ULiteral lit) {
+                                     lit->add_sign(Sign::twice);
+                                     return std::move(lit);
+                                 });
+};
+
+} // namespace grammar
