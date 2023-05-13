@@ -5,6 +5,7 @@
 #include <lexy/dsl.hpp>
 #include <lexy/callback.hpp>
 
+#include <util/lexy_report_error.hh>
 #include <util/lexy_stream_input.hh>
 
 namespace grammar {

@@ -10,7 +10,7 @@ enum class AggregateFunction {
     max,
 };
 
-auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
+inline auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
     switch (fun) {
         case AggregateFunction::count: {
             out << "#count";
