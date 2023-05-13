@@ -1,8 +1,8 @@
 #pragma once
 
 #include <iostream>
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include <term.hh>
 
@@ -156,4 +156,3 @@ struct LiteralSymbolic : Literal {
     Sign sign;
     UTerm term;
 };
-

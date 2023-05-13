@@ -17,4 +17,4 @@ struct aggregate_function {
     static constexpr auto value = lexy::forward<AggregateFunction>;
 };
 
-} // namespace
+} // namespace grammar

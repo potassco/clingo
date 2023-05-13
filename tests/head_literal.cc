@@ -58,4 +58,3 @@ TEST_CASE("head literals") {
 }
 
 } // namespace test
-

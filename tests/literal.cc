@@ -26,4 +26,3 @@ TEST_CASE("literals") {
 }
 
 } // namespace test
-

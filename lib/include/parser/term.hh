@@ -4,11 +4,11 @@
 
 #include <lexy/dsl.hpp>
 
-#include <util/lexy_stream_input.hh>
 #include <util/lexy_report_error.hh>
+#include <util/lexy_stream_input.hh>
 
-#include <term.hh>
 #include <parser/base.hh>
+#include <term.hh>
 
 namespace grammar {
 

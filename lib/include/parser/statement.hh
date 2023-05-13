@@ -3,8 +3,8 @@
 #include <statement.hh>
 
 #include <parser/base.hh>
-#include <parser/head_literal.hh>
 #include <parser/body_literal.hh>
+#include <parser/head_literal.hh>
 
 namespace grammar {
 
@@ -25,6 +25,5 @@ struct statement {
             return std::make_unique<Rule>(std::make_unique<Disjunction>(Disjunction::ElementVec{}), std::move(body));
         });
 };
-
 
 } // namespace grammar

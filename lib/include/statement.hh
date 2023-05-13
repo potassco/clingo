@@ -1,11 +1,11 @@
 #pragma once
 
-#include <memory>
 #include <iostream>
+#include <memory>
 #include <sstream>
 
-#include <head_literal.hh>
 #include <body_literal.hh>
+#include <head_literal.hh>
 
 struct Statement {
     virtual ~Statement() = default;
@@ -35,5 +35,3 @@ struct Rule : Statement {
     UHeadLiteral head;
     UBodyLiteralVec body;
 };
-
-

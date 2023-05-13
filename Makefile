@@ -26,8 +26,8 @@ reconfigure-iwyn:
 
 format:
 	clang-tidy --verify-config
-	clang-tidy -fix {lib,tests}/**/*{.cc,.hh}(N)
-	clang-format -i {lib,tests}/**/*{.cc,.hh}(N)
+	clang-tidy -fix {app,lib,tests}/**/*{.cc,.hh}(N)
+	clang-format -i {app,lib,tests}/**/*{.cc,.hh}(N)
 
 Makefile:
 	@:

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <memory>
-#include <vector>
 #include <iostream>
+#include <memory>
 #include <optional>
+#include <vector>
 
 #include <aggregate.hh>
 #include <literal.hh>

@@ -2,8 +2,8 @@
 
 #include <head_literal.hh>
 
-#include <parser/literal.hh>
 #include <parser/aggregate.hh>
+#include <parser/literal.hh>
 
 namespace grammar {
 
@@ -110,8 +110,7 @@ struct head_literal {
 
     static constexpr auto with_rel =                //
         dsl::p<aggregate> | dsl::p<set_aggregate> | //
-        dsl::else_ >>
-            dsl::p<term> + dsl::opt(dsl::p<atom::guards>) + dsl::p<condition> + dsl::p<conditional_literals>;
+        dsl::else_ >> dsl::p<term> + dsl::opt(dsl::p<atom::guards>) + dsl::p<condition> + dsl::p<conditional_literals>;
 
     static constexpr auto with_term =                                              //
         dsl::p<relation> >> with_rel | dsl::p<aggregate> | dsl::p<set_aggregate> | //
@@ -153,4 +152,3 @@ struct head_literal {
 };
 
 } // namespace grammar
-

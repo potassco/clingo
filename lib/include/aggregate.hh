@@ -35,4 +35,3 @@ inline auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream
     }
     return out;
 }
-

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <memory>
 #include <iostream>
+#include <memory>
 
 template <class T> struct p_elem {
     p_elem(T const &elem) : elem(elem) {}
@@ -58,5 +58,3 @@ template <class T, class F> struct p_range_with {
     F f;
     char const *sep;
 };
-
-

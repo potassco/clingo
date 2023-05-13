@@ -1,9 +1,9 @@
 #pragma once
 
-#include <sstream>
-#include <vector>
 #include <memory>
+#include <sstream>
 #include <variant>
+#include <vector>
 
 #include <util/print.hh>
 
@@ -271,4 +271,3 @@ struct TermBinary : Term {
     UTerm lhs;
     UTerm rhs;
 };
-
