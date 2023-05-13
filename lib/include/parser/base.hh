@@ -17,8 +17,35 @@ using input = StreamInput<encoding>;
 using iterator = input::iterator;
 using lexeme = lexy::lexeme_for<input>;
 
+struct block_comment : lexy::scan_production<void>, lexy::token_production {
+    template <typename Reader, typename Context>
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
+        size_t n = 0;
+        do {
+            if (scanner.branch(LEXY_LIT("%*"))) {
+                ++n;
+                continue;
+            }
+            if (scanner.branch(LEXY_LIT("*%"))) {
+                --n;
+                continue;
+            }
+            scanner.parse(dsl::code_point);
+            if (!scanner) {
+                return lexy::scan_failed;
+            }
+        } while (n > 0);
+        return scan_result{true};
+    }
+};
+
 struct control {
-    static constexpr auto whitespace = dsl::ascii::space | dsl::newline;
+    struct expected_bc_close {
+        static constexpr char const *name = "unclosed block comment";
+    };
+    static constexpr auto whitespace = dsl::ascii::space | dsl::newline |
+                                       dsl::peek(LEXY_LIT("%*")) >> (dsl::token(dsl::p<block_comment>) | dsl::error<expected_bc_close>) |
+                                       LEXY_LIT("%") >> dsl::until(dsl::newline);
 };
 
 struct identifier : lexy::token_production {
