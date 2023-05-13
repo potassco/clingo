@@ -17,7 +17,7 @@ using input = StreamInput<encoding>;
 using iterator = input::iterator;
 using lexeme = lexy::lexeme_for<input>;
 
-struct block_comment : lexy::scan_production<void>, lexy::token_production {
+struct block_comment : lexy::scan_production<void> {
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
         size_t n = 0;
