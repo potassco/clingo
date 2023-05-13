@@ -32,7 +32,9 @@ struct body_atom : lexy::transparent_production {
     };
 
     struct aggregate_element {
-        static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<tuple>) + dsl::p<condition>;
+        // TODO: this allows either an empty tuple or condition but not both.
+        // See not at head_literal.
+        static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_tuple>) + dsl::p<condition>;
         static constexpr auto value =
             lexy::callback<BodyAggregate::Element>([](std::optional<UTermVec> tuple, std::optional<ULiteralVec> cond) {
                 auto ret = BodyAggregate::Element{UTermVec{}, ULiteralVec{}};

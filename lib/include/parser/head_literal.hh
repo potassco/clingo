@@ -63,7 +63,7 @@ struct head_literal {
                           dsl::else_ >>
                               dsl::list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) + dsl::p<opt_condition>;
 
-        static constexpr auto theory_name = dsl::p<identifier> + dsl::opt(dsl::p<pool>);
+        static constexpr auto theory_name = dsl::p<identifier> + dsl::opt(dsl::p<term_pool>);
         static constexpr auto rule = LEXY_LIT("&") >>
                                      theory_name + dsl::if_(dsl::curly_bracketed.opt_list(theory_elem,
                                                                                           dsl::sep(dsl::lit_c<';'>)) >>
@@ -82,11 +82,9 @@ struct head_literal {
     };
 
     struct aggregate_element {
-        // Note: gringo also accepts
-        //   HeadElem ::= Tuple? ':' Literal (':' Condition?)?
-        // It is probably not worth the effort to support an empty condition
-        // after a colon (but possible with a lookahead of [;}]).
-        static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<tuple>) + LEXY_LIT(":") +
+        // TODO: gringo also accepts "tuple:literal:<empty>". This is possible
+        // here by using [;}] as lookahead.
+        static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_tuple>) + LEXY_LIT(":") +
                                      dsl::p<literal> + dsl::p<opt_condition>;
         static constexpr auto value = lexy::callback<HeadAggregate::Element>(
             [](std::optional<UTermVec> tuple, ULiteral lit, std::optional<ULiteralVec> cond) {

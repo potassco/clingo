@@ -24,6 +24,19 @@ struct variable : lexy::token_production {
         [](lexeme lex) { return std::make_unique<TermVariable>(std::string(lex.begin(), lex.end())); });
 };
 
+struct identifier : lexy::token_production {
+    static constexpr auto rule = []() {
+        auto prefix = dsl::while_one(LEXY_LIT("_") / LEXY_LIT("'"));
+        auto head = dsl::ascii::lower;
+        auto tail = dsl::ascii::alpha_underscore / LEXY_LIT("'");
+        auto id = dsl::identifier(head, tail);
+        auto kw_not = LEXY_KEYWORD("not", id);
+
+        return id.reserve(kw_not) | dsl::capture(dsl::token(prefix + id));
+    }();
+    static constexpr auto value = lexy::as_string<std::string>;
+};
+
 struct number : lexy::token_production {
     static constexpr auto rule = []() {
         auto digits = dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero();
@@ -72,20 +85,17 @@ struct term {
     static constexpr auto value = lexy::forward<UTerm>;
 };
 
-struct tuple {
-    static constexpr auto rule = []() {
-        auto skip_ws = dsl::while_(control::whitespace);
-        auto peek = dsl::peek_not(dsl::semicolon / LEXY_LIT(")"));
-        auto item = dsl::p<term>;
-        auto sep = dsl::token(dsl::comma + skip_ws + peek);
-        return dsl::list(item, dsl::sep(sep));
-    }();
+struct term_tuple {
+    static constexpr auto rule = dsl::list(dsl::p<term>, dsl::sep(dsl::comma));
     static constexpr auto value = lexy::as_list<UTermVec>;
 };
 
-struct pool {
-    static constexpr auto rule = dsl::parenthesized.list(
-        dsl::opt(dsl::peek_not(dsl::semicolon / LEXY_LIT(")")) >> dsl::p<tuple>), dsl::sep(dsl::semicolon));
+struct term_pool {
+    // Note: dsl::parenthesized.list tries to be too clever.
+    static constexpr auto rule = LEXY_LIT("(") >> dsl::list(dsl::opt(dsl::peek_not(dsl::semicolon / LEXY_LIT(")")) >>
+                                                                     dsl::p<term_tuple>),
+                                                            dsl::sep(dsl::semicolon)) +
+                                                      LEXY_LIT(")");
     static constexpr auto value = lexy::collect<UTermVecVec>(lexy::as_list<UTermVec>);
 };
 
@@ -99,54 +109,64 @@ constexpr auto empty_args_ = [](std::optional<UTermVecVec> value) {
 };
 
 struct function {
-    static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<pool>);
+    static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<term_pool>);
     static constexpr auto value =
         lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), false);
 };
 
 struct external_function {
-    static constexpr auto rule = LEXY_LIT("@") >> dsl::p<identifier> + dsl::opt(dsl::p<pool>);
+    static constexpr auto rule = LEXY_LIT("@") >> dsl::p<identifier> + dsl::opt(dsl::p<term_pool>);
     static constexpr auto value =
         lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), true);
 };
 
-struct make_tuple {
-    using return_type = std::variant<UTermVec, UTerm>;
-
-    [[nodiscard]] static auto make(std::optional<UTermVec> tuple, bool force_tuple) -> return_type {
-        if (tuple.has_value()) {
-            if (!force_tuple && tuple->size() == 1) {
-                return std::move(tuple->front());
-            }
-            return std::move(tuple.value());
-        }
-        auto ret = UTermVec{};
-        ret.emplace_back();
-        return ret;
-    }
-    auto operator()(std::optional<UTermVec> tuple, lexy::nullopt /*unused*/) const -> return_type {
-        return make(std::move(tuple), false);
-    }
-    auto operator()(std::optional<UTermVec> tuple) const -> return_type { return make(std::move(tuple), true); }
-};
-
-struct make_pool {
-    using return_type = UTerm;
-    auto operator()(TermTuple::ElementVec pool) const -> UTerm {
-        if (pool.size() == 1 && std::holds_alternative<UTerm>(pool.front())) {
-            return std::move(std::get<UTerm>(pool.front()));
-        }
-        return std::make_unique<TermTuple>(std::move(pool));
-    }
-};
-
-struct term_tuple {
+struct tuple_term_element {
+    // Note: the std::optional is for C++17 compatibility
     static constexpr auto rule = []() {
-        auto opt_tuple = dsl::opt(dsl::peek_not(dsl::semicolon / LEXY_LIT(")") / LEXY_LIT(",")) >> dsl::p<tuple>);
-        auto opt_comma = dsl::opt(LEXY_LIT(","));
-        return dsl::parenthesized.list(opt_tuple + opt_comma, dsl::sep(dsl::semicolon));
+        auto peek = dsl::peek_not(dsl::semicolon / LEXY_LIT(")") / dsl::comma);
+        auto sep = dsl::capture(LEXY_LIT(","));
+        auto tuple = dsl::list(peek >> dsl::p<term>, dsl::trailing_sep(sep));
+        return dsl::comma | dsl::else_ >> dsl::if_(tuple);
     }();
-    static constexpr auto value = lexy::collect<TermTuple::ElementVec>(make_tuple{}) >> make_pool();
+    static constexpr auto value = []() {
+        auto sink = lexy::fold_inplace<std::optional<TermTuple::Element>>(
+            std::nullopt,
+            [](std::optional<TermTuple::Element> &sink, UTerm term) {
+                if (!sink.has_value()) {
+                    sink = std::move(term);
+                } else {
+                    std::get<UTermVec>(sink.value()).emplace_back(std::move(term));
+                }
+            },
+            [](std::optional<TermTuple::Element> &sink, lexeme sep) {
+                if (!sink.has_value()) {
+                    sink = UTermVec{};
+                } else if (std::holds_alternative<UTerm>(sink.value())) {
+                    auto vec = UTermVec{};
+                    vec.emplace_back(std::move(std::get<UTerm>(sink.value())));
+                    sink = std::move(vec);
+                }
+            });
+        auto callback =
+            lexy::callback<TermTuple::Element>(lexy::construct<UTermVec>, [](std::optional<TermTuple::Element> tuple) {
+                return std::move(tuple).value();
+            });
+
+        return sink >> callback;
+    }();
+};
+
+struct tuple_term {
+    // Note: dsl::parenthesized.list tries to be too clever.
+    static constexpr auto rule = LEXY_LIT("(") >>
+                                 dsl::list(dsl::p<tuple_term_element>, dsl::sep(dsl::semicolon)) + LEXY_LIT(")");
+    static constexpr auto value = lexy::as_list<TermTuple::ElementVec> >>
+                                  lexy::callback<UTerm>([](TermTuple::ElementVec elem) -> UTerm {
+                                      if (elem.size() == 1 && std::holds_alternative<UTerm>(elem.front())) {
+                                          return std::move(std::get<UTerm>(elem.front()));
+                                      }
+                                      return std::make_unique<TermTuple>(std::move(elem));
+                                  });
 };
 
 struct math_abs {
@@ -166,7 +186,7 @@ struct expr : lexy::expression_production {
         static constexpr auto name = "expected term";
     };
 
-    static constexpr auto atom = dsl::p<number> | dsl::p<term_tuple> | dsl::p<variable> | dsl::p<math_abs> |
+    static constexpr auto atom = dsl::p<number> | dsl::p<tuple_term> | dsl::p<variable> | dsl::p<math_abs> |
                                  dsl::p<external_function> | dsl::p<function> | dsl::p<string> | dsl::p<constant> |
                                  dsl::p<anonymous_variable> | dsl::error<expected_term>;
 

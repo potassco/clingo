@@ -26,6 +26,13 @@ TEST_CASE("terms") {
     REQUIRE(parse<grammar::term>("(a)") == "a");
     REQUIRE(parse<grammar::term>("(a;a,b;a,b,c)") == "(a;a,b;a,b,c)");
     REQUIRE(parse<grammar::term>("(a, ; a,b,;a,b,c, )") == "(a,;a,b;a,b,c)");
+    REQUIRE(parse<grammar::term>("(a)") == "a");
+    REQUIRE(parse<grammar::term>("(a,)") == "(a,)");
+    REQUIRE(parse<grammar::term>("()") == "()");
+    REQUIRE(parse<grammar::term>("(,)") == "()");
+    REQUIRE(parse<grammar::term>("(;)") == "(;)");
+    REQUIRE(parse<grammar::term>("(,;,)") == "(;)");
+    REQUIRE(parse<grammar::term>("f(;)") == "f(;)");
 }
 
 } // namespace test
