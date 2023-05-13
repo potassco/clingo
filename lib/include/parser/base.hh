@@ -44,7 +44,8 @@ struct control {
         static constexpr char const *name = "unclosed block comment";
     };
     static constexpr auto whitespace = dsl::ascii::space | dsl::newline |
-                                       dsl::peek(LEXY_LIT("%*")) >> (dsl::token(dsl::p<block_comment>) | dsl::error<expected_bc_close>) |
+                                       dsl::peek(LEXY_LIT("%*")) >>
+                                           (dsl::token(dsl::p<block_comment>) | dsl::error<expected_bc_close>) |
                                        LEXY_LIT("%") >> dsl::until(dsl::newline);
 };
 

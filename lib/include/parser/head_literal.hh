@@ -12,7 +12,25 @@ struct head_literal {
 
     struct theory_atom {
         // TODO: proper construction
-        static constexpr auto rule = LEXY_LIT("&") >> dsl::p<identifier> + LEXY_LIT("{") + LEXY_LIT("}");
+        static constexpr auto op_class =
+            dsl::identifier(dsl::lit_c<'/'> / dsl::lit_c<'<'> / dsl::lit_c<'='> / dsl::lit_c<'>'> / dsl::lit_c<'+'> /
+                            dsl::lit_c<'\\'> / dsl::lit_c<'-'> / dsl::lit_c<'*'> / dsl::lit_c<'/'> / dsl::lit_c<'?'> /
+                            dsl::lit_c<'&'> / dsl::lit_c<'@'> / dsl::lit_c<'|'> / dsl::lit_c<':'> / dsl::lit_c<';'> /
+                            dsl::lit_c<'~'> / dsl::lit_c<'^'> / dsl::lit_c<'.'> / dsl::lit_c<'!'>);
+        static constexpr auto kw_semicolon = LEXY_KEYWORD(";", op_class);
+        static constexpr auto kw_colon = LEXY_KEYWORD(":", op_class);
+        static constexpr auto kw_dot = LEXY_KEYWORD(".", op_class);
+        static constexpr auto theory_op = op_class //
+                                              .reserve(kw_semicolon)
+                                              .reserve(kw_colon)
+                                              .reserve(kw_dot) |
+                                          dsl::p<kw_not>;
+        static constexpr auto theory_ops = dsl::list(theory_op);
+        static constexpr auto rec_theory_term = dsl::recurse<struct theory_term>;
+        static constexpr auto theory_tuple = dsl::list(rec_theory_term, dsl::sep(dsl::lit_c<','>));
+        static constexpr auto theory_name = dsl::p<identifier> + dsl::opt(dsl::p<pool>);
+        // TBC
+        static constexpr auto rule = LEXY_LIT("&") >> theory_name + LEXY_LIT("{") + LEXY_LIT("}");
         static constexpr auto value =
             lexy::callback<UHeadLiteral>([](auto &&...) { return std::make_unique<HeadTheoryAtom>(); });
     };
