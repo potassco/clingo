@@ -55,6 +55,8 @@ TEST_CASE("head literals") {
     // aggregate elements
     REQUIRE(parse<grammar::head_literal>("#sum{:a;1:a;1,2:a:b,c}") == "#sum{:a;1:a;1,2:a:b,c}");
     REQUIRE(parse<grammar::head_literal>("{1<2;1<2:a;a:b;a:b,c}") == "{1<2;1<2:a;a:b;a:b,c}");
+    // theory atoms
+    REQUIRE(parse<grammar::head_literal>("&p(X){43+-Y:a} <== 7") == "&p{...}");
 }
 
 } // namespace test

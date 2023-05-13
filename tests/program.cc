@@ -10,7 +10,7 @@ namespace test {
 
 namespace grammar {
 
-using statement = parse_root<::grammar::statement>;
+using statement = parse_root<::grammar::statement, '*'>;
 
 } // namespace grammar
 

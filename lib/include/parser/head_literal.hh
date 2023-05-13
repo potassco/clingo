@@ -10,8 +10,19 @@ namespace grammar {
 struct head_literal {
     using scan_result = lexy::scan_result<UTerm>;
 
+    struct condition {
+        static constexpr auto rule = dsl::not_followed_by(LEXY_LIT(":"), LEXY_LIT("-")) >>
+                                     dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")));
+        static constexpr auto value = lexy::as_list<ULiteralVec>;
+    };
+
+    struct opt_condition {
+        static constexpr auto rule = dsl::opt(dsl::not_followed_by(LEXY_LIT(":"), LEXY_LIT("-")) >>
+                                              dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
+        static constexpr auto value = lexy::as_list<ULiteralVec>;
+    };
+
     struct theory_atom {
-        // TODO: proper construction
         static constexpr auto op_class =
             dsl::identifier(dsl::lit_c<'/'> / dsl::lit_c<'<'> / dsl::lit_c<'='> / dsl::lit_c<'>'> / dsl::lit_c<'+'> /
                             dsl::lit_c<'\\'> / dsl::lit_c<'-'> / dsl::lit_c<'*'> / dsl::lit_c<'/'> / dsl::lit_c<'?'> /
@@ -24,28 +35,49 @@ struct head_literal {
                                               .reserve(kw_semicolon)
                                               .reserve(kw_colon)
                                               .reserve(kw_dot) |
-                                          dsl::p<kw_not>;
+                                          dsl::inline_<kw_not>;
         static constexpr auto theory_ops = dsl::list(theory_op);
-        static constexpr auto rec_theory_term = dsl::recurse<struct theory_term>;
-        static constexpr auto theory_tuple = dsl::list(rec_theory_term, dsl::sep(dsl::lit_c<','>));
+        struct rec_theory_term;
+        struct theory_term {
+            static constexpr auto rule = dsl::recurse<rec_theory_term>;
+            static constexpr auto value = lexy::noop;
+        };
+        struct theory_root {
+            static constexpr auto rule =
+                dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::lit_c<','>)) |
+                dsl::angle_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) |
+                dsl::curly_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) |
+                dsl::p<identifier> >>
+                    dsl::opt(dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>))) |
+                dsl::p<constant> | dsl::p<number> | dsl::p<string> | dsl::p<variable> | dsl::p<anonymous_variable>;
+            static constexpr auto value = lexy::noop;
+        };
+        struct rec_theory_term {
+            static constexpr auto rule =
+                dsl::opt(theory_ops) + dsl::p<theory_root> + dsl::while_(theory_ops >> dsl::p<theory_root>);
+            static constexpr auto value = lexy::noop;
+        };
+        static constexpr auto theory_guard = theory_op >> dsl::p<theory_term>;
+        static constexpr auto
+            theory_elem = dsl::p<condition> |
+                          dsl::else_ >>
+                              dsl::list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) + dsl::p<opt_condition>;
+
         static constexpr auto theory_name = dsl::p<identifier> + dsl::opt(dsl::p<pool>);
-        // TBC
-        static constexpr auto rule = LEXY_LIT("&") >> theory_name + LEXY_LIT("{") + LEXY_LIT("}");
-        static constexpr auto value =
-            lexy::callback<UHeadLiteral>([](auto &&...) { return std::make_unique<HeadTheoryAtom>(); });
+        static constexpr auto rule = LEXY_LIT("&") >>
+                                     theory_name + dsl::if_(dsl::curly_bracketed.opt_list(theory_elem,
+                                                                                          dsl::sep(dsl::lit_c<';'>)) >>
+                                                            dsl::if_(theory_guard));
+        static constexpr auto value = lexy::noop >> lexy::callback<UHeadLiteral>([](auto &&...) {
+                                          return std::make_unique<HeadTheoryAtom>();
+                                      });
     };
 
     static constexpr auto right_guard = dsl::peek(LEXY_LIT(":") / LEXY_LIT(".")) |
                                         dsl::else_ >> dsl::if_(dsl::p<relation>) + dsl::p<term>;
 
-    struct condition {
-        static constexpr auto rule = dsl::opt(dsl::not_followed_by(LEXY_LIT(":"), LEXY_LIT("-")) >>
-                                              dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
-        static constexpr auto value = lexy::as_list<ULiteralVec>;
-    };
-
     struct conditional_literal {
-        static constexpr auto rule = dsl::p<literal> + dsl::p<condition>;
+        static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
         static constexpr auto value = lexy::construct<std::pair<ULiteral, ULiteralVec>>;
     };
 
@@ -55,7 +87,7 @@ struct head_literal {
         // It is probably not worth the effort to support an empty condition
         // after a colon (but possible with a lookahead of [;}]).
         static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<tuple>) + LEXY_LIT(":") +
-                                     dsl::p<literal> + dsl::p<condition>;
+                                     dsl::p<literal> + dsl::p<opt_condition>;
         static constexpr auto value = lexy::callback<HeadAggregate::Element>(
             [](std::optional<UTermVec> tuple, ULiteral lit, std::optional<ULiteralVec> cond) {
                 auto ret = HeadAggregate::Element{UTermVec{}, std::move(lit), ULiteralVec{}};
@@ -128,11 +160,12 @@ struct head_literal {
 
     static constexpr auto with_rel =                //
         dsl::p<aggregate> | dsl::p<set_aggregate> | //
-        dsl::else_ >> dsl::p<term> + dsl::opt(dsl::p<atom::guards>) + dsl::p<condition> + dsl::p<conditional_literals>;
+        dsl::else_ >>
+            dsl::p<term> + dsl::opt(dsl::p<atom::guards>) + dsl::p<opt_condition> + dsl::p<conditional_literals>;
 
     static constexpr auto with_term =                                              //
         dsl::p<relation> >> with_rel | dsl::p<aggregate> | dsl::p<set_aggregate> | //
-        is_atom.is_set() >> dsl::p<condition> + dsl::p<conditional_literals> |     //
+        is_atom.is_set() >> dsl::p<opt_condition> + dsl::p<conditional_literals> | //
         dsl::else_ >> dsl::error<rel_aggr_expected>;
 
     static constexpr auto rule =                                          //

@@ -15,7 +15,9 @@ namespace dsl = lexy::dsl;
 template <class P, char t = '\0'> struct parse_root : ::grammar::control {
     static constexpr auto terminator() { return t; }
     static constexpr auto eof() {
-        if constexpr (t == '\0') {
+        if constexpr (t == '*') {
+            return dsl::return_;
+        } else if constexpr (t == '\0') {
             return dsl::eof;
         } else {
             return dsl::lit_c<t> + dsl::eof;
