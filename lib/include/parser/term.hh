@@ -24,15 +24,18 @@ struct variable : lexy::token_production {
         [](lexeme lex) { return std::make_unique<TermVariable>(std::string(lex.begin(), lex.end())); });
 };
 
+static constexpr auto identifier_base = []() {
+    auto head = dsl::ascii::lower;
+    auto tail = dsl::ascii::alpha_underscore / LEXY_LIT("'");
+    return dsl::identifier(head, tail);
+}();
+
+static constexpr auto kw_not = LEXY_KEYWORD("not", identifier_base);
+
 struct identifier : lexy::token_production {
     static constexpr auto rule = []() {
         auto prefix = dsl::while_one(LEXY_LIT("_") / LEXY_LIT("'"));
-        auto head = dsl::ascii::lower;
-        auto tail = dsl::ascii::alpha_underscore / LEXY_LIT("'");
-        auto id = dsl::identifier(head, tail);
-        auto kw_not = LEXY_KEYWORD("not", id);
-
-        return id.reserve(kw_not) | dsl::capture(dsl::token(prefix + id));
+        return identifier_base.reserve(kw_not) | dsl::capture(dsl::token(prefix + identifier_base));
     }();
     static constexpr auto value = lexy::as_string<std::string>;
 };
@@ -81,7 +84,7 @@ struct constant : lexy::token_production {
 };
 
 struct term {
-    static constexpr auto rule = dsl::recurse<struct expr>;
+    static constexpr auto rule = dsl::recurse<struct rec_term>;
     static constexpr auto value = lexy::forward<UTerm>;
 };
 
@@ -92,14 +95,18 @@ struct term_tuple {
 
 struct term_pool {
     // Note: dsl::parenthesized.list tries to be too clever.
-    static constexpr auto rule = LEXY_LIT("(") >> dsl::list(dsl::opt(dsl::peek_not(dsl::semicolon / LEXY_LIT(")")) >>
-                                                                     dsl::p<term_tuple>),
-                                                            dsl::sep(dsl::semicolon)) +
-                                                      LEXY_LIT(")");
+    static constexpr auto rule = []() {
+        auto peek = dsl::peek_not(dsl::semicolon / LEXY_LIT(")"));
+        auto item = dsl::opt(peek >> dsl::p<term_tuple>);
+        auto sep = dsl::sep(dsl::semicolon);
+        return LEXY_LIT("(") >> dsl::list(item, sep) + LEXY_LIT(")");
+    }();
     static constexpr auto value = lexy::collect<UTermVecVec>(lexy::as_list<UTermVec>);
 };
 
-constexpr auto empty_args_ = [](std::optional<UTermVecVec> value) {
+namespace detail {
+
+constexpr auto empty_args = [](std::optional<UTermVecVec> value) {
     if (value.has_value()) {
         return std::move(value.value());
     }
@@ -108,24 +115,32 @@ constexpr auto empty_args_ = [](std::optional<UTermVecVec> value) {
     return ret;
 };
 
+}
+
 struct function {
     static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<term_pool>);
-    static constexpr auto value =
-        lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), false);
+    static constexpr auto value = lexy::callback<UTerm>(
+        [](std::string name, std::optional<UTermVecVec> value) {
+            return std::make_unique<TermFunction>(std::move(name), detail::empty_args(std::move(value)), false);
+        }
+    );
 };
 
 struct external_function {
     static constexpr auto rule = LEXY_LIT("@") >> dsl::p<identifier> + dsl::opt(dsl::p<term_pool>);
-    static constexpr auto value =
-        lexy::bind(lexy::new_<TermFunction, UTerm>, lexy::_1, lexy::_2.map(empty_args_), true);
+    static constexpr auto value = lexy::callback<UTerm>(
+        [](std::string name, std::optional<UTermVecVec> value) {
+            return std::make_unique<TermFunction>(std::move(name), detail::empty_args(std::move(value)), true);
+        }
+    );
 };
 
 struct tuple_term_element {
     // Note: the std::optional is for C++17 compatibility
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(dsl::semicolon / LEXY_LIT(")") / dsl::comma);
-        auto sep = dsl::capture(LEXY_LIT(","));
-        auto tuple = dsl::list(peek >> dsl::p<term>, dsl::trailing_sep(sep));
+        auto sep = dsl::trailing_sep(dsl::capture(LEXY_LIT(",")));
+        auto tuple = dsl::list(peek >> dsl::p<term>, sep);
         return dsl::comma | dsl::else_ >> dsl::if_(tuple);
     }();
     static constexpr auto value = []() {
@@ -181,7 +196,7 @@ struct anonymous_variable {
     static constexpr auto value = lexy::as_string<std::string> | lexy::new_<TermVariable, UTerm>;
 };
 
-struct expr : lexy::expression_production {
+struct rec_term : lexy::expression_production {
     struct expected_term {
         static constexpr auto name = "expected term";
     };
@@ -190,7 +205,7 @@ struct expr : lexy::expression_production {
                                  dsl::p<external_function> | dsl::p<function> | dsl::p<string> | dsl::p<constant> |
                                  dsl::p<anonymous_variable> | dsl::error<expected_term>;
 
-    struct math_power : dsl::infix_op_right {
+    struct term_power : dsl::infix_op_right {
         static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
         using operand = dsl::atom;
     };
@@ -198,10 +213,10 @@ struct expr : lexy::expression_production {
     struct math_prefix : dsl::prefix_op {
         static constexpr auto op =
             dsl::op<UnaryOperator::negate>(LEXY_LIT("-")) / dsl::op<UnaryOperator::invert>(LEXY_LIT("~"));
-        using operand = math_power;
+        using operand = term_power;
     };
 
-    struct math_product : dsl::infix_op_left {
+    struct term_product : dsl::infix_op_left {
         static constexpr auto op = [] {
             auto star = dsl::not_followed_by(LEXY_LIT("*"), dsl::lit_c<'*'>);
             return dsl::op<BinaryOperator::times>(star) / dsl::op<BinaryOperator::div>(LEXY_LIT("/")) /
@@ -210,33 +225,33 @@ struct expr : lexy::expression_production {
         using operand = math_prefix;
     };
 
-    struct math_sum : dsl::infix_op_left {
+    struct term_sum : dsl::infix_op_left {
         static constexpr auto op =
             dsl::op<BinaryOperator::plus>(LEXY_LIT("+")) / dsl::op<BinaryOperator::minus>(LEXY_LIT("-"));
-        using operand = math_product;
+        using operand = term_product;
     };
 
     struct math_and : dsl::infix_op_left {
         static constexpr auto op = dsl::op<BinaryOperator::and_>(LEXY_LIT("&"));
-        using operand = math_sum;
+        using operand = term_sum;
     };
 
-    struct math_or : dsl::infix_op_left {
+    struct term_or : dsl::infix_op_left {
         static constexpr auto op = dsl::op<BinaryOperator::and_>(LEXY_LIT("?"));
         using operand = math_and;
     };
 
-    struct math_xor : dsl::infix_op_left {
+    struct term_xor : dsl::infix_op_left {
         static constexpr auto op = dsl::op<BinaryOperator::xor_>(LEXY_LIT("^"));
-        using operand = math_or;
+        using operand = term_or;
     };
 
-    struct math_dots : dsl::infix_op_left {
+    struct term_dots : dsl::infix_op_left {
         static constexpr auto op = dsl::op<BinaryOperator::xor_>(LEXY_LIT(".."));
-        using operand = math_xor;
+        using operand = term_xor;
     };
 
-    using operation = math_dots;
+    using operation = term_dots;
     static constexpr auto value = lexy::callback(lexy::forward<UTerm>, lexy::new_<TermInteger, UTerm>,
                                                  lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
 };

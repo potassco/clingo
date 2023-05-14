@@ -35,7 +35,7 @@ struct head_literal {
                                               .reserve(kw_semicolon)
                                               .reserve(kw_colon)
                                               .reserve(kw_dot) |
-                                          dsl::inline_<kw_not>;
+                                          kw_not;
         static constexpr auto theory_ops = dsl::list(theory_op);
         struct rec_theory_term;
         struct theory_term {
@@ -167,7 +167,7 @@ struct head_literal {
         dsl::else_ >> dsl::error<rel_aggr_expected>;
 
     static constexpr auto rule =                                          //
-        dsl::peek(dsl::p<kw_not>) >> dsl::p<disjunction> |                //
+        dsl::peek(kw_not) >> dsl::p<disjunction> |                //
         dsl::p<theory_atom> | dsl::p<aggregate> | dsl::p<set_aggregate> | //
         dsl::else_ >> is_atom.create() + dsl::scan + with_term;
 

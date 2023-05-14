@@ -136,7 +136,7 @@ struct body_atom : lexy::transparent_production {
 
 struct body_literal {
     struct sign {
-        static auto constexpr rule = dsl::opt(kw_not::rule) + dsl::opt(kw_not::rule);
+        static auto constexpr rule = dsl::opt(kw_not) + dsl::opt(kw_not);
         static auto constexpr value = lexy::callback<Sign>([](lexy::nullopt, lexy::nullopt) { return Sign::none; }, //
                                                            [](lexy::nullopt) { return Sign::once; },                //
                                                            []() { return Sign::twice; });

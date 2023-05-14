@@ -20,16 +20,6 @@ struct relation {
     static constexpr auto value = lexy::forward<Relation>;
 };
 
-struct kw_not {
-    static constexpr auto rule = [] {
-        auto head = dsl::ascii::lower;
-        auto tail = dsl::ascii::alpha_digit_underscore / LEXY_LIT("'");
-        auto id = dsl::identifier(head, tail);
-
-        return LEXY_KEYWORD("not", id);
-    }();
-};
-
 struct atom {
     using scan_result = lexy::scan_result<UTerm>;
 
@@ -74,7 +64,7 @@ struct atom {
 };
 
 struct literal {
-    static constexpr auto rule = dsl::opt(kw_not::rule) + dsl::opt(kw_not::rule) + dsl::p<atom>;
+    static constexpr auto rule = dsl::opt(kw_not) + dsl::opt(kw_not) + dsl::p<atom>;
     static constexpr auto value =
         lexy::callback<ULiteral>([](lexy::nullopt, lexy::nullopt, ULiteral lit) { return std::move(lit); },
                                  [](lexy::nullopt, ULiteral lit) {
