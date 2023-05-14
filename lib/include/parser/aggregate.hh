@@ -46,4 +46,19 @@ static constexpr auto aggregate_right_guard = []() {
     return dsl::if_(peek >> dsl::if_(dsl::p<relation>) >> dsl::p<term>);
 }();
 
+struct set_aggregate_elements {
+    static constexpr auto rule =
+        dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<conditional_literal>, dsl::sep(LEXY_LIT(";"))));
+    static constexpr auto value = lexy::as_list<SetAggregate::ElementVec>;
+};
+
+struct set_aggregate {
+    static constexpr auto rule = LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >>
+                                 LEXY_LIT("}") + aggregate_right_guard;
+    static constexpr auto value =
+        lexy::callback<SetAggregate>(lexy::construct<SetAggregate>, [](SetAggregate::ElementVec elems, UTerm rhs) {
+            return SetAggregate{std::move(elems), Relation::less_equal, std::move(rhs)};
+        });
+};
+
 } // namespace grammar

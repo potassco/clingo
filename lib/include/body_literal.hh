@@ -7,6 +7,7 @@
 
 #include <aggregate.hh>
 #include <literal.hh>
+#include <theory.hh>
 
 struct BodyLiteral {
     virtual ~BodyLiteral() = default;
@@ -74,38 +75,20 @@ struct BodyAggregate : BodyLiteral {
 using UBodyAggregate = std::unique_ptr<BodyAggregate>;
 
 struct BodySetAggregate : BodyLiteral {
-    using Element = std::pair<ULiteral, ULiteralVec>;
-    using ElementVec = std::vector<Element>;
-    BodySetAggregate(ElementVec elements) : elements{std::move(elements)} {}
-    BodySetAggregate(ElementVec elements, Relation rel, UTerm rhs)
-        : elements{std::move(elements)}, right_guard(std::make_pair(rel, std::move(rhs))) {}
+    BodySetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
     void add_sign(Sign s) override { sign += s; }
-    void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
-    void print(std::ostream &out) const override {
-        out << sign;
-        if (left_guard) {
-            out << *left_guard->first << left_guard->second;
-        }
-        out << "{" << p_range_with(elements, ";", [](std::ostream &out, auto const &elem) {
-            out << *std::get<0>(elem);
-            if (!std::get<1>(elem).empty()) {
-                out << ":" << p_range{std::get<1>(elem)};
-            }
-        }) << "}";
-        if (right_guard) {
-            out << right_guard->first << *right_guard->second;
-        }
-    }
+    void set_left_guard(UTerm lhs, Relation rel) { aggr.set_left_guard(std::move(lhs), rel); }
+    void print(std::ostream &out) const override { out << sign << aggr; }
     Sign sign = Sign::none;
-    ElementVec elements;
-    std::optional<std::pair<UTerm, Relation>> left_guard;
-    std::optional<std::pair<Relation, UTerm>> right_guard;
+    SetAggregate aggr;
 };
 
 using UBodySetAggregate = std::unique_ptr<BodySetAggregate>;
 
 struct BodyTheoryAtom : BodyLiteral {
+    BodyTheoryAtom(TheoryAtom atom) : atom(std::move(atom)) {}
     void add_sign(Sign s) override { sign += s; }
-    void print(std::ostream &out) const override { out << sign << "&p{...}"; }
+    void print(std::ostream &out) const override { out << sign << atom; }
     Sign sign = Sign::none;
+    TheoryAtom atom;
 };

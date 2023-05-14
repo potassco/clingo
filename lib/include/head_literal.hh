@@ -7,6 +7,7 @@
 
 #include <aggregate.hh>
 #include <literal.hh>
+#include <theory.hh>
 
 struct HeadLiteral {
     virtual ~HeadLiteral() = default;
@@ -43,7 +44,9 @@ struct Disjunction : HeadLiteral {
 };
 
 struct HeadTheoryAtom : HeadLiteral {
-    void print(std::ostream &out) const override { out << "&p{...}"; }
+    HeadTheoryAtom(TheoryAtom atom) : atom{std::move(atom)} {}
+    void print(std::ostream &out) const override { out << atom; }
+    TheoryAtom atom;
 };
 
 struct HeadAggregate : HeadLiteral {
@@ -76,29 +79,10 @@ struct HeadAggregate : HeadLiteral {
 using UHeadAggregate = std::unique_ptr<HeadAggregate>;
 
 struct HeadSetAggregate : HeadLiteral {
-    using Element = std::pair<ULiteral, ULiteralVec>;
-    using ElementVec = std::vector<Element>;
-    HeadSetAggregate(ElementVec elements) : elements{std::move(elements)} {}
-    HeadSetAggregate(ElementVec elements, Relation rel, UTerm rhs)
-        : elements{std::move(elements)}, right_guard(std::make_pair(rel, std::move(rhs))) {}
-    void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
-    void print(std::ostream &out) const override {
-        if (left_guard) {
-            out << *left_guard->first << left_guard->second;
-        }
-        out << "{" << p_range_with(elements, ";", [](std::ostream &out, auto const &elem) {
-            out << *std::get<0>(elem);
-            if (!std::get<1>(elem).empty()) {
-                out << ":" << p_range{std::get<1>(elem)};
-            }
-        }) << "}";
-        if (right_guard) {
-            out << right_guard->first << *right_guard->second;
-        }
-    }
-    ElementVec elements;
-    std::optional<std::pair<UTerm, Relation>> left_guard;
-    std::optional<std::pair<Relation, UTerm>> right_guard;
+    HeadSetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
+    void set_left_guard(UTerm lhs, Relation rel) { aggr.set_left_guard(std::move(lhs), rel); }
+    void print(std::ostream &out) const override { out << aggr; }
+    SetAggregate aggr;
 };
 
 using UHeadSetAggregate = std::unique_ptr<HeadSetAggregate>;

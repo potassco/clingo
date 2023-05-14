@@ -5,88 +5,61 @@
 #include <parser/aggregate.hh>
 #include <parser/base.hh>
 #include <parser/literal.hh>
+#include <parser/theory.hh>
 
 namespace grammar {
 
+namespace detail {
+
+inline auto make_body_aggr(UBodyAggregate aggr) -> UBodyAggregate { return std::move(aggr); }
+
+inline auto make_body_aggr(SetAggregate aggr) -> UBodySetAggregate {
+    return std::make_unique<BodySetAggregate>(std::move(aggr));
+}
+
+} // namespace detail
+
+struct body_aggregate_element {
+    // TODO: this allows either an empty tuple or condition but not both.
+    // See note at head_literal.
+    static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_tuple>) + dsl::p<opt_condition>;
+    static constexpr auto value =
+        lexy::callback<BodyAggregate::Element>([](std::optional<UTermVec> tuple, std::optional<ULiteralVec> cond) {
+            auto ret = BodyAggregate::Element{UTermVec{}, ULiteralVec{}};
+            if (tuple) {
+                std::get<0>(ret) = std::move(tuple).value();
+            }
+            if (cond) {
+                std::get<1>(ret) = std::move(cond).value();
+            }
+            return ret;
+        });
+};
+
+struct body_aggregate_elements {
+    static constexpr auto rule =
+        dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<body_aggregate_element>, dsl::sep(LEXY_LIT(";"))));
+    static constexpr auto value = lexy::as_list<BodyAggregate::ElementVec>;
+};
+
+struct body_aggregate {
+    static constexpr auto rule = dsl::p<aggregate_function> >> LEXY_LIT("{") + dsl::p<body_aggregate_elements> +
+                                                                   LEXY_LIT("}") + aggregate_right_guard;
+    static constexpr auto value = lexy::callback<UBodyAggregate>(
+        lexy::new_<BodyAggregate, UBodyAggregate>,
+        [](AggregateFunction fun, BodyAggregate::ElementVec elems, UTerm rhs) {
+            return std::make_unique<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
+        });
+};
+
 struct body_atom : lexy::transparent_production {
     using scan_result = lexy::scan_result<UTerm>;
-
-    struct theory_atom {
-        // TODO: proper construction
-        static constexpr auto rule = LEXY_LIT("&") >> dsl::p<identifier> + LEXY_LIT("{") + LEXY_LIT("}");
-        static constexpr auto value =
-            lexy::callback<UBodyLiteral>([](auto &&...) { return std::make_unique<BodyTheoryAtom>(); });
-    };
-
-    struct aggregate_element {
-        // TODO: this allows either an empty tuple or condition but not both.
-        // See note at head_literal.
-        static constexpr auto rule =
-            dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_tuple>) + dsl::p<opt_condition>;
-        static constexpr auto value =
-            lexy::callback<BodyAggregate::Element>([](std::optional<UTermVec> tuple, std::optional<ULiteralVec> cond) {
-                auto ret = BodyAggregate::Element{UTermVec{}, ULiteralVec{}};
-                if (tuple) {
-                    std::get<0>(ret) = std::move(tuple).value();
-                }
-                if (cond) {
-                    std::get<1>(ret) = std::move(cond).value();
-                }
-                return ret;
-            });
-    };
-
-    struct aggregate_elements {
-        static constexpr auto rule =
-            dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<aggregate_element>, dsl::sep(LEXY_LIT(";"))));
-        static constexpr auto value = lexy::as_list<BodyAggregate::ElementVec>;
-    };
-
-    struct aggregate {
-        static constexpr auto rule = dsl::p<aggregate_function> >>
-                                     LEXY_LIT("{") + dsl::p<aggregate_elements> + LEXY_LIT("}") + aggregate_right_guard;
-        static constexpr auto value = lexy::callback<UBodyAggregate>(
-            lexy::new_<BodyAggregate, UBodyAggregate>,
-            [](AggregateFunction fun, BodyAggregate::ElementVec elems, UTerm rhs) {
-                return std::make_unique<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
-            });
-    };
-
-    struct set_aggregate_element {
-        static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-        static constexpr auto value = lexy::construct<BodySetAggregate::Element>;
-    };
-
-    struct set_aggregate_elements {
-        static constexpr auto rule =
-            dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<set_aggregate_element>, dsl::sep(LEXY_LIT(";"))));
-        static constexpr auto value = lexy::as_list<BodySetAggregate::ElementVec>;
-    };
-
-    struct set_aggregate {
-        static constexpr auto rule = LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >>
-                                     LEXY_LIT("}") + aggregate_right_guard;
-        static constexpr auto value = lexy::callback<UBodySetAggregate>(
-            lexy::new_<BodySetAggregate, UBodySetAggregate>, [](BodySetAggregate::ElementVec elems, UTerm rhs) {
-                return std::make_unique<BodySetAggregate>(std::move(elems), Relation::less_equal, std::move(rhs));
-            });
-    };
 
     static constexpr auto is_atom = dsl::context_flag<body_atom>;
 
     struct rel_aggr_expected {
         static constexpr auto name = "relation or aggregate expected";
     };
-
-    static constexpr auto with_rel = dsl::p<aggregate> | dsl::p<set_aggregate> |
-                                     dsl::else_ >>
-                                         dsl::p<term> + dsl::opt(dsl::p<right_guards>) + dsl::p<opt_condition>;
-
-    static constexpr auto with_term =               //
-        dsl::p<relation> >> with_rel |              //
-        dsl::p<aggregate> | dsl::p<set_aggregate> | //
-        is_atom.is_set() >> dsl::p<opt_condition> | //
-        dsl::else_ >> dsl::error<rel_aggr_expected>;
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
@@ -97,17 +70,31 @@ struct body_atom : lexy::transparent_production {
         return res_term;
     }
 
-    static constexpr auto rule = dsl::p<theory_atom> | dsl::p<aggregate> | dsl::p<set_aggregate> | //
-                                 dsl::else_ >> is_atom.create() + dsl::scan + with_term;
+    static constexpr auto rule = []() {
+        auto with_rel = dsl::p<body_aggregate> | dsl::p<set_aggregate> |
+                        dsl::else_ >> dsl::p<term> + dsl::opt(dsl::p<right_guards>) + dsl::p<opt_condition>;
+
+        auto with_term =                                     //
+            dsl::p<relation> >> with_rel |                   //
+            dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
+            is_atom.is_set() >> dsl::p<opt_condition> |      //
+            dsl::else_ >> dsl::error<rel_aggr_expected>;
+
+        return dsl::p<theory_atom> | dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
+               dsl::else_ >> is_atom.create() + dsl::scan + with_term;
+    }();
     static constexpr auto value = lexy::callback<UBodyLiteral>(
-        lexy::forward<UBodyLiteral>,
+        lexy::forward<UBodyLiteral>, lexy::new_<BodySetAggregate, UBodyLiteral>,
+        lexy::new_<BodyTheoryAtom, UBodyLiteral>,
         [](UTerm term, auto aggr) {
-            aggr->set_left_guard(std::move(term), Relation::less_equal);
-            return std::move(aggr);
+            auto ret = detail::make_body_aggr(std::move(aggr));
+            ret->set_left_guard(std::move(term), Relation::less_equal);
+            return ret;
         },
         [](UTerm term, Relation rel, auto aggr) {
-            aggr->set_left_guard(std::move(term), rel);
-            return std::move(aggr);
+            auto ret = detail::make_body_aggr(std::move(aggr));
+            ret->set_left_guard(std::move(term), rel);
+            return std::move(ret);
         },
         [](UTerm term, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond) {
             GuardVec guards;
@@ -125,14 +112,7 @@ struct body_atom : lexy::transparent_production {
 };
 
 struct body_literal {
-    struct sign {
-        static auto constexpr rule = dsl::opt(kw_not) + dsl::opt(kw_not);
-        static auto constexpr value = lexy::callback<Sign>([](lexy::nullopt, lexy::nullopt) { return Sign::none; }, //
-                                                           [](lexy::nullopt) { return Sign::once; },                //
-                                                           []() { return Sign::twice; });
-    };
-
-    static constexpr auto rule = dsl::p<sign> + dsl::p<body_atom>;
+    static constexpr auto rule = dsl::p<naf_sign> + dsl::p<body_atom>;
     static constexpr auto value = lexy::callback<UBodyLiteral>([](Sign sign, UBodyLiteral literal) {
         literal->add_sign(sign);
         return std::move(literal);

@@ -64,18 +64,19 @@ struct atom {
         lexy::forward<ULiteral>, lexy::new_<LiteralSymbolic, ULiteral>, lexy::new_<LiteralRelation, ULiteral>);
 };
 
+struct naf_sign {
+    static auto constexpr rule = dsl::opt(kw_not) + dsl::opt(kw_not);
+    static auto constexpr value = lexy::callback<Sign>([](lexy::nullopt, lexy::nullopt) { return Sign::none; }, //
+                                                       [](lexy::nullopt) { return Sign::once; },                //
+                                                       []() { return Sign::twice; });
+};
+
 struct literal {
-    static constexpr auto rule = dsl::opt(kw_not) + dsl::opt(kw_not) + dsl::p<atom>;
-    static constexpr auto value =
-        lexy::callback<ULiteral>([](lexy::nullopt, lexy::nullopt, ULiteral lit) { return std::move(lit); },
-                                 [](lexy::nullopt, ULiteral lit) {
-                                     lit->add_sign(Sign::once);
-                                     return std::move(lit);
-                                 },
-                                 [](ULiteral lit) {
-                                     lit->add_sign(Sign::twice);
-                                     return std::move(lit);
-                                 });
+    static constexpr auto rule = dsl::p<naf_sign> + dsl::p<atom>;
+    static constexpr auto value = lexy::callback<ULiteral>([](Sign sign, ULiteral lit) {
+        lit->add_sign(sign);
+        return std::move(lit);
+    });
 };
 
 } // namespace grammar
