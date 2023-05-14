@@ -23,15 +23,11 @@ struct head_literal {
     };
 
     struct theory_atom {
-        static constexpr auto op_class =
-            dsl::identifier(dsl::lit_c<'/'> / dsl::lit_c<'<'> / dsl::lit_c<'='> / dsl::lit_c<'>'> / dsl::lit_c<'+'> /
-                            dsl::lit_c<'\\'> / dsl::lit_c<'-'> / dsl::lit_c<'*'> / dsl::lit_c<'/'> / dsl::lit_c<'?'> /
-                            dsl::lit_c<'&'> / dsl::lit_c<'@'> / dsl::lit_c<'|'> / dsl::lit_c<':'> / dsl::lit_c<';'> /
-                            dsl::lit_c<'~'> / dsl::lit_c<'^'> / dsl::lit_c<'.'> / dsl::lit_c<'!'>);
-        static constexpr auto kw_semicolon = LEXY_KEYWORD(";", op_class);
-        static constexpr auto kw_colon = LEXY_KEYWORD(":", op_class);
-        static constexpr auto kw_dot = LEXY_KEYWORD(".", op_class);
-        static constexpr auto theory_op = op_class //
+        static constexpr auto op_base = dsl::identifier(LEXY_ASCII_ONE_OF("/<=>+\\-*/?&@|:;~^.!"));
+        static constexpr auto kw_semicolon = LEXY_KEYWORD(";", op_base);
+        static constexpr auto kw_colon = LEXY_KEYWORD(":", op_base);
+        static constexpr auto kw_dot = LEXY_KEYWORD(".", op_base);
+        static constexpr auto theory_op = op_base //
                                               .reserve(kw_semicolon)
                                               .reserve(kw_colon)
                                               .reserve(kw_dot) |
