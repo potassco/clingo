@@ -10,18 +10,7 @@ namespace grammar {
 struct head_literal {
     using scan_result = lexy::scan_result<UTerm>;
 
-    struct condition {
-        static constexpr auto rule = dsl::not_followed_by(LEXY_LIT(":"), LEXY_LIT("-")) >>
-                                     dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")));
-        static constexpr auto value = lexy::as_list<ULiteralVec>;
-    };
-
-    struct opt_condition {
-        static constexpr auto rule = dsl::opt(dsl::not_followed_by(LEXY_LIT(":"), LEXY_LIT("-")) >>
-                                              dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
-        static constexpr auto value = lexy::as_list<ULiteralVec>;
-    };
-
+    // TODO: move into theory header
     struct theory_atom {
         static constexpr auto op_base = dsl::identifier(LEXY_ASCII_ONE_OF("/<=>+\\-*/?&@|:;~^.!"));
         static constexpr auto kw_semicolon = LEXY_KEYWORD(";", op_base);
@@ -70,14 +59,6 @@ struct head_literal {
                                       });
     };
 
-    static constexpr auto right_guard = dsl::peek(LEXY_LIT(":") / LEXY_LIT(".")) |
-                                        dsl::else_ >> dsl::if_(dsl::p<relation>) + dsl::p<term>;
-
-    struct conditional_literal {
-        static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-        static constexpr auto value = lexy::construct<std::pair<ULiteral, ULiteralVec>>;
-    };
-
     struct aggregate_element {
         // TODO: gringo also accepts "tuple:literal:<empty>". This is possible
         // here by using [;}] as lookahead.
@@ -104,7 +85,7 @@ struct head_literal {
 
     struct aggregate {
         static constexpr auto rule = dsl::p<aggregate_function> >>
-                                     LEXY_LIT("{") + dsl::p<aggregate_elements> + LEXY_LIT("}") + right_guard;
+                                     LEXY_LIT("{") + dsl::p<aggregate_elements> + LEXY_LIT("}") + aggregate_right_guard;
         static constexpr auto value = lexy::callback<UHeadAggregate>(
             lexy::new_<HeadAggregate, UHeadAggregate>,
             [](AggregateFunction fun, HeadAggregate::ElementVec elems, UTerm rhs) {
@@ -119,7 +100,8 @@ struct head_literal {
     };
 
     struct set_aggregate {
-        static constexpr auto rule = LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >> LEXY_LIT("}") + right_guard;
+        static constexpr auto rule = LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >>
+                                     LEXY_LIT("}") + aggregate_right_guard;
         static constexpr auto value = lexy::callback<UHeadSetAggregate>(
             lexy::new_<HeadSetAggregate, UHeadSetAggregate>, [](HeadSetAggregate::ElementVec elems, UTerm rhs) {
                 return std::make_unique<HeadSetAggregate>(std::move(elems), Relation::less_equal, std::move(rhs));

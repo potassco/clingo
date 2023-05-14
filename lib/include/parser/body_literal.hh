@@ -18,23 +18,11 @@ struct body_atom : lexy::transparent_production {
             lexy::callback<UBodyLiteral>([](auto &&...) { return std::make_unique<BodyTheoryAtom>(); });
     };
 
-    static constexpr auto right_guard = dsl::peek(LEXY_LIT(":") / LEXY_LIT(".")) |
-                                        dsl::else_ >> dsl::if_(dsl::p<relation>) + dsl::p<term>;
-
-    struct condition {
-        static constexpr auto rule = dsl::opt(LEXY_LIT(":") >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
-        static constexpr auto value = lexy::as_list<ULiteralVec>;
-    };
-
-    struct conditional_literal {
-        static constexpr auto rule = dsl::p<literal> + dsl::p<condition>;
-        static constexpr auto value = lexy::new_<ConditionalLiteral, UBodyLiteral>;
-    };
-
     struct aggregate_element {
         // TODO: this allows either an empty tuple or condition but not both.
-        // See not at head_literal.
-        static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_tuple>) + dsl::p<condition>;
+        // See note at head_literal.
+        static constexpr auto rule =
+            dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_tuple>) + dsl::p<opt_condition>;
         static constexpr auto value =
             lexy::callback<BodyAggregate::Element>([](std::optional<UTermVec> tuple, std::optional<ULiteralVec> cond) {
                 auto ret = BodyAggregate::Element{UTermVec{}, ULiteralVec{}};
@@ -56,7 +44,7 @@ struct body_atom : lexy::transparent_production {
 
     struct aggregate {
         static constexpr auto rule = dsl::p<aggregate_function> >>
-                                     LEXY_LIT("{") + dsl::p<aggregate_elements> + LEXY_LIT("}") + right_guard;
+                                     LEXY_LIT("{") + dsl::p<aggregate_elements> + LEXY_LIT("}") + aggregate_right_guard;
         static constexpr auto value = lexy::callback<UBodyAggregate>(
             lexy::new_<BodyAggregate, UBodyAggregate>,
             [](AggregateFunction fun, BodyAggregate::ElementVec elems, UTerm rhs) {
@@ -65,7 +53,7 @@ struct body_atom : lexy::transparent_production {
     };
 
     struct set_aggregate_element {
-        static constexpr auto rule = dsl::p<literal> + dsl::p<condition>;
+        static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
         static constexpr auto value = lexy::construct<BodySetAggregate::Element>;
     };
 
@@ -76,7 +64,8 @@ struct body_atom : lexy::transparent_production {
     };
 
     struct set_aggregate {
-        static constexpr auto rule = LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >> LEXY_LIT("}") + right_guard;
+        static constexpr auto rule = LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >>
+                                     LEXY_LIT("}") + aggregate_right_guard;
         static constexpr auto value = lexy::callback<UBodySetAggregate>(
             lexy::new_<BodySetAggregate, UBodySetAggregate>, [](BodySetAggregate::ElementVec elems, UTerm rhs) {
                 return std::make_unique<BodySetAggregate>(std::move(elems), Relation::less_equal, std::move(rhs));
@@ -90,12 +79,13 @@ struct body_atom : lexy::transparent_production {
     };
 
     static constexpr auto with_rel = dsl::p<aggregate> | dsl::p<set_aggregate> |
-                                     dsl::else_ >> dsl::p<term> + dsl::opt(dsl::p<right_guards>) + dsl::p<condition>;
+                                     dsl::else_ >>
+                                         dsl::p<term> + dsl::opt(dsl::p<right_guards>) + dsl::p<opt_condition>;
 
     static constexpr auto with_term =               //
         dsl::p<relation> >> with_rel |              //
         dsl::p<aggregate> | dsl::p<set_aggregate> | //
-        is_atom.is_set() >> dsl::p<condition> |     //
+        is_atom.is_set() >> dsl::p<opt_condition> | //
         dsl::else_ >> dsl::error<rel_aggr_expected>;
 
     template <typename Reader, typename Context>
