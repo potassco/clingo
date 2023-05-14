@@ -43,13 +43,14 @@ struct head_literal {
             static constexpr auto value = lexy::noop;
         };
         struct theory_root {
-            static constexpr auto rule =
-                dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::lit_c<','>)) |
-                dsl::angle_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) |
-                dsl::curly_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) |
-                dsl::p<identifier> >>
-                    dsl::opt(dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>))) |
-                dsl::p<constant> | dsl::p<number> | dsl::p<string> | dsl::p<variable> | dsl::p<anonymous_variable>;
+            static constexpr auto
+                rule = dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::lit_c<','>)) |
+                       dsl::angle_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) |
+                       dsl::curly_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) |
+                       dsl::p<identifier> >>
+                           dsl::opt(dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>))) |
+                       dsl::p<constant_term> | dsl::p<number> | dsl::p<string> | dsl::p<variable_term> |
+                       dsl::p<anonymous_variable_term>;
             static constexpr auto value = lexy::noop;
         };
         struct rec_theory_term {
@@ -167,7 +168,7 @@ struct head_literal {
         dsl::else_ >> dsl::error<rel_aggr_expected>;
 
     static constexpr auto rule =                                          //
-        dsl::peek(kw_not) >> dsl::p<disjunction> |                //
+        dsl::peek(kw_not) >> dsl::p<disjunction> |                        //
         dsl::p<theory_atom> | dsl::p<aggregate> | dsl::p<set_aggregate> | //
         dsl::else_ >> is_atom.create() + dsl::scan + with_term;
 
