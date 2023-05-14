@@ -67,16 +67,16 @@ struct variable_term : lexy::token_production {
         [](lexeme lex) { return std::make_unique<TermVariable>(std::string(lex.begin(), lex.end())); });
 };
 
-static constexpr auto keyword_base = dsl::identifier(dsl::ascii::alpha);
+static constexpr auto keyword_base = dsl::identifier(LEXY_ASCII_ONE_OF("#"), dsl::ascii::alpha);
 
 struct constant_term : lexy::token_production {
     static constexpr auto keywords = lexy::symbol_table<Constant> //
-                                         .map<LEXY_SYMBOL("infimum")>(Constant::infimum)
-                                         .map<LEXY_SYMBOL("inf")>(Constant::infimum)
-                                         .map<LEXY_SYMBOL("supremum")>(Constant::supremum)
-                                         .map<LEXY_SYMBOL("sup")>(Constant::supremum);
+                                         .map<LEXY_SYMBOL("#infimum")>(Constant::infimum)
+                                         .map<LEXY_SYMBOL("#inf")>(Constant::infimum)
+                                         .map<LEXY_SYMBOL("#supremum")>(Constant::supremum)
+                                         .map<LEXY_SYMBOL("#sup")>(Constant::supremum);
 
-    static constexpr auto rule = dsl::lit_c<'#'> >> dsl::symbol<keywords>(keyword_base);
+    static constexpr auto rule = dsl::symbol<keywords>(keyword_base);
     static constexpr auto value = lexy::new_<TermConstant, UTerm>;
 };
 

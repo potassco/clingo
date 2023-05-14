@@ -160,7 +160,7 @@ struct head_literal {
     static constexpr auto with_rel =                //
         dsl::p<aggregate> | dsl::p<set_aggregate> | //
         dsl::else_ >>
-            dsl::p<term> + dsl::opt(dsl::p<atom::guards>) + dsl::p<opt_condition> + dsl::p<conditional_literals>;
+            dsl::p<term> + dsl::opt(dsl::p<right_guards>) + dsl::p<opt_condition> + dsl::p<conditional_literals>;
 
     static constexpr auto with_term =                                              //
         dsl::p<relation> >> with_rel | dsl::p<aggregate> | dsl::p<set_aggregate> | //
