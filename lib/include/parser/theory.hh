@@ -7,18 +7,27 @@
 
 namespace grammar {
 
-static constexpr auto theory_op = []() {
-    auto theory_op_base = dsl::identifier(LEXY_ASCII_ONE_OF("/<=>+\\-*/?&@|:;~^.!"));
-    auto kw_semicolon = LEXY_KEYWORD(";", theory_op_base);
-    auto kw_colon = LEXY_KEYWORD(":", theory_op_base);
-    auto kw_dot = LEXY_KEYWORD(".", theory_op_base);
-    return theory_op_base //
-               .reserve(kw_semicolon)
-               .reserve(kw_colon)
-               .reserve(kw_dot) |
-           kw_not;
-}();
-static constexpr auto theory_ops = dsl::list(theory_op);
+struct theory_op {
+    static constexpr auto rule = []() {
+        auto theory_op_base = dsl::identifier(LEXY_ASCII_ONE_OF("/<=>+\\-*/?&@|:;~^.!"));
+        auto kw_semicolon = LEXY_KEYWORD(";", theory_op_base);
+        auto kw_colon = LEXY_KEYWORD(":", theory_op_base);
+        auto kw_dot = LEXY_KEYWORD(".", theory_op_base);
+        return theory_op_base //
+                   .reserve(kw_semicolon)
+                   .reserve(kw_colon)
+                   .reserve(kw_dot) |
+               kw_not;
+    }();
+
+    static constexpr auto value =
+        lexy::callback<std::string>(lexy::as_string<std::string, encoding>, lexy::constant("not"));
+};
+
+struct theory_ops {
+    static constexpr auto rule = dsl::list(dsl::p<theory_op>);
+    static constexpr auto value = lexy::as_list<std::vector<std::string>>;
+};
 
 struct theory_term {
     static constexpr auto rule = dsl::recurse<struct rec_theory_term>;
@@ -38,14 +47,14 @@ struct theory_term_root {
 };
 
 struct rec_theory_term {
-    static constexpr auto rule =
-        dsl::opt(theory_ops) + dsl::p<theory_term_root> + dsl::while_(theory_ops >> dsl::p<theory_term_root>);
+    static constexpr auto rule = dsl::opt(dsl::p<theory_ops>) + dsl::p<theory_term_root> +
+                                 dsl::opt(dsl::list(dsl::p<theory_ops> >> dsl::p<theory_term_root>));
     static constexpr auto value = lexy::noop;
 };
 
 struct theory_atom {
     static constexpr auto rule = []() {
-        auto theory_guard = theory_op >> dsl::p<theory_term>;
+        auto theory_guard = dsl::p<theory_op> >> dsl::p<theory_term>;
         auto theory_elem = dsl::p<condition> | dsl::else_ >> dsl::list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) +
                                                                  dsl::p<opt_condition>;
 
