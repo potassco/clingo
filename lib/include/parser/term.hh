@@ -66,7 +66,7 @@ struct variable {
     static constexpr auto value = lexy::as_string<std::string, encoding>;
 };
 
-struct variable_term : lexy::token_production {
+struct term_variable : lexy::token_production {
     static constexpr auto rule = dsl::p<variable>;
     static constexpr auto value = lexy::new_<TermVariable, UTerm>;
 };
@@ -129,40 +129,32 @@ struct term_external_function {
     });
 };
 
+namespace detail {
+
+struct element_trail_vec {
+    void push_back(UTerm term) { vec.emplace_back(std::move(term)); }
+    void push_back(lexeme /* unused */) { trail = true; }
+    UTermVec vec;
+    bool trail = false;
+};
+
+} // namespace detail
+
 struct term_pool_element {
-    // Note: the std::optional is for C++17 compatibility
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(dsl::semicolon / LEXY_LIT(")") / dsl::comma);
         auto sep = dsl::trailing_sep(dsl::capture(LEXY_LIT(",")));
-        auto tuple = dsl::list(peek >> dsl::p<term>, sep);
-        return dsl::comma | dsl::else_ >> dsl::if_(tuple);
+        return dsl::if_(dsl::list(peek >> dsl::p<term>, sep));
     }();
-    static constexpr auto value = []() {
-        auto sink = lexy::fold_inplace<std::optional<TermTuple::Element>>(
-            std::nullopt,
-            [](std::optional<TermTuple::Element> &sink, UTerm term) {
-                if (!sink.has_value()) {
-                    sink = std::move(term);
-                } else {
-                    std::get<UTermVec>(sink.value()).emplace_back(std::move(term));
-                }
-            },
-            [](std::optional<TermTuple::Element> &sink, lexeme sep) {
-                if (!sink.has_value()) {
-                    sink = UTermVec{};
-                } else if (std::holds_alternative<UTerm>(sink.value())) {
-                    auto vec = UTermVec{};
-                    vec.emplace_back(std::move(std::get<UTerm>(sink.value())));
-                    sink = std::move(vec);
-                }
-            });
-        auto callback =
-            lexy::callback<TermTuple::Element>(lexy::construct<UTermVec>, [](std::optional<TermTuple::Element> tuple) {
-                return std::move(tuple).value();
-            });
-
-        return sink >> callback;
-    }();
+    static constexpr auto
+        value = lexy::as_list<detail::element_trail_vec> >>
+                lexy::callback<TermTuple::Element>(lexy::construct<UTermVec>,
+                                                   [](detail::element_trail_vec elem) -> TermTuple::Element {
+                                                       if (elem.vec.size() == 1 && !elem.trail) {
+                                                           return std::move(elem.vec.back());
+                                                       }
+                                                       return std::move(elem.vec);
+                                                   });
 };
 
 struct term_tuple {
@@ -197,7 +189,7 @@ struct term_rec : lexy::expression_production {
         static constexpr auto name = "expected term";
     };
 
-    static constexpr auto atom = dsl::p<number> | dsl::p<term_tuple> | dsl::p<variable_term> | dsl::p<term_abs> |
+    static constexpr auto atom = dsl::p<number> | dsl::p<term_tuple> | dsl::p<term_variable> | dsl::p<term_abs> |
                                  dsl::p<term_external_function> | dsl::p<term_function> | dsl::p<string> | constant |
                                  dsl::p<term_anonymous_variable> | dsl::error<expected_term>;
 

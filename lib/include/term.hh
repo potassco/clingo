@@ -110,7 +110,7 @@ struct TermTuple : Term {
 struct TermString : Term {
     explicit TermString(std::string value) : value(std::move(value)) {}
 
-    void print(std::ostream &out) const override { out << value; }
+    void print(std::ostream &out) const override { print_quoted(out, value); }
 
     std::string value;
 };

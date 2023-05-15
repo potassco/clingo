@@ -21,10 +21,10 @@ TEST_CASE("terms") {
     REQUIRE(parse_term("(a)") == "a");
     REQUIRE(parse_term("(a,)") == "(a,)");
     REQUIRE(parse_term("()") == "()");
-    REQUIRE(parse_term("(,)") == "()");
     REQUIRE(parse_term("(;)") == "(;)");
-    REQUIRE(parse_term("(,;,)") == "(;)");
+    REQUIRE(parse_term("(a,;a)") == "(a,;a)");
     REQUIRE(parse_term("f(;)") == "f(;)");
+    REQUIRE(parse_term("f(\"x\")") == "f(\"x\")");
 }
 
 } // namespace test

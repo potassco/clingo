@@ -34,28 +34,48 @@ struct theory_term {
     static constexpr auto value = lexy::forward<UTheoryTerm>;
 };
 
-struct theory_term_tuple {
-    static constexpr auto rule = dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::lit_c<','>));
+namespace detail {
+
+template <TheoryTermTupleType type> struct make_tuple {
     static constexpr auto
-        value = lexy::as_list<UTheoryTermVec> >> lexy::callback<UTheoryTerm>([](UTheoryTermVec elems) {
-                    return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::Tuple, std::move(elems));
-                });
+        value = lexy::as_list<UTheoryTermVec> >>
+                lexy::callback<UTheoryTerm>(
+                    [](lexy::nullopt) { return std::make_unique<TheoryTermTuple>(type, UTheoryTermVec{}); },
+                    [](UTheoryTermVec elems) { return std::make_unique<TheoryTermTuple>(type, std::move(elems)); });
 };
 
-struct theory_term_set {
+struct tuple_trail_vec {
+    void push_back(UTheoryTerm term) { vec.emplace_back(std::move(term)); }
+    void push_back(lexeme /* unused */) { trail = true; }
+    UTheoryTermVec vec;
+    bool trail = false;
+};
+
+} // namespace detail
+
+struct theory_term_tuple : detail::make_tuple<TheoryTermTupleType::Tuple> {
+    static constexpr auto rule =
+        dsl::round_bracketed.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::capture(dsl::lit_c<','>)));
+    static constexpr auto
+        value = lexy::as_list<detail::tuple_trail_vec> >>
+                lexy::callback<UTheoryTerm>(
+                    [](lexy::nullopt) -> UTheoryTerm {
+                        return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::Tuple, UTheoryTermVec{});
+                    },
+                    [](detail::tuple_trail_vec elems) -> UTheoryTerm {
+                        if (elems.vec.size() == 1 && !elems.trail) {
+                            return std::move(elems.vec.back());
+                        }
+                        return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::Tuple, std::move(elems.vec));
+                    });
+};
+
+struct theory_term_set : detail::make_tuple<TheoryTermTupleType::Set> {
     static constexpr auto rule = dsl::curly_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
-    static constexpr auto
-        value = lexy::as_list<UTheoryTermVec> >> lexy::callback<UTheoryTerm>([](UTheoryTermVec elems) {
-                    return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::Set, std::move(elems));
-                });
 };
 
-struct theory_term_list {
+struct theory_term_list : detail::make_tuple<TheoryTermTupleType::List> {
     static constexpr auto rule = dsl::square_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
-    static constexpr auto
-        value = lexy::as_list<UTheoryTermVec> >> lexy::callback<UTheoryTerm>([](UTheoryTermVec elems) {
-                    return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::List, std::move(elems));
-                });
 };
 
 struct theory_term_arguments {

@@ -34,9 +34,17 @@ struct TheoryTermUnparsed : TheoryTerm {
     using Guard = std::pair<OpVec, UTheoryTerm>;
     using GuardVec = std::vector<Guard>;
     explicit TheoryTermUnparsed(OpVec ops, UTheoryTerm term, GuardVec guards = {})
-        : ops{std::move(ops)}, term{std::move(term)}, guards{std::move(guards)} {}
+        : ops{std::move(ops)}, term{std::move(term)}, guards{std::move(guards)} {
+        if (this->term.get() == nullptr) {
+            throw std::logic_error("term must not be null");
+        }
+    }
     explicit TheoryTermUnparsed(UTheoryTerm term, GuardVec guards = {})
-        : term{std::move(term)}, guards{std::move(guards)} {}
+        : term{std::move(term)}, guards{std::move(guards)} {
+        if (this->term.get() == nullptr) {
+            throw std::logic_error("term must not be null");
+        }
+    }
     void print(std::ostream &out) const override {
         if (!ops.empty()) {
             out << p_range(ops, " ") << " ";
@@ -85,8 +93,14 @@ inline auto right_bracket(TheoryTermTupleType type) -> char {
 struct TheoryTermTuple : TheoryTerm {
     using Element = UTheoryTerm;
     using ElementVec = std::vector<UTheoryTerm>;
-    explicit TheoryTermTuple(TheoryTermTupleType type, ElementVec elems) : elems{std::move(elems)} {}
-    void print(std::ostream &out) const override { out << left_bracket(type) << p_range(elems) << right_bracket(type); }
+    explicit TheoryTermTuple(TheoryTermTupleType type, ElementVec elems) : type{type}, elems{std::move(elems)} {}
+    void print(std::ostream &out) const override {
+        out << left_bracket(type) << p_range(elems);
+        if (type == TheoryTermTupleType::Tuple && elems.size() == 1) {
+            out << ",";
+        }
+        out << right_bracket(type);
+    }
     TheoryTermTupleType type;
     ElementVec elems;
 };
@@ -111,7 +125,7 @@ struct TheoryTermString : TheoryTerm {
     using Element = UTheoryTerm;
     using ElementVec = std::vector<UTheoryTerm>;
     explicit TheoryTermString(std::string value) : value{std::move(value)} {}
-    void print(std::ostream &out) const override { out << value; }
+    void print(std::ostream &out) const override { print_quoted(out, value); }
     std::string value;
 };
 

@@ -58,3 +58,20 @@ template <class T, class F> struct p_range_with {
     F f;
     char const *sep;
 };
+
+inline void print_quoted(std::ostream &out, std::string const &str) {
+    // TODO: in principle there are the codepoints too...
+    out << '"';
+    for (auto c : str) {
+        if (c == '\\') {
+            out << "\\\\";
+        } else if (c == '\n') {
+            out << "\\n";
+        } else if (c == '\t') {
+            out << "\\t";
+        } else {
+            out << c;
+        }
+    }
+    out << '"';
+}
