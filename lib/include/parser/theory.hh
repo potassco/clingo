@@ -34,11 +34,6 @@ struct theory_term {
     static constexpr auto value = lexy::forward<UTheoryTerm>;
 };
 
-struct theory_term_arguments {
-    static constexpr auto rule = dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
-    static constexpr auto value = lexy::as_list<std::vector<UTheoryTerm>>;
-};
-
 struct theory_term_tuple {
     static constexpr auto rule = dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::lit_c<','>));
     static constexpr auto
@@ -61,6 +56,11 @@ struct theory_term_list {
         value = lexy::as_list<UTheoryTermVec> >> lexy::callback<UTheoryTerm>([](UTheoryTermVec elems) {
                     return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::List, std::move(elems));
                 });
+};
+
+struct theory_term_arguments {
+    static constexpr auto rule = dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
+    static constexpr auto value = lexy::as_list<std::vector<UTheoryTerm>>;
 };
 
 struct theory_term_function {
@@ -94,7 +94,7 @@ struct theory_term_unparsed_guards {
         lexy::collect<TheoryTermUnparsed::GuardVec>(lexy::construct<TheoryTermUnparsed::Guard>);
 };
 
-struct theory_term_unparsed {
+struct theory_term_unparsed : lexy::transparent_production {
     static constexpr auto rule =
         dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> + dsl::if_(dsl::p<theory_term_unparsed_guards>);
     static constexpr auto value = lexy::new_<TheoryTermUnparsed, UTheoryTerm>;
@@ -123,7 +123,7 @@ struct theory_atom_elements {
 struct theory_atom {
     static constexpr auto rule = []() {
         auto guard = dsl::p<theory_op> >> dsl::p<theory_term>;
-        return LEXY_LIT("&") >> dsl::p<function_term> + dsl::p<theory_atom_elements> >> dsl::if_(guard);
+        return LEXY_LIT("&") >> dsl::p<term_function> + dsl::p<theory_atom_elements> >> dsl::if_(guard);
     }();
     static constexpr auto value = lexy::construct<TheoryAtom>;
 };

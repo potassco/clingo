@@ -29,7 +29,7 @@ struct right_guards {
     static constexpr auto value = lexy::as_list<GuardVec>;
 };
 
-struct bool_atom : lexy::token_production {
+struct atom_bool : lexy::token_production {
     static constexpr auto bool_symbols = lexy::symbol_table<bool> //
                                              .map<LEXY_SYMBOL("#true")>(true)
                                              .map<LEXY_SYMBOL("#false")>(false);
@@ -58,7 +58,7 @@ struct atom {
     static constexpr auto rule = []() {
         auto cont = dsl::p<right_guards> | is_atom.is_set() | dsl::error<expected_relation>;
         auto rel_or_sym_atom = is_atom.create() + dsl::scan + cont;
-        return dsl::p<bool_atom> | dsl::else_ >> rel_or_sym_atom;
+        return dsl::p<atom_bool> | dsl::else_ >> rel_or_sym_atom;
     }();
     static constexpr auto value = lexy::callback<ULiteral>(
         lexy::forward<ULiteral>, lexy::new_<LiteralSymbolic, ULiteral>, lexy::new_<LiteralRelation, ULiteral>);

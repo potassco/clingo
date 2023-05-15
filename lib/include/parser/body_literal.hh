@@ -22,7 +22,7 @@ inline auto make_body_aggr(SetAggregate aggr) -> UBodySetAggregate {
 struct body_aggregate_element {
     // TODO: this allows either an empty tuple or condition but not both.
     // See note at head_literal.
-    static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_tuple>) + dsl::p<opt_condition>;
+    static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_list>) + dsl::p<opt_condition>;
     static constexpr auto value =
         lexy::callback<BodyAggregate::Element>([](std::optional<UTermVec> tuple, std::optional<ULiteralVec> cond) {
             auto ret = BodyAggregate::Element{UTermVec{}, ULiteralVec{}};

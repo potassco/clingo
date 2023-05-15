@@ -33,7 +33,7 @@ struct disjunction {
 struct head_aggregate_element {
     // TODO: gringo also accepts "tuple:literal:<empty>". This is possible
     // here by using [;}] as lookahead.
-    static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_tuple>) + LEXY_LIT(":") +
+    static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_list>) + LEXY_LIT(":") +
                                  dsl::p<literal> + dsl::p<opt_condition>;
     static constexpr auto value = lexy::callback<HeadAggregate::Element>(
         [](std::optional<UTermVec> tuple, ULiteral lit, std::optional<ULiteralVec> cond) {
