@@ -67,11 +67,11 @@ auto parse_head_literal(std::string str) -> std::string {
 }
 
 auto parse_body_literal(std::string str) -> std::string {
-    return grammar::parse<grammar::parse_root<::grammar::head_literal, '.'>>(std::move(str));
+    return grammar::parse<grammar::parse_root<::grammar::body_literal, '.'>>(std::move(str));
 }
 
 auto parse_statement(std::string str) -> std::string {
-    return grammar::parse<grammar::parse_root<::grammar::statement, '.'>>(std::move(str));
+    return grammar::parse<grammar::parse_root<::grammar::statement>>(std::move(str));
 }
 
 struct Parser::Impl {
