@@ -31,10 +31,10 @@ struct disjunction {
 };
 
 struct head_aggregate_element {
-    // TODO: gringo also accepts "tuple:literal:<empty>". This is possible
-    // here by using [;}] as lookahead.
-    static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_list>) + LEXY_LIT(":") +
-                                 dsl::p<literal> + dsl::p<opt_condition>;
+    static constexpr auto rule = []() {
+        auto tuple = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_list>);
+        return tuple + LEXY_LIT(":") + dsl::p<literal> + dsl::p<opt_condition>;
+    }();
     static constexpr auto value = lexy::callback<HeadAggregate::Element>(
         [](std::optional<UTermVec> tuple, ULiteral lit, std::optional<ULiteralVec> cond) {
             auto ret = HeadAggregate::Element{UTermVec{}, std::move(lit), ULiteralVec{}};
@@ -49,14 +49,16 @@ struct head_aggregate_element {
 };
 
 struct head_aggregate_elements {
-    static constexpr auto rule =
-        dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<head_aggregate_element>, dsl::sep(LEXY_LIT(";"))));
+    static constexpr auto rule = []() {
+        auto peek = dsl::peek_not(LEXY_LIT("}"));
+        auto elems = dsl::list(dsl::p<head_aggregate_element>, dsl::sep(LEXY_LIT(";")));
+        return LEXY_LIT("{") + dsl::opt(peek >> elems) + LEXY_LIT("}");
+    }();
     static constexpr auto value = lexy::as_list<HeadAggregate::ElementVec>;
 };
 
 struct head_aggregate {
-    static constexpr auto rule = dsl::p<aggregate_function> >> LEXY_LIT("{") + dsl::p<head_aggregate_elements> +
-                                                                   LEXY_LIT("}") + aggregate_right_guard;
+    static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<UHeadAggregate>(
         lexy::new_<HeadAggregate, UHeadAggregate>,
         [](AggregateFunction fun, HeadAggregate::ElementVec elems, UTerm rhs) {
@@ -111,7 +113,7 @@ struct head_literal {
             ret->set_left_guard(std::move(term), rel);
             return std::move(ret);
         },
-        [](UTerm term, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond,
+        [](UTerm lhs, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond,
            Disjunction::ElementVec elems) {
             GuardVec guards;
             if (opt_guards.has_value()) {
@@ -119,7 +121,7 @@ struct head_literal {
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
             elems.insert(elems.begin(),
-                         Disjunction::Element{std::make_unique<LiteralRelation>(std::move(term), std::move(guards)),
+                         Disjunction::Element{std::make_unique<LiteralRelation>(std::move(lhs), std::move(guards)),
                                               std::move(cond)});
             return std::make_unique<Disjunction>(std::move(elems));
         },

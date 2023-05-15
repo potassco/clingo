@@ -20,9 +20,10 @@ inline auto make_body_aggr(SetAggregate aggr) -> UBodySetAggregate {
 } // namespace detail
 
 struct body_aggregate_element {
-    // TODO: this allows either an empty tuple or condition but not both.
-    // See note at head_literal.
-    static constexpr auto rule = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_list>) + dsl::p<opt_condition>;
+    static constexpr auto rule = []() {
+        auto peek = dsl::peek_not(LEXY_LIT(":"));
+        return dsl::opt(peek >> dsl::p<term_list>) + dsl::p<opt_condition>;
+    }();
     static constexpr auto value =
         lexy::callback<BodyAggregate::Element>([](std::optional<UTermVec> tuple, std::optional<ULiteralVec> cond) {
             auto ret = BodyAggregate::Element{UTermVec{}, ULiteralVec{}};
@@ -37,14 +38,16 @@ struct body_aggregate_element {
 };
 
 struct body_aggregate_elements {
-    static constexpr auto rule =
-        dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<body_aggregate_element>, dsl::sep(LEXY_LIT(";"))));
+    static constexpr auto rule = []() {
+        auto peek = dsl::peek_not(LEXY_LIT("}"));
+        auto elems = dsl::list(dsl::p<body_aggregate_element>, dsl::sep(LEXY_LIT(";")));
+        return LEXY_LIT("{") + dsl::opt(peek >> elems) + LEXY_LIT("}");
+    }();
     static constexpr auto value = lexy::as_list<BodyAggregate::ElementVec>;
 };
 
 struct body_aggregate {
-    static constexpr auto rule = dsl::p<aggregate_function> >> LEXY_LIT("{") + dsl::p<body_aggregate_elements> +
-                                                                   LEXY_LIT("}") + aggregate_right_guard;
+    static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<UBodyAggregate>(
         lexy::new_<BodyAggregate, UBodyAggregate>,
         [](AggregateFunction fun, BodyAggregate::ElementVec elems, UTerm rhs) {
@@ -96,13 +99,13 @@ struct body_atom : lexy::transparent_production {
             ret->set_left_guard(std::move(term), rel);
             return std::move(ret);
         },
-        [](UTerm term, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond) {
+        [](UTerm lhs, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
-            auto lit = std::make_unique<LiteralRelation>(std::move(term), std::move(guards));
+            auto lit = std::make_unique<LiteralRelation>(std::move(lhs), std::move(guards));
             return std::make_unique<ConditionalLiteral>(std::move(lit), std::move(cond));
         },
         [](UTerm term, ULiteralVec cond) {
