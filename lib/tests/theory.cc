@@ -15,6 +15,9 @@ using literal = parse_root<::grammar::head_literal, '.'>;
 
 TEST_CASE("theory atoms") {
     REQUIRE(parse<grammar::literal>("&p(x,y;z){}<=a") == "&p(x,y;z){}<=a");
+    REQUIRE(parse<grammar::literal>("&p(x,y;z)<=a") == "&p(x,y;z){}<=a");
+    REQUIRE(parse<grammar::literal>("&p(x,y;z){}") == "&p(x,y;z)");
+    REQUIRE(parse<grammar::literal>("&p(x,y;z)") == "&p(x,y;z)");
 }
 
 } // namespace test
