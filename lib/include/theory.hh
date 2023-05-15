@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include <literal.hh>
 #include <term.hh>
 
 #include <util/print.hh>
@@ -40,9 +41,8 @@ struct TheoryTermUnparsed : TheoryTerm {
         if (!ops.empty()) {
             out << p_range(ops, " ") << " ";
         }
-        out << *term;
-        p_range_with(guards, [](std::ostream &out, Guard const &guard) {
-            out << p_range(guard.first, " ") << " " << guard.second;
+        out << *term << p_range_with(guards, [](std::ostream &out, Guard const &guard) {
+            out << p_range(guard.first, " ") << " " << *guard.second;
         });
     }
     OpVec ops;
@@ -123,13 +123,6 @@ struct TheoryTermVariable : TheoryTerm {
     std::string value;
 };
 
-struct TheoryTermAnonymousVariable : TheoryTerm {
-    using Element = UTheoryTerm;
-    using ElementVec = std::vector<UTheoryTerm>;
-    TheoryTermAnonymousVariable() = default;
-    void print(std::ostream &out) const override { out << "_"; }
-};
-
 struct TheoryTermFunction : TheoryTerm {
     explicit TheoryTermFunction(std::string name, UTheoryTermVec args = {})
         : name(std::move(name)), args{std::move(args)} {}
@@ -146,8 +139,28 @@ struct TheoryTermFunction : TheoryTerm {
 };
 
 struct TheoryAtom {
+    using Element = std::pair<UTheoryTermVec, ULiteralVec>;
+    using ElementVec = std::vector<Element>;
+    TheoryAtom(UTerm name, ElementVec elems) : name{std::move(name)}, elems{std::move(elems)} {}
+    TheoryAtom(UTerm name, ElementVec elems, std::string guard_op, UTheoryTerm guard_term)
+        : name{std::move(name)}, elems{std::move(elems)},
+          guard{std::make_pair(std::move(guard_op), std::move(guard_term))} {}
     friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
-        out << "&p{...}";
+        out << "&" << *atom.name;
+        if (!atom.elems.empty() || atom.guard.has_value()) {
+            out << "{" << p_range_with(atom.elems, ";", [](std::ostream &out, Element const &elem) {
+                out << p_range(elem.first);
+                if (!elem.second.empty() || elem.first.empty()) {
+                    out << ": " << p_range(elem.second);
+                }
+            }) << "}";
+        }
+        if (atom.guard.has_value()) {
+            out << atom.guard.value().first << *atom.guard.value().second;
+        }
         return out;
     }
+    UTerm name;
+    ElementVec elems;
+    std::optional<std::pair<std::string, UTheoryTerm>> guard;
 };

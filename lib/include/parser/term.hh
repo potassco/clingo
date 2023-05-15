@@ -39,7 +39,7 @@ struct number : lexy::token_production {
     static constexpr auto value = lexy::forward<int>;
 };
 
-struct string_term : lexy::token_production {
+struct string : lexy::token_production {
     static constexpr auto escaped_symbols = lexy::symbol_table<char> //
                                                 .map<'"'>('"')
                                                 .map<'\\'>('\\')
@@ -54,31 +54,32 @@ struct string_term : lexy::token_production {
         return dsl::quoted(inner, escape);
     }();
 
-    static constexpr auto value = lexy::as_string<std::string, encoding> >> lexy::new_<TermString, UTerm>;
+    static constexpr auto value = lexy::as_string<std::string, encoding>;
 };
 
-struct variable_term : lexy::token_production {
+struct variable {
     static constexpr auto rule = []() {
         auto prefix = dsl::while_(LEXY_LIT("_") / LEXY_LIT("'"));
         auto suffix = dsl::while_(dsl::ascii::alpha_underscore / LEXY_LIT("'"));
         return dsl::capture(dsl::token(prefix + dsl::ascii::upper + suffix));
     }();
-    static constexpr auto value = lexy::callback<UTerm>(
-        [](lexeme lex) { return std::make_unique<TermVariable>(std::string(lex.begin(), lex.end())); });
+    static constexpr auto value = lexy::as_string<std::string, encoding>;
+};
+
+struct variable_term : lexy::token_production {
+    static constexpr auto rule = dsl::p<variable>;
+    static constexpr auto value = lexy::new_<TermVariable, UTerm>;
 };
 
 static constexpr auto keyword_base = dsl::identifier(LEXY_ASCII_ONE_OF("#"), dsl::ascii::alpha);
 
-struct constant_term : lexy::token_production {
-    static constexpr auto keywords = lexy::symbol_table<Constant> //
-                                         .map<LEXY_SYMBOL("#infimum")>(Constant::infimum)
-                                         .map<LEXY_SYMBOL("#inf")>(Constant::infimum)
-                                         .map<LEXY_SYMBOL("#supremum")>(Constant::supremum)
-                                         .map<LEXY_SYMBOL("#sup")>(Constant::supremum);
+static constexpr auto constants = lexy::symbol_table<Constant> //
+                                      .map<LEXY_SYMBOL("#infimum")>(Constant::infimum)
+                                      .map<LEXY_SYMBOL("#inf")>(Constant::infimum)
+                                      .map<LEXY_SYMBOL("#supremum")>(Constant::supremum)
+                                      .map<LEXY_SYMBOL("#sup")>(Constant::supremum);
 
-    static constexpr auto rule = dsl::symbol<keywords>(keyword_base);
-    static constexpr auto value = lexy::new_<TermConstant, UTerm>;
-};
+static constexpr auto constant = dsl::symbol<constants>(keyword_base);
 
 struct term {
     static constexpr auto rule = dsl::recurse<struct rec_term>;
@@ -183,10 +184,12 @@ struct abs_term {
     static constexpr auto value = lexy::as_list<UTermVec> >> lexy::new_<TermAbs, UTerm>;
 };
 
+static constexpr auto anonymous_variable =
+    dsl::not_followed_by(LEXY_LIT("_"), dsl::ascii::alpha_digit_underscore / LEXY_LIT("'"));
+
 struct anonymous_variable_term {
-    static constexpr auto rule =
-        dsl::capture(dsl::not_followed_by(LEXY_LIT("_"), dsl::ascii::alpha_digit_underscore / LEXY_LIT("'")));
-    static constexpr auto value = lexy::as_string<std::string> | lexy::new_<TermVariable, UTerm>;
+    static constexpr auto rule = anonymous_variable;
+    static constexpr auto value = lexy::callback<UTerm>([]() { return std::make_unique<TermVariable>("_"); });
 };
 
 struct rec_term : lexy::expression_production {
@@ -195,8 +198,8 @@ struct rec_term : lexy::expression_production {
     };
 
     static constexpr auto atom = dsl::p<number> | dsl::p<pool_term> | dsl::p<variable_term> | dsl::p<abs_term> |
-                                 dsl::p<external_function_term> | dsl::p<function_term> | dsl::p<string_term> |
-                                 dsl::p<constant_term> | dsl::p<anonymous_variable_term> | dsl::error<expected_term>;
+                                 dsl::p<external_function_term> | dsl::p<function_term> | dsl::p<string> | constant |
+                                 dsl::p<anonymous_variable_term> | dsl::error<expected_term>;
 
     struct power_term : dsl::infix_op_right {
         static constexpr auto op = dsl::op<BinaryOperator::pow>(LEXY_LIT("**"));
@@ -245,8 +248,9 @@ struct rec_term : lexy::expression_production {
     };
 
     using operation = dots_term;
-    static constexpr auto value = lexy::callback(lexy::forward<UTerm>, lexy::new_<TermInteger, UTerm>,
-                                                 lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
+    static constexpr auto value =
+        lexy::callback(lexy::forward<UTerm>, lexy::new_<TermInteger, UTerm>, lexy::new_<TermString, UTerm>,
+                       lexy::new_<TermConstant, UTerm>, lexy::new_<TermUnary, UTerm>, lexy::new_<TermBinary, UTerm>);
 };
 
 } // namespace grammar

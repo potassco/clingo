@@ -14,7 +14,7 @@ using head_literal = parse_root<::grammar::head_literal, '.'>;
 
 TEST_CASE("head literals") {
     // theory_atom | aggregate | set_aggregate | not disjunction
-    REQUIRE(parse<grammar::head_literal>("&x{}") == "&p{...}");
+    REQUIRE(parse<grammar::head_literal>("&x{}") == "&x");
     REQUIRE(parse<grammar::head_literal>("#count{}") == "#count{}");
     REQUIRE(parse<grammar::head_literal>("{}") == "{}");
     REQUIRE(parse<grammar::head_literal>("not a") == "not a");
@@ -56,7 +56,7 @@ TEST_CASE("head literals") {
     REQUIRE(parse<grammar::head_literal>("#sum{:a;1:a;1,2:a:b,c}") == "#sum{:a;1:a;1,2:a:b,c}");
     REQUIRE(parse<grammar::head_literal>("{1<2;1<2:a;a:b;a:b,c}") == "{1<2;1<2:a;a:b;a:b,c}");
     // theory atoms
-    REQUIRE(parse<grammar::head_literal>("&p(X){43+-Y:a} <== 7") == "&p{...}");
+    REQUIRE(parse<grammar::head_literal>("&p(X){43+-Y:a} <== 7") == "&p(X){43+- Y: a}<==7");
 }
 
 } // namespace test

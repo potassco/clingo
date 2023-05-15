@@ -18,7 +18,7 @@ TEST_CASE("body literals") {
     REQUIRE(parse<grammar::body_literal>("not a") == "not a");
     REQUIRE(parse<grammar::body_literal>("not not a") == "not not a");
     // theory_atom | aggregate | set_aggregate
-    REQUIRE(parse<grammar::body_literal>("&x{}") == "&p{...}");
+    REQUIRE(parse<grammar::body_literal>("&x{}") == "&x");
     REQUIRE(parse<grammar::body_literal>("#count{}") == "#count{}");
     REQUIRE(parse<grammar::body_literal>("{}") == "{}");
     // atom_like relation aggregate
