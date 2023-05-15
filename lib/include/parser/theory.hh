@@ -30,26 +30,66 @@ struct theory_ops {
 };
 
 struct theory_term {
-    static constexpr auto rule = dsl::recurse<struct rec_theory_term>;
-    static constexpr auto value = lexy::noop;
+    static constexpr auto rule = dsl::recurse<struct theory_term_unparsed>;
+    static constexpr auto value = lexy::forward<UTheoryTerm>;
+};
+
+struct theory_term_arguments {
+    static constexpr auto rule = dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
+    static constexpr auto value = lexy::as_list<std::vector<UTheoryTerm>>;
+};
+
+struct theory_term_tuple {
+    static constexpr auto rule = dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::lit_c<','>));
+    static constexpr auto
+        value = lexy::as_list<UTheoryTermVec> >> lexy::callback<UTheoryTerm>([](UTheoryTermVec elems) {
+                    return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::Tuple, std::move(elems));
+                });
+};
+
+struct theory_term_set {
+    static constexpr auto rule = dsl::curly_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
+    static constexpr auto
+        value = lexy::as_list<UTheoryTermVec> >> lexy::callback<UTheoryTerm>([](UTheoryTermVec elems) {
+                    return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::Set, std::move(elems));
+                });
+};
+
+struct theory_term_list {
+    static constexpr auto rule = dsl::square_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
+    static constexpr auto
+        value = lexy::as_list<UTheoryTermVec> >> lexy::callback<UTheoryTerm>([](UTheoryTermVec elems) {
+                    return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::List, std::move(elems));
+                });
+};
+
+struct theory_term_function {
+    static constexpr auto rule = dsl::p<identifier> >> dsl::if_(dsl::p<theory_term_arguments>);
+    static constexpr auto value = lexy::new_<TheoryTermFunction, UTheoryTerm>;
 };
 
 struct theory_term_root {
-    static constexpr auto rule = dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::lit_c<','>)) |
-                                 dsl::angle_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) |
-                                 dsl::curly_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>)) |
-                                 dsl::p<identifier> >>
-                                     dsl::opt(dsl::parenthesized.opt_list(dsl::p<theory_term>,
-                                                                          dsl::sep(dsl::lit_c<','>))) |
-                                 dsl::p<constant_term> | dsl::p<number> | dsl::p<string> | dsl::p<variable_term> |
-                                 dsl::p<anonymous_variable_term>;
-    static constexpr auto value = lexy::noop;
+    static constexpr auto rule = dsl::p<theory_term_tuple> | dsl::p<theory_term_set> | dsl::p<theory_term_list> |
+                                 dsl::p<theory_term_function> | dsl::p<constant_term> | dsl::p<number> |
+                                 dsl::p<string_term> | dsl::p<variable_term> | dsl::p<anonymous_variable_term>;
+    static constexpr auto value = lexy::callback<UTheoryTerm>(
+        lexy::forward<UTheoryTerm>,
+        // lexy::new_<TheoryTermInteger, UTheoryTerm>,
+        [](int number) { return std::make_unique<TheoryTermInteger>(number); },
+        // TODO: provide constant, string, and variable without arguments!
+        [](auto &&...args) -> UTheoryTerm { throw std::logic_error("implement me!!!"); });
 };
 
-struct rec_theory_term {
-    static constexpr auto rule = dsl::opt(dsl::p<theory_ops>) + dsl::p<theory_term_root> +
-                                 dsl::opt(dsl::list(dsl::p<theory_ops> >> dsl::p<theory_term_root>));
-    static constexpr auto value = lexy::noop;
+struct theory_term_unparsed_guards {
+    static constexpr auto rule = dsl::list(dsl::p<theory_ops> >> dsl::p<theory_term_root>);
+    static constexpr auto value =
+        lexy::collect<TheoryTermUnparsed::GuardVec>(lexy::construct<TheoryTermUnparsed::Guard>);
+};
+
+struct theory_term_unparsed {
+    static constexpr auto rule =
+        dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> + dsl::if_(dsl::p<theory_term_unparsed_guards>);
+    static constexpr auto value = lexy::new_<TheoryTermUnparsed, UTheoryTerm>;
 };
 
 struct theory_atom {

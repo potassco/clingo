@@ -39,7 +39,7 @@ struct number : lexy::token_production {
     static constexpr auto value = lexy::forward<int>;
 };
 
-struct string : lexy::token_production {
+struct string_term : lexy::token_production {
     static constexpr auto escaped_symbols = lexy::symbol_table<char> //
                                                 .map<'"'>('"')
                                                 .map<'\\'>('\\')
@@ -195,7 +195,7 @@ struct rec_term : lexy::expression_production {
     };
 
     static constexpr auto atom = dsl::p<number> | dsl::p<pool_term> | dsl::p<variable_term> | dsl::p<abs_term> |
-                                 dsl::p<external_function_term> | dsl::p<function_term> | dsl::p<string> |
+                                 dsl::p<external_function_term> | dsl::p<function_term> | dsl::p<string_term> |
                                  dsl::p<constant_term> | dsl::p<anonymous_variable_term> | dsl::error<expected_term>;
 
     struct power_term : dsl::infix_op_right {
