@@ -28,7 +28,7 @@ struct Rule : Statement {
     void print(std::ostream &out) const override {
         out << *head;
         if (head->print_empty() || !body.empty()) {
-            out << ":-" << p_range(body, ";");
+            out << " :- " << p_range(body, "; ");
         }
         out << ".";
     }

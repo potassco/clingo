@@ -35,23 +35,24 @@ struct TheoryTermUnparsed : TheoryTerm {
     using GuardVec = std::vector<Guard>;
     explicit TheoryTermUnparsed(OpVec ops, UTheoryTerm term, GuardVec guards = {})
         : ops{std::move(ops)}, term{std::move(term)}, guards{std::move(guards)} {
-        if (this->term.get() == nullptr) {
-            throw std::logic_error("term must not be null");
-        }
     }
-    explicit TheoryTermUnparsed(UTheoryTerm term, GuardVec guards = {})
+    explicit TheoryTermUnparsed(UTheoryTerm term, GuardVec guards)
         : term{std::move(term)}, guards{std::move(guards)} {
-        if (this->term.get() == nullptr) {
-            throw std::logic_error("term must not be null");
-        }
     }
     void print(std::ostream &out) const override {
+        bool needs_parens = !ops.empty() || !guards.empty();
+        if (needs_parens) {
+            out << "(";
+        }
         if (!ops.empty()) {
             out << p_range(ops, " ") << " ";
         }
         out << *term << p_range_with(guards, [](std::ostream &out, Guard const &guard) {
-            out << p_range(guard.first, " ") << " " << *guard.second;
+            out << " " << p_range(guard.first, " ") << " " << *guard.second;
         });
+        if (needs_parens) {
+            out << ")";
+        }
     }
     OpVec ops;
     UTheoryTerm term;
@@ -162,15 +163,15 @@ struct TheoryAtom {
     friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
         out << "&" << *atom.name;
         if (!atom.elems.empty() || atom.guard.has_value()) {
-            out << "{" << p_range_with(atom.elems, ";", [](std::ostream &out, Element const &elem) {
+            out << " { " << p_range_with(atom.elems, "; ", [](std::ostream &out, Element const &elem) {
                 out << p_range(elem.first);
                 if (!elem.second.empty() || elem.first.empty()) {
-                    out << ": " << p_range(elem.second);
+                    out << ": " << p_range(elem.second, ", ");
                 }
-            }) << "}";
+            }) << (atom.elems.empty() ? "}" : " }");
         }
         if (atom.guard.has_value()) {
-            out << atom.guard.value().first << *atom.guard.value().second;
+            out << " " << atom.guard.value().first << " " << *atom.guard.value().second;
         }
         return out;
     }

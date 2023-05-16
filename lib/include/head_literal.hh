@@ -32,10 +32,10 @@ struct Disjunction : HeadLiteral {
     Disjunction(ElementVec elems) : elems{std::move(elems)} {}
     [[nodiscard]] auto print_empty() const -> bool override { return elems.empty(); }
     void print(std::ostream &out) const override {
-        out << p_range_with(elems, ";", [](std::ostream &out, auto const &elem) {
+        out << p_range_with(elems, "; ", [](std::ostream &out, auto const &elem) {
             out << *elem.first;
             if (!elem.second.empty()) {
-                out << ":" << p_range(elem.second);
+                out << ": " << p_range(elem.second);
             }
         });
     }
@@ -58,16 +58,16 @@ struct HeadAggregate : HeadLiteral {
     void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
     void print(std::ostream &out) const override {
         if (left_guard) {
-            out << *left_guard->first << left_guard->second;
+            out << *left_guard->first << " " << left_guard->second << " ";
         }
-        out << fun << "{" << p_range_with(elements, ";", [](std::ostream &out, auto const &elem) {
-            out << p_range{std::get<0>(elem), ","} << ":" << *std::get<1>(elem);
+        out << fun << " { " << p_range_with(elements, "; ", [](std::ostream &out, auto const &elem) {
+            out << p_range{std::get<0>(elem), ","} << ": " << *std::get<1>(elem);
             if (!std::get<2>(elem).empty()) {
-                out << ":" << p_range{std::get<2>(elem)};
+                out << ": " << p_range{std::get<2>(elem), ", "};
             }
-        }) << "}";
+        }) << (elements.empty() ? "}" : " }");
         if (right_guard) {
-            out << right_guard->first << *right_guard->second;
+            out << " " << right_guard->first << " " << *right_guard->second;
         }
     }
     AggregateFunction fun;

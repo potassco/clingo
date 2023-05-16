@@ -117,7 +117,10 @@ struct theory_term_unparsed_guards {
 struct theory_term_unparsed : lexy::transparent_production {
     static constexpr auto rule =
         dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> + dsl::if_(dsl::p<theory_term_unparsed_guards>);
-    static constexpr auto value = lexy::new_<TheoryTermUnparsed, UTheoryTerm>;
+    static constexpr auto value = lexy::callback<UTheoryTerm>(
+        lexy::forward<UTheoryTerm>,
+        lexy::new_<TheoryTermUnparsed, UTheoryTerm>
+    );
 };
 
 struct theory_atom_element_tuple {

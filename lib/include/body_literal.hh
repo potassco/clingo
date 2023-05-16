@@ -34,7 +34,7 @@ struct ConditionalLiteral : BodyLiteral {
     void print(std::ostream &out) const override {
         out << *literal;
         if (!condition.empty()) {
-            out << ":" << p_range(condition);
+            out << ": " << p_range(condition, ", ");
         }
     }
 
@@ -53,16 +53,16 @@ struct BodyAggregate : BodyLiteral {
     void print(std::ostream &out) const override {
         out << sign;
         if (left_guard) {
-            out << *left_guard->first << left_guard->second;
+            out << *left_guard->first << " " << left_guard->second << " ";
         }
-        out << fun << "{" << p_range_with(elements, ";", [](std::ostream &out, auto const &elem) {
+        out << fun << " { " << p_range_with(elements, "; ", [](std::ostream &out, auto const &elem) {
             out << p_range{std::get<0>(elem), ","};
             if (!std::get<1>(elem).empty()) {
-                out << ":" << p_range{std::get<1>(elem)};
+                out << ": " << p_range{std::get<1>(elem), ", "};
             }
-        }) << "}";
+        }) << (elements.empty() ? "}" : " }");
         if (right_guard) {
-            out << right_guard->first << *right_guard->second;
+            out << " " << right_guard->first << " " << *right_guard->second;
         }
     }
     Sign sign = Sign::none;
