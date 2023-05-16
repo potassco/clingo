@@ -34,11 +34,8 @@ struct TheoryTermUnparsed : TheoryTerm {
     using Guard = std::pair<OpVec, UTheoryTerm>;
     using GuardVec = std::vector<Guard>;
     explicit TheoryTermUnparsed(OpVec ops, UTheoryTerm term, GuardVec guards = {})
-        : ops{std::move(ops)}, term{std::move(term)}, guards{std::move(guards)} {
-    }
-    explicit TheoryTermUnparsed(UTheoryTerm term, GuardVec guards)
-        : term{std::move(term)}, guards{std::move(guards)} {
-    }
+        : ops{std::move(ops)}, term{std::move(term)}, guards{std::move(guards)} {}
+    explicit TheoryTermUnparsed(UTheoryTerm term, GuardVec guards) : term{std::move(term)}, guards{std::move(guards)} {}
     void print(std::ostream &out) const override {
         bool needs_parens = !ops.empty() || !guards.empty();
         if (needs_parens) {
