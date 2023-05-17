@@ -4,6 +4,6 @@ repos:
     rev: v1.3.5
     hooks:
       - id: clang-format
-        args: ["--version=16"]
+        args: ["-i"]
       - id: clang-tidy
-        args: ["--version=16", "-fix"]
+        args: ["-fix"]
