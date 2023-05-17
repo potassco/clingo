@@ -57,7 +57,9 @@ struct theory_guard_definition {
 };
 
 struct theory_atom_definition {
-    static constexpr auto rule = dsl::ampersand >> dsl::p<identifier> + dsl::slash + simple_number + dsl::colon + dsl::p<identifier> + dsl::comma + dsl::opt(dsl::p<theory_guard_definition> >> dsl::comma) + atom_type;
+    static constexpr auto rule = dsl::ampersand >>
+                                 dsl::p<identifier> + dsl::slash + simple_number + dsl::colon + dsl::p<identifier> +
+                                     dsl::comma + dsl::opt(dsl::p<theory_guard_definition> >> dsl::comma) + atom_type;
     static constexpr auto value = lexy::noop;
 };
 
@@ -69,7 +71,8 @@ struct theory_atom_definitions {
 struct theory_definitions {
     static constexpr auto is_atom_def = dsl::context_flag<theory_definitions>;
     static constexpr auto rule = []() {
-        auto def = dsl::p<theory_atom_definition> >> is_atom_def.set() | is_atom_def.is_reset() >> dsl::p<theory_term_definition>;
+        auto def = dsl::p<theory_atom_definition> >> is_atom_def.set() |
+                   is_atom_def.is_reset() >> dsl::p<theory_term_definition>;
         return is_atom_def.create() + dsl::list(def, dsl::sep(dsl::semicolon));
     }();
     static constexpr auto value = lexy::noop;
@@ -78,8 +81,7 @@ struct theory_definitions {
 struct statement_theory {
     static constexpr auto rule = []() {
         auto kw_theory = LEXY_KEYWORD("#theory", keyword_base);
-        return kw_theory >>
-               dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + dsl::period;
+        return kw_theory >> dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + dsl::period;
     }();
     static constexpr auto value = lexy::noop >> lexy::callback<UStatement>([](std::string name, auto &&...args) {
                                       return std::make_unique<TheoryDefinition>(std::move(name));

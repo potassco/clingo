@@ -87,7 +87,7 @@ struct TheoryTermDefinition {
 enum class TheoryAtomType { head, body, any, directive };
 
 inline auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream & {
-    switch(type) {
+    switch (type) {
         case TheoryAtomType::head: {
             out << "head";
             break;
@@ -111,9 +111,9 @@ inline auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream &
 struct TheoryAtomDefinition {
     using Guard = std::optional<std::pair<std::vector<std::string>, std::string>>;
     explicit TheoryAtomDefinition(std::string name, int arity, std::string term, Guard guard, TheoryAtomType type)
-    : name(std::move(name)), arity(arity), term(std::move(term)), guard(std::move(guard)), type(type) { }
+        : name(std::move(name)), arity(arity), term(std::move(term)), guard(std::move(guard)), type(type) {}
     explicit TheoryAtomDefinition(std::string name, int arity, std::string term, TheoryAtomType type)
-    : name(std::move(name)), arity(arity), term(std::move(term)), guard(std::nullopt), type(type) { }
+        : name(std::move(name)), arity(arity), term(std::move(term)), guard(std::nullopt), type(type) {}
     friend auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream & {
         out << "  &" << def.name << "/" << def.arity << ": " << def.term << ", ";
         if (def.guard) {
