@@ -54,7 +54,11 @@ enum class TheoryAtomType {
 };
 
 struct TheoryDefinition : Statement {
-    void print(std::ostream &out) const override {
-        out << "#theory { ... }.";
+    TheoryDefinition(std::string name) : name{std::move(name)} {
+
     }
+    void print(std::ostream &out) const override {
+        out << "#theory " << name << " { ... }.";
+    }
+    std::string name;
 };

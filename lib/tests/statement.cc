@@ -15,8 +15,8 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement("a:-a:b,c;d.") == "a :- a: b, c; d.");
 
     // theory
-    REQUIRE(parse_statement("#theory{}.") == "#theory { ... }.");
-    REQUIRE(parse_statement("#theory{a { }; b { - : 10, unary }; p/0: a, {+, -}, b, head }.") == "#theory { ... }.");
+    REQUIRE(parse_statement("#theory x {}.") == "#theory x { ... }.");
+    REQUIRE(parse_statement("#theory y {a { }; b { - : 10, unary }; p/0: a, {+, -}, b, head }.") == "#theory y { ... }.");
 }
 
 } // namespace test

@@ -8,24 +8,6 @@
 
 namespace grammar {
 
-enum class TheoryOpArity {
-    unary,
-    binary
-};
-
-enum class TheoryOpAssociativity {
-    left,
-    right
-};
-
-enum class TheoryAtomType {
-    head,
-    body,
-    any,
-    directive
-};
-
-
 static constexpr auto simple_number = dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero();
 
 static constexpr auto simple_keyword = dsl::identifier(dsl::ascii::lower);
@@ -85,11 +67,11 @@ struct theory_definitions {
 struct statement_theory {
     static constexpr auto rule = [](){
         auto kw_theory = LEXY_KEYWORD("#theory", keyword_base);
-        return kw_theory >> dsl::curly_bracketed.opt_list(dsl::p<theory_definitions>) + dsl::period;
+        return kw_theory >> dsl::p<identifier> + dsl::curly_bracketed.opt_list(dsl::p<theory_definitions>) + dsl::period;
     }();
     static constexpr auto value = lexy::noop >> lexy::callback<UStatement>(
-        [](auto &&... args) {
-            return std::make_unique<TheoryDefinition>();
+        [](std::string name, auto &&... args) {
+            return std::make_unique<TheoryDefinition>(std::move(name));
         }
     );
 };
