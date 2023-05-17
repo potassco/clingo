@@ -1,0 +1,9 @@
+fail_fast: false
+repos:
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: clang-format
+        args: ["--version=16"]
+      - id: clang-tidy
+        args: ["--version=16", "-fix"]
