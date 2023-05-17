@@ -35,3 +35,26 @@ struct Rule : Statement {
     UHeadLiteral head;
     UBodyLiteralVec body;
 };
+
+enum class TheoryOpArity {
+    unary,
+    binary
+};
+
+enum class TheoryOpAssociativity {
+    left,
+    right
+};
+
+enum class TheoryAtomType {
+    head,
+    body,
+    any,
+    directive
+};
+
+struct TheoryDefinition : Statement {
+    void print(std::ostream &out) const override {
+        out << "#theory { ... }.";
+    }
+};
