@@ -72,16 +72,12 @@ struct TheoryTermDefinition {
         out << "  " << def.name << " {";
         if (def.op_defs.empty()) {
             out << " }";
+        } else if (def.op_defs.size() == 1) {
+            out << " " << def.op_defs.front() << " }";
         } else {
-            if (def.op_defs.size() == 1) {
-                out << " " << def.op_defs.front() << " }";
-            } else {
-                out << "\n";
-                for (auto const &op_def : def.op_defs) {
-                    out << "    " << op_def << "\n";
-                }
-                out << "  }";
-            }
+            out << "\n"
+                << p_range_with(def.op_defs, ";\n", [](std::ostream &out, auto &op_def) { out << "    " << op_def; })
+                << "\n  }";
         }
         return out;
     }

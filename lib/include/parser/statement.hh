@@ -39,7 +39,12 @@ struct theory_op_definition {
 };
 
 struct theory_term_definition {
-    static constexpr auto rule = dsl::p<identifier> >> dsl::curly_bracketed.opt_list(dsl::p<theory_op_definition>);
+    static constexpr auto rule = []() {
+        auto id = dsl::p<identifier>;
+        auto op_def = dsl::p<theory_op_definition>;
+        auto sep = dsl::sep(dsl::semicolon);
+        return id >> dsl::curly_bracketed.opt_list(op_def, sep);
+    }();
     static constexpr auto
         value = lexy::as_list<TheoryOpDefinitionVec> >>
                 lexy::callback<TheoryTermDefinition>(lexy::construct<TheoryTermDefinition>,

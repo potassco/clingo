@@ -18,7 +18,7 @@ TEST_CASE("statement") {
   a { };
   b { - : 10, unary };
   b {
-    - : 10, unary
+    - : 10, unary;
     + : 9, binary, right
   };
   &p/0: a, {+,-}, b, head
