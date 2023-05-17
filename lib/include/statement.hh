@@ -2,10 +2,10 @@
 
 #include <iostream>
 #include <memory>
+#include <optional>
 
 #include <body_literal.hh>
 #include <head_literal.hh>
-#include <optional>
 
 struct Statement {
     virtual ~Statement() = default;
@@ -24,7 +24,7 @@ struct Statement {
 using UStatement = std::unique_ptr<Statement>;
 
 struct Rule : Statement {
-    Rule(UHeadLiteral head, UBodyLiteralVec body) : head{std::move(head)}, body{std::move(body)} {}
+    explicit Rule(UHeadLiteral head, UBodyLiteralVec body) : head{std::move(head)}, body{std::move(body)} {}
     void print(std::ostream &out) const override {
         out << *head;
         if (head->print_empty() || !body.empty()) {
@@ -39,7 +39,7 @@ struct Rule : Statement {
 enum class TheoryOpType { unary, binary_left, binary_right };
 
 struct TheoryOpDefinition {
-    TheoryOpDefinition(std::string op, int priority, TheoryOpType type)
+    explicit TheoryOpDefinition(std::string op, int priority, TheoryOpType type)
         : op{std::move(op)}, priority{priority}, type{type} {}
     friend auto operator<<(std::ostream &out, TheoryOpDefinition const &def) -> std::ostream & {
         out << def.op << " : " << def.priority << ", ";
@@ -66,7 +66,7 @@ struct TheoryOpDefinition {
 using TheoryOpDefinitionVec = std::vector<TheoryOpDefinition>;
 
 struct TheoryTermDefinition {
-    TheoryTermDefinition(std::string name, TheoryOpDefinitionVec op_defs)
+    explicit TheoryTermDefinition(std::string name, TheoryOpDefinitionVec op_defs)
         : name{std::move(name)}, op_defs{std::move(op_defs)} {}
     friend auto operator<<(std::ostream &out, TheoryTermDefinition const &def) -> std::ostream & {
         out << "  " << def.name << " {";
@@ -86,7 +86,42 @@ struct TheoryTermDefinition {
 
 enum class TheoryAtomType { head, body, any, directive };
 
+inline auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream & {
+    switch(type) {
+        case TheoryAtomType::head: {
+            out << "head";
+            break;
+        }
+        case TheoryAtomType::body: {
+            out << "body";
+            break;
+        }
+        case TheoryAtomType::any: {
+            out << "any";
+            break;
+        }
+        case TheoryAtomType::directive: {
+            out << "directive";
+            break;
+        }
+    }
+    return out;
+}
+
 struct TheoryAtomDefinition {
+    using Guard = std::optional<std::pair<std::vector<std::string>, std::string>>;
+    explicit TheoryAtomDefinition(std::string name, int arity, std::string term, Guard guard, TheoryAtomType type)
+    : name(std::move(name)), arity(arity), term(std::move(term)), guard(std::move(guard)), type(type) { }
+    explicit TheoryAtomDefinition(std::string name, int arity, std::string term, TheoryAtomType type)
+    : name(std::move(name)), arity(arity), term(std::move(term)), guard(std::nullopt), type(type) { }
+    friend auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream & {
+        out << "  &" << def.name << "/" << def.arity << ": " << def.term << ", ";
+        if (def.guard) {
+            out << "{" << p_range(def.guard->first, ",") << "}, " << def.guard->second << ", ";
+        }
+        out << def.type;
+        return out;
+    }
     std::string name;
     int arity;
     std::string term;
@@ -95,7 +130,7 @@ struct TheoryAtomDefinition {
 };
 
 struct TheoryDefinition : Statement {
-    TheoryDefinition(std::string name) : name{std::move(name)} {}
+    explicit TheoryDefinition(std::string name) : name{std::move(name)} {}
     void print(std::ostream &out) const override { out << "#theory " << name << " { ... }."; }
     std::string name;
 };

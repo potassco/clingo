@@ -16,7 +16,7 @@ TEST_CASE("statement") {
 
     // theory
     REQUIRE(parse_statement("#theory x {}.") == "#theory x { ... }.");
-    REQUIRE(parse_statement("#theory y {a { }; b { - : 10, unary }; p/0: a, {+, -}, b, head }.") ==
+    REQUIRE(parse_statement("#theory y {a { }; b { - : 10, unary }; &p/0: a, {+, -}, b, head }.") ==
             "#theory y { ... }.");
 }
 
