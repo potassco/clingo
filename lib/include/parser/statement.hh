@@ -18,9 +18,8 @@ static constexpr auto sym_binary = lexy::symbol_table<TheoryOpArity>.map<LEXY_SY
 static constexpr auto unary = dsl::symbol<sym_unary>(simple_keyword);
 static constexpr auto binary = dsl::symbol<sym_unary>(simple_keyword);
 
-static constexpr auto sym_associativity = lexy::symbol_table<TheoryOpAssociativity>
-                                         .map<LEXY_SYMBOL("unary")>(TheoryOpAssociativity::left)
-                                         .map<LEXY_SYMBOL("binary")>(TheoryOpAssociativity::right);
+static constexpr auto sym_associativity =
+    lexy::symbol_table<TheoryOpAssociativity>.map<LEXY_SYMBOL("unary")>(TheoryOpAssociativity::left).map<LEXY_SYMBOL("binary")>(TheoryOpAssociativity::right);
 
 static constexpr auto associativity = dsl::symbol<sym_associativity>(simple_keyword);
 
@@ -33,7 +32,8 @@ static constexpr auto sym_atom_type = lexy::symbol_table<TheoryAtomType>
 static constexpr auto atom_type = dsl::symbol<sym_atom_type>(simple_keyword);
 
 struct theory_op_definition {
-    static constexpr auto rule = dsl::p<theory_op> >> dsl::colon + simple_number + dsl::comma + (unary | binary >> dsl::comma + associativity);
+    static constexpr auto rule = dsl::p<theory_op> >> dsl::colon + simple_number + dsl::comma +
+                                                          (unary | binary >> dsl::comma + associativity);
     static constexpr auto value = lexy::noop;
 };
 
@@ -48,7 +48,8 @@ struct theory_guard_relations {
 };
 
 struct theory_guard_definition {
-    static constexpr auto rule = dsl::curly_bracketed.opt(dsl::p<theory_guard_relations>) >> dsl::comma + dsl::p<identifier>;
+    static constexpr auto rule =
+        dsl::curly_bracketed.opt(dsl::p<theory_guard_relations>) >> dsl::comma + dsl::p<identifier>;
     static constexpr auto value = lexy::noop;
 };
 
@@ -56,7 +57,9 @@ struct theory_definitions {
     static constexpr auto is_atom_def = dsl::context_flag<theory_definitions>;
     static constexpr auto rule = []() {
         auto term_def = dsl::curly_bracketed.opt_list(dsl::p<theory_op_definition>);
-        auto atom_def = dsl::slash >> is_atom_def.set() >> simple_number + dsl::colon + dsl::p<identifier> + dsl::comma + dsl::opt(dsl::p<theory_guard_definition> >> dsl::comma) + atom_type;
+        auto atom_def =
+            dsl::slash >> is_atom_def.set() >> simple_number + dsl::colon + dsl::p<identifier> + dsl::comma +
+                                                   dsl::opt(dsl::p<theory_guard_definition> >> dsl::comma) + atom_type;
         auto def = dsl::p<identifier> >> (atom_def | is_atom_def.is_reset() >> term_def);
         auto sep = dsl::sep(dsl::semicolon);
         return is_atom_def.create() + dsl::list(def, sep);
@@ -65,15 +68,14 @@ struct theory_definitions {
 };
 
 struct statement_theory {
-    static constexpr auto rule = [](){
+    static constexpr auto rule = []() {
         auto kw_theory = LEXY_KEYWORD("#theory", keyword_base);
-        return kw_theory >> dsl::p<identifier> + dsl::curly_bracketed.opt_list(dsl::p<theory_definitions>) + dsl::period;
+        return kw_theory >>
+               dsl::p<identifier> + dsl::curly_bracketed.opt_list(dsl::p<theory_definitions>) + dsl::period;
     }();
-    static constexpr auto value = lexy::noop >> lexy::callback<UStatement>(
-        [](std::string name, auto &&... args) {
-            return std::make_unique<TheoryDefinition>(std::move(name));
-        }
-    );
+    static constexpr auto value = lexy::noop >> lexy::callback<UStatement>([](std::string name, auto &&...args) {
+                                      return std::make_unique<TheoryDefinition>(std::move(name));
+                                  });
 };
 
 struct statement_body {

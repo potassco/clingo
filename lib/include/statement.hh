@@ -36,29 +36,14 @@ struct Rule : Statement {
     UBodyLiteralVec body;
 };
 
-enum class TheoryOpArity {
-    unary,
-    binary
-};
+enum class TheoryOpArity { unary, binary };
 
-enum class TheoryOpAssociativity {
-    left,
-    right
-};
+enum class TheoryOpAssociativity { left, right };
 
-enum class TheoryAtomType {
-    head,
-    body,
-    any,
-    directive
-};
+enum class TheoryAtomType { head, body, any, directive };
 
 struct TheoryDefinition : Statement {
-    TheoryDefinition(std::string name) : name{std::move(name)} {
-
-    }
-    void print(std::ostream &out) const override {
-        out << "#theory " << name << " { ... }.";
-    }
+    TheoryDefinition(std::string name) : name{std::move(name)} {}
+    void print(std::ostream &out) const override { out << "#theory " << name << " { ... }."; }
     std::string name;
 };
