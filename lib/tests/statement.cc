@@ -14,10 +14,19 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement("a:-b;c.") == "a :- b; c.");
     REQUIRE(parse_statement("a:-a:b,c;d.") == "a :- a: b, c; d.");
 
+    char const *theory = R"(#theory y {
+  a { };
+  b { - : 10, unary };
+  b {
+    - : 10, unary
+    + : 9, binary, right
+  };
+  &p/0: a, {+,-}, b, head
+}.)";
+
     // theory
-    REQUIRE(parse_statement("#theory x {}.") == "#theory x { ... }.");
-    REQUIRE(parse_statement("#theory y {a { }; b { - : 10, unary }; &p/0: a, {+, -}, b, head }.") ==
-            "#theory y { ... }.");
+    REQUIRE(parse_statement("#theory x {}.") == "#theory x { }.");
+    REQUIRE(parse_statement(theory) == theory);
 }
 
 } // namespace test

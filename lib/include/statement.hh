@@ -73,16 +73,22 @@ struct TheoryTermDefinition {
         if (def.op_defs.empty()) {
             out << " }";
         } else {
-            for (auto const &op_def : def.op_defs) {
-                out << "    " << op_def << "\n";
+            if (def.op_defs.size() == 1) {
+                out << " " << def.op_defs.front() << " }";
+            } else {
+                out << "\n";
+                for (auto const &op_def : def.op_defs) {
+                    out << "    " << op_def << "\n";
+                }
+                out << "  }";
             }
-            out << "  }";
         }
         return out;
     }
     std::string name;
     std::vector<TheoryOpDefinition> op_defs;
 };
+using TheoryTermDefinitionVec = std::vector<TheoryTermDefinition>;
 
 enum class TheoryAtomType { head, body, any, directive };
 
@@ -112,8 +118,6 @@ struct TheoryAtomDefinition {
     using Guard = std::optional<std::pair<std::vector<std::string>, std::string>>;
     explicit TheoryAtomDefinition(std::string name, int arity, std::string term, Guard guard, TheoryAtomType type)
         : name(std::move(name)), arity(arity), term(std::move(term)), guard(std::move(guard)), type(type) {}
-    explicit TheoryAtomDefinition(std::string name, int arity, std::string term, TheoryAtomType type)
-        : name(std::move(name)), arity(arity), term(std::move(term)), guard(std::nullopt), type(type) {}
     friend auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream & {
         out << "  &" << def.name << "/" << def.arity << ": " << def.term << ", ";
         if (def.guard) {
@@ -128,9 +132,27 @@ struct TheoryAtomDefinition {
     std::optional<std::pair<std::vector<std::string>, std::string>> guard;
     TheoryAtomType type;
 };
+using TheoryAtomDefinitionVec = std::vector<TheoryAtomDefinition>;
 
 struct TheoryDefinition : Statement {
-    explicit TheoryDefinition(std::string name) : name{std::move(name)} {}
-    void print(std::ostream &out) const override { out << "#theory " << name << " { ... }."; }
+    explicit TheoryDefinition(std::string name, TheoryTermDefinitionVec term_defs, TheoryAtomDefinitionVec atom_defs)
+        : name{std::move(name)}, term_defs{std::move(term_defs)}, atom_defs{std::move(atom_defs)} {}
+    void print(std::ostream &out) const override {
+        out << "#theory " << name << (term_defs.empty() && atom_defs.empty() ? " { " : " {\n");
+        out << p_range(term_defs, ";\n");
+        if (!term_defs.empty()) {
+            if (!atom_defs.empty()) {
+                out << ";";
+            }
+            out << "\n";
+        }
+        out << p_range(atom_defs, ";\n");
+        if (!atom_defs.empty()) {
+            out << "\n";
+        }
+        out << "}.";
+    }
     std::string name;
+    TheoryTermDefinitionVec term_defs;
+    TheoryAtomDefinitionVec atom_defs;
 };
