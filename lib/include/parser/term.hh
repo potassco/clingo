@@ -19,6 +19,7 @@ static constexpr auto identifier_base = []() {
     auto tail = dsl::ascii::alpha_underscore / LEXY_LIT("'");
     return dsl::identifier(head, tail);
 }();
+static constexpr auto keyword_base = dsl::identifier(LEXY_ASCII_ONE_OF("#"), dsl::ascii::alpha);
 
 static constexpr auto kw_not = LEXY_KEYWORD("not", identifier_base);
 
@@ -30,12 +31,12 @@ struct identifier : lexy::token_production {
     static constexpr auto value = lexy::as_string<std::string>;
 };
 
+static constexpr auto simple_number = dsl::integer<int>(dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero());
+
 struct number : lexy::token_production {
-    static constexpr auto rule = []() {
-        auto digits = dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero();
-        return LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> | LEXY_LIT("0o") >> dsl::integer<int, dsl::octal> |
-               LEXY_LIT("0b") >> dsl::integer<int, dsl::binary> | dsl::integer<int>(digits);
-    }();
+    static constexpr auto rule = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> |
+                                 LEXY_LIT("0o") >> dsl::integer<int, dsl::octal> |
+                                 LEXY_LIT("0b") >> dsl::integer<int, dsl::binary> | simple_number;
     static constexpr auto value = lexy::forward<int>;
 };
 
@@ -70,8 +71,6 @@ struct term_variable : lexy::token_production {
     static constexpr auto rule = dsl::p<variable>;
     static constexpr auto value = lexy::new_<TermVariable, UTerm>;
 };
-
-static constexpr auto keyword_base = dsl::identifier(LEXY_ASCII_ONE_OF("#"), dsl::ascii::alpha);
 
 static constexpr auto constants = lexy::symbol_table<Constant> //
                                       .map<LEXY_SYMBOL("#infimum")>(Constant::infimum)
