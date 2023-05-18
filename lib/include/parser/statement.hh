@@ -106,6 +106,80 @@ struct statement_theory {
         });
 };
 
+// TODO
+/*///////////////// OPTIMIZATION STATEMENTS ////////////////
+
+OptFunction ::= '#minimize' | '#minimise'
+              | '#maximize' | '#maximise'
+OptTuple ::= Term ('@' Term)? (',' Term)*
+OptElem ::= OptTuple (':' Condition?)?
+OptElems ::= OptElem (';' OptElem)*
+Optimize ::= ':~' Body? '.' '[' OptTuple ']'
+           | OptFunction '{' OptElems? '}' '.'
+
+///////////////////// SHOW STATEMENTS //////////////////////
+
+// amibguities are resolved favoring the first case
+Show ::= '#show' '-'? Identifier '/' Number '.'
+       | '#show' Term (':' Body?)? '.'
+
+//////////////////// DEFINED STATEMENTS ////////////////////
+
+Defined ::= '#defined' '-'? Identifier '/' Number '.'
+
+///////////////////// EDGE STATEMENTS //////////////////////
+
+Pair ::= Term ',' Term
+Edge ::= '#edge' '(' Pair (';' Pair)* ')' (':' Body?)? '.'
+
+////////////////////HEURISTIC STATEMENTS ///////////////////
+
+Heuristic ::= '#heuristic' SymAtom (':' Body?)? '.'
+              '[' Term ('@' Term)? ',' Term ']'
+
+////////////////////ROJECTION STATEMENTS ///////////////////
+
+Project ::= '#project' '-'? Identifier '/' Number '.'
+          | '#project' SymAtom (':' Body?)? '.'
+
+///////////////////// CONST STATEMENTS /////////////////////
+
+// like Term excluding variables, pools, and intervals
+ConstTerm ::= ...
+Const ::= '#const' Identifier '=' ConstTerm '.'
+          ('[' ('default' | 'override') ']')?
+
+//////////////////// SCRIPT STATEMENTS /////////////////////
+
+// Script is parsed as a token and WS matches an arbitrary
+// amount of comments and whitespace.
+Script ::= '#script' WS '(' WS Identifier WS ')'
+           ([^#] | '#' [^e] | '#e' [^n] | '#en' [^d])*
+           '#end' WS '.'
+
+/////////////////// INCLUDE STATEMENTS /////////////////////
+
+Include ::= '#include' String '.'
+          | '#include' '<' Identifier '>' '.'
+
+//////////////////// BLOCK STATEMENTS //////////////////////
+
+Params ::= Identifier (',' Identifier)?
+Block ::= '#program' Identifier ('(' Params? ')')? '.'
+
+////////////////// EXTERNAL STATEMENTS /////////////////////
+
+External ::= '#external' SymAtom (':' Body?)? '.'
+             ('[' Term ']')?
+
+//////////////////////// PROGRAMS //////////////////////////
+
+Program ::= (Rule   | Optimize  | Show    | Defined  |
+             Edge   | Heuristic | Project | Const    |
+             Script | Include   | Block   | External |
+             Theory)*
+*/
+
 struct statement_body {
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(dsl::period);
