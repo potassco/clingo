@@ -41,23 +41,16 @@ struct theory_term_definition {
                                                      });
 };
 
-struct theory_term_definitions {
-    static constexpr auto rule = dsl::list(dsl::p<theory_term_definition>, dsl::sep(dsl::semicolon));
-    static constexpr auto value = lexy::as_list<TheoryTermDefinitionVec>;
-};
-
-struct theory_guard_relations {
-    static constexpr auto rule = dsl::list(dsl::p<theory_op>, dsl::sep(dsl::comma));
-    static constexpr auto value = lexy::as_list<std::vector<std::string>>;
-};
-
 struct theory_guard_definition {
-    static constexpr auto rule =
-        dsl::curly_bracketed(dsl::p<theory_guard_relations>) >> dsl::comma + dsl::p<identifier>;
-    static constexpr auto value = lexy::callback<TheoryAtomDefinition::Guard::value_type>(
-        lexy::construct<TheoryAtomDefinition::Guard::value_type>, [](lexy::nullopt, std::string name) {
-            return TheoryAtomDefinition::Guard::value_type{{}, std::move(name)};
-        });
+    static constexpr auto rule = []() {
+        auto rels = dsl::curly_bracketed.list(dsl::p<theory_op>, dsl::sep(dsl::comma));
+        return rels >> dsl::comma + dsl::p<identifier>;
+    }();
+    static constexpr auto value = []() {
+        auto sink = lexy::as_list<std::vector<std::string>>;
+        auto cb = lexy::construct<TheoryAtomDefinition::Guard::value_type>;
+        return sink >> cb;
+    }();
 };
 
 struct theory_atom_definition {
@@ -74,11 +67,6 @@ struct theory_atom_definition {
         return dsl::ampersand >> sig + dsl::colon + term + dsl::comma + guard + type;
     }();
     static constexpr auto value = lexy::construct<TheoryAtomDefinition>;
-};
-
-struct theory_atom_definitions {
-    static constexpr auto rule = dsl::list(dsl::p<theory_atom_definition>, dsl::sep(dsl::semicolon));
-    static constexpr auto value = lexy::as_list<TheoryAtomDefinitionVec>;
 };
 
 struct theory_definitions {
