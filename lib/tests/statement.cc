@@ -48,6 +48,10 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement("#show p(X).") == "#show p(X): .");
     REQUIRE(parse_statement("#show p(X): .") == "#show p(X): .");
     REQUIRE(parse_statement("#show p(X): a.") == "#show p(X): a.");
+
+    // defined
+    REQUIRE(parse_statement("#defined a/2.") == "#defined a/2.");
+    REQUIRE(parse_statement("#defined -a/2.") == "#defined -a/2.");
 }
 
 } // namespace test

@@ -180,18 +180,21 @@ struct statement_show {
         lexy::new_<StatementShow, UStatement>);
 };
 
+struct statement_defined {
+    static constexpr auto rule = []() {
+        auto def = LEXY_KEYWORD("#defined", keyword_base);
+        auto opt_body = dsl::opt(LEXY_LIT(":") >> dsl::p<statement_body>);
+        return def >> dsl::opt(LEXY_LIT("-")) + dsl::p<identifier> + dsl::slash + dsl::p<number> + dsl::period;
+    }();
+    static constexpr auto value = lexy::callback<UStatement>(
+        [](lexy::nullopt, std::string name, int number) {
+            return std::make_unique<StatementDefined>(false, std::move(name), number);
+        },
+        [](std::string name, int number) { return std::make_unique<StatementDefined>(true, std::move(name), number); });
+};
+
 // TODO
-/*/////////////////// SHOW STATEMENTS //////////////////////
-
-// amibguities are resolved favoring the first case
-Show ::= '#show' '-'? Identifier '/' Number '.'
-       | '#show' Term (':' Body?)? '.'
-
-//////////////////// DEFINED STATEMENTS ////////////////////
-
-Defined ::= '#defined' '-'? Identifier '/' Number '.'
-
-///////////////////// EDGE STATEMENTS //////////////////////
+/*/////////////////// EDGE STATEMENTS //////////////////////
 
 Pair ::= Term ',' Term
 Edge ::= '#edge' '(' Pair (';' Pair)* ')' (':' Body?)? '.'
@@ -252,7 +255,7 @@ struct statement_rule {
 
 struct statement {
     static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
-                                 dsl::else_ >> dsl::p<statement_rule>;
+                                 dsl::p<statement_defined> | dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };
 

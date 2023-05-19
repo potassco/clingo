@@ -233,3 +233,14 @@ struct StatementShowSig : Statement {
     std::string name;
     int arity;
 };
+
+struct StatementDefined : Statement {
+    StatementDefined(bool has_sign, std::string name, int arity)
+        : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
+    void print(std::ostream &out) const override {
+        out << "#defined " << (has_sign ? "-" : "") << name << "/" << arity << ".";
+    }
+    bool has_sign;
+    std::string name;
+    int arity;
+};
