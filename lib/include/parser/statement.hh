@@ -115,72 +115,12 @@ struct statement_body {
     static constexpr auto value = lexy::as_list<UBodyLiteralVec>;
 };
 
-enum class OptimizeType { minimize, maximize };
-
-inline auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
-    switch (type) {
-        case OptimizeType::maximize: {
-            out << "#maximize";
-            break;
-        }
-        case OptimizeType::minimize: {
-            out << "#minimize";
-            break;
-        }
-    }
-    return out;
-}
-
-struct StatementOptimize : Statement {
-    using Tuple = std::tuple<UTerm, std::optional<UTerm>, UTermVec>;
-    using Element = std::tuple<Tuple, ULiteralVec>;
-    using ElementVec = std::vector<Element>;
-    explicit StatementOptimize(OptimizeType type, ElementVec elems) : type{type}, elems{std::move(elems)} {}
-    void print(std::ostream &out) const override {
-        out << type << " { "
-            << p_range_with(elems, "; ",
-                            [](std::ostream &out, auto const &elem) {
-                                auto const &[tuple, cond] = elem;
-                                auto const &[weight, prio, terms] = tuple;
-                                out << *weight;
-                                if (prio) {
-                                    out << "@" << *prio.value();
-                                }
-                                if (!terms.empty()) {
-                                    out << "," << p_range(terms);
-                                }
-                                if (!cond.empty()) {
-                                    out << ": " << p_range(cond, ", ");
-                                }
-                            })
-            << (elems.empty() ? "}" : " }") << ".";
-    }
-    OptimizeType type;
-    ElementVec elems;
-};
-
-struct StatementWeakConstraint : Statement {
-    using Tuple = StatementOptimize::Tuple;
-    explicit StatementWeakConstraint(UBodyLiteralVec body, Tuple tuple)
-        : body{std::move(body)}, tuple{std::move(tuple)} {}
-    void print(std::ostream &out) const override {
-        auto const &[weight, prio, terms] = tuple;
-        out << " :~ " << p_range(body, "; ") << ". [" << *weight;
-        if (prio) {
-            out << "," << *prio.value();
-        }
-        if (!terms.empty()) {
-            out << "," << p_range(terms);
-        }
-        out << "]";
-    }
-    UBodyLiteralVec body;
-    Tuple tuple;
-};
-
 struct statement_optimize_tuple {
-    static constexpr auto rule =
-        dsl::p<term> + dsl::opt(dsl::at_sign >> dsl::p<term>) + dsl::opt(dsl::list(dsl::comma >> dsl::p<term>));
+    static constexpr auto rule = []() {
+        auto prio = dsl::opt(dsl::at_sign >> dsl::p<term>);
+        auto terms = dsl::opt(dsl::list(dsl::comma >> dsl::p<term>));
+        return dsl::p<term> + prio + terms;
+    }();
     static constexpr auto
         value = lexy::as_list<UTermVec> >>
                 lexy::callback<StatementOptimize::Tuple>([](UTerm weight, UTerm priority,
@@ -206,11 +146,11 @@ struct statement_optimize {
                                          .map<LEXY_SYMBOL("#maximize")>(OptimizeType::maximize)
                                          .map<LEXY_SYMBOL("#maximise")>(OptimizeType::maximize);
     static constexpr auto rule = []() {
-        return dsl::symbol<sym_type>(keyword_base) >>
-                   dsl::curly_bracketed.opt_list(dsl::p<statement_optimize_element>, dsl::sep(dsl::semicolon)) +
-                       dsl::period |
-               LEXY_LIT(":~") >>
-                   dsl::p<statement_body> + dsl::period + dsl::square_bracketed(dsl::p<statement_optimize_tuple>);
+        auto elems = dsl::curly_bracketed.opt_list(dsl::p<statement_optimize_element>, dsl::sep(dsl::semicolon));
+        auto opt = dsl::symbol<sym_type>(keyword_base) >> elems + dsl::period;
+        auto tuple = dsl::square_bracketed(dsl::p<statement_optimize_tuple>);
+        auto weak = LEXY_LIT(":~") >> dsl::p<statement_body> + dsl::period + tuple;
+        return opt | weak;
     }();
     static constexpr auto value = lexy::as_list<StatementOptimize::ElementVec> >>
                                   lexy::callback<UStatement>(
@@ -276,13 +216,6 @@ Block ::= '#program' Identifier ('(' Params? ')')? '.'
 
 External ::= '#external' SymAtom (':' Body?)? '.'
              ('[' Term ']')?
-
-//////////////////////// PROGRAMS //////////////////////////
-
-Program ::= (Rule   | Optimize  | Show    | Defined  |
-             Edge   | Heuristic | Project | Const    |
-             Script | Include   | Block   | External |
-             Theory)*
 */
 
 struct statement_rule {

@@ -152,3 +152,66 @@ struct TheoryDefinition : Statement {
     TheoryTermDefinitionVec term_defs;
     TheoryAtomDefinitionVec atom_defs;
 };
+
+enum class OptimizeType { minimize, maximize };
+
+inline auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
+    switch (type) {
+        case OptimizeType::maximize: {
+            out << "#maximize";
+            break;
+        }
+        case OptimizeType::minimize: {
+            out << "#minimize";
+            break;
+        }
+    }
+    return out;
+}
+
+struct StatementOptimize : Statement {
+    using Tuple = std::tuple<UTerm, std::optional<UTerm>, UTermVec>;
+    using Element = std::tuple<Tuple, ULiteralVec>;
+    using ElementVec = std::vector<Element>;
+    explicit StatementOptimize(OptimizeType type, ElementVec elems) : type{type}, elems{std::move(elems)} {}
+    void print(std::ostream &out) const override {
+        out << type << " { "
+            << p_range_with(elems, "; ",
+                            [](std::ostream &out, auto const &elem) {
+                                auto const &[tuple, cond] = elem;
+                                auto const &[weight, prio, terms] = tuple;
+                                out << *weight;
+                                if (prio) {
+                                    out << "@" << *prio.value();
+                                }
+                                if (!terms.empty()) {
+                                    out << "," << p_range(terms);
+                                }
+                                if (!cond.empty()) {
+                                    out << ": " << p_range(cond, ", ");
+                                }
+                            })
+            << (elems.empty() ? "}" : " }") << ".";
+    }
+    OptimizeType type;
+    ElementVec elems;
+};
+
+struct StatementWeakConstraint : Statement {
+    using Tuple = StatementOptimize::Tuple;
+    explicit StatementWeakConstraint(UBodyLiteralVec body, Tuple tuple)
+        : body{std::move(body)}, tuple{std::move(tuple)} {}
+    void print(std::ostream &out) const override {
+        auto const &[weight, prio, terms] = tuple;
+        out << " :~ " << p_range(body, "; ") << ". [" << *weight;
+        if (prio) {
+            out << "," << *prio.value();
+        }
+        if (!terms.empty()) {
+            out << "," << p_range(terms);
+        }
+        out << "]";
+    }
+    UBodyLiteralVec body;
+    Tuple tuple;
+};
