@@ -39,6 +39,15 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement(":~ . [1]") == " :~ . [1]");
     REQUIRE(parse_statement(":~ a. [1]") == " :~ a. [1]");
     REQUIRE(parse_statement(":~ a; b. [1]") == " :~ a; b. [1]");
+
+    // show
+    REQUIRE(parse_statement("#show a/2.") == "#show a/2.");
+    REQUIRE(parse_statement("#show -a/2.") == "#show -a/2.");
+    REQUIRE(parse_statement("#show (-a/2).") == "#show -a/2.");
+    REQUIRE(parse_statement("#show (-a()/2).") == "#show -a/2.");
+    REQUIRE(parse_statement("#show p(X).") == "#show p(X): .");
+    REQUIRE(parse_statement("#show p(X): .") == "#show p(X): .");
+    REQUIRE(parse_statement("#show p(X): a.") == "#show p(X): a.");
 }
 
 } // namespace test

@@ -49,7 +49,7 @@ struct atom {
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
         auto res_term = scanner.template parse<UTerm>(dsl::p<term>);
-        if (res_term.has_value() && res_term.value()->is_atom()) {
+        if (res_term.has_value() && res_term.value()->check_type(TermCheckType::atom)) {
             scanner.parse(is_atom.set());
         }
         return res_term;

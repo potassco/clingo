@@ -7,9 +7,22 @@
 
 #include <util/print.hh>
 
+enum class TermCheckType { atom, sig, identifier, signed_identifier, pos_number };
+
+struct Term;
+using UTerm = std::unique_ptr<Term>;
+
+struct CheckTypeResult {
+    bool has_sign = false;
+    int pos_number = 0;
+    std::string identifier;
+};
+
 struct Term {
     virtual ~Term() = default;
-    [[nodiscard]] virtual auto is_atom() const -> bool { return false; }
+    [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool {
+        return false;
+    }
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] auto to_string() const -> std::string {
         std::ostringstream out;
@@ -22,7 +35,6 @@ struct Term {
     }
 };
 
-using UTerm = std::unique_ptr<Term>;
 using UTermVec = std::vector<UTerm>;
 using UTermVecVec = std::vector<UTermVec>;
 
@@ -56,6 +68,15 @@ struct TermConstant : Term {
 struct TermInteger : Term {
     explicit TermInteger(int v) : value(v) {}
 
+    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override {
+        if (type == TermCheckType::pos_number && value >= 0) {
+            if (res != nullptr) {
+                res->pos_number = value;
+            }
+            return true;
+        }
+        return false;
+    }
     void print(std::ostream &out) const override { out << value; }
 
     int value;
@@ -175,7 +196,19 @@ struct TermFunction : Term {
         }
     }
 
-    [[nodiscard]] auto is_atom() const -> bool override { return !external; }
+    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override {
+        if (type == TermCheckType::atom) {
+            return !external;
+        }
+        if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) && !external &&
+            args.size() == 1 && args.front().empty()) {
+            if (res != nullptr) {
+                res->identifier = name;
+            }
+            return true;
+        }
+        return false;
+    }
 
     std::string name;
     UTermVecVec args;
@@ -197,7 +230,19 @@ struct TermUnary : Term {
 
     void print(std::ostream &out) const override { out << "(" << op << *rhs << ")"; }
 
-    [[nodiscard]] auto is_atom() const -> bool override { return op == UnaryOperator::negate && rhs->is_atom(); }
+    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override {
+        if (type == TermCheckType::atom) {
+            return op == UnaryOperator::negate && rhs->check_type(type);
+        }
+        if (type == TermCheckType::signed_identifier && op == UnaryOperator::negate &&
+            rhs->check_type(TermCheckType::identifier, res)) {
+            if (res != nullptr) {
+                res->has_sign = true;
+            }
+            return true;
+        }
+        return false;
+    }
 
     UnaryOperator op;
     UTerm rhs;
@@ -265,6 +310,13 @@ inline auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
 struct TermBinary : Term {
     explicit TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs) : op(op), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
+    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override {
+        if (type == TermCheckType::sig) {
+            return op == BinaryOperator::div && lhs->check_type(TermCheckType::signed_identifier, res) &&
+                   rhs->check_type(TermCheckType::pos_number, res);
+        }
+        return false;
+    }
     void print(std::ostream &out) const override { out << "(" << *lhs << op << *rhs << ")"; }
 
     BinaryOperator op;

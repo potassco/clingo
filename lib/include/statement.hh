@@ -215,3 +215,21 @@ struct StatementWeakConstraint : Statement {
     UBodyLiteralVec body;
     Tuple tuple;
 };
+
+struct StatementShow : Statement {
+    StatementShow(UTerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    void print(std::ostream &out) const override { out << "#show " << *term << ": " << p_range(body, "; ") << "."; }
+    UTerm term;
+    UBodyLiteralVec body;
+};
+
+struct StatementShowSig : Statement {
+    StatementShowSig(bool has_sign, std::string name, int arity)
+        : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
+    void print(std::ostream &out) const override {
+        out << "#show " << (has_sign ? "-" : "") << name << "/" << arity << ".";
+    }
+    bool has_sign;
+    std::string name;
+    int arity;
+};

@@ -161,6 +161,25 @@ struct statement_optimize {
                                       lexy::new_<StatementWeakConstraint, UStatement>);
 };
 
+struct statement_show {
+    static constexpr auto rule = []() {
+        auto show = LEXY_KEYWORD("#show", keyword_base);
+        auto opt_body = dsl::opt(LEXY_LIT(":") >> dsl::p<statement_body>);
+        return show >> dsl::p<term> + opt_body + dsl::period;
+    }();
+    static constexpr auto value = lexy::callback<UStatement>(
+        [](UTerm term, lexy::nullopt) -> UStatement {
+            CheckTypeResult res;
+            // Note: this will match any term of form -a/2 including ones with
+            // parenthesis inside. Avoiding this would be a bit tricky.
+            if (term->check_type(TermCheckType::sig, &res)) {
+                return std::make_unique<StatementShowSig>(res.has_sign, res.identifier, res.pos_number);
+            }
+            return std::make_unique<StatementShow>(std::move(term), UBodyLiteralVec{});
+        },
+        lexy::new_<StatementShow, UStatement>);
+};
+
 // TODO
 /*/////////////////// SHOW STATEMENTS //////////////////////
 
@@ -232,8 +251,8 @@ struct statement_rule {
 };
 
 struct statement {
-    static constexpr auto rule =
-        dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::else_ >> dsl::p<statement_rule>;
+    static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
+                                 dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };
 
