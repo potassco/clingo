@@ -193,13 +193,22 @@ struct statement_defined {
         [](std::string name, int number) { return std::make_unique<StatementDefined>(true, std::move(name), number); });
 };
 
+struct statement_edge {
+    static constexpr auto rule = []() {
+        auto kw = LEXY_KEYWORD("#edge", keyword_base);
+        auto pair = dsl::p<term> + dsl::comma + dsl::p<term>;
+        auto edge = dsl::round_bracketed.list(pair, dsl::sep(dsl::semicolon));
+        return kw >> edge + dsl::if_(dsl::colon >> dsl::p<statement_body>) + dsl::period;
+    }();
+    static constexpr auto value = []() {
+        auto sink = lexy::collect<StatementEdge::EdgeVec>(lexy::construct<StatementEdge::Edge>);
+        auto cb = lexy::new_<StatementEdge, UStatement>;
+        return sink >> cb;
+    }();
+};
+
 // TODO
-/*/////////////////// EDGE STATEMENTS //////////////////////
-
-Pair ::= Term ',' Term
-Edge ::= '#edge' '(' Pair (';' Pair)* ')' (':' Body?)? '.'
-
-/////////////////// HEURISTIC STATEMENTS ///////////////////
+/*///////////////// HEURISTIC STATEMENTS ///////////////////
 
 Heuristic ::= '#heuristic' SymAtom (':' Body?)? '.'
               '[' Term ('@' Term)? ',' Term ']'
@@ -255,7 +264,8 @@ struct statement_rule {
 
 struct statement {
     static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
-                                 dsl::p<statement_defined> | dsl::else_ >> dsl::p<statement_rule>;
+                                 dsl::p<statement_defined> | dsl::p<statement_edge> |
+                                 dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };
 

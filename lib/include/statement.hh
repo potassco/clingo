@@ -244,3 +244,17 @@ struct StatementDefined : Statement {
     std::string name;
     int arity;
 };
+
+struct StatementEdge : Statement {
+    using Edge = std::pair<UTerm, UTerm>;
+    using EdgeVec = std::vector<Edge>;
+    explicit StatementEdge(EdgeVec edges, UBodyLiteralVec body = {}) : edges{std::move(edges)}, body{std::move(body)} {}
+    void print(std::ostream &out) const override {
+        out << "#edge ("
+            << p_range_with(edges, ";",
+                            [](std::ostream &out, auto &edge) { out << *edge.first << "," << *edge.second; })
+            << ")" << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
+    }
+    EdgeVec edges;
+    UBodyLiteralVec body;
+};

@@ -52,6 +52,13 @@ TEST_CASE("statement") {
     // defined
     REQUIRE(parse_statement("#defined a/2.") == "#defined a/2.");
     REQUIRE(parse_statement("#defined -a/2.") == "#defined -a/2.");
+
+    // edge
+    REQUIRE(parse_statement("#edge (a,b).") == "#edge (a,b).");
+    REQUIRE(parse_statement("#edge (a,b):.") == "#edge (a,b).");
+    REQUIRE(parse_statement("#edge (a,b): c.") == "#edge (a,b): c.");
+    REQUIRE(parse_statement("#edge (a,b;c,d): e.") == "#edge (a,b;c,d): e.");
+    REQUIRE(parse_statement("#edge (a,b;c,d): e; f.") == "#edge (a,b;c,d): e; f.");
 }
 
 } // namespace test
