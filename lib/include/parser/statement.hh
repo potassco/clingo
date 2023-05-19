@@ -106,18 +106,123 @@ struct statement_theory {
         });
 };
 
+struct statement_body {
+    static constexpr auto rule = []() {
+        auto peek = dsl::peek_not(dsl::period);
+        auto sep = dsl::sep(dsl::comma / dsl::semicolon);
+        return dsl::opt(peek >> dsl::list(dsl::p<body_literal>, sep));
+    }();
+    static constexpr auto value = lexy::as_list<UBodyLiteralVec>;
+};
+
+enum class OptimizeType { minimize, maximize };
+
+inline auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
+    switch (type) {
+        case OptimizeType::maximize: {
+            out << "#maximize";
+            break;
+        }
+        case OptimizeType::minimize: {
+            out << "#minimize";
+            break;
+        }
+    }
+    return out;
+}
+
+struct StatementOptimize : Statement {
+    using Tuple = std::tuple<UTerm, std::optional<UTerm>, UTermVec>;
+    using Element = std::tuple<Tuple, ULiteralVec>;
+    using ElementVec = std::vector<Element>;
+    explicit StatementOptimize(OptimizeType type, ElementVec elems) : type{type}, elems{std::move(elems)} {}
+    void print(std::ostream &out) const override {
+        out << type << " { "
+            << p_range_with(elems, "; ",
+                            [](std::ostream &out, auto const &elem) {
+                                auto const &[tuple, cond] = elem;
+                                auto const &[weight, prio, terms] = tuple;
+                                out << *weight;
+                                if (prio) {
+                                    out << "@" << *prio.value();
+                                }
+                                if (!terms.empty()) {
+                                    out << "," << p_range(terms);
+                                }
+                                if (!cond.empty()) {
+                                    out << ": " << p_range(cond, ", ");
+                                }
+                            })
+            << (elems.empty() ? "}" : " }") << ".";
+    }
+    OptimizeType type;
+    ElementVec elems;
+};
+
+struct StatementWeakConstraint : Statement {
+    using Tuple = StatementOptimize::Tuple;
+    explicit StatementWeakConstraint(UBodyLiteralVec body, Tuple tuple)
+        : body{std::move(body)}, tuple{std::move(tuple)} {}
+    void print(std::ostream &out) const override {
+        auto const &[weight, prio, terms] = tuple;
+        out << " :~ " << p_range(body, "; ") << ". [" << *weight;
+        if (prio) {
+            out << "," << *prio.value();
+        }
+        if (!terms.empty()) {
+            out << "," << p_range(terms);
+        }
+        out << "]";
+    }
+    UBodyLiteralVec body;
+    Tuple tuple;
+};
+
+struct statement_optimize_tuple {
+    static constexpr auto rule =
+        dsl::p<term> + dsl::opt(dsl::at_sign >> dsl::p<term>) + dsl::opt(dsl::list(dsl::comma >> dsl::p<term>));
+    static constexpr auto
+        value = lexy::as_list<UTermVec> >>
+                lexy::callback<StatementOptimize::Tuple>([](UTerm weight, UTerm priority,
+                                                            std::optional<UTermVec> terms) -> StatementOptimize::Tuple {
+                    // NOTE: lexy behaves a bit funny constructing a std::optional<std::unique_ptr<T>>
+                    auto opt_prio = std::optional<UTerm>{std::nullopt};
+                    if (priority) {
+                        opt_prio = std::move(priority);
+                    }
+                    return {std::move(weight), std::move(opt_prio), std::move(terms).value_or(UTermVec{})};
+                });
+};
+
+struct statement_optimize_element {
+    static constexpr auto rule = dsl::p<statement_optimize_tuple> + dsl::p<opt_condition>;
+    static constexpr auto value = lexy::construct<StatementOptimize::Element>;
+};
+
+struct statement_optimize {
+    static constexpr auto sym_type = lexy::symbol_table<OptimizeType> //
+                                         .map<LEXY_SYMBOL("#minimize")>(OptimizeType::minimize)
+                                         .map<LEXY_SYMBOL("#minimise")>(OptimizeType::minimize)
+                                         .map<LEXY_SYMBOL("#maximize")>(OptimizeType::maximize)
+                                         .map<LEXY_SYMBOL("#maximise")>(OptimizeType::maximize);
+    static constexpr auto rule = []() {
+        return dsl::symbol<sym_type>(keyword_base) >>
+                   dsl::curly_bracketed.opt_list(dsl::p<statement_optimize_element>, dsl::sep(dsl::semicolon)) +
+                       dsl::period |
+               LEXY_LIT(":~") >>
+                   dsl::p<statement_body> + dsl::period + dsl::square_bracketed(dsl::p<statement_optimize_tuple>);
+    }();
+    static constexpr auto value = lexy::as_list<StatementOptimize::ElementVec> >>
+                                  lexy::callback<UStatement>(
+                                      [](OptimizeType type, std::optional<StatementOptimize::ElementVec> elems) {
+                                          return std::make_unique<StatementOptimize>(
+                                              type, std::move(elems).value_or(StatementOptimize::ElementVec{}));
+                                      },
+                                      lexy::new_<StatementWeakConstraint, UStatement>);
+};
+
 // TODO
-/*///////////////// OPTIMIZATION STATEMENTS ////////////////
-
-OptFunction ::= '#minimize' | '#minimise'
-              | '#maximize' | '#maximise'
-OptTuple ::= Term ('@' Term)? (',' Term)*
-OptElem ::= OptTuple (':' Condition?)?
-OptElems ::= OptElem (';' OptElem)*
-Optimize ::= ':~' Body? '.' '[' OptTuple ']'
-           | OptFunction '{' OptElems? '}' '.'
-
-///////////////////// SHOW STATEMENTS //////////////////////
+/*/////////////////// SHOW STATEMENTS //////////////////////
 
 // amibguities are resolved favoring the first case
 Show ::= '#show' '-'? Identifier '/' Number '.'
@@ -180,15 +285,6 @@ Program ::= (Rule   | Optimize  | Show    | Defined  |
              Theory)*
 */
 
-struct statement_body {
-    static constexpr auto rule = []() {
-        auto peek = dsl::peek_not(dsl::period);
-        auto sep = dsl::sep(dsl::comma / dsl::semicolon);
-        return dsl::opt(peek >> dsl::list(dsl::p<body_literal>, sep));
-    }();
-    static constexpr auto value = lexy::as_list<UBodyLiteralVec>;
-};
-
 struct statement_rule {
     static constexpr auto rule = []() {
         auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body> + dsl::period;
@@ -203,7 +299,8 @@ struct statement_rule {
 };
 
 struct statement {
-    static constexpr auto rule = dsl::p<statement_theory> | dsl::else_ >> dsl::p<statement_rule>;
+    static constexpr auto rule =
+        dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };
 
