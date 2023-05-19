@@ -177,12 +177,12 @@ Defined ::= '#defined' '-'? Identifier '/' Number '.'
 Pair ::= Term ',' Term
 Edge ::= '#edge' '(' Pair (';' Pair)* ')' (':' Body?)? '.'
 
-////////////////////HEURISTIC STATEMENTS ///////////////////
+/////////////////// HEURISTIC STATEMENTS ///////////////////
 
 Heuristic ::= '#heuristic' SymAtom (':' Body?)? '.'
               '[' Term ('@' Term)? ',' Term ']'
 
-////////////////////ROJECTION STATEMENTS ///////////////////
+////////////////// PROJECTION STATEMENTS ///////////////////
 
 Project ::= '#project' '-'? Identifier '/' Number '.'
           | '#project' SymAtom (':' Body?)? '.'
