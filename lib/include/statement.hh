@@ -302,3 +302,29 @@ struct StatementHeuristic : Statement {
     UTerm modifier;
     bool has_sign;
 };
+
+enum class ScriptType {
+    lua,
+    python,
+};
+
+inline auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
+    switch (type) {
+        case ScriptType::lua: {
+            out << "lua";
+            break;
+        }
+        case ScriptType::python: {
+            out << "python";
+            break;
+        }
+    }
+    return out;
+}
+
+struct StatementScript : Statement {
+    explicit StatementScript(ScriptType type, std::string content) : type(type), content(std::move(content)) {}
+    void print(std::ostream &out) const override { out << "#script (" << type << ")" << content << "#end."; }
+    ScriptType type;
+    std::string content;
+};

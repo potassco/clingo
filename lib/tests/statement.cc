@@ -74,6 +74,10 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement("#heuristic a:. [level,true]") == "#heuristic a. [level,true]");
     REQUIRE(parse_statement("#heuristic -a. [level,true]") == "#heuristic -a. [level,true]");
     REQUIRE(parse_statement("#heuristic a:a; b. [level,true]") == "#heuristic a: a; b. [level,true]");
+
+    // script
+    REQUIRE(parse_statement("#script   ( python  )     code   #end.") == "#script (python)     code   #end.");
+    REQUIRE(parse_statement("#script (python)\ncode\n#end.") == "#script (python)\ncode\n#end.");
 }
 
 } // namespace test

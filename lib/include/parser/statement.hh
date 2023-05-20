@@ -9,13 +9,13 @@
 namespace grammar {
 
 struct theory_op_definition {
-    static constexpr auto sym_op_types = lexy::symbol_table<TheoryOpType> //
-                                             .map<LEXY_SYMBOL("left")>(TheoryOpType::binary_left)
-                                             .map<LEXY_SYMBOL("right")>(TheoryOpType::binary_right);
+    static constexpr auto sym_types = lexy::symbol_table<TheoryOpType> //
+                                          .map<LEXY_SYMBOL("left")>(TheoryOpType::binary_left)
+                                          .map<LEXY_SYMBOL("right")>(TheoryOpType::binary_right);
     static constexpr auto rule = []() {
-        auto unary = LEXY_KEYWORD("unary", keyword_base);
-        auto binary = LEXY_KEYWORD("binary", keyword_base);
-        auto associativity = dsl::symbol<sym_op_types>(keyword_base);
+        auto unary = LEXY_KEYWORD("unary", identifier_base);
+        auto binary = LEXY_KEYWORD("binary", identifier_base);
+        auto associativity = dsl::symbol<sym_types>(identifier_base);
         auto type = unary | binary >> dsl::comma + associativity;
 
         return dsl::p<theory_op> >> dsl::colon + simple_number + dsl::comma + type;
@@ -63,7 +63,7 @@ struct theory_atom_definition {
         auto sig = dsl::p<identifier> + dsl::slash + simple_number;
         auto term = dsl::p<identifier>;
         auto guard = dsl::opt(dsl::p<theory_guard_definition> >> dsl::comma);
-        auto type = dsl::symbol<sym_type>(keyword_base);
+        auto type = dsl::symbol<sym_type>(identifier_base);
         return dsl::ampersand >> sig + dsl::colon + term + dsl::comma + guard + type;
     }();
     static constexpr auto value = lexy::construct<TheoryAtomDefinition>;
@@ -87,7 +87,7 @@ struct theory_definitions {
 
 struct statement_theory {
     static constexpr auto rule = []() {
-        auto kw_theory = LEXY_KEYWORD("#theory", keyword_base);
+        auto kw_theory = LEXY_KEYWORD("#theory", identifier_base);
         return kw_theory >> dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + dsl::period;
     }();
     static constexpr auto value = lexy::callback<UStatement>(
@@ -163,7 +163,7 @@ struct statement_optimize {
 
 struct statement_show {
     static constexpr auto rule = []() {
-        auto show = LEXY_KEYWORD("#show", keyword_base);
+        auto show = LEXY_KEYWORD("#show", identifier_base);
         auto opt_body = dsl::opt(LEXY_LIT(":") >> dsl::p<statement_body>);
         return show >> dsl::p<term> + opt_body + dsl::period;
     }();
@@ -244,6 +244,21 @@ struct statement_project {
         });
 };
 
+struct statement_script {
+    static constexpr auto sym_type = lexy::symbol_table<ScriptType> //
+                                         .map<LEXY_SYMBOL("lua")>(ScriptType::lua)
+                                         .map<LEXY_SYMBOL("python")>(ScriptType::python);
+    static constexpr auto rule = []() {
+        auto script = LEXY_KEYWORD("#script", keyword_base);
+        auto open = LEXY_LIT("(");
+        auto type = dsl::symbol<sym_type>(identifier_base);
+        auto close = LEXY_LIT(")");
+        auto end = LEXY_KEYWORD("#end", keyword_base);
+        return script >> open + type + dsl::delimited(close, end)(dsl::ascii::character) + dsl::period;
+    }();
+    static constexpr auto value = lexy::as_string<std::string, encoding> >> lexy::new_<StatementScript, UStatement>;
+};
+
 // TODO
 /*/////////////////// CONST STATEMENTS /////////////////////
 
@@ -251,14 +266,6 @@ struct statement_project {
 ConstTerm ::= ...
 Const ::= '#const' Identifier '=' ConstTerm '.'
           ('[' ('default' | 'override') ']')?
-
-//////////////////// SCRIPT STATEMENTS /////////////////////
-
-// Script is parsed as a token and WS matches an arbitrary
-// amount of comments and whitespace.
-Script ::= '#script' WS '(' WS Identifier WS ')'
-           ([^#] | '#' [^e] | '#e' [^n] | '#en' [^d])*
-           '#end' WS '.'
 
 /////////////////// INCLUDE STATEMENTS /////////////////////
 
@@ -292,7 +299,8 @@ struct statement_rule {
 struct statement {
     static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
                                  dsl::p<statement_defined> | dsl::p<statement_edge> | dsl::p<statement_heuristic> |
-                                 dsl::p<statement_project> | dsl::else_ >> dsl::p<statement_rule>;
+                                 dsl::p<statement_project> | dsl::p<statement_script> |
+                                 dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };
 
