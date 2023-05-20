@@ -267,20 +267,20 @@ ConstTerm ::= ...
 Const ::= '#const' Identifier '=' ConstTerm '.'
           ('[' ('default' | 'override') ']')?
 
-/////////////////// INCLUDE STATEMENTS /////////////////////
+////////////////// EXTERNAL STATEMENTS /////////////////////
 
-Include ::= '#include' String '.'
-          | '#include' '<' Identifier '>' '.'
+External ::= '#external' SymAtom (':' Body?)? '.'
+             ('[' Term ']')?
 
 //////////////////// BLOCK STATEMENTS //////////////////////
 
 Params ::= Identifier (',' Identifier)?
 Block ::= '#program' Identifier ('(' Params? ')')? '.'
 
-////////////////// EXTERNAL STATEMENTS /////////////////////
+/////////////////// INCLUDE STATEMENTS /////////////////////
 
-External ::= '#external' SymAtom (':' Body?)? '.'
-             ('[' Term ']')?
+Include ::= '#include' String '.'
+          | '#include' '<' Identifier '>' '.'
 */
 
 struct statement_rule {
