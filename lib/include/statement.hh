@@ -205,7 +205,7 @@ struct StatementWeakConstraint : Statement {
         auto const &[weight, prio, terms] = tuple;
         out << " :~ " << p_range(body, "; ") << ". [" << *weight;
         if (prio) {
-            out << "," << *prio.value();
+            out << "@" << *prio.value();
         }
         if (!terms.empty()) {
             out << "," << p_range(terms);
@@ -257,4 +257,28 @@ struct StatementEdge : Statement {
     }
     EdgeVec edges;
     UBodyLiteralVec body;
+};
+
+struct StatementHeuristic : Statement {
+    explicit StatementHeuristic(bool has_sign, UTerm atom, UBodyLiteralVec body, UTerm type, UTerm priority,
+                                UTerm modifier)
+        : atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)), priority(std::move(priority)),
+          modifier(std::move(modifier)), has_sign{has_sign} {}
+    explicit StatementHeuristic(bool has_sign, UTerm atom, UBodyLiteralVec body, UTerm type, UTerm modifier)
+        : atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)), modifier(std::move(modifier)),
+          has_sign{has_sign} {}
+    void print(std::ostream &out) const override {
+        out << "#heuristic " << (has_sign ? "-" : "") << *atom << (body.empty() ? "" : ": ") << p_range(body, "; ")
+            << ". [" << *type;
+        if (priority) {
+            out << "@" << *priority.value();
+        }
+        out << "," << *modifier << "]";
+    }
+    UTerm atom;
+    UBodyLiteralVec body;
+    UTerm type;
+    std::optional<UTerm> priority;
+    UTerm modifier;
+    bool has_sign;
 };

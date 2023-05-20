@@ -207,13 +207,29 @@ struct statement_edge {
     }();
 };
 
+struct statement_opt_body {
+    static constexpr auto rule = dsl::if_(dsl::colon >> dsl::p<statement_body>);
+    static constexpr auto value = lexy::construct<UBodyLiteralVec>;
+};
+
+struct sign_classical {
+    static constexpr auto rule = dsl::opt(LEXY_LIT("-"));
+    static constexpr auto value = lexy::callback<bool>([](lexy::nullopt) { return false; }, []() { return true; });
+};
+
+struct statement_heuristic {
+    static constexpr auto rule = []() {
+        auto kw = LEXY_KEYWORD("#heuristic", keyword_base);
+        auto atom = dsl::p<sign_classical> + dsl::p<term_function>;
+        auto tuple =
+            dsl::square_bracketed(dsl::p<term> + dsl::if_(dsl::at_sign >> dsl::p<term>) + dsl::comma + dsl::p<term>);
+        return kw >> atom + dsl::p<statement_opt_body> + dsl::period + tuple;
+    }();
+    static constexpr auto value = lexy::new_<StatementHeuristic, UStatement>;
+};
+
 // TODO
-/*///////////////// HEURISTIC STATEMENTS ///////////////////
-
-Heuristic ::= '#heuristic' SymAtom (':' Body?)? '.'
-              '[' Term ('@' Term)? ',' Term ']'
-
-////////////////// PROJECTION STATEMENTS ///////////////////
+/*//////////////// PROJECTION STATEMENTS ///////////////////
 
 Project ::= '#project' '-'? Identifier '/' Number '.'
           | '#project' SymAtom (':' Body?)? '.'
@@ -264,7 +280,7 @@ struct statement_rule {
 
 struct statement {
     static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
-                                 dsl::p<statement_defined> | dsl::p<statement_edge> |
+                                 dsl::p<statement_defined> | dsl::p<statement_edge> | dsl::p<statement_heuristic> |
                                  dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };

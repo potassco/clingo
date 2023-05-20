@@ -37,6 +37,7 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement("#minimize {1@2,3,4:a}.") == "#minimize { 1@2,3,4: a }.");
     REQUIRE(parse_statement("#minimize {1@2;3@4}.") == "#minimize { 1@2; 3@4 }.");
     REQUIRE(parse_statement(":~ . [1]") == " :~ . [1]");
+    REQUIRE(parse_statement(":~ . [1@2]") == " :~ . [1@2]");
     REQUIRE(parse_statement(":~ a. [1]") == " :~ a. [1]");
     REQUIRE(parse_statement(":~ a; b. [1]") == " :~ a; b. [1]");
 
@@ -59,6 +60,13 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement("#edge (a,b): c.") == "#edge (a,b): c.");
     REQUIRE(parse_statement("#edge (a,b;c,d): e.") == "#edge (a,b;c,d): e.");
     REQUIRE(parse_statement("#edge (a,b;c,d): e; f.") == "#edge (a,b;c,d): e; f.");
+
+    // heuristic
+    REQUIRE(parse_statement("#heuristic a. [level@1,true]") == "#heuristic a. [level@1,true]");
+    REQUIRE(parse_statement("#heuristic a. [level,true]") == "#heuristic a. [level,true]");
+    REQUIRE(parse_statement("#heuristic a:. [level,true]") == "#heuristic a. [level,true]");
+    REQUIRE(parse_statement("#heuristic -a. [level,true]") == "#heuristic -a. [level,true]");
+    REQUIRE(parse_statement("#heuristic a:a; b. [level,true]") == "#heuristic a: a; b. [level,true]");
 }
 
 } // namespace test
