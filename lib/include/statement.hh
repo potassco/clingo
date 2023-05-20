@@ -234,6 +234,26 @@ struct StatementShowSig : Statement {
     int arity;
 };
 
+struct StatementProject : Statement {
+    StatementProject(UTerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    void print(std::ostream &out) const override {
+        out << "#project " << *term << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
+    }
+    UTerm term;
+    UBodyLiteralVec body;
+};
+
+struct StatementProjectSig : Statement {
+    StatementProjectSig(bool has_sign, std::string name, int arity)
+        : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
+    void print(std::ostream &out) const override {
+        out << "#project " << (has_sign ? "-" : "") << name << "/" << arity << ".";
+    }
+    bool has_sign;
+    std::string name;
+    int arity;
+};
+
 struct StatementDefined : Statement {
     StatementDefined(bool has_sign, std::string name, int arity)
         : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}

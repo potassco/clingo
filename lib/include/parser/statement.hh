@@ -180,17 +180,18 @@ struct statement_show {
         lexy::new_<StatementShow, UStatement>);
 };
 
+struct sign_classical {
+    static constexpr auto rule = dsl::opt(LEXY_LIT("-"));
+    static constexpr auto value = lexy::callback<bool>([](lexy::nullopt) { return false; }, []() { return true; });
+};
+
 struct statement_defined {
     static constexpr auto rule = []() {
         auto def = LEXY_KEYWORD("#defined", keyword_base);
         auto opt_body = dsl::opt(LEXY_LIT(":") >> dsl::p<statement_body>);
-        return def >> dsl::opt(LEXY_LIT("-")) + dsl::p<identifier> + dsl::slash + dsl::p<number> + dsl::period;
+        return def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + dsl::p<number> + dsl::period;
     }();
-    static constexpr auto value = lexy::callback<UStatement>(
-        [](lexy::nullopt, std::string name, int number) {
-            return std::make_unique<StatementDefined>(false, std::move(name), number);
-        },
-        [](std::string name, int number) { return std::make_unique<StatementDefined>(true, std::move(name), number); });
+    static constexpr auto value = lexy::new_<StatementDefined, UStatement>;
 };
 
 struct statement_edge {
@@ -212,11 +213,6 @@ struct statement_opt_body {
     static constexpr auto value = lexy::construct<UBodyLiteralVec>;
 };
 
-struct sign_classical {
-    static constexpr auto rule = dsl::opt(LEXY_LIT("-"));
-    static constexpr auto value = lexy::callback<bool>([](lexy::nullopt) { return false; }, []() { return true; });
-};
-
 struct statement_heuristic {
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#heuristic", keyword_base);
@@ -228,13 +224,28 @@ struct statement_heuristic {
     static constexpr auto value = lexy::new_<StatementHeuristic, UStatement>;
 };
 
+struct statement_project {
+    static constexpr auto rule = []() {
+        auto kw = LEXY_KEYWORD("#project", keyword_base);
+        auto arity = dsl::slash >> simple_number;
+        auto pool = dsl::opt(dsl::p<term_function_pool>) + dsl::p<statement_opt_body>;
+        auto name = dsl::p<sign_classical> + dsl::p<identifier>;
+        return kw >> name + (arity | dsl::else_ >> pool) + dsl::period;
+    }();
+    static constexpr auto value = lexy::callback<UStatement>(
+        lexy::new_<StatementProjectSig, UStatement>,
+        [](bool has_sign, std::string name, std::optional<UTermVecVec> pool, UBodyLiteralVec body) {
+            UTerm atom =
+                std::make_unique<TermFunction>(std::move(name), std::move(pool).value_or(UTermVecVec{}), false);
+            if (has_sign) {
+                atom = std::make_unique<TermUnary>(UnaryOperator::negate, std::move(atom));
+            }
+            return std::make_unique<StatementProject>(std::move(atom), std::move(body));
+        });
+};
+
 // TODO
-/*//////////////// PROJECTION STATEMENTS ///////////////////
-
-Project ::= '#project' '-'? Identifier '/' Number '.'
-          | '#project' SymAtom (':' Body?)? '.'
-
-///////////////////// CONST STATEMENTS /////////////////////
+/*/////////////////// CONST STATEMENTS /////////////////////
 
 // like Term excluding variables, pools, and intervals
 ConstTerm ::= ...
@@ -281,7 +292,7 @@ struct statement_rule {
 struct statement {
     static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
                                  dsl::p<statement_defined> | dsl::p<statement_edge> | dsl::p<statement_heuristic> |
-                                 dsl::else_ >> dsl::p<statement_rule>;
+                                 dsl::p<statement_project> | dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };
 

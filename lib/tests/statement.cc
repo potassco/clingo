@@ -50,6 +50,13 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement("#show p(X): .") == "#show p(X): .");
     REQUIRE(parse_statement("#show p(X): a.") == "#show p(X): a.");
 
+    // project
+    REQUIRE(parse_statement("#project a/2.") == "#project a/2.");
+    REQUIRE(parse_statement("#project -a/2.") == "#project -a/2.");
+    REQUIRE(parse_statement("#project p(X).") == "#project p(X).");
+    REQUIRE(parse_statement("#project p(X): .") == "#project p(X).");
+    REQUIRE(parse_statement("#project p(X): a.") == "#project p(X): a.");
+
     // defined
     REQUIRE(parse_statement("#defined a/2.") == "#defined a/2.");
     REQUIRE(parse_statement("#defined -a/2.") == "#defined -a/2.");
