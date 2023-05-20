@@ -79,6 +79,11 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement("#script   ( python  )     code   #end.") == "#script (python)     code   #end.");
     REQUIRE(parse_statement("#script (python)\ncode\n#end.") == "#script (python)\ncode\n#end.");
     REQUIRE(parse_statement("#script (python) всем привет #end.") == "#script (python) всем привет #end.");
+
+    // external
+    REQUIRE(parse_statement("#external a(X): b(X).") == "#external a(X): b(X).");
+    REQUIRE(parse_statement("#external -a(X): b(X).") == "#external (-a(X)): b(X).");
+    REQUIRE(parse_statement("#external a(X): b(X). [X]") == "#external a(X): b(X). [X]");
 }
 
 } // namespace test

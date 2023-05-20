@@ -265,6 +265,21 @@ struct StatementDefined : Statement {
     int arity;
 };
 
+struct StatementExternal : Statement {
+    StatementExternal(UTerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    StatementExternal(UTerm term, UBodyLiteralVec body, UTerm type)
+        : term(std::move(term)), body(std::move(body)), type{std::move(type)} {}
+    void print(std::ostream &out) const override {
+        out << "#external " << *term << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
+        if (type.has_value()) {
+            out << " [" << *type.value() << "]";
+        }
+    }
+    UTerm term;
+    UBodyLiteralVec body;
+    std::optional<UTerm> type;
+};
+
 struct StatementEdge : Statement {
     using Edge = std::pair<UTerm, UTerm>;
     using EdgeVec = std::vector<Edge>;

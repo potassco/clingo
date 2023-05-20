@@ -259,6 +259,20 @@ struct statement_script {
     static constexpr auto value = lexy::as_string<std::string, encoding> >> lexy::new_<StatementScript, UStatement>;
 };
 
+struct statement_external {
+    static constexpr auto rule = []() {
+        auto kw = LEXY_KEYWORD("#external", keyword_base);
+        auto atom = dsl::p<sign_classical> + dsl::p<term_function>;
+        return kw >> atom + dsl::p<statement_opt_body> + dsl::period + dsl::if_(dsl::square_bracketed(dsl::p<term>));
+    }();
+    static constexpr auto value = lexy::callback<UStatement>([](bool has_sign, UTerm atom, auto &&...args) {
+        if (has_sign) {
+            atom = std::make_unique<TermUnary>(UnaryOperator::negate, std::move(atom));
+        }
+        return std::make_unique<StatementExternal>(std::move(atom), std::forward<decltype(args)>(args)...);
+    });
+};
+
 // TODO
 /*/////////////////// CONST STATEMENTS /////////////////////
 
@@ -266,11 +280,6 @@ struct statement_script {
 ConstTerm ::= ...
 Const ::= '#const' Identifier '=' ConstTerm '.'
           ('[' ('default' | 'override') ']')?
-
-////////////////// EXTERNAL STATEMENTS /////////////////////
-
-External ::= '#external' SymAtom (':' Body?)? '.'
-             ('[' Term ']')?
 
 //////////////////// BLOCK STATEMENTS //////////////////////
 
@@ -299,7 +308,7 @@ struct statement_rule {
 struct statement {
     static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
                                  dsl::p<statement_defined> | dsl::p<statement_edge> | dsl::p<statement_heuristic> |
-                                 dsl::p<statement_project> | dsl::p<statement_script> |
+                                 dsl::p<statement_project> | dsl::p<statement_script> | dsl::p<statement_external> |
                                  dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };
