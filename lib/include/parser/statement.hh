@@ -254,7 +254,7 @@ struct statement_script {
         auto type = dsl::symbol<sym_type>(identifier_base);
         auto close = LEXY_LIT(")");
         auto end = LEXY_KEYWORD("#end", keyword_base);
-        return script >> open + type + dsl::delimited(close, end)(dsl::ascii::character) + dsl::period;
+        return script >> open + type + dsl::delimited(close, end)(dsl::code_point) + dsl::period;
     }();
     static constexpr auto value = lexy::as_string<std::string, encoding> >> lexy::new_<StatementScript, UStatement>;
 };

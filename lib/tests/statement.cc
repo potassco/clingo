@@ -78,6 +78,7 @@ TEST_CASE("statement") {
     // script
     REQUIRE(parse_statement("#script   ( python  )     code   #end.") == "#script (python)     code   #end.");
     REQUIRE(parse_statement("#script (python)\ncode\n#end.") == "#script (python)\ncode\n#end.");
+    REQUIRE(parse_statement("#script (python) всем привет #end.") == "#script (python) всем привет #end.");
 }
 
 } // namespace test
