@@ -288,18 +288,29 @@ struct statement_include {
             });
 };
 
-// TODO
-/*/////////////////// CONST STATEMENTS /////////////////////
+struct statement_program {
+    static constexpr auto rule = []() {
+        auto kw = LEXY_KEYWORD("#program", keyword_base);
+        auto id = dsl::p<identifier>;
+        return kw >> id + dsl::opt(dsl::round_bracketed.opt_list(id, dsl::sep(dsl::comma))) + dsl::period;
+    }();
+    static constexpr auto value = lexy::as_list<std::vector<std::string>> >>
+                                  lexy::callback<UStatement>(
+                                      [](std::string name, std::vector<std::string> args) {
+                                          return std::make_unique<StatementProgram>(std::move(name), std::move(args));
+                                      },
+                                      [](std::string name, lexy::nullopt) {
+                                          return std::make_unique<StatementProgram>(std::move(name),
+                                                                                    std::vector<std::string>{});
+                                      });
+};
 
-// like Term excluding variables, pools, and intervals
-ConstTerm ::= ...
-Const ::= '#const' Identifier '=' ConstTerm '.'
-          ('[' ('default' | 'override') ']')?
+/*
+// TODO: like Term excluding variables, pools, and intervals
 
-//////////////////// BLOCK STATEMENTS //////////////////////
-
-Params ::= Identifier (',' Identifier)?
-Block ::= '#program' Identifier ('(' Params? ')')? '.'
+  ConstTerm ::= ...
+  Const ::= '#const' Identifier '=' ConstTerm '.'
+            ('[' ('default' | 'override') ']')?
 */
 
 struct statement_rule {
@@ -319,7 +330,8 @@ struct statement {
     static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
                                  dsl::p<statement_defined> | dsl::p<statement_edge> | dsl::p<statement_heuristic> |
                                  dsl::p<statement_project> | dsl::p<statement_script> | dsl::p<statement_external> |
-                                 dsl::p<statement_include> | dsl::else_ >> dsl::p<statement_rule>;
+                                 dsl::p<statement_include> | dsl::p<statement_program> |
+                                 dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };
 

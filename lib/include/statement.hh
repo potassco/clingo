@@ -377,3 +377,17 @@ struct StatementInclude : Statement {
     IncludeType type;
     std::string path;
 };
+
+struct StatementProgram : Statement {
+    explicit StatementProgram(std::string name, std::vector<std::string> args)
+        : name(std::move(name)), args(std::move(args)) {}
+    void print(std::ostream &out) const override {
+        out << "#program " << name;
+        if (!args.empty()) {
+            out << "(" << p_range(args) << ")";
+        }
+        out << ".";
+    }
+    std::string name;
+    std::vector<std::string> args;
+};

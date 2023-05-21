@@ -88,6 +88,12 @@ TEST_CASE("statement") {
     // include
     REQUIRE(parse_statement("#include \"abc\".") == "#include \"abc\".");
     REQUIRE(parse_statement("#include <abc>.") == "#include <abc>.");
+
+    // program
+    REQUIRE(parse_statement("#program base.") == "#program base.");
+    REQUIRE(parse_statement("#program base().") == "#program base.");
+    REQUIRE(parse_statement("#program step(t).") == "#program step(t).");
+    REQUIRE(parse_statement("#program step(k,t).") == "#program step(k,t).");
 }
 
 } // namespace test
