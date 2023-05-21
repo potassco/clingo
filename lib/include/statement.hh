@@ -391,3 +391,28 @@ struct StatementProgram : Statement {
     std::string name;
     std::vector<std::string> args;
 };
+
+enum class ConstType { default_, override_ };
+
+inline auto operator<<(std::ostream &out, ConstType type) -> std::ostream & {
+    switch (type) {
+        case ConstType::default_: {
+            out << "default";
+            break;
+        }
+        case ConstType::override_: {
+            out << "override";
+            break;
+        }
+    }
+    return out;
+}
+
+struct StatementConst : Statement {
+    explicit StatementConst(ConstType type, std::string name, UTerm value)
+        : type(type), name(std::move(name)), value(std::move(value)) {}
+    void print(std::ostream &out) const override { out << "#const " << name << "=" << *value << ". [" << type << "]"; }
+    ConstType type;
+    std::string name;
+    UTerm value;
+};

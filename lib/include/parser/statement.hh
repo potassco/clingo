@@ -9,13 +9,13 @@
 namespace grammar {
 
 struct theory_op_definition {
-    static constexpr auto sym_types = lexy::symbol_table<TheoryOpType> //
-                                          .map<LEXY_SYMBOL("left")>(TheoryOpType::binary_left)
-                                          .map<LEXY_SYMBOL("right")>(TheoryOpType::binary_right);
+    static constexpr auto sym_type = lexy::symbol_table<TheoryOpType> //
+                                         .map<LEXY_SYMBOL("left")>(TheoryOpType::binary_left)
+                                         .map<LEXY_SYMBOL("right")>(TheoryOpType::binary_right);
     static constexpr auto rule = []() {
         auto unary = LEXY_KEYWORD("unary", identifier_base);
         auto binary = LEXY_KEYWORD("binary", identifier_base);
-        auto associativity = dsl::symbol<sym_types>(identifier_base);
+        auto associativity = dsl::symbol<sym_type>(identifier_base);
         auto type = unary | binary >> dsl::comma + associativity;
 
         return dsl::p<theory_op> >> dsl::colon + simple_number + dsl::comma + type;
@@ -305,13 +305,25 @@ struct statement_program {
                                       });
 };
 
-/*
-// TODO: like Term excluding variables, pools, and intervals
-
-  ConstTerm ::= ...
-  Const ::= '#const' Identifier '=' ConstTerm '.'
-            ('[' ('default' | 'override') ']')?
-*/
+struct statement_const {
+    static constexpr auto sym_type = lexy::symbol_table<ConstType> //
+                                         .map<LEXY_SYMBOL("default")>(ConstType::default_)
+                                         .map<LEXY_SYMBOL("override")>(ConstType::override_);
+    static constexpr auto rule = []() {
+        auto kw = LEXY_KEYWORD("#const", keyword_base);
+        auto id = dsl::p<identifier>;
+        auto type = dsl::if_(dsl::square_bracketed(dsl::symbol<sym_type>(identifier_base)));
+        // Note: we overparse here to avoid duplicating code
+        return kw >> id + dsl::equal_sign + dsl::p<term> + dsl::period + type;
+    }();
+    static constexpr auto value = lexy::callback<UStatement>(
+        [](std::string name, UTerm value) {
+            return std::make_unique<StatementConst>(ConstType::default_, std::move(name), std::move(value));
+        },
+        [](std::string name, UTerm value, ConstType type) {
+            return std::make_unique<StatementConst>(type, std::move(name), std::move(value));
+        });
+};
 
 struct statement_rule {
     static constexpr auto rule = []() {
@@ -330,7 +342,7 @@ struct statement {
     static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
                                  dsl::p<statement_defined> | dsl::p<statement_edge> | dsl::p<statement_heuristic> |
                                  dsl::p<statement_project> | dsl::p<statement_script> | dsl::p<statement_external> |
-                                 dsl::p<statement_include> | dsl::p<statement_program> |
+                                 dsl::p<statement_include> | dsl::p<statement_program> | dsl::p<statement_const> |
                                  dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };

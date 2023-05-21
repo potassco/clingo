@@ -94,6 +94,11 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement("#program base().") == "#program base.");
     REQUIRE(parse_statement("#program step(t).") == "#program step(t).");
     REQUIRE(parse_statement("#program step(k,t).") == "#program step(k,t).");
+
+    // const
+    REQUIRE(parse_statement("#const x=42.") == "#const x=42. [default]");
+    REQUIRE(parse_statement("#const x=42. [default]") == "#const x=42. [default]");
+    REQUIRE(parse_statement("#const x=42. [override]") == "#const x=42. [override]");
 }
 
 } // namespace test
