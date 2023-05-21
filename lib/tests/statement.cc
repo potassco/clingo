@@ -84,6 +84,10 @@ TEST_CASE("statement") {
     REQUIRE(parse_statement("#external a(X): b(X).") == "#external a(X): b(X).");
     REQUIRE(parse_statement("#external -a(X): b(X).") == "#external (-a(X)): b(X).");
     REQUIRE(parse_statement("#external a(X): b(X). [X]") == "#external a(X): b(X). [X]");
+
+    // include
+    REQUIRE(parse_statement("#include \"abc\".") == "#include \"abc\".");
+    REQUIRE(parse_statement("#include <abc>.") == "#include <abc>.");
 }
 
 } // namespace test

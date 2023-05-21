@@ -343,3 +343,37 @@ struct StatementScript : Statement {
     ScriptType type;
     std::string content;
 };
+
+enum class IncludeType {
+    system,
+    inbuild,
+};
+
+inline auto operator<<(std::ostream &out, IncludeType type) -> std::ostream & {
+    switch (type) {
+        case IncludeType::inbuild: {
+            out << "lua";
+            break;
+        }
+        case IncludeType::system: {
+            out << "python";
+            break;
+        }
+    }
+    return out;
+}
+
+struct StatementInclude : Statement {
+    explicit StatementInclude(IncludeType type, std::string path) : type(type), path(std::move(path)) {}
+    void print(std::ostream &out) const override {
+        if (type == IncludeType::inbuild) {
+            out << "#include <" << path << ">.";
+        } else {
+            out << "#include ";
+            print_quoted(out, path);
+            out << ".";
+        }
+    }
+    IncludeType type;
+    std::string path;
+};

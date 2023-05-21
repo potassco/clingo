@@ -273,6 +273,21 @@ struct statement_external {
     });
 };
 
+struct statement_include {
+    static constexpr auto rule = []() {
+        auto kw = LEXY_KEYWORD("#include", keyword_base);
+        auto sys = dsl::delimited(LEXY_LIT("<"), LEXY_LIT(">"))(dsl::ascii::alpha_digit_underscore);
+        return kw >> (dsl::inline_<string> | sys >> dsl::nullopt) + dsl::period;
+    }();
+    static constexpr auto value =
+        lexy::as_string<std::string, encoding> >>
+        lexy::callback<UStatement>(
+            [](std::string path) { return std::make_unique<StatementInclude>(IncludeType::system, std::move(path)); },
+            [](std::string path, lexy::nullopt) {
+                return std::make_unique<StatementInclude>(IncludeType::inbuild, std::move(path));
+            });
+};
+
 // TODO
 /*/////////////////// CONST STATEMENTS /////////////////////
 
@@ -285,11 +300,6 @@ Const ::= '#const' Identifier '=' ConstTerm '.'
 
 Params ::= Identifier (',' Identifier)?
 Block ::= '#program' Identifier ('(' Params? ')')? '.'
-
-/////////////////// INCLUDE STATEMENTS /////////////////////
-
-Include ::= '#include' String '.'
-          | '#include' '<' Identifier '>' '.'
 */
 
 struct statement_rule {
@@ -309,7 +319,7 @@ struct statement {
     static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
                                  dsl::p<statement_defined> | dsl::p<statement_edge> | dsl::p<statement_heuristic> |
                                  dsl::p<statement_project> | dsl::p<statement_script> | dsl::p<statement_external> |
-                                 dsl::else_ >> dsl::p<statement_rule>;
+                                 dsl::p<statement_include> | dsl::else_ >> dsl::p<statement_rule>;
     static constexpr auto value = lexy::forward<UStatement>;
 };
 
