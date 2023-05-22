@@ -40,9 +40,7 @@ struct atom_bool : lexy::token_production {
 struct atom {
     using scan_result = lexy::scan_result<UTerm>;
 
-    struct expected_relation {
-        static constexpr auto name = "expected relation";
-    };
+    STRING_TAG(relation, "expected relation");
 
     static constexpr auto is_atom = dsl::context_flag<atom>;
 

@@ -100,9 +100,11 @@ struct theory_term_anonymous_variable {
 };
 
 struct theory_term_root {
+    STRING_TAG(term, "theory term expected");
     static constexpr auto rule = dsl::p<theory_term_tuple> | dsl::p<theory_term_set> | dsl::p<theory_term_list> |
                                  dsl::p<theory_term_function> | constant | dsl::p<number> | dsl::p<string> |
-                                 dsl::p<theory_term_variable> | dsl::p<theory_term_anonymous_variable>;
+                                 dsl::p<theory_term_variable> | dsl::p<theory_term_anonymous_variable> |
+                                 dsl::error<expected_term>;
     static constexpr auto value = lexy::callback<UTheoryTerm>(
         lexy::forward<UTheoryTerm>, lexy::new_<TheoryTermInteger, UTheoryTerm>,
         lexy::new_<TheoryTermString, UTheoryTerm>, lexy::new_<TheoryTermConstant, UTheoryTerm>);

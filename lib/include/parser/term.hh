@@ -184,9 +184,7 @@ struct term_anonymous_variable {
 };
 
 struct term_rec : lexy::expression_production {
-    struct expected_term {
-        static constexpr auto name = "expected term";
-    };
+    STRING_TAG(term, "expected term");
 
     static constexpr auto atom = dsl::p<number> | dsl::p<term_tuple> | dsl::p<term_variable> | dsl::p<term_abs> |
                                  dsl::p<term_external_function> | dsl::p<term_function> | dsl::p<string> | constant |

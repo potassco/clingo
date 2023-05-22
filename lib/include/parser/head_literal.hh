@@ -80,9 +80,7 @@ struct head_literal {
         return res_term;
     }
 
-    struct rel_aggr_expected {
-        static constexpr auto name = "relation or aggregate expected";
-    };
+    STRING_TAG(rel_aggr, "relation or aggregate expected");
 
     static constexpr auto rule = []() {
         auto with_rel =                                      //
@@ -93,7 +91,7 @@ struct head_literal {
         auto with_term =                                                                    //
             dsl::p<relation> >> with_rel | dsl::p<head_aggregate> | dsl::p<set_aggregate> | //
             is_atom.is_set() >> dsl::p<opt_condition> + dsl::p<disjunction_element> |       //
-            dsl::else_ >> dsl::error<rel_aggr_expected>;
+            dsl::else_ >> dsl::error<expected_rel_aggr>;
 
         return dsl::peek(kw_not) >> dsl::p<disjunction> |                             //
                dsl::p<theory_atom> | dsl::p<head_aggregate> | dsl::p<set_aggregate> | //

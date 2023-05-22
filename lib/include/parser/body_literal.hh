@@ -60,9 +60,7 @@ struct body_atom : lexy::transparent_production {
 
     static constexpr auto is_atom = dsl::context_flag<body_atom>;
 
-    struct rel_aggr_expected {
-        static constexpr auto name = "relation or aggregate expected";
-    };
+    STRING_TAG(rel_aggr, "relation or aggregate expected");
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
@@ -81,7 +79,7 @@ struct body_atom : lexy::transparent_production {
             dsl::p<relation> >> with_rel |                   //
             dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
             is_atom.is_set() >> dsl::p<opt_condition> |      //
-            dsl::else_ >> dsl::error<rel_aggr_expected>;
+            dsl::else_ >> dsl::error<expected_rel_aggr>;
 
         return dsl::p<theory_atom> | dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
