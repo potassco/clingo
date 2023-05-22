@@ -6,9 +6,16 @@
 #include <parser/body_literal.hh>
 #include <parser/head_literal.hh>
 
+#define STRING_TAG(n, v)                                                                                               \
+    struct expected_##n {                                                                                              \
+        static constexpr char const *name = v;                                                                         \
+    }
+
 namespace grammar {
 
 struct theory_op_definition {
+    STRING_TAG(assoc, "left or right expected");
+
     static constexpr auto sym_type = lexy::symbol_table<TheoryOpType> //
                                          .map<LEXY_SYMBOL("left")>(TheoryOpType::binary_left)
                                          .map<LEXY_SYMBOL("right")>(TheoryOpType::binary_right);
@@ -16,7 +23,7 @@ struct theory_op_definition {
         auto unary = LEXY_KEYWORD("unary", identifier_base);
         auto binary = LEXY_KEYWORD("binary", identifier_base);
         auto associativity = dsl::symbol<sym_type>(identifier_base);
-        auto type = unary | binary >> dsl::comma + associativity;
+        auto type = unary | binary >> dsl::comma + associativity | dsl::error<expected_assoc>;
 
         return dsl::p<theory_op> >> dsl::colon + simple_number + dsl::comma + type;
     }();
@@ -70,6 +77,7 @@ struct theory_atom_definition {
 };
 
 struct theory_definitions {
+    STRING_TAG(atom, "atom expected");
     struct value_type {
         void push_back(TheoryTermDefinition term_def) { term_defs.push_back(std::move(term_def)); }
         void push_back(TheoryAtomDefinition atom_def) { atom_defs.push_back(std::move(atom_def)); }
@@ -79,7 +87,7 @@ struct theory_definitions {
     static constexpr auto is_atom_def = dsl::context_flag<theory_definitions>;
     static constexpr auto rule = []() {
         auto def = dsl::p<theory_atom_definition> >> is_atom_def.set() |
-                   is_atom_def.is_reset() >> dsl::p<theory_term_definition>;
+                   is_atom_def.is_reset() >> dsl::p<theory_term_definition> | dsl::error<expected_atom>;
         return is_atom_def.create() + dsl::list(def, dsl::sep(dsl::semicolon));
     }();
     static constexpr auto value = lexy::as_list<value_type>;
@@ -274,10 +282,11 @@ struct statement_external {
 };
 
 struct statement_include {
+    STRING_TAG(path, "path expected");
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#include", keyword_base);
         auto sys = dsl::delimited(LEXY_LIT("<"), LEXY_LIT(">"))(dsl::ascii::alpha_digit_underscore);
-        return kw >> (dsl::inline_<string> | sys >> dsl::nullopt) + dsl::period;
+        return kw >> (dsl::inline_<string> | sys >> dsl::nullopt | dsl::error<expected_path>)+dsl::period;
     }();
     static constexpr auto value =
         lexy::as_string<std::string, encoding> >>
@@ -326,9 +335,10 @@ struct statement_const {
 };
 
 struct statement_rule {
+    STRING_TAG(body, "rule body exected");
     static constexpr auto rule = []() {
         auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body> + dsl::period;
-        return if_body | dsl::else_ >> dsl::p<head_literal> + (dsl::period | if_body);
+        return if_body | dsl::else_ >> dsl::p<head_literal> + (dsl::period | if_body | dsl::error<expected_body>);
     }();
     static constexpr auto value = lexy::callback<UStatement>(
         lexy::new_<Rule, UStatement>,
