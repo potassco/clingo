@@ -8,6 +8,11 @@
 #include <util/lexy_report_error.hh>
 #include <util/lexy_stream_input.hh>
 
+#define STRING_TAG(n, v)                                                                                               \
+    struct expected_##n {                                                                                              \
+        static constexpr char const *name = v;                                                                         \
+    }
+
 namespace grammar {
 
 namespace dsl = lexy::dsl;

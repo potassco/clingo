@@ -6,11 +6,6 @@
 #include <parser/body_literal.hh>
 #include <parser/head_literal.hh>
 
-#define STRING_TAG(n, v)                                                                                               \
-    struct expected_##n {                                                                                              \
-        static constexpr char const *name = v;                                                                         \
-    }
-
 namespace grammar {
 
 struct theory_op_definition {
