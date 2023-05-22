@@ -330,10 +330,10 @@ struct statement_const {
 };
 
 struct statement_rule {
-    STRING_TAG(body, "rule body exected");
     static constexpr auto rule = []() {
-        auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body> + dsl::period;
-        return if_body | dsl::else_ >> dsl::p<head_literal> + (dsl::period | if_body | dsl::error<expected_body>);
+        auto terminator = dsl::terminator(dsl::period);
+        auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body>;
+        return terminator(if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body));
     }();
     static constexpr auto value = lexy::callback<UStatement>(
         lexy::new_<Rule, UStatement>,
