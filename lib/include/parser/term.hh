@@ -132,7 +132,7 @@ namespace detail {
 
 struct element_trail_vec {
     void push_back(UTerm term) { vec.emplace_back(std::move(term)); }
-    void push_back(lexeme /* unused */) { trail = true; }
+    template <typename Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail = true; }
     UTermVec vec;
     bool trail = false;
 };

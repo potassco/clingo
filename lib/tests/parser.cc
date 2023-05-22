@@ -12,6 +12,8 @@ namespace test {
 
 namespace grammar {
 
+using input = StreamInput<::grammar::encoding>;
+
 namespace dsl = lexy::dsl;
 
 template <class P, char t = '\0'> struct parse_root : ::grammar::control {
@@ -39,7 +41,7 @@ template <typename Control> auto parse(std::string str) -> std::string {
     }
     std::istringstream in;
     in.str(std::move(str));
-    auto input = ::grammar::input{in};
+    auto input = ::test::grammar::input{in};
     auto stm = lexy::parse<Control>(input, report_error);
     return stm.has_value() ? stm.value()->to_string() : "<failed>";
 }
@@ -47,7 +49,7 @@ template <typename Control> auto parse(std::string str) -> std::string {
 template <typename Control> auto match(std::string str) {
     std::istringstream in;
     in.str(std::move(str));
-    auto input = ::grammar::input{in};
+    auto input = ::test::grammar::input{in};
     auto res = lexy::validate<Control>(input, report_error);
     return res.is_success();
 }
@@ -78,7 +80,7 @@ struct Parser::Impl {
     Impl(std::string str) : in{str}, input{in}, scanner{lexy::scan<::grammar::control>(input, report_error)} {}
 
     std::istringstream in;
-    ::grammar::input input = ::grammar::input{in};
+    ::test::grammar::input input = ::test::grammar::input{in};
     decltype(lexy::scan<::grammar::control>(input, report_error)) scanner;
 };
 

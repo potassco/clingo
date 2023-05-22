@@ -18,9 +18,6 @@ namespace grammar {
 namespace dsl = lexy::dsl;
 
 using encoding = lexy::utf8_encoding;
-using input = StreamInput<encoding>;
-using iterator = input::iterator;
-using lexeme = lexy::lexeme_for<input>;
 
 struct block_comment : lexy::scan_production<void> {
     template <typename Reader, typename Context>

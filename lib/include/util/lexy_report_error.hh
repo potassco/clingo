@@ -2,22 +2,34 @@
 
 #include <lexy_ext/report_error.hpp>
 
+template <class Input, class Void = void> struct get_counting {
+    using type = lexy::_default_location_counting<Input>;
+};
+
+template <class Input> struct get_counting<Input, std::void_t<typename Input::counting>> {
+    using type = Input::counting;
+};
+
+template <class Input> auto get_anchor(Input const &input, int /*unused*/) -> decltype(input.anchor()) {
+    return input.anchor();
+}
+
+template <class Input> auto get_anchor(Input const &input, long /*unused*/) {
+    return lexy::input_location_anchor{input};
+}
+
 template <typename OutputIt, typename Input, typename Reader, typename Tag>
 auto write_error(OutputIt out, const lexy::error_context<Input> &context, const lexy::error<Reader, Tag> &error,
                  lexy::visualization_options opts, const char *path) -> OutputIt {
     lexy_ext::diagnostic_writer<Input> writer(context.input(), opts);
 
+    using Counting = get_counting<Input>::type;
+
     // Convert the context location and error location into line/column
     // information.
-    auto context_anchor = context.input().anchor();
-    auto context_position = context.position();
-    if (context_position == decltype(context_position){}) {
-        context_position = context_anchor._line_begin;
-    }
     auto context_location =
-        lexy::get_input_location<typename Input::counting>(context.input(), context_position, context_anchor);
-    auto location = lexy::get_input_location<typename Input::counting>(context.input(), error.position(),
-                                                                       context_location.anchor());
+        lexy::get_input_location<Counting>(context.input(), context.position(), get_anchor(context.input(), 0));
+    auto location = lexy::get_input_location<Counting>(context.input(), error.position(), context_location.anchor());
 
     // Write the main error headline.
     out = writer.write_message(out, lexy_ext::diagnostic_kind::error, [&](OutputIt out, lexy::visualization_options) {
@@ -33,7 +45,7 @@ auto write_error(OutputIt out, const lexy::error_context<Input> &context, const 
     // Write an annotation for the context.
     if (location.line_nr() != context_location.line_nr()) {
         out = writer.write_annotation(
-            out, lexy_ext::annotation_kind::secondary, context_location, lexy::_detail::next(context_position),
+            out, lexy_ext::annotation_kind::secondary, context_location, lexy::_detail::next(context.position()),
             [&](OutputIt out, lexy::visualization_options) { return lexy::_detail::write_str(out, "beginning here"); });
         out = writer.write_empty_annotation(out);
     }
@@ -119,6 +131,5 @@ template <typename OutputIterator = int> struct _report_error {
     }
 };
 
-/// An error callback that uses diagnostic_writer to print to stderr (by
-/// default).
-constexpr auto report_error = _report_error<>{};
+/// An error callback that uses diagnostic_writer to print to stderr (by default).
+constexpr auto report_error = _report_error{};

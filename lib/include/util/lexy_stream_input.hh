@@ -6,6 +6,7 @@
 
 #include <lexy/input_location.hpp>
 
+/// Location counting based on encoding.
 template <typename Encoding>
 using default_location_counting = std::conditional_t<std::is_same_v<Encoding, lexy::byte_encoding>,
                                                      lexy::byte_location_counting<>, lexy::code_unit_location_counting>;
@@ -55,7 +56,7 @@ class StreamInput {
         /// The offset must either point to a byte in the buffer. Or, if the offset
         /// points to a previously discarded byte after the last discarded newline
         /// character, this function returns a space character.
-        auto at(size_t id) const -> char_type {
+        [[nodiscard]] auto at(size_t id) const -> char_type {
             if (id >= start_) {
                 return static_cast<char_type>(buffer_[id - start_]);
             }
@@ -63,7 +64,7 @@ class StreamInput {
         }
 
         /// Offsets before this value have been discarded.
-        auto offset() const { return start_; }
+        [[nodiscard]] auto offset() const { return start_; }
 
       private:
         std::istream &in_;
@@ -121,7 +122,7 @@ class StreamInput {
         explicit StreamReader(StreamBuffer &buffer) : buffer_(&buffer), offset_{buffer.offset()} {}
 
         /// Obtain the next byte without changing the reader's position.
-        auto peek() const {
+        [[nodiscard]] auto peek() const {
             if (buffer_->is_eoi(offset_)) {
                 return encoding::eof();
             }
@@ -132,7 +133,7 @@ class StreamInput {
         void bump() noexcept { ++offset_; }
 
         /// Get an iterator to the current position of the reader.
-        auto position() const noexcept { return iterator(*buffer_, offset_); }
+        [[nodiscard]] auto position() const noexcept { return iterator(*buffer_, offset_); }
 
         /// Set the current position of the reader.
         void set_position(iterator new_pos) noexcept { offset_ = new_pos.offset(); }

@@ -46,7 +46,7 @@ template <TheoryTermTupleType type> struct make_tuple {
 
 struct tuple_trail_vec {
     void push_back(UTheoryTerm term) { vec.emplace_back(std::move(term)); }
-    void push_back(lexeme /* unused */) { trail = true; }
+    template <class Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail = true; }
     UTheoryTermVec vec;
     bool trail = false;
 };
