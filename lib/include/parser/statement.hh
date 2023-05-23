@@ -180,24 +180,31 @@ struct statement_optimize {
                                       lexy::new_<StatementWeakConstraint, UStatement>);
 };
 
+struct is_signature : control {
+    static constexpr auto rule = dsl::if_(LEXY_LIT("-")) + dsl::p<identifier> + dsl::slash + simple_number;
+};
+
 struct statement_show {
     static constexpr char const *name = "show directive";
     static constexpr auto rule = []() {
         auto show = LEXY_KEYWORD("#show", identifier_base);
         auto opt_body = dsl::opt(LEXY_LIT(":") >> dsl::p<statement_body>);
-        return show >> dsl::p<term> + opt_body + dsl::period;
+        return show >> dsl::position + dsl::p<term> + dsl::position + opt_body + dsl::period;
     }();
     static constexpr auto value = lexy::callback<UStatement>(
-        [](UTerm term, lexy::nullopt) -> UStatement {
+        [](auto begin, UTerm term, auto end, lexy::nullopt) -> UStatement {
             CheckTypeResult res;
-            // Note: this will match any term of form -a/2 including ones with
-            // parenthesis inside. Avoiding this would be a bit tricky.
             if (term->check_type(TermCheckType::sig, &res)) {
-                return std::make_unique<StatementShowSig>(res.has_sign, res.identifier, res.pos_number);
+                auto input = lexy::range_input<encoding, decltype(begin)>{begin, end};
+                if (lexy::match<is_signature>(input)) {
+                    return std::make_unique<StatementShowSig>(res.has_sign, res.identifier, res.pos_number);
+                }
             }
             return std::make_unique<StatementShow>(std::move(term), UBodyLiteralVec{});
         },
-        lexy::new_<StatementShow, UStatement>);
+        [](auto begin, UTerm term, auto end, UBodyLiteralVec body) -> UStatement {
+            return std::make_unique<StatementShow>(std::move(term), std::move(body));
+        });
 };
 
 struct sign_classical {
@@ -210,7 +217,7 @@ struct statement_defined {
     static constexpr char const *name = "defined directive";
     static constexpr auto rule = []() {
         auto def = LEXY_KEYWORD("#defined", keyword_base);
-        return def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + dsl::p<number> + dsl::period;
+        return def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + simple_number + dsl::period;
     }();
     static constexpr auto value = lexy::new_<StatementDefined, UStatement>;
 };
