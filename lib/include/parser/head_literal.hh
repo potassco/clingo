@@ -21,16 +21,19 @@ inline auto make_head_aggr(SetAggregate aggr) -> UHeadSetAggregate {
 static constexpr auto disjunction_sep = LEXY_ASCII_ONE_OF(",;|");
 
 struct disjunction_element {
+    static constexpr char const *name = "disjunction element";
     static constexpr auto rule = dsl::opt(dsl::list(disjunction_sep >> dsl::p<conditional_literal>));
     static constexpr auto value = lexy::as_list<Disjunction::ElementVec>;
 };
 
 struct disjunction {
+    static constexpr char const *name = "disjunction";
     static constexpr auto rule = dsl::list(dsl::p<conditional_literal>, dsl::sep(disjunction_sep));
     static constexpr auto value = lexy::as_list<Disjunction::ElementVec> >> lexy::new_<Disjunction, UHeadLiteral>;
 };
 
 struct head_aggregate_element {
+    static constexpr char const *name = "head aggregate element";
     static constexpr auto rule = []() {
         auto tuple = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_list>);
         return tuple + LEXY_LIT(":") + dsl::p<literal> + dsl::p<opt_condition>;
@@ -49,6 +52,7 @@ struct head_aggregate_element {
 };
 
 struct head_aggregate_elements {
+    static constexpr char const *name = "head aggregate elements";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT("}"));
         auto elems = dsl::list(dsl::p<head_aggregate_element>, dsl::sep(LEXY_LIT(";")));
@@ -58,6 +62,7 @@ struct head_aggregate_elements {
 };
 
 struct head_aggregate {
+    static constexpr char const *name = "head aggregate";
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<UHeadAggregate>(
         lexy::new_<HeadAggregate, UHeadAggregate>,
@@ -67,6 +72,7 @@ struct head_aggregate {
 };
 
 struct head_literal {
+    static constexpr char const *name = "head literal";
     using scan_result = lexy::scan_result<UTerm>;
 
     static constexpr auto is_atom = dsl::context_flag<head_literal>;

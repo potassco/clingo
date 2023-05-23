@@ -20,6 +20,7 @@ namespace dsl = lexy::dsl;
 using encoding = lexy::utf8_encoding;
 
 struct block_comment : lexy::scan_production<void> {
+    static constexpr char const *name = "block comment";
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
         size_t n = 0;

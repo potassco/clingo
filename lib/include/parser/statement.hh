@@ -9,6 +9,7 @@
 namespace grammar {
 
 struct theory_op_definition {
+    static constexpr char const *name = "theory operator definition";
     STRING_TAG(assoc, "left or right expected");
 
     static constexpr auto sym_type = lexy::symbol_table<TheoryOpType> //
@@ -29,6 +30,7 @@ struct theory_op_definition {
 };
 
 struct theory_term_definition {
+    static constexpr char const *name = "theory term definition";
     static constexpr auto rule = []() {
         auto id = dsl::p<identifier>;
         auto op_def = dsl::p<theory_op_definition>;
@@ -44,6 +46,7 @@ struct theory_term_definition {
 };
 
 struct theory_guard_definition {
+    static constexpr char const *name = "theory guard definition";
     static constexpr auto rule = []() {
         auto rels = dsl::curly_bracketed.list(dsl::p<theory_op>, dsl::sep(dsl::comma));
         return rels >> dsl::comma + dsl::p<identifier>;
@@ -56,6 +59,7 @@ struct theory_guard_definition {
 };
 
 struct theory_atom_definition {
+    static constexpr char const *name = "theory atom definition";
     static constexpr auto sym_type = lexy::symbol_table<TheoryAtomType>
         .map<LEXY_SYMBOL("head")>(TheoryAtomType::head)
         .map<LEXY_SYMBOL("body")>(TheoryAtomType::body)
@@ -72,6 +76,7 @@ struct theory_atom_definition {
 };
 
 struct theory_definitions {
+    static constexpr char const *name = "theory definitions";
     STRING_TAG(atom, "atom definition expected");
     struct value_type {
         void push_back(TheoryTermDefinition term_def) { term_defs.push_back(std::move(term_def)); }
@@ -111,6 +116,7 @@ struct statement_theory {
 };
 
 struct statement_body {
+    static constexpr char const *name = "body";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(dsl::period);
         auto sep = dsl::sep(dsl::comma / dsl::semicolon);
@@ -120,12 +126,13 @@ struct statement_body {
 };
 
 struct statement_opt_body {
-    // TODO: howto!!!
+    static constexpr char const *name = "body";
     static constexpr auto rule = dsl::if_(dsl::colon >> dsl::p<statement_body>);
     static constexpr auto value = lexy::construct<UBodyLiteralVec>;
 };
 
 struct statement_optimize_tuple {
+    static constexpr char const *name = "tuple";
     static constexpr auto rule = []() {
         auto prio = dsl::opt(dsl::at_sign >> dsl::p<term>);
         auto terms = dsl::opt(dsl::list(dsl::comma >> dsl::p<term>));
@@ -145,6 +152,7 @@ struct statement_optimize_tuple {
 };
 
 struct statement_optimize_element {
+    static constexpr char const *name = "optimize element";
     static constexpr auto rule = dsl::p<statement_optimize_tuple> + dsl::p<opt_condition>;
     static constexpr auto value = lexy::construct<StatementOptimize::Element>;
 };
@@ -193,7 +201,7 @@ struct statement_show {
 };
 
 struct sign_classical {
-    // TODO: howto!!!
+    static constexpr char const *name = "classical negation";
     static constexpr auto rule = dsl::opt(LEXY_LIT("-"));
     static constexpr auto value = lexy::callback<bool>([](lexy::nullopt) { return false; }, []() { return true; });
 };

@@ -8,6 +8,7 @@
 namespace grammar {
 
 struct theory_op {
+    static constexpr char const *name = "theory operator";
     static constexpr auto rule = []() {
         auto theory_op_base = dsl::identifier(LEXY_ASCII_ONE_OF("/<=>+\\-*/?&@|:;~^.!"));
         auto kw_semicolon = LEXY_KEYWORD(";", theory_op_base);
@@ -25,11 +26,13 @@ struct theory_op {
 };
 
 struct theory_ops {
+    static constexpr char const *name = "theory operators";
     static constexpr auto rule = dsl::list(dsl::p<theory_op>);
     static constexpr auto value = lexy::as_list<std::vector<std::string>>;
 };
 
 struct theory_term {
+    static constexpr char const *name = "theory term";
     static constexpr auto rule = dsl::recurse<struct theory_term_unparsed>;
     static constexpr auto value = lexy::forward<UTheoryTerm>;
 };
@@ -54,6 +57,7 @@ struct tuple_trail_vec {
 } // namespace detail
 
 struct theory_term_tuple : detail::make_tuple<TheoryTermTupleType::Tuple> {
+    static constexpr char const *name = "theory term tuple";
     static constexpr auto rule =
         dsl::round_bracketed.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::capture(dsl::lit_c<','>)));
     static constexpr auto
@@ -71,35 +75,42 @@ struct theory_term_tuple : detail::make_tuple<TheoryTermTupleType::Tuple> {
 };
 
 struct theory_term_set : detail::make_tuple<TheoryTermTupleType::Set> {
+    static constexpr char const *name = "theory term set";
     static constexpr auto rule = dsl::curly_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
 };
 
 struct theory_term_list : detail::make_tuple<TheoryTermTupleType::List> {
+    static constexpr char const *name = "theory term list";
     static constexpr auto rule = dsl::square_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
 };
 
 struct theory_term_arguments {
+    static constexpr char const *name = "theory term tuple";
     static constexpr auto rule = dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
     static constexpr auto value = lexy::as_list<std::vector<UTheoryTerm>>;
 };
 
 struct theory_term_function {
+    static constexpr char const *name = "theory function";
     static constexpr auto rule = dsl::p<identifier> >> dsl::if_(dsl::p<theory_term_arguments>);
     static constexpr auto value = lexy::new_<TheoryTermFunction, UTheoryTerm>;
 };
 
 struct theory_term_variable {
+    static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::p<variable>;
     static constexpr auto value = lexy::new_<TheoryTermVariable, UTheoryTerm>;
 };
 
 struct theory_term_anonymous_variable {
+    static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = anonymous_variable;
     static constexpr auto value =
         lexy::callback<UTheoryTerm>([]() { return std::make_unique<TheoryTermVariable>("_"); });
 };
 
 struct theory_term_root {
+    static constexpr char const *name = "theory term";
     STRING_TAG(term, "theory term expected");
     static constexpr auto rule = dsl::p<theory_term_tuple> | dsl::p<theory_term_set> | dsl::p<theory_term_list> |
                                  dsl::p<theory_term_function> | constant | dsl::p<number> | dsl::p<string> |
@@ -111,12 +122,14 @@ struct theory_term_root {
 };
 
 struct theory_term_unparsed_guards {
+    static constexpr char const *name = "theory term guards";
     static constexpr auto rule = dsl::list(dsl::p<theory_ops> >> dsl::p<theory_term_root>);
     static constexpr auto value =
         lexy::collect<TheoryTermUnparsed::GuardVec>(lexy::construct<TheoryTermUnparsed::Guard>);
 };
 
 struct theory_term_unparsed : lexy::transparent_production {
+    static constexpr char const *name = "theory term";
     static constexpr auto rule =
         dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> + dsl::if_(dsl::p<theory_term_unparsed_guards>);
     static constexpr auto value =
@@ -124,11 +137,13 @@ struct theory_term_unparsed : lexy::transparent_production {
 };
 
 struct theory_atom_element_tuple {
+    static constexpr char const *name = "theory term tuple";
     static constexpr auto rule = dsl::list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
     static constexpr auto value = lexy::as_list<UTheoryTermVec>;
 };
 
 struct theory_atom_element {
+    static constexpr char const *name = "theory atom element";
     static constexpr auto rule =
         dsl::p<condition> | dsl::else_ >> dsl::p<theory_atom_element_tuple> + dsl::p<opt_condition>;
     static constexpr auto value =
@@ -138,12 +153,14 @@ struct theory_atom_element {
 };
 
 struct theory_atom_elements {
+    static constexpr char const *name = "theory atom elements";
     static constexpr auto rule =
         dsl::opt(dsl::curly_bracketed.opt_list(dsl::p<theory_atom_element>, dsl::sep(dsl::lit_c<';'>)));
     static constexpr auto value = lexy::as_list<TheoryAtom::ElementVec>;
 };
 
 struct theory_atom {
+    static constexpr char const *name = "theory atom";
     static constexpr auto rule = []() {
         auto guard = dsl::p<theory_op> >> dsl::p<theory_term>;
         return LEXY_LIT("&") >> dsl::p<term_function> + dsl::p<theory_atom_elements> >> dsl::if_(guard);

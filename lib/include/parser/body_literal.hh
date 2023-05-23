@@ -20,6 +20,7 @@ inline auto make_body_aggr(SetAggregate aggr) -> UBodySetAggregate {
 } // namespace detail
 
 struct body_aggregate_element {
+    static constexpr char const *name = "body aggregate element";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT(":"));
         return dsl::opt(peek >> dsl::p<term_list>) + dsl::p<opt_condition>;
@@ -38,6 +39,7 @@ struct body_aggregate_element {
 };
 
 struct body_aggregate_elements {
+    static constexpr char const *name = "body aggregate elements";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT("}"));
         auto elems = dsl::list(dsl::p<body_aggregate_element>, dsl::sep(LEXY_LIT(";")));
@@ -47,6 +49,7 @@ struct body_aggregate_elements {
 };
 
 struct body_aggregate {
+    static constexpr char const *name = "body aggregate";
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<UBodyAggregate>(
         lexy::new_<BodyAggregate, UBodyAggregate>,
@@ -56,6 +59,7 @@ struct body_aggregate {
 };
 
 struct body_atom : lexy::transparent_production {
+    static constexpr char const *name = "body atom";
     using scan_result = lexy::scan_result<UTerm>;
 
     static constexpr auto is_atom = dsl::context_flag<body_atom>;
@@ -113,6 +117,7 @@ struct body_atom : lexy::transparent_production {
 };
 
 struct body_literal {
+    static constexpr char const *name = "body literal";
     static constexpr auto rule = dsl::p<naf_sign> + dsl::p<body_atom>;
     static constexpr auto value = lexy::callback<UBodyLiteral>([](Sign sign, UBodyLiteral literal) {
         literal->add_sign(sign);
