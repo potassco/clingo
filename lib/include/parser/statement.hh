@@ -72,7 +72,7 @@ struct theory_atom_definition {
 };
 
 struct theory_definitions {
-    STRING_TAG(atom, "atom expected");
+    STRING_TAG(atom, "atom definition expected");
     struct value_type {
         void push_back(TheoryTermDefinition term_def) { term_defs.push_back(std::move(term_def)); }
         void push_back(TheoryAtomDefinition atom_def) { atom_defs.push_back(std::move(atom_def)); }
@@ -89,6 +89,7 @@ struct theory_definitions {
 };
 
 struct statement_theory {
+    static constexpr char const *name = "theory definition";
     static constexpr auto rule = []() {
         auto kw_theory = LEXY_KEYWORD("#theory", identifier_base);
         return kw_theory >> dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + dsl::period;
@@ -118,6 +119,12 @@ struct statement_body {
     static constexpr auto value = lexy::as_list<UBodyLiteralVec>;
 };
 
+struct statement_opt_body {
+    // TODO: howto!!!
+    static constexpr auto rule = dsl::if_(dsl::colon >> dsl::p<statement_body>);
+    static constexpr auto value = lexy::construct<UBodyLiteralVec>;
+};
+
 struct statement_optimize_tuple {
     static constexpr auto rule = []() {
         auto prio = dsl::opt(dsl::at_sign >> dsl::p<term>);
@@ -143,6 +150,7 @@ struct statement_optimize_element {
 };
 
 struct statement_optimize {
+    static constexpr char const *name = "optimize directive";
     static constexpr auto sym_type = lexy::symbol_table<OptimizeType> //
                                          .map<LEXY_SYMBOL("#minimize")>(OptimizeType::minimize)
                                          .map<LEXY_SYMBOL("#minimise")>(OptimizeType::minimize)
@@ -165,6 +173,7 @@ struct statement_optimize {
 };
 
 struct statement_show {
+    static constexpr char const *name = "show directive";
     static constexpr auto rule = []() {
         auto show = LEXY_KEYWORD("#show", identifier_base);
         auto opt_body = dsl::opt(LEXY_LIT(":") >> dsl::p<statement_body>);
@@ -184,25 +193,27 @@ struct statement_show {
 };
 
 struct sign_classical {
+    // TODO: howto!!!
     static constexpr auto rule = dsl::opt(LEXY_LIT("-"));
     static constexpr auto value = lexy::callback<bool>([](lexy::nullopt) { return false; }, []() { return true; });
 };
 
 struct statement_defined {
+    static constexpr char const *name = "defined directive";
     static constexpr auto rule = []() {
         auto def = LEXY_KEYWORD("#defined", keyword_base);
-        auto opt_body = dsl::opt(LEXY_LIT(":") >> dsl::p<statement_body>);
         return def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + dsl::p<number> + dsl::period;
     }();
     static constexpr auto value = lexy::new_<StatementDefined, UStatement>;
 };
 
 struct statement_edge {
+    static constexpr char const *name = "edge directive";
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#edge", keyword_base);
         auto pair = dsl::p<term> + dsl::comma + dsl::p<term>;
         auto edge = dsl::round_bracketed.list(pair, dsl::sep(dsl::semicolon));
-        return kw >> edge + dsl::if_(dsl::colon >> dsl::p<statement_body>) + dsl::period;
+        return kw >> edge + dsl::p<statement_opt_body> + dsl::period;
     }();
     static constexpr auto value = []() {
         auto sink = lexy::collect<StatementEdge::EdgeVec>(lexy::construct<StatementEdge::Edge>);
@@ -211,12 +222,8 @@ struct statement_edge {
     }();
 };
 
-struct statement_opt_body {
-    static constexpr auto rule = dsl::if_(dsl::colon >> dsl::p<statement_body>);
-    static constexpr auto value = lexy::construct<UBodyLiteralVec>;
-};
-
 struct statement_heuristic {
+    static constexpr char const *name = "heuristic directive";
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#heuristic", keyword_base);
         auto atom = dsl::p<sign_classical> + dsl::p<term_function>;
@@ -228,6 +235,7 @@ struct statement_heuristic {
 };
 
 struct statement_project {
+    static constexpr char const *name = "project directive";
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#project", keyword_base);
         auto arity = dsl::slash >> simple_number;
@@ -248,6 +256,7 @@ struct statement_project {
 };
 
 struct statement_script {
+    static constexpr char const *name = "script block";
     static constexpr auto sym_type = lexy::symbol_table<ScriptType> //
                                          .map<LEXY_SYMBOL("lua")>(ScriptType::lua)
                                          .map<LEXY_SYMBOL("python")>(ScriptType::python);
@@ -263,6 +272,7 @@ struct statement_script {
 };
 
 struct statement_external {
+    static constexpr char const *name = "external directive";
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#external", keyword_base);
         auto atom = dsl::p<sign_classical> + dsl::p<term_function>;
@@ -277,6 +287,7 @@ struct statement_external {
 };
 
 struct statement_include {
+    static constexpr char const *name = "include directive";
     STRING_TAG(path, "path expected");
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#include", keyword_base);
@@ -293,6 +304,7 @@ struct statement_include {
 };
 
 struct statement_program {
+    static constexpr char const *name = "program directive";
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#program", keyword_base);
         auto id = dsl::p<identifier>;
@@ -310,6 +322,7 @@ struct statement_program {
 };
 
 struct statement_const {
+    static constexpr char const *name = "const directive";
     static constexpr auto sym_type = lexy::symbol_table<ConstType> //
                                          .map<LEXY_SYMBOL("default")>(ConstType::default_)
                                          .map<LEXY_SYMBOL("override")>(ConstType::override_);
@@ -330,6 +343,7 @@ struct statement_const {
 };
 
 struct statement_rule {
+    static constexpr char const *name = "rule";
     static constexpr auto rule = []() {
         auto terminator = dsl::terminator(dsl::period);
         auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body>;
@@ -344,6 +358,7 @@ struct statement_rule {
 };
 
 struct statement {
+    static constexpr char const *name = "statement";
     static constexpr auto rule = dsl::p<statement_theory> | dsl::p<statement_optimize> | dsl::p<statement_show> |
                                  dsl::p<statement_defined> | dsl::p<statement_edge> | dsl::p<statement_heuristic> |
                                  dsl::p<statement_project> | dsl::p<statement_script> | dsl::p<statement_external> |
