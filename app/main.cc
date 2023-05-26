@@ -38,7 +38,11 @@ template <typename Input> void parse(Input &input) {
         auto stm = scanner.template parse<grammar::statement>();
         if (stm.has_value()) {
             std::cout << *stm.value() << "\n";
+            for (auto &comment : grammar::comment_sink()) {
+                std::cout << comment << "\n";
+            }
         }
+        grammar::comment_sink().clear();
         if (!scanner) {
             recover(scanner);
         }

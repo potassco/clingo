@@ -44,8 +44,8 @@ TEST_CASE("statement") {
     // show
     REQUIRE(parse_statement("#show a/2.") == "#show a/2.");
     REQUIRE(parse_statement("#show -a/2.") == "#show -a/2.");
-    REQUIRE(parse_statement("#show (-a/2).") == "#show -a/2.");
-    REQUIRE(parse_statement("#show (-a()/2).") == "#show -a/2.");
+    REQUIRE(parse_statement("#show (-a/2).") == "#show ((-a)/2): .");
+    REQUIRE(parse_statement("#show (-a()/2).") == "#show ((-a)/2): .");
     REQUIRE(parse_statement("#show p(X).") == "#show p(X): .");
     REQUIRE(parse_statement("#show p(X): .") == "#show p(X): .");
     REQUIRE(parse_statement("#show p(X): a.") == "#show p(X): a.");
