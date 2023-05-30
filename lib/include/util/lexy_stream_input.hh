@@ -26,6 +26,8 @@ class StreamInput {
         using counting = StreamInput::counting;
         using char_type = StreamInput::char_type;
 
+        static constexpr size_t chunk_size = 4098;
+
         StreamBuffer(std::istream &in) : in_{in} {}
 
         /// Check if the given offset no longer points to valid input.
@@ -33,32 +35,40 @@ class StreamInput {
         /// This function might read bytes from the input stream to determine the
         /// information.
         auto is_eoi(size_t id) -> bool {
-            while (id >= start_ + buffer_.size()) {
-                char c;
-                // Note: better read a chunk
-                if (in_.get(c)) {
-                    buffer_.emplace_back(c);
-                } else {
+            while (id - start_ + discard_ >= buffer_.size()) {
+                if (eoi_) {
                     return true;
+                }
+                if (discard_ > 0) {
+                    buffer_.erase(buffer_.begin(), buffer_.begin() + discard_);
+                    discard_ = 0;
+                }
+                size_t old_size = buffer_.size();
+                buffer_.resize(old_size + chunk_size);
+                in_.read(buffer_.data() + old_size, chunk_size);
+                size_t num = in_.gcount();
+                if (num < chunk_size) {
+                    buffer_.resize(old_size + num);
+                    eoi_ = true;
                 }
             }
             return false;
         }
 
-        /// Discard bytes before the given offset.
+        /// Mark bytes before the given offset for disposal.
         void discard(size_t id) {
-            buffer_.erase(buffer_.begin(), buffer_.begin() + (id - start_));
+            discard_ += id - start_;
             start_ = id;
         }
 
         /// Get the byte at the given offset.
         ///
-        /// The offset must either point to a byte in the buffer. Or, if the offset
-        /// points to a previously discarded byte after the last discarded newline
-        /// character, this function returns a space character.
+        /// The offset must either point to a byte in the buffer. Or, if the
+        /// offset points to a previously discarded byte, a space character is
+        /// returned.
         [[nodiscard]] auto at(size_t id) const -> char_type {
             if (id >= start_) {
-                return static_cast<char_type>(buffer_[id - start_]);
+                return static_cast<char_type>(buffer_[id - start_ + discard_]);
             }
             return ' ';
         }
@@ -68,8 +78,10 @@ class StreamInput {
 
       private:
         std::istream &in_;
-        std::vector<char_type> buffer_;
+        std::vector<char> buffer_;
         size_t start_{0};
+        size_t discard_{0};
+        bool eoi_{false};
     };
 
     /// A forward iterator that stays valid even if the underlying buffer is relocated.
