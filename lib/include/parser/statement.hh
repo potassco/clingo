@@ -140,15 +140,15 @@ struct statement_optimize_tuple {
         return dsl::p<term> + prio + terms;
     }();
     static constexpr auto
-        value = lexy::as_list<UTermVec> >>
-                lexy::callback<StatementOptimize::Tuple>([](UTerm weight, UTerm priority,
-                                                            std::optional<UTermVec> terms) -> StatementOptimize::Tuple {
+        value = lexy::as_list<STermVec> >>
+                lexy::callback<StatementOptimize::Tuple>([](STerm weight, STerm priority,
+                                                            std::optional<STermVec> terms) -> StatementOptimize::Tuple {
                     // NOTE: lexy behaves a bit funny constructing a std::optional<std::unique_ptr<T>>
-                    auto opt_prio = std::optional<UTerm>{std::nullopt};
+                    auto opt_prio = std::optional<STerm>{std::nullopt};
                     if (priority) {
                         opt_prio = std::move(priority);
                     }
-                    return {std::move(weight), std::move(opt_prio), std::move(terms).value_or(UTermVec{})};
+                    return {std::move(weight), std::move(opt_prio), std::move(terms).value_or(STermVec{})};
                 });
 };
 
@@ -193,7 +193,7 @@ struct statement_show {
         return show >> dsl::position + dsl::p<term> + dsl::position + opt_body + dsl::period;
     }();
     static constexpr auto value = lexy::callback<UStatement>(
-        [](auto begin, UTerm term, auto end, lexy::nullopt) -> UStatement {
+        [](auto begin, STerm term, auto end, lexy::nullopt) -> UStatement {
             CheckTypeResult res;
             if (term->check_type(TermCheckType::sig, &res)) {
                 // Note that parsing via the range input does not pass thestate
@@ -205,7 +205,7 @@ struct statement_show {
             }
             return std::make_unique<StatementShow>(std::move(term), UBodyLiteralVec{});
         },
-        [](auto begin, UTerm term, auto end, UBodyLiteralVec body) -> UStatement {
+        [](auto begin, STerm term, auto end, UBodyLiteralVec body) -> UStatement {
             return std::make_unique<StatementShow>(std::move(term), std::move(body));
         });
 };
@@ -263,9 +263,9 @@ struct statement_project {
     }();
     static constexpr auto value = lexy::callback<UStatement>(
         lexy::new_<StatementProjectSig, UStatement>,
-        [](bool has_sign, std::string name, std::optional<UTermVecVec> pool, UBodyLiteralVec body) {
-            UTerm atom =
-                std::make_unique<TermFunction>(std::move(name), std::move(pool).value_or(UTermVecVec{}), false);
+        [](bool has_sign, std::string name, std::optional<STermVecVec> pool, UBodyLiteralVec body) {
+            STerm atom =
+                std::make_unique<TermFunction>(std::move(name), std::move(pool).value_or(STermVecVec{}), false);
             if (has_sign) {
                 atom = std::make_unique<TermUnary>(UnaryOperator::negate, std::move(atom));
             }
@@ -296,7 +296,7 @@ struct statement_external {
         auto atom = dsl::p<sign_classical> + dsl::p<term_function>;
         return kw >> atom + dsl::p<statement_opt_body> + dsl::period + dsl::if_(dsl::square_bracketed(dsl::p<term>));
     }();
-    static constexpr auto value = lexy::callback<UStatement>([](bool has_sign, UTerm atom, auto &&...args) {
+    static constexpr auto value = lexy::callback<UStatement>([](bool has_sign, STerm atom, auto &&...args) {
         if (has_sign) {
             atom = std::make_unique<TermUnary>(UnaryOperator::negate, std::move(atom));
         }
@@ -352,10 +352,10 @@ struct statement_const {
         return kw >> id + dsl::equal_sign + dsl::p<term> + dsl::period + type;
     }();
     static constexpr auto value = lexy::callback<UStatement>(
-        [](std::string name, UTerm value) {
+        [](std::string name, STerm value) {
             return std::make_unique<StatementConst>(ConstType::default_, std::move(name), std::move(value));
         },
-        [](std::string name, UTerm value, ConstType type) {
+        [](std::string name, STerm value, ConstType type) {
             return std::make_unique<StatementConst>(type, std::move(name), std::move(value));
         });
 };

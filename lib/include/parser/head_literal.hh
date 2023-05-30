@@ -39,8 +39,8 @@ struct head_aggregate_element {
         return tuple + LEXY_LIT(":") + dsl::p<literal> + dsl::p<opt_condition>;
     }();
     static constexpr auto value = lexy::callback<HeadAggregate::Element>(
-        [](std::optional<UTermVec> tuple, ULiteral lit, std::optional<ULiteralVec> cond) {
-            auto ret = HeadAggregate::Element{UTermVec{}, std::move(lit), ULiteralVec{}};
+        [](std::optional<STermVec> tuple, ULiteral lit, std::optional<ULiteralVec> cond) {
+            auto ret = HeadAggregate::Element{STermVec{}, std::move(lit), ULiteralVec{}};
             if (tuple) {
                 std::get<0>(ret) = std::move(tuple).value();
             }
@@ -66,20 +66,20 @@ struct head_aggregate {
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<UHeadAggregate>(
         lexy::new_<HeadAggregate, UHeadAggregate>,
-        [](AggregateFunction fun, HeadAggregate::ElementVec elems, UTerm rhs) {
+        [](AggregateFunction fun, HeadAggregate::ElementVec elems, STerm rhs) {
             return std::make_unique<HeadAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
 };
 
 struct head_literal {
     static constexpr char const *name = "head literal";
-    using scan_result = lexy::scan_result<UTerm>;
+    using scan_result = lexy::scan_result<STerm>;
 
     static constexpr auto is_atom = dsl::context_flag<head_literal>;
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner, auto &&...args) -> scan_result {
-        auto res_term = scanner.template parse<UTerm>(dsl::p<term>);
+        auto res_term = scanner.template parse<STerm>(dsl::p<term>);
         if (res_term.has_value() && res_term.value()->check_type(TermCheckType::atom)) {
             scanner.parse(is_atom.set());
         }
@@ -107,17 +107,17 @@ struct head_literal {
     static constexpr auto value = lexy::callback<UHeadLiteral>(
         lexy::forward<UHeadLiteral>, lexy::new_<HeadTheoryAtom, UHeadLiteral>,
         lexy::new_<HeadSetAggregate, UHeadLiteral>,
-        [](UTerm term, auto aggr) {
+        [](STerm term, auto aggr) {
             auto ret = detail::make_head_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);
             return ret;
         },
-        [](UTerm term, Relation rel, auto aggr) {
+        [](STerm term, Relation rel, auto aggr) {
             auto ret = detail::make_head_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), rel);
             return std::move(ret);
         },
-        [](UTerm lhs, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond,
+        [](STerm lhs, Relation rel, STerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond,
            Disjunction::ElementVec elems) {
             GuardVec guards;
             if (opt_guards.has_value()) {
@@ -129,7 +129,7 @@ struct head_literal {
                                               std::move(cond)});
             return std::make_unique<Disjunction>(std::move(elems));
         },
-        [](UTerm term, ULiteralVec cond, Disjunction::ElementVec elems) {
+        [](STerm term, ULiteralVec cond, Disjunction::ElementVec elems) {
             elems.insert(elems.begin(),
                          Disjunction::Element{std::make_unique<LiteralSymbolic>(std::move(term)), std::move(cond)});
             return std::make_unique<Disjunction>(std::move(elems));

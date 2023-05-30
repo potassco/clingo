@@ -121,12 +121,12 @@ inline auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
     return out;
 }
 
-using Guard = std::pair<Relation, UTerm>;
+using Guard = std::pair<Relation, STerm>;
 using GuardVec = std::vector<Guard>;
 
 struct LiteralRelation : Literal {
-    LiteralRelation(UTerm lhs, GuardVec rhs) : sign(Sign::none), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
-    LiteralRelation(Sign sign, UTerm lhs, GuardVec rhs) : sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    LiteralRelation(STerm lhs, GuardVec rhs) : sign(Sign::none), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    LiteralRelation(Sign sign, STerm lhs, GuardVec rhs) : sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print(std::ostream &out) const override {
         out << sign << *lhs;
         for (auto &&guard : rhs) {
@@ -135,7 +135,7 @@ struct LiteralRelation : Literal {
     }
     void add_sign(Sign s) override { sign += s; }
     Sign sign;
-    UTerm lhs;
+    STerm lhs;
     GuardVec rhs;
 };
 
@@ -149,10 +149,10 @@ struct LiteralBoolean : Literal {
 };
 
 struct LiteralSymbolic : Literal {
-    LiteralSymbolic(UTerm term) : sign(Sign::none), term(std::move(term)) {}
-    LiteralSymbolic(Sign sign, UTerm term) : sign(sign), term(std::move(term)) {}
+    LiteralSymbolic(STerm term) : sign(Sign::none), term(std::move(term)) {}
+    LiteralSymbolic(Sign sign, STerm term) : sign(sign), term(std::move(term)) {}
     void print(std::ostream &out) const override { out << sign << *term; }
     void add_sign(Sign s) override { sign += s; }
     Sign sign;
-    UTerm term;
+    STerm term;
 };

@@ -170,7 +170,7 @@ inline auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
 }
 
 struct StatementOptimize : Statement {
-    using Tuple = std::tuple<UTerm, std::optional<UTerm>, UTermVec>;
+    using Tuple = std::tuple<STerm, std::optional<STerm>, STermVec>;
     using Element = std::tuple<Tuple, ULiteralVec>;
     using ElementVec = std::vector<Element>;
     explicit StatementOptimize(OptimizeType type, ElementVec elems) : type{type}, elems{std::move(elems)} {}
@@ -217,9 +217,9 @@ struct StatementWeakConstraint : Statement {
 };
 
 struct StatementShow : Statement {
-    StatementShow(UTerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    StatementShow(STerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
     void print(std::ostream &out) const override { out << "#show " << *term << ": " << p_range(body, "; ") << "."; }
-    UTerm term;
+    STerm term;
     UBodyLiteralVec body;
 };
 
@@ -235,11 +235,11 @@ struct StatementShowSig : Statement {
 };
 
 struct StatementProject : Statement {
-    StatementProject(UTerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    StatementProject(STerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
     void print(std::ostream &out) const override {
         out << "#project " << *term << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
     }
-    UTerm term;
+    STerm term;
     UBodyLiteralVec body;
 };
 
@@ -266,8 +266,8 @@ struct StatementDefined : Statement {
 };
 
 struct StatementExternal : Statement {
-    StatementExternal(UTerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
-    StatementExternal(UTerm term, UBodyLiteralVec body, UTerm type)
+    StatementExternal(STerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    StatementExternal(STerm term, UBodyLiteralVec body, STerm type)
         : term(std::move(term)), body(std::move(body)), type{std::move(type)} {}
     void print(std::ostream &out) const override {
         out << "#external " << *term << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
@@ -275,13 +275,13 @@ struct StatementExternal : Statement {
             out << " [" << *type.value() << "]";
         }
     }
-    UTerm term;
+    STerm term;
     UBodyLiteralVec body;
-    std::optional<UTerm> type;
+    std::optional<STerm> type;
 };
 
 struct StatementEdge : Statement {
-    using Edge = std::pair<UTerm, UTerm>;
+    using Edge = std::pair<STerm, STerm>;
     using EdgeVec = std::vector<Edge>;
     explicit StatementEdge(EdgeVec edges, UBodyLiteralVec body = {}) : edges{std::move(edges)}, body{std::move(body)} {}
     void print(std::ostream &out) const override {
@@ -295,11 +295,11 @@ struct StatementEdge : Statement {
 };
 
 struct StatementHeuristic : Statement {
-    explicit StatementHeuristic(bool has_sign, UTerm atom, UBodyLiteralVec body, UTerm type, UTerm priority,
-                                UTerm modifier)
+    explicit StatementHeuristic(bool has_sign, STerm atom, UBodyLiteralVec body, STerm type, STerm priority,
+                                STerm modifier)
         : atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)), priority(std::move(priority)),
           modifier(std::move(modifier)), has_sign{has_sign} {}
-    explicit StatementHeuristic(bool has_sign, UTerm atom, UBodyLiteralVec body, UTerm type, UTerm modifier)
+    explicit StatementHeuristic(bool has_sign, STerm atom, UBodyLiteralVec body, STerm type, STerm modifier)
         : atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)), modifier(std::move(modifier)),
           has_sign{has_sign} {}
     void print(std::ostream &out) const override {
@@ -310,11 +310,11 @@ struct StatementHeuristic : Statement {
         }
         out << "," << *modifier << "]";
     }
-    UTerm atom;
+    STerm atom;
     UBodyLiteralVec body;
-    UTerm type;
-    std::optional<UTerm> priority;
-    UTerm modifier;
+    STerm type;
+    std::optional<STerm> priority;
+    STerm modifier;
     bool has_sign;
 };
 
@@ -409,10 +409,10 @@ inline auto operator<<(std::ostream &out, ConstType type) -> std::ostream & {
 }
 
 struct StatementConst : Statement {
-    explicit StatementConst(ConstType type, std::string name, UTerm value)
+    explicit StatementConst(ConstType type, std::string name, STerm value)
         : type(type), name(std::move(name)), value(std::move(value)) {}
     void print(std::ostream &out) const override { out << "#const " << name << "=" << *value << ". [" << type << "]"; }
     ConstType type;
     std::string name;
-    UTerm value;
+    STerm value;
 };

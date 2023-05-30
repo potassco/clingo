@@ -26,8 +26,8 @@ struct body_aggregate_element {
         return dsl::opt(peek >> dsl::p<term_list>) + dsl::p<opt_condition>;
     }();
     static constexpr auto value =
-        lexy::callback<BodyAggregate::Element>([](std::optional<UTermVec> tuple, std::optional<ULiteralVec> cond) {
-            auto ret = BodyAggregate::Element{UTermVec{}, ULiteralVec{}};
+        lexy::callback<BodyAggregate::Element>([](std::optional<STermVec> tuple, std::optional<ULiteralVec> cond) {
+            auto ret = BodyAggregate::Element{STermVec{}, ULiteralVec{}};
             if (tuple) {
                 std::get<0>(ret) = std::move(tuple).value();
             }
@@ -53,14 +53,14 @@ struct body_aggregate {
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<UBodyAggregate>(
         lexy::new_<BodyAggregate, UBodyAggregate>,
-        [](AggregateFunction fun, BodyAggregate::ElementVec elems, UTerm rhs) {
+        [](AggregateFunction fun, BodyAggregate::ElementVec elems, STerm rhs) {
             return std::make_unique<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
 };
 
 struct body_atom : lexy::transparent_production {
     static constexpr char const *name = "body atom";
-    using scan_result = lexy::scan_result<UTerm>;
+    using scan_result = lexy::scan_result<STerm>;
 
     static constexpr auto is_atom = dsl::context_flag<body_atom>;
 
@@ -68,7 +68,7 @@ struct body_atom : lexy::transparent_production {
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        auto res_term = scanner.template parse<UTerm>(dsl::p<term>);
+        auto res_term = scanner.template parse<STerm>(dsl::p<term>);
         if (res_term.has_value() && res_term.value()->check_type(TermCheckType::atom)) {
             scanner.parse(is_atom.set());
         }
@@ -91,17 +91,17 @@ struct body_atom : lexy::transparent_production {
     static constexpr auto value = lexy::callback<UBodyLiteral>(
         lexy::forward<UBodyLiteral>, lexy::new_<BodySetAggregate, UBodyLiteral>,
         lexy::new_<BodyTheoryAtom, UBodyLiteral>,
-        [](UTerm term, auto aggr) {
+        [](STerm term, auto aggr) {
             auto ret = detail::make_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);
             return ret;
         },
-        [](UTerm term, Relation rel, auto aggr) {
+        [](STerm term, Relation rel, auto aggr) {
             auto ret = detail::make_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), rel);
             return std::move(ret);
         },
-        [](UTerm lhs, Relation rel, UTerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond) {
+        [](STerm lhs, Relation rel, STerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
@@ -110,7 +110,7 @@ struct body_atom : lexy::transparent_production {
             auto lit = std::make_unique<LiteralRelation>(std::move(lhs), std::move(guards));
             return std::make_unique<ConditionalLiteral>(std::move(lit), std::move(cond));
         },
-        [](UTerm term, ULiteralVec cond) {
+        [](STerm term, ULiteralVec cond) {
             auto lit = std::make_unique<LiteralSymbolic>(std::move(term));
             return std::make_unique<ConditionalLiteral>(std::move(lit), std::move(cond));
         });

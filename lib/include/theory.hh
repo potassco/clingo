@@ -153,8 +153,8 @@ struct TheoryTermFunction : TheoryTerm {
 struct TheoryAtom {
     using Element = std::pair<UTheoryTermVec, ULiteralVec>;
     using ElementVec = std::vector<Element>;
-    TheoryAtom(UTerm name, ElementVec elems) : name{std::move(name)}, elems{std::move(elems)} {}
-    TheoryAtom(UTerm name, ElementVec elems, std::string guard_op, UTheoryTerm guard_term)
+    TheoryAtom(STerm name, ElementVec elems) : name{std::move(name)}, elems{std::move(elems)} {}
+    TheoryAtom(STerm name, ElementVec elems, std::string guard_op, UTheoryTerm guard_term)
         : name{std::move(name)}, elems{std::move(elems)},
           guard{std::make_pair(std::move(guard_op), std::move(guard_term))} {}
     friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
@@ -172,7 +172,7 @@ struct TheoryAtom {
         }
         return out;
     }
-    UTerm name;
+    STerm name;
     ElementVec elems;
     std::optional<std::pair<std::string, UTheoryTerm>> guard;
 };

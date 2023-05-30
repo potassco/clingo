@@ -43,13 +43,13 @@ struct ConditionalLiteral : BodyLiteral {
 };
 
 struct BodyAggregate : BodyLiteral {
-    using Element = std::tuple<UTermVec, ULiteralVec>;
+    using Element = std::tuple<STermVec, ULiteralVec>;
     using ElementVec = std::vector<Element>;
     BodyAggregate(AggregateFunction fun, ElementVec elems) : fun(fun), elements(std::move(elems)) {}
-    BodyAggregate(AggregateFunction fun, ElementVec elems, Relation rel, UTerm rhs)
+    BodyAggregate(AggregateFunction fun, ElementVec elems, Relation rel, STerm rhs)
         : fun(fun), elements(std::move(elems)), right_guard(std::make_pair(rel, std::move(rhs))) {}
     void add_sign(Sign s) override { sign += s; }
-    void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
+    void set_left_guard(STerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
     void print(std::ostream &out) const override {
         out << sign;
         if (left_guard) {
@@ -68,8 +68,8 @@ struct BodyAggregate : BodyLiteral {
     Sign sign = Sign::none;
     AggregateFunction fun;
     ElementVec elements;
-    std::optional<std::pair<UTerm, Relation>> left_guard;
-    std::optional<std::pair<Relation, UTerm>> right_guard;
+    std::optional<std::pair<STerm, Relation>> left_guard;
+    std::optional<std::pair<Relation, STerm>> right_guard;
 };
 
 using UBodyAggregate = std::unique_ptr<BodyAggregate>;
@@ -77,7 +77,7 @@ using UBodyAggregate = std::unique_ptr<BodyAggregate>;
 struct BodySetAggregate : BodyLiteral {
     BodySetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
     void add_sign(Sign s) override { sign += s; }
-    void set_left_guard(UTerm lhs, Relation rel) { aggr.set_left_guard(std::move(lhs), rel); }
+    void set_left_guard(STerm lhs, Relation rel) { aggr.set_left_guard(std::move(lhs), rel); }
     void print(std::ostream &out) const override { out << sign << aggr; }
     Sign sign = Sign::none;
     SetAggregate aggr;

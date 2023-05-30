@@ -50,12 +50,12 @@ struct HeadTheoryAtom : HeadLiteral {
 };
 
 struct HeadAggregate : HeadLiteral {
-    using Element = std::tuple<UTermVec, ULiteral, ULiteralVec>;
+    using Element = std::tuple<STermVec, ULiteral, ULiteralVec>;
     using ElementVec = std::vector<Element>;
     HeadAggregate(AggregateFunction fun, ElementVec elems) : fun(fun), elements(std::move(elems)) {}
-    HeadAggregate(AggregateFunction fun, ElementVec elems, Relation rel, UTerm rhs)
+    HeadAggregate(AggregateFunction fun, ElementVec elems, Relation rel, STerm rhs)
         : fun(fun), elements(std::move(elems)), right_guard(std::make_pair(rel, std::move(rhs))) {}
-    void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
+    void set_left_guard(STerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
     void print(std::ostream &out) const override {
         if (left_guard) {
             out << *left_guard->first << " " << left_guard->second << " ";
@@ -72,15 +72,15 @@ struct HeadAggregate : HeadLiteral {
     }
     AggregateFunction fun;
     ElementVec elements;
-    std::optional<std::pair<UTerm, Relation>> left_guard;
-    std::optional<std::pair<Relation, UTerm>> right_guard;
+    std::optional<std::pair<STerm, Relation>> left_guard;
+    std::optional<std::pair<Relation, STerm>> right_guard;
 };
 
 using UHeadAggregate = std::unique_ptr<HeadAggregate>;
 
 struct HeadSetAggregate : HeadLiteral {
     HeadSetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
-    void set_left_guard(UTerm lhs, Relation rel) { aggr.set_left_guard(std::move(lhs), rel); }
+    void set_left_guard(STerm lhs, Relation rel) { aggr.set_left_guard(std::move(lhs), rel); }
     void print(std::ostream &out) const override { out << aggr; }
     SetAggregate aggr;
 };

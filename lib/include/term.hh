@@ -10,18 +10,11 @@
 
 enum class TermCheckType { atom, sig, identifier, signed_identifier, pos_number };
 
-class Term;
-using UTerm = std::unique_ptr<Term>;
-
 struct CheckTypeResult {
     bool has_sign = false;
     int pos_number = 0;
     std::string identifier;
 };
-
-class AST;
-using SAST = std::shared_ptr<AST>;
-using SASTVec = std::vector<SAST>;
 
 enum class ASTType {
     TermConstant,
@@ -48,6 +41,10 @@ enum class ASTAttr {
 auto operator<<(std::ostream &out, ASTType type) -> std::ostream &;
 auto operator<<(std::ostream &out, ASTAttr attr) -> std::ostream &;
 
+class AST;
+using SAST = std::shared_ptr<AST>;
+using SASTVec = std::vector<SAST>;
+
 class AST {
   public:
     virtual ~AST() = default;
@@ -55,12 +52,61 @@ class AST {
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] virtual auto type() const -> ASTType = 0;
     [[nodiscard]] virtual auto get_int(ASTAttr attr) -> int &;
-    [[nodiscard]] virtual auto get_ast(ASTAttr attr) -> SAST &;
+    [[nodiscard]] virtual auto get_ast(ASTAttr attr) -> SAST;
 
     friend auto operator<<(std::ostream &out, AST const &ast) -> std::ostream &;
     [[nodiscard]] auto to_string() const -> std::string;
-    template <class T> auto get(ASTAttr attr) -> T & {
-        if constexpr (std::is_same_v<T, int>) {
+    template <class T> auto get(ASTAttr attr) {
+        // Note that getters and setters for SASTs will work fine. However,
+        // getters and setters for vectors won't work without some special treatment because vectors of shared pointers
+        // cannot be upcasted. One alternative could be to use ASTs or at least types storing ASTs:
+        //   ASTRef<Term>:
+        //     // the ref can make sure that we always have a term
+        //     // and fail if we do not have a term
+        //     Term *operator-> ()
+        //     Term &operator* ()
+        //     SAST value;
+        //   ASTVec<Term>
+        //     // the vec can make sure that all SASTs in values are terms.
+        //     emplace_back(ASTRef<Term>)
+        //     emplace_back(SAST)
+        //     SASTVec values;
+        //   Advantages:
+        //     no unnecessary allocations
+        //     we can pass around references
+        //     less type safe
+        // Otherwise, it is also possible to implement a view on an AST holding a vector:
+        //   ASTVec:
+        //     vector methods
+        //     get/set/length for attribute
+        //     shared pointer to AST
+        //   Advantages:
+        //     view on the actual type safe datastructure
+        //   Disadvantages:
+        //     additional allocations for construction
+        //     indirection for get/set of vectors
+        // Maybe, it would also be a good idea to represent at least the base classes in the AST:
+        //   Classes:
+        //     ASTTerm
+        //     ASTLiteral
+        //     ASTHeadLiteral
+        //     ASTBodyLiteral
+        //     ASTStatement
+        //   Advantages:
+        //     asts and vectors of asts can be passed directly
+        //     vectors of the respective types can be construrted right away!
+        //     the huge enums in the clingo API will become more specific
+        //     by providing enough meta info, the python interface can still be generated
+        //   Disadvantages:
+        //     a bit more boiler plate
+        //   Implementation:
+        //     each base class provides an interface similar to what we have for term now
+        //     the current ast and term will be merged
+        //   I think, I'll go for this variant!
+        //
+        if constexpr (std::is_same_v<T, SAST>) {
+            return get_ast(attr);
+        } else if constexpr (std::is_same_v<T, int>) {
             return get_int(attr);
         } else {
             static_assert(sizeof(T *) == 0, "unsupported type in AST::get");
@@ -68,13 +114,16 @@ class AST {
     };
 };
 
+class Term;
+using STerm = std::shared_ptr<Term>;
+
 class Term : public AST {
   public:
     [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
 };
 
-using UTermVec = std::vector<UTerm>;
-using UTermVecVec = std::vector<UTermVec>;
+using STermVec = std::vector<STerm>;
+using STermVecVec = std::vector<STermVec>;
 
 enum class Constant : int {
     supremum,
@@ -114,7 +163,7 @@ class TermInteger : public Term {
 
 class TermTuple : public Term {
   public:
-    using Element = std::variant<UTermVec, UTerm>;
+    using Element = std::variant<STermVec, STerm>;
     using ElementVec = std::vector<Element>;
     explicit TermTuple(ElementVec args) : args_{std::move(args)} {}
 
@@ -152,19 +201,19 @@ class TermVariable : public Term {
 
 class TermAbs : public Term {
   public:
-    explicit TermAbs(UTermVec pool) : pool_{std::move(pool)} {}
+    explicit TermAbs(STermVec pool) : pool_{std::move(pool)} {}
 
     // AST interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> ASTType override;
 
   private:
-    UTermVec pool_;
+    STermVec pool_;
 };
 
 class TermFunction : public Term {
   public:
-    explicit TermFunction(std::string name, UTermVecVec args, bool external)
+    explicit TermFunction(std::string name, STermVecVec args, bool external)
         : name_(std::move(name)), args_{std::move(args)}, external_{external} {}
 
     // AST interface
@@ -176,7 +225,7 @@ class TermFunction : public Term {
 
   private:
     std::string name_;
-    UTermVecVec args_;
+    STermVecVec args_;
     bool external_;
 };
 
@@ -189,7 +238,7 @@ auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream &;
 
 class TermUnary : public Term {
   public:
-    explicit TermUnary(UnaryOperator op, UTerm e) : op_{op}, rhs_{std::move(e)} {}
+    explicit TermUnary(UnaryOperator op, STerm e) : op_{op}, rhs_{std::move(e)} {}
 
     // AST interface
     void print(std::ostream &out) const override;
@@ -200,7 +249,7 @@ class TermUnary : public Term {
 
   private:
     UnaryOperator op_;
-    UTerm rhs_;
+    STerm rhs_;
 };
 
 enum class BinaryOperator {
@@ -220,7 +269,7 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream &;
 
 class TermBinary : public Term {
   public:
-    explicit TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs)
+    explicit TermBinary(STerm lhs, BinaryOperator op, STerm rhs)
         : op_{op}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
 
     // AST interface
@@ -231,6 +280,6 @@ class TermBinary : public Term {
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
 
     BinaryOperator op_;
-    UTerm lhs_;
-    UTerm rhs_;
+    STerm lhs_;
+    STerm rhs_;
 };

@@ -43,9 +43,9 @@ struct SetAggregate {
     using Element = std::pair<ULiteral, ULiteralVec>;
     using ElementVec = std::vector<Element>;
     SetAggregate(ElementVec elements) : elements{std::move(elements)} {}
-    SetAggregate(ElementVec elements, Relation rel, UTerm rhs)
+    SetAggregate(ElementVec elements, Relation rel, STerm rhs)
         : elements{std::move(elements)}, right_guard(std::make_pair(rel, std::move(rhs))) {}
-    void set_left_guard(UTerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
+    void set_left_guard(STerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
     friend auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream & {
         if (aggr.left_guard) {
             out << *aggr.left_guard->first << " " << aggr.left_guard->second << " ";
@@ -62,6 +62,6 @@ struct SetAggregate {
         return out;
     }
     ElementVec elements;
-    std::optional<std::pair<UTerm, Relation>> left_guard;
-    std::optional<std::pair<Relation, UTerm>> right_guard;
+    std::optional<std::pair<STerm, Relation>> left_guard;
+    std::optional<std::pair<Relation, STerm>> right_guard;
 };

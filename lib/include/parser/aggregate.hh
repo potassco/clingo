@@ -62,7 +62,7 @@ struct set_aggregate {
     static constexpr auto rule = LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >>
                                  LEXY_LIT("}") + aggregate_right_guard;
     static constexpr auto value =
-        lexy::callback<SetAggregate>(lexy::construct<SetAggregate>, [](SetAggregate::ElementVec elems, UTerm rhs) {
+        lexy::callback<SetAggregate>(lexy::construct<SetAggregate>, [](SetAggregate::ElementVec elems, STerm rhs) {
             return SetAggregate{std::move(elems), Relation::less_equal, std::move(rhs)};
         });
 };

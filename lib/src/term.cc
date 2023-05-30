@@ -28,7 +28,7 @@ auto operator<<(std::ostream &out, AST const &ast) -> std::ostream & {
     throw std::runtime_error(out.str().c_str());
 }
 
-[[nodiscard]] auto AST::get_ast(ASTAttr attr) -> SAST & {
+[[nodiscard]] auto AST::get_ast(ASTAttr attr) -> SAST {
     std::ostringstream out;
     out << "unknown attribute: " << attr;
     throw std::runtime_error(out.str().c_str());
@@ -99,16 +99,16 @@ void TermInteger::print(std::ostream &out) const { out << value_; }
 ////////// TermTuple //////////
 
 void TermTuple::print(std::ostream &out) const {
-    if (args_.size() == 1 && std::holds_alternative<UTerm>(args_.front())) {
-        std::get<UTerm>(args_.front())->print(out);
+    if (args_.size() == 1 && std::holds_alternative<STerm>(args_.front())) {
+        std::get<STerm>(args_.front())->print(out);
     } else {
         out << "(" << p_range_with(args_, ";", [](std::ostream &out, auto const &tuple) {
             std::visit(
                 [&](auto &&arg) {
                     using T = std::decay_t<decltype(arg)>;
-                    if constexpr (std::is_same_v<T, UTerm>) {
+                    if constexpr (std::is_same_v<T, STerm>) {
                         arg->print(out);
-                    } else if constexpr (std::is_same_v<T, UTermVec>) {
+                    } else if constexpr (std::is_same_v<T, STermVec>) {
                         bool comma = false;
                         for (const auto &term : arg) {
                             if (comma) {
