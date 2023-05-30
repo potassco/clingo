@@ -14,19 +14,59 @@
         static constexpr char const *name = v;                                                                         \
     }
 
-namespace grammar {
+template <typename Reader, typename State> class StatefulReader {
+  public:
+    using encoding = Reader::encoding;
+    using iterator = Reader::iterator;
 
-inline auto comment_sink() -> auto & {
-    // Note: unfortunately, lexy does not provide the parser state during
-    // whitespace parsing. A fully reentrant interface still needs a little
-    // more than this.
-    static thread_local std::vector<std::string> comments;
-    return comments;
-}
+    explicit StatefulReader(Reader reader, State &state) : reader_{std::move(reader)}, state_{&state} {};
+
+    [[nodiscard]] auto peek() const { return reader_.peek(); }
+
+    void bump() noexcept { return reader_.bump(); }
+
+    [[nodiscard]] auto position() const noexcept { return reader_.position(); }
+
+    void set_position(iterator new_pos) noexcept { reader_.set_position(new_pos); }
+
+    [[nodiscard]] auto state() const -> State & { return *state_; }
+
+  private:
+    Reader reader_;
+    State *state_;
+};
+
+template <typename Input, typename State> class StatefulInput {
+  public:
+    StatefulInput(Input &input, State &state) : input_{input}, state_{&state} {}
+    [[nodiscard]] auto reader() const & { return StatefulReader(input_.reader(), *state_); }
+
+  private:
+    Input &input_;
+    State *state_;
+};
+
+namespace grammar {
 
 namespace dsl = lexy::dsl;
 
 using encoding = lexy::utf8_encoding;
+
+namespace detail {
+
+template <typename V, typename T> struct has_state_ {
+    using value_t = std::false_type;
+};
+
+template <typename T>
+struct has_state_<std::void_t<decltype(std::declval<T &>().remaining_input().reader().state())>, T> {
+    using value_t = std::true_type;
+};
+
+/// Check if the reader associated with the given scanner has a state method.
+template <typename T> constexpr bool has_state = has_state_<void, T>::value_t::value;
+
+} // namespace detail
 
 struct block_comment : lexy::scan_production<void> {
     static constexpr char const *name = "block comment";
@@ -49,7 +89,9 @@ struct block_comment : lexy::scan_production<void> {
             }
         } while (n > 0);
         auto end = scanner.position();
-        comment_sink().emplace_back(lexy::as_string<std::string, encoding>(begin, end));
+        if constexpr (detail::has_state<lexy::rule_scanner<Context, Reader>>) {
+            scanner.remaining_input().reader().state().emplace_back(lexy::as_string<std::string, encoding>(begin, end));
+        }
         return scan_result{true};
     }
 };
@@ -67,7 +109,9 @@ struct comment : lexy::scan_production<void> {
             }
         };
         auto end = scanner.position();
-        comment_sink().emplace_back(lexy::as_string<std::string, encoding>(begin, end));
+        if constexpr (detail::has_state<lexy::rule_scanner<Context, Reader>>) {
+            scanner.remaining_input().reader().state().emplace_back(lexy::as_string<std::string, encoding>(begin, end));
+        }
         return scan_result{true};
     }
 };

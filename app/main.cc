@@ -30,7 +30,9 @@ void discard(StreamInput<Encoding, Counting> &input, Scanner &scanner) {
 }
 
 template <typename Input> void parse(Input &input) {
-    auto scanner = lexy::scan<grammar::control>(input, report_error);
+    std::vector<std::string> comments;
+    auto stateful_input = StatefulInput{input, comments};
+    auto scanner = lexy::scan<grammar::control>(stateful_input, report_error);
     // Note: skip leading whitespace
     scanner.parse(lexy::dsl::whitespace(grammar::control::whitespace));
     while (scanner && !scanner.is_at_eof()) {
@@ -38,11 +40,11 @@ template <typename Input> void parse(Input &input) {
         auto stm = scanner.template parse<grammar::statement>();
         if (stm.has_value()) {
             std::cout << *stm.value() << "\n";
-            for (auto &comment : grammar::comment_sink()) {
+            for (auto &comment : comments) {
                 std::cout << comment << "\n";
             }
         }
-        grammar::comment_sink().clear();
+        comments.clear();
         if (!scanner) {
             recover(scanner);
         }

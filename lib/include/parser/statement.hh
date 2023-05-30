@@ -100,7 +100,8 @@ struct statement_theory {
         return kw_theory >> dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + dsl::period;
     }();
     static constexpr auto value = lexy::callback<UStatement>(
-        // TODO: where is this coming from
+        // Note: called during error recovery if the expression between the
+        // parenthesis did not match.
         [](std::string name) {
             return std::make_unique<TheoryDefinition>(std::move(name), TheoryTermDefinitionVec{},
                                                       TheoryAtomDefinitionVec{});
@@ -195,6 +196,8 @@ struct statement_show {
         [](auto begin, UTerm term, auto end, lexy::nullopt) -> UStatement {
             CheckTypeResult res;
             if (term->check_type(TermCheckType::sig, &res)) {
+                // Note that parsing via the range input does not pass thestate
+                // to the whitespace parser, which is exactly as intended here.
                 auto input = lexy::range_input<encoding, decltype(begin)>{begin, end};
                 if (lexy::match<is_signature>(input)) {
                     return std::make_unique<StatementShowSig>(res.has_sign, res.identifier, res.pos_number);
