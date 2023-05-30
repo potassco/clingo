@@ -10,7 +10,7 @@
 
 enum class TermCheckType { atom, sig, identifier, signed_identifier, pos_number };
 
-struct Term;
+class Term;
 using UTerm = std::unique_ptr<Term>;
 
 struct CheckTypeResult {
@@ -19,7 +19,7 @@ struct CheckTypeResult {
     std::string identifier;
 };
 
-struct AST;
+class AST;
 using SAST = std::shared_ptr<AST>;
 using SASTVec = std::vector<SAST>;
 
@@ -34,19 +34,31 @@ enum class ASTType {
     TermUnary,
     TermBinary,
 };
-enum class ASTAttr {};
+
+enum class ASTAttr {
+    Value,
+    Name,
+    Pool,
+    Arguments,
+    Left,
+    Right,
+    Operator,
+};
 
 auto operator<<(std::ostream &out, ASTType type) -> std::ostream &;
 auto operator<<(std::ostream &out, ASTAttr attr) -> std::ostream &;
 
-struct AST {
+class AST {
+  public:
     virtual ~AST() = default;
+
     virtual void print(std::ostream &out) const = 0;
-    [[nodiscard]] auto to_string() const -> std::string;
-    friend auto operator<<(std::ostream &out, AST const &ast) -> std::ostream &;
     [[nodiscard]] virtual auto type() const -> ASTType = 0;
     [[nodiscard]] virtual auto get_int(ASTAttr attr) -> int &;
     [[nodiscard]] virtual auto get_ast(ASTAttr attr) -> SAST &;
+
+    friend auto operator<<(std::ostream &out, AST const &ast) -> std::ostream &;
+    [[nodiscard]] auto to_string() const -> std::string;
     template <class T> auto get(ASTAttr attr) -> T & {
         if constexpr (std::is_same_v<T, int>) {
             return get_int(attr);
@@ -56,89 +68,116 @@ struct AST {
     };
 };
 
-struct Term : AST {
+class Term : public AST {
+  public:
     [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
 };
 
 using UTermVec = std::vector<UTerm>;
 using UTermVecVec = std::vector<UTermVec>;
 
-enum class Constant {
+enum class Constant : int {
     supremum,
     infimum,
 };
 
 auto operator<<(std::ostream &out, Constant op) -> std::ostream &;
 
-struct TermConstant : Term {
-    explicit TermConstant(Constant value) : value(value) {}
+class TermConstant : public Term {
+  public:
+    explicit TermConstant(Constant value) : value_{value} {}
 
+    // AST interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> ASTType override;
+    [[nodiscard]] auto get_int(ASTAttr attr) -> int & override;
 
-    Constant value;
+  private:
+    Constant value_;
 };
 
-struct TermInteger : Term {
-    explicit TermInteger(int v) : value(v) {}
+class TermInteger : public Term {
+  public:
+    explicit TermInteger(int v) : value_{v} {}
 
+    // AST interface
+    void print(std::ostream &out) const override;
+    [[nodiscard]] auto type() const -> ASTType override;
+    [[nodiscard]] auto get_int(ASTAttr attr) -> int & override;
+
+    // Term interface
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
-    void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> ASTType override;
 
-    int value;
+  private:
+    int value_;
 };
 
-struct TermTuple : Term {
+class TermTuple : public Term {
+  public:
     using Element = std::variant<UTermVec, UTerm>;
     using ElementVec = std::vector<Element>;
-    explicit TermTuple(ElementVec args) : args(std::move(args)) {}
+    explicit TermTuple(ElementVec args) : args_{std::move(args)} {}
 
+    // AST interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> ASTType override;
 
-    ElementVec args;
+  private:
+    ElementVec args_;
 };
 
-struct TermString : Term {
-    explicit TermString(std::string value) : value(std::move(value)) {}
+class TermString : public Term {
+  public:
+    explicit TermString(std::string value) : value_{std::move(value)} {}
 
+    // AST interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> ASTType override;
 
-    std::string value;
+  private:
+    std::string value_;
 };
 
-struct TermVariable : Term {
-    explicit TermVariable(std::string name) : name(std::move(name)) {}
+class TermVariable : public Term {
+  public:
+    explicit TermVariable(std::string name) : name_{std::move(name)} {}
 
+    // AST interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> ASTType override;
 
-    std::string name;
+  private:
+    std::string name_;
 };
 
-struct TermAbs : Term {
-    explicit TermAbs(UTermVec pool) : pool(std::move(pool)) {}
+class TermAbs : public Term {
+  public:
+    explicit TermAbs(UTermVec pool) : pool_{std::move(pool)} {}
 
+    // AST interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> ASTType override;
 
-    UTermVec pool;
+  private:
+    UTermVec pool_;
 };
 
-struct TermFunction : Term {
+class TermFunction : public Term {
+  public:
     explicit TermFunction(std::string name, UTermVecVec args, bool external)
-        : name(std::move(name)), args{std::move(args)}, external{external} {}
+        : name_(std::move(name)), args_{std::move(args)}, external_{external} {}
 
+    // AST interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> ASTType override;
 
+    // Term interface
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
 
-    std::string name;
-    UTermVecVec args;
-    bool external;
+  private:
+    std::string name_;
+    UTermVecVec args_;
+    bool external_;
 };
 
 enum class UnaryOperator {
@@ -148,16 +187,20 @@ enum class UnaryOperator {
 
 auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream &;
 
-struct TermUnary : Term {
-    explicit TermUnary(UnaryOperator op, UTerm e) : op(op), rhs(std::move(e)) {}
+class TermUnary : public Term {
+  public:
+    explicit TermUnary(UnaryOperator op, UTerm e) : op_{op}, rhs_{std::move(e)} {}
 
+    // AST interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> ASTType override;
 
+    // Term interface
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
 
-    UnaryOperator op;
-    UTerm rhs;
+  private:
+    UnaryOperator op_;
+    UTerm rhs_;
 };
 
 enum class BinaryOperator {
@@ -175,14 +218,19 @@ enum class BinaryOperator {
 
 auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream &;
 
-struct TermBinary : Term {
-    explicit TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs) : op(op), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+class TermBinary : public Term {
+  public:
+    explicit TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs)
+        : op_{op}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
 
-    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
+    // AST interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> ASTType override;
 
-    BinaryOperator op;
-    UTerm lhs;
-    UTerm rhs;
+    // Term interface
+    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
+
+    BinaryOperator op_;
+    UTerm lhs_;
+    UTerm rhs_;
 };

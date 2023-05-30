@@ -54,40 +54,55 @@ auto operator<<(std::ostream &out, Constant op) -> std::ostream & {
     return out;
 }
 
-void TermConstant::print(std::ostream &out) const { out << value; }
+void TermConstant::print(std::ostream &out) const { out << value_; }
 
 [[nodiscard]] auto TermConstant::type() const -> ASTType { return ASTType::TermConstant; }
+
+[[nodiscard]] auto TermConstant::get_int(ASTAttr attr) -> int & {
+    switch (attr) {
+        case ASTAttr::Value: {
+            return reinterpret_cast<int &>(value_);
+        }
+        default: {
+            return Term::get_int(attr);
+        }
+    }
+}
 
 ////////// TermInteger //////////
 
 [[nodiscard]] auto TermInteger::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    if (type == TermCheckType::pos_number && value >= 0) {
+    if (type == TermCheckType::pos_number && value_ >= 0) {
         if (res != nullptr) {
-            res->pos_number = value;
+            res->pos_number = value_;
         }
         return true;
     }
     return false;
 }
 
-void TermInteger::print(std::ostream &out) const { out << value; }
+void TermInteger::print(std::ostream &out) const { out << value_; }
 
 [[nodiscard]] auto TermInteger::type() const -> ASTType { return ASTType::TermInteger; }
+
+[[nodiscard]] auto TermInteger::get_int(ASTAttr attr) -> int & {
+    switch (attr) {
+        case ASTAttr::Value: {
+            return value_;
+        }
+        default: {
+            return Term::get_int(attr);
+        }
+    }
+}
 
 ////////// TermTuple //////////
 
 void TermTuple::print(std::ostream &out) const {
-    if (args.size() == 1 && std::holds_alternative<UTerm>(args.front())) {
-        std::get<UTerm>(args.front())->print(out);
+    if (args_.size() == 1 && std::holds_alternative<UTerm>(args_.front())) {
+        std::get<UTerm>(args_.front())->print(out);
     } else {
-        out << "(";
-        bool sem = false;
-        for (const auto &tuple : args) {
-            if (sem) {
-                out << ";";
-            } else {
-                sem = true;
-            }
+        out << "(" << p_range_with(args_, ";", [](std::ostream &out, auto const &tuple) {
             std::visit(
                 [&](auto &&arg) {
                     using T = std::decay_t<decltype(arg)>;
@@ -109,8 +124,7 @@ void TermTuple::print(std::ostream &out) const {
                     }
                 },
                 tuple);
-        }
-        out << ")";
+        }) << ")";
     }
 }
 
@@ -118,13 +132,13 @@ void TermTuple::print(std::ostream &out) const {
 
 ////////// TermString //////////
 
-void TermString::print(std::ostream &out) const { print_quoted(out, value); }
+void TermString::print(std::ostream &out) const { print_quoted(out, value_); }
 
 [[nodiscard]] auto TermString::type() const -> ASTType { return ASTType::TermString; }
 
 ////////// TermVariable //////////
 
-void TermVariable::print(std::ostream &out) const { out << name; }
+void TermVariable::print(std::ostream &out) const { out << name_; }
 
 [[nodiscard]] auto TermVariable::type() const -> ASTType { return ASTType::TermVariable; }
 
@@ -133,7 +147,7 @@ void TermVariable::print(std::ostream &out) const { out << name; }
 void TermAbs::print(std::ostream &out) const {
     out << "|";
     bool comma = false;
-    for (const auto &term : pool) {
+    for (const auto &term : pool_) {
         if (comma) {
             out << ";";
         } else {
@@ -149,14 +163,14 @@ void TermAbs::print(std::ostream &out) const {
 ////////// TermFunction //////////
 
 void TermFunction::print(std::ostream &out) const {
-    if (external) {
+    if (external_) {
         out << "@";
     }
-    out << name;
-    if (args.size() != 1 || !args.front().empty()) {
+    out << name_;
+    if (args_.size() != 1 || !args_.front().empty()) {
         out << "(";
         bool sem = false;
-        for (const auto &tuple : args) {
+        for (const auto &tuple : args_) {
             if (sem) {
                 out << ";";
             } else {
@@ -179,12 +193,12 @@ void TermFunction::print(std::ostream &out) const {
 
 [[nodiscard]] auto TermFunction::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::atom) {
-        return !external;
+        return !external_;
     }
-    if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) && !external &&
-        args.size() == 1 && args.front().empty()) {
+    if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) && !external_ &&
+        args_.size() == 1 && args_.front().empty()) {
         if (res != nullptr) {
-            res->identifier = name;
+            res->identifier = name_;
         }
         return true;
     }
@@ -198,15 +212,15 @@ auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
     return out;
 }
 
-void TermUnary::print(std::ostream &out) const { out << "(" << op << *rhs << ")"; }
+void TermUnary::print(std::ostream &out) const { out << "(" << op_ << *rhs_ << ")"; }
 [[nodiscard]] auto TermUnary::type() const -> ASTType { return ASTType::TermUnary; }
 
 [[nodiscard]] auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::atom) {
-        return op == UnaryOperator::negate && rhs->check_type(type);
+        return op_ == UnaryOperator::negate && rhs_->check_type(type);
     }
-    if (type == TermCheckType::signed_identifier && op == UnaryOperator::negate &&
-        rhs->check_type(TermCheckType::identifier, res)) {
+    if (type == TermCheckType::signed_identifier && op_ == UnaryOperator::negate &&
+        rhs_->check_type(TermCheckType::identifier, res)) {
         if (res != nullptr) {
             res->has_sign = true;
         }
@@ -265,12 +279,12 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
 
 [[nodiscard]] auto TermBinary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::sig) {
-        return op == BinaryOperator::div && lhs->check_type(TermCheckType::signed_identifier, res) &&
-               rhs->check_type(TermCheckType::pos_number, res);
+        return op_ == BinaryOperator::div && lhs_->check_type(TermCheckType::signed_identifier, res) &&
+               rhs_->check_type(TermCheckType::pos_number, res);
     }
     return false;
 }
 
-void TermBinary::print(std::ostream &out) const { out << "(" << *lhs << op << *rhs << ")"; }
+void TermBinary::print(std::ostream &out) const { out << "(" << *lhs_ << op_ << *rhs_ << ")"; }
 
 [[nodiscard]] auto TermBinary::type() const -> ASTType { return ASTType::TermBinary; }
