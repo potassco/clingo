@@ -14,25 +14,13 @@
         static constexpr char const *name = v;                                                                         \
     }
 
-template <typename Reader, typename State> class StatefulReader {
+template <typename Reader, typename State> class StatefulReader : public Reader {
   public:
-    using encoding = Reader::encoding;
-    using iterator = Reader::iterator;
-
-    explicit StatefulReader(Reader reader, State &state) : reader_{std::move(reader)}, state_{&state} {};
-
-    [[nodiscard]] auto peek() const { return reader_.peek(); }
-
-    void bump() noexcept { return reader_.bump(); }
-
-    [[nodiscard]] auto position() const noexcept { return reader_.position(); }
-
-    void set_position(iterator new_pos) noexcept { reader_.set_position(new_pos); }
+    explicit StatefulReader(Reader reader, State &state) : Reader{std::move(reader)}, state_{&state} {};
 
     [[nodiscard]] auto state() const -> State & { return *state_; }
 
   private:
-    Reader reader_;
     State *state_;
 };
 
