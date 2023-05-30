@@ -26,7 +26,7 @@ class StreamInput {
         using counting = StreamInput::counting;
         using char_type = StreamInput::char_type;
 
-        static constexpr size_t chunk_size = 4098;
+        static constexpr size_t chunk_size = 4096;
 
         StreamBuffer(std::istream &in) : in_{in} {}
 
