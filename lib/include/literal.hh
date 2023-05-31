@@ -1,10 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <memory>
-#include <sstream>
-#include <vector>
-
 #include <term.hh>
 
 enum class Sign {
@@ -13,71 +8,18 @@ enum class Sign {
     twice,
 };
 
-inline auto operator-(Sign a) {
-    switch (a) {
-        case Sign::none: {
-            return Sign::once;
-        }
-        case Sign::once: {
-            return Sign::twice;
-        }
-        case Sign::twice: {
-            break;
-        }
-    }
-    return Sign::once;
-}
+auto operator-(Sign a) -> Sign;
+auto operator+(Sign a, Sign b) -> Sign;
+auto operator+=(Sign &a, Sign b) -> Sign &;
+auto operator<<(std::ostream &out, Sign op) -> std::ostream &;
 
-inline auto operator+(Sign a, Sign b) {
-    switch (a) {
-        case Sign::none: {
-            return b;
-        }
-        case Sign::once: {
-            return -b;
-        }
-        case Sign::twice: {
-            break;
-        }
-    }
-    return -(-b);
-}
-
-inline auto operator+=(Sign &a, Sign b) -> auto & {
-    a = a + b;
-    return a;
-}
-
-inline auto operator<<(std::ostream &out, Sign op) -> std::ostream & {
-    switch (op) {
-        case Sign::none: {
-            break;
-        }
-        case Sign::once: {
-            out << "not ";
-            break;
-        }
-        case Sign::twice: {
-            out << "not not ";
-            break;
-        }
-    }
-    return out;
-}
-
-struct Literal {
+class Literal {
+  public:
     virtual ~Literal() = default;
     virtual void print(std::ostream &out) const = 0;
     virtual void add_sign(Sign sign) = 0;
-    [[nodiscard]] auto to_string() const -> std::string {
-        std::ostringstream out;
-        out << *this;
-        return out.str();
-    }
-    friend auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream & {
-        literal.print(out);
-        return out;
-    }
+    [[nodiscard]] auto to_string() const -> std::string;
+    friend auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream &;
 
     size_t refs = 0;
 };
@@ -127,35 +69,39 @@ inline auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
 using Guard = std::pair<Relation, STerm>;
 using GuardVec = std::vector<Guard>;
 
-struct LiteralRelation : Literal {
-    LiteralRelation(STerm lhs, GuardVec rhs) : sign(Sign::none), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
-    LiteralRelation(Sign sign, STerm lhs, GuardVec rhs) : sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
-    void print(std::ostream &out) const override {
-        out << sign << *lhs;
-        for (auto &&guard : rhs) {
-            out << guard.first << *guard.second;
-        }
-    }
-    void add_sign(Sign s) override { sign += s; }
-    Sign sign;
-    STerm lhs;
-    GuardVec rhs;
+class LiteralRelation : public Literal {
+  public:
+    LiteralRelation(STerm lhs, GuardVec rhs) : sign_(Sign::none), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
+    LiteralRelation(Sign sign, STerm lhs, GuardVec rhs) : sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
+    void print(std::ostream &out) const override;
+    void add_sign(Sign s) override;
+
+  private:
+    Sign sign_;
+    STerm lhs_;
+    GuardVec rhs_;
 };
 
-struct LiteralBoolean : Literal {
-    LiteralBoolean(bool value) : sign(Sign::none), value(value) {}
-    LiteralBoolean(Sign sign, bool value) : sign(sign), value(value) {}
-    void print(std::ostream &out) const override { out << sign << (value ? "#true" : "#false"); }
-    void add_sign(Sign s) override { sign += s; }
-    Sign sign;
-    bool value;
+class LiteralBoolean : public Literal {
+  public:
+    LiteralBoolean(bool value) : sign_(Sign::none), value_(value) {}
+    LiteralBoolean(Sign sign, bool value) : sign_(sign), value_(value) {}
+    void print(std::ostream &out) const override;
+    void add_sign(Sign s) override;
+
+  private:
+    Sign sign_;
+    bool value_;
 };
 
-struct LiteralSymbolic : Literal {
-    LiteralSymbolic(STerm term) : sign(Sign::none), term(std::move(term)) {}
-    LiteralSymbolic(Sign sign, STerm term) : sign(sign), term(std::move(term)) {}
-    void print(std::ostream &out) const override { out << sign << *term; }
-    void add_sign(Sign s) override { sign += s; }
-    Sign sign;
-    STerm term;
+class LiteralSymbolic : public Literal {
+  public:
+    LiteralSymbolic(STerm term) : sign_(Sign::none), term_(std::move(term)) {}
+    LiteralSymbolic(Sign sign, STerm term) : sign_(sign), term_(std::move(term)) {}
+    void print(std::ostream &out) const override;
+    void add_sign(Sign s) override;
+
+  private:
+    Sign sign_;
+    STerm term_;
 };
