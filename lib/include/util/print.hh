@@ -1,7 +1,7 @@
 #pragma once
 
-#include <iostream>
 #include <memory>
+#include <ostream>
 
 template <class T> struct p_elem {
     p_elem(T const &elem) : elem(elem) {}
@@ -21,6 +21,16 @@ template <class T> struct p_elem<std::unique_ptr<T>> {
     }
 
     std::unique_ptr<T> const &elem;
+};
+
+template <class T> struct p_elem<std::shared_ptr<T>> {
+    p_elem(std::shared_ptr<T> const &elem) : elem(elem) {}
+    friend auto operator<<(std::ostream &out, p_elem const &elem) -> std::ostream & {
+        out << *elem.elem;
+        return out;
+    }
+
+    std::shared_ptr<T> const &elem;
 };
 
 template <class T> struct p_range {

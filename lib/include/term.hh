@@ -2,13 +2,11 @@
 
 #include <memory>
 #include <optional>
-#include <sstream>
+#include <ostream>
 #include <variant>
 #include <vector>
 
-#include <util/print.hh>
-
-enum class TermCheckType { atom, sig, identifier, signed_identifier, pos_number };
+enum class TermCheckType : int { atom, sig, identifier, signed_identifier, pos_number };
 
 struct CheckTypeResult {
     bool has_sign = false;
@@ -16,7 +14,7 @@ struct CheckTypeResult {
     std::string identifier;
 };
 
-enum class ASTType {
+enum class TermType : int {
     TermConstant,
     TermInteger,
     TermTuple,
@@ -28,7 +26,7 @@ enum class ASTType {
     TermBinary,
 };
 
-enum class ASTAttr {
+enum class Attribute : int {
     Value,
     Name,
     Pool,
@@ -38,25 +36,29 @@ enum class ASTAttr {
     Operator,
 };
 
-auto operator<<(std::ostream &out, ASTType type) -> std::ostream &;
-auto operator<<(std::ostream &out, ASTAttr attr) -> std::ostream &;
+auto operator<<(std::ostream &out, TermType type) -> std::ostream &;
+auto operator<<(std::ostream &out, Attribute attr) -> std::ostream &;
 
-class AST;
-using SAST = std::shared_ptr<AST>;
-using SASTVec = std::vector<SAST>;
+// TODO: rethink shared_ptr because it incurs quite a performance hit...
+class Term;
+using STerm = std::shared_ptr<Term>;
+using STermVec = std::vector<STerm>;
+using STermVecVec = std::vector<STermVec>;
 
-class AST {
+class Term {
   public:
-    virtual ~AST() = default;
-
     virtual void print(std::ostream &out) const = 0;
-    [[nodiscard]] virtual auto type() const -> ASTType = 0;
-    [[nodiscard]] virtual auto get_int(ASTAttr attr) -> int &;
-    [[nodiscard]] virtual auto get_ast(ASTAttr attr) -> SAST;
+    [[nodiscard]] virtual auto type() const -> TermType = 0;
+    [[nodiscard]] virtual auto get_int(Attribute attr) -> int &;
+    [[nodiscard]] virtual auto get_ast(Attribute attr) -> STerm &;
+    [[nodiscard]] virtual auto get_ast_vec(Attribute attr) -> STermVec &;
+    [[nodiscard]] virtual auto get_ast_vec_vec(Attribute attr) -> STermVecVec &;
 
-    friend auto operator<<(std::ostream &out, AST const &ast) -> std::ostream &;
+    [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
+
+    friend auto operator<<(std::ostream &out, Term const &ast) -> std::ostream &;
     [[nodiscard]] auto to_string() const -> std::string;
-    template <class T> auto get(ASTAttr attr) {
+    template <class T> auto get(Attribute attr) -> T & {
         // Note that getters and setters for SASTs will work fine. However,
         // getters and setters for vectors won't work without some special treatment because vectors of shared pointers
         // cannot be upcasted. One alternative could be to use ASTs or at least types storing ASTs:
@@ -104,7 +106,13 @@ class AST {
         //     the current ast and term will be merged
         //   I think, I'll go for this variant!
         //
-        if constexpr (std::is_same_v<T, SAST>) {
+        if constexpr (std::is_same_v<T, STerm>) {
+            return get_ast(attr);
+        } else if constexpr (std::is_same_v<T, STermVec>) {
+            return get_ast_vec(attr);
+        } else if constexpr (std::is_same_v<T, STermVecVec>) {
+            return get_ast_vec_vec(attr);
+        } else if constexpr (std::is_same_v<T, STerm>) {
             return get_ast(attr);
         } else if constexpr (std::is_same_v<T, int>) {
             return get_int(attr);
@@ -113,17 +121,6 @@ class AST {
         }
     };
 };
-
-class Term;
-using STerm = std::shared_ptr<Term>;
-
-class Term : public AST {
-  public:
-    [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
-};
-
-using STermVec = std::vector<STerm>;
-using STermVecVec = std::vector<STermVec>;
 
 enum class Constant : int {
     supremum,
@@ -138,8 +135,8 @@ class TermConstant : public Term {
 
     // AST interface
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> ASTType override;
-    [[nodiscard]] auto get_int(ASTAttr attr) -> int & override;
+    [[nodiscard]] auto type() const -> TermType override;
+    [[nodiscard]] auto get_int(Attribute attr) -> int & override;
 
   private:
     Constant value_;
@@ -151,8 +148,8 @@ class TermInteger : public Term {
 
     // AST interface
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> ASTType override;
-    [[nodiscard]] auto get_int(ASTAttr attr) -> int & override;
+    [[nodiscard]] auto type() const -> TermType override;
+    [[nodiscard]] auto get_int(Attribute attr) -> int & override;
 
     // Term interface
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
@@ -169,7 +166,7 @@ class TermTuple : public Term {
 
     // AST interface
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> ASTType override;
+    [[nodiscard]] auto type() const -> TermType override;
 
   private:
     ElementVec args_;
@@ -181,7 +178,7 @@ class TermString : public Term {
 
     // AST interface
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> ASTType override;
+    [[nodiscard]] auto type() const -> TermType override;
 
   private:
     std::string value_;
@@ -193,7 +190,7 @@ class TermVariable : public Term {
 
     // AST interface
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> ASTType override;
+    [[nodiscard]] auto type() const -> TermType override;
 
   private:
     std::string name_;
@@ -205,7 +202,7 @@ class TermAbs : public Term {
 
     // AST interface
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> ASTType override;
+    [[nodiscard]] auto type() const -> TermType override;
 
   private:
     STermVec pool_;
@@ -218,7 +215,7 @@ class TermFunction : public Term {
 
     // AST interface
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> ASTType override;
+    [[nodiscard]] auto type() const -> TermType override;
 
     // Term interface
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
@@ -229,7 +226,7 @@ class TermFunction : public Term {
     bool external_;
 };
 
-enum class UnaryOperator {
+enum class UnaryOperator : int {
     negate,
     invert,
 };
@@ -242,7 +239,9 @@ class TermUnary : public Term {
 
     // AST interface
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> ASTType override;
+    [[nodiscard]] auto type() const -> TermType override;
+    [[nodiscard]] auto get_int(Attribute attr) -> int & override;
+    [[nodiscard]] auto get_ast(Attribute attr) -> STerm & override;
 
     // Term interface
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
@@ -252,7 +251,7 @@ class TermUnary : public Term {
     STerm rhs_;
 };
 
-enum class BinaryOperator {
+enum class BinaryOperator : int {
     dots,
     xor_,
     or_,
@@ -274,7 +273,9 @@ class TermBinary : public Term {
 
     // AST interface
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> ASTType override;
+    [[nodiscard]] auto type() const -> TermType override;
+    [[nodiscard]] auto get_int(Attribute attr) -> int & override;
+    [[nodiscard]] auto get_ast(Attribute attr) -> STerm & override;
 
     // Term interface
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;

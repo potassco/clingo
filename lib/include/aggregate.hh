@@ -3,6 +3,8 @@
 #include <iostream>
 #include <optional>
 
+#include <util/print.hh>
+
 #include <literal.hh>
 
 enum class AggregateFunction {

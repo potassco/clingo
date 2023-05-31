@@ -1,40 +1,55 @@
+#include <sstream>
+
+#include <util/print.hh>
+
 #include <term.hh>
 
-////////// AST //////////
+////////// Term //////////
 
-auto operator<<(std::ostream &out, ASTType type) -> std::ostream & {
+auto operator<<(std::ostream &out, TermType type) -> std::ostream & {
     out << "TODO: type";
     return out;
 }
 
-auto operator<<(std::ostream &out, ASTAttr attr) -> std::ostream & {
+auto operator<<(std::ostream &out, Attribute attr) -> std::ostream & {
     out << "TODO: attr";
     return out;
 }
 
-[[nodiscard]] auto AST::to_string() const -> std::string {
+[[nodiscard]] auto Term::to_string() const -> std::string {
     std::ostringstream out;
     out << *this;
     return out.str();
 }
-auto operator<<(std::ostream &out, AST const &ast) -> std::ostream & {
+
+auto operator<<(std::ostream &out, Term const &ast) -> std::ostream & {
     ast.print(out);
     return out;
 }
 
-[[nodiscard]] auto AST::get_int(ASTAttr attr) -> int & {
+[[nodiscard]] auto Term::get_int(Attribute attr) -> int & {
     std::ostringstream out;
     out << "unknown attribute: " << attr;
     throw std::runtime_error(out.str().c_str());
 }
 
-[[nodiscard]] auto AST::get_ast(ASTAttr attr) -> SAST {
+[[nodiscard]] auto Term::get_ast(Attribute attr) -> STerm & {
     std::ostringstream out;
     out << "unknown attribute: " << attr;
     throw std::runtime_error(out.str().c_str());
 }
 
-////////// Term //////////
+[[nodiscard]] auto Term::get_ast_vec(Attribute attr) -> STermVec & {
+    std::ostringstream out;
+    out << "unknown attribute: " << attr;
+    throw std::runtime_error(out.str().c_str());
+}
+
+[[nodiscard]] auto Term::get_ast_vec_vec(Attribute attr) -> STermVecVec & {
+    std::ostringstream out;
+    out << "unknown attribute: " << attr;
+    throw std::runtime_error(out.str().c_str());
+}
 
 [[nodiscard]] auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool { return false; }
 
@@ -56,11 +71,11 @@ auto operator<<(std::ostream &out, Constant op) -> std::ostream & {
 
 void TermConstant::print(std::ostream &out) const { out << value_; }
 
-[[nodiscard]] auto TermConstant::type() const -> ASTType { return ASTType::TermConstant; }
+[[nodiscard]] auto TermConstant::type() const -> TermType { return TermType::TermConstant; }
 
-[[nodiscard]] auto TermConstant::get_int(ASTAttr attr) -> int & {
+[[nodiscard]] auto TermConstant::get_int(Attribute attr) -> int & {
     switch (attr) {
-        case ASTAttr::Value: {
+        case Attribute::Value: {
             return reinterpret_cast<int &>(value_);
         }
         default: {
@@ -83,11 +98,11 @@ void TermConstant::print(std::ostream &out) const { out << value_; }
 
 void TermInteger::print(std::ostream &out) const { out << value_; }
 
-[[nodiscard]] auto TermInteger::type() const -> ASTType { return ASTType::TermInteger; }
+[[nodiscard]] auto TermInteger::type() const -> TermType { return TermType::TermInteger; }
 
-[[nodiscard]] auto TermInteger::get_int(ASTAttr attr) -> int & {
+[[nodiscard]] auto TermInteger::get_int(Attribute attr) -> int & {
     switch (attr) {
-        case ASTAttr::Value: {
+        case Attribute::Value: {
             return value_;
         }
         default: {
@@ -128,19 +143,19 @@ void TermTuple::print(std::ostream &out) const {
     }
 }
 
-[[nodiscard]] auto TermTuple::type() const -> ASTType { return ASTType::TermTuple; }
+[[nodiscard]] auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
 
 ////////// TermString //////////
 
 void TermString::print(std::ostream &out) const { print_quoted(out, value_); }
 
-[[nodiscard]] auto TermString::type() const -> ASTType { return ASTType::TermString; }
+[[nodiscard]] auto TermString::type() const -> TermType { return TermType::TermString; }
 
 ////////// TermVariable //////////
 
 void TermVariable::print(std::ostream &out) const { out << name_; }
 
-[[nodiscard]] auto TermVariable::type() const -> ASTType { return ASTType::TermVariable; }
+[[nodiscard]] auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
 
 ////////// TermAbs //////////
 
@@ -158,7 +173,7 @@ void TermAbs::print(std::ostream &out) const {
     out << "|";
 }
 
-[[nodiscard]] auto TermAbs::type() const -> ASTType { return ASTType::TermAbs; }
+[[nodiscard]] auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
 
 ////////// TermFunction //////////
 
@@ -189,7 +204,7 @@ void TermFunction::print(std::ostream &out) const {
         out << ")";
     }
 }
-[[nodiscard]] auto TermFunction::type() const -> ASTType { return ASTType::TermFunction; }
+[[nodiscard]] auto TermFunction::type() const -> TermType { return TermType::TermFunction; }
 
 [[nodiscard]] auto TermFunction::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::atom) {
@@ -213,7 +228,30 @@ auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
 }
 
 void TermUnary::print(std::ostream &out) const { out << "(" << op_ << *rhs_ << ")"; }
-[[nodiscard]] auto TermUnary::type() const -> ASTType { return ASTType::TermUnary; }
+
+[[nodiscard]] auto TermUnary::type() const -> TermType { return TermType::TermUnary; }
+
+[[nodiscard]] auto TermUnary::get_int(Attribute attr) -> int & {
+    switch (attr) {
+        case Attribute::Operator: {
+            return reinterpret_cast<int &>(op_);
+        }
+        default: {
+            return Term::get_int(attr);
+        }
+    }
+}
+
+[[nodiscard]] auto TermUnary::get_ast(Attribute attr) -> STerm & {
+    switch (attr) {
+        case Attribute::Right: {
+            return rhs_;
+        }
+        default: {
+            return Term::get_ast(attr);
+        }
+    }
+}
 
 [[nodiscard]] auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::atom) {
@@ -277,6 +315,35 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
     return out;
 }
 
+void TermBinary::print(std::ostream &out) const { out << "(" << *lhs_ << op_ << *rhs_ << ")"; }
+
+[[nodiscard]] auto TermBinary::type() const -> TermType { return TermType::TermBinary; }
+
+[[nodiscard]] auto TermBinary::get_int(Attribute attr) -> int & {
+    switch (attr) {
+        case Attribute::Operator: {
+            return reinterpret_cast<int &>(op_);
+        }
+        default: {
+            return Term::get_int(attr);
+        }
+    }
+}
+
+[[nodiscard]] auto TermBinary::get_ast(Attribute attr) -> STerm & {
+    switch (attr) {
+        case Attribute::Left: {
+            return lhs_;
+        }
+        case Attribute::Right: {
+            return rhs_;
+        }
+        default: {
+            return Term::get_ast(attr);
+        }
+    }
+}
+
 [[nodiscard]] auto TermBinary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::sig) {
         return op_ == BinaryOperator::div && lhs_->check_type(TermCheckType::signed_identifier, res) &&
@@ -284,7 +351,3 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
     }
     return false;
 }
-
-void TermBinary::print(std::ostream &out) const { out << "(" << *lhs_ << op_ << *rhs_ << ")"; }
-
-[[nodiscard]] auto TermBinary::type() const -> ASTType { return ASTType::TermBinary; }
