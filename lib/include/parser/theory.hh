@@ -34,23 +34,23 @@ struct theory_ops {
 struct theory_term {
     static constexpr char const *name = "theory term";
     static constexpr auto rule = dsl::recurse<struct theory_term_unparsed>;
-    static constexpr auto value = lexy::forward<UTheoryTerm>;
+    static constexpr auto value = lexy::forward<STheoryTerm>;
 };
 
 namespace detail {
 
 template <TheoryTermTupleType type> struct make_tuple {
-    static constexpr auto
-        value = lexy::as_list<UTheoryTermVec> >>
-                lexy::callback<UTheoryTerm>(
-                    [](lexy::nullopt) { return std::make_unique<TheoryTermTuple>(type, UTheoryTermVec{}); },
-                    [](UTheoryTermVec elems) { return std::make_unique<TheoryTermTuple>(type, std::move(elems)); });
+    static constexpr auto value =
+        lexy::as_list<STheoryTermVec> >>
+        lexy::callback<STheoryTerm>(
+            [](lexy::nullopt) { return construct_shared<TheoryTermTuple, TheoryTerm>(type, STheoryTermVec{}); },
+            [](STheoryTermVec elems) { return construct_shared<TheoryTermTuple, TheoryTerm>(type, std::move(elems)); });
 };
 
 struct tuple_trail_vec {
-    void push_back(UTheoryTerm term) { vec.emplace_back(std::move(term)); }
+    void push_back(STheoryTerm term) { vec.emplace_back(std::move(term)); }
     template <class Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail = true; }
-    UTheoryTermVec vec;
+    STheoryTermVec vec;
     bool trail = false;
 };
 
@@ -60,18 +60,18 @@ struct theory_term_tuple : detail::make_tuple<TheoryTermTupleType::Tuple> {
     static constexpr char const *name = "theory term tuple";
     static constexpr auto rule =
         dsl::round_bracketed.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::capture(dsl::lit_c<','>)));
-    static constexpr auto
-        value = lexy::as_list<detail::tuple_trail_vec> >>
-                lexy::callback<UTheoryTerm>(
-                    [](lexy::nullopt) -> UTheoryTerm {
-                        return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::Tuple, UTheoryTermVec{});
-                    },
-                    [](detail::tuple_trail_vec elems) -> UTheoryTerm {
-                        if (elems.vec.size() == 1 && !elems.trail) {
-                            return std::move(elems.vec.back());
-                        }
-                        return std::make_unique<TheoryTermTuple>(TheoryTermTupleType::Tuple, std::move(elems.vec));
-                    });
+    static constexpr auto value =
+        lexy::as_list<detail::tuple_trail_vec> >>
+        lexy::callback<STheoryTerm>(
+            [](lexy::nullopt) -> STheoryTerm {
+                return construct_shared<TheoryTermTuple, TheoryTerm>(TheoryTermTupleType::Tuple, STheoryTermVec{});
+            },
+            [](detail::tuple_trail_vec elems) -> STheoryTerm {
+                if (elems.vec.size() == 1 && !elems.trail) {
+                    return std::move(elems.vec.back());
+                }
+                return construct_shared<TheoryTermTuple, TheoryTerm>(TheoryTermTupleType::Tuple, std::move(elems.vec));
+            });
 };
 
 struct theory_term_set : detail::make_tuple<TheoryTermTupleType::Set> {
@@ -87,26 +87,26 @@ struct theory_term_list : detail::make_tuple<TheoryTermTupleType::List> {
 struct theory_term_arguments {
     static constexpr char const *name = "theory term tuple";
     static constexpr auto rule = dsl::parenthesized.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
-    static constexpr auto value = lexy::as_list<std::vector<UTheoryTerm>>;
+    static constexpr auto value = lexy::as_list<std::vector<STheoryTerm>>;
 };
 
 struct theory_term_function {
     static constexpr char const *name = "theory function";
     static constexpr auto rule = dsl::p<identifier> >> dsl::if_(dsl::p<theory_term_arguments>);
-    static constexpr auto value = lexy::new_<TheoryTermFunction, UTheoryTerm>;
+    static constexpr auto value = lexy::new_<TheoryTermFunction, STheoryTerm>;
 };
 
 struct theory_term_variable {
     static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::p<variable>;
-    static constexpr auto value = lexy::new_<TheoryTermVariable, UTheoryTerm>;
+    static constexpr auto value = lexy::new_<TheoryTermVariable, STheoryTerm>;
 };
 
 struct theory_term_anonymous_variable {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = anonymous_variable;
     static constexpr auto value =
-        lexy::callback<UTheoryTerm>([]() { return std::make_unique<TheoryTermVariable>("_"); });
+        lexy::callback<STheoryTerm>([]() { return construct_shared<TheoryTermVariable, TheoryTerm>("_"); });
 };
 
 struct theory_term_root {
@@ -116,9 +116,9 @@ struct theory_term_root {
                                  dsl::p<theory_term_function> | constant | dsl::p<number> | dsl::p<string> |
                                  dsl::p<theory_term_variable> | dsl::p<theory_term_anonymous_variable> |
                                  dsl::error<expected_term>;
-    static constexpr auto value = lexy::callback<UTheoryTerm>(
-        lexy::forward<UTheoryTerm>, lexy::new_<TheoryTermInteger, UTheoryTerm>,
-        lexy::new_<TheoryTermString, UTheoryTerm>, lexy::new_<TheoryTermConstant, UTheoryTerm>);
+    static constexpr auto value = lexy::callback<STheoryTerm>(
+        lexy::forward<STheoryTerm>, lexy::new_<TheoryTermInteger, STheoryTerm>,
+        lexy::new_<TheoryTermString, STheoryTerm>, lexy::new_<TheoryTermConstant, STheoryTerm>);
 };
 
 struct theory_term_unparsed_guards {
@@ -133,13 +133,13 @@ struct theory_term_unparsed : lexy::transparent_production {
     static constexpr auto rule =
         dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> + dsl::if_(dsl::p<theory_term_unparsed_guards>);
     static constexpr auto value =
-        lexy::callback<UTheoryTerm>(lexy::forward<UTheoryTerm>, lexy::new_<TheoryTermUnparsed, UTheoryTerm>);
+        lexy::callback<STheoryTerm>(lexy::forward<STheoryTerm>, lexy::new_<TheoryTermUnparsed, STheoryTerm>);
 };
 
 struct theory_atom_element_tuple {
     static constexpr char const *name = "theory term tuple";
     static constexpr auto rule = dsl::list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
-    static constexpr auto value = lexy::as_list<UTheoryTermVec>;
+    static constexpr auto value = lexy::as_list<STheoryTermVec>;
 };
 
 struct theory_atom_element {
@@ -147,8 +147,8 @@ struct theory_atom_element {
     static constexpr auto rule =
         dsl::p<condition> | dsl::else_ >> dsl::p<theory_atom_element_tuple> + dsl::p<opt_condition>;
     static constexpr auto value =
-        lexy::callback<TheoryAtom::Element>(lexy::construct<TheoryAtom::Element>, [](ULiteralVec cond) {
-            return TheoryAtom::Element{UTheoryTermVec{}, std::move(cond)};
+        lexy::callback<TheoryAtom::Element>(lexy::construct<TheoryAtom::Element>, [](SLiteralVec cond) {
+            return TheoryAtom::Element{STheoryTermVec{}, std::move(cond)};
         });
 };
 

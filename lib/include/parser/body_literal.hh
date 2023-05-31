@@ -11,10 +11,10 @@ namespace grammar {
 
 namespace detail {
 
-inline auto make_body_aggr(UBodyAggregate aggr) -> UBodyAggregate { return std::move(aggr); }
+inline auto make_body_aggr(SBodyAggregate aggr) -> SBodyAggregate { return std::move(aggr); }
 
-inline auto make_body_aggr(SetAggregate aggr) -> UBodySetAggregate {
-    return std::make_unique<BodySetAggregate>(std::move(aggr));
+inline auto make_body_aggr(SetAggregate aggr) -> SBodySetAggregate {
+    return construct_shared<BodySetAggregate>(std::move(aggr));
 }
 
 } // namespace detail
@@ -26,8 +26,8 @@ struct body_aggregate_element {
         return dsl::opt(peek >> dsl::p<term_list>) + dsl::p<opt_condition>;
     }();
     static constexpr auto value =
-        lexy::callback<BodyAggregate::Element>([](std::optional<STermVec> tuple, std::optional<ULiteralVec> cond) {
-            auto ret = BodyAggregate::Element{STermVec{}, ULiteralVec{}};
+        lexy::callback<BodyAggregate::Element>([](std::optional<STermVec> tuple, std::optional<SLiteralVec> cond) {
+            auto ret = BodyAggregate::Element{STermVec{}, SLiteralVec{}};
             if (tuple) {
                 std::get<0>(ret) = std::move(tuple).value();
             }
@@ -51,10 +51,10 @@ struct body_aggregate_elements {
 struct body_aggregate {
     static constexpr char const *name = "body aggregate";
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
-    static constexpr auto value = lexy::callback<UBodyAggregate>(
-        lexy::new_<BodyAggregate, UBodyAggregate>,
+    static constexpr auto value = lexy::callback<SBodyAggregate>(
+        lexy::new_<BodyAggregate, SBodyAggregate>,
         [](AggregateFunction fun, BodyAggregate::ElementVec elems, STerm rhs) {
-            return std::make_unique<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
+            return construct_shared<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
 };
 
@@ -88,9 +88,9 @@ struct body_atom : lexy::transparent_production {
         return dsl::p<theory_atom> | dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
-    static constexpr auto value = lexy::callback<UBodyLiteral>(
-        lexy::forward<UBodyLiteral>, lexy::new_<BodySetAggregate, UBodyLiteral>,
-        lexy::new_<BodyTheoryAtom, UBodyLiteral>,
+    static constexpr auto value = lexy::callback<SBodyLiteral>(
+        lexy::forward<SBodyLiteral>, lexy::new_<BodySetAggregate, SBodyLiteral>,
+        lexy::new_<BodyTheoryAtom, SBodyLiteral>,
         [](STerm term, auto aggr) {
             auto ret = detail::make_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);
@@ -101,25 +101,25 @@ struct body_atom : lexy::transparent_production {
             ret->set_left_guard(std::move(term), rel);
             return std::move(ret);
         },
-        [](STerm lhs, Relation rel, STerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond) {
+        [](STerm lhs, Relation rel, STerm rhs, std::optional<GuardVec> opt_guards, SLiteralVec cond) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
-            auto lit = std::make_unique<LiteralRelation>(std::move(lhs), std::move(guards));
-            return std::make_unique<ConditionalLiteral>(std::move(lit), std::move(cond));
+            auto lit = construct_shared<LiteralRelation, Literal>(std::move(lhs), std::move(guards));
+            return construct_shared<ConditionalLiteral, BodyLiteral>(std::move(lit), std::move(cond));
         },
-        [](STerm term, ULiteralVec cond) {
-            auto lit = std::make_unique<LiteralSymbolic>(std::move(term));
-            return std::make_unique<ConditionalLiteral>(std::move(lit), std::move(cond));
+        [](STerm term, SLiteralVec cond) {
+            auto lit = construct_shared<LiteralSymbolic, Literal>(std::move(term));
+            return construct_shared<ConditionalLiteral, BodyLiteral>(std::move(lit), std::move(cond));
         });
 };
 
 struct body_literal {
     static constexpr char const *name = "body literal";
     static constexpr auto rule = dsl::p<naf_sign> + dsl::p<body_atom>;
-    static constexpr auto value = lexy::callback<UBodyLiteral>([](Sign sign, UBodyLiteral literal) {
+    static constexpr auto value = lexy::callback<SBodyLiteral>([](Sign sign, SBodyLiteral literal) {
         literal->add_sign(sign);
         return std::move(literal);
     });

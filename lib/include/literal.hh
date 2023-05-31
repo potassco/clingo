@@ -78,10 +78,12 @@ struct Literal {
         literal.print(out);
         return out;
     }
+
+    size_t refs = 0;
 };
 
-using ULiteral = std::unique_ptr<Literal>;
-using ULiteralVec = std::vector<ULiteral>;
+using SLiteral = shared_ptr<Literal>;
+using SLiteralVec = std::vector<SLiteral>;
 
 enum class Relation {
     less,

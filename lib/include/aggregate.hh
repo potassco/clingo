@@ -42,7 +42,7 @@ inline auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream
 }
 
 struct SetAggregate {
-    using Element = std::pair<ULiteral, ULiteralVec>;
+    using Element = std::pair<SLiteral, SLiteralVec>;
     using ElementVec = std::vector<Element>;
     SetAggregate(ElementVec elements) : elements{std::move(elements)} {}
     SetAggregate(ElementVec elements, Relation rel, STerm rhs)

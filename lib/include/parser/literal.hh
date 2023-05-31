@@ -38,7 +38,7 @@ struct atom_bool : lexy::token_production {
                                              .map<LEXY_SYMBOL("#true")>(true)
                                              .map<LEXY_SYMBOL("#false")>(false);
     static constexpr auto rule = dsl::symbol<bool_symbols>(keyword_base);
-    static constexpr auto value = lexy::new_<LiteralBoolean, ULiteral>;
+    static constexpr auto value = lexy::new_<LiteralBoolean, SLiteral>;
 };
 
 struct atom {
@@ -63,8 +63,8 @@ struct atom {
         auto rel_or_sym_atom = is_atom.create() + dsl::scan + cont;
         return dsl::p<atom_bool> | dsl::else_ >> rel_or_sym_atom;
     }();
-    static constexpr auto value = lexy::callback<ULiteral>(
-        lexy::forward<ULiteral>, lexy::new_<LiteralSymbolic, ULiteral>, lexy::new_<LiteralRelation, ULiteral>);
+    static constexpr auto value = lexy::callback<SLiteral>(
+        lexy::forward<SLiteral>, lexy::new_<LiteralSymbolic, SLiteral>, lexy::new_<LiteralRelation, SLiteral>);
 };
 
 struct naf_sign {
@@ -78,7 +78,7 @@ struct naf_sign {
 struct literal {
     static constexpr char const *name = "literal";
     static constexpr auto rule = dsl::p<naf_sign> + dsl::p<atom>;
-    static constexpr auto value = lexy::callback<ULiteral>([](Sign sign, ULiteral lit) {
+    static constexpr auto value = lexy::callback<SLiteral>([](Sign sign, SLiteral lit) {
         lit->add_sign(sign);
         return std::move(lit);
     });

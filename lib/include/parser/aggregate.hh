@@ -29,19 +29,19 @@ struct condition {
         auto peek = dsl::peek_not(LEXY_ASCII_ONE_OF(".;}"));
         return colon >> dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
     }();
-    static constexpr auto value = lexy::as_list<ULiteralVec>;
+    static constexpr auto value = lexy::as_list<SLiteralVec>;
 };
 
 struct opt_condition {
     static constexpr char const *name = "condition";
     static constexpr auto rule = dsl::if_(dsl::p<condition>);
-    static constexpr auto value = lexy::construct<ULiteralVec>;
+    static constexpr auto value = lexy::construct<SLiteralVec>;
 };
 
 struct conditional_literal {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::construct<std::pair<ULiteral, ULiteralVec>>;
+    static constexpr auto value = lexy::construct<std::pair<SLiteral, SLiteralVec>>;
 };
 
 static constexpr auto aggregate_right_guard = []() {

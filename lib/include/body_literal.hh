@@ -22,13 +22,14 @@ struct BodyLiteral {
         literal.print(out);
         return out;
     }
+    size_t refs = 0;
 };
 
-using UBodyLiteral = std::unique_ptr<BodyLiteral>;
-using UBodyLiteralVec = std::vector<UBodyLiteral>;
+using SBodyLiteral = shared_ptr<BodyLiteral>;
+using SBodyLiteralVec = std::vector<SBodyLiteral>;
 
 struct ConditionalLiteral : BodyLiteral {
-    ConditionalLiteral(ULiteral literal, ULiteralVec condition)
+    ConditionalLiteral(SLiteral literal, SLiteralVec condition)
         : literal{std::move(literal)}, condition{std::move(condition)} {}
     void add_sign(Sign s) override { literal->add_sign(s); }
     void print(std::ostream &out) const override {
@@ -38,12 +39,12 @@ struct ConditionalLiteral : BodyLiteral {
         }
     }
 
-    ULiteral literal;
-    ULiteralVec condition;
+    SLiteral literal;
+    SLiteralVec condition;
 };
 
 struct BodyAggregate : BodyLiteral {
-    using Element = std::tuple<STermVec, ULiteralVec>;
+    using Element = std::tuple<STermVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
     BodyAggregate(AggregateFunction fun, ElementVec elems) : fun(fun), elements(std::move(elems)) {}
     BodyAggregate(AggregateFunction fun, ElementVec elems, Relation rel, STerm rhs)
@@ -72,7 +73,7 @@ struct BodyAggregate : BodyLiteral {
     std::optional<std::pair<Relation, STerm>> right_guard;
 };
 
-using UBodyAggregate = std::unique_ptr<BodyAggregate>;
+using SBodyAggregate = shared_ptr<BodyAggregate>;
 
 struct BodySetAggregate : BodyLiteral {
     BodySetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
@@ -83,7 +84,7 @@ struct BodySetAggregate : BodyLiteral {
     SetAggregate aggr;
 };
 
-using UBodySetAggregate = std::unique_ptr<BodySetAggregate>;
+using SBodySetAggregate = shared_ptr<BodySetAggregate>;
 
 struct BodyTheoryAtom : BodyLiteral {
     BodyTheoryAtom(TheoryAtom atom) : atom(std::move(atom)) {}

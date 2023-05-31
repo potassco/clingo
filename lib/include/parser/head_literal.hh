@@ -10,10 +10,10 @@ namespace grammar {
 
 namespace detail {
 
-inline auto make_head_aggr(UHeadAggregate aggr) -> UHeadAggregate { return std::move(aggr); }
+inline auto make_head_aggr(SHeadAggregate aggr) -> SHeadAggregate { return std::move(aggr); }
 
-inline auto make_head_aggr(SetAggregate aggr) -> UHeadSetAggregate {
-    return std::make_unique<HeadSetAggregate>(std::move(aggr));
+inline auto make_head_aggr(SetAggregate aggr) -> SHeadSetAggregate {
+    return construct_shared<HeadSetAggregate>(std::move(aggr));
 }
 
 } // namespace detail
@@ -29,7 +29,7 @@ struct disjunction_element {
 struct disjunction {
     static constexpr char const *name = "disjunction";
     static constexpr auto rule = dsl::list(dsl::p<conditional_literal>, dsl::sep(disjunction_sep));
-    static constexpr auto value = lexy::as_list<Disjunction::ElementVec> >> lexy::new_<Disjunction, UHeadLiteral>;
+    static constexpr auto value = lexy::as_list<Disjunction::ElementVec> >> lexy::new_<Disjunction, SHeadLiteral>;
 };
 
 struct head_aggregate_element {
@@ -39,8 +39,8 @@ struct head_aggregate_element {
         return tuple + LEXY_LIT(":") + dsl::p<literal> + dsl::p<opt_condition>;
     }();
     static constexpr auto value = lexy::callback<HeadAggregate::Element>(
-        [](std::optional<STermVec> tuple, ULiteral lit, std::optional<ULiteralVec> cond) {
-            auto ret = HeadAggregate::Element{STermVec{}, std::move(lit), ULiteralVec{}};
+        [](std::optional<STermVec> tuple, SLiteral lit, std::optional<SLiteralVec> cond) {
+            auto ret = HeadAggregate::Element{STermVec{}, std::move(lit), SLiteralVec{}};
             if (tuple) {
                 std::get<0>(ret) = std::move(tuple).value();
             }
@@ -64,10 +64,10 @@ struct head_aggregate_elements {
 struct head_aggregate {
     static constexpr char const *name = "head aggregate";
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard;
-    static constexpr auto value = lexy::callback<UHeadAggregate>(
-        lexy::new_<HeadAggregate, UHeadAggregate>,
+    static constexpr auto value = lexy::callback<SHeadAggregate>(
+        lexy::new_<HeadAggregate, SHeadAggregate>,
         [](AggregateFunction fun, HeadAggregate::ElementVec elems, STerm rhs) {
-            return std::make_unique<HeadAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
+            return construct_shared<HeadAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
 };
 
@@ -104,9 +104,9 @@ struct head_literal {
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
 
-    static constexpr auto value = lexy::callback<UHeadLiteral>(
-        lexy::forward<UHeadLiteral>, lexy::new_<HeadTheoryAtom, UHeadLiteral>,
-        lexy::new_<HeadSetAggregate, UHeadLiteral>,
+    static constexpr auto value = lexy::callback<SHeadLiteral>(
+        lexy::forward<SHeadLiteral>, lexy::new_<HeadTheoryAtom, SHeadLiteral>,
+        lexy::new_<HeadSetAggregate, SHeadLiteral>,
         [](STerm term, auto aggr) {
             auto ret = detail::make_head_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);
@@ -117,22 +117,23 @@ struct head_literal {
             ret->set_left_guard(std::move(term), rel);
             return std::move(ret);
         },
-        [](STerm lhs, Relation rel, STerm rhs, std::optional<GuardVec> opt_guards, ULiteralVec cond,
+        [](STerm lhs, Relation rel, STerm rhs, std::optional<GuardVec> opt_guards, SLiteralVec cond,
            Disjunction::ElementVec elems) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
-            elems.insert(elems.begin(),
-                         Disjunction::Element{std::make_unique<LiteralRelation>(std::move(lhs), std::move(guards)),
-                                              std::move(cond)});
-            return std::make_unique<Disjunction>(std::move(elems));
+            elems.insert(elems.begin(), Disjunction::Element{construct_shared<LiteralRelation, Literal>(
+                                                                 std::move(lhs), std::move(guards)),
+                                                             std::move(cond)});
+            return construct_shared<Disjunction, HeadLiteral>(std::move(elems));
         },
-        [](STerm term, ULiteralVec cond, Disjunction::ElementVec elems) {
-            elems.insert(elems.begin(),
-                         Disjunction::Element{std::make_unique<LiteralSymbolic>(std::move(term)), std::move(cond)});
-            return std::make_unique<Disjunction>(std::move(elems));
+        [](STerm term, SLiteralVec cond, Disjunction::ElementVec elems) {
+            elems.insert(
+                elems.begin(),
+                Disjunction::Element{construct_shared<LiteralSymbolic, Literal>(std::move(term)), std::move(cond)});
+            return construct_shared<Disjunction, HeadLiteral>(std::move(elems));
         });
 };
 

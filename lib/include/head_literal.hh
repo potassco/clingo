@@ -22,12 +22,13 @@ struct HeadLiteral {
         literal.print(out);
         return out;
     }
+    size_t refs = 0;
 };
 
-using UHeadLiteral = std::unique_ptr<HeadLiteral>;
+using SHeadLiteral = shared_ptr<HeadLiteral>;
 
 struct Disjunction : HeadLiteral {
-    using Element = std::pair<ULiteral, ULiteralVec>;
+    using Element = std::pair<SLiteral, SLiteralVec>;
     using ElementVec = std::vector<Element>;
     Disjunction(ElementVec elems) : elems{std::move(elems)} {}
     [[nodiscard]] auto print_empty() const -> bool override { return elems.empty(); }
@@ -50,7 +51,7 @@ struct HeadTheoryAtom : HeadLiteral {
 };
 
 struct HeadAggregate : HeadLiteral {
-    using Element = std::tuple<STermVec, ULiteral, ULiteralVec>;
+    using Element = std::tuple<STermVec, SLiteral, SLiteralVec>;
     using ElementVec = std::vector<Element>;
     HeadAggregate(AggregateFunction fun, ElementVec elems) : fun(fun), elements(std::move(elems)) {}
     HeadAggregate(AggregateFunction fun, ElementVec elems, Relation rel, STerm rhs)
@@ -76,7 +77,7 @@ struct HeadAggregate : HeadLiteral {
     std::optional<std::pair<Relation, STerm>> right_guard;
 };
 
-using UHeadAggregate = std::unique_ptr<HeadAggregate>;
+using SHeadAggregate = shared_ptr<HeadAggregate>;
 
 struct HeadSetAggregate : HeadLiteral {
     HeadSetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
@@ -85,4 +86,4 @@ struct HeadSetAggregate : HeadLiteral {
     SetAggregate aggr;
 };
 
-using UHeadSetAggregate = std::unique_ptr<HeadSetAggregate>;
+using SHeadSetAggregate = shared_ptr<HeadSetAggregate>;

@@ -19,12 +19,13 @@ struct Statement {
         stm.print(out);
         return out;
     }
+    size_t refs = 0;
 };
 
-using UStatement = std::unique_ptr<Statement>;
+using SStatement = shared_ptr<Statement>;
 
 struct Rule : Statement {
-    explicit Rule(UHeadLiteral head, UBodyLiteralVec body) : head{std::move(head)}, body{std::move(body)} {}
+    explicit Rule(SHeadLiteral head, SBodyLiteralVec body) : head{std::move(head)}, body{std::move(body)} {}
     void print(std::ostream &out) const override {
         out << *head;
         if (head->print_empty() || !body.empty()) {
@@ -32,8 +33,8 @@ struct Rule : Statement {
         }
         out << ".";
     }
-    UHeadLiteral head;
-    UBodyLiteralVec body;
+    SHeadLiteral head;
+    SBodyLiteralVec body;
 };
 
 enum class TheoryOpType { unary, binary_left, binary_right };
@@ -171,7 +172,7 @@ inline auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
 
 struct StatementOptimize : Statement {
     using Tuple = std::tuple<STerm, std::optional<STerm>, STermVec>;
-    using Element = std::tuple<Tuple, ULiteralVec>;
+    using Element = std::tuple<Tuple, SLiteralVec>;
     using ElementVec = std::vector<Element>;
     explicit StatementOptimize(OptimizeType type, ElementVec elems) : type{type}, elems{std::move(elems)} {}
     void print(std::ostream &out) const override {
@@ -199,7 +200,7 @@ struct StatementOptimize : Statement {
 
 struct StatementWeakConstraint : Statement {
     using Tuple = StatementOptimize::Tuple;
-    explicit StatementWeakConstraint(UBodyLiteralVec body, Tuple tuple)
+    explicit StatementWeakConstraint(SBodyLiteralVec body, Tuple tuple)
         : body{std::move(body)}, tuple{std::move(tuple)} {}
     void print(std::ostream &out) const override {
         auto const &[weight, prio, terms] = tuple;
@@ -212,15 +213,15 @@ struct StatementWeakConstraint : Statement {
         }
         out << "]";
     }
-    UBodyLiteralVec body;
+    SBodyLiteralVec body;
     Tuple tuple;
 };
 
 struct StatementShow : Statement {
-    StatementShow(STerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    StatementShow(STerm term, SBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
     void print(std::ostream &out) const override { out << "#show " << *term << ": " << p_range(body, "; ") << "."; }
     STerm term;
-    UBodyLiteralVec body;
+    SBodyLiteralVec body;
 };
 
 struct StatementShowSig : Statement {
@@ -235,12 +236,12 @@ struct StatementShowSig : Statement {
 };
 
 struct StatementProject : Statement {
-    StatementProject(STerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    StatementProject(STerm term, SBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
     void print(std::ostream &out) const override {
         out << "#project " << *term << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
     }
     STerm term;
-    UBodyLiteralVec body;
+    SBodyLiteralVec body;
 };
 
 struct StatementProjectSig : Statement {
@@ -266,8 +267,8 @@ struct StatementDefined : Statement {
 };
 
 struct StatementExternal : Statement {
-    StatementExternal(STerm term, UBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
-    StatementExternal(STerm term, UBodyLiteralVec body, STerm type)
+    StatementExternal(STerm term, SBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    StatementExternal(STerm term, SBodyLiteralVec body, STerm type)
         : term(std::move(term)), body(std::move(body)), type{std::move(type)} {}
     void print(std::ostream &out) const override {
         out << "#external " << *term << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
@@ -276,14 +277,14 @@ struct StatementExternal : Statement {
         }
     }
     STerm term;
-    UBodyLiteralVec body;
+    SBodyLiteralVec body;
     std::optional<STerm> type;
 };
 
 struct StatementEdge : Statement {
     using Edge = std::pair<STerm, STerm>;
     using EdgeVec = std::vector<Edge>;
-    explicit StatementEdge(EdgeVec edges, UBodyLiteralVec body = {}) : edges{std::move(edges)}, body{std::move(body)} {}
+    explicit StatementEdge(EdgeVec edges, SBodyLiteralVec body = {}) : edges{std::move(edges)}, body{std::move(body)} {}
     void print(std::ostream &out) const override {
         out << "#edge ("
             << p_range_with(edges, ";",
@@ -291,15 +292,15 @@ struct StatementEdge : Statement {
             << ")" << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
     }
     EdgeVec edges;
-    UBodyLiteralVec body;
+    SBodyLiteralVec body;
 };
 
 struct StatementHeuristic : Statement {
-    explicit StatementHeuristic(bool has_sign, STerm atom, UBodyLiteralVec body, STerm type, STerm priority,
+    explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm priority,
                                 STerm modifier)
         : atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)), priority(std::move(priority)),
           modifier(std::move(modifier)), has_sign{has_sign} {}
-    explicit StatementHeuristic(bool has_sign, STerm atom, UBodyLiteralVec body, STerm type, STerm modifier)
+    explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm modifier)
         : atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)), modifier(std::move(modifier)),
           has_sign{has_sign} {}
     void print(std::ostream &out) const override {
@@ -311,7 +312,7 @@ struct StatementHeuristic : Statement {
         out << "," << *modifier << "]";
     }
     STerm atom;
-    UBodyLiteralVec body;
+    SBodyLiteralVec body;
     STerm type;
     std::optional<STerm> priority;
     STerm modifier;
