@@ -71,6 +71,36 @@ auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream & {
 
 ////////// LiteralRelation //////////
 
+auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
+    switch (op) {
+        case Relation::less: {
+            out << "<";
+            break;
+        }
+        case Relation::less_equal: {
+            out << "<=";
+            break;
+        }
+        case Relation::greater: {
+            out << ">";
+            break;
+        }
+        case Relation::greater_equal: {
+            out << ">=";
+            break;
+        }
+        case Relation::equal: {
+            out << "=";
+            break;
+        }
+        case Relation::inequal: {
+            out << "!=";
+            break;
+        }
+    }
+    return out;
+}
+
 void LiteralRelation::print(std::ostream &out) const {
     out << sign_ << *lhs_;
     for (auto &&guard : rhs_) {

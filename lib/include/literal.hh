@@ -36,35 +36,7 @@ enum class Relation {
     inequal,
 };
 
-inline auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
-    switch (op) {
-        case Relation::less: {
-            out << "<";
-            break;
-        }
-        case Relation::less_equal: {
-            out << "<=";
-            break;
-        }
-        case Relation::greater: {
-            out << ">";
-            break;
-        }
-        case Relation::greater_equal: {
-            out << ">=";
-            break;
-        }
-        case Relation::equal: {
-            out << "=";
-            break;
-        }
-        case Relation::inequal: {
-            out << "!=";
-            break;
-        }
-    }
-    return out;
-}
+auto operator<<(std::ostream &out, Relation op) -> std::ostream &;
 
 using Guard = std::pair<Relation, STerm>;
 using GuardVec = std::vector<Guard>;
