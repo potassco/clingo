@@ -3,6 +3,8 @@
 #include <memory>
 #include <ostream>
 
+#include <util/shared_ptr.hh>
+
 template <class T> struct p_elem {
     p_elem(T const &elem) : elem(elem) {}
     friend auto operator<<(std::ostream &out, p_elem const &elem) -> std::ostream & {
@@ -31,6 +33,16 @@ template <class T> struct p_elem<std::shared_ptr<T>> {
     }
 
     std::shared_ptr<T> const &elem;
+};
+
+template <class T> struct p_elem<shared_ptr<T>> {
+    p_elem(shared_ptr<T> const &elem) : elem(elem) {}
+    friend auto operator<<(std::ostream &out, p_elem const &elem) -> std::ostream & {
+        out << *elem.elem;
+        return out;
+    }
+
+    shared_ptr<T> const &elem;
 };
 
 template <class T> struct p_range {

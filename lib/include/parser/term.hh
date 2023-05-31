@@ -126,7 +126,7 @@ struct term_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<term_function_pool>);
     static constexpr auto value = lexy::callback<STerm>([](std::string name, std::optional<STermVecVec> value) {
-        return std::make_unique<TermFunction>(std::move(name), detail::empty_args(std::move(value)), false);
+        return construct_shared<TermFunction, Term>(std::move(name), detail::empty_args(std::move(value)), false);
     });
 };
 
@@ -134,7 +134,7 @@ struct term_external_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = LEXY_LIT("@") >> dsl::p<identifier> + dsl::opt(dsl::p<term_function_pool>);
     static constexpr auto value = lexy::callback<STerm>([](std::string name, std::optional<STermVecVec> value) {
-        return std::make_unique<TermFunction>(std::move(name), detail::empty_args(std::move(value)), true);
+        return construct_shared<TermFunction, Term>(std::move(name), detail::empty_args(std::move(value)), true);
     });
 };
 
@@ -177,7 +177,7 @@ struct term_tuple {
                                       if (elem.size() == 1 && std::holds_alternative<STerm>(elem.front())) {
                                           return std::move(std::get<STerm>(elem.front()));
                                       }
-                                      return std::make_unique<TermTuple>(std::move(elem));
+                                      return construct_shared<TermTuple, Term>(std::move(elem));
                                   });
 };
 
@@ -194,7 +194,7 @@ static constexpr auto anonymous_variable =
 struct term_anonymous_variable {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = anonymous_variable;
-    static constexpr auto value = lexy::callback<STerm>([]() { return std::make_unique<TermVariable>("_"); });
+    static constexpr auto value = lexy::callback<STerm>([]() { return construct_shared<TermVariable, Term>("_"); });
 };
 
 struct term_rec : lexy::expression_production {

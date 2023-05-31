@@ -174,7 +174,8 @@ struct statement_optimize {
     }();
     static constexpr auto value = lexy::as_list<StatementOptimize::ElementVec> >>
                                   lexy::callback<UStatement>(
-                                      [](OptimizeType type, std::optional<StatementOptimize::ElementVec> elems) {
+                                      [](OptimizeType type,
+                                         std::optional<StatementOptimize::ElementVec> elems) -> UStatement {
                                           return std::make_unique<StatementOptimize>(
                                               type, std::move(elems).value_or(StatementOptimize::ElementVec{}));
                                       },
@@ -265,9 +266,9 @@ struct statement_project {
         lexy::new_<StatementProjectSig, UStatement>,
         [](bool has_sign, std::string name, std::optional<STermVecVec> pool, UBodyLiteralVec body) {
             STerm atom =
-                std::make_unique<TermFunction>(std::move(name), std::move(pool).value_or(STermVecVec{}), false);
+                construct_shared<TermFunction, Term>(std::move(name), std::move(pool).value_or(STermVecVec{}), false);
             if (has_sign) {
-                atom = std::make_unique<TermUnary>(UnaryOperator::negate, std::move(atom));
+                atom = construct_shared<TermUnary, Term>(UnaryOperator::negate, std::move(atom));
             }
             return std::make_unique<StatementProject>(std::move(atom), std::move(body));
         });
@@ -298,7 +299,7 @@ struct statement_external {
     }();
     static constexpr auto value = lexy::callback<UStatement>([](bool has_sign, STerm atom, auto &&...args) {
         if (has_sign) {
-            atom = std::make_unique<TermUnary>(UnaryOperator::negate, std::move(atom));
+            atom = construct_shared<TermUnary, Term>(UnaryOperator::negate, std::move(atom));
         }
         return std::make_unique<StatementExternal>(std::move(atom), std::forward<decltype(args)>(args)...);
     });

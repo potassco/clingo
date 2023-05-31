@@ -15,13 +15,25 @@ build/CMakeCache.txt:
 configure: build/CMakeCache.txt
 
 reconfigure:
-	cmake -S. -Bbuild -DCMAKE_EXPORT_COMPILE_COMMANDS=On \
-		-DCMAKE_CXX_INCLUDE_WHAT_YOU_USE="include-what-you-use;-w;-Xiwyu" \
-		-DCMAKE_CXX_FLAGS="-stdlib=libc++"
+	[ ! -z "${CONDA_PREFIX+x}" ] || cmake -S. -Bbuild \
+		-DCMAKE_BUILD_TYPE="Debug" \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS="On" \
+		-DCMAKE_CXX_COMPILER="clang++" \
+		-DCMAKE_C_COMPILER="clang" \
+		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -L${CONDA_PREFIX}/lib" \
+		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -ftemplate-backtrace-limit=0"
+	[ -z "${CONDA_PREFIX+x}" ] || cmake -S. -Bbuild \
+		-DCMAKE_BUILD_TYPE="Debug" \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS="On"
 
 reconfigure-iwyn:
-	cmake -S. -Bbuild -DCMAKE_EXPORT_COMPILE_COMMANDS=On \
+	cmake -S. -Bbuild \
 		-DCMAKE_CXX_INCLUDE_WHAT_YOU_USE="include-what-you-use;-w;-Xiwyu" \
+		-DCMAKE_BUILD_TYPE="Debug" \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS="On" \
+		-DCMAKE_CXX_COMPILER="clang++" \
+		-DCMAKE_C_COMPILER="clang" \
+		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -L${CONDA_PREFIX}/lib" \
 		-DCMAKE_CXX_FLAGS="-stdlib=libc++"
 
 format:

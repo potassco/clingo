@@ -1,10 +1,11 @@
 #pragma once
 
-#include <memory>
 #include <optional>
 #include <ostream>
 #include <variant>
 #include <vector>
+
+#include <util/shared_ptr.hh>
 
 enum class TermCheckType : int { atom, sig, identifier, signed_identifier, pos_number };
 
@@ -41,12 +42,14 @@ auto operator<<(std::ostream &out, Attribute attr) -> std::ostream &;
 
 // TODO: rethink shared_ptr because it incurs quite a performance hit...
 class Term;
-using STerm = std::shared_ptr<Term>;
+using STerm = shared_ptr<Term>;
 using STermVec = std::vector<STerm>;
 using STermVecVec = std::vector<STermVec>;
 
 class Term {
   public:
+    virtual ~Term() = default;
+
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] virtual auto type() const -> TermType = 0;
     [[nodiscard]] virtual auto get_int(Attribute attr) -> int &;
@@ -120,6 +123,7 @@ class Term {
             static_assert(sizeof(T *) == 0, "unsupported type in AST::get");
         }
     };
+    size_t refs = 0;
 };
 
 enum class Constant : int {
