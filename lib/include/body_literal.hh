@@ -78,7 +78,7 @@ using SBodyAggregate = shared_ptr<BodyAggregate>;
 struct BodySetAggregate : BodyLiteral {
     BodySetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
     void add_sign(Sign s) override { sign += s; }
-    void set_left_guard(STerm lhs, Relation rel) { aggr.set_left_guard(std::move(lhs), rel); }
+    void set_left_guard(STerm lhs, Relation rel) { aggr.set_rhs(std::move(lhs), rel); }
     void print(std::ostream &out) const override { out << sign << aggr; }
     Sign sign = Sign::none;
     SetAggregate aggr;

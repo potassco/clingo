@@ -81,7 +81,7 @@ using SHeadAggregate = shared_ptr<HeadAggregate>;
 
 struct HeadSetAggregate : HeadLiteral {
     HeadSetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
-    void set_left_guard(STerm lhs, Relation rel) { aggr.set_left_guard(std::move(lhs), rel); }
+    void set_left_guard(STerm lhs, Relation rel) { aggr.set_rhs(std::move(lhs), rel); }
     void print(std::ostream &out) const override { out << aggr; }
     SetAggregate aggr;
 };
