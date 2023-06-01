@@ -124,8 +124,7 @@ struct theory_term_root {
 struct theory_term_unparsed_guards {
     static constexpr char const *name = "theory term guards";
     static constexpr auto rule = dsl::list(dsl::p<theory_ops> >> dsl::p<theory_term_root>);
-    static constexpr auto value =
-        lexy::collect<TheoryTermUnparsed::GuardVec>(lexy::construct<TheoryTermUnparsed::Guard>);
+    static constexpr auto value = lexy::collect<TheoryTermUnparsed::RHSVec>(lexy::construct<TheoryTermUnparsed::RHS>);
 };
 
 struct theory_term_unparsed : lexy::transparent_production {

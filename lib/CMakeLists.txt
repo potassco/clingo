@@ -1,4 +1,4 @@
-add_library(parsertest "src/main.cc" "src/term.cc" "src/literal.cc" "src/aggregate.cc")
+add_library(parsertest "src/main.cc" "src/term.cc" "src/literal.cc" "src/aggregate.cc" "src/head_literal.cc" "src/theory.cc")
 target_link_libraries(parsertest foonathan::lexy::core foonathan::lexy::file)
 target_include_directories(parsertest PUBLIC "include")
 

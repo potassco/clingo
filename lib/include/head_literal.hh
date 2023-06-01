@@ -1,89 +1,76 @@
 #pragma once
 
-#include <iostream>
-#include <memory>
-#include <optional>
-#include <vector>
+#include <tuple>
 
 #include <aggregate.hh>
 #include <literal.hh>
 #include <theory.hh>
 
-struct HeadLiteral {
+class HeadLiteral {
+  public:
     virtual ~HeadLiteral() = default;
-    [[nodiscard]] virtual auto print_empty() const -> bool { return false; }
+
+    [[nodiscard]] virtual auto print_empty() const -> bool;
+
     virtual void print(std::ostream &out) const = 0;
-    [[nodiscard]] auto to_string() const -> std::string {
-        std::ostringstream out;
-        out << *this;
-        return out.str();
-    }
-    friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream & {
-        literal.print(out);
-        return out;
-    }
+    [[nodiscard]] auto to_string() const -> std::string;
+    friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &;
+
     size_t refs = 0;
 };
 
 using SHeadLiteral = shared_ptr<HeadLiteral>;
 
-struct Disjunction : HeadLiteral {
+class Disjunction : public HeadLiteral {
+  public:
     using Element = std::pair<SLiteral, SLiteralVec>;
     using ElementVec = std::vector<Element>;
-    Disjunction(ElementVec elems) : elems{std::move(elems)} {}
-    [[nodiscard]] auto print_empty() const -> bool override { return elems.empty(); }
-    void print(std::ostream &out) const override {
-        out << p_range_with(elems, "; ", [](std::ostream &out, auto const &elem) {
-            out << *elem.first;
-            if (!elem.second.empty()) {
-                out << ": " << p_range(elem.second);
-            }
-        });
-    }
 
-    ElementVec elems;
+    Disjunction(ElementVec elems) : elems_{std::move(elems)} {}
+
+    [[nodiscard]] auto print_empty() const -> bool override;
+    void print(std::ostream &out) const override;
+
+  private:
+    ElementVec elems_;
 };
 
-struct HeadTheoryAtom : HeadLiteral {
-    HeadTheoryAtom(TheoryAtom atom) : atom{std::move(atom)} {}
-    void print(std::ostream &out) const override { out << atom; }
-    TheoryAtom atom;
+class HeadTheoryAtom : public HeadLiteral {
+  public:
+    HeadTheoryAtom(TheoryAtom atom) : atom_{std::move(atom)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    TheoryAtom atom_;
 };
 
-struct HeadAggregate : HeadLiteral {
+class HeadAggregate : public HeadLiteral {
+  public:
     using Element = std::tuple<STermVec, SLiteral, SLiteralVec>;
     using ElementVec = std::vector<Element>;
-    HeadAggregate(AggregateFunction fun, ElementVec elems) : fun(fun), elements(std::move(elems)) {}
+
+    HeadAggregate(AggregateFunction fun, ElementVec elems) : fun_(fun), elems_(std::move(elems)) {}
     HeadAggregate(AggregateFunction fun, ElementVec elems, Relation rel, STerm rhs)
-        : fun(fun), elements(std::move(elems)), right_guard(std::make_pair(rel, std::move(rhs))) {}
-    void set_left_guard(STerm lhs, Relation rel) { left_guard = std::make_pair(std::move(lhs), rel); }
-    void print(std::ostream &out) const override {
-        if (left_guard) {
-            out << *left_guard->first << " " << left_guard->second << " ";
-        }
-        out << fun << " { " << p_range_with(elements, "; ", [](std::ostream &out, auto const &elem) {
-            out << p_range{std::get<0>(elem), ","} << ": " << *std::get<1>(elem);
-            if (!std::get<2>(elem).empty()) {
-                out << ": " << p_range{std::get<2>(elem), ", "};
-            }
-        }) << (elements.empty() ? "}" : " }");
-        if (right_guard) {
-            out << " " << right_guard->first << " " << *right_guard->second;
-        }
-    }
-    AggregateFunction fun;
-    ElementVec elements;
-    std::optional<std::pair<STerm, Relation>> left_guard;
-    std::optional<std::pair<Relation, STerm>> right_guard;
+        : fun_(fun), elems_(std::move(elems)), rhs_(std::make_pair(rel, std::move(rhs))) {}
+
+    void set_left_guard(STerm lhs, Relation rel);
+    void print(std::ostream &out) const override;
+
+  private:
+    AggregateFunction fun_;
+    ElementVec elems_;
+    std::optional<std::pair<STerm, Relation>> lhs_;
+    std::optional<std::pair<Relation, STerm>> rhs_;
 };
 
-using SHeadAggregate = shared_ptr<HeadAggregate>;
+class HeadSetAggregate : public HeadLiteral {
+  public:
+    HeadSetAggregate(SetAggregate aggr) : aggr_{std::move(aggr)} {}
 
-struct HeadSetAggregate : HeadLiteral {
-    HeadSetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
-    void set_left_guard(STerm lhs, Relation rel) { aggr.set_rhs(std::move(lhs), rel); }
-    void print(std::ostream &out) const override { out << aggr; }
-    SetAggregate aggr;
+    void set_left_guard(STerm lhs, Relation rel);
+    void print(std::ostream &out) const override;
+
+  private:
+    SetAggregate aggr_;
 };
-
-using SHeadSetAggregate = shared_ptr<HeadSetAggregate>;

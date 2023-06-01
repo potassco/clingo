@@ -8,6 +8,9 @@
 
 namespace grammar {
 
+using SHeadAggregate = shared_ptr<HeadAggregate>;
+using SHeadSetAggregate = shared_ptr<HeadSetAggregate>;
+
 namespace detail {
 
 inline auto make_head_aggr(SHeadAggregate aggr) -> SHeadAggregate { return std::move(aggr); }

@@ -1,179 +1,138 @@
 #pragma once
 
-#include <iostream>
-#include <memory>
-#include <optional>
-#include <sstream>
-#include <string>
-#include <vector>
-
 #include <literal.hh>
 #include <term.hh>
 
-#include <util/print.hh>
-
-struct TheoryTerm {
+class TheoryTerm {
+  public:
     virtual ~TheoryTerm() = default;
+
     virtual void print(std::ostream &out) const = 0;
-    [[nodiscard]] auto to_string() const -> std::string {
-        std::ostringstream out;
-        out << *this;
-        return out.str();
-    }
-    friend auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
-        term.print(out);
-        return out;
-    }
+    [[nodiscard]] auto to_string() const -> std::string;
+    friend auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream &;
+
     size_t refs = 0;
 };
 
 using STheoryTerm = shared_ptr<TheoryTerm>;
 using STheoryTermVec = std::vector<STheoryTerm>;
 
-struct TheoryTermUnparsed : TheoryTerm {
+class TheoryTermUnparsed : public TheoryTerm {
+  public:
     using OpVec = std::vector<std::string>;
-    using Guard = std::pair<OpVec, STheoryTerm>;
-    using GuardVec = std::vector<Guard>;
-    explicit TheoryTermUnparsed(OpVec ops, STheoryTerm term, GuardVec guards = {})
-        : ops{std::move(ops)}, term{std::move(term)}, guards{std::move(guards)} {}
-    explicit TheoryTermUnparsed(STheoryTerm term, GuardVec guards) : term{std::move(term)}, guards{std::move(guards)} {}
-    void print(std::ostream &out) const override {
-        bool needs_parens = !ops.empty() || !guards.empty();
-        if (needs_parens) {
-            out << "(";
-        }
-        if (!ops.empty()) {
-            out << p_range(ops, " ") << " ";
-        }
-        out << *term << p_range_with(guards, [](std::ostream &out, Guard const &guard) {
-            out << " " << p_range(guard.first, " ") << " " << *guard.second;
-        });
-        if (needs_parens) {
-            out << ")";
-        }
-    }
-    OpVec ops;
-    STheoryTerm term;
-    GuardVec guards;
+    using RHS = std::pair<OpVec, STheoryTerm>;
+    using RHSVec = std::vector<RHS>;
+
+    explicit TheoryTermUnparsed(OpVec ops, STheoryTerm term, RHSVec rhs = {})
+        : ops_{std::move(ops)}, term_{std::move(term)}, rhs_{std::move(rhs)} {}
+    explicit TheoryTermUnparsed(STheoryTerm term, RHSVec rhs) : term_{std::move(term)}, rhs_{std::move(rhs)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    OpVec ops_;
+    STheoryTerm term_;
+    RHSVec rhs_;
 };
 
 enum class TheoryTermTupleType { Tuple, Set, List };
 
-inline auto left_bracket(TheoryTermTupleType type) -> char {
-    switch (type) {
-        case TheoryTermTupleType::Tuple: {
-            return '(';
-        }
-        case TheoryTermTupleType::Set: {
-            return '{';
-        }
-        case TheoryTermTupleType::List: {
-            break;
-        }
-    }
-    return '[';
-}
+auto left_bracket(TheoryTermTupleType type) -> char;
 
-inline auto right_bracket(TheoryTermTupleType type) -> char {
-    switch (type) {
-        case TheoryTermTupleType::Tuple: {
-            return ')';
-        }
-        case TheoryTermTupleType::Set: {
-            return '}';
-        }
-        case TheoryTermTupleType::List: {
-            break;
-        }
-    }
-    return ']';
-}
+auto right_bracket(TheoryTermTupleType type) -> char;
 
-struct TheoryTermTuple : TheoryTerm {
+class TheoryTermTuple : public TheoryTerm {
+  public:
     using Element = STheoryTerm;
     using ElementVec = std::vector<STheoryTerm>;
-    explicit TheoryTermTuple(TheoryTermTupleType type, ElementVec elems) : type{type}, elems{std::move(elems)} {}
-    void print(std::ostream &out) const override {
-        out << left_bracket(type) << p_range(elems);
-        if (type == TheoryTermTupleType::Tuple && elems.size() == 1) {
-            out << ",";
-        }
-        out << right_bracket(type);
-    }
-    TheoryTermTupleType type;
-    ElementVec elems;
+
+    explicit TheoryTermTuple(TheoryTermTupleType type, ElementVec elems) : type_{type}, elems_{std::move(elems)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    TheoryTermTupleType type_;
+    ElementVec elems_;
 };
 
-struct TheoryTermConstant : TheoryTerm {
+class TheoryTermConstant : public TheoryTerm {
+  public:
     using Element = STheoryTerm;
     using ElementVec = std::vector<STheoryTerm>;
-    TheoryTermConstant(Constant value) : value{value} {}
-    void print(std::ostream &out) const override { out << value; }
-    Constant value;
+
+    TheoryTermConstant(Constant value) : value_{value} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    Constant value_;
 };
 
-struct TheoryTermInteger : TheoryTerm {
+class TheoryTermInteger : public TheoryTerm {
+  public:
     using Element = STheoryTerm;
     using ElementVec = std::vector<STheoryTerm>;
-    explicit TheoryTermInteger(int value) : value{value} {}
-    void print(std::ostream &out) const override { out << value; }
-    int value;
+
+    explicit TheoryTermInteger(int value) : value_{value} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    int value_;
 };
 
-struct TheoryTermString : TheoryTerm {
+class TheoryTermString : public TheoryTerm {
+  public:
     using Element = STheoryTerm;
     using ElementVec = std::vector<STheoryTerm>;
-    explicit TheoryTermString(std::string value) : value{std::move(value)} {}
-    void print(std::ostream &out) const override { print_quoted(out, value); }
-    std::string value;
+
+    explicit TheoryTermString(std::string value) : value_{std::move(value)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    std::string value_;
 };
 
-struct TheoryTermVariable : TheoryTerm {
+class TheoryTermVariable : public TheoryTerm {
+  public:
     using Element = STheoryTerm;
     using ElementVec = std::vector<STheoryTerm>;
-    explicit TheoryTermVariable(std::string value) : value{std::move(value)} {}
-    void print(std::ostream &out) const override { out << value; }
-    std::string value;
+
+    explicit TheoryTermVariable(std::string value) : name_{std::move(value)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    std::string name_;
 };
 
-struct TheoryTermFunction : TheoryTerm {
+class TheoryTermFunction : public TheoryTerm {
+  public:
     explicit TheoryTermFunction(std::string name, STheoryTermVec args = {})
-        : name(std::move(name)), args{std::move(args)} {}
+        : name_(std::move(name)), args_{std::move(args)} {}
 
-    void print(std::ostream &out) const override {
-        out << name;
-        if (!args.empty()) {
-            out << "(" << p_range(args) << ")";
-        }
-    }
+    void print(std::ostream &out) const override;
 
-    std::string name;
-    STheoryTermVec args;
+  private:
+    std::string name_;
+    STheoryTermVec args_;
 };
 
-struct TheoryAtom {
+class TheoryAtom {
+  public:
     using Element = std::pair<STheoryTermVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
-    TheoryAtom(STerm name, ElementVec elems) : name{std::move(name)}, elems{std::move(elems)} {}
-    TheoryAtom(STerm name, ElementVec elems, std::string guard_op, STheoryTerm guard_term)
-        : name{std::move(name)}, elems{std::move(elems)},
-          guard{std::make_pair(std::move(guard_op), std::move(guard_term))} {}
-    friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
-        out << "&" << *atom.name;
-        if (!atom.elems.empty() || atom.guard.has_value()) {
-            out << " { " << p_range_with(atom.elems, "; ", [](std::ostream &out, Element const &elem) {
-                out << p_range(elem.first);
-                if (!elem.second.empty() || elem.first.empty()) {
-                    out << ": " << p_range(elem.second, ", ");
-                }
-            }) << (atom.elems.empty() ? "}" : " }");
-        }
-        if (atom.guard.has_value()) {
-            out << " " << atom.guard.value().first << " " << *atom.guard.value().second;
-        }
-        return out;
-    }
-    STerm name;
-    ElementVec elems;
-    std::optional<std::pair<std::string, STheoryTerm>> guard;
+
+    TheoryAtom(STerm name, ElementVec elems) : name_{std::move(name)}, elems_{std::move(elems)} {}
+    TheoryAtom(STerm name, ElementVec elems, std::string rhs_op, STheoryTerm rhs_term)
+        : name_{std::move(name)}, elems_{std::move(elems)},
+          rhs_{std::make_pair(std::move(rhs_op), std::move(rhs_term))} {}
+
+    friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream &;
+
+  private:
+    STerm name_;
+    ElementVec elems_;
+    std::optional<std::pair<std::string, STheoryTerm>> rhs_;
 };

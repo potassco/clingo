@@ -3,7 +3,10 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <vector>
+
+#include <util/print.hh>
 
 #include <aggregate.hh>
 #include <literal.hh>
