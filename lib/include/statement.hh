@@ -1,325 +1,239 @@
 #pragma once
 
-#include <iostream>
-#include <memory>
-#include <optional>
-#include <sstream>
-
-#include <util/print.hh>
-
 #include <body_literal.hh>
 #include <head_literal.hh>
 
-struct Statement {
+class Statement {
+  public:
     virtual ~Statement() = default;
+
     virtual void print(std::ostream &out) const = 0;
-    [[nodiscard]] auto to_string() const -> std::string {
-        std::ostringstream out;
-        out << *this;
-        return out.str();
-    }
-    friend auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream & {
-        stm.print(out);
-        return out;
-    }
+    [[nodiscard]] auto to_string() const -> std::string;
+    friend auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream &;
+
     size_t refs = 0;
 };
 
 using SStatement = shared_ptr<Statement>;
 
-struct Rule : Statement {
-    explicit Rule(SHeadLiteral head, SBodyLiteralVec body) : head{std::move(head)}, body{std::move(body)} {}
-    void print(std::ostream &out) const override {
-        out << *head;
-        if (head->print_empty() || !body.empty()) {
-            out << " :- " << p_range(body, "; ");
-        }
-        out << ".";
-    }
-    SHeadLiteral head;
-    SBodyLiteralVec body;
+class Rule : public Statement {
+  public:
+    explicit Rule(SHeadLiteral head, SBodyLiteralVec body) : head_{std::move(head)}, body_{std::move(body)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    SHeadLiteral head_;
+    SBodyLiteralVec body_;
 };
 
 enum class TheoryOpType { unary, binary_left, binary_right };
 
-struct TheoryOpDefinition {
-    explicit TheoryOpDefinition(std::string op, int priority, TheoryOpType type)
-        : op{std::move(op)}, priority{priority}, type{type} {}
-    friend auto operator<<(std::ostream &out, TheoryOpDefinition const &def) -> std::ostream & {
-        out << def.op << " : " << def.priority << ", ";
-        switch (def.type) {
-            case TheoryOpType::unary: {
-                out << "unary";
-                break;
-            }
-            case TheoryOpType::binary_left: {
-                out << "binary, left";
-                break;
-            }
-            case TheoryOpType::binary_right: {
-                out << "binary, right";
-                break;
-            }
-        }
-        return out;
-    }
-    std::string op;
-    int priority;
-    TheoryOpType type;
+class TheoryOpDefinition {
+  public:
+    explicit TheoryOpDefinition(std::string op, int prio, TheoryOpType type)
+        : op_{std::move(op)}, prio_{prio}, type_{type} {}
+
+    friend auto operator<<(std::ostream &out, TheoryOpDefinition const &def) -> std::ostream &;
+
+  private:
+    std::string op_;
+    int prio_;
+    TheoryOpType type_;
 };
+
 using TheoryOpDefinitionVec = std::vector<TheoryOpDefinition>;
 
-struct TheoryTermDefinition {
+class TheoryTermDefinition {
+  public:
     explicit TheoryTermDefinition(std::string name, TheoryOpDefinitionVec op_defs)
-        : name{std::move(name)}, op_defs{std::move(op_defs)} {}
-    friend auto operator<<(std::ostream &out, TheoryTermDefinition const &def) -> std::ostream & {
-        out << "  " << def.name << " {";
-        if (def.op_defs.empty()) {
-            out << " }";
-        } else if (def.op_defs.size() == 1) {
-            out << " " << def.op_defs.front() << " }";
-        } else {
-            out << "\n"
-                << p_range_with(def.op_defs, ";\n", [](std::ostream &out, auto &op_def) { out << "    " << op_def; })
-                << "\n  }";
-        }
-        return out;
-    }
-    std::string name;
-    std::vector<TheoryOpDefinition> op_defs;
+        : name_{std::move(name)}, op_defs_{std::move(op_defs)} {}
+
+    friend auto operator<<(std::ostream &out, TheoryTermDefinition const &def) -> std::ostream &;
+
+  private:
+    std::string name_;
+    std::vector<TheoryOpDefinition> op_defs_;
 };
+
 using TheoryTermDefinitionVec = std::vector<TheoryTermDefinition>;
 
 enum class TheoryAtomType { head, body, any, directive };
 
-inline auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream & {
-    switch (type) {
-        case TheoryAtomType::head: {
-            out << "head";
-            break;
-        }
-        case TheoryAtomType::body: {
-            out << "body";
-            break;
-        }
-        case TheoryAtomType::any: {
-            out << "any";
-            break;
-        }
-        case TheoryAtomType::directive: {
-            out << "directive";
-            break;
-        }
-    }
-    return out;
-}
+auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream &;
 
-struct TheoryAtomDefinition {
-    using Guard = std::optional<std::pair<std::vector<std::string>, std::string>>;
-    explicit TheoryAtomDefinition(std::string name, int arity, std::string term, Guard guard, TheoryAtomType type)
-        : name(std::move(name)), arity(arity), term(std::move(term)), guard(std::move(guard)), type(type) {}
-    friend auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream & {
-        out << "  &" << def.name << "/" << def.arity << ": " << def.term << ", ";
-        if (def.guard) {
-            out << "{" << p_range(def.guard->first, ",") << "}, " << def.guard->second << ", ";
-        }
-        out << def.type;
-        return out;
-    }
-    std::string name;
-    int arity;
-    std::string term;
-    std::optional<std::pair<std::vector<std::string>, std::string>> guard;
-    TheoryAtomType type;
+class TheoryAtomDefinition {
+  public:
+    using RHS = std::optional<std::pair<std::vector<std::string>, std::string>>;
+
+    explicit TheoryAtomDefinition(std::string name, int arity, std::string term, RHS rhs, TheoryAtomType type)
+        : name_(std::move(name)), arity_(arity), term_(std::move(term)), rhs_(std::move(rhs)), type_(type) {}
+
+    friend auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream &;
+
+  private:
+    std::string name_;
+    int arity_;
+    std::string term_;
+    RHS rhs_;
+    TheoryAtomType type_;
 };
 using TheoryAtomDefinitionVec = std::vector<TheoryAtomDefinition>;
 
-struct TheoryDefinition : Statement {
+class TheoryDefinition : public Statement {
+  public:
     explicit TheoryDefinition(std::string name, TheoryTermDefinitionVec term_defs, TheoryAtomDefinitionVec atom_defs)
-        : name{std::move(name)}, term_defs{std::move(term_defs)}, atom_defs{std::move(atom_defs)} {}
-    void print(std::ostream &out) const override {
-        out << "#theory " << name << (term_defs.empty() && atom_defs.empty() ? " { " : " {\n");
-        out << p_range(term_defs, ";\n");
-        if (!term_defs.empty()) {
-            if (!atom_defs.empty()) {
-                out << ";";
-            }
-            out << "\n";
-        }
-        out << p_range(atom_defs, ";\n");
-        if (!atom_defs.empty()) {
-            out << "\n";
-        }
-        out << "}.";
-    }
-    std::string name;
-    TheoryTermDefinitionVec term_defs;
-    TheoryAtomDefinitionVec atom_defs;
+        : name_{std::move(name)}, term_defs_{std::move(term_defs)}, atom_defs_{std::move(atom_defs)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    std::string name_;
+    TheoryTermDefinitionVec term_defs_;
+    TheoryAtomDefinitionVec atom_defs_;
 };
 
 enum class OptimizeType { minimize, maximize };
 
-inline auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
-    switch (type) {
-        case OptimizeType::maximize: {
-            out << "#maximize";
-            break;
-        }
-        case OptimizeType::minimize: {
-            out << "#minimize";
-            break;
-        }
-    }
-    return out;
-}
+auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream &;
 
-struct StatementOptimize : Statement {
+class StatementOptimize : public Statement {
+  public:
     using Tuple = std::tuple<STerm, std::optional<STerm>, STermVec>;
     using Element = std::tuple<Tuple, SLiteralVec>;
     using ElementVec = std::vector<Element>;
-    explicit StatementOptimize(OptimizeType type, ElementVec elems) : type{type}, elems{std::move(elems)} {}
-    void print(std::ostream &out) const override {
-        out << type << " { "
-            << p_range_with(elems, "; ",
-                            [](std::ostream &out, auto const &elem) {
-                                auto const &[tuple, cond] = elem;
-                                auto const &[weight, prio, terms] = tuple;
-                                out << *weight;
-                                if (prio) {
-                                    out << "@" << *prio.value();
-                                }
-                                if (!terms.empty()) {
-                                    out << "," << p_range(terms);
-                                }
-                                if (!cond.empty()) {
-                                    out << ": " << p_range(cond, ", ");
-                                }
-                            })
-            << (elems.empty() ? "}" : " }") << ".";
-    }
-    OptimizeType type;
-    ElementVec elems;
+
+    explicit StatementOptimize(OptimizeType type, ElementVec elems) : type_{type}, elems_{std::move(elems)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    OptimizeType type_;
+    ElementVec elems_;
 };
 
-struct StatementWeakConstraint : Statement {
+class StatementWeakConstraint : public Statement {
+  public:
     using Tuple = StatementOptimize::Tuple;
+
     explicit StatementWeakConstraint(SBodyLiteralVec body, Tuple tuple)
-        : body{std::move(body)}, tuple{std::move(tuple)} {}
-    void print(std::ostream &out) const override {
-        auto const &[weight, prio, terms] = tuple;
-        out << " :~ " << p_range(body, "; ") << ". [" << *weight;
-        if (prio) {
-            out << "@" << *prio.value();
-        }
-        if (!terms.empty()) {
-            out << "," << p_range(terms);
-        }
-        out << "]";
-    }
-    SBodyLiteralVec body;
-    Tuple tuple;
+        : body_{std::move(body)}, tuple_{std::move(tuple)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    SBodyLiteralVec body_;
+    Tuple tuple_;
 };
 
-struct StatementShow : Statement {
-    StatementShow(STerm term, SBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
-    void print(std::ostream &out) const override { out << "#show " << *term << ": " << p_range(body, "; ") << "."; }
-    STerm term;
-    SBodyLiteralVec body;
+class StatementShow : public Statement {
+  public:
+    StatementShow(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    STerm term_;
+    SBodyLiteralVec body_;
 };
 
-struct StatementShowSig : Statement {
-    StatementShowSig(bool has_sign, std::string name, int arity)
-        : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
-    void print(std::ostream &out) const override {
-        out << "#show " << (has_sign ? "-" : "") << name << "/" << arity << ".";
-    }
-    bool has_sign;
-    std::string name;
-    int arity;
+class StatementShowSig : public Statement {
+  public:
+    explicit StatementShowSig(bool has_sign, std::string name, int arity)
+        : has_sign_{has_sign}, name_{std::move(name)}, arity_{arity} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    bool has_sign_;
+    std::string name_;
+    int arity_;
 };
 
-struct StatementProject : Statement {
-    StatementProject(STerm term, SBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
-    void print(std::ostream &out) const override {
-        out << "#project " << *term << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
-    }
-    STerm term;
-    SBodyLiteralVec body;
+class StatementProject : public Statement {
+  public:
+    explicit StatementProject(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    STerm term_;
+    SBodyLiteralVec body_;
 };
 
-struct StatementProjectSig : Statement {
-    StatementProjectSig(bool has_sign, std::string name, int arity)
-        : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
-    void print(std::ostream &out) const override {
-        out << "#project " << (has_sign ? "-" : "") << name << "/" << arity << ".";
-    }
-    bool has_sign;
-    std::string name;
-    int arity;
+class StatementProjectSig : public Statement {
+  public:
+    explicit StatementProjectSig(bool has_sign, std::string name, int arity)
+        : has_sign_{has_sign}, name_{std::move(name)}, arity_{arity} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    bool has_sign_;
+    std::string name_;
+    int arity_;
 };
 
-struct StatementDefined : Statement {
-    StatementDefined(bool has_sign, std::string name, int arity)
-        : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
-    void print(std::ostream &out) const override {
-        out << "#defined " << (has_sign ? "-" : "") << name << "/" << arity << ".";
-    }
-    bool has_sign;
-    std::string name;
-    int arity;
+class StatementDefined : public Statement {
+  public:
+    explicit StatementDefined(bool has_sign, std::string name, int arity)
+        : has_sign_{has_sign}, name_{std::move(name)}, arity_{arity} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    bool has_sign_;
+    std::string name_;
+    int arity_;
 };
 
-struct StatementExternal : Statement {
-    StatementExternal(STerm term, SBodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
-    StatementExternal(STerm term, SBodyLiteralVec body, STerm type)
-        : term(std::move(term)), body(std::move(body)), type{std::move(type)} {}
-    void print(std::ostream &out) const override {
-        out << "#external " << *term << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
-        if (type.has_value()) {
-            out << " [" << *type.value() << "]";
-        }
-    }
-    STerm term;
-    SBodyLiteralVec body;
-    std::optional<STerm> type;
+class StatementExternal : public Statement {
+  public:
+    explicit StatementExternal(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
+    explicit StatementExternal(STerm term, SBodyLiteralVec body, STerm type)
+        : term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    STerm term_;
+    SBodyLiteralVec body_;
+    std::optional<STerm> type_;
 };
 
-struct StatementEdge : Statement {
+class StatementEdge : public Statement {
+  public:
     using Edge = std::pair<STerm, STerm>;
     using EdgeVec = std::vector<Edge>;
-    explicit StatementEdge(EdgeVec edges, SBodyLiteralVec body = {}) : edges{std::move(edges)}, body{std::move(body)} {}
-    void print(std::ostream &out) const override {
-        out << "#edge ("
-            << p_range_with(edges, ";",
-                            [](std::ostream &out, auto &edge) { out << *edge.first << "," << *edge.second; })
-            << ")" << (body.empty() ? "" : ": ") << p_range(body, "; ") << ".";
-    }
-    EdgeVec edges;
-    SBodyLiteralVec body;
+
+    explicit StatementEdge(EdgeVec edges, SBodyLiteralVec body = {})
+        : edges_{std::move(edges)}, body_{std::move(body)} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    EdgeVec edges_;
+    SBodyLiteralVec body_;
 };
 
-struct StatementHeuristic : Statement {
-    explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm priority,
-                                STerm modifier)
-        : atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)), priority(std::move(priority)),
-          modifier(std::move(modifier)), has_sign{has_sign} {}
-    explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm modifier)
-        : atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)), modifier(std::move(modifier)),
-          has_sign{has_sign} {}
-    void print(std::ostream &out) const override {
-        out << "#heuristic " << (has_sign ? "-" : "") << *atom << (body.empty() ? "" : ": ") << p_range(body, "; ")
-            << ". [" << *type;
-        if (priority) {
-            out << "@" << *priority.value();
-        }
-        out << "," << *modifier << "]";
-    }
-    STerm atom;
-    SBodyLiteralVec body;
-    STerm type;
-    std::optional<STerm> priority;
-    STerm modifier;
-    bool has_sign;
+class StatementHeuristic : public Statement {
+  public:
+    explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm prio, STerm mod)
+        : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
+          mod_(std::move(mod)), has_sign_{has_sign} {}
+    explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm mod)
+        : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), mod_(std::move(mod)),
+          has_sign_{has_sign} {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    STerm atom_;
+    SBodyLiteralVec body_;
+    STerm type_;
+    std::optional<STerm> prio_;
+    STerm mod_;
+    bool has_sign_;
 };
 
 enum class ScriptType {
@@ -327,25 +241,17 @@ enum class ScriptType {
     python,
 };
 
-inline auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
-    switch (type) {
-        case ScriptType::lua: {
-            out << "lua";
-            break;
-        }
-        case ScriptType::python: {
-            out << "python";
-            break;
-        }
-    }
-    return out;
-}
+auto operator<<(std::ostream &out, ScriptType type) -> std::ostream &;
 
-struct StatementScript : Statement {
-    explicit StatementScript(ScriptType type, std::string content) : type(type), content(std::move(content)) {}
-    void print(std::ostream &out) const override { out << "#script (" << type << ")" << content << "#end."; }
-    ScriptType type;
-    std::string content;
+class StatementScript : public Statement {
+  public:
+    explicit StatementScript(ScriptType type, std::string content) : type_(type), content_(std::move(content)) {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    ScriptType type_;
+    std::string content_;
 };
 
 enum class IncludeType {
@@ -353,70 +259,44 @@ enum class IncludeType {
     inbuild,
 };
 
-inline auto operator<<(std::ostream &out, IncludeType type) -> std::ostream & {
-    switch (type) {
-        case IncludeType::inbuild: {
-            out << "lua";
-            break;
-        }
-        case IncludeType::system: {
-            out << "python";
-            break;
-        }
-    }
-    return out;
-}
+auto operator<<(std::ostream &out, IncludeType type) -> std::ostream &;
 
-struct StatementInclude : Statement {
-    explicit StatementInclude(IncludeType type, std::string path) : type(type), path(std::move(path)) {}
-    void print(std::ostream &out) const override {
-        if (type == IncludeType::inbuild) {
-            out << "#include <" << path << ">.";
-        } else {
-            out << "#include ";
-            print_quoted(out, path);
-            out << ".";
-        }
-    }
-    IncludeType type;
-    std::string path;
+class StatementInclude : public Statement {
+  public:
+    explicit StatementInclude(IncludeType type, std::string path) : type_(type), path_(std::move(path)) {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    IncludeType type_;
+    std::string path_;
 };
 
-struct StatementProgram : Statement {
+class StatementProgram : public Statement {
+  public:
     explicit StatementProgram(std::string name, std::vector<std::string> args)
-        : name(std::move(name)), args(std::move(args)) {}
-    void print(std::ostream &out) const override {
-        out << "#program " << name;
-        if (!args.empty()) {
-            out << "(" << p_range(args) << ")";
-        }
-        out << ".";
-    }
-    std::string name;
-    std::vector<std::string> args;
+        : name_(std::move(name)), args_(std::move(args)) {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    std::string name_;
+    std::vector<std::string> args_;
 };
 
 enum class ConstType { default_, override_ };
 
-inline auto operator<<(std::ostream &out, ConstType type) -> std::ostream & {
-    switch (type) {
-        case ConstType::default_: {
-            out << "default";
-            break;
-        }
-        case ConstType::override_: {
-            out << "override";
-            break;
-        }
-    }
-    return out;
-}
+auto operator<<(std::ostream &out, ConstType type) -> std::ostream &;
 
-struct StatementConst : Statement {
+class StatementConst : public Statement {
+  public:
     explicit StatementConst(ConstType type, std::string name, STerm value)
-        : type(type), name(std::move(name)), value(std::move(value)) {}
-    void print(std::ostream &out) const override { out << "#const " << name << "=" << *value << ". [" << type << "]"; }
-    ConstType type;
-    std::string name;
-    STerm value;
+        : type_(type), name_(std::move(name)), value_(std::move(value)) {}
+
+    void print(std::ostream &out) const override;
+
+  private:
+    ConstType type_;
+    std::string name_;
+    STerm value_;
 };

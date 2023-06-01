@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <lexy/action/scan.hpp>
 #include <lexy/input/file.hpp>
 
