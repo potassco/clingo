@@ -48,8 +48,8 @@ class StreamInput {
                 in_.read(buffer_.data() + old_size, chunk_size);
                 size_t num = in_.gcount();
                 if (num < chunk_size) {
-                    buffer_.resize(old_size + num);
                     eoi_ = true;
+                    buffer_.resize(old_size + num);
                 }
             }
             return false;
@@ -71,6 +71,11 @@ class StreamInput {
                 return static_cast<char_type>(buffer_[id - start_ + discard_]);
             }
             return ' ';
+        }
+
+        [[nodiscard]] auto data(size_t id) const -> char const * {
+            assert(id >= start_);
+            return buffer_.data() + id - start_ + discard_;
         }
 
         /// Offsets before this value have been discarded.
@@ -124,12 +129,15 @@ class StreamInput {
 
     /// Reader to read bytes from a buffer coupled with iterators that stay valid
     /// even if the underlying buffer is reallocated.
-    class StreamReader {
+    class StreamReader : lexy::_detail::_swar_base {
       public:
         using encoding = StreamInput::encoding;
         using couning = StreamInput::counting;
         using char_type = StreamInput::char_type;
         using iterator = StreamInput::iterator;
+        using swar_int = lexy::_detail::swar_int;
+
+        static constexpr auto swar_length = sizeof(swar_int) / sizeof(unsigned char);
 
         explicit StreamReader(StreamBuffer &buffer) : buffer_(&buffer), offset_{buffer.offset()} {}
 
@@ -149,6 +157,39 @@ class StreamInput {
 
         /// Set the current position of the reader.
         void set_position(iterator new_pos) noexcept { offset_ = new_pos.offset(); }
+
+        /// Peek bytes fitting into the largest available unsigned integer.
+        [[nodiscard]] auto peek_swar() const -> swar_int {
+            swar_int result = 0;
+            if (!buffer_->is_eoi(offset_ + swar_length - 1)) {
+                auto ptr = buffer_->data(offset_);
+#if LEXY_IS_LITTLE_ENDIAN
+                std::memcpy(&result, ptr, sizeof(swar_int));
+#else
+                auto dst = reinterpret_cast<unsigned char *>(&result);
+                for (auto i = 0U; i != swar_length; ++i) {
+                    std::memcpy(dst + i, ptr + swar_length - i - 1, sizeof(unsigned char));
+                }
+#endif
+            } else {
+                auto *dst = reinterpret_cast<unsigned char *>(&result);
+                for (auto it = position(); !buffer_->is_eoi(it.offset()); ++it) {
+#if LEXY_IS_LITTLE_ENDIAN
+                    std::memcpy(dst + it.offset() - offset_, buffer_->data(it.offset()), sizeof(unsigned char));
+#else
+                    std::memcpy(dst + swar_length - 1 - it.offset() + offset_, buffer_->data(it.offset()),
+                                sizeof(unsigned char));
+#endif
+                }
+            }
+            return result;
+        }
+
+        /// Advance according to size of largest available unsigned integer.
+        void bump_swar() { offset_ += swar_length; }
+
+        /// Advance by the given number of bytes.
+        void bump_swar(std::size_t char_count) { offset_ += char_count; }
 
       private:
         StreamBuffer *buffer_;
