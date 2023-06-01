@@ -3,6 +3,9 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <sstream>
+
+#include <util/print.hh>
 
 #include <body_literal.hh>
 #include <head_literal.hh>

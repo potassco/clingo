@@ -9,6 +9,9 @@
 
 namespace grammar {
 
+using SBodyAggregate = shared_ptr<BodyAggregate>;
+using SBodySetAggregate = shared_ptr<BodySetAggregate>;
+
 namespace detail {
 
 inline auto make_body_aggr(SBodyAggregate aggr) -> SBodyAggregate { return std::move(aggr); }
