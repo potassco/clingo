@@ -53,57 +53,45 @@ auto operator<<(std::ostream &out, Term const &ast) -> std::ostream & {
 
 [[nodiscard]] auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool { return false; }
 
-////////// TermConstant //////////
+////////// TermSymbol //////////
 
-auto operator<<(std::ostream &out, Constant op) -> std::ostream & {
-    switch (op) {
-        case Constant::supremum: {
-            out << "#sup";
-            break;
-        }
-        case Constant::infimum: {
-            out << "#inf";
-            break;
-        }
-    }
-    return out;
+void TermSymbol::print(std::ostream &out) const { out << value_; }
+
+[[nodiscard]] auto TermSymbol::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
+    return std::visit(
+        [&](auto &&value) {
+            using T = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<T, int>) {
+                if (type == TermCheckType::pos_number && value >= 0) {
+                    if (res != nullptr) {
+                        res->pos_number = value;
+                    }
+                    return true;
+                }
+            }
+            if constexpr (std::is_same_v<T, Function>) {
+                if (type == TermCheckType::atom) {
+                    return true;
+                }
+                if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) &&
+                    !value.name.empty() && value.args.size() == 0) {
+                    if (res != nullptr) {
+                        res->identifier = value.name;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        },
+        value_);
 }
 
-void TermConstant::print(std::ostream &out) const { out << value_; }
+[[nodiscard]] auto TermSymbol::type() const -> TermType { return TermType::TermSymbol; }
 
-[[nodiscard]] auto TermConstant::type() const -> TermType { return TermType::TermConstant; }
-
-[[nodiscard]] auto TermConstant::get_int(Attribute attr) -> int & {
+[[nodiscard]] auto TermSymbol::get_int(Attribute attr) -> int & {
     switch (attr) {
         case Attribute::Value: {
             return reinterpret_cast<int &>(value_);
-        }
-        default: {
-            return Term::get_int(attr);
-        }
-    }
-}
-
-////////// TermInteger //////////
-
-[[nodiscard]] auto TermInteger::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    if (type == TermCheckType::pos_number && value_ >= 0) {
-        if (res != nullptr) {
-            res->pos_number = value_;
-        }
-        return true;
-    }
-    return false;
-}
-
-void TermInteger::print(std::ostream &out) const { out << value_; }
-
-[[nodiscard]] auto TermInteger::type() const -> TermType { return TermType::TermInteger; }
-
-[[nodiscard]] auto TermInteger::get_int(Attribute attr) -> int & {
-    switch (attr) {
-        case Attribute::Value: {
-            return value_;
         }
         default: {
             return Term::get_int(attr);
@@ -144,12 +132,6 @@ void TermTuple::print(std::ostream &out) const {
 }
 
 [[nodiscard]] auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
-
-////////// TermString //////////
-
-void TermString::print(std::ostream &out) const { print_quoted(out, value_); }
-
-[[nodiscard]] auto TermString::type() const -> TermType { return TermType::TermString; }
 
 ////////// TermVariable //////////
 

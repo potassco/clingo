@@ -7,6 +7,8 @@
 
 #include <util/shared_ptr.hh>
 
+#include <symbol.hh>
+
 enum class TermCheckType : int { atom, sig, identifier, signed_identifier, pos_number };
 
 struct CheckTypeResult {
@@ -16,10 +18,8 @@ struct CheckTypeResult {
 };
 
 enum class TermType : int {
-    TermConstant,
-    TermInteger,
+    TermSymbol,
     TermTuple,
-    TermString,
     TermVariable,
     TermAbs,
     TermFunction,
@@ -126,40 +126,19 @@ class Term {
     size_t refs = 0;
 };
 
-enum class Constant : int {
-    supremum,
-    infimum,
-};
-
-auto operator<<(std::ostream &out, Constant op) -> std::ostream &;
-
-class TermConstant : public Term {
+class TermSymbol : public Term {
   public:
-    explicit TermConstant(Constant value) : value_{value} {}
+    explicit TermSymbol(Symbol value) : value_{std::move(value)} {}
 
-    // AST interface
-    void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> TermType override;
-    [[nodiscard]] auto get_int(Attribute attr) -> int & override;
-
-  private:
-    Constant value_;
-};
-
-class TermInteger : public Term {
-  public:
-    explicit TermInteger(int v) : value_{v} {}
-
-    // AST interface
-    void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> TermType override;
-    [[nodiscard]] auto get_int(Attribute attr) -> int & override;
-
-    // Term interface
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
 
+    // AST interface
+    void print(std::ostream &out) const override;
+    [[nodiscard]] auto type() const -> TermType override;
+    [[nodiscard]] auto get_int(Attribute attr) -> int & override;
+
   private:
-    int value_;
+    Symbol value_;
 };
 
 class TermTuple : public Term {
@@ -174,18 +153,6 @@ class TermTuple : public Term {
 
   private:
     ElementVec args_;
-};
-
-class TermString : public Term {
-  public:
-    explicit TermString(std::string value) : value_{std::move(value)} {}
-
-    // AST interface
-    void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> TermType override;
-
-  private:
-    std::string value_;
 };
 
 class TermVariable : public Term {

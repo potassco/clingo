@@ -197,6 +197,22 @@ struct term_anonymous_variable {
     static constexpr auto value = lexy::callback<STerm>([]() { return construct_shared<TermVariable, Term>("_"); });
 };
 
+namespace detail {
+
+struct construct_symbol {
+    using return_type = STerm;
+
+    auto operator()(int value) const -> STerm { return construct_shared<TermSymbol, Term>(Symbol{value}); }
+
+    auto operator()(std::string value) const -> STerm {
+        return construct_shared<TermSymbol, Term>(Symbol{QuotedString{value}});
+    }
+
+    auto operator()(Constant value) const -> STerm { return construct_shared<TermSymbol, Term>(Symbol{value}); }
+};
+
+} // namespace detail
+
 struct term_rec : lexy::expression_production {
     static constexpr char const *name = "term";
     STRING_TAG(term, "expected term");
@@ -260,9 +276,8 @@ struct term_rec : lexy::expression_production {
     };
 
     using operation = term_dots;
-    static constexpr auto value =
-        lexy::callback(lexy::forward<STerm>, lexy::new_<TermInteger, STerm>, lexy::new_<TermString, STerm>,
-                       lexy::new_<TermConstant, STerm>, lexy::new_<TermUnary, STerm>, lexy::new_<TermBinary, STerm>);
+    static constexpr auto value = lexy::callback(lexy::forward<STerm>, detail::construct_symbol{},
+                                                 lexy::new_<TermUnary, STerm>, lexy::new_<TermBinary, STerm>);
 };
 
 } // namespace grammar
