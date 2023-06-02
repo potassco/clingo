@@ -147,6 +147,7 @@ void TermTuple::unpool(STermVec &pool) {
                 if constexpr (std::is_same_v<T, STerm>) {
                     arg->unpool(pool);
                 } else if constexpr (std::is_same_v<T, STermVec>) {
+                    // Note: think about how to handle the unchanged case
                     std::optional<STerm> unchanged;
                     if (args_.size() == 1) {
                         unchanged = STerm(this);
@@ -187,6 +188,7 @@ void TermAbs::print(std::ostream &out) const {
 }
 
 void TermAbs::unpool(STermVec &pool) {
+    // Note: a generic version is possible
     size_t offset = pool.size();
     for (const auto &term : pool_) {
         term->unpool(pool);
@@ -234,6 +236,7 @@ void TermFunction::print(std::ostream &out) const {
 
 void TermFunction::unpool(STermVec &pool) {
     for (auto &tuple : args_) {
+        // Note: think about unchanged case
         std::optional<STerm> unchanged;
         if (args_.size() == 1) {
             unchanged = STerm(this);
@@ -270,6 +273,7 @@ auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
 void TermUnary::print(std::ostream &out) const { out << "(" << op_ << *rhs_ << ")"; }
 
 void TermUnary::unpool(STermVec &pool) {
+    // Note: a generic version is possible
     size_t offset = pool.size();
     rhs_->unpool(pool);
     if (pool.size() - offset == 1 && pool.back() == rhs_) {
@@ -370,6 +374,7 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
 void TermBinary::print(std::ostream &out) const { out << "(" << *lhs_ << op_ << *rhs_ << ")"; }
 
 void TermBinary::unpool(STermVec &pool) {
+    // Note: a generic version is possible
     auto begin_lhs = pool.size();
     lhs_->unpool(pool);
     auto begin_rhs = pool.size();
