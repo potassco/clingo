@@ -35,15 +35,19 @@ template <class P> struct match_root : ::grammar::control {
     static constexpr auto rule = dsl::p<P> + dsl::eof;
 };
 
-template <typename Control> auto parse(std::string str) -> std::string {
+template <typename Control>
+auto parse(std::string str) -> std::optional<typename decltype(Control::value)::return_type> {
     if (Control::terminator() != '\0') {
         str.push_back('.');
     }
     std::istringstream in;
     in.str(std::move(str));
     auto input = ::test::grammar::input{in};
-    auto stm = lexy::parse<Control>(input, report_error);
-    return stm.has_value() ? stm.value()->to_string() : "<failed>";
+    auto res = lexy::parse<Control>(input, report_error);
+    if (res.has_value()) {
+        return res.value();
+    }
+    return std::nullopt;
 }
 
 template <typename Control> auto match(std::string str) {
@@ -56,23 +60,23 @@ template <typename Control> auto match(std::string str) {
 
 } // namespace grammar
 
-auto parse_term(std::string str) -> std::string {
+auto parse_term(std::string str) -> std::optional<STerm> {
     return grammar::parse<grammar::parse_root<::grammar::term>>(std::move(str));
 }
 
-auto parse_literal(std::string str) -> std::string {
+auto parse_literal(std::string str) -> std::optional<SLiteral> {
     return grammar::parse<grammar::parse_root<::grammar::literal>>(std::move(str));
 }
 
-auto parse_head_literal(std::string str) -> std::string {
+auto parse_head_literal(std::string str) -> std::optional<SHeadLiteral> {
     return grammar::parse<grammar::parse_root<::grammar::head_literal, '.'>>(std::move(str));
 }
 
-auto parse_body_literal(std::string str) -> std::string {
+auto parse_body_literal(std::string str) -> std::optional<SBodyLiteral> {
     return grammar::parse<grammar::parse_root<::grammar::body_literal, '.'>>(std::move(str));
 }
 
-auto parse_statement(std::string str) -> std::string {
+auto parse_statement(std::string str) -> std::optional<SStatement> {
     return grammar::parse<grammar::parse_root<::grammar::statement>>(std::move(str));
 }
 

@@ -4,27 +4,42 @@
 
 namespace test {
 
-TEST_CASE("terms") {
-    REQUIRE(parse_term("42") == "42");
-    REQUIRE(parse_term("f") == "f");
-    REQUIRE(parse_term("f(  )+5") == "(f+5)");
-    REQUIRE(parse_term("f(1)") == "f(1)");
-    REQUIRE(parse_term("f ( 1 , 2 ; 4 )") == "f(1,2;4)");
-    REQUIRE(parse_term("1 + f") == "(1+f)");
-    REQUIRE(parse_term("@f(1,2)") == "@f(1,2)");
-    REQUIRE(parse_term("|42|") == "|42|");
-    REQUIRE(parse_term("||42||") == "||42||");
-    REQUIRE(parse_term("f(_,X)") == "f(_,X)");
-    REQUIRE(parse_term("(a)") == "a");
-    REQUIRE(parse_term("(a;a,b;a,b,c)") == "(a;a,b;a,b,c)");
-    REQUIRE(parse_term("(a, ; a,b,;a,b,c, )") == "(a,;a,b;a,b,c)");
-    REQUIRE(parse_term("(a)") == "a");
-    REQUIRE(parse_term("(a,)") == "(a,)");
-    REQUIRE(parse_term("()") == "()");
-    REQUIRE(parse_term("(;)") == "(;)");
-    REQUIRE(parse_term("(a,;a)") == "(a,;a)");
-    REQUIRE(parse_term("f(;)") == "f(;)");
-    REQUIRE(parse_term("f(\"x\")") == "f(\"x\")");
+TEST_CASE("parse_term") {
+    REQUIRE(to_str(parse_term("42")) == "42");
+    REQUIRE(to_str(parse_term("f")) == "f");
+    REQUIRE(to_str(parse_term("f(  )+5")) == "(f+5)");
+    REQUIRE(to_str(parse_term("f(1)")) == "f(1)");
+    REQUIRE(to_str(parse_term("f ( 1 , 2 ; 4 )")) == "f(1,2;4)");
+    REQUIRE(to_str(parse_term("1 + f")) == "(1+f)");
+    REQUIRE(to_str(parse_term("@f(1,2)")) == "@f(1,2)");
+    REQUIRE(to_str(parse_term("|42|")) == "|42|");
+    REQUIRE(to_str(parse_term("||42||")) == "||42||");
+    REQUIRE(to_str(parse_term("f(_,X)")) == "f(_,X)");
+    REQUIRE(to_str(parse_term("(a)")) == "a");
+    REQUIRE(to_str(parse_term("(a;a,b;a,b,c)")) == "(a;a,b;a,b,c)");
+    REQUIRE(to_str(parse_term("(a, ; a,b,;a,b,c, )")) == "(a,;a,b;a,b,c)");
+    REQUIRE(to_str(parse_term("(a)")) == "a");
+    REQUIRE(to_str(parse_term("(a,)")) == "(a,)");
+    REQUIRE(to_str(parse_term("()")) == "()");
+    REQUIRE(to_str(parse_term("(;)")) == "(;)");
+    REQUIRE(to_str(parse_term("(a,;a)")) == "(a,;a)");
+    REQUIRE(to_str(parse_term("f(;)")) == "f(;)");
+    REQUIRE(to_str(parse_term("f(\"x\")")) == "f(\"x\")");
+}
+
+TEST_CASE("unpool_term") {
+    std::vector<STerm> pool;
+    auto term = parse_term("42").value();
+    term->unpool(pool);
+    REQUIRE(pool.size() == 1);
+    REQUIRE(pool.back() == term);
+
+    term = parse_term("(1;2)").value();
+    pool.clear();
+    term->unpool(pool);
+    REQUIRE(pool.size() == 2);
+    REQUIRE(pool.front()->to_string() == "1");
+    REQUIRE(pool.back()->to_string() == "2");
 }
 
 } // namespace test
