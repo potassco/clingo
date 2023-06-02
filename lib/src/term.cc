@@ -147,15 +147,14 @@ void TermTuple::unpool(STermVec &pool) {
                 if constexpr (std::is_same_v<T, STerm>) {
                     arg->unpool(pool);
                 } else if constexpr (std::is_same_v<T, STermVec>) {
-                    // Note: think about how to handle the unchanged case
-                    std::optional<STerm> unchanged;
-                    if (args_.size() == 1) {
-                        unchanged = STerm(this);
-                    }
-                    detail::unpool_vec_with(unchanged, arg, pool, [&pool](STermVec terms) {
-                        ElementVec elems;
-                        elems.emplace_back(std::move(terms));
-                        pool.emplace_back(construct_shared<TermTuple, Term>(std::move(elems)));
+                    detail::unpool_vec_with(arg, pool, [&](STermVec terms, bool unchanged) {
+                        if (unchanged && args_.size() == 1) {
+                            pool.emplace_back(this);
+                        } else {
+                            ElementVec elems;
+                            elems.emplace_back(std::move(terms));
+                            pool.emplace_back(construct_shared<TermTuple, Term>(ElementVec{std::move(elems)}));
+                        }
                     });
                 }
             },
@@ -236,13 +235,13 @@ void TermFunction::print(std::ostream &out) const {
 
 void TermFunction::unpool(STermVec &pool) {
     for (auto &tuple : args_) {
-        // Note: think about unchanged case
-        std::optional<STerm> unchanged;
-        if (args_.size() == 1) {
-            unchanged = STerm(this);
-        }
-        detail::unpool_vec_with(unchanged, tuple, pool, [&](STermVec terms) {
-            pool.emplace_back(construct_shared<TermFunction, Term>(name_, STermVecVec{std::move(terms)}, external_));
+        detail::unpool_vec_with(tuple, pool, [&](STermVec terms, bool unchanged) {
+            if (unchanged) {
+                pool.emplace_back(this);
+            } else {
+                pool.emplace_back(
+                    construct_shared<TermFunction, Term>(name_, STermVecVec{std::move(terms)}, external_));
+            }
         });
     }
 }

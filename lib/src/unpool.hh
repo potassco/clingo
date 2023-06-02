@@ -1,6 +1,6 @@
 #pragma once
 
-#include <optional>
+#include <tuple>
 #include <vector>
 
 namespace detail {
@@ -11,7 +11,7 @@ template <typename T, typename Inserter>
 void crossproduct_with(OffsetVec &offsets, std::vector<T> &pool, Inserter ins) {
     for (bool cont = true; cont;) {
         std::vector<T> res;
-        for (auto &[cur, begin, end] : offsets) {
+        for (auto const &[cur, begin, end] : offsets) {
             if (begin == end) {
                 return;
             }
@@ -32,7 +32,8 @@ void crossproduct_with(OffsetVec &offsets, std::vector<T> &pool, Inserter ins) {
 }
 
 template <typename T, typename Inserter>
-void unpool_vec_with(std::optional<T> unchanged, std::vector<T> &vec, std::vector<T> &pool, Inserter &&ins) {
+void unpool_vec_with(std::vector<T> const &vec, std::vector<T> &pool, Inserter ins) {
+    bool unchanged = true;
     size_t m = pool.size();
     OffsetVec offsets;
     offsets.reserve(vec.size());
@@ -41,16 +42,17 @@ void unpool_vec_with(std::optional<T> unchanged, std::vector<T> &vec, std::vecto
         auto &[cur, begin, end] = offsets.back();
         val->unpool(pool);
         end = pool.size();
-        if (end - begin != 1 || pool.back() != val) {
-            unchanged = std::nullopt;
-        }
+        unchanged = unchanged && end - begin == 1 && pool.back() == val;
     }
+    size_t n = pool.size();
     if (unchanged) {
+        std::vector<T> res;
+        res.reserve(n - m);
+        std::move(pool.begin() + m, pool.end(), std::back_inserter(res));
         pool.erase(pool.begin() + m, pool.end());
-        pool.emplace_back(unchanged.value());
+        ins(std::move(res), unchanged);
     } else {
-        size_t n = pool.size();
-        crossproduct_with(offsets, pool, std::forward<Inserter>(ins));
+        crossproduct_with(offsets, pool, [&](std::vector<T> res) { ins(std::move(res), unchanged); });
         pool.erase(pool.begin() + m, pool.begin() + n);
     }
 }
