@@ -51,16 +51,17 @@ class Term {
     virtual ~Term() = default;
 
     virtual void print(std::ostream &out) const = 0;
+    friend auto operator<<(std::ostream &out, Term const &ast) -> std::ostream &;
+    [[nodiscard]] auto to_string() const -> std::string;
+    [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
+    virtual void unpool(STermVec &pool) = 0;
+
+    // AST interface
     [[nodiscard]] virtual auto type() const -> TermType = 0;
     [[nodiscard]] virtual auto get_int(Attribute attr) -> int &;
     [[nodiscard]] virtual auto get_ast(Attribute attr) -> STerm &;
     [[nodiscard]] virtual auto get_ast_vec(Attribute attr) -> STermVec &;
     [[nodiscard]] virtual auto get_ast_vec_vec(Attribute attr) -> STermVecVec &;
-
-    [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
-
-    friend auto operator<<(std::ostream &out, Term const &ast) -> std::ostream &;
-    [[nodiscard]] auto to_string() const -> std::string;
     template <class T> auto get(Attribute attr) -> T & {
         // Note that getters and setters for SASTs will work fine. However,
         // getters and setters for vectors won't work without some special treatment because vectors of shared pointers
@@ -123,6 +124,7 @@ class Term {
             static_assert(sizeof(T *) == 0, "unsupported type in AST::get");
         }
     };
+
     size_t refs = 0;
 };
 
@@ -130,10 +132,11 @@ class TermSymbol : public Term {
   public:
     explicit TermSymbol(Symbol value) : value_{std::move(value)} {}
 
+    void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
+    void unpool(STermVec &pool) override;
 
     // AST interface
-    void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> TermType override;
     [[nodiscard]] auto get_int(Attribute attr) -> int & override;
 
@@ -145,10 +148,13 @@ class TermTuple : public Term {
   public:
     using Element = std::variant<STermVec, STerm>;
     using ElementVec = std::vector<Element>;
+
     explicit TermTuple(ElementVec args) : args_{std::move(args)} {}
 
-    // AST interface
     void print(std::ostream &out) const override;
+    void unpool(STermVec &pool) override;
+
+    // AST interface
     [[nodiscard]] auto type() const -> TermType override;
 
   private:
@@ -159,9 +165,9 @@ class TermVariable : public Term {
   public:
     explicit TermVariable(std::string name) : name_{std::move(name)} {}
 
-    // AST interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> TermType override;
+    void unpool(STermVec &pool) override;
 
   private:
     std::string name_;
@@ -171,8 +177,10 @@ class TermAbs : public Term {
   public:
     explicit TermAbs(STermVec pool) : pool_{std::move(pool)} {}
 
-    // AST interface
     void print(std::ostream &out) const override;
+    void unpool(STermVec &pool) override;
+
+    // AST interface
     [[nodiscard]] auto type() const -> TermType override;
 
   private:
@@ -184,12 +192,12 @@ class TermFunction : public Term {
     explicit TermFunction(std::string name, STermVecVec args, bool external)
         : name_(std::move(name)), args_{std::move(args)}, external_{external} {}
 
-    // AST interface
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> TermType override;
-
-    // Term interface
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
+    void unpool(STermVec &pool) override;
+
+    // AST interface
+    [[nodiscard]] auto type() const -> TermType override;
 
   private:
     std::string name_;
@@ -208,14 +216,14 @@ class TermUnary : public Term {
   public:
     explicit TermUnary(UnaryOperator op, STerm e) : op_{op}, rhs_{std::move(e)} {}
 
-    // AST interface
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
+    void unpool(STermVec &pool) override;
+
+    // AST interface
     [[nodiscard]] auto type() const -> TermType override;
     [[nodiscard]] auto get_int(Attribute attr) -> int & override;
     [[nodiscard]] auto get_ast(Attribute attr) -> STerm & override;
-
-    // Term interface
-    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
 
   private:
     UnaryOperator op_;
@@ -242,15 +250,16 @@ class TermBinary : public Term {
     explicit TermBinary(STerm lhs, BinaryOperator op, STerm rhs)
         : op_{op}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
 
-    // AST interface
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
+    void unpool(STermVec &pool) override;
+
+    // AST interface
     [[nodiscard]] auto type() const -> TermType override;
     [[nodiscard]] auto get_int(Attribute attr) -> int & override;
     [[nodiscard]] auto get_ast(Attribute attr) -> STerm & override;
 
-    // Term interface
-    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
-
+  private:
     BinaryOperator op_;
     STerm lhs_;
     STerm rhs_;

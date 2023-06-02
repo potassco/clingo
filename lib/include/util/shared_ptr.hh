@@ -85,6 +85,16 @@ template <typename T> class shared_ptr {
     element_type *ptr_;
 };
 
+template <class X, class Y>
+[[nodiscard]] auto operator==(const shared_ptr<X> &lhs, const shared_ptr<Y> &rhs) noexcept -> bool {
+    return lhs.get() == rhs.get();
+}
+
+template <class X, class Y>
+[[nodiscard]] auto operator!=(const shared_ptr<X> &lhs, const shared_ptr<Y> &rhs) noexcept -> bool {
+    return lhs.get() != rhs.get();
+}
+
 template <typename T, typename B = T, typename... Args> auto construct_shared(Args &&...args) {
     return shared_ptr<B>{new T{std::forward<Args>(args)...}};
 }
