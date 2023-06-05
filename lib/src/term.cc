@@ -1,5 +1,8 @@
+#include <__iterator/concepts.h>
+#include <cmath>
 #include <optional>
 #include <sstream>
+#include <tuple>
 #include <utility>
 
 #include <util/print.hh>
@@ -29,6 +32,13 @@ auto operator<<(std::ostream &out, Attribute attr) -> std::ostream & {
 auto operator<<(std::ostream &out, Term const &ast) -> std::ostream & {
     ast.print(out);
     return out;
+}
+
+auto Term::unpool() -> STermVec {
+    STermVec terms;
+    PoolTerm pool{terms};
+    unpool(pool);
+    return terms;
 }
 
 [[nodiscard]] auto Term::get_int(Attribute attr) -> int & {
@@ -90,7 +100,7 @@ void TermSymbol::print(std::ostream &out) const { out << value_; }
         value_);
 }
 
-void TermSymbol::unpool(STermVec &pool) { pool.emplace_back(this); }
+void TermSymbol::unpool(PoolTerm &pool) { pool.append(this); }
 
 [[nodiscard]] auto TermSymbol::type() const -> TermType { return TermType::TermSymbol; }
 
@@ -108,10 +118,10 @@ void TermSymbol::unpool(STermVec &pool) { pool.emplace_back(this); }
 ////////// TermTuple //////////
 
 void TermTuple::print(std::ostream &out) const {
-    if (args_.size() == 1 && std::holds_alternative<STerm>(args_.front())) {
-        std::get<STerm>(args_.front())->print(out);
+    if (pool_.size() == 1 && std::holds_alternative<STerm>(pool_.front())) {
+        std::get<STerm>(pool_.front())->print(out);
     } else {
-        out << "(" << p_range_with(args_, ";", [](std::ostream &out, auto const &tuple) {
+        out << "(" << p_range_with(pool_, ";", [](std::ostream &out, auto const &tuple) {
             std::visit(
                 [&](auto &&arg) {
                     using T = std::decay_t<decltype(arg)>;
@@ -139,26 +149,26 @@ void TermTuple::print(std::ostream &out) const {
 
 [[nodiscard]] auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
 
-void TermTuple::unpool(STermVec &pool) {
-    for (auto &tuple : args_) {
+void TermTuple::unpool(PoolTerm &pool) {
+    for (auto &tuple_or_term : pool_) {
         std::visit(
-            [&](auto &&arg) {
-                using T = std::decay_t<decltype(arg)>;
+            [&](auto &&tuple_or_term) {
+                using T = std::decay_t<decltype(tuple_or_term)>;
                 if constexpr (std::is_same_v<T, STerm>) {
-                    arg->unpool(pool);
+                    tuple_or_term->unpool(pool);
                 } else if constexpr (std::is_same_v<T, STermVec>) {
-                    detail::unpool_vec_with(arg, pool, [&](STermVec terms, bool unchanged) {
-                        if (unchanged && args_.size() == 1) {
-                            pool.emplace_back(this);
-                        } else {
-                            ElementVec elems;
-                            elems.emplace_back(std::move(terms));
-                            pool.emplace_back(construct_shared<TermTuple, Term>(ElementVec{std::move(elems)}));
-                        }
-                    });
+                    unpool_with(
+                        [&](auto &&tuple, bool unchanged) {
+                            if (unchanged && pool_.size() == 1) {
+                                pool.append(this);
+                            } else {
+                                pool.append_shared<TermTuple>(ElementVec{FWD(tuple)});
+                            }
+                        },
+                        pool.crossproduct(tuple_or_term));
                 }
             },
-            tuple);
+            tuple_or_term);
     }
 }
 
@@ -166,7 +176,7 @@ void TermTuple::unpool(STermVec &pool) {
 
 void TermVariable::print(std::ostream &out) const { out << name_; }
 
-void TermVariable::unpool(STermVec &pool) { pool.emplace_back(this); }
+void TermVariable::unpool(PoolTerm &pool) { pool.append(this); }
 
 [[nodiscard]] auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
 
@@ -186,19 +196,16 @@ void TermAbs::print(std::ostream &out) const {
     out << "|";
 }
 
-void TermAbs::unpool(STermVec &pool) {
-    // Note: a generic version is possible
-    size_t offset = pool.size();
-    for (const auto &term : pool_) {
-        term->unpool(pool);
-    }
-    if (pool_.size() == 1 && pool.size() - offset == 1 && pool.back() == pool_.back()) {
-        pool.emplace_back(this);
-    } else {
-        for (auto it = pool.begin() + offset, ie = pool.end(); it != ie; ++it) {
-            *it = construct_shared<TermAbs, Term>(STermVec{std::move(*it)});
-        }
-    }
+void TermAbs::unpool(PoolTerm &pool) {
+    unpool_with(
+        [&](auto &&arg, bool unchanged) {
+            if (unchanged) {
+                pool.append(this);
+            } else {
+                pool.append_shared<TermAbs>(STermVec{FWD(arg)});
+            }
+        },
+        pool.union_(pool_));
 }
 
 [[nodiscard]] auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
@@ -210,10 +217,10 @@ void TermFunction::print(std::ostream &out) const {
         out << "@";
     }
     out << name_;
-    if (args_.size() != 1 || !args_.front().empty()) {
+    if (pool_.size() != 1 || !pool_.front().empty()) {
         out << "(";
         bool sem = false;
-        for (const auto &tuple : args_) {
+        for (const auto &tuple : pool_) {
             if (sem) {
                 out << ";";
             } else {
@@ -233,16 +240,17 @@ void TermFunction::print(std::ostream &out) const {
     }
 }
 
-void TermFunction::unpool(STermVec &pool) {
-    for (auto &tuple : args_) {
-        detail::unpool_vec_with(tuple, pool, [&](STermVec terms, bool unchanged) {
-            if (unchanged) {
-                pool.emplace_back(this);
-            } else {
-                pool.emplace_back(
-                    construct_shared<TermFunction, Term>(name_, STermVecVec{std::move(terms)}, external_));
-            }
-        });
+void TermFunction::unpool(PoolTerm &pool) {
+    for (auto &tuple : pool_) {
+        unpool_with(
+            [&](auto &&tuple, bool unchanged) {
+                if (unchanged && pool_.size() == 1) {
+                    pool.append(this);
+                } else {
+                    pool.append_shared<TermFunction>(name_, STermVecVec{FWD(tuple)}, external_);
+                }
+            },
+            pool.crossproduct(tuple));
     }
 }
 
@@ -253,7 +261,7 @@ void TermFunction::unpool(STermVec &pool) {
         return !external_;
     }
     if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) && !external_ &&
-        args_.size() == 1 && args_.front().empty()) {
+        pool_.size() == 1 && pool_.front().empty()) {
         if (res != nullptr) {
             res->identifier = name_;
         }
@@ -271,17 +279,16 @@ auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
 
 void TermUnary::print(std::ostream &out) const { out << "(" << op_ << *rhs_ << ")"; }
 
-void TermUnary::unpool(STermVec &pool) {
-    // Note: a generic version is possible
-    size_t offset = pool.size();
-    rhs_->unpool(pool);
-    if (pool.size() - offset == 1 && pool.back() == rhs_) {
-        pool.emplace_back(this);
-    } else {
-        for (auto it = pool.begin() + offset, ie = pool.end(); it != ie; ++it) {
-            *it = construct_shared<TermUnary, Term>(op_, std::move(*it));
-        }
-    }
+void TermUnary::unpool(PoolTerm &pool) {
+    unpool_with(
+        [&](auto &&rhs, bool unchanged) {
+            if (unchanged) {
+                pool.append(this);
+            } else {
+                pool.append_shared<TermUnary>(op_, FWD(rhs));
+            }
+        },
+        pool.element(rhs_));
 }
 
 [[nodiscard]] auto TermUnary::type() const -> TermType { return TermType::TermUnary; }
@@ -372,23 +379,16 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
 
 void TermBinary::print(std::ostream &out) const { out << "(" << *lhs_ << op_ << *rhs_ << ")"; }
 
-void TermBinary::unpool(STermVec &pool) {
-    // Note: a generic version is possible
-    auto begin_lhs = pool.size();
-    lhs_->unpool(pool);
-    auto begin_rhs = pool.size();
-    rhs_->unpool(pool);
-    if (pool.size() - begin_rhs == 2 && pool.back() == rhs_ && *(pool.end() - 2) == lhs_) {
-        pool.emplace_back(this);
-    } else {
-        size_t end = pool.size();
-        for (auto i = begin_lhs; i < begin_rhs; ++i) {
-            for (auto j = begin_rhs; j < end; ++j) {
-                pool.emplace_back(construct_shared<TermBinary, Term>(pool[i], op_, pool[j]));
+void TermBinary::unpool(PoolTerm &pool) {
+    unpool_with(
+        [&](auto &&lhs, auto &&rhs, bool unchanged) {
+            if (unchanged) {
+                pool.append(this);
+            } else {
+                pool.append_shared<TermBinary>(FWD(lhs), op_, FWD(rhs));
             }
-        }
-        pool.erase(pool.begin() + begin_lhs, pool.begin() + end);
-    }
+        },
+        pool.element(lhs_), pool.element(rhs_));
 }
 
 [[nodiscard]] auto TermBinary::type() const -> TermType { return TermType::TermBinary; }

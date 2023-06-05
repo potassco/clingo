@@ -10,21 +10,36 @@ compdb: all
 	compdb -p "build" list -1 > compile_commands.json
 
 build/CMakeCache.txt:
-	$(MAKE) -C . reconfigure
+	@$(MAKE) -C . reconfigure
 
 configure: build/CMakeCache.txt
 
 reconfigure:
-	[ -z ${CONDA_PREFIX+x} ] || cmake -S. -Bbuild \
+	@[ -z ${CONDA_PREFIX+x} ] || $(MAKE) -C . reconfigure-conda
+	@[ ! -z ${CONDA_PREFIX+x} ] || $(MAKE) -C . reconfigure-default
+
+reconfigure-default:
+	cmake -S. -Bbuild \
+		-DCMAKE_BUILD_TYPE="Debug" \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS="On"
+
+reconfigure-clang:
+	cmake -S. -Bbuild \
+		-DCMAKE_BUILD_TYPE="Debug" \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS="On" \
+		-DCMAKE_CXX_COMPILER="clang++" \
+		-DCMAKE_C_COMPILER="clang" \
+		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
+		-DCMAKE_CXX_FLAGS="-stdlib=libc++"
+
+reconfigure-conda:
+	cmake -S. -Bbuild \
 		-DCMAKE_BUILD_TYPE="Debug" \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS="On" \
 		-DCMAKE_CXX_COMPILER="clang++" \
 		-DCMAKE_C_COMPILER="clang" \
 		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -L${CONDA_PREFIX}/lib" \
-		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -ftemplate-backtrace-limit=0"
-	[ ! -z ${CONDA_PREFIX+x} ] || cmake -S. -Bbuild \
-		-DCMAKE_BUILD_TYPE="Debug" \
-		-DCMAKE_EXPORT_COMPILE_COMMANDS="On"
+		-DCMAKE_CXX_FLAGS="-stdlib=libc++"
 
 reconfigure-iwyn:
 	cmake -S. -Bbuild \

@@ -9,6 +9,8 @@
 
 #include <symbol.hh>
 
+template <class T> class Pool;
+
 enum class TermCheckType : int { atom, sig, identifier, signed_identifier, pos_number };
 
 struct CheckTypeResult {
@@ -40,11 +42,11 @@ enum class Attribute : int {
 auto operator<<(std::ostream &out, TermType type) -> std::ostream &;
 auto operator<<(std::ostream &out, Attribute attr) -> std::ostream &;
 
-// TODO: rethink shared_ptr because it incurs quite a performance hit...
 class Term;
 using STerm = shared_ptr<Term>;
 using STermVec = std::vector<STerm>;
 using STermVecVec = std::vector<STermVec>;
+using PoolTerm = Pool<STerm>;
 
 class Term {
   public:
@@ -54,7 +56,8 @@ class Term {
     friend auto operator<<(std::ostream &out, Term const &ast) -> std::ostream &;
     [[nodiscard]] auto to_string() const -> std::string;
     [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
-    virtual void unpool(STermVec &pool) = 0;
+    auto unpool() -> STermVec;
+    virtual void unpool(PoolTerm &pool) = 0;
 
     // AST interface
     [[nodiscard]] virtual auto type() const -> TermType = 0;
@@ -134,7 +137,7 @@ class TermSymbol : public Term {
 
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
-    void unpool(STermVec &pool) override;
+    void unpool(PoolTerm &pool) override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -149,16 +152,16 @@ class TermTuple : public Term {
     using Element = std::variant<STermVec, STerm>;
     using ElementVec = std::vector<Element>;
 
-    explicit TermTuple(ElementVec args) : args_{std::move(args)} {}
+    explicit TermTuple(ElementVec args) : pool_{std::move(args)} {}
 
     void print(std::ostream &out) const override;
-    void unpool(STermVec &pool) override;
+    void unpool(PoolTerm &pool) override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
 
   private:
-    ElementVec args_;
+    ElementVec pool_;
 };
 
 class TermVariable : public Term {
@@ -167,7 +170,7 @@ class TermVariable : public Term {
 
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> TermType override;
-    void unpool(STermVec &pool) override;
+    void unpool(PoolTerm &pool) override;
 
   private:
     std::string name_;
@@ -178,7 +181,7 @@ class TermAbs : public Term {
     explicit TermAbs(STermVec pool) : pool_{std::move(pool)} {}
 
     void print(std::ostream &out) const override;
-    void unpool(STermVec &pool) override;
+    void unpool(PoolTerm &pool) override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -190,18 +193,18 @@ class TermAbs : public Term {
 class TermFunction : public Term {
   public:
     explicit TermFunction(std::string name, STermVecVec args, bool external)
-        : name_(std::move(name)), args_{std::move(args)}, external_{external} {}
+        : name_(std::move(name)), pool_{std::move(args)}, external_{external} {}
 
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
-    void unpool(STermVec &pool) override;
+    void unpool(PoolTerm &pool) override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
 
   private:
     std::string name_;
-    STermVecVec args_;
+    STermVecVec pool_;
     bool external_;
 };
 
@@ -218,7 +221,7 @@ class TermUnary : public Term {
 
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
-    void unpool(STermVec &pool) override;
+    void unpool(PoolTerm &pool) override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -252,7 +255,7 @@ class TermBinary : public Term {
 
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
-    void unpool(STermVec &pool) override;
+    void unpool(PoolTerm &pool) override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;

@@ -29,22 +29,19 @@ TEST_CASE("parse_term") {
 
 TEST_CASE("unpool_term") {
     // TODO: make more compact
-    std::vector<STerm> pool;
     auto term = parse_term("42").value();
-    term->unpool(pool);
+    auto pool = term->unpool();
     REQUIRE(pool.size() == 1);
     REQUIRE(pool.back() == term);
 
     term = parse_term("(1;2)").value();
-    pool.clear();
-    term->unpool(pool);
+    pool = term->unpool();
     REQUIRE(pool.size() == 2);
     REQUIRE(pool.front()->to_string() == "1");
     REQUIRE(pool.back()->to_string() == "2");
 
     term = parse_term("((1;2);(3;4))").value();
-    pool.clear();
-    term->unpool(pool);
+    pool = term->unpool();
     REQUIRE(pool.size() == 4);
     REQUIRE(pool[0]->to_string() == "1");
     REQUIRE(pool[1]->to_string() == "2");
@@ -52,13 +49,18 @@ TEST_CASE("unpool_term") {
     REQUIRE(pool[3]->to_string() == "4");
 
     term = parse_term("((1;2),(3;4))").value();
-    pool.clear();
-    term->unpool(pool);
+    pool = term->unpool();
     REQUIRE(pool.size() == 4);
     REQUIRE(pool[0]->to_string() == "(1,3)");
     REQUIRE(pool[1]->to_string() == "(2,3)");
     REQUIRE(pool[2]->to_string() == "(1,4)");
     REQUIRE(pool[3]->to_string() == "(2,4)");
+
+    term = parse_term("1+(2;3)").value();
+    pool = term->unpool();
+    REQUIRE(pool.size() == 2);
+    REQUIRE(pool[0]->to_string() == "(1+2)");
+    REQUIRE(pool[1]->to_string() == "(1+3)");
 }
 
 } // namespace test
