@@ -83,14 +83,23 @@ auto Literal::unpool() -> SLiteralVec {
 
 namespace {
 
-struct Unpooler {
-    void operator()(Pool<Guard> &pool, Guard &elem) const {
+struct Mapper {
+    static void map(Pool<STerm> &pool, Guard &elem) {
         // TODO: can this static cast be somehow avoided
         // Should be doable by having a "two way" mapper for the UnpoolCrossproduct helper.
         // This would also avoid the need to have a separate vector.
-        unpool_with([&](auto &&term, bool unchanged) { pool.append(elem.first, FWD(term)); },
-                    static_cast<PoolLiteral &>(pool).get<STerm>().element(elem.second));
+        elem.second->unpool(pool);
     }
+    // TODO: consider mapping elements individually
+    static auto unmap(GuardVec const &orig, STermVec vec) {
+        GuardVec res;
+        res.reserve(orig.size());
+        for (size_t i = 0; i < orig.size(); ++i) {
+            res.emplace_back(orig[i].first, std::move(vec[i]));
+        }
+        return res;
+    }
+    static auto equal(STerm &a, Guard &b) -> bool { return a == b.second; }
 };
 
 } // namespace
@@ -145,7 +154,7 @@ void LiteralRelation::unpool(PoolLiteral &pool) {
                 pool.get<SLiteral>().append_shared<LiteralRelation>(FWD(lhs), FWD(rhs_));
             }
         },
-        pool.get<STerm>().element(lhs_), pool.get<Guard>().crossproduct<Unpooler>(rhs_));
+        pool.get<STerm>().element(lhs_), pool.get<STerm>().crossproduct<Guard, Mapper>(rhs_));
 }
 
 ////////// LiteralBoolean //////////

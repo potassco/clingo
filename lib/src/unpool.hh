@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <iterator>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #define FWD(x) std::forward<decltype(x)>(x)
@@ -87,12 +88,14 @@ template <class P, class T> class UnpoolElement {
     bool unchanged_;
 };
 
-struct Unpooler {
-    template <class T, class P> void operator()(P &pool, T &elem) const { elem->unpool(pool); }
+struct Mapper {
+    template <class T, class P> static void map(P &pool, T &elem) { elem->unpool(pool); }
+    template <class T, class U> static auto unmap(T const &orig, U &&vec) { return std::forward<T>(vec); }
+    template <class T, class U> static auto equal(T &a, U &b) -> bool { return a == b; }
 };
 
 /// Unpool a vector computing the cross product of its elements.
-template <class P, class T, class U = Unpooler> class UnpoolCrossproduct : private U {
+template <class P, class T, class M = Mapper> class UnpoolCrossproduct : private M {
   public:
     UnpoolCrossproduct(P &pool, std::vector<T> &vec) : pool_{pool}, vec_{vec} {}
 
@@ -102,9 +105,9 @@ template <class P, class T, class U = Unpooler> class UnpoolCrossproduct : priva
         for (auto &val : vec_) {
             offsets_.emplace_back(pool_.size(), pool_.size(), pool_.size());
             auto &[cur, begin, end] = offsets_.back();
-            static_cast<U &>(*this)(pool_, val);
+            static_cast<M *>(this)->map(pool_, val);
             end = pool_.size();
-            unchanged_ = unchanged_ && end - begin == 1 && pool_.back() == val;
+            unchanged_ = unchanged_ && end - begin == 1 && static_cast<M *>(this)->equal(pool_.back(), val);
         }
         if (unchanged_) {
             pool_.resize(std::get<1>(offsets_.front()));
@@ -113,9 +116,10 @@ template <class P, class T, class U = Unpooler> class UnpoolCrossproduct : priva
 
     template <class F> void combine(F cont) {
         if (unchanged_) {
-            cont(static_cast<std::vector<T> const &>(vec_), true);
+            cont(vec_, true);
         } else {
-            crossproduct_with(offsets_, pool_, [&](std::vector<T> res) { cont(std::move(res), unchanged_); });
+            crossproduct_with(offsets_, pool_,
+                              [&](auto res) { cont(static_cast<M *>(this)->unmap(vec_, std::move(res)), unchanged_); });
             if (!offsets_.empty()) {
                 pool_.erase(std::get<1>(offsets_.front()), std::get<2>(offsets_.back()));
             }
@@ -174,8 +178,8 @@ template <class T> class Pool {
     Pool(std::vector<T> &pool) : pool_{pool} {}
 
     [[nodiscard]] auto element(T &elem) -> detail::UnpoolElement<Pool, T> { return {*this, elem}; }
-    template <class U = detail::Unpooler>
-    [[nodiscard]] auto crossproduct(std::vector<T> &vec) -> detail::UnpoolCrossproduct<Pool, T, U> {
+    template <class U = T, class M = detail::Mapper>
+    [[nodiscard]] auto crossproduct(std::vector<U> &vec) -> detail::UnpoolCrossproduct<Pool, U, M> {
         return {*this, vec};
     }
     [[nodiscard]] auto union_(std::vector<T> &vec) -> detail::UnpoolUnion<Pool, T> { return {*this, vec}; };
