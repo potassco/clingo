@@ -46,7 +46,7 @@ template <class F, class Pool, class... Pools> void combine_r(F ins, bool unchan
     });
 }
 
-void unpool_r() {}
+inline void unpool_r() {}
 
 template <class Pool, class... Pools> void unpool_r(Pool &&pool, Pools &&...pools) {
     pool.unpool();
@@ -87,18 +87,22 @@ template <class P, class T> class UnpoolElement {
     bool unchanged_;
 };
 
+struct Unpooler {
+    template <class T, class P> void operator()(P &pool, T &elem) const { elem->unpool(pool); }
+};
+
 /// Unpool a vector computing the cross product of its elements.
-template <class P, class T> class UnpoolCrossproduct {
+template <class P, class T, class U = Unpooler> class UnpoolCrossproduct : private U {
   public:
     UnpoolCrossproduct(P &pool, std::vector<T> &vec) : pool_{pool}, vec_{vec} {}
 
     void unpool() {
         unchanged_ = true;
         offsets_.reserve(vec_.size());
-        for (const auto &val : vec_) {
+        for (auto &val : vec_) {
             offsets_.emplace_back(pool_.size(), pool_.size(), pool_.size());
             auto &[cur, begin, end] = offsets_.back();
-            val->unpool(pool_);
+            static_cast<U &>(*this)(pool_, val);
             end = pool_.size();
             unchanged_ = unchanged_ && end - begin == 1 && pool_.back() == val;
         }
@@ -170,10 +174,13 @@ template <class T> class Pool {
     Pool(std::vector<T> &pool) : pool_{pool} {}
 
     [[nodiscard]] auto element(T &elem) -> detail::UnpoolElement<Pool, T> { return {*this, elem}; }
-    [[nodiscard]] auto crossproduct(std::vector<T> &vec) -> detail::UnpoolCrossproduct<Pool, T> { return {*this, vec}; }
+    template <class U = detail::Unpooler>
+    [[nodiscard]] auto crossproduct(std::vector<T> &vec) -> detail::UnpoolCrossproduct<Pool, T, U> {
+        return {*this, vec};
+    }
     [[nodiscard]] auto union_(std::vector<T> &vec) -> detail::UnpoolUnion<Pool, T> { return {*this, vec}; };
 
-    template <typename E> void append(E &&elem) { pool_.emplace_back(std::forward<E>(elem)); };
+    template <typename... Args> void append(Args &&...args) { pool_.emplace_back(std::forward<Args>(args)...); };
 
     template <typename E, typename... Args> void append_shared(Args &&...args) {
         pool_.emplace_back(construct_shared<E, typename T::element_type>(std::forward<Args>(args)...));
@@ -188,6 +195,13 @@ template <class T> class Pool {
 
   private:
     std::vector<T> &pool_;
+};
+
+template <class... T> class PoolSet : public Pool<T>... {
+  public:
+    template <class... Pools> PoolSet(Pools &...pools) : Pool<T>{pools}... {}
+
+    template <typename U> auto get() -> Pool<U> & { return static_cast<Pool<U> &>(*this); }
 };
 
 template <typename F, typename... Pools> void unpool_with(F ins, Pools &&...pools) {

@@ -10,6 +10,7 @@
 #include <symbol.hh>
 
 template <class T> class Pool;
+template <class... Ts> class PoolSet;
 
 enum class TermCheckType : int { atom, sig, identifier, signed_identifier, pos_number };
 

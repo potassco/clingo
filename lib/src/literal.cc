@@ -3,6 +3,9 @@
 #include <util/print.hh>
 
 #include <literal.hh>
+#include <utility>
+
+#include "unpool.hh"
 
 ////////// Literal //////////
 
@@ -69,6 +72,29 @@ auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream & {
     return out;
 }
 
+auto Literal::unpool() -> SLiteralVec {
+    STermVec terms;
+    SLiteralVec lits;
+    GuardVec guards;
+    PoolLiteral pool{lits, guards, terms};
+    unpool(pool);
+    return lits;
+}
+
+namespace {
+
+struct Unpooler {
+    void operator()(Pool<Guard> &pool, Guard &elem) const {
+        // TODO: can this static cast be somehow avoided
+        // Should be doable by having a "two way" mapper for the UnpoolCrossproduct helper.
+        // This would also avoid the need to have a separate vector.
+        unpool_with([&](auto &&term, bool unchanged) { pool.append(elem.first, FWD(term)); },
+                    static_cast<PoolLiteral &>(pool).get<STerm>().element(elem.second));
+    }
+};
+
+} // namespace
+
 ////////// LiteralRelation //////////
 
 auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
@@ -110,14 +136,40 @@ void LiteralRelation::print(std::ostream &out) const {
 
 void LiteralRelation::add_sign(Sign s) { sign_ += s; }
 
+void LiteralRelation::unpool(PoolLiteral &pool) {
+    unpool_with(
+        [&](auto &&lhs, auto &&rhs, bool unchanged) {
+            if (unchanged) {
+                pool.get<SLiteral>().append(this);
+            } else {
+                pool.get<SLiteral>().append_shared<LiteralRelation>(FWD(lhs), FWD(rhs_));
+            }
+        },
+        pool.get<STerm>().element(lhs_), pool.get<Guard>().crossproduct<Unpooler>(rhs_));
+}
+
 ////////// LiteralBoolean //////////
 
 void LiteralBoolean::print(std::ostream &out) const { out << sign_ << (value_ ? "#true" : "#false"); }
 
 void LiteralBoolean::add_sign(Sign s) { sign_ += s; }
 
+void LiteralBoolean::unpool(PoolLiteral &pool) { pool.get<SLiteral>().append(this); }
+
 ////////// LiteralSymbolic //////////
 
 void LiteralSymbolic::print(std::ostream &out) const { out << sign_ << *term_; }
 
 void LiteralSymbolic::add_sign(Sign s) { sign_ += s; }
+
+void LiteralSymbolic::unpool(PoolLiteral &pool) {
+    unpool_with(
+        [&](auto &&term, bool unchanged) {
+            if (unchanged) {
+                pool.get<SLiteral>().append(this);
+            } else {
+                pool.get<SLiteral>().append_shared<LiteralSymbolic>(sign_, FWD(term));
+            }
+        },
+        pool.get<STerm>().element(term_));
+}
