@@ -55,29 +55,11 @@ struct MapLiteral {
 };
 
 } // namespace
-void Disjunction::unpool(PoolHeadLiteral &pool) {
-    // TODO: this will also be the common scheme to unpool statements. It would
-    // be nice if the helpers could take care of this already!
-    std::optional<std::vector<std::optional<std::vector<SLiteralVec>>>> conds;
-    for (auto &&elem : elems_) {
-        unpool_with(
-            [&](auto &&cond, bool unchanged) {
-                if (!conds.has_value()) {
-                    conds = std::vector<std::optional<std::vector<SLiteralVec>>>(elems_.size());
-                }
-                if (!unchanged) {
-                    if (conds->back() == std::nullopt) {
-                        conds->back() = std::vector<SLiteralVec>{};
-                    }
-                    conds->back()->emplace_back(FWD(cond));
-                }
-            },
-            unpool_crossproduct(pool.child, elem.second));
-    }
 
+void Disjunction::unpool(PoolHeadLiteral &pool) {
     unpool_with(
-        [&](auto &&lits, bool unchanged) {
-            if (!conds.has_value() && unchanged) {
+        [&](auto &&lits, auto &&conds, bool unchanged) {
+            if (unchanged) {
                 pool.append(this);
                 return;
             }
@@ -102,7 +84,26 @@ void Disjunction::unpool(PoolHeadLiteral &pool) {
             }
             pool.append_shared<Disjunction>(std::move(elems));
         },
-        unpool_crossproduct<PoolLiteral, Disjunction::Element, MapLiteral>(pool.child, elems_));
+        unpool_crossproduct<PoolLiteral, Disjunction::Element, MapLiteral>(pool.child, elems_),
+        unpool_map(pool.child, elems_, [](auto &pool, auto &elems) {
+            std::optional<std::vector<std::optional<std::vector<SLiteralVec>>>> conds;
+            for (auto &&elem : elems) {
+                unpool_with(
+                    [&](auto &&cond, bool unchanged) {
+                        if (!conds.has_value()) {
+                            conds = std::vector<std::optional<std::vector<SLiteralVec>>>(elems.size());
+                        }
+                        if (!unchanged) {
+                            if (!conds->back().has_value()) {
+                                conds->back() = std::vector<SLiteralVec>{};
+                            }
+                            conds->back()->emplace_back(FWD(cond));
+                        }
+                    },
+                    unpool_crossproduct(pool, elem.second));
+            }
+            return conds;
+        }));
 }
 
 ////////// HeadTheoryAtom //////////

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -203,6 +204,27 @@ template <class P, class T> class UnpoolUnion {
     bool unchanged_;
 };
 
+/// Unpool an element providing a single value.
+///
+/// This is meant to unpool nested expressions.
+template <class P, class T, class M> class UnpoolMap {
+  public:
+    using mapped_type = std::decay_t<decltype(std::declval<M>()(std::declval<P &>(), std::declval<T &>()))>;
+    UnpoolMap(P &pool, T &elem, M &&mapper) : pool_{pool}, elem_{elem}, mapper_{std::forward<M>(mapper)} {}
+
+    void unpool() { mapped_ = mapper_(pool_, elem_); }
+
+    template <class F> void combine(F cont) { cont(mapped_, !mapped_.has_value()); }
+
+    void erase() {}
+
+  private:
+    M mapper_;
+    P &pool_;
+    T &elem_;
+    mapped_type mapped_;
+};
+
 } // namespace detail
 
 /// Helper to unpool expressions and vectors of expressions.
@@ -250,6 +272,12 @@ template <class P, class U = P::element_type, class M = detail::Mapper>
 /// Unpool a vector computing it's union.
 template <class T, class P> [[nodiscard]] auto unpool_union(P &pool, std::vector<T> &vec) -> detail::UnpoolUnion<P, T> {
     return {pool, vec};
+};
+
+/// Helper to forwarding to pool nested expressions.
+template <class T, class P, class M>
+[[nodiscard]] auto unpool_map(P &pool, T &elem, M &&mapper) -> detail::UnpoolMap<P, T, M> {
+    return {pool, elem, std::forward<M>(mapper)};
 };
 
 /// Helper to unpool sets of different expressions.
