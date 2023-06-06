@@ -6,20 +6,24 @@
 #include <literal.hh>
 #include <theory.hh>
 
+class HeadLiteral;
+using SHeadLiteral = shared_ptr<HeadLiteral>;
+using SHeadLiteralVec = std::vector<SHeadLiteral>;
+using PoolHeadLiteral = PoolParent<SHeadLiteral, PoolLiteral>;
+
 class HeadLiteral {
   public:
     virtual ~HeadLiteral() = default;
 
     [[nodiscard]] virtual auto print_empty() const -> bool;
-
+    virtual void unpool(PoolHeadLiteral &pool) = 0;
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &;
+    auto unpool() -> SHeadLiteralVec;
 
     size_t refs = 0;
 };
-
-using SHeadLiteral = shared_ptr<HeadLiteral>;
 
 class Disjunction : public HeadLiteral {
   public:
@@ -30,6 +34,7 @@ class Disjunction : public HeadLiteral {
 
     [[nodiscard]] auto print_empty() const -> bool override;
     void print(std::ostream &out) const override;
+    void unpool(PoolHeadLiteral &pool) override;
 
   private:
     ElementVec elems_;
@@ -40,6 +45,7 @@ class HeadTheoryAtom : public HeadLiteral {
     HeadTheoryAtom(TheoryAtom atom) : atom_{std::move(atom)} {}
 
     void print(std::ostream &out) const override;
+    void unpool(PoolHeadLiteral &pool) override;
 
   private:
     TheoryAtom atom_;
@@ -56,6 +62,7 @@ class HeadAggregate : public HeadLiteral {
 
     void set_left_guard(STerm lhs, Relation rel);
     void print(std::ostream &out) const override;
+    void unpool(PoolHeadLiteral &pool) override;
 
   private:
     AggregateFunction fun_;
@@ -70,6 +77,7 @@ class HeadSetAggregate : public HeadLiteral {
 
     void set_left_guard(STerm lhs, Relation rel);
     void print(std::ostream &out) const override;
+    void unpool(PoolHeadLiteral &pool) override;
 
   private:
     SetAggregate aggr_;

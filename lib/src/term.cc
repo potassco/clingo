@@ -164,7 +164,7 @@ void TermTuple::unpool(PoolTerm &pool) {
                                 pool.append_shared<TermTuple>(ElementVec{FWD(tuple)});
                             }
                         },
-                        pool.crossproduct(tuple_or_term));
+                        unpool_crossproduct(pool, tuple_or_term));
                 }
             },
             tuple_or_term);
@@ -204,7 +204,7 @@ void TermAbs::unpool(PoolTerm &pool) {
                 pool.append_shared<TermAbs>(STermVec{FWD(arg)});
             }
         },
-        pool.union_(pool_));
+        unpool_union(pool, pool_));
 }
 
 [[nodiscard]] auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
@@ -249,7 +249,7 @@ void TermFunction::unpool(PoolTerm &pool) {
                     pool.append_shared<TermFunction>(name_, STermVecVec{FWD(tuple)}, external_);
                 }
             },
-            pool.crossproduct(tuple));
+            unpool_crossproduct(pool, tuple));
     }
 }
 
@@ -287,7 +287,7 @@ void TermUnary::unpool(PoolTerm &pool) {
                 pool.append_shared<TermUnary>(op_, FWD(rhs));
             }
         },
-        pool.element(rhs_));
+        unpool_element(pool, rhs_));
 }
 
 [[nodiscard]] auto TermUnary::type() const -> TermType { return TermType::TermUnary; }
@@ -387,7 +387,7 @@ void TermBinary::unpool(PoolTerm &pool) {
                 pool.append_shared<TermBinary>(FWD(lhs), op_, FWD(rhs));
             }
         },
-        pool.element(lhs_), pool.element(rhs_));
+        unpool_element(pool, lhs_), unpool_element(pool, rhs_));
 }
 
 [[nodiscard]] auto TermBinary::type() const -> TermType { return TermType::TermBinary; }

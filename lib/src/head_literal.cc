@@ -1,8 +1,14 @@
+#include <optional>
 #include <sstream>
 
+#include <stdexcept>
+#include <tuple>
+#include <type_traits>
 #include <util/print.hh>
 
 #include <head_literal.hh>
+
+#include "unpool.hh"
 
 ////////// HeadLiteral //////////
 
@@ -19,6 +25,14 @@ auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &
     return out;
 }
 
+auto HeadLiteral::unpool() -> SHeadLiteralVec {
+    SHeadLiteralVec head_lits;
+    SLiteralVec lits;
+    STermVec terms;
+    PoolHeadLiteral pool{head_lits, lits, terms};
+    unpool(pool);
+    return head_lits;
+}
 ////////// Disjunction //////////
 
 [[nodiscard]] auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
@@ -32,9 +46,70 @@ void Disjunction::print(std::ostream &out) const {
     });
 }
 
+namespace {
+
+struct MapLiteral {
+    static void unpool(PoolLiteral &pool, Disjunction::Element &elem) { elem.first->unpool(pool); }
+    static auto map(Disjunction::Element const &orig, SLiteral lit) { return std::move(lit); }
+    static auto equal(SLiteral &a, Disjunction::Element &b) -> bool { return a == b.first; }
+};
+
+} // namespace
+void Disjunction::unpool(PoolHeadLiteral &pool) {
+    // TODO: this will also be the common scheme to unpool statements. It would
+    // be nice if the helpers could take care of this already!
+    std::optional<std::vector<std::optional<std::vector<SLiteralVec>>>> conds;
+    for (auto &&elem : elems_) {
+        unpool_with(
+            [&](auto &&cond, bool unchanged) {
+                if (!conds.has_value()) {
+                    conds = std::vector<std::optional<std::vector<SLiteralVec>>>(elems_.size());
+                }
+                if (!unchanged) {
+                    if (conds->back() == std::nullopt) {
+                        conds->back() = std::vector<SLiteralVec>{};
+                    }
+                    conds->back()->emplace_back(FWD(cond));
+                }
+            },
+            unpool_crossproduct(pool.child, elem.second));
+    }
+
+    unpool_with(
+        [&](auto &&lits, bool unchanged) {
+            if (!conds.has_value() && unchanged) {
+                pool.append(this);
+                return;
+            }
+            Disjunction::ElementVec elems;
+            auto append = [&](size_t i, auto &lit, auto &cond) {
+                if (conds.has_value() && conds->at(i).has_value()) {
+                    for (auto &cond : conds->at(i).value()) {
+                        elems.emplace_back(lit, cond);
+                    }
+                } else {
+                    elems.emplace_back(lit, cond);
+                }
+            };
+            size_t i = 0;
+            for (auto &lit_or_elem : lits) {
+                if constexpr (std::is_same_v<std::decay_t<decltype(lits)>, Disjunction::ElementVec>) {
+                    append(i, lit_or_elem.first, lit_or_elem.second);
+                } else {
+                    append(i, lit_or_elem, elems_[i].second);
+                }
+                ++i;
+            }
+            pool.append_shared<Disjunction>(std::move(elems));
+        },
+        unpool_crossproduct<PoolLiteral, Disjunction::Element, MapLiteral>(pool.child, elems_));
+}
+
 ////////// HeadTheoryAtom //////////
 
 void HeadTheoryAtom::print(std::ostream &out) const { out << atom_; }
+
+void HeadTheoryAtom::unpool(PoolHeadLiteral &pool) { throw std::logic_error("implement me"); }
 
 ////////// HeadAggregate //////////
 
@@ -55,8 +130,12 @@ void HeadAggregate::print(std::ostream &out) const {
     }
 }
 
+void HeadAggregate::unpool(PoolHeadLiteral &pool) { throw std::logic_error("implement me"); }
+
 ////////// HeadSetAggregate //////////
 
 void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
 
 void HeadSetAggregate::print(std::ostream &out) const { out << aggr_; }
+
+void HeadSetAggregate::unpool(PoolHeadLiteral &pool) { throw std::logic_error("implement me"); }

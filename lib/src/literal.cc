@@ -73,10 +73,9 @@ auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream & {
 }
 
 auto Literal::unpool() -> SLiteralVec {
-    STermVec terms;
     SLiteralVec lits;
-    GuardVec guards;
-    PoolLiteral pool{lits, guards, terms};
+    STermVec terms;
+    PoolLiteral pool{lits, terms};
     unpool(pool);
     return lits;
 }
@@ -125,7 +124,7 @@ void LiteralRelation::add_sign(Sign s) { sign_ += s; }
 namespace {
 
 struct Mapper {
-    static void unpool(Pool<STerm> &pool, Guard &elem) { elem.second->unpool(pool); }
+    static void unpool(PoolTerm &pool, Guard &elem) { elem.second->unpool(pool); }
     static auto map(Guard const &orig, STerm term) { return Guard{orig.first, std::move(term)}; }
     static auto equal(STerm &a, Guard &b) -> bool { return a == b.second; }
 };
@@ -136,12 +135,12 @@ void LiteralRelation::unpool(PoolLiteral &pool) {
     unpool_with(
         [&](auto &&lhs, auto &&rhs, bool unchanged) {
             if (unchanged) {
-                pool.get<SLiteral>().append(this);
+                pool.append(this);
             } else {
-                pool.get<SLiteral>().append_shared<LiteralRelation>(FWD(lhs), FWD(rhs));
+                pool.append_shared<LiteralRelation>(FWD(lhs), FWD(rhs));
             }
         },
-        pool.get<STerm>().element(lhs_), pool.get<STerm>().crossproduct<Guard, Mapper>(rhs_));
+        unpool_element(pool.child, lhs_), unpool_crossproduct<PoolTerm, Guard, Mapper>(pool.child, rhs_));
 }
 
 ////////// LiteralBoolean //////////
@@ -150,7 +149,7 @@ void LiteralBoolean::print(std::ostream &out) const { out << sign_ << (value_ ? 
 
 void LiteralBoolean::add_sign(Sign s) { sign_ += s; }
 
-void LiteralBoolean::unpool(PoolLiteral &pool) { pool.get<SLiteral>().append(this); }
+void LiteralBoolean::unpool(PoolLiteral &pool) { pool.append(this); }
 
 ////////// LiteralSymbolic //////////
 
@@ -162,10 +161,10 @@ void LiteralSymbolic::unpool(PoolLiteral &pool) {
     unpool_with(
         [&](auto &&term, bool unchanged) {
             if (unchanged) {
-                pool.get<SLiteral>().append(this);
+                pool.append(this);
             } else {
-                pool.get<SLiteral>().append_shared<LiteralSymbolic>(sign_, FWD(term));
+                pool.append_shared<LiteralSymbolic>(sign_, FWD(term));
             }
         },
-        pool.get<STerm>().element(term_));
+        unpool_element(pool.child, term_));
 }

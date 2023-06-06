@@ -4,7 +4,7 @@
 
 namespace test {
 
-TEST_CASE("head literals") {
+TEST_CASE("parse_head_literal") {
     // theory_atom | aggregate | set_aggregate | not disjunction
     REQUIRE(to_str(parse_head_literal("&x{}")) == "&x");
     REQUIRE(to_str(parse_head_literal("#count{}")) == "#count { }");
@@ -49,6 +49,12 @@ TEST_CASE("head literals") {
     REQUIRE(to_str(parse_head_literal("{1<2;1<2:a;a:b;a:b,c}")) == "{ 1<2; 1<2: a; a: b; a: b, c }");
     // theory atoms
     REQUIRE(to_str(parse_head_literal("&p(X){43+-Y:a} <== 7")) == "&p(X) { (43 +- Y): a } <== 7");
+}
+
+TEST_CASE("unpool_head_literal") {
+    REQUIRE(unpool_str(parse_head_literal("x")) == "[x]");
+    REQUIRE(unpool_str(parse_head_literal("p(1;2):p(3;4)"), ". ") ==
+            "[p(1): p(3); p(1): p(4). p(2): p(3); p(2): p(4)]");
 }
 
 } // namespace test

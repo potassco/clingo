@@ -31,15 +31,15 @@ template <class T> auto to_str(std::optional<T> const &value) -> std::string {
 
 template <class T> auto to_str(shared_ptr<T> const &value) -> std::string { return value.value()->to_string(); }
 
-template <class T> auto to_str(std::vector<T> const &value) -> std::string {
+template <class T> auto to_str(std::vector<T> const &value, char const *sep = ", ") -> std::string {
     std::ostringstream oss;
-    oss << "[" << p_range(value, ", ") << "]";
+    oss << "[" << p_range(value, sep) << "]";
     return oss.str();
 }
 
-template <class T> auto unpool_str(std::optional<shared_ptr<T>> value) -> std::string {
+template <class T> auto unpool_str(std::optional<shared_ptr<T>> value, char const *sep = ", ") -> std::string {
     if (value) {
-        return to_str(value.value()->unpool());
+        return to_str(value.value()->unpool(), sep);
     }
     return "<failed>";
 }

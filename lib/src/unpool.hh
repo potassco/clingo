@@ -215,19 +215,6 @@ template <class T> class Pool {
     /// Construct a pool with a reference to a vector for storing unpooled expressions.
     Pool(std::vector<T> &pool) : pool_{pool} {}
 
-    /// Unpool an element.
-    [[nodiscard]] auto element(T &elem) -> detail::UnpoolElement<Pool, T> { return {*this, elem}; }
-    /// Unpool a vector computing it's crossproduct.
-    ///
-    /// It is also possible to unpool a vector of different expressions as long
-    /// as they can be mapped back and forth.
-    template <class U = T, class M = detail::Mapper>
-    [[nodiscard]] auto crossproduct(std::vector<U> &vec) -> detail::UnpoolCrossproduct<Pool, U, M> {
-        return {*this, vec};
-    }
-    /// Unpool a vector computing it's union.
-    [[nodiscard]] auto union_(std::vector<T> &vec) -> detail::UnpoolUnion<Pool, T> { return {*this, vec}; };
-
     /// @{
     /// Vector-like interface to pool elements.
     template <typename... Args> void append(Args &&...args) { pool_.emplace_back(std::forward<Args>(args)...); };
@@ -246,14 +233,33 @@ template <class T> class Pool {
     std::vector<T> &pool_;
 };
 
-/// Helper to unpool sets of different expressions.
-template <class... T> class PoolSet : public Pool<T>... {
-  public:
-    /// Constructor delegating to the individual helpers.
-    template <class... Pools> PoolSet(Pools &...pools) : Pool<T>{pools}... {}
+/// Unpool an element.
+template <class T, class P> [[nodiscard]] auto unpool_element(P &pool, T &elem) -> detail::UnpoolElement<P, T> {
+    return {pool, elem};
+}
 
-    /// Get the helper associated with an expression.
-    template <typename U> auto get() -> Pool<U> & { return static_cast<Pool<U> &>(*this); }
+/// Unpool a vector computing it's crossproduct.
+///
+/// It is also possible to unpool a vector of different expressions as long
+/// as they can be mapped back and forth.
+template <class P, class U = P::element_type, class M = detail::Mapper>
+[[nodiscard]] auto unpool_crossproduct(P &pool, std::vector<U> &vec) -> detail::UnpoolCrossproduct<P, U, M> {
+    return {pool, vec};
+}
+
+/// Unpool a vector computing it's union.
+template <class T, class P> [[nodiscard]] auto unpool_union(P &pool, std::vector<T> &vec) -> detail::UnpoolUnion<P, T> {
+    return {pool, vec};
+};
+
+/// Helper to unpool sets of different expressions.
+template <class T, class C> class PoolParent : public Pool<T> {
+  public:
+    PoolParent(std::vector<T> &vec, auto &...vecs) : Pool<T>{vec}, child{std::forward<decltype(vecs)>(vecs)...} {}
+
+    operator C &() { return child; }
+
+    C child;
 };
 
 /// Unpool an expression composed of other expressions.

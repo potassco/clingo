@@ -30,7 +30,7 @@ using GuardVec = std::vector<Guard>;
 class Literal;
 using SLiteral = shared_ptr<Literal>;
 using SLiteralVec = std::vector<SLiteral>;
-using PoolLiteral = PoolSet<SLiteral, Guard, STerm>;
+using PoolLiteral = PoolParent<SLiteral, PoolTerm>;
 
 class Literal {
   public:
