@@ -58,6 +58,7 @@ struct MapLiteral {
 
 void Disjunction::unpool(PoolHeadLiteral &pool) {
     unpool_with(
+        // combine literals and conditions
         [&](auto &&lits, auto &&conds, bool unchanged) {
             if (unchanged) {
                 pool.append(this);
@@ -84,16 +85,18 @@ void Disjunction::unpool(PoolHeadLiteral &pool) {
             }
             pool.append_shared<Disjunction>(std::move(elems));
         },
+        // unpool the literals
         unpool_crossproduct<PoolLiteral, Disjunction::Element, MapLiteral>(pool.child, elems_),
+        // unpool the conditions
         unpool_map(pool.child, elems_, [](auto &pool, auto &elems) {
             std::optional<std::vector<std::optional<std::vector<SLiteralVec>>>> conds;
             for (auto &&elem : elems) {
                 unpool_with(
                     [&](auto &&cond, bool unchanged) {
-                        if (!conds.has_value()) {
-                            conds = std::vector<std::optional<std::vector<SLiteralVec>>>(elems.size());
-                        }
                         if (!unchanged) {
+                            if (!conds.has_value()) {
+                                conds = std::vector<std::optional<std::vector<SLiteralVec>>>(elems.size());
+                            }
                             if (!conds->back().has_value()) {
                                 conds->back() = std::vector<SLiteralVec>{};
                             }

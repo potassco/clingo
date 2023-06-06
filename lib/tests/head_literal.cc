@@ -52,7 +52,7 @@ TEST_CASE("parse_head_literal") {
 }
 
 TEST_CASE("unpool_head_literal") {
-    REQUIRE(unpool_str(parse_head_literal("x")) == "[x]");
+    REQUIRE(unpool_str(parse_head_literal("x: y, z; a: b, c")) == "[x: y,z; a: b,c]");
     REQUIRE(unpool_str(parse_head_literal("p(1;2):p(3;4)"), ". ") ==
             "[p(1): p(3); p(1): p(4). p(2): p(3); p(2): p(4)]");
 }
