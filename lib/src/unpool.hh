@@ -16,11 +16,13 @@ template <typename P, typename Mapper, typename Inserter>
 void crossproduct_with(OffsetVec &offsets, P &pool, Mapper map, Inserter ins) {
     for (bool cont = true; cont;) {
         std::vector<std::remove_cvref_t<decltype(map(0, pool[0]))>> res;
+        size_t i = 0;
         for (auto const &[cur, begin, end] : offsets) {
             if (begin == end) {
                 return;
             }
-            res.emplace_back(map(cur, pool[cur]));
+            res.emplace_back(map(i, pool[cur]));
+            ++i;
         }
         ins(std::move(res));
         cont = false;
@@ -55,6 +57,13 @@ template <class Pool, class... Pools> void unpool_r(Pool &&pool, Pools &&...pool
     unpool_r(std::forward<Pools>(pools)...);
 }
 
+inline void erase_r() {}
+
+template <class Pool, class... Pools> void erase_r(Pool &&pool, Pools &&...pools) {
+    erase_r(std::forward<Pools>(pools)...);
+    pool.erase();
+}
+
 /// Unpool a single element.
 template <class P, class T> class UnpoolElement {
   public:
@@ -75,8 +84,18 @@ template <class P, class T> class UnpoolElement {
             cont(elem_, true);
         } else {
             for (size_t i = begin_; i < end_; ++i) {
-                cont(pool_[i], false);
+                // Note: we use a copy because the undelying vector might
+                // change. Alternatively, the access could be done lazily. This
+                // is probably not worth the effort because shared pointer
+                // increments are rather cheap.
+                auto copy = pool_[i];
+                cont(copy, false);
             }
+        }
+    }
+
+    void erase() {
+        if (!unchanged_) {
             pool_.erase(begin_, end_);
         }
     }
@@ -110,14 +129,14 @@ template <class P, class T, class M = Mapper> class UnpoolCrossproduct : private
             end = pool_.size();
             unchanged_ = unchanged_ && end - begin == 1 && static_cast<M *>(this)->equal(pool_.back(), val);
         }
-        if (unchanged_) {
+        if (unchanged_ && !offsets_.empty()) {
             pool_.resize(std::get<1>(offsets_.front()));
         }
     }
 
     template <class F> void combine(F cont) {
         if (unchanged_) {
-            cont(vec_, true);
+            cont(static_cast<std::vector<T> const &>(vec_), true);
         } else {
             crossproduct_with(
                 offsets_, pool_,
@@ -125,9 +144,12 @@ template <class P, class T, class M = Mapper> class UnpoolCrossproduct : private
                     return static_cast<M *>(this)->map(vec_[i], std::forward<decltype(val)>(val));
                 },
                 [&](auto &&res) { cont(std::forward<decltype(res)>(res), unchanged_); });
-            if (!offsets_.empty()) {
-                pool_.erase(std::get<1>(offsets_.front()), std::get<2>(offsets_.back()));
-            }
+        }
+    }
+
+    void erase() {
+        if (!unchanged_ && !offsets_.empty()) {
+            pool_.erase(std::get<1>(offsets_.front()), std::get<2>(offsets_.back()));
         }
     }
 
@@ -157,11 +179,18 @@ template <class P, class T> class UnpoolUnion {
 
     template <class F> void combine(F cont) {
         if (unchanged_) {
-            cont(vec_.back(), true);
+            cont(static_cast<T const &>(vec_.back()), true);
         } else {
             for (size_t i = begin_; i < end_; ++i) {
-                cont(pool_[i], false);
+                // Note: we use a copy because the undelying vector might change
+                auto copy = pool_[i];
+                cont(copy, false);
             }
+        }
+    }
+
+    void erase() {
+        if (!unchanged_) {
             pool_.erase(begin_, end_);
         }
     }
@@ -229,6 +258,8 @@ template <class... T> class PoolSet : public Pool<T>... {
 
 /// Unpool an expression composed of other expressions.
 template <typename F, typename... Pools> void unpool_with(F ins, Pools &&...pools) {
-    unpool_r(pools...);
+    // Note: pools are deliberately passed by reference here!
+    detail::unpool_r(pools...);
     detail::combine_r(ins, true, pools..., detail::stop_tag{});
+    detail::erase_r(pools...);
 }

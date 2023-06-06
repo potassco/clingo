@@ -1,8 +1,12 @@
 #pragma once
 
 #include <memory>
+#include <optional>
+#include <sstream>
 
 #include <statement.hh>
+
+#include <util/print.hh>
 
 using STerm = shared_ptr<Term>;
 using SLiteral = shared_ptr<Literal>;
@@ -18,9 +22,24 @@ auto parse_head_literal(std::string str) -> std::optional<SHeadLiteral>;
 auto parse_body_literal(std::string str) -> std::optional<SBodyLiteral>;
 auto parse_statement(std::string str) -> std::optional<SStatement>;
 
-template <class T> auto to_str(std::optional<T> value) -> std::string {
+template <class T> auto to_str(std::optional<T> const &value) -> std::string {
     if (value) {
         return value.value()->to_string();
+    }
+    return "<failed>";
+}
+
+template <class T> auto to_str(shared_ptr<T> const &value) -> std::string { return value.value()->to_string(); }
+
+template <class T> auto to_str(std::vector<T> const &value) -> std::string {
+    std::ostringstream oss;
+    oss << "[" << p_range(value, ", ") << "]";
+    return oss.str();
+}
+
+template <class T> auto unpool_str(std::optional<shared_ptr<T>> value) -> std::string {
+    if (value) {
+        return to_str(value.value()->unpool());
     }
     return "<failed>";
 }

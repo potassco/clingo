@@ -1,9 +1,9 @@
 #include <sstream>
+#include <utility>
 
 #include <util/print.hh>
 
 #include <literal.hh>
-#include <utility>
 
 #include "unpool.hh"
 
@@ -81,16 +81,6 @@ auto Literal::unpool() -> SLiteralVec {
     return lits;
 }
 
-namespace {
-
-struct Mapper {
-    static void unpool(Pool<STerm> &pool, Guard &elem) { elem.second->unpool(pool); }
-    static auto map(Guard const &orig, STerm term) { return Guard{orig.first, std::move(term)}; }
-    static auto equal(STerm &a, Guard &b) -> bool { return a == b.second; }
-};
-
-} // namespace
-
 ////////// LiteralRelation //////////
 
 auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
@@ -132,13 +122,23 @@ void LiteralRelation::print(std::ostream &out) const {
 
 void LiteralRelation::add_sign(Sign s) { sign_ += s; }
 
+namespace {
+
+struct Mapper {
+    static void unpool(Pool<STerm> &pool, Guard &elem) { elem.second->unpool(pool); }
+    static auto map(Guard const &orig, STerm term) { return Guard{orig.first, std::move(term)}; }
+    static auto equal(STerm &a, Guard &b) -> bool { return a == b.second; }
+};
+
+} // namespace
+
 void LiteralRelation::unpool(PoolLiteral &pool) {
     unpool_with(
         [&](auto &&lhs, auto &&rhs, bool unchanged) {
             if (unchanged) {
                 pool.get<SLiteral>().append(this);
             } else {
-                pool.get<SLiteral>().append_shared<LiteralRelation>(FWD(lhs), FWD(rhs_));
+                pool.get<SLiteral>().append_shared<LiteralRelation>(FWD(lhs), FWD(rhs));
             }
         },
         pool.get<STerm>().element(lhs_), pool.get<STerm>().crossproduct<Guard, Mapper>(rhs_));
