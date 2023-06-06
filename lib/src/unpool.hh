@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstddef>
-#include <iterator>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -12,14 +12,15 @@ namespace detail {
 
 using OffsetVec = std::vector<std::tuple<size_t, size_t, size_t>>;
 
-template <typename P, typename Inserter> void crossproduct_with(OffsetVec &offsets, P &pool, Inserter ins) {
+template <typename P, typename Mapper, typename Inserter>
+void crossproduct_with(OffsetVec &offsets, P &pool, Mapper map, Inserter ins) {
     for (bool cont = true; cont;) {
-        std::vector<typename P::element_type> res;
+        std::vector<std::remove_cvref_t<decltype(map(0, pool[0]))>> res;
         for (auto const &[cur, begin, end] : offsets) {
             if (begin == end) {
                 return;
             }
-            res.emplace_back(pool[cur]);
+            res.emplace_back(map(cur, pool[cur]));
         }
         ins(std::move(res));
         cont = false;
@@ -89,8 +90,8 @@ template <class P, class T> class UnpoolElement {
 };
 
 struct Mapper {
-    template <class T, class P> static void map(P &pool, T &elem) { elem->unpool(pool); }
-    template <class T, class U> static auto unmap(T const &orig, U &&vec) { return std::forward<T>(vec); }
+    template <class T, class P> static void unpool(P &pool, T &elem) { elem->unpool(pool); }
+    template <class T, class U> static auto map(T const &orig, U &&val) { return std::forward<U>(val); }
     template <class T, class U> static auto equal(T &a, U &b) -> bool { return a == b; }
 };
 
@@ -105,7 +106,7 @@ template <class P, class T, class M = Mapper> class UnpoolCrossproduct : private
         for (auto &val : vec_) {
             offsets_.emplace_back(pool_.size(), pool_.size(), pool_.size());
             auto &[cur, begin, end] = offsets_.back();
-            static_cast<M *>(this)->map(pool_, val);
+            static_cast<M *>(this)->unpool(pool_, val);
             end = pool_.size();
             unchanged_ = unchanged_ && end - begin == 1 && static_cast<M *>(this)->equal(pool_.back(), val);
         }
@@ -118,8 +119,12 @@ template <class P, class T, class M = Mapper> class UnpoolCrossproduct : private
         if (unchanged_) {
             cont(vec_, true);
         } else {
-            crossproduct_with(offsets_, pool_,
-                              [&](auto res) { cont(static_cast<M *>(this)->unmap(vec_, std::move(res)), unchanged_); });
+            crossproduct_with(
+                offsets_, pool_,
+                [&](size_t i, auto &&val) {
+                    return static_cast<M *>(this)->map(vec_[i], std::forward<decltype(val)>(val));
+                },
+                [&](auto &&res) { cont(std::forward<decltype(res)>(res), unchanged_); });
             if (!offsets_.empty()) {
                 pool_.erase(std::get<1>(offsets_.front()), std::get<2>(offsets_.back()));
             }
@@ -171,43 +176,58 @@ template <class P, class T> class UnpoolUnion {
 
 } // namespace detail
 
+/// Helper to unpool expressions and vectors of expressions.
+///
+/// This helper is to be used together with the unpool_with function.
 template <class T> class Pool {
   public:
     using element_type = T;
 
+    /// Construct a pool with a reference to a vector for storing unpooled expressions.
     Pool(std::vector<T> &pool) : pool_{pool} {}
 
+    /// Unpool an element.
     [[nodiscard]] auto element(T &elem) -> detail::UnpoolElement<Pool, T> { return {*this, elem}; }
+    /// Unpool a vector computing it's crossproduct.
+    ///
+    /// It is also possible to unpool a vector of different expressions as long
+    /// as they can be mapped back and forth.
     template <class U = T, class M = detail::Mapper>
     [[nodiscard]] auto crossproduct(std::vector<U> &vec) -> detail::UnpoolCrossproduct<Pool, U, M> {
         return {*this, vec};
     }
+    /// Unpool a vector computing it's union.
     [[nodiscard]] auto union_(std::vector<T> &vec) -> detail::UnpoolUnion<Pool, T> { return {*this, vec}; };
 
+    /// @{
+    /// Vector-like interface to pool elements.
     template <typename... Args> void append(Args &&...args) { pool_.emplace_back(std::forward<Args>(args)...); };
-
     template <typename E, typename... Args> void append_shared(Args &&...args) {
         pool_.emplace_back(construct_shared<E, typename T::element_type>(std::forward<Args>(args)...));
     }
-
     [[nodiscard]] auto size() const -> size_t { return pool_.size(); }
     [[nodiscard]] auto back() -> T & { return pool_.back(); }
     [[nodiscard]] auto operator[](size_t pos) -> T & { return pool_[pos]; }
     void resize(size_t n) { pool_.resize(n); }
     void pop() { pool_.pop_back(); }
     void erase(size_t begin, size_t end) { pool_.erase(pool_.begin() + begin, pool_.begin() + end); }
+    /// @}
 
   private:
     std::vector<T> &pool_;
 };
 
+/// Helper to unpool sets of different expressions.
 template <class... T> class PoolSet : public Pool<T>... {
   public:
+    /// Constructor delegating to the individual helpers.
     template <class... Pools> PoolSet(Pools &...pools) : Pool<T>{pools}... {}
 
+    /// Get the helper associated with an expression.
     template <typename U> auto get() -> Pool<U> & { return static_cast<Pool<U> &>(*this); }
 };
 
+/// Unpool an expression composed of other expressions.
 template <typename F, typename... Pools> void unpool_with(F ins, Pools &&...pools) {
     unpool_r(pools...);
     detail::combine_r(ins, true, pools..., detail::stop_tag{});

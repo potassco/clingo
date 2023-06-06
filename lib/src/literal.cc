@@ -84,21 +84,8 @@ auto Literal::unpool() -> SLiteralVec {
 namespace {
 
 struct Mapper {
-    static void map(Pool<STerm> &pool, Guard &elem) {
-        // TODO: can this static cast be somehow avoided
-        // Should be doable by having a "two way" mapper for the UnpoolCrossproduct helper.
-        // This would also avoid the need to have a separate vector.
-        elem.second->unpool(pool);
-    }
-    // TODO: consider mapping elements individually
-    static auto unmap(GuardVec const &orig, STermVec vec) {
-        GuardVec res;
-        res.reserve(orig.size());
-        for (size_t i = 0; i < orig.size(); ++i) {
-            res.emplace_back(orig[i].first, std::move(vec[i]));
-        }
-        return res;
-    }
+    static void unpool(Pool<STerm> &pool, Guard &elem) { elem.second->unpool(pool); }
+    static auto map(Guard const &orig, STerm term) { return Guard{orig.first, std::move(term)}; }
     static auto equal(STerm &a, Guard &b) -> bool { return a == b.second; }
 };
 
