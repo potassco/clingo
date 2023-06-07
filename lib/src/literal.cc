@@ -1,3 +1,4 @@
+#include <optional>
 #include <sstream>
 #include <utility>
 
@@ -133,11 +134,11 @@ struct Mapper {
 
 void LiteralRelation::unpool(PoolLiteral &pool) {
     unpool_with(
-        [&](auto &&lhs, auto &&rhs, bool unchanged) {
-            if (unchanged) {
+        [&](std::optional<STerm> &lhs, std::optional<GuardVec> &rhs) {
+            if (!lhs.has_value() && !rhs.has_value()) {
                 pool.append(this);
             } else {
-                pool.append_shared<LiteralRelation>(FWD(lhs), FWD(rhs));
+                pool.append_shared<LiteralRelation>(lhs.value_or(lhs_), std::move(rhs).value_or(rhs_));
             }
         },
         unpool_element(pool.child, lhs_), unpool_crossproduct<PoolTerm, Guard, Mapper>(pool.child, rhs_));
@@ -159,11 +160,11 @@ void LiteralSymbolic::add_sign(Sign s) { sign_ += s; }
 
 void LiteralSymbolic::unpool(PoolLiteral &pool) {
     unpool_with(
-        [&](auto &&term, bool unchanged) {
-            if (unchanged) {
+        [&](std::optional<STerm> &term) {
+            if (!term.has_value()) {
                 pool.append(this);
             } else {
-                pool.append_shared<LiteralSymbolic>(sign_, FWD(term));
+                pool.append_shared<LiteralSymbolic>(sign_, std::move(term).value());
             }
         },
         unpool_element(pool.child, term_));

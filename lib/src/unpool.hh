@@ -16,7 +16,7 @@ using OffsetVec = std::vector<std::tuple<size_t, size_t, size_t>>;
 template <typename P, typename Mapper, typename Inserter>
 void crossproduct_with(OffsetVec &offsets, P &pool, Mapper map, Inserter ins) {
     for (bool cont = true; cont;) {
-        std::vector<std::remove_cvref_t<decltype(map(0, pool[0]))>> res;
+        std::vector<std::decay_t<decltype(map(0, pool[0]))>> res;
         size_t i = 0;
         for (auto const &[cur, begin, end] : offsets) {
             if (begin == end) {
@@ -41,27 +41,25 @@ void crossproduct_with(OffsetVec &offsets, P &pool, Mapper map, Inserter ins) {
 
 struct stop_tag {};
 
-template <class F, class... Args> void combine_r(F ins, bool unchanged, stop_tag t, Args &&...args) {
+template <class F, class... Pools> void combine_r(F ins, stop_tag &t, Pools &...pools) {
     static_cast<void>(t);
-    ins(std::forward<Args>(args)..., unchanged);
+    ins(pools...);
 }
-template <class F, class Pool, class... Pools> void combine_r(F ins, bool unchanged, Pool &&pool, Pools &&...pools) {
-    pool.combine([&](auto &&elem, bool elem_unchanged) {
-        combine_r(ins, unchanged && elem_unchanged, std::forward<Pools>(pools)..., std::forward<decltype(elem)>(elem));
-    });
+template <class F, class Pool, class... Pools> void combine_r(F ins, Pool &pool, Pools &...pools) {
+    pool.combine([&](auto &elem) { combine_r(ins, pools..., elem); });
 }
 
 inline void unpool_r() {}
 
-template <class Pool, class... Pools> void unpool_r(Pool &&pool, Pools &&...pools) {
+template <class Pool, class... Pools> void unpool_r(Pool &pool, Pools &...pools) {
     pool.unpool();
-    unpool_r(std::forward<Pools>(pools)...);
+    unpool_r(pools...);
 }
 
 inline void erase_r() {}
 
-template <class Pool, class... Pools> void erase_r(Pool &&pool, Pools &&...pools) {
-    erase_r(std::forward<Pools>(pools)...);
+template <class Pool, class... Pools> void erase_r(Pool &pool, Pools &...pools) {
+    erase_r(pools...);
     pool.erase();
 }
 
@@ -82,15 +80,12 @@ template <class P, class T> class UnpoolElement {
 
     template <class F> void combine(F cont) {
         if (unchanged_) {
-            cont(elem_, true);
+            std::optional<std::decay_t<decltype(pool_[0])>> opt = std::nullopt;
+            cont(opt);
         } else {
             for (size_t i = begin_; i < end_; ++i) {
-                // Note: we use a copy because the undelying vector might
-                // change. Alternatively, the access could be done lazily. This
-                // is probably not worth the effort because shared pointer
-                // increments are rather cheap.
-                auto copy = pool_[i];
-                cont(copy, false);
+                auto opt = std::make_optional(pool_[i]);
+                cont(opt);
             }
         }
     }
@@ -111,7 +106,7 @@ template <class P, class T> class UnpoolElement {
 
 struct Mapper {
     template <class T, class P> static void unpool(P &pool, T &elem) { elem->unpool(pool); }
-    template <class T, class U> static auto map(T const &orig, U &&val) { return std::forward<U>(val); }
+    template <class T, class U> static auto map(T const &orig, U &val) { return val; }
     template <class T, class U> static auto equal(T &a, U &b) -> bool { return a == b; }
 };
 
@@ -137,14 +132,16 @@ template <class P, class T, class M = Mapper> class UnpoolCrossproduct : private
 
     template <class F> void combine(F cont) {
         if (unchanged_) {
-            cont(static_cast<std::vector<T> const &>(vec_), true);
+            std::optional<std::vector<std::decay_t<decltype(static_cast<M *>(this)->map(vec_[0], pool_[0]))>>> opt =
+                std::nullopt;
+            cont(opt);
         } else {
             crossproduct_with(
-                offsets_, pool_,
-                [&](size_t i, auto &&val) {
-                    return static_cast<M *>(this)->map(vec_[i], std::forward<decltype(val)>(val));
-                },
-                [&](auto &&res) { cont(std::forward<decltype(res)>(res), unchanged_); });
+                offsets_, pool_, [&](size_t i, auto &val) { return static_cast<M *>(this)->map(vec_[i], val); },
+                [&](auto &&res) {
+                    auto opt = std::make_optional(FWD(res));
+                    cont(opt);
+                });
         }
     }
 
@@ -180,12 +177,12 @@ template <class P, class T> class UnpoolUnion {
 
     template <class F> void combine(F cont) {
         if (unchanged_) {
-            cont(static_cast<T const &>(vec_.back()), true);
+            std::optional<std::decay_t<decltype(pool_[0])>> opt = std::nullopt;
+            cont(opt);
         } else {
             for (size_t i = begin_; i < end_; ++i) {
-                // Note: we use a copy because the undelying vector might change
-                auto copy = pool_[i];
-                cont(copy, false);
+                auto opt = std::make_optional(pool_[i]);
+                cont(opt);
             }
         }
     }
@@ -214,7 +211,7 @@ template <class P, class T, class M> class UnpoolMap {
 
     void unpool() { mapped_ = mapper_(pool_, elem_); }
 
-    template <class F> void combine(F cont) { cont(mapped_, !mapped_.has_value()); }
+    template <class F> void combine(F cont) { cont(mapped_); }
 
     void erase() {}
 
@@ -294,6 +291,7 @@ template <class T, class C> class PoolParent : public Pool<T> {
 template <typename F, typename... Pools> void unpool_with(F ins, Pools &&...pools) {
     // Note: pools are deliberately passed by reference here!
     detail::unpool_r(pools...);
-    detail::combine_r(ins, true, pools..., detail::stop_tag{});
+    detail::stop_tag stop;
+    detail::combine_r(ins, pools..., stop);
     detail::erase_r(pools...);
 }

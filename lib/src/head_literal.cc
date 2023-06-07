@@ -57,31 +57,34 @@ struct MapLiteral {
 } // namespace
 
 void Disjunction::unpool(PoolHeadLiteral &pool) {
+    using SLitVecVec = std::vector<SLiteralVec>;
+    using SLitVecOVec = std::optional<SLitVecVec>;
+    using SLitVecOVecVec = std::vector<std::optional<std::vector<SLiteralVec>>>;
+    using SLitVecOVecOVec = std::optional<std::vector<std::optional<std::vector<SLiteralVec>>>>;
+
     unpool_with(
         // combine literals and conditions
-        [&](auto &&lits, auto &&conds, bool unchanged) {
-            if (unchanged) {
+        [&](std::optional<SLiteralVec> &lits, SLitVecOVecOVec &conds) {
+            if (!lits.has_value() && !conds.has_value()) {
                 pool.append(this);
                 return;
             }
             Disjunction::ElementVec elems;
-            auto append = [&](size_t i, auto &lit, auto &cond) {
+            auto append = [&](size_t i, SLiteral lit, SLiteralVec &cond) {
                 if (conds.has_value() && conds->at(i).has_value()) {
                     for (auto &cond : conds->at(i).value()) {
                         elems.emplace_back(lit, cond);
                     }
                 } else {
-                    elems.emplace_back(lit, cond);
+                    elems.emplace_back(std::move(lit), cond);
                 }
             };
-            size_t i = 0;
-            for (auto &lit_or_elem : lits) {
-                if constexpr (std::is_same_v<std::decay_t<decltype(lits)>, Disjunction::ElementVec>) {
-                    append(i, lit_or_elem.first, lit_or_elem.second);
+            for (size_t i = 0; i < elems_.size(); ++i) {
+                if (lits.has_value()) {
+                    append(i, std::move(lits->at(i)), elems_[i].second);
                 } else {
-                    append(i, lit_or_elem, elems_[i].second);
+                    elems.emplace_back(elems_[i].first, elems[i].second);
                 }
-                ++i;
             }
             pool.append_shared<Disjunction>(std::move(elems));
         },
@@ -89,18 +92,18 @@ void Disjunction::unpool(PoolHeadLiteral &pool) {
         unpool_crossproduct<PoolLiteral, Disjunction::Element, MapLiteral>(pool.child, elems_),
         // unpool the conditions
         unpool_map(pool.child, elems_, [](auto &pool, auto &elems) {
-            std::optional<std::vector<std::optional<std::vector<SLiteralVec>>>> conds;
-            for (auto &&elem : elems) {
+            SLitVecOVecOVec conds;
+            for (auto &elem : elems) {
                 unpool_with(
-                    [&](auto &&cond, bool unchanged) {
-                        if (!unchanged) {
+                    [&](std::optional<SLiteralVec> &cond) {
+                        if (cond.has_value()) {
                             if (!conds.has_value()) {
-                                conds = std::vector<std::optional<std::vector<SLiteralVec>>>(elems.size());
+                                conds = SLitVecOVecVec(elems.size());
                             }
                             if (!conds->back().has_value()) {
-                                conds->back() = std::vector<SLiteralVec>{};
+                                conds->back() = SLitVecVec{};
                             }
-                            conds->back()->emplace_back(FWD(cond));
+                            conds->back()->emplace_back(std::move(cond).value());
                         }
                     },
                     unpool_crossproduct(pool, elem.second));
