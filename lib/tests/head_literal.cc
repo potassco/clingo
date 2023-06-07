@@ -55,6 +55,16 @@ TEST_CASE("unpool_head_literal") {
     REQUIRE(unpool_str(parse_head_literal("x: y, z; a: b, c")) == "[x: y,z; a: b,c]");
     REQUIRE(unpool_str(parse_head_literal("p(1;2):p(3;4)"), ". ") ==
             "[p(1): p(3); p(1): p(4). p(2): p(3); p(2): p(4)]");
+    REQUIRE(unpool_str(parse_head_literal("p(1;2):p(3)"), ". ") == "[p(1): p(3). p(2): p(3)]");
+    REQUIRE(unpool_str(parse_head_literal("p(1):p(2;3)"), ". ") == "[p(1): p(2); p(1): p(3)]");
+    REQUIRE(unpool_str(parse_head_literal("(1;2) #count {} (3;4)"), ". ") ==
+            "[1 <= #count { } <= 3. 1 <= #count { } <= 4. 2 <= #count { } <= 3. 2 <= #count { } <= 4]");
+    REQUIRE(unpool_str(parse_head_literal("#count { (1;2):a(3;4): b(5;6) }"), ". ") ==
+            "[#count { "
+            "1: a(3): b(5); 1: a(3): b(6); 1: a(4): b(5); 1: a(4): b(6); "
+            "2: a(3): b(5); 2: a(3): b(6); 2: a(4): b(5); 2: a(4): b(6) }]");
+    REQUIRE(unpool_str(parse_head_literal("(1;2) #count {(3;4):a}"), ". ") ==
+            "[1 <= #count { 3: a; 4: a }. 2 <= #count { 3: a; 4: a }]");
 }
 
 } // namespace test

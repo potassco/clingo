@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+#include <util/shared_ptr.hh>
+
 #define FWD(x) std::forward<decltype(x)>(x)
 
 namespace detail {
@@ -45,6 +47,7 @@ template <class F, class... Pools> void combine_r(F ins, stop_tag &t, Pools &...
     static_cast<void>(t);
     ins(pools...);
 }
+
 template <class F, class Pool, class... Pools> void combine_r(F ins, Pool &pool, Pools &...pools) {
     pool.combine([&](auto &elem) { combine_r(ins, pools..., elem); });
 }
@@ -63,18 +66,34 @@ template <class Pool, class... Pools> void erase_r(Pool &pool, Pools &...pools) 
     pool.erase();
 }
 
+struct Unpooler {
+    template <class T> static auto is_empty_value(T &elem) { return false; }
+    template <class T> static auto is_empty_value(std::optional<T> &elem) { return !elem.has_value(); }
+    template <class P, class T> static void unpool(P &pool, T &elem) { elem.unpool(pool); }
+    template <class P, class T> static void unpool(P &pool, shared_ptr<T> &elem) { unpool(pool, *elem); }
+    template <class P, class T> static void unpool(P &pool, std::optional<T> &elem) {
+        if (elem.has_value()) {
+            unpool(pool, elem.value());
+        }
+    }
+    template <class T, class U> static auto equal(T &a, U &b) -> bool { return a == b; }
+};
+
 /// Unpool a single element.
-template <class P, class T> class UnpoolElement {
+template <class P, class T, class U> class UnpoolElement : private U {
   public:
     UnpoolElement(P &pool, T &elem) : pool_{pool}, elem_{elem} {}
 
     void unpool() {
         begin_ = pool_.size();
-        elem_->unpool(pool_);
+        static_cast<U *>(this)->unpool(pool_, elem_);
         end_ = pool_.size();
-        unchanged_ = end_ - begin_ == 1 && pool_.back() == elem_;
+        unchanged_ = end_ - begin_ == 1 && static_cast<U *>(this)->equal(pool_.back(), elem_);
         if (unchanged_) {
             pool_.pop();
+        }
+        if (begin_ == end_ && static_cast<U *>(this)->is_empty_value(elem_)) {
+            unchanged_ = true;
         }
     }
 
@@ -201,27 +220,6 @@ template <class P, class T> class UnpoolUnion {
     bool unchanged_;
 };
 
-/// Unpool an element providing a single value.
-///
-/// This is meant to unpool nested expressions.
-template <class P, class T, class M> class UnpoolMap {
-  public:
-    using mapped_type = std::decay_t<decltype(std::declval<M>()(std::declval<P &>(), std::declval<T &>()))>;
-    UnpoolMap(P &pool, T &elem, M &&mapper) : pool_{pool}, elem_{elem}, mapper_{std::forward<M>(mapper)} {}
-
-    void unpool() { mapped_ = mapper_(pool_, elem_); }
-
-    template <class F> void combine(F cont) { cont(mapped_); }
-
-    void erase() {}
-
-  private:
-    M mapper_;
-    P &pool_;
-    T &elem_;
-    mapped_type mapped_;
-};
-
 } // namespace detail
 
 /// Helper to unpool expressions and vectors of expressions.
@@ -253,7 +251,8 @@ template <class T> class Pool {
 };
 
 /// Unpool an element.
-template <class T, class P> [[nodiscard]] auto unpool_element(P &pool, T &elem) -> detail::UnpoolElement<P, T> {
+template <class P, class T, class U = detail::Unpooler>
+[[nodiscard]] auto unpool_element(P &pool, T &elem) -> detail::UnpoolElement<P, T, U> {
     return {pool, elem};
 }
 
@@ -269,12 +268,6 @@ template <class P, class U = P::element_type, class M = detail::Mapper>
 /// Unpool a vector computing it's union.
 template <class T, class P> [[nodiscard]] auto unpool_union(P &pool, std::vector<T> &vec) -> detail::UnpoolUnion<P, T> {
     return {pool, vec};
-};
-
-/// Helper to forwarding to pool nested expressions.
-template <class T, class P, class M>
-[[nodiscard]] auto unpool_map(P &pool, T &elem, M &&mapper) -> detail::UnpoolMap<P, T, M> {
-    return {pool, elem, std::forward<M>(mapper)};
 };
 
 /// Helper to unpool sets of different expressions.

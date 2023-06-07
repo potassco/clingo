@@ -1,5 +1,7 @@
+#include <iterator>
 #include <optional>
 #include <sstream>
+#include <utility>
 
 #include <stdexcept>
 #include <tuple>
@@ -62,9 +64,29 @@ void Disjunction::unpool(PoolHeadLiteral &pool) {
     using SLitVecOVecVec = std::vector<std::optional<std::vector<SLiteralVec>>>;
     using SLitVecOVecOVec = std::optional<std::vector<std::optional<std::vector<SLiteralVec>>>>;
 
+    // unpool the conditions
+    SLitVecOVecOVec conds;
+    size_t i = 0;
+    for (auto &elem : elems_) {
+        unpool_with(
+            [&](std::optional<SLiteralVec> &cond) {
+                if (cond.has_value()) {
+                    if (!conds.has_value()) {
+                        conds = SLitVecOVecVec(elems_.size());
+                    }
+                    if (!conds->at(i).has_value()) {
+                        conds->at(i) = SLitVecVec{};
+                    }
+                    conds->at(i)->emplace_back(std::move(cond).value());
+                }
+            },
+            unpool_crossproduct(pool.child, elem.second));
+        ++i;
+    }
+
+    // unpool literals and combine with conditions
     unpool_with(
-        // combine literals and conditions
-        [&](std::optional<SLiteralVec> &lits, SLitVecOVecOVec &conds) {
+        [&](std::optional<SLiteralVec> &lits) {
             if (!lits.has_value() && !conds.has_value()) {
                 pool.append(this);
                 return;
@@ -82,28 +104,7 @@ void Disjunction::unpool(PoolHeadLiteral &pool) {
             }
             pool.append_shared<Disjunction>(std::move(elems));
         },
-        // unpool the literals
-        unpool_crossproduct<PoolLiteral, Disjunction::Element, MapLiteral>(pool.child, elems_),
-        // unpool the conditions
-        unpool_map(pool.child, elems_, [](auto &pool, auto &elems) {
-            SLitVecOVecOVec conds;
-            for (auto &elem : elems) {
-                unpool_with(
-                    [&](std::optional<SLiteralVec> &cond) {
-                        if (cond.has_value()) {
-                            if (!conds.has_value()) {
-                                conds = SLitVecOVecVec(elems.size());
-                            }
-                            if (!conds->back().has_value()) {
-                                conds->back() = SLitVecVec{};
-                            }
-                            conds->back()->emplace_back(std::move(cond).value());
-                        }
-                    },
-                    unpool_crossproduct(pool, elem.second));
-            }
-            return conds;
-        }));
+        unpool_crossproduct<PoolLiteral, Disjunction::Element, MapLiteral>(pool.child, elems_));
 }
 
 ////////// HeadTheoryAtom //////////
@@ -131,7 +132,59 @@ void HeadAggregate::print(std::ostream &out) const {
     }
 }
 
-void HeadAggregate::unpool(PoolHeadLiteral &pool) { throw std::logic_error("implement me"); }
+struct UnpoolGuard {
+    template <class T> static auto is_empty_value(std::optional<T> value) { return !value.has_value(); }
+    static void unpool(PoolTerm &pool, HeadAggregate::LHS &lhs) {
+        if (lhs.has_value()) {
+            lhs->first->unpool(pool);
+        }
+    }
+    static void unpool(PoolTerm &pool, HeadAggregate::RHS &rhs) {
+        if (rhs.has_value()) {
+            rhs->second->unpool(pool);
+        }
+    }
+    static auto equal(STerm &term, HeadAggregate::LHS &lhs) { return lhs.has_value() && term == lhs->first; }
+    static auto equal(STerm &term, HeadAggregate::RHS &rhs) { return rhs.has_value() && term == rhs->second; }
+};
+
+void HeadAggregate::unpool(PoolHeadLiteral &pool) {
+    std::optional<ElementVec> elems;
+    size_t i = 0;
+    for (auto &elem : elems_) {
+        unpool_with(
+            [&](std::optional<STermVec> &tuple, std::optional<SLiteral> &lit, std::optional<SLiteralVec> &cond) {
+                if (!tuple.has_value() && !lit.has_value() && !cond.has_value() && !elems.has_value()) {
+                    return;
+                }
+                if (!elems.has_value()) {
+                    elems = ElementVec{elems_.begin(), elems_.begin() + i};
+                }
+                auto &[e_tuple, e_lit, e_cond] = elem;
+                elems->emplace_back(tuple.value_or(e_tuple), lit.value_or(e_lit), cond.value_or(e_cond));
+            },
+            unpool_crossproduct(pool.child.child, std::get<0>(elem)), unpool_element(pool.child, std::get<1>(elem)),
+            unpool_crossproduct(pool.child, std::get<2>(elem)));
+        ++i;
+    }
+    unpool_with(
+        [&](std::optional<STerm> &lhs, std::optional<STerm> &rhs) {
+            if (!lhs.has_value() && !rhs.has_value() && !elems.has_value()) {
+                pool.append(this);
+                return;
+            }
+            auto aggr = construct_shared<HeadAggregate, HeadAggregate>(fun_, elems.value_or(elems_));
+            if (lhs.has_value() || lhs_.has_value()) {
+                aggr->set_left_guard(lhs.value() ? lhs.value() : lhs_->first, lhs_->second);
+            }
+            if (rhs.has_value() || rhs_.has_value()) {
+                aggr->rhs_ = std::make_pair(rhs_->first, rhs.value() ? rhs.value() : rhs_->second);
+            }
+            pool.append(std::move(aggr));
+        },
+        unpool_element<PoolTerm, LHS, UnpoolGuard>(pool.child.child, lhs_),
+        unpool_element<PoolTerm, RHS, UnpoolGuard>(pool.child.child, rhs_));
+}
 
 ////////// HeadSetAggregate //////////
 
