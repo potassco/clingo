@@ -273,11 +273,12 @@ template <class T, class P> [[nodiscard]] auto unpool_union(P &pool, std::vector
 /// Helper to unpool sets of different expressions.
 template <class T, class C> class PoolParent : public Pool<T> {
   public:
-    PoolParent(std::vector<T> &vec, auto &...vecs) : Pool<T>{vec}, child{std::forward<decltype(vecs)>(vecs)...} {}
+    PoolParent(std::vector<T> &vec, auto &...vecs) : Pool<T>{vec}, child_{std::forward<decltype(vecs)>(vecs)...} {}
 
-    operator C &() { return child; }
+    template <class U> operator U &() { return static_cast<U &>(child_); }
 
-    C child;
+  private:
+    C child_;
 };
 
 /// Unpool an expression composed of other expressions.

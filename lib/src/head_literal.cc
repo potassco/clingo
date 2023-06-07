@@ -80,7 +80,7 @@ void Disjunction::unpool(PoolHeadLiteral &pool) {
                     conds->at(i)->emplace_back(std::move(cond).value());
                 }
             },
-            unpool_crossproduct(pool.child, elem.second));
+            unpool_crossproduct<PoolLiteral>(pool, elem.second));
         ++i;
     }
 
@@ -104,7 +104,7 @@ void Disjunction::unpool(PoolHeadLiteral &pool) {
             }
             pool.append_shared<Disjunction>(std::move(elems));
         },
-        unpool_crossproduct<PoolLiteral, Disjunction::Element, MapLiteral>(pool.child, elems_));
+        unpool_crossproduct<PoolLiteral, Disjunction::Element, MapLiteral>(pool, elems_));
 }
 
 ////////// HeadTheoryAtom //////////
@@ -148,8 +148,9 @@ void HeadAggregate::unpool(PoolHeadLiteral &pool) {
                 auto &[e_tuple, e_lit, e_cond] = elem;
                 elems->emplace_back(tuple.value_or(e_tuple), lit.value_or(e_lit), cond.value_or(e_cond));
             },
-            unpool_crossproduct(pool.child.child, std::get<0>(elem)), unpool_element(pool.child, std::get<1>(elem)),
-            unpool_crossproduct(pool.child, std::get<2>(elem)));
+            unpool_crossproduct<PoolTerm>(pool, std::get<0>(elem)),
+            unpool_element<PoolLiteral>(pool, std::get<1>(elem)),
+            unpool_crossproduct<PoolLiteral>(pool, std::get<2>(elem)));
         ++i;
     }
 
@@ -169,8 +170,8 @@ void HeadAggregate::unpool(PoolHeadLiteral &pool) {
             }
             pool.append(std::move(aggr));
         },
-        unpool_element<PoolTerm, LGuard, UnpoolGuards>(pool.child.child, lhs_),
-        unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool.child.child, rhs_));
+        unpool_element<PoolTerm, LGuard, UnpoolGuards>(pool, lhs_),
+        unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool, rhs_));
 }
 
 ////////// HeadSetAggregate //////////
@@ -180,7 +181,7 @@ void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(s
 void HeadSetAggregate::print(std::ostream &out) const { out << aggr_; }
 
 void HeadSetAggregate::unpool(PoolHeadLiteral &pool) {
-    aggr_.unpool(pool.child, [&](std::optional<SetAggregate> aggr) {
+    aggr_.unpool(pool, [&](std::optional<SetAggregate> aggr) {
         if (!aggr.has_value()) {
             pool.append(this);
         } else {

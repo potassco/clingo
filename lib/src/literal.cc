@@ -141,7 +141,7 @@ void LiteralRelation::unpool(PoolLiteral &pool) {
                 pool.append_shared<LiteralRelation>(lhs.value_or(lhs_), std::move(rhs).value_or(rhs_));
             }
         },
-        unpool_element(pool.child, lhs_), unpool_crossproduct<PoolTerm, Guard, Mapper>(pool.child, rhs_));
+        unpool_element<PoolTerm>(pool, lhs_), unpool_crossproduct<PoolTerm, Guard, Mapper>(pool, rhs_));
 }
 
 ////////// LiteralBoolean //////////
@@ -167,5 +167,5 @@ void LiteralSymbolic::unpool(PoolLiteral &pool) {
                 pool.append_shared<LiteralSymbolic>(sign_, std::move(term).value());
             }
         },
-        unpool_element(pool.child, term_));
+        unpool_element<PoolTerm>(pool, term_));
 }

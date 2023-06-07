@@ -71,8 +71,8 @@ void SetAggregate::unpool(PoolLiteral &pool, std::function<void(std::optional<Se
             }
             cb(std::move(aggr));
         },
-        unpool_element<PoolTerm, LGuard, UnpoolGuards>(pool.child, lhs_),
-        unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool.child, rhs_));
+        unpool_element<PoolTerm, LGuard, UnpoolGuards>(pool, lhs_),
+        unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool, rhs_));
 }
 
 auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream & {
