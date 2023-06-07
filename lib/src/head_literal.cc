@@ -70,20 +70,14 @@ void Disjunction::unpool(PoolHeadLiteral &pool) {
                 return;
             }
             Disjunction::ElementVec elems;
-            auto append = [&](size_t i, SLiteral lit, SLiteralVec &cond) {
+            for (size_t i = 0; i < elems_.size(); ++i) {
+                SLiteral lit = lits.has_value() ? std::move(lits->at(i)) : elems_[i].first;
                 if (conds.has_value() && conds->at(i).has_value()) {
                     for (auto &cond : conds->at(i).value()) {
-                        elems.emplace_back(lit, cond);
+                        elems.emplace_back(lit, lits.has_value() ? cond : std::move(cond));
                     }
                 } else {
-                    elems.emplace_back(std::move(lit), cond);
-                }
-            };
-            for (size_t i = 0; i < elems_.size(); ++i) {
-                if (lits.has_value()) {
-                    append(i, std::move(lits->at(i)), elems_[i].second);
-                } else {
-                    elems.emplace_back(elems_[i].first, elems[i].second);
+                    elems.emplace_back(std::move(lit), elems_[i].second);
                 }
             }
             pool.append_shared<Disjunction>(std::move(elems));
