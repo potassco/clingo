@@ -149,6 +149,7 @@ struct UnpoolGuard {
 };
 
 void HeadAggregate::unpool(PoolHeadLiteral &pool) {
+    // unpool the aggregate elements
     std::optional<ElementVec> elems;
     size_t i = 0;
     for (auto &elem : elems_) {
@@ -167,6 +168,8 @@ void HeadAggregate::unpool(PoolHeadLiteral &pool) {
             unpool_crossproduct(pool.child, std::get<2>(elem)));
         ++i;
     }
+
+    // unpool the guards and combine with the elements
     unpool_with(
         [&](std::optional<STerm> &lhs, std::optional<STerm> &rhs) {
             if (!lhs.has_value() && !rhs.has_value() && !elems.has_value()) {
