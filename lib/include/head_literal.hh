@@ -53,8 +53,6 @@ class HeadTheoryAtom : public HeadLiteral {
 
 class HeadAggregate : public HeadLiteral {
   public:
-    using LHS = std::optional<std::pair<STerm, Relation>>;
-    using RHS = std::optional<std::pair<Relation, STerm>>;
     using Element = std::tuple<STermVec, SLiteral, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
@@ -69,8 +67,8 @@ class HeadAggregate : public HeadLiteral {
   private:
     AggregateFunction fun_;
     ElementVec elems_;
-    LHS lhs_;
-    RHS rhs_;
+    LGuard lhs_;
+    RGuard rhs_;
 };
 
 class HeadSetAggregate : public HeadLiteral {

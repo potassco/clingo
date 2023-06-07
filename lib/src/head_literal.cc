@@ -132,22 +132,6 @@ void HeadAggregate::print(std::ostream &out) const {
     }
 }
 
-struct UnpoolGuard {
-    template <class T> static auto is_empty_value(std::optional<T> value) { return !value.has_value(); }
-    static void unpool(PoolTerm &pool, HeadAggregate::LHS &lhs) {
-        if (lhs.has_value()) {
-            lhs->first->unpool(pool);
-        }
-    }
-    static void unpool(PoolTerm &pool, HeadAggregate::RHS &rhs) {
-        if (rhs.has_value()) {
-            rhs->second->unpool(pool);
-        }
-    }
-    static auto equal(STerm &term, HeadAggregate::LHS &lhs) { return lhs.has_value() && term == lhs->first; }
-    static auto equal(STerm &term, HeadAggregate::RHS &rhs) { return rhs.has_value() && term == rhs->second; }
-};
-
 void HeadAggregate::unpool(PoolHeadLiteral &pool) {
     // unpool the aggregate elements
     std::optional<ElementVec> elems;
@@ -185,8 +169,8 @@ void HeadAggregate::unpool(PoolHeadLiteral &pool) {
             }
             pool.append(std::move(aggr));
         },
-        unpool_element<PoolTerm, LHS, UnpoolGuard>(pool.child.child, lhs_),
-        unpool_element<PoolTerm, RHS, UnpoolGuard>(pool.child.child, rhs_));
+        unpool_element<PoolTerm, LGuard, UnpoolGuards>(pool.child.child, lhs_),
+        unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool.child.child, rhs_));
 }
 
 ////////// HeadSetAggregate //////////
@@ -195,4 +179,12 @@ void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(s
 
 void HeadSetAggregate::print(std::ostream &out) const { out << aggr_; }
 
-void HeadSetAggregate::unpool(PoolHeadLiteral &pool) { throw std::logic_error("implement me"); }
+void HeadSetAggregate::unpool(PoolHeadLiteral &pool) {
+    aggr_.unpool(pool.child, [&](std::optional<SetAggregate> aggr) {
+        if (!aggr.has_value()) {
+            pool.append(this);
+        } else {
+            pool.append_shared<HeadSetAggregate>(std::move(aggr).value());
+        }
+    });
+}
