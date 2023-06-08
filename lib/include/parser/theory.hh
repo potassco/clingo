@@ -117,8 +117,10 @@ struct theory_term_root {
                                  dsl::p<theory_term_variable> | dsl::p<theory_term_anonymous_variable> |
                                  dsl::error<expected_term>;
     static constexpr auto value = lexy::callback<STheoryTerm>(
-        lexy::forward<STheoryTerm>, lexy::new_<TheoryTermInteger, STheoryTerm>,
-        lexy::new_<TheoryTermString, STheoryTerm>, lexy::new_<TheoryTermConstant, STheoryTerm>);
+        lexy::forward<STheoryTerm>,
+        [](int value) { return construct_shared<TheoryTermSymbol, TheoryTerm>(Symbol{value}); },
+        [](std::string value) { return construct_shared<TheoryTermSymbol, TheoryTerm>(Symbol{QuotedString{value}}); },
+        [](Constant value) { return construct_shared<TheoryTermSymbol, TheoryTerm>(Symbol{value}); });
 };
 
 struct theory_term_unparsed_guards {

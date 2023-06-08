@@ -55,43 +55,17 @@ class TheoryTermTuple : public TheoryTerm {
     ElementVec elems_;
 };
 
-class TheoryTermConstant : public TheoryTerm {
+class TheoryTermSymbol : public TheoryTerm {
   public:
     using Element = STheoryTerm;
     using ElementVec = std::vector<STheoryTerm>;
 
-    TheoryTermConstant(Constant value) : value_{value} {}
+    TheoryTermSymbol(Symbol value) : value_{std::move(value)} {}
 
     void print(std::ostream &out) const override;
 
   private:
-    Constant value_;
-};
-
-class TheoryTermInteger : public TheoryTerm {
-  public:
-    using Element = STheoryTerm;
-    using ElementVec = std::vector<STheoryTerm>;
-
-    explicit TheoryTermInteger(int value) : value_{value} {}
-
-    void print(std::ostream &out) const override;
-
-  private:
-    int value_;
-};
-
-class TheoryTermString : public TheoryTerm {
-  public:
-    using Element = STheoryTerm;
-    using ElementVec = std::vector<STheoryTerm>;
-
-    explicit TheoryTermString(std::string value) : value_{std::move(value)} {}
-
-    void print(std::ostream &out) const override;
-
-  private:
-    std::string value_;
+    Symbol value_;
 };
 
 class TheoryTermVariable : public TheoryTerm {

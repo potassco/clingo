@@ -77,15 +77,7 @@ void TheoryTermTuple::print(std::ostream &out) const {
 
 ////////// TheoryTermConstant //////////
 
-void TheoryTermConstant::print(std::ostream &out) const { out << value_; }
-
-////////// TheoryTermInteger //////////
-
-void TheoryTermInteger::print(std::ostream &out) const { out << value_; }
-
-////////// TheoryTermString //////////
-
-void TheoryTermString::print(std::ostream &out) const { print_quoted(out, value_); }
+void TheoryTermSymbol::print(std::ostream &out) const { out << value_; }
 
 ////////// TheoryTermVariable //////////
 
