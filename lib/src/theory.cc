@@ -4,6 +4,8 @@
 
 #include <theory.hh>
 
+#include "unpool.hh"
+
 ////////// TheoryTerm //////////
 
 [[nodiscard]] auto TheoryTerm::to_string() const -> std::string {
@@ -93,6 +95,42 @@ void TheoryTermFunction::print(std::ostream &out) const {
 }
 
 ////////// TheoryAtom //////////
+
+void TheoryAtom::unpool(PoolLiteral &pool, std::function<void(std::optional<TheoryAtom>)> cb) {
+    // unpool the elements
+    std::optional<ElementVec> elems;
+    size_t i = 0;
+    for (auto &elem : elems_) {
+        unpool_with(
+            [&](std::optional<SLiteralVec> &cond) {
+                if (!cond.has_value() && !elems.has_value()) {
+                    return;
+                }
+                if (!elems.has_value()) {
+                    elems = ElementVec{elems_.begin(), elems_.begin() + i};
+                }
+                auto &[tuple, e_cond] = elem;
+                elems->emplace_back(tuple, std::move(cond).value_or(e_cond));
+            },
+            unpool_crossproduct(pool, elem.second));
+        ++i;
+    }
+
+    // unpool name and combine with the elements
+    unpool_with(
+        [&](std::optional<STerm> &name) {
+            if (!name.has_value() && !elems.has_value()) {
+                cb(std::nullopt);
+                return;
+            }
+            auto aggr = TheoryAtom(std::move(name).value_or(name_), elems.value_or(elems_));
+            if (rhs_.has_value()) {
+                aggr.rhs_ = rhs_;
+            }
+            cb(std::move(aggr));
+        },
+        unpool_element<PoolTerm>(pool, name_));
+}
 
 auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
     out << "&" << *atom.name_;

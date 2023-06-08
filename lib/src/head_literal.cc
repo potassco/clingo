@@ -29,10 +29,9 @@ auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &
 
 auto HeadLiteral::unpool() -> SHeadLiteralVec {
     SHeadLiteralVec head_lits;
-    STheoryTermVec theory_terms;
     SLiteralVec lits;
     STermVec terms;
-    PoolHeadLiteral pool{head_lits, theory_terms, lits, terms};
+    PoolHeadLiteral pool{head_lits, lits, terms};
     unpool(pool);
     return head_lits;
 }
@@ -112,7 +111,15 @@ void Disjunction::unpool(PoolHeadLiteral &pool) {
 
 void HeadTheoryAtom::print(std::ostream &out) const { out << atom_; }
 
-void HeadTheoryAtom::unpool(PoolHeadLiteral &pool) { throw std::logic_error("implement me"); }
+void HeadTheoryAtom::unpool(PoolHeadLiteral &pool) {
+    atom_.unpool(pool, [&](std::optional<TheoryAtom> aggr) {
+        if (!aggr.has_value()) {
+            pool.append(this);
+        } else {
+            pool.append_shared<HeadTheoryAtom>(std::move(aggr).value());
+        }
+    });
+}
 
 ////////// HeadAggregate //////////
 

@@ -95,6 +95,7 @@ class TheoryTermFunction : public TheoryTerm {
 
 class TheoryAtom {
   public:
+    using RGuard = std::optional<std::pair<std::string, STheoryTerm>>;
     using Element = std::pair<STheoryTermVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
@@ -103,10 +104,11 @@ class TheoryAtom {
         : name_{std::move(name)}, elems_{std::move(elems)},
           rhs_{std::make_pair(std::move(rhs_op), std::move(rhs_term))} {}
 
+    void unpool(PoolLiteral &pool, std::function<void(std::optional<TheoryAtom>)> cb);
     friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream &;
 
   private:
     STerm name_;
     ElementVec elems_;
-    std::optional<std::pair<std::string, STheoryTerm>> rhs_;
+    RGuard rhs_;
 };

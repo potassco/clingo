@@ -69,6 +69,10 @@ TEST_CASE("unpool_head_literal") {
             "[1 <= { } <= 3. 1 <= { } <= 4. 2 <= { } <= 3. 2 <= { } <= 4]");
     REQUIRE(unpool_str(parse_head_literal("#count { a(1;2): b(3;4) }"), ". ") ==
             "[#count { a(1): b(3); a(1): b(4); a(2): b(3); a(2): b(4) }]");
+    REQUIRE(unpool_str(parse_head_literal("&p(1;2)"), ". ") == "[&p(1). &p(2)]");
+    REQUIRE(unpool_str(parse_head_literal("&p { : a(1;2) }"), ". ") == "[&p { : a(1); : a(2) }]");
+    REQUIRE(unpool_str(parse_head_literal("&p(1;2) { : a(1;2) }"), ". ") ==
+            "[&p(1) { : a(1); : a(2) }. &p(2) { : a(1); : a(2) }]");
 }
 
 } // namespace test
