@@ -29,9 +29,10 @@ auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &
 
 auto HeadLiteral::unpool() -> SHeadLiteralVec {
     SHeadLiteralVec head_lits;
+    STheoryTermVec theory_terms;
     SLiteralVec lits;
     STermVec terms;
-    PoolHeadLiteral pool{head_lits, lits, terms};
+    PoolHeadLiteral pool{head_lits, theory_terms, lits, terms};
     unpool(pool);
     return head_lits;
 }

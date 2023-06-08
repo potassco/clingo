@@ -9,7 +9,8 @@
 class HeadLiteral;
 using SHeadLiteral = shared_ptr<HeadLiteral>;
 using SHeadLiteralVec = std::vector<SHeadLiteral>;
-using PoolHeadLiteral = PoolParent<SHeadLiteral, PoolLiteral>;
+using PoolTheoryTerm = PoolParent<STheoryTerm, PoolLiteral>;
+using PoolHeadLiteral = PoolParent<SHeadLiteral, PoolTheoryTerm>;
 
 class HeadLiteral {
   public:
