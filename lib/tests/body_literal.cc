@@ -44,12 +44,11 @@ TEST_CASE("parse_body_literal") {
 }
 
 TEST_CASE("unpool_body_literal") {
-    // TODO: check conditions
-    // REQUIRE(unpool_str(parse_body_literal("x: y, z; a: b, c")) == "[x: y,z; a: b,c]");
-    // REQUIRE(unpool_str(parse_body_literal("p(1;2):p(3;4)"), ". ") ==
-    //        "[p(1): p(3); p(1): p(4). p(2): p(3); p(2): p(4)]");
-    // REQUIRE(unpool_str(parse_body_literal("p(1;2):p(3)"), ". ") == "[p(1): p(3). p(2): p(3)]");
-    // REQUIRE(unpool_str(parse_body_literal("p(1):p(2;3)"), ". ") == "[p(1): p(2); p(1): p(3)]");
+    REQUIRE(unpool_str(parse_body_literal("x: y, z")) == "[x: y, z]");
+    REQUIRE(unpool_str(parse_body_literal("p(1;2):p(3;4)"), ". ") ==
+            "[p(1): p(3); p(1): p(4). p(2): p(3); p(2): p(4)]");
+    REQUIRE(unpool_str(parse_body_literal("p(1;2):p(3)"), ". ") == "[p(1): p(3). p(2): p(3)]");
+    REQUIRE(unpool_str(parse_body_literal("p(1):p(2;3)"), ". ") == "[p(1): p(2); p(1): p(3)]");
     REQUIRE(unpool_str(parse_body_literal("(1;2) #count {} (3;4)"), ". ") ==
             "[1 <= #count { } <= 3. 1 <= #count { } <= 4. 2 <= #count { } <= 3. 2 <= #count { } <= 4]");
     REQUIRE(unpool_str(parse_body_literal("#count { a(1;2),b(3;4): c(5;6) }"), ". ") ==

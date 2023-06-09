@@ -111,11 +111,11 @@ struct body_atom : lexy::transparent_production {
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
             auto lit = construct_shared<LiteralRelation, Literal>(std::move(lhs), std::move(guards));
-            return construct_shared<ConditionalLiteral, BodyLiteral>(std::move(lit), std::move(cond));
+            return construct_shared<Conjunction, BodyLiteral>(std::move(lit), std::move(cond));
         },
         [](STerm term, SLiteralVec cond) {
             auto lit = construct_shared<LiteralSymbolic, Literal>(std::move(term));
-            return construct_shared<ConditionalLiteral, BodyLiteral>(std::move(lit), std::move(cond));
+            return construct_shared<Conjunction, BodyLiteral>(std::move(lit), std::move(cond));
         });
 };
 

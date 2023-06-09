@@ -25,17 +25,20 @@ class BodyLiteral {
     size_t refs = 0;
 };
 
-class ConditionalLiteral : public BodyLiteral {
+class Conjunction : public BodyLiteral {
   public:
-    explicit ConditionalLiteral(SLiteral lit, SLiteralVec cond) : lit_{std::move(lit)}, cond_{std::move(cond)} {}
+    using Element = std::pair<SLiteral, SLiteralVec>;
+    using ElementVec = std::vector<Element>;
+
+    explicit Conjunction(ElementVec elems) : elems_{std::move(elems)} {}
+    explicit Conjunction(SLiteral lit, SLiteralVec cond) : elems_{Element{std::move(lit), std::move(cond)}} {}
 
     void add_sign(Sign sign) override;
     void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
 
   private:
-    SLiteral lit_;
-    SLiteralVec cond_;
+    ElementVec elems_;
 };
 
 class BodyAggregate : public BodyLiteral {

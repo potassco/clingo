@@ -4,7 +4,7 @@
 
 #include <body_literal.hh>
 
-#include "unpool.hh"
+#include "unpool_cond_lit.hh"
 
 ////////// BodyLiteral //////////
 
@@ -30,18 +30,23 @@ auto operator<<(std::ostream &out, BodyLiteral const &literal) -> std::ostream &
 
 ////////// ConditionalLiteral //////////
 
-void ConditionalLiteral::add_sign(Sign sign) { lit_->add_sign(sign); }
-
-void ConditionalLiteral::print(std::ostream &out) const {
-    out << *lit_;
-    if (!cond_.empty()) {
-        out << ": " << p_range(cond_, ", ");
+void Conjunction::add_sign(Sign sign) {
+    if (elems_.size() != 1) {
+        throw std::runtime_error("there must be exactly one element");
     }
+    elems_.front().first->add_sign(sign);
 }
 
-void ConditionalLiteral::unpool(PoolBodyLiteral &pool) {
-    throw std::logic_error("conditional literals would need elements to unpool in the current setup");
+void Conjunction::print(std::ostream &out) const {
+    out << p_range_with(elems_, "; ", [](std::ostream &out, Element const &elem) {
+        out << *elem.first;
+        if (!elem.second.empty()) {
+            out << ": " << p_range(elem.second, ", ");
+        }
+    });
 }
+
+void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits(this, pool, elems_); }
 
 ////////// BodyAggregate //////////
 
