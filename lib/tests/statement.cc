@@ -4,7 +4,7 @@
 
 namespace test {
 
-TEST_CASE("statement") {
+TEST_CASE("parse_statement") {
     // rule
     REQUIRE(to_str(parse_statement(":-.")) == " :- .");
     REQUIRE(to_str(parse_statement("a.")) == "a.");
@@ -99,6 +99,22 @@ TEST_CASE("statement") {
     REQUIRE(to_str(parse_statement("#const x=42.")) == "#const x=42. [default]");
     REQUIRE(to_str(parse_statement("#const x=42. [default]")) == "#const x=42. [default]");
     REQUIRE(to_str(parse_statement("#const x=42. [override]")) == "#const x=42. [override]");
+}
+
+TEST_CASE("unpool_statement") {
+    // rule
+    REQUIRE(unpool_str(parse_statement("a(1;2) :- b(3;4), b(5,6)."), " ") == "[a(1) :- b(3); b(5,6)."
+                                                                             " a(1) :- b(4); b(5,6)."
+                                                                             " a(2) :- b(3); b(5,6)."
+                                                                             " a(2) :- b(4); b(5,6).]");
+    REQUIRE(unpool_str(parse_statement("a(1;2) :- b(3;4), b(5;6)."), " ") == "[a(1) :- b(3); b(5)."
+                                                                             " a(1) :- b(4); b(5)."
+                                                                             " a(1) :- b(3); b(6)."
+                                                                             " a(1) :- b(4); b(6)."
+                                                                             " a(2) :- b(3); b(5)."
+                                                                             " a(2) :- b(4); b(5)."
+                                                                             " a(2) :- b(3); b(6)."
+                                                                             " a(2) :- b(4); b(6).]");
 }
 
 } // namespace test

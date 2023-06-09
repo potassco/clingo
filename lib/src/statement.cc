@@ -66,7 +66,17 @@ void Rule::print(std::ostream &out) const {
     out << ".";
 }
 
-void Rule::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+void Rule::unpool(PoolStatement &pool) {
+    unpool_with(
+        [&](std::optional<SHeadLiteral> &head, std::optional<SBodyLiteralVec> &body) {
+            if (!head.has_value() && !body.has_value()) {
+                pool.append(this);
+            } else {
+                pool.append_shared<Rule>(head.value_or(head_), std::move(body).value_or(body_));
+            }
+        },
+        unpool_element<PoolHeadLiteral>(pool, head_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+}
 
 ////////// TheoryOpDefinition //////////
 
