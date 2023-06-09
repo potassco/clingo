@@ -204,7 +204,37 @@ void StatementOptimize::print(std::ostream &out) const {
         << (elems_.empty() ? "}" : " }") << ".";
 }
 
-void StatementOptimize::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+void StatementOptimize::unpool(PoolStatement &pool) {
+    std::optional<ElementVec> elems;
+    size_t i = 0;
+    for (auto &elem : elems_) {
+        unpool_with(
+            [&](std::optional<STerm> &weight, std::optional<STerm> &prio, std::optional<STermVec> &terms,
+                std::optional<SLiteralVec> &cond) {
+                if (!weight.has_value() && !prio.has_value() && !terms.has_value() && !cond.has_value() &&
+                    !elems.has_value()) {
+                    return;
+                }
+                if (!elems.has_value()) {
+                    elems = ElementVec{elems_.begin(), elems_.begin() + i};
+                }
+                auto &[e_tuple, e_cond] = elem;
+                auto &[e_weight, e_prio, e_terms] = e_tuple;
+                elems->emplace_back(Tuple{weight.value_or(e_weight), prio, terms.value_or(e_terms)},
+                                    std::move(cond).value_or(e_cond));
+            },
+            unpool_element<PoolTerm>(pool, std::get<0>(elem.first)),
+            unpool_element<PoolTerm>(pool, std::get<1>(elem.first)),
+            unpool_crossproduct<PoolTerm>(pool, std::get<2>(elem.first)),
+            unpool_crossproduct<PoolLiteral>(pool, elem.second));
+        ++i;
+    }
+    if (!elems.has_value()) {
+        pool.append(this);
+    } else {
+        pool.append_shared<StatementOptimize>(type_, std::move(elems.value()));
+    }
+}
 
 ////////// StatementWeakConstraint //////////
 

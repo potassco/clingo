@@ -115,7 +115,7 @@ auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream &;
 class StatementOptimize : public Statement {
   public:
     using Tuple = std::tuple<STerm, std::optional<STerm>, STermVec>;
-    using Element = std::tuple<Tuple, SLiteralVec>;
+    using Element = std::pair<Tuple, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
     explicit StatementOptimize(OptimizeType type, ElementVec elems) : type_{type}, elems_{std::move(elems)} {}
