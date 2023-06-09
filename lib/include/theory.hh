@@ -60,7 +60,7 @@ class TheoryTermSymbol : public TheoryTerm {
     using Element = STheoryTerm;
     using ElementVec = std::vector<STheoryTerm>;
 
-    TheoryTermSymbol(Symbol value) : value_{std::move(value)} {}
+    explicit TheoryTermSymbol(Symbol value) : value_{std::move(value)} {}
 
     void print(std::ostream &out) const override;
 
@@ -99,10 +99,12 @@ class TheoryAtom {
     using Element = std::pair<STheoryTermVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
-    TheoryAtom(STerm name, ElementVec elems) : name_{std::move(name)}, elems_{std::move(elems)} {}
-    TheoryAtom(STerm name, ElementVec elems, std::string rhs_op, STheoryTerm rhs_term)
+    explicit TheoryAtom(STerm name, ElementVec elems, RGuard rhs)
+        : name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {}
+    explicit TheoryAtom(STerm name, ElementVec elems) : name_{std::move(name)}, elems_{std::move(elems)} {}
+    explicit TheoryAtom(STerm name, ElementVec elems, std::string rhs_op, STheoryTerm rhs_term)
         : name_{std::move(name)}, elems_{std::move(elems)},
-          rhs_{std::make_pair(std::move(rhs_op), std::move(rhs_term))} {}
+          rhs_{std::in_place, std::move(rhs_op), std::move(rhs_term)} {}
 
     void unpool(PoolLiteral &pool, std::function<void(std::optional<TheoryAtom>)> cb);
     friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream &;

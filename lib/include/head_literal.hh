@@ -30,7 +30,7 @@ class Disjunction : public HeadLiteral {
     using Element = std::pair<SLiteral, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
-    Disjunction(ElementVec elems) : elems_{std::move(elems)} {}
+    explicit Disjunction(ElementVec elems) : elems_{std::move(elems)} {}
 
     [[nodiscard]] auto print_empty() const -> bool override;
     void print(std::ostream &out) const override;
@@ -42,7 +42,7 @@ class Disjunction : public HeadLiteral {
 
 class HeadTheoryAtom : public HeadLiteral {
   public:
-    HeadTheoryAtom(TheoryAtom atom) : atom_{std::move(atom)} {}
+    explicit HeadTheoryAtom(TheoryAtom atom) : atom_{std::move(atom)} {}
 
     void print(std::ostream &out) const override;
     void unpool(PoolHeadLiteral &pool) override;
@@ -56,8 +56,10 @@ class HeadAggregate : public HeadLiteral {
     using Element = std::tuple<STermVec, SLiteral, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
-    HeadAggregate(AggregateFunction fun, ElementVec elems) : fun_(fun), elems_(std::move(elems)) {}
-    HeadAggregate(AggregateFunction fun, ElementVec elems, Relation rel, STerm rhs)
+    explicit HeadAggregate(LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
+        : fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
+    explicit HeadAggregate(AggregateFunction fun, ElementVec elems) : fun_(fun), elems_(std::move(elems)) {}
+    explicit HeadAggregate(AggregateFunction fun, ElementVec elems, Relation rel, STerm rhs)
         : fun_(fun), elems_(std::move(elems)), rhs_(std::make_pair(rel, std::move(rhs))) {}
 
     void set_left_guard(STerm lhs, Relation rel);
@@ -73,7 +75,7 @@ class HeadAggregate : public HeadLiteral {
 
 class HeadSetAggregate : public HeadLiteral {
   public:
-    HeadSetAggregate(SetAggregate aggr) : aggr_{std::move(aggr)} {}
+    explicit HeadSetAggregate(SetAggregate aggr) : aggr_{std::move(aggr)} {}
 
     void set_left_guard(STerm lhs, Relation rel);
     void print(std::ostream &out) const override;

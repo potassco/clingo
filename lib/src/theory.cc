@@ -123,11 +123,7 @@ void TheoryAtom::unpool(PoolLiteral &pool, std::function<void(std::optional<Theo
                 cb(std::nullopt);
                 return;
             }
-            auto aggr = TheoryAtom(std::move(name).value_or(name_), elems.value_or(elems_));
-            if (rhs_.has_value()) {
-                aggr.rhs_ = rhs_;
-            }
-            cb(std::move(aggr));
+            cb(TheoryAtom(std::move(name).value_or(name_), elems.value_or(elems_), rhs_));
         },
         unpool_element<PoolTerm>(pool, name_));
 }

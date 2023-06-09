@@ -6,26 +6,31 @@
 #include <literal.hh>
 #include <theory.hh>
 
+class BodyLiteral;
+using SBodyLiteral = shared_ptr<BodyLiteral>;
+using SBodyLiteralVec = std::vector<SBodyLiteral>;
+using PoolBodyLiteral = PoolParent<SBodyLiteral, PoolLiteral>;
+
 class BodyLiteral {
   public:
     virtual ~BodyLiteral() = default;
 
     virtual void add_sign(Sign sign) = 0;
+    virtual void unpool(PoolBodyLiteral &pool) = 0;
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, BodyLiteral const &literal) -> std::ostream &;
+    auto unpool() -> SBodyLiteralVec;
 
     size_t refs = 0;
 };
 
-using SBodyLiteral = shared_ptr<BodyLiteral>;
-using SBodyLiteralVec = std::vector<SBodyLiteral>;
-
 class ConditionalLiteral : public BodyLiteral {
   public:
-    ConditionalLiteral(SLiteral lit, SLiteralVec cond) : lit_{std::move(lit)}, cond_{std::move(cond)} {}
+    explicit ConditionalLiteral(SLiteral lit, SLiteralVec cond) : lit_{std::move(lit)}, cond_{std::move(cond)} {}
 
     void add_sign(Sign sign) override;
+    void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -38,28 +43,33 @@ class BodyAggregate : public BodyLiteral {
     using Element = std::tuple<STermVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
-    BodyAggregate(AggregateFunction fun, ElementVec elems) : fun_(fun), elements(std::move(elems)) {}
-    BodyAggregate(AggregateFunction fun, ElementVec elems, Relation rel, STerm rhs)
-        : fun_(fun), elements(std::move(elems)), rhs_(std::make_pair(rel, std::move(rhs))) {}
+    explicit BodyAggregate(Sign sign, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
+        : sign_{sign}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
+    explicit BodyAggregate(AggregateFunction fun, ElementVec elems) : fun_(fun), elems_(std::move(elems)) {}
+    explicit BodyAggregate(AggregateFunction fun, ElementVec elems, Relation rel, STerm rhs)
+        : fun_(fun), elems_(std::move(elems)), rhs_(std::make_pair(rel, std::move(rhs))) {}
 
     void add_sign(Sign sign) override;
     void set_left_guard(STerm lhs, Relation rel);
+    void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
 
   private:
     Sign sign_ = Sign::none;
     AggregateFunction fun_;
-    ElementVec elements;
-    std::optional<std::pair<STerm, Relation>> lhs_;
-    std::optional<std::pair<Relation, STerm>> rhs_;
+    ElementVec elems_;
+    LGuard lhs_;
+    RGuard rhs_;
 };
 
 class BodySetAggregate : public BodyLiteral {
   public:
-    BodySetAggregate(SetAggregate aggr) : aggr_{std::move(aggr)} {}
+    explicit BodySetAggregate(Sign sign, SetAggregate aggr) : sign_{sign}, aggr_{std::move(aggr)} {}
+    explicit BodySetAggregate(SetAggregate aggr) : aggr_{std::move(aggr)} {}
 
     void add_sign(Sign sign) override;
     void set_left_guard(STerm lhs, Relation rel);
+    void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -69,9 +79,11 @@ class BodySetAggregate : public BodyLiteral {
 
 class BodyTheoryAtom : public BodyLiteral {
   public:
-    BodyTheoryAtom(TheoryAtom atom) : atom_(std::move(atom)) {}
+    explicit BodyTheoryAtom(TheoryAtom atom) : atom_(std::move(atom)) {}
+    explicit BodyTheoryAtom(Sign sign, TheoryAtom atom) : sign_{sign}, atom_(std::move(atom)) {}
 
     void add_sign(Sign sign) override;
+    void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
 
   private:

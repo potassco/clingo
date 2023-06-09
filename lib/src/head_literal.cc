@@ -35,6 +35,7 @@ auto HeadLiteral::unpool() -> SHeadLiteralVec {
     unpool(pool);
     return head_lits;
 }
+
 ////////// Disjunction //////////
 
 [[nodiscard]] auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
@@ -169,14 +170,10 @@ void HeadAggregate::unpool(PoolHeadLiteral &pool) {
                 pool.append(this);
                 return;
             }
-            auto aggr = construct_shared<HeadAggregate, HeadAggregate>(fun_, elems.value_or(elems_));
-            if (lhs.has_value() || lhs_.has_value()) {
-                aggr->set_left_guard(lhs.value() ? lhs.value() : lhs_->first, lhs_->second);
-            }
-            if (rhs.has_value() || rhs_.has_value()) {
-                aggr->rhs_ = std::make_pair(rhs_->first, rhs.value() ? rhs.value() : rhs_->second);
-            }
-            pool.append(std::move(aggr));
+            pool.append_shared<HeadAggregate>(
+                lhs ? LGuard(std::in_place, lhs.value(), lhs_->second) : (lhs_ ? lhs_ : std::nullopt), fun_,
+                elems.value_or(elems_),
+                rhs ? RGuard(std::in_place, rhs_->first, rhs.value()) : (rhs_ ? rhs_ : std::nullopt));
         },
         unpool_element<PoolTerm, LGuard, UnpoolGuards>(pool, lhs_),
         unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool, rhs_));
