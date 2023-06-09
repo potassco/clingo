@@ -250,7 +250,21 @@ void StatementWeakConstraint::print(std::ostream &out) const {
     out << "]";
 }
 
-void StatementWeakConstraint::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+void StatementWeakConstraint::unpool(PoolStatement &pool) {
+    unpool_with(
+        [&](std::optional<STerm> &weight, std::optional<STerm> &prio, std::optional<STermVec> &terms,
+            std::optional<SBodyLiteralVec> &body) {
+            if (!weight.has_value() && !prio.has_value() && !terms.has_value() && !body.has_value()) {
+                pool.append(this);
+            } else {
+                auto &[e_weight, e_prio, e_terms] = tuple_;
+                pool.append_shared<StatementWeakConstraint>(
+                    std::move(body).value_or(body_), Tuple{weight.value_or(e_weight), prio, terms.value_or(e_terms)});
+            }
+        },
+        unpool_element<PoolTerm>(pool, std::get<0>(tuple_)), unpool_element<PoolTerm>(pool, std::get<1>(tuple_)),
+        unpool_crossproduct<PoolTerm>(pool, std::get<2>(tuple_)), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+}
 
 ////////// StatementShow //////////
 
