@@ -211,8 +211,7 @@ class StatementDefined : public Statement {
 
 class StatementExternal : public Statement {
   public:
-    explicit StatementExternal(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
-    explicit StatementExternal(STerm term, SBodyLiteralVec body, STerm type)
+    explicit StatementExternal(STerm term, SBodyLiteralVec body, std::optional<STerm> type = std::nullopt)
         : term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
 
     void unpool(PoolStatement &pool) override;

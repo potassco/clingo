@@ -220,7 +220,7 @@ void StatementOptimize::unpool(PoolStatement &pool) {
                 }
                 auto &[e_tuple, e_cond] = elem;
                 auto &[e_weight, e_prio, e_terms] = e_tuple;
-                elems->emplace_back(Tuple{weight.value_or(e_weight), prio, terms.value_or(e_terms)},
+                elems->emplace_back(Tuple{weight.value_or(e_weight), prio ? prio : e_prio, terms.value_or(e_terms)},
                                     std::move(cond).value_or(e_cond));
             },
             unpool_element<PoolTerm>(pool, std::get<0>(elem.first)),
@@ -259,7 +259,8 @@ void StatementWeakConstraint::unpool(PoolStatement &pool) {
             } else {
                 auto &[e_weight, e_prio, e_terms] = tuple_;
                 pool.append_shared<StatementWeakConstraint>(
-                    std::move(body).value_or(body_), Tuple{weight.value_or(e_weight), prio, terms.value_or(e_terms)});
+                    std::move(body).value_or(body_),
+                    Tuple{weight.value_or(e_weight), prio ? prio : e_prio, terms.value_or(e_terms)});
             }
         },
         unpool_element<PoolTerm>(pool, std::get<0>(tuple_)), unpool_element<PoolTerm>(pool, std::get<1>(tuple_)),
@@ -270,7 +271,17 @@ void StatementWeakConstraint::unpool(PoolStatement &pool) {
 
 void StatementShow::print(std::ostream &out) const { out << "#show " << *term_ << ": " << p_range(body_, "; ") << "."; }
 
-void StatementShow::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+void StatementShow::unpool(PoolStatement &pool) {
+    unpool_with(
+        [&](std::optional<STerm> &term, std::optional<SBodyLiteralVec> &body) {
+            if (!term.has_value() && !body.has_value()) {
+                pool.append(this);
+            } else {
+                pool.append_shared<StatementShow>(term.value_or(term_), std::move(body).value_or(body_));
+            }
+        },
+        unpool_element<PoolTerm>(pool, term_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+}
 
 ////////// StatementShowSig //////////
 
@@ -286,7 +297,17 @@ void StatementProject::print(std::ostream &out) const {
     out << "#project " << *term_ << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
 }
 
-void StatementProject::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+void StatementProject::unpool(PoolStatement &pool) {
+    unpool_with(
+        [&](std::optional<STerm> &term, std::optional<SBodyLiteralVec> &body) {
+            if (!term.has_value() && !body.has_value()) {
+                pool.append(this);
+            } else {
+                pool.append_shared<StatementProject>(term.value_or(term_), std::move(body).value_or(body_));
+            }
+        },
+        unpool_element<PoolTerm>(pool, term_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+}
 
 ////////// StatementProjectSig //////////
 
@@ -313,7 +334,19 @@ void StatementExternal::print(std::ostream &out) const {
     }
 }
 
-void StatementExternal::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+void StatementExternal::unpool(PoolStatement &pool) {
+    unpool_with(
+        [&](std::optional<STerm> &term, std::optional<STerm> &type, std::optional<SBodyLiteralVec> &body) {
+            if (!term.has_value() && !type.has_value() && !body.has_value()) {
+                pool.append(this);
+            } else {
+                pool.append_shared<StatementExternal>(term.value_or(term_), std::move(body).value_or(body_),
+                                                      type ? type : type_);
+            }
+        },
+        unpool_element<PoolTerm>(pool, term_), unpool_element<PoolTerm>(pool, type_),
+        unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+}
 
 ////////// StatementEdge //////////
 
