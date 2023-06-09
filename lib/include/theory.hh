@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include <literal.hh>
 #include <term.hh>
 

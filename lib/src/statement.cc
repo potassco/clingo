@@ -4,7 +4,46 @@
 
 #include <statement.hh>
 
+#include "unpool.hh"
+
 ////////// Statement { //////////
+
+class PoolStatement {
+  public:
+    explicit PoolStatement(SStatementVec &pool)
+        : pool_{pool}, body_{body_lits_, lits_, terms_}, head_{head_lits_, lits_, terms_} {}
+
+    operator PoolBodyLiteral &() { return body_; }
+    operator PoolHeadLiteral &() { return head_; }
+    template <class U> operator U &() { return static_cast<U &>(head_); }
+
+    template <typename... Args> void append(Args &&...args) { pool_.emplace_back(std::forward<Args>(args)...); };
+    template <typename E, typename... Args> void append_shared(Args &&...args) {
+        pool_.emplace_back(construct_shared<E, Statement>(std::forward<Args>(args)...));
+    }
+
+  private:
+    SStatementVec &pool_;
+    SBodyLiteralVec body_lits_;
+    SHeadLiteralVec head_lits_;
+    SLiteralVec lits_;
+    STermVec terms_;
+    PoolBodyLiteral body_;
+    PoolHeadLiteral head_;
+};
+
+void destruct_pool::operator()(PoolStatement *pool) const { delete pool; }
+
+auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destruct_pool> {
+    return std::unique_ptr<PoolStatement, destruct_pool>{new PoolStatement{pool}};
+}
+
+auto Statement::unpool() -> SStatementVec {
+    SStatementVec stms;
+    PoolStatement pool{stms};
+    unpool(pool);
+    return stms;
+}
 
 [[nodiscard]] auto Statement::to_string() const -> std::string {
     std::ostringstream out;
@@ -26,6 +65,8 @@ void Rule::print(std::ostream &out) const {
     }
     out << ".";
 }
+
+void Rule::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
 
 ////////// TheoryOpDefinition //////////
 
@@ -115,6 +156,8 @@ void TheoryDefinition::print(std::ostream &out) const {
     out << "}.";
 }
 
+void TheoryDefinition::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+
 ////////// StatementOptimize //////////
 
 auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
@@ -151,6 +194,8 @@ void StatementOptimize::print(std::ostream &out) const {
         << (elems_.empty() ? "}" : " }") << ".";
 }
 
+void StatementOptimize::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+
 ////////// StatementWeakConstraint //////////
 
 void StatementWeakConstraint::print(std::ostream &out) const {
@@ -165,9 +210,13 @@ void StatementWeakConstraint::print(std::ostream &out) const {
     out << "]";
 }
 
+void StatementWeakConstraint::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+
 ////////// StatementShow //////////
 
 void StatementShow::print(std::ostream &out) const { out << "#show " << *term_ << ": " << p_range(body_, "; ") << "."; }
+
+void StatementShow::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
 
 ////////// StatementShowSig //////////
 
@@ -175,11 +224,15 @@ void StatementShowSig::print(std::ostream &out) const {
     out << "#show " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
+void StatementShowSig::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+
 ////////// StatementProject //////////
 
 void StatementProject::print(std::ostream &out) const {
     out << "#project " << *term_ << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
 }
+
+void StatementProject::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
 
 ////////// StatementProjectSig //////////
 
@@ -187,11 +240,15 @@ void StatementProjectSig::print(std::ostream &out) const {
     out << "#project " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
+void StatementProjectSig::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+
 ////////// StatementDefined //////////
 
 void StatementDefined::print(std::ostream &out) const {
     out << "#defined " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
+
+void StatementDefined::unpool(PoolStatement &pool) { static_cast<void>(pool); }
 
 ////////// StatementExternal //////////
 
@@ -202,6 +259,8 @@ void StatementExternal::print(std::ostream &out) const {
     }
 }
 
+void StatementExternal::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+
 ////////// StatementEdge //////////
 
 void StatementEdge::print(std::ostream &out) const {
@@ -209,6 +268,8 @@ void StatementEdge::print(std::ostream &out) const {
         << p_range_with(edges_, ";", [](std::ostream &out, auto &edge) { out << *edge.first << "," << *edge.second; })
         << ")" << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
 }
+
+void StatementEdge::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
 
 ////////// StatementHeuristic //////////
 
@@ -220,6 +281,8 @@ void StatementHeuristic::print(std::ostream &out) const {
     }
     out << "," << *mod_ << "]";
 }
+
+void StatementHeuristic::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
 
 ////////// StatementScript //////////
 
@@ -238,6 +301,8 @@ auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
 }
 
 void StatementScript::print(std::ostream &out) const { out << "#script (" << type_ << ")" << content_ << "#end."; }
+
+void StatementScript::unpool(PoolStatement &pool) { static_cast<void>(pool); }
 
 ////////// StatementInclude //////////
 
@@ -265,6 +330,8 @@ void StatementInclude::print(std::ostream &out) const {
     }
 }
 
+void StatementInclude::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+
 ////////// StatementProgram //////////
 
 void StatementProgram::print(std::ostream &out) const {
@@ -274,6 +341,8 @@ void StatementProgram::print(std::ostream &out) const {
     }
     out << ".";
 }
+
+void StatementProgram::unpool(PoolStatement &pool) { static_cast<void>(pool); }
 
 ////////// StatementConst //////////
 
@@ -293,4 +362,9 @@ auto operator<<(std::ostream &out, ConstType type) -> std::ostream & {
 
 void StatementConst::print(std::ostream &out) const {
     out << "#const " << name_ << "=" << *value_ << ". [" << type_ << "]";
+}
+
+void StatementConst::unpool(PoolStatement &pool) {
+    throw std::logic_error(
+        "TODO: make a decision how to handle const terms!!! Just ensure that the pool is a singleton here?");
 }

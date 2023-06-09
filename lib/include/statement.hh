@@ -1,26 +1,40 @@
 #pragma once
 
+#include <memory>
+
 #include <body_literal.hh>
 #include <head_literal.hh>
+
+class Statement;
+using SStatement = shared_ptr<Statement>;
+using SStatementVec = std::vector<SStatement>;
+
+class PoolStatement;
+
+struct destruct_pool {
+    void operator()(PoolStatement *pool) const;
+};
+auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destruct_pool>;
 
 class Statement {
   public:
     virtual ~Statement() = default;
 
+    virtual void unpool(PoolStatement &pool) = 0;
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream &;
+    auto unpool() -> SStatementVec;
 
     size_t refs = 0;
 };
-
-using SStatement = shared_ptr<Statement>;
 
 class Rule : public Statement {
   public:
     explicit Rule(SHeadLiteral head, SBodyLiteralVec body) : head_{std::move(head)}, body_{std::move(body)} {}
 
     void print(std::ostream &out) const override;
+    void unpool(PoolStatement &pool) override;
 
   private:
     SHeadLiteral head_;
@@ -85,6 +99,7 @@ class TheoryDefinition : public Statement {
     explicit TheoryDefinition(std::string name, TheoryTermDefinitionVec term_defs, TheoryAtomDefinitionVec atom_defs)
         : name_{std::move(name)}, term_defs_{std::move(term_defs)}, atom_defs_{std::move(atom_defs)} {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -105,6 +120,7 @@ class StatementOptimize : public Statement {
 
     explicit StatementOptimize(OptimizeType type, ElementVec elems) : type_{type}, elems_{std::move(elems)} {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -119,6 +135,7 @@ class StatementWeakConstraint : public Statement {
     explicit StatementWeakConstraint(SBodyLiteralVec body, Tuple tuple)
         : body_{std::move(body)}, tuple_{std::move(tuple)} {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -130,6 +147,7 @@ class StatementShow : public Statement {
   public:
     StatementShow(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -142,6 +160,7 @@ class StatementShowSig : public Statement {
     explicit StatementShowSig(bool has_sign, std::string name, int arity)
         : has_sign_{has_sign}, name_{std::move(name)}, arity_{arity} {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -154,6 +173,7 @@ class StatementProject : public Statement {
   public:
     explicit StatementProject(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -166,6 +186,7 @@ class StatementProjectSig : public Statement {
     explicit StatementProjectSig(bool has_sign, std::string name, int arity)
         : has_sign_{has_sign}, name_{std::move(name)}, arity_{arity} {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -179,6 +200,7 @@ class StatementDefined : public Statement {
     explicit StatementDefined(bool has_sign, std::string name, int arity)
         : has_sign_{has_sign}, name_{std::move(name)}, arity_{arity} {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -193,6 +215,7 @@ class StatementExternal : public Statement {
     explicit StatementExternal(STerm term, SBodyLiteralVec body, STerm type)
         : term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -209,6 +232,7 @@ class StatementEdge : public Statement {
     explicit StatementEdge(EdgeVec edges, SBodyLiteralVec body = {})
         : edges_{std::move(edges)}, body_{std::move(body)} {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -225,6 +249,7 @@ class StatementHeuristic : public Statement {
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), mod_(std::move(mod)),
           has_sign_{has_sign} {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -247,6 +272,7 @@ class StatementScript : public Statement {
   public:
     explicit StatementScript(ScriptType type, std::string content) : type_(type), content_(std::move(content)) {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -265,6 +291,7 @@ class StatementInclude : public Statement {
   public:
     explicit StatementInclude(IncludeType type, std::string path) : type_(type), path_(std::move(path)) {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -277,6 +304,7 @@ class StatementProgram : public Statement {
     explicit StatementProgram(std::string name, std::vector<std::string> args)
         : name_(std::move(name)), args_(std::move(args)) {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
@@ -293,6 +321,7 @@ class StatementConst : public Statement {
     explicit StatementConst(ConstType type, std::string name, STerm value)
         : type_(type), name_(std::move(name)), value_(std::move(value)) {}
 
+    void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
 
   private:
