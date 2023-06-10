@@ -356,7 +356,39 @@ void StatementEdge::print(std::ostream &out) const {
         << ")" << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
 }
 
-void StatementEdge::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+void StatementEdge::unpool(PoolStatement &pool) {
+    // unpool bodies
+    std::optional<std::vector<SBodyLiteralVec>> bodies;
+    unpool_with(
+        [&](std::optional<SBodyLiteralVec> &body) {
+            if (!body.has_value()) {
+                return;
+            }
+            if (!bodies.has_value()) {
+                bodies = std::vector<SBodyLiteralVec>{};
+            }
+            bodies->emplace_back(std::move(body).value());
+        },
+        unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+    // combine bodies and edges
+    for (auto &edge : edges_) {
+        unpool_with(
+            [&](std::optional<STerm> &u, std::optional<STerm> &v) {
+                if (!u.has_value() && !v.has_value() && !bodies.has_value() && edges_.size() == 1) {
+                    pool.append(this);
+                }
+                auto edges = EdgeVec{Edge{u.value_or(edge.first), v.value_or(edge.second)}};
+                if (bodies.has_value()) {
+                    for (auto &body : bodies.value()) {
+                        pool.append_shared<StatementEdge>(edges, body);
+                    }
+                } else {
+                    pool.append_shared<StatementEdge>(std::move(edges), body_);
+                }
+            },
+            unpool_element<PoolTerm>(pool, edge.first), unpool_element<PoolTerm>(pool, edge.second));
+    }
+}
 
 ////////// StatementHeuristic //////////
 
@@ -369,7 +401,21 @@ void StatementHeuristic::print(std::ostream &out) const {
     out << "," << *mod_ << "]";
 }
 
-void StatementHeuristic::unpool(PoolStatement &pool) { throw std::logic_error("implement me!!!"); }
+void StatementHeuristic::unpool(PoolStatement &pool) {
+    unpool_with(
+        [&](std::optional<STerm> &atom, std::optional<STerm> &type, std::optional<STerm> &prio,
+            std::optional<STerm> &mod, std::optional<SBodyLiteralVec> &body) {
+            if (!atom.has_value() && !type.has_value() && !prio.has_value() && !mod.has_value() && !body.has_value()) {
+                pool.append(this);
+            } else {
+                pool.append_shared<StatementHeuristic>(has_sign_, atom.value_or(atom_), std::move(body).value_or(body_),
+                                                       type.value_or(type_), prio ? prio : prio_, mod.value_or(mod_));
+            }
+        },
+        unpool_element<PoolTerm>(pool, atom_), unpool_element<PoolTerm>(pool, type_),
+        unpool_element<PoolTerm>(pool, prio_), unpool_element<PoolTerm>(pool, mod_),
+        unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+}
 
 ////////// StatementScript //////////
 
@@ -452,6 +498,19 @@ void StatementConst::print(std::ostream &out) const {
 }
 
 void StatementConst::unpool(PoolStatement &pool) {
-    throw std::logic_error(
-        "TODO: make a decision how to handle const terms!!! Just ensure that the pool is a singleton here?");
+    size_t n = 0;
+    unpool_with(
+        [&](std::optional<STerm> value) {
+            if (!value.has_value()) {
+                pool.append(this);
+                ++n;
+            } else {
+                pool.append_shared<StatementConst>(type_, name_, value.value());
+                ++n;
+            }
+        },
+        unpool_element<PoolTerm>(pool, value_));
+    if (n != 1) {
+        throw std::runtime_error("const statements must not contain pools");
+    }
 }

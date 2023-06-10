@@ -241,6 +241,10 @@ class StatementEdge : public Statement {
 
 class StatementHeuristic : public Statement {
   public:
+    explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, std::optional<STerm> prio,
+                                STerm mod)
+        : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
+          mod_(std::move(mod)), has_sign_{has_sign} {}
     explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm prio, STerm mod)
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
           mod_(std::move(mod)), has_sign_{has_sign} {}
