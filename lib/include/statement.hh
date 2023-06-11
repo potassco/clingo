@@ -16,6 +16,24 @@ struct destruct_pool {
 };
 auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destruct_pool>;
 
+// TODO 1:
+// - comparison literals should be normalized
+// - can expand disjunctively and conjunctively
+// - they can appear in bodies as well as nested elements
+// - conditional literals should just have one element
+// - provisional name: normalize_literals
+
+// TODO 2:
+// - terms should be normalized
+// - all pools should have form: X = 1..Y
+// - assignments should have form: unifiable = expression
+// - assignments should be sets to avoid introducing duplicates
+// - provisional name: normalize_terms (maybe cannot all be done in one function)
+
+// TODO 3:
+// - assignment aggregates might need special consideration
+//   (the current solution to introduce auxiliary literals is bad)
+
 class Statement {
   public:
     virtual ~Statement() = default;
