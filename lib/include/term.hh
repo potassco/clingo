@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <ostream>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -50,6 +51,13 @@ using STermVec = std::vector<STerm>;
 using STermVecVec = std::vector<STermVec>;
 using PoolTerm = Pool<STerm>;
 
+enum VariableSelectMode {
+    all,
+    pool_intersection,
+};
+
+using VariableSet = std::unordered_set<std::string>;
+
 class Term {
   public:
     virtual ~Term() = default;
@@ -58,11 +66,12 @@ class Term {
     friend auto operator<<(std::ostream &out, Term const &ast) -> std::ostream &;
     [[nodiscard]] auto to_string() const -> std::string;
     [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
-    auto unpool() -> STermVec;
+    [[nodiscard]] auto unpool() -> STermVec;
     virtual void unpool(PoolTerm &pool) = 0;
     [[nodiscard]] virtual auto is_equal(Term const &other) const -> bool = 0;
-    friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
+    [[nodiscard]] friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
+    virtual void variables(VariableSet &vars, VariableSelectMode mode) const = 0;
 
     // AST interface
     [[nodiscard]] virtual auto type() const -> TermType = 0;
@@ -145,6 +154,7 @@ class TermSymbol : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
+    void variables(VariableSet &vars, VariableSelectMode mode) const override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -165,6 +175,7 @@ class TermTuple : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
+    void variables(VariableSet &vars, VariableSelectMode mode) const override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -182,6 +193,7 @@ class TermVariable : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
+    void variables(VariableSet &vars, VariableSelectMode mode) const override;
 
   private:
     std::string name_;
@@ -195,6 +207,7 @@ class TermAbs : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
+    void variables(VariableSet &vars, VariableSelectMode mode) const override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -213,6 +226,7 @@ class TermFunction : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
+    void variables(VariableSet &vars, VariableSelectMode mode) const override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -239,6 +253,7 @@ class TermUnary : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
+    void variables(VariableSet &vars, VariableSelectMode mode) const override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -275,6 +290,7 @@ class TermBinary : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
+    void variables(VariableSet &vars, VariableSelectMode mode) const override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;

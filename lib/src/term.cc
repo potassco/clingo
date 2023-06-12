@@ -66,47 +66,78 @@ auto Term::unpool() -> STermVec {
 
 [[nodiscard]] auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool { return false; }
 
+namespace {
+
+template <class T, class F> void pool_variables(VariableSet &vars, VariableSelectMode mode, T const &pool, F gather) {
+    if (mode == VariableSelectMode::all || pool.size() <= 1) {
+        for (auto const &elem : pool) {
+            gather(elem, vars);
+        }
+    } else {
+        std::optional<VariableSet> intersection;
+        VariableSet next;
+        for (auto const &elem : pool) {
+            gather(elem, vars);
+            if (intersection) {
+                std::erase_if(intersection.value(), [&](auto &elem) { return !next.contains(elem); });
+                next.clear();
+            } else {
+                intersection = VariableSet{};
+                intersection->swap(next);
+            }
+        }
+        if (intersection) {
+            vars.merge(intersection.value());
+        }
+    }
+}
+
+} // namespace
 ////////// TermSymbol //////////
 
 void TermSymbol::print(std::ostream &out) const { out << value_; }
 
 [[nodiscard]] auto TermSymbol::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    return std::visit(
-        [&](auto &&value) {
-            using T = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, int>) {
-                if (type == TermCheckType::pos_number && value >= 0) {
-                    if (res != nullptr) {
-                        res->pos_number = value;
-                    }
-                    return true;
+    return visit_variant(
+        value_,
+        [&](int value) {
+            if (type == TermCheckType::pos_number && value >= 0) {
+                if (res != nullptr) {
+                    res->pos_number = value;
                 }
-            }
-            if constexpr (std::is_same_v<T, Function>) {
-                if (type == TermCheckType::atom) {
-                    return true;
-                }
-                if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) &&
-                    !value.name.empty() && value.args.size() == 0) {
-                    if (res != nullptr) {
-                        res->identifier = value.name;
-                    }
-                    return true;
-                }
+                return true;
             }
             return false;
         },
-        value_);
+        [&](Function const &value) {
+            if (type == TermCheckType::atom) {
+                return true;
+            }
+            if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) &&
+                !value.name.empty() && value.args.empty()) {
+                if (res != nullptr) {
+                    res->identifier = value.name;
+                }
+                return true;
+            }
+            return false;
+        },
+        [&](auto &&value) { return false; });
 }
 
 void TermSymbol::unpool(PoolTerm &pool) { pool.append(this); }
 
 auto TermSymbol::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermSymbol const *>(&other);
-    return d != nullptr && value_equal_to(value_, d->value_);
+    return d != nullptr && value_equal(value_, d->value_);
 }
 
 auto TermSymbol::hash() const -> size_t { return value_hash(typeid(TermSymbol), value_); }
+
+void TermSymbol::variables(VariableSet &vars, VariableSelectMode mode) const {
+    static_cast<void>(vars);
+    static_cast<void>(mode);
+}
 
 [[nodiscard]] auto TermSymbol::type() const -> TermType { return TermType::TermSymbol; }
 
@@ -127,28 +158,23 @@ void TermTuple::print(std::ostream &out) const {
     if (pool_.size() == 1 && std::holds_alternative<STerm>(pool_.front())) {
         std::get<STerm>(pool_.front())->print(out);
     } else {
-        out << "(" << p_range_with(pool_, ";", [](std::ostream &out, auto const &tuple) {
-            std::visit(
-                [&](auto &&arg) {
-                    using T = std::decay_t<decltype(arg)>;
-                    if constexpr (std::is_same_v<T, STerm>) {
-                        arg->print(out);
-                    } else if constexpr (std::is_same_v<T, STermVec>) {
-                        bool comma = false;
-                        for (const auto &term : arg) {
-                            if (comma) {
-                                out << ",";
-                            } else {
-                                comma = true;
-                            }
-                            term->print(out);
-                        }
-                        if (arg.size() == 1) {
+        out << "(" << p_range_with(pool_, ";", [](std::ostream &out, auto const &term_or_tuple) {
+            visit_variant(
+                term_or_tuple, [&](STerm const &term) { term->print(out); },
+                [&](STermVec const &tuple) {
+                    bool comma = false;
+                    for (const auto &term : tuple) {
+                        if (comma) {
                             out << ",";
+                        } else {
+                            comma = true;
                         }
+                        term->print(out);
                     }
-                },
-                tuple);
+                    if (tuple.size() == 1) {
+                        out << ",";
+                    }
+                });
         }) << ")";
     }
 }
@@ -157,31 +183,38 @@ void TermTuple::print(std::ostream &out) const {
 
 auto TermTuple::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermTuple const *>(&other);
-    return d != nullptr && value_equal_to(pool_, d->pool_);
+    return d != nullptr && value_equal(pool_, d->pool_);
 }
 
 auto TermTuple::hash() const -> size_t { return value_hash(typeid(TermTuple), pool_); }
 
+void TermTuple::variables(VariableSet &vars, VariableSelectMode mode) const {
+    pool_variables(vars, mode, pool_, [mode](auto const &tuple_or_term, VariableSet &set) {
+        visit_variant(
+            tuple_or_term, [&](STerm const &term) { term->variables(set, mode); },
+            [&](STermVec const &tuple) {
+                for (auto const &term : tuple) {
+                    term->variables(set, mode);
+                }
+            });
+    });
+}
+
 void TermTuple::unpool(PoolTerm &pool) {
     for (auto &tuple_or_term : pool_) {
-        std::visit(
-            [&](auto &tuple_or_term) {
-                using T = std::decay_t<decltype(tuple_or_term)>;
-                if constexpr (std::is_same_v<T, STerm>) {
-                    tuple_or_term->unpool(pool);
-                } else if constexpr (std::is_same_v<T, STermVec>) {
-                    unpool_with(
-                        [&](std::optional<STermVec> &tuple) {
-                            if (!tuple.has_value() && pool_.size() == 1) {
-                                pool.append(this);
-                            } else {
-                                pool.append_shared<TermTuple>(ElementVec{std::move(tuple).value_or(tuple_or_term)});
-                            }
-                        },
-                        unpool_crossproduct(pool, tuple_or_term));
-                }
-            },
-            tuple_or_term);
+        visit_variant(
+            tuple_or_term, [&](STerm &term) { term->unpool(pool); },
+            [&](STermVec &tuple) {
+                unpool_with(
+                    [&](std::optional<STermVec> &opt_tuple) {
+                        if (!opt_tuple.has_value() && pool_.size() == 1) {
+                            pool.append(this);
+                        } else {
+                            pool.append_shared<TermTuple>(ElementVec{std::move(opt_tuple).value_or(tuple)});
+                        }
+                    },
+                    unpool_crossproduct(pool, tuple));
+            });
     }
 }
 
@@ -199,6 +232,8 @@ auto TermVariable::hash() const -> size_t { return value_hash(typeid(TermVariabl
 void TermVariable::unpool(PoolTerm &pool) { pool.append(this); }
 
 [[nodiscard]] auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
+
+void TermVariable::variables(VariableSet &vars, VariableSelectMode mode) const { vars.emplace(name_); }
 
 ////////// TermAbs //////////
 
@@ -237,6 +272,10 @@ void TermAbs::unpool(PoolTerm &pool) {
 
 [[nodiscard]] auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
 
+void TermAbs::variables(VariableSet &vars, VariableSelectMode mode) const {
+    pool_variables(vars, mode, pool_, [mode](STerm const &term, VariableSet &vars) { term->variables(vars, mode); });
+}
+
 ////////// TermFunction //////////
 
 void TermFunction::print(std::ostream &out) const {
@@ -269,7 +308,7 @@ void TermFunction::print(std::ostream &out) const {
 
 auto TermFunction::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermFunction const *>(&other);
-    return d != nullptr && value_equal_to(external_, d->external_, name_, d->name_, pool_, d->pool_);
+    return d != nullptr && value_equal(external_, d->external_, name_, d->name_, pool_, d->pool_);
 }
 
 auto TermFunction::hash() const -> size_t { return value_hash(typeid(TermFunction), external_, name_, pool_); }
@@ -287,6 +326,14 @@ void TermFunction::unpool(PoolTerm &pool) {
             },
             unpool_crossproduct(pool, tuple));
     }
+}
+
+void TermFunction::variables(VariableSet &vars, VariableSelectMode mode) const {
+    pool_variables(vars, mode, pool_, [mode](auto const &tuple, VariableSet &set) {
+        for (auto const &term : tuple) {
+            term->variables(set, mode);
+        }
+    });
 }
 
 [[nodiscard]] auto TermFunction::type() const -> TermType { return TermType::TermFunction; }
@@ -316,7 +363,7 @@ void TermUnary::print(std::ostream &out) const { out << "(" << op_ << *rhs_ << "
 
 auto TermUnary::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermUnary const *>(&other);
-    return d != nullptr && value_equal_to(op_, d->op_, rhs_, d->rhs_);
+    return d != nullptr && value_equal(op_, d->op_, rhs_, d->rhs_);
 }
 
 auto TermUnary::hash() const -> size_t { return value_hash(typeid(TermUnary), op_, rhs_); }
@@ -371,6 +418,8 @@ void TermUnary::unpool(PoolTerm &pool) {
     return false;
 }
 
+void TermUnary::variables(VariableSet &vars, VariableSelectMode mode) const { rhs_->variables(vars, mode); }
+
 ////////// TermBinary //////////
 
 auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
@@ -423,7 +472,7 @@ void TermBinary::print(std::ostream &out) const { out << "(" << *lhs_ << op_ << 
 
 auto TermBinary::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermBinary const *>(&other);
-    return d != nullptr && value_equal_to(op_, d->op_, lhs_, d->lhs_, rhs_, d->rhs_);
+    return d != nullptr && value_equal(op_, d->op_, lhs_, d->lhs_, rhs_, d->rhs_);
 }
 
 auto TermBinary::hash() const -> size_t { return value_hash(typeid(TermBinary), op_, lhs_, rhs_); }
@@ -473,4 +522,9 @@ void TermBinary::unpool(PoolTerm &pool) {
                rhs_->check_type(TermCheckType::pos_number, res);
     }
     return false;
+}
+
+void TermBinary::variables(VariableSet &vars, VariableSelectMode mode) const {
+    lhs_->variables(vars, mode);
+    rhs_->variables(vars, mode);
 }

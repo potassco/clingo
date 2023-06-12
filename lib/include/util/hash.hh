@@ -19,27 +19,27 @@
                                                                                                                        \
     } // namespace std
 
-template <class A, class B> auto value_equal_to(A const &a, B const &b) { return a == b; }
+template <class A, class B> auto value_equal(A const &a, B const &b) { return a == b; }
 
-template <class A, class B> auto value_equal_to(A const *a, B const *b) { return *a == *b; }
+template <class A, class B> auto value_equal(A const *a, B const *b) { return *a == *b; }
 
-template <class A, class B> auto value_equal_to(std::optional<A> const &a, std::optional<B> const &b) {
+template <class A, class B> auto value_equal(std::optional<A> const &a, std::optional<B> const &b) {
     if (a.has_value() && b.has_value()) {
-        return value_equal_to(a.value(), b.value());
+        return value_equal(a.value(), b.value());
     }
     return !a.has_value() && !b.has_value();
 }
 
-template <class A, class B> auto value_equal_to(std::unique_ptr<A> const &a, std::unique_ptr<B> const &b) {
+template <class A, class B> auto value_equal(std::unique_ptr<A> const &a, std::unique_ptr<B> const &b) {
     return *a == *b;
 }
 
-template <class A, class B> auto value_equal_to(shared_ptr<A> const &a, shared_ptr<B> const &b) {
-    return value_equal_to(*a, *b);
+template <class A, class B> auto value_equal(shared_ptr<A> const &a, shared_ptr<B> const &b) {
+    return value_equal(*a, *b);
 }
 
-template <class A, class B, class C, class D> auto value_equal_to(std::pair<A, B> const &a, std::pair<C, D> const &b) {
-    return value_equal_to(a.first, b.first) && value_equal_to(a.second, b.second);
+template <class A, class B, class C, class D> auto value_equal(std::pair<A, B> const &a, std::pair<C, D> const &b) {
+    return value_equal(a.first, b.first) && value_equal(a.second, b.second);
 }
 
 namespace detail {
@@ -48,25 +48,25 @@ template <class... T, size_t... Indices>
 inline auto value_equal_to_tuple(std::tuple<T...> const &a, std::tuple<T...> const &b,
                                  std::index_sequence<Indices...> indices) -> size_t {
     static_cast<void>(indices);
-    return (true && ... && value_equal_to(std::get<Indices>(a), std::get<Indices>(b)));
+    return (true && ... && value_equal(std::get<Indices>(a), std::get<Indices>(b)));
 }
 
 } // namespace detail
 
-template <class... A, class... B> auto value_equal_to(std::tuple<A...> const &a, std::tuple<B...> const &b) {
+template <class... A, class... B> auto value_equal(std::tuple<A...> const &a, std::tuple<B...> const &b) {
     static_assert(std::tuple_size_v<std::tuple<A...>> == std::tuple_size_v<std::tuple<B...>>);
     return detail::value_equal_to_tuple(a, b, std::index_sequence_for<A...>{});
 }
 
-template <class A, class B> auto value_equal_to(std::vector<A> const &a, std::vector<B> const &b) {
+template <class A, class B> auto value_equal(std::vector<A> const &a, std::vector<B> const &b) {
     return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-                      [](auto const &a, auto const &b) { return value_equal_to(a, b); });
+                      [](auto const &a, auto const &b) { return value_equal(a, b); });
 }
 
-inline auto value_equal_to() { return true; }
+inline auto value_equal() { return true; }
 
-template <class A, class B, class... Args> auto value_equal_to(A const &a, B const &b, Args const &...args) {
-    return value_equal_to(a, b) && value_equal_to(args...);
+template <class A, class B, class... Args> auto value_equal(A const &a, B const &b, Args const &...args) {
+    return value_equal(a, b) && value_equal(args...);
 }
 
 inline auto hash_combine(size_t a, size_t b) -> size_t {
@@ -119,4 +119,22 @@ template <class T> inline auto value_hash(std::vector<T> const &value) -> size_t
 template <class T, class U, class... Args>
 inline auto value_hash(T const &a, U const &b, Args const &...value) -> size_t {
     return hash_combine(value_hash(a), value_hash(b, value...));
+}
+
+struct value_equal_to {
+    template <class A, class B> auto operator()(A const &a, B const &b) const -> size_t { return value_equal(a, b); }
+};
+
+struct value_hasher {
+    template <class T> auto operator()(T const &value) const -> size_t { return value_hash(value); }
+};
+
+template <class... Ts> struct overloaded : Ts... {
+    using Ts::operator()...;
+};
+
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+template <class V, class... Fs> auto visit_variant(V &&v, Fs &&...fs) {
+    return std::visit(overloaded{std::forward<Fs>(fs)...}, std::forward<V>(v));
 }

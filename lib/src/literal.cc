@@ -146,7 +146,7 @@ void LiteralRelation::unpool(PoolLiteral &pool) {
 
 auto LiteralRelation::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralRelation const *>(&other);
-    return d != nullptr && value_equal_to(sign_, d->sign_, lhs_, d->lhs_, rhs_, d->rhs_);
+    return d != nullptr && value_equal(sign_, d->sign_, lhs_, d->lhs_, rhs_, d->rhs_);
 }
 
 auto LiteralRelation::hash() const -> size_t { return value_hash(typeid(LiteralRelation), sign_, lhs_, rhs_); }
@@ -161,7 +161,7 @@ void LiteralBoolean::unpool(PoolLiteral &pool) { pool.append(this); }
 
 auto LiteralBoolean::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralBoolean const *>(&other);
-    return d != nullptr && value_equal_to(sign_, d->sign_, value_, d->value_);
+    return d != nullptr && value_equal(sign_, d->sign_, value_, d->value_);
 }
 
 auto LiteralBoolean::hash() const -> size_t { return value_hash(typeid(LiteralSymbolic), sign_, value_); }
@@ -186,7 +186,7 @@ void LiteralSymbolic::unpool(PoolLiteral &pool) {
 
 auto LiteralSymbolic::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralSymbolic const *>(&other);
-    return d != nullptr && value_equal_to(sign_, d->sign_, term_, d->term_);
+    return d != nullptr && value_equal(sign_, d->sign_, term_, d->term_);
 }
 
 auto LiteralSymbolic::hash() const -> size_t { return value_hash(typeid(LiteralSymbolic), sign_, term_); }

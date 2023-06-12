@@ -33,9 +33,7 @@ auto Function::hash() const -> size_t {
     return hash;
 }
 
-auto operator==(Function const &a, Function const &b) -> bool {
-    return a.name == b.name && value_equal_to(a.args, b.args);
-}
+auto operator==(Function const &a, Function const &b) -> bool { return value_equal(a.name, b.name, a.args, b.args); }
 
 auto operator<<(std::ostream &out, Function const &sym) -> std::ostream & {
     out << sym.name;

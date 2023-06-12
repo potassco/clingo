@@ -38,6 +38,8 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 //   fix:
 //   - H :- p(X): p(X;Y), X=X.
 //   - H :- p(X): p(X;Y), X=X.
+//   - get_variables(GetVariablesMode::intersection)
+//     - p(X,Z;X,Y) == {X}
 //
 // normalize_literal:
 // - rewrite aggregates
