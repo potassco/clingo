@@ -5,6 +5,7 @@
 #include <variant>
 #include <vector>
 
+#include <util/hash.hh>
 #include <util/shared_ptr.hh>
 
 #include <symbol.hh>
@@ -59,6 +60,9 @@ class Term {
     [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
     auto unpool() -> STermVec;
     virtual void unpool(PoolTerm &pool) = 0;
+    [[nodiscard]] virtual auto is_equal(Term const &other) const -> bool = 0;
+    friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
+    [[nodiscard]] virtual auto hash() const -> size_t = 0;
 
     // AST interface
     [[nodiscard]] virtual auto type() const -> TermType = 0;
@@ -139,6 +143,8 @@ class TermSymbol : public Term {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     void unpool(PoolTerm &pool) override;
+    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
+    [[nodiscard]] auto hash() const -> size_t override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -157,6 +163,8 @@ class TermTuple : public Term {
 
     void print(std::ostream &out) const override;
     void unpool(PoolTerm &pool) override;
+    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
+    [[nodiscard]] auto hash() const -> size_t override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -172,6 +180,8 @@ class TermVariable : public Term {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> TermType override;
     void unpool(PoolTerm &pool) override;
+    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
+    [[nodiscard]] auto hash() const -> size_t override;
 
   private:
     std::string name_;
@@ -183,6 +193,8 @@ class TermAbs : public Term {
 
     void print(std::ostream &out) const override;
     void unpool(PoolTerm &pool) override;
+    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
+    [[nodiscard]] auto hash() const -> size_t override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -199,6 +211,8 @@ class TermFunction : public Term {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     void unpool(PoolTerm &pool) override;
+    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
+    [[nodiscard]] auto hash() const -> size_t override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -223,6 +237,8 @@ class TermUnary : public Term {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     void unpool(PoolTerm &pool) override;
+    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
+    [[nodiscard]] auto hash() const -> size_t override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -257,6 +273,8 @@ class TermBinary : public Term {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     void unpool(PoolTerm &pool) override;
+    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
+    [[nodiscard]] auto hash() const -> size_t override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -268,3 +286,5 @@ class TermBinary : public Term {
     STerm lhs_;
     STerm rhs_;
 };
+
+HASH(Term)

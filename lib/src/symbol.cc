@@ -16,9 +16,25 @@ auto operator<<(std::ostream &out, Constant op) -> std::ostream & {
     return out;
 }
 
+auto QuotedString::hash() const -> size_t { return std::hash<std::string>{}(value); }
+
+auto operator==(QuotedString const &a, QuotedString const &b) -> bool { return a.value == b.value; }
+
 auto operator<<(std::ostream &out, QuotedString const &sym) -> std::ostream & {
     print_quoted(out, sym.value);
     return out;
+}
+
+auto Function::hash() const -> size_t {
+    size_t hash = std::hash<std::string>{}(name);
+    for (auto const &value : args) {
+        hash = hash_combine(hash, std::hash<Symbol>{}(value));
+    }
+    return hash;
+}
+
+auto operator==(Function const &a, Function const &b) -> bool {
+    return a.name == b.name && value_equal_to(a.args, b.args);
 }
 
 auto operator<<(std::ostream &out, Function const &sym) -> std::ostream & {

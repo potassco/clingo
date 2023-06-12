@@ -101,6 +101,13 @@ void TermSymbol::print(std::ostream &out) const { out << value_; }
 
 void TermSymbol::unpool(PoolTerm &pool) { pool.append(this); }
 
+auto TermSymbol::is_equal(Term const &other) const -> bool {
+    auto const *d = dynamic_cast<TermSymbol const *>(&other);
+    return d != nullptr && value_equal_to(value_, d->value_);
+}
+
+auto TermSymbol::hash() const -> size_t { return value_hash(typeid(TermSymbol), value_); }
+
 [[nodiscard]] auto TermSymbol::type() const -> TermType { return TermType::TermSymbol; }
 
 [[nodiscard]] auto TermSymbol::get_int(Attribute attr) -> int & {
@@ -148,6 +155,13 @@ void TermTuple::print(std::ostream &out) const {
 
 [[nodiscard]] auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
 
+auto TermTuple::is_equal(Term const &other) const -> bool {
+    auto const *d = dynamic_cast<TermTuple const *>(&other);
+    return d != nullptr && value_equal_to(pool_, d->pool_);
+}
+
+auto TermTuple::hash() const -> size_t { return value_hash(typeid(TermTuple), pool_); }
+
 void TermTuple::unpool(PoolTerm &pool) {
     for (auto &tuple_or_term : pool_) {
         std::visit(
@@ -175,6 +189,13 @@ void TermTuple::unpool(PoolTerm &pool) {
 
 void TermVariable::print(std::ostream &out) const { out << name_; }
 
+auto TermVariable::is_equal(Term const &other) const -> bool {
+    auto const *d = dynamic_cast<TermVariable const *>(&other);
+    return d != nullptr && name_ == d->name_;
+}
+
+auto TermVariable::hash() const -> size_t { return value_hash(typeid(TermVariable), name_); }
+
 void TermVariable::unpool(PoolTerm &pool) { pool.append(this); }
 
 [[nodiscard]] auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
@@ -194,6 +215,13 @@ void TermAbs::print(std::ostream &out) const {
     }
     out << "|";
 }
+
+auto TermAbs::is_equal(Term const &other) const -> bool {
+    auto const *d = dynamic_cast<TermAbs const *>(&other);
+    return d != nullptr && pool_ == d->pool_;
+}
+
+auto TermAbs::hash() const -> size_t { return value_hash(typeid(TermAbs), pool_); }
 
 void TermAbs::unpool(PoolTerm &pool) {
     unpool_with(
@@ -239,6 +267,13 @@ void TermFunction::print(std::ostream &out) const {
     }
 }
 
+auto TermFunction::is_equal(Term const &other) const -> bool {
+    auto const *d = dynamic_cast<TermFunction const *>(&other);
+    return d != nullptr && value_equal_to(external_, d->external_, name_, d->name_, pool_, d->pool_);
+}
+
+auto TermFunction::hash() const -> size_t { return value_hash(typeid(TermFunction), external_, name_, pool_); }
+
 void TermFunction::unpool(PoolTerm &pool) {
     for (auto &tuple : pool_) {
         unpool_with(
@@ -278,6 +313,13 @@ auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
 }
 
 void TermUnary::print(std::ostream &out) const { out << "(" << op_ << *rhs_ << ")"; }
+
+auto TermUnary::is_equal(Term const &other) const -> bool {
+    auto const *d = dynamic_cast<TermUnary const *>(&other);
+    return d != nullptr && value_equal_to(op_, d->op_, rhs_, d->rhs_);
+}
+
+auto TermUnary::hash() const -> size_t { return value_hash(typeid(TermUnary), op_, rhs_); }
 
 void TermUnary::unpool(PoolTerm &pool) {
     unpool_with(
@@ -378,6 +420,13 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
 }
 
 void TermBinary::print(std::ostream &out) const { out << "(" << *lhs_ << op_ << *rhs_ << ")"; }
+
+auto TermBinary::is_equal(Term const &other) const -> bool {
+    auto const *d = dynamic_cast<TermBinary const *>(&other);
+    return d != nullptr && value_equal_to(op_, d->op_, lhs_, d->lhs_, rhs_, d->rhs_);
+}
+
+auto TermBinary::hash() const -> size_t { return value_hash(typeid(TermBinary), op_, lhs_, rhs_); }
 
 void TermBinary::unpool(PoolTerm &pool) {
     unpool_with(

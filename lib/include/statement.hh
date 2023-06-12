@@ -22,6 +22,37 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 // - they can appear in bodies as well as nested elements
 // - conditional literals should just have one element
 // - provisional name: normalize_literals
+// - aggregates have to be rewritten befor unpooling relation literals!
+//   - set aggregates become head/body aggregates
+//   - symbolic:
+//     - {     p(X): C } -> #count { 0,p(X):         p(X), C }
+//     - { not p(X): C } -> #count { 1,p(X):     not p(X), C }
+//     - {        L: C } -> #count { #i+2,vars(L):        E, C }
+// - shift literals
+//   - heads should only contain Boolean variables
+//   - comparison literals should be shifted from head to body positions
+//   - global variables have to be preserved
+// - ugly special case:
+//   - H :- p(X): p(X;Y).
+//   - X becomes global (same for head)
+//   fix:
+//   - H :- p(X): p(X;Y), X=X.
+//   - H :- p(X): p(X;Y), X=X.
+//
+// normalize_literal:
+// - rewrite aggregates
+//   - a single aggregate is rewritten
+// - unpool_literals
+//   - comparison literals can become conjunctions:
+//     - a < b < c
+//     - a < b && b < c
+//   - comparison literals can become disjunctions:
+//     - not a < b < c
+//     - not a < b || not b < c
+//   - unpool for literals can get context argument
+//     - head, body, pool
+// - conditional literals in bodies should have just one element
+//   - this should be simple
 
 // TODO 2:
 // - terms should be normalized

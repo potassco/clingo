@@ -41,6 +41,9 @@ class Literal {
     auto unpool() -> SLiteralVec;
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream &;
+    [[nodiscard]] virtual auto is_equal(Literal const &other) const -> bool = 0;
+    friend auto operator==(Literal const &a, Literal const &b) { return a.is_equal(b); }
+    [[nodiscard]] virtual auto hash() const -> size_t = 0;
 
     size_t refs = 0;
 };
@@ -52,6 +55,8 @@ class LiteralRelation : public Literal {
     void print(std::ostream &out) const override;
     void add_sign(Sign s) override;
     void unpool(PoolLiteral &pool) override;
+    [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
+    [[nodiscard]] auto hash() const -> size_t override;
 
   private:
     Sign sign_;
@@ -66,6 +71,8 @@ class LiteralBoolean : public Literal {
     void print(std::ostream &out) const override;
     void add_sign(Sign s) override;
     void unpool(PoolLiteral &pool) override;
+    [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
+    [[nodiscard]] auto hash() const -> size_t override;
 
   private:
     Sign sign_;
@@ -79,8 +86,12 @@ class LiteralSymbolic : public Literal {
     void print(std::ostream &out) const override;
     void add_sign(Sign s) override;
     void unpool(PoolLiteral &pool) override;
+    [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
+    [[nodiscard]] auto hash() const -> size_t override;
 
   private:
     Sign sign_;
     STerm term_;
 };
+
+HASH(Literal)
