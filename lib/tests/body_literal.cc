@@ -67,6 +67,7 @@ TEST_CASE("unpool_body_literal") {
     REQUIRE(unpool_str(parse_body_literal("&p { : a(1;2) }"), ". ") == "[&p { : a(1); : a(2) }]");
     REQUIRE(unpool_str(parse_body_literal("&p(1;2) { : a(1;2) }"), ". ") ==
             "[&p(1) { : a(1); : a(2) }. &p(2) { : a(1); : a(2) }]");
+    REQUIRE(unpool_str(parse_body_literal("p(X): q(X;Y)")) == "[p(X): q(X); p(X): q(Y), X<=X]");
 }
 
 } // namespace test
