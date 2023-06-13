@@ -151,6 +151,13 @@ auto LiteralRelation::is_equal(Literal const &other) const -> bool {
 
 auto LiteralRelation::hash() const -> size_t { return value_hash(typeid(LiteralRelation), sign_, lhs_, rhs_); }
 
+void LiteralRelation::variables(VariableSet &vars, VariableSelectMode mode) const {
+    lhs_->variables(vars, mode);
+    for (auto const &guard : rhs_) {
+        guard.second->variables(vars, mode);
+    }
+}
+
 ////////// LiteralBoolean //////////
 
 void LiteralBoolean::print(std::ostream &out) const { out << sign_ << (value_ ? "#true" : "#false"); }
@@ -165,6 +172,11 @@ auto LiteralBoolean::is_equal(Literal const &other) const -> bool {
 }
 
 auto LiteralBoolean::hash() const -> size_t { return value_hash(typeid(LiteralSymbolic), sign_, value_); }
+
+void LiteralBoolean::variables(VariableSet &vars, VariableSelectMode mode) const {
+    static_cast<void>(vars);
+    static_cast<void>(mode);
+}
 
 ////////// LiteralSymbolic //////////
 
@@ -190,3 +202,5 @@ auto LiteralSymbolic::is_equal(Literal const &other) const -> bool {
 }
 
 auto LiteralSymbolic::hash() const -> size_t { return value_hash(typeid(LiteralSymbolic), sign_, term_); }
+
+void LiteralSymbolic::variables(VariableSet &vars, VariableSelectMode mode) const { term_->variables(vars, mode); }
