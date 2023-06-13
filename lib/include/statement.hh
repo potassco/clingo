@@ -18,10 +18,19 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 
 // TODO 1:
 // - comparison literals should be normalized
-// - can expand disjunctively and conjunctively
-// - they can appear in bodies as well as nested elements
+//   - can expand disjunctively and conjunctively
+//   - they can appear in bodies as well as nested elements
+//   - intervals have to be removed from them
+//     because unpooling duplicates terms
+//   - unpooling non-binary relation literals requires removing non-singular pools
+//     - for example `not (3 < 2 < 1+a)` should be false but gringo makes it true atm
 // - conditional literals should just have one element
-// - provisional name: normalize_literals
+// - provisional names:
+//   - normalize singular
+//     (to remove nested expressions that evaluate to non-singular pools where they are problematic)
+//   - unpool_conjunctive
+//   - unpool_disjunctive
+//   - shift
 // - aggregates have to be rewritten befor unpooling relation literals!
 //   - set aggregates become head/body aggregates
 //   - symbolic:
@@ -31,15 +40,21 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 // - shift literals
 //   - heads should only contain Boolean variables
 //   - comparison literals should be shifted from head to body positions
-//   - global variables have to be preserved
-// - ugly special case:
-//   - H :- p(X): p(X;Y).
-//   - X becomes global (same for head)
-//   fix:
-//   - H :- p(X): p(X;Y), X=X.
-//   - H :- p(X): p(X;Y), X=X.
-//   - get_variables(GetVariablesMode::intersection)
-//     - p(X,Z;X,Y) == {X}
+//   - global variables (might) have to be preserved
+//   - 1<X :- p(X). == :- p(X), 1>=X.
+//   - 1<X: p(X). == : p(X), 1>=X.
+//   - even though a variable can become local, it is save to shift
+//     - 1=X: p. == : p, 1!=X.
+//     - 1!=X: p. == : p, 1=X.
+//     - the latter is even safe
+//   - something more complicated:
+//     - a :- p(1+a).
+//     - b :- p(1+a) : #true.
+//     - c :- p(1+X) : X=a.
+//     - d :- p(Y) : X=a, Y=1+X.
+//     - e :- [p(Y), Y=1+X] : X=a.
+//   - unfortunately, it looks like I need the last syntax extension for sane rewriting
+//     - is it necessary in heads too?
 //
 // normalize_literal:
 // - rewrite aggregates
