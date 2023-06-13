@@ -162,15 +162,7 @@ void TermTuple::print(std::ostream &out) const {
             visit_variant(
                 term_or_tuple, [&](STerm const &term) { term->print(out); },
                 [&](STermVec const &tuple) {
-                    bool comma = false;
-                    for (const auto &term : tuple) {
-                        if (comma) {
-                            out << ",";
-                        } else {
-                            comma = true;
-                        }
-                        term->print(out);
-                    }
+                    out << p_range(tuple);
                     if (tuple.size() == 1) {
                         out << ",";
                     }
@@ -237,19 +229,7 @@ void TermVariable::variables(VariableSet &vars, VariableSelectMode mode) const {
 
 ////////// TermAbs //////////
 
-void TermAbs::print(std::ostream &out) const {
-    out << "|";
-    bool comma = false;
-    for (const auto &term : pool_) {
-        if (comma) {
-            out << ";";
-        } else {
-            comma = true;
-        }
-        term->print(out);
-    }
-    out << "|";
-}
+void TermAbs::print(std::ostream &out) const { out << "|" << p_range(pool_, ";") << "|"; }
 
 auto TermAbs::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermAbs const *>(&other);
@@ -284,25 +264,8 @@ void TermFunction::print(std::ostream &out) const {
     }
     out << name_;
     if (pool_.size() != 1 || !pool_.front().empty()) {
-        out << "(";
-        bool sem = false;
-        for (const auto &tuple : pool_) {
-            if (sem) {
-                out << ";";
-            } else {
-                sem = true;
-            }
-            bool comma = false;
-            for (const auto &term : tuple) {
-                if (comma) {
-                    out << ",";
-                } else {
-                    comma = true;
-                }
-                term->print(out);
-            }
-        }
-        out << ")";
+        out << "(" << p_range_with(pool_, ";", [](std::ostream &out, STermVec const &tuple) { out << p_range(tuple); })
+            << ")";
     }
 }
 
