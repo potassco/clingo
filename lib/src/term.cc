@@ -77,7 +77,7 @@ template <class T, class F> void pool_variables(VariableSet &vars, VariableSelec
         std::optional<VariableSet> intersection;
         VariableSet next;
         for (auto const &elem : pool) {
-            gather(elem, vars);
+            gather(elem, next);
             if (intersection) {
                 std::erase_if(intersection.value(), [&](auto &elem) { return !next.contains(elem); });
                 next.clear();

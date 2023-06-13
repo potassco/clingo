@@ -39,4 +39,10 @@ TEST_CASE("unpool_term") {
     REQUIRE(unpool_str(parse_term("|(1;2);3|")) == "[|1|, |2|, |3|]");
 }
 
+TEST_CASE("variables_term") {
+    REQUIRE(variables_str(parse_term("f(X;Y)"), VariableSelectMode::all) == "[X, Y]");
+    REQUIRE(variables_str(parse_term("f(X;Y)"), VariableSelectMode::pool_intersection) == "[]");
+    REQUIRE(variables_str(parse_term("f(X,Z;X,Y,Z;X,Y)"), VariableSelectMode::pool_intersection) == "[X]");
+}
+
 } // namespace test

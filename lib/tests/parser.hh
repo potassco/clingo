@@ -44,6 +44,18 @@ template <class T> auto unpool_str(std::optional<shared_ptr<T>> value, char cons
     return "<failed>";
 }
 
+template <class T>
+auto variables_str(std::optional<shared_ptr<T>> value, auto mode, char const *sep = ", ") -> std::string {
+    if (value) {
+        VariableSet vars;
+        value.value()->variables(vars, mode);
+        auto sorted = std::vector<VariableSet::value_type>{vars.begin(), vars.end()};
+        std::sort(sorted.begin(), sorted.end());
+        return to_str(sorted);
+    }
+    return "<failed>";
+}
+
 struct Parser {
     struct Impl;
     Parser(std::string input);
