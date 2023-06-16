@@ -31,15 +31,19 @@ auto operator<<(std::ostream &out, BodyLiteral const &literal) -> std::ostream &
 ////////// ConditionalLiteral //////////
 
 void Conjunction::add_sign(Sign sign) {
-    if (elems_.size() != 1) {
+    if (elems_.size() != 1 && elems_.front().first.size() == 1) {
         throw std::runtime_error("there must be exactly one element");
     }
-    elems_.front().first->add_sign(sign);
+    elems_.front().first.front()->add_sign(sign);
 }
 
 void Conjunction::print(std::ostream &out) const {
     out << p_range_with(elems_, "; ", [](std::ostream &out, Element const &elem) {
-        out << *elem.first;
+        if (elem.first.size() == 1) {
+            out << *elem.first.front();
+        } else {
+            out << "[" << p_range(elem.first, ", ") << "]";
+        }
         if (!elem.second.empty()) {
             out << ": " << p_range(elem.second, ", ");
         }

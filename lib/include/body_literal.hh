@@ -27,11 +27,12 @@ class BodyLiteral {
 
 class Conjunction : public BodyLiteral {
   public:
-    using Element = std::pair<SLiteral, SLiteralVec>;
+    using Element = std::pair<SLiteralVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
     explicit Conjunction(ElementVec elems) : elems_{std::move(elems)} {}
-    explicit Conjunction(SLiteral lit, SLiteralVec cond) : elems_{Element{std::move(lit), std::move(cond)}} {}
+    explicit Conjunction(SLiteral lit, SLiteralVec cond)
+        : elems_{Element{SLiteralVec{std::move(lit)}, std::move(cond)}} {}
 
     void add_sign(Sign sign) override;
     void unpool(PoolBodyLiteral &pool) override;
