@@ -503,11 +503,10 @@ void StatementConst::unpool(PoolStatement &pool) {
         [&](std::optional<STerm> value) {
             if (!value.has_value()) {
                 pool.append(this);
-                ++n;
             } else {
                 pool.append_shared<StatementConst>(type_, name_, value.value());
-                ++n;
             }
+            ++n;
         },
         unpool_element<PoolTerm>(pool, value_));
     if (n != 1) {
