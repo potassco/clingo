@@ -27,7 +27,7 @@ jobs:
         sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dput dh-python
 
     - name: Checkout repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         submodules: recursive
 
