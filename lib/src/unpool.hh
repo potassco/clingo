@@ -220,6 +220,68 @@ template <class P, class T> class UnpoolUnion {
     bool unchanged_;
 };
 
+/// Unpool a vector of vectors computing the cross product of them.
+template <class P, class T, class M = Mapper> class UnpoolUnionCrossproduct : private M {
+  public:
+    UnpoolUnionCrossproduct(P &pool, std::vector<std::vector<T>> &vec) : pool_{pool}, vec_{vec} {}
+
+    void unpool() {
+        unchanged_ = true;
+        for (auto &vec : vec_) {
+            size_t i = 0;
+            for (auto &val : vec) {
+                union_.emplace_back(i);
+                offsets_.emplace_back(pool_.size(), pool_.size(), pool_.size());
+                auto &[cur, begin, end] = offsets_.back();
+                static_cast<M *>(this)->unpool(pool_, val);
+                end = pool_.size();
+                unchanged_ = unchanged_ && end - begin == 1 && static_cast<M *>(this)->equal(pool_.back(), val);
+                ++i;
+            }
+        }
+        if (unchanged_ && !offsets_.empty()) {
+            pool_.resize(std::get<1>(offsets_.front()));
+        }
+    }
+
+    template <class F> void combine(F cont) {
+        using mapped_type = std::decay_t<decltype(static_cast<M *>(this)->map(vec_[0][0], pool_[0]))>;
+        using res_type = std::vector<std::vector<mapped_type>>;
+        if (unchanged_) {
+            std::optional<res_type> opt = std::nullopt;
+            cont(opt);
+        } else {
+            crossproduct_with(offsets_, pool_,
+                [&](size_t j, auto &val) {
+                    return static_cast<M *>(this)->map(vec_[union_[j]][j], val);
+                },
+                [&](auto &&res) {
+                    std::optional<res_type> opt;
+                    opt->resize(union_.size());
+                    size_t j = 0;
+                    for (auto &val : res) {
+                        opt->at(union_[j]).emplace_back(std::move(val));
+                        ++j;
+                    }
+                    cont(opt);
+                });
+        }
+    }
+
+    void erase() {
+        if (!unchanged_ && !offsets_.empty()) {
+            pool_.erase(std::get<1>(offsets_.front()), std::get<2>(offsets_.back()));
+        }
+    }
+
+  private:
+    P &pool_;
+    std::vector<size_t> union_;
+    OffsetVec offsets_;
+    std::vector<std::vector<T>> &vec_;
+    bool unchanged_;
+};
+
 } // namespace detail
 
 /// Helper to unpool expressions and vectors of expressions.
@@ -262,6 +324,15 @@ template <class P, class T, class U = detail::Unpooler>
 /// as they can be mapped back and forth.
 template <class P, class U = P::element_type, class M = detail::Mapper>
 [[nodiscard]] auto unpool_crossproduct(P &pool, std::vector<U> &vec) -> detail::UnpoolCrossproduct<P, U, M> {
+    return {pool, vec};
+}
+
+/// Unpool a vector of vectors computing it's crossproduct.
+///
+/// It is also possible to unpool a vector of different expressions as long
+/// as they can be mapped back and forth.
+template <class P, class U = P::element_type, class M = detail::Mapper>
+[[nodiscard]] auto unpool_union_crossproduct(P &pool, std::vector<std::vector<U>> &vec) -> detail::UnpoolUnionCrossproduct<P, U, M> {
     return {pool, vec};
 }
 

@@ -119,9 +119,11 @@ template <class T, class P> void unpool_cond_lits(T *self, P &pool, typename T::
     // Furthermore, we use that variables can only loose the local status, if a
     // literal in the condition is unpooled.
 
-    auto get_global = [](auto const &lit, auto const &cond) {
+    auto get_global = [](auto const &lits, auto const &cond) {
         VariableSet vars_lit;
-        lit->variables(vars_lit, VariableSelectMode::all);
+        for (auto const &lit : lits) {
+            lit->variables(vars_lit, VariableSelectMode::all);
+        }
         VariableSet vars_cond;
         for (auto const &lit : cond) {
             lit->variables(vars_cond, VariableSelectMode::all);
@@ -152,6 +154,7 @@ template <class T, class P> void unpool_cond_lits(T *self, P &pool, typename T::
 
     // unpool literals and combine with conditions
     unpool_with(
+        // TODO: should get a vector here
         [&](std::optional<SLiteralVec> &lits) {
             if (!lits.has_value() && !conds.has_value()) {
                 pool.append(self);
@@ -186,5 +189,6 @@ template <class T, class P> void unpool_cond_lits(T *self, P &pool, typename T::
             }
             pool.template append_shared<T>(std::move(unpooled));
         },
-        unpool_crossproduct<PoolLiteral, typename T::Element, MapLiteral<T>>(pool, elems));
+        // TODO: does not work like this the mapper needs another indirection
+        unpool_union_crossproduct<PoolLiteral, typename T::Element, MapLiteral<T>>(pool, elems));
 }
