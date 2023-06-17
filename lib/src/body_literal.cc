@@ -50,7 +50,7 @@ void Conjunction::print(std::ostream &out) const {
     });
 }
 
-void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits(this, pool, elems_); }
+void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits2(this, pool, elems_); }
 
 ////////// BodyAggregate //////////
 
