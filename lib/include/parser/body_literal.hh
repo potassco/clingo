@@ -1,5 +1,6 @@
 #pragma once
 
+#include "term.hh"
 #include <body_literal.hh>
 
 #include <parser/aggregate.hh>
@@ -119,13 +120,37 @@ struct body_atom : lexy::transparent_production {
         });
 };
 
+struct conjunction_element {
+    static constexpr auto rule = []() {
+        auto peek = dsl::peek_not(LEXY_LIT(":"));
+        return dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")))) + dsl::p<opt_condition>;
+    }();
+    static constexpr auto value = lexy::as_list<SLiteralVec> >>
+                                  lexy::callback<Conjunction::Element>(
+                                      [](lexy::nullopt, SLiteralVec cond) {
+                                          return Conjunction::Element{{}, std::move(cond)};
+                                      },
+                                      lexy::construct<Conjunction::Element>);
+};
+
+struct conjunction {
+    static constexpr auto rule = []() {
+        // TODO: explicit specification of global variables
+        auto kw = LEXY_KEYWORD("#and", keyword_base);
+        auto sep = dsl::sep(LEXY_LIT(";"));
+        return kw >> dsl::curly_bracketed.opt_list(dsl::p<conjunction_element>, sep);
+    }();
+    static constexpr auto value = lexy::as_list<Conjunction::ElementVec> >> lexy::new_<Conjunction, SBodyLiteral>;
+};
+
 struct body_literal {
     static constexpr char const *name = "body literal";
-    static constexpr auto rule = dsl::p<naf_sign> + dsl::p<body_atom>;
-    static constexpr auto value = lexy::callback<SBodyLiteral>([](Sign sign, SBodyLiteral literal) {
-        literal->add_sign(sign);
-        return std::move(literal);
-    });
+    static constexpr auto rule = dsl::p<conjunction> | dsl::else_ >> dsl::p<naf_sign> + dsl::p<body_atom>;
+    static constexpr auto value =
+        lexy::callback<SBodyLiteral>(lexy::forward<SBodyLiteral>, [](Sign sign, SBodyLiteral literal) {
+            literal->add_sign(sign);
+            return std::move(literal);
+        });
 };
 
 } // namespace grammar

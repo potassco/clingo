@@ -325,7 +325,7 @@ template <class P, class T, class U = detail::Unpooler>
 ///
 /// It is also possible to unpool a vector of different expressions as long
 /// as they can be mapped back and forth.
-template <class P, class U = P::element_type, class M = detail::Mapper>
+template <class P, class U = typename P::element_type, class M = detail::Mapper>
 [[nodiscard]] auto unpool_crossproduct(P &pool, std::vector<U> &vec) -> detail::UnpoolCrossproduct<P, U, M> {
     return {pool, vec};
 }
@@ -334,7 +334,7 @@ template <class P, class U = P::element_type, class M = detail::Mapper>
 ///
 /// It is also possible to unpool a vector of different expressions as long
 /// as they can be mapped back and forth.
-template <class P, class T = P::element_type, class M = detail::Mapper>
+template <class P, class T = typename P::element_type, class M = detail::Mapper>
 [[nodiscard]] auto unpool_union_crossproduct(P &pool, std::vector<T> &vec) -> detail::UnpoolUnionCrossproduct<P, T, M> {
     return {pool, vec};
 }

@@ -11,6 +11,7 @@ TEST_CASE("parse_body_literal") {
     REQUIRE(to_str(parse_body_literal("not not a")) == "not not a");
     // theory_atom | aggregate | set_aggregate
     REQUIRE(to_str(parse_body_literal("&x{}")) == "&x");
+    REQUIRE(to_str(parse_body_literal("not &x{}")) == "not &x");
     REQUIRE(to_str(parse_body_literal("#count{}")) == "#count { }");
     REQUIRE(to_str(parse_body_literal("{}")) == "{ }");
     // atom_like relation aggregate
@@ -41,6 +42,8 @@ TEST_CASE("parse_body_literal") {
     // aggregate elements
     REQUIRE(to_str(parse_body_literal("#sum{:a;1:a;1,2:a,b,c}")) == "#sum { : a; 1: a; 1,2: a, b, c }");
     REQUIRE(to_str(parse_body_literal("{1<2;1<2:a;a:b;a:b,c}")) == "{ 1<2; 1<2: a; a: b; a: b, c }");
+    // conjunction literal
+    REQUIRE(to_str(parse_body_literal("#and{ : q(X); p(X): q(X); p(X), q(X): r(X) }")) == "TODO");
 }
 
 TEST_CASE("unpool_body_literal") {

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <memory>
 #include <optional>
 #include <string>
 #include <typeinfo>
@@ -130,9 +131,7 @@ struct value_hasher {
     template <class T> auto operator()(T const &value) const -> size_t { return value_hash(value); }
 };
 
-template <class... Ts> struct overloaded : Ts... {
-    using Ts::operator()...;
-};
+template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 

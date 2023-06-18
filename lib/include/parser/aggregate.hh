@@ -15,7 +15,7 @@ struct aggregate_function {
                                         .map<LEXY_SYMBOL("#sum+")>(AggregateFunction::sump)
                                         .map<LEXY_SYMBOL("#min")>(AggregateFunction::min)
                                         .map<LEXY_SYMBOL("#max")>(AggregateFunction::max);
-    static constexpr auto rule = dsl::symbol<symbols>;
+    static constexpr auto rule = dsl::symbol<symbols>(keyword_base);
     static constexpr auto value = lexy::forward<AggregateFunction>;
 };
 

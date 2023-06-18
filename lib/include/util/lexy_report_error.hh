@@ -2,12 +2,10 @@
 
 #include <lexy_ext/report_error.hpp>
 
-template <class Input, class Void = void> struct get_counting {
-    using type = lexy::_default_location_counting<Input>;
-};
+template <class Input, class Void = void> struct get_counting { using type = lexy::_default_location_counting<Input>; };
 
 template <class Input> struct get_counting<Input, std::void_t<typename Input::counting>> {
-    using type = Input::counting;
+    using type = typename Input::counting;
 };
 
 template <class Input> auto get_anchor(Input const &input, int /*unused*/) -> decltype(input.anchor()) {
@@ -23,7 +21,7 @@ auto write_error(OutputIt out, const lexy::error_context<Input> &context, const 
                  lexy::visualization_options opts, const char *path) -> OutputIt {
     lexy_ext::diagnostic_writer<Input> writer(context.input(), opts);
 
-    using Counting = get_counting<Input>::type;
+    using Counting = typename get_counting<Input>::type;
 
     // Convert the context location and error location into line/column
     // information.
