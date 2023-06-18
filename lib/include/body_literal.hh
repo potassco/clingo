@@ -29,9 +29,8 @@ class Conjunction : public BodyLiteral {
   public:
     using Element = std::pair<SLiteralVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
-    using StringVec = std::vector<std::string>;
 
-    explicit Conjunction(StringVec global, ElementVec elems) : global_{std::move(global)}, elems_{std::move(elems)} {}
+    explicit Conjunction(VariableVec global, ElementVec elems) : global_{std::move(global)}, elems_{std::move(elems)} {}
 
     void add_sign(Sign sign) override;
     void unpool(PoolBodyLiteral &pool) override;
@@ -39,7 +38,7 @@ class Conjunction : public BodyLiteral {
 
   private:
     [[nodiscard]] auto is_cond_lit_() const -> bool;
-    StringVec global_;
+    VariableVec global_;
     ElementVec elems_;
 };
 

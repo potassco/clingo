@@ -57,6 +57,7 @@ enum VariableSelectMode {
 };
 
 using VariableSet = std::unordered_set<std::string>;
+using VariableVec = std::vector<std::string>;
 
 class Term {
   public:

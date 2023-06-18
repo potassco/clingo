@@ -69,7 +69,7 @@ auto construct_conjunction(SLiteral lit, SLiteralVec cond) {
     for (auto &lit : cond) {
         lit->variables(global, VariableSelectMode::del);
     }
-    auto vars = std::vector<std::string>{global.begin(), global.end()};
+    auto vars = VariableVec{global.begin(), global.end()};
     std::sort(vars.begin(), vars.end());
     return construct_shared<Conjunction, BodyLiteral>(
         std::move(vars), Conjunction::ElementVec{Conjunction::Element{SLiteralVec{std::move(lit)}, std::move(cond)}});
@@ -135,6 +135,15 @@ struct body_atom : lexy::transparent_production {
         });
 };
 
+struct variable_list {
+    static constexpr auto rule = []() {
+        return dsl::opt(dsl::parenthesized.opt_list(dsl::p<variable>, dsl::sep(dsl::comma)));
+    }();
+    static constexpr auto value = lexy::as_list<VariableVec> >>
+                                  lexy::callback<VariableVec>(lexy::forward<VariableVec>,
+                                                              [](lexy::nullopt) { return VariableVec{}; });
+};
+
 struct conjunction_element {
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT(":"));
@@ -148,35 +157,6 @@ struct conjunction_element {
                                       lexy::construct<Conjunction::Element>);
 };
 
-//  p(X;Y) : q(A;B)
-//    p(X): q(A); p(X): q(B)
-//    p(Y): q(A); p(Y): q(B)
-//  p(X,X..Y) : q(Y)
-//    p(X,Z),Z=X..Y: q(Y)
-//  #and(X,Y) { p(X;Y) : q(A;B) }.
-//    #and(X) { p(X) : q(A;B) }.
-//    #and(Y) { p(Y) : q(A;B) }.
-//    % unsafe
-//  #and() { p(X;Y) : q(X;Y) }.
-//    #and(X) { p(X) : q(X;Y) }.
-//    #and(Y) { p(Y) : q(X;Y) }.
-//    % safe
-//  #and(X,Y) { p(X;Y) : q(X;Y) }.
-//    #and(X,Y) { p(X) : q(X;Y) }.
-//    #and(X,Y) { p(Y) : q(X;Y) }.
-//    % unsafe
-
-struct variable_list {
-    static constexpr auto rule = []() {
-        return dsl::opt(dsl::parenthesized.opt_list(dsl::p<variable>, dsl::sep(dsl::comma)));
-    }();
-    static constexpr auto value = lexy::as_list<std::vector<std::string>> >>
-                                  lexy::callback<std::vector<std::string>>(lexy::forward<std::vector<std::string>>,
-                                                                           [](lexy::nullopt) {
-                                                                               return std::vector<std::string>{};
-                                                                           });
-};
-
 struct conjunction {
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#and", keyword_base);
@@ -185,7 +165,7 @@ struct conjunction {
     }();
     static constexpr auto value = lexy::as_list<Conjunction::ElementVec> >>
                                   lexy::callback<SBodyLiteral>(lexy::new_<Conjunction, SBodyLiteral>,
-                                                               [](std::vector<std::string> global, lexy::nullopt) {
+                                                               [](VariableVec global, lexy::nullopt) {
                                                                    return construct_shared<Conjunction, BodyLiteral>(
                                                                        std::move(global), Conjunction::ElementVec{});
                                                                });

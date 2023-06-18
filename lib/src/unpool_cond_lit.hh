@@ -109,7 +109,7 @@ template <class T, class P> void unpool_cond_lits(T *self, P &pool, typename T::
 
 // TODO: this should probaly also be used for disjunctions
 template <class T, class P>
-void unpool_cond_lits2(T *self, P &pool, std::vector<std::string> global, typename T::ElementVec &elems) {
+void unpool_cond_lits2(T *self, P &pool, std::vector<std::string> const &global, typename T::ElementVec &elems) {
     using Conds = std::vector<SLiteralVec>;
     using OConds = std::optional<Conds>;
     using ElemConds = std::vector<OConds>;
@@ -155,6 +155,9 @@ void unpool_cond_lits2(T *self, P &pool, std::vector<std::string> global, typena
             }
             auto all = VariableSet{};
             for (auto const &elem : unpooled) {
+                for (auto const &lit : elem.first) {
+                    lit->variables(all, VariableSelectMode::add);
+                }
                 for (auto const &lit : elem.second) {
                     lit->variables(all, VariableSelectMode::add);
                 }

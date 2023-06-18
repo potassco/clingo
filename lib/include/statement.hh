@@ -16,6 +16,9 @@ struct destruct_pool {
 };
 auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destruct_pool>;
 
+// TODO 0:
+// - proper handling of anonymous variables
+//
 // TODO 1:
 // - comparison literals should be normalized
 //   - can expand disjunctively and conjunctively
@@ -315,8 +318,8 @@ class StatementHeuristic : public Statement {
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
           mod_(std::move(mod)), has_sign_{has_sign} {}
     explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm mod)
-        : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), mod_(std::move(mod)),
-          has_sign_{has_sign} {}
+        : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)),
+          mod_(std::move(mod)), has_sign_{has_sign} {}
 
     void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;
