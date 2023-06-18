@@ -31,26 +31,57 @@ auto operator<<(std::ostream &out, BodyLiteral const &literal) -> std::ostream &
 ////////// ConditionalLiteral //////////
 
 void Conjunction::add_sign(Sign sign) {
-    if (elems_.size() != 1 && elems_.front().first.size() == 1) {
+    if (elems_.size() != 1 || elems_.front().first.size() != 1) {
         throw std::runtime_error("there must be exactly one element");
     }
     elems_.front().first.front()->add_sign(sign);
 }
 
-void Conjunction::print(std::ostream &out) const {
-    out << p_range_with(elems_, "; ", [](std::ostream &out, Element const &elem) {
-        if (elem.first.size() == 1) {
-            out << *elem.first.front();
-        } else {
-            out << "[" << p_range(elem.first, ", ") << "]";
-        }
-        if (!elem.second.empty()) {
-            out << ": " << p_range(elem.second, ", ");
-        }
-    });
+auto Conjunction::is_cond_lit_() const -> bool {
+    if (elems_.size() != 1 || elems_.front().first.size() != 1) {
+        return false;
+    }
+    auto global = VariableSet{};
+    elems_.front().first.front()->variables(global, VariableSelectMode::add);
+    for (auto const &lit : elems_.front().second) {
+        lit->variables(global, VariableSelectMode::del);
+    }
+    if (global_.size() != global.size()) {
+        return false;
+    }
+    return std::all_of(global_.begin(), global_.end(), [&](auto const &var) { return global.contains(var); });
 }
 
-void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits2(this, pool, elems_); }
+void Conjunction::print(std::ostream &out) const {
+    if (is_cond_lit_()) {
+        out << p_range_with(elems_, "; ", [](std::ostream &out, Element const &elem) {
+            out << *elem.first.front();
+            if (!elem.second.empty()) {
+                out << ": " << p_range(elem.second, ", ");
+            }
+        });
+    } else {
+        out << "#and";
+        if (!global_.empty()) {
+            out << "(";
+        }
+        out << p_range(global_);
+        if (!global_.empty()) {
+            out << ")";
+        }
+        out << " { "
+            << p_range_with(elems_, "; ",
+                            [&](std::ostream &out, Element const &elem) {
+                                out << p_range(elem.first, ", ");
+                                if (elem.first.empty() || !elem.second.empty()) {
+                                    out << (elem.second.empty() ? ":" : ": ") << p_range(elem.second, ", ");
+                                }
+                            })
+            << (elems_.empty() ? "" : " ") << "}";
+    }
+}
+
+void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits2(this, pool, global_, elems_); }
 
 ////////// BodyAggregate //////////
 

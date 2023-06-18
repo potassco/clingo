@@ -40,9 +40,9 @@ TEST_CASE("unpool_term") {
 }
 
 TEST_CASE("variables_term") {
-    REQUIRE(variables_str(parse_term("f(X;Y)"), VariableSelectMode::all) == "[X, Y]");
-    REQUIRE(variables_str(parse_term("f(X;Y)"), VariableSelectMode::pool_intersection) == "[]");
-    REQUIRE(variables_str(parse_term("f(X,Z;X,Y,Z;X,Y)"), VariableSelectMode::pool_intersection) == "[X]");
+    REQUIRE(variables_str(parse_term("f(X;Y)"), VariableSelectMode::add) == "[X, Y]");
+    REQUIRE(variables_str(parse_term("f(X;Y)"), VariableSelectMode::del) == "[]");
+    REQUIRE(variables_str(parse_term("f(X,Z;X,Y,Z;X,Y)"), VariableSelectMode::add) == "[X, Y, Z]");
 }
 
 } // namespace test

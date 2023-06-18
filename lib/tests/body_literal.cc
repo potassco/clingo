@@ -43,18 +43,19 @@ TEST_CASE("parse_body_literal") {
     REQUIRE(to_str(parse_body_literal("#sum{:a;1:a;1,2:a,b,c}")) == "#sum { : a; 1: a; 1,2: a, b, c }");
     REQUIRE(to_str(parse_body_literal("{1<2;1<2:a;a:b;a:b,c}")) == "{ 1<2; 1<2: a; a: b; a: b, c }");
     // conjunction literal
-    REQUIRE(to_str(parse_body_literal("#and(X,Y) { : q(X); p(X): q(X); p(X), q(X): r(X) }")) == "TODO");
-    REQUIRE(to_str(parse_body_literal("#and(X) { : q(X); p(X): q(X); p(X), q(X): r(X) }")) == "TODO");
-    REQUIRE(to_str(parse_body_literal("#and() { : q(X); p(X): q(X); p(X), q(X): r(X) }")) == "TODO");
-    REQUIRE(to_str(parse_body_literal("#and{ : q(X); p(X): q(X); p(X), q(X): r(X) }")) == "TODO");
+    REQUIRE(to_str(parse_body_literal("#and(X,Y) { : q(X); p(X): q(X); p(X), q(X): r(X) }")) ==
+            "#and(X,Y) { : q(X); p(X): q(X); p(X), q(X): r(X) }");
+    REQUIRE(to_str(parse_body_literal("#and() { }")) == "#and { }");
+    REQUIRE(to_str(parse_body_literal("#and { }")) == "#and { }");
+    REQUIRE(to_str(parse_body_literal("#and { : }")) == "#and { : }");
 }
 
 TEST_CASE("unpool_body_literal") {
     REQUIRE(unpool_str(parse_body_literal("x: y, z")) == "[x: y, z]");
     REQUIRE(unpool_str(parse_body_literal("p(1;2):p(3;4)"), ". ") ==
-            "[p(1): p(3); p(1): p(4). p(2): p(3); p(2): p(4)]");
+            "[#and { p(1): p(3); p(1): p(4) }. #and { p(2): p(3); p(2): p(4) }]");
     REQUIRE(unpool_str(parse_body_literal("p(1;2):p(3)"), ". ") == "[p(1): p(3). p(2): p(3)]");
-    REQUIRE(unpool_str(parse_body_literal("p(1):p(2;3)"), ". ") == "[p(1): p(2); p(1): p(3)]");
+    REQUIRE(unpool_str(parse_body_literal("p(1):p(2;3)"), ". ") == "[#and { p(1): p(2); p(1): p(3) }]");
     REQUIRE(unpool_str(parse_body_literal("(1;2) #count {} (3;4)"), ". ") ==
             "[1 <= #count { } <= 3. 1 <= #count { } <= 4. 2 <= #count { } <= 3. 2 <= #count { } <= 4]");
     REQUIRE(unpool_str(parse_body_literal("#count { a(1;2),b(3;4): c(5;6) }"), ". ") ==
@@ -73,7 +74,7 @@ TEST_CASE("unpool_body_literal") {
     REQUIRE(unpool_str(parse_body_literal("&p { : a(1;2) }"), ". ") == "[&p { : a(1); : a(2) }]");
     REQUIRE(unpool_str(parse_body_literal("&p(1;2) { : a(1;2) }"), ". ") ==
             "[&p(1) { : a(1); : a(2) }. &p(2) { : a(1); : a(2) }]");
-    REQUIRE(unpool_str(parse_body_literal("p(X): q(X;Y)")) == "[p(X): q(X); p(X): q(Y), X<=X]");
+    REQUIRE(unpool_str(parse_body_literal("p(X): q(X;Y)")) == "[#and { p(X): q(X); p(X): q(Y) }]");
 }
 
 } // namespace test

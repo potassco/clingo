@@ -52,8 +52,8 @@ using STermVecVec = std::vector<STermVec>;
 using PoolTerm = Pool<STerm>;
 
 enum VariableSelectMode {
-    all,
-    pool_intersection,
+    add,
+    del,
 };
 
 using VariableSet = std::unordered_set<std::string>;

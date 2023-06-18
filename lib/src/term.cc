@@ -66,33 +66,6 @@ auto Term::unpool() -> STermVec {
 
 [[nodiscard]] auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool { return false; }
 
-namespace {
-
-template <class T, class F> void pool_variables(VariableSet &vars, VariableSelectMode mode, T const &pool, F gather) {
-    if (mode == VariableSelectMode::all || pool.size() <= 1) {
-        for (auto const &elem : pool) {
-            gather(elem, vars);
-        }
-    } else {
-        std::optional<VariableSet> intersection;
-        VariableSet next;
-        for (auto const &elem : pool) {
-            gather(elem, next);
-            if (intersection) {
-                std::erase_if(intersection.value(), [&](auto &elem) { return !next.contains(elem); });
-                next.clear();
-            } else {
-                intersection = VariableSet{};
-                intersection->swap(next);
-            }
-        }
-        if (intersection) {
-            vars.merge(intersection.value());
-        }
-    }
-}
-
-} // namespace
 ////////// TermSymbol //////////
 
 void TermSymbol::print(std::ostream &out) const { out << value_; }
@@ -181,15 +154,15 @@ auto TermTuple::is_equal(Term const &other) const -> bool {
 auto TermTuple::hash() const -> size_t { return value_hash(typeid(TermTuple), pool_); }
 
 void TermTuple::variables(VariableSet &vars, VariableSelectMode mode) const {
-    pool_variables(vars, mode, pool_, [mode](auto const &tuple_or_term, VariableSet &set) {
+    for (auto const &tuple_or_term : pool_) {
         visit_variant(
-            tuple_or_term, [&](STerm const &term) { term->variables(set, mode); },
+            tuple_or_term, [&](STerm const &term) { term->variables(vars, mode); },
             [&](STermVec const &tuple) {
                 for (auto const &term : tuple) {
-                    term->variables(set, mode);
+                    term->variables(vars, mode);
                 }
             });
-    });
+    }
 }
 
 void TermTuple::unpool(PoolTerm &pool) {
@@ -225,7 +198,13 @@ void TermVariable::unpool(PoolTerm &pool) { pool.append(this); }
 
 [[nodiscard]] auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
 
-void TermVariable::variables(VariableSet &vars, VariableSelectMode mode) const { vars.emplace(name_); }
+void TermVariable::variables(VariableSet &vars, VariableSelectMode mode) const {
+    if (mode == VariableSelectMode::add) {
+        vars.emplace(name_);
+    } else {
+        vars.erase(name_);
+    }
+}
 
 ////////// TermAbs //////////
 
@@ -253,7 +232,9 @@ void TermAbs::unpool(PoolTerm &pool) {
 [[nodiscard]] auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
 
 void TermAbs::variables(VariableSet &vars, VariableSelectMode mode) const {
-    pool_variables(vars, mode, pool_, [mode](STerm const &term, VariableSet &vars) { term->variables(vars, mode); });
+    for (auto const &term : pool_) {
+        term->variables(vars, mode);
+    }
 }
 
 ////////// TermFunction //////////
@@ -292,11 +273,11 @@ void TermFunction::unpool(PoolTerm &pool) {
 }
 
 void TermFunction::variables(VariableSet &vars, VariableSelectMode mode) const {
-    pool_variables(vars, mode, pool_, [mode](auto const &tuple, VariableSet &set) {
+    for (auto const &tuple : pool_) {
         for (auto const &term : tuple) {
-            term->variables(set, mode);
+            term->variables(vars, mode);
         }
-    });
+    }
 }
 
 [[nodiscard]] auto TermFunction::type() const -> TermType { return TermType::TermFunction; }

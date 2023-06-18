@@ -29,16 +29,17 @@ class Conjunction : public BodyLiteral {
   public:
     using Element = std::pair<SLiteralVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
+    using StringVec = std::vector<std::string>;
 
-    explicit Conjunction(ElementVec elems) : elems_{std::move(elems)} {}
-    explicit Conjunction(SLiteral lit, SLiteralVec cond)
-        : elems_{Element{SLiteralVec{std::move(lit)}, std::move(cond)}} {}
+    explicit Conjunction(StringVec global, ElementVec elems) : global_{std::move(global)}, elems_{std::move(elems)} {}
 
     void add_sign(Sign sign) override;
     void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
 
   private:
+    [[nodiscard]] auto is_cond_lit_() const -> bool;
+    StringVec global_;
     ElementVec elems_;
 };
 

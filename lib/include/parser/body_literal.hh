@@ -1,6 +1,5 @@
 #pragma once
 
-#include "term.hh"
 #include <body_literal.hh>
 
 #include <parser/aggregate.hh>
@@ -62,6 +61,22 @@ struct body_aggregate {
         });
 };
 
+namespace detail {
+
+auto construct_conjunction(SLiteral lit, SLiteralVec cond) {
+    VariableSet global;
+    lit->variables(global, VariableSelectMode::add);
+    for (auto &lit : cond) {
+        lit->variables(global, VariableSelectMode::del);
+    }
+    auto vars = std::vector<std::string>{global.begin(), global.end()};
+    std::sort(vars.begin(), vars.end());
+    return construct_shared<Conjunction, BodyLiteral>(
+        std::move(vars), Conjunction::ElementVec{Conjunction::Element{SLiteralVec{std::move(lit)}, std::move(cond)}});
+}
+
+} // namespace detail
+
 struct body_atom : lexy::transparent_production {
     static constexpr char const *name = "body atom";
     using scan_result = lexy::scan_result<STerm>;
@@ -112,11 +127,11 @@ struct body_atom : lexy::transparent_production {
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
             auto lit = construct_shared<LiteralRelation, Literal>(std::move(lhs), std::move(guards));
-            return construct_shared<Conjunction, BodyLiteral>(std::move(lit), std::move(cond));
+            return detail::construct_conjunction(std::move(lit), std::move(cond));
         },
         [](STerm term, SLiteralVec cond) {
             auto lit = construct_shared<LiteralSymbolic, Literal>(std::move(term));
-            return construct_shared<Conjunction, BodyLiteral>(std::move(lit), std::move(cond));
+            return detail::construct_conjunction(std::move(lit), std::move(cond));
         });
 };
 
@@ -153,20 +168,27 @@ struct conjunction_element {
 
 struct variable_list {
     static constexpr auto rule = []() {
-        return dsl::opt(dsl::parenthesized.opt_list(dsl::p<term_variable>, dsl::sep(dsl::comma)));
+        return dsl::opt(dsl::parenthesized.opt_list(dsl::p<variable>, dsl::sep(dsl::comma)));
     }();
-    static constexpr auto value = lexy::as_list<STermVec>;
+    static constexpr auto value = lexy::as_list<std::vector<std::string>> >>
+                                  lexy::callback<std::vector<std::string>>(lexy::forward<std::vector<std::string>>,
+                                                                           [](lexy::nullopt) {
+                                                                               return std::vector<std::string>{};
+                                                                           });
 };
 
 struct conjunction {
     static constexpr auto rule = []() {
-        // TODO: pass explicit specification of global variables to constructor
         auto kw = LEXY_KEYWORD("#and", keyword_base);
         auto sep = dsl::sep(LEXY_LIT(";"));
-        return kw >>
-               dsl::token(dsl::p<variable_list>) + dsl::curly_bracketed.opt_list(dsl::p<conjunction_element>, sep);
+        return kw >> dsl::p<variable_list> + dsl::curly_bracketed.opt_list(dsl::p<conjunction_element>, sep);
     }();
-    static constexpr auto value = lexy::as_list<Conjunction::ElementVec> >> lexy::new_<Conjunction, SBodyLiteral>;
+    static constexpr auto value = lexy::as_list<Conjunction::ElementVec> >>
+                                  lexy::callback<SBodyLiteral>(lexy::new_<Conjunction, SBodyLiteral>,
+                                                               [](std::vector<std::string> global, lexy::nullopt) {
+                                                                   return construct_shared<Conjunction, BodyLiteral>(
+                                                                       std::move(global), Conjunction::ElementVec{});
+                                                               });
 };
 
 struct body_literal {

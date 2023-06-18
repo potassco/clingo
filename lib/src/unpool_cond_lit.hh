@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 #include <literal.hh>
 
 #include "unpool.hh"
@@ -38,14 +40,12 @@ template <class T, class P> void unpool_cond_lits(T *self, P &pool, typename T::
     // literal in the condition is unpooled.
 
     auto get_global = [](auto const &lit, auto const &cond) {
-        VariableSet vars_lit;
-        lit->variables(vars_lit, VariableSelectMode::all);
-        VariableSet vars_cond;
+        VariableSet global;
+        lit->variables(global, VariableSelectMode::add);
         for (auto const &lit : cond) {
-            lit->variables(vars_cond, VariableSelectMode::all);
+            lit->variables(global, VariableSelectMode::del);
         }
-        std::erase_if(vars_lit, [&](auto &var) { return vars_cond.contains(var); });
-        return vars_lit;
+        return global;
     };
 
     // unpool the conditions
@@ -108,35 +108,12 @@ template <class T, class P> void unpool_cond_lits(T *self, P &pool, typename T::
 }
 
 // TODO: this should probaly also be used for disjunctions
-template <class T, class P> void unpool_cond_lits2(T *self, P &pool, typename T::ElementVec &elems) {
+template <class T, class P>
+void unpool_cond_lits2(T *self, P &pool, std::vector<std::string> global, typename T::ElementVec &elems) {
     using Conds = std::vector<SLiteralVec>;
     using OConds = std::optional<Conds>;
     using ElemConds = std::vector<OConds>;
     using OElemConds = std::optional<ElemConds>;
-
-    // Note because conditions have to stand on their own, we protect variables
-    // from becoming global here:
-    // - global before unpooling:
-    //   - G = getvars(lit) - getvars(cond)
-    // - global after unpooling:
-    //   - H = getvars(lit) - getvars(cond)
-    // - if var in H and var not in G:
-    //   - add var=var to condition to make it local again
-    // Furthermore, we use that variables can only loose the local status, if a
-    // literal in the condition is unpooled.
-
-    auto get_global = [](auto const &lits, auto const &cond) {
-        VariableSet vars_lit;
-        for (auto const &lit : lits) {
-            lit->variables(vars_lit, VariableSelectMode::all);
-        }
-        VariableSet vars_cond;
-        for (auto const &lit : cond) {
-            lit->variables(vars_cond, VariableSelectMode::all);
-        }
-        std::erase_if(vars_lit, [&](auto &var) { return vars_cond.contains(var); });
-        return vars_lit;
-    };
 
     // unpool the conditions
     OElemConds conds;
@@ -169,30 +146,23 @@ template <class T, class P> void unpool_cond_lits2(T *self, P &pool, typename T:
             for (size_t i = 0; i < elems.size(); ++i) {
                 auto lits = elem_lits.has_value() ? std::move(elem_lits->at(i)) : elems[i].first;
                 if (conds.has_value() && conds->at(i).has_value()) {
-                    auto global = get_global(elems[i].first, elems[i].second);
                     for (auto &cond : conds->at(i).value()) {
-                        auto copy = elem_lits.has_value() ? cond : std::move(cond);
-                        // protect global variables
-                        std::vector<std::string> vars;
-                        for (auto const &var : get_global(lits, copy)) {
-                            if (!global.contains(var)) {
-                                vars.emplace_back(var);
-                            }
-                        }
-                        std::sort(vars.begin(), vars.end());
-                        for (auto const &var : vars) {
-                            auto var_term = construct_shared<TermVariable, Term>(var);
-                            auto rhs = GuardVec{Guard{Relation::less_equal, var_term}};
-                            copy.emplace_back(
-                                construct_shared<LiteralRelation, Literal>(std::move(var_term), std::move(rhs)));
-                        }
-                        unpooled.emplace_back(lits, std::move(copy));
+                        unpooled.emplace_back(lits, elem_lits.has_value() ? cond : std::move(cond));
                     }
                 } else {
                     unpooled.emplace_back(std::move(lits), elems[i].second);
                 }
             }
-            pool.template append_shared<T>(std::move(unpooled));
+            auto all = VariableSet{};
+            for (auto const &elem : unpooled) {
+                for (auto const &lit : elem.second) {
+                    lit->variables(all, VariableSelectMode::add);
+                }
+            }
+            auto vars = std::vector<std::string>{};
+            std::copy_if(global.begin(), global.end(), std::back_inserter(vars),
+                         [&](auto const &var) { return all.contains(var); });
+            pool.template append_shared<T>(std::move(vars), std::move(unpooled));
         },
         unpool_union_crossproduct<PoolLiteral, typename T::Element, MapLiteral<T>>(pool, elems));
 }
