@@ -43,6 +43,9 @@ TEST_CASE("parse_body_literal") {
     REQUIRE(to_str(parse_body_literal("#sum{:a;1:a;1,2:a,b,c}")) == "#sum { : a; 1: a; 1,2: a, b, c }");
     REQUIRE(to_str(parse_body_literal("{1<2;1<2:a;a:b;a:b,c}")) == "{ 1<2; 1<2: a; a: b; a: b, c }");
     // conjunction literal
+    REQUIRE(to_str(parse_body_literal("#and(X,Y) { : q(X); p(X): q(X); p(X), q(X): r(X) }")) == "TODO");
+    REQUIRE(to_str(parse_body_literal("#and(X) { : q(X); p(X): q(X); p(X), q(X): r(X) }")) == "TODO");
+    REQUIRE(to_str(parse_body_literal("#and() { : q(X); p(X): q(X); p(X), q(X): r(X) }")) == "TODO");
     REQUIRE(to_str(parse_body_literal("#and{ : q(X); p(X): q(X); p(X), q(X): r(X) }")) == "TODO");
 }
 

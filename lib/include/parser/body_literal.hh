@@ -133,12 +133,38 @@ struct conjunction_element {
                                       lexy::construct<Conjunction::Element>);
 };
 
+//  p(X;Y) : q(A;B)
+//    p(X): q(A); p(X): q(B)
+//    p(Y): q(A); p(Y): q(B)
+//  p(X,X..Y) : q(Y)
+//    p(X,Z),Z=X..Y: q(Y)
+//  #and(X,Y) { p(X;Y) : q(A;B) }.
+//    #and(X) { p(X) : q(A;B) }.
+//    #and(Y) { p(Y) : q(A;B) }.
+//    % unsafe
+//  #and() { p(X;Y) : q(X;Y) }.
+//    #and(X) { p(X) : q(X;Y) }.
+//    #and(Y) { p(Y) : q(X;Y) }.
+//    % safe
+//  #and(X,Y) { p(X;Y) : q(X;Y) }.
+//    #and(X,Y) { p(X) : q(X;Y) }.
+//    #and(X,Y) { p(Y) : q(X;Y) }.
+//    % unsafe
+
+struct variable_list {
+    static constexpr auto rule = []() {
+        return dsl::opt(dsl::parenthesized.opt_list(dsl::p<term_variable>, dsl::sep(dsl::comma)));
+    }();
+    static constexpr auto value = lexy::as_list<STermVec>;
+};
+
 struct conjunction {
     static constexpr auto rule = []() {
-        // TODO: explicit specification of global variables
+        // TODO: pass explicit specification of global variables to constructor
         auto kw = LEXY_KEYWORD("#and", keyword_base);
         auto sep = dsl::sep(LEXY_LIT(";"));
-        return kw >> dsl::curly_bracketed.opt_list(dsl::p<conjunction_element>, sep);
+        return kw >>
+               dsl::token(dsl::p<variable_list>) + dsl::curly_bracketed.opt_list(dsl::p<conjunction_element>, sep);
     }();
     static constexpr auto value = lexy::as_list<Conjunction::ElementVec> >> lexy::new_<Conjunction, SBodyLiteral>;
 };
