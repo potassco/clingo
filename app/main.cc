@@ -39,9 +39,13 @@ template <typename Input> void parse(Input &input) {
     scanner.parse(lexy::dsl::whitespace(grammar::control::whitespace));
     while (scanner && !scanner.is_at_eof()) {
         discard(input, scanner);
-        auto stm = scanner.template parse<grammar::statement>();
-        if (stm.has_value()) {
-            std::cout << *stm.value() << "\n";
+        lexy::scan_result<SStatement> res_stm = scanner.template parse<grammar::statement>();
+        if (res_stm.has_value()) {
+            // TODO: add option
+            for (auto &stm : res_stm.value()->unpool()) {
+                std::cout << *stm << "\n";
+            }
+            // TODO: ensure proper order of comments
             for (auto &comment : comments) {
                 std::cout << comment << "\n";
             }
