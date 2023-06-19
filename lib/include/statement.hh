@@ -18,6 +18,8 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 
 // TODO 0:
 // - proper handling of anonymous variables
+// - add parsing of general disjunctions (copy of conjunctions)
+// - common code for disjunctions and conjunctions could be moved to aggregate module
 //
 // TODO 1:
 // - comparison literals should be normalized

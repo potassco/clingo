@@ -37,23 +37,32 @@ void Conjunction::add_sign(Sign sign) {
     elems_.front().first.front()->add_sign(sign);
 }
 
-auto Conjunction::is_cond_lit_() const -> bool {
-    if (elems_.size() != 1 || elems_.front().first.size() != 1) {
-        return false;
-    }
-    auto global = VariableSet{};
-    elems_.front().first.front()->variables(global, VariableSelectMode::add);
-    for (auto const &lit : elems_.front().second) {
-        lit->variables(global, VariableSelectMode::del);
-    }
-    if (global_.size() != global.size()) {
-        return false;
-    }
-    return std::all_of(global_.begin(), global_.end(), [&](auto const &var) { return global.contains(var); });
+auto Conjunction::is_simple_() const -> bool {
+    auto lit_vars = VariableSet{};
+    auto cond_vars = VariableSet{};
+    return std::all_of(elems_.begin(), elems_.end(), [&](auto const &elem) {
+        if (elem.first.size() != 1) {
+            return false;
+        }
+        lit_vars.clear();
+        cond_vars.clear();
+        elem.first.front()->variables(lit_vars, VariableSelectMode::add);
+        for (auto const &lit : elems_.front().second) {
+            lit->variables(cond_vars, VariableSelectMode::add);
+        }
+        if (std::any_of(global_.begin(), global_.end(), [&](auto const &var) { return cond_vars.contains(var); })) {
+            return false;
+        }
+        std::erase_if(lit_vars, [&](auto const &var) { return cond_vars.contains(var); });
+        for (auto const &var : global_) {
+            lit_vars.erase(var);
+        }
+        return lit_vars.empty();
+    });
 }
 
 void Conjunction::print(std::ostream &out) const {
-    if (is_cond_lit_()) {
+    if (is_simple_() && !elems_.empty()) {
         out << p_range_with(elems_, "; ", [](std::ostream &out, Element const &elem) {
             char const *cs = elem.second.empty() ? "" : ": ";
             out << *elem.first.front() << cs << p_range(elem.second, ", ");
