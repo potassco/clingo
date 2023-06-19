@@ -27,16 +27,18 @@ class HeadLiteral {
 
 class Disjunction : public HeadLiteral {
   public:
-    using Element = std::pair<SLiteral, SLiteralVec>;
+    using Element = std::pair<SLiteralVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
-    explicit Disjunction(ElementVec elems) : elems_{std::move(elems)} {}
+    explicit Disjunction(VariableVec global, ElementVec elems) : global_{std::move(global)}, elems_{std::move(elems)} {}
 
     [[nodiscard]] auto print_empty() const -> bool override;
     void print(std::ostream &out) const override;
     void unpool(PoolHeadLiteral &pool) override;
 
   private:
+    [[nodiscard]] auto is_simple_() const -> bool;
+    VariableVec global_;
     ElementVec elems_;
 };
 

@@ -376,7 +376,7 @@ struct statement_rule {
         [](SHeadLiteral head) { return construct_shared<Rule, Statement>(std::move(head), SBodyLiteralVec{}); },
         [](SBodyLiteralVec body) {
             return construct_shared<Rule, Statement>(
-                construct_shared<Disjunction, HeadLiteral>(Disjunction::ElementVec{}), std::move(body));
+                construct_shared<Disjunction, HeadLiteral>(VariableVec{}, Disjunction::ElementVec{}), std::move(body));
         });
 };
 

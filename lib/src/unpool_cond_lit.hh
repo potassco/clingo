@@ -9,11 +9,6 @@
 namespace {
 
 template <class T> struct MapLiteral {
-    // TOOD: remove
-    static void unpool(PoolLiteral &pool, typename T::Element &elem) { elem.first->unpool(pool); }
-    static auto map(typename T::Element const &orig, SLiteral lit) { return std::move(lit); }
-    static auto equal(SLiteral &a, typename T::Element &b) -> bool { return a == b.first; }
-
     static void unpool(PoolLiteral &pool, SLiteral &lit) { lit->unpool(pool); }
     static auto vec(typename T::Element &elem) { return elem.first; }
     static auto map(SLiteral &orig, SLiteral lit) { return std::move(lit); }
@@ -22,94 +17,8 @@ template <class T> struct MapLiteral {
 
 } // namespace
 
-template <class T, class P> void unpool_cond_lits(T *self, P &pool, typename T::ElementVec &elems) {
-    using Conds = std::vector<SLiteralVec>;
-    using OConds = std::optional<Conds>;
-    using ElemConds = std::vector<OConds>;
-    using OElemConds = std::optional<ElemConds>;
-
-    // Note because conditions have to stand on their own, we protect variables
-    // from becoming global here:
-    // - global before unpooling:
-    //   - G = getvars(lit) - getvars(cond)
-    // - global after unpooling:
-    //   - H = getvars(lit) - getvars(cond)
-    // - if var in H and var not in G:
-    //   - add var=var to condition to make it local again
-    // Furthermore, we use that variables can only loose the local status, if a
-    // literal in the condition is unpooled.
-
-    auto get_global = [](auto const &lit, auto const &cond) {
-        VariableSet global;
-        lit->variables(global, VariableSelectMode::add);
-        for (auto const &lit : cond) {
-            lit->variables(global, VariableSelectMode::del);
-        }
-        return global;
-    };
-
-    // unpool the conditions
-    OElemConds conds;
-    size_t i = 0;
-    for (auto &elem : elems) {
-        unpool_with(
-            [&](std::optional<SLiteralVec> &cond) {
-                if (cond.has_value()) {
-                    if (!conds.has_value()) {
-                        conds = ElemConds(elems.size());
-                    }
-                    if (!conds->at(i).has_value()) {
-                        conds->at(i) = Conds{};
-                    }
-                    conds->at(i)->emplace_back(std::move(cond).value());
-                }
-            },
-            unpool_crossproduct<PoolLiteral>(pool, elem.second));
-        ++i;
-    }
-
-    // unpool literals and combine with conditions
-    unpool_with(
-        [&](std::optional<SLiteralVec> &lits) {
-            if (!lits.has_value() && !conds.has_value()) {
-                pool.append(self);
-                return;
-            }
-            typename T::ElementVec unpooled;
-            for (size_t i = 0; i < elems.size(); ++i) {
-                SLiteral lit = lits.has_value() ? std::move(lits->at(i)) : elems[i].first;
-                if (conds.has_value() && conds->at(i).has_value()) {
-                    auto global = get_global(elems[i].first, elems[i].second);
-                    for (auto &cond : conds->at(i).value()) {
-                        auto copy = lits.has_value() ? cond : std::move(cond);
-                        // protect global variables
-                        std::vector<std::string> vars;
-                        for (auto const &var : get_global(lit, copy)) {
-                            if (!global.contains(var)) {
-                                vars.emplace_back(var);
-                            }
-                        }
-                        std::sort(vars.begin(), vars.end());
-                        for (auto const &var : vars) {
-                            auto var_term = construct_shared<TermVariable, Term>(var);
-                            auto rhs = GuardVec{Guard{Relation::less_equal, var_term}};
-                            copy.emplace_back(
-                                construct_shared<LiteralRelation, Literal>(std::move(var_term), std::move(rhs)));
-                        }
-                        unpooled.emplace_back(lit, std::move(copy));
-                    }
-                } else {
-                    unpooled.emplace_back(std::move(lit), elems[i].second);
-                }
-            }
-            pool.template append_shared<T>(std::move(unpooled));
-        },
-        unpool_crossproduct<PoolLiteral, typename T::Element, MapLiteral<T>>(pool, elems));
-}
-
-// TODO: this should probaly also be used for disjunctions
 template <class T, class P>
-void unpool_cond_lits2(T *self, P &pool, std::vector<std::string> const &global, typename T::ElementVec &elems) {
+void unpool_cond_lits(T *self, P &pool, VariableVec const &global, typename T::ElementVec &elems) {
     using Conds = std::vector<SLiteralVec>;
     using OConds = std::optional<Conds>;
     using ElemConds = std::vector<OConds>;
@@ -153,19 +62,19 @@ void unpool_cond_lits2(T *self, P &pool, std::vector<std::string> const &global,
                     unpooled.emplace_back(std::move(lits), elems[i].second);
                 }
             }
-            auto all = VariableSet{};
+            auto var_set = VariableSet{};
             for (auto const &elem : unpooled) {
                 for (auto const &lit : elem.first) {
-                    lit->variables(all, VariableSelectMode::add);
+                    lit->variables(var_set, VariableSelectMode::add);
                 }
                 for (auto const &lit : elem.second) {
-                    lit->variables(all, VariableSelectMode::add);
+                    lit->variables(var_set, VariableSelectMode::add);
                 }
             }
-            auto vars = std::vector<std::string>{};
-            std::copy_if(global.begin(), global.end(), std::back_inserter(vars),
-                         [&](auto const &var) { return all.contains(var); });
-            pool.template append_shared<T>(std::move(vars), std::move(unpooled));
+            auto var_vec = std::vector<std::string>{};
+            std::copy_if(global.begin(), global.end(), std::back_inserter(var_vec),
+                         [&](auto const &var) { return var_set.contains(var); });
+            pool.template append_shared<T>(std::move(var_vec), std::move(unpooled));
         },
         unpool_union_crossproduct<PoolLiteral, typename T::Element, MapLiteral<T>>(pool, elems));
 }

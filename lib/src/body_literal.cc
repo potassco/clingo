@@ -55,33 +55,24 @@ auto Conjunction::is_cond_lit_() const -> bool {
 void Conjunction::print(std::ostream &out) const {
     if (is_cond_lit_()) {
         out << p_range_with(elems_, "; ", [](std::ostream &out, Element const &elem) {
-            out << *elem.first.front();
-            if (!elem.second.empty()) {
-                out << ": " << p_range(elem.second, ", ");
-            }
+            char const *cs = elem.second.empty() ? "" : ": ";
+            out << *elem.first.front() << cs << p_range(elem.second, ", ");
         });
     } else {
-        out << "#and";
-        if (!global_.empty()) {
-            out << "(";
-        }
-        out << p_range(global_);
-        if (!global_.empty()) {
-            out << ")";
-        }
-        out << " { "
+        char const *lp = global_.empty() ? "" : "(";
+        char const *rp = global_.empty() ? "" : ")";
+        char const *sp = elems_.empty() ? "" : " ";
+        out << "#and" << lp << p_range(global_) << rp << " { "
             << p_range_with(elems_, "; ",
                             [&](std::ostream &out, Element const &elem) {
-                                out << p_range(elem.first, ", ");
-                                if (elem.first.empty() || !elem.second.empty()) {
-                                    out << (elem.second.empty() ? ":" : ": ") << p_range(elem.second, ", ");
-                                }
+                                char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
+                                out << p_range(elem.first, ", ") << cs << p_range(elem.second, ", ");
                             })
-            << (elems_.empty() ? "" : " ") << "}";
+            << sp << "}";
     }
 }
 
-void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits2(this, pool, global_, elems_); }
+void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits(this, pool, global_, elems_); }
 
 ////////// BodyAggregate //////////
 

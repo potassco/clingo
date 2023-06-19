@@ -38,18 +38,54 @@ auto HeadLiteral::unpool() -> SHeadLiteralVec {
 
 ////////// Disjunction //////////
 
-[[nodiscard]] auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
-
-void Disjunction::print(std::ostream &out) const {
-    out << p_range_with(elems_, "; ", [](std::ostream &out, auto const &elem) {
-        out << *elem.first;
-        if (!elem.second.empty()) {
-            out << ": " << p_range(elem.second, ", ");
+auto Disjunction::is_simple_() const -> bool {
+    auto lit_vars = VariableSet{};
+    auto cond_vars = VariableSet{};
+    return std::all_of(elems_.begin(), elems_.end(), [&](auto const &elem) {
+        if (elem.first.size() != 1) {
+            return false;
         }
+        lit_vars.clear();
+        cond_vars.clear();
+        elem.first.front()->variables(lit_vars, VariableSelectMode::add);
+        for (auto const &lit : elems_.front().second) {
+            lit->variables(cond_vars, VariableSelectMode::add);
+        }
+        if (std::any_of(global_.begin(), global_.end(), [&](auto const &var) { return cond_vars.contains(var); })) {
+            return false;
+        }
+        std::erase_if(lit_vars, [&](auto const &var) { return cond_vars.contains(var); });
+        for (auto const &var : global_) {
+            lit_vars.erase(var);
+        }
+        return lit_vars.empty();
     });
 }
 
-void Disjunction::unpool(PoolHeadLiteral &pool) { unpool_cond_lits(this, pool, elems_); }
+auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
+
+void Disjunction::print(std::ostream &out) const {
+    // Note: almost the same as for conjunctions
+    if (is_simple_()) {
+        out << p_range_with(elems_, "; ", [](std::ostream &out, auto const &elem) {
+            auto cs = elem.second.empty() ? "" : ": ";
+            out << *elem.first.front() << cs << p_range(elem.second, ", ");
+        });
+    } else {
+        char const *lp = global_.empty() ? "" : "(";
+        char const *rp = global_.empty() ? "" : ")";
+        char const *sp = elems_.empty() ? "" : " ";
+        out << "#or" << lp << p_range(global_) << rp << " { "
+            << p_range_with(elems_, "; ",
+                            [&](std::ostream &out, Element const &elem) {
+                                char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
+                                out << p_range(elem.first, ", ") << cs << p_range(elem.second, ", ");
+                            })
+            << sp << "}";
+    }
+}
+
+void Disjunction::unpool(PoolHeadLiteral &pool) { unpool_cond_lits(this, pool, global_, elems_); }
 
 ////////// HeadTheoryAtom //////////
 
