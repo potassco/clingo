@@ -20,6 +20,16 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 // - proper handling of anonymous variables
 // - add parsing of general disjunctions (copy of conjunctions)
 // - common code for disjunctions and conjunctions could be moved to aggregate module
+// - currently clingo projects anonymous variables
+//   - a(X) :- b(X,_).
+//     - a(X) :- b(X).
+//     - b(X) :- b(X,_).
+//     - unfortunately, a bit more magic is required to support incremental projection
+//       - a(X) :- b(X,*).
+//       - maybe really go forward and introduce the star
+//       - the task of the input module should not go beyond replacing safe to project anonymous variables with *
+//       - #projection { b(X,*) }.
+//       - projections make only sense as arguments of tuples and functions
 //
 // TODO 1:
 // - comparison literals should be normalized
