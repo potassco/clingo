@@ -135,15 +135,6 @@ struct body_atom : lexy::transparent_production {
         });
 };
 
-struct variable_list {
-    static constexpr auto rule = []() {
-        return dsl::opt(dsl::parenthesized.opt_list(dsl::p<variable>, dsl::sep(dsl::comma)));
-    }();
-    static constexpr auto value = lexy::as_list<VariableVec> >>
-                                  lexy::callback<VariableVec>(lexy::forward<VariableVec>,
-                                                              [](lexy::nullopt) { return VariableVec{}; });
-};
-
 struct conjunction_element {
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT(":"));

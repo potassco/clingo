@@ -71,6 +71,15 @@ struct variable {
     static constexpr auto value = lexy::as_string<std::string, encoding>;
 };
 
+struct variable_list {
+    static constexpr auto rule = []() {
+        return dsl::opt(dsl::parenthesized.opt_list(dsl::p<variable>, dsl::sep(dsl::comma)));
+    }();
+    static constexpr auto value = lexy::as_list<VariableVec> >>
+                                  lexy::callback<VariableVec>(lexy::forward<VariableVec>,
+                                                              [](lexy::nullopt) { return VariableVec{}; });
+};
+
 struct term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::p<variable>;

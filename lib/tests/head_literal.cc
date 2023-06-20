@@ -49,6 +49,12 @@ TEST_CASE("parse_head_literal") {
     REQUIRE(to_str(parse_head_literal("{1<2;1<2:a;a:b;a:b,c}")) == "{ 1<2; 1<2: a; a: b; a: b, c }");
     // theory atoms
     REQUIRE(to_str(parse_head_literal("&p(X){43+-Y:a} <== 7")) == "&p(X) { (43 +- Y): a } <== 7");
+    // conjunction literal
+    REQUIRE(to_str(parse_head_literal("#or(X,Y) { : q(X); p(X): q(X); p(X), q(X): r(X) }")) ==
+            "#or(X,Y) { : q(X); p(X): q(X); p(X), q(X): r(X) }");
+    REQUIRE(to_str(parse_head_literal("#or() { }")).empty());
+    REQUIRE(to_str(parse_head_literal("#or { }")).empty());
+    REQUIRE(to_str(parse_head_literal("#or { : }")) == "#or { : }");
 }
 
 TEST_CASE("unpool_head_literal") {
