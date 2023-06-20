@@ -37,7 +37,6 @@ class Conjunction : public BodyLiteral {
     void print(std::ostream &out) const override;
 
   private:
-    [[nodiscard]] auto is_simple_() const -> bool;
     VariableVec global_;
     ElementVec elems_;
 };

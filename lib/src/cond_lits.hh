@@ -15,8 +15,6 @@ template <class T> struct MapLiteral {
     static auto equal(SLiteral &a, SLiteral &b) -> bool { return a == b; }
 };
 
-} // namespace
-
 template <class T, class P>
 void unpool_cond_lits(T *self, P &pool, VariableVec const &global, typename T::ElementVec &elems) {
     using Conds = std::vector<SLiteralVec>;
@@ -78,3 +76,49 @@ void unpool_cond_lits(T *self, P &pool, VariableVec const &global, typename T::E
         },
         unpool_union_crossproduct<PoolLiteral, typename T::Element, MapLiteral<T>>(pool, elems));
 }
+
+auto is_simple_cond_lits(auto const &elems, auto const &global) -> bool {
+    auto lit_vars = VariableSet{};
+    auto cond_vars = VariableSet{};
+    return std::all_of(elems.begin(), elems.end(), [&](auto const &elem) {
+        if (elem.first.size() != 1) {
+            return false;
+        }
+        lit_vars.clear();
+        cond_vars.clear();
+        elem.first.front()->variables(lit_vars, VariableSelectMode::add);
+        for (auto const &lit : elems.front().second) {
+            lit->variables(cond_vars, VariableSelectMode::add);
+        }
+        if (std::any_of(global.begin(), global.end(), [&](auto const &var) { return cond_vars.contains(var); })) {
+            return false;
+        }
+        std::erase_if(lit_vars, [&](auto const &var) { return cond_vars.contains(var); });
+        for (auto const &var : global) {
+            lit_vars.erase(var);
+        }
+        return lit_vars.empty();
+    });
+}
+
+void print_cond_lits(auto const &elems, auto const &global, std::ostream &out, char const *kw) {
+    if (is_simple_cond_lits(elems, global)) {
+        out << p_range_with(elems, "; ", [](std::ostream &out, auto const &elem) {
+            auto cs = elem.second.empty() ? "" : ": ";
+            out << *elem.first.front() << cs << p_range(elem.second, ", ");
+        });
+    } else {
+        char const *lp = global.empty() ? "" : "(";
+        char const *rp = global.empty() ? "" : ")";
+        char const *sp = elems.empty() ? "" : " ";
+        out << kw << lp << p_range(global) << rp << " { "
+            << p_range_with(elems, "; ",
+                            [&](std::ostream &out, auto const &elem) {
+                                char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
+                                out << p_range(elem.first, ", ") << cs << p_range(elem.second, ", ");
+                            })
+            << sp << "}";
+    }
+}
+
+} // namespace

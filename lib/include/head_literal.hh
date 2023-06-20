@@ -37,7 +37,6 @@ class Disjunction : public HeadLiteral {
     void unpool(PoolHeadLiteral &pool) override;
 
   private:
-    [[nodiscard]] auto is_simple_() const -> bool;
     VariableVec global_;
     ElementVec elems_;
 };
