@@ -37,7 +37,7 @@ void Conjunction::add_sign(Sign sign) {
     elems_.front().first.front()->add_sign(sign);
 }
 
-void Conjunction::print(std::ostream &out) const { print_cond_lits(elems_, global_, out, "#and"); }
+void Conjunction::print(std::ostream &out) const { print_cond_lits(elems_, global_, out, "#and", false); }
 
 void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits(this, pool, global_, elems_); }
 

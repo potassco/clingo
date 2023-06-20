@@ -44,6 +44,36 @@ struct conditional_literal {
     static constexpr auto value = lexy::construct<std::pair<SLiteral, SLiteralVec>>;
 };
 
+template <class E> struct junction_element {
+    static constexpr auto rule = []() {
+        auto peek = dsl::peek_not(LEXY_LIT(":"));
+        return dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")))) + dsl::p<opt_condition>;
+    }();
+    static constexpr auto value = lexy::as_list<SLiteralVec> >> lexy::callback<E>(
+                                                                    [](lexy::nullopt, SLiteralVec cond) {
+                                                                        return E{{}, std::move(cond)};
+                                                                    },
+                                                                    lexy::construct<E>);
+};
+
+template <class E, class J, class L> struct junction {
+    static constexpr auto make_rule = [](auto kw) {
+        auto sep = dsl::sep(LEXY_LIT(";"));
+        return kw >> dsl::p<variable_list> + dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
+    };
+    static constexpr auto value = lexy::as_list<typename J::ElementVec> >>
+                                  lexy::callback<shared_ptr<L>>(lexy::new_<J, shared_ptr<L>>, [](VariableVec global,
+                                                                                                 lexy::nullopt) {
+                                      return construct_shared<J, L>(std::move(global), typename J::ElementVec{});
+                                  });
+};
+
+template <class E>
+static constexpr auto rule_junction = [](auto kw) {
+    auto sep = dsl::sep(LEXY_LIT(";"));
+    return kw >> dsl::p<variable_list> + dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
+};
+
 static constexpr auto aggregate_right_guard = []() {
     // Note an aggregate without a guard is terminated by one of the symbols below.
     auto peek = dsl::peek_not(LEXY_ASCII_ONE_OF(":.,;"));

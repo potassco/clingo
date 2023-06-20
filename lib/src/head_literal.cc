@@ -40,7 +40,7 @@ auto HeadLiteral::unpool() -> SHeadLiteralVec {
 
 auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
 
-void Disjunction::print(std::ostream &out) const { print_cond_lits(elems_, global_, out, "#or"); }
+void Disjunction::print(std::ostream &out) const { print_cond_lits(elems_, global_, out, "#or", true); }
 
 void Disjunction::unpool(PoolHeadLiteral &pool) { unpool_cond_lits(this, pool, global_, elems_); }
 

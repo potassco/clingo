@@ -66,33 +66,14 @@ struct simple_disjunction {
                                   });
 };
 
-// Note: the two parsers below are almost a copy of conjunction_element
-//       maybe move them to the aggregate header
-struct disjunction_element {
-    static constexpr auto rule = []() {
-        auto peek = dsl::peek_not(LEXY_LIT(":"));
-        return dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")))) + dsl::p<opt_condition>;
-    }();
-    static constexpr auto value = lexy::as_list<SLiteralVec> >>
-                                  lexy::callback<Disjunction::Element>(
-                                      [](lexy::nullopt, SLiteralVec cond) {
-                                          return Disjunction::Element{{}, std::move(cond)};
-                                      },
-                                      lexy::construct<Disjunction::Element>);
+struct disjunction_element : private junction_element<Disjunction::Element> {
+    using junction_element::rule;
+    using junction_element::value;
 };
 
-struct disjunction {
-    static constexpr auto rule = []() {
-        auto kw = LEXY_KEYWORD("#or", keyword_base);
-        auto sep = dsl::sep(LEXY_LIT(";"));
-        return kw >> dsl::p<variable_list> + dsl::curly_bracketed.opt_list(dsl::p<disjunction_element>, sep);
-    }();
-    static constexpr auto value = lexy::as_list<Disjunction::ElementVec> >>
-                                  lexy::callback<SHeadLiteral>(lexy::new_<Disjunction, SHeadLiteral>,
-                                                               [](VariableVec global, lexy::nullopt) {
-                                                                   return construct_shared<Disjunction, HeadLiteral>(
-                                                                       std::move(global), Disjunction::ElementVec{});
-                                                               });
+struct disjunction : private junction<disjunction_element, Disjunction, HeadLiteral> {
+    static constexpr auto rule = make_rule(LEXY_KEYWORD("#or", keyword_base));
+    using junction::value;
 };
 
 struct head_aggregate_element {

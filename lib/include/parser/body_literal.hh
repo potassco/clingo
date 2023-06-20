@@ -14,10 +14,22 @@ using SBodySetAggregate = shared_ptr<BodySetAggregate>;
 
 namespace detail {
 
-inline auto make_body_aggr(SBodyAggregate aggr) -> SBodyAggregate { return std::move(aggr); }
+inline auto construct_body_aggr(SBodyAggregate aggr) -> SBodyAggregate { return std::move(aggr); }
 
-inline auto make_body_aggr(SetAggregate aggr) -> SBodySetAggregate {
+inline auto construct_body_aggr(SetAggregate aggr) -> SBodySetAggregate {
     return construct_shared<BodySetAggregate>(std::move(aggr));
+}
+
+auto construct_conjunction(SLiteral lit, SLiteralVec cond) {
+    VariableSet global;
+    lit->variables(global, VariableSelectMode::add);
+    for (auto &lit : cond) {
+        lit->variables(global, VariableSelectMode::del);
+    }
+    auto vars = VariableVec{global.begin(), global.end()};
+    std::sort(vars.begin(), vars.end());
+    return construct_shared<Conjunction, BodyLiteral>(
+        std::move(vars), Conjunction::ElementVec{Conjunction::Element{SLiteralVec{std::move(lit)}, std::move(cond)}});
 }
 
 } // namespace detail
@@ -61,22 +73,6 @@ struct body_aggregate {
         });
 };
 
-namespace detail {
-
-auto construct_conjunction(SLiteral lit, SLiteralVec cond) {
-    VariableSet global;
-    lit->variables(global, VariableSelectMode::add);
-    for (auto &lit : cond) {
-        lit->variables(global, VariableSelectMode::del);
-    }
-    auto vars = VariableVec{global.begin(), global.end()};
-    std::sort(vars.begin(), vars.end());
-    return construct_shared<Conjunction, BodyLiteral>(
-        std::move(vars), Conjunction::ElementVec{Conjunction::Element{SLiteralVec{std::move(lit)}, std::move(cond)}});
-}
-
-} // namespace detail
-
 struct body_atom : lexy::transparent_production {
     static constexpr char const *name = "body atom";
     using scan_result = lexy::scan_result<STerm>;
@@ -111,12 +107,12 @@ struct body_atom : lexy::transparent_production {
         lexy::forward<SBodyLiteral>, lexy::new_<BodySetAggregate, SBodyLiteral>,
         lexy::new_<BodyTheoryAtom, SBodyLiteral>,
         [](STerm term, auto aggr) {
-            auto ret = detail::make_body_aggr(std::move(aggr));
+            auto ret = detail::construct_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);
             return ret;
         },
         [](STerm term, Relation rel, auto aggr) {
-            auto ret = detail::make_body_aggr(std::move(aggr));
+            auto ret = detail::construct_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), rel);
             return std::move(ret);
         },
@@ -135,31 +131,14 @@ struct body_atom : lexy::transparent_production {
         });
 };
 
-struct conjunction_element {
-    static constexpr auto rule = []() {
-        auto peek = dsl::peek_not(LEXY_LIT(":"));
-        return dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")))) + dsl::p<opt_condition>;
-    }();
-    static constexpr auto value = lexy::as_list<SLiteralVec> >>
-                                  lexy::callback<Conjunction::Element>(
-                                      [](lexy::nullopt, SLiteralVec cond) {
-                                          return Conjunction::Element{{}, std::move(cond)};
-                                      },
-                                      lexy::construct<Conjunction::Element>);
+struct conjunction_element : private junction_element<Conjunction::Element> {
+    using junction_element::rule;
+    using junction_element::value;
 };
 
-struct conjunction {
-    static constexpr auto rule = []() {
-        auto kw = LEXY_KEYWORD("#and", keyword_base);
-        auto sep = dsl::sep(LEXY_LIT(";"));
-        return kw >> dsl::p<variable_list> + dsl::curly_bracketed.opt_list(dsl::p<conjunction_element>, sep);
-    }();
-    static constexpr auto value = lexy::as_list<Conjunction::ElementVec> >>
-                                  lexy::callback<SBodyLiteral>(lexy::new_<Conjunction, SBodyLiteral>,
-                                                               [](VariableVec global, lexy::nullopt) {
-                                                                   return construct_shared<Conjunction, BodyLiteral>(
-                                                                       std::move(global), Conjunction::ElementVec{});
-                                                               });
+struct conjunction : private junction<conjunction_element, Conjunction, BodyLiteral> {
+    static constexpr auto rule = junction::make_rule(LEXY_KEYWORD("#and", keyword_base));
+    using junction::value;
 };
 
 struct body_literal {

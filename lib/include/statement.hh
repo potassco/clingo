@@ -18,8 +18,6 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 
 // TODO 0:
 // - proper handling of anonymous variables
-// - add parsing of general disjunctions (copy of conjunctions)
-// - common code for disjunctions and conjunctions could be moved to aggregate module
 // - currently clingo projects anonymous variables
 //   - a(X) :- b(X,_).
 //     - a(X) :- b(X).
@@ -330,8 +328,8 @@ class StatementHeuristic : public Statement {
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
           mod_(std::move(mod)), has_sign_{has_sign} {}
     explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm mod)
-        : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)),
-          mod_(std::move(mod)), has_sign_{has_sign} {}
+        : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), mod_(std::move(mod)),
+          has_sign_{has_sign} {}
 
     void unpool(PoolStatement &pool) override;
     void print(std::ostream &out) const override;

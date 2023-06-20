@@ -101,8 +101,8 @@ auto is_simple_cond_lits(auto const &elems, auto const &global) -> bool {
     });
 }
 
-void print_cond_lits(auto const &elems, auto const &global, std::ostream &out, char const *kw) {
-    if (is_simple_cond_lits(elems, global)) {
+void print_cond_lits(auto const &elems, auto const &global, std::ostream &out, char const *kw, bool simple_empty) {
+    if (elems.empty() ? simple_empty : is_simple_cond_lits(elems, global)) {
         out << p_range_with(elems, "; ", [](std::ostream &out, auto const &elem) {
             auto cs = elem.second.empty() ? "" : ": ";
             out << *elem.first.front() << cs << p_range(elem.second, ", ");
