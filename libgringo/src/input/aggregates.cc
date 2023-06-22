@@ -513,10 +513,8 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
                 return elem.toGround<Ground::BodyAggregateAccumulate>(x, completeRef, std::move(lits));
             });
         }
-        return {[&completeRef, this](Ground::ULitVec &lits, bool primary, bool auxiliary) {
-            if (primary) {
-                lits.emplace_back(gringo_make_unique<Ground::BodyAggregateLiteral>(completeRef, naf_, auxiliary));
-            }
+        return {[&completeRef, this](Ground::ULitVec &lits, bool auxiliary) {
+            lits.emplace_back(gringo_make_unique<Ground::BodyAggregateLiteral>(completeRef, naf_, auxiliary));
         }, std::move(split)};
     }
     assert(bounds_.size() == 1 && naf_ == NAF::POS);
@@ -548,10 +546,8 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
             return elem.toGround<Ground::AssignmentAggregateAccumulate>(x, completeRef, std::move(lits));
         });
     }
-    return {[&completeRef](Ground::ULitVec &lits, bool primary, bool auxiliary) {
-        if (primary) {
-            lits.emplace_back(gringo_make_unique<Ground::AssignmentAggregateLiteral>(completeRef, auxiliary));
-        }
+    return {[&completeRef](Ground::ULitVec &lits, bool auxiliary) {
+        lits.emplace_back(gringo_make_unique<Ground::AssignmentAggregateLiteral>(completeRef, auxiliary));
     }, std::move(split)};
 }
 
@@ -1011,10 +1007,8 @@ CreateBody ConjunctionElem::toGround(UTerm id, ToGroundArg &x, Ground::UStmVec &
         return std::move(ret);
     });
 
-    return {[&completeRef](Ground::ULitVec &lits, bool primary, bool auxiliary) {
-        if (primary) {
-            lits.emplace_back(gringo_make_unique<Ground::ConjunctionLiteral>(completeRef, auxiliary));
-        }
+    return {[&completeRef](Ground::ULitVec &lits, bool auxiliary) {
+        lits.emplace_back(gringo_make_unique<Ground::ConjunctionLiteral>(completeRef, auxiliary));
     }, std::move(split)};
 }
 
@@ -1244,7 +1238,7 @@ void SimpleBodyLiteral::replace(Defines &x) {
 
 CreateBody SimpleBodyLiteral::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     static_cast<void>(stms);
-    return {[&](Ground::ULitVec &lits, bool /*unused*/, bool auxiliary) -> void {
+    return {[&](Ground::ULitVec &lits, bool auxiliary) -> void {
         lits.emplace_back(lit_->toGround(x.domains, auxiliary));
     }, CreateStmVec()};
 }

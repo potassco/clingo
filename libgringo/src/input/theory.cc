@@ -342,7 +342,7 @@ void TheoryAtom::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen)
 
 void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, bool hasBody, Logger &log) {
     Sig sig = name_->getSig();
-    for (auto &def : defs) {
+    for (auto const &def : defs) {
         if (auto const *atomDef = def.getAtomDef(sig)) {
             type_ = atomDef->type();
             if (inBody) {
@@ -459,11 +459,9 @@ CreateBody TheoryAtom::toGroundBody(ToGroundArg &x, Ground::UStmVec &stms, NAF n
         });
     }
     bool aux1 = type_ != TheoryAtomType::Body;
-    return {[&completeRef, naf, aux1](Ground::ULitVec &lits, bool primary, bool aux2) {
-        if (primary) {
-            auto ret = gringo_make_unique<Ground::TheoryLiteral>(completeRef, naf, aux1 || aux2);
-            lits.emplace_back(std::move(ret));
-        }
+    return {[&completeRef, naf, aux1](Ground::ULitVec &lits, bool aux2) {
+        auto ret = gringo_make_unique<Ground::TheoryLiteral>(completeRef, naf, aux1 || aux2);
+        lits.emplace_back(std::move(ret));
     }, std::move(split)};
 }
 

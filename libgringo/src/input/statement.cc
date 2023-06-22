@@ -321,13 +321,11 @@ void toGround(CreateHead &&head, UBodyAggrVec const &body, ToGroundArg &x, Groun
     }
     Ground::ULitVec lits;
     for (auto current = createVec.begin(), end = createVec.end(); current != end; ++current) {
-        current->first(lits, true, false);
+        current->first(lits, false);
         for (auto &z : current->second) {
             Ground::ULitVec splitLits;
-            for (auto it = createVec.begin(); it != end; ++it) {
-                if (it != current) {
-                    it->first(splitLits, it < current, true);
-                }
+            for (auto it = createVec.begin(); it < current; ++it) {
+                it->first(splitLits, true);
             }
             stms.emplace_back(z(std::move(splitLits)));
         }
