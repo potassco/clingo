@@ -1179,7 +1179,7 @@ extern "C" bool clingo_backend_theory_term_symbol(clingo_backend_t *backend, cli
 
 extern "C" bool clingo_backend_theory_term_sequence(clingo_backend_t *backend, clingo_theory_sequence_type_t type, clingo_id_t const *arguments, size_t size, clingo_id_t *term_id) {
     GRINGO_CLINGO_TRY {
-        *term_id  = backend->theoryData().addTermTup(Potassco::Tuple_t{-static_cast<int>(type)}, Potassco::IdSpan{arguments, size});
+        *term_id  = backend->theoryData().addTermTup(Potassco::Tuple_t{-static_cast<int>(type) - 1}, Potassco::IdSpan{arguments, size});
     }
     GRINGO_CLINGO_CATCH;
 }

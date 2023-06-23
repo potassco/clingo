@@ -1510,9 +1510,9 @@ typedef int clingo_comment_type_t;
 
 //! Enumeration of theory sequence types.
 enum clingo_theory_sequence_type_e {
-    clingo_theory_sequence_type_tuple, //!< Theory tuples "(t1,...,tn)".
-    clingo_theory_sequence_type_list,  //!< Theory lists "[t1,...,tn]".
-    clingo_theory_sequence_type_set    //!< Theory sets "{t1,...,tn}".
+    clingo_theory_sequence_type_tuple = 0, //!< Theory tuples "(t1,...,tn)".
+    clingo_theory_sequence_type_set   = 1, //!< Theory sets "{t1,...,tn}".
+    clingo_theory_sequence_type_list  = 2  //!< Theory lists "[t1,...,tn]".
 };
 //! Corresponding type to ::clingo_theory_sequence_type_e.
 typedef int clingo_theory_sequence_type_t;
