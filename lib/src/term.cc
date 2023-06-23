@@ -12,6 +12,18 @@
 
 ////////// Term //////////
 
+namespace {
+
+struct p_tuple {
+    auto operator()(std::ostream &out, TupleElem const &elem) const -> std::ostream & {
+        visit_variant(
+            elem, [&](std::monostate) { out << "*"; }, [&](auto const &elem) { out << *elem; });
+        return out;
+    }
+};
+
+} // namespace
+
 auto operator<<(std::ostream &out, TermType type) -> std::ostream & {
     out << "TODO: type";
     return out;
@@ -134,8 +146,8 @@ void TermTuple::print(std::ostream &out) const {
         out << "(" << p_range_with(pool_, ";", [](std::ostream &out, auto const &term_or_tuple) {
             visit_variant(
                 term_or_tuple, [&](STerm const &term) { term->print(out); },
-                [&](STermVec const &tuple) {
-                    out << p_range(tuple);
+                [&](TupleVec const &tuple) {
+                    out << p_range_with(tuple, ",", p_tuple{});
                     if (tuple.size() == 1) {
                         out << ",";
                     }
@@ -157,9 +169,11 @@ void TermTuple::variables(VariableSet &vars, VariableSelectMode mode) const {
     for (auto const &tuple_or_term : pool_) {
         visit_variant(
             tuple_or_term, [&](STerm const &term) { term->variables(vars, mode); },
-            [&](STermVec const &tuple) {
-                for (auto const &term : tuple) {
-                    term->variables(vars, mode);
+            [&](TupleVec const &tuple) {
+                for (auto const &elem : tuple) {
+                    if (auto const *term = std::get_if<STerm>(&elem)) {
+                        term->get()->variables(vars, mode);
+                    }
                 }
             });
     }
@@ -169,16 +183,37 @@ void TermTuple::unpool(PoolTerm &pool) {
     for (auto &tuple_or_term : pool_) {
         visit_variant(
             tuple_or_term, [&](STerm &term) { term->unpool(pool); },
-            [&](STermVec &tuple) {
+            [&](TupleVec &tuple) {
+                STermVec terms;
+                terms.reserve(tuple.size());
+                for (auto &elem : tuple) {
+                    visit_variant(
+                        elem, [&](STerm const &term) { terms.emplace_back(term); }, [](auto const &) {});
+                }
                 unpool_with(
-                    [&](std::optional<STermVec> &opt_tuple) {
-                        if (!opt_tuple.has_value() && pool_.size() == 1) {
+                    [&](std::optional<STermVec> &unpooled) {
+                        if (!unpooled.has_value() && pool_.size() == 1) {
                             pool.append(this);
                         } else {
-                            pool.append_shared<TermTuple>(ElementVec{std::move(opt_tuple).value_or(tuple)});
+                            TupleVec unpooled_tuple;
+                            if (unpooled.has_value()) {
+                                auto it = unpooled->begin();
+                                unpooled_tuple.reserve(tuple.size());
+                                for (auto const &elem : tuple) {
+                                    if (std::holds_alternative<std::monostate>(elem)) {
+                                        unpooled_tuple.emplace_back(std::monostate{});
+                                    } else {
+                                        unpooled_tuple.emplace_back(std::move(*it));
+                                        ++it;
+                                    }
+                                }
+                            } else {
+                                unpooled_tuple = tuple;
+                            }
+                            pool.append_shared<TermTuple>(ElementVec{std::move(unpooled_tuple)});
                         }
                     },
-                    unpool_crossproduct(pool, tuple));
+                    unpool_crossproduct(pool, terms));
             });
     }
 }
@@ -238,18 +273,6 @@ void TermAbs::variables(VariableSet &vars, VariableSelectMode mode) const {
 }
 
 ////////// TermFunction //////////
-
-namespace {
-
-struct p_tuple {
-    auto operator()(std::ostream &out, TupleElem const &elem) const -> std::ostream & {
-        visit_variant(
-            elem, [&](std::monostate) { out << "*"; }, [&](auto const &elem) { out << *elem; });
-        return out;
-    }
-};
-
-} // namespace
 
 void TermFunction::print(std::ostream &out) const {
     if (external_) {

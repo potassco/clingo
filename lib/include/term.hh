@@ -171,7 +171,7 @@ class TermSymbol : public Term {
 
 class TermTuple : public Term {
   public:
-    using Element = std::variant<STermVec, STerm>;
+    using Element = std::variant<TupleVec, STerm>;
     using ElementVec = std::vector<Element>;
 
     explicit TermTuple(ElementVec args) : pool_{std::move(args)} {}

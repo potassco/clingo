@@ -35,11 +35,22 @@ auto empty_args(std::optional<STermVecVec> value) {
 
 auto empty_args(std::optional<PoolVec> value) { return std::move(value).value_or(PoolVec{TupleVec{}}); };
 
-struct element_trail_vec {
-    void push_back(STerm term) { vec.emplace_back(std::move(term)); }
-    template <typename Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail = true; }
-    STermVec vec;
-    bool trail = false;
+class element_trail_vec {
+  public:
+    void push_back(std::monostate p) { vec_.emplace_back(p); }
+    void push_front(std::monostate p) { vec_.emplace(vec_.begin(), p); }
+    void push_back(STerm term) { vec_.emplace_back(std::move(term)); }
+    template <typename Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail_ = true; }
+    auto to_tuple() -> TermTuple::Element {
+        if (vec_.size() == 1 && !trail_ && std::holds_alternative<STerm>(vec_.back())) {
+            return std::get<STerm>(std::move(vec_.back()));
+        }
+        return std::move(vec_);
+    }
+
+  private:
+    TupleVec vec_;
+    bool trail_ = false;
 };
 
 struct construct_symbol {
@@ -56,6 +67,8 @@ struct construct_symbol {
 
 } // namespace detail
 
+static constexpr auto projection_symbol = lexy::symbol_table<std::monostate> //
+                                              .map<'*'>(std::monostate{});
 static constexpr auto identifier_base = []() {
     auto head = dsl::ascii::lower;
     auto tail = dsl::ascii::alpha_underscore / LEXY_LIT("'");
@@ -149,8 +162,6 @@ struct term_list {
 };
 
 struct term_function_tuple {
-    static constexpr auto projection_symbol = lexy::symbol_table<std::monostate> //
-                                                  .map<'*'>(std::monostate{});
     static constexpr char const *name = "list of terms";
     static constexpr auto rule =
         dsl::list(dsl::symbol<projection_symbol> | dsl::else_ >> dsl::p<term>, dsl::sep(dsl::comma));
@@ -185,29 +196,30 @@ struct term_external_function {
     });
 };
 
-struct term_pool_element {
+struct term_tuple_element {
     static constexpr char const *name = "term pool";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(dsl::semicolon / LEXY_LIT(")") / dsl::comma);
         auto sep = dsl::trailing_sep(dsl::capture(LEXY_LIT(",")));
-        return dsl::if_(dsl::list(peek >> dsl::p<term>, sep));
+        auto ps = dsl::symbol<projection_symbol>;
+        return dsl::if_(ps >> dsl::comma) + dsl::if_(dsl::list(ps | peek >> dsl::p<term>, sep));
     }();
     static constexpr auto
         value = lexy::as_list<detail::element_trail_vec> >>
-                lexy::callback<TermTuple::Element>(lexy::construct<STermVec>,
-                                                   [](detail::element_trail_vec elem) -> TermTuple::Element {
-                                                       if (elem.vec.size() == 1 && !elem.trail) {
-                                                           return std::move(elem.vec.back());
-                                                       }
-                                                       return std::move(elem.vec);
-                                                   });
+                lexy::callback<TermTuple::Element>([]() -> TupleVec { return {}; },
+                                                   [](std::monostate p) -> TupleVec { return {p}; },
+                                                   [](std::monostate p, detail::element_trail_vec elem) {
+                                                       elem.push_front(p);
+                                                       return elem.to_tuple();
+                                                   },
+                                                   [](detail::element_trail_vec elem) { return elem.to_tuple(); });
 };
 
 struct term_tuple {
     static constexpr char const *name = "term tuple";
     // Note: dsl::parenthesized.list tries to be too clever.
     static constexpr auto rule = LEXY_LIT("(") >>
-                                 dsl::list(dsl::p<term_pool_element>, dsl::sep(dsl::semicolon)) + LEXY_LIT(")");
+                                 dsl::list(dsl::p<term_tuple_element>, dsl::sep(dsl::semicolon)) + LEXY_LIT(")");
     static constexpr auto value = lexy::as_list<TermTuple::ElementVec> >>
                                   lexy::callback<STerm>([](TermTuple::ElementVec elem) -> STerm {
                                       if (elem.size() == 1 && std::holds_alternative<STerm>(elem.front())) {
