@@ -264,7 +264,7 @@ struct statement_project {
     }();
     static constexpr auto value = lexy::callback<SStatement>(
         lexy::new_<StatementProjectSig, SStatement>,
-        [](bool has_sign, std::string name, std::optional<STermVecVec> pool, SBodyLiteralVec body) {
+        [](bool has_sign, std::string name, std::optional<PoolVec> pool, SBodyLiteralVec body) {
             STerm atom =
                 construct_shared<TermFunction, Term>(std::move(name), detail::empty_args(std::move(pool)), false);
             if (has_sign) {
