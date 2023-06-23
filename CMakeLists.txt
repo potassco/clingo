@@ -163,7 +163,7 @@ endif()
 #       that searching for the python libraries finds the matching libraries for the default python interpreter
 #       python is also used to run the tests
 
-if(CMAKE_VERSION VERSION_GREATER "3.15.0" OR CMAKE_VERSION VERSION_EQUAL "3.15.0")
+if(NOT CLINGO_BUILD_WITH_PYTHON STREQUAL "pip" AND (CMAKE_VERSION VERSION_GREATER "3.15.0" OR CMAKE_VERSION VERSION_EQUAL "3.15.0"))
     if(DEFINED PYTHON_EXECUTABLE AND NOT DEFINED Python_EXECUTABLE)
         set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}")
     endif()
@@ -185,11 +185,17 @@ if(CMAKE_VERSION VERSION_GREATER "3.15.0" OR CMAKE_VERSION VERSION_EQUAL "3.15.0
     endif()
     find_package(Python ${CLINGO_PYTHON_VERSION} COMPONENTS ${_args})
 else()
-    find_package(PythonInterp)
+    if (CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
+        find_package(PythonExtensions REQUIRED)
+    else()
+        find_package(PythonInterp)
+    endif()
     set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}")
     set(Python_VERSION_MAJOR "${PYTHON_VERSION_MAJOR}")
     if (CLINGO_BUILD_WITH_PYTHON)
-        if (NOT CLINGO_BUILD_WITH_PYTHON STREQUAL "auto")
+        if (CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
+            # libraries already found
+        elseif (NOT CLINGO_BUILD_WITH_PYTHON STREQUAL "auto")
             find_package(PythonLibs ${CLINGO_PYTHON_VERSION} REQUIRED)
         else()
             find_package(PythonLibs ${CLINGO_PYTHON_VERSION})
