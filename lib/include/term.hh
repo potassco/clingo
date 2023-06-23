@@ -51,6 +51,10 @@ using STermVec = std::vector<STerm>;
 using STermVecVec = std::vector<STermVec>;
 using PoolTerm = Pool<STerm>;
 
+using TupleElem = std::variant<std::monostate, STerm>;
+using TupleVec = std::vector<TupleElem>;
+using PoolVec = std::vector<TupleVec>;
+
 enum VariableSelectMode {
     add,
     del,
@@ -219,7 +223,7 @@ class TermAbs : public Term {
 
 class TermFunction : public Term {
   public:
-    explicit TermFunction(std::string name, STermVecVec args, bool external)
+    explicit TermFunction(std::string name, PoolVec args, bool external)
         : name_(std::move(name)), pool_{std::move(args)}, external_{external} {}
 
     void print(std::ostream &out) const override;
@@ -234,7 +238,7 @@ class TermFunction : public Term {
 
   private:
     std::string name_;
-    STermVecVec pool_;
+    PoolVec pool_;
     bool external_;
 };
 

@@ -14,6 +14,46 @@ namespace grammar {
 
 namespace dsl = lexy::dsl;
 
+namespace detail {
+
+constexpr auto empty_args = [](std::optional<STermVecVec> value) {
+    PoolVec ret;
+    if (value.has_value()) {
+        ret.reserve(value->size());
+        for (auto &tuple : value.value()) {
+            ret.emplace_back();
+            ret.back().reserve(tuple.size());
+            for (auto &term : tuple) {
+                ret.back().emplace_back(std::move(term));
+            }
+        }
+    } else {
+        ret.emplace_back();
+    }
+    return ret;
+};
+
+struct element_trail_vec {
+    void push_back(STerm term) { vec.emplace_back(std::move(term)); }
+    template <typename Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail = true; }
+    STermVec vec;
+    bool trail = false;
+};
+
+struct construct_symbol {
+    using return_type = STerm;
+
+    auto operator()(int value) const -> STerm { return construct_shared<TermSymbol, Term>(Symbol{value}); }
+
+    auto operator()(std::string value) const -> STerm {
+        return construct_shared<TermSymbol, Term>(Symbol{QuotedString{value}});
+    }
+
+    auto operator()(Constant value) const -> STerm { return construct_shared<TermSymbol, Term>(Symbol{value}); }
+};
+
+} // namespace detail
+
 static constexpr auto identifier_base = []() {
     auto head = dsl::ascii::lower;
     auto tail = dsl::ascii::alpha_underscore / LEXY_LIT("'");
@@ -118,19 +158,6 @@ struct term_function_pool {
     static constexpr auto value = lexy::collect<STermVecVec>(lexy::as_list<STermVec>);
 };
 
-namespace detail {
-
-constexpr auto empty_args = [](std::optional<STermVecVec> value) {
-    if (value.has_value()) {
-        return std::move(value.value());
-    }
-    STermVecVec ret;
-    ret.emplace_back();
-    return ret;
-};
-
-}
-
 struct term_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<term_function_pool>);
@@ -146,17 +173,6 @@ struct term_external_function {
         return construct_shared<TermFunction, Term>(std::move(name), detail::empty_args(std::move(value)), true);
     });
 };
-
-namespace detail {
-
-struct element_trail_vec {
-    void push_back(STerm term) { vec.emplace_back(std::move(term)); }
-    template <typename Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail = true; }
-    STermVec vec;
-    bool trail = false;
-};
-
-} // namespace detail
 
 struct term_pool_element {
     static constexpr char const *name = "term pool";
@@ -205,22 +221,6 @@ struct term_anonymous_variable {
     static constexpr auto rule = anonymous_variable;
     static constexpr auto value = lexy::callback<STerm>([]() { return construct_shared<TermVariable, Term>("_"); });
 };
-
-namespace detail {
-
-struct construct_symbol {
-    using return_type = STerm;
-
-    auto operator()(int value) const -> STerm { return construct_shared<TermSymbol, Term>(Symbol{value}); }
-
-    auto operator()(std::string value) const -> STerm {
-        return construct_shared<TermSymbol, Term>(Symbol{QuotedString{value}});
-    }
-
-    auto operator()(Constant value) const -> STerm { return construct_shared<TermSymbol, Term>(Symbol{value}); }
-};
-
-} // namespace detail
 
 struct term_rec : lexy::expression_production {
     static constexpr char const *name = "term";

@@ -239,14 +239,27 @@ void TermAbs::variables(VariableSet &vars, VariableSelectMode mode) const {
 
 ////////// TermFunction //////////
 
+namespace {
+
+struct p_tuple {
+    auto operator()(std::ostream &out, TupleElem const &elem) const -> std::ostream & {
+        visit_variant(
+            elem, [&](std::monostate) { out << "*"; }, [&](auto const &elem) { out << *elem; });
+        return out;
+    }
+};
+
+} // namespace
+
 void TermFunction::print(std::ostream &out) const {
     if (external_) {
         out << "@";
     }
     out << name_;
     if (pool_.size() != 1 || !pool_.front().empty()) {
-        out << "(" << p_range_with(pool_, ";", [](std::ostream &out, STermVec const &tuple) { out << p_range(tuple); })
-            << ")";
+        out << "(" << p_range_with(pool_, ";", [](std::ostream &out, TupleVec const &tuple) {
+            out << p_range_with(tuple, ",", p_tuple{});
+        }) << ")";
     }
 }
 
@@ -259,23 +272,44 @@ auto TermFunction::hash() const -> size_t { return value_hash(typeid(TermFunctio
 
 void TermFunction::unpool(PoolTerm &pool) {
     for (auto &tuple : pool_) {
+        STermVec terms;
+        terms.reserve(tuple.size());
+        for (auto &elem : tuple) {
+            visit_variant(
+                elem, [&](STerm const &term) { terms.emplace_back(term); }, [](auto const &) {});
+        }
         unpool_with(
             [&](std::optional<STermVec> &unpooled) {
                 if (!unpooled.has_value() && pool_.size() == 1) {
                     pool.append(this);
                 } else {
-                    pool.append_shared<TermFunction>(name_, STermVecVec{std::move(unpooled).value_or(tuple)},
-                                                     external_);
+                    TupleVec unpooled_tuple;
+                    if (unpooled.has_value()) {
+                        auto it = unpooled->begin();
+                        unpooled_tuple.reserve(tuple.size());
+                        for (auto const &elem : tuple) {
+                            if (std::holds_alternative<std::monostate>(elem)) {
+                                unpooled_tuple.emplace_back(std::monostate{});
+                            } else {
+                                unpooled_tuple.emplace_back(std::move(*it));
+                                ++it;
+                            }
+                        }
+                    } else {
+                        unpooled_tuple = tuple;
+                    }
+                    pool.append_shared<TermFunction>(name_, PoolVec{std::move(unpooled_tuple)}, external_);
                 }
             },
-            unpool_crossproduct(pool, tuple));
+            unpool_crossproduct(pool, terms));
     }
 }
 
 void TermFunction::variables(VariableSet &vars, VariableSelectMode mode) const {
     for (auto const &tuple : pool_) {
-        for (auto const &term : tuple) {
-            term->variables(vars, mode);
+        for (auto const &elem : tuple) {
+            visit_variant(
+                elem, [&](STerm const &term) { term->variables(vars, mode); }, [](auto const &) {});
         }
     }
 }

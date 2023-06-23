@@ -266,7 +266,7 @@ struct statement_project {
         lexy::new_<StatementProjectSig, SStatement>,
         [](bool has_sign, std::string name, std::optional<STermVecVec> pool, SBodyLiteralVec body) {
             STerm atom =
-                construct_shared<TermFunction, Term>(std::move(name), std::move(pool).value_or(STermVecVec{}), false);
+                construct_shared<TermFunction, Term>(std::move(name), detail::empty_args(std::move(pool)), false);
             if (has_sign) {
                 atom = construct_shared<TermUnary, Term>(UnaryOperator::negate, std::move(atom));
             }
