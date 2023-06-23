@@ -166,7 +166,7 @@ void TheoryDefinition::print(std::ostream &out) const {
     out << "}.";
 }
 
-void TheoryDefinition::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+void TheoryDefinition::unpool(PoolStatement &pool) { pool.append(this); }
 
 ////////// StatementOptimize //////////
 
@@ -289,7 +289,7 @@ void StatementShowSig::print(std::ostream &out) const {
     out << "#show " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementShowSig::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+void StatementShowSig::unpool(PoolStatement &pool) { pool.append(this); }
 
 ////////// StatementProject //////////
 
@@ -315,7 +315,7 @@ void StatementProjectSig::print(std::ostream &out) const {
     out << "#project " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementProjectSig::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+void StatementProjectSig::unpool(PoolStatement &pool) { pool.append(this); }
 
 ////////// StatementDefined //////////
 
@@ -323,7 +323,7 @@ void StatementDefined::print(std::ostream &out) const {
     out << "#defined " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementDefined::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+void StatementDefined::unpool(PoolStatement &pool) { pool.append(this); }
 
 ////////// StatementExternal //////////
 
@@ -435,7 +435,7 @@ auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
 
 void StatementScript::print(std::ostream &out) const { out << "#script (" << type_ << ")" << content_ << "#end."; }
 
-void StatementScript::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+void StatementScript::unpool(PoolStatement &pool) { pool.append(this); }
 
 ////////// StatementInclude //////////
 
@@ -463,7 +463,7 @@ void StatementInclude::print(std::ostream &out) const {
     }
 }
 
-void StatementInclude::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+void StatementInclude::unpool(PoolStatement &pool) { pool.append(this); }
 
 ////////// StatementProgram //////////
 
@@ -475,7 +475,7 @@ void StatementProgram::print(std::ostream &out) const {
     out << ".";
 }
 
-void StatementProgram::unpool(PoolStatement &pool) { static_cast<void>(pool); }
+void StatementProgram::unpool(PoolStatement &pool) { pool.append(this); }
 
 ////////// StatementConst //////////
 
