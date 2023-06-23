@@ -9,8 +9,9 @@
   * fix `add_theory_atom_with_guard` in Python API
   * fix AST bugs (#403)
   * fix parsing of hexadecimal numbers (#421)
+  * fix assignment aggregates (#436)
   * make sure `clingo_control_ground` is re-entrant (#418)
-  * update clasp
+  * update clasp and dependencies
 
 ## clingo 5.6.2
 
