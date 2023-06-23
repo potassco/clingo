@@ -120,7 +120,7 @@ void addVars(ChkLvlVec &levels, VarTermBoundVec &vars);
 // }}}
 // {{{ declaration of ToGroundArg
 
-using CreateLit     = std::function<void (Ground::ULitVec &, bool, bool)>;
+using CreateLit     = std::function<void (Ground::ULitVec &, bool)>;
 using CreateStm     = std::function<Ground::UStm (Ground::ULitVec &&)>;
 using CreateStmVec  = std::vector<CreateStm>;
 using CreateBody    = std::pair<CreateLit, CreateStmVec>;
