@@ -24,6 +24,22 @@ struct p_tuple {
 
 } // namespace
 
+auto NameGen::new_name() -> std::string {
+    while (true) {
+        std::string name = "__aux_" + std::to_string(num_);
+        ++num_;
+        if (!vars_.contains(name)) {
+            return name;
+        }
+    }
+}
+
+auto Projection::disable() const -> Projection { return Projection{gen_, false}; }
+
+auto Projection::enabled() const -> bool { return enabled_; }
+
+auto Projection::new_name() const -> std::string { return gen_.new_name(); }
+
 auto operator<<(std::ostream &out, TermType type) -> std::ostream & {
     out << "TODO: type";
     return out;

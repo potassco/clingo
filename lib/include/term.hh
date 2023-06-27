@@ -63,6 +63,29 @@ enum VariableSelectMode {
 using VariableSet = std::unordered_set<std::string>;
 using VariableVec = std::vector<std::string>;
 
+class NameGen {
+  public:
+    NameGen(VariableSet vars) : vars_{std::move(vars)} {}
+    [[nodiscard]] auto new_name() -> std::string;
+
+  private:
+    VariableSet vars_;
+    size_t num_;
+};
+
+class Projection {
+  public:
+    explicit Projection(NameGen &gen) : gen_{gen}, enabled_{true} {};
+    [[nodiscard]] auto disable() const -> Projection;
+    [[nodiscard]] auto enabled() const -> bool;
+    [[nodiscard]] auto new_name() const -> std::string;
+
+  private:
+    explicit Projection(NameGen &gen, bool enabled) : gen_{gen}, enabled_{enabled} {}
+    NameGen &gen_;
+    bool const enabled_;
+};
+
 class Term {
   public:
     virtual ~Term() = default;

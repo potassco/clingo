@@ -98,3 +98,79 @@ template <class X, class Y>
 template <typename T, typename B = T, typename... Args> auto construct_shared(Args &&...args) {
     return shared_ptr<B>{new T{std::forward<Args>(args)...}};
 }
+
+template <typename T> class single_owner_ptr {
+  public:
+    using element_type = T;
+
+    constexpr single_owner_ptr() noexcept : ptr_{nullptr}, owner_{true} {}
+
+    single_owner_ptr(single_owner_ptr const &other) noexcept : ptr_{other.ptr_}, owner_{false} {}
+
+    template <typename Y, typename = std::enable_if_t<std::is_base_of_v<T, Y>>>
+    single_owner_ptr(single_owner_ptr<Y> const &other) noexcept : ptr_{other.ptr_}, owner_{false} {}
+
+    single_owner_ptr(single_owner_ptr &&other) noexcept : ptr_{other.ptr_}, owner_{other.owner_} {
+        other.ptr_ = nullptr;
+        other.owner_ = false;
+    }
+
+    template <typename Y, typename = std::enable_if_t<std::is_base_of_v<T, Y>>>
+    single_owner_ptr(single_owner_ptr<Y> &&other) noexcept : ptr_{other.ptr_}, owner_{other.owner_} {
+        other.ptr_ = nullptr;
+        other.owner_ = false;
+    }
+
+    auto operator=(single_owner_ptr const &other) -> single_owner_ptr & {
+        if (ptr_ != other.ptr_) {
+            ~single_owner_ptr();
+            ptr_ = other.ptr_;
+            owner_ = false;
+        }
+        return *this;
+    }
+
+    auto operator=(single_owner_ptr &&other) noexcept -> single_owner_ptr & {
+        std::swap(ptr_, other.ptr_);
+        return *this;
+    }
+
+    [[nodiscard]] explicit operator bool() const noexcept { return ptr_ != nullptr; }
+
+    [[nodiscard]] auto is_owner() const noexcept -> bool { return owner_; }
+
+    [[nodiscard]] auto get() const noexcept -> element_type * { return ptr_; }
+
+    [[nodiscard]] auto operator*() const noexcept -> element_type & { return *ptr_; }
+
+    auto operator->() const noexcept -> element_type * { return ptr_; }
+
+    ~single_owner_ptr() {
+        if (owner_) {
+            delete ptr_;
+        }
+    }
+
+  private:
+    template <typename Y> friend class single_owner_ptr;
+    template <typename Y, typename B, typename... Args> friend auto construct_single(Args &&...args);
+
+    explicit single_owner_ptr(element_type *ptr) noexcept : ptr_{ptr}, owner_{true} {}
+
+    element_type *ptr_;
+    bool owner_;
+};
+
+template <class X, class Y>
+[[nodiscard]] auto operator==(const single_owner_ptr<X> &lhs, const single_owner_ptr<Y> &rhs) noexcept -> bool {
+    return lhs.get() == rhs.get();
+}
+
+template <class X, class Y>
+[[nodiscard]] auto operator!=(const single_owner_ptr<X> &lhs, const single_owner_ptr<Y> &rhs) noexcept -> bool {
+    return lhs.get() != rhs.get();
+}
+
+template <typename T, typename B = T, typename... Args> auto construct_single(Args &&...args) {
+    return single_owner_ptr<B>{new T{std::forward<Args>(args)...}};
+}

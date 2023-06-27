@@ -18,6 +18,20 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 
 // TODO 0:
 // - proper handling of anonymous variables
+//   - have to be replaced with unique names in a first step
+//   - should be done before unpooling
+//   - as an optimization should be replaced by projection `*` whenever safe
+//   - projection `*` should be introduced
+//   - add new syntax to tell the system how to project
+//     - #projection a(*,f(*,1)).
+//     - #projection a(X,f(*,X)).
+//     - #projection b(*,*).
+//     - these will be implicitly given by the literals in the program.
+//     - however, for multishot encodings it might be nice to have them, right away.
+//     - rethink, this last point
+//     - programs with variables should actually be added right away
+//       (maybe even loading programs later was an unnecessary complication)
+//
 // - currently clingo projects anonymous variables
 //   - a(X) :- b(X,_).
 //     - a(X) :- b(X).
@@ -28,6 +42,8 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 //       - the task of the input module should not go beyond replacing safe to project anonymous variables with *
 //       - #projection { b(X,*) }.
 //       - projections make only sense as arguments of tuples and functions
+//
+// - make the whole data structure immutable
 //
 // TODO 1:
 // - comparison literals should be normalized
