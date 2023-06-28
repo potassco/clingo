@@ -22,6 +22,11 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 //   - should be done before unpooling
 //   - as an optimization should be replaced by projection `*` whenever safe
 //   - projection `*` should be introduced
+//     - consider making this an actual symbol
+//     - usage has to be restricted to positional arguments
+//     - it must not be used in strictly positive locations
+//     - projection rules to derive actual atoms with stars are added behind the scenes
+//     - should play nicley with unification because it can be considered like a variable
 //   - add new syntax to tell the system how to project
 //     - #projection a(*,f(*,1)).
 //     - #projection a(X,f(*,X)).

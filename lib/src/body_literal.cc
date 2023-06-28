@@ -130,8 +130,10 @@ void BodyAggregate::visit_variables(std::function<void(std::string const &var)> 
 }
 
 auto BodyAggregate::project(Projection project) -> SBodyLiteral {
+    std::optional<ElementVec> elems;
     size_t n = 0;
     for (auto const &[tuple, cond] : elems_) {
+        // add counts of local variables
         std::unordered_map<std::string, size_t> counts;
         auto visit = [&project, &counts](std::string const &var) {
             if (!project.counts().contains(var)) {
@@ -148,16 +150,27 @@ auto BodyAggregate::project(Projection project) -> SBodyLiteral {
             counts[var] += count;
         }
         auto sub_project = Projection{counts};
+
+        // project literals in condition
+        size_t m = 0;
+        if (elems.has_value()) {
+            elems->emplace_back(tuple, copy_n(cond, m));
+        }
         for (auto const &lit : cond) {
             auto projected_lit = lit->project(sub_project);
-            if (projected_lit != lit) {
-                // TODO:
-                // - copy previous elements
-                // - insert the projected one
-                throw std::logic_error("implement me!!!");
+            if (projected_lit != lit && !elems.has_value()) {
+                elems = copy_n(elems_, n);
+                elems->emplace_back(tuple, copy_n(cond, m));
             }
+            if (elems.has_value()) {
+                std::get<1>(elems->back()).emplace_back(projected_lit);
+            }
+            ++m;
         }
         ++n;
+    }
+    if (elems.has_value()) {
+        return construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, std::move(elems).value(), rhs_);
     }
     return SBodyLiteral{this};
 }
@@ -185,8 +198,11 @@ void BodySetAggregate::visit_variables(std::function<void(std::string const &var
 }
 
 auto BodySetAggregate::project(Projection project) -> SBodyLiteral {
-    // almost the same as BodyAggregate::project
-    throw std::logic_error("implement me!!!");
+    auto projected = aggr_.project(project, true);
+    if (projected.has_value()) {
+        return construct_shared<BodySetAggregate, BodyLiteral>(sign_, std::move(projected).value());
+    }
+    return SBodyLiteral{this};
 }
 
 ////////// BodyTheoryAtom //////////

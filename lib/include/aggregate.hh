@@ -40,12 +40,15 @@ class SetAggregate {
     using ElementVec = std::vector<Element>;
 
     SetAggregate(ElementVec elems) : elems_{std::move(elems)} {}
+    SetAggregate(LGuard lhs, ElementVec elems, RGuard rhs)
+        : elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
     SetAggregate(ElementVec elems, Relation rel, STerm rhs)
         : elems_{std::move(elems)}, rhs_(std::make_pair(rel, std::move(rhs))) {}
 
     void set_rhs(STerm lhs, Relation rel);
     void unpool(PoolLiteral &pool, std::function<void(std::optional<SetAggregate>)> cb);
     void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
+    auto project(Projection project, bool project_lit) -> std::optional<SetAggregate>;
 
     friend auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream &;
 

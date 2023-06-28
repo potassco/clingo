@@ -109,3 +109,52 @@ void SetAggregate::visit_variables(std::function<void(std::string const &var)> f
         }
     }
 }
+
+auto SetAggregate::project(Projection project, bool project_lit) -> std::optional<SetAggregate> {
+    std::optional<ElementVec> elems;
+    size_t n = 0;
+    for (auto const &[lit, cond] : elems_) {
+        // add counts of local variables
+        std::unordered_map<std::string, size_t> counts;
+        auto visit = [&project, &counts](std::string const &var) {
+            if (!project.counts().contains(var)) {
+                ++counts[var];
+            }
+        };
+        lit->visit_variables(visit);
+        for (auto const &lit : cond) {
+            lit->visit_variables(visit);
+        }
+        for (auto const &[var, count] : project.counts()) {
+            counts[var] += count;
+        }
+        auto sub_project = Projection{counts};
+
+        // project literal if requested
+        size_t m = 0;
+        auto projected_lit = project_lit ? lit->project(project) : lit;
+        if (projected_lit != lit && !elems.has_value()) {
+            elems = copy_n(elems_, n);
+        }
+        if (elems.has_value()) {
+            elems->emplace_back(projected_lit, copy_n(cond, m));
+        }
+        // project literals in condition
+        for (auto const &lit : cond) {
+            auto projected_lit = lit->project(sub_project);
+            if (projected_lit != lit && !elems.has_value()) {
+                elems = copy_n(elems_, n);
+                elems->emplace_back(lit, copy_n(cond, m));
+            }
+            if (elems.has_value()) {
+                std::get<1>(elems->back()).emplace_back(projected_lit);
+            }
+            ++m;
+        }
+        ++n;
+    }
+    if (elems.has_value()) {
+        return SetAggregate{lhs_, std::move(elems).value(), rhs_};
+    }
+    return std::nullopt;
+}
