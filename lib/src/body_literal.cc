@@ -32,7 +32,7 @@ auto operator<<(std::ostream &out, BodyLiteral const &literal) -> std::ostream &
 
 void Conjunction::add_sign(Sign sign) {
     if (elems_.size() != 1 || elems_.front().first.size() != 1) {
-        throw std::runtime_error("there must be exactly one element");
+        throw std::logic_error("there must be exactly one element");
     }
     elems_.front().first.front()->add_sign(sign);
 }
@@ -41,6 +41,14 @@ void Conjunction::print(std::ostream &out) const { print_cond_lits(elems_, globa
 
 void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits(this, pool, global_, elems_); }
 
+void Conjunction::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    cond_visit_variables(elems_, global_, fun, ctx);
+}
+
+auto Conjunction::project(Projection project) -> SBodyLiteral {
+    // very similar to BodyAggregate::project
+    throw std::logic_error("implement me!!!");
+}
 ////////// BodyAggregate //////////
 
 void BodyAggregate::add_sign(Sign sign) { sign_ += sign; }
@@ -100,6 +108,60 @@ void BodyAggregate::unpool(PoolBodyLiteral &pool) {
         unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool, rhs_));
 }
 
+void BodyAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    if (ctx != VariableContext::local) {
+        if (lhs_.has_value()) {
+            lhs_->first->visit_variables(fun);
+        }
+        if (rhs_.has_value()) {
+            rhs_->second->visit_variables(fun);
+        }
+    }
+    if (ctx != VariableContext::global) {
+        for (auto const &[tuple, cond] : elems_) {
+            for (auto const &term : tuple) {
+                term->visit_variables(fun);
+            }
+            for (auto const &lit : cond) {
+                lit->visit_variables(fun);
+            }
+        }
+    }
+}
+
+auto BodyAggregate::project(Projection project) -> SBodyLiteral {
+    size_t n = 0;
+    for (auto const &[tuple, cond] : elems_) {
+        std::unordered_map<std::string, size_t> counts;
+        auto visit = [&project, &counts](std::string const &var) {
+            if (!project.counts().contains(var)) {
+                ++counts[var];
+            }
+        };
+        for (auto const &term : tuple) {
+            term->visit_variables(visit);
+        }
+        for (auto const &lit : cond) {
+            lit->visit_variables(visit);
+        }
+        for (auto const &[var, count] : project.counts()) {
+            counts[var] += count;
+        }
+        auto sub_project = Projection{counts};
+        for (auto const &lit : cond) {
+            auto projected_lit = lit->project(sub_project);
+            if (projected_lit != lit) {
+                // TODO:
+                // - copy previous elements
+                // - insert the projected one
+                throw std::logic_error("implement me!!!");
+            }
+        }
+        ++n;
+    }
+    return SBodyLiteral{this};
+}
+
 ////////// BodySetAggregate //////////
 
 void BodySetAggregate::unpool(PoolBodyLiteral &pool) {
@@ -118,6 +180,15 @@ void BodySetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(s
 
 void BodySetAggregate::print(std::ostream &out) const { out << sign_ << aggr_; }
 
+void BodySetAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    aggr_.visit_variables(fun, ctx);
+}
+
+auto BodySetAggregate::project(Projection project) -> SBodyLiteral {
+    // almost the same as BodyAggregate::project
+    throw std::logic_error("implement me!!!");
+}
+
 ////////// BodyTheoryAtom //////////
 
 void BodyTheoryAtom::unpool(PoolBodyLiteral &pool) {
@@ -133,3 +204,12 @@ void BodyTheoryAtom::unpool(PoolBodyLiteral &pool) {
 void BodyTheoryAtom::add_sign(Sign sign) { sign_ += sign; }
 
 void BodyTheoryAtom::print(std::ostream &out) const { out << sign_ << atom_; }
+
+void BodyTheoryAtom::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    atom_.visit_variables(fun, ctx);
+}
+
+auto BodyTheoryAtom::project(Projection project) -> SBodyLiteral {
+    // almost the same as BodyAggregate::project
+    throw std::logic_error("implement me!!!");
+}

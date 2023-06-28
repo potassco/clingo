@@ -15,12 +15,16 @@ class BodyLiteral {
   public:
     virtual ~BodyLiteral() = default;
 
-    virtual void add_sign(Sign sign) = 0;
-    virtual void unpool(PoolBodyLiteral &pool) = 0;
-    virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, BodyLiteral const &literal) -> std::ostream &;
     auto unpool() -> SBodyLiteralVec;
+
+    virtual void add_sign(Sign sign) = 0;
+    virtual void unpool(PoolBodyLiteral &pool) = 0;
+    virtual void print(std::ostream &out) const = 0;
+    /// Visits variables occuring globally.
+    virtual void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const = 0;
+    [[nodiscard]] virtual auto project(Projection project) -> SBodyLiteral = 0;
 
     size_t refs = 0;
 };
@@ -35,6 +39,8 @@ class Conjunction : public BodyLiteral {
     void add_sign(Sign sign) override;
     void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project(Projection project) -> SBodyLiteral override;
 
   private:
     VariableVec global_;
@@ -56,6 +62,8 @@ class BodyAggregate : public BodyLiteral {
     void set_left_guard(STerm lhs, Relation rel);
     void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project(Projection project) -> SBodyLiteral override;
 
   private:
     Sign sign_ = Sign::none;
@@ -74,6 +82,8 @@ class BodySetAggregate : public BodyLiteral {
     void set_left_guard(STerm lhs, Relation rel);
     void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project(Projection project) -> SBodyLiteral override;
 
   private:
     Sign sign_ = Sign::none;
@@ -88,6 +98,8 @@ class BodyTheoryAtom : public BodyLiteral {
     void add_sign(Sign sign) override;
     void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project(Projection project) -> SBodyLiteral override;
 
   private:
     Sign sign_ = Sign::none;

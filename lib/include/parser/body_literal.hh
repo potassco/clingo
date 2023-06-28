@@ -21,10 +21,9 @@ inline auto construct_body_aggr(SetAggregate aggr) -> SBodySetAggregate {
 }
 
 auto construct_conjunction(SLiteral lit, SLiteralVec cond) {
-    VariableSet global;
-    lit->variables(global, VariableSelectMode::add);
+    auto global = select_variables(*lit, VariableSelectMode::add);
     for (auto &lit : cond) {
-        lit->variables(global, VariableSelectMode::del);
+        select_variables(*lit, global, VariableSelectMode::del);
     }
     auto vars = VariableVec{global.begin(), global.end()};
     std::sort(vars.begin(), vars.end());

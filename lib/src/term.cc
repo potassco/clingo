@@ -22,6 +22,14 @@ struct p_tuple {
     }
 };
 
+auto projectable(Projection &project, STerm const *term) -> bool {
+    if (term == nullptr) {
+        return false;
+    }
+    auto const *var = dynamic_cast<TermVariable const *>(term->get());
+    return var != nullptr && project.projectable(var->name());
+}
+
 } // namespace
 
 auto NameGen::new_name() -> std::string {
@@ -34,11 +42,12 @@ auto NameGen::new_name() -> std::string {
     }
 }
 
-auto Projection::disable() const -> Projection { return Projection{gen_, false}; }
+auto Projection::projectable(std::string const &var) const -> bool {
+    auto it = counts_.find(var);
+    return it == counts_.end() && it->second == 1;
+}
 
-auto Projection::enabled() const -> bool { return enabled_; }
-
-auto Projection::new_name() const -> std::string { return gen_.new_name(); }
+[[nodiscard]] auto Projection::counts() const -> std::unordered_map<std::string, size_t> const & { return counts_; }
 
 auto operator<<(std::ostream &out, TermType type) -> std::ostream & {
     out << "TODO: type";
@@ -50,7 +59,7 @@ auto operator<<(std::ostream &out, Attribute attr) -> std::ostream & {
     return out;
 }
 
-[[nodiscard]] auto Term::to_string() const -> std::string {
+auto Term::to_string() const -> std::string {
     std::ostringstream out;
     out << *this;
     return out.str();
@@ -68,37 +77,37 @@ auto Term::unpool() -> STermVec {
     return terms;
 }
 
-[[nodiscard]] auto Term::get_int(Attribute attr) -> int & {
+auto Term::get_int(Attribute attr) -> int & {
     std::ostringstream out;
     out << "unknown attribute: " << attr;
     throw std::runtime_error(out.str().c_str());
 }
 
-[[nodiscard]] auto Term::get_ast(Attribute attr) -> STerm & {
+auto Term::get_ast(Attribute attr) -> STerm & {
     std::ostringstream out;
     out << "unknown attribute: " << attr;
     throw std::runtime_error(out.str().c_str());
 }
 
-[[nodiscard]] auto Term::get_ast_vec(Attribute attr) -> STermVec & {
+auto Term::get_ast_vec(Attribute attr) -> STermVec & {
     std::ostringstream out;
     out << "unknown attribute: " << attr;
     throw std::runtime_error(out.str().c_str());
 }
 
-[[nodiscard]] auto Term::get_ast_vec_vec(Attribute attr) -> STermVecVec & {
+auto Term::get_ast_vec_vec(Attribute attr) -> STermVecVec & {
     std::ostringstream out;
     out << "unknown attribute: " << attr;
     throw std::runtime_error(out.str().c_str());
 }
 
-[[nodiscard]] auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool { return false; }
+auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool { return false; }
 
 ////////// TermSymbol //////////
 
 void TermSymbol::print(std::ostream &out) const { out << value_; }
 
-[[nodiscard]] auto TermSymbol::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
+auto TermSymbol::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     return visit_variant(
         value_,
         [&](int value) {
@@ -135,14 +144,16 @@ auto TermSymbol::is_equal(Term const &other) const -> bool {
 
 auto TermSymbol::hash() const -> size_t { return value_hash(typeid(TermSymbol), value_); }
 
-void TermSymbol::variables(VariableSet &vars, VariableSelectMode mode) const {
-    static_cast<void>(vars);
-    static_cast<void>(mode);
+void TermSymbol::visit_variables(std::function<void(std::string const &var)> fun) const { static_cast<void>(fun); }
+
+auto TermSymbol::project(Projection project) -> STerm {
+    static_cast<void>(project);
+    return STerm{this};
 }
 
-[[nodiscard]] auto TermSymbol::type() const -> TermType { return TermType::TermSymbol; }
+auto TermSymbol::type() const -> TermType { return TermType::TermSymbol; }
 
-[[nodiscard]] auto TermSymbol::get_int(Attribute attr) -> int & {
+auto TermSymbol::get_int(Attribute attr) -> int & {
     switch (attr) {
         case Attribute::Value: {
             return reinterpret_cast<int &>(value_);
@@ -172,7 +183,7 @@ void TermTuple::print(std::ostream &out) const {
     }
 }
 
-[[nodiscard]] auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
+auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
 
 auto TermTuple::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermTuple const *>(&other);
@@ -181,18 +192,56 @@ auto TermTuple::is_equal(Term const &other) const -> bool {
 
 auto TermTuple::hash() const -> size_t { return value_hash(typeid(TermTuple), pool_); }
 
-void TermTuple::variables(VariableSet &vars, VariableSelectMode mode) const {
+void TermTuple::visit_variables(std::function<void(std::string const &var)> fun) const {
     for (auto const &tuple_or_term : pool_) {
         visit_variant(
-            tuple_or_term, [&](STerm const &term) { term->variables(vars, mode); },
+            tuple_or_term, [&](STerm const &term) { term->visit_variables(fun); },
             [&](TupleVec const &tuple) {
                 for (auto const &elem : tuple) {
                     if (auto const *term = std::get_if<STerm>(&elem)) {
-                        term->get()->variables(vars, mode);
+                        term->get()->visit_variables(fun);
                     }
                 }
             });
     }
+}
+
+auto TermTuple::project(Projection project) -> STerm {
+    size_t n = 0;
+    std::optional<ElementVec> ret;
+    for (auto const &tuple_or_term : pool_) {
+        visit_variant(
+            tuple_or_term,
+            [&](STerm const &term) {
+                if (ret.has_value()) {
+                    ret->emplace_back(term);
+                }
+            },
+            [&](TupleVec const &tuple) {
+                size_t m = 0;
+                if (ret.has_value()) {
+                    ret->emplace_back(copy_n(tuple, m));
+                }
+                for (auto const &elem : tuple) {
+                    if (projectable(project, std::get_if<STerm>(&elem))) {
+                        if (!ret.has_value()) {
+                            ret = copy_n(pool_, n);
+                            ret->emplace_back(copy_n(tuple, m));
+                        }
+                        std::get<TupleVec>(ret->back()).emplace_back(std::monostate{});
+                    } else if (ret.has_value()) {
+                        std::get<TupleVec>(ret->back()).emplace_back(elem);
+                    }
+                    ++m;
+                }
+            });
+        ++n;
+    }
+
+    if (ret.has_value()) {
+        return construct_shared<TermTuple, Term>(std::move(ret).value());
+    }
+    return STerm{this};
 }
 
 void TermTuple::unpool(PoolTerm &pool) {
@@ -236,6 +285,8 @@ void TermTuple::unpool(PoolTerm &pool) {
 
 ////////// TermVariable //////////
 
+auto TermVariable::name() const -> std::string const & { return name_; }
+
 void TermVariable::print(std::ostream &out) const { out << name_; }
 
 auto TermVariable::is_equal(Term const &other) const -> bool {
@@ -247,14 +298,13 @@ auto TermVariable::hash() const -> size_t { return value_hash(typeid(TermVariabl
 
 void TermVariable::unpool(PoolTerm &pool) { pool.append(this); }
 
-[[nodiscard]] auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
+auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
 
-void TermVariable::variables(VariableSet &vars, VariableSelectMode mode) const {
-    if (mode == VariableSelectMode::add) {
-        vars.emplace(name_);
-    } else {
-        vars.erase(name_);
-    }
+void TermVariable::visit_variables(std::function<void(std::string const &var)> fun) const { fun(name_); }
+
+auto TermVariable::project(Projection project) -> STerm {
+    static_cast<void>(project);
+    return STerm{this};
 }
 
 ////////// TermAbs //////////
@@ -280,12 +330,17 @@ void TermAbs::unpool(PoolTerm &pool) {
         unpool_union(pool, pool_));
 }
 
-[[nodiscard]] auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
+auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
 
-void TermAbs::variables(VariableSet &vars, VariableSelectMode mode) const {
+void TermAbs::visit_variables(std::function<void(std::string const &var)> fun) const {
     for (auto const &term : pool_) {
-        term->variables(vars, mode);
+        term->visit_variables(fun);
     }
+}
+
+auto TermAbs::project(Projection project) -> STerm {
+    static_cast<void>(project);
+    return STerm{this};
 }
 
 ////////// TermFunction //////////
@@ -344,18 +399,51 @@ void TermFunction::unpool(PoolTerm &pool) {
     }
 }
 
-void TermFunction::variables(VariableSet &vars, VariableSelectMode mode) const {
+void TermFunction::visit_variables(std::function<void(std::string const &var)> fun) const {
     for (auto const &tuple : pool_) {
         for (auto const &elem : tuple) {
             visit_variant(
-                elem, [&](STerm const &term) { term->variables(vars, mode); }, [](auto const &) {});
+                elem, [&](STerm const &term) { term->visit_variables(fun); }, [](auto const &) {});
         }
     }
 }
 
-[[nodiscard]] auto TermFunction::type() const -> TermType { return TermType::TermFunction; }
+auto TermFunction::project(Projection project) -> STerm {
+    if (external_) {
+        return STerm{this};
+    }
 
-[[nodiscard]] auto TermFunction::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
+    size_t n = 0;
+    std::optional<PoolVec> ret;
+    for (auto const &tuple : pool_) {
+        size_t m = 0;
+        if (ret.has_value()) {
+            ret->emplace_back(copy_n(tuple, m));
+        }
+        for (auto const &elem : tuple) {
+            if (projectable(project, std::get_if<STerm>(&elem))) {
+                if (!ret.has_value()) {
+                    ret = copy_n(pool_, n);
+                    ret->emplace_back(copy_n(tuple, m));
+                }
+                ret->back().emplace_back(std::monostate{});
+            } else if (ret.has_value()) {
+                ret->back().emplace_back(elem);
+            }
+            ++m;
+        }
+        ++n;
+    }
+
+    if (ret.has_value()) {
+        return construct_shared<TermFunction, Term>(name_, std::move(ret).value(), external_);
+    }
+    return STerm{this};
+}
+
+auto TermFunction::type() const -> TermType { return TermType::TermFunction; }
+
+auto TermFunction::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::atom) {
         return !external_;
     }
@@ -397,9 +485,9 @@ void TermUnary::unpool(PoolTerm &pool) {
         unpool_element(pool, rhs_));
 }
 
-[[nodiscard]] auto TermUnary::type() const -> TermType { return TermType::TermUnary; }
+auto TermUnary::type() const -> TermType { return TermType::TermUnary; }
 
-[[nodiscard]] auto TermUnary::get_int(Attribute attr) -> int & {
+auto TermUnary::get_int(Attribute attr) -> int & {
     switch (attr) {
         case Attribute::Operator: {
             return reinterpret_cast<int &>(op_);
@@ -410,7 +498,7 @@ void TermUnary::unpool(PoolTerm &pool) {
     }
 }
 
-[[nodiscard]] auto TermUnary::get_ast(Attribute attr) -> STerm & {
+auto TermUnary::get_ast(Attribute attr) -> STerm & {
     switch (attr) {
         case Attribute::Right: {
             return rhs_;
@@ -421,7 +509,7 @@ void TermUnary::unpool(PoolTerm &pool) {
     }
 }
 
-[[nodiscard]] auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
+auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::atom) {
         return op_ == UnaryOperator::negate && rhs_->check_type(type);
     }
@@ -435,7 +523,12 @@ void TermUnary::unpool(PoolTerm &pool) {
     return false;
 }
 
-void TermUnary::variables(VariableSet &vars, VariableSelectMode mode) const { rhs_->variables(vars, mode); }
+void TermUnary::visit_variables(std::function<void(std::string const &var)> fun) const { rhs_->visit_variables(fun); }
+
+auto TermUnary::project(Projection project) -> STerm {
+    static_cast<void>(project);
+    return STerm{this};
+}
 
 ////////// TermBinary //////////
 
@@ -506,9 +599,9 @@ void TermBinary::unpool(PoolTerm &pool) {
         unpool_element(pool, lhs_), unpool_element(pool, rhs_));
 }
 
-[[nodiscard]] auto TermBinary::type() const -> TermType { return TermType::TermBinary; }
+auto TermBinary::type() const -> TermType { return TermType::TermBinary; }
 
-[[nodiscard]] auto TermBinary::get_int(Attribute attr) -> int & {
+auto TermBinary::get_int(Attribute attr) -> int & {
     switch (attr) {
         case Attribute::Operator: {
             return reinterpret_cast<int &>(op_);
@@ -519,7 +612,7 @@ void TermBinary::unpool(PoolTerm &pool) {
     }
 }
 
-[[nodiscard]] auto TermBinary::get_ast(Attribute attr) -> STerm & {
+auto TermBinary::get_ast(Attribute attr) -> STerm & {
     switch (attr) {
         case Attribute::Left: {
             return lhs_;
@@ -533,7 +626,7 @@ void TermBinary::unpool(PoolTerm &pool) {
     }
 }
 
-[[nodiscard]] auto TermBinary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
+auto TermBinary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::sig) {
         return op_ == BinaryOperator::div && lhs_->check_type(TermCheckType::signed_identifier, res) &&
                rhs_->check_type(TermCheckType::pos_number, res);
@@ -541,7 +634,12 @@ void TermBinary::unpool(PoolTerm &pool) {
     return false;
 }
 
-void TermBinary::variables(VariableSet &vars, VariableSelectMode mode) const {
-    lhs_->variables(vars, mode);
-    rhs_->variables(vars, mode);
+void TermBinary::visit_variables(std::function<void(std::string const &var)> fun) const {
+    lhs_->visit_variables(fun);
+    rhs_->visit_variables(fun);
+}
+
+auto TermBinary::project(Projection project) -> STerm {
+    static_cast<void>(project);
+    return STerm{this};
 }

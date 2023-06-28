@@ -37,6 +37,13 @@ void TheoryTermUnparsed::print(std::ostream &out) const {
     }
 }
 
+void TheoryTermUnparsed::visit_variables(std::function<void(std::string const &var)> fun) const {
+    term_->visit_variables(fun);
+    for (auto const &guard : rhs_) {
+        guard.second->visit_variables(fun);
+    }
+}
+
 ////////// TheoryTermTuple //////////
 
 auto left_bracket(TheoryTermTupleType type) -> char {
@@ -77,13 +84,25 @@ void TheoryTermTuple::print(std::ostream &out) const {
     out << right_bracket(type_);
 }
 
+void TheoryTermTuple::visit_variables(std::function<void(std::string const &var)> fun) const {
+    for (auto const &term : elems_) {
+        term->visit_variables(fun);
+    }
+}
+
 ////////// TheoryTermConstant //////////
 
 void TheoryTermSymbol::print(std::ostream &out) const { out << value_; }
 
+void TheoryTermSymbol::visit_variables(std::function<void(std::string const &var)> fun) const {
+    static_cast<void>(fun);
+}
+
 ////////// TheoryTermVariable //////////
 
 void TheoryTermVariable::print(std::ostream &out) const { out << name_; }
+
+void TheoryTermVariable::visit_variables(std::function<void(std::string const &var)> fun) const { fun(name_); }
 
 ////////// TheoryTermFunction //////////
 
@@ -91,6 +110,12 @@ void TheoryTermFunction::print(std::ostream &out) const {
     out << name_;
     if (!args_.empty()) {
         out << "(" << p_range(args_) << ")";
+    }
+}
+
+void TheoryTermFunction::visit_variables(std::function<void(std::string const &var)> fun) const {
+    for (auto const &term : args_) {
+        term->visit_variables(fun);
     }
 }
 
@@ -142,4 +167,23 @@ auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
         out << " " << atom.rhs_.value().first << " " << *atom.rhs_.value().second;
     }
     return out;
+}
+
+void TheoryAtom::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    if (ctx != VariableContext::local) {
+        name_->visit_variables(fun);
+        if (rhs_.has_value()) {
+            rhs_->second->visit_variables(fun);
+        }
+    }
+    if (ctx != VariableContext::global) {
+        for (auto const &[tuple, cond] : elems_) {
+            for (auto const &term : tuple) {
+                term->visit_variables(fun);
+            }
+            for (auto const &lit : cond) {
+                lit->visit_variables(fun);
+            }
+        }
+    }
 }

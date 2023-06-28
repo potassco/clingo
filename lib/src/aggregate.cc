@@ -90,3 +90,22 @@ auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream & {
     }
     return out;
 }
+
+void SetAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    if (ctx != VariableContext::local) {
+        if (lhs_.has_value()) {
+            lhs_->first->visit_variables(fun);
+        }
+        if (rhs_.has_value()) {
+            rhs_->second->visit_variables(fun);
+        }
+    }
+    if (ctx != VariableContext::global) {
+        for (auto const &[lit, cond] : elems_) {
+            lit->visit_variables(fun);
+            for (auto const &lit : cond) {
+                lit->visit_variables(fun);
+            }
+        }
+    }
+}

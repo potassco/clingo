@@ -45,6 +45,7 @@ class SetAggregate {
 
     void set_rhs(STerm lhs, Relation rel);
     void unpool(PoolLiteral &pool, std::function<void(std::optional<SetAggregate>)> cb);
+    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
 
     friend auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream &;
 

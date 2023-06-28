@@ -63,10 +63,10 @@ void unpool_cond_lits(T *self, P &pool, VariableVec const &global, typename T::E
             auto var_set = VariableSet{};
             for (auto const &elem : unpooled) {
                 for (auto const &lit : elem.first) {
-                    lit->variables(var_set, VariableSelectMode::add);
+                    select_variables(*lit, var_set, VariableSelectMode::add);
                 }
                 for (auto const &lit : elem.second) {
-                    lit->variables(var_set, VariableSelectMode::add);
+                    select_variables(*lit, var_set, VariableSelectMode::add);
                 }
             }
             auto var_vec = std::vector<std::string>{};
@@ -86,9 +86,9 @@ auto is_simple_cond_lits(auto const &elems, auto const &global) -> bool {
         }
         lit_vars.clear();
         cond_vars.clear();
-        elem.first.front()->variables(lit_vars, VariableSelectMode::add);
+        select_variables(*elem.first.front(), lit_vars, VariableSelectMode::add);
         for (auto const &lit : elems.front().second) {
-            lit->variables(cond_vars, VariableSelectMode::add);
+            select_variables(*lit, cond_vars, VariableSelectMode::add);
         }
         if (std::any_of(global.begin(), global.end(), [&](auto const &var) { return cond_vars.contains(var); })) {
             return false;
@@ -121,4 +121,36 @@ void print_cond_lits(auto const &elems, auto const &global, std::ostream &out, c
     }
 }
 
+void cond_visit_variables(auto const &elems, auto const &global, std::function<void(std::string const &var)> fun,
+                          VariableContext ctx) {
+    auto visit = [&](auto const &expr) {
+        switch (ctx) {
+            case VariableContext::global: {
+                expr.visit_variables([&global, fun](std::string const &var) {
+                    if (std::binary_search(global.begin(), global.end(), var)) {
+                        fun(var);
+                    }
+                });
+            }
+            case VariableContext::local: {
+                expr.visit_variables([&global, fun](std::string const &var) {
+                    if (!std::binary_search(global.begin(), global.end(), var)) {
+                        fun(var);
+                    }
+                });
+            }
+            case VariableContext::all: {
+                expr.visit_variables(fun);
+            }
+        }
+    };
+    for (auto const &elem : elems) {
+        for (auto const &lit : elem.first) {
+            visit(*lit);
+        }
+        for (auto const &lit : elem.second) {
+            visit(*lit);
+        }
+    }
+}
 } // namespace

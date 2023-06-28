@@ -23,12 +23,12 @@ auto construct_disjunction(Disjunction::ElementVec elems) {
     VariableSet global;
     for (auto &elem : elems) {
         for (auto &lit : elem.first) {
-            lit->variables(global, VariableSelectMode::add);
+            select_variables(*lit, global, VariableSelectMode::add);
         }
     }
     for (auto &elem : elems) {
         for (auto &lit : elem.second) {
-            lit->variables(global, VariableSelectMode::del);
+            select_variables(*lit, global, VariableSelectMode::del);
         }
     }
     auto vars = VariableVec{global.begin(), global.end()};

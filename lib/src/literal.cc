@@ -151,11 +151,16 @@ auto LiteralRelation::is_equal(Literal const &other) const -> bool {
 
 auto LiteralRelation::hash() const -> size_t { return value_hash(typeid(LiteralRelation), sign_, lhs_, rhs_); }
 
-void LiteralRelation::variables(VariableSet &vars, VariableSelectMode mode) const {
-    lhs_->variables(vars, mode);
+void LiteralRelation::visit_variables(std::function<void(std::string const &var)> fun) const {
+    lhs_->visit_variables(fun);
     for (auto const &guard : rhs_) {
-        guard.second->variables(vars, mode);
+        guard.second->visit_variables(fun);
     }
+}
+
+[[nodiscard]] auto LiteralRelation::project(Projection project) -> SLiteral {
+    static_cast<void>(project);
+    return SLiteral{this};
 }
 
 ////////// LiteralBoolean //////////
@@ -173,9 +178,11 @@ auto LiteralBoolean::is_equal(Literal const &other) const -> bool {
 
 auto LiteralBoolean::hash() const -> size_t { return value_hash(typeid(LiteralSymbolic), sign_, value_); }
 
-void LiteralBoolean::variables(VariableSet &vars, VariableSelectMode mode) const {
-    static_cast<void>(vars);
-    static_cast<void>(mode);
+void LiteralBoolean::visit_variables(std::function<void(std::string const &var)> fun) const { static_cast<void>(fun); }
+
+[[nodiscard]] auto LiteralBoolean::project(Projection project) -> SLiteral {
+    static_cast<void>(project);
+    return SLiteral{this};
 }
 
 ////////// LiteralSymbolic //////////
@@ -203,4 +210,16 @@ auto LiteralSymbolic::is_equal(Literal const &other) const -> bool {
 
 auto LiteralSymbolic::hash() const -> size_t { return value_hash(typeid(LiteralSymbolic), sign_, term_); }
 
-void LiteralSymbolic::variables(VariableSet &vars, VariableSelectMode mode) const { term_->variables(vars, mode); }
+void LiteralSymbolic::visit_variables(std::function<void(std::string const &var)> fun) const {
+    term_->visit_variables(fun);
+}
+
+[[nodiscard]] auto LiteralSymbolic::project(Projection project) -> SLiteral {
+    if (sign_ != Sign::once) {
+        auto term = term_->project(project);
+        if (term != term_) {
+            return construct_shared<LiteralSymbolic, Literal>(sign_, term);
+        }
+    }
+    return SLiteral{this};
+}

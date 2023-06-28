@@ -44,7 +44,8 @@ class Literal {
     [[nodiscard]] virtual auto is_equal(Literal const &other) const -> bool = 0;
     friend auto operator==(Literal const &a, Literal const &b) { return a.is_equal(b); }
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
-    virtual void variables(VariableSet &vars, VariableSelectMode mode) const = 0;
+    virtual void visit_variables(std::function<void(std::string const &var)> fun) const = 0;
+    [[nodiscard]] virtual auto project(Projection project) -> SLiteral = 0;
 
     size_t refs = 0;
 };
@@ -58,7 +59,8 @@ class LiteralRelation : public Literal {
     void unpool(PoolLiteral &pool) override;
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void variables(VariableSet &vars, VariableSelectMode mode) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    [[nodiscard]] auto project(Projection project) -> SLiteral override;
 
   private:
     Sign sign_;
@@ -75,7 +77,8 @@ class LiteralBoolean : public Literal {
     void unpool(PoolLiteral &pool) override;
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void variables(VariableSet &vars, VariableSelectMode mode) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    [[nodiscard]] auto project(Projection project) -> SLiteral override;
 
   private:
     Sign sign_;
@@ -91,7 +94,8 @@ class LiteralSymbolic : public Literal {
     void unpool(PoolLiteral &pool) override;
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void variables(VariableSet &vars, VariableSelectMode mode) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    [[nodiscard]] auto project(Projection project) -> SLiteral override;
 
   private:
     Sign sign_;

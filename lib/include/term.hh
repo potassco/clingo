@@ -11,6 +11,15 @@
 
 #include <symbol.hh>
 
+auto copy_n(auto const &vec, size_t n) {
+    std::decay_t<decltype(vec)> ret;
+    ret.reserve(vec.size());
+    for (auto it = vec.begin(), ie = it + n; it != ie; ++it) {
+        ret.emplace_back(*it);
+    }
+    return ret;
+}
+
 template <class T> class Pool;
 template <class T, class C> class PoolParent;
 
@@ -60,8 +69,28 @@ enum VariableSelectMode {
     del,
 };
 
+enum class VariableContext {
+    local,
+    global,
+    all,
+};
+
 using VariableSet = std::unordered_set<std::string>;
 using VariableVec = std::vector<std::string>;
+
+template <class E> void select_variables(E &expr, VariableSet &vars, VariableSelectMode mode) {
+    if (mode == VariableSelectMode::add) {
+        expr.visit_variables([&vars, mode](std::string const &var) { vars.emplace(var); });
+    } else {
+        expr.visit_variables([&vars, mode](std::string const &var) { vars.erase(var); });
+    }
+}
+
+template <class E> auto select_variables(E &expr, VariableSelectMode mode) -> VariableSet {
+    VariableSet vars;
+    select_variables(expr, vars, mode);
+    return vars;
+}
 
 class NameGen {
   public:
@@ -75,15 +104,13 @@ class NameGen {
 
 class Projection {
   public:
-    explicit Projection(NameGen &gen) : gen_{gen}, enabled_{true} {};
-    [[nodiscard]] auto disable() const -> Projection;
-    [[nodiscard]] auto enabled() const -> bool;
-    [[nodiscard]] auto new_name() const -> std::string;
+    explicit Projection(std::unordered_map<std::string, size_t> const &counts) : counts_{counts} {};
+    [[nodiscard]] auto projectable(std::string const &var) const -> bool;
+    [[nodiscard]] auto counts() const -> std::unordered_map<std::string, size_t> const &;
 
   private:
-    explicit Projection(NameGen &gen, bool enabled) : gen_{gen}, enabled_{enabled} {}
-    NameGen &gen_;
-    bool const enabled_;
+    // TODO: projection should happen after unpoolinghh
+    std::unordered_map<std::string, size_t> const &counts_;
 };
 
 class Term {
@@ -99,7 +126,8 @@ class Term {
     [[nodiscard]] virtual auto is_equal(Term const &other) const -> bool = 0;
     [[nodiscard]] friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
-    virtual void variables(VariableSet &vars, VariableSelectMode mode) const = 0;
+    virtual void visit_variables(std::function<void(std::string const &var)> fun) const = 0;
+    [[nodiscard]] virtual auto project(Projection project) -> STerm = 0;
 
     // AST interface
     [[nodiscard]] virtual auto type() const -> TermType = 0;
@@ -182,7 +210,8 @@ class TermSymbol : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void variables(VariableSet &vars, VariableSelectMode mode) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -203,7 +232,8 @@ class TermTuple : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void variables(VariableSet &vars, VariableSelectMode mode) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -216,12 +246,15 @@ class TermVariable : public Term {
   public:
     explicit TermVariable(std::string name) : name_{std::move(name)} {}
 
+    [[nodiscard]] auto name() const -> std::string const &;
+
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> TermType override;
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void variables(VariableSet &vars, VariableSelectMode mode) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    [[nodiscard]] auto project(Projection project) -> STerm override;
 
   private:
     std::string name_;
@@ -235,7 +268,8 @@ class TermAbs : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void variables(VariableSet &vars, VariableSelectMode mode) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -254,7 +288,8 @@ class TermFunction : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void variables(VariableSet &vars, VariableSelectMode mode) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -281,7 +316,8 @@ class TermUnary : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void variables(VariableSet &vars, VariableSelectMode mode) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -318,7 +354,8 @@ class TermBinary : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void variables(VariableSet &vars, VariableSelectMode mode) const override;
+    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
