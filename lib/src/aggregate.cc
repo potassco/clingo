@@ -140,9 +140,9 @@ auto SetAggregate::project(Projection project, bool project_lit) -> std::optiona
             elems->emplace_back(projected_lit, copy_n(cond, m));
         }
         // project literals in condition
-        for (auto const &lit : cond) {
-            auto projected_lit = lit->project(sub_project);
-            if (projected_lit != lit && !elems.has_value()) {
+        for (auto const &lit_c : cond) {
+            auto projected_lit = lit_c->project(sub_project);
+            if (projected_lit != lit_c && !elems.has_value()) {
                 elems = copy_n(elems_, n);
                 elems->emplace_back(lit, copy_n(cond, m));
             }

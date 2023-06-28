@@ -46,8 +46,32 @@ void Conjunction::visit_variables(std::function<void(std::string const &var)> fu
 }
 
 auto Conjunction::project(Projection project) -> SBodyLiteral {
-    // very similar to BodyAggregate::project
-    throw std::logic_error("implement me!!!");
+    // Note: that we can only project global variables in succeedents here.
+    std::optional<ElementVec> elems;
+    size_t n = 0;
+    for (auto const &[lits, cond] : elems_) {
+        // project literals in succeedent
+        size_t m = 0;
+        if (elems.has_value()) {
+            elems->emplace_back(copy_n(lits, m), cond);
+        }
+        for (auto const &lit : lits) {
+            auto projected_lit = lit->project(project);
+            if (projected_lit != lit && !elems.has_value()) {
+                elems = copy_n(elems_, n);
+                elems->emplace_back(copy_n(lits, m), cond);
+            }
+            if (elems.has_value()) {
+                elems->back().first.emplace_back(projected_lit);
+            }
+            ++m;
+        }
+        ++n;
+    }
+    if (elems.has_value()) {
+        return construct_shared<Conjunction, BodyLiteral>(global_, std::move(elems).value());
+    }
+    return SBodyLiteral{this};
 }
 ////////// BodyAggregate //////////
 
@@ -226,6 +250,9 @@ void BodyTheoryAtom::visit_variables(std::function<void(std::string const &var)>
 }
 
 auto BodyTheoryAtom::project(Projection project) -> SBodyLiteral {
-    // almost the same as BodyAggregate::project
-    throw std::logic_error("implement me!!!");
+    auto projected = atom_.project(project);
+    if (projected.has_value()) {
+        return construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, std::move(projected).value());
+    }
+    return SBodyLiteral{this};
 }
