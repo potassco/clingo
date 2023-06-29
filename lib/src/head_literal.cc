@@ -44,6 +44,54 @@ void Disjunction::print(std::ostream &out) const { print_cond_lits(elems_, globa
 
 void Disjunction::unpool(PoolHeadLiteral &pool) { unpool_cond_lits(this, pool, global_, elems_); }
 
+void Disjunction::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    cond_visit_variables(elems_, global_, fun, ctx);
+}
+
+auto Disjunction::project(Projection project) -> SHeadLiteral {
+    // Note: that we can only project global variables in succeedents here.
+    std::optional<ElementVec> elems;
+    size_t n = 0;
+    for (auto const &[lits, cond] : elems_) {
+        // get counts of local variables
+        std::unordered_map<std::string, size_t> counts;
+        auto visit = [&project, &counts](std::string const &var) {
+            if (!project.counts().contains(var)) {
+                ++counts[var];
+            }
+        };
+        for (auto const &lit : lits) {
+            lit->visit_variables(visit);
+        }
+        for (auto const &lit : cond) {
+            lit->visit_variables(visit);
+        }
+        auto local_project = Projection{counts};
+
+        // project literals in antecedent
+        size_t m = 0;
+        if (elems.has_value()) {
+            elems->emplace_back(lits, copy_n(cond, m));
+        }
+        for (auto const &lit : cond) {
+            auto projected_lit = lit->project(local_project);
+            if (projected_lit != lit && !elems.has_value()) {
+                elems = copy_n(elems_, n);
+                elems->emplace_back(lits, copy_n(cond, m));
+            }
+            if (elems.has_value()) {
+                elems->back().second.emplace_back(projected_lit);
+            }
+            ++m;
+        }
+        ++n;
+    }
+    if (elems.has_value()) {
+        return construct_shared<Disjunction, HeadLiteral>(global_, std::move(elems).value());
+    }
+    return SHeadLiteral{this};
+}
+
 ////////// HeadTheoryAtom //////////
 
 void HeadTheoryAtom::print(std::ostream &out) const { out << atom_; }
@@ -57,6 +105,12 @@ void HeadTheoryAtom::unpool(PoolHeadLiteral &pool) {
         }
     });
 }
+
+void HeadTheoryAtom::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    atom_.visit_variables(fun, ctx);
+}
+
+auto HeadTheoryAtom::project(Projection project) -> SHeadLiteral { return SHeadLiteral{this}; }
 
 ////////// HeadAggregate //////////
 
@@ -115,6 +169,15 @@ void HeadAggregate::unpool(PoolHeadLiteral &pool) {
         unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool, rhs_));
 }
 
+void HeadAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    throw std::logic_error("implement me");
+}
+
+auto HeadAggregate::project(Projection project) -> SHeadLiteral {
+    // Note: always project conditions
+    throw std::logic_error("implement me");
+}
+
 ////////// HeadSetAggregate //////////
 
 void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
@@ -130,3 +193,9 @@ void HeadSetAggregate::unpool(PoolHeadLiteral &pool) {
         }
     });
 }
+
+void HeadSetAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    throw std::logic_error("implement me");
+}
+
+auto HeadSetAggregate::project(Projection project) -> SHeadLiteral { throw std::logic_error("implement me"); }

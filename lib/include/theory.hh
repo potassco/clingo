@@ -117,7 +117,6 @@ class TheoryAtom {
 
     void unpool(PoolLiteral &pool, std::function<void(std::optional<TheoryAtom>)> cb);
     void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
-    auto project(Projection project) -> std::optional<TheoryAtom>;
 
     friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream &;
 

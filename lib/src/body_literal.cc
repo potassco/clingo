@@ -73,6 +73,7 @@ auto Conjunction::project(Projection project) -> SBodyLiteral {
     }
     return SBodyLiteral{this};
 }
+
 ////////// BodyAggregate //////////
 
 void BodyAggregate::add_sign(Sign sign) { sign_ += sign; }
@@ -154,6 +155,13 @@ void BodyAggregate::visit_variables(std::function<void(std::string const &var)> 
 }
 
 auto BodyAggregate::project(Projection project) -> SBodyLiteral {
+    // FIXME: only project convex aggregates/or aggregates in scope of negation:
+    //   :- #aggr {...} != n
+    //   H :- not #aggr {...} != n
+    //   H :- not not #aggr {...} != n
+    //   H :- #sum+ {...} > n.
+    // TODO: same for body set aggregates
+    // TODO: do not project in `not not p(X)`
     std::optional<ElementVec> elems;
     size_t n = 0;
     for (auto const &[tuple, cond] : elems_) {
@@ -249,10 +257,4 @@ void BodyTheoryAtom::visit_variables(std::function<void(std::string const &var)>
     atom_.visit_variables(fun, ctx);
 }
 
-auto BodyTheoryAtom::project(Projection project) -> SBodyLiteral {
-    auto projected = atom_.project(project);
-    if (projected.has_value()) {
-        return construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, std::move(projected).value());
-    }
-    return SBodyLiteral{this};
-}
+auto BodyTheoryAtom::project(Projection project) -> SBodyLiteral { return SBodyLiteral{this}; }

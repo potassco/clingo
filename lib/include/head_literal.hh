@@ -18,6 +18,9 @@ class HeadLiteral {
     [[nodiscard]] virtual auto print_empty() const -> bool;
     virtual void unpool(PoolHeadLiteral &pool) = 0;
     virtual void print(std::ostream &out) const = 0;
+    virtual void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const = 0;
+    [[nodiscard]] virtual auto project(Projection project) -> SHeadLiteral = 0;
+
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &;
     auto unpool() -> SHeadLiteralVec;
@@ -35,6 +38,8 @@ class Disjunction : public HeadLiteral {
     [[nodiscard]] auto print_empty() const -> bool override;
     void print(std::ostream &out) const override;
     void unpool(PoolHeadLiteral &pool) override;
+    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
 
   private:
     VariableVec global_;
@@ -47,6 +52,8 @@ class HeadTheoryAtom : public HeadLiteral {
 
     void print(std::ostream &out) const override;
     void unpool(PoolHeadLiteral &pool) override;
+    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
 
   private:
     TheoryAtom atom_;
@@ -66,6 +73,8 @@ class HeadAggregate : public HeadLiteral {
     void set_left_guard(STerm lhs, Relation rel);
     void print(std::ostream &out) const override;
     void unpool(PoolHeadLiteral &pool) override;
+    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
 
   private:
     AggregateFunction fun_;
@@ -81,6 +90,8 @@ class HeadSetAggregate : public HeadLiteral {
     void set_left_guard(STerm lhs, Relation rel);
     void print(std::ostream &out) const override;
     void unpool(PoolHeadLiteral &pool) override;
+    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
 
   private:
     SetAggregate aggr_;

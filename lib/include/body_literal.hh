@@ -22,7 +22,6 @@ class BodyLiteral {
     virtual void add_sign(Sign sign) = 0;
     virtual void unpool(PoolBodyLiteral &pool) = 0;
     virtual void print(std::ostream &out) const = 0;
-    /// Visits variables occuring globally.
     virtual void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const = 0;
     [[nodiscard]] virtual auto project(Projection project) -> SBodyLiteral = 0;
 
