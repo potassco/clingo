@@ -170,13 +170,11 @@ auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
 }
 
 void TheoryAtom::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    if (ctx != VariableContext::local) {
-        name_->visit_variables(fun);
-        if (rhs_.has_value()) {
-            rhs_->second->visit_variables(fun);
-        }
+    name_->visit_variables(fun);
+    if (rhs_.has_value()) {
+        rhs_->second->visit_variables(fun);
     }
-    if (ctx != VariableContext::global) {
+    if (ctx == VariableContext::all) {
         for (auto const &[tuple, cond] : elems_) {
             for (auto const &term : tuple) {
                 term->visit_variables(fun);

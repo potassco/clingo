@@ -134,15 +134,13 @@ void BodyAggregate::unpool(PoolBodyLiteral &pool) {
 }
 
 void BodyAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    if (ctx != VariableContext::local) {
-        if (lhs_.has_value()) {
-            lhs_->first->visit_variables(fun);
-        }
-        if (rhs_.has_value()) {
-            rhs_->second->visit_variables(fun);
-        }
+    if (lhs_.has_value()) {
+        lhs_->first->visit_variables(fun);
     }
-    if (ctx != VariableContext::global) {
+    if (rhs_.has_value()) {
+        rhs_->second->visit_variables(fun);
+    }
+    if (ctx == VariableContext::all) {
         for (auto const &[tuple, cond] : elems_) {
             for (auto const &term : tuple) {
                 term->visit_variables(fun);

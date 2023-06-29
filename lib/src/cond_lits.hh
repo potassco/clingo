@@ -132,13 +132,6 @@ void cond_visit_variables(auto const &elems, auto const &global, std::function<v
                     }
                 });
             }
-            case VariableContext::local: {
-                expr.visit_variables([&global, fun](std::string const &var) {
-                    if (!std::binary_search(global.begin(), global.end(), var)) {
-                        fun(var);
-                    }
-                });
-            }
             case VariableContext::all: {
                 expr.visit_variables(fun);
             }

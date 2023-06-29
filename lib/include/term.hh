@@ -70,7 +70,6 @@ enum VariableSelectMode {
 };
 
 enum class VariableContext {
-    local,
     global,
     all,
 };

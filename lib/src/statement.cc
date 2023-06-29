@@ -17,6 +17,9 @@ class PoolStatement {
     operator PoolHeadLiteral &() { return head_; }
     template <class U> operator U &() { return static_cast<U &>(head_); }
 
+    [[nodiscard]] auto size() const { return pool_.size(); }
+    [[nodiscard]] auto operator[](size_t i) const -> SStatement const & { return pool_[i]; }
+
     template <typename... Args> void append(Args &&...args) { pool_.emplace_back(std::forward<Args>(args)...); };
     template <typename E, typename... Args> void append_shared(Args &&...args) {
         pool_.emplace_back(construct_shared<E, Statement>(std::forward<Args>(args)...));
@@ -41,8 +44,35 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 auto Statement::unpool() -> SStatementVec {
     SStatementVec stms;
     PoolStatement pool{stms};
-    unpool(pool);
+    do_unpool(pool);
     return stms;
+}
+
+void Statement::unpool(PoolStatement &pool) {
+    size_t i = pool.size();
+    do_unpool(pool);
+    size_t n = pool.size();
+    if (i < n) {
+        VariableSet old_global;
+        VariableSet new_global;
+        visit_variables([&old_global](std::string const &var) { old_global.emplace(var); }, VariableContext::global);
+        for (; i < n; ++i) {
+            auto const &stm = pool[i];
+            visit_variables([&new_global](std::string const &var) { new_global.emplace(var); },
+                            VariableContext::global);
+            visit_variables(
+                [&](std::string const &var) {
+                    if (old_global.contains(var) != new_global.contains(var)) {
+                        std::ostringstream oss;
+                        oss << "variable " << var << " in\n"
+                            << "  " << *this << "\n"
+                            << "is unsafe";
+                        throw std::runtime_error(oss.str());
+                    }
+                },
+                VariableContext::all);
+        }
+    }
 }
 
 [[nodiscard]] auto Statement::to_string() const -> std::string {
@@ -66,7 +96,7 @@ void Rule::print(std::ostream &out) const {
     out << ".";
 }
 
-void Rule::unpool(PoolStatement &pool) {
+void Rule::do_unpool(PoolStatement &pool) {
     unpool_with(
         [&](std::optional<SHeadLiteral> &head, std::optional<SBodyLiteralVec> &body) {
             if (!head.has_value() && !body.has_value()) {
@@ -76,6 +106,13 @@ void Rule::unpool(PoolStatement &pool) {
             }
         },
         unpool_element<PoolHeadLiteral>(pool, head_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+}
+
+void Rule::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    head_->visit_variables(fun, ctx);
+    for (auto const &lit : body_) {
+        lit->visit_variables(fun, ctx);
+    }
 }
 
 ////////// TheoryOpDefinition //////////
@@ -166,7 +203,12 @@ void TheoryDefinition::print(std::ostream &out) const {
     out << "}.";
 }
 
-void TheoryDefinition::unpool(PoolStatement &pool) { pool.append(this); }
+void TheoryDefinition::do_unpool(PoolStatement &pool) { pool.append(this); }
+
+void TheoryDefinition::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    static_cast<void>(fun);
+    static_cast<void>(ctx);
+}
 
 ////////// StatementOptimize //////////
 
@@ -204,7 +246,7 @@ void StatementOptimize::print(std::ostream &out) const {
         << (elems_.empty() ? "}" : " }") << ".";
 }
 
-void StatementOptimize::unpool(PoolStatement &pool) {
+void StatementOptimize::do_unpool(PoolStatement &pool) {
     std::optional<ElementVec> elems;
     size_t i = 0;
     for (auto &elem : elems_) {
@@ -236,6 +278,24 @@ void StatementOptimize::unpool(PoolStatement &pool) {
     }
 }
 
+void StatementOptimize::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    if (ctx == VariableContext::all) {
+        for (auto const &[tuple, cond] : elems_) {
+            auto const &[weight, prio, terms] = tuple;
+            weight->visit_variables(fun);
+            if (prio.has_value()) {
+                prio.value()->visit_variables(fun);
+            }
+            for (auto const &term : terms) {
+                term->visit_variables(fun);
+            }
+            for (auto const &lit : cond) {
+                lit->visit_variables(fun);
+            }
+        }
+    }
+}
+
 ////////// StatementWeakConstraint //////////
 
 void StatementWeakConstraint::print(std::ostream &out) const {
@@ -250,7 +310,7 @@ void StatementWeakConstraint::print(std::ostream &out) const {
     out << "]";
 }
 
-void StatementWeakConstraint::unpool(PoolStatement &pool) {
+void StatementWeakConstraint::do_unpool(PoolStatement &pool) {
     unpool_with(
         [&](std::optional<STerm> &weight, std::optional<STerm> &prio, std::optional<STermVec> &terms,
             std::optional<SBodyLiteralVec> &body) {
@@ -267,11 +327,26 @@ void StatementWeakConstraint::unpool(PoolStatement &pool) {
         unpool_crossproduct<PoolTerm>(pool, std::get<2>(tuple_)), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
 }
 
+void StatementWeakConstraint::visit_variables(std::function<void(std::string const &var)> fun,
+                                              VariableContext ctx) const {
+    auto const &[weight, prio, terms] = tuple_;
+    weight->visit_variables(fun);
+    if (prio.has_value()) {
+        prio.value()->visit_variables(fun);
+    }
+    for (auto const &term : terms) {
+        term->visit_variables(fun);
+    }
+    for (auto const &lit : body_) {
+        lit->visit_variables(fun, ctx);
+    }
+}
+
 ////////// StatementShow //////////
 
 void StatementShow::print(std::ostream &out) const { out << "#show " << *term_ << ": " << p_range(body_, "; ") << "."; }
 
-void StatementShow::unpool(PoolStatement &pool) {
+void StatementShow::do_unpool(PoolStatement &pool) {
     unpool_with(
         [&](std::optional<STerm> &term, std::optional<SBodyLiteralVec> &body) {
             if (!term.has_value() && !body.has_value()) {
@@ -283,13 +358,25 @@ void StatementShow::unpool(PoolStatement &pool) {
         unpool_element<PoolTerm>(pool, term_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
 }
 
+void StatementShow::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    term_->visit_variables(fun);
+    for (auto const &lit : body_) {
+        lit->visit_variables(fun, ctx);
+    }
+}
+
 ////////// StatementShowSig //////////
 
 void StatementShowSig::print(std::ostream &out) const {
     out << "#show " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementShowSig::unpool(PoolStatement &pool) { pool.append(this); }
+void StatementShowSig::do_unpool(PoolStatement &pool) { pool.append(this); }
+
+void StatementShowSig::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    static_cast<void>(fun);
+    static_cast<void>(ctx);
+}
 
 ////////// StatementProject //////////
 
@@ -297,7 +384,7 @@ void StatementProject::print(std::ostream &out) const {
     out << "#project " << *term_ << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
 }
 
-void StatementProject::unpool(PoolStatement &pool) {
+void StatementProject::do_unpool(PoolStatement &pool) {
     unpool_with(
         [&](std::optional<STerm> &term, std::optional<SBodyLiteralVec> &body) {
             if (!term.has_value() && !body.has_value()) {
@@ -309,13 +396,25 @@ void StatementProject::unpool(PoolStatement &pool) {
         unpool_element<PoolTerm>(pool, term_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
 }
 
+void StatementProject::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    term_->visit_variables(fun);
+    for (auto const &lit : body_) {
+        lit->visit_variables(fun, ctx);
+    }
+}
+
 ////////// StatementProjectSig //////////
 
 void StatementProjectSig::print(std::ostream &out) const {
     out << "#project " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementProjectSig::unpool(PoolStatement &pool) { pool.append(this); }
+void StatementProjectSig::do_unpool(PoolStatement &pool) { pool.append(this); }
+
+void StatementProjectSig::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    static_cast<void>(fun);
+    static_cast<void>(ctx);
+}
 
 ////////// StatementDefined //////////
 
@@ -323,7 +422,12 @@ void StatementDefined::print(std::ostream &out) const {
     out << "#defined " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementDefined::unpool(PoolStatement &pool) { pool.append(this); }
+void StatementDefined::do_unpool(PoolStatement &pool) { pool.append(this); }
+
+void StatementDefined::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    static_cast<void>(fun);
+    static_cast<void>(ctx);
+}
 
 ////////// StatementExternal //////////
 
@@ -334,7 +438,7 @@ void StatementExternal::print(std::ostream &out) const {
     }
 }
 
-void StatementExternal::unpool(PoolStatement &pool) {
+void StatementExternal::do_unpool(PoolStatement &pool) {
     unpool_with(
         [&](std::optional<STerm> &term, std::optional<STerm> &type, std::optional<SBodyLiteralVec> &body) {
             if (!term.has_value() && !type.has_value() && !body.has_value()) {
@@ -348,6 +452,16 @@ void StatementExternal::unpool(PoolStatement &pool) {
         unpool_crossproduct<PoolBodyLiteral>(pool, body_));
 }
 
+void StatementExternal::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    term_->visit_variables(fun);
+    if (type_.has_value()) {
+        type_.value()->visit_variables(fun);
+    }
+    for (auto const &lit : body_) {
+        lit->visit_variables(fun, ctx);
+    }
+}
+
 ////////// StatementEdge //////////
 
 void StatementEdge::print(std::ostream &out) const {
@@ -356,7 +470,7 @@ void StatementEdge::print(std::ostream &out) const {
         << ")" << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
 }
 
-void StatementEdge::unpool(PoolStatement &pool) {
+void StatementEdge::do_unpool(PoolStatement &pool) {
     // unpool bodies
     std::optional<std::vector<SBodyLiteralVec>> bodies;
     unpool_with(
@@ -390,6 +504,16 @@ void StatementEdge::unpool(PoolStatement &pool) {
     }
 }
 
+void StatementEdge::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    for (auto const &[u, v] : edges_) {
+        u->visit_variables(fun);
+        v->visit_variables(fun);
+    }
+    for (auto const &lit : body_) {
+        lit->visit_variables(fun, ctx);
+    }
+}
+
 ////////// StatementHeuristic //////////
 
 void StatementHeuristic::print(std::ostream &out) const {
@@ -401,7 +525,7 @@ void StatementHeuristic::print(std::ostream &out) const {
     out << "," << *mod_ << "]";
 }
 
-void StatementHeuristic::unpool(PoolStatement &pool) {
+void StatementHeuristic::do_unpool(PoolStatement &pool) {
     unpool_with(
         [&](std::optional<STerm> &atom, std::optional<STerm> &type, std::optional<STerm> &prio,
             std::optional<STerm> &mod, std::optional<SBodyLiteralVec> &body) {
@@ -415,6 +539,17 @@ void StatementHeuristic::unpool(PoolStatement &pool) {
         unpool_element<PoolTerm>(pool, atom_), unpool_element<PoolTerm>(pool, type_),
         unpool_element<PoolTerm>(pool, prio_), unpool_element<PoolTerm>(pool, mod_),
         unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+}
+
+void StatementHeuristic::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    type_->visit_variables(fun);
+    if (prio_.has_value()) {
+        prio_.value()->visit_variables(fun);
+    }
+    mod_->visit_variables(fun);
+    for (auto const &lit : body_) {
+        lit->visit_variables(fun, ctx);
+    }
 }
 
 ////////// StatementScript //////////
@@ -435,7 +570,12 @@ auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
 
 void StatementScript::print(std::ostream &out) const { out << "#script (" << type_ << ")" << content_ << "#end."; }
 
-void StatementScript::unpool(PoolStatement &pool) { pool.append(this); }
+void StatementScript::do_unpool(PoolStatement &pool) { pool.append(this); }
+
+void StatementScript::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    static_cast<void>(fun);
+    static_cast<void>(ctx);
+}
 
 ////////// StatementInclude //////////
 
@@ -463,7 +603,12 @@ void StatementInclude::print(std::ostream &out) const {
     }
 }
 
-void StatementInclude::unpool(PoolStatement &pool) { pool.append(this); }
+void StatementInclude::do_unpool(PoolStatement &pool) { pool.append(this); }
+
+void StatementInclude::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    static_cast<void>(fun);
+    static_cast<void>(ctx);
+}
 
 ////////// StatementProgram //////////
 
@@ -475,7 +620,12 @@ void StatementProgram::print(std::ostream &out) const {
     out << ".";
 }
 
-void StatementProgram::unpool(PoolStatement &pool) { pool.append(this); }
+void StatementProgram::do_unpool(PoolStatement &pool) { pool.append(this); }
+
+void StatementProgram::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    static_cast<void>(fun);
+    static_cast<void>(ctx);
+}
 
 ////////// StatementConst //////////
 
@@ -497,7 +647,7 @@ void StatementConst::print(std::ostream &out) const {
     out << "#const " << name_ << "=" << *value_ << ". [" << type_ << "]";
 }
 
-void StatementConst::unpool(PoolStatement &pool) {
+void StatementConst::do_unpool(PoolStatement &pool) {
     size_t n = 0;
     unpool_with(
         [&](std::optional<STerm> value) {
@@ -512,4 +662,9 @@ void StatementConst::unpool(PoolStatement &pool) {
     if (n != 1) {
         throw std::runtime_error("const statements must not contain pools");
     }
+}
+
+void StatementConst::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    static_cast<void>(fun);
+    static_cast<void>(ctx);
 }
