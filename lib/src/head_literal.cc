@@ -44,7 +44,7 @@ void Disjunction::print(std::ostream &out) const { print_cond_lits(elems_, globa
 
 void Disjunction::unpool(PoolHeadLiteral &pool) { unpool_cond_lits(this, pool, global_, elems_); }
 
-void Disjunction::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void Disjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     cond_visit_variables(elems_, global_, fun, ctx);
 }
 
@@ -54,19 +54,9 @@ auto Disjunction::project(Projection project) -> SHeadLiteral {
     size_t n = 0;
     for (auto const &[lits, cond] : elems_) {
         // get counts of local variables
-        std::unordered_map<std::string, size_t> counts;
-        auto visit = [&project, &counts](std::string const &var) {
-            if (!project.counts().contains(var)) {
-                ++counts[var];
-            }
-        };
-        for (auto const &lit : lits) {
-            lit->visit_variables(visit);
-        }
-        for (auto const &lit : cond) {
-            lit->visit_variables(visit);
-        }
-        auto local_project = Projection{counts};
+        VarCounter counter{project.counts()};
+        counter.add(lits, cond);
+        auto local_project = Projection{counter};
 
         // project literals in antecedent
         size_t m = 0;
@@ -106,7 +96,7 @@ void HeadTheoryAtom::unpool(PoolHeadLiteral &pool) {
     });
 }
 
-void HeadTheoryAtom::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void HeadTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     atom_.visit_variables(fun, ctx);
 }
 
@@ -169,8 +159,12 @@ void HeadAggregate::unpool(PoolHeadLiteral &pool) {
         unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool, rhs_));
 }
 
-void HeadAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    throw std::logic_error("implement me");
+void HeadAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
+    VarVisitor visit{fun};
+    visit.add(lhs_, rhs_);
+    if (ctx == VariableContext::all) {
+        visit.add(elems_);
+    }
 }
 
 auto HeadAggregate::project(Projection project) -> SHeadLiteral {
@@ -194,8 +188,8 @@ void HeadSetAggregate::unpool(PoolHeadLiteral &pool) {
     });
 }
 
-void HeadSetAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    throw std::logic_error("implement me");
+void HeadSetAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
+    aggr_.visit_variables(std::move(fun), ctx);
 }
 
 auto HeadSetAggregate::project(Projection project) -> SHeadLiteral { throw std::logic_error("implement me"); }

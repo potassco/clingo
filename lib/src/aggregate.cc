@@ -6,6 +6,7 @@
 #include <aggregate.hh>
 
 #include "unpool.hh"
+#include "variables.hh"
 
 auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
     switch (fun) {
@@ -92,41 +93,23 @@ auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream & {
 }
 
 void SetAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    if (lhs_.has_value()) {
-        lhs_->first->visit_variables(fun);
-    }
-    if (rhs_.has_value()) {
-        rhs_->second->visit_variables(fun);
-    }
+    VarVisitor visit{std::move(fun)};
+    visit.add(lhs_, rhs_);
     if (ctx == VariableContext::all) {
-        for (auto const &[lit, cond] : elems_) {
-            lit->visit_variables(fun);
-            for (auto const &lit : cond) {
-                lit->visit_variables(fun);
-            }
-        }
+        visit.add(elems_);
     }
 }
 
 auto SetAggregate::project(Projection project, bool project_lit) -> std::optional<SetAggregate> {
+    // FIXME: monontonicity
     std::optional<ElementVec> elems;
     size_t n = 0;
     for (auto const &[lit, cond] : elems_) {
         // add counts of local variables
-        std::unordered_map<std::string, size_t> counts;
-        auto visit = [&project, &counts](std::string const &var) {
-            if (!project.counts().contains(var)) {
-                ++counts[var];
-            }
-        };
-        lit->visit_variables(visit);
-        for (auto const &lit : cond) {
-            lit->visit_variables(visit);
-        }
-        for (auto const &[var, count] : project.counts()) {
-            counts[var] += count;
-        }
-        auto sub_project = Projection{counts};
+        VarCounter counter{project.counts()};
+        counter.add(lit);
+        counter.add(cond);
+        auto sub_project = Projection{counter};
 
         // project literal if requested
         size_t m = 0;

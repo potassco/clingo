@@ -151,7 +151,7 @@ auto LiteralRelation::is_equal(Literal const &other) const -> bool {
 
 auto LiteralRelation::hash() const -> size_t { return value_hash(typeid(LiteralRelation), sign_, lhs_, rhs_); }
 
-void LiteralRelation::visit_variables(std::function<void(std::string const &var)> fun) const {
+void LiteralRelation::visit_variables(VarVisitFun const &fun) const {
     lhs_->visit_variables(fun);
     for (auto const &guard : rhs_) {
         guard.second->visit_variables(fun);
@@ -178,7 +178,7 @@ auto LiteralBoolean::is_equal(Literal const &other) const -> bool {
 
 auto LiteralBoolean::hash() const -> size_t { return value_hash(typeid(LiteralSymbolic), sign_, value_); }
 
-void LiteralBoolean::visit_variables(std::function<void(std::string const &var)> fun) const { static_cast<void>(fun); }
+void LiteralBoolean::visit_variables(VarVisitFun const &fun) const { static_cast<void>(fun); }
 
 [[nodiscard]] auto LiteralBoolean::project(Projection project) -> SLiteral {
     static_cast<void>(project);
@@ -210,9 +210,7 @@ auto LiteralSymbolic::is_equal(Literal const &other) const -> bool {
 
 auto LiteralSymbolic::hash() const -> size_t { return value_hash(typeid(LiteralSymbolic), sign_, term_); }
 
-void LiteralSymbolic::visit_variables(std::function<void(std::string const &var)> fun) const {
-    term_->visit_variables(fun);
-}
+void LiteralSymbolic::visit_variables(VarVisitFun const &fun) const { term_->visit_variables(fun); }
 
 [[nodiscard]] auto LiteralSymbolic::project(Projection project) -> SLiteral {
     if (sign_ != Sign::once) {

@@ -5,8 +5,19 @@
 #include <statement.hh>
 
 #include "unpool.hh"
+#include "variables.hh"
 
 ////////// Statement { //////////
+
+namespace {
+
+void visit_body(VarVisitFun const &fun, VariableContext ctx, SBodyLiteralVec const &body) {
+    for (auto const &lit : body) {
+        lit->visit_variables(fun, ctx);
+    }
+}
+
+} // namespace
 
 class PoolStatement {
   public:
@@ -108,11 +119,9 @@ void Rule::do_unpool(PoolStatement &pool) {
         unpool_element<PoolHeadLiteral>(pool, head_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
 }
 
-void Rule::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void Rule::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     head_->visit_variables(fun, ctx);
-    for (auto const &lit : body_) {
-        lit->visit_variables(fun, ctx);
-    }
+    visit_body(fun, ctx, body_);
 }
 
 ////////// TheoryOpDefinition //////////
@@ -205,7 +214,7 @@ void TheoryDefinition::print(std::ostream &out) const {
 
 void TheoryDefinition::do_unpool(PoolStatement &pool) { pool.append(this); }
 
-void TheoryDefinition::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void TheoryDefinition::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
@@ -278,21 +287,10 @@ void StatementOptimize::do_unpool(PoolStatement &pool) {
     }
 }
 
-void StatementOptimize::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void StatementOptimize::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     if (ctx == VariableContext::all) {
-        for (auto const &[tuple, cond] : elems_) {
-            auto const &[weight, prio, terms] = tuple;
-            weight->visit_variables(fun);
-            if (prio.has_value()) {
-                prio.value()->visit_variables(fun);
-            }
-            for (auto const &term : terms) {
-                term->visit_variables(fun);
-            }
-            for (auto const &lit : cond) {
-                lit->visit_variables(fun);
-            }
-        }
+        VarVisitor visit{fun};
+        visit.add(elems_);
     }
 }
 
@@ -327,19 +325,10 @@ void StatementWeakConstraint::do_unpool(PoolStatement &pool) {
         unpool_crossproduct<PoolTerm>(pool, std::get<2>(tuple_)), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
 }
 
-void StatementWeakConstraint::visit_variables(std::function<void(std::string const &var)> fun,
-                                              VariableContext ctx) const {
-    auto const &[weight, prio, terms] = tuple_;
-    weight->visit_variables(fun);
-    if (prio.has_value()) {
-        prio.value()->visit_variables(fun);
-    }
-    for (auto const &term : terms) {
-        term->visit_variables(fun);
-    }
-    for (auto const &lit : body_) {
-        lit->visit_variables(fun, ctx);
-    }
+void StatementWeakConstraint::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
+    VarVisitor visit{fun};
+    visit.add(tuple_);
+    visit_body(fun, ctx, body_);
 }
 
 ////////// StatementShow //////////
@@ -358,11 +347,9 @@ void StatementShow::do_unpool(PoolStatement &pool) {
         unpool_element<PoolTerm>(pool, term_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
 }
 
-void StatementShow::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void StatementShow::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     term_->visit_variables(fun);
-    for (auto const &lit : body_) {
-        lit->visit_variables(fun, ctx);
-    }
+    visit_body(fun, ctx, body_);
 }
 
 ////////// StatementShowSig //////////
@@ -373,7 +360,7 @@ void StatementShowSig::print(std::ostream &out) const {
 
 void StatementShowSig::do_unpool(PoolStatement &pool) { pool.append(this); }
 
-void StatementShowSig::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void StatementShowSig::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
@@ -396,11 +383,9 @@ void StatementProject::do_unpool(PoolStatement &pool) {
         unpool_element<PoolTerm>(pool, term_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
 }
 
-void StatementProject::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void StatementProject::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     term_->visit_variables(fun);
-    for (auto const &lit : body_) {
-        lit->visit_variables(fun, ctx);
-    }
+    visit_body(fun, ctx, body_);
 }
 
 ////////// StatementProjectSig //////////
@@ -411,7 +396,7 @@ void StatementProjectSig::print(std::ostream &out) const {
 
 void StatementProjectSig::do_unpool(PoolStatement &pool) { pool.append(this); }
 
-void StatementProjectSig::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void StatementProjectSig::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
@@ -424,7 +409,7 @@ void StatementDefined::print(std::ostream &out) const {
 
 void StatementDefined::do_unpool(PoolStatement &pool) { pool.append(this); }
 
-void StatementDefined::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void StatementDefined::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
@@ -452,14 +437,10 @@ void StatementExternal::do_unpool(PoolStatement &pool) {
         unpool_crossproduct<PoolBodyLiteral>(pool, body_));
 }
 
-void StatementExternal::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    term_->visit_variables(fun);
-    if (type_.has_value()) {
-        type_.value()->visit_variables(fun);
-    }
-    for (auto const &lit : body_) {
-        lit->visit_variables(fun, ctx);
-    }
+void StatementExternal::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
+    VarVisitor visit{fun};
+    visit.add(term_, type_);
+    visit_body(fun, ctx, body_);
 }
 
 ////////// StatementEdge //////////
@@ -504,14 +485,10 @@ void StatementEdge::do_unpool(PoolStatement &pool) {
     }
 }
 
-void StatementEdge::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    for (auto const &[u, v] : edges_) {
-        u->visit_variables(fun);
-        v->visit_variables(fun);
-    }
-    for (auto const &lit : body_) {
-        lit->visit_variables(fun, ctx);
-    }
+void StatementEdge::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
+    VarVisitor visit{fun};
+    visit.add(edges_);
+    visit_body(fun, ctx, body_);
 }
 
 ////////// StatementHeuristic //////////
@@ -541,15 +518,10 @@ void StatementHeuristic::do_unpool(PoolStatement &pool) {
         unpool_crossproduct<PoolBodyLiteral>(pool, body_));
 }
 
-void StatementHeuristic::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    type_->visit_variables(fun);
-    if (prio_.has_value()) {
-        prio_.value()->visit_variables(fun);
-    }
-    mod_->visit_variables(fun);
-    for (auto const &lit : body_) {
-        lit->visit_variables(fun, ctx);
-    }
+void StatementHeuristic::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
+    VarVisitor visit{fun};
+    visit.add(type_, prio_, mod_);
+    visit_body(fun, ctx, body_);
 }
 
 ////////// StatementScript //////////
@@ -572,7 +544,7 @@ void StatementScript::print(std::ostream &out) const { out << "#script (" << typ
 
 void StatementScript::do_unpool(PoolStatement &pool) { pool.append(this); }
 
-void StatementScript::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void StatementScript::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
@@ -605,7 +577,7 @@ void StatementInclude::print(std::ostream &out) const {
 
 void StatementInclude::do_unpool(PoolStatement &pool) { pool.append(this); }
 
-void StatementInclude::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void StatementInclude::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
@@ -622,7 +594,7 @@ void StatementProgram::print(std::ostream &out) const {
 
 void StatementProgram::do_unpool(PoolStatement &pool) { pool.append(this); }
 
-void StatementProgram::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void StatementProgram::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
@@ -664,7 +636,7 @@ void StatementConst::do_unpool(PoolStatement &pool) {
     }
 }
 
-void StatementConst::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+void StatementConst::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }

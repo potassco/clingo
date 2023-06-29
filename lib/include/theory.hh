@@ -10,7 +10,7 @@ class TheoryTerm {
     virtual ~TheoryTerm() = default;
 
     virtual void print(std::ostream &out) const = 0;
-    virtual void visit_variables(std::function<void(std::string const &var)> fun) const = 0;
+    virtual void visit_variables(VarVisitFun fun) const = 0;
 
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream &;
@@ -32,7 +32,7 @@ class TheoryTermUnparsed : public TheoryTerm {
     explicit TheoryTermUnparsed(STheoryTerm term, RHSVec rhs) : term_{std::move(term)}, rhs_{std::move(rhs)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun fun) const override;
 
   private:
     OpVec ops_;
@@ -54,7 +54,7 @@ class TheoryTermTuple : public TheoryTerm {
     explicit TheoryTermTuple(TheoryTermTupleType type, ElementVec elems) : type_{type}, elems_{std::move(elems)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun fun) const override;
 
   private:
     TheoryTermTupleType type_;
@@ -69,7 +69,7 @@ class TheoryTermSymbol : public TheoryTerm {
     explicit TheoryTermSymbol(Symbol value) : value_{std::move(value)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun fun) const override;
 
   private:
     Symbol value_;
@@ -83,7 +83,7 @@ class TheoryTermVariable : public TheoryTerm {
     explicit TheoryTermVariable(std::string value) : name_{std::move(value)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun fun) const override;
 
   private:
     std::string name_;
@@ -95,7 +95,7 @@ class TheoryTermFunction : public TheoryTerm {
         : name_(std::move(name)), args_{std::move(args)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun fun) const override;
 
   private:
     std::string name_;
@@ -116,7 +116,7 @@ class TheoryAtom {
           rhs_{std::in_place, std::move(rhs_op), std::move(rhs_term)} {}
 
     void unpool(PoolLiteral &pool, std::function<void(std::optional<TheoryAtom>)> cb);
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
+    void visit_variables(VarVisitFun fun, VariableContext ctx) const;
 
     friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream &;
 

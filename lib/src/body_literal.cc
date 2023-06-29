@@ -5,6 +5,7 @@
 #include <body_literal.hh>
 
 #include "cond_lits.hh"
+#include "variables.hh"
 
 ////////// BodyLiteral //////////
 
@@ -41,8 +42,8 @@ void Conjunction::print(std::ostream &out) const { print_cond_lits(elems_, globa
 
 void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits(this, pool, global_, elems_); }
 
-void Conjunction::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    cond_visit_variables(elems_, global_, fun, ctx);
+void Conjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
+    cond_visit_variables(elems_, global_, std::move(fun), ctx);
 }
 
 auto Conjunction::project(Projection project) -> SBodyLiteral {
@@ -133,22 +134,11 @@ void BodyAggregate::unpool(PoolBodyLiteral &pool) {
         unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool, rhs_));
 }
 
-void BodyAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    if (lhs_.has_value()) {
-        lhs_->first->visit_variables(fun);
-    }
-    if (rhs_.has_value()) {
-        rhs_->second->visit_variables(fun);
-    }
+void BodyAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
+    VarVisitor visit{fun};
+    visit.add(lhs_, rhs_);
     if (ctx == VariableContext::all) {
-        for (auto const &[tuple, cond] : elems_) {
-            for (auto const &term : tuple) {
-                term->visit_variables(fun);
-            }
-            for (auto const &lit : cond) {
-                lit->visit_variables(fun);
-            }
-        }
+        visit.add(elems_);
     }
 }
 
@@ -163,23 +153,10 @@ auto BodyAggregate::project(Projection project) -> SBodyLiteral {
     std::optional<ElementVec> elems;
     size_t n = 0;
     for (auto const &[tuple, cond] : elems_) {
-        // add counts of local variables
-        std::unordered_map<std::string, size_t> counts;
-        auto visit = [&project, &counts](std::string const &var) {
-            if (!project.counts().contains(var)) {
-                ++counts[var];
-            }
-        };
-        for (auto const &term : tuple) {
-            term->visit_variables(visit);
-        }
-        for (auto const &lit : cond) {
-            lit->visit_variables(visit);
-        }
-        for (auto const &[var, count] : project.counts()) {
-            counts[var] += count;
-        }
-        auto sub_project = Projection{counts};
+        // counts of local variables
+        VarCounter counter{project.counts()};
+        counter.add(tuple, cond);
+        auto sub_project = Projection{counter};
 
         // project literals in condition
         size_t m = 0;
@@ -223,8 +200,8 @@ void BodySetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(s
 
 void BodySetAggregate::print(std::ostream &out) const { out << sign_ << aggr_; }
 
-void BodySetAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    aggr_.visit_variables(fun, ctx);
+void BodySetAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
+    aggr_.visit_variables(std::move(fun), ctx);
 }
 
 auto BodySetAggregate::project(Projection project) -> SBodyLiteral {
@@ -251,8 +228,8 @@ void BodyTheoryAtom::add_sign(Sign sign) { sign_ += sign; }
 
 void BodyTheoryAtom::print(std::ostream &out) const { out << sign_ << atom_; }
 
-void BodyTheoryAtom::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    atom_.visit_variables(fun, ctx);
+void BodyTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
+    atom_.visit_variables(std::move(fun), ctx);
 }
 
 auto BodyTheoryAtom::project(Projection project) -> SBodyLiteral { return SBodyLiteral{this}; }

@@ -9,6 +9,7 @@
 #include <term.hh>
 
 #include "unpool.hh"
+#include "variables.hh"
 
 ////////// Term //////////
 
@@ -144,7 +145,7 @@ auto TermSymbol::is_equal(Term const &other) const -> bool {
 
 auto TermSymbol::hash() const -> size_t { return value_hash(typeid(TermSymbol), value_); }
 
-void TermSymbol::visit_variables(std::function<void(std::string const &var)> fun) const { static_cast<void>(fun); }
+void TermSymbol::visit_variables(VarVisitFun const &fun) const { static_cast<void>(fun); }
 
 auto TermSymbol::project(Projection project) -> STerm {
     static_cast<void>(project);
@@ -192,18 +193,9 @@ auto TermTuple::is_equal(Term const &other) const -> bool {
 
 auto TermTuple::hash() const -> size_t { return value_hash(typeid(TermTuple), pool_); }
 
-void TermTuple::visit_variables(std::function<void(std::string const &var)> fun) const {
-    for (auto const &tuple_or_term : pool_) {
-        visit_variant(
-            tuple_or_term, [&](STerm const &term) { term->visit_variables(fun); },
-            [&](TupleVec const &tuple) {
-                for (auto const &elem : tuple) {
-                    if (auto const *term = std::get_if<STerm>(&elem)) {
-                        term->get()->visit_variables(fun);
-                    }
-                }
-            });
-    }
+void TermTuple::visit_variables(VarVisitFun const &fun) const {
+    VarVisitor visit{fun};
+    visit.add(pool_);
 }
 
 auto TermTuple::project(Projection project) -> STerm {
@@ -300,7 +292,7 @@ void TermVariable::unpool(PoolTerm &pool) { pool.append(this); }
 
 auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
 
-void TermVariable::visit_variables(std::function<void(std::string const &var)> fun) const { fun(name_); }
+void TermVariable::visit_variables(VarVisitFun const &fun) const { fun(name_); }
 
 auto TermVariable::project(Projection project) -> STerm {
     static_cast<void>(project);
@@ -332,7 +324,7 @@ void TermAbs::unpool(PoolTerm &pool) {
 
 auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
 
-void TermAbs::visit_variables(std::function<void(std::string const &var)> fun) const {
+void TermAbs::visit_variables(VarVisitFun const &fun) const {
     for (auto const &term : pool_) {
         term->visit_variables(fun);
     }
@@ -399,13 +391,9 @@ void TermFunction::unpool(PoolTerm &pool) {
     }
 }
 
-void TermFunction::visit_variables(std::function<void(std::string const &var)> fun) const {
-    for (auto const &tuple : pool_) {
-        for (auto const &elem : tuple) {
-            visit_variant(
-                elem, [&](STerm const &term) { term->visit_variables(fun); }, [](auto const &) {});
-        }
-    }
+void TermFunction::visit_variables(VarVisitFun const &fun) const {
+    VarVisitor visit{fun};
+    visit.add(pool_);
 }
 
 auto TermFunction::project(Projection project) -> STerm {
@@ -523,7 +511,7 @@ auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bo
     return false;
 }
 
-void TermUnary::visit_variables(std::function<void(std::string const &var)> fun) const { rhs_->visit_variables(fun); }
+void TermUnary::visit_variables(VarVisitFun const &fun) const { rhs_->visit_variables(fun); }
 
 auto TermUnary::project(Projection project) -> STerm {
     static_cast<void>(project);
@@ -634,7 +622,7 @@ auto TermBinary::check_type(TermCheckType type, CheckTypeResult *res) const -> b
     return false;
 }
 
-void TermBinary::visit_variables(std::function<void(std::string const &var)> fun) const {
+void TermBinary::visit_variables(VarVisitFun const &fun) const {
     lhs_->visit_variables(fun);
     rhs_->visit_variables(fun);
 }

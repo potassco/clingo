@@ -5,6 +5,7 @@
 #include <theory.hh>
 
 #include "unpool.hh"
+#include "variables.hh"
 
 ////////// TheoryTerm //////////
 
@@ -37,7 +38,7 @@ void TheoryTermUnparsed::print(std::ostream &out) const {
     }
 }
 
-void TheoryTermUnparsed::visit_variables(std::function<void(std::string const &var)> fun) const {
+void TheoryTermUnparsed::visit_variables(VarVisitFun fun) const {
     term_->visit_variables(fun);
     for (auto const &guard : rhs_) {
         guard.second->visit_variables(fun);
@@ -84,7 +85,7 @@ void TheoryTermTuple::print(std::ostream &out) const {
     out << right_bracket(type_);
 }
 
-void TheoryTermTuple::visit_variables(std::function<void(std::string const &var)> fun) const {
+void TheoryTermTuple::visit_variables(VarVisitFun fun) const {
     for (auto const &term : elems_) {
         term->visit_variables(fun);
     }
@@ -94,15 +95,13 @@ void TheoryTermTuple::visit_variables(std::function<void(std::string const &var)
 
 void TheoryTermSymbol::print(std::ostream &out) const { out << value_; }
 
-void TheoryTermSymbol::visit_variables(std::function<void(std::string const &var)> fun) const {
-    static_cast<void>(fun);
-}
+void TheoryTermSymbol::visit_variables(VarVisitFun fun) const { static_cast<void>(fun); }
 
 ////////// TheoryTermVariable //////////
 
 void TheoryTermVariable::print(std::ostream &out) const { out << name_; }
 
-void TheoryTermVariable::visit_variables(std::function<void(std::string const &var)> fun) const { fun(name_); }
+void TheoryTermVariable::visit_variables(VarVisitFun fun) const { fun(name_); }
 
 ////////// TheoryTermFunction //////////
 
@@ -113,7 +112,7 @@ void TheoryTermFunction::print(std::ostream &out) const {
     }
 }
 
-void TheoryTermFunction::visit_variables(std::function<void(std::string const &var)> fun) const {
+void TheoryTermFunction::visit_variables(VarVisitFun fun) const {
     for (auto const &term : args_) {
         term->visit_variables(fun);
     }
@@ -169,19 +168,10 @@ auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
     return out;
 }
 
-void TheoryAtom::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
-    name_->visit_variables(fun);
-    if (rhs_.has_value()) {
-        rhs_->second->visit_variables(fun);
-    }
+void TheoryAtom::visit_variables(VarVisitFun fun, VariableContext ctx) const {
+    VarVisitor visit{std::move(fun)};
+    visit.add(name_, rhs_);
     if (ctx == VariableContext::all) {
-        for (auto const &[tuple, cond] : elems_) {
-            for (auto const &term : tuple) {
-                term->visit_variables(fun);
-            }
-            for (auto const &lit : cond) {
-                lit->visit_variables(fun);
-            }
-        }
+        visit.add(elems_);
     }
 }

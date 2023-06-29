@@ -123,7 +123,7 @@ class Statement {
     virtual ~Statement() = default;
 
     virtual void print(std::ostream &out) const = 0;
-    virtual void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const = 0;
+    virtual void visit_variables(VarVisitFun const &fun, VariableContext ctx) const = 0;
 
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream &;
@@ -142,7 +142,7 @@ class Rule : public Statement {
     explicit Rule(SHeadLiteral head, SBodyLiteralVec body) : head_{std::move(head)}, body_{std::move(body)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -211,7 +211,7 @@ class TheoryDefinition : public Statement {
         : name_{std::move(name)}, term_defs_{std::move(term_defs)}, atom_defs_{std::move(atom_defs)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -235,7 +235,7 @@ class StatementOptimize : public Statement {
     explicit StatementOptimize(OptimizeType type, ElementVec elems) : type_{type}, elems_{std::move(elems)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -253,7 +253,7 @@ class StatementWeakConstraint : public Statement {
         : body_{std::move(body)}, tuple_{std::move(tuple)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -268,7 +268,7 @@ class StatementShow : public Statement {
     StatementShow(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -284,7 +284,7 @@ class StatementShowSig : public Statement {
         : has_sign_{has_sign}, name_{std::move(name)}, arity_{arity} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -300,7 +300,7 @@ class StatementProject : public Statement {
     explicit StatementProject(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -316,7 +316,7 @@ class StatementProjectSig : public Statement {
         : has_sign_{has_sign}, name_{std::move(name)}, arity_{arity} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -333,7 +333,7 @@ class StatementDefined : public Statement {
         : has_sign_{has_sign}, name_{std::move(name)}, arity_{arity} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -350,7 +350,7 @@ class StatementExternal : public Statement {
         : term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -370,7 +370,7 @@ class StatementEdge : public Statement {
         : edges_{std::move(edges)}, body_{std::move(body)} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -394,7 +394,7 @@ class StatementHeuristic : public Statement {
           has_sign_{has_sign} {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -420,7 +420,7 @@ class StatementScript : public Statement {
     explicit StatementScript(ScriptType type, std::string content) : type_(type), content_(std::move(content)) {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -442,7 +442,7 @@ class StatementInclude : public Statement {
     explicit StatementInclude(IncludeType type, std::string path) : type_(type), path_(std::move(path)) {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -458,7 +458,7 @@ class StatementProgram : public Statement {
         : name_(std::move(name)), args_(std::move(args)) {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -478,7 +478,7 @@ class StatementConst : public Statement {
         : type_(type), name_(std::move(name)), value_(std::move(value)) {}
 
     void print(std::ostream &out) const override;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const override;
+    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;

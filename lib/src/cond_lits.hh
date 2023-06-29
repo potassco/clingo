@@ -5,6 +5,7 @@
 #include <literal.hh>
 
 #include "unpool.hh"
+#include "variables.hh"
 
 namespace {
 
@@ -121,30 +122,13 @@ void print_cond_lits(auto const &elems, auto const &global, std::ostream &out, c
     }
 }
 
-void cond_visit_variables(auto const &elems, auto const &global, std::function<void(std::string const &var)> fun,
-                          VariableContext ctx) {
-    auto visit = [&](auto const &expr) {
-        switch (ctx) {
-            case VariableContext::global: {
-                expr.visit_variables([&global, fun](std::string const &var) {
-                    if (std::binary_search(global.begin(), global.end(), var)) {
-                        fun(var);
-                    }
-                });
-            }
-            case VariableContext::all: {
-                expr.visit_variables(fun);
-            }
+void cond_visit_variables(auto const &elems, auto const &global, VarVisitFun fun, VariableContext ctx) {
+    VarVisitor visit{[&](auto const &var) {
+        if (ctx == VariableContext::all || std::binary_search(global.begin(), global.end(), var)) {
+            fun(var);
         }
-    };
-    for (auto const &elem : elems) {
-        for (auto const &lit : elem.first) {
-            visit(*lit);
-        }
-        for (auto const &lit : elem.second) {
-            visit(*lit);
-        }
-    }
+    }};
+    visit.add(elems);
 }
 
 } // namespace

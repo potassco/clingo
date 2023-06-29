@@ -76,6 +76,7 @@ enum class VariableContext {
 
 using VariableSet = std::unordered_set<std::string>;
 using VariableVec = std::vector<std::string>;
+using VarVisitFun = std::function<void(std::string const &var)>;
 
 template <class E> void select_variables(E &expr, VariableSet &vars, VariableSelectMode mode) {
     if (mode == VariableSelectMode::add) {
@@ -125,7 +126,7 @@ class Term {
     [[nodiscard]] virtual auto is_equal(Term const &other) const -> bool = 0;
     [[nodiscard]] friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
-    virtual void visit_variables(std::function<void(std::string const &var)> fun) const = 0;
+    virtual void visit_variables(VarVisitFun const &fun) const = 0;
     [[nodiscard]] virtual auto project(Projection project) -> STerm = 0;
 
     // AST interface
@@ -209,7 +210,7 @@ class TermSymbol : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
@@ -231,7 +232,7 @@ class TermTuple : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
@@ -252,7 +253,7 @@ class TermVariable : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
 
   private:
@@ -267,7 +268,7 @@ class TermAbs : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
@@ -287,7 +288,7 @@ class TermFunction : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
@@ -315,7 +316,7 @@ class TermUnary : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
@@ -353,7 +354,7 @@ class TermBinary : public Term {
     void unpool(PoolTerm &pool) override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(std::function<void(std::string const &var)> fun) const override;
+    void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
 
     // AST interface
