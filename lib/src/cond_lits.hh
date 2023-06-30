@@ -97,5 +97,53 @@ void cond_visit_variables(auto const &elems, VarVisitFun const &fun, VariableCon
         }
     }
 }
+template <class L, class T, class P>
+auto project_cond_lits(T *self, typename T::ElementVec &elems_, P project, bool project_lits, bool in_negative_scope)
+    -> shared_ptr<L> {
+    std::optional<typename T::ElementVec> elems;
+    size_t n_elems = 0;
+    for (auto const &[lits, cond] : elems_) {
+        bool project_cond =
+            in_negative_scope || std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return !lit->is_atom(); });
+        size_t n_lits = project_lits ? 0 : lits.size();
+        size_t n_cond = project_cond ? 0 : cond.size();
+        if (elems.has_value()) {
+            elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
+        }
+        // project conclusion
+        if (project_lits) {
+            for (auto const &lit : lits) {
+                auto projected_lit = lit->project(project);
+                if (projected_lit != lit && !elems.has_value()) {
+                    elems = copy_n(elems_, n_elems);
+                    elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
+                }
+                if (elems.has_value()) {
+                    elems->back().first.emplace_back(projected_lit);
+                }
+                ++n_lits;
+            }
+        }
+        // project premise
+        if (project_cond) {
+            for (auto const &lit : cond) {
+                auto projected_lit = lit->project(project);
+                if (projected_lit != lit && !elems.has_value()) {
+                    elems = copy_n(elems_, n_elems);
+                    elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
+                }
+                if (elems.has_value()) {
+                    elems->back().second.emplace_back(projected_lit);
+                }
+                ++n_cond;
+            }
+        }
+        ++n_elems;
+    }
+    if (elems.has_value()) {
+        return construct_shared<T, L>(std::move(elems).value());
+    }
+    return shared_ptr<L>{self};
+}
 
 } // namespace

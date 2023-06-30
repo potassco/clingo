@@ -81,6 +81,8 @@ auto Literal::unpool() -> SLiteralVec {
     return lits;
 }
 
+auto Literal::is_atom() const -> bool { return false; }
+
 ////////// LiteralRelation //////////
 
 auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
@@ -221,3 +223,5 @@ void LiteralSymbolic::visit_variables(VarVisitFun const &fun) const { term_->vis
     }
     return SLiteral{this};
 }
+
+auto LiteralSymbolic::is_atom() const -> bool { return sign_ == Sign::none; }

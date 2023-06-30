@@ -38,6 +38,7 @@ class Literal {
     virtual void print(std::ostream &out) const = 0;
     virtual void add_sign(Sign sign) = 0;
     virtual void unpool(PoolLiteral &pool) = 0;
+    [[nodiscard]] virtual auto is_atom() const -> bool;
     auto unpool() -> SLiteralVec;
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream &;
@@ -96,6 +97,7 @@ class LiteralSymbolic : public Literal {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> SLiteral override;
+    [[nodiscard]] auto is_atom() const -> bool override;
 
   private:
     Sign sign_;

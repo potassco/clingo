@@ -49,36 +49,9 @@ void Disjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) c
 }
 
 auto Disjunction::project(Projection project) -> SHeadLiteral {
-    std::optional<ElementVec> elems;
-    size_t n = 0;
-    for (auto const &[lits, cond] : elems_) {
-        // get counts of local variables
-        VarCounter counter{project.counts()};
-        counter.add(lits, cond);
-        auto local_project = Projection{counter};
-
-        // project literals in antecedent
-        size_t m = 0;
-        if (elems.has_value()) {
-            elems->emplace_back(lits, copy_n(cond, m));
-        }
-        for (auto const &lit : cond) {
-            auto projected_lit = lit->project(local_project);
-            if (projected_lit != lit && !elems.has_value()) {
-                elems = copy_n(elems_, n);
-                elems->emplace_back(lits, copy_n(cond, m));
-            }
-            if (elems.has_value()) {
-                elems->back().second.emplace_back(projected_lit);
-            }
-            ++m;
-        }
-        ++n;
-    }
-    if (elems.has_value()) {
-        return construct_shared<Disjunction, HeadLiteral>(std::move(elems).value());
-    }
-    return SHeadLiteral{this};
+    // Note when to project:
+    // - variables in conditions (almost body literals)
+    return project_cond_lits<HeadLiteral>(this, elems_, project, false, true);
 }
 
 ////////// HeadTheoryAtom //////////

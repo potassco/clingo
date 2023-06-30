@@ -47,38 +47,10 @@ void Conjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) c
 }
 
 auto Conjunction::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
-    // TODO: get rid of globals
-    // - simply reject result if variables change scope during unpooling
-    // FIXME: consider scope!
-    // - it is fine to project conditions in negative scope
-    // - it is fine to project conditions if the head literal is not a symbolic atom
-    //   - dynamic_cast<SymbolicLiteral>(lit) != nullptr for all lit in lits
-    // Note: that we can only project global variables in succeedents here.
-    std::optional<ElementVec> elems;
-    size_t n = 0;
-    for (auto const &[lits, cond] : elems_) {
-        // project literals in succeedent
-        size_t m = 0;
-        if (elems.has_value()) {
-            elems->emplace_back(copy_n(lits, m), cond);
-        }
-        for (auto const &lit : lits) {
-            auto projected_lit = lit->project(project);
-            if (projected_lit != lit && !elems.has_value()) {
-                elems = copy_n(elems_, n);
-                elems->emplace_back(copy_n(lits, m), cond);
-            }
-            if (elems.has_value()) {
-                elems->back().first.emplace_back(projected_lit);
-            }
-            ++m;
-        }
-        ++n;
-    }
-    if (elems.has_value()) {
-        return construct_shared<Conjunction, BodyLiteral>(std::move(elems).value());
-    }
-    return SBodyLiteral{this};
+    // Note when to project:
+    // - variables in premise if in negative scope,
+    // - varibales in conclusion.
+    return project_cond_lits<BodyLiteral>(this, elems_, project, true, in_negative_scope);
 }
 
 ////////// BodyAggregate //////////
