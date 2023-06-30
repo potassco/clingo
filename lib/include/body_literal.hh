@@ -24,6 +24,8 @@ class BodyLiteral {
     virtual void print(std::ostream &out) const = 0;
     virtual void visit_variables(VarVisitFun const &fun, VariableContext ctx) const = 0;
     [[nodiscard]] virtual auto project(Projection project, bool in_negative_scope) -> SBodyLiteral = 0;
+    [[nodiscard]] virtual auto is_atom() const -> bool;
+    [[nodiscard]] virtual auto is_test() const -> bool;
 
     size_t refs = 0;
 };
@@ -40,6 +42,8 @@ class Conjunction : public BodyLiteral {
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_negative_scope) -> SBodyLiteral override;
+    [[nodiscard]] auto is_atom() const -> bool override;
+    [[nodiscard]] auto is_test() const -> bool override;
 
   private:
     ElementVec elems_;

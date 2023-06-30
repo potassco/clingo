@@ -126,6 +126,39 @@ void Rule::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     visit_body(fun, ctx, body_);
 }
 
+auto Rule::project() -> SStatement {
+    // Do not project projection-like rules.
+    if (head_->is_atom()) {
+        auto has_atom = std::any_of(body_.begin(), body_.end(), [](auto const &lit) { return lit->is_atom(); });
+        size_t n_test = std::count_if(body_.begin(), body_.end(), [](auto const &lit) { return lit->is_test(); });
+        if (has_atom && n_test == body_.size() - 1) {
+            return SStatement{this};
+        }
+    }
+    detail::VarOccCounts global;
+    head_->visit_variables([&global](std::string const &var) { ++global[var]; }, VariableContext::global);
+    for (auto const &lit : body_) {
+        lit->visit_variables([&global](std::string const &var) { ++global[var]; }, VariableContext::global);
+    }
+    Projection project{global};
+    std::optional<SBodyLiteralVec> body;
+    size_t n = 0;
+    for (auto &lit : body_) {
+        auto projected_lit = lit->project(project, false);
+        if (projected_lit != lit && !body.has_value()) {
+            body = copy_n(body_, n);
+        }
+        if (body.has_value()) {
+            body->emplace_back(std::move(projected_lit));
+        }
+        ++n;
+    }
+    if (body.has_value()) {
+        return construct_shared<Rule, Statement>(head_, std::move(body).value());
+    }
+    return SStatement{this};
+}
+
 ////////// TheoryOpDefinition //////////
 
 auto operator<<(std::ostream &out, TheoryOpDefinition const &def) -> std::ostream & {
@@ -221,6 +254,8 @@ void TheoryDefinition::visit_variables(VarVisitFun const &fun, VariableContext c
     static_cast<void>(ctx);
 }
 
+auto TheoryDefinition::project() -> SStatement { return SStatement{this}; }
+
 ////////// StatementOptimize //////////
 
 auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
@@ -296,6 +331,8 @@ void StatementOptimize::visit_variables(VarVisitFun const &fun, VariableContext 
     }
 }
 
+auto StatementOptimize::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+
 ////////// StatementWeakConstraint //////////
 
 void StatementWeakConstraint::print(std::ostream &out) const {
@@ -333,6 +370,8 @@ void StatementWeakConstraint::visit_variables(VarVisitFun const &fun, VariableCo
     visit_body(fun, ctx, body_);
 }
 
+auto StatementWeakConstraint::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+
 ////////// StatementShow //////////
 
 void StatementShow::print(std::ostream &out) const { out << "#show " << *term_ << ": " << p_range(body_, "; ") << "."; }
@@ -354,6 +393,8 @@ void StatementShow::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     visit_body(fun, ctx, body_);
 }
 
+auto StatementShow::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+
 ////////// StatementShowSig //////////
 
 void StatementShowSig::print(std::ostream &out) const {
@@ -366,6 +407,8 @@ void StatementShowSig::visit_variables(VarVisitFun const &fun, VariableContext c
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
+
+auto StatementShowSig::project() -> SStatement { return SStatement{this}; }
 
 ////////// StatementProject //////////
 
@@ -390,6 +433,8 @@ void StatementProject::visit_variables(VarVisitFun const &fun, VariableContext c
     visit_body(fun, ctx, body_);
 }
 
+auto StatementProject::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+
 ////////// StatementProjectSig //////////
 
 void StatementProjectSig::print(std::ostream &out) const {
@@ -403,6 +448,8 @@ void StatementProjectSig::visit_variables(VarVisitFun const &fun, VariableContex
     static_cast<void>(ctx);
 }
 
+auto StatementProjectSig::project() -> SStatement { return SStatement{this}; }
+
 ////////// StatementDefined //////////
 
 void StatementDefined::print(std::ostream &out) const {
@@ -415,6 +462,8 @@ void StatementDefined::visit_variables(VarVisitFun const &fun, VariableContext c
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
+
+auto StatementDefined::project() -> SStatement { return SStatement{this}; }
 
 ////////// StatementExternal //////////
 
@@ -444,6 +493,8 @@ void StatementExternal::visit_variables(VarVisitFun const &fun, VariableContext 
     visit.add(term_, type_);
     visit_body(fun, ctx, body_);
 }
+
+auto StatementExternal::project() -> SStatement { throw std::logic_error("implement me!!!"); }
 
 ////////// StatementEdge //////////
 
@@ -493,6 +544,8 @@ void StatementEdge::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     visit_body(fun, ctx, body_);
 }
 
+auto StatementEdge::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+
 ////////// StatementHeuristic //////////
 
 void StatementHeuristic::print(std::ostream &out) const {
@@ -526,6 +579,8 @@ void StatementHeuristic::visit_variables(VarVisitFun const &fun, VariableContext
     visit_body(fun, ctx, body_);
 }
 
+auto StatementHeuristic::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+
 ////////// StatementScript //////////
 
 auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
@@ -550,6 +605,8 @@ void StatementScript::visit_variables(VarVisitFun const &fun, VariableContext ct
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
+
+auto StatementScript::project() -> SStatement { return SStatement{this}; }
 
 ////////// StatementInclude //////////
 
@@ -584,6 +641,8 @@ void StatementInclude::visit_variables(VarVisitFun const &fun, VariableContext c
     static_cast<void>(ctx);
 }
 
+auto StatementInclude::project() -> SStatement { return SStatement{this}; }
+
 ////////// StatementProgram //////////
 
 void StatementProgram::print(std::ostream &out) const {
@@ -600,6 +659,8 @@ void StatementProgram::visit_variables(VarVisitFun const &fun, VariableContext c
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
+
+auto StatementProgram::project() -> SStatement { return SStatement{this}; }
 
 ////////// StatementConst //////////
 
@@ -642,3 +703,5 @@ void StatementConst::visit_variables(VarVisitFun const &fun, VariableContext ctx
     static_cast<void>(fun);
     static_cast<void>(ctx);
 }
+
+auto StatementConst::project() -> SStatement { return SStatement{this}; }

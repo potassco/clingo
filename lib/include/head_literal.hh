@@ -20,6 +20,8 @@ class HeadLiteral {
     virtual void print(std::ostream &out) const = 0;
     virtual void visit_variables(VarVisitFun const &fun, VariableContext ctx) const = 0;
     [[nodiscard]] virtual auto project(Projection project) -> SHeadLiteral = 0;
+    [[nodiscard]] virtual auto is_atom() const -> bool;
+    [[nodiscard]] virtual auto is_test() const -> bool;
 
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &;
@@ -40,6 +42,8 @@ class Disjunction : public HeadLiteral {
     void unpool(PoolHeadLiteral &pool) override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
+    [[nodiscard]] auto is_atom() const -> bool override;
+    [[nodiscard]] auto is_test() const -> bool override;
 
   private:
     ElementVec elems_;

@@ -29,6 +29,10 @@ auto operator<<(std::ostream &out, BodyLiteral const &literal) -> std::ostream &
     return out;
 }
 
+auto BodyLiteral::is_atom() const -> bool { return false; }
+
+auto BodyLiteral::is_test() const -> bool { return false; }
+
 ////////// ConditionalLiteral //////////
 
 void Conjunction::add_sign(Sign sign) {
@@ -38,20 +42,24 @@ void Conjunction::add_sign(Sign sign) {
     elems_.front().first.front()->add_sign(sign);
 }
 
-void Conjunction::print(std::ostream &out) const { print_cond_lits(elems_, out, "#and", false); }
+void Conjunction::print(std::ostream &out) const { CondLits::print(elems_, out, "#and", false); }
 
-void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits(this, pool, elems_); }
+void Conjunction::unpool(PoolBodyLiteral &pool) { CondLits::unpool(this, pool, elems_); }
 
 void Conjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    cond_visit_variables(elems_, fun, ctx);
+    CondLits::visit_variables(elems_, fun, ctx);
 }
 
 auto Conjunction::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
     // Note when to project:
     // - variables in premise if in negative scope,
     // - varibales in conclusion.
-    return project_cond_lits<BodyLiteral>(this, elems_, project, true, in_negative_scope);
+    return CondLits::project<BodyLiteral>(this, elems_, project, true, in_negative_scope);
 }
+
+auto Conjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
+
+auto Conjunction::is_test() const -> bool { return CondLits::is_test(elems_); }
 
 ////////// BodyAggregate //////////
 

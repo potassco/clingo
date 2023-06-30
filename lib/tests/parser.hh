@@ -29,7 +29,7 @@ template <class T> auto to_str(std::optional<T> const &value) -> std::string {
     return "<failed>";
 }
 
-template <class T> auto to_str(shared_ptr<T> const &value) -> std::string { return value.value()->to_string(); }
+template <class T> auto to_str(shared_ptr<T> const &value) -> std::string { return value->to_string(); }
 
 template <class T> auto to_str(std::vector<T> const &value, char const *sep = ", ") -> std::string {
     std::ostringstream oss;
@@ -40,6 +40,13 @@ template <class T> auto to_str(std::vector<T> const &value, char const *sep = ",
 template <class T> auto unpool_str(std::optional<shared_ptr<T>> value, char const *sep = ", ") -> std::string {
     if (value) {
         return to_str(value.value()->unpool(), sep);
+    }
+    return "<failed>";
+}
+
+template <class T> auto project_str(std::optional<shared_ptr<T>> value) -> std::string {
+    if (value) {
+        return to_str(value.value()->project());
     }
     return "<failed>";
 }

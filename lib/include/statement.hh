@@ -124,6 +124,7 @@ class Statement {
 
     virtual void print(std::ostream &out) const = 0;
     virtual void visit_variables(VarVisitFun const &fun, VariableContext ctx) const = 0;
+    [[nodiscard]] virtual auto project() -> SStatement = 0;
 
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream &;
@@ -143,6 +144,7 @@ class Rule : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -212,6 +214,7 @@ class TheoryDefinition : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -236,6 +239,7 @@ class StatementOptimize : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -254,6 +258,7 @@ class StatementWeakConstraint : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -269,6 +274,7 @@ class StatementShow : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -285,6 +291,7 @@ class StatementShowSig : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -301,6 +308,7 @@ class StatementProject : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -317,6 +325,7 @@ class StatementProjectSig : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -334,6 +343,7 @@ class StatementDefined : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -351,6 +361,7 @@ class StatementExternal : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -371,6 +382,7 @@ class StatementEdge : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -395,6 +407,7 @@ class StatementHeuristic : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -421,6 +434,7 @@ class StatementScript : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -443,6 +457,7 @@ class StatementInclude : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -459,6 +474,7 @@ class StatementProgram : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;
@@ -479,6 +495,7 @@ class StatementConst : public Statement {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
+    [[nodiscard]] auto project() -> SStatement override;
 
   protected:
     void do_unpool(PoolStatement &pool) override;

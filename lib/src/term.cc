@@ -23,7 +23,7 @@ struct p_tuple {
     }
 };
 
-auto projectable(Projection &project, STerm const *term) -> bool {
+auto projectable(Projection project, STerm const *term) -> bool {
     if (term == nullptr) {
         return false;
     }
@@ -45,7 +45,7 @@ auto NameGen::new_name() -> std::string {
 
 auto Projection::projectable(std::string const &var) const -> bool {
     auto it = counts_.find(var);
-    return it == counts_.end() && it->second == 1;
+    return it != counts_.end() && it->second == 1;
 }
 
 [[nodiscard]] auto Projection::counts() const -> std::unordered_map<std::string, size_t> const & { return counts_; }

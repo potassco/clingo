@@ -7,7 +7,7 @@
 #include "unpool.hh"
 #include "variables.hh"
 
-namespace {
+namespace CondLits {
 
 template <class T> struct MapLiteral {
     static void unpool(PoolLiteral &pool, SLiteral &lit) { lit->unpool(pool); }
@@ -16,7 +16,7 @@ template <class T> struct MapLiteral {
     static auto equal(SLiteral &a, SLiteral &b) -> bool { return a == b; }
 };
 
-template <class T, class P> void unpool_cond_lits(T *self, P &pool, typename T::ElementVec &elems) {
+template <class T, class P> void unpool(T *self, P &pool, typename T::ElementVec &elems) {
     using Conds = std::vector<SLiteralVec>;
     using OConds = std::optional<Conds>;
     using ElemConds = std::vector<OConds>;
@@ -65,13 +65,13 @@ template <class T, class P> void unpool_cond_lits(T *self, P &pool, typename T::
         unpool_union_crossproduct<PoolLiteral, typename T::Element, MapLiteral<T>>(pool, elems));
 }
 
-auto is_simple_cond_lits(auto const &elems) -> bool {
+auto is_simple(auto const &elems) -> bool {
     return !elems.empty() &&
            std::all_of(elems.begin(), elems.end(), [&](auto const &elem) { return elem.first.size() == 1; });
 }
 
-void print_cond_lits(auto const &elems, std::ostream &out, char const *kw, bool simple_empty) {
-    if (elems.empty() ? simple_empty : is_simple_cond_lits(elems)) {
+void print(auto const &elems, std::ostream &out, char const *kw, bool simple_empty) {
+    if (elems.empty() ? simple_empty : is_simple(elems)) {
         out << p_range_with(elems, "; ", [](std::ostream &out, auto const &elem) {
             auto cs = elem.second.empty() ? "" : ": ";
             out << *elem.first.front() << cs << p_range(elem.second, ", ");
@@ -88,7 +88,7 @@ void print_cond_lits(auto const &elems, std::ostream &out, char const *kw, bool 
     }
 }
 
-void cond_visit_variables(auto const &elems, VarVisitFun const &fun, VariableContext ctx) {
+void visit_variables(auto const &elems, VarVisitFun const &fun, VariableContext ctx) {
     VarVisitor visit{fun};
     for (auto const &elem : elems) {
         visit.add(elem.first);
@@ -98,28 +98,28 @@ void cond_visit_variables(auto const &elems, VarVisitFun const &fun, VariableCon
     }
 }
 template <class L, class T, class P>
-auto project_cond_lits(T *self, typename T::ElementVec &elems_, P project, bool project_lits, bool in_negative_scope)
+auto project(T *self, typename T::ElementVec &elems, P project, bool project_lits, bool in_negative_scope)
     -> shared_ptr<L> {
-    std::optional<typename T::ElementVec> elems;
+    std::optional<typename T::ElementVec> projected_elems;
     size_t n_elems = 0;
-    for (auto const &[lits, cond] : elems_) {
+    for (auto const &[lits, cond] : elems) {
         bool project_cond =
             in_negative_scope || std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return !lit->is_atom(); });
         size_t n_lits = project_lits ? 0 : lits.size();
         size_t n_cond = project_cond ? 0 : cond.size();
-        if (elems.has_value()) {
-            elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
+        if (projected_elems.has_value()) {
+            projected_elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
         }
         // project conclusion
         if (project_lits) {
             for (auto const &lit : lits) {
                 auto projected_lit = lit->project(project);
-                if (projected_lit != lit && !elems.has_value()) {
-                    elems = copy_n(elems_, n_elems);
-                    elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
+                if (projected_lit != lit && !projected_elems.has_value()) {
+                    projected_elems = copy_n(elems, n_elems);
+                    projected_elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
                 }
-                if (elems.has_value()) {
-                    elems->back().first.emplace_back(projected_lit);
+                if (projected_elems.has_value()) {
+                    projected_elems->back().first.emplace_back(projected_lit);
                 }
                 ++n_lits;
             }
@@ -128,22 +128,37 @@ auto project_cond_lits(T *self, typename T::ElementVec &elems_, P project, bool 
         if (project_cond) {
             for (auto const &lit : cond) {
                 auto projected_lit = lit->project(project);
-                if (projected_lit != lit && !elems.has_value()) {
-                    elems = copy_n(elems_, n_elems);
-                    elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
+                if (projected_lit != lit && !projected_elems.has_value()) {
+                    projected_elems = copy_n(elems, n_elems);
+                    projected_elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
                 }
-                if (elems.has_value()) {
-                    elems->back().second.emplace_back(projected_lit);
+                if (projected_elems.has_value()) {
+                    projected_elems->back().second.emplace_back(projected_lit);
                 }
                 ++n_cond;
             }
         }
         ++n_elems;
     }
-    if (elems.has_value()) {
-        return construct_shared<T, L>(std::move(elems).value());
+    if (projected_elems.has_value()) {
+        return construct_shared<T, L>(std::move(projected_elems).value());
     }
     return shared_ptr<L>{self};
 }
 
-} // namespace
+auto is_atom(auto const &elems) -> bool {
+    if (elems.size() != 1) {
+        return false;
+    }
+    auto const &[lits, cond] = elems.front();
+    return cond.empty() && lits.size() == 1 && lits.front()->is_atom();
+}
+
+auto is_test(auto const &elems) -> bool {
+    return std::all_of(elems.begin(), elems.end(), [](auto const &elem) {
+        auto const &[lits, cond] = elem;
+        return cond.empty() && std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return lit->is_test(); });
+    });
+}
+
+} // namespace CondLits

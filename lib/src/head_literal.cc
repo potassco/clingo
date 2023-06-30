@@ -36,23 +36,31 @@ auto HeadLiteral::unpool() -> SHeadLiteralVec {
     return head_lits;
 }
 
+auto HeadLiteral::is_atom() const -> bool { return false; }
+
+auto HeadLiteral::is_test() const -> bool { return false; }
+
 ////////// Disjunction //////////
 
 auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
 
-void Disjunction::print(std::ostream &out) const { print_cond_lits(elems_, out, "#or", true); }
+void Disjunction::print(std::ostream &out) const { CondLits::print(elems_, out, "#or", true); }
 
-void Disjunction::unpool(PoolHeadLiteral &pool) { unpool_cond_lits(this, pool, elems_); }
+void Disjunction::unpool(PoolHeadLiteral &pool) { CondLits::unpool(this, pool, elems_); }
 
 void Disjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    cond_visit_variables(elems_, fun, ctx);
+    CondLits::visit_variables(elems_, fun, ctx);
 }
 
 auto Disjunction::project(Projection project) -> SHeadLiteral {
     // Note when to project:
     // - variables in conditions (almost body literals)
-    return project_cond_lits<HeadLiteral>(this, elems_, project, false, true);
+    return CondLits::project<HeadLiteral>(this, elems_, project, false, true);
 }
+
+auto Disjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
+
+auto Disjunction::is_test() const -> bool { return CondLits::is_test(elems_); }
 
 ////////// HeadTheoryAtom //////////
 

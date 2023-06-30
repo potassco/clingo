@@ -156,4 +156,6 @@ TEST_CASE("unpool_statement") {
     REQUIRE_THROWS(unpool_str(parse_statement(":- p(X): q(Y); r(X;Y)."), " "));
 }
 
+TEST_CASE("project_statement") { REQUIRE(project_str(parse_statement(":- p(X,Y), q(X).")) == " :- p(X,*); q(X)."); }
+
 } // namespace test

@@ -25,6 +25,10 @@ template <class P> class VarVisitHelper : public P {
 
     template <class T> auto add(T const &x) -> std::enable_if_t<std::is_enum_v<T>> { static_cast<void>(x); }
 
+    void add(std::string const &x) { static_cast<void>(x); }
+
+    void add(std::monostate const &x) { static_cast<void>(x); }
+
     template <class T> void add(shared_ptr<T> const &ptr) { add(*ptr); }
 
     template <class T> void add(std::optional<T> const &opt) {
@@ -48,7 +52,11 @@ template <class P> class VarVisitHelper : public P {
 
     template <class... A> auto add(std::variant<A...> const &var) { add_(var, std::index_sequence_for<A...>{}); }
 
-    template <class... T> void add(T const &...args) { (add(args), ...); }
+    template <class A, class B, class... C> void add(A const &a, B const &b, C const &...args) {
+        add(a);
+        add(b);
+        (add(args), ...);
+    }
 
   private:
     template <class... T, size_t... Indices>
