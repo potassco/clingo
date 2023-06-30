@@ -59,19 +59,18 @@ template <class E> struct junction_element {
 template <class E, class J, class L> struct junction {
     static constexpr auto make_rule = [](auto kw) {
         auto sep = dsl::sep(LEXY_LIT(";"));
-        return kw >> dsl::p<variable_list> + dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
+        return kw >> dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
     };
     static constexpr auto value = lexy::as_list<typename J::ElementVec> >>
-                                  lexy::callback<shared_ptr<L>>(lexy::new_<J, shared_ptr<L>>, [](VariableVec global,
-                                                                                                 lexy::nullopt) {
-                                      return construct_shared<J, L>(std::move(global), typename J::ElementVec{});
+                                  lexy::callback<shared_ptr<L>>(lexy::new_<J, shared_ptr<L>>, [](lexy::nullopt) {
+                                      return construct_shared<J, L>(typename J::ElementVec{});
                                   });
 };
 
 template <class E>
 static constexpr auto rule_junction = [](auto kw) {
     auto sep = dsl::sep(LEXY_LIT(";"));
-    return kw >> dsl::p<variable_list> + dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
+    return kw >> dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
 };
 
 static constexpr auto aggregate_right_guard = []() {

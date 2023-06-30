@@ -33,7 +33,7 @@ class Disjunction : public HeadLiteral {
     using Element = std::pair<SLiteralVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
-    explicit Disjunction(VariableVec global, ElementVec elems) : global_{std::move(global)}, elems_{std::move(elems)} {}
+    explicit Disjunction(ElementVec elems) : elems_{std::move(elems)} {}
 
     [[nodiscard]] auto print_empty() const -> bool override;
     void print(std::ostream &out) const override;
@@ -42,8 +42,6 @@ class Disjunction : public HeadLiteral {
     [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
 
   private:
-    // TODO: get rid of this
-    VariableVec global_;
     ElementVec elems_;
 };
 

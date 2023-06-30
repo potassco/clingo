@@ -40,12 +40,12 @@ auto HeadLiteral::unpool() -> SHeadLiteralVec {
 
 auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
 
-void Disjunction::print(std::ostream &out) const { print_cond_lits(elems_, global_, out, "#or", true); }
+void Disjunction::print(std::ostream &out) const { print_cond_lits(elems_, out, "#or", true); }
 
-void Disjunction::unpool(PoolHeadLiteral &pool) { unpool_cond_lits(this, pool, global_, elems_); }
+void Disjunction::unpool(PoolHeadLiteral &pool) { unpool_cond_lits(this, pool, elems_); }
 
 void Disjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    cond_visit_variables(elems_, global_, fun, ctx);
+    cond_visit_variables(elems_, fun, ctx);
 }
 
 auto Disjunction::project(Projection project) -> SHeadLiteral {
@@ -76,7 +76,7 @@ auto Disjunction::project(Projection project) -> SHeadLiteral {
         ++n;
     }
     if (elems.has_value()) {
-        return construct_shared<Disjunction, HeadLiteral>(global_, std::move(elems).value());
+        return construct_shared<Disjunction, HeadLiteral>(std::move(elems).value());
     }
     return SHeadLiteral{this};
 }

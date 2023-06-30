@@ -21,14 +21,8 @@ inline auto construct_body_aggr(SetAggregate aggr) -> SBodySetAggregate {
 }
 
 auto construct_conjunction(SLiteral lit, SLiteralVec cond) {
-    auto global = select_variables(*lit, VariableSelectMode::add);
-    for (auto &lit : cond) {
-        select_variables(*lit, global, VariableSelectMode::del);
-    }
-    auto vars = VariableVec{global.begin(), global.end()};
-    std::sort(vars.begin(), vars.end());
     return construct_shared<Conjunction, BodyLiteral>(
-        std::move(vars), Conjunction::ElementVec{Conjunction::Element{SLiteralVec{std::move(lit)}, std::move(cond)}});
+        Conjunction::ElementVec{Conjunction::Element{SLiteralVec{std::move(lit)}, std::move(cond)}});
 }
 
 } // namespace detail

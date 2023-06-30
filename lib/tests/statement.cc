@@ -148,6 +148,12 @@ TEST_CASE("unpool_statement") {
             " #heuristic p(2). [1@3,5] #heuristic p(2). [1@3,6] #heuristic p(2). [1@4,5] #heuristic p(2). [1@4,6]"
             " #heuristic p(2). [2@3,5] #heuristic p(2). [2@3,6] #heuristic p(2). [2@4,5] #heuristic p(2). [2@4,6]]");
     REQUIRE(unpool_str(parse_statement("#const x=(1)."), "") == "[#const x=1. [default]]");
+
+    // local <-> global
+    REQUIRE(unpool_str(parse_statement(":- p(X): q(X;Y)."), " ") == "[ :- p(X): q(X); p(X): q(Y).]");
+    REQUIRE_THROWS(unpool_str(parse_statement(":- p(X;Y): q(X)."), " "));
+    REQUIRE_THROWS(unpool_str(parse_statement(":- p(X;Y): q(X;Y)."), " "));
+    REQUIRE_THROWS(unpool_str(parse_statement(":- p(X): q(Y); r(X;Y)."), " "));
 }
 
 } // namespace test

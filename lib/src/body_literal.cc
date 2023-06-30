@@ -38,12 +38,12 @@ void Conjunction::add_sign(Sign sign) {
     elems_.front().first.front()->add_sign(sign);
 }
 
-void Conjunction::print(std::ostream &out) const { print_cond_lits(elems_, global_, out, "#and", false); }
+void Conjunction::print(std::ostream &out) const { print_cond_lits(elems_, out, "#and", false); }
 
-void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits(this, pool, global_, elems_); }
+void Conjunction::unpool(PoolBodyLiteral &pool) { unpool_cond_lits(this, pool, elems_); }
 
 void Conjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    cond_visit_variables(elems_, global_, std::move(fun), ctx);
+    cond_visit_variables(elems_, fun, ctx);
 }
 
 auto Conjunction::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
@@ -76,7 +76,7 @@ auto Conjunction::project(Projection project, bool in_negative_scope) -> SBodyLi
         ++n;
     }
     if (elems.has_value()) {
-        return construct_shared<Conjunction, BodyLiteral>(global_, std::move(elems).value());
+        return construct_shared<Conjunction, BodyLiteral>(std::move(elems).value());
     }
     return SBodyLiteral{this};
 }

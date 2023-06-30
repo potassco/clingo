@@ -33,7 +33,7 @@ class Conjunction : public BodyLiteral {
     using Element = std::pair<SLiteralVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
-    explicit Conjunction(VariableVec global, ElementVec elems) : global_{std::move(global)}, elems_{std::move(elems)} {}
+    explicit Conjunction(ElementVec elems) : elems_{std::move(elems)} {}
 
     void add_sign(Sign sign) override;
     void unpool(PoolBodyLiteral &pool) override;
@@ -42,8 +42,6 @@ class Conjunction : public BodyLiteral {
     [[nodiscard]] auto project(Projection project, bool in_negative_scope) -> SBodyLiteral override;
 
   private:
-    // TODO: get rid of this
-    VariableVec global_;
     ElementVec elems_;
 };
 

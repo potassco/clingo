@@ -16,8 +16,7 @@ template <class T> struct MapLiteral {
     static auto equal(SLiteral &a, SLiteral &b) -> bool { return a == b; }
 };
 
-template <class T, class P>
-void unpool_cond_lits(T *self, P &pool, VariableVec const &global, typename T::ElementVec &elems) {
+template <class T, class P> void unpool_cond_lits(T *self, P &pool, typename T::ElementVec &elems) {
     using Conds = std::vector<SLiteralVec>;
     using OConds = std::optional<Conds>;
     using ElemConds = std::vector<OConds>;
@@ -61,58 +60,25 @@ void unpool_cond_lits(T *self, P &pool, VariableVec const &global, typename T::E
                     unpooled.emplace_back(std::move(lits), elems[i].second);
                 }
             }
-            auto var_set = VariableSet{};
-            for (auto const &elem : unpooled) {
-                for (auto const &lit : elem.first) {
-                    select_variables(*lit, var_set, VariableSelectMode::add);
-                }
-                for (auto const &lit : elem.second) {
-                    select_variables(*lit, var_set, VariableSelectMode::add);
-                }
-            }
-            auto var_vec = std::vector<std::string>{};
-            std::copy_if(global.begin(), global.end(), std::back_inserter(var_vec),
-                         [&](auto const &var) { return var_set.contains(var); });
-            pool.template append_shared<T>(std::move(var_vec), std::move(unpooled));
+            pool.template append_shared<T>(std::move(unpooled));
         },
         unpool_union_crossproduct<PoolLiteral, typename T::Element, MapLiteral<T>>(pool, elems));
 }
 
-auto is_simple_cond_lits(auto const &elems, auto const &global) -> bool {
-    auto lit_vars = VariableSet{};
-    auto cond_vars = VariableSet{};
-    return std::all_of(elems.begin(), elems.end(), [&](auto const &elem) {
-        if (elem.first.size() != 1) {
-            return false;
-        }
-        lit_vars.clear();
-        cond_vars.clear();
-        select_variables(*elem.first.front(), lit_vars, VariableSelectMode::add);
-        for (auto const &lit : elems.front().second) {
-            select_variables(*lit, cond_vars, VariableSelectMode::add);
-        }
-        if (std::any_of(global.begin(), global.end(), [&](auto const &var) { return cond_vars.contains(var); })) {
-            return false;
-        }
-        std::erase_if(lit_vars, [&](auto const &var) { return cond_vars.contains(var); });
-        for (auto const &var : global) {
-            lit_vars.erase(var);
-        }
-        return lit_vars.empty();
-    });
+auto is_simple_cond_lits(auto const &elems) -> bool {
+    return !elems.empty() &&
+           std::all_of(elems.begin(), elems.end(), [&](auto const &elem) { return elem.first.size() == 1; });
 }
 
-void print_cond_lits(auto const &elems, auto const &global, std::ostream &out, char const *kw, bool simple_empty) {
-    if (elems.empty() ? simple_empty : is_simple_cond_lits(elems, global)) {
+void print_cond_lits(auto const &elems, std::ostream &out, char const *kw, bool simple_empty) {
+    if (elems.empty() ? simple_empty : is_simple_cond_lits(elems)) {
         out << p_range_with(elems, "; ", [](std::ostream &out, auto const &elem) {
             auto cs = elem.second.empty() ? "" : ": ";
             out << *elem.first.front() << cs << p_range(elem.second, ", ");
         });
     } else {
-        char const *lp = global.empty() ? "" : "(";
-        char const *rp = global.empty() ? "" : ")";
         char const *sp = elems.empty() ? "" : " ";
-        out << kw << lp << p_range(global) << rp << " { "
+        out << kw << " { "
             << p_range_with(elems, "; ",
                             [&](std::ostream &out, auto const &elem) {
                                 char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
@@ -122,13 +88,14 @@ void print_cond_lits(auto const &elems, auto const &global, std::ostream &out, c
     }
 }
 
-void cond_visit_variables(auto const &elems, auto const &global, VarVisitFun fun, VariableContext ctx) {
-    VarVisitor visit{[&](auto const &var) {
-        if (ctx == VariableContext::all || std::binary_search(global.begin(), global.end(), var)) {
-            fun(var);
+void cond_visit_variables(auto const &elems, VarVisitFun const &fun, VariableContext ctx) {
+    VarVisitor visit{fun};
+    for (auto const &elem : elems) {
+        visit.add(elem.first);
+        if (ctx == VariableContext::all) {
+            visit.add(elem.second);
         }
-    }};
-    visit.add(elems);
+    }
 }
 
 } // namespace

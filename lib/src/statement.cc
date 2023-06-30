@@ -7,6 +7,7 @@
 #include "unpool.hh"
 #include "variables.hh"
 
+#include <iostream>
 ////////// Statement { //////////
 
 namespace {
@@ -55,7 +56,7 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 auto Statement::unpool() -> SStatementVec {
     SStatementVec stms;
     PoolStatement pool{stms};
-    do_unpool(pool);
+    unpool(pool);
     return stms;
 }
 
@@ -63,15 +64,16 @@ void Statement::unpool(PoolStatement &pool) {
     size_t i = pool.size();
     do_unpool(pool);
     size_t n = pool.size();
-    if (i < n) {
+    if (i != n - 1 || pool[i].get() != this) {
         VariableSet old_global;
         VariableSet new_global;
         visit_variables([&old_global](std::string const &var) { old_global.emplace(var); }, VariableContext::global);
         for (; i < n; ++i) {
+            new_global.clear();
             auto const &stm = pool[i];
-            visit_variables([&new_global](std::string const &var) { new_global.emplace(var); },
-                            VariableContext::global);
-            visit_variables(
+            stm->visit_variables([&new_global](std::string const &var) { new_global.emplace(var); },
+                                 VariableContext::global);
+            stm->visit_variables(
                 [&](std::string const &var) {
                     if (old_global.contains(var) != new_global.contains(var)) {
                         std::ostringstream oss;

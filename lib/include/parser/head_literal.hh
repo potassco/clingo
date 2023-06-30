@@ -19,23 +19,6 @@ inline auto construct_head_aggr(SetAggregate aggr) -> SHeadSetAggregate {
     return construct_shared<HeadSetAggregate>(std::move(aggr));
 }
 
-auto construct_disjunction(Disjunction::ElementVec elems) {
-    VariableSet global;
-    for (auto &elem : elems) {
-        for (auto &lit : elem.first) {
-            select_variables(*lit, global, VariableSelectMode::add);
-        }
-    }
-    for (auto &elem : elems) {
-        for (auto &lit : elem.second) {
-            select_variables(*lit, global, VariableSelectMode::del);
-        }
-    }
-    auto vars = VariableVec{global.begin(), global.end()};
-    std::sort(vars.begin(), vars.end());
-    return construct_shared<Disjunction, HeadLiteral>(std::move(vars), std::move(elems));
-}
-
 struct construct_disjunction_element {
     using return_type = Disjunction::Element;
     auto operator()(std::pair<SLiteral, SLiteralVec> elem) const -> return_type {
@@ -61,9 +44,7 @@ struct simple_disjunction {
     static constexpr char const *name = "disjunction";
     static constexpr auto rule = dsl::list(dsl::p<conditional_literal>, dsl::sep(disjunction_sep));
     static constexpr auto value = lexy::collect<Disjunction::ElementVec>(detail::construct_disjunction_element{}) >>
-                                  lexy::callback<SHeadLiteral>([](auto elems) {
-                                      return detail::construct_disjunction(std::move(elems));
-                                  });
+                                  lexy::new_<Disjunction, SHeadLiteral>;
 };
 
 struct disjunction_element : private junction_element<Disjunction::Element> {
@@ -171,13 +152,13 @@ struct head_literal {
             elems.insert(elems.begin(), Disjunction::Element{SLiteralVec{construct_shared<LiteralRelation, Literal>(
                                                                  std::move(lhs), std::move(guards))},
                                                              std::move(cond)});
-            return detail::construct_disjunction(std::move(elems));
+            return construct_shared<Disjunction, HeadLiteral>(std::move(elems));
         },
         [](STerm term, SLiteralVec cond, Disjunction::ElementVec elems) {
             elems.insert(elems.begin(),
                          Disjunction::Element{SLiteralVec{construct_shared<LiteralSymbolic, Literal>(std::move(term))},
                                               std::move(cond)});
-            return detail::construct_disjunction(std::move(elems));
+            return construct_shared<Disjunction, HeadLiteral>(std::move(elems));
         });
 };
 
