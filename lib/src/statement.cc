@@ -23,11 +23,10 @@ class GlobalVarCounterHelper {
 
     auto add(BodyLiteral const &x) { visit_(x, VariableContext::global); }
     auto add(HeadLiteral const &x) { visit_(x, VariableContext::global); }
-
     auto add(Statement const &x) { visit_(x, VariableContext::global); }
 
   protected:
-    template <class T, class... Args> void visit_(T const &x, Args... args) {
+    void visit_(auto const &x, auto... args) {
         x.visit_variables([this](std::string const &var) { ++global_[var]; }, args...);
     }
 
@@ -37,8 +36,7 @@ class GlobalVarCounterHelper {
 
 using GlobalVarCounter = detail::VarVisitHelper<GlobalVarCounterHelper>;
 
-template <class S, class C>
-auto project_body_with(S *self, SBodyLiteralVec &body_, bool in_classical_scope, C construct) -> SStatement {
+auto project_body_with(auto *self, SBodyLiteralVec &body_, bool in_classical_scope, auto construct) -> SStatement {
     // count global variables
     GlobalVarCounter counter;
     counter.add(*self);
