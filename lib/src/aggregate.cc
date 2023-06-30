@@ -113,12 +113,11 @@ auto SetAggregate::project(Projection project, bool in_negative_scope) -> std::o
         counter.add(cond);
         auto sub_project = Projection{counter};
 
-        // project literal if requested
+        // project literals in condition
         size_t m = 0;
         if (elems.has_value()) {
             elems->emplace_back(lit, copy_n(cond, m));
         }
-        // project literals in condition
         for (auto const &lit_c : cond) {
             auto projected_lit = lit_c->project(sub_project);
             if (projected_lit != lit_c && !elems.has_value()) {

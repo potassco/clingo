@@ -7,8 +7,7 @@
 #include "unpool.hh"
 #include "variables.hh"
 
-#include <iostream>
-////////// Statement { //////////
+////////// Statement //////////
 
 namespace {
 
@@ -16,6 +15,52 @@ void visit_body(VarVisitFun const &fun, VariableContext ctx, SBodyLiteralVec con
     for (auto const &lit : body) {
         lit->visit_variables(fun, ctx);
     }
+}
+
+class GlobalVarCounterHelper {
+  public:
+    [[nodiscard]] operator detail::VarOccCounts const &() { return global_; }
+
+    auto add(BodyLiteral const &x) { visit_(x, VariableContext::global); }
+    auto add(HeadLiteral const &x) { visit_(x, VariableContext::global); }
+
+    auto add(Statement const &x) { visit_(x, VariableContext::global); }
+
+  protected:
+    template <class T, class... Args> void visit_(T const &x, Args... args) {
+        x.visit_variables([this](std::string const &var) { ++global_[var]; }, args...);
+    }
+
+  private:
+    detail::VarOccCounts global_;
+};
+
+using GlobalVarCounter = detail::VarVisitHelper<GlobalVarCounterHelper>;
+
+template <class S, class C>
+auto project_body_with(S *self, SBodyLiteralVec &body_, bool in_classical_scope, C construct) -> SStatement {
+    // count global variables
+    GlobalVarCounter counter;
+    counter.add(*self);
+    Projection project{counter};
+
+    // project body
+    std::optional<SBodyLiteralVec> body;
+    size_t n = 0;
+    for (auto &lit : body_) {
+        auto projected_lit = lit->project(project, in_classical_scope);
+        if (projected_lit != lit && !body.has_value()) {
+            body = copy_n(body_, n);
+        }
+        if (body.has_value()) {
+            body->emplace_back(std::move(projected_lit));
+        }
+        ++n;
+    }
+    if (body.has_value()) {
+        return construct(std::move(body).value());
+    }
+    return SStatement{self};
 }
 
 } // namespace
@@ -127,7 +172,7 @@ void Rule::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
 }
 
 auto Rule::project() -> SStatement {
-    // Do not project projection-like rules.
+    // do not project projection-like rules
     if (head_->is_atom()) {
         auto has_atom = std::any_of(body_.begin(), body_.end(), [](auto const &lit) { return lit->is_atom(); });
         size_t n_test = std::count_if(body_.begin(), body_.end(), [](auto const &lit) { return lit->is_test(); });
@@ -135,28 +180,9 @@ auto Rule::project() -> SStatement {
             return SStatement{this};
         }
     }
-    detail::VarOccCounts global;
-    head_->visit_variables([&global](std::string const &var) { ++global[var]; }, VariableContext::global);
-    for (auto const &lit : body_) {
-        lit->visit_variables([&global](std::string const &var) { ++global[var]; }, VariableContext::global);
-    }
-    Projection project{global};
-    std::optional<SBodyLiteralVec> body;
-    size_t n = 0;
-    for (auto &lit : body_) {
-        auto projected_lit = lit->project(project, false);
-        if (projected_lit != lit && !body.has_value()) {
-            body = copy_n(body_, n);
-        }
-        if (body.has_value()) {
-            body->emplace_back(std::move(projected_lit));
-        }
-        ++n;
-    }
-    if (body.has_value()) {
-        return construct_shared<Rule, Statement>(head_, std::move(body).value());
-    }
-    return SStatement{this};
+
+    return project_body_with(this, body_, head_->is_classical(),
+                             [&](auto body) { return construct_shared<Rule, Statement>(head_, std::move(body)); });
 }
 
 ////////// TheoryOpDefinition //////////
@@ -331,7 +357,39 @@ void StatementOptimize::visit_variables(VarVisitFun const &fun, VariableContext 
     }
 }
 
-auto StatementOptimize::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+auto StatementOptimize::project() -> SStatement {
+    std::optional<ElementVec> elems;
+    size_t n = 0;
+    for (auto const &[tuple, cond] : elems_) {
+        // add counts of variables
+        GlobalVarCounter counter;
+        counter.add(tuple);
+        counter.add(cond);
+        auto sub_project = Projection{counter};
+
+        // project literals in condition
+        size_t m = 0;
+        if (elems.has_value()) {
+            elems->emplace_back(tuple, copy_n(cond, m));
+        }
+        for (auto const &lit_c : cond) {
+            auto projected_lit = lit_c->project(sub_project);
+            if (projected_lit != lit_c && !elems.has_value()) {
+                elems = copy_n(elems_, n);
+                elems->emplace_back(tuple, copy_n(cond, m));
+            }
+            if (elems.has_value()) {
+                elems->back().second.emplace_back(projected_lit);
+            }
+            ++m;
+        }
+        ++n;
+    }
+    if (elems.has_value()) {
+        return construct_shared<StatementOptimize, Statement>(type_, std::move(elems).value());
+    }
+    return SStatement{this};
+}
 
 ////////// StatementWeakConstraint //////////
 
@@ -370,7 +428,11 @@ void StatementWeakConstraint::visit_variables(VarVisitFun const &fun, VariableCo
     visit_body(fun, ctx, body_);
 }
 
-auto StatementWeakConstraint::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+auto StatementWeakConstraint::project() -> SStatement {
+    return project_body_with(this, body_, true, [&](auto body) {
+        return construct_shared<StatementWeakConstraint, Statement>(std::move(body), tuple_);
+    });
+}
 
 ////////// StatementShow //////////
 
@@ -393,7 +455,11 @@ void StatementShow::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     visit_body(fun, ctx, body_);
 }
 
-auto StatementShow::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+auto StatementShow::project() -> SStatement {
+    return project_body_with(this, body_, true, [&](auto body) {
+        return construct_shared<StatementShow, Statement>(term_, std::move(body));
+    });
+}
 
 ////////// StatementShowSig //////////
 
@@ -433,7 +499,11 @@ void StatementProject::visit_variables(VarVisitFun const &fun, VariableContext c
     visit_body(fun, ctx, body_);
 }
 
-auto StatementProject::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+auto StatementProject::project() -> SStatement {
+    return project_body_with(this, body_, true, [&](auto body) {
+        return construct_shared<StatementProject, Statement>(term_, std::move(body));
+    });
+}
 
 ////////// StatementProjectSig //////////
 
@@ -494,7 +564,11 @@ void StatementExternal::visit_variables(VarVisitFun const &fun, VariableContext 
     visit_body(fun, ctx, body_);
 }
 
-auto StatementExternal::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+auto StatementExternal::project() -> SStatement {
+    return project_body_with(this, body_, true, [&](auto body) {
+        return construct_shared<StatementExternal, Statement>(term_, std::move(body), type_);
+    });
+}
 
 ////////// StatementEdge //////////
 
@@ -544,7 +618,11 @@ void StatementEdge::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     visit_body(fun, ctx, body_);
 }
 
-auto StatementEdge::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+auto StatementEdge::project() -> SStatement {
+    return project_body_with(this, body_, true, [&](auto body) {
+        return construct_shared<StatementEdge, Statement>(edges_, std::move(body));
+    });
+}
 
 ////////// StatementHeuristic //////////
 
@@ -579,7 +657,11 @@ void StatementHeuristic::visit_variables(VarVisitFun const &fun, VariableContext
     visit_body(fun, ctx, body_);
 }
 
-auto StatementHeuristic::project() -> SStatement { throw std::logic_error("implement me!!!"); }
+auto StatementHeuristic::project() -> SStatement {
+    return project_body_with(this, body_, true, [&](auto body) {
+        return construct_shared<StatementHeuristic, Statement>(has_sign_, atom_, std::move(body), type_, prio_, mod_);
+    });
+}
 
 ////////// StatementScript //////////
 

@@ -17,6 +17,8 @@ using VarVisitFun = std::function<void(std::string const &var)>;
 
 template <class P> class VarVisitHelper : public P {
   public:
+    using P::add;
+
     template <class... T> VarVisitHelper(T &&...args) : P{std::forward<T>(args)...} {}
 
     template <class T> auto add(T const &x) -> std::void_t<decltype(x.visit_variables(std::declval<VarVisitFun>()))> {
@@ -79,6 +81,8 @@ template <class P> class VarVisitHelper : public P {
     }
 };
 
+struct no_such {};
+
 class VarCounterHelper {
   public:
     VarCounterHelper(VarOccCounts const &global) : global_{global} {}
@@ -93,6 +97,7 @@ class VarCounterHelper {
             }
         });
     }
+    static void add(no_such x) { static_cast<void>(x); };
 
   private:
     VarOccCounts const &global_;
@@ -106,6 +111,7 @@ class VarVisitorHelper {
 
   protected:
     template <class T> void visit_(T const &var) { var.visit_variables(fun_); }
+    static void add(no_such x) { static_cast<void>(x); };
 
   private:
     VarVisitFun const &fun_;

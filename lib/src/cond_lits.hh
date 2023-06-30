@@ -98,13 +98,13 @@ void visit_variables(auto const &elems, VarVisitFun const &fun, VariableContext 
     }
 }
 template <class L, class T, class P>
-auto project(T *self, typename T::ElementVec &elems, P project, bool project_lits, bool in_negative_scope)
+auto project(T *self, typename T::ElementVec &elems, P project, bool project_lits, bool in_classical_scope)
     -> shared_ptr<L> {
     std::optional<typename T::ElementVec> projected_elems;
     size_t n_elems = 0;
     for (auto const &[lits, cond] : elems) {
-        bool project_cond =
-            in_negative_scope || std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return !lit->is_atom(); });
+        bool project_cond = in_classical_scope ||
+                            std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return !lit->is_atom(); });
         size_t n_lits = project_lits ? 0 : lits.size();
         size_t n_cond = project_cond ? 0 : cond.size();
         if (projected_elems.has_value()) {

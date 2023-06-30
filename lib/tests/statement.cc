@@ -156,6 +156,41 @@ TEST_CASE("unpool_statement") {
     REQUIRE_THROWS(unpool_str(parse_statement(":- p(X): q(Y); r(X;Y)."), " "));
 }
 
-TEST_CASE("project_statement") { REQUIRE(project_str(parse_statement(":- p(X,Y), q(X).")) == " :- p(X,*); q(X)."); }
+TEST_CASE("project_statement_body") {
+    // simple literals
+    REQUIRE(project_str(parse_statement(":- p(X,Y), q(X).")) == " :- p(X,*); q(X).");
+    REQUIRE(project_str(parse_statement("p(X) :- p(X,Y), q(X).")) == "p(X) :- p(X,*); q(X).");
+    REQUIRE(project_str(parse_statement("p(X) :- p(X,Y), X > 10.")) == "p(X) :- p(X,Y); X>10.");
+    // conjunctions
+    // TODO
+    // disjunctions
+    // TODO
+    // set aggregates
+    REQUIRE(project_str(parse_statement(":- #count { p(X) : q(X,Y) } != 5.")) == " :- #count { p(X): q(X,*) } != 5.");
+    REQUIRE(project_str(parse_statement("h :- #count { p(X) : q(X,Y) } != 5.")) ==
+            "h :- #count { p(X): q(X,Y) } != 5.");
+    REQUIRE(project_str(parse_statement("h :- #count { p(X) : q(X,Y) } > 5.")) == "h :- #count { p(X): q(X,*) } > 5.");
+    REQUIRE(project_str(parse_statement("h :- not #count { p(X) : q(X,Y) } != 5.")) ==
+            "h :- not #count { p(X): q(X,*) } != 5.");
+    // aggregates
+    // TODO
+    // theory
+    // TODO
+}
+
+TEST_CASE("project_statement_head") {
+    // disjunctions
+    // TODO
+    // set aggregates
+    // TODO
+    // aggregates
+    // TODO
+    // theory
+    // TODO
+}
+
+TEST_CASE("project_statement") {
+    // TODO: test remaining statements
+}
 
 } // namespace test

@@ -22,6 +22,7 @@ class HeadLiteral {
     [[nodiscard]] virtual auto project(Projection project) -> SHeadLiteral = 0;
     [[nodiscard]] virtual auto is_atom() const -> bool;
     [[nodiscard]] virtual auto is_test() const -> bool;
+    [[nodiscard]] virtual auto is_classical() const -> bool;
 
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &;
@@ -44,6 +45,7 @@ class Disjunction : public HeadLiteral {
     [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
+    [[nodiscard]] auto is_classical() const -> bool override;
 
   private:
     ElementVec elems_;

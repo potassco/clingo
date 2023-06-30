@@ -40,6 +40,7 @@ auto HeadLiteral::is_atom() const -> bool { return false; }
 
 auto HeadLiteral::is_test() const -> bool { return false; }
 
+auto HeadLiteral::is_classical() const -> bool { return false; }
 ////////// Disjunction //////////
 
 auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
@@ -61,6 +62,17 @@ auto Disjunction::project(Projection project) -> SHeadLiteral {
 auto Disjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
 
 auto Disjunction::is_test() const -> bool { return CondLits::is_test(elems_); }
+
+auto Disjunction::is_classical() const -> bool {
+    for (auto const &elem : elems_) {
+        for (auto const &lit : elem.first) {
+            if (lit->is_atom()) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
 
 ////////// HeadTheoryAtom //////////
 

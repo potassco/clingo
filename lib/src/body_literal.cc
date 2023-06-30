@@ -50,11 +50,11 @@ void Conjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) c
     CondLits::visit_variables(elems_, fun, ctx);
 }
 
-auto Conjunction::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
+auto Conjunction::project(Projection project, bool in_classical_scope) -> SBodyLiteral {
     // Note when to project:
-    // - variables in premise if in negative scope,
+    // - variables in premise if in classical scope,
     // - varibales in conclusion.
-    return CondLits::project<BodyLiteral>(this, elems_, project, true, in_negative_scope);
+    return CondLits::project<BodyLiteral>(this, elems_, project, true, in_classical_scope);
 }
 
 auto Conjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
@@ -128,8 +128,8 @@ void BodyAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     }
 }
 
-auto BodyAggregate::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
-    if (sign_ == Sign::none && !in_negative_scope && reduct_is_nonmonotone(lhs_, fun_, rhs_)) {
+auto BodyAggregate::project(Projection project, bool in_classical_scope) -> SBodyLiteral {
+    if (sign_ == Sign::none && !in_classical_scope && reduct_is_nonmonotone(lhs_, fun_, rhs_)) {
         return SBodyLiteral{this};
     }
     std::optional<ElementVec> elems;
@@ -186,8 +186,8 @@ void BodySetAggregate::visit_variables(VarVisitFun const &fun, VariableContext c
     aggr_.visit_variables(std::move(fun), ctx);
 }
 
-auto BodySetAggregate::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
-    auto projected = aggr_.project(project, in_negative_scope || sign_ != Sign::none);
+auto BodySetAggregate::project(Projection project, bool in_classical_scope) -> SBodyLiteral {
+    auto projected = aggr_.project(project, in_classical_scope || sign_ != Sign::none);
     if (projected.has_value()) {
         return construct_shared<BodySetAggregate, BodyLiteral>(sign_, std::move(projected).value());
     }
@@ -214,8 +214,8 @@ void BodyTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx
     atom_.visit_variables(std::move(fun), ctx);
 }
 
-auto BodyTheoryAtom::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
+auto BodyTheoryAtom::project(Projection project, bool in_classical_scope) -> SBodyLiteral {
     static_cast<void>(project);
-    static_cast<void>(in_negative_scope);
+    static_cast<void>(in_classical_scope);
     return SBodyLiteral{this};
 }
