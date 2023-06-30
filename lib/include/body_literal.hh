@@ -23,7 +23,7 @@ class BodyLiteral {
     virtual void unpool(PoolBodyLiteral &pool) = 0;
     virtual void print(std::ostream &out) const = 0;
     virtual void visit_variables(VarVisitFun const &fun, VariableContext ctx) const = 0;
-    [[nodiscard]] virtual auto project(Projection project) -> SBodyLiteral = 0;
+    [[nodiscard]] virtual auto project(Projection project, bool in_negative_scope) -> SBodyLiteral = 0;
 
     size_t refs = 0;
 };
@@ -39,7 +39,7 @@ class Conjunction : public BodyLiteral {
     void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project) -> SBodyLiteral override;
+    [[nodiscard]] auto project(Projection project, bool in_negative_scope) -> SBodyLiteral override;
 
   private:
     // TODO: get rid of this
@@ -63,7 +63,7 @@ class BodyAggregate : public BodyLiteral {
     void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project) -> SBodyLiteral override;
+    [[nodiscard]] auto project(Projection project, bool in_negative_scope) -> SBodyLiteral override;
 
   private:
     Sign sign_ = Sign::none;
@@ -83,7 +83,7 @@ class BodySetAggregate : public BodyLiteral {
     void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project) -> SBodyLiteral override;
+    [[nodiscard]] auto project(Projection project, bool in_negative_scope) -> SBodyLiteral override;
 
   private:
     Sign sign_ = Sign::none;
@@ -99,7 +99,7 @@ class BodyTheoryAtom : public BodyLiteral {
     void unpool(PoolBodyLiteral &pool) override;
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project) -> SBodyLiteral override;
+    [[nodiscard]] auto project(Projection project, bool in_negative_scope) -> SBodyLiteral override;
 
   private:
     Sign sign_ = Sign::none;

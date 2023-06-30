@@ -168,8 +168,36 @@ void HeadAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx)
 }
 
 auto HeadAggregate::project(Projection project) -> SHeadLiteral {
-    // Note: always project conditions
-    throw std::logic_error("implement me");
+    std::optional<ElementVec> elems;
+    size_t n = 0;
+    for (auto const &[tuple, lit, cond] : elems_) {
+        // counts of local variables
+        VarCounter counter{project.counts()};
+        counter.add(tuple, lit, cond);
+        auto sub_project = Projection{counter};
+
+        // project literals in condition
+        size_t m = 0;
+        if (elems.has_value()) {
+            elems->emplace_back(tuple, lit, copy_n(cond, m));
+        }
+        for (auto const &lit : cond) {
+            auto projected_lit = lit->project(sub_project);
+            if (projected_lit != lit && !elems.has_value()) {
+                elems = copy_n(elems_, n);
+                elems->emplace_back(tuple, lit, copy_n(cond, m));
+            }
+            if (elems.has_value()) {
+                std::get<2>(elems->back()).emplace_back(projected_lit);
+            }
+            ++m;
+        }
+        ++n;
+    }
+    if (elems.has_value()) {
+        return construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, std::move(elems).value(), rhs_);
+    }
+    return SHeadLiteral{this};
 }
 
 ////////// HeadSetAggregate //////////
@@ -192,4 +220,13 @@ void HeadSetAggregate::visit_variables(VarVisitFun const &fun, VariableContext c
     aggr_.visit_variables(std::move(fun), ctx);
 }
 
-auto HeadSetAggregate::project(Projection project) -> SHeadLiteral { throw std::logic_error("implement me"); }
+auto HeadSetAggregate::project(Projection project) -> SHeadLiteral {
+    // Note that we can always project in conditions. Semantic-wise a head
+    // aggregate is a shortcut for a choice rule + a body aggregate in an
+    // integrity constraint.
+    auto projected = aggr_.project(project, true);
+    if (projected.has_value()) {
+        return construct_shared<HeadSetAggregate, HeadLiteral>(std::move(projected).value());
+    }
+    return SHeadLiteral{this};
+}

@@ -46,7 +46,8 @@ void Conjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) c
     cond_visit_variables(elems_, global_, std::move(fun), ctx);
 }
 
-auto Conjunction::project(Projection project) -> SBodyLiteral {
+auto Conjunction::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
+    // FIXME: consider scope!
     // Note: that we can only project global variables in succeedents here.
     std::optional<ElementVec> elems;
     size_t n = 0;
@@ -142,14 +143,10 @@ void BodyAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     }
 }
 
-auto BodyAggregate::project(Projection project) -> SBodyLiteral {
-    // FIXME: only project convex aggregates/or aggregates in scope of negation:
-    //   :- #aggr {...} != n
-    //   H :- not #aggr {...} != n
-    //   H :- not not #aggr {...} != n
-    //   H :- #sum+ {...} > n.
-    // TODO: same for body set aggregates
-    // TODO: do not project in `not not p(X)`
+auto BodyAggregate::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
+    if (sign_ == Sign::none && !in_negative_scope && reduct_is_nonmonotone(lhs_, fun_, rhs_)) {
+        return SBodyLiteral{this};
+    }
     std::optional<ElementVec> elems;
     size_t n = 0;
     for (auto const &[tuple, cond] : elems_) {
@@ -204,8 +201,8 @@ void BodySetAggregate::visit_variables(VarVisitFun const &fun, VariableContext c
     aggr_.visit_variables(std::move(fun), ctx);
 }
 
-auto BodySetAggregate::project(Projection project) -> SBodyLiteral {
-    auto projected = aggr_.project(project, true);
+auto BodySetAggregate::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
+    auto projected = aggr_.project(project, in_negative_scope || sign_ != Sign::none);
     if (projected.has_value()) {
         return construct_shared<BodySetAggregate, BodyLiteral>(sign_, std::move(projected).value());
     }
@@ -232,4 +229,8 @@ void BodyTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx
     atom_.visit_variables(std::move(fun), ctx);
 }
 
-auto BodyTheoryAtom::project(Projection project) -> SBodyLiteral { return SBodyLiteral{this}; }
+auto BodyTheoryAtom::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
+    static_cast<void>(project);
+    static_cast<void>(in_negative_scope);
+    return SBodyLiteral{this};
+}

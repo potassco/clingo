@@ -100,8 +100,10 @@ void SetAggregate::visit_variables(std::function<void(std::string const &var)> f
     }
 }
 
-auto SetAggregate::project(Projection project, bool project_lit) -> std::optional<SetAggregate> {
-    // FIXME: monontonicity
+auto SetAggregate::project(Projection project, bool in_negative_scope) -> std::optional<SetAggregate> {
+    if (!in_negative_scope && reduct_is_nonmonotone(lhs_, AggregateFunction::count, rhs_)) {
+        return std::nullopt;
+    }
     std::optional<ElementVec> elems;
     size_t n = 0;
     for (auto const &[lit, cond] : elems_) {
@@ -113,12 +115,8 @@ auto SetAggregate::project(Projection project, bool project_lit) -> std::optiona
 
         // project literal if requested
         size_t m = 0;
-        auto projected_lit = project_lit ? lit->project(project) : lit;
-        if (projected_lit != lit && !elems.has_value()) {
-            elems = copy_n(elems_, n);
-        }
         if (elems.has_value()) {
-            elems->emplace_back(projected_lit, copy_n(cond, m));
+            elems->emplace_back(lit, copy_n(cond, m));
         }
         // project literals in condition
         for (auto const &lit_c : cond) {

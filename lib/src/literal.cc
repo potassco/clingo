@@ -213,7 +213,7 @@ auto LiteralSymbolic::hash() const -> size_t { return value_hash(typeid(LiteralS
 void LiteralSymbolic::visit_variables(VarVisitFun const &fun) const { term_->visit_variables(fun); }
 
 [[nodiscard]] auto LiteralSymbolic::project(Projection project) -> SLiteral {
-    if (sign_ != Sign::once) {
+    if (sign_ == Sign::none) {
         auto term = term_->project(project);
         if (term != term_) {
             return construct_shared<LiteralSymbolic, Literal>(sign_, term);

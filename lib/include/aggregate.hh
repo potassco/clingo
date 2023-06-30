@@ -18,6 +18,19 @@ auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream &;
 using LGuard = std::optional<std::pair<STerm, Relation>>;
 using RGuard = std::optional<std::pair<Relation, STerm>>;
 
+inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGuard const &rhs) -> bool {
+    if (!lhs.has_value() && !rhs.has_value()) {
+        return false;
+    }
+    if (lhs.has_value() && lhs->second == Relation::inequal) {
+        return true;
+    }
+    if (rhs.has_value() && rhs->first == Relation::inequal) {
+        return true;
+    }
+    return fun == AggregateFunction::sum;
+}
+
 struct UnpoolGuards {
     template <class T> static auto is_empty_value(std::optional<T> value) { return !value.has_value(); }
     static void unpool(PoolTerm &pool, LGuard &lhs) {
@@ -48,7 +61,9 @@ class SetAggregate {
     void set_rhs(STerm lhs, Relation rel);
     void unpool(PoolLiteral &pool, std::function<void(std::optional<SetAggregate>)> cb);
     void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
-    auto project(Projection project, bool project_lit) -> std::optional<SetAggregate>;
+    /// Projects pure variables in the condition if the aggregate is not
+    /// nonmonotone or occurs in a negative scope.
+    auto project(Projection project, bool in_negative_scope) -> std::optional<SetAggregate>;
 
     friend auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream &;
 
