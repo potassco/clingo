@@ -49,7 +49,6 @@ void Disjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) c
 }
 
 auto Disjunction::project(Projection project) -> SHeadLiteral {
-    // Note: that we can only project global variables in succeedents here.
     std::optional<ElementVec> elems;
     size_t n = 0;
     for (auto const &[lits, cond] : elems_) {

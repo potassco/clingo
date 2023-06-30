@@ -47,7 +47,12 @@ void Conjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) c
 }
 
 auto Conjunction::project(Projection project, bool in_negative_scope) -> SBodyLiteral {
+    // TODO: get rid of globals
+    // - simply reject result if variables change scope during unpooling
     // FIXME: consider scope!
+    // - it is fine to project conditions in negative scope
+    // - it is fine to project conditions if the head literal is not a symbolic atom
+    //   - dynamic_cast<SymbolicLiteral>(lit) != nullptr for all lit in lits
     // Note: that we can only project global variables in succeedents here.
     std::optional<ElementVec> elems;
     size_t n = 0;
