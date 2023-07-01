@@ -4,6 +4,7 @@
 
 #include <theory.hh>
 
+#include "transform.hh"
 #include "unpool.hh"
 #include "variables.hh"
 
@@ -43,6 +44,11 @@ void TheoryTermUnparsed::visit_variables(VarVisitFun fun) const {
     for (auto const &guard : rhs_) {
         guard.second->visit_variables(fun);
     }
+}
+
+[[nodiscard]] auto TheoryTermUnparsed::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
+    auto fun = [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); };
+    return transform_construct_shared<TheoryTermUnparsed, TheoryTerm>(ops_, Trans{term_, fun}, Trans{rhs_, fun});
 }
 
 ////////// TheoryTermTuple //////////
@@ -91,17 +97,33 @@ void TheoryTermTuple::visit_variables(VarVisitFun fun) const {
     }
 }
 
+[[nodiscard]] auto TheoryTermTuple::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
+    auto fun = [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); };
+    return transform_construct_shared<TheoryTermTuple, TheoryTerm>(type_, Trans{elems_, fun});
+}
+
 ////////// TheoryTermConstant //////////
 
 void TheoryTermSymbol::print(std::ostream &out) const { out << value_; }
 
 void TheoryTermSymbol::visit_variables(VarVisitFun fun) const { static_cast<void>(fun); }
 
+[[nodiscard]] auto TheoryTermSymbol::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
+    return std::nullopt;
+}
+
 ////////// TheoryTermVariable //////////
 
 void TheoryTermVariable::print(std::ostream &out) const { out << name_; }
 
 void TheoryTermVariable::visit_variables(VarVisitFun fun) const { fun(name_); }
+
+[[nodiscard]] auto TheoryTermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
+    if (name_ == "_") {
+        return construct_shared<TheoryTermVariable, TheoryTerm>(gen.new_name());
+    }
+    return std::nullopt;
+}
 
 ////////// TheoryTermFunction //////////
 
@@ -116,6 +138,11 @@ void TheoryTermFunction::visit_variables(VarVisitFun fun) const {
     for (auto const &term : args_) {
         term->visit_variables(fun);
     }
+}
+
+[[nodiscard]] auto TheoryTermFunction::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
+    auto fun = [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); };
+    return transform_construct_shared<TheoryTermFunction, TheoryTerm>(name_, Trans{args_, fun});
 }
 
 ////////// TheoryAtom //////////
@@ -174,4 +201,11 @@ void TheoryAtom::visit_variables(VarVisitFun fun, VariableContext ctx) const {
     if (ctx == VariableContext::all) {
         visit.add(elems_);
     }
+}
+
+auto TheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<TheoryAtom> {
+    auto fun = overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
+                          [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); },
+                          [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
+    return transform_construct<TheoryAtom>(Trans{name_, fun}, Trans{elems_, fun}, Trans{rhs_, fun});
 }

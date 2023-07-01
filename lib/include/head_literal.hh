@@ -23,6 +23,7 @@ class HeadLiteral {
     [[nodiscard]] virtual auto is_atom() const -> bool;
     [[nodiscard]] virtual auto is_test() const -> bool;
     [[nodiscard]] virtual auto is_classical() const -> bool;
+    [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> = 0;
 
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &;
@@ -46,6 +47,7 @@ class Disjunction : public HeadLiteral {
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
     [[nodiscard]] auto is_classical() const -> bool override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
 
   private:
     ElementVec elems_;
@@ -59,6 +61,7 @@ class HeadTheoryAtom : public HeadLiteral {
     void unpool(PoolHeadLiteral &pool) override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
 
   private:
     TheoryAtom atom_;
@@ -80,6 +83,7 @@ class HeadAggregate : public HeadLiteral {
     void unpool(PoolHeadLiteral &pool) override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
 
   private:
     AggregateFunction fun_;
@@ -97,6 +101,7 @@ class HeadSetAggregate : public HeadLiteral {
     void unpool(PoolHeadLiteral &pool) override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
 
   private:
     SetAggregate aggr_;

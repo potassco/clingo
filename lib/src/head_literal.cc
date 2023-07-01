@@ -42,6 +42,7 @@ auto HeadLiteral::is_atom() const -> bool { return false; }
 auto HeadLiteral::is_test() const -> bool { return false; }
 
 auto HeadLiteral::is_classical() const -> bool { return false; }
+
 ////////// Disjunction //////////
 
 auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
@@ -75,6 +76,11 @@ auto Disjunction::is_classical() const -> bool {
     return true;
 }
 
+auto Disjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
+    auto fun = [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); };
+    return transform_construct_shared<Disjunction, HeadLiteral>(Trans{elems_, fun});
+}
+
 ////////// HeadTheoryAtom //////////
 
 void HeadTheoryAtom::print(std::ostream &out) const { out << atom_; }
@@ -94,6 +100,11 @@ void HeadTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx
 }
 
 auto HeadTheoryAtom::project(Projection project) const -> std::optional<SHeadLiteral> { return std::nullopt; }
+
+auto HeadTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
+    auto fun = [&gen](TheoryAtom const &atom) { return atom.rewrite_anonymous(gen); };
+    return transform_construct_shared<HeadTheoryAtom, HeadLiteral>(Trans{atom_, fun});
+}
 
 ////////// HeadAggregate //////////
 
@@ -176,6 +187,13 @@ auto HeadAggregate::project(Projection project) const -> std::optional<SHeadLite
     return transform_construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, Trans{elems_, fun}, rhs_);
 }
 
+auto HeadAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
+    auto fun = overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
+                          [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
+    return transform_construct_shared<HeadAggregate, HeadLiteral>(Trans{lhs_, fun}, fun_, Trans{elems_, fun},
+                                                                  Trans{rhs_, fun});
+}
+
 ////////// HeadSetAggregate //////////
 
 void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
@@ -205,4 +223,9 @@ auto HeadSetAggregate::project(Projection project) const -> std::optional<SHeadL
         return construct_shared<HeadSetAggregate, HeadLiteral>(std::move(projected).value());
     }
     return std::nullopt;
+}
+
+auto HeadSetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
+    auto fun = [&gen](SetAggregate const &aggr) { return aggr.rewrite_anonymous(gen); };
+    return transform_construct_shared<HeadSetAggregate, HeadLiteral>(Trans{aggr_, fun});
 }

@@ -5,6 +5,7 @@
 #include <body_literal.hh>
 
 #include "cond_lits.hh"
+#include "transform.hh"
 #include "variables.hh"
 
 ////////// BodyLiteral //////////
@@ -60,6 +61,11 @@ auto Conjunction::project(Projection project, bool in_classical_scope) const -> 
 auto Conjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
 
 auto Conjunction::is_test() const -> bool { return CondLits::is_test(elems_); }
+
+auto Conjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
+    auto fun = [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); };
+    return transform_construct_shared<Conjunction, BodyLiteral>(Trans{elems_, fun});
+}
 
 ////////// BodyAggregate //////////
 
@@ -148,6 +154,13 @@ auto BodyAggregate::project(Projection project, bool in_classical_scope) const -
     return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, Trans{elems_, fun}, rhs_);
 }
 
+auto BodyAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
+    auto fun = overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
+                          [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
+    return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, Trans{lhs_, fun}, fun_, Trans{elems_, fun},
+                                                                  Trans{rhs_, fun});
+}
+
 ////////// BodySetAggregate //////////
 
 void BodySetAggregate::unpool(PoolBodyLiteral &pool) {
@@ -178,6 +191,11 @@ auto BodySetAggregate::project(Projection project, bool in_classical_scope) cons
     return std::nullopt;
 }
 
+auto BodySetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
+    auto fun = [&gen](SetAggregate const &aggr) { return aggr.rewrite_anonymous(gen); };
+    return transform_construct_shared<BodySetAggregate, BodyLiteral>(sign_, Trans{aggr_, fun});
+}
+
 ////////// BodyTheoryAtom //////////
 
 void BodyTheoryAtom::unpool(PoolBodyLiteral &pool) {
@@ -202,4 +220,9 @@ auto BodyTheoryAtom::project(Projection project, bool in_classical_scope) const 
     static_cast<void>(project);
     static_cast<void>(in_classical_scope);
     return std::nullopt;
+}
+
+auto BodyTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
+    auto fun = [&gen](SetAggregate const &aggr) { return aggr.rewrite_anonymous(gen); };
+    return transform_construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, Trans{atom_, fun});
 }

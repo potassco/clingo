@@ -27,6 +27,7 @@ class BodyLiteral {
         -> std::optional<SBodyLiteral> = 0;
     [[nodiscard]] virtual auto is_atom() const -> bool;
     [[nodiscard]] virtual auto is_test() const -> bool;
+    [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> = 0;
 
     size_t refs = 0;
 };
@@ -46,6 +47,7 @@ class Conjunction : public BodyLiteral {
         -> std::optional<SBodyLiteral> override;
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
   private:
     ElementVec elems_;
@@ -69,6 +71,7 @@ class BodyAggregate : public BodyLiteral {
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
         -> std::optional<SBodyLiteral> override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
   private:
     Sign sign_ = Sign::none;
@@ -90,6 +93,7 @@ class BodySetAggregate : public BodyLiteral {
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
         -> std::optional<SBodyLiteral> override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
   private:
     Sign sign_ = Sign::none;
@@ -107,6 +111,7 @@ class BodyTheoryAtom : public BodyLiteral {
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
         -> std::optional<SBodyLiteral> override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
   private:
     Sign sign_ = Sign::none;

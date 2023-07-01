@@ -5,21 +5,23 @@
 #include <literal.hh>
 #include <term.hh>
 
+class TheoryTerm;
+using STheoryTerm = shared_ptr<TheoryTerm>;
+using STheoryTermVec = std::vector<STheoryTerm>;
+
 class TheoryTerm {
   public:
     virtual ~TheoryTerm() = default;
 
     virtual void print(std::ostream &out) const = 0;
     virtual void visit_variables(VarVisitFun fun) const = 0;
+    [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> = 0;
 
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream &;
 
     size_t refs = 0;
 };
-
-using STheoryTerm = shared_ptr<TheoryTerm>;
-using STheoryTermVec = std::vector<STheoryTerm>;
 
 class TheoryTermUnparsed : public TheoryTerm {
   public:
@@ -33,6 +35,7 @@ class TheoryTermUnparsed : public TheoryTerm {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun fun) const override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
   private:
     OpVec ops_;
@@ -55,6 +58,7 @@ class TheoryTermTuple : public TheoryTerm {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun fun) const override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
   private:
     TheoryTermTupleType type_;
@@ -70,6 +74,7 @@ class TheoryTermSymbol : public TheoryTerm {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun fun) const override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
   private:
     Symbol value_;
@@ -84,6 +89,7 @@ class TheoryTermVariable : public TheoryTerm {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun fun) const override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
   private:
     std::string name_;
@@ -96,6 +102,7 @@ class TheoryTermFunction : public TheoryTerm {
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun fun) const override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
   private:
     std::string name_;
@@ -117,6 +124,7 @@ class TheoryAtom {
 
     void unpool(PoolLiteral &pool, std::function<void(std::optional<TheoryAtom>)> cb);
     void visit_variables(VarVisitFun fun, VariableContext ctx) const;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<TheoryAtom>;
 
     friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream &;
 
