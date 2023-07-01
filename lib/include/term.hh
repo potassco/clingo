@@ -109,8 +109,24 @@ class Projection {
     [[nodiscard]] auto counts() const -> std::unordered_map<std::string, size_t> const &;
 
   private:
-    // TODO: projection should happen after unpoolinghh
     std::unordered_map<std::string, size_t> const &counts_;
+};
+
+// TODO: Get rid of the clumsy visitor. This can also be implemented nicely
+// with a template-based mini DSL for transforming that can be reused in other
+// classes.
+class TermTransformer {
+    virtual auto apply(STerm term) -> STerm = 0;
+};
+
+class AnonymousVariableTransformer : public TermTransformer {
+  public:
+    AnonymousVariableTransformer(NameGen &gen) : gen_{gen} {}
+    auto apply(STerm term) -> STerm override;
+    auto new_name() -> std::string;
+
+  private:
+    NameGen &gen_;
 };
 
 class Term {
@@ -128,6 +144,10 @@ class Term {
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     virtual void visit_variables(VarVisitFun const &fun) const = 0;
     [[nodiscard]] virtual auto project(Projection project) -> STerm = 0;
+    /// Generic transformer to rewrite a nested term.
+    [[nodiscard]] virtual auto transform(TermTransformer &trans) -> STerm = 0;
+    /// Default rewriter that passses the transformer down to the children.
+    [[nodiscard]] virtual auto rewrite_anonymous(AnonymousVariableTransformer &trans) -> STerm;
 
     // AST interface
     [[nodiscard]] virtual auto type() const -> TermType = 0;
@@ -212,6 +232,7 @@ class TermSymbol : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto transform(TermTransformer &trans) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -234,6 +255,7 @@ class TermTuple : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto transform(TermTransformer &trans) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -255,6 +277,8 @@ class TermVariable : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto transform(TermTransformer &trans) -> STerm override;
+    [[nodiscard]] auto rewrite_anonymous(AnonymousVariableTransformer &trans) -> STerm override;
 
   private:
     std::string name_;
@@ -270,6 +294,7 @@ class TermAbs : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto transform(TermTransformer &trans) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -290,6 +315,7 @@ class TermFunction : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto transform(TermTransformer &trans) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -318,6 +344,7 @@ class TermUnary : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto transform(TermTransformer &trans) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
@@ -356,6 +383,7 @@ class TermBinary : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto transform(TermTransformer &trans) -> STerm override;
 
     // AST interface
     [[nodiscard]] auto type() const -> TermType override;
