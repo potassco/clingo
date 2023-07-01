@@ -48,6 +48,7 @@ class Literal {
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     virtual void visit_variables(VarVisitFun const &fun) const = 0;
     [[nodiscard]] virtual auto project(Projection project) const -> std::optional<SLiteral> = 0;
+    [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> = 0;
 
     size_t refs = 0;
 };
@@ -63,6 +64,7 @@ class LiteralRelation : public Literal {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> override;
 
   private:
     Sign sign_;
@@ -81,6 +83,7 @@ class LiteralBoolean : public Literal {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> override;
 
   private:
     Sign sign_;
@@ -98,6 +101,7 @@ class LiteralSymbolic : public Literal {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> override;
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
 

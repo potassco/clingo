@@ -66,7 +66,7 @@ auto transform(auto const &fun, std::pair<T, U> const &pair) -> can_not_apply_t<
     auto first = transform(fun, pair.first);
     auto second = transform(fun, pair.second);
     if (first.has_value() || second.has_value()) {
-        return {std::move(first).value_or(pair.first), std::move(second).value_or(pair.second)};
+        return std::pair<T, U>{std::move(first).value_or(pair.first), std::move(second).value_or(pair.second)};
     }
     return std::nullopt;
 }
