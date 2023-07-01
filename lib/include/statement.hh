@@ -17,38 +17,9 @@ struct destruct_pool {
 auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destruct_pool>;
 
 // TODO 0:
-// - proper handling of anonymous variables
-//   - have to be replaced with unique names in a first step
-//   - should be done before unpooling
-//   - as an optimization should be replaced by projection `*` whenever safe
-//   - projection `*` should be introduced
-//     - consider making this an actual symbol
-//     - usage has to be restricted to positional arguments
-//     - it must not be used in strictly positive locations
-//     - projection rules to derive actual atoms with stars are added behind the scenes
-//     - should play nicley with unification because it can be considered like a variable
-//   - add new syntax to tell the system how to project
-//     - #projection a(*,f(*,1)).
-//     - #projection a(X,f(*,X)).
-//     - #projection b(*,*).
-//     - these will be implicitly given by the literals in the program.
-//     - however, for multishot encodings it might be nice to have them, right away.
-//     - rethink, this last point
-//     - programs with variables should actually be added right away
-//       (maybe even loading programs later was an unnecessary complication)
-//
-// - currently clingo projects anonymous variables
-//   - a(X) :- b(X,_).
-//     - a(X) :- b(X).
-//     - b(X) :- b(X,_).
-//     - unfortunately, a bit more magic is required to support incremental projection
-//       - a(X) :- b(X,*).
-//       - maybe really go forward and introduce the star
-//       - the task of the input module should not go beyond replacing safe to project anonymous variables with *
-//       - #projection { b(X,*) }.
-//       - projections make only sense as arguments of tuples and functions
-//
 // - make the whole data structure immutable
+//   - investigate if unpool could work with optional like the other rewriting methods
+//   - failing to do this, consider a const cast to construct the shared_ptr
 //
 // TODO 1:
 // - comparison literals should be normalized
@@ -58,37 +29,22 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 //     because unpooling duplicates terms
 //   - unpooling non-binary relation literals requires removing non-singular pools
 //     - for example `not (3 < 2 < 1+a)` should be false but gringo makes it true atm
-// - conditional literals should just have one element
-// - provisional names:
-//   - normalize singular
-//     (to remove nested expressions that evaluate to non-singular pools where they are problematic)
-//   - unpool_conjunctive
-//   - unpool_disjunctive
-//   - shift
 // - aggregates have to be rewritten befor unpooling relation literals!
 //   - set aggregates become head/body aggregates
 //   - symbolic:
 //     - {     p(X): C } -> #count { 0,p(X):         p(X), C }
 //     - { not p(X): C } -> #count { 1,p(X):     not p(X), C }
 //     - {        L: C } -> #count { #i+2,vars(L):        E, C }
-// - shift literals
-//   - heads should only contain Boolean variables
-//   - comparison literals should be shifted from head to body positions
-//   - global variables (might) have to be preserved
-//   - 1<X :- p(X). == :- p(X), 1>=X.
-//   - 1<X: p(X). == : p(X), 1>=X.
-//   - even though a variable can become local, it is save to shift
-//     - 1=X: p. == : p, 1!=X.
-//     - 1!=X: p. == : p, 1=X.
-//     - the latter is even safe
-//   - something more complicated:
-//     - a :- p(1+a).
-//     - b :- p(1+a) : #true.
-//     - c :- p(1+X) : X=a.
-//     - d :- p(Y) : X=a, Y=1+X.
-//     - e :- [p(Y), Y=1+X] : X=a.
-//   - unfortunately, it looks like I need the last syntax extension for sane rewriting
-//     - is it necessary in heads too?
+// - shift/rewriting of literals
+//   - to correctly handle pools, we can in general not shift in conditional literals
+//     - it's probably easiest to just handle the general case
+//   - we can shift into the rule body if literals do not have conditions
+//   - example that can no longer be represented in standard format
+//     - head :- p(G..L) : q(L); r(G).
+//       - the current approach is to extend the syntax
+//       - head :- #and{ p(Aux), Aux=G..L : q(L) }; r(G).
+//     - head :- p(G+L) : q(L); r(G).
+//       - head :- #and{ p(Aux), Aux=G+L : q(L) }; r(G).
 //
 // normalize_literal:
 // - rewrite aggregates
@@ -102,8 +58,6 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
 //     - not a < b || not b < c
 //   - unpool for literals can get context argument
 //     - head, body, pool
-// - conditional literals in bodies should have just one element
-//   - this should be simple
 
 // TODO 2:
 // - terms should be normalized
