@@ -176,6 +176,15 @@ auto Rule::project() const -> std::optional<SStatement> {
                              [&](auto body) { return construct_shared<Rule, Statement>(head_, std::move(body)); });
 }
 
+auto Rule::rewrite_anonymous() const -> std::optional<SStatement> {
+    VariableSet vars;
+    visit_variables([&vars](std::string const &var) { vars.emplace(var); }, VariableContext::all);
+    NameGen gen{vars};
+    auto fun_head = [&gen](SHeadLiteral const &lit) { return lit->rewrite_anonymous(gen); };
+    auto fun_body = [&gen](SBodyLiteral const &lit) { return lit->rewrite_anonymous(gen); };
+    return transform_construct_shared<Rule, Statement>(Trans{head_, fun_head}, Trans{body_, fun_body});
+}
+
 ////////// TheoryOpDefinition //////////
 
 auto operator<<(std::ostream &out, TheoryOpDefinition const &def) -> std::ostream & {
@@ -273,6 +282,8 @@ void TheoryDefinition::visit_variables(VarVisitFun const &fun, VariableContext c
 
 auto TheoryDefinition::project() const -> std::optional<SStatement> { return std::nullopt; }
 
+auto TheoryDefinition::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
+
 ////////// StatementOptimize //////////
 
 auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
@@ -365,6 +376,10 @@ auto StatementOptimize::project() const -> std::optional<SStatement> {
     return transform_construct_shared<StatementOptimize, Statement>(type_, Trans{elems_, fun});
 }
 
+auto StatementOptimize::rewrite_anonymous() const -> std::optional<SStatement> {
+    throw std::logic_error("implement me!!");
+}
+
 ////////// StatementWeakConstraint //////////
 
 void StatementWeakConstraint::print(std::ostream &out) const {
@@ -408,6 +423,10 @@ auto StatementWeakConstraint::project() const -> std::optional<SStatement> {
     });
 }
 
+auto StatementWeakConstraint::rewrite_anonymous() const -> std::optional<SStatement> {
+    throw std::logic_error("implement me!!");
+}
+
 ////////// StatementShow //////////
 
 void StatementShow::print(std::ostream &out) const { out << "#show " << *term_ << ": " << p_range(body_, "; ") << "."; }
@@ -435,6 +454,8 @@ auto StatementShow::project() const -> std::optional<SStatement> {
     });
 }
 
+auto StatementShow::rewrite_anonymous() const -> std::optional<SStatement> { throw std::logic_error("implement me!!"); }
+
 ////////// StatementShowSig //////////
 
 void StatementShowSig::print(std::ostream &out) const {
@@ -449,6 +470,8 @@ void StatementShowSig::visit_variables(VarVisitFun const &fun, VariableContext c
 }
 
 auto StatementShowSig::project() const -> std::optional<SStatement> { return std::nullopt; }
+
+auto StatementShowSig::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementProject //////////
 
@@ -479,6 +502,10 @@ auto StatementProject::project() const -> std::optional<SStatement> {
     });
 }
 
+auto StatementProject::rewrite_anonymous() const -> std::optional<SStatement> {
+    throw std::logic_error("implement me!!");
+}
+
 ////////// StatementProjectSig //////////
 
 void StatementProjectSig::print(std::ostream &out) const {
@@ -494,6 +521,8 @@ void StatementProjectSig::visit_variables(VarVisitFun const &fun, VariableContex
 
 auto StatementProjectSig::project() const -> std::optional<SStatement> { return std::nullopt; }
 
+auto StatementProjectSig::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
+
 ////////// StatementDefined //////////
 
 void StatementDefined::print(std::ostream &out) const {
@@ -508,6 +537,8 @@ void StatementDefined::visit_variables(VarVisitFun const &fun, VariableContext c
 }
 
 auto StatementDefined::project() const -> std::optional<SStatement> { return std::nullopt; }
+
+auto StatementDefined::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementExternal //////////
 
@@ -542,6 +573,10 @@ auto StatementExternal::project() const -> std::optional<SStatement> {
     return project_body_with(this, body_, true, [&](auto body) {
         return construct_shared<StatementExternal, Statement>(term_, std::move(body), type_);
     });
+}
+
+auto StatementExternal::rewrite_anonymous() const -> std::optional<SStatement> {
+    throw std::logic_error("implement me!!");
 }
 
 ////////// StatementEdge //////////
@@ -598,6 +633,8 @@ auto StatementEdge::project() const -> std::optional<SStatement> {
     });
 }
 
+auto StatementEdge::rewrite_anonymous() const -> std::optional<SStatement> { throw std::logic_error("implement me!!"); }
+
 ////////// StatementHeuristic //////////
 
 void StatementHeuristic::print(std::ostream &out) const {
@@ -637,6 +674,10 @@ auto StatementHeuristic::project() const -> std::optional<SStatement> {
     });
 }
 
+auto StatementHeuristic::rewrite_anonymous() const -> std::optional<SStatement> {
+    throw std::logic_error("implement me!!");
+}
+
 ////////// StatementScript //////////
 
 auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
@@ -663,6 +704,8 @@ void StatementScript::visit_variables(VarVisitFun const &fun, VariableContext ct
 }
 
 auto StatementScript::project() const -> std::optional<SStatement> { return std::nullopt; }
+
+auto StatementScript::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementInclude //////////
 
@@ -699,6 +742,8 @@ void StatementInclude::visit_variables(VarVisitFun const &fun, VariableContext c
 
 auto StatementInclude::project() const -> std::optional<SStatement> { return std::nullopt; }
 
+auto StatementInclude::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
+
 ////////// StatementProgram //////////
 
 void StatementProgram::print(std::ostream &out) const {
@@ -717,6 +762,8 @@ void StatementProgram::visit_variables(VarVisitFun const &fun, VariableContext c
 }
 
 auto StatementProgram::project() const -> std::optional<SStatement> { return std::nullopt; }
+
+auto StatementProgram::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementConst //////////
 
@@ -761,3 +808,5 @@ void StatementConst::visit_variables(VarVisitFun const &fun, VariableContext ctx
 }
 
 auto StatementConst::project() const -> std::optional<SStatement> { return std::nullopt; }
+
+auto StatementConst::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
