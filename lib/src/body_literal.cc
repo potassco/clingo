@@ -50,11 +50,11 @@ void Conjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) c
     CondLits::visit_variables(elems_, fun, ctx);
 }
 
-auto Conjunction::project(Projection project, bool in_classical_scope) -> SBodyLiteral {
+auto Conjunction::project(Projection project, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
     // Note when to project:
     // - variables in premise if in classical scope,
     // - varibales in conclusion.
-    return CondLits::project<BodyLiteral>(this, elems_, project, true, in_classical_scope);
+    return CondLits::project<Conjunction, BodyLiteral>(elems_, project, true, in_classical_scope);
 }
 
 auto Conjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
@@ -128,40 +128,24 @@ void BodyAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     }
 }
 
-auto BodyAggregate::project(Projection project, bool in_classical_scope) -> SBodyLiteral {
+auto BodyAggregate::project(Projection project, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
     if (sign_ == Sign::none && !in_classical_scope && reduct_is_nonmonotone(lhs_, fun_, rhs_)) {
-        return SBodyLiteral{this};
+        return std::nullopt;
     }
-    std::optional<ElementVec> elems;
-    size_t n = 0;
-    for (auto const &[tuple, cond] : elems_) {
+
+    auto fun = [project](Element const &elem) -> std::optional<Element> {
+        auto const &[lit, cond] = elem;
+
         // counts of local variables
         VarCounter counter{project.counts()};
-        counter.add(tuple, cond);
+        counter.add(lit, cond);
         auto sub_project = Projection{counter};
 
         // project literals in condition
-        size_t m = 0;
-        if (elems.has_value()) {
-            elems->emplace_back(tuple, copy_n(cond, m));
-        }
-        for (auto const &lit : cond) {
-            auto projected_lit = lit->project(sub_project);
-            if (projected_lit != lit && !elems.has_value()) {
-                elems = copy_n(elems_, n);
-                elems->emplace_back(tuple, copy_n(cond, m));
-            }
-            if (elems.has_value()) {
-                std::get<1>(elems->back()).emplace_back(projected_lit);
-            }
-            ++m;
-        }
-        ++n;
-    }
-    if (elems.has_value()) {
-        return construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, std::move(elems).value(), rhs_);
-    }
-    return SBodyLiteral{this};
+        auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
+        return transform_construct<Element>(lit, Trans(cond, fun));
+    };
+    return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, Trans{elems_, fun}, rhs_);
 }
 
 ////////// BodySetAggregate //////////
@@ -186,12 +170,12 @@ void BodySetAggregate::visit_variables(VarVisitFun const &fun, VariableContext c
     aggr_.visit_variables(std::move(fun), ctx);
 }
 
-auto BodySetAggregate::project(Projection project, bool in_classical_scope) -> SBodyLiteral {
+auto BodySetAggregate::project(Projection project, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
     auto projected = aggr_.project(project, in_classical_scope || sign_ != Sign::none);
     if (projected.has_value()) {
-        return construct_shared<BodySetAggregate, BodyLiteral>(sign_, std::move(projected).value());
+        return construct_shared<BodySetAggregate, BodyLiteral>(std::move(projected).value());
     }
-    return SBodyLiteral{this};
+    return std::nullopt;
 }
 
 ////////// BodyTheoryAtom //////////
@@ -214,8 +198,8 @@ void BodyTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx
     atom_.visit_variables(std::move(fun), ctx);
 }
 
-auto BodyTheoryAtom::project(Projection project, bool in_classical_scope) -> SBodyLiteral {
+auto BodyTheoryAtom::project(Projection project, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
     static_cast<void>(project);
     static_cast<void>(in_classical_scope);
-    return SBodyLiteral{this};
+    return std::nullopt;
 }

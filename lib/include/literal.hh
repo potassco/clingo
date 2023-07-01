@@ -47,7 +47,7 @@ class Literal {
     friend auto operator==(Literal const &a, Literal const &b) { return a.is_equal(b); }
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     virtual void visit_variables(VarVisitFun const &fun) const = 0;
-    [[nodiscard]] virtual auto project(Projection project) -> SLiteral = 0;
+    [[nodiscard]] virtual auto project(Projection project) const -> std::optional<SLiteral> = 0;
 
     size_t refs = 0;
 };
@@ -62,7 +62,7 @@ class LiteralRelation : public Literal {
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) -> SLiteral override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
 
   private:
     Sign sign_;
@@ -80,7 +80,7 @@ class LiteralBoolean : public Literal {
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) -> SLiteral override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
 
   private:
     Sign sign_;
@@ -97,7 +97,7 @@ class LiteralSymbolic : public Literal {
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) -> SLiteral override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
 

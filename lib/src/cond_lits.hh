@@ -4,6 +4,7 @@
 
 #include <literal.hh>
 
+#include "transform.hh"
 #include "unpool.hh"
 #include "variables.hh"
 
@@ -97,53 +98,31 @@ void visit_variables(auto const &elems, VarVisitFun const &fun, VariableContext 
         }
     }
 }
-template <class L, class T, class P>
-auto project(T *self, typename T::ElementVec &elems, P project, bool project_lits, bool in_classical_scope)
-    -> shared_ptr<L> {
-    std::optional<typename T::ElementVec> projected_elems;
-    size_t n_elems = 0;
-    for (auto const &[lits, cond] : elems) {
+template <class T, class B, class P>
+auto project(typename T::ElementVec const &elems, P project, bool project_lits, bool in_classical_scope)
+    -> std::optional<shared_ptr<B>> {
+    using Elem = typename T::ElementVec::value_type;
+    auto fun = [&](Elem const &elem) -> std::optional<Elem> {
+        auto const &[lits, cond] = elem;
         bool project_cond = in_classical_scope ||
                             std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return !lit->is_atom(); });
-        size_t n_lits = project_lits ? 0 : lits.size();
-        size_t n_cond = project_cond ? 0 : cond.size();
-        if (projected_elems.has_value()) {
-            projected_elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
-        }
+        auto fun = [project](SLiteral const &lit) { return lit->project(project); };
         // project conclusion
+        std::optional<SLiteralVec> projected_lits = std::nullopt;
         if (project_lits) {
-            for (auto const &lit : lits) {
-                auto projected_lit = lit->project(project);
-                if (projected_lit != lit && !projected_elems.has_value()) {
-                    projected_elems = copy_n(elems, n_elems);
-                    projected_elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
-                }
-                if (projected_elems.has_value()) {
-                    projected_elems->back().first.emplace_back(projected_lit);
-                }
-                ++n_lits;
-            }
+            projected_lits = transform(fun, lits);
         }
         // project premise
+        std::optional<SLiteralVec> projected_cond = std::nullopt;
         if (project_cond) {
-            for (auto const &lit : cond) {
-                auto projected_lit = lit->project(project);
-                if (projected_lit != lit && !projected_elems.has_value()) {
-                    projected_elems = copy_n(elems, n_elems);
-                    projected_elems->emplace_back(copy_n(lits, n_lits), copy_n(cond, n_cond));
-                }
-                if (projected_elems.has_value()) {
-                    projected_elems->back().second.emplace_back(projected_lit);
-                }
-                ++n_cond;
-            }
+            projected_cond = transform(fun, cond);
         }
-        ++n_elems;
-    }
-    if (projected_elems.has_value()) {
-        return construct_shared<T, L>(std::move(projected_elems).value());
-    }
-    return shared_ptr<L>{self};
+        if (projected_lits.has_value() || projected_cond.has_value()) {
+            return Elem{std::move(projected_lits).value_or(lits), std::move(projected_cond).value_or(cond)};
+        }
+        return std::nullopt;
+    };
+    return transform_construct_shared<T, B>(Trans{elems, fun});
 }
 
 auto is_atom(auto const &elems) -> bool {

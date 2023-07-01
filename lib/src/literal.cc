@@ -6,6 +6,7 @@
 
 #include <literal.hh>
 
+#include "transform.hh"
 #include "unpool.hh"
 
 ////////// Literal //////////
@@ -162,9 +163,9 @@ void LiteralRelation::visit_variables(VarVisitFun const &fun) const {
     }
 }
 
-[[nodiscard]] auto LiteralRelation::project(Projection project) -> SLiteral {
+[[nodiscard]] auto LiteralRelation::project(Projection project) const -> std::optional<SLiteral> {
     static_cast<void>(project);
-    return SLiteral{this};
+    return std::nullopt;
 }
 
 ////////// LiteralBoolean //////////
@@ -184,9 +185,9 @@ auto LiteralBoolean::hash() const -> size_t { return value_hash(typeid(LiteralSy
 
 void LiteralBoolean::visit_variables(VarVisitFun const &fun) const { static_cast<void>(fun); }
 
-[[nodiscard]] auto LiteralBoolean::project(Projection project) -> SLiteral {
+[[nodiscard]] auto LiteralBoolean::project(Projection project) const -> std::optional<SLiteral> {
     static_cast<void>(project);
-    return SLiteral{this};
+    return std::nullopt;
 }
 
 ////////// LiteralSymbolic //////////
@@ -216,14 +217,12 @@ auto LiteralSymbolic::hash() const -> size_t { return value_hash(typeid(LiteralS
 
 void LiteralSymbolic::visit_variables(VarVisitFun const &fun) const { term_->visit_variables(fun); }
 
-[[nodiscard]] auto LiteralSymbolic::project(Projection project) -> SLiteral {
+[[nodiscard]] auto LiteralSymbolic::project(Projection project) const -> std::optional<SLiteral> {
     if (sign_ == Sign::none) {
-        auto term = term_->project(project);
-        if (term != term_) {
-            return construct_shared<LiteralSymbolic, Literal>(sign_, term);
-        }
+        auto fun = [&project](STerm const &term) { return term->project(project); };
+        return transform_construct_shared<LiteralSymbolic, Literal>(sign_, Trans{term_, fun});
     }
-    return SLiteral{this};
+    return std::nullopt;
 }
 
 auto LiteralSymbolic::is_atom() const -> bool { return sign_ == Sign::none; }

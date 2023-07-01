@@ -19,7 +19,7 @@ class HeadLiteral {
     virtual void unpool(PoolHeadLiteral &pool) = 0;
     virtual void print(std::ostream &out) const = 0;
     virtual void visit_variables(VarVisitFun const &fun, VariableContext ctx) const = 0;
-    [[nodiscard]] virtual auto project(Projection project) -> SHeadLiteral = 0;
+    [[nodiscard]] virtual auto project(Projection project) const -> std::optional<SHeadLiteral> = 0;
     [[nodiscard]] virtual auto is_atom() const -> bool;
     [[nodiscard]] virtual auto is_test() const -> bool;
     [[nodiscard]] virtual auto is_classical() const -> bool;
@@ -42,7 +42,7 @@ class Disjunction : public HeadLiteral {
     void print(std::ostream &out) const override;
     void unpool(PoolHeadLiteral &pool) override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
     [[nodiscard]] auto is_classical() const -> bool override;
@@ -58,7 +58,7 @@ class HeadTheoryAtom : public HeadLiteral {
     void print(std::ostream &out) const override;
     void unpool(PoolHeadLiteral &pool) override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
 
   private:
     TheoryAtom atom_;
@@ -79,7 +79,7 @@ class HeadAggregate : public HeadLiteral {
     void print(std::ostream &out) const override;
     void unpool(PoolHeadLiteral &pool) override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
 
   private:
     AggregateFunction fun_;
@@ -96,7 +96,7 @@ class HeadSetAggregate : public HeadLiteral {
     void print(std::ostream &out) const override;
     void unpool(PoolHeadLiteral &pool) override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project) -> SHeadLiteral override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
 
   private:
     SetAggregate aggr_;

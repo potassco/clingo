@@ -148,9 +148,9 @@ auto TermSymbol::hash() const -> size_t { return value_hash(typeid(TermSymbol), 
 
 void TermSymbol::visit_variables(VarVisitFun const &fun) const { static_cast<void>(fun); }
 
-auto TermSymbol::project(Projection project) -> STerm {
+auto TermSymbol::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
-    return STerm{this};
+    return std::nullopt;
 }
 
 auto TermSymbol::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> { return std::nullopt; }
@@ -201,47 +201,20 @@ void TermTuple::visit_variables(VarVisitFun const &fun) const {
     visit.add(pool_);
 }
 
-auto TermTuple::project(Projection project) -> STerm {
-    size_t n = 0;
-    std::optional<ElementVec> ret;
-    for (auto const &tuple_or_term : pool_) {
-        visit_variant(
-            tuple_or_term,
-            [&](STerm const &term) {
-                if (ret.has_value()) {
-                    ret->emplace_back(term);
-                }
-            },
-            [&](TupleVec const &tuple) {
-                size_t m = 0;
-                if (ret.has_value()) {
-                    ret->emplace_back(copy_n(tuple, m));
-                }
-                for (auto const &elem : tuple) {
-                    if (projectable(project, std::get_if<STerm>(&elem))) {
-                        if (!ret.has_value()) {
-                            ret = copy_n(pool_, n);
-                            ret->emplace_back(copy_n(tuple, m));
-                        }
-                        std::get<TupleVec>(ret->back()).emplace_back(std::monostate{});
-                    } else if (ret.has_value()) {
-                        std::get<TupleVec>(ret->back()).emplace_back(elem);
-                    }
-                    ++m;
-                }
-            });
-        ++n;
-    }
+auto TermTuple::project(Projection project) const -> std::optional<STerm> {
+    auto fun = [project](TupleElem const &elem) -> std::optional<TupleElem> {
+        if (projectable(project, std::get_if<STerm>(&elem))) {
+            return {std::monostate{}};
+        }
+        return std::nullopt;
+    };
 
-    if (ret.has_value()) {
-        return construct_shared<TermTuple, Term>(std::move(ret).value());
-    }
-    return STerm{this};
+    return transform_construct_shared<TermTuple, Term>(Trans{pool_, fun});
 }
 
 auto TermTuple::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return transform_construct_shared<TermTuple, Term>(
-        [&gen](STerm const &x) -> std::optional<STerm> { return x->rewrite_anonymous(gen); }, pool_);
+    auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
+    return transform_construct_shared<TermTuple, Term>(Trans{pool_, fun});
 }
 
 void TermTuple::unpool(PoolTerm &pool) {
@@ -302,9 +275,9 @@ auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
 
 void TermVariable::visit_variables(VarVisitFun const &fun) const { fun(name_); }
 
-auto TermVariable::project(Projection project) -> STerm {
+auto TermVariable::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
-    return STerm{this};
+    return std::nullopt;
 }
 
 auto TermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
@@ -345,14 +318,14 @@ void TermAbs::visit_variables(VarVisitFun const &fun) const {
     }
 }
 
-auto TermAbs::project(Projection project) -> STerm {
+auto TermAbs::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
-    return STerm{this};
+    return std::nullopt;
 }
 
 auto TermAbs::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return transform_construct_shared<TermAbs, Term>(
-        [&gen](STerm const &x) -> std::optional<STerm> { return x->rewrite_anonymous(gen); }, pool_);
+    auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
+    return transform_construct_shared<TermAbs, Term>(Trans{pool_, fun});
 }
 
 ////////// TermFunction //////////
@@ -416,42 +389,24 @@ void TermFunction::visit_variables(VarVisitFun const &fun) const {
     visit.add(pool_);
 }
 
-auto TermFunction::project(Projection project) -> STerm {
+auto TermFunction::project(Projection project) const -> std::optional<STerm> {
     if (external_) {
-        return STerm{this};
+        return std::nullopt;
     }
 
-    size_t n = 0;
-    std::optional<PoolVec> ret;
-    for (auto const &tuple : pool_) {
-        size_t m = 0;
-        if (ret.has_value()) {
-            ret->emplace_back(copy_n(tuple, m));
+    auto fun = [project](TupleElem const &elem) -> std::optional<TupleElem> {
+        if (projectable(project, std::get_if<STerm>(&elem))) {
+            return {std::monostate{}};
         }
-        for (auto const &elem : tuple) {
-            if (projectable(project, std::get_if<STerm>(&elem))) {
-                if (!ret.has_value()) {
-                    ret = copy_n(pool_, n);
-                    ret->emplace_back(copy_n(tuple, m));
-                }
-                ret->back().emplace_back(std::monostate{});
-            } else if (ret.has_value()) {
-                ret->back().emplace_back(elem);
-            }
-            ++m;
-        }
-        ++n;
-    }
+        return std::nullopt;
+    };
 
-    if (ret.has_value()) {
-        return construct_shared<TermFunction, Term>(name_, std::move(ret).value(), external_);
-    }
-    return STerm{this};
+    return transform_construct_shared<TermFunction, Term>(name_, Trans{pool_, fun}, external_);
 }
 
 auto TermFunction::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return transform_construct_shared<TermFunction, Term>(
-        [&gen](STerm const &x) -> std::optional<STerm> { return x->rewrite_anonymous(gen); }, name_, pool_, external_);
+    auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
+    return transform_construct_shared<TermFunction, Term>(name_, Trans{pool_, fun}, external_);
 }
 
 auto TermFunction::type() const -> TermType { return TermType::TermFunction; }
@@ -499,8 +454,8 @@ void TermUnary::unpool(PoolTerm &pool) {
 }
 
 auto TermUnary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return transform_construct_shared<TermUnary, Term>(
-        [&gen](STerm const &x) -> std::optional<STerm> { return x->rewrite_anonymous(gen); }, op_, rhs_);
+    auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
+    return transform_construct_shared<TermUnary, Term>(op_, Trans{rhs_, fun});
 }
 
 auto TermUnary::type() const -> TermType { return TermType::TermUnary; }
@@ -543,9 +498,9 @@ auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bo
 
 void TermUnary::visit_variables(VarVisitFun const &fun) const { rhs_->visit_variables(fun); }
 
-auto TermUnary::project(Projection project) -> STerm {
+auto TermUnary::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
-    return STerm{this};
+    return std::nullopt;
 }
 
 ////////// TermBinary //////////
@@ -657,12 +612,12 @@ void TermBinary::visit_variables(VarVisitFun const &fun) const {
     rhs_->visit_variables(fun);
 }
 
-auto TermBinary::project(Projection project) -> STerm {
+auto TermBinary::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
-    return STerm{this};
+    return std::nullopt;
 }
 
 auto TermBinary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return transform_construct_shared<TermBinary, Term>(
-        [&gen](STerm const &x) -> std::optional<STerm> { return x->rewrite_anonymous(gen); }, lhs_, op_, rhs_);
+    auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
+    return transform_construct_shared<TermBinary, Term>(Trans{lhs_, fun}, op_, Trans{rhs_, fun});
 }

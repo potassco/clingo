@@ -63,7 +63,7 @@ class SetAggregate {
     void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
     /// Projects pure variables in the condition if the aggregate is not
     /// nonmonotone or occurs in a negative scope.
-    auto project(Projection project, bool in_negative_scope) -> std::optional<SetAggregate>;
+    [[nodiscard]] auto project(Projection project, bool in_negative_scope) const -> std::optional<SetAggregate>;
 
     friend auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream &;
 

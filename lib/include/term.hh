@@ -118,7 +118,7 @@ class Term {
     [[nodiscard]] friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     virtual void visit_variables(VarVisitFun const &fun) const = 0;
-    [[nodiscard]] virtual auto project(Projection project) -> STerm = 0;
+    [[nodiscard]] virtual auto project(Projection project) const -> std::optional<STerm> = 0;
     [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> = 0;
 
     // AST interface
@@ -203,7 +203,7 @@ class TermSymbol : public Term {
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
@@ -226,7 +226,7 @@ class TermTuple : public Term {
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
@@ -248,7 +248,7 @@ class TermVariable : public Term {
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
   private:
@@ -264,7 +264,7 @@ class TermAbs : public Term {
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
@@ -285,7 +285,7 @@ class TermFunction : public Term {
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
@@ -314,7 +314,7 @@ class TermUnary : public Term {
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
@@ -353,7 +353,7 @@ class TermBinary : public Term {
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) -> STerm override;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface

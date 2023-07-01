@@ -4,6 +4,7 @@
 
 #include <statement.hh>
 
+#include "transform.hh"
 #include "unpool.hh"
 #include "variables.hh"
 
@@ -36,29 +37,21 @@ class GlobalVarCounterHelper {
 
 using GlobalVarCounter = detail::VarVisitHelper<GlobalVarCounterHelper>;
 
-auto project_body_with(auto *self, SBodyLiteralVec &body_, bool in_classical_scope, auto construct) -> SStatement {
+auto project_body_with(auto const *self, SBodyLiteralVec const &body_, bool in_classical_scope, auto construct)
+    -> std::optional<SStatement> {
     // count global variables
     GlobalVarCounter counter;
     counter.add(*self);
     Projection project{counter};
 
     // project body
-    std::optional<SBodyLiteralVec> body;
-    size_t n = 0;
-    for (auto &lit : body_) {
-        auto projected_lit = lit->project(project, in_classical_scope);
-        if (projected_lit != lit && !body.has_value()) {
-            body = copy_n(body_, n);
-        }
-        if (body.has_value()) {
-            body->emplace_back(std::move(projected_lit));
-        }
-        ++n;
-    }
+    std::optional<SBodyLiteralVec> body = transform(
+        [project, in_classical_scope](SBodyLiteral const &lit) { return lit->project(project, in_classical_scope); },
+        body_);
     if (body.has_value()) {
         return construct(std::move(body).value());
     }
-    return SStatement{self};
+    return std::nullopt;
 }
 
 } // namespace
@@ -169,13 +162,13 @@ void Rule::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     visit_body(fun, ctx, body_);
 }
 
-auto Rule::project() -> SStatement {
+auto Rule::project() const -> std::optional<SStatement> {
     // do not project projection-like rules
     if (head_->is_atom()) {
         auto has_atom = std::any_of(body_.begin(), body_.end(), [](auto const &lit) { return lit->is_atom(); });
         size_t n_test = std::count_if(body_.begin(), body_.end(), [](auto const &lit) { return lit->is_test(); });
         if (has_atom && n_test == body_.size() - 1) {
-            return SStatement{this};
+            return std::nullopt;
         }
     }
 
@@ -278,7 +271,7 @@ void TheoryDefinition::visit_variables(VarVisitFun const &fun, VariableContext c
     static_cast<void>(ctx);
 }
 
-auto TheoryDefinition::project() -> SStatement { return SStatement{this}; }
+auto TheoryDefinition::project() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementOptimize //////////
 
@@ -355,10 +348,10 @@ void StatementOptimize::visit_variables(VarVisitFun const &fun, VariableContext 
     }
 }
 
-auto StatementOptimize::project() -> SStatement {
-    std::optional<ElementVec> elems;
-    size_t n = 0;
-    for (auto const &[tuple, cond] : elems_) {
+auto StatementOptimize::project() const -> std::optional<SStatement> {
+    auto fun = [](Element const &elem) -> std::optional<Element> {
+        auto const &[tuple, cond] = elem;
+
         // add counts of variables
         GlobalVarCounter counter;
         counter.add(tuple);
@@ -366,27 +359,10 @@ auto StatementOptimize::project() -> SStatement {
         auto sub_project = Projection{counter};
 
         // project literals in condition
-        size_t m = 0;
-        if (elems.has_value()) {
-            elems->emplace_back(tuple, copy_n(cond, m));
-        }
-        for (auto const &lit_c : cond) {
-            auto projected_lit = lit_c->project(sub_project);
-            if (projected_lit != lit_c && !elems.has_value()) {
-                elems = copy_n(elems_, n);
-                elems->emplace_back(tuple, copy_n(cond, m));
-            }
-            if (elems.has_value()) {
-                elems->back().second.emplace_back(projected_lit);
-            }
-            ++m;
-        }
-        ++n;
-    }
-    if (elems.has_value()) {
-        return construct_shared<StatementOptimize, Statement>(type_, std::move(elems).value());
-    }
-    return SStatement{this};
+        auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
+        return transform_construct<Element>(tuple, Trans{cond, fun});
+    };
+    return transform_construct_shared<StatementOptimize, Statement>(type_, Trans{elems_, fun});
 }
 
 ////////// StatementWeakConstraint //////////
@@ -426,7 +402,7 @@ void StatementWeakConstraint::visit_variables(VarVisitFun const &fun, VariableCo
     visit_body(fun, ctx, body_);
 }
 
-auto StatementWeakConstraint::project() -> SStatement {
+auto StatementWeakConstraint::project() const -> std::optional<SStatement> {
     return project_body_with(this, body_, true, [&](auto body) {
         return construct_shared<StatementWeakConstraint, Statement>(std::move(body), tuple_);
     });
@@ -453,7 +429,7 @@ void StatementShow::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     visit_body(fun, ctx, body_);
 }
 
-auto StatementShow::project() -> SStatement {
+auto StatementShow::project() const -> std::optional<SStatement> {
     return project_body_with(this, body_, true, [&](auto body) {
         return construct_shared<StatementShow, Statement>(term_, std::move(body));
     });
@@ -472,7 +448,7 @@ void StatementShowSig::visit_variables(VarVisitFun const &fun, VariableContext c
     static_cast<void>(ctx);
 }
 
-auto StatementShowSig::project() -> SStatement { return SStatement{this}; }
+auto StatementShowSig::project() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementProject //////////
 
@@ -497,7 +473,7 @@ void StatementProject::visit_variables(VarVisitFun const &fun, VariableContext c
     visit_body(fun, ctx, body_);
 }
 
-auto StatementProject::project() -> SStatement {
+auto StatementProject::project() const -> std::optional<SStatement> {
     return project_body_with(this, body_, true, [&](auto body) {
         return construct_shared<StatementProject, Statement>(term_, std::move(body));
     });
@@ -516,7 +492,7 @@ void StatementProjectSig::visit_variables(VarVisitFun const &fun, VariableContex
     static_cast<void>(ctx);
 }
 
-auto StatementProjectSig::project() -> SStatement { return SStatement{this}; }
+auto StatementProjectSig::project() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementDefined //////////
 
@@ -531,7 +507,7 @@ void StatementDefined::visit_variables(VarVisitFun const &fun, VariableContext c
     static_cast<void>(ctx);
 }
 
-auto StatementDefined::project() -> SStatement { return SStatement{this}; }
+auto StatementDefined::project() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementExternal //////////
 
@@ -562,7 +538,7 @@ void StatementExternal::visit_variables(VarVisitFun const &fun, VariableContext 
     visit_body(fun, ctx, body_);
 }
 
-auto StatementExternal::project() -> SStatement {
+auto StatementExternal::project() const -> std::optional<SStatement> {
     return project_body_with(this, body_, true, [&](auto body) {
         return construct_shared<StatementExternal, Statement>(term_, std::move(body), type_);
     });
@@ -616,7 +592,7 @@ void StatementEdge::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     visit_body(fun, ctx, body_);
 }
 
-auto StatementEdge::project() -> SStatement {
+auto StatementEdge::project() const -> std::optional<SStatement> {
     return project_body_with(this, body_, true, [&](auto body) {
         return construct_shared<StatementEdge, Statement>(edges_, std::move(body));
     });
@@ -655,7 +631,7 @@ void StatementHeuristic::visit_variables(VarVisitFun const &fun, VariableContext
     visit_body(fun, ctx, body_);
 }
 
-auto StatementHeuristic::project() -> SStatement {
+auto StatementHeuristic::project() const -> std::optional<SStatement> {
     return project_body_with(this, body_, true, [&](auto body) {
         return construct_shared<StatementHeuristic, Statement>(has_sign_, atom_, std::move(body), type_, prio_, mod_);
     });
@@ -686,7 +662,7 @@ void StatementScript::visit_variables(VarVisitFun const &fun, VariableContext ct
     static_cast<void>(ctx);
 }
 
-auto StatementScript::project() -> SStatement { return SStatement{this}; }
+auto StatementScript::project() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementInclude //////////
 
@@ -721,7 +697,7 @@ void StatementInclude::visit_variables(VarVisitFun const &fun, VariableContext c
     static_cast<void>(ctx);
 }
 
-auto StatementInclude::project() -> SStatement { return SStatement{this}; }
+auto StatementInclude::project() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementProgram //////////
 
@@ -740,7 +716,7 @@ void StatementProgram::visit_variables(VarVisitFun const &fun, VariableContext c
     static_cast<void>(ctx);
 }
 
-auto StatementProgram::project() -> SStatement { return SStatement{this}; }
+auto StatementProgram::project() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementConst //////////
 
@@ -784,4 +760,4 @@ void StatementConst::visit_variables(VarVisitFun const &fun, VariableContext ctx
     static_cast<void>(ctx);
 }
 
-auto StatementConst::project() -> SStatement { return SStatement{this}; }
+auto StatementConst::project() const -> std::optional<SStatement> { return std::nullopt; }

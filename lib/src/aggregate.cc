@@ -5,6 +5,7 @@
 
 #include <aggregate.hh>
 
+#include "transform.hh"
 #include "unpool.hh"
 #include "variables.hh"
 
@@ -100,13 +101,13 @@ void SetAggregate::visit_variables(std::function<void(std::string const &var)> f
     }
 }
 
-auto SetAggregate::project(Projection project, bool in_negative_scope) -> std::optional<SetAggregate> {
+auto SetAggregate::project(Projection project, bool in_negative_scope) const -> std::optional<SetAggregate> {
     if (!in_negative_scope && reduct_is_nonmonotone(lhs_, AggregateFunction::count, rhs_)) {
         return std::nullopt;
     }
-    std::optional<ElementVec> elems;
-    size_t n = 0;
-    for (auto const &[lit, cond] : elems_) {
+    auto fun = [project](Element const &elem) -> std::optional<Element> {
+        auto const &[lit, cond] = elem;
+
         // add counts of local variables
         VarCounter counter{project.counts()};
         counter.add(lit);
@@ -114,25 +115,8 @@ auto SetAggregate::project(Projection project, bool in_negative_scope) -> std::o
         auto sub_project = Projection{counter};
 
         // project literals in condition
-        size_t m = 0;
-        if (elems.has_value()) {
-            elems->emplace_back(lit, copy_n(cond, m));
-        }
-        for (auto const &lit_c : cond) {
-            auto projected_lit = lit_c->project(sub_project);
-            if (projected_lit != lit_c && !elems.has_value()) {
-                elems = copy_n(elems_, n);
-                elems->emplace_back(lit, copy_n(cond, m));
-            }
-            if (elems.has_value()) {
-                std::get<1>(elems->back()).emplace_back(projected_lit);
-            }
-            ++m;
-        }
-        ++n;
-    }
-    if (elems.has_value()) {
-        return SetAggregate{lhs_, std::move(elems).value(), rhs_};
-    }
-    return std::nullopt;
+        auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
+        return transform_construct<Element>(lit, Trans(cond, fun));
+    };
+    return transform_construct<SetAggregate>(lhs_, Trans{elems_, fun}, rhs_);
 }

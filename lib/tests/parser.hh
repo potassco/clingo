@@ -46,7 +46,7 @@ template <class T> auto unpool_str(std::optional<shared_ptr<T>> value, char cons
 
 template <class T> auto project_str(std::optional<shared_ptr<T>> value) -> std::string {
     if (value) {
-        return to_str(value.value()->project());
+        return to_str(value.value()->project().value_or(value.value()));
     }
     return "<failed>";
 }
@@ -69,4 +69,5 @@ struct Parser {
     [[nodiscard]] auto scan() const -> std::optional<std::string>;
     std::unique_ptr<Impl> impl;
 };
+
 } // namespace test
