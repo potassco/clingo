@@ -71,7 +71,7 @@ static constexpr auto projection_symbol = lexy::symbol_table<std::monostate> //
                                               .map<'*'>(std::monostate{});
 static constexpr auto identifier_base = []() {
     auto head = dsl::ascii::lower;
-    auto tail = dsl::ascii::alpha_underscore / LEXY_LIT("'");
+    auto tail = dsl::ascii::alpha_digit_underscore / LEXY_LIT("'");
     return dsl::identifier(head, tail);
 }();
 static constexpr auto keyword_base = dsl::identifier(LEXY_ASCII_ONE_OF("#"), dsl::ascii::alpha);
@@ -120,7 +120,7 @@ struct variable {
     static constexpr char const *name = "variable";
     static constexpr auto rule = []() {
         auto prefix = dsl::while_(LEXY_LIT("_") / LEXY_LIT("'"));
-        auto suffix = dsl::while_(dsl::ascii::alpha_underscore / LEXY_LIT("'"));
+        auto suffix = dsl::while_(dsl::ascii::alpha_digit_underscore / LEXY_LIT("'"));
         return dsl::capture(dsl::token(prefix + dsl::ascii::upper + suffix));
     }();
     static constexpr auto value = lexy::as_string<std::string, encoding>;

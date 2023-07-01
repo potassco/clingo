@@ -54,6 +54,23 @@ auto project_body_with(auto const *self, SBodyLiteralVec const &body_, bool in_c
     return std::nullopt;
 }
 
+class RewriteAnonymousStm {
+  public:
+    RewriteAnonymousStm(Statement const &stm) : gen_{vars_(stm)} {}
+    auto operator()(SBodyLiteral const &lit) -> std::optional<SBodyLiteral> { return lit->rewrite_anonymous(gen_); }
+    auto operator()(SHeadLiteral const &lit) -> std::optional<SHeadLiteral> { return lit->rewrite_anonymous(gen_); }
+    auto operator()(SLiteral const &lit) -> std::optional<SLiteral> { return lit->rewrite_anonymous(gen_); }
+    auto operator()(STerm const &term) -> std::optional<STerm> { return term->rewrite_anonymous(gen_); }
+
+  private:
+    static auto vars_(Statement const &stm) -> VariableSet {
+        VariableSet vars;
+        stm.visit_variables([&vars](std::string const &var) { vars.emplace(var); }, VariableContext::all);
+        return vars;
+    }
+    NameGen gen_;
+};
+
 } // namespace
 
 class PoolStatement {
@@ -176,13 +193,11 @@ auto Rule::project() const -> std::optional<SStatement> {
                              [&](auto body) { return construct_shared<Rule, Statement>(head_, std::move(body)); });
 }
 
+#include <iostream>
+
 auto Rule::rewrite_anonymous() const -> std::optional<SStatement> {
-    VariableSet vars;
-    visit_variables([&vars](std::string const &var) { vars.emplace(var); }, VariableContext::all);
-    NameGen gen{vars};
-    auto fun_head = [&gen](SHeadLiteral const &lit) { return lit->rewrite_anonymous(gen); };
-    auto fun_body = [&gen](SBodyLiteral const &lit) { return lit->rewrite_anonymous(gen); };
-    return transform_construct_shared<Rule, Statement>(Trans{head_, fun_head}, Trans{body_, fun_body});
+    RewriteAnonymousStm fun{*this};
+    return transform_construct_shared<Rule, Statement>(Trans{head_, fun}, Trans{body_, fun});
 }
 
 ////////// TheoryOpDefinition //////////
@@ -377,7 +392,8 @@ auto StatementOptimize::project() const -> std::optional<SStatement> {
 }
 
 auto StatementOptimize::rewrite_anonymous() const -> std::optional<SStatement> {
-    throw std::logic_error("implement me!!");
+    RewriteAnonymousStm fun{*this};
+    return transform_construct_shared<StatementOptimize, Statement>(type_, Trans{elems_, fun});
 }
 
 ////////// StatementWeakConstraint //////////
@@ -424,7 +440,8 @@ auto StatementWeakConstraint::project() const -> std::optional<SStatement> {
 }
 
 auto StatementWeakConstraint::rewrite_anonymous() const -> std::optional<SStatement> {
-    throw std::logic_error("implement me!!");
+    RewriteAnonymousStm fun{*this};
+    return transform_construct_shared<StatementWeakConstraint, Statement>(Trans{body_, fun}, Trans{tuple_, fun});
 }
 
 ////////// StatementShow //////////
@@ -454,7 +471,10 @@ auto StatementShow::project() const -> std::optional<SStatement> {
     });
 }
 
-auto StatementShow::rewrite_anonymous() const -> std::optional<SStatement> { throw std::logic_error("implement me!!"); }
+auto StatementShow::rewrite_anonymous() const -> std::optional<SStatement> {
+    RewriteAnonymousStm fun{*this};
+    return transform_construct_shared<StatementShow, Statement>(Trans{term_, fun}, Trans{body_, fun});
+}
 
 ////////// StatementShowSig //////////
 
@@ -503,7 +523,8 @@ auto StatementProject::project() const -> std::optional<SStatement> {
 }
 
 auto StatementProject::rewrite_anonymous() const -> std::optional<SStatement> {
-    throw std::logic_error("implement me!!");
+    RewriteAnonymousStm fun{*this};
+    return transform_construct_shared<StatementProject, Statement>(Trans{term_, fun}, Trans{body_, fun});
 }
 
 ////////// StatementProjectSig //////////
@@ -576,7 +597,9 @@ auto StatementExternal::project() const -> std::optional<SStatement> {
 }
 
 auto StatementExternal::rewrite_anonymous() const -> std::optional<SStatement> {
-    throw std::logic_error("implement me!!");
+    RewriteAnonymousStm fun{*this};
+    return transform_construct_shared<StatementExternal, Statement>(Trans{term_, fun}, Trans{body_, fun},
+                                                                    Trans{type_, fun});
 }
 
 ////////// StatementEdge //////////
@@ -633,7 +656,10 @@ auto StatementEdge::project() const -> std::optional<SStatement> {
     });
 }
 
-auto StatementEdge::rewrite_anonymous() const -> std::optional<SStatement> { throw std::logic_error("implement me!!"); }
+auto StatementEdge::rewrite_anonymous() const -> std::optional<SStatement> {
+    RewriteAnonymousStm fun{*this};
+    return transform_construct_shared<StatementEdge, Statement>(Trans{edges_, fun}, Trans{body_, fun});
+}
 
 ////////// StatementHeuristic //////////
 
@@ -675,7 +701,9 @@ auto StatementHeuristic::project() const -> std::optional<SStatement> {
 }
 
 auto StatementHeuristic::rewrite_anonymous() const -> std::optional<SStatement> {
-    throw std::logic_error("implement me!!");
+    RewriteAnonymousStm fun{*this};
+    return transform_construct_shared<StatementHeuristic, Statement>(
+        has_sign_, Trans{atom_, fun}, Trans{body_, fun}, Trans{type_, fun}, Trans{prio_, fun}, Trans{mod_, fun});
 }
 
 ////////// StatementScript //////////

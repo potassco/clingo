@@ -91,7 +91,7 @@ class NameGen {
 
   private:
     VariableSet vars_;
-    size_t num_;
+    size_t num_ = 0;
 };
 
 class Projection {

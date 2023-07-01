@@ -36,7 +36,7 @@ auto projectable(Projection project, STerm const *term) -> bool {
 
 auto NameGen::new_name() -> std::string {
     while (true) {
-        std::string name = "__aux_" + std::to_string(num_);
+        std::string name = "__Aux_" + std::to_string(num_);
         ++num_;
         if (!vars_.contains(name)) {
             return name;
