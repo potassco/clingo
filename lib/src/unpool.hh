@@ -15,6 +15,37 @@ namespace detail {
 
 using OffsetVec = std::vector<std::tuple<size_t, size_t, size_t>>;
 
+template <size_t i, size_t n>
+auto unpool_crossproducts_build(auto &build, auto &vec, auto &orig, auto &unpooled, auto &&...cs) {
+    if constexpr (i < n) {
+        if (std::get<i>(unpooled).has_value()) {
+            for (auto &elem : std::get<i>(unpooled).value()) {
+                using elem_type = std::decay_t<decltype(elem)>;
+                unpool_crossproducts_build<i + 1, n>(build, vec, orig, unpooled, cs...,
+                                                     n == 1 ? std::move(elem) : static_cast<elem_type>(elem));
+            }
+        } else {
+            using orig_type = std::decay_t<decltype(std::get<i>(orig))>;
+            unpool_crossproducts_build<i + 1, n>(build, vec, orig, unpooled, cs...,
+                                                 static_cast<orig_type>(std::get<i>(orig)));
+        }
+    }
+    if constexpr (i == n) {
+        vec.emplace_back(build(std::forward<decltype(cs)>(cs)...));
+    }
+}
+
+template <class... As, size_t... Is>
+auto unpool_crossproducts(auto &build, std::tuple<As const &...> orig, auto unpooled, std::index_sequence<Is...> seq) {
+    using return_type = std::vector<std::decay_t<decltype(build(std::declval<As>()...))>>;
+    if ((std::get<Is>(unpooled).has_value() || ...)) {
+        return_type vec;
+        unpool_crossproducts_build<0, seq.size()>(build, vec, orig, unpooled);
+        return std::optional<return_type>(std::move(vec));
+    }
+    return std::optional<return_type>(std::nullopt);
+}
+
 template <typename P, typename Mapper, typename Inserter>
 void crossproduct_with(OffsetVec &offsets, P &pool, Mapper map, Inserter ins) {
     for (bool cont = true; cont;) {
@@ -374,7 +405,9 @@ template <typename F, typename... Pools> void unpool_with(F ins, Pools &&...pool
 }
 
 struct UnpoolerV2 {
-    template <class T> auto operator()(shared_ptr<T> const &elem) const -> std::vector<T> { return elem->unpool_v2(); }
+    template <class T> auto operator()(shared_ptr<T> const &elem) const -> std::optional<std::vector<shared_ptr<T>>> {
+        return elem->unpool_v2();
+    }
 };
 
 template <typename T, typename U = UnpoolerV2>
@@ -458,4 +491,9 @@ auto unpool_union_v2(std::vector<T> const &elems, U &&unpool = U{}) -> std::opti
         ++n;
     }
     return ret;
+}
+
+auto unpool_crossproducts(auto build, auto unpool, auto const &...args) {
+    return detail::unpool_crossproducts(build, std::forward_as_tuple(args...), std::forward_as_tuple(unpool(args)...),
+                                        std::index_sequence_for<decltype(args)...>());
 }

@@ -296,6 +296,7 @@ auto TermTuple::unpool_v2() const -> std::optional<STermVec> {
     }
     return map_opt(std::move(elems), [](auto &&elems) {
         STermVec ret;
+        ret.reserve(elems.size());
         for (auto &&tuple_or_term : elems) {
             visit_variant(
                 std::move(tuple_or_term), [&ret](STerm term) { ret.emplace_back(std::move(term)); },
@@ -363,7 +364,16 @@ void TermAbs::unpool(PoolTerm &pool) const {
         unpool_union(pool, pool_));
 }
 
-auto TermAbs::unpool_v2() const -> std::optional<STermVec> { throw std::logic_error("implement me!!!"); }
+auto TermAbs::unpool_v2() const -> std::optional<STermVec> {
+    return map_opt(unpool_union_v2(pool_), [this](auto &&unpooled) {
+        STermVec ret;
+        ret.reserve(unpooled.size());
+        for (auto &&term : unpooled) {
+            ret.emplace_back(construct_shared<TermAbs, Term>(STermVec{std::move(term)}));
+        }
+        return ret;
+    });
+}
 
 auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
 
@@ -463,9 +473,10 @@ auto TermFunction::unpool_v2() const -> std::optional<STermVec> {
                                                    std::make_move_iterator(unpooled.end())};
                                 });
                         }),
-        [&](auto &&elems) {
+        [this](auto &&elems) {
             // turn individual elements into function terms
             STermVec ret;
+            ret.reserve(elems.size());
             for (auto &&tuple : elems) {
                 ret.emplace_back(construct_shared<TermFunction, Term>(name_, PoolVec{std::move(tuple)}, external_));
             }
@@ -542,7 +553,16 @@ void TermUnary::unpool(PoolTerm &pool) const {
         unpool_element(pool, rhs_));
 }
 
-auto TermUnary::unpool_v2() const -> std::optional<STermVec> { throw std::logic_error("implement me!!!"); }
+auto TermUnary::unpool_v2() const -> std::optional<STermVec> {
+    return map_opt(rhs_->unpool_v2(), [this](auto &&unpooled) {
+        STermVec ret;
+        ret.reserve(unpooled.size());
+        for (auto &&term : unpooled) {
+            ret.emplace_back(construct_shared<TermUnary, Term>(op_, std::move(term)));
+        }
+        return ret;
+    });
+}
 
 auto TermUnary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
@@ -663,7 +683,13 @@ void TermBinary::unpool(PoolTerm &pool) const {
         unpool_element(pool, lhs_), unpool_element(pool, rhs_));
 }
 
-auto TermBinary::unpool_v2() const -> std::optional<STermVec> { throw std::logic_error("implement me!!!"); }
+auto TermBinary::unpool_v2() const -> std::optional<STermVec> {
+    return unpool_crossproducts(
+        [this](STerm lhs, STerm rhs) {
+            return construct_shared<TermBinary, Term>(std::move(lhs), op_, std::move(rhs));
+        },
+        [](STerm const &term) { return term->unpool_v2(); }, lhs_, rhs_);
+}
 
 auto TermBinary::type() const -> TermType { return TermType::TermBinary; }
 
@@ -712,5 +738,6 @@ auto TermBinary::project(Projection project) const -> std::optional<STerm> {
 
 auto TermBinary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
+    // TODO: translation could also work with like unpool_crossproducts
     return transform_construct_shared<TermBinary, Term>(Trans{lhs_, fun}, op_, Trans{rhs_, fun});
 }
