@@ -372,3 +372,90 @@ template <typename F, typename... Pools> void unpool_with(F ins, Pools &&...pool
     detail::combine_r(ins, pools..., stop);
     detail::erase_r(pools...);
 }
+
+struct UnpoolerV2 {
+    template <class T> auto operator()(shared_ptr<T> const &elem) const -> std::vector<T> { return elem->unpool_v2(); }
+};
+
+template <typename T, typename U = UnpoolerV2>
+auto unpool_crossproduct_v2(std::vector<T> const &elems, U &&unpool = U{})
+    -> std::optional<std::vector<std::vector<T>>> {
+    // setup values to unpool + offsets
+    detail::OffsetVec offsets;
+    std::vector<T> pool;
+    bool has_value = false;
+    size_t n = 0;
+    for (auto const &elem : elems) {
+        auto unpooled = unpool(elem);
+        if (unpooled.has_value() && !has_value) {
+            has_value = true;
+            pool.reserve(elems.size());
+            offsets.reserve(elems.size());
+            for (auto it = elems.begin(), ie = it + n; it != ie; ++it) {
+                offsets.emplace_back(pool.size(), pool.size(), pool.size() + 1);
+                pool.emplace_back(*it);
+            }
+        }
+        if (has_value) {
+            offsets.emplace_back(pool.size(), pool.size(), pool.size());
+            if (!unpooled.has_value()) {
+                pool.emplace_back(elem);
+            } else {
+                std::move(unpooled->begin(), unpooled->end(), std::back_inserter(pool));
+            }
+            std::get<2>(offsets.back()) = pool.size();
+        }
+        ++n;
+    }
+    if (!has_value) {
+        return std::nullopt;
+    }
+    // unpool if at least one element changed
+    std::vector<std::vector<T>> ret;
+    for (bool cont = true; cont;) {
+        std::vector<T> res;
+        size_t i = 0;
+        for (auto const &[cur, begin, end] : offsets) {
+            if (begin == end) {
+                return ret;
+            }
+            res.emplace_back(pool[cur]);
+            ++i;
+        }
+        ret.emplace_back(std::move(res));
+        cont = false;
+        for (auto &[cur, begin, end] : offsets) {
+            ++cur;
+            if (cur == end) {
+                cur = begin;
+            } else {
+                cont = true;
+                break;
+            }
+        }
+    }
+    return ret;
+}
+
+template <typename T, typename U = UnpoolerV2>
+auto unpool_union_v2(std::vector<T> const &elems, U &&unpool = U{}) -> std::optional<std::vector<T>> {
+    size_t n = 0;
+    std::optional<std::vector<T>> ret;
+    for (auto const &elem : elems) {
+        auto unpooled = unpool(elem);
+        if (unpooled.has_value() && !ret.has_value()) {
+            ret = copy_n(elems, n);
+        }
+        if (ret.has_value()) {
+            if (!unpooled.has_value()) {
+                ret->emplace_back(elem);
+            } else {
+                for (auto &&unpooled_elem : unpooled.value()) {
+                    ret->emplace_back(std::move(unpooled_elem));
+                }
+            }
+        }
+        ++n;
+    }
+    return ret;
+}

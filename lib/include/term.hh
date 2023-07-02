@@ -114,6 +114,7 @@ class Term {
     [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
     [[nodiscard]] auto unpool() const -> STermVec;
     virtual void unpool(PoolTerm &pool) const = 0;
+    [[nodiscard]] virtual auto unpool_v2() const -> std::optional<STermVec> = 0;
     [[nodiscard]] virtual auto is_equal(Term const &other) const -> bool = 0;
     [[nodiscard]] friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
@@ -200,6 +201,7 @@ class TermSymbol : public Term {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     void unpool(PoolTerm &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
@@ -223,6 +225,7 @@ class TermTuple : public Term {
 
     void print(std::ostream &out) const override;
     void unpool(PoolTerm &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
@@ -245,6 +248,7 @@ class TermVariable : public Term {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto type() const -> TermType override;
     void unpool(PoolTerm &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
@@ -261,6 +265,7 @@ class TermAbs : public Term {
 
     void print(std::ostream &out) const override;
     void unpool(PoolTerm &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
@@ -282,6 +287,7 @@ class TermFunction : public Term {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     void unpool(PoolTerm &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
@@ -311,6 +317,7 @@ class TermUnary : public Term {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     void unpool(PoolTerm &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
@@ -350,6 +357,7 @@ class TermBinary : public Term {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     void unpool(PoolTerm &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
