@@ -72,7 +72,7 @@ auto operator<<(std::ostream &out, Term const &ast) -> std::ostream & {
     return out;
 }
 
-auto Term::unpool() -> STermVec {
+auto Term::unpool() const -> STermVec {
     STermVec terms;
     PoolTerm pool{terms};
     unpool(pool);
@@ -137,7 +137,7 @@ auto TermSymbol::check_type(TermCheckType type, CheckTypeResult *res) const -> b
         [&](auto &&value) { return false; });
 }
 
-void TermSymbol::unpool(PoolTerm &pool) { pool.append(this); }
+void TermSymbol::unpool(PoolTerm &pool) const { pool.append(this); }
 
 auto TermSymbol::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermSymbol const *>(&other);
@@ -217,14 +217,14 @@ auto TermTuple::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     return transform_construct_shared<TermTuple, Term>(Trans{pool_, fun});
 }
 
-void TermTuple::unpool(PoolTerm &pool) {
-    for (auto &tuple_or_term : pool_) {
+void TermTuple::unpool(PoolTerm &pool) const {
+    for (auto const &tuple_or_term : pool_) {
         visit_variant(
-            tuple_or_term, [&](STerm &term) { term->unpool(pool); },
-            [&](TupleVec &tuple) {
+            tuple_or_term, [&](STerm const &term) { term->unpool(pool); },
+            [&](TupleVec const &tuple) {
                 STermVec terms;
                 terms.reserve(tuple.size());
-                for (auto &elem : tuple) {
+                for (auto const &elem : tuple) {
                     visit_variant(
                         elem, [&](STerm const &term) { terms.emplace_back(term); }, [](auto const &) {});
                 }
@@ -269,7 +269,7 @@ auto TermVariable::is_equal(Term const &other) const -> bool {
 
 auto TermVariable::hash() const -> size_t { return value_hash(typeid(TermVariable), name_); }
 
-void TermVariable::unpool(PoolTerm &pool) { pool.append(this); }
+void TermVariable::unpool(PoolTerm &pool) const { pool.append(this); }
 
 auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
 
@@ -298,7 +298,7 @@ auto TermAbs::is_equal(Term const &other) const -> bool {
 
 auto TermAbs::hash() const -> size_t { return value_hash(typeid(TermAbs), pool_); }
 
-void TermAbs::unpool(PoolTerm &pool) {
+void TermAbs::unpool(PoolTerm &pool) const {
     unpool_with(
         [&](std::optional<STerm> &arg) {
             if (!arg.has_value()) {
@@ -349,11 +349,11 @@ auto TermFunction::is_equal(Term const &other) const -> bool {
 
 auto TermFunction::hash() const -> size_t { return value_hash(typeid(TermFunction), external_, name_, pool_); }
 
-void TermFunction::unpool(PoolTerm &pool) {
-    for (auto &tuple : pool_) {
+void TermFunction::unpool(PoolTerm &pool) const {
+    for (auto const &tuple : pool_) {
         STermVec terms;
         terms.reserve(tuple.size());
-        for (auto &elem : tuple) {
+        for (auto const &elem : tuple) {
             visit_variant(
                 elem, [&](STerm const &term) { terms.emplace_back(term); }, [](auto const &) {});
         }
@@ -441,7 +441,7 @@ auto TermUnary::is_equal(Term const &other) const -> bool {
 
 auto TermUnary::hash() const -> size_t { return value_hash(typeid(TermUnary), op_, rhs_); }
 
-void TermUnary::unpool(PoolTerm &pool) {
+void TermUnary::unpool(PoolTerm &pool) const {
     unpool_with(
         [&](std::optional<STerm> &rhs) {
             if (!rhs.has_value()) {
@@ -560,7 +560,7 @@ auto TermBinary::is_equal(Term const &other) const -> bool {
 
 auto TermBinary::hash() const -> size_t { return value_hash(typeid(TermBinary), op_, lhs_, rhs_); }
 
-void TermBinary::unpool(PoolTerm &pool) {
+void TermBinary::unpool(PoolTerm &pool) const {
     unpool_with(
         [&](std::optional<STerm> &lhs, std::optional<STerm> &rhs) {
             if (!lhs.has_value() && !rhs.has_value()) {

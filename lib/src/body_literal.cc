@@ -10,7 +10,7 @@
 
 ////////// BodyLiteral //////////
 
-auto BodyLiteral::unpool() -> SBodyLiteralVec {
+auto BodyLiteral::unpool() const -> SBodyLiteralVec {
     SBodyLiteralVec body_lits;
     SLiteralVec lits;
     STermVec terms;
@@ -45,7 +45,7 @@ void Conjunction::add_sign(Sign sign) {
 
 void Conjunction::print(std::ostream &out) const { CondLits::print(elems_, out, "#and", false); }
 
-void Conjunction::unpool(PoolBodyLiteral &pool) { CondLits::unpool(this, pool, elems_); }
+void Conjunction::unpool(PoolBodyLiteral &pool) const { CondLits::unpool(this, pool, elems_); }
 
 void Conjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     CondLits::visit_variables(elems_, fun, ctx);
@@ -89,11 +89,11 @@ void BodyAggregate::print(std::ostream &out) const {
     }
 }
 
-void BodyAggregate::unpool(PoolBodyLiteral &pool) {
+void BodyAggregate::unpool(PoolBodyLiteral &pool) const {
     // unpool the aggregate elements
     std::optional<ElementVec> elems;
     size_t i = 0;
-    for (auto &elem : elems_) {
+    for (auto const &elem : elems_) {
         unpool_with(
             [&](std::optional<STermVec> &tuple, std::optional<SLiteralVec> &cond) {
                 if (!tuple.has_value() && !cond.has_value() && !elems.has_value()) {
@@ -102,7 +102,7 @@ void BodyAggregate::unpool(PoolBodyLiteral &pool) {
                 if (!elems.has_value()) {
                     elems = ElementVec{elems_.begin(), elems_.begin() + i};
                 }
-                auto &[e_tuple, e_cond] = elem;
+                auto const &[e_tuple, e_cond] = elem;
                 elems->emplace_back(tuple.value_or(e_tuple), cond.value_or(e_cond));
             },
             unpool_crossproduct<PoolTerm>(pool, std::get<0>(elem)),
@@ -163,7 +163,7 @@ auto BodyAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SBody
 
 ////////// BodySetAggregate //////////
 
-void BodySetAggregate::unpool(PoolBodyLiteral &pool) {
+void BodySetAggregate::unpool(PoolBodyLiteral &pool) const {
     aggr_.unpool(pool, [&](std::optional<SetAggregate> aggr) {
         if (!aggr.has_value()) {
             pool.append(this);
@@ -198,7 +198,7 @@ auto BodySetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SB
 
 ////////// BodyTheoryAtom //////////
 
-void BodyTheoryAtom::unpool(PoolBodyLiteral &pool) {
+void BodyTheoryAtom::unpool(PoolBodyLiteral &pool) const {
     atom_.unpool(pool, [&](std::optional<TheoryAtom> aggr) {
         if (!aggr.has_value()) {
             pool.append(this);

@@ -37,11 +37,11 @@ auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
 
 void SetAggregate::set_rhs(STerm lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
 
-void SetAggregate::unpool(PoolLiteral &pool, std::function<void(std::optional<SetAggregate>)> cb) {
+void SetAggregate::unpool(PoolLiteral &pool, std::function<void(std::optional<SetAggregate>)> cb) const {
     // unpool the aggregate elements
     std::optional<ElementVec> elems;
     size_t i = 0;
-    for (auto &elem : elems_) {
+    for (auto const &elem : elems_) {
         unpool_with(
             [&](std::optional<SLiteral> &lit, std::optional<SLiteralVec> &cond) {
                 if (!lit.has_value() && !cond.has_value() && !elems.has_value()) {
@@ -50,7 +50,7 @@ void SetAggregate::unpool(PoolLiteral &pool, std::function<void(std::optional<Se
                 if (!elems.has_value()) {
                     elems = ElementVec{elems_.begin(), elems_.begin() + i};
                 }
-                auto &[e_lit, e_cond] = elem;
+                auto const &[e_lit, e_cond] = elem;
                 elems->emplace_back(lit.value_or(e_lit), cond.value_or(e_cond));
             },
             unpool_element(pool, elem.first), unpool_crossproduct(pool, elem.second));

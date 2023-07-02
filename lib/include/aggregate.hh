@@ -33,18 +33,18 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
 
 struct UnpoolGuards {
     template <class T> static auto is_empty_value(std::optional<T> value) { return !value.has_value(); }
-    static void unpool(PoolTerm &pool, LGuard &lhs) {
+    static void unpool(PoolTerm &pool, LGuard const &lhs) {
         if (lhs.has_value()) {
             lhs->first->unpool(pool);
         }
     }
-    static void unpool(PoolTerm &pool, RGuard &rhs) {
+    static void unpool(PoolTerm &pool, RGuard const &rhs) {
         if (rhs.has_value()) {
             rhs->second->unpool(pool);
         }
     }
-    static auto equal(STerm &term, LGuard &lhs) { return lhs.has_value() && term == lhs->first; }
-    static auto equal(STerm &term, RGuard &rhs) { return rhs.has_value() && term == rhs->second; }
+    static auto equal(STerm const &term, LGuard const &lhs) { return lhs.has_value() && term == lhs->first; }
+    static auto equal(STerm const &term, RGuard const &rhs) { return rhs.has_value() && term == rhs->second; }
 };
 
 class SetAggregate {
@@ -59,7 +59,7 @@ class SetAggregate {
         : elems_{std::move(elems)}, rhs_(std::make_pair(rel, std::move(rhs))) {}
 
     void set_rhs(STerm lhs, Relation rel);
-    void unpool(PoolLiteral &pool, std::function<void(std::optional<SetAggregate>)> cb);
+    void unpool(PoolLiteral &pool, std::function<void(std::optional<SetAggregate>)> cb) const;
     void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
     /// Projects pure variables in the condition if the aggregate is not
     /// nonmonotone or occurs in a negative scope.

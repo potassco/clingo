@@ -67,22 +67,22 @@ template <class Pool, class... Pools> void erase_r(Pool &pool, Pools &...pools) 
 }
 
 struct Unpooler {
-    template <class T> static auto is_empty_value(T &elem) { return false; }
-    template <class T> static auto is_empty_value(std::optional<T> &elem) { return !elem.has_value(); }
-    template <class P, class T> static void unpool(P &pool, T &elem) { elem.unpool(pool); }
-    template <class P, class T> static void unpool(P &pool, shared_ptr<T> &elem) { unpool(pool, *elem); }
-    template <class P, class T> static void unpool(P &pool, std::optional<T> &elem) {
+    template <class T> static auto is_empty_value(T const &elem) { return false; }
+    template <class T> static auto is_empty_value(std::optional<T> const &elem) { return !elem.has_value(); }
+    template <class P, class T> static void unpool(P &pool, T const &elem) { elem.unpool(pool); }
+    template <class P, class T> static void unpool(P &pool, shared_ptr<T> const &elem) { unpool(pool, *elem); }
+    template <class P, class T> static void unpool(P &pool, std::optional<T> const &elem) {
         if (elem.has_value()) {
             unpool(pool, elem.value());
         }
     }
-    template <class T, class U> static auto equal(T &a, U &b) -> bool { return a == b; }
+    template <class T, class U> static auto equal(T const &a, U const &b) -> bool { return a == b; }
 };
 
 /// Unpool a single element.
 template <class P, class T, class U> class UnpoolElement : private U {
   public:
-    UnpoolElement(P &pool, T &elem) : pool_{pool}, elem_{elem} {}
+    UnpoolElement(P &pool, T const &elem) : pool_{pool}, elem_{elem} {}
 
     void unpool() {
         begin_ = pool_.size();
@@ -117,28 +117,28 @@ template <class P, class T, class U> class UnpoolElement : private U {
 
   private:
     P &pool_;
-    T &elem_;
+    T const &elem_;
     size_t begin_;
     size_t end_;
     bool unchanged_;
 };
 
 struct Mapper {
-    template <class T, class P> static void unpool(P &pool, T &elem) { elem->unpool(pool); }
-    template <class T, class U> static auto vec(U &val) { return val; }
-    template <class T, class U> static auto map(T const &orig, U &val) { return val; }
-    template <class T, class U> static auto equal(T &a, U &b) -> bool { return a == b; }
+    template <class T, class P> static void unpool(P &pool, T const &elem) { elem->unpool(pool); }
+    template <class T> static auto vec(T const &val) -> T const & { return val; }
+    template <class T, class U> static auto map(T const &orig, U &&val) { return std::forward<U>(val); }
+    template <class T, class U> static auto equal(T const &a, U const &b) -> bool { return a == b; }
 };
 
 /// Unpool a vector computing the cross product of its elements.
 template <class P, class T, class M> class UnpoolCrossproduct : private M {
   public:
-    UnpoolCrossproduct(P &pool, std::vector<T> &vec) : pool_{pool}, vec_{vec} {}
+    UnpoolCrossproduct(P &pool, std::vector<T> const &vec) : pool_{pool}, vec_{vec} {}
 
     void unpool() {
         unchanged_ = true;
         offsets_.reserve(vec_.size());
-        for (auto &val : vec_) {
+        for (auto const &val : vec_) {
             offsets_.emplace_back(pool_.size(), pool_.size(), pool_.size());
             auto &[cur, begin, end] = offsets_.back();
             static_cast<M *>(this)->unpool(pool_, val);
@@ -173,7 +173,7 @@ template <class P, class T, class M> class UnpoolCrossproduct : private M {
 
   private:
     P &pool_;
-    std::vector<T> &vec_;
+    std::vector<T> const &vec_;
     OffsetVec offsets_;
     bool unchanged_;
 };
@@ -181,7 +181,7 @@ template <class P, class T, class M> class UnpoolCrossproduct : private M {
 /// Unpool a vector computing the union of its elements.
 template <class P, class T> class UnpoolUnion {
   public:
-    UnpoolUnion(P &pool, std::vector<T> &vec) : pool_{pool}, vec_{vec} {}
+    UnpoolUnion(P &pool, std::vector<T> const &vec) : pool_{pool}, vec_{vec} {}
 
     void unpool() {
         begin_ = pool_.size();
@@ -215,7 +215,7 @@ template <class P, class T> class UnpoolUnion {
 
   private:
     P &pool_;
-    std::vector<T> &vec_;
+    std::vector<T> const &vec_;
     size_t begin_;
     size_t end_;
     bool unchanged_;
@@ -224,11 +224,11 @@ template <class P, class T> class UnpoolUnion {
 /// Unpool a vector of vectors computing the cross product of them.
 template <class P, class T, class M> class UnpoolUnionCrossproduct : private M {
   public:
-    UnpoolUnionCrossproduct(P &pool, std::vector<T> &vec) : pool_{pool}, vec_{vec} {}
+    UnpoolUnionCrossproduct(P &pool, std::vector<T> const &vec) : pool_{pool}, vec_{vec} {}
 
     void unpool() {
         unchanged_ = true;
-        for (auto &vec : vec_) {
+        for (auto const &vec : vec_) {
             size_t i = 0;
             for (auto &val : static_cast<M *>(this)->vec(vec)) {
                 union_.emplace_back(i);
@@ -281,7 +281,7 @@ template <class P, class T, class M> class UnpoolUnionCrossproduct : private M {
     P &pool_;
     std::vector<size_t> union_;
     OffsetVec offsets_;
-    std::vector<T> &vec_;
+    std::vector<T> const &vec_;
     bool unchanged_;
 };
 
@@ -299,7 +299,14 @@ template <class T> class Pool {
 
     /// @{
     /// Vector-like interface to pool elements.
-    template <typename... Args> void append(Args &&...args) { pool_.emplace_back(std::forward<Args>(args)...); };
+    template <typename U> void append(U const *self) {
+        // Note: the const_cast is the easiest way to construct a shared
+        // pointer from a const pointer. One (good) way to avoid it, would be
+        // to let unpool return a Boolean to indicate whether pools were
+        // removed. The outer context that has the owning shared_ptr can then
+        // append it.
+        pool_.emplace_back(const_cast<U *>(self));
+    };
     template <typename E, typename... Args> void append_shared(Args &&...args) {
         pool_.emplace_back(construct_shared<E, typename T::element_type>(std::forward<Args>(args)...));
     }
@@ -317,7 +324,7 @@ template <class T> class Pool {
 
 /// Unpool an element.
 template <class P, class T, class U = detail::Unpooler>
-[[nodiscard]] auto unpool_element(P &pool, T &elem) -> detail::UnpoolElement<P, T, U> {
+[[nodiscard]] auto unpool_element(P &pool, T const &elem) -> detail::UnpoolElement<P, T, U> {
     return {pool, elem};
 }
 
@@ -326,7 +333,7 @@ template <class P, class T, class U = detail::Unpooler>
 /// It is also possible to unpool a vector of different expressions as long
 /// as they can be mapped back and forth.
 template <class P, class U = typename P::element_type, class M = detail::Mapper>
-[[nodiscard]] auto unpool_crossproduct(P &pool, std::vector<U> &vec) -> detail::UnpoolCrossproduct<P, U, M> {
+[[nodiscard]] auto unpool_crossproduct(P &pool, std::vector<U> const &vec) -> detail::UnpoolCrossproduct<P, U, M> {
     return {pool, vec};
 }
 
@@ -335,12 +342,14 @@ template <class P, class U = typename P::element_type, class M = detail::Mapper>
 /// It is also possible to unpool a vector of different expressions as long
 /// as they can be mapped back and forth.
 template <class P, class T = typename P::element_type, class M = detail::Mapper>
-[[nodiscard]] auto unpool_union_crossproduct(P &pool, std::vector<T> &vec) -> detail::UnpoolUnionCrossproduct<P, T, M> {
+[[nodiscard]] auto unpool_union_crossproduct(P &pool, std::vector<T> const &vec)
+    -> detail::UnpoolUnionCrossproduct<P, T, M> {
     return {pool, vec};
 }
 
 /// Unpool a vector computing it's union.
-template <class T, class P> [[nodiscard]] auto unpool_union(P &pool, std::vector<T> &vec) -> detail::UnpoolUnion<P, T> {
+template <class T, class P>
+[[nodiscard]] auto unpool_union(P &pool, std::vector<T> const &vec) -> detail::UnpoolUnion<P, T> {
     return {pool, vec};
 };
 

@@ -28,7 +28,7 @@ auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &
     return out;
 }
 
-auto HeadLiteral::unpool() -> SHeadLiteralVec {
+auto HeadLiteral::unpool() const -> SHeadLiteralVec {
     SHeadLiteralVec head_lits;
     SLiteralVec lits;
     STermVec terms;
@@ -49,7 +49,7 @@ auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
 
 void Disjunction::print(std::ostream &out) const { CondLits::print(elems_, out, "#or", true); }
 
-void Disjunction::unpool(PoolHeadLiteral &pool) { CondLits::unpool(this, pool, elems_); }
+void Disjunction::unpool(PoolHeadLiteral &pool) const { CondLits::unpool(this, pool, elems_); }
 
 void Disjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     CondLits::visit_variables(elems_, fun, ctx);
@@ -85,7 +85,7 @@ auto Disjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLi
 
 void HeadTheoryAtom::print(std::ostream &out) const { out << atom_; }
 
-void HeadTheoryAtom::unpool(PoolHeadLiteral &pool) {
+void HeadTheoryAtom::unpool(PoolHeadLiteral &pool) const {
     atom_.unpool(pool, [&](std::optional<TheoryAtom> aggr) {
         if (!aggr.has_value()) {
             pool.append(this);
@@ -125,11 +125,11 @@ void HeadAggregate::print(std::ostream &out) const {
     }
 }
 
-void HeadAggregate::unpool(PoolHeadLiteral &pool) {
+void HeadAggregate::unpool(PoolHeadLiteral &pool) const {
     // unpool the aggregate elements
     std::optional<ElementVec> elems;
     size_t i = 0;
-    for (auto &elem : elems_) {
+    for (auto const &elem : elems_) {
         unpool_with(
             [&](std::optional<STermVec> &tuple, std::optional<SLiteral> &lit, std::optional<SLiteralVec> &cond) {
                 if (!tuple.has_value() && !lit.has_value() && !cond.has_value() && !elems.has_value()) {
@@ -138,7 +138,7 @@ void HeadAggregate::unpool(PoolHeadLiteral &pool) {
                 if (!elems.has_value()) {
                     elems = ElementVec{elems_.begin(), elems_.begin() + i};
                 }
-                auto &[e_tuple, e_lit, e_cond] = elem;
+                auto const &[e_tuple, e_lit, e_cond] = elem;
                 elems->emplace_back(tuple.value_or(e_tuple), lit.value_or(e_lit), cond.value_or(e_cond));
             },
             unpool_crossproduct<PoolTerm>(pool, std::get<0>(elem)),
@@ -200,7 +200,7 @@ void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(s
 
 void HeadSetAggregate::print(std::ostream &out) const { out << aggr_; }
 
-void HeadSetAggregate::unpool(PoolHeadLiteral &pool) {
+void HeadSetAggregate::unpool(PoolHeadLiteral &pool) const {
     aggr_.unpool(pool, [&](std::optional<SetAggregate> aggr) {
         if (!aggr.has_value()) {
             pool.append(this);

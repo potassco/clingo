@@ -37,10 +37,10 @@ class Literal {
     virtual ~Literal() = default;
     virtual void print(std::ostream &out) const = 0;
     virtual void add_sign(Sign sign) = 0;
-    virtual void unpool(PoolLiteral &pool) = 0;
+    virtual void unpool(PoolLiteral &pool) const = 0;
     [[nodiscard]] virtual auto is_atom() const -> bool;
     [[nodiscard]] virtual auto is_test() const -> bool;
-    auto unpool() -> SLiteralVec;
+    [[nodiscard]] auto unpool() const -> SLiteralVec;
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream &;
     [[nodiscard]] virtual auto is_equal(Literal const &other) const -> bool = 0;
@@ -59,7 +59,7 @@ class LiteralRelation : public Literal {
     LiteralRelation(Sign sign, STerm lhs, GuardVec rhs) : sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
     void print(std::ostream &out) const override;
     void add_sign(Sign s) override;
-    void unpool(PoolLiteral &pool) override;
+    void unpool(PoolLiteral &pool) const override;
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
@@ -78,7 +78,7 @@ class LiteralBoolean : public Literal {
     LiteralBoolean(Sign sign, bool value) : sign_(sign), value_(value) {}
     void print(std::ostream &out) const override;
     void add_sign(Sign s) override;
-    void unpool(PoolLiteral &pool) override;
+    void unpool(PoolLiteral &pool) const override;
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
@@ -96,7 +96,7 @@ class LiteralSymbolic : public Literal {
     LiteralSymbolic(Sign sign, STerm term) : sign_(sign), term_(std::move(term)) {}
     void print(std::ostream &out) const override;
     void add_sign(Sign s) override;
-    void unpool(PoolLiteral &pool) override;
+    void unpool(PoolLiteral &pool) const override;
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;

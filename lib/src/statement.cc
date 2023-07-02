@@ -85,7 +85,11 @@ class PoolStatement {
     [[nodiscard]] auto size() const { return pool_.size(); }
     [[nodiscard]] auto operator[](size_t i) const -> SStatement const & { return pool_[i]; }
 
-    template <typename... Args> void append(Args &&...args) { pool_.emplace_back(std::forward<Args>(args)...); };
+    void append(Statement const *self) {
+        // Note: the const_cast is the easiest way to construct a shared pointer from a const pointer.
+        pool_.emplace_back(const_cast<Statement *>(self));
+    };
+    // template <typename... Args> void append(Args &&...args) { pool_.emplace_back(std::forward<Args>(args)...); };
     template <typename E, typename... Args> void append_shared(Args &&...args) {
         pool_.emplace_back(construct_shared<E, Statement>(std::forward<Args>(args)...));
     }
@@ -106,14 +110,14 @@ auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destr
     return std::unique_ptr<PoolStatement, destruct_pool>{new PoolStatement{pool}};
 }
 
-auto Statement::unpool() -> SStatementVec {
+auto Statement::unpool() const -> SStatementVec {
     SStatementVec stms;
     PoolStatement pool{stms};
     unpool(pool);
     return stms;
 }
 
-void Statement::unpool(PoolStatement &pool) {
+void Statement::unpool(PoolStatement &pool) const {
     size_t i = pool.size();
     do_unpool(pool);
     size_t n = pool.size();
@@ -162,7 +166,7 @@ void Rule::print(std::ostream &out) const {
     out << ".";
 }
 
-void Rule::do_unpool(PoolStatement &pool) {
+void Rule::do_unpool(PoolStatement &pool) const {
     unpool_with(
         [&](std::optional<SHeadLiteral> &head, std::optional<SBodyLiteralVec> &body) {
             if (!head.has_value() && !body.has_value()) {
@@ -288,7 +292,7 @@ void TheoryDefinition::print(std::ostream &out) const {
     out << "}.";
 }
 
-void TheoryDefinition::do_unpool(PoolStatement &pool) { pool.append(this); }
+void TheoryDefinition::do_unpool(PoolStatement &pool) const { pool.append(this); }
 
 void TheoryDefinition::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -335,10 +339,10 @@ void StatementOptimize::print(std::ostream &out) const {
         << (elems_.empty() ? "}" : " }") << ".";
 }
 
-void StatementOptimize::do_unpool(PoolStatement &pool) {
+void StatementOptimize::do_unpool(PoolStatement &pool) const {
     std::optional<ElementVec> elems;
     size_t i = 0;
-    for (auto &elem : elems_) {
+    for (auto const &elem : elems_) {
         unpool_with(
             [&](std::optional<STerm> &weight, std::optional<STerm> &prio, std::optional<STermVec> &terms,
                 std::optional<SLiteralVec> &cond) {
@@ -349,8 +353,8 @@ void StatementOptimize::do_unpool(PoolStatement &pool) {
                 if (!elems.has_value()) {
                     elems = ElementVec{elems_.begin(), elems_.begin() + i};
                 }
-                auto &[e_tuple, e_cond] = elem;
-                auto &[e_weight, e_prio, e_terms] = e_tuple;
+                auto const &[e_tuple, e_cond] = elem;
+                auto const &[e_weight, e_prio, e_terms] = e_tuple;
                 elems->emplace_back(Tuple{weight.value_or(e_weight), prio ? prio : e_prio, terms.value_or(e_terms)},
                                     std::move(cond).value_or(e_cond));
             },
@@ -410,14 +414,14 @@ void StatementWeakConstraint::print(std::ostream &out) const {
     out << "]";
 }
 
-void StatementWeakConstraint::do_unpool(PoolStatement &pool) {
+void StatementWeakConstraint::do_unpool(PoolStatement &pool) const {
     unpool_with(
         [&](std::optional<STerm> &weight, std::optional<STerm> &prio, std::optional<STermVec> &terms,
             std::optional<SBodyLiteralVec> &body) {
             if (!weight.has_value() && !prio.has_value() && !terms.has_value() && !body.has_value()) {
                 pool.append(this);
             } else {
-                auto &[e_weight, e_prio, e_terms] = tuple_;
+                const auto &[e_weight, e_prio, e_terms] = tuple_;
                 pool.append_shared<StatementWeakConstraint>(
                     std::move(body).value_or(body_),
                     Tuple{weight.value_or(e_weight), prio ? prio : e_prio, terms.value_or(e_terms)});
@@ -448,7 +452,7 @@ auto StatementWeakConstraint::rewrite_anonymous() const -> std::optional<SStatem
 
 void StatementShow::print(std::ostream &out) const { out << "#show " << *term_ << ": " << p_range(body_, "; ") << "."; }
 
-void StatementShow::do_unpool(PoolStatement &pool) {
+void StatementShow::do_unpool(PoolStatement &pool) const {
     unpool_with(
         [&](std::optional<STerm> &term, std::optional<SBodyLiteralVec> &body) {
             if (!term.has_value() && !body.has_value()) {
@@ -482,7 +486,7 @@ void StatementShowSig::print(std::ostream &out) const {
     out << "#show " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementShowSig::do_unpool(PoolStatement &pool) { pool.append(this); }
+void StatementShowSig::do_unpool(PoolStatement &pool) const { pool.append(this); }
 
 void StatementShowSig::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -499,7 +503,7 @@ void StatementProject::print(std::ostream &out) const {
     out << "#project " << *term_ << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
 }
 
-void StatementProject::do_unpool(PoolStatement &pool) {
+void StatementProject::do_unpool(PoolStatement &pool) const {
     unpool_with(
         [&](std::optional<STerm> &term, std::optional<SBodyLiteralVec> &body) {
             if (!term.has_value() && !body.has_value()) {
@@ -533,7 +537,7 @@ void StatementProjectSig::print(std::ostream &out) const {
     out << "#project " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementProjectSig::do_unpool(PoolStatement &pool) { pool.append(this); }
+void StatementProjectSig::do_unpool(PoolStatement &pool) const { pool.append(this); }
 
 void StatementProjectSig::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -550,7 +554,7 @@ void StatementDefined::print(std::ostream &out) const {
     out << "#defined " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementDefined::do_unpool(PoolStatement &pool) { pool.append(this); }
+void StatementDefined::do_unpool(PoolStatement &pool) const { pool.append(this); }
 
 void StatementDefined::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -570,7 +574,7 @@ void StatementExternal::print(std::ostream &out) const {
     }
 }
 
-void StatementExternal::do_unpool(PoolStatement &pool) {
+void StatementExternal::do_unpool(PoolStatement &pool) const {
     unpool_with(
         [&](std::optional<STerm> &term, std::optional<STerm> &type, std::optional<SBodyLiteralVec> &body) {
             if (!term.has_value() && !type.has_value() && !body.has_value()) {
@@ -610,7 +614,7 @@ void StatementEdge::print(std::ostream &out) const {
         << ")" << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
 }
 
-void StatementEdge::do_unpool(PoolStatement &pool) {
+void StatementEdge::do_unpool(PoolStatement &pool) const {
     // unpool bodies
     std::optional<std::vector<SBodyLiteralVec>> bodies;
     unpool_with(
@@ -625,7 +629,7 @@ void StatementEdge::do_unpool(PoolStatement &pool) {
         },
         unpool_crossproduct<PoolBodyLiteral>(pool, body_));
     // combine bodies and edges
-    for (auto &edge : edges_) {
+    for (const auto &edge : edges_) {
         unpool_with(
             [&](std::optional<STerm> &u, std::optional<STerm> &v) {
                 if (!u.has_value() && !v.has_value() && !bodies.has_value() && edges_.size() == 1) {
@@ -672,7 +676,7 @@ void StatementHeuristic::print(std::ostream &out) const {
     out << "," << *mod_ << "]";
 }
 
-void StatementHeuristic::do_unpool(PoolStatement &pool) {
+void StatementHeuristic::do_unpool(PoolStatement &pool) const {
     unpool_with(
         [&](std::optional<STerm> &atom, std::optional<STerm> &type, std::optional<STerm> &prio,
             std::optional<STerm> &mod, std::optional<SBodyLiteralVec> &body) {
@@ -724,7 +728,7 @@ auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
 
 void StatementScript::print(std::ostream &out) const { out << "#script (" << type_ << ")" << content_ << "#end."; }
 
-void StatementScript::do_unpool(PoolStatement &pool) { pool.append(this); }
+void StatementScript::do_unpool(PoolStatement &pool) const { pool.append(this); }
 
 void StatementScript::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -761,7 +765,7 @@ void StatementInclude::print(std::ostream &out) const {
     }
 }
 
-void StatementInclude::do_unpool(PoolStatement &pool) { pool.append(this); }
+void StatementInclude::do_unpool(PoolStatement &pool) const { pool.append(this); }
 
 void StatementInclude::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -782,7 +786,7 @@ void StatementProgram::print(std::ostream &out) const {
     out << ".";
 }
 
-void StatementProgram::do_unpool(PoolStatement &pool) { pool.append(this); }
+void StatementProgram::do_unpool(PoolStatement &pool) const { pool.append(this); }
 
 void StatementProgram::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -813,7 +817,7 @@ void StatementConst::print(std::ostream &out) const {
     out << "#const " << name_ << "=" << *value_ << ". [" << type_ << "]";
 }
 
-void StatementConst::do_unpool(PoolStatement &pool) {
+void StatementConst::do_unpool(PoolStatement &pool) const {
     size_t n = 0;
     unpool_with(
         [&](std::optional<STerm> value) {

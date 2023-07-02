@@ -147,11 +147,11 @@ void TheoryTermFunction::visit_variables(VarVisitFun fun) const {
 
 ////////// TheoryAtom //////////
 
-void TheoryAtom::unpool(PoolLiteral &pool, std::function<void(std::optional<TheoryAtom>)> cb) {
+void TheoryAtom::unpool(PoolLiteral &pool, std::function<void(std::optional<TheoryAtom>)> cb) const {
     // unpool the elements
     std::optional<ElementVec> elems;
     size_t i = 0;
-    for (auto &elem : elems_) {
+    for (auto const &elem : elems_) {
         unpool_with(
             [&](std::optional<SLiteralVec> &cond) {
                 if (!cond.has_value() && !elems.has_value()) {
@@ -160,7 +160,7 @@ void TheoryAtom::unpool(PoolLiteral &pool, std::function<void(std::optional<Theo
                 if (!elems.has_value()) {
                     elems = ElementVec{elems_.begin(), elems_.begin() + i};
                 }
-                auto &[tuple, e_cond] = elem;
+                auto const &[tuple, e_cond] = elem;
                 elems->emplace_back(tuple, std::move(cond).value_or(e_cond));
             },
             unpool_crossproduct(pool, elem.second));

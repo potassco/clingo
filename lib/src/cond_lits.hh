@@ -11,13 +11,13 @@
 namespace CondLits {
 
 template <class T> struct MapLiteral {
-    static void unpool(PoolLiteral &pool, SLiteral &lit) { lit->unpool(pool); }
-    static auto vec(typename T::Element &elem) { return elem.first; }
-    static auto map(SLiteral &orig, SLiteral lit) { return std::move(lit); }
-    static auto equal(SLiteral &a, SLiteral &b) -> bool { return a == b; }
+    static void unpool(PoolLiteral &pool, SLiteral const &lit) { lit->unpool(pool); }
+    static auto vec(typename T::Element const &elem) { return elem.first; }
+    static auto map(SLiteral const &orig, SLiteral lit) { return std::move(lit); }
+    static auto equal(SLiteral const &a, SLiteral const &b) -> bool { return a == b; }
 };
 
-template <class T, class P> void unpool(T *self, P &pool, typename T::ElementVec &elems) {
+template <class T, class P> void unpool(T const *self, P &pool, typename T::ElementVec const &elems) {
     using Conds = std::vector<SLiteralVec>;
     using OConds = std::optional<Conds>;
     using ElemConds = std::vector<OConds>;
@@ -26,7 +26,7 @@ template <class T, class P> void unpool(T *self, P &pool, typename T::ElementVec
     // unpool the conditions
     OElemConds conds;
     size_t i = 0;
-    for (auto &elem : elems) {
+    for (auto const &elem : elems) {
         unpool_with(
             [&](std::optional<SLiteralVec> &cond) {
                 if (cond.has_value()) {
