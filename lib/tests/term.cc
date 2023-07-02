@@ -37,6 +37,7 @@ TEST_CASE("unpool_term") {
     REQUIRE(unpool_str(parse_term("((1;2),(3;4))")) == "[(1,3), (2,3), (1,4), (2,4)]");
     REQUIRE(unpool_str(parse_term("(1;2)+(3;4)")) == "[(1+3), (1+4), (2+3), (2+4)]");
     REQUIRE(unpool_str(parse_term("|(1;2);3|")) == "[|1|, |2|, |3|]");
+    REQUIRE(unpool_str(parse_term("|1;2;3|")) == "[|1|, |2|, |3|]");
 }
 
 TEST_CASE("variables_term") {
