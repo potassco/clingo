@@ -118,7 +118,6 @@ auto transform(auto &&fun, std::vector<T> const &vec) -> detail::can_not_apply_t
     return ret;
 }
 
-// TODO: consider adding a build function just as done for unpool_crossproducts
 template <class T, class B, class... Args>
 auto transform_construct_shared(Args &&...args) -> std::optional<shared_ptr<B>> {
     (detail::transform_construct_apply(args), ...);

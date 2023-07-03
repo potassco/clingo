@@ -75,11 +75,17 @@ auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream & {
 }
 
 auto Literal::unpool() const -> SLiteralVec {
-    SLiteralVec lits;
-    STermVec terms;
-    PoolLiteral pool{lits, terms};
-    unpool(pool);
-    return lits;
+    auto unpooled = unpool_v2();
+    if (unpooled.has_value()) {
+        return std::move(unpooled).value();
+    }
+    return SLiteralVec{SLiteral{const_cast<Literal *>(this)}};
+}
+
+void Literal::unpool(PoolLiteral &pool) const {
+    for (auto &unpooled : unpool()) {
+        pool.append(unpooled.get());
+    }
 }
 
 auto Literal::is_atom() const -> bool { return false; }
@@ -120,33 +126,32 @@ auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
 
 void LiteralRelation::print(std::ostream &out) const {
     out << sign_ << *lhs_;
-    for (auto &&guard : rhs_) {
+    for (auto const &guard : rhs_) {
         out << guard.first << *guard.second;
     }
 }
 
 void LiteralRelation::add_sign(Sign s) { sign_ += s; }
 
-namespace {
+#include <iostream>
 
-struct Mapper {
-    static void unpool(PoolTerm &pool, Guard const &elem) { elem.second->unpool(pool); }
-    static auto map(Guard const &orig, STerm term) { return Guard{orig.first, std::move(term)}; }
-    static auto equal(STerm const &a, Guard const &b) -> bool { return a == b.second; }
-};
-
-} // namespace
-
-void LiteralRelation::unpool(PoolLiteral &pool) const {
-    unpool_with(
-        [&](std::optional<STerm> &lhs, std::optional<GuardVec> &rhs) {
-            if (!lhs.has_value() && !rhs.has_value()) {
-                pool.append(this);
-            } else {
-                pool.append_shared<LiteralRelation>(lhs.value_or(lhs_), std::move(rhs).value_or(rhs_));
-            }
+auto LiteralRelation::unpool_v2() const -> std::optional<SLiteralVec> {
+    std::cerr << "unpool relation literal: " << *this << std::endl;
+    return unpool_crossproducts(
+        [this](auto lhs, auto rhs) {
+            return construct_shared<LiteralRelation, Literal>(sign_, std::move(lhs), std::move(rhs));
         },
-        unpool_element<PoolTerm>(pool, lhs_), unpool_crossproduct<PoolTerm, Guard, Mapper>(pool, rhs_));
+        overloaded{
+            [](STerm const &term) { return term->unpool_v2(); },
+            [](GuardVec const &guard) {
+                return unpool_crossproduct_v2(guard, [](Guard const &guard) {
+                    return map_opt_vec(guard.second->unpool_v2(), [&guard](auto term) {
+                        return Guard{guard.first, std::move(term)};
+                    });
+                });
+            },
+        },
+        lhs_, rhs_);
 }
 
 auto LiteralRelation::is_equal(Literal const &other) const -> bool {
@@ -179,7 +184,7 @@ void LiteralBoolean::print(std::ostream &out) const { out << sign_ << (value_ ? 
 
 void LiteralBoolean::add_sign(Sign s) { sign_ += s; }
 
-void LiteralBoolean::unpool(PoolLiteral &pool) const { pool.append(this); }
+auto LiteralBoolean::unpool_v2() const -> std::optional<SLiteralVec> { return std::nullopt; }
 
 auto LiteralBoolean::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralBoolean const *>(&other);
@@ -203,16 +208,10 @@ void LiteralSymbolic::print(std::ostream &out) const { out << sign_ << *term_; }
 
 void LiteralSymbolic::add_sign(Sign s) { sign_ += s; }
 
-void LiteralSymbolic::unpool(PoolLiteral &pool) const {
-    unpool_with(
-        [&](std::optional<STerm> &term) {
-            if (!term.has_value()) {
-                pool.append(this);
-            } else {
-                pool.append_shared<LiteralSymbolic>(sign_, std::move(term).value());
-            }
-        },
-        unpool_element<PoolTerm>(pool, term_));
+auto LiteralSymbolic::unpool_v2() const -> std::optional<SLiteralVec> {
+    return map_opt_vec(term_->unpool_v2(), [this](auto term) {
+        return construct_shared<LiteralSymbolic, Literal>(sign_, std::move(term));
+    });
 }
 
 auto LiteralSymbolic::is_equal(Literal const &other) const -> bool {

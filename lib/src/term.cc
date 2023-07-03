@@ -75,19 +75,14 @@ auto operator<<(std::ostream &out, Term const &ast) -> std::ostream & {
 auto Term::unpool() const -> STermVec {
     auto unpooled = unpool_v2();
     if (unpooled.has_value()) {
-        return unpooled.value();
+        return std::move(unpooled).value();
     }
     return STermVec{STerm{const_cast<Term *>(this)}};
 }
 
 void Term::unpool(PoolTerm &pool) const {
-    auto unpooled = unpool_v2();
-    if (unpooled.has_value()) {
-        for (auto &term : unpooled.value()) {
-            pool.append(term.get());
-        }
-    } else {
-        pool.append(this);
+    for (auto &unpooled : unpool()) {
+        pool.append(unpooled.get());
     }
 }
 
@@ -235,7 +230,7 @@ auto TermTuple::unpool_v2() const -> std::optional<STermVec> {
         return visit_variant(
             tuple_or_term,
             [](STerm const &term) -> std::optional<ElementVec> {
-                return map_opt(term->unpool_v2(), [](auto &&unpooled) {
+                return map_opt(term->unpool_v2(), [](auto unpooled) {
                     return ElementVec{std::make_move_iterator(unpooled.begin()),
                                       std::make_move_iterator(unpooled.end())};
                 });
@@ -247,14 +242,14 @@ auto TermTuple::unpool_v2() const -> std::optional<STermVec> {
                                        return visit_variant(
                                            elem,
                                            [](STerm const &term) -> std::optional<TupleVec> {
-                                               return map_opt(term->unpool_v2(), [](auto &&unpooled) {
+                                               return map_opt(term->unpool_v2(), [](auto unpooled) {
                                                    return TupleVec{std::make_move_iterator(unpooled.begin()),
                                                                    std::make_move_iterator(unpooled.end())};
                                                });
                                            },
                                            [](std::monostate x) -> std::optional<TupleVec> { return std::nullopt; });
                                    }),
-                               [](auto &&unpooled) {
+                               [](auto unpooled) {
                                    return ElementVec{std::make_move_iterator(unpooled.begin()),
                                                      std::make_move_iterator(unpooled.end())};
                                });
@@ -265,10 +260,10 @@ auto TermTuple::unpool_v2() const -> std::optional<STermVec> {
     if (!elems.has_value() && (pool_.size() != 1 || std::holds_alternative<STerm>(pool_.front()))) {
         elems = pool_;
     }
-    return map_opt(std::move(elems), [](auto &&elems) {
+    return map_opt(std::move(elems), [](auto elems) {
         STermVec ret;
         ret.reserve(elems.size());
-        for (auto &&tuple_or_term : elems) {
+        for (auto &tuple_or_term : elems) {
             visit_variant(
                 std::move(tuple_or_term), [&ret](STerm term) { ret.emplace_back(std::move(term)); },
                 [&ret](TupleVec tuple) {
@@ -326,10 +321,10 @@ auto TermAbs::unpool_v2() const -> std::optional<STermVec> {
     if (!unpooled.has_value() && pool_.size() != 1) {
         unpooled = pool_;
     }
-    return map_opt(std::move(unpooled), [this](auto &&unpooled) {
+    return map_opt(std::move(unpooled), [this](auto unpooled) {
         STermVec ret;
         ret.reserve(unpooled.size());
-        for (auto &&term : unpooled) {
+        for (auto &term : unpooled) {
             ret.emplace_back(construct_shared<TermAbs, Term>(STermVec{std::move(term)}));
         }
         return ret;
@@ -384,14 +379,14 @@ auto TermFunction::unpool_v2() const -> std::optional<STermVec> {
                                        return visit_variant(
                                            elem,
                                            [](STerm const &term) -> std::optional<TupleVec> {
-                                               return map_opt(term->unpool_v2(), [](auto &&unpooled) {
+                                               return map_opt(term->unpool_v2(), [](auto unpooled) {
                                                    return TupleVec{std::make_move_iterator(unpooled.begin()),
                                                                    std::make_move_iterator(unpooled.end())};
                                                });
                                            },
                                            [](std::monostate x) -> std::optional<TupleVec> { return std::nullopt; });
                                    }),
-            [](auto &&unpooled) {
+            [](auto unpooled) {
                 return PoolVec{std::make_move_iterator(unpooled.begin()), std::make_move_iterator(unpooled.end())};
             });
     });
@@ -400,11 +395,11 @@ auto TermFunction::unpool_v2() const -> std::optional<STermVec> {
         elems = pool_;
     }
 
-    return map_opt(std::move(elems), [this](auto &&elems) {
+    return map_opt(std::move(elems), [this](auto elems) {
         // turn individual elements into function terms
         STermVec ret;
         ret.reserve(elems.size());
-        for (auto &&tuple : elems) {
+        for (auto &tuple : elems) {
             ret.emplace_back(construct_shared<TermFunction, Term>(name_, PoolVec{std::move(tuple)}, external_));
         }
         return ret;
@@ -469,10 +464,10 @@ auto TermUnary::is_equal(Term const &other) const -> bool {
 auto TermUnary::hash() const -> size_t { return value_hash(typeid(TermUnary), op_, rhs_); }
 
 auto TermUnary::unpool_v2() const -> std::optional<STermVec> {
-    return map_opt(rhs_->unpool_v2(), [this](auto &&unpooled) {
+    return map_opt(rhs_->unpool_v2(), [this](auto unpooled) {
         STermVec ret;
         ret.reserve(unpooled.size());
-        for (auto &&term : unpooled) {
+        for (auto &term : unpooled) {
             ret.emplace_back(construct_shared<TermUnary, Term>(op_, std::move(term)));
         }
         return ret;
