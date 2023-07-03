@@ -9,7 +9,6 @@
 class BodyLiteral;
 using SBodyLiteral = shared_ptr<BodyLiteral>;
 using SBodyLiteralVec = std::vector<SBodyLiteral>;
-using PoolBodyLiteral = PoolParent<SBodyLiteral, PoolLiteral>;
 
 class BodyLiteral {
   public:
@@ -17,11 +16,9 @@ class BodyLiteral {
 
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, BodyLiteral const &literal) -> std::ostream &;
-    [[nodiscard]] auto unpool() const -> SBodyLiteralVec;
 
     virtual void add_sign(Sign sign) = 0;
-    void unpool(PoolBodyLiteral &pool) const;
-    [[nodiscard]] virtual auto unpool_v2() const -> std::optional<SBodyLiteralVec> = 0;
+    [[nodiscard]] virtual auto unpool() const -> std::optional<SBodyLiteralVec> = 0;
     virtual void print(std::ostream &out) const = 0;
     virtual void visit_variables(VarVisitFun const &fun, VariableContext ctx) const = 0;
     [[nodiscard]] virtual auto project(Projection project, bool is_classical_scope) const
@@ -41,7 +38,7 @@ class Conjunction : public BodyLiteral {
     explicit Conjunction(ElementVec elems) : elems_{std::move(elems)} {}
 
     void add_sign(Sign sign) override;
-    [[nodiscard]] auto unpool_v2() const -> std::optional<SBodyLiteralVec> override;
+    [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
@@ -67,7 +64,7 @@ class BodyAggregate : public BodyLiteral {
 
     void add_sign(Sign sign) override;
     void set_left_guard(STerm lhs, Relation rel);
-    [[nodiscard]] auto unpool_v2() const -> std::optional<SBodyLiteralVec> override;
+    [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
@@ -89,7 +86,7 @@ class BodySetAggregate : public BodyLiteral {
 
     void add_sign(Sign sign) override;
     void set_left_guard(STerm lhs, Relation rel);
-    [[nodiscard]] auto unpool_v2() const -> std::optional<SBodyLiteralVec> override;
+    [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
@@ -107,7 +104,7 @@ class BodyTheoryAtom : public BodyLiteral {
     explicit BodyTheoryAtom(Sign sign, TheoryAtom atom) : sign_{sign}, atom_(std::move(atom)) {}
 
     void add_sign(Sign sign) override;
-    [[nodiscard]] auto unpool_v2() const -> std::optional<SBodyLiteralVec> override;
+    [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const

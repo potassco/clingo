@@ -28,20 +28,6 @@ auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &
     return out;
 }
 
-auto HeadLiteral::unpool() const -> SHeadLiteralVec {
-    auto unpooled = unpool_v2();
-    if (unpooled.has_value()) {
-        return std::move(unpooled).value();
-    }
-    return make_vec<SHeadLiteral>(const_cast<HeadLiteral *>(this));
-}
-
-void HeadLiteral::unpool(PoolHeadLiteral &pool) const {
-    for (auto &unpooled : unpool()) {
-        pool.append(unpooled.get());
-    }
-}
-
 auto HeadLiteral::is_atom() const -> bool { return false; }
 
 auto HeadLiteral::is_test() const -> bool { return false; }
@@ -54,7 +40,7 @@ auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
 
 void Disjunction::print(std::ostream &out) const { CondLits::print(elems_, out, "#or", true); }
 
-auto Disjunction::unpool_v2() const -> std::optional<SHeadLiteralVec> {
+auto Disjunction::unpool() const -> std::optional<SHeadLiteralVec> {
     return CondLits::unpool<Disjunction, HeadLiteral>(elems_);
 }
 
@@ -92,8 +78,8 @@ auto Disjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLi
 
 void HeadTheoryAtom::print(std::ostream &out) const { out << atom_; }
 
-auto HeadTheoryAtom::unpool_v2() const -> std::optional<SHeadLiteralVec> {
-    return map_opt_vec(atom_.unpool_v2(),
+auto HeadTheoryAtom::unpool() const -> std::optional<SHeadLiteralVec> {
+    return map_opt_vec(atom_.unpool(),
                        [](auto atom) { return construct_shared<HeadTheoryAtom, HeadLiteral>(std::move(atom)); });
 }
 
@@ -127,7 +113,7 @@ void HeadAggregate::print(std::ostream &out) const {
     }
 }
 
-auto HeadAggregate::unpool_v2() const -> std::optional<SHeadLiteralVec> {
+auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
     return unpool_crossproducts(
         [this](auto lhs, auto elem_lits, auto rhs) {
             return construct_shared<HeadAggregate, HeadLiteral>(std::move(lhs), fun_, std::move(elem_lits),
@@ -136,30 +122,29 @@ auto HeadAggregate::unpool_v2() const -> std::optional<SHeadLiteralVec> {
         overloaded{
             [](ElementVec const &elem_lits) -> std::optional<std::vector<ElementVec>> {
                 return map_opt(
-                    unpool_union_v2(elem_lits,
-                                    [](auto elem) {
-                                        return unpool_crossproducts(
-                                            [](auto tuple, auto lit, auto cond) {
-                                                return Element{std::move(tuple), std::move(lit), std::move(cond)};
-                                            },
-                                            overloaded{
-                                                [](STermVec const &tuple) { return unpool_crossproduct_v2(tuple); },
-                                                [](SLiteral const &lit) { return lit->unpool_v2(); },
-                                                [](SLiteralVec const &lits) { return unpool_crossproduct_v2(lits); }},
-                                            std::get<0>(elem), std::get<1>(elem), std::get<2>(elem));
-                                    }),
+                    unpool_union(elem_lits,
+                                 [](auto elem) {
+                                     return unpool_crossproducts(
+                                         [](auto tuple, auto lit, auto cond) {
+                                             return Element{std::move(tuple), std::move(lit), std::move(cond)};
+                                         },
+                                         overloaded{[](STermVec const &tuple) { return unpool_crossproduct(tuple); },
+                                                    [](SLiteral const &lit) { return lit->unpool(); },
+                                                    [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
+                                         std::get<0>(elem), std::get<1>(elem), std::get<2>(elem));
+                                 }),
                     [](auto elem_lits) { return make_vec<ElementVec>(std::move(elem_lits)); });
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
                 return and_then_opt(lhs, [](auto const &lhs) {
-                    return map_opt_vec(lhs.first->unpool_v2(), [&lhs](auto term) {
+                    return map_opt_vec(lhs.first->unpool(), [&lhs](auto term) {
                         return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
                     });
                 });
             },
             [](RGuard const &rhs) -> std::optional<std::vector<RGuard>> {
                 return and_then_opt(rhs, [](auto const &rhs) {
-                    return map_opt_vec(rhs.second->unpool_v2(), [&rhs](auto term) {
+                    return map_opt_vec(rhs.second->unpool(), [&rhs](auto term) {
                         return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
                     });
                 });
@@ -205,8 +190,8 @@ void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(s
 
 void HeadSetAggregate::print(std::ostream &out) const { out << aggr_; }
 
-auto HeadSetAggregate::unpool_v2() const -> std::optional<SHeadLiteralVec> {
-    return map_opt_vec(aggr_.unpool_v2(),
+auto HeadSetAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
+    return map_opt_vec(aggr_.unpool(),
                        [](auto aggr) { return construct_shared<HeadSetAggregate, HeadLiteral>(std::move(aggr)); });
 }
 

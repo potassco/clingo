@@ -9,13 +9,6 @@ class Statement;
 using SStatement = shared_ptr<Statement>;
 using SStatementVec = std::vector<SStatement>;
 
-class PoolStatement;
-
-struct destruct_pool {
-    void operator()(PoolStatement *pool) const;
-};
-auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destruct_pool>;
-
 // TODO 0:
 // - make the whole data structure immutable
 //   - investigate if unpool could work with optional like the other rewriting methods
@@ -82,12 +75,11 @@ class Statement {
 
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream &;
-    [[nodiscard]] auto unpool() const -> SStatementVec;
-    void unpool(PoolStatement &pool) const;
+    [[nodiscard]] auto unpool() const -> std::optional<SStatementVec>;
     [[nodiscard]] virtual auto rewrite_anonymous() const -> std::optional<SStatement> = 0;
 
   protected:
-    virtual void do_unpool(PoolStatement &pool) const = 0;
+    [[nodiscard]] virtual auto do_unpool() const -> std::optional<SStatementVec> = 0;
 
   private:
     size_t refs = 0;
@@ -103,7 +95,7 @@ class Rule : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     SHeadLiteral head_;
@@ -174,7 +166,7 @@ class TheoryDefinition : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     std::string name_;
@@ -200,7 +192,7 @@ class StatementOptimize : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     OptimizeType type_;
@@ -220,7 +212,7 @@ class StatementWeakConstraint : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     SBodyLiteralVec body_;
@@ -237,7 +229,7 @@ class StatementShow : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     STerm term_;
@@ -255,7 +247,7 @@ class StatementShowSig : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     bool has_sign_;
@@ -273,7 +265,7 @@ class StatementProject : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     STerm term_;
@@ -291,7 +283,7 @@ class StatementProjectSig : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     bool has_sign_;
@@ -310,7 +302,7 @@ class StatementDefined : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     bool has_sign_;
@@ -329,7 +321,7 @@ class StatementExternal : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     STerm term_;
@@ -351,7 +343,7 @@ class StatementEdge : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     EdgeVec edges_;
@@ -377,7 +369,7 @@ class StatementHeuristic : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     STerm atom_;
@@ -405,7 +397,7 @@ class StatementScript : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     ScriptType type_;
@@ -429,7 +421,7 @@ class StatementInclude : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     IncludeType type_;
@@ -447,7 +439,7 @@ class StatementProgram : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     std::string name_;
@@ -469,7 +461,7 @@ class StatementConst : public Statement {
     [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
   protected:
-    void do_unpool(PoolStatement &pool) const override;
+    [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
 
   private:
     ConstType type_;

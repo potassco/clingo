@@ -12,6 +12,39 @@
 
 namespace {
 
+struct StatementUnpool {
+    auto operator()(STerm const &term) const { return term->unpool(); }
+    auto operator()(STermVec const &terms) const { return unpool_crossproduct(terms); }
+    auto operator()(std::optional<STerm> const &term) const {
+        return and_then_opt(term, [](STerm const &term) { return term->unpool(); });
+    }
+    auto operator()(SLiteralVec const &lits) const { return unpool_crossproduct(lits); }
+    auto operator()(SHeadLiteral const &lit) const { return lit->unpool(); }
+    auto operator()(SBodyLiteralVec const &body) const { return unpool_crossproduct(body); }
+    auto operator()(StatementOptimize::Tuple const &tuple) const {
+        return unpool_crossproducts(
+            [](auto weight, auto prio, auto terms) {
+                return StatementWeakConstraint::Tuple{std::move(weight), std::move(prio), std::move(terms)};
+            },
+            StatementUnpool{}, std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
+    }
+    auto operator()(StatementOptimize::Element const &elem) const {
+        return unpool_crossproducts(
+            [](auto tuple, auto cond) {
+                return StatementOptimize::Element{std::move(tuple), std::move(cond)};
+            },
+            StatementUnpool{}, std::get<0>(elem), std::get<1>(elem));
+    }
+    auto operator()(StatementEdge::Edge const &edge) const {
+        return unpool_crossproducts(
+            [](auto u, auto v) {
+                return StatementEdge::Edge{std::move(u), std::move(v)};
+            },
+            StatementUnpool{}, std::get<0>(edge), std::get<1>(edge));
+    }
+    auto operator()(StatementEdge::EdgeVec const &edges) const { return unpool_union(edges, StatementUnpool{}); }
+};
+
 void visit_body(VarVisitFun const &fun, VariableContext ctx, SBodyLiteralVec const &body) {
     for (auto const &lit : body) {
         lit->visit_variables(fun, ctx);
@@ -73,61 +106,14 @@ class RewriteAnonymousStm {
 
 } // namespace
 
-class PoolStatement {
-  public:
-    explicit PoolStatement(SStatementVec &pool)
-        : pool_{pool}, body_{body_lits_, lits_, terms_}, head_{head_lits_, lits_, terms_} {}
-
-    operator PoolBodyLiteral &() { return body_; }
-    operator PoolHeadLiteral &() { return head_; }
-    template <class U> operator U &() { return static_cast<U &>(head_); }
-
-    [[nodiscard]] auto size() const { return pool_.size(); }
-    [[nodiscard]] auto operator[](size_t i) const -> SStatement const & { return pool_[i]; }
-
-    void append(Statement const *self) {
-        // Note: the const_cast is the easiest way to construct a shared pointer from a const pointer.
-        pool_.emplace_back(const_cast<Statement *>(self));
-    };
-    // template <typename... Args> void append(Args &&...args) { pool_.emplace_back(std::forward<Args>(args)...); };
-    template <typename E, typename... Args> void append_shared(Args &&...args) {
-        pool_.emplace_back(construct_shared<E, Statement>(std::forward<Args>(args)...));
-    }
-
-  private:
-    SStatementVec &pool_;
-    SBodyLiteralVec body_lits_;
-    SHeadLiteralVec head_lits_;
-    SLiteralVec lits_;
-    STermVec terms_;
-    PoolBodyLiteral body_;
-    PoolHeadLiteral head_;
-};
-
-void destruct_pool::operator()(PoolStatement *pool) const { delete pool; }
-
-auto construct_pool(SStatementVec &pool) -> std::unique_ptr<PoolStatement, destruct_pool> {
-    return std::unique_ptr<PoolStatement, destruct_pool>{new PoolStatement{pool}};
-}
-
-auto Statement::unpool() const -> SStatementVec {
-    SStatementVec stms;
-    PoolStatement pool{stms};
-    unpool(pool);
-    return stms;
-}
-
-void Statement::unpool(PoolStatement &pool) const {
-    size_t i = pool.size();
-    do_unpool(pool);
-    size_t n = pool.size();
-    if (i != n - 1 || pool[i].get() != this) {
+auto Statement::unpool() const -> std::optional<SStatementVec> {
+    auto stms = do_unpool();
+    if (stms.has_value()) {
         VariableSet old_global;
         VariableSet new_global;
         visit_variables([&old_global](std::string const &var) { old_global.emplace(var); }, VariableContext::global);
-        for (; i < n; ++i) {
+        for (auto &stm : stms.value()) {
             new_global.clear();
-            auto const &stm = pool[i];
             stm->visit_variables([&new_global](std::string const &var) { new_global.emplace(var); },
                                  VariableContext::global);
             stm->visit_variables(
@@ -143,6 +129,7 @@ void Statement::unpool(PoolStatement &pool) const {
                 VariableContext::all);
         }
     }
+    return stms;
 }
 
 [[nodiscard]] auto Statement::to_string() const -> std::string {
@@ -166,16 +153,10 @@ void Rule::print(std::ostream &out) const {
     out << ".";
 }
 
-void Rule::do_unpool(PoolStatement &pool) const {
-    unpool_with(
-        [&](std::optional<SHeadLiteral> &head, std::optional<SBodyLiteralVec> &body) {
-            if (!head.has_value() && !body.has_value()) {
-                pool.append(this);
-            } else {
-                pool.append_shared<Rule>(head.value_or(head_), std::move(body).value_or(body_));
-            }
-        },
-        unpool_element<PoolHeadLiteral>(pool, head_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+auto Rule::do_unpool() const -> std::optional<SStatementVec> {
+    return unpool_crossproducts(
+        [](auto head, auto body) { return construct_shared<Rule, Statement>(std::move(head), std::move(body)); },
+        StatementUnpool{}, head_, body_);
 }
 
 void Rule::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
@@ -292,7 +273,7 @@ void TheoryDefinition::print(std::ostream &out) const {
     out << "}.";
 }
 
-void TheoryDefinition::do_unpool(PoolStatement &pool) const { pool.append(this); }
+auto TheoryDefinition::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
 void TheoryDefinition::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -339,36 +320,11 @@ void StatementOptimize::print(std::ostream &out) const {
         << (elems_.empty() ? "}" : " }") << ".";
 }
 
-void StatementOptimize::do_unpool(PoolStatement &pool) const {
-    std::optional<ElementVec> elems;
-    size_t i = 0;
-    for (auto const &elem : elems_) {
-        unpool_with(
-            [&](std::optional<STerm> &weight, std::optional<STerm> &prio, std::optional<STermVec> &terms,
-                std::optional<SLiteralVec> &cond) {
-                if (!weight.has_value() && !prio.has_value() && !terms.has_value() && !cond.has_value() &&
-                    !elems.has_value()) {
-                    return;
-                }
-                if (!elems.has_value()) {
-                    elems = ElementVec{elems_.begin(), elems_.begin() + i};
-                }
-                auto const &[e_tuple, e_cond] = elem;
-                auto const &[e_weight, e_prio, e_terms] = e_tuple;
-                elems->emplace_back(Tuple{weight.value_or(e_weight), prio ? prio : e_prio, terms.value_or(e_terms)},
-                                    std::move(cond).value_or(e_cond));
-            },
-            unpool_element<PoolTerm>(pool, std::get<0>(elem.first)),
-            unpool_element<PoolTerm>(pool, std::get<1>(elem.first)),
-            unpool_crossproduct<PoolTerm>(pool, std::get<2>(elem.first)),
-            unpool_crossproduct<PoolLiteral>(pool, elem.second));
-        ++i;
-    }
-    if (!elems.has_value()) {
-        pool.append(this);
-    } else {
-        pool.append_shared<StatementOptimize>(type_, std::move(elems.value()));
-    }
+auto StatementOptimize::do_unpool() const -> std::optional<SStatementVec> {
+    // TODO: consider turning into weak constraint
+    return map_opt(unpool_union(elems_, StatementUnpool{}), [this](auto elems) {
+        return make_vec<SStatement>(construct_shared<StatementOptimize, Statement>(type_, std::move(elems)));
+    });
 }
 
 void StatementOptimize::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
@@ -414,21 +370,12 @@ void StatementWeakConstraint::print(std::ostream &out) const {
     out << "]";
 }
 
-void StatementWeakConstraint::do_unpool(PoolStatement &pool) const {
-    unpool_with(
-        [&](std::optional<STerm> &weight, std::optional<STerm> &prio, std::optional<STermVec> &terms,
-            std::optional<SBodyLiteralVec> &body) {
-            if (!weight.has_value() && !prio.has_value() && !terms.has_value() && !body.has_value()) {
-                pool.append(this);
-            } else {
-                const auto &[e_weight, e_prio, e_terms] = tuple_;
-                pool.append_shared<StatementWeakConstraint>(
-                    std::move(body).value_or(body_),
-                    Tuple{weight.value_or(e_weight), prio ? prio : e_prio, terms.value_or(e_terms)});
-            }
+auto StatementWeakConstraint::do_unpool() const -> std::optional<SStatementVec> {
+    return unpool_crossproducts(
+        [](auto body, auto tuple) {
+            return construct_shared<StatementWeakConstraint, Statement>(std::move(body), std::move(tuple));
         },
-        unpool_element<PoolTerm>(pool, std::get<0>(tuple_)), unpool_element<PoolTerm>(pool, std::get<1>(tuple_)),
-        unpool_crossproduct<PoolTerm>(pool, std::get<2>(tuple_)), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+        StatementUnpool{}, body_, tuple_);
 }
 
 void StatementWeakConstraint::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
@@ -452,16 +399,12 @@ auto StatementWeakConstraint::rewrite_anonymous() const -> std::optional<SStatem
 
 void StatementShow::print(std::ostream &out) const { out << "#show " << *term_ << ": " << p_range(body_, "; ") << "."; }
 
-void StatementShow::do_unpool(PoolStatement &pool) const {
-    unpool_with(
-        [&](std::optional<STerm> &term, std::optional<SBodyLiteralVec> &body) {
-            if (!term.has_value() && !body.has_value()) {
-                pool.append(this);
-            } else {
-                pool.append_shared<StatementShow>(term.value_or(term_), std::move(body).value_or(body_));
-            }
+auto StatementShow::do_unpool() const -> std::optional<SStatementVec> {
+    return unpool_crossproducts(
+        [](auto term, auto body) {
+            return construct_shared<StatementShow, Statement>(std::move(term), std::move(body));
         },
-        unpool_element<PoolTerm>(pool, term_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+        StatementUnpool{}, term_, body_);
 }
 
 void StatementShow::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
@@ -486,7 +429,7 @@ void StatementShowSig::print(std::ostream &out) const {
     out << "#show " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementShowSig::do_unpool(PoolStatement &pool) const { pool.append(this); }
+auto StatementShowSig::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
 void StatementShowSig::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -503,16 +446,12 @@ void StatementProject::print(std::ostream &out) const {
     out << "#project " << *term_ << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
 }
 
-void StatementProject::do_unpool(PoolStatement &pool) const {
-    unpool_with(
-        [&](std::optional<STerm> &term, std::optional<SBodyLiteralVec> &body) {
-            if (!term.has_value() && !body.has_value()) {
-                pool.append(this);
-            } else {
-                pool.append_shared<StatementProject>(term.value_or(term_), std::move(body).value_or(body_));
-            }
+auto StatementProject::do_unpool() const -> std::optional<SStatementVec> {
+    return unpool_crossproducts(
+        [](auto term, auto body) {
+            return construct_shared<StatementProject, Statement>(std::move(term), std::move(body));
         },
-        unpool_element<PoolTerm>(pool, term_), unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+        StatementUnpool{}, term_, body_);
 }
 
 void StatementProject::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
@@ -537,7 +476,7 @@ void StatementProjectSig::print(std::ostream &out) const {
     out << "#project " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementProjectSig::do_unpool(PoolStatement &pool) const { pool.append(this); }
+auto StatementProjectSig::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
 void StatementProjectSig::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -554,7 +493,7 @@ void StatementDefined::print(std::ostream &out) const {
     out << "#defined " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
 }
 
-void StatementDefined::do_unpool(PoolStatement &pool) const { pool.append(this); }
+auto StatementDefined::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
 void StatementDefined::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -574,18 +513,12 @@ void StatementExternal::print(std::ostream &out) const {
     }
 }
 
-void StatementExternal::do_unpool(PoolStatement &pool) const {
-    unpool_with(
-        [&](std::optional<STerm> &term, std::optional<STerm> &type, std::optional<SBodyLiteralVec> &body) {
-            if (!term.has_value() && !type.has_value() && !body.has_value()) {
-                pool.append(this);
-            } else {
-                pool.append_shared<StatementExternal>(term.value_or(term_), std::move(body).value_or(body_),
-                                                      type ? type : type_);
-            }
+auto StatementExternal::do_unpool() const -> std::optional<SStatementVec> {
+    return unpool_crossproducts(
+        [](auto term, auto body, auto type) {
+            return construct_shared<StatementExternal, Statement>(std::move(term), std::move(body), std::move(type));
         },
-        unpool_element<PoolTerm>(pool, term_), unpool_element<PoolTerm>(pool, type_),
-        unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+        StatementUnpool{}, term_, body_, type_);
 }
 
 void StatementExternal::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
@@ -614,38 +547,19 @@ void StatementEdge::print(std::ostream &out) const {
         << ")" << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
 }
 
-void StatementEdge::do_unpool(PoolStatement &pool) const {
-    // unpool bodies
-    std::optional<std::vector<SBodyLiteralVec>> bodies;
-    unpool_with(
-        [&](std::optional<SBodyLiteralVec> &body) {
-            if (!body.has_value()) {
-                return;
+auto StatementEdge::do_unpool() const -> std::optional<SStatementVec> {
+    auto bodies = StatementUnpool{}(body_);
+    auto edges = StatementUnpool{}(edges_);
+    if (edges_.size() != 1 || edges.has_value() || bodies.has_value()) {
+        SStatementVec ret;
+        for (auto &body : bodies.value_or(make_vec<SBodyLiteralVec>(body_))) {
+            for (auto &edge : edges.value_or(edges_)) {
+                ret.emplace_back(construct_shared<StatementEdge, Statement>(make_vec<Edge>(edge), body));
             }
-            if (!bodies.has_value()) {
-                bodies = std::vector<SBodyLiteralVec>{};
-            }
-            bodies->emplace_back(std::move(body).value());
-        },
-        unpool_crossproduct<PoolBodyLiteral>(pool, body_));
-    // combine bodies and edges
-    for (const auto &edge : edges_) {
-        unpool_with(
-            [&](std::optional<STerm> &u, std::optional<STerm> &v) {
-                if (!u.has_value() && !v.has_value() && !bodies.has_value() && edges_.size() == 1) {
-                    pool.append(this);
-                }
-                auto edges = EdgeVec{Edge{u.value_or(edge.first), v.value_or(edge.second)}};
-                if (bodies.has_value()) {
-                    for (auto &body : bodies.value()) {
-                        pool.append_shared<StatementEdge>(edges, body);
-                    }
-                } else {
-                    pool.append_shared<StatementEdge>(std::move(edges), body_);
-                }
-            },
-            unpool_element<PoolTerm>(pool, edge.first), unpool_element<PoolTerm>(pool, edge.second));
+        }
+        return std::move(ret);
     }
+    return std::nullopt;
 }
 
 void StatementEdge::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
@@ -676,20 +590,13 @@ void StatementHeuristic::print(std::ostream &out) const {
     out << "," << *mod_ << "]";
 }
 
-void StatementHeuristic::do_unpool(PoolStatement &pool) const {
-    unpool_with(
-        [&](std::optional<STerm> &atom, std::optional<STerm> &type, std::optional<STerm> &prio,
-            std::optional<STerm> &mod, std::optional<SBodyLiteralVec> &body) {
-            if (!atom.has_value() && !type.has_value() && !prio.has_value() && !mod.has_value() && !body.has_value()) {
-                pool.append(this);
-            } else {
-                pool.append_shared<StatementHeuristic>(has_sign_, atom.value_or(atom_), std::move(body).value_or(body_),
-                                                       type.value_or(type_), prio ? prio : prio_, mod.value_or(mod_));
-            }
+auto StatementHeuristic::do_unpool() const -> std::optional<SStatementVec> {
+    return unpool_crossproducts(
+        [this](auto atom, auto body, auto type, auto prio, auto mod) {
+            return construct_shared<StatementHeuristic, Statement>(has_sign_, std::move(atom), std::move(body),
+                                                                   std::move(type), std::move(prio), std::move(mod));
         },
-        unpool_element<PoolTerm>(pool, atom_), unpool_element<PoolTerm>(pool, type_),
-        unpool_element<PoolTerm>(pool, prio_), unpool_element<PoolTerm>(pool, mod_),
-        unpool_crossproduct<PoolBodyLiteral>(pool, body_));
+        StatementUnpool{}, atom_, body_, type_, prio_, mod_);
 }
 
 void StatementHeuristic::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
@@ -728,7 +635,7 @@ auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
 
 void StatementScript::print(std::ostream &out) const { out << "#script (" << type_ << ")" << content_ << "#end."; }
 
-void StatementScript::do_unpool(PoolStatement &pool) const { pool.append(this); }
+auto StatementScript::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
 void StatementScript::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -765,7 +672,7 @@ void StatementInclude::print(std::ostream &out) const {
     }
 }
 
-void StatementInclude::do_unpool(PoolStatement &pool) const { pool.append(this); }
+auto StatementInclude::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
 void StatementInclude::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -786,7 +693,7 @@ void StatementProgram::print(std::ostream &out) const {
     out << ".";
 }
 
-void StatementProgram::do_unpool(PoolStatement &pool) const { pool.append(this); }
+auto StatementProgram::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
 void StatementProgram::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     static_cast<void>(fun);
@@ -817,21 +724,14 @@ void StatementConst::print(std::ostream &out) const {
     out << "#const " << name_ << "=" << *value_ << ". [" << type_ << "]";
 }
 
-void StatementConst::do_unpool(PoolStatement &pool) const {
-    size_t n = 0;
-    unpool_with(
-        [&](std::optional<STerm> value) {
-            if (!value.has_value()) {
-                pool.append(this);
-            } else {
-                pool.append_shared<StatementConst>(type_, name_, value.value());
-            }
-            ++n;
-        },
-        unpool_element<PoolTerm>(pool, value_));
-    if (n != 1) {
+auto StatementConst::do_unpool() const -> std::optional<SStatementVec> {
+    auto ret = unpool_crossproducts(
+        [this](auto value) { return construct_shared<StatementConst, Statement>(type_, name_, std::move(value)); },
+        StatementUnpool{}, value_);
+    if (ret.has_value() && ret->size() != 1) {
         throw std::runtime_error("const statements must not contain pools");
     }
+    return ret;
 }
 
 void StatementConst::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {

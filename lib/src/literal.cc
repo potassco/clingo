@@ -74,20 +74,6 @@ auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream & {
     return out;
 }
 
-auto Literal::unpool() const -> SLiteralVec {
-    auto unpooled = unpool_v2();
-    if (unpooled.has_value()) {
-        return std::move(unpooled).value();
-    }
-    return SLiteralVec{SLiteral{const_cast<Literal *>(this)}};
-}
-
-void Literal::unpool(PoolLiteral &pool) const {
-    for (auto &unpooled : unpool()) {
-        pool.append(unpooled.get());
-    }
-}
-
 auto Literal::is_atom() const -> bool { return false; }
 
 auto Literal::is_test() const -> bool { return true; }
@@ -135,16 +121,16 @@ void LiteralRelation::add_sign(Sign s) { sign_ += s; }
 
 #include <iostream>
 
-auto LiteralRelation::unpool_v2() const -> std::optional<SLiteralVec> {
+auto LiteralRelation::unpool() const -> std::optional<SLiteralVec> {
     return unpool_crossproducts(
         [this](auto lhs, auto rhs) {
             return construct_shared<LiteralRelation, Literal>(sign_, std::move(lhs), std::move(rhs));
         },
         overloaded{
-            [](STerm const &term) { return term->unpool_v2(); },
+            [](STerm const &term) { return term->unpool(); },
             [](GuardVec const &guard) {
-                return unpool_crossproduct_v2(guard, [](Guard const &guard) {
-                    return map_opt_vec(guard.second->unpool_v2(), [&guard](auto term) {
+                return unpool_crossproduct(guard, [](Guard const &guard) {
+                    return map_opt_vec(guard.second->unpool(), [&guard](auto term) {
                         return Guard{guard.first, std::move(term)};
                     });
                 });
@@ -183,7 +169,7 @@ void LiteralBoolean::print(std::ostream &out) const { out << sign_ << (value_ ? 
 
 void LiteralBoolean::add_sign(Sign s) { sign_ += s; }
 
-auto LiteralBoolean::unpool_v2() const -> std::optional<SLiteralVec> { return std::nullopt; }
+auto LiteralBoolean::unpool() const -> std::optional<SLiteralVec> { return std::nullopt; }
 
 auto LiteralBoolean::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralBoolean const *>(&other);
@@ -207,8 +193,8 @@ void LiteralSymbolic::print(std::ostream &out) const { out << sign_ << *term_; }
 
 void LiteralSymbolic::add_sign(Sign s) { sign_ += s; }
 
-auto LiteralSymbolic::unpool_v2() const -> std::optional<SLiteralVec> {
-    return map_opt_vec(term_->unpool_v2(), [this](auto term) {
+auto LiteralSymbolic::unpool() const -> std::optional<SLiteralVec> {
+    return map_opt_vec(term_->unpool(), [this](auto term) {
         return construct_shared<LiteralSymbolic, Literal>(sign_, std::move(term));
     });
 }

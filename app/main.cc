@@ -43,7 +43,11 @@ template <typename Input> void parse(Input &input) {
         lexy::scan_result<SStatement> res_stm = scanner.template parse<grammar::statement>();
         if (res_stm.has_value()) {
             auto stm = res_stm.value()->rewrite_anonymous().value_or(res_stm.value());
-            for (auto &unpooled : stm->unpool()) {
+            auto unpooled_stms = stm->unpool();
+            if (!unpooled_stms.has_value()) {
+                unpooled_stms = make_vec<SStatement>(stm);
+            }
+            for (auto &unpooled : unpooled_stms.value()) {
                 auto projected = unpooled->project().value_or(unpooled);
                 std::cout << *projected << "\n";
             }

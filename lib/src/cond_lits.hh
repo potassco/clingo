@@ -10,62 +10,6 @@
 
 namespace CondLits {
 
-template <class T> struct MapLiteral {
-    static void unpool(PoolLiteral &pool, SLiteral const &lit) { lit->unpool(pool); }
-    static auto vec(typename T::Element const &elem) { return elem.first; }
-    static auto map(SLiteral const &orig, SLiteral lit) { return std::move(lit); }
-    static auto equal(SLiteral const &a, SLiteral const &b) -> bool { return a == b; }
-};
-
-template <class T, class P> void unpool(T const *self, P &pool, typename T::ElementVec const &elems) {
-    using Conds = std::vector<SLiteralVec>;
-    using OConds = std::optional<Conds>;
-    using ElemConds = std::vector<OConds>;
-    using OElemConds = std::optional<ElemConds>;
-
-    // unpool the conditions
-    OElemConds conds;
-    size_t i = 0;
-    for (auto const &elem : elems) {
-        unpool_with(
-            [&](std::optional<SLiteralVec> &cond) {
-                if (cond.has_value()) {
-                    if (!conds.has_value()) {
-                        conds = ElemConds(elems.size());
-                    }
-                    if (!conds->at(i).has_value()) {
-                        conds->at(i) = Conds{};
-                    }
-                    conds->at(i)->emplace_back(std::move(cond).value());
-                }
-            },
-            unpool_crossproduct<PoolLiteral>(pool, elem.second));
-        ++i;
-    }
-
-    // unpool literals and combine with conditions
-    unpool_with(
-        [&](std::optional<std::vector<SLiteralVec>> &elem_lits) {
-            if (!elem_lits.has_value() && !conds.has_value()) {
-                pool.append(self);
-                return;
-            }
-            typename T::ElementVec unpooled;
-            for (size_t i = 0; i < elems.size(); ++i) {
-                auto lits = elem_lits.has_value() ? std::move(elem_lits->at(i)) : elems[i].first;
-                if (conds.has_value() && conds->at(i).has_value()) {
-                    for (auto &cond : conds->at(i).value()) {
-                        unpooled.emplace_back(lits, elem_lits.has_value() ? cond : std::move(cond));
-                    }
-                } else {
-                    unpooled.emplace_back(std::move(lits), elems[i].second);
-                }
-            }
-            pool.template append_shared<T>(std::move(unpooled));
-        },
-        unpool_union_crossproduct<PoolLiteral, typename T::Element, MapLiteral<T>>(pool, elems));
-}
-
 template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
     using Conds = std::vector<SLiteralVec>;
     using OConds = std::optional<Conds>;
@@ -78,7 +22,7 @@ template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
     OElemConds elem_conds;
     size_t i = 0;
     for (auto const &elem : elems) {
-        auto conds = unpool_crossproduct_v2(elem.second);
+        auto conds = unpool_crossproduct(elem.second);
         if (conds.has_value()) {
             if (!elem_conds.has_value()) {
                 elem_conds = ElemConds(elems.size());
@@ -89,8 +33,8 @@ template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
     }
 
     // unpool literals
-    auto elem_lits = unpool_crossproduct_v2(elems, [](auto const &elem) {
-        return map_opt_vec(unpool_crossproduct_v2(elem.first), [](auto lits) { return Element{std::move(lits), {}}; });
+    auto elem_lits = unpool_crossproduct(elems, [](auto const &elem) {
+        return map_opt_vec(unpool_crossproduct(elem.first), [](auto lits) { return Element{std::move(lits), {}}; });
     });
 
     // copy literals if conditions have been unpooled

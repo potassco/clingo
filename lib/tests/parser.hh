@@ -39,7 +39,11 @@ template <class T> auto to_str(std::vector<T> const &value, char const *sep = ",
 
 template <class T> auto unpool_str(std::optional<shared_ptr<T>> value, char const *sep = ", ") -> std::string {
     if (value) {
-        return to_str(value.value()->unpool(), sep);
+        auto unpooled = value.value()->unpool();
+        if (!unpooled.has_value()) {
+            unpooled = make_vec<shared_ptr<T>>(value.value());
+        }
+        return to_str(unpooled.value(), sep);
     }
     return "<failed>";
 }

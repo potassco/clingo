@@ -125,10 +125,10 @@ TEST_CASE("unpool_statement") {
             "}.]");
     // weak constraint
     REQUIRE(unpool_str(parse_statement(":~ p(1;2). [(1;2)@(2;3),(4;5)]"), " ") ==
-            "[ :~ p(1). [1@2,4]  :~ p(2). [1@2,4]  :~ p(1). [1@2,5]  :~ p(2). [1@2,5]"
-            "  :~ p(1). [1@3,4]  :~ p(2). [1@3,4]  :~ p(1). [1@3,5]  :~ p(2). [1@3,5]"
-            "  :~ p(1). [2@2,4]  :~ p(2). [2@2,4]  :~ p(1). [2@2,5]  :~ p(2). [2@2,5]"
-            "  :~ p(1). [2@3,4]  :~ p(2). [2@3,4]  :~ p(1). [2@3,5]  :~ p(2). [2@3,5]]");
+            "[ :~ p(1). [1@2,4]  :~ p(1). [1@2,5]  :~ p(1). [1@3,4]  :~ p(1). [1@3,5]"
+            "  :~ p(1). [2@2,4]  :~ p(1). [2@2,5]  :~ p(1). [2@3,4]  :~ p(1). [2@3,5]"
+            "  :~ p(2). [1@2,4]  :~ p(2). [1@2,5]  :~ p(2). [1@3,4]  :~ p(2). [1@3,5]"
+            "  :~ p(2). [2@2,4]  :~ p(2). [2@2,5]  :~ p(2). [2@3,4]  :~ p(2). [2@3,5]]");
     // show
     REQUIRE(unpool_str(parse_statement("#show (1;2): p(1;2)."), " ") == "[#show 1: p(1). #show 1: p(2)."
                                                                         " #show 2: p(1). #show 2: p(2).]");
@@ -138,10 +138,10 @@ TEST_CASE("unpool_statement") {
             " #project q(2): p(1). #project q(2): p(2).]");
     // edge
     REQUIRE(unpool_str(parse_statement("#edge ((a;b),(c;d)) : p(1;2)."), " ") ==
-            "[#edge (a,c): p(1). #edge (a,c): p(2)."
-            " #edge (a,d): p(1). #edge (a,d): p(2)."
-            " #edge (b,c): p(1). #edge (b,c): p(2)."
-            " #edge (b,d): p(1). #edge (b,d): p(2).]");
+            "[#edge (a,c): p(1). #edge (a,d): p(1)."
+            " #edge (b,c): p(1). #edge (b,d): p(1)."
+            " #edge (a,c): p(2). #edge (a,d): p(2)."
+            " #edge (b,c): p(2). #edge (b,d): p(2).]");
     REQUIRE(unpool_str(parse_statement("#heuristic p(1;2). [(1;2)@(3;4),(5;6)]"), " ") ==
             "[#heuristic p(1). [1@3,5] #heuristic p(1). [1@3,6] #heuristic p(1). [1@4,5] #heuristic p(1). [1@4,6]"
             " #heuristic p(1). [2@3,5] #heuristic p(1). [2@3,6] #heuristic p(1). [2@4,5] #heuristic p(1). [2@4,6]"

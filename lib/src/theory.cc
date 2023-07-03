@@ -147,59 +147,26 @@ void TheoryTermFunction::visit_variables(VarVisitFun fun) const {
 
 ////////// TheoryAtom //////////
 
-void TheoryAtom::unpool(PoolLiteral &pool, std::function<void(std::optional<TheoryAtom>)> cb) const {
-    // unpool the elements
-    std::optional<ElementVec> elems;
-    size_t i = 0;
-    for (auto const &elem : elems_) {
-        unpool_with(
-            [&](std::optional<SLiteralVec> &cond) {
-                if (!cond.has_value() && !elems.has_value()) {
-                    return;
-                }
-                if (!elems.has_value()) {
-                    elems = ElementVec{elems_.begin(), elems_.begin() + i};
-                }
-                auto const &[tuple, e_cond] = elem;
-                elems->emplace_back(tuple, std::move(cond).value_or(e_cond));
-            },
-            unpool_crossproduct(pool, elem.second));
-        ++i;
-    }
-
-    // unpool name and combine with the elements
-    unpool_with(
-        [&](std::optional<STerm> &name) {
-            if (!name.has_value() && !elems.has_value()) {
-                cb(std::nullopt);
-                return;
-            }
-            cb(TheoryAtom(std::move(name).value_or(name_), elems.value_or(elems_), rhs_));
-        },
-        unpool_element<PoolTerm>(pool, name_));
-}
-
-auto TheoryAtom::unpool_v2() const -> std::optional<std::vector<TheoryAtom>> {
+auto TheoryAtom::unpool() const -> std::optional<std::vector<TheoryAtom>> {
     return unpool_crossproducts(
         [&](auto name, auto elems) {
             return TheoryAtom{std::move(name), std::move(elems), rhs_};
         },
         overloaded{
             [](ElementVec const &elems) -> std::optional<std::vector<ElementVec>> {
-                return map_opt(unpool_union_v2(elems,
-                                               [](auto elem) {
-                                                   return unpool_crossproducts(
-                                                       [&elem](auto cond) {
-                                                           return Element{std::get<0>(elem), std::move(cond)};
-                                                       },
-                                                       overloaded{[](SLiteralVec const &lits) {
-                                                           return unpool_crossproduct_v2(lits);
-                                                       }},
-                                                       std::get<1>(elem));
-                                               }),
-                               [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
+                return map_opt(
+                    unpool_union(elems,
+                                 [](auto elem) {
+                                     return unpool_crossproducts(
+                                         [&elem](auto cond) {
+                                             return Element{std::get<0>(elem), std::move(cond)};
+                                         },
+                                         overloaded{[](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
+                                         std::get<1>(elem));
+                                 }),
+                    [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
             },
-            [](STerm const &name) { return name->unpool_v2(); },
+            [](STerm const &name) { return name->unpool(); },
         },
         name_, elems_);
 }

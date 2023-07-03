@@ -10,20 +10,6 @@
 
 ////////// BodyLiteral //////////
 
-auto BodyLiteral::unpool() const -> SBodyLiteralVec {
-    auto unpooled = unpool_v2();
-    if (unpooled.has_value()) {
-        return std::move(unpooled).value();
-    }
-    return make_vec<SBodyLiteral>(const_cast<BodyLiteral *>(this));
-}
-
-void BodyLiteral::unpool(PoolBodyLiteral &pool) const {
-    for (auto &unpooled : unpool()) {
-        pool.append(unpooled.get());
-    }
-}
-
 [[nodiscard]] auto BodyLiteral::to_string() const -> std::string {
     std::ostringstream out;
     out << *this;
@@ -50,7 +36,7 @@ void Conjunction::add_sign(Sign sign) {
 
 void Conjunction::print(std::ostream &out) const { CondLits::print(elems_, out, "#and", false); }
 
-auto Conjunction::unpool_v2() const -> std::optional<SBodyLiteralVec> {
+auto Conjunction::unpool() const -> std::optional<SBodyLiteralVec> {
     return CondLits::unpool<Conjunction, BodyLiteral>(elems_);
 }
 
@@ -96,7 +82,7 @@ void BodyAggregate::print(std::ostream &out) const {
     }
 }
 
-auto BodyAggregate::unpool_v2() const -> std::optional<SBodyLiteralVec> {
+auto BodyAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
     return unpool_crossproducts(
         [this](auto lhs, auto elem_lits, auto rhs) {
             return construct_shared<BodyAggregate, BodyLiteral>(sign_, std::move(lhs), fun_, std::move(elem_lits),
@@ -105,29 +91,28 @@ auto BodyAggregate::unpool_v2() const -> std::optional<SBodyLiteralVec> {
         overloaded{
             [](ElementVec const &elem_lits) -> std::optional<std::vector<ElementVec>> {
                 return map_opt(
-                    unpool_union_v2(elem_lits,
-                                    [](auto elem) {
-                                        return unpool_crossproducts(
-                                            [](auto tuple, auto cond) {
-                                                return Element{std::move(tuple), std::move(cond)};
-                                            },
-                                            overloaded{
-                                                [](STermVec const &tuple) { return unpool_crossproduct_v2(tuple); },
-                                                [](SLiteralVec const &lits) { return unpool_crossproduct_v2(lits); }},
-                                            std::get<0>(elem), std::get<1>(elem));
-                                    }),
+                    unpool_union(elem_lits,
+                                 [](auto elem) {
+                                     return unpool_crossproducts(
+                                         [](auto tuple, auto cond) {
+                                             return Element{std::move(tuple), std::move(cond)};
+                                         },
+                                         overloaded{[](STermVec const &tuple) { return unpool_crossproduct(tuple); },
+                                                    [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
+                                         std::get<0>(elem), std::get<1>(elem));
+                                 }),
                     [](auto elem_lits) { return make_vec<ElementVec>(std::move(elem_lits)); });
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
                 return and_then_opt(lhs, [](auto const &lhs) {
-                    return map_opt_vec(lhs.first->unpool_v2(), [&lhs](auto term) {
+                    return map_opt_vec(lhs.first->unpool(), [&lhs](auto term) {
                         return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
                     });
                 });
             },
             [](RGuard const &rhs) -> std::optional<std::vector<RGuard>> {
                 return and_then_opt(rhs, [](auto const &rhs) {
-                    return map_opt_vec(rhs.second->unpool_v2(), [&rhs](auto term) {
+                    return map_opt_vec(rhs.second->unpool(), [&rhs](auto term) {
                         return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
                     });
                 });
@@ -173,8 +158,8 @@ auto BodyAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SBody
 
 ////////// BodySetAggregate //////////
 
-auto BodySetAggregate::unpool_v2() const -> std::optional<SBodyLiteralVec> {
-    return map_opt_vec(aggr_.unpool_v2(), [this](auto aggr) {
+auto BodySetAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
+    return map_opt_vec(aggr_.unpool(), [this](auto aggr) {
         return construct_shared<BodySetAggregate, BodyLiteral>(sign_, std::move(aggr));
     });
 }
@@ -204,8 +189,8 @@ auto BodySetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SB
 
 ////////// BodyTheoryAtom //////////
 
-auto BodyTheoryAtom::unpool_v2() const -> std::optional<SBodyLiteralVec> {
-    return map_opt_vec(atom_.unpool_v2(), [this](auto atom) {
+auto BodyTheoryAtom::unpool() const -> std::optional<SBodyLiteralVec> {
+    return map_opt_vec(atom_.unpool(), [this](auto atom) {
         return construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, std::move(atom));
     });
 }
