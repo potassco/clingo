@@ -16,7 +16,7 @@ class HeadLiteral {
     virtual ~HeadLiteral() = default;
 
     [[nodiscard]] virtual auto print_empty() const -> bool;
-    virtual void unpool(PoolHeadLiteral &pool) const = 0;
+    virtual void unpool(PoolHeadLiteral &pool) const;
     virtual void print(std::ostream &out) const = 0;
     virtual void visit_variables(VarVisitFun const &fun, VariableContext ctx) const = 0;
     [[nodiscard]] virtual auto project(Projection project) const -> std::optional<SHeadLiteral> = 0;
@@ -28,6 +28,7 @@ class HeadLiteral {
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &;
     [[nodiscard]] auto unpool() const -> SHeadLiteralVec;
+    [[nodiscard]] virtual auto unpool_v2() const -> std::optional<SHeadLiteralVec> = 0;
 
     size_t refs = 0;
 };
@@ -41,7 +42,7 @@ class Disjunction : public HeadLiteral {
 
     [[nodiscard]] auto print_empty() const -> bool override;
     void print(std::ostream &out) const override;
-    void unpool(PoolHeadLiteral &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<SHeadLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto is_atom() const -> bool override;
@@ -58,7 +59,7 @@ class HeadTheoryAtom : public HeadLiteral {
     explicit HeadTheoryAtom(TheoryAtom atom) : atom_{std::move(atom)} {}
 
     void print(std::ostream &out) const override;
-    void unpool(PoolHeadLiteral &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<SHeadLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
@@ -80,7 +81,7 @@ class HeadAggregate : public HeadLiteral {
 
     void set_left_guard(STerm lhs, Relation rel);
     void print(std::ostream &out) const override;
-    void unpool(PoolHeadLiteral &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<SHeadLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
@@ -98,7 +99,7 @@ class HeadSetAggregate : public HeadLiteral {
 
     void set_left_guard(STerm lhs, Relation rel);
     void print(std::ostream &out) const override;
-    void unpool(PoolHeadLiteral &pool) const override;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<SHeadLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;

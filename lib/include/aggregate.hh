@@ -60,6 +60,7 @@ class SetAggregate {
 
     void set_rhs(STerm lhs, Relation rel);
     void unpool(PoolLiteral &pool, std::function<void(std::optional<SetAggregate>)> cb) const;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<std::vector<SetAggregate>>;
     void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
     /// Projects pure variables in the condition if the aggregate is not
     /// nonmonotone or occurs in a negative scope.

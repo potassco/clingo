@@ -179,6 +179,31 @@ void TheoryAtom::unpool(PoolLiteral &pool, std::function<void(std::optional<Theo
         unpool_element<PoolTerm>(pool, name_));
 }
 
+auto TheoryAtom::unpool_v2() const -> std::optional<std::vector<TheoryAtom>> {
+    return unpool_crossproducts(
+        [&](auto name, auto elems) {
+            return TheoryAtom{std::move(name), std::move(elems), rhs_};
+        },
+        overloaded{
+            [](ElementVec const &elems) -> std::optional<std::vector<ElementVec>> {
+                return map_opt(unpool_union_v2(elems,
+                                               [](auto elem) {
+                                                   return unpool_crossproducts(
+                                                       [&elem](auto cond) {
+                                                           return Element{std::get<0>(elem), std::move(cond)};
+                                                       },
+                                                       overloaded{[](SLiteralVec const &lits) {
+                                                           return unpool_crossproduct_v2(lits);
+                                                       }},
+                                                       std::get<1>(elem));
+                                               }),
+                               [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
+            },
+            [](STerm const &name) { return name->unpool_v2(); },
+        },
+        name_, elems_);
+}
+
 auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
     out << "&" << *atom.name_;
     if (!atom.elems_.empty() || atom.rhs_.has_value()) {

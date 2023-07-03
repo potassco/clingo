@@ -77,6 +77,45 @@ void SetAggregate::unpool(PoolLiteral &pool, std::function<void(std::optional<Se
         unpool_element<PoolTerm, RGuard, UnpoolGuards>(pool, rhs_));
 }
 
+auto SetAggregate::unpool_v2() const -> std::optional<std::vector<SetAggregate>> {
+    return unpool_crossproducts(
+        [&](auto lhs, auto elems, auto rhs) {
+            return SetAggregate{std::move(lhs), std::move(elems), std::move(rhs)};
+        },
+        overloaded{
+            [](ElementVec const &elems) -> std::optional<std::vector<ElementVec>> {
+                return map_opt(unpool_union_v2(elems,
+                                               [](auto elem) {
+                                                   return unpool_crossproducts(
+                                                       [](auto lit, auto cond) {
+                                                           return Element{std::move(lit), std::move(cond)};
+                                                       },
+                                                       overloaded{[](SLiteral const &lit) { return lit->unpool_v2(); },
+                                                                  [](SLiteralVec const &lits) {
+                                                                      return unpool_crossproduct_v2(lits);
+                                                                  }},
+                                                       std::get<0>(elem), std::get<1>(elem));
+                                               }),
+                               [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
+            },
+            [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
+                return and_then_opt(lhs, [](auto const &lhs) {
+                    return map_opt_vec(lhs.first->unpool_v2(), [&lhs](auto term) {
+                        return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
+                    });
+                });
+            },
+            [](RGuard const &rhs) -> std::optional<std::vector<RGuard>> {
+                return and_then_opt(rhs, [](auto const &rhs) {
+                    return map_opt_vec(rhs.second->unpool_v2(), [&rhs](auto term) {
+                        return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
+                    });
+                });
+            },
+        },
+        lhs_, elems_, rhs_);
+}
+
 auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream & {
     if (aggr.lhs_) {
         out << *aggr.lhs_->first << " " << aggr.lhs_->second << " ";

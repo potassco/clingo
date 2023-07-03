@@ -66,6 +66,66 @@ template <class T, class P> void unpool(T const *self, P &pool, typename T::Elem
         unpool_union_crossproduct<PoolLiteral, typename T::Element, MapLiteral<T>>(pool, elems));
 }
 
+template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
+    using Conds = std::vector<SLiteralVec>;
+    using OConds = std::optional<Conds>;
+    using ElemConds = std::vector<OConds>;
+    using OElemConds = std::optional<ElemConds>;
+    using Element = typename T::Element;
+    using ElementVec = typename T::ElementVec;
+
+    // unpool the conditions
+    OElemConds elem_conds;
+    size_t i = 0;
+    for (auto const &elem : elems) {
+        auto conds = unpool_crossproduct_v2(elem.second);
+        if (conds.has_value()) {
+            if (!elem_conds.has_value()) {
+                elem_conds = ElemConds(elems.size());
+            }
+            elem_conds->at(i) = std::move(conds).value();
+        }
+        ++i;
+    }
+
+    // unpool literals
+    auto elem_lits = unpool_crossproduct_v2(elems, [](auto const &elem) {
+        return map_opt_vec(unpool_crossproduct_v2(elem.first), [](auto lits) { return Element{std::move(lits), {}}; });
+    });
+
+    // copy literals if conditions have been unpooled
+    if (elem_conds.has_value() && !elem_lits.has_value()) {
+        elem_lits = make_vec<ElementVec>(ElementVec{});
+        elem_lits->back().reserve(elems.size());
+        for (auto const &elem : elems) {
+            elem_lits->back().emplace_back(Element{elem.first, {}});
+        }
+    }
+
+    // set conditions of unpooled literals and build disjunctions
+    return map_opt_vec(std::move(elem_lits), [&elem_conds, &elems](ElementVec elem_lits) {
+        if (!elem_conds.has_value()) {
+            size_t i = 0;
+            for (auto &elem : elem_lits) {
+                elem.second = elems[i].second;
+                ++i;
+            }
+            return construct_shared<T, B>(elem_lits);
+        }
+        ElementVec unpooled;
+        for (size_t i = 0; i < elem_conds->size(); ++i) {
+            if (elem_conds->at(i).has_value()) {
+                for (auto &cond : elem_conds->at(i).value()) {
+                    unpooled.emplace_back(elem_lits[i].first, cond);
+                }
+            } else {
+                unpooled.emplace_back(elem_lits[i].first, elems[i].second);
+            }
+        }
+        return construct_shared<T, B>(std::move(unpooled));
+    });
+}
+
 auto is_simple(auto const &elems) -> bool {
     return !elems.empty() &&
            std::all_of(elems.begin(), elems.end(), [&](auto const &elem) { return elem.first.size() == 1; });

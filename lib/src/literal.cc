@@ -136,7 +136,6 @@ void LiteralRelation::add_sign(Sign s) { sign_ += s; }
 #include <iostream>
 
 auto LiteralRelation::unpool_v2() const -> std::optional<SLiteralVec> {
-    std::cerr << "unpool relation literal: " << *this << std::endl;
     return unpool_crossproducts(
         [this](auto lhs, auto rhs) {
             return construct_shared<LiteralRelation, Literal>(sign_, std::move(lhs), std::move(rhs));

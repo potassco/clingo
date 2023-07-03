@@ -123,6 +123,7 @@ class TheoryAtom {
           rhs_{std::in_place, std::move(rhs_op), std::move(rhs_term)} {}
 
     void unpool(PoolLiteral &pool, std::function<void(std::optional<TheoryAtom>)> cb) const;
+    [[nodiscard]] auto unpool_v2() const -> std::optional<std::vector<TheoryAtom>>;
     void visit_variables(VarVisitFun fun, VariableContext ctx) const;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<TheoryAtom>;
 
