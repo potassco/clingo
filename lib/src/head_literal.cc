@@ -129,7 +129,7 @@ void HeadAggregate::print(std::ostream &out) const {
 
 auto HeadAggregate::unpool_v2() const -> std::optional<SHeadLiteralVec> {
     return unpool_crossproducts(
-        [&](auto lhs, auto elem_lits, auto rhs) {
+        [this](auto lhs, auto elem_lits, auto rhs) {
             return construct_shared<HeadAggregate, HeadLiteral>(std::move(lhs), fun_, std::move(elem_lits),
                                                                 std::move(rhs));
         },
