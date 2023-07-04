@@ -72,9 +72,6 @@ void parse(auto &&input, auto &&out) {
 };
 
 EMSCRIPTEN_KEEPALIVE
-extern "C" auto run(char const *program) -> char const * {
-    std::ostringstream out;
-    parse(lexy::string_input<grammar::encoding>(program, strlen(program)), out);
-    static std::string result = out.str();
-    return result.c_str();
+extern "C" void run(char const *program) {
+    parse(lexy::string_input<grammar::encoding>(program, strlen(program)), std::cout);
 }

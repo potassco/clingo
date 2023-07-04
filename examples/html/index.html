@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>ASP Preprocessor</title>
+    <link rel="stylesheet" href="css/main.css"/>
+  </head>
+
+  <body>
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+          <header class="post-header">
+            <h1 class="post-title">ASP Preprocessor</h1>
+          </header>
+
+          <div class="post-content">
+            <div class="center">
+              <ul class="hlist">
+                <li>
+                  <b>Examples:</b>
+                </li>
+                <li>
+                  <select id="examples" onchange="example()">
+                    <optgroup label="Simple Examples">
+                      <option value="examples/harry-and-sally.lp">Harry and Sally</option>
+                      <option value="examples/flying-birds.lp">Flying Birds</option>
+                      <option value="examples/graph-coloring.lp">Graph Coloring</option>
+                      <option value="examples/n-queens.lp">n-Queens</option>
+                    </optgroup>
+                    <optgroup label="Advanced Examples">
+                      <option value="examples/traveling-salesperson.lp">Traveling Salesperson</option>
+                      <option value="examples/blocksworld-planning.lp">Blocksworld Planning</option>
+                      <option value="examples/pigeonator-propagator.lp">Pigeonator Propagator</option>
+                    </optgroup>
+                  </select>
+                </li>
+              </ul>
+
+              <pre id="input">
+% instance
+motive(harry;sally).
+guilty(harry).
+
+% encoding
+innocent(Suspect) :- motive(Suspect), not guilty(Suspect).</pre
+              >
+
+              <ul class="hlist">
+                <li><b>Configuration:</b></li>
+              </ul>
+
+              <input type="button" id="run" value="&#x25ba; Run!" onclick="preprocess()" disabled/>
+              <pre id="output" class="code"></pre>
+            </div>
+          </div>
+        </article>
+      </div>
+    </main>
+
+    <script type="text/javascript" src="js/ace.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/parser.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/module.js" charset="utf-8"></script>
+  </body>
+</html>

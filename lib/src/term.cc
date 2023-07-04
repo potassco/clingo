@@ -477,7 +477,7 @@ auto TermUnary::project(Projection project) const -> std::optional<STerm> {
 auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
     switch (op) {
         case BinaryOperator::dots: {
-            out << "^";
+            out << "..";
             break;
         }
         case BinaryOperator::xor_: {

@@ -282,7 +282,7 @@ struct term_rec : lexy::expression_production {
 
     struct term_or : dsl::infix_op_left {
         static constexpr char const *name = "binary or";
-        static constexpr auto op = dsl::op<BinaryOperator::and_>(LEXY_LIT("?"));
+        static constexpr auto op = dsl::op<BinaryOperator::or_>(LEXY_LIT("?"));
         using operand = term_and;
     };
 
@@ -294,7 +294,7 @@ struct term_rec : lexy::expression_production {
 
     struct term_dots : dsl::infix_op_left {
         static constexpr char const *name = "interval";
-        static constexpr auto op = dsl::op<BinaryOperator::xor_>(LEXY_LIT(".."));
+        static constexpr auto op = dsl::op<BinaryOperator::dots>(LEXY_LIT(".."));
         using operand = term_xor;
     };
 

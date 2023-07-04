@@ -15,6 +15,7 @@ struct relation {
                                         .map<LEXY_SYMBOL(">=")>(Relation::greater_equal)
                                         .map<LEXY_SYMBOL(">")>(Relation::greater)
                                         .map<LEXY_SYMBOL("!=")>(Relation::inequal)
+                                        .map<LEXY_SYMBOL("==")>(Relation::equal)
                                         .map<LEXY_SYMBOL("=")>(Relation::equal);
     static constexpr auto rule = dsl::symbol<symbols>;
     static constexpr auto value = lexy::forward<Relation>;

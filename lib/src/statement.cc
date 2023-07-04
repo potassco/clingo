@@ -51,9 +51,9 @@ void visit_body(VarVisitFun const &fun, VariableContext ctx, SBodyLiteralVec con
     }
 }
 
-class GlobalVarCounterHelper {
+class GlobalVarSelectorHelper {
   public:
-    [[nodiscard]] operator detail::VarOccCounts const &() { return global_; }
+    [[nodiscard]] operator VariableSet const &() { return global_; }
 
     auto add(BodyLiteral const &x) { visit_(x, VariableContext::global); }
     auto add(HeadLiteral const &x) { visit_(x, VariableContext::global); }
@@ -61,21 +61,56 @@ class GlobalVarCounterHelper {
 
   protected:
     void visit_(auto const &x, auto... args) {
-        x.visit_variables([this](std::string const &var) { ++global_[var]; }, args...);
+        x.visit_variables([this](std::string const &var) { global_.emplace(var); }, args...);
     }
 
   private:
-    detail::VarOccCounts global_;
+    VariableSet global_;
+};
+
+using GlobalVarSelector = detail::VarVisitHelper<GlobalVarSelectorHelper>;
+
+class GlobalVarCounterHelper {
+  public:
+    GlobalVarCounterHelper(VariableSet const &global) : global_{global} {}
+
+    auto counts() && { return std::move(counts_); }
+
+    auto add(BodyLiteral const &x) { visit_(x, VariableContext::all); }
+    auto add(HeadLiteral const &x) { visit_(x, VariableContext::all); }
+    auto add(Statement const &x) { visit_(x, VariableContext::all); }
+
+  protected:
+    void visit_(auto const &x, auto... args) {
+        x.visit_variables(
+            [this](std::string const &var) {
+                if (global_.contains(var)) {
+                    ++counts_[var];
+                }
+            },
+            args...);
+    }
+
+  private:
+    VariableSet const &global_;
+    detail::VarOccCounts counts_;
 };
 
 using GlobalVarCounter = detail::VarVisitHelper<GlobalVarCounterHelper>;
 
+auto global_var_counts(auto const &...args) {
+    GlobalVarSelector selector;
+    (selector.add(args), ...);
+    GlobalVarCounter counter{selector};
+    (counter.add(args), ...);
+    return std::move(counter).counts();
+}
+
 auto project_body_with(auto const *self, SBodyLiteralVec const &body_, bool in_classical_scope, auto construct)
     -> std::optional<SStatement> {
     // count global variables
-    GlobalVarCounter counter;
-    counter.add(*self);
-    Projection project{counter};
+    auto counts = global_var_counts(*self);
+    Projection project{counts};
 
     // project body
     std::optional<SBodyLiteralVec> body = transform(
@@ -339,10 +374,8 @@ auto StatementOptimize::project() const -> std::optional<SStatement> {
         auto const &[tuple, cond] = elem;
 
         // add counts of variables
-        GlobalVarCounter counter;
-        counter.add(tuple);
-        counter.add(cond);
-        auto sub_project = Projection{counter};
+        auto counts = global_var_counts(tuple, cond);
+        auto sub_project = Projection{counts};
 
         // project literals in condition
         auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };

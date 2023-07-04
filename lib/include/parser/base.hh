@@ -90,7 +90,7 @@ struct comment : lexy::scan_production<void> {
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
         auto begin = scanner.position();
         scanner.branch(LEXY_LIT("%"));
-        while (!scanner.peek(dsl::newline)) {
+        while (!scanner.peek(dsl::newline) && !scanner.is_at_eof()) {
             scanner.parse(dsl::code_point);
             if (!scanner) {
                 return lexy::scan_failed;
