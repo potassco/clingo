@@ -12,9 +12,6 @@
 
 #include <symbol.hh>
 
-template <class T> class Pool;
-template <class T, class C> class PoolParent;
-
 enum class TermCheckType : int { atom, sig, identifier, signed_identifier, pos_number };
 
 struct CheckTypeResult {
