@@ -295,7 +295,7 @@ auto TermAbs::unpool() const -> std::optional<STermVec> {
         unpooled = pool_;
     }
     return map_opt_vec(std::move(unpooled),
-                       [this](auto term) { return construct_shared<TermAbs, Term>(STermVec{std::move(term)}); });
+                       [](auto term) { return construct_shared<TermAbs, Term>(STermVec{std::move(term)}); });
 }
 
 auto TermAbs::type() const -> TermType { return TermType::TermAbs; }

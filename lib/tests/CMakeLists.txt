@@ -5,4 +5,3 @@ target_include_directories(tests PRIVATE
 )
 set_target_properties(tests PROPERTIES FOLDER test)
 add_test(NAME tests COMMAND tests)
-

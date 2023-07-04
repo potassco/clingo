@@ -68,9 +68,9 @@ using VarVisitFun = std::function<void(std::string const &var)>;
 
 template <class E> void select_variables(E &expr, VariableSet &vars, VariableSelectMode mode) {
     if (mode == VariableSelectMode::add) {
-        expr.visit_variables([&vars, mode](std::string const &var) { vars.emplace(var); });
+        expr.visit_variables([&vars](std::string const &var) { vars.emplace(var); });
     } else {
-        expr.visit_variables([&vars, mode](std::string const &var) { vars.erase(var); });
+        expr.visit_variables([&vars](std::string const &var) { vars.erase(var); });
     }
 }
 

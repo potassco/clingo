@@ -13,7 +13,7 @@ using SHeadSetAggregate = shared_ptr<HeadSetAggregate>;
 
 namespace detail {
 
-inline auto construct_head_aggr(SHeadAggregate aggr) -> SHeadAggregate { return std::move(aggr); }
+inline auto construct_head_aggr(SHeadAggregate aggr) -> SHeadAggregate { return aggr; }
 
 inline auto construct_head_aggr(SetAggregate aggr) -> SHeadSetAggregate {
     return construct_shared<HeadSetAggregate>(std::move(aggr));

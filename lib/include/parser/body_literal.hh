@@ -14,7 +14,7 @@ using SBodySetAggregate = shared_ptr<BodySetAggregate>;
 
 namespace detail {
 
-inline auto construct_body_aggr(SBodyAggregate aggr) -> SBodyAggregate { return std::move(aggr); }
+inline auto construct_body_aggr(SBodyAggregate aggr) -> SBodyAggregate { return aggr; }
 
 inline auto construct_body_aggr(SetAggregate aggr) -> SBodySetAggregate {
     return construct_shared<BodySetAggregate>(std::move(aggr));
@@ -140,7 +140,7 @@ struct body_literal {
     static constexpr auto value =
         lexy::callback<SBodyLiteral>(lexy::forward<SBodyLiteral>, [](Sign sign, SBodyLiteral literal) {
             literal->add_sign(sign);
-            return std::move(literal);
+            return literal;
         });
 };
 

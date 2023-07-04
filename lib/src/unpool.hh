@@ -88,13 +88,11 @@ auto unpool_crossproduct(std::vector<T> const &elems, U &&unpool = U{}) -> std::
     std::vector<std::vector<T>> ret;
     for (bool cont = true; cont;) {
         std::vector<T> res;
-        size_t i = 0;
         for (auto const &[cur, begin, end] : offsets) {
             if (begin == end) {
                 return ret;
             }
             res.emplace_back(pool[cur]);
-            ++i;
         }
         ret.emplace_back(std::move(res));
         cont = false;

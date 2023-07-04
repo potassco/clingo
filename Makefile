@@ -59,8 +59,16 @@ format:
 Makefile:
 	@:
 
+web:
+	mkdir -p build_web
+	current="$$(pwd -P)" && cd build_web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake	\
+		-DCMAKE_BUILD_TYPE=release \
+		-DPARSER_BUILD_WEB=On \
+		"$${current}"
+	$(MAKE) -C build_web
+
 %: configure
 	cmake --build build --target $@ --parallel
 
-.PHONY: all test compdb configure reconfigure format
+.PHONY: all test compdb configure reconfigure format web
 

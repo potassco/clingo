@@ -1,4 +1,5 @@
 build
+build_web
 release
 .cache
 compile_commands.json

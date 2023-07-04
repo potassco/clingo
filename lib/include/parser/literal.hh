@@ -80,7 +80,7 @@ struct literal {
     static constexpr auto rule = dsl::p<naf_sign> + dsl::p<atom>;
     static constexpr auto value = lexy::callback<SLiteral>([](Sign sign, SLiteral lit) {
         lit->add_sign(sign);
-        return std::move(lit);
+        return lit;
     });
 };
 
