@@ -6,7 +6,23 @@
 #include <parser/body_literal.hh>
 #include <parser/head_literal.hh>
 
+#include <iostream>
+
 namespace grammar {
+
+struct mark_end : lexy::scan_production<void> {
+    using scan_result = lexy::scan_result<void>;
+
+    template <typename Reader, typename Context>
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> lexy::scan_result<void> {
+        if constexpr (detail::has_state<lexy::rule_scanner<Context, Reader>>) {
+            scanner.remaining_input().reader().state().mark();
+        }
+        return true;
+    }
+};
+
+static constexpr auto eos = dsl::p<mark_end> + dsl::period;
 
 struct theory_op_definition {
     static constexpr char const *name = "theory operator definition";
@@ -97,7 +113,7 @@ struct statement_theory {
     static constexpr char const *name = "theory definition";
     static constexpr auto rule = []() {
         auto kw_theory = LEXY_KEYWORD("#theory", identifier_base);
-        return kw_theory >> dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + dsl::period;
+        return kw_theory >> dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + eos;
     }();
     static constexpr auto value = lexy::callback<SStatement>(
         // Note: called during error recovery if the expression between the
@@ -158,6 +174,9 @@ struct statement_optimize_element {
     static constexpr auto value = lexy::construct<StatementOptimize::Element>;
 };
 
+constexpr auto square_bracketed_end =
+    dsl::brackets(dsl::lit_c<'['>, dsl::peek(dsl::lit_c<']'>) >> dsl::p<mark_end> + dsl::lit_c<']'>);
+
 struct statement_optimize {
     static constexpr char const *name = "optimize directive";
     static constexpr auto sym_type = lexy::symbol_table<OptimizeType> //
@@ -167,9 +186,9 @@ struct statement_optimize {
                                          .map<LEXY_SYMBOL("#maximise")>(OptimizeType::maximize);
     static constexpr auto rule = []() {
         auto elems = dsl::curly_bracketed.opt_list(dsl::p<statement_optimize_element>, dsl::sep(dsl::semicolon));
-        auto opt = dsl::symbol<sym_type>(keyword_base) >> elems + dsl::period;
-        auto tuple = dsl::square_bracketed(dsl::p<statement_optimize_tuple>);
-        auto weak = LEXY_LIT(":~") >> dsl::p<statement_body> + dsl::period + tuple;
+        auto opt = dsl::symbol<sym_type>(keyword_base) >> elems + eos;
+        auto tuple = square_bracketed_end(dsl::p<statement_optimize_tuple>);
+        auto weak = LEXY_LIT(":~") >> dsl::p<statement_body> + eos + tuple;
         return opt | weak;
     }();
     static constexpr auto value = lexy::as_list<StatementOptimize::ElementVec> >>
@@ -191,7 +210,7 @@ struct statement_show {
     static constexpr auto rule = []() {
         auto show = LEXY_KEYWORD("#show", identifier_base);
         auto opt_body = dsl::opt(LEXY_LIT(":") >> dsl::p<statement_body>);
-        return show >> dsl::position + dsl::p<term> + dsl::position + opt_body + dsl::period;
+        return show >> dsl::position + dsl::p<term> + dsl::position + opt_body + eos;
     }();
     static constexpr auto value = lexy::callback<SStatement>(
         [](auto begin, STerm term, auto end, lexy::nullopt) -> SStatement {
@@ -221,7 +240,7 @@ struct statement_defined {
     static constexpr char const *name = "defined directive";
     static constexpr auto rule = []() {
         auto def = LEXY_KEYWORD("#defined", keyword_base);
-        return def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + simple_number + dsl::period;
+        return def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + simple_number + eos;
     }();
     static constexpr auto value = lexy::new_<StatementDefined, SStatement>;
 };
@@ -232,7 +251,7 @@ struct statement_edge {
         auto kw = LEXY_KEYWORD("#edge", keyword_base);
         auto pair = dsl::p<term> + dsl::comma + dsl::p<term>;
         auto edge = dsl::round_bracketed.list(pair, dsl::sep(dsl::semicolon));
-        return kw >> edge + dsl::p<statement_opt_body> + dsl::period;
+        return kw >> edge + dsl::p<statement_opt_body> + eos;
     }();
     static constexpr auto value = []() {
         auto sink = lexy::collect<StatementEdge::EdgeVec>(lexy::construct<StatementEdge::Edge>);
@@ -247,8 +266,8 @@ struct statement_heuristic {
         auto kw = LEXY_KEYWORD("#heuristic", keyword_base);
         auto atom = dsl::p<sign_classical> + dsl::p<term_function>;
         auto tuple =
-            dsl::square_bracketed(dsl::p<term> + dsl::if_(dsl::at_sign >> dsl::p<term>) + dsl::comma + dsl::p<term>);
-        return kw >> atom + dsl::p<statement_opt_body> + dsl::period + tuple;
+            square_bracketed_end(dsl::p<term> + dsl::if_(dsl::at_sign >> dsl::p<term>) + dsl::comma + dsl::p<term>);
+        return kw >> atom + dsl::p<statement_opt_body> + eos + tuple;
     }();
     static constexpr auto value = lexy::new_<StatementHeuristic, SStatement>;
 };
@@ -260,7 +279,7 @@ struct statement_project {
         auto arity = dsl::slash >> simple_number;
         auto pool = dsl::opt(dsl::p<term_function_pool>) + dsl::p<statement_opt_body>;
         auto name = dsl::p<sign_classical> + dsl::p<identifier>;
-        return kw >> name + (arity | dsl::else_ >> pool) + dsl::period;
+        return kw >> name + (arity | dsl::else_ >> pool) + eos;
     }();
     static constexpr auto value = lexy::callback<SStatement>(
         lexy::new_<StatementProjectSig, SStatement>,
@@ -285,7 +304,7 @@ struct statement_script {
         auto type = dsl::symbol<sym_type>(identifier_base);
         auto close = LEXY_LIT(")");
         auto end = LEXY_KEYWORD("#end", keyword_base);
-        return script >> open + type + dsl::delimited(close, end)(dsl::code_point) + dsl::period;
+        return script >> open + type + dsl::delimited(close, end)(dsl::code_point) + eos;
     }();
     static constexpr auto value = lexy::as_string<std::string, encoding> >> lexy::new_<StatementScript, SStatement>;
 };
@@ -295,7 +314,7 @@ struct statement_external {
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#external", keyword_base);
         auto atom = dsl::p<sign_classical> + dsl::p<term_function>;
-        return kw >> atom + dsl::p<statement_opt_body> + dsl::period + dsl::if_(dsl::square_bracketed(dsl::p<term>));
+        return kw >> atom + dsl::p<statement_opt_body> + eos + dsl::if_(square_bracketed_end(dsl::p<term>));
     }();
     static constexpr auto value = lexy::callback<SStatement>([](bool has_sign, STerm atom, auto &&...args) {
         if (has_sign) {
@@ -311,7 +330,7 @@ struct statement_include {
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#include", keyword_base);
         auto sys = dsl::delimited(LEXY_LIT("<"), LEXY_LIT(">"))(dsl::ascii::alpha_digit_underscore);
-        return kw >> (dsl::inline_<string> | sys >> dsl::nullopt | dsl::error<expected_path>)+dsl::period;
+        return kw >> (dsl::inline_<string> | sys >> dsl::nullopt | dsl::error<expected_path>)+eos;
     }();
     static constexpr auto
         value = lexy::as_string<std::string, encoding> >>
@@ -329,7 +348,7 @@ struct statement_program {
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#program", keyword_base);
         auto id = dsl::p<identifier>;
-        return kw >> id + dsl::opt(dsl::round_bracketed.opt_list(id, dsl::sep(dsl::comma))) + dsl::period;
+        return kw >> id + dsl::opt(dsl::round_bracketed.opt_list(id, dsl::sep(dsl::comma))) + eos;
     }();
     static constexpr auto value = lexy::as_list<std::vector<std::string>> >>
                                   lexy::callback<SStatement>(
@@ -351,9 +370,9 @@ struct statement_const {
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#const", keyword_base);
         auto id = dsl::p<identifier>;
-        auto type = dsl::if_(dsl::square_bracketed(dsl::symbol<sym_type>(identifier_base)));
+        auto type = dsl::if_(square_bracketed_end(dsl::symbol<sym_type>(identifier_base)));
         // Note: we overparse here to avoid duplicating code
-        return kw >> id + dsl::equal_sign + dsl::p<term> + dsl::period + type;
+        return kw >> id + dsl::equal_sign + dsl::p<term> + eos + type;
     }();
     static constexpr auto value = lexy::callback<SStatement>(
         [](std::string name, STerm value) {
@@ -367,9 +386,8 @@ struct statement_const {
 struct statement_rule {
     static constexpr char const *name = "rule";
     static constexpr auto rule = []() {
-        auto terminator = dsl::terminator(dsl::period);
         auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body>;
-        return terminator(if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body));
+        return (if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body)) + eos;
     }();
     static constexpr auto value = lexy::callback<SStatement>(
         lexy::new_<Rule, SStatement>,

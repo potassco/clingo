@@ -33,7 +33,8 @@ void discard(StreamInput<Encoding, Counting> &input, Scanner &scanner) {
 
 template <typename Input> void parse(Input &input) {
     // TODO: add options for fine grained control
-    std::vector<std::string> comments;
+    //       move shared code of app/web to lib
+    Comments comments;
     auto stateful_input = StatefulInput{input, comments};
     auto scanner = lexy::scan<grammar::control>(stateful_input, report_error);
     // Note: skip leading whitespace
@@ -42,6 +43,11 @@ template <typename Input> void parse(Input &input) {
         discard(input, scanner);
         lexy::scan_result<SStatement> res_stm = scanner.template parse<grammar::statement>();
         if (res_stm.has_value()) {
+            // output comments before end of statement
+            for (auto &comment : comments) {
+                std::cout << comment << "\n";
+            }
+            comments.clear();
             auto stm = res_stm.value()->rewrite_anonymous().value_or(res_stm.value());
             auto unpooled_stms = stm->unpool();
             if (!unpooled_stms.has_value()) {
@@ -51,16 +57,17 @@ template <typename Input> void parse(Input &input) {
                 auto projected = unpooled->project().value_or(unpooled);
                 std::cout << *projected << "\n";
             }
-            // TODO: ensure proper order of comments
-            for (auto &comment : comments) {
-                std::cout << comment << "\n";
-            }
         }
-        comments.clear();
         if (!scanner) {
             recover(scanner);
         }
     }
+    // print remaining comments
+    comments.mark();
+    for (auto &comment : comments) {
+        std::cout << comment << "\n";
+    }
+    comments.clear();
 };
 
 auto main(int argc, char **argv) -> int {

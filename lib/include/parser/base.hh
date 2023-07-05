@@ -34,6 +34,19 @@ template <typename Input, typename State> class StatefulInput {
     State *state_;
 };
 
+class Comments {
+  public:
+    void append(std::string comment) { comments_.emplace_back(std::move(comment)); }
+    void mark() { mark_ = comments_.size(); }
+    auto begin() -> std::vector<std::string>::iterator { return comments_.begin(); }
+    auto end() -> std::vector<std::string>::iterator { return comments_.begin() + mark_; }
+    void clear() { comments_.erase(comments_.begin(), comments_.begin() + mark_); };
+
+  private:
+    std::vector<std::string> comments_;
+    size_t mark_ = 0;
+};
+
 namespace grammar {
 
 namespace dsl = lexy::dsl;
@@ -78,7 +91,7 @@ struct block_comment : lexy::scan_production<void> {
         } while (n > 0);
         auto end = scanner.position();
         if constexpr (detail::has_state<lexy::rule_scanner<Context, Reader>>) {
-            scanner.remaining_input().reader().state().emplace_back(lexy::as_string<std::string, encoding>(begin, end));
+            scanner.remaining_input().reader().state().append(lexy::as_string<std::string, encoding>(begin, end));
         }
         return scan_result{true};
     }
@@ -98,7 +111,7 @@ struct comment : lexy::scan_production<void> {
         };
         auto end = scanner.position();
         if constexpr (detail::has_state<lexy::rule_scanner<Context, Reader>>) {
-            scanner.remaining_input().reader().state().emplace_back(lexy::as_string<std::string, encoding>(begin, end));
+            scanner.remaining_input().reader().state().append(lexy::as_string<std::string, encoding>(begin, end));
         }
         return scan_result{true};
     }
