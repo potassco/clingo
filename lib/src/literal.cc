@@ -185,7 +185,10 @@ auto LiteralBoolean::project(Projection project) const -> std::optional<SLiteral
     return std::nullopt;
 }
 
-auto LiteralBoolean::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> { return std::nullopt; }
+auto LiteralBoolean::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
+    static_cast<void>(gen);
+    return std::nullopt;
+}
 
 ////////// LiteralSymbolic //////////
 

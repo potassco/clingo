@@ -87,7 +87,10 @@ void HeadTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx
     atom_.visit_variables(fun, ctx);
 }
 
-auto HeadTheoryAtom::project(Projection project) const -> std::optional<SHeadLiteral> { return std::nullopt; }
+auto HeadTheoryAtom::project(Projection project) const -> std::optional<SHeadLiteral> {
+    static_cast<void>(project);
+    return std::nullopt;
+}
 
 auto HeadTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
     auto fun = [&gen](TheoryAtom const &atom) { return atom.rewrite_anonymous(gen); };

@@ -18,8 +18,9 @@ template <class T, class F> struct Trans {
 namespace detail {
 
 template <class... T, size_t... Indices>
-auto transform_tuple(auto &&fun, std::tuple<T...> const &tup, std::index_sequence<Indices...> indices,
+auto transform_tuple(std::tuple<T...> const &tup, std::index_sequence<Indices...> indices,
                      std::optional<T>... transfomed) -> std::optional<std::tuple<T...>> {
+    static_cast<void>(indices);
     if ((transfomed.has_value() || ...)) {
         return std::tuple<T...>(std::move(transfomed).value_or(std::get<Indices>(tup))...);
     }
@@ -29,14 +30,14 @@ auto transform_tuple(auto &&fun, std::tuple<T...> const &tup, std::index_sequenc
 template <class... T, size_t... Indices>
 auto transform_tuple(auto &&fun, std::tuple<T...> const &tup, std::index_sequence<Indices...> indices)
     -> std::optional<std::tuple<T...>> {
-    return transform_tuple(fun, tup, indices, transform(fun, std::get<Indices>(tup))...);
+    return transform_tuple(tup, indices, transform(fun, std::get<Indices>(tup))...);
 }
 
 template <class T, class F> auto transform_construct_apply(Trans<T, F> &arg) {
     return arg.transformed = transform(arg.fun, arg.orig);
 }
 
-template <class T> auto transform_construct_apply(T &&arg) {}
+template <class T> auto transform_construct_apply(T &&arg) { static_cast<void>(arg); }
 
 template <class T, class F> auto transform_construct_value(Trans<T, F> &&arg) {
     return std::move(arg.transformed).value_or(arg.orig);
@@ -44,7 +45,10 @@ template <class T, class F> auto transform_construct_value(Trans<T, F> &&arg) {
 
 template <class T> auto transform_construct_value(T &&arg) { return std::forward<T>(arg); }
 
-template <class T> auto transform_construct_has_value(T const &arg) -> bool { return false; }
+template <class T> auto transform_construct_has_value(T const &arg) -> bool {
+    static_cast<void>(arg);
+    return false;
+}
 
 template <class T, class F> auto transform_construct_has_value(Trans<T, F> const &arg) -> bool {
     return arg.transformed.has_value();
@@ -61,6 +65,7 @@ using can_not_apply_t = std::enable_if_t<!std::is_invocable_r_v<std::optional<T>
 template <class T> auto transform(auto &&fun, T const &x) -> detail::can_apply_t<T, decltype(fun)> { return fun(x); }
 
 template <class T> auto transform(auto &&fun, T const &x) -> detail::can_not_apply_t<T, decltype(fun)> {
+    static_cast<void>(x);
     return std::nullopt;
 }
 

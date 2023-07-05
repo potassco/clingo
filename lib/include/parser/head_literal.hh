@@ -103,7 +103,7 @@ struct head_literal {
     static constexpr auto is_atom = dsl::context_flag<head_literal>;
 
     template <typename Reader, typename Context>
-    static auto scan(lexy::rule_scanner<Context, Reader> &scanner, auto &&...args) -> scan_result {
+    static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
         auto res_term = scanner.template parse<STerm>(dsl::p<term>);
         if (res_term.has_value() && res_term.value()->check_type(TermCheckType::atom)) {
             scanner.parse(is_atom.set());

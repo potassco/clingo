@@ -117,6 +117,7 @@ class Term {
     [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> = 0;
 
     // AST interface
+    /*
     [[nodiscard]] virtual auto type() const -> TermType = 0;
     [[nodiscard]] virtual auto get_int(Attribute attr) -> int &;
     [[nodiscard]] virtual auto get_ast(Attribute attr) -> STerm &;
@@ -184,6 +185,7 @@ class Term {
             static_assert(sizeof(T *) == 0, "unsupported type in AST::get");
         }
     };
+    */
 
     size_t refs = 0;
 };
@@ -202,8 +204,10 @@ class TermSymbol : public Term {
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
+    /*
     [[nodiscard]] auto type() const -> TermType override;
     [[nodiscard]] auto get_int(Attribute attr) -> int & override;
+    */
 
   private:
     Symbol value_;
@@ -225,7 +229,9 @@ class TermTuple : public Term {
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
+    /*
     [[nodiscard]] auto type() const -> TermType override;
+    */
 
   private:
     ElementVec pool_;
@@ -238,13 +244,16 @@ class TermVariable : public Term {
     [[nodiscard]] auto name() const -> std::string const &;
 
     void print(std::ostream &out) const override;
-    [[nodiscard]] auto type() const -> TermType override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
+
+    /*
+    [[nodiscard]] auto type() const -> TermType override;
+    */
 
   private:
     std::string name_;
@@ -263,7 +272,9 @@ class TermAbs : public Term {
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
+    /*
     [[nodiscard]] auto type() const -> TermType override;
+    */
 
   private:
     STermVec pool_;
@@ -284,7 +295,9 @@ class TermFunction : public Term {
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
+    /*
     [[nodiscard]] auto type() const -> TermType override;
+    */
 
   private:
     std::string name_;
@@ -313,9 +326,11 @@ class TermUnary : public Term {
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
+    /*
     [[nodiscard]] auto type() const -> TermType override;
     [[nodiscard]] auto get_int(Attribute attr) -> int & override;
     [[nodiscard]] auto get_ast(Attribute attr) -> STerm & override;
+    */
 
   private:
     UnaryOperator op_;
@@ -352,9 +367,11 @@ class TermBinary : public Term {
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
+    /*
     [[nodiscard]] auto type() const -> TermType override;
     [[nodiscard]] auto get_int(Attribute attr) -> int & override;
     [[nodiscard]] auto get_ast(Attribute attr) -> STerm & override;
+    */
 
   private:
     BinaryOperator op_;

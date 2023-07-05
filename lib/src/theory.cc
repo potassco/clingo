@@ -109,6 +109,7 @@ void TheoryTermSymbol::print(std::ostream &out) const { out << value_; }
 void TheoryTermSymbol::visit_variables(VarVisitFun fun) const { static_cast<void>(fun); }
 
 [[nodiscard]] auto TheoryTermSymbol::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
+    static_cast<void>(gen);
     return std::nullopt;
 }
 

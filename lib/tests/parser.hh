@@ -55,8 +55,7 @@ template <class T> auto project_str(std::optional<shared_ptr<T>> value) -> std::
     return "<failed>";
 }
 
-template <class T>
-auto variables_str(std::optional<shared_ptr<T>> value, auto mode, char const *sep = ", ") -> std::string {
+template <class T> auto variables_str(std::optional<shared_ptr<T>> value, auto mode) -> std::string {
     if (value) {
         auto vars = select_variables(*value.value(), mode);
         auto sorted = std::vector<VariableSet::value_type>{vars.begin(), vars.end()};

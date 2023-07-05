@@ -52,11 +52,13 @@ auto Projection::projectable(std::string const &var) const -> bool {
 [[nodiscard]] auto Projection::counts() const -> std::unordered_map<std::string, size_t> const & { return counts_; }
 
 auto operator<<(std::ostream &out, TermType type) -> std::ostream & {
+    static_cast<void>(type);
     out << "TODO: type";
     return out;
 }
 
 auto operator<<(std::ostream &out, Attribute attr) -> std::ostream & {
+    static_cast<void>(attr);
     out << "TODO: attr";
     return out;
 }
@@ -72,6 +74,7 @@ auto operator<<(std::ostream &out, Term const &ast) -> std::ostream & {
     return out;
 }
 
+/*
 auto Term::get_int(Attribute attr) -> int & {
     std::ostringstream out;
     out << "unknown attribute: " << attr;
@@ -95,8 +98,13 @@ auto Term::get_ast_vec_vec(Attribute attr) -> STermVecVec & {
     out << "unknown attribute: " << attr;
     throw std::runtime_error(out.str().c_str());
 }
+*/
 
-auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool { return false; }
+auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
+    static_cast<void>(type);
+    static_cast<void>(res);
+    return false;
+}
 
 ////////// TermSymbol //////////
 
@@ -127,7 +135,10 @@ auto TermSymbol::check_type(TermCheckType type, CheckTypeResult *res) const -> b
             }
             return false;
         },
-        [&](auto &&value) { return false; });
+        [&](auto &&value) {
+            static_cast<void>(value);
+            return false;
+        });
 }
 
 auto TermSymbol::unpool() const -> std::optional<STermVec> { return std::nullopt; }
@@ -146,8 +157,12 @@ auto TermSymbol::project(Projection project) const -> std::optional<STerm> {
     return std::nullopt;
 }
 
-auto TermSymbol::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> { return std::nullopt; }
+auto TermSymbol::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
+    static_cast<void>(gen);
+    return std::nullopt;
+}
 
+/*
 auto TermSymbol::type() const -> TermType { return TermType::TermSymbol; }
 
 auto TermSymbol::get_int(Attribute attr) -> int & {
@@ -160,6 +175,7 @@ auto TermSymbol::get_int(Attribute attr) -> int & {
         }
     }
 }
+*/
 
 ////////// TermTuple //////////
 
@@ -179,8 +195,6 @@ void TermTuple::print(std::ostream &out) const {
         }) << ")";
     }
 }
-
-auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
 
 auto TermTuple::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermTuple const *>(&other);
@@ -229,6 +243,7 @@ auto TermTuple::unpool() const -> std::optional<STermVec> {
                                                                    });
                                                                },
                                                                [](std::monostate x) -> std::optional<TupleVec> {
+                                                                   static_cast<void>(x);
                                                                    return std::nullopt;
                                                                });
                                                        }),
@@ -247,6 +262,10 @@ auto TermTuple::unpool() const -> std::optional<STermVec> {
     });
 }
 
+/*
+auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
+*/
+
 ////////// TermVariable //////////
 
 auto TermVariable::name() const -> std::string const & { return name_; }
@@ -262,8 +281,6 @@ auto TermVariable::hash() const -> size_t { return value_hash(typeid(TermVariabl
 
 auto TermVariable::unpool() const -> std::optional<STermVec> { return std::nullopt; }
 
-auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
-
 void TermVariable::visit_variables(VarVisitFun const &fun) const { fun(name_); }
 
 auto TermVariable::project(Projection project) const -> std::optional<STerm> {
@@ -277,6 +294,10 @@ auto TermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm>
     }
     return std::nullopt;
 }
+
+/*
+auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
+*/
 
 ////////// TermAbs //////////
 
@@ -298,8 +319,6 @@ auto TermAbs::unpool() const -> std::optional<STermVec> {
                        [](auto term) { return construct_shared<TermAbs, Term>(STermVec{std::move(term)}); });
 }
 
-auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
-
 void TermAbs::visit_variables(VarVisitFun const &fun) const {
     for (auto const &term : pool_) {
         term->visit_variables(fun);
@@ -315,6 +334,10 @@ auto TermAbs::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
     return transform_construct_shared<TermAbs, Term>(Trans{pool_, fun});
 }
+
+/*
+auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
+*/
 
 ////////// TermFunction //////////
 
@@ -346,7 +369,10 @@ auto TermFunction::unpool() const -> std::optional<STermVec> {
                 [](STerm const &term) -> std::optional<TupleVec> {
                     return map_opt_vec(term->unpool(), [](auto term) { return TupleElem{std::move(term)}; });
                 },
-                [](std::monostate x) -> std::optional<TupleVec> { return std::nullopt; });
+                [](std::monostate x) -> std::optional<TupleVec> {
+                    static_cast<void>(x);
+                    return std::nullopt;
+                });
         });
     });
 
@@ -385,8 +411,6 @@ auto TermFunction::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm>
     return transform_construct_shared<TermFunction, Term>(name_, Trans{pool_, fun}, external_);
 }
 
-auto TermFunction::type() const -> TermType { return TermType::TermFunction; }
-
 auto TermFunction::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::atom) {
         return !external_;
@@ -400,6 +424,10 @@ auto TermFunction::check_type(TermCheckType type, CheckTypeResult *res) const ->
     }
     return false;
 }
+
+/*
+auto TermFunction::type() const -> TermType { return TermType::TermFunction; }
+*/
 
 ////////// TermUnary //////////
 
@@ -427,6 +455,28 @@ auto TermUnary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     return transform_construct_shared<TermUnary, Term>(op_, Trans{rhs_, fun});
 }
 
+auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
+    if (type == TermCheckType::atom) {
+        return op_ == UnaryOperator::negate && rhs_->check_type(type);
+    }
+    if (type == TermCheckType::signed_identifier && op_ == UnaryOperator::negate &&
+        rhs_->check_type(TermCheckType::identifier, res)) {
+        if (res != nullptr) {
+            res->has_sign = true;
+        }
+        return true;
+    }
+    return false;
+}
+
+void TermUnary::visit_variables(VarVisitFun const &fun) const { rhs_->visit_variables(fun); }
+
+auto TermUnary::project(Projection project) const -> std::optional<STerm> {
+    static_cast<void>(project);
+    return std::nullopt;
+}
+
+/*
 auto TermUnary::type() const -> TermType { return TermType::TermUnary; }
 
 auto TermUnary::get_int(Attribute attr) -> int & {
@@ -450,29 +500,70 @@ auto TermUnary::get_ast(Attribute attr) -> STerm & {
         }
     }
 }
-
-auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    if (type == TermCheckType::atom) {
-        return op_ == UnaryOperator::negate && rhs_->check_type(type);
-    }
-    if (type == TermCheckType::signed_identifier && op_ == UnaryOperator::negate &&
-        rhs_->check_type(TermCheckType::identifier, res)) {
-        if (res != nullptr) {
-            res->has_sign = true;
-        }
-        return true;
-    }
-    return false;
-}
-
-void TermUnary::visit_variables(VarVisitFun const &fun) const { rhs_->visit_variables(fun); }
-
-auto TermUnary::project(Projection project) const -> std::optional<STerm> {
-    static_cast<void>(project);
-    return std::nullopt;
-}
+*/
 
 ////////// TermBinary //////////
+
+namespace {
+
+auto priority(UnaryOperator op) -> unsigned int {
+    static_cast<void>(op);
+    return 6; // NOLINT
+}
+
+enum class Associtativity { left, right };
+
+auto associativity(BinaryOperator op) {
+    switch (op) {
+        case BinaryOperator::dots:
+        case BinaryOperator::xor_:
+        case BinaryOperator::or_:
+        case BinaryOperator::and_:
+        case BinaryOperator::plus:
+        case BinaryOperator::minus:
+        case BinaryOperator::times:
+        case BinaryOperator::div:
+        case BinaryOperator::mod: {
+            return Associtativity::left;
+        }
+        case BinaryOperator::pow: {
+            break;
+        }
+    }
+    return Associtativity::left;
+}
+
+auto priority(BinaryOperator op) -> unsigned int {
+    switch (op) {
+        case BinaryOperator::dots: {
+            return 0;
+        }
+        case BinaryOperator::xor_: {
+            return 1;
+        }
+        case BinaryOperator::or_: {
+            return 2;
+        }
+        case BinaryOperator::and_: {
+            return 3;
+        }
+        case BinaryOperator::plus:
+        case BinaryOperator::minus: {
+            return 4;
+        }
+        case BinaryOperator::times:
+        case BinaryOperator::div:
+        case BinaryOperator::mod: {
+            return 5; // NOLINT
+        }
+        case BinaryOperator::pow: {
+            break;
+        }
+    }
+    return 7; // NOLINT
+}
+
+} // namespace
 
 auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
     switch (op) {
@@ -537,6 +628,30 @@ auto TermBinary::unpool() const -> std::optional<STermVec> {
         [](STerm const &term) { return term->unpool(); }, lhs_, rhs_);
 }
 
+auto TermBinary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
+    if (type == TermCheckType::sig) {
+        return op_ == BinaryOperator::div && lhs_->check_type(TermCheckType::signed_identifier, res) &&
+               rhs_->check_type(TermCheckType::pos_number, res);
+    }
+    return false;
+}
+
+void TermBinary::visit_variables(VarVisitFun const &fun) const {
+    lhs_->visit_variables(fun);
+    rhs_->visit_variables(fun);
+}
+
+auto TermBinary::project(Projection project) const -> std::optional<STerm> {
+    static_cast<void>(project);
+    return std::nullopt;
+}
+
+auto TermBinary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
+    auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
+    return transform_construct_shared<TermBinary, Term>(Trans{lhs_, fun}, op_, Trans{rhs_, fun});
+}
+
+/*
 auto TermBinary::type() const -> TermType { return TermType::TermBinary; }
 
 auto TermBinary::get_int(Attribute attr) -> int & {
@@ -563,26 +678,4 @@ auto TermBinary::get_ast(Attribute attr) -> STerm & {
         }
     }
 }
-
-auto TermBinary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    if (type == TermCheckType::sig) {
-        return op_ == BinaryOperator::div && lhs_->check_type(TermCheckType::signed_identifier, res) &&
-               rhs_->check_type(TermCheckType::pos_number, res);
-    }
-    return false;
-}
-
-void TermBinary::visit_variables(VarVisitFun const &fun) const {
-    lhs_->visit_variables(fun);
-    rhs_->visit_variables(fun);
-}
-
-auto TermBinary::project(Projection project) const -> std::optional<STerm> {
-    static_cast<void>(project);
-    return std::nullopt;
-}
-
-auto TermBinary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
-    return transform_construct_shared<TermBinary, Term>(Trans{lhs_, fun}, op_, Trans{rhs_, fun});
-}
+*/

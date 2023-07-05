@@ -216,7 +216,7 @@ struct statement_show {
         [](auto begin, STerm term, auto end, lexy::nullopt) -> SStatement {
             CheckTypeResult res;
             if (term->check_type(TermCheckType::sig, &res)) {
-                // Note that parsing via the range input does not pass thestate
+                // Note that parsing via the range input does not pass the state
                 // to the whitespace parser, which is exactly as intended here.
                 auto input = lexy::range_input<encoding, decltype(begin)>{begin, end};
                 if (lexy::match<is_signature>(input)) {
@@ -226,6 +226,8 @@ struct statement_show {
             return construct_shared<StatementShow, Statement>(std::move(term), SBodyLiteralVec{});
         },
         [](auto begin, STerm term, auto end, SBodyLiteralVec body) -> SStatement {
+            static_cast<void>(begin);
+            static_cast<void>(end);
             return construct_shared<StatementShow, Statement>(std::move(term), std::move(body));
         });
 };
