@@ -238,6 +238,14 @@ struct sign_classical {
     static constexpr auto value = lexy::callback<bool>([](lexy::nullopt) { return false; }, []() { return true; });
 };
 
+struct symbolic_atom {
+    static constexpr char const *name = "symbolic atom";
+    static constexpr auto rule = dsl::opt(LEXY_LIT("-")) + dsl::p<term_function>;
+    static constexpr auto value = lexy::callback<STerm>(
+        [](STerm term) { return construct_shared<TermUnary, Term>(UnaryOperator::negate, std::move(term)); },
+        [](lexy::nullopt, STerm term) { return term; });
+};
+
 struct statement_defined {
     static constexpr char const *name = "defined directive";
     static constexpr auto rule = []() {
@@ -266,10 +274,9 @@ struct statement_heuristic {
     static constexpr char const *name = "heuristic directive";
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#heuristic", keyword_base);
-        auto atom = dsl::p<sign_classical> + dsl::p<term_function>;
         auto tuple =
             square_bracketed_end(dsl::p<term> + dsl::if_(dsl::at_sign >> dsl::p<term>) + dsl::comma + dsl::p<term>);
-        return kw >> atom + dsl::p<statement_opt_body> + eos + tuple;
+        return kw >> dsl::p<symbolic_atom> + dsl::p<statement_opt_body> + eos + tuple;
     }();
     static constexpr auto value = lexy::new_<StatementHeuristic, SStatement>;
 };

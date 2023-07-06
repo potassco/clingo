@@ -352,16 +352,14 @@ class StatementEdge : public Statement {
 
 class StatementHeuristic : public Statement {
   public:
-    explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, std::optional<STerm> prio,
-                                STerm mod)
+    explicit StatementHeuristic(STerm atom, SBodyLiteralVec body, STerm type, std::optional<STerm> prio, STerm mod)
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
-          mod_(std::move(mod)), has_sign_{has_sign} {}
-    explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm prio, STerm mod)
+          mod_(std::move(mod)) {}
+    explicit StatementHeuristic(STerm atom, SBodyLiteralVec body, STerm type, STerm prio, STerm mod)
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
-          mod_(std::move(mod)), has_sign_{has_sign} {}
-    explicit StatementHeuristic(bool has_sign, STerm atom, SBodyLiteralVec body, STerm type, STerm mod)
-        : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), mod_(std::move(mod)),
-          has_sign_{has_sign} {}
+          mod_(std::move(mod)) {}
+    explicit StatementHeuristic(STerm atom, SBodyLiteralVec body, STerm type, STerm mod)
+        : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), mod_(std::move(mod)) {}
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
@@ -377,7 +375,6 @@ class StatementHeuristic : public Statement {
     STerm type_;
     std::optional<STerm> prio_;
     STerm mod_;
-    bool has_sign_;
 };
 
 enum class ScriptType {

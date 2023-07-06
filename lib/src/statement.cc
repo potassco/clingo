@@ -623,8 +623,7 @@ auto StatementEdge::rewrite_anonymous() const -> std::optional<SStatement> {
 ////////// StatementHeuristic //////////
 
 void StatementHeuristic::print(std::ostream &out) const {
-    out << "#heuristic " << (has_sign_ ? "-" : "") << *atom_ << (body_.empty() ? "" : ": ") << p_range(body_, "; ")
-        << ". [" << *type_;
+    out << "#heuristic " << *atom_ << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ". [" << *type_;
     if (prio_) {
         out << "@" << *prio_.value();
     }
@@ -633,9 +632,9 @@ void StatementHeuristic::print(std::ostream &out) const {
 
 auto StatementHeuristic::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
-        [this](auto atom, auto body, auto type, auto prio, auto mod) {
-            return construct_shared<StatementHeuristic, Statement>(has_sign_, std::move(atom), std::move(body),
-                                                                   std::move(type), std::move(prio), std::move(mod));
+        [](auto atom, auto body, auto type, auto prio, auto mod) {
+            return construct_shared<StatementHeuristic, Statement>(std::move(atom), std::move(body), std::move(type),
+                                                                   std::move(prio), std::move(mod));
         },
         StatementUnpool{}, atom_, body_, type_, prio_, mod_);
 }
@@ -648,14 +647,14 @@ void StatementHeuristic::visit_variables(VarVisitFun const &fun, VariableContext
 
 auto StatementHeuristic::project() const -> std::optional<SStatement> {
     return project_body_with(this, body_, true, [&](auto body) {
-        return construct_shared<StatementHeuristic, Statement>(has_sign_, atom_, std::move(body), type_, prio_, mod_);
+        return construct_shared<StatementHeuristic, Statement>(atom_, std::move(body), type_, prio_, mod_);
     });
 }
 
 auto StatementHeuristic::rewrite_anonymous() const -> std::optional<SStatement> {
     RewriteAnonymousStm fun{*this};
     return transform_construct_shared<StatementHeuristic, Statement>(
-        has_sign_, Trans{atom_, fun}, Trans{body_, fun}, Trans{type_, fun}, Trans{prio_, fun}, Trans{mod_, fun});
+        Trans{atom_, fun}, Trans{body_, fun}, Trans{type_, fun}, Trans{prio_, fun}, Trans{mod_, fun});
 }
 
 ////////// StatementScript //////////
