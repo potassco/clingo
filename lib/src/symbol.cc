@@ -26,16 +26,21 @@ auto operator<<(std::ostream &out, QuotedString const &sym) -> std::ostream & {
 }
 
 auto Function::hash() const -> size_t {
-    size_t hash = std::hash<std::string>{}(name);
+    auto hash = hash_combine(std::hash<bool>{}(has_sign), std::hash<std::string>{}(name));
     for (auto const &value : args) {
         hash = hash_combine(hash, std::hash<Symbol>{}(value));
     }
     return hash;
 }
 
-auto operator==(Function const &a, Function const &b) -> bool { return value_equal(a.name, b.name, a.args, b.args); }
+auto operator==(Function const &a, Function const &b) -> bool {
+    return value_equal(a.has_sign, b.has_sign, a.name, b.name, a.args, b.args);
+}
 
 auto operator<<(std::ostream &out, Function const &sym) -> std::ostream & {
+    if (sym.has_sign) {
+        out << "-";
+    }
     out << sym.name;
     if (!sym.args.empty() || sym.name.empty()) {
         bool comma = sym.name.empty() && sym.args.size() == 1;
@@ -47,4 +52,26 @@ auto operator<<(std::ostream &out, Function const &sym) -> std::ostream & {
 auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
     std::visit([&](auto &&value) { out << value; }, sym);
     return out;
+}
+
+namespace {
+
+auto has_sign(Function const &fun) -> bool { return fun.has_sign; }
+
+auto has_sign(int num) -> bool { return num < 0; }
+
+auto has_sign(QuotedString str) -> bool {
+    static_cast<void>(str);
+    return false;
+}
+
+auto has_sign(Constant cst) -> bool {
+    static_cast<void>(cst);
+    return false;
+}
+
+} // namespace
+
+auto has_sign(Symbol const &sym) -> bool {
+    return std::visit([](auto &&symbol) { return has_sign(symbol); }, sym);
 }

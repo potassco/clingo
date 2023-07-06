@@ -22,20 +22,20 @@ TEST_CASE("parse_head_literal") {
     REQUIRE(to_str(parse_head_literal("a{}")) == "a <= { }");
     REQUIRE(to_str(parse_head_literal("a#count{}")) == "a <= #count { }");
     // term aggregate
-    REQUIRE(to_str(parse_head_literal("a+1 { }")) == "(a+1) <= { }");
-    REQUIRE(to_str(parse_head_literal("a+1#count{}")) == "(a+1) <= #count { }");
+    REQUIRE(to_str(parse_head_literal("a+1 { }")) == "a+1 <= { }");
+    REQUIRE(to_str(parse_head_literal("a+1#count{}")) == "a+1 <= #count { }");
     // term relation aggregate
-    REQUIRE(to_str(parse_head_literal("a+1<{}")) == "(a+1) < { }");
-    REQUIRE(to_str(parse_head_literal("a+1<#count{}")) == "(a+1) < #count { }");
+    REQUIRE(to_str(parse_head_literal("a+1<{}")) == "a+1 < { }");
+    REQUIRE(to_str(parse_head_literal("a+1<#count{}")) == "a+1 < #count { }");
     // term relation term ...
-    REQUIRE(to_str(parse_head_literal("a+1<b<c")) == "(a+1)<b<c");
-    REQUIRE(to_str(parse_head_literal("a+1<a:a")) == "(a+1)<a: a");
-    REQUIRE(to_str(parse_head_literal("a+1<a:a;a")) == "(a+1)<a: a; a");
-    REQUIRE(to_str(parse_head_literal("a+1<a,a")) == "(a+1)<a; a");
+    REQUIRE(to_str(parse_head_literal("a+1<b<c")) == "a+1<b<c");
+    REQUIRE(to_str(parse_head_literal("a+1<a:a")) == "a+1<a: a");
+    REQUIRE(to_str(parse_head_literal("a+1<a:a;a")) == "a+1<a: a; a");
+    REQUIRE(to_str(parse_head_literal("a+1<a,a")) == "a+1<a; a");
     REQUIRE(to_str(parse_head_literal("a+1<>a,a")) == "<failed>");
     // atom ...
-    REQUIRE(to_str(parse_head_literal("-a")) == "(-a)");
-    REQUIRE(to_str(parse_head_literal("-a(X)")) == "(-a(X))");
+    REQUIRE(to_str(parse_head_literal("-a")) == "-a");
+    REQUIRE(to_str(parse_head_literal("-a(X)")) == "-a(X)");
     REQUIRE(to_str(parse_head_literal("a:a")) == "a: a");
     REQUIRE(to_str(parse_head_literal("a:a;a")) == "a: a; a");
     REQUIRE(to_str(parse_head_literal("a,b")) == "a; b");

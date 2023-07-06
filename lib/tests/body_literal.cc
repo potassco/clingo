@@ -24,17 +24,17 @@ TEST_CASE("parse_body_literal") {
     REQUIRE(to_str(parse_body_literal("a{}")) == "a <= { }");
     REQUIRE(to_str(parse_body_literal("a#count{}")) == "a <= #count { }");
     // term aggregate
-    REQUIRE(to_str(parse_body_literal("a+1{}")) == "(a+1) <= { }");
-    REQUIRE(to_str(parse_body_literal("a+1#count{}")) == "(a+1) <= #count { }");
+    REQUIRE(to_str(parse_body_literal("a+1{}")) == "a+1 <= { }");
+    REQUIRE(to_str(parse_body_literal("a+1#count{}")) == "a+1 <= #count { }");
     // term relation aggregate
-    REQUIRE(to_str(parse_body_literal("a+1<{}")) == "(a+1) < { }");
-    REQUIRE(to_str(parse_body_literal("a+1<#count{}")) == "(a+1) < #count { }");
+    REQUIRE(to_str(parse_body_literal("a+1<{}")) == "a+1 < { }");
+    REQUIRE(to_str(parse_body_literal("a+1<#count{}")) == "a+1 < #count { }");
     // term relation term ...
-    REQUIRE(to_str(parse_body_literal("a+1<b<c")) == "(a+1)<b<c");
-    REQUIRE(to_str(parse_body_literal("a+1<a:a")) == "(a+1)<a: a");
+    REQUIRE(to_str(parse_body_literal("a+1<b<c")) == "a+1<b<c");
+    REQUIRE(to_str(parse_body_literal("a+1<a:a")) == "a+1<a: a");
     // atom ...
-    REQUIRE(to_str(parse_body_literal("-a")) == "(-a)");
-    REQUIRE(to_str(parse_body_literal("-a(X)")) == "(-a(X))");
+    REQUIRE(to_str(parse_body_literal("-a")) == "-a");
+    REQUIRE(to_str(parse_body_literal("-a(X)")) == "-a(X)");
     REQUIRE(to_str(parse_body_literal("a:b,c")) == "a: b, c");
     // aggregates with guards
     REQUIRE(to_str(parse_body_literal("a<{}<b")) == "a < { } < b");

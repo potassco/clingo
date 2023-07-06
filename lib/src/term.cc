@@ -32,6 +32,61 @@ auto projectable(Projection project, STerm const *term) -> bool {
     return var != nullptr && project.projectable(var->name());
 }
 
+auto associativity(BinaryOperator op) {
+    switch (op) {
+        case BinaryOperator::dots:
+        case BinaryOperator::xor_:
+        case BinaryOperator::or_:
+        case BinaryOperator::and_:
+        case BinaryOperator::plus:
+        case BinaryOperator::minus:
+        case BinaryOperator::times:
+        case BinaryOperator::div:
+        case BinaryOperator::mod: {
+            return Position::left;
+        }
+        case BinaryOperator::pow: {
+            break;
+        }
+    }
+    return Position::right;
+}
+
+auto priority(BinaryOperator op) -> unsigned int {
+    switch (op) {
+        case BinaryOperator::dots: {
+            return 1;
+        }
+        case BinaryOperator::xor_: {
+            return 2;
+        }
+        case BinaryOperator::or_: {
+            return 3;
+        }
+        case BinaryOperator::and_: {
+            return 4;
+        }
+        case BinaryOperator::plus:
+        case BinaryOperator::minus: {
+            return 5; // NOLINT
+        }
+        case BinaryOperator::times:
+        case BinaryOperator::div:
+        case BinaryOperator::mod: {
+            return 6; // NOLINT
+        }
+        case BinaryOperator::pow: {
+            break;
+        }
+    }
+    return 8; // NOLINT
+}
+
+auto priority(UnaryOperator op) -> unsigned int {
+    static_cast<void>(op);
+    return priority(BinaryOperator::times) + 1;
+}
+
 } // namespace
 
 auto NameGen::new_name() -> std::string {
@@ -51,6 +106,9 @@ auto Projection::projectable(std::string const &var) const -> bool {
 
 [[nodiscard]] auto Projection::counts() const -> std::unordered_map<std::string, size_t> const & { return counts_; }
 
+void Term::print(std::ostream &out) const { do_print(out, false, 0, Position::none); }
+
+/*
 auto operator<<(std::ostream &out, TermType type) -> std::ostream & {
     static_cast<void>(type);
     out << "TODO: type";
@@ -62,7 +120,7 @@ auto operator<<(std::ostream &out, Attribute attr) -> std::ostream & {
     out << "TODO: attr";
     return out;
 }
-
+*/
 auto Term::to_string() const -> std::string {
     std::ostringstream out;
     out << *this;
@@ -108,7 +166,17 @@ auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
 
 ////////// TermSymbol //////////
 
-void TermSymbol::print(std::ostream &out) const { out << value_; }
+void TermSymbol::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
+    static_cast<void>(prio);
+    static_cast<void>(pos);
+    char const *lp = "";
+    char const *rp = "";
+    if (no_leading_op && has_sign(value_)) {
+        lp = "(";
+        rp = "(";
+    }
+    out << lp << value_ << rp;
+}
 
 auto TermSymbol::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     return visit_variant(
@@ -179,9 +247,9 @@ auto TermSymbol::get_int(Attribute attr) -> int & {
 
 ////////// TermTuple //////////
 
-void TermTuple::print(std::ostream &out) const {
+void TermTuple::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
     if (pool_.size() == 1 && std::holds_alternative<STerm>(pool_.front())) {
-        std::get<STerm>(pool_.front())->print(out);
+        std::get<STerm>(pool_.front())->do_print(out, no_leading_op, prio, pos);
     } else {
         out << "(" << p_range_with(pool_, ";", [](std::ostream &out, auto const &term_or_tuple) {
             visit_variant(
@@ -270,7 +338,12 @@ auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
 
 auto TermVariable::name() const -> std::string const & { return name_; }
 
-void TermVariable::print(std::ostream &out) const { out << name_; }
+void TermVariable::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
+    static_cast<void>(no_leading_op);
+    static_cast<void>(prio);
+    static_cast<void>(pos);
+    out << name_;
+}
 
 auto TermVariable::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermVariable const *>(&other);
@@ -301,7 +374,12 @@ auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
 
 ////////// TermAbs //////////
 
-void TermAbs::print(std::ostream &out) const { out << "|" << p_range(pool_, ";") << "|"; }
+void TermAbs::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
+    static_cast<void>(no_leading_op);
+    static_cast<void>(prio);
+    static_cast<void>(pos);
+    out << "|" << p_range(pool_, ";") << "|";
+}
 
 auto TermAbs::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermAbs const *>(&other);
@@ -341,7 +419,10 @@ auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
 
 ////////// TermFunction //////////
 
-void TermFunction::print(std::ostream &out) const {
+void TermFunction::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
+    static_cast<void>(no_leading_op);
+    static_cast<void>(prio);
+    static_cast<void>(pos);
     if (external_) {
         out << "@";
     }
@@ -436,7 +517,20 @@ auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
     return out;
 }
 
-void TermUnary::print(std::ostream &out) const { out << "(" << op_ << *rhs_ << ")"; }
+void TermUnary::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
+    static_cast<void>(pos);
+    char const *lp = "";
+    char const *rp = "";
+    // No need to consider associativity/position because the unary priority is
+    // different from all binary ones.
+    if (no_leading_op || (priority(op_) < prio)) {
+        lp = "(";
+        rp = ")";
+    }
+    out << lp << op_;
+    rhs_->do_print(out, true, priority(op_), Position::none);
+    out << rp;
+}
 
 auto TermUnary::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermUnary const *>(&other);
@@ -504,67 +598,6 @@ auto TermUnary::get_ast(Attribute attr) -> STerm & {
 
 ////////// TermBinary //////////
 
-namespace {
-
-auto priority(UnaryOperator op) -> unsigned int {
-    static_cast<void>(op);
-    return 6; // NOLINT
-}
-
-enum class Associtativity { left, right };
-
-auto associativity(BinaryOperator op) {
-    switch (op) {
-        case BinaryOperator::dots:
-        case BinaryOperator::xor_:
-        case BinaryOperator::or_:
-        case BinaryOperator::and_:
-        case BinaryOperator::plus:
-        case BinaryOperator::minus:
-        case BinaryOperator::times:
-        case BinaryOperator::div:
-        case BinaryOperator::mod: {
-            return Associtativity::left;
-        }
-        case BinaryOperator::pow: {
-            break;
-        }
-    }
-    return Associtativity::left;
-}
-
-auto priority(BinaryOperator op) -> unsigned int {
-    switch (op) {
-        case BinaryOperator::dots: {
-            return 0;
-        }
-        case BinaryOperator::xor_: {
-            return 1;
-        }
-        case BinaryOperator::or_: {
-            return 2;
-        }
-        case BinaryOperator::and_: {
-            return 3;
-        }
-        case BinaryOperator::plus:
-        case BinaryOperator::minus: {
-            return 4;
-        }
-        case BinaryOperator::times:
-        case BinaryOperator::div:
-        case BinaryOperator::mod: {
-            return 5; // NOLINT
-        }
-        case BinaryOperator::pow: {
-            break;
-        }
-    }
-    return 7; // NOLINT
-}
-
-} // namespace
-
 auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
     switch (op) {
         case BinaryOperator::dots: {
@@ -611,7 +644,21 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
     return out;
 }
 
-void TermBinary::print(std::ostream &out) const { out << "(" << *lhs_ << op_ << *rhs_ << ")"; }
+void TermBinary::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
+    char const *lp = "";
+    char const *rp = "";
+    // We assume that operators with the same priority have the associativity.
+    if (priority(op_) < prio || (prio == priority(op_) && associativity(op_) != pos)) {
+        lp = "(";
+        rp = ")";
+        no_leading_op = false;
+    }
+    out << lp;
+    lhs_->do_print(out, no_leading_op, priority(op_), Position::left);
+    out << op_;
+    rhs_->do_print(out, true, priority(op_), Position::right);
+    out << rp;
+}
 
 auto TermBinary::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermBinary const *>(&other);

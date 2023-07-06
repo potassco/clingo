@@ -37,11 +37,14 @@ class Function {
     friend auto operator==(Function const &a, Function const &b) -> bool;
     friend auto operator<<(std::ostream &out, Function const &sym) -> std::ostream &;
 
+    bool has_sign = false;
     std::string const name;
     SymVec const args;
 };
 
 auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
+
+[[nodiscard]] auto has_sign(Symbol const &sym) -> bool;
 
 HASH(QuotedString)
 HASH(Function)

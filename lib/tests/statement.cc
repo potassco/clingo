@@ -44,8 +44,8 @@ TEST_CASE("parse_statement") {
     // show
     REQUIRE(to_str(parse_statement("#show a/2.")) == "#show a/2.");
     REQUIRE(to_str(parse_statement("#show -a/2.")) == "#show -a/2.");
-    REQUIRE(to_str(parse_statement("#show (-a/2).")) == "#show ((-a)/2): .");
-    REQUIRE(to_str(parse_statement("#show (-a()/2).")) == "#show ((-a)/2): .");
+    REQUIRE(to_str(parse_statement("#show (-a/2).")) == "#show (-a/2): .");
+    REQUIRE(to_str(parse_statement("#show (-a()/2).")) == "#show (-a/2): .");
     REQUIRE(to_str(parse_statement("#show p(X).")) == "#show p(X): .");
     REQUIRE(to_str(parse_statement("#show p(X): .")) == "#show p(X): .");
     REQUIRE(to_str(parse_statement("#show p(X): a.")) == "#show p(X): a.");
@@ -82,7 +82,7 @@ TEST_CASE("parse_statement") {
 
     // external
     REQUIRE(to_str(parse_statement("#external a(X): b(X).")) == "#external a(X): b(X).");
-    REQUIRE(to_str(parse_statement("#external -a(X): b(X).")) == "#external (-a(X)): b(X).");
+    REQUIRE(to_str(parse_statement("#external -a(X): b(X).")) == "#external -a(X): b(X).");
     REQUIRE(to_str(parse_statement("#external a(X): b(X). [X]")) == "#external a(X): b(X). [X]");
 
     // include

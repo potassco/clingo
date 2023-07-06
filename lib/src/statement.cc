@@ -430,7 +430,15 @@ auto StatementWeakConstraint::rewrite_anonymous() const -> std::optional<SStatem
 
 ////////// StatementShow //////////
 
-void StatementShow::print(std::ostream &out) const { out << "#show " << *term_ << ": " << p_range(body_, "; ") << "."; }
+void StatementShow::print(std::ostream &out) const {
+    char const *lp = "";
+    char const *rp = "";
+    if (term_->check_type(TermCheckType::sig, nullptr)) {
+        lp = "(";
+        rp = ")";
+    }
+    out << "#show " << lp << *term_ << rp << ": " << p_range(body_, "; ") << ".";
+}
 
 auto StatementShow::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(

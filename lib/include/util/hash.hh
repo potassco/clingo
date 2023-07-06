@@ -78,6 +78,11 @@ inline auto hash_combine(size_t a, size_t b) -> size_t {
     return std::hash<std::string_view>{}(std::string_view(buf.begin(), buf.end()));
 }
 
+inline auto hash_combine(std::initializer_list<size_t> list) -> size_t {
+    return std::hash<std::string_view>{}(
+        std::string_view(reinterpret_cast<char const *>(list.begin()), sizeof(size_t) * list.size()));
+}
+
 template <class T> inline auto value_hash(T const &value) -> size_t { return std::hash<T>{}(value); }
 
 inline auto value_hash(std::type_info const &value) -> size_t { return value.hash_code(); }
@@ -131,7 +136,9 @@ struct value_hasher {
     template <class T> auto operator()(T const &value) const -> size_t { return value_hash(value); }
 };
 
-template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+template <class... Ts> struct overloaded : Ts... {
+    using Ts::operator()...;
+};
 
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 

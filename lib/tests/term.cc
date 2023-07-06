@@ -7,10 +7,10 @@ namespace test {
 TEST_CASE("parse_term") {
     REQUIRE(to_str(parse_term("42")) == "42");
     REQUIRE(to_str(parse_term("f")) == "f");
-    REQUIRE(to_str(parse_term("f(  )+5")) == "(f+5)");
+    REQUIRE(to_str(parse_term("f(  )+5")) == "f+5");
     REQUIRE(to_str(parse_term("f(1)")) == "f(1)");
     REQUIRE(to_str(parse_term("f ( 1 , 2 ; 4 )")) == "f(1,2;4)");
-    REQUIRE(to_str(parse_term("1 + f")) == "(1+f)");
+    REQUIRE(to_str(parse_term("1 + f")) == "1+f");
     REQUIRE(to_str(parse_term("@f(1,2)")) == "@f(1,2)");
     REQUIRE(to_str(parse_term("|42|")) == "|42|");
     REQUIRE(to_str(parse_term("||42||")) == "||42||");
@@ -25,6 +25,14 @@ TEST_CASE("parse_term") {
     REQUIRE(to_str(parse_term("(a,;a)")) == "(a,;a)");
     REQUIRE(to_str(parse_term("f(;)")) == "f(;)");
     REQUIRE(to_str(parse_term("f(\"x\")")) == "f(\"x\")");
+    REQUIRE(to_str(parse_term("a+b+c")) == "a+b+c");
+    REQUIRE(to_str(parse_term("a*b+c")) == "a*b+c");
+    REQUIRE(to_str(parse_term("a+b*c")) == "a+b*c");
+    REQUIRE(to_str(parse_term("a**b**c")) == "a**b**c");
+    REQUIRE(to_str(parse_term("a+(-b)")) == "a+(-b)");
+    REQUIRE(to_str(parse_term("-a+b")) == "-a+b");
+    REQUIRE(to_str(parse_term("-a**b")) == "-a**b");
+    REQUIRE(to_str(parse_term("(-a)**b")) == "(-a)**b");
 }
 
 TEST_CASE("unpool_term") {
@@ -32,10 +40,10 @@ TEST_CASE("unpool_term") {
     REQUIRE(unpool_str(parse_term("42")) == "[42]");
     REQUIRE(unpool_str(parse_term("(1;2)")) == "[1, 2]");
     REQUIRE(unpool_str(parse_term("f(1;2)")) == "[f(1), f(2)]");
-    REQUIRE(unpool_str(parse_term("-(1;2)")) == "[(-1), (-2)]");
+    REQUIRE(unpool_str(parse_term("-(1;2)")) == "[-1, -2]");
     REQUIRE(unpool_str(parse_term("((1;2);(3;4))")) == "[1, 2, 3, 4]");
     REQUIRE(unpool_str(parse_term("((1;2),(3;4))")) == "[(1,3), (2,3), (1,4), (2,4)]");
-    REQUIRE(unpool_str(parse_term("(1;2)+(3;4)")) == "[(1+3), (1+4), (2+3), (2+4)]");
+    REQUIRE(unpool_str(parse_term("(1;2)+(3;4)")) == "[1+3, 1+4, 2+3, 2+4]");
     REQUIRE(unpool_str(parse_term("|(1;2);3|")) == "[|1|, |2|, |3|]");
     REQUIRE(unpool_str(parse_term("|1;2;3|")) == "[|1|, |2|, |3|]");
 }

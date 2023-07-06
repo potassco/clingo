@@ -20,6 +20,9 @@ struct CheckTypeResult {
     std::string identifier;
 };
 
+enum class Position { left, right, none };
+
+/*
 enum class TermType : int {
     TermSymbol,
     TermTuple,
@@ -42,6 +45,7 @@ enum class Attribute : int {
 
 auto operator<<(std::ostream &out, TermType type) -> std::ostream &;
 auto operator<<(std::ostream &out, Attribute attr) -> std::ostream &;
+*/
 
 class Term;
 using STerm = shared_ptr<Term>;
@@ -104,7 +108,8 @@ class Term {
   public:
     virtual ~Term() = default;
 
-    virtual void print(std::ostream &out) const = 0;
+    void print(std::ostream &out) const;
+    virtual void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const = 0;
     friend auto operator<<(std::ostream &out, Term const &ast) -> std::ostream &;
     [[nodiscard]] auto to_string() const -> std::string;
     [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
@@ -186,6 +191,8 @@ class Term {
         }
     };
     */
+  private:
+    friend shared_ptr<Term>;
 
     size_t refs = 0;
 };
@@ -194,7 +201,7 @@ class TermSymbol : public Term {
   public:
     explicit TermSymbol(Symbol value) : value_{std::move(value)} {}
 
-    void print(std::ostream &out) const override;
+    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
@@ -220,7 +227,7 @@ class TermTuple : public Term {
 
     explicit TermTuple(ElementVec args) : pool_{std::move(args)} {}
 
-    void print(std::ostream &out) const override;
+    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -243,7 +250,7 @@ class TermVariable : public Term {
 
     [[nodiscard]] auto name() const -> std::string const &;
 
-    void print(std::ostream &out) const override;
+    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -263,7 +270,7 @@ class TermAbs : public Term {
   public:
     explicit TermAbs(STermVec pool) : pool_{std::move(pool)} {}
 
-    void print(std::ostream &out) const override;
+    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -285,7 +292,7 @@ class TermFunction : public Term {
     explicit TermFunction(std::string name, PoolVec args, bool external)
         : name_(std::move(name)), pool_{std::move(args)}, external_{external} {}
 
-    void print(std::ostream &out) const override;
+    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
@@ -316,7 +323,7 @@ class TermUnary : public Term {
   public:
     explicit TermUnary(UnaryOperator op, STerm e) : op_{op}, rhs_{std::move(e)} {}
 
-    void print(std::ostream &out) const override;
+    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
@@ -357,7 +364,7 @@ class TermBinary : public Term {
     explicit TermBinary(STerm lhs, BinaryOperator op, STerm rhs)
         : op_{op}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
 
-    void print(std::ostream &out) const override;
+    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
