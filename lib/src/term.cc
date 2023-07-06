@@ -647,7 +647,7 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
 void TermBinary::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
     char const *lp = "";
     char const *rp = "";
-    // We assume that operators with the same priority have the associativity.
+    // We assume that operators with the same priority have the same associativity.
     if (priority(op_) < prio || (prio == priority(op_) && associativity(op_) != pos)) {
         lp = "(";
         rp = ")";
