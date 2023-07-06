@@ -60,9 +60,18 @@ format:
 Makefile:
 	@:
 
+release:
+	mkdir -p build_release
+	current="$$(pwd -P)" && cd build_release && cd "$$(pwd -P)" && cmake \
+		-DCMAKE_BUILD_TYPE=release \
+		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
+		"$${current}"
+	$(MAKE) -C build_release
+	$(MAKE) -C build_release test
+
 web:
 	mkdir -p build_web
-	current="$$(pwd -P)" && cd build_web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake	\
+	current="$$(pwd -P)" && cd build_web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake \
 		-DCMAKE_BUILD_TYPE=release \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
 		-DPARSER_BUILD_WEB=On \

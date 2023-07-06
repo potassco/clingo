@@ -107,7 +107,7 @@ struct body_atom : lexy::transparent_production {
         [](STerm term, Relation rel, auto aggr) {
             auto ret = detail::construct_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), rel);
-            return std::move(ret);
+            return ret;
         },
         [](STerm lhs, Relation rel, STerm rhs, std::optional<GuardVec> opt_guards, SLiteralVec cond) {
             GuardVec guards;

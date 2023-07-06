@@ -598,7 +598,7 @@ auto StatementEdge::do_unpool() const -> std::optional<SStatementVec> {
                 ret.emplace_back(construct_shared<StatementEdge, Statement>(make_vec<Edge>(edge), body));
             }
         }
-        return std::move(ret);
+        return ret;
     }
     return std::nullopt;
 }

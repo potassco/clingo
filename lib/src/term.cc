@@ -325,7 +325,7 @@ auto TermTuple::unpool() const -> std::optional<STermVec> {
     }
     return map_opt_vec(std::move(elems), [](auto elem) -> STerm {
         return visit_variant(
-            std::move(elem), [](STerm term) { return std::move(term); },
+            std::move(elem), [](STerm term) { return term; },
             [](TupleVec tuple) { return construct_shared<TermTuple, Term>(ElementVec{std::move(tuple)}); });
     });
 }
