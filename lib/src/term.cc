@@ -289,7 +289,8 @@ auto TermTuple::project(Projection project) const -> std::optional<STerm> {
         if (projectable(project, std::get_if<STerm>(&elem))) {
             return {std::monostate{}};
         }
-        return std::nullopt;
+        auto sub = [project](STerm const &term) { return term->project(project); };
+        return transform(sub, elem);
     };
 
     return transform_construct_shared<TermTuple, Term>(Trans{pool_, fun});
@@ -491,7 +492,8 @@ auto TermFunction::project(Projection project) const -> std::optional<STerm> {
         if (projectable(project, std::get_if<STerm>(&elem))) {
             return {std::monostate{}};
         }
-        return std::nullopt;
+        auto sub = [project](STerm const &term) { return term->project(project); };
+        return transform(sub, elem);
     };
 
     return transform_construct_shared<TermFunction, Term>(name_, Trans{pool_, fun}, external_);
@@ -576,7 +578,10 @@ auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bo
 void TermUnary::visit_variables(VarVisitFun const &fun) const { rhs_->visit_variables(fun); }
 
 auto TermUnary::project(Projection project) const -> std::optional<STerm> {
-    static_cast<void>(project);
+    if (check_type(TermCheckType::atom, nullptr)) {
+        return map_opt(rhs_->project(project),
+                       [this](STerm rhs) { return construct_shared<TermUnary, Term>(op_, std::move(rhs)); });
+    }
     return std::nullopt;
 }
 
