@@ -246,7 +246,8 @@ class TermTuple : public Term {
 
 class TermVariable : public Term {
   public:
-    explicit TermVariable(std::string name) : name_{std::move(name)} {}
+    explicit TermVariable(std::string name, bool was_anonymous = false)
+        : name_{std::move(name)}, was_anonymous_{was_anonymous} {}
 
     [[nodiscard]] auto name() const -> std::string const &;
 
@@ -264,6 +265,7 @@ class TermVariable : public Term {
 
   private:
     std::string name_;
+    bool was_anonymous_;
 };
 
 class TermAbs : public Term {

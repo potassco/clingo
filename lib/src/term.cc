@@ -363,7 +363,7 @@ auto TermVariable::project(Projection project) const -> std::optional<STerm> {
 
 auto TermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     if (name_ == "_") {
-        return construct_shared<TermVariable, Term>(gen.new_name());
+        return construct_shared<TermVariable, Term>(gen.new_name(), true);
     }
     return std::nullopt;
 }
