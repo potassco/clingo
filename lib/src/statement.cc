@@ -174,6 +174,34 @@ auto Statement::project(ProjectionMode mode) const -> std::optional<SStatement> 
     return do_project(mode);
 }
 
+void rewrite(SStatement stm, RewriteOptions opts, SStatementVec &stms) {
+    if (opts.level < RewriteLevel::rewrite_anonymous) {
+        stms.emplace_back(std::move(stm));
+        return;
+    }
+    stm = stm->rewrite_anonymous().value_or(stm);
+    if (opts.level < RewriteLevel::unpool) {
+        stms.emplace_back(std::move(stm));
+        return;
+    }
+    auto rewrite_unpooled = [&opts, &stms](SStatement stm) {
+        if (opts.level < RewriteLevel::project) {
+            stms.emplace_back(std::move(stm));
+            return;
+        }
+        stm = stm->project(opts.project_mode).value_or(stm);
+        stms.emplace_back(std::move(stm));
+    };
+    auto unpooled = stm->unpool();
+    if (unpooled.has_value()) {
+        for (auto &stm : unpooled.value()) {
+            rewrite_unpooled(std::move(stm));
+        }
+    } else {
+        rewrite_unpooled(std::move(stm));
+    }
+}
+
 auto Statement::to_string() const -> std::string {
     std::ostringstream out;
     out << *this;

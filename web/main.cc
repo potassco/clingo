@@ -42,12 +42,11 @@ void discard(StreamInput<Encoding, Counting> &input, Scanner &scanner) {
     input.discard_before(scanner.position());
 }
 
-void parse(auto &&input, auto &&out) {
-    // TODO: add options for fine grained control
+void parse(RewriteOptions opts, auto &&input, auto &&output) {
     Comments comments;
     auto stateful_input = StatefulInput{input, comments};
     auto scanner = lexy::scan<grammar::control>(stateful_input, report_error);
-    // Note: skip leading whitespace
+    // skip leading whitespace
     scanner.parse(lexy::dsl::whitespace(grammar::control::whitespace));
     while (scanner && !scanner.is_at_eof()) {
         discard(input, scanner);
@@ -55,29 +54,30 @@ void parse(auto &&input, auto &&out) {
         if (res_stm.has_value()) {
             // output comments before end of statement
             for (auto &comment : comments) {
-                out << comment << "\n";
+                output << comment << "\n";
             }
             comments.clear();
-            auto stm = res_stm.value()->rewrite_anonymous().value_or(res_stm.value());
-            auto unpooled_stms = stm->unpool();
-            if (!unpooled_stms.has_value()) {
-                unpooled_stms = make_vec<SStatement>(stm);
+            // rewrite statements
+            SStatementVec stms;
+            rewrite(std::move(res_stm.value()), opts, stms);
+            for (auto const &stm : stms) {
+                output << *stm << "\n";
             }
-            for (auto &unpooled : unpooled_stms.value()) {
-                auto projected = unpooled->project(ProjectionMode::pure).value_or(unpooled);
-                out << *projected << "\n";
-            }
+        }
+        if (!scanner) {
+            recover(scanner);
         }
     }
     // print remaining comments
     comments.mark();
     for (auto &comment : comments) {
-        std::cout << comment << "\n";
+        output << comment << "\n";
     }
     comments.clear();
 };
 
 EMSCRIPTEN_KEEPALIVE
 extern "C" void run(char const *program) {
-    parse(lexy::string_input<grammar::encoding>(program, strlen(program)), std::cout);
+    auto opts = RewriteOptions{ProjectionMode::pure, RewriteLevel::project};
+    parse(opts, lexy::string_input<grammar::encoding>(program, strlen(program)), std::cout);
 }

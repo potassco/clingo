@@ -34,13 +34,11 @@ void discard(StreamInput<Encoding, Counting> &input, Scanner &scanner) {
     input.discard_before(scanner.position());
 }
 
-template <typename Input> void parse(Input &input) {
-    // TODO: add options for fine grained control
-    //       move shared code of app/web to lib
+void parse(RewriteOptions opts, auto &&input, auto &&output) {
     Comments comments;
     auto stateful_input = StatefulInput{input, comments};
     auto scanner = lexy::scan<grammar::control>(stateful_input, report_error);
-    // Note: skip leading whitespace
+    // skip leading whitespace
     scanner.parse(lexy::dsl::whitespace(grammar::control::whitespace));
     while (scanner && !scanner.is_at_eof()) {
         discard(input, scanner);
@@ -48,17 +46,14 @@ template <typename Input> void parse(Input &input) {
         if (res_stm.has_value()) {
             // output comments before end of statement
             for (auto &comment : comments) {
-                std::cout << comment << "\n";
+                output << comment << "\n";
             }
             comments.clear();
-            auto stm = res_stm.value()->rewrite_anonymous().value_or(res_stm.value());
-            auto unpooled_stms = stm->unpool();
-            if (!unpooled_stms.has_value()) {
-                unpooled_stms = make_vec<SStatement>(stm);
-            }
-            for (auto &unpooled : unpooled_stms.value()) {
-                auto projected = unpooled->project(ProjectionMode::pure).value_or(unpooled);
-                std::cout << *projected << "\n";
+            // rewrite statements
+            SStatementVec stms;
+            rewrite(std::move(res_stm.value()), opts, stms);
+            for (auto const &stm : stms) {
+                output << *stm << "\n";
             }
         }
         if (!scanner) {
@@ -68,19 +63,20 @@ template <typename Input> void parse(Input &input) {
     // print remaining comments
     comments.mark();
     for (auto &comment : comments) {
-        std::cout << comment << "\n";
+        output << comment << "\n";
     }
     comments.clear();
 };
 
 auto main(int argc, char **argv) -> int {
+    auto opts = RewriteOptions{ProjectionMode::pure, RewriteLevel::project};
     if (argc == 1) {
         auto input = StreamInput<grammar::encoding>{std::cin};
-        parse(input);
+        parse(opts, input, std::cout);
     } else {
         for (int i = 1; i < argc; ++i) {
             auto file = lexy::read_file<grammar::encoding>(argv[i]);
-            parse(file.buffer());
+            parse(opts, file.buffer(), std::cout);
         }
     }
 }

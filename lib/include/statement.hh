@@ -63,6 +63,18 @@ using SStatementVec = std::vector<SStatement>;
 // - assignment aggregates might need special consideration
 //   (the current solution to introduce auxiliary literals is bad)
 
+enum class RewriteLevel {
+    disabled = 0,
+    rewrite_anonymous = 1,
+    unpool = 2,
+    project = 3,
+};
+
+struct RewriteOptions {
+    ProjectionMode project_mode;
+    RewriteLevel level;
+};
+
 class Statement {
     friend shared_ptr<Statement>;
 
@@ -85,6 +97,8 @@ class Statement {
   private:
     size_t refs = 0;
 };
+
+void rewrite(SStatement stm, RewriteOptions opts, SStatementVec &stms);
 
 class Rule : public Statement {
   public:
