@@ -187,11 +187,8 @@ bool is_value_equal_to(T const &a, T const &b);
 template <class T>
 T hash_mix(T const &v);
 
-template <class T, class U>
-void hash_combine(U& seed, T const &v);
-
-template <class T, class H, class U>
-void hash_combine(U& seed, T const &v, H h);
+template <class T, class U, class H=std::hash<T>>
+void hash_combine(U& seed, T const &v, H h=H{});
 
 template <class T>
 size_t hash_range(T begin, T end);
@@ -543,26 +540,6 @@ inline uint64_t hash_mix(uint64_t h) {
     return h;
 }
 
-template <class T, class H>
-inline void hash_combine(uint64_t& seed, T const &v, H h) {
-    seed*= 0x87c37b91114253d5;
-    seed = (seed >> 31) | (seed << 33);
-    seed*= 0x4cf5ad432745937f;
-    seed^= h(v);
-    seed = (seed >> 27) | (seed << 37);
-    seed = seed * 5 + 0x52dce729;
-}
-
-template <class T, class H>
-inline void hash_combine(uint32_t& seed, T const &v, H h) {
-    seed*= 0xcc9e2d51;
-    seed = (seed >> 17) | (seed << 15);
-    seed*= 0x1b873593;
-    seed^= h(v);
-    seed = (seed >> 19) | (seed << 13);
-    seed = seed * 5 + 0xe6546b64;
-}
-
 template <size_t bytes> struct Select;
 template <> struct Select<4> { using Type = uint32_t; };
 template <> struct Select<8> { using Type = uint64_t; };
@@ -571,23 +548,14 @@ template <> struct Select<8> { using Type = uint64_t; };
 
 }
 
-template <class T, class U>
-void hash_combine(U& seed, T const &v) {
-    Detail::hash_combine(
-        reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
-        v, std::hash<T>());
-}
-
-template <class T, class H, class U>
-void hash_combine(U& seed, T const &v, H h) {
-    Detail::hash_combine(
-        reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
-        v, h);
+template <class T, class U, class H /*=std::hash<T>*/>
+void hash_combine(U& seed, T const &v, H h /* =H{} */) {
+    seed = hash_mix(seed + 0x9e3779b9 + h(v));
 }
 
 template <class T>
 T hash_mix(T const &v) {
-    return Detail::hash_mix(static_cast<typename Detail::Select<sizeof(T)>::Type>(v));
+    return Detail::hash_mix(static_cast<typename Detail::Select<sizeof(std::size_t)>::Type>(v));
 }
 
 template <class T>
