@@ -29,7 +29,7 @@ auto projectable(Projection project, STerm const *term) -> bool {
         return false;
     }
     auto const *var = dynamic_cast<TermVariable const *>(term->get());
-    return var != nullptr && project.projectable(var->name());
+    return var != nullptr && project.projectable(var->name(), var->is_anonymous());
 }
 
 auto associativity(BinaryOperator op) {
@@ -99,12 +99,20 @@ auto NameGen::new_name() -> std::string {
     }
 }
 
-auto Projection::projectable(std::string const &var) const -> bool {
+auto Projection::projectable(std::string const &var, bool anonymous) const -> bool {
+    if (mode_ == ProjectionMode::disabled) {
+        return false;
+    }
+    if (mode_ == ProjectionMode::anonymous && !anonymous) {
+        return false;
+    }
     auto it = counts_.find(var);
     return it != counts_.end() && it->second == 1;
 }
 
 [[nodiscard]] auto Projection::counts() const -> std::unordered_map<std::string, size_t> const & { return counts_; }
+
+auto Projection::mode() const -> ProjectionMode { return mode_; }
 
 void Term::print(std::ostream &out) const { do_print(out, false, 0, Position::none); }
 
@@ -338,6 +346,8 @@ auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
 
 auto TermVariable::name() const -> std::string const & { return name_; }
 
+auto TermVariable::is_anonymous() const -> bool { return is_anonymous_; }
+
 void TermVariable::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
     static_cast<void>(no_leading_op);
     static_cast<void>(prio);
@@ -362,7 +372,7 @@ auto TermVariable::project(Projection project) const -> std::optional<STerm> {
 }
 
 auto TermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    if (name_ == "_") {
+    if (is_anonymous_) {
         return construct_shared<TermVariable, Term>(gen.new_name(), true);
     }
     return std::nullopt;

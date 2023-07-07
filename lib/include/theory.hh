@@ -85,7 +85,8 @@ class TheoryTermVariable : public TheoryTerm {
     using Element = STheoryTerm;
     using ElementVec = std::vector<STheoryTerm>;
 
-    explicit TheoryTermVariable(std::string value) : name_{std::move(value)} {}
+    explicit TheoryTermVariable(std::string value, bool is_anonymous = false)
+        : name_{std::move(value)}, is_anonymous_{is_anonymous} {}
 
     void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun fun) const override;
@@ -93,6 +94,7 @@ class TheoryTermVariable : public TheoryTerm {
 
   private:
     std::string name_;
+    bool is_anonymous_;
 };
 
 class TheoryTermFunction : public TheoryTerm {

@@ -64,7 +64,7 @@ void parse(auto &&input, auto &&out) {
                 unpooled_stms = make_vec<SStatement>(stm);
             }
             for (auto &unpooled : unpooled_stms.value()) {
-                auto projected = unpooled->project().value_or(unpooled);
+                auto projected = unpooled->project(ProjectionMode::pure).value_or(unpooled);
                 out << *projected << "\n";
             }
         }

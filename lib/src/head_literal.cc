@@ -171,7 +171,7 @@ auto HeadAggregate::project(Projection project) const -> std::optional<SHeadLite
         // counts of local variables
         VarCounter counter{project.counts()};
         counter.add(tuple, lit, cond);
-        auto sub_project = Projection{counter};
+        auto sub_project = Projection{project.mode(), counter};
 
         // project literals in condition
         auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };

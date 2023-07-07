@@ -110,7 +110,7 @@ auto SetAggregate::project(Projection project, bool in_negative_scope) const -> 
         VarCounter counter{project.counts()};
         counter.add(lit);
         counter.add(cond);
-        auto sub_project = Projection{counter};
+        auto sub_project = Projection{project.mode(), counter};
 
         // project literals in condition
         auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };

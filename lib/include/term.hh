@@ -94,14 +94,23 @@ class NameGen {
     size_t num_ = 0;
 };
 
+enum class ProjectionMode {
+    disabled,  //! Disable projection.
+    anonymous, //! Only project anonymous variables.
+    pure,      //! Project pure variables.
+};
+
 class Projection {
   public:
-    explicit Projection(std::unordered_map<std::string, size_t> const &counts) : counts_{counts} {};
-    [[nodiscard]] auto projectable(std::string const &var) const -> bool;
+    explicit Projection(ProjectionMode mode, std::unordered_map<std::string, size_t> const &counts)
+        : counts_{counts}, mode_{mode} {};
+    [[nodiscard]] auto projectable(std::string const &var, bool anonymous) const -> bool;
     [[nodiscard]] auto counts() const -> std::unordered_map<std::string, size_t> const &;
+    [[nodiscard]] auto mode() const -> ProjectionMode;
 
   private:
     std::unordered_map<std::string, size_t> const &counts_;
+    ProjectionMode mode_;
 };
 
 class Term {
@@ -246,10 +255,11 @@ class TermTuple : public Term {
 
 class TermVariable : public Term {
   public:
-    explicit TermVariable(std::string name, bool was_anonymous = false)
-        : name_{std::move(name)}, was_anonymous_{was_anonymous} {}
+    explicit TermVariable(std::string name, bool is_anonymous = false)
+        : name_{std::move(name)}, is_anonymous_{is_anonymous} {}
 
     [[nodiscard]] auto name() const -> std::string const &;
+    [[nodiscard]] auto is_anonymous() const -> bool;
 
     void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
@@ -265,7 +275,7 @@ class TermVariable : public Term {
 
   private:
     std::string name_;
-    bool was_anonymous_;
+    bool is_anonymous_;
 };
 
 class TermAbs : public Term {

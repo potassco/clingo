@@ -233,7 +233,8 @@ static constexpr auto anonymous_variable =
 struct term_anonymous_variable {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = anonymous_variable;
-    static constexpr auto value = lexy::callback<STerm>([]() { return construct_shared<TermVariable, Term>("_"); });
+    static constexpr auto value =
+        lexy::callback<STerm>([]() { return construct_shared<TermVariable, Term>("_", true); });
 };
 
 struct term_rec : lexy::expression_production {

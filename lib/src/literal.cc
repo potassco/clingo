@@ -119,8 +119,6 @@ void LiteralRelation::print(std::ostream &out) const {
 
 void LiteralRelation::add_sign(Sign s) { sign_ += s; }
 
-#include <iostream>
-
 auto LiteralRelation::unpool() const -> std::optional<SLiteralVec> {
     return unpool_crossproducts(
         [this](auto lhs, auto rhs) {

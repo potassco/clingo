@@ -6,8 +6,6 @@
 #include <parser/body_literal.hh>
 #include <parser/head_literal.hh>
 
-#include <iostream>
-
 namespace grammar {
 
 struct mark_end : lexy::scan_production<void> {

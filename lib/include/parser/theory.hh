@@ -106,7 +106,7 @@ struct theory_term_anonymous_variable {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = anonymous_variable;
     static constexpr auto value =
-        lexy::callback<STheoryTerm>([]() { return construct_shared<TheoryTermVariable, TheoryTerm>("_"); });
+        lexy::callback<STheoryTerm>([]() { return construct_shared<TheoryTermVariable, TheoryTerm>("_", true); });
 };
 
 struct theory_term_root {

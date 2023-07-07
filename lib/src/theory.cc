@@ -120,8 +120,8 @@ void TheoryTermVariable::print(std::ostream &out) const { out << name_; }
 void TheoryTermVariable::visit_variables(VarVisitFun fun) const { fun(name_); }
 
 [[nodiscard]] auto TheoryTermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
-    if (name_ == "_") {
-        return construct_shared<TheoryTermVariable, TheoryTerm>(gen.new_name());
+    if (is_anonymous_) {
+        return construct_shared<TheoryTermVariable, TheoryTerm>(gen.new_name(), true);
     }
     return std::nullopt;
 }

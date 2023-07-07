@@ -8,12 +8,6 @@
 
 #include <util/print.hh>
 
-using STerm = shared_ptr<Term>;
-using SLiteral = shared_ptr<Literal>;
-using SHeadLiteral = shared_ptr<HeadLiteral>;
-using SBodyLiteral = shared_ptr<BodyLiteral>;
-using SStatement = shared_ptr<Statement>;
-
 namespace test {
 
 auto parse_term(std::string str) -> std::optional<STerm>;
@@ -50,7 +44,7 @@ template <class T> auto unpool_str(std::optional<shared_ptr<T>> value, char cons
 
 template <class T> auto project_str(std::optional<shared_ptr<T>> value) -> std::string {
     if (value) {
-        return to_str(value.value()->project().value_or(value.value()));
+        return to_str(value.value()->project(ProjectionMode::pure).value_or(value.value()));
     }
     return "<failed>";
 }
