@@ -34,6 +34,6 @@ Status = {
 }
 Status.setStatus("Starting...")
 Module(Status).then((instance) => {
-    preprocess = instance.cwrap('run', 'string', ['string'])
-    console.log(preprocess("a. p(X;Y) :- edge(X,Y)"))
+    preprocess = instance.cwrap('run', null, ['string', 'number', 'number'])
+    preprocess("a. p(X;Y) :- edge(X,Y)", 3, 2)
 });

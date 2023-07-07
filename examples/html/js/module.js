@@ -4,6 +4,8 @@ var runButton = document.getElementById('run');
 var input = ace.edit("input");
 var ex = document.getElementById("examples");
 var output = "";
+var rewriteLevel = document.getElementById('rewrite_level');
+var projectMode = document.getElementById('project_mode');
 
 input.setTheme("ace/theme/textmate");
 input.$blockScrolling = Infinity;
@@ -32,7 +34,10 @@ function load_example(path) {
 
 function preprocess() {
   output = "";
-  Parser.ccall('run', null, ['string'], [input.getValue()])
+  console.log(rewriteLevel)
+  rl = parseInt(rewriteLevel.value)
+  pm = parseInt(projectMode.value)
+  Parser.ccall('run', null, ['string', 'number', 'number'], [input.getValue(), rl, pm])
   updateOutput();
 }
 

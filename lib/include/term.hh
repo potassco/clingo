@@ -95,9 +95,9 @@ class NameGen {
 };
 
 enum class ProjectionMode {
-    disabled,  //! Disable projection.
-    anonymous, //! Only project anonymous variables.
-    pure,      //! Project pure variables.
+    disabled = 0,  //! Disable projection.
+    anonymous = 1, //! Only project anonymous variables.
+    pure = 2,      //! Project pure variables.
 };
 
 class Projection {

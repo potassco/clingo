@@ -71,8 +71,8 @@ enum class RewriteLevel {
 };
 
 struct RewriteOptions {
-    ProjectionMode project_mode;
     RewriteLevel level;
+    ProjectionMode project_mode;
 };
 
 class Statement {

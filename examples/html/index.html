@@ -44,11 +44,25 @@ motive(harry;sally).
 guilty(harry).
 
 % encoding
-innocent(Suspect) :- motive(Suspect), not guilty(Suspect).</pre
-              >
+innocent(Suspect) :- motive(Suspect), not guilty(Suspect).</pre>
 
               <ul class="hlist">
                 <li><b>Configuration:</b></li>
+                <li>rewrite level
+                 <select id="rewrite_level">
+                  <option value="0">disabled</option>
+                  <option value="1">rewrite anonymous</option>
+                  <option value="2">unpool</option>
+                  <option value="3" selected>project</option>
+                 </select>
+                </li>
+                <li>project mode
+                 <select id="project_mode">
+                  <option value="0" selected>disabled</option>
+                  <option value="1">anonymous</option>
+                  <option value="2" selected>pure</option>
+                 </select>
+                </li>
               </ul>
 
               <input type="button" id="run" value="&#x25ba; Run!" onclick="preprocess()" disabled/>
