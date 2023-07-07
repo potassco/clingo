@@ -184,11 +184,10 @@ bool is_value_equal_to(T const &a, T const &b);
 
 // {{{1 declaration of helpers to calculate hashes
 
-template <class T>
-T hash_mix(T const &v);
+size_t hash_mix(size_t seed);
 
-template <class T, class U, class H=std::hash<T>>
-void hash_combine(U& seed, T const &v, H h=H{});
+template <class T, class H=std::hash<T>>
+void hash_combine(size_t &seed, T const &v, H h=H{});
 
 template <class T>
 size_t hash_range(T begin, T end);
@@ -520,6 +519,10 @@ namespace Detail {
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
 
+template <size_t bytes> struct Select;
+template <> struct Select<4> { using Type = uint32_t; };
+template <> struct Select<8> { using Type = uint64_t; };
+
 // Note: the following functions have been taken from MurmurHash3
 //       see: https://code.google.com/p/smhasher/
 inline uint32_t hash_mix(uint32_t h) {
@@ -540,22 +543,39 @@ inline uint64_t hash_mix(uint64_t h) {
     return h;
 }
 
-template <size_t bytes> struct Select;
-template <> struct Select<4> { using Type = uint32_t; };
-template <> struct Select<8> { using Type = uint64_t; };
+inline uint32_t hash_combine(uint32_t seed, uint32_t h) {
+    seed*= 0xcc9e2d51;
+    seed = (seed >> 17) | (seed << 15);
+    seed*= 0x1b873593;
+    seed^= hash_mix(h);
+    seed = (seed >> 19) | (seed << 13);
+    seed = seed * 5 + 0xe6546b64;
+    return seed;
+}
+
+inline uint64_t hash_combine(uint64_t seed, uint64_t h) {
+    seed*= 0x87c37b91114253d5;
+    seed = (seed >> 31) | (seed << 33);
+    seed*= 0x4cf5ad432745937f;
+    seed^= hash_mix(h);
+    seed = (seed >> 27) | (seed << 37);
+    seed = seed * 5 + 0x52dce729;
+    return seed;
+}
 
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 
 }
 
-template <class T, class U, class H /*=std::hash<T>*/>
-void hash_combine(U& seed, T const &v, H h /* =H{} */) {
-    seed = hash_mix(seed + 0x9e3779b9 + h(v));
+template <class T, class H>
+void hash_combine(size_t &seed, T const &v, H h) {
+    using type = typename Detail::Select<sizeof(size_t)>::Type;
+    seed = Detail::hash_combine(static_cast<type>(seed), static_cast<type>(h(v)));
 }
 
-template <class T>
-T hash_mix(T const &v) {
-    return Detail::hash_mix(static_cast<typename Detail::Select<sizeof(std::size_t)>::Type>(v));
+inline size_t hash_mix(size_t seed) {
+    using type = typename Detail::Select<sizeof(size_t)>::Type;
+    return Detail::hash_mix(static_cast<type>(seed));
 }
 
 template <class T>
