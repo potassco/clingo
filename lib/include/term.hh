@@ -117,17 +117,33 @@ class Term {
   public:
     virtual ~Term() = default;
 
+    //! Output the term to the given stream.
     void print(std::ostream &out) const;
+    //! Output the term to the given stream taking operator precedence to avoid parenthesis into account.
     virtual void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const = 0;
+    //! Output the term to the given stream.
     friend auto operator<<(std::ostream &out, Term const &ast) -> std::ostream &;
+    //! Convert the term to string.
     [[nodiscard]] auto to_string() const -> std::string;
+    //! Check if the term has the given type optionally adding context information.
     [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
+    //! Remove argument pools from term.
     [[nodiscard]] virtual auto unpool() const -> std::optional<STermVec> = 0;
+    //! Equality compare two terms.
     [[nodiscard]] virtual auto is_equal(Term const &other) const -> bool = 0;
+    //! Equality compare two terms.
     [[nodiscard]] friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
+    //! Compute a hash for the term.
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     virtual void visit_variables(VarVisitFun const &fun) const = 0;
+    //! Project variables according to given projection mode.
     [[nodiscard]] virtual auto project(Projection project) const -> std::optional<STerm> = 0;
+    //! Unconditionally project anonymous variables.
+    //!
+    //! This is a deprecated feature to support old programs.
+    //! The projection star should be used instead.
+    [[nodiscard]] virtual auto project_anonymous() const -> std::optional<STerm> = 0;
+    //! Give anonymous variables a unique name.
     [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> = 0;
 
     // AST interface
@@ -203,6 +219,7 @@ class Term {
   private:
     friend shared_ptr<Term>;
 
+    //! The reference count of the term.
     size_t refs = 0;
 };
 
@@ -217,6 +234,7 @@ class TermSymbol : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
@@ -242,6 +260,7 @@ class TermTuple : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
@@ -267,6 +286,7 @@ class TermVariable : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     /*
@@ -288,6 +308,7 @@ class TermAbs : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
@@ -311,6 +332,7 @@ class TermFunction : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
@@ -342,6 +364,7 @@ class TermUnary : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface
@@ -383,6 +406,7 @@ class TermBinary : public Term {
     [[nodiscard]] auto hash() const -> size_t override;
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     // AST interface

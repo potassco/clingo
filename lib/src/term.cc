@@ -32,6 +32,14 @@ auto projectable(Projection project, STerm const *term) -> bool {
     return var != nullptr && project.projectable(var->name(), var->is_anonymous());
 }
 
+auto is_anonymous(STerm const *term) -> bool {
+    if (term == nullptr) {
+        return false;
+    }
+    auto const *var = dynamic_cast<TermVariable const *>(term->get());
+    return var != nullptr && var->is_anonymous();
+}
+
 auto associativity(BinaryOperator op) {
     switch (op) {
         case BinaryOperator::dots:
@@ -233,6 +241,8 @@ auto TermSymbol::project(Projection project) const -> std::optional<STerm> {
     return std::nullopt;
 }
 
+auto TermSymbol::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
+
 auto TermSymbol::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     static_cast<void>(gen);
     return std::nullopt;
@@ -290,6 +300,18 @@ auto TermTuple::project(Projection project) const -> std::optional<STerm> {
             return {std::monostate{}};
         }
         auto sub = [project](STerm const &term) { return term->project(project); };
+        return transform(sub, elem);
+    };
+
+    return transform_construct_shared<TermTuple, Term>(Trans{pool_, fun});
+}
+
+auto TermTuple::project_anonymous() const -> std::optional<STerm> {
+    auto fun = [](TupleElem const &elem) -> std::optional<TupleElem> {
+        if (is_anonymous(std::get_if<STerm>(&elem))) {
+            return {std::monostate{}};
+        }
+        auto sub = [](STerm const &term) { return term->project_anonymous(); };
         return transform(sub, elem);
     };
 
@@ -372,6 +394,8 @@ auto TermVariable::project(Projection project) const -> std::optional<STerm> {
     return std::nullopt;
 }
 
+auto TermVariable::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
+
 auto TermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     if (is_anonymous_) {
         return construct_shared<TermVariable, Term>(gen.new_name(), true);
@@ -418,6 +442,8 @@ auto TermAbs::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
     return std::nullopt;
 }
+
+auto TermAbs::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
 auto TermAbs::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
@@ -493,6 +519,22 @@ auto TermFunction::project(Projection project) const -> std::optional<STerm> {
             return {std::monostate{}};
         }
         auto sub = [project](STerm const &term) { return term->project(project); };
+        return transform(sub, elem);
+    };
+
+    return transform_construct_shared<TermFunction, Term>(name_, Trans{pool_, fun}, external_);
+}
+
+auto TermFunction::project_anonymous() const -> std::optional<STerm> {
+    if (external_) {
+        return std::nullopt;
+    }
+
+    auto fun = [](TupleElem const &elem) -> std::optional<TupleElem> {
+        if (is_anonymous(std::get_if<STerm>(&elem))) {
+            return {std::monostate{}};
+        }
+        auto sub = [](STerm const &term) { return term->project_anonymous(); };
         return transform(sub, elem);
     };
 
@@ -580,6 +622,14 @@ void TermUnary::visit_variables(VarVisitFun const &fun) const { rhs_->visit_vari
 auto TermUnary::project(Projection project) const -> std::optional<STerm> {
     if (check_type(TermCheckType::atom, nullptr)) {
         return map_opt(rhs_->project(project),
+                       [this](STerm rhs) { return construct_shared<TermUnary, Term>(op_, std::move(rhs)); });
+    }
+    return std::nullopt;
+}
+
+auto TermUnary::project_anonymous() const -> std::optional<STerm> {
+    if (check_type(TermCheckType::atom, nullptr)) {
+        return map_opt(rhs_->project_anonymous(),
                        [this](STerm rhs) { return construct_shared<TermUnary, Term>(op_, std::move(rhs)); });
     }
     return std::nullopt;
@@ -707,6 +757,8 @@ auto TermBinary::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
     return std::nullopt;
 }
+
+auto TermBinary::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
 auto TermBinary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     auto fun = [&gen](STerm const &x) { return x->rewrite_anonymous(gen); };
