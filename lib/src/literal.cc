@@ -156,6 +156,8 @@ auto LiteralRelation::project(Projection project) const -> std::optional<SLitera
     return std::nullopt;
 }
 
+auto LiteralRelation::project_anonymous() const -> std::optional<SLiteral> { return std::nullopt; }
+
 auto LiteralRelation::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
     auto fun = [&gen](STerm const &term) { return term->rewrite_anonymous(gen); };
     return transform_construct_shared<LiteralRelation, Literal>(Trans{lhs_, fun}, Trans{rhs_, fun});
@@ -182,6 +184,8 @@ auto LiteralBoolean::project(Projection project) const -> std::optional<SLiteral
     static_cast<void>(project);
     return std::nullopt;
 }
+
+auto LiteralBoolean::project_anonymous() const -> std::optional<SLiteral> { return std::nullopt; }
 
 auto LiteralBoolean::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
     static_cast<void>(gen);
@@ -212,6 +216,14 @@ void LiteralSymbolic::visit_variables(VarVisitFun const &fun) const { term_->vis
 auto LiteralSymbolic::project(Projection project) const -> std::optional<SLiteral> {
     if (sign_ == Sign::none) {
         auto fun = [&project](STerm const &term) { return term->project(project); };
+        return transform_construct_shared<LiteralSymbolic, Literal>(sign_, Trans{term_, fun});
+    }
+    return std::nullopt;
+}
+
+auto LiteralSymbolic::project_anonymous() const -> std::optional<SLiteral> {
+    if (sign_ != Sign::none) {
+        auto fun = [](STerm const &term) { return term->project_anonymous(); };
         return transform_construct_shared<LiteralSymbolic, Literal>(sign_, Trans{term_, fun});
     }
     return std::nullopt;
