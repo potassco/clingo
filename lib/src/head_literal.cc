@@ -15,6 +15,22 @@
 
 ////////// HeadLiteral //////////
 
+namespace {
+
+// TODO: would be nice to have the Trans class be able to store the function object.
+struct ProjectAnonymous {
+    auto operator()(STerm const &term) const { return term->project_anonymous(); }
+    auto operator()(SLiteral const &lit) const { return lit->project_anonymous(); }
+    auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> {
+        throw std::runtime_error("implement me!!!");
+    };
+    auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> {
+        throw std::runtime_error("implement me!!!");
+    };
+};
+
+} // namespace
+
 [[nodiscard]] auto HeadLiteral::print_empty() const -> bool { return false; }
 
 [[nodiscard]] auto HeadLiteral::to_string() const -> std::string {
@@ -54,6 +70,11 @@ auto Disjunction::project(Projection project) const -> std::optional<SHeadLitera
     return CondLits::project<Disjunction, HeadLiteral>(elems_, project, false, true);
 }
 
+auto Disjunction::project_anonymous() const -> std::optional<SHeadLiteral> {
+    auto fun = ProjectAnonymous{};
+    return transform_construct_shared<Disjunction, HeadLiteral>(Trans{elems_, fun});
+}
+
 auto Disjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
 
 auto Disjunction::is_test() const -> bool { return CondLits::is_test(elems_); }
@@ -90,6 +111,11 @@ void HeadTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx
 auto HeadTheoryAtom::project(Projection project) const -> std::optional<SHeadLiteral> {
     static_cast<void>(project);
     return std::nullopt;
+}
+
+auto HeadTheoryAtom::project_anonymous() const -> std::optional<SHeadLiteral> {
+    auto fun = ProjectAnonymous{};
+    return transform_construct_shared<HeadTheoryAtom, HeadLiteral>(Trans{atom_, fun});
 }
 
 auto HeadTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
@@ -187,6 +213,12 @@ auto HeadAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHead
                                                                   Trans{rhs_, fun});
 }
 
+auto HeadAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
+    auto fun = ProjectAnonymous{};
+    return transform_construct_shared<HeadAggregate, HeadLiteral>(Trans{lhs_, fun}, fun_, Trans{elems_, fun},
+                                                                  Trans{rhs_, fun});
+}
+
 ////////// HeadSetAggregate //////////
 
 void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
@@ -211,6 +243,11 @@ auto HeadSetAggregate::project(Projection project) const -> std::optional<SHeadL
         return construct_shared<HeadSetAggregate, HeadLiteral>(std::move(projected).value());
     }
     return std::nullopt;
+}
+
+auto HeadSetAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
+    auto fun = ProjectAnonymous{};
+    return transform_construct_shared<HeadSetAggregate, HeadLiteral>(Trans{aggr_, fun});
 }
 
 auto HeadSetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
