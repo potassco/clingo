@@ -119,6 +119,11 @@ auto SetAggregate::project(Projection project, bool in_negative_scope) const -> 
     return transform_construct<SetAggregate>(lhs_, Trans{elems_, fun}, rhs_);
 }
 
+auto SetAggregate::project_anonymous() const -> std::optional<SetAggregate> {
+    auto fun = [](SLiteral const &lit) { return lit->project_anonymous(); };
+    return transform_construct<SetAggregate>(lhs_, Trans{elems_, fun}, rhs_);
+}
+
 auto SetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SetAggregate> {
     auto fun = overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
                           [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};

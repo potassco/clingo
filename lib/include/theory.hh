@@ -127,6 +127,7 @@ class TheoryAtom {
     [[nodiscard]] auto unpool() const -> std::optional<std::vector<TheoryAtom>>;
     void visit_variables(VarVisitFun fun, VariableContext ctx) const;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<TheoryAtom>;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<TheoryAtom>;
 
     friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream &;
 

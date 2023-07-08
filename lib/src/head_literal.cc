@@ -17,17 +17,23 @@
 
 namespace {
 
-// TODO: would be nice to have the Trans class be able to store the function object.
-struct ProjectAnonymous {
-    auto operator()(STerm const &term) const { return term->project_anonymous(); }
-    auto operator()(SLiteral const &lit) const { return lit->project_anonymous(); }
-    auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> {
-        throw std::runtime_error("implement me!!!");
-    };
-    auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> {
-        throw std::runtime_error("implement me!!!");
-    };
+struct RewriteAnonymous {
+    auto operator()(STerm const &term) const { return term->rewrite_anonymous(gen); }
+    auto operator()(SLiteral const &lit) const { return lit->rewrite_anonymous(gen); }
+    auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> { return aggr.rewrite_anonymous(gen); };
+    auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.rewrite_anonymous(gen); };
+    NameGen &gen;
 };
+
+struct ProjectAnonymous {
+    auto operator()(SLiteral const &lit) const { return lit->project_anonymous(); }
+    auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> { return aggr.project_anonymous(); };
+    auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.project_anonymous(); };
+};
+
+auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
+
+auto tra(auto const &x, NameGen &gen) { return Trans(x, RewriteAnonymous{gen}); }
 
 } // namespace
 
@@ -71,8 +77,7 @@ auto Disjunction::project(Projection project) const -> std::optional<SHeadLitera
 }
 
 auto Disjunction::project_anonymous() const -> std::optional<SHeadLiteral> {
-    auto fun = ProjectAnonymous{};
-    return transform_construct_shared<Disjunction, HeadLiteral>(Trans{elems_, fun});
+    return transform_construct_shared<Disjunction, HeadLiteral>(tpa(elems_));
 }
 
 auto Disjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
@@ -91,8 +96,7 @@ auto Disjunction::is_classical() const -> bool {
 }
 
 auto Disjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    auto fun = [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); };
-    return transform_construct_shared<Disjunction, HeadLiteral>(Trans{elems_, fun});
+    return transform_construct_shared<Disjunction, HeadLiteral>(tra(elems_, gen));
 }
 
 ////////// HeadTheoryAtom //////////
@@ -114,13 +118,11 @@ auto HeadTheoryAtom::project(Projection project) const -> std::optional<SHeadLit
 }
 
 auto HeadTheoryAtom::project_anonymous() const -> std::optional<SHeadLiteral> {
-    auto fun = ProjectAnonymous{};
-    return transform_construct_shared<HeadTheoryAtom, HeadLiteral>(Trans{atom_, fun});
+    return transform_construct_shared<HeadTheoryAtom, HeadLiteral>(tpa(atom_));
 }
 
 auto HeadTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    auto fun = [&gen](TheoryAtom const &atom) { return atom.rewrite_anonymous(gen); };
-    return transform_construct_shared<HeadTheoryAtom, HeadLiteral>(Trans{atom_, fun});
+    return transform_construct_shared<HeadTheoryAtom, HeadLiteral>(tra(atom_, gen));
 }
 
 ////////// HeadAggregate //////////
@@ -206,17 +208,13 @@ auto HeadAggregate::project(Projection project) const -> std::optional<SHeadLite
     return transform_construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, Trans{elems_, fun}, rhs_);
 }
 
-auto HeadAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    auto fun = overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
-                          [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
-    return transform_construct_shared<HeadAggregate, HeadLiteral>(Trans{lhs_, fun}, fun_, Trans{elems_, fun},
-                                                                  Trans{rhs_, fun});
+auto HeadAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
+    return transform_construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, tpa(elems_), rhs_);
 }
 
-auto HeadAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
-    auto fun = ProjectAnonymous{};
-    return transform_construct_shared<HeadAggregate, HeadLiteral>(Trans{lhs_, fun}, fun_, Trans{elems_, fun},
-                                                                  Trans{rhs_, fun});
+auto HeadAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
+    return transform_construct_shared<HeadAggregate, HeadLiteral>(tra(lhs_, gen), fun_, tra(elems_, gen),
+                                                                  tra(rhs_, gen));
 }
 
 ////////// HeadSetAggregate //////////
@@ -246,11 +244,9 @@ auto HeadSetAggregate::project(Projection project) const -> std::optional<SHeadL
 }
 
 auto HeadSetAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
-    auto fun = ProjectAnonymous{};
-    return transform_construct_shared<HeadSetAggregate, HeadLiteral>(Trans{aggr_, fun});
+    return transform_construct_shared<HeadSetAggregate, HeadLiteral>(tpa(aggr_));
 }
 
 auto HeadSetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    auto fun = [&gen](SetAggregate const &aggr) { return aggr.rewrite_anonymous(gen); };
-    return transform_construct_shared<HeadSetAggregate, HeadLiteral>(Trans{aggr_, fun});
+    return transform_construct_shared<HeadSetAggregate, HeadLiteral>(tra(aggr_, gen));
 }

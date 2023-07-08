@@ -11,6 +11,22 @@
 
 ////////// Literal //////////
 
+namespace {
+
+auto tra(auto const &x, NameGen &gen) {
+    return Trans(x, [&gen](STerm const &term) { return term->rewrite_anonymous(gen); });
+}
+
+auto tpa(auto const &x) {
+    return Trans(x, [](STerm const &term) { return term->project_anonymous(); });
+}
+
+auto tp(auto const &x, Projection project) {
+    return Trans(x, [project](STerm const &term) { return term->project(project); });
+}
+
+} // namespace
+
 auto operator-(Sign a) -> Sign {
     switch (a) {
         case Sign::none: {
@@ -159,8 +175,7 @@ auto LiteralRelation::project(Projection project) const -> std::optional<SLitera
 auto LiteralRelation::project_anonymous() const -> std::optional<SLiteral> { return std::nullopt; }
 
 auto LiteralRelation::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
-    auto fun = [&gen](STerm const &term) { return term->rewrite_anonymous(gen); };
-    return transform_construct_shared<LiteralRelation, Literal>(Trans{lhs_, fun}, Trans{rhs_, fun});
+    return transform_construct_shared<LiteralRelation, Literal>(tra(lhs_, gen), tra(rhs_, gen));
 }
 
 ////////// LiteralBoolean //////////
@@ -215,16 +230,14 @@ void LiteralSymbolic::visit_variables(VarVisitFun const &fun) const { term_->vis
 
 auto LiteralSymbolic::project(Projection project) const -> std::optional<SLiteral> {
     if (sign_ == Sign::none) {
-        auto fun = [&project](STerm const &term) { return term->project(project); };
-        return transform_construct_shared<LiteralSymbolic, Literal>(sign_, Trans{term_, fun});
+        return transform_construct_shared<LiteralSymbolic, Literal>(sign_, tp(term_, project));
     }
     return std::nullopt;
 }
 
 auto LiteralSymbolic::project_anonymous() const -> std::optional<SLiteral> {
     if (sign_ != Sign::none) {
-        auto fun = [](STerm const &term) { return term->project_anonymous(); };
-        return transform_construct_shared<LiteralSymbolic, Literal>(sign_, Trans{term_, fun});
+        return transform_construct_shared<LiteralSymbolic, Literal>(sign_, tpa(term_));
     }
     return std::nullopt;
 }
@@ -234,6 +247,5 @@ auto LiteralSymbolic::is_atom() const -> bool { return sign_ == Sign::none; }
 auto LiteralSymbolic::is_test() const -> bool { return false; }
 
 auto LiteralSymbolic::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
-    auto fun = [&gen](STerm const &term) { return term->rewrite_anonymous(gen); };
-    return transform_construct_shared<LiteralSymbolic, Literal>(sign_, Trans{term_, fun});
+    return transform_construct_shared<LiteralSymbolic, Literal>(sign_, tra(term_, gen));
 }

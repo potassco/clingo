@@ -23,6 +23,7 @@ class BodyLiteral {
     virtual void visit_variables(VarVisitFun const &fun, VariableContext ctx) const = 0;
     [[nodiscard]] virtual auto project(Projection project, bool is_classical_scope) const
         -> std::optional<SBodyLiteral> = 0;
+    [[nodiscard]] virtual auto project_anonymous() const -> std::optional<SBodyLiteral> = 0;
     [[nodiscard]] virtual auto is_atom() const -> bool;
     [[nodiscard]] virtual auto is_test() const -> bool;
     [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> = 0;
@@ -43,6 +44,7 @@ class Conjunction : public BodyLiteral {
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
         -> std::optional<SBodyLiteral> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
@@ -69,6 +71,7 @@ class BodyAggregate : public BodyLiteral {
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
         -> std::optional<SBodyLiteral> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
   private:
@@ -91,6 +94,7 @@ class BodySetAggregate : public BodyLiteral {
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
         -> std::optional<SBodyLiteral> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
   private:
@@ -109,6 +113,7 @@ class BodyTheoryAtom : public BodyLiteral {
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
         -> std::optional<SBodyLiteral> override;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
   private:

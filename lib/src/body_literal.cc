@@ -10,6 +10,28 @@
 
 ////////// BodyLiteral //////////
 
+namespace {
+
+struct RewriteAnonymous {
+    auto operator()(STerm const &term) const { return term->rewrite_anonymous(gen); }
+    auto operator()(SLiteral const &lit) const { return lit->rewrite_anonymous(gen); }
+    auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> { return aggr.rewrite_anonymous(gen); };
+    auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.rewrite_anonymous(gen); };
+    NameGen &gen;
+};
+
+struct ProjectAnonymous {
+    auto operator()(SLiteral const &lit) const { return lit->project_anonymous(); }
+    auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> { return aggr.project_anonymous(); };
+    auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.project_anonymous(); };
+};
+
+auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
+
+auto tra(auto const &x, NameGen &gen) { return Trans(x, RewriteAnonymous{gen}); }
+
+} // namespace
+
 [[nodiscard]] auto BodyLiteral::to_string() const -> std::string {
     std::ostringstream out;
     out << *this;
@@ -51,13 +73,16 @@ auto Conjunction::project(Projection project, bool in_classical_scope) const -> 
     return CondLits::project<Conjunction, BodyLiteral>(elems_, project, true, in_classical_scope);
 }
 
+auto Conjunction::project_anonymous() const -> std::optional<SBodyLiteral> {
+    return transform_construct_shared<Conjunction, BodyLiteral>(tpa(elems_));
+}
+
 auto Conjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
 
 auto Conjunction::is_test() const -> bool { return CondLits::is_test(elems_); }
 
 auto Conjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
-    auto fun = [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); };
-    return transform_construct_shared<Conjunction, BodyLiteral>(Trans{elems_, fun});
+    return transform_construct_shared<Conjunction, BodyLiteral>(tra(elems_, gen));
 }
 
 ////////// BodyAggregate //////////
@@ -149,11 +174,13 @@ auto BodyAggregate::project(Projection project, bool in_classical_scope) const -
     return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, Trans{elems_, fun}, rhs_);
 }
 
+auto BodyAggregate::project_anonymous() const -> std::optional<SBodyLiteral> {
+    return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, tpa(elems_), rhs_);
+}
+
 auto BodyAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
-    auto fun = overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
-                          [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
-    return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, Trans{lhs_, fun}, fun_, Trans{elems_, fun},
-                                                                  Trans{rhs_, fun});
+    return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, tra(lhs_, gen), fun_, tra(elems_, gen),
+                                                                  tra(rhs_, gen));
 }
 
 ////////// BodySetAggregate //////////
@@ -182,9 +209,12 @@ auto BodySetAggregate::project(Projection project, bool in_classical_scope) cons
     return std::nullopt;
 }
 
+auto BodySetAggregate::project_anonymous() const -> std::optional<SBodyLiteral> {
+    return transform_construct_shared<BodySetAggregate, BodyLiteral>(sign_, tpa(aggr_));
+}
+
 auto BodySetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
-    auto fun = [&gen](SetAggregate const &aggr) { return aggr.rewrite_anonymous(gen); };
-    return transform_construct_shared<BodySetAggregate, BodyLiteral>(sign_, Trans{aggr_, fun});
+    return transform_construct_shared<BodySetAggregate, BodyLiteral>(sign_, tra(aggr_, gen));
 }
 
 ////////// BodyTheoryAtom //////////
@@ -209,7 +239,10 @@ auto BodyTheoryAtom::project(Projection project, bool in_classical_scope) const 
     return std::nullopt;
 }
 
+auto BodyTheoryAtom::project_anonymous() const -> std::optional<SBodyLiteral> {
+    return transform_construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, tpa(atom_));
+}
+
 auto BodyTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
-    auto fun = [&gen](SetAggregate const &aggr) { return aggr.rewrite_anonymous(gen); };
-    return transform_construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, Trans{atom_, fun});
+    return transform_construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, tra(atom_, gen));
 }

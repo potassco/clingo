@@ -7,10 +7,9 @@
 #include <util/algorithm.hh>
 #include <util/shared_ptr.hh>
 
-template <class T, class F> struct Trans {
-    Trans(T const &arg, F &&fun) : Trans{arg, fun} {}
-    Trans(T const &arg, F &fun) : fun{fun}, orig{arg} {}
-    F &fun;
+template <class F, class T> struct Trans {
+    Trans(T const &arg, F fun) : fun{std::move(fun)}, orig{arg} {}
+    F fun;
     T const &orig;
     std::optional<T> transformed;
 };
@@ -33,13 +32,13 @@ auto transform_tuple(auto &&fun, std::tuple<T...> const &tup, std::index_sequenc
     return transform_tuple(tup, indices, transform(fun, std::get<Indices>(tup))...);
 }
 
-template <class T, class F> auto transform_construct_apply(Trans<T, F> &arg) {
+template <class F, class T> auto transform_construct_apply(Trans<F, T> &arg) {
     return arg.transformed = transform(arg.fun, arg.orig);
 }
 
 template <class T> auto transform_construct_apply(T &&arg) { static_cast<void>(arg); }
 
-template <class T, class F> auto transform_construct_value(Trans<T, F> &&arg) {
+template <class F, class T> auto transform_construct_value(Trans<F, T> &&arg) {
     return std::move(arg.transformed).value_or(arg.orig);
 }
 
@@ -50,7 +49,7 @@ template <class T> auto transform_construct_has_value(T const &arg) -> bool {
     return false;
 }
 
-template <class T, class F> auto transform_construct_has_value(Trans<T, F> const &arg) -> bool {
+template <class F, class T> auto transform_construct_has_value(Trans<F, T> const &arg) -> bool {
     return arg.transformed.has_value();
 }
 
