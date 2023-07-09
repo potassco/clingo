@@ -6,6 +6,7 @@ var ex = document.getElementById("examples");
 var output = "";
 var rewriteLevel = document.getElementById('rewrite_level');
 var projectMode = document.getElementById('project_mode');
+var projectAnonymous = document.getElementById('project_anonymous');
 
 input.setTheme("ace/theme/textmate");
 input.$blockScrolling = Infinity;
@@ -37,7 +38,8 @@ function preprocess() {
   console.log(rewriteLevel)
   rl = parseInt(rewriteLevel.value)
   pm = parseInt(projectMode.value)
-  Parser.ccall('run', null, ['string', 'number', 'number'], [input.getValue(), rl, pm])
+  pa = projectAnonymous.checked
+  Parser.ccall('run', null, ['string', 'number', 'number', 'bool'], [input.getValue(), rl, pm, pa])
   updateOutput();
 }
 

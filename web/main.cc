@@ -77,7 +77,7 @@ void parse(RewriteOptions opts, auto &&input, auto &&output) {
 };
 
 EMSCRIPTEN_KEEPALIVE
-extern "C" void run(char const *program, int level, int project_mode) {
+extern "C" void run(char const *program, int level, int project_mode, bool project_anonymous) {
     if (level < 0 || level > 3) {
         std::cerr << "invalid rewrite level" << std::endl;
         return;
@@ -86,6 +86,7 @@ extern "C" void run(char const *program, int level, int project_mode) {
         std::cerr << "invalid projection mode" << std::endl;
         return;
     }
-    auto opts = RewriteOptions{static_cast<RewriteLevel>(level), static_cast<ProjectionMode>(project_mode)};
+    auto opts =
+        RewriteOptions{static_cast<RewriteLevel>(level), static_cast<ProjectionMode>(project_mode), project_anonymous};
     parse(opts, lexy::string_input<grammar::encoding>(program, strlen(program)), std::cout);
 }

@@ -44,7 +44,7 @@ template <class T> auto unpool_str(std::optional<shared_ptr<T>> value, char cons
 
 template <class T> auto project_str(std::optional<shared_ptr<T>> value) -> std::string {
     if (value) {
-        return to_str(value.value()->project(ProjectionMode::pure).value_or(value.value()));
+        return to_str(value.value()->project(ProjectionMode::pure, true).value_or(value.value()));
     }
     return "<failed>";
 }

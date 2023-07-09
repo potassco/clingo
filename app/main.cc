@@ -69,7 +69,7 @@ void parse(RewriteOptions opts, auto &&input, auto &&output) {
 };
 
 auto main(int argc, char **argv) -> int {
-    auto opts = RewriteOptions{RewriteLevel::project, ProjectionMode::pure};
+    auto opts = RewriteOptions{};
     if (argc == 1) {
         auto input = StreamInput<grammar::encoding>{std::cin};
         parse(opts, input, std::cout);

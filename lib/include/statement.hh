@@ -71,8 +71,9 @@ enum class RewriteLevel {
 };
 
 struct RewriteOptions {
-    RewriteLevel level;
-    ProjectionMode project_mode;
+    RewriteLevel level = RewriteLevel::project;
+    ProjectionMode project_mode = ProjectionMode::pure;
+    bool project_anonymous = false;
 };
 
 class Statement {
@@ -87,12 +88,13 @@ class Statement {
     [[nodiscard]] auto to_string() const -> std::string;
     friend auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream &;
     [[nodiscard]] auto unpool() const -> std::optional<SStatementVec>;
-    [[nodiscard]] auto project(ProjectionMode mode) const -> std::optional<SStatement>;
+    [[nodiscard]] auto project(ProjectionMode mode, bool project_anonymous) const -> std::optional<SStatement>;
     [[nodiscard]] virtual auto rewrite_anonymous() const -> std::optional<SStatement> = 0;
 
   protected:
     [[nodiscard]] virtual auto do_unpool() const -> std::optional<SStatementVec> = 0;
     [[nodiscard]] virtual auto do_project(ProjectionMode mode) const -> std::optional<SStatement> = 0;
+    [[nodiscard]] virtual auto do_project_anonymous() const -> std::optional<SStatement> = 0;
 
   private:
     size_t refs = 0;
@@ -111,6 +113,7 @@ class Rule : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     SHeadLiteral head_;
@@ -182,6 +185,7 @@ class TheoryDefinition : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     std::string name_;
@@ -208,6 +212,7 @@ class StatementOptimize : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     OptimizeType type_;
@@ -228,6 +233,7 @@ class StatementWeakConstraint : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     SBodyLiteralVec body_;
@@ -245,6 +251,7 @@ class StatementShow : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     STerm term_;
@@ -263,6 +270,7 @@ class StatementShowSig : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     bool has_sign_;
@@ -281,6 +289,7 @@ class StatementProject : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     STerm term_;
@@ -299,6 +308,7 @@ class StatementProjectSig : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     bool has_sign_;
@@ -318,6 +328,7 @@ class StatementDefined : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     bool has_sign_;
@@ -337,6 +348,7 @@ class StatementExternal : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     STerm term_;
@@ -359,6 +371,7 @@ class StatementEdge : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     EdgeVec edges_;
@@ -383,6 +396,7 @@ class StatementHeuristic : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     STerm atom_;
@@ -410,6 +424,7 @@ class StatementScript : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     ScriptType type_;
@@ -434,6 +449,7 @@ class StatementInclude : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     IncludeType type_;
@@ -452,6 +468,7 @@ class StatementProgram : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     std::string name_;
@@ -474,6 +491,7 @@ class StatementConst : public Statement {
   protected:
     [[nodiscard]] auto do_unpool() const -> std::optional<SStatementVec> override;
     [[nodiscard]] auto do_project(ProjectionMode mode) const -> std::optional<SStatement> override;
+    [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
     ConstType type_;

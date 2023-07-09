@@ -45,6 +45,14 @@ struct StatementUnpool {
     auto operator()(StatementEdge::EdgeVec const &edges) const { return unpool_union(edges, StatementUnpool{}); }
 };
 
+struct ProjectAnonymous {
+    auto operator()(SLiteral const &lit) -> std::optional<SLiteral> { return lit->project_anonymous(); };
+    auto operator()(SHeadLiteral const &lit) -> std::optional<SHeadLiteral> { return lit->project_anonymous(); };
+    auto operator()(SBodyLiteral const &lit) -> std::optional<SBodyLiteral> { return lit->project_anonymous(); };
+};
+
+auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
+
 void visit_body(VarVisitFun const &fun, VariableContext ctx, SBodyLiteralVec const &body) {
     for (auto const &lit : body) {
         lit->visit_variables(fun, ctx);
@@ -167,11 +175,22 @@ auto Statement::unpool() const -> std::optional<SStatementVec> {
     return stms;
 }
 
-auto Statement::project(ProjectionMode mode) const -> std::optional<SStatement> {
-    if (mode == ProjectionMode::disabled) {
-        return std::nullopt;
+auto Statement::project(ProjectionMode mode, bool project_anonymous) const -> std::optional<SStatement> {
+    std::optional<SStatement> res;
+    if (mode != ProjectionMode::disabled) {
+        res = do_project(mode);
     }
-    return do_project(mode);
+    if (project_anonymous) {
+        if (res.has_value()) {
+            auto tmp = res.value()->do_project_anonymous();
+            if (tmp.has_value()) {
+                res = std::move(tmp);
+            }
+        } else {
+            res = do_project_anonymous();
+        }
+    }
+    return res;
 }
 
 void rewrite(SStatement stm, RewriteOptions opts, SStatementVec &stms) {
@@ -189,7 +208,7 @@ void rewrite(SStatement stm, RewriteOptions opts, SStatementVec &stms) {
             stms.emplace_back(std::move(stm));
             return;
         }
-        stm = stm->project(opts.project_mode).value_or(stm);
+        stm = stm->project(opts.project_mode, opts.project_anonymous).value_or(stm);
         stms.emplace_back(std::move(stm));
     };
     auto unpooled = stm->unpool();
@@ -246,6 +265,10 @@ auto Rule::do_project(ProjectionMode mode) const -> std::optional<SStatement> {
 
     return project_body_with(mode, this, body_, head_->is_classical(),
                              [&](auto body) { return construct_shared<Rule, Statement>(head_, std::move(body)); });
+}
+
+auto Rule::do_project_anonymous() const -> std::optional<SStatement> {
+    return transform_construct_shared<Rule, Statement>(tpa(head_), tpa(body_));
 }
 
 auto Rule::rewrite_anonymous() const -> std::optional<SStatement> {
@@ -353,6 +376,8 @@ auto TheoryDefinition::do_project(ProjectionMode mode) const -> std::optional<SS
     return std::nullopt;
 }
 
+auto TheoryDefinition::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
+
 auto TheoryDefinition::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementOptimize //////////
@@ -420,6 +445,10 @@ auto StatementOptimize::do_project(ProjectionMode mode) const -> std::optional<S
     return transform_construct_shared<StatementOptimize, Statement>(type_, Trans{elems_, fun});
 }
 
+auto StatementOptimize::do_project_anonymous() const -> std::optional<SStatement> {
+    return transform_construct_shared<StatementOptimize, Statement>(type_, tpa(elems_));
+}
+
 auto StatementOptimize::rewrite_anonymous() const -> std::optional<SStatement> {
     RewriteAnonymousStm fun{*this};
     return transform_construct_shared<StatementOptimize, Statement>(type_, Trans{elems_, fun});
@@ -459,6 +488,10 @@ auto StatementWeakConstraint::do_project(ProjectionMode mode) const -> std::opti
     });
 }
 
+auto StatementWeakConstraint::do_project_anonymous() const -> std::optional<SStatement> {
+    return transform_construct_shared<StatementWeakConstraint, Statement>(tpa(body_), tuple_);
+}
+
 auto StatementWeakConstraint::rewrite_anonymous() const -> std::optional<SStatement> {
     RewriteAnonymousStm fun{*this};
     return transform_construct_shared<StatementWeakConstraint, Statement>(Trans{body_, fun}, Trans{tuple_, fun});
@@ -495,6 +528,10 @@ auto StatementShow::do_project(ProjectionMode mode) const -> std::optional<SStat
     });
 }
 
+auto StatementShow::do_project_anonymous() const -> std::optional<SStatement> {
+    return transform_construct_shared<StatementShow, Statement>(term_, tpa(body_));
+}
+
 auto StatementShow::rewrite_anonymous() const -> std::optional<SStatement> {
     RewriteAnonymousStm fun{*this};
     return transform_construct_shared<StatementShow, Statement>(Trans{term_, fun}, Trans{body_, fun});
@@ -517,6 +554,8 @@ auto StatementShowSig::do_project(ProjectionMode mode) const -> std::optional<SS
     static_cast<void>(mode);
     return std::nullopt;
 }
+
+auto StatementShowSig::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 auto StatementShowSig::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
@@ -545,6 +584,10 @@ auto StatementProject::do_project(ProjectionMode mode) const -> std::optional<SS
     });
 }
 
+auto StatementProject::do_project_anonymous() const -> std::optional<SStatement> {
+    return transform_construct_shared<StatementProject, Statement>(term_, tpa(body_));
+}
+
 auto StatementProject::rewrite_anonymous() const -> std::optional<SStatement> {
     RewriteAnonymousStm fun{*this};
     return transform_construct_shared<StatementProject, Statement>(Trans{term_, fun}, Trans{body_, fun});
@@ -568,6 +611,8 @@ auto StatementProjectSig::do_project(ProjectionMode mode) const -> std::optional
     return std::nullopt;
 }
 
+auto StatementProjectSig::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
+
 auto StatementProjectSig::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementDefined //////////
@@ -587,6 +632,8 @@ auto StatementDefined::do_project(ProjectionMode mode) const -> std::optional<SS
     static_cast<void>(mode);
     return std::nullopt;
 }
+
+auto StatementDefined::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 auto StatementDefined::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
@@ -617,6 +664,10 @@ auto StatementExternal::do_project(ProjectionMode mode) const -> std::optional<S
     return project_body_with(mode, this, body_, true, [&](auto body) {
         return construct_shared<StatementExternal, Statement>(term_, std::move(body), type_);
     });
+}
+
+auto StatementExternal::do_project_anonymous() const -> std::optional<SStatement> {
+    return transform_construct_shared<StatementExternal, Statement>(term_, tpa(body_), type_);
 }
 
 auto StatementExternal::rewrite_anonymous() const -> std::optional<SStatement> {
@@ -660,6 +711,10 @@ auto StatementEdge::do_project(ProjectionMode mode) const -> std::optional<SStat
     });
 }
 
+auto StatementEdge::do_project_anonymous() const -> std::optional<SStatement> {
+    return transform_construct_shared<StatementEdge, Statement>(edges_, tpa(body_));
+}
+
 auto StatementEdge::rewrite_anonymous() const -> std::optional<SStatement> {
     RewriteAnonymousStm fun{*this};
     return transform_construct_shared<StatementEdge, Statement>(Trans{edges_, fun}, Trans{body_, fun});
@@ -694,6 +749,10 @@ auto StatementHeuristic::do_project(ProjectionMode mode) const -> std::optional<
     return project_body_with(mode, this, body_, true, [&](auto body) {
         return construct_shared<StatementHeuristic, Statement>(atom_, std::move(body), type_, prio_, mod_);
     });
+}
+
+auto StatementHeuristic::do_project_anonymous() const -> std::optional<SStatement> {
+    return transform_construct_shared<StatementHeuristic, Statement>(atom_, tpa(body_), type_, prio_, mod_);
 }
 
 auto StatementHeuristic::rewrite_anonymous() const -> std::optional<SStatement> {
@@ -731,6 +790,8 @@ auto StatementScript::do_project(ProjectionMode mode) const -> std::optional<SSt
     static_cast<void>(mode);
     return std::nullopt;
 }
+
+auto StatementScript::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 auto StatementScript::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
@@ -772,6 +833,8 @@ auto StatementInclude::do_project(ProjectionMode mode) const -> std::optional<SS
     return std::nullopt;
 }
 
+auto StatementInclude::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
+
 auto StatementInclude::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementProgram //////////
@@ -795,6 +858,8 @@ auto StatementProgram::do_project(ProjectionMode mode) const -> std::optional<SS
     static_cast<void>(mode);
     return std::nullopt;
 }
+
+auto StatementProgram::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 auto StatementProgram::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
@@ -837,5 +902,7 @@ auto StatementConst::do_project(ProjectionMode mode) const -> std::optional<SSta
     static_cast<void>(mode);
     return std::nullopt;
 }
+
+auto StatementConst::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 auto StatementConst::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
