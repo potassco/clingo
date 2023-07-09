@@ -12,15 +12,35 @@
 
 #include <symbol.hh>
 
-enum class TermCheckType : int { atom, sig, identifier, signed_identifier, pos_number };
+//! Enumeration for Term::check_type().
+enum class TermCheckType : int {
+    atom,              //!< Check if term is an atom.
+    sig,               //!< Check if term is a signature.
+    identifier,        //!< Check if term is an identifier.
+    signed_identifier, //!< Check if term is a signed identifier.
+    pos_number         //!< Check if term is a positive number.
+};
 
+//! Extract additional information while checking the type of a term.
+//!
+//! @see Term::check_type()
 struct CheckTypeResult {
+    //! Wheather the term is signed.
     bool has_sign = false;
+    //! The number represented by the term.
     int pos_number = 0;
+    //! The identifier represented by the term.
     std::string identifier;
 };
 
-enum class Position { left, right, none };
+//! Enumeration of term positions.
+//!
+//! @see Term::do_print()
+enum class Position : int {
+    left,  //!< The term is directly on the right-hand-side of a term.
+    right, //!< The term is directly on the left-hand-side of a term.
+    none   //!< No position information.
+};
 
 /*
 enum class TermType : int {
@@ -113,8 +133,10 @@ class Projection {
     ProjectionMode mode_;
 };
 
+//! The term interface.
 class Term {
   public:
+    //! Virtual destructor.
     virtual ~Term() = default;
 
     //! Output the term to the given stream.
@@ -135,6 +157,7 @@ class Term {
     [[nodiscard]] friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
     //! Compute a hash for the term.
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
+    //! Visit variables with the given function.
     virtual void visit_variables(VarVisitFun const &fun) const = 0;
     //! Project variables according to given projection mode.
     [[nodiscard]] virtual auto project(Projection project) const -> std::optional<STerm> = 0;

@@ -12,3 +12,5 @@ examples/html/js/parser.js
 examples/html/js/parser.wasm
 examples/js/parser.js
 examples/js/parser.wasm
+doc/html
+doc/latex
