@@ -12,6 +12,12 @@
 
 namespace {
 
+void visit_body(VarVisitFun const &fun, VariableContext ctx, SBodyLiteralVec const &body) {
+    for (auto const &lit : body) {
+        lit->visit_variables(fun, ctx);
+    }
+}
+
 struct StatementUnpool {
     auto operator()(STerm const &term) const { return term->unpool(); }
     auto operator()(STermVec const &terms) const { return unpool_crossproduct(terms); }
@@ -44,20 +50,6 @@ struct StatementUnpool {
     }
     auto operator()(StatementEdge::EdgeVec const &edges) const { return unpool_union(edges, StatementUnpool{}); }
 };
-
-struct ProjectAnonymous {
-    auto operator()(SLiteral const &lit) -> std::optional<SLiteral> { return lit->project_anonymous(); };
-    auto operator()(SHeadLiteral const &lit) -> std::optional<SHeadLiteral> { return lit->project_anonymous(); };
-    auto operator()(SBodyLiteral const &lit) -> std::optional<SBodyLiteral> { return lit->project_anonymous(); };
-};
-
-auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
-
-void visit_body(VarVisitFun const &fun, VariableContext ctx, SBodyLiteralVec const &body) {
-    for (auto const &lit : body) {
-        lit->visit_variables(fun, ctx);
-    }
-}
 
 class GlobalVarSelectorHelper {
   public:
@@ -106,7 +98,28 @@ class GlobalVarCounterHelper {
 
 using GlobalVarCounter = detail::VarVisitHelper<GlobalVarCounterHelper>;
 
-auto global_var_counts(auto const &...args) {
+struct Project {
+    auto operator()(SHeadLiteral const &lit) const { return lit->project(project); }
+    auto operator()(SBodyLiteral const &lit) const { return lit->project(project, in_classical_scope); }
+    Projection project;
+    bool in_classical_scope;
+};
+
+struct RewriteAnonymous {
+    auto operator()(SBodyLiteral const &lit) -> std::optional<SBodyLiteral> { return lit->rewrite_anonymous(gen); }
+    auto operator()(SHeadLiteral const &lit) -> std::optional<SHeadLiteral> { return lit->rewrite_anonymous(gen); }
+    auto operator()(SLiteral const &lit) -> std::optional<SLiteral> { return lit->rewrite_anonymous(gen); }
+    auto operator()(STerm const &term) -> std::optional<STerm> { return term->rewrite_anonymous(gen); }
+    NameGen &gen;
+};
+
+struct ProjectAnonymous {
+    auto operator()(SLiteral const &lit) -> std::optional<SLiteral> { return lit->project_anonymous(); };
+    auto operator()(SHeadLiteral const &lit) -> std::optional<SHeadLiteral> { return lit->project_anonymous(); };
+    auto operator()(SBodyLiteral const &lit) -> std::optional<SBodyLiteral> { return lit->project_anonymous(); };
+};
+
+auto vcp(auto const &...args) {
     GlobalVarSelector selector;
     (selector.add(args), ...);
     GlobalVarCounter counter{selector};
@@ -114,38 +127,20 @@ auto global_var_counts(auto const &...args) {
     return std::move(counter).counts();
 }
 
-auto project_body_with(ProjectionMode mode, auto const *self, SBodyLiteralVec const &body_, bool in_classical_scope,
-                       auto construct) -> std::optional<SStatement> {
-    // count global variables
-    auto counts = global_var_counts(*self);
-    Projection project{mode, counts};
-
-    // project body
-    std::optional<SBodyLiteralVec> body = transform(
-        [project, in_classical_scope](SBodyLiteral const &lit) { return lit->project(project, in_classical_scope); },
-        body_);
-    if (body.has_value()) {
-        return construct(std::move(body).value());
-    }
-    return std::nullopt;
+auto tp(auto const &x, ProjectionMode mode, std::unordered_map<std::string, size_t> const &counts,
+        bool in_classical_scope = true) {
+    return Trans{x, Project{Projection{mode, counts}, in_classical_scope}};
 }
 
-class RewriteAnonymousStm {
-  public:
-    RewriteAnonymousStm(Statement const &stm) : gen_{vars_(stm)} {}
-    auto operator()(SBodyLiteral const &lit) -> std::optional<SBodyLiteral> { return lit->rewrite_anonymous(gen_); }
-    auto operator()(SHeadLiteral const &lit) -> std::optional<SHeadLiteral> { return lit->rewrite_anonymous(gen_); }
-    auto operator()(SLiteral const &lit) -> std::optional<SLiteral> { return lit->rewrite_anonymous(gen_); }
-    auto operator()(STerm const &term) -> std::optional<STerm> { return term->rewrite_anonymous(gen_); }
-
-  private:
-    static auto vars_(Statement const &stm) -> VariableSet {
-        VariableSet vars;
-        stm.visit_variables([&vars](std::string const &var) { vars.emplace(var); }, VariableContext::all);
-        return vars;
-    }
-    NameGen gen_;
+auto ngra(Statement const &stm) {
+    VariableSet vars;
+    stm.visit_variables([&vars](std::string const &var) { vars.emplace(var); }, VariableContext::all);
+    return NameGen{std::move(vars)};
 };
+
+auto tra(auto const &x, auto &gen) { return Trans{x, RewriteAnonymous{gen}}; };
+
+auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
 
 } // namespace
 
@@ -262,9 +257,10 @@ auto Rule::do_project(ProjectionMode mode) const -> std::optional<SStatement> {
             return std::nullopt;
         }
     }
-
-    return project_body_with(mode, this, body_, head_->is_classical(),
-                             [&](auto body) { return construct_shared<Rule, Statement>(head_, std::move(body)); });
+    bool in_classical_scope = head_->is_classical();
+    auto counts = vcp(*this);
+    return transform_construct_shared<Rule, Statement>(tp(head_, mode, counts),
+                                                       tp(body_, mode, counts, in_classical_scope));
 }
 
 auto Rule::do_project_anonymous() const -> std::optional<SStatement> {
@@ -272,8 +268,8 @@ auto Rule::do_project_anonymous() const -> std::optional<SStatement> {
 }
 
 auto Rule::rewrite_anonymous() const -> std::optional<SStatement> {
-    RewriteAnonymousStm fun{*this};
-    return transform_construct_shared<Rule, Statement>(Trans{head_, fun}, Trans{body_, fun});
+    auto gen = ngra(*this);
+    return transform_construct_shared<Rule, Statement>(tra(head_, gen), tra(body_, gen));
 }
 
 ////////// TheoryOpDefinition //////////
@@ -435,11 +431,11 @@ auto StatementOptimize::do_project(ProjectionMode mode) const -> std::optional<S
         auto const &[tuple, cond] = elem;
 
         // add counts of variables
-        auto counts = global_var_counts(tuple, cond);
-        auto sub_project = Projection{mode, counts};
+        auto counts = vcp(tuple, cond);
+        auto project = Projection{mode, counts};
 
         // project literals in condition
-        auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
+        auto fun = [project](SLiteral const &lit) { return lit->project(project); };
         return transform_construct<Element>(tuple, Trans{cond, fun});
     };
     return transform_construct_shared<StatementOptimize, Statement>(type_, Trans{elems_, fun});
@@ -450,8 +446,8 @@ auto StatementOptimize::do_project_anonymous() const -> std::optional<SStatement
 }
 
 auto StatementOptimize::rewrite_anonymous() const -> std::optional<SStatement> {
-    RewriteAnonymousStm fun{*this};
-    return transform_construct_shared<StatementOptimize, Statement>(type_, Trans{elems_, fun});
+    auto gen = ngra(*this);
+    return transform_construct_shared<StatementOptimize, Statement>(type_, tra(elems_, gen));
 }
 
 ////////// StatementWeakConstraint //////////
@@ -483,9 +479,8 @@ void StatementWeakConstraint::visit_variables(VarVisitFun const &fun, VariableCo
 }
 
 auto StatementWeakConstraint::do_project(ProjectionMode mode) const -> std::optional<SStatement> {
-    return project_body_with(mode, this, body_, true, [&](auto body) {
-        return construct_shared<StatementWeakConstraint, Statement>(std::move(body), tuple_);
-    });
+    auto counts = vcp(*this);
+    return transform_construct_shared<StatementWeakConstraint, Statement>(tp(body_, mode, counts), tuple_);
 }
 
 auto StatementWeakConstraint::do_project_anonymous() const -> std::optional<SStatement> {
@@ -493,8 +488,8 @@ auto StatementWeakConstraint::do_project_anonymous() const -> std::optional<SSta
 }
 
 auto StatementWeakConstraint::rewrite_anonymous() const -> std::optional<SStatement> {
-    RewriteAnonymousStm fun{*this};
-    return transform_construct_shared<StatementWeakConstraint, Statement>(Trans{body_, fun}, Trans{tuple_, fun});
+    auto gen = ngra(*this);
+    return transform_construct_shared<StatementWeakConstraint, Statement>(tra(body_, gen), tra(tuple_, gen));
 }
 
 ////////// StatementShow //////////
@@ -523,9 +518,8 @@ void StatementShow::visit_variables(VarVisitFun const &fun, VariableContext ctx)
 }
 
 auto StatementShow::do_project(ProjectionMode mode) const -> std::optional<SStatement> {
-    return project_body_with(mode, this, body_, true, [&](auto body) {
-        return construct_shared<StatementShow, Statement>(term_, std::move(body));
-    });
+    auto counts = vcp(*this);
+    return transform_construct_shared<StatementShow, Statement>(term_, tp(body_, mode, counts));
 }
 
 auto StatementShow::do_project_anonymous() const -> std::optional<SStatement> {
@@ -533,8 +527,8 @@ auto StatementShow::do_project_anonymous() const -> std::optional<SStatement> {
 }
 
 auto StatementShow::rewrite_anonymous() const -> std::optional<SStatement> {
-    RewriteAnonymousStm fun{*this};
-    return transform_construct_shared<StatementShow, Statement>(Trans{term_, fun}, Trans{body_, fun});
+    auto gen = ngra(*this);
+    return transform_construct_shared<StatementShow, Statement>(tra(term_, gen), tra(body_, gen));
 }
 
 ////////// StatementShowSig //////////
@@ -579,9 +573,8 @@ void StatementProject::visit_variables(VarVisitFun const &fun, VariableContext c
 }
 
 auto StatementProject::do_project(ProjectionMode mode) const -> std::optional<SStatement> {
-    return project_body_with(mode, this, body_, true, [&](auto body) {
-        return construct_shared<StatementProject, Statement>(term_, std::move(body));
-    });
+    auto counts = vcp(*this);
+    return transform_construct_shared<StatementProject, Statement>(term_, tp(body_, mode, counts));
 }
 
 auto StatementProject::do_project_anonymous() const -> std::optional<SStatement> {
@@ -589,8 +582,8 @@ auto StatementProject::do_project_anonymous() const -> std::optional<SStatement>
 }
 
 auto StatementProject::rewrite_anonymous() const -> std::optional<SStatement> {
-    RewriteAnonymousStm fun{*this};
-    return transform_construct_shared<StatementProject, Statement>(Trans{term_, fun}, Trans{body_, fun});
+    auto gen = ngra(*this);
+    return transform_construct_shared<StatementProject, Statement>(tra(term_, gen), tra(body_, gen));
 }
 
 ////////// StatementProjectSig //////////
@@ -661,9 +654,8 @@ void StatementExternal::visit_variables(VarVisitFun const &fun, VariableContext 
 }
 
 auto StatementExternal::do_project(ProjectionMode mode) const -> std::optional<SStatement> {
-    return project_body_with(mode, this, body_, true, [&](auto body) {
-        return construct_shared<StatementExternal, Statement>(term_, std::move(body), type_);
-    });
+    auto counts = vcp(*this);
+    return transform_construct_shared<StatementExternal, Statement>(term_, tp(body_, mode, counts), type_);
 }
 
 auto StatementExternal::do_project_anonymous() const -> std::optional<SStatement> {
@@ -671,9 +663,8 @@ auto StatementExternal::do_project_anonymous() const -> std::optional<SStatement
 }
 
 auto StatementExternal::rewrite_anonymous() const -> std::optional<SStatement> {
-    RewriteAnonymousStm fun{*this};
-    return transform_construct_shared<StatementExternal, Statement>(Trans{term_, fun}, Trans{body_, fun},
-                                                                    Trans{type_, fun});
+    auto gen = ngra(*this);
+    return transform_construct_shared<StatementExternal, Statement>(tra(term_, gen), tra(body_, gen), tra(type_, gen));
 }
 
 ////////// StatementEdge //////////
@@ -706,9 +697,8 @@ void StatementEdge::visit_variables(VarVisitFun const &fun, VariableContext ctx)
 }
 
 auto StatementEdge::do_project(ProjectionMode mode) const -> std::optional<SStatement> {
-    return project_body_with(mode, this, body_, true, [&](auto body) {
-        return construct_shared<StatementEdge, Statement>(edges_, std::move(body));
-    });
+    auto counts = vcp(*this);
+    return transform_construct_shared<StatementEdge, Statement>(edges_, tp(body_, mode, counts));
 }
 
 auto StatementEdge::do_project_anonymous() const -> std::optional<SStatement> {
@@ -716,8 +706,8 @@ auto StatementEdge::do_project_anonymous() const -> std::optional<SStatement> {
 }
 
 auto StatementEdge::rewrite_anonymous() const -> std::optional<SStatement> {
-    RewriteAnonymousStm fun{*this};
-    return transform_construct_shared<StatementEdge, Statement>(Trans{edges_, fun}, Trans{body_, fun});
+    auto gen = ngra(*this);
+    return transform_construct_shared<StatementEdge, Statement>(tra(edges_, gen), tra(body_, gen));
 }
 
 ////////// StatementHeuristic //////////
@@ -746,9 +736,9 @@ void StatementHeuristic::visit_variables(VarVisitFun const &fun, VariableContext
 }
 
 auto StatementHeuristic::do_project(ProjectionMode mode) const -> std::optional<SStatement> {
-    return project_body_with(mode, this, body_, true, [&](auto body) {
-        return construct_shared<StatementHeuristic, Statement>(atom_, std::move(body), type_, prio_, mod_);
-    });
+    auto counts = vcp(*this);
+    return transform_construct_shared<StatementHeuristic, Statement>(atom_, tp(body_, mode, counts), type_, prio_,
+                                                                     mod_);
 }
 
 auto StatementHeuristic::do_project_anonymous() const -> std::optional<SStatement> {
@@ -756,9 +746,9 @@ auto StatementHeuristic::do_project_anonymous() const -> std::optional<SStatemen
 }
 
 auto StatementHeuristic::rewrite_anonymous() const -> std::optional<SStatement> {
-    RewriteAnonymousStm fun{*this};
-    return transform_construct_shared<StatementHeuristic, Statement>(
-        Trans{atom_, fun}, Trans{body_, fun}, Trans{type_, fun}, Trans{prio_, fun}, Trans{mod_, fun});
+    auto gen = ngra(*this);
+    return transform_construct_shared<StatementHeuristic, Statement>(tra(atom_, gen), tra(body_, gen), tra(type_, gen),
+                                                                     tra(prio_, gen), tra(mod_, gen));
 }
 
 ////////// StatementScript //////////
