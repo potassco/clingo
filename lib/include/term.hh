@@ -1,5 +1,8 @@
 #pragma once
 
+//! @file
+//! This file contains the term interface and derived terms.
+
 #include <optional>
 #include <ostream>
 #include <unordered_set>
@@ -114,10 +117,13 @@ class NameGen {
     size_t num_ = 0;
 };
 
+//! Enumeration to select variables to project.
+//!
+//! @see Projection
 enum class ProjectionMode {
-    disabled = 0,  //! Disable projection.
-    anonymous = 1, //! Only project anonymous variables.
-    pure = 2,      //! Project pure variables.
+    disabled = 0,  //!< Disable projection.
+    anonymous = 1, //!< Only project anonymous variables.
+    pure = 2,      //!< Project pure variables.
 };
 
 class Projection {
