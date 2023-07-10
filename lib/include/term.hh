@@ -71,28 +71,42 @@ auto operator<<(std::ostream &out, Attribute attr) -> std::ostream &;
 */
 
 class Term;
+//! A shared pointer to a term.
 using STerm = shared_ptr<Term>;
+//! A vector of shared term pointers.
 using STermVec = std::vector<STerm>;
+//! A vector of vecors of shared term pointers.
 using STermVecVec = std::vector<STermVec>;
 
+//! A variant capturing either a term or a position that is to be projected.
 using TupleElem = std::variant<std::monostate, STerm>;
+//! A tuple of terms or positions to project.
 using TupleVec = std::vector<TupleElem>;
+//! A vector of tuples used as function or predicate arguments.
 using PoolVec = std::vector<TupleVec>;
 
+//! Variable selection modes for select_variables().
 enum VariableSelectMode {
-    add,
-    del,
+    add, //!< Add variables to the set.
+    del, //!< Remove variables from the set.
 };
 
+//! Variable selection scopes.
+//!
+//! @see Statement::visit_variables()
 enum class VariableContext {
-    global,
-    all,
+    global, //!< Visit variables occurring in global scope.
+    all,    //!< Visit all variable occurrences.
 };
 
+//! A set of variable names.
 using VariableSet = std::unordered_set<std::string>;
+//! A vector of variable names.
 using VariableVec = std::vector<std::string>;
+//! A function to visit variable occurrences.
 using VarVisitFun = std::function<void(std::string const &var)>;
 
+//! Add/remove variables to/from a set occuring in the given expression.
 template <class E> void select_variables(E &expr, VariableSet &vars, VariableSelectMode mode) {
     if (mode == VariableSelectMode::add) {
         expr.visit_variables([&vars](std::string const &var) { vars.emplace(var); });
@@ -101,19 +115,27 @@ template <class E> void select_variables(E &expr, VariableSet &vars, VariableSel
     }
 }
 
+//! Convenience method for @ref select_variables(E, VariableSet &, VariableSelectMode) returning a set.
 template <class E> auto select_variables(E &expr, VariableSelectMode mode) -> VariableSet {
     VariableSet vars;
     select_variables(expr, vars, mode);
     return vars;
 }
 
+//! Generator for auxiliary variables.
 class NameGen {
   public:
+    //! Constructor taking a set of variables names.
+    //!
+    //! The generator ensures that there are no collisions with these names.
     NameGen(VariableSet vars) : vars_{std::move(vars)} {}
+    //! Generate a unique variable name.
     [[nodiscard]] auto new_name() -> std::string;
 
   private:
+    //! Taken variable names.
     VariableSet vars_;
+    //! Running number used to generate variable names.
     size_t num_ = 0;
 };
 
@@ -126,16 +148,25 @@ enum class ProjectionMode {
     pure = 2,      //!< Project pure variables.
 };
 
+//! Helper to gather projection related arguments.
 class Projection {
   public:
+    //! Constructor taking the mode which variables to project and a map with counts of variables.
     explicit Projection(ProjectionMode mode, std::unordered_map<std::string, size_t> const &counts)
         : counts_{counts}, mode_{mode} {};
+    //! Return whether a the given variable should be projected.
+    //!
+    //! Only variables with a count of exactly one can be projected while the mode adds further restrictions.
     [[nodiscard]] auto projectable(std::string const &var, bool anonymous) const -> bool;
+    //! Return the variable counts.
     [[nodiscard]] auto counts() const -> std::unordered_map<std::string, size_t> const &;
+    //! Return the mode.
     [[nodiscard]] auto mode() const -> ProjectionMode;
 
   private:
+    //! The variable counts.
     std::unordered_map<std::string, size_t> const &counts_;
+    //! The projection mode.
     ProjectionMode mode_;
 };
 
@@ -252,8 +283,12 @@ class Term {
     size_t refs = 0;
 };
 
+//! Term representing a symbol.
+//!
+//! For example <tt>1</tt>.
 class TermSymbol : public Term {
   public:
+    //! Construct term with the given symbol.
     explicit TermSymbol(Symbol value) : value_{std::move(value)} {}
 
     void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
@@ -276,11 +311,19 @@ class TermSymbol : public Term {
     Symbol value_;
 };
 
+//! Term representing a tuple.
+//!
+//! For example <tt>(a,b;c)</tt>.
 class TermTuple : public Term {
   public:
+    //! A tuple element is either a term tuple or an individual term.
     using Element = std::variant<TupleVec, STerm>;
+    //! A pool of elements.
+    //!
+    //! The pool will be reduced to a single element after calling Term::unpool().
     using ElementVec = std::vector<Element>;
 
+    //! Construct a  tuple.
     explicit TermTuple(ElementVec args) : pool_{std::move(args)} {}
 
     void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
@@ -301,12 +344,21 @@ class TermTuple : public Term {
     ElementVec pool_;
 };
 
+//! Term representing a variable.
+//!
+//! For example <tt>X</tt>.
 class TermVariable : public Term {
   public:
+    //! Construct a variable.
+    //!
+    //! Anonymous variables should set parameter is_anonymous to true.
+    //! Such variables receive a unique name after calling Term::rewrite_anonymous().
     explicit TermVariable(std::string name, bool is_anonymous = false)
         : name_{std::move(name)}, is_anonymous_{is_anonymous} {}
 
+    //! Get the name of the variable.
     [[nodiscard]] auto name() const -> std::string const &;
+    //! Check if the variable is an anonymous variable.
     [[nodiscard]] auto is_anonymous() const -> bool;
 
     void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
@@ -327,8 +379,14 @@ class TermVariable : public Term {
     bool is_anonymous_;
 };
 
+//! Term representing the absolute function.
+//!
+//! For example <tt>|-X|</tt>.
 class TermAbs : public Term {
   public:
+    //! Construct an absolute term.
+    //!
+    //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
     explicit TermAbs(STermVec pool) : pool_{std::move(pool)} {}
 
     void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
@@ -349,8 +407,15 @@ class TermAbs : public Term {
     STermVec pool_;
 };
 
+//! Term representing a symbolic or external function.
+//!
+//! For example <tt>f(a,b;c)</tt>.
 class TermFunction : public Term {
   public:
+    //! Construct a symbolic function.
+    //!
+    //! The function takes a pool of term tuples, which will be reduced to a single element after calling
+    //! Term::unpool().
     explicit TermFunction(std::string name, PoolVec args, bool external)
         : name_(std::move(name)), pool_{std::move(args)}, external_{external} {}
 
@@ -375,15 +440,21 @@ class TermFunction : public Term {
     bool external_;
 };
 
+//! Enumeration of available unary operators.
 enum class UnaryOperator : int {
-    negate,
-    invert,
+    negate, //!< The unary minus sign (-).
+    invert, //!< The unary negation sign (~).
 };
 
+//! Print the string reprentation of a unary operator.
 auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream &;
 
+//! Term representing an unary operation.
+//!
+//! For example <tt>-X</tt>.
 class TermUnary : public Term {
   public:
+    //! Contruct a term for an unary operation.
     explicit TermUnary(UnaryOperator op, STerm e) : op_{op}, rhs_{std::move(e)} {}
 
     void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
@@ -408,23 +479,29 @@ class TermUnary : public Term {
     STerm rhs_;
 };
 
+//! Enumaration of available binary operators.
 enum class BinaryOperator : int {
-    dots,
-    xor_,
-    or_,
-    and_,
-    plus,
-    minus,
-    times,
-    div,
-    mod,
-    pow,
+    dots,  //!< The interval operator.
+    xor_,  //!< The XOR bit operation.
+    or_,   //!< The OR bit operation.
+    and_,  //!< The AND bit operation.
+    plus,  //!< The plus arithmetic operation.
+    minus, //!< The minus arithmetic operation.
+    times, //!< The multiply arithmetic operation.
+    div,   //!< The (integer) divide arithmetic operation.
+    mod,   //!< The modulo arithmetic operation.
+    pow,   //!< The exponentiation arithmetic operation.
 };
 
+//! Print the string reprentation of a binary operator.
 auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream &;
 
+//! Term representing a binary operation.
+//!
+//! For example <tt>X-Y</tt>.
 class TermBinary : public Term {
   public:
+    //! Contruct a term for an binary operation.
     explicit TermBinary(STerm lhs, BinaryOperator op, STerm rhs)
         : op_{op}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
 
