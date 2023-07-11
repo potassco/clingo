@@ -277,10 +277,15 @@ class Term {
     };
     */
   private:
-    friend shared_ptr<Term>;
+    //! Increment reference count of the term.
+    friend void inc_ref_count(Term &term) { ++term.refs_; }
+    //! Decrement reference count of the term.
+    friend void dec_ref_count(Term &term) { ++term.refs_; }
+    //! Get reference count of the term.
+    [[nodiscard]] friend auto get_ref_count(Term const &term) -> size_t { return term.refs_; }
 
     //! The reference count of the term.
-    size_t refs = 0;
+    size_t refs_ = 0;
 };
 
 //! Term representing a symbol.

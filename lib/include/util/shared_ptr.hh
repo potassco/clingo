@@ -53,7 +53,7 @@ template <typename T> class shared_ptr {
 
     [[nodiscard]] explicit operator bool() const noexcept { return ptr_ != nullptr; }
 
-    [[nodiscard]] auto use_count() const noexcept -> size_t { return ptr_->refs; }
+    [[nodiscard]] auto use_count() const noexcept -> size_t { return get_ref_count(*ptr_); }
 
     [[nodiscard]] auto get() const noexcept -> element_type * { return ptr_; }
 
@@ -68,13 +68,13 @@ template <typename T> class shared_ptr {
 
     void inc_() noexcept {
         if (ptr_ != nullptr) {
-            ++ptr_->refs;
+            inc_ref_count(*ptr_);
         }
     }
 
     void dec_() {
         if (ptr_ != nullptr) {
-            --ptr_->refs;
+            dec_ref_count(*ptr_);
             if (use_count() == 0) {
                 delete ptr_;
                 ptr_ = nullptr;

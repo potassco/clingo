@@ -9,11 +9,6 @@ class Statement;
 using SStatement = shared_ptr<Statement>;
 using SStatementVec = std::vector<SStatement>;
 
-// TODO 0:
-// - make the whole data structure immutable
-//   - investigate if unpool could work with optional like the other rewriting methods
-//   - failing to do this, consider a const cast to construct the shared_ptr
-//
 // TODO 1:
 // - comparison literals should be normalized
 //   - can expand disjunctively and conjunctively
@@ -59,10 +54,6 @@ using SStatementVec = std::vector<SStatement>;
 // - assignments should be sets to avoid introducing duplicates
 // - provisional name: normalize_terms (maybe cannot all be done in one function)
 
-// TODO 3:
-// - assignment aggregates might need special consideration
-//   (the current solution to introduce auxiliary literals is bad)
-
 enum class RewriteLevel {
     disabled = 0,
     rewrite_anonymous = 1,
@@ -97,7 +88,11 @@ class Statement {
     [[nodiscard]] virtual auto do_project_anonymous() const -> std::optional<SStatement> = 0;
 
   private:
-    size_t refs = 0;
+    friend void inc_ref_count(Statement &stm) { ++stm.refs_; }
+    friend void dec_ref_count(Statement &stm) { ++stm.refs_; }
+    [[nodiscard]] friend auto get_ref_count(Statement const &stm) -> size_t { return stm.refs_; }
+
+    size_t refs_ = 0;
 };
 
 void rewrite(SStatement stm, RewriteOptions opts, SStatementVec &stms);

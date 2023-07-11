@@ -10,8 +10,6 @@
 #include <theory.hh>
 
 class BodyLiteral;
-class BodyAggregate;
-class BodySetAggregate;
 //! A shared pointer to a body literal.
 using SBodyLiteral = shared_ptr<BodyLiteral>;
 //! A vector of shared pointers to body literals.
@@ -65,13 +63,15 @@ class BodyLiteral {
     [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> = 0;
 
   private:
-    // When making the class compatible with C, this will require another solution that will avoid this.
-    friend shared_ptr<BodyLiteral>;
-    friend shared_ptr<BodyAggregate>;
-    friend shared_ptr<BodySetAggregate>;
+    //! Increment reference count of the body literal.
+    friend void inc_ref_count(BodyLiteral &lit) { ++lit.refs_; }
+    //! Decrement reference count of the body literal.
+    friend void dec_ref_count(BodyLiteral &lit) { ++lit.refs_; }
+    //! Get reference count of the body literal.
+    [[nodiscard]] friend auto get_ref_count(BodyLiteral const &lit) -> size_t { return lit.refs_; }
 
     //! The reference count of the body literal.
-    size_t refs = 0;
+    size_t refs_ = 0;
 };
 
 class Conjunction : public BodyLiteral {

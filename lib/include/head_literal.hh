@@ -28,7 +28,12 @@ class HeadLiteral {
     friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &;
     [[nodiscard]] virtual auto unpool() const -> std::optional<SHeadLiteralVec> = 0;
 
-    size_t refs = 0;
+  private:
+    friend void inc_ref_count(HeadLiteral &lit) { ++lit.refs_; }
+    friend void dec_ref_count(HeadLiteral &lit) { ++lit.refs_; }
+    [[nodiscard]] friend auto get_ref_count(HeadLiteral const &lit) -> size_t { return lit.refs_; }
+
+    size_t refs_ = 0;
 };
 
 class Disjunction : public HeadLiteral {
