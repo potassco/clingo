@@ -11,7 +11,7 @@
 #include <lexy/input/file.hpp>
 #include <lexy/input/string_input.hpp>
 
-#include <parser/statement.hh>
+#include <input/parser/statement.hh>
 
 using namespace Gringo::Input;
 

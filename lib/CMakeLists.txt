@@ -1,4 +1,4 @@
-add_library(parsertest "src/main.cc" "src/symbol.cc" "src/term.cc" "src/literal.cc" "src/aggregate.cc" "src/theory.cc" "src/head_literal.cc" "src/body_literal.cc" "src/statement.cc")
+add_library(parsertest "src/symbol.cc" "src/input/term.cc" "src/input/literal.cc" "src/input/aggregate.cc" "src/input/theory.cc" "src/input/head_literal.cc" "src/input/body_literal.cc" "src/input/statement.cc")
 target_link_libraries(parsertest foonathan::lexy::core foonathan::lexy::file)
 target_include_directories(parsertest PUBLIC "include")
 # for lexy using >> and + in combination
