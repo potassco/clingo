@@ -2,7 +2,11 @@
 
 #include <lexy_ext/report_error.hpp>
 
-template <class Input, class Void = void> struct get_counting { using type = lexy::_default_location_counting<Input>; };
+namespace Gringo::Util {
+
+template <class Input, class Void = void> struct get_counting {
+    using type = lexy::_default_location_counting<Input>;
+};
 
 template <class Input> struct get_counting<Input, std::void_t<typename Input::counting>> {
     using type = typename Input::counting;
@@ -131,3 +135,5 @@ template <typename OutputIterator = int> struct _report_error {
 
 /// An error callback that uses diagnostic_writer to print to stderr (by default).
 constexpr auto report_error = _report_error{};
+
+} // namespace Gringo::Util

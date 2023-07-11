@@ -32,14 +32,14 @@ template <typename Input, typename Scanner> void discard(Input &input, Scanner &
 }
 
 template <typename Encoding, typename Counting, typename Scanner>
-void discard(StreamInput<Encoding, Counting> &input, Scanner &scanner) {
+void discard(Gringo::Util::StreamInput<Encoding, Counting> &input, Scanner &scanner) {
     input.discard_before(scanner.position());
 }
 
 void parse(RewriteOptions opts, auto &&input, auto &&output) {
     Comments comments;
     auto stateful_input = StatefulInput{input, comments};
-    auto scanner = lexy::scan<Grammar::control>(stateful_input, report_error);
+    auto scanner = lexy::scan<Grammar::control>(stateful_input, Gringo::Util::report_error);
     // skip leading whitespace
     scanner.parse(lexy::dsl::whitespace(Grammar::control::whitespace));
     while (scanner && !scanner.is_at_eof()) {
@@ -73,7 +73,7 @@ void parse(RewriteOptions opts, auto &&input, auto &&output) {
 auto main(int argc, char **argv) -> int {
     auto opts = RewriteOptions{};
     if (argc == 1) {
-        auto input = StreamInput<Grammar::encoding>{std::cin};
+        auto input = Gringo::Util::StreamInput<Grammar::encoding>{std::cin};
         parse(opts, input, std::cout);
     } else {
         for (int i = 1; i < argc; ++i) {

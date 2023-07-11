@@ -6,6 +6,8 @@
 
 #include <lexy/input_location.hpp>
 
+namespace Gringo::Util {
+
 /// Location counting based on encoding.
 template <typename Encoding>
 using default_location_counting = std::conditional_t<std::is_same_v<Encoding, lexy::byte_encoding>,
@@ -238,3 +240,5 @@ class StreamInput {
     size_t last_nl_{0};
     unsigned nl_{1};
 };
+
+} // namespace Gringo::Util

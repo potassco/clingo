@@ -11,7 +11,7 @@ namespace Gringo::Input::Test {
 
 namespace Grammar {
 
-using input = StreamInput<Input::Grammar::encoding>;
+using input = Util::StreamInput<Input::Grammar::encoding>;
 
 namespace dsl = lexy::dsl;
 
@@ -42,7 +42,7 @@ auto parse(std::string str) -> std::optional<typename decltype(Control::value)::
     std::istringstream in;
     in.str(std::move(str));
     auto inp = input{in};
-    auto res = lexy::parse<Control>(inp, report_error);
+    auto res = lexy::parse<Control>(inp, Util::report_error);
     if (res.has_value()) {
         return res.value();
     }
@@ -53,7 +53,7 @@ template <typename Control> auto match(std::string str) {
     std::istringstream in;
     in.str(std::move(str));
     auto inp = input{in};
-    auto res = lexy::validate<Control>(inp, report_error);
+    auto res = lexy::validate<Control>(inp, Util::report_error);
     return res.is_success();
 }
 
@@ -80,11 +80,12 @@ auto parse_statement(std::string str) -> std::optional<SStatement> {
 }
 
 struct Parser::Impl {
-    Impl(std::string str) : in{str}, input{in}, scanner{lexy::scan<Input::Grammar::control>(input, report_error)} {}
+    Impl(std::string str)
+        : in{str}, input{in}, scanner{lexy::scan<Input::Grammar::control>(input, Util::report_error)} {}
 
     std::istringstream in;
     Grammar::input input;
-    decltype(lexy::scan<Input::Grammar::control>(input, report_error)) scanner;
+    decltype(lexy::scan<Input::Grammar::control>(input, Util::report_error)) scanner;
 };
 
 Parser::Parser(std::string input) : impl{std::make_unique<Impl>(std::move(input))} {}
