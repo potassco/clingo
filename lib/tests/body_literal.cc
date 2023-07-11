@@ -2,7 +2,7 @@
 
 #include "parser.hh"
 
-namespace test {
+namespace Gringo::Input::Test {
 
 TEST_CASE("parse_body_literal") {
     // negation
@@ -78,4 +78,4 @@ TEST_CASE("unpool_body_literal") {
     REQUIRE(unpool_str(parse_body_literal("#and { p(X;Y,B) : p(A) }"), "; ") == "[p(X): p(A); p(Y,B): p(A)]");
 }
 
-} // namespace test
+} // namespace Gringo::Input::Test

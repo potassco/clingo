@@ -5,6 +5,8 @@
 
 #include <term.hh>
 
+namespace Gringo::Input {
+
 //! Enumeration of signs (default negation).
 enum class Sign {
     none,  //!< No sign.
@@ -185,4 +187,6 @@ class LiteralSymbolic : public Literal {
     STerm term_;
 };
 
-HASH(Literal)
+} // namespace Gringo::Input
+
+HASH(Gringo::Input::Literal)

@@ -6,14 +6,14 @@
 #include <parser/body_literal.hh>
 #include <parser/head_literal.hh>
 
-namespace grammar {
+namespace Gringo::Input::Grammar {
 
 struct mark_end : lexy::scan_production<void> {
     using scan_result = lexy::scan_result<void>;
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> lexy::scan_result<void> {
-        if constexpr (detail::has_state<lexy::rule_scanner<Context, Reader>>) {
+        if constexpr (Detail::has_state<lexy::rule_scanner<Context, Reader>>) {
             scanner.remaining_input().reader().state().mark();
         }
         return true;
@@ -292,7 +292,7 @@ struct statement_project {
         lexy::new_<StatementProjectSig, SStatement>,
         [](bool has_sign, std::string name, std::optional<PoolVec> pool, SBodyLiteralVec body) {
             STerm atom =
-                construct_shared<TermFunction, Term>(std::move(name), detail::empty_args(std::move(pool)), false);
+                construct_shared<TermFunction, Term>(std::move(name), Detail::empty_args(std::move(pool)), false);
             if (has_sign) {
                 atom = construct_shared<TermUnary, Term>(UnaryOperator::negate, std::move(atom));
             }
@@ -415,4 +415,4 @@ struct statement {
     static constexpr auto value = lexy::forward<SStatement>;
 };
 
-} // namespace grammar
+} // namespace Gringo::Input::Grammar

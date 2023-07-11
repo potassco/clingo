@@ -2,7 +2,7 @@
 
 #include "parser.hh"
 
-namespace test {
+namespace Gringo::Input::Test {
 
 TEST_CASE("theory atoms") {
     // empty guards/elements
@@ -41,4 +41,4 @@ TEST_CASE("theory atoms") {
     REQUIRE(to_str(parse_head_literal("&p{+- *a -* + c}")) == "&p { (+- * a -* + c) }");
 }
 
-} // namespace test
+} // namespace Gringo::Input::Test

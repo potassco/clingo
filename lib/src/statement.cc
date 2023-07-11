@@ -8,6 +8,8 @@
 #include "unpool.hh"
 #include "variables.hh"
 
+namespace Gringo::Input {
+
 ////////// Statement //////////
 
 namespace {
@@ -129,7 +131,7 @@ auto vcp(auto const &...args) {
 
 auto tp(auto const &x, ProjectionMode mode, std::unordered_map<std::string, size_t> const &counts,
         bool in_classical_scope = true) {
-    return Trans{x, Project{Projection{mode, counts}, in_classical_scope}};
+    return Util::Trans{x, Project{Projection{mode, counts}, in_classical_scope}};
 }
 
 auto ngra(Statement const &stm) {
@@ -138,9 +140,9 @@ auto ngra(Statement const &stm) {
     return NameGen{std::move(vars)};
 };
 
-auto tra(auto const &x, auto &gen) { return Trans{x, RewriteAnonymous{gen}}; };
+auto tra(auto const &x, auto &gen) { return Util::Trans{x, RewriteAnonymous{gen}}; };
 
-auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
+auto tpa(auto const &x) { return Util::Trans(x, ProjectAnonymous{}); }
 
 } // namespace
 
@@ -436,9 +438,9 @@ auto StatementOptimize::do_project(ProjectionMode mode) const -> std::optional<S
 
         // project literals in condition
         auto fun = [project](SLiteral const &lit) { return lit->project(project); };
-        return transform_construct<Element>(tuple, Trans{cond, fun});
+        return Util::transform_construct<Element>(tuple, Util::Trans{cond, fun});
     };
-    return transform_construct_shared<StatementOptimize, Statement>(type_, Trans{elems_, fun});
+    return transform_construct_shared<StatementOptimize, Statement>(type_, Util::Trans{elems_, fun});
 }
 
 auto StatementOptimize::do_project_anonymous() const -> std::optional<SStatement> {
@@ -896,3 +898,5 @@ auto StatementConst::do_project(ProjectionMode mode) const -> std::optional<SSta
 auto StatementConst::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 auto StatementConst::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
+
+} // namespace Gringo::Input

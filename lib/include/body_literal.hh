@@ -9,6 +9,8 @@
 #include <literal.hh>
 #include <theory.hh>
 
+namespace Gringo::Input {
+
 class BodyLiteral;
 //! A shared pointer to a body literal.
 using SBodyLiteral = shared_ptr<BodyLiteral>;
@@ -163,3 +165,5 @@ class BodyTheoryAtom : public BodyLiteral {
     Sign sign_ = Sign::none;
     TheoryAtom atom_;
 };
+
+} // namespace Gringo::Input

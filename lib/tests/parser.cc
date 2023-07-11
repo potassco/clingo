@@ -8,15 +8,15 @@
 #include "parser.hh"
 #include "parser/base.hh"
 
-namespace test {
+namespace Gringo::Input::Test {
 
-namespace grammar {
+namespace Grammar {
 
-using input = StreamInput<::grammar::encoding>;
+using input = StreamInput<Input::Grammar::encoding>;
 
 namespace dsl = lexy::dsl;
 
-template <class P, char t = '\0'> struct parse_root : ::grammar::control {
+template <class P, char t = '\0'> struct parse_root : Input::Grammar::control {
     static constexpr auto terminator() { return t; }
     static constexpr auto eof() {
         if constexpr (t == '*') {
@@ -31,7 +31,7 @@ template <class P, char t = '\0'> struct parse_root : ::grammar::control {
     static constexpr auto value = lexy::forward<typename decltype(P::value)::return_type>;
 };
 
-template <class P> struct match_root : ::grammar::control {
+template <class P> struct match_root : Input::Grammar::control {
     static constexpr auto rule = dsl::p<P> + dsl::eof;
 };
 
@@ -42,8 +42,8 @@ auto parse(std::string str) -> std::optional<typename decltype(Control::value)::
     }
     std::istringstream in;
     in.str(std::move(str));
-    auto input = ::test::grammar::input{in};
-    auto res = lexy::parse<Control>(input, report_error);
+    auto inp = input{in};
+    auto res = lexy::parse<Control>(inp, report_error);
     if (res.has_value()) {
         return res.value();
     }
@@ -53,46 +53,46 @@ auto parse(std::string str) -> std::optional<typename decltype(Control::value)::
 template <typename Control> auto match(std::string str) {
     std::istringstream in;
     in.str(std::move(str));
-    auto input = ::test::grammar::input{in};
-    auto res = lexy::validate<Control>(input, report_error);
+    auto inp = input{in};
+    auto res = lexy::validate<Control>(inp, report_error);
     return res.is_success();
 }
 
-} // namespace grammar
+} // namespace Grammar
 
 auto parse_term(std::string str) -> std::optional<STerm> {
-    return grammar::parse<grammar::parse_root<::grammar::term>>(std::move(str));
+    return Grammar::parse<Grammar::parse_root<Input::Grammar::term>>(std::move(str));
 }
 
 auto parse_literal(std::string str) -> std::optional<SLiteral> {
-    return grammar::parse<grammar::parse_root<::grammar::literal>>(std::move(str));
+    return Grammar::parse<Grammar::parse_root<Input::Grammar::literal>>(std::move(str));
 }
 
 auto parse_head_literal(std::string str) -> std::optional<SHeadLiteral> {
-    return grammar::parse<grammar::parse_root<::grammar::head_literal, '.'>>(std::move(str));
+    return Grammar::parse<Grammar::parse_root<Input::Grammar::head_literal, '.'>>(std::move(str));
 }
 
 auto parse_body_literal(std::string str) -> std::optional<SBodyLiteral> {
-    return grammar::parse<grammar::parse_root<::grammar::body_literal, '.'>>(std::move(str));
+    return Grammar::parse<Grammar::parse_root<Input::Grammar::body_literal, '.'>>(std::move(str));
 }
 
 auto parse_statement(std::string str) -> std::optional<SStatement> {
-    return grammar::parse<grammar::parse_root<::grammar::statement>>(std::move(str));
+    return Grammar::parse<Grammar::parse_root<Input::Grammar::statement>>(std::move(str));
 }
 
 struct Parser::Impl {
-    Impl(std::string str) : in{str}, input{in}, scanner{lexy::scan<::grammar::control>(input, report_error)} {}
+    Impl(std::string str) : in{str}, input{in}, scanner{lexy::scan<Input::Grammar::control>(input, report_error)} {}
 
     std::istringstream in;
-    ::test::grammar::input input = ::test::grammar::input{in};
-    decltype(lexy::scan<::grammar::control>(input, report_error)) scanner;
+    Grammar::input input;
+    decltype(lexy::scan<Input::Grammar::control>(input, report_error)) scanner;
 };
 
 Parser::Parser(std::string input) : impl{std::make_unique<Impl>(std::move(input))} {}
 
 auto Parser::scan() const -> std::optional<std::string> {
     impl->input.discard_before(impl->scanner.position());
-    auto res = impl->scanner.parse<grammar::parse_root<::grammar::statement, '*'>>();
+    auto res = impl->scanner.parse<Grammar::parse_root<Input::Grammar::statement, '*'>>();
     if (res) {
         return res.value()->to_string();
     }
@@ -100,4 +100,4 @@ auto Parser::scan() const -> std::optional<std::string> {
 }
 Parser::~Parser() = default;
 
-} // namespace test
+} // namespace Gringo::Input::Test

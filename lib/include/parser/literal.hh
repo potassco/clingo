@@ -5,7 +5,7 @@
 #include <parser/base.hh>
 #include <parser/term.hh>
 
-namespace grammar {
+namespace Gringo::Input::Grammar {
 
 struct relation {
     static constexpr char const *name = "relation";
@@ -85,4 +85,4 @@ struct literal {
     });
 };
 
-} // namespace grammar
+} // namespace Gringo::Input::Grammar

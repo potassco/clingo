@@ -9,6 +9,8 @@
 #include "unpool.hh"
 #include "variables.hh"
 
+namespace Gringo::Input {
+
 auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
     switch (fun) {
         case AggregateFunction::count: {
@@ -114,18 +116,21 @@ auto SetAggregate::project(Projection project, bool in_negative_scope) const -> 
 
         // project literals in condition
         auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
-        return transform_construct<Element>(lit, Trans(cond, fun));
+        return Util::transform_construct<Element>(lit, Util::Trans(cond, fun));
     };
-    return transform_construct<SetAggregate>(lhs_, Trans{elems_, fun}, rhs_);
+    return Util::transform_construct<SetAggregate>(lhs_, Util::Trans{elems_, fun}, rhs_);
 }
 
 auto SetAggregate::project_anonymous() const -> std::optional<SetAggregate> {
     auto fun = [](SLiteral const &lit) { return lit->project_anonymous(); };
-    return transform_construct<SetAggregate>(lhs_, Trans{elems_, fun}, rhs_);
+    return Util::transform_construct<SetAggregate>(lhs_, Util::Trans{elems_, fun}, rhs_);
 }
 
 auto SetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SetAggregate> {
     auto fun = overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
                           [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
-    return transform_construct<SetAggregate>(Trans{lhs_, fun}, Trans{elems_, fun}, Trans{rhs_, fun});
+    return Util::transform_construct<SetAggregate>(Util::Trans{lhs_, fun}, Util::Trans{elems_, fun},
+                                                   Util::Trans{rhs_, fun});
 }
+
+} // namespace Gringo::Input

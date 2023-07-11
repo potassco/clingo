@@ -14,6 +14,8 @@
         static constexpr char const *name = v;                                                                         \
     }
 
+namespace Gringo::Input {
+
 template <typename Reader, typename State> class StatefulReader : public Reader {
   public:
     explicit StatefulReader(Reader reader, State &state) : Reader{std::move(reader)}, state_{&state} {};
@@ -47,13 +49,13 @@ class Comments {
     size_t mark_ = 0;
 };
 
-namespace grammar {
+namespace Grammar {
 
 namespace dsl = lexy::dsl;
 
 using encoding = lexy::utf8_encoding;
 
-namespace detail {
+namespace Detail {
 
 template <typename V, typename T> struct has_state_ {
     using value_t = std::false_type;
@@ -67,7 +69,7 @@ struct has_state_<std::void_t<decltype(std::declval<T &>().remaining_input().rea
 /// Check if the reader associated with the given scanner has a state method.
 template <typename T> constexpr bool has_state = has_state_<void, T>::value_t::value;
 
-} // namespace detail
+} // namespace Detail
 
 struct block_comment : lexy::scan_production<void> {
     static constexpr char const *name = "block comment";
@@ -90,7 +92,7 @@ struct block_comment : lexy::scan_production<void> {
             }
         } while (n > 0);
         auto end = scanner.position();
-        if constexpr (detail::has_state<lexy::rule_scanner<Context, Reader>>) {
+        if constexpr (Detail::has_state<lexy::rule_scanner<Context, Reader>>) {
             scanner.remaining_input().reader().state().append(lexy::as_string<std::string, encoding>(begin, end));
         }
         return scan_result{true};
@@ -110,7 +112,7 @@ struct comment : lexy::scan_production<void> {
             }
         };
         auto end = scanner.position();
-        if constexpr (detail::has_state<lexy::rule_scanner<Context, Reader>>) {
+        if constexpr (Detail::has_state<lexy::rule_scanner<Context, Reader>>) {
             scanner.remaining_input().reader().state().append(lexy::as_string<std::string, encoding>(begin, end));
         }
         return scan_result{true};
@@ -131,4 +133,6 @@ struct control {
                                            (dsl::token(dsl::p<comment>) | dsl::error<expected_nl>);
 };
 
-} // namespace grammar
+} // namespace Grammar
+
+} // namespace Gringo::Input

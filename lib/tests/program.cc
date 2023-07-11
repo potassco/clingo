@@ -2,7 +2,7 @@
 
 #include "parser.hh"
 
-namespace test {
+namespace Gringo::Input::Test {
 
 TEST_CASE("program") {
     Parser parser{"a.b.c"};
@@ -16,4 +16,4 @@ TEST_CASE("program") {
     REQUIRE(!stm.has_value());
 }
 
-} // namespace test
+} // namespace Gringo::Input::Test

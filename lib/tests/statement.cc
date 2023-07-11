@@ -2,7 +2,7 @@
 
 #include "parser.hh"
 
-namespace test {
+namespace Gringo::Input::Test {
 
 TEST_CASE("parse_statement") {
     // rule
@@ -193,4 +193,4 @@ TEST_CASE("project_statement") {
     // TODO: test remaining statements
 }
 
-} // namespace test
+} // namespace Gringo::Input::Test

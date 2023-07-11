@@ -5,7 +5,7 @@
 #include <parser/aggregate.hh>
 #include <parser/literal.hh>
 
-namespace grammar {
+namespace Gringo::Input::Grammar {
 
 struct theory_op {
     static constexpr char const *name = "theory operator";
@@ -37,7 +37,7 @@ struct theory_term {
     static constexpr auto value = lexy::forward<STheoryTerm>;
 };
 
-namespace detail {
+namespace Detail {
 
 template <TheoryTermTupleType type> struct make_tuple {
     static constexpr auto value =
@@ -54,19 +54,19 @@ struct tuple_trail_vec {
     bool trail = false;
 };
 
-} // namespace detail
+} // namespace Detail
 
-struct theory_term_tuple : detail::make_tuple<TheoryTermTupleType::Tuple> {
+struct theory_term_tuple : Detail::make_tuple<TheoryTermTupleType::Tuple> {
     static constexpr char const *name = "theory term tuple";
     static constexpr auto rule =
         dsl::round_bracketed.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::capture(dsl::lit_c<','>)));
     static constexpr auto value =
-        lexy::as_list<detail::tuple_trail_vec> >>
+        lexy::as_list<Detail::tuple_trail_vec> >>
         lexy::callback<STheoryTerm>(
             [](lexy::nullopt) -> STheoryTerm {
                 return construct_shared<TheoryTermTuple, TheoryTerm>(TheoryTermTupleType::Tuple, STheoryTermVec{});
             },
-            [](detail::tuple_trail_vec elems) -> STheoryTerm {
+            [](Detail::tuple_trail_vec elems) -> STheoryTerm {
                 if (elems.vec.size() == 1 && !elems.trail) {
                     return std::move(elems.vec.back());
                 }
@@ -74,12 +74,12 @@ struct theory_term_tuple : detail::make_tuple<TheoryTermTupleType::Tuple> {
             });
 };
 
-struct theory_term_set : detail::make_tuple<TheoryTermTupleType::Set> {
+struct theory_term_set : Detail::make_tuple<TheoryTermTupleType::Set> {
     static constexpr char const *name = "theory term set";
     static constexpr auto rule = dsl::curly_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
 };
 
-struct theory_term_list : detail::make_tuple<TheoryTermTupleType::List> {
+struct theory_term_list : Detail::make_tuple<TheoryTermTupleType::List> {
     static constexpr char const *name = "theory term list";
     static constexpr auto rule = dsl::square_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
 };
@@ -169,4 +169,4 @@ struct theory_atom {
     static constexpr auto value = lexy::construct<TheoryAtom>;
 };
 
-} // namespace grammar
+} // namespace Gringo::Input::Grammar

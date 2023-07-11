@@ -8,7 +8,7 @@
 
 #include <util/print.hh>
 
-namespace test {
+namespace Gringo::Input::Test {
 
 auto parse_term(std::string str) -> std::optional<STerm>;
 auto parse_literal(std::string str) -> std::optional<SLiteral>;
@@ -67,4 +67,4 @@ struct Parser {
     std::unique_ptr<Impl> impl;
 };
 
-} // namespace test
+} // namespace Gringo::Input::Test

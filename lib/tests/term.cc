@@ -2,7 +2,7 @@
 
 #include "parser.hh"
 
-namespace test {
+namespace Gringo::Input::Test {
 
 TEST_CASE("parse_term") {
     REQUIRE(to_str(parse_term("42")) == "42");
@@ -54,4 +54,4 @@ TEST_CASE("variables_term") {
     REQUIRE(variables_str(parse_term("f(X,Z;X,Y,Z;X,Y)"), VariableSelectMode::add) == "[X, Y, Z]");
 }
 
-} // namespace test
+} // namespace Gringo::Input::Test

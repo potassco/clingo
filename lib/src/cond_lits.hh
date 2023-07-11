@@ -8,7 +8,7 @@
 #include "unpool.hh"
 #include "variables.hh"
 
-namespace CondLits {
+namespace Gringo::Input::CondLits {
 
 template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
     using Conds = std::vector<SLiteralVec>;
@@ -114,19 +114,19 @@ auto project(typename T::ElementVec const &elems, P project, bool project_lits, 
         // project conclusion
         std::optional<SLiteralVec> projected_lits = std::nullopt;
         if (project_lits) {
-            projected_lits = transform(fun, lits);
+            projected_lits = Util::transform(fun, lits);
         }
         // project premise
         std::optional<SLiteralVec> projected_cond = std::nullopt;
         if (project_cond) {
-            projected_cond = transform(fun, cond);
+            projected_cond = Util::transform(fun, cond);
         }
         if (projected_lits.has_value() || projected_cond.has_value()) {
             return Elem{std::move(projected_lits).value_or(lits), std::move(projected_cond).value_or(cond)};
         }
         return std::nullopt;
     };
-    return transform_construct_shared<T, B>(Trans{elems, fun});
+    return Util::transform_construct_shared<T, B>(Util::Trans{elems, fun});
 }
 
 auto is_atom(auto const &elems) -> bool {
@@ -144,4 +144,4 @@ auto is_test(auto const &elems) -> bool {
     });
 }
 
-} // namespace CondLits
+} // namespace Gringo::Input::CondLits

@@ -8,6 +8,8 @@
 #include "unpool.hh"
 #include "variables.hh"
 
+namespace Gringo::Input {
+
 ////////// TheoryTerm //////////
 
 [[nodiscard]] auto TheoryTerm::to_string() const -> std::string {
@@ -48,7 +50,8 @@ void TheoryTermUnparsed::visit_variables(VarVisitFun fun) const {
 
 [[nodiscard]] auto TheoryTermUnparsed::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
     auto fun = [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); };
-    return transform_construct_shared<TheoryTermUnparsed, TheoryTerm>(ops_, Trans{term_, fun}, Trans{rhs_, fun});
+    return transform_construct_shared<TheoryTermUnparsed, TheoryTerm>(ops_, Util::Trans{term_, fun},
+                                                                      Util::Trans{rhs_, fun});
 }
 
 ////////// TheoryTermTuple //////////
@@ -99,7 +102,7 @@ void TheoryTermTuple::visit_variables(VarVisitFun fun) const {
 
 [[nodiscard]] auto TheoryTermTuple::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
     auto fun = [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); };
-    return transform_construct_shared<TheoryTermTuple, TheoryTerm>(type_, Trans{elems_, fun});
+    return transform_construct_shared<TheoryTermTuple, TheoryTerm>(type_, Util::Trans{elems_, fun});
 }
 
 ////////// TheoryTermConstant //////////
@@ -143,7 +146,7 @@ void TheoryTermFunction::visit_variables(VarVisitFun fun) const {
 
 [[nodiscard]] auto TheoryTermFunction::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
     auto fun = [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); };
-    return transform_construct_shared<TheoryTermFunction, TheoryTerm>(name_, Trans{args_, fun});
+    return transform_construct_shared<TheoryTermFunction, TheoryTerm>(name_, Util::Trans{args_, fun});
 }
 
 ////////// TheoryAtom //////////
@@ -200,10 +203,14 @@ auto TheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<TheoryAt
     auto fun = overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
                           [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); },
                           [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
-    return transform_construct<TheoryAtom>(Trans{name_, fun}, Trans{elems_, fun}, Trans{rhs_, fun});
+    return Util::transform_construct<TheoryAtom>(Util::Trans{name_, fun}, Util::Trans{elems_, fun},
+                                                 Util::Trans{rhs_, fun});
 }
 
 auto TheoryAtom::project_anonymous() const -> std::optional<TheoryAtom> {
     auto fun = [](SLiteral const &lit) { return lit->project_anonymous(); };
-    return transform_construct<TheoryAtom>(Trans{name_, fun}, Trans{elems_, fun}, Trans{rhs_, fun});
+    return Util::transform_construct<TheoryAtom>(Util::Trans{name_, fun}, Util::Trans{elems_, fun},
+                                                 Util::Trans{rhs_, fun});
 }
+
+} // namespace Gringo::Input

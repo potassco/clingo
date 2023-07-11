@@ -10,11 +10,11 @@
 #include <parser/base.hh>
 #include <term.hh>
 
-namespace grammar {
+namespace Gringo::Input::Grammar {
 
 namespace dsl = lexy::dsl;
 
-namespace detail {
+namespace Detail {
 
 auto empty_args(std::optional<STermVecVec> value) {
     PoolVec ret;
@@ -65,7 +65,7 @@ struct construct_symbol {
     auto operator()(Constant value) const -> STerm { return construct_shared<TermSymbol, Term>(Symbol{value}); }
 };
 
-} // namespace detail
+} // namespace Detail
 
 static constexpr auto projection_symbol = lexy::symbol_table<std::monostate> //
                                               .map<'*'>(std::monostate{});
@@ -175,7 +175,7 @@ struct term_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<term_function_pool>);
     static constexpr auto value = lexy::callback<STerm>([](std::string name, std::optional<PoolVec> value) {
-        return construct_shared<TermFunction, Term>(std::move(name), detail::empty_args(std::move(value)), false);
+        return construct_shared<TermFunction, Term>(std::move(name), Detail::empty_args(std::move(value)), false);
     });
 };
 
@@ -183,7 +183,7 @@ struct term_external_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = LEXY_LIT("@") >> dsl::p<identifier> + dsl::opt(dsl::p<term_function_pool>);
     static constexpr auto value = lexy::callback<STerm>([](std::string name, std::optional<PoolVec> value) {
-        return construct_shared<TermFunction, Term>(std::move(name), detail::empty_args(std::move(value)), true);
+        return construct_shared<TermFunction, Term>(std::move(name), Detail::empty_args(std::move(value)), true);
     });
 };
 
@@ -196,14 +196,14 @@ struct term_tuple_element {
         return dsl::if_(ps >> dsl::comma) + dsl::if_(dsl::list(ps | peek >> dsl::p<term>, sep));
     }();
     static constexpr auto
-        value = lexy::as_list<detail::element_trail_vec> >>
+        value = lexy::as_list<Detail::element_trail_vec> >>
                 lexy::callback<TermTuple::Element>([]() -> TupleVec { return {}; },
                                                    [](std::monostate p) -> TupleVec { return {p}; },
-                                                   [](std::monostate p, detail::element_trail_vec elem) {
+                                                   [](std::monostate p, Detail::element_trail_vec elem) {
                                                        elem.push_front(p);
                                                        return elem.to_tuple();
                                                    },
-                                                   [](detail::element_trail_vec elem) { return elem.to_tuple(); });
+                                                   [](Detail::element_trail_vec elem) { return elem.to_tuple(); });
 };
 
 struct term_tuple {
@@ -300,8 +300,8 @@ struct term_rec : lexy::expression_production {
     };
 
     using operation = term_dots;
-    static constexpr auto value = lexy::callback(lexy::forward<STerm>, detail::construct_symbol{},
+    static constexpr auto value = lexy::callback(lexy::forward<STerm>, Detail::construct_symbol{},
                                                  lexy::new_<TermUnary, STerm>, lexy::new_<TermBinary, STerm>);
 };
 
-} // namespace grammar
+} // namespace Gringo::Input::Grammar

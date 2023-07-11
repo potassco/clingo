@@ -8,6 +8,8 @@
 #include "transform.hh"
 #include "variables.hh"
 
+namespace Gringo::Input {
+
 ////////// BodyLiteral //////////
 
 namespace {
@@ -26,9 +28,9 @@ struct ProjectAnonymous {
     auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.project_anonymous(); };
 };
 
-auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
+auto tpa(auto const &x) { return Util::Trans(x, ProjectAnonymous{}); }
 
-auto tra(auto const &x, NameGen &gen) { return Trans(x, RewriteAnonymous{gen}); }
+auto tra(auto const &x, NameGen &gen) { return Util::Trans(x, RewriteAnonymous{gen}); }
 
 } // namespace
 
@@ -169,9 +171,9 @@ auto BodyAggregate::project(Projection project, bool in_classical_scope) const -
 
         // project literals in condition
         auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
-        return transform_construct<Element>(lit, Trans(cond, fun));
+        return Util::transform_construct<Element>(lit, Util::Trans(cond, fun));
     };
-    return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, Trans{elems_, fun}, rhs_);
+    return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, Util::Trans{elems_, fun}, rhs_);
 }
 
 auto BodyAggregate::project_anonymous() const -> std::optional<SBodyLiteral> {
@@ -246,3 +248,5 @@ auto BodyTheoryAtom::project_anonymous() const -> std::optional<SBodyLiteral> {
 auto BodyTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
     return transform_construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, tra(atom_, gen));
 }
+
+} // namespace Gringo::Input

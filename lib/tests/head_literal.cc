@@ -2,7 +2,7 @@
 
 #include "parser.hh"
 
-namespace test {
+namespace Gringo::Input::Test {
 
 TEST_CASE("parse_head_literal") {
     // theory_atom | aggregate | set_aggregate | not disjunction
@@ -82,4 +82,4 @@ TEST_CASE("unpool_head_literal") {
             "[&p(1) { : a(1); : a(2) }. &p(2) { : a(1); : a(2) }]");
 }
 
-} // namespace test
+} // namespace Gringo::Input::Test

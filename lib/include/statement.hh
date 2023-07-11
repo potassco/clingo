@@ -5,6 +5,8 @@
 #include <body_literal.hh>
 #include <head_literal.hh>
 
+namespace Gringo::Input {
+
 class Statement;
 using SStatement = shared_ptr<Statement>;
 using SStatementVec = std::vector<SStatement>;
@@ -493,3 +495,5 @@ class StatementConst : public Statement {
     std::string name_;
     STerm value_;
 };
+
+} // namespace Gringo::Input

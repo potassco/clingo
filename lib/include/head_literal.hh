@@ -6,6 +6,8 @@
 #include <literal.hh>
 #include <theory.hh>
 
+namespace Gringo::Input {
+
 class HeadLiteral;
 using SHeadLiteral = shared_ptr<HeadLiteral>;
 using SHeadLiteralVec = std::vector<SHeadLiteral>;
@@ -114,3 +116,5 @@ class HeadSetAggregate : public HeadLiteral {
   private:
     SetAggregate aggr_;
 };
+
+} // namespace Gringo::Input

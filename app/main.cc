@@ -5,6 +5,8 @@
 
 #include <parser/statement.hh>
 
+using namespace Gringo::Input;
+
 template <typename Scanner> auto recover(Scanner &scanner) {
     auto recovery = scanner.error_recovery();
     while (!scanner.branch(lexy::dsl::period)) {
@@ -37,12 +39,12 @@ void discard(StreamInput<Encoding, Counting> &input, Scanner &scanner) {
 void parse(RewriteOptions opts, auto &&input, auto &&output) {
     Comments comments;
     auto stateful_input = StatefulInput{input, comments};
-    auto scanner = lexy::scan<grammar::control>(stateful_input, report_error);
+    auto scanner = lexy::scan<Grammar::control>(stateful_input, report_error);
     // skip leading whitespace
-    scanner.parse(lexy::dsl::whitespace(grammar::control::whitespace));
+    scanner.parse(lexy::dsl::whitespace(Grammar::control::whitespace));
     while (scanner && !scanner.is_at_eof()) {
         discard(input, scanner);
-        lexy::scan_result<SStatement> res_stm = scanner.template parse<grammar::statement>();
+        lexy::scan_result<SStatement> res_stm = scanner.template parse<Grammar::statement>();
         if (res_stm.has_value()) {
             // output comments before end of statement
             for (auto &comment : comments) {
@@ -71,11 +73,11 @@ void parse(RewriteOptions opts, auto &&input, auto &&output) {
 auto main(int argc, char **argv) -> int {
     auto opts = RewriteOptions{};
     if (argc == 1) {
-        auto input = StreamInput<grammar::encoding>{std::cin};
+        auto input = StreamInput<Grammar::encoding>{std::cin};
         parse(opts, input, std::cout);
     } else {
         for (int i = 1; i < argc; ++i) {
-            auto file = lexy::read_file<grammar::encoding>(argv[i]);
+            auto file = lexy::read_file<Grammar::encoding>(argv[i]);
             parse(opts, file.buffer(), std::cout);
         }
     }

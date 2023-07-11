@@ -2,7 +2,7 @@
 
 #include "parser.hh"
 
-namespace test {
+namespace Gringo::Input::Test {
 
 TEST_CASE("parse_literal") {
     REQUIRE(to_str(parse_literal("#true")) == "#true");
@@ -23,4 +23,4 @@ TEST_CASE("unpool_literal") {
     REQUIRE(unpool_str(parse_literal("not f(x;y)")) == "[not f(x), not f(y)]");
 }
 
-} // namespace test
+} // namespace Gringo::Input::Test

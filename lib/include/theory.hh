@@ -5,6 +5,8 @@
 #include <literal.hh>
 #include <term.hh>
 
+namespace Gringo::Input {
+
 class TheoryTerm;
 using STheoryTerm = shared_ptr<TheoryTerm>;
 using STheoryTermVec = std::vector<STheoryTerm>;
@@ -141,3 +143,5 @@ class TheoryAtom {
     ElementVec elems_;
     RGuard rhs_;
 };
+
+} // namespace Gringo::Input

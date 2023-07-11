@@ -15,6 +15,8 @@
 
 #include <symbol.hh>
 
+namespace Gringo::Input {
+
 //! Enumeration for Term::check_type().
 enum class TermCheckType : int {
     atom,              //!< Check if term is an atom.
@@ -533,4 +535,6 @@ class TermBinary : public Term {
     STerm rhs_;
 };
 
-HASH(Term)
+} // namespace Gringo::Input
+
+HASH(Gringo::Input::Term)

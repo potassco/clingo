@@ -6,12 +6,12 @@
 #include <parser/literal.hh>
 #include <parser/theory.hh>
 
-namespace grammar {
+namespace Gringo::Input::Grammar {
 
 using SHeadAggregate = shared_ptr<HeadAggregate>;
 using SHeadSetAggregate = shared_ptr<HeadSetAggregate>;
 
-namespace detail {
+namespace Detail {
 
 inline auto construct_head_aggr(SHeadAggregate aggr) -> SHeadAggregate { return aggr; }
 
@@ -26,14 +26,14 @@ struct construct_disjunction_element {
     }
 };
 
-} // namespace detail
+} // namespace Detail
 
 static constexpr auto disjunction_sep = LEXY_ASCII_ONE_OF(",;|");
 
 struct simple_disjunction_element {
     static constexpr char const *name = "disjunction element";
     static constexpr auto rule = dsl::opt(dsl::list(disjunction_sep >> dsl::p<conditional_literal>));
-    static constexpr auto value = lexy::collect<Disjunction::ElementVec>(detail::construct_disjunction_element{}) >>
+    static constexpr auto value = lexy::collect<Disjunction::ElementVec>(Detail::construct_disjunction_element{}) >>
                                   lexy::callback<Disjunction::ElementVec>(lexy::forward<Disjunction::ElementVec>,
                                                                           [](lexy::nullopt) {
                                                                               return Disjunction::ElementVec{};
@@ -43,7 +43,7 @@ struct simple_disjunction_element {
 struct simple_disjunction {
     static constexpr char const *name = "disjunction";
     static constexpr auto rule = dsl::list(dsl::p<conditional_literal>, dsl::sep(disjunction_sep));
-    static constexpr auto value = lexy::collect<Disjunction::ElementVec>(detail::construct_disjunction_element{}) >>
+    static constexpr auto value = lexy::collect<Disjunction::ElementVec>(Detail::construct_disjunction_element{}) >>
                                   lexy::new_<Disjunction, SHeadLiteral>;
 };
 
@@ -133,12 +133,12 @@ struct head_literal {
         lexy::forward<SHeadLiteral>, lexy::new_<HeadTheoryAtom, SHeadLiteral>,
         lexy::new_<HeadSetAggregate, SHeadLiteral>,
         [](STerm term, auto aggr) {
-            auto ret = detail::construct_head_aggr(std::move(aggr));
+            auto ret = Detail::construct_head_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);
             return ret;
         },
         [](STerm term, Relation rel, auto aggr) {
-            auto ret = detail::construct_head_aggr(std::move(aggr));
+            auto ret = Detail::construct_head_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), rel);
             return ret;
         },
@@ -162,4 +162,4 @@ struct head_literal {
         });
 };
 
-} // namespace grammar
+} // namespace Gringo::Input::Grammar

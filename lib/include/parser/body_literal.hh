@@ -7,12 +7,12 @@
 #include <parser/literal.hh>
 #include <parser/theory.hh>
 
-namespace grammar {
+namespace Gringo::Input::Grammar {
 
 using SBodyAggregate = shared_ptr<BodyAggregate>;
 using SBodySetAggregate = shared_ptr<BodySetAggregate>;
 
-namespace detail {
+namespace Detail {
 
 inline auto construct_body_aggr(SBodyAggregate aggr) -> SBodyAggregate { return aggr; }
 
@@ -25,7 +25,7 @@ auto construct_conjunction(SLiteral lit, SLiteralVec cond) {
         Conjunction::ElementVec{Conjunction::Element{SLiteralVec{std::move(lit)}, std::move(cond)}});
 }
 
-} // namespace detail
+} // namespace Detail
 
 struct body_aggregate_element {
     static constexpr char const *name = "body aggregate element";
@@ -100,12 +100,12 @@ struct body_atom : lexy::transparent_production {
         lexy::forward<SBodyLiteral>, lexy::new_<BodySetAggregate, SBodyLiteral>,
         lexy::new_<BodyTheoryAtom, SBodyLiteral>,
         [](STerm term, auto aggr) {
-            auto ret = detail::construct_body_aggr(std::move(aggr));
+            auto ret = Detail::construct_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);
             return ret;
         },
         [](STerm term, Relation rel, auto aggr) {
-            auto ret = detail::construct_body_aggr(std::move(aggr));
+            auto ret = Detail::construct_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), rel);
             return ret;
         },
@@ -116,11 +116,11 @@ struct body_atom : lexy::transparent_production {
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
             auto lit = construct_shared<LiteralRelation, Literal>(std::move(lhs), std::move(guards));
-            return detail::construct_conjunction(std::move(lit), std::move(cond));
+            return Detail::construct_conjunction(std::move(lit), std::move(cond));
         },
         [](STerm term, SLiteralVec cond) {
             auto lit = construct_shared<LiteralSymbolic, Literal>(std::move(term));
-            return detail::construct_conjunction(std::move(lit), std::move(cond));
+            return Detail::construct_conjunction(std::move(lit), std::move(cond));
         });
 };
 
@@ -144,4 +144,4 @@ struct body_literal {
         });
 };
 
-} // namespace grammar
+} // namespace Gringo::Input::Grammar

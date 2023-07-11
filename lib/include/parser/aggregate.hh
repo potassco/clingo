@@ -5,7 +5,7 @@
 #include <parser/base.hh>
 #include <parser/literal.hh>
 
-namespace grammar {
+namespace Gringo::Input::Grammar {
 
 struct aggregate_function {
     static constexpr char const *name = "aggregate function";
@@ -96,4 +96,4 @@ struct set_aggregate {
         });
 };
 
-} // namespace grammar
+} // namespace Gringo::Input::Grammar

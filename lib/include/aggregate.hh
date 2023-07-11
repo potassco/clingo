@@ -5,6 +5,8 @@
 
 #include <literal.hh>
 
+namespace Gringo::Input {
+
 enum class AggregateFunction {
     count,
     sum,
@@ -58,3 +60,5 @@ class SetAggregate {
     LGuard lhs_;
     RGuard rhs_;
 };
+
+} // namespace Gringo::Input
