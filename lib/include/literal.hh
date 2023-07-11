@@ -55,6 +55,14 @@ class Literal {
   public:
     //! The virtual destructor.
     virtual ~Literal() = default;
+
+    //! Convert the literal to a string.
+    [[nodiscard]] auto to_string() const -> std::string;
+    //! Output the literal to the given stream.
+    friend auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream &;
+    //! Equality compare two literals.
+    friend auto operator==(Literal const &a, Literal const &b) { return a.is_equal(b); }
+
     //! Output the literal to the given stream.
     virtual void print(std::ostream &out) const = 0;
     //! Add a sign to the literal.
@@ -72,16 +80,10 @@ class Literal {
     //!
     //! A test is a negated or not a symbolic literal.
     [[nodiscard]] virtual auto is_test() const -> bool;
-    //! Convert the literal to a string.
-    [[nodiscard]] auto to_string() const -> std::string;
-    //! Output the literal to the given stream.
-    friend auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream &;
     //! Equality compare two literals.
     //!
     //! The implementation uses a dynamic cast and assums that the inheritance structure is flat.
     [[nodiscard]] virtual auto is_equal(Literal const &other) const -> bool = 0;
-    //! Equality compare two literals.
-    friend auto operator==(Literal const &a, Literal const &b) { return a.is_equal(b); }
     //! Compute a hash for the literal.
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     //! Visit variables with the given function.
@@ -99,7 +101,7 @@ class Literal {
   private:
     friend shared_ptr<Literal>;
 
-    //! The reference count of the term.
+    //! The reference count of the literal.
     size_t refs = 0;
 };
 
