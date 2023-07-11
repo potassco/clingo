@@ -10,7 +10,9 @@
 
 #include <util/shared_ptr.hh>
 
-namespace detail {
+namespace Gringo::Input {
+
+namespace Detail {
 
 using VarOccCounts = std::unordered_map<std::string, size_t>;
 using VarVisitFun = std::function<void(std::string const &var)>;
@@ -31,7 +33,7 @@ template <class P> class VarVisitHelper : public P {
 
     void add(std::monostate const &x) { static_cast<void>(x); }
 
-    template <class T> void add(shared_ptr<T> const &ptr) { add(*ptr); }
+    template <class T> void add(Util::shared_ptr<T> const &ptr) { add(*ptr); }
 
     template <class T> void add(std::optional<T> const &opt) {
         if (opt.has_value()) {
@@ -117,7 +119,9 @@ class VarVisitorHelper {
     VarVisitFun const &fun_;
 };
 
-} // namespace detail
+} // namespace Detail
 
-using VarCounter = detail::VarVisitHelper<detail::VarCounterHelper>;
-using VarVisitor = detail::VarVisitHelper<detail::VarVisitorHelper>;
+using VarCounter = Detail::VarVisitHelper<Detail::VarCounterHelper>;
+using VarVisitor = Detail::VarVisitHelper<Detail::VarVisitorHelper>;
+
+} // namespace Gringo::Input

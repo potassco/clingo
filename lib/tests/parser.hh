@@ -23,33 +23,33 @@ template <class T> auto to_str(std::optional<T> const &value) -> std::string {
     return "<failed>";
 }
 
-template <class T> auto to_str(shared_ptr<T> const &value) -> std::string { return value->to_string(); }
+template <class T> auto to_str(Util::shared_ptr<T> const &value) -> std::string { return value->to_string(); }
 
 template <class T> auto to_str(std::vector<T> const &value, char const *sep = ", ") -> std::string {
     std::ostringstream oss;
-    oss << "[" << p_range(value, sep) << "]";
+    oss << "[" << Util::p_range(value, sep) << "]";
     return oss.str();
 }
 
-template <class T> auto unpool_str(std::optional<shared_ptr<T>> value, char const *sep = ", ") -> std::string {
+template <class T> auto unpool_str(std::optional<Util::shared_ptr<T>> value, char const *sep = ", ") -> std::string {
     if (value) {
         auto unpooled = value.value()->unpool();
         if (!unpooled.has_value()) {
-            unpooled = make_vec<shared_ptr<T>>(value.value());
+            unpooled = make_vec<Util::shared_ptr<T>>(value.value());
         }
         return to_str(unpooled.value(), sep);
     }
     return "<failed>";
 }
 
-template <class T> auto project_str(std::optional<shared_ptr<T>> value) -> std::string {
+template <class T> auto project_str(std::optional<Util::shared_ptr<T>> value) -> std::string {
     if (value) {
         return to_str(value.value()->project(ProjectionMode::pure, true).value_or(value.value()));
     }
     return "<failed>";
 }
 
-template <class T> auto variables_str(std::optional<shared_ptr<T>> value, auto mode) -> std::string {
+template <class T> auto variables_str(std::optional<Util::shared_ptr<T>> value, auto mode) -> std::string {
     if (value) {
         auto vars = select_variables(*value.value(), mode);
         auto sorted = std::vector<VariableSet::value_type>{vars.begin(), vars.end()};

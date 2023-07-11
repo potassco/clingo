@@ -31,10 +31,10 @@ void TheoryTermUnparsed::print(std::ostream &out) const {
         out << "(";
     }
     if (!ops_.empty()) {
-        out << p_range(ops_, " ") << " ";
+        out << Util::p_range(ops_, " ") << " ";
     }
-    out << *term_ << p_range_with(rhs_, [](std::ostream &out, RHS const &guard) {
-        out << " " << p_range(guard.first, " ") << " " << *guard.second;
+    out << *term_ << Util::p_range_with(rhs_, [](std::ostream &out, RHS const &guard) {
+        out << " " << Util::p_range(guard.first, " ") << " " << *guard.second;
     });
     if (needs_parens) {
         out << ")";
@@ -50,8 +50,7 @@ void TheoryTermUnparsed::visit_variables(VarVisitFun fun) const {
 
 [[nodiscard]] auto TheoryTermUnparsed::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
     auto fun = [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); };
-    return transform_construct_shared<TheoryTermUnparsed, TheoryTerm>(ops_, Util::Trans{term_, fun},
-                                                                      Util::Trans{rhs_, fun});
+    return transform_construct_shared<TheoryTermUnparsed, TheoryTerm>(ops_, Trans{term_, fun}, Trans{rhs_, fun});
 }
 
 ////////// TheoryTermTuple //////////
@@ -87,7 +86,7 @@ auto right_bracket(TheoryTermTupleType type) -> char {
 }
 
 void TheoryTermTuple::print(std::ostream &out) const {
-    out << left_bracket(type_) << p_range(elems_);
+    out << left_bracket(type_) << Util::p_range(elems_);
     if (type_ == TheoryTermTupleType::Tuple && elems_.size() == 1) {
         out << ",";
     }
@@ -102,7 +101,7 @@ void TheoryTermTuple::visit_variables(VarVisitFun fun) const {
 
 [[nodiscard]] auto TheoryTermTuple::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
     auto fun = [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); };
-    return transform_construct_shared<TheoryTermTuple, TheoryTerm>(type_, Util::Trans{elems_, fun});
+    return transform_construct_shared<TheoryTermTuple, TheoryTerm>(type_, Trans{elems_, fun});
 }
 
 ////////// TheoryTermConstant //////////
@@ -124,7 +123,7 @@ void TheoryTermVariable::visit_variables(VarVisitFun fun) const { fun(name_); }
 
 [[nodiscard]] auto TheoryTermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
     if (is_anonymous_) {
-        return construct_shared<TheoryTermVariable, TheoryTerm>(gen.new_name(), true);
+        return Util::construct_shared<TheoryTermVariable, TheoryTerm>(gen.new_name(), true);
     }
     return std::nullopt;
 }
@@ -134,7 +133,7 @@ void TheoryTermVariable::visit_variables(VarVisitFun fun) const { fun(name_); }
 void TheoryTermFunction::print(std::ostream &out) const {
     out << name_;
     if (!args_.empty()) {
-        out << "(" << p_range(args_) << ")";
+        out << "(" << Util::p_range(args_) << ")";
     }
 }
 
@@ -146,7 +145,7 @@ void TheoryTermFunction::visit_variables(VarVisitFun fun) const {
 
 [[nodiscard]] auto TheoryTermFunction::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
     auto fun = [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); };
-    return transform_construct_shared<TheoryTermFunction, TheoryTerm>(name_, Util::Trans{args_, fun});
+    return transform_construct_shared<TheoryTermFunction, TheoryTerm>(name_, Trans{args_, fun});
 }
 
 ////////// TheoryAtom //////////
@@ -156,19 +155,20 @@ auto TheoryAtom::unpool() const -> std::optional<std::vector<TheoryAtom>> {
         [&](auto name, auto elems) {
             return TheoryAtom{std::move(name), std::move(elems), rhs_};
         },
-        overloaded{
+        Util::overloaded{
             [](ElementVec const &elems) -> std::optional<std::vector<ElementVec>> {
-                return map_opt(
-                    unpool_union(elems,
-                                 [](auto elem) {
-                                     return unpool_crossproducts(
-                                         [&elem](auto cond) {
-                                             return Element{std::get<0>(elem), std::move(cond)};
-                                         },
-                                         overloaded{[](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
-                                         std::get<1>(elem));
-                                 }),
-                    [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
+                return map_opt(unpool_union(elems,
+                                            [](auto elem) {
+                                                return unpool_crossproducts(
+                                                    [&elem](auto cond) {
+                                                        return Element{std::get<0>(elem), std::move(cond)};
+                                                    },
+                                                    Util::overloaded{[](SLiteralVec const &lits) {
+                                                        return unpool_crossproduct(lits);
+                                                    }},
+                                                    std::get<1>(elem));
+                                            }),
+                               [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
             },
             [](STerm const &name) { return name->unpool(); },
         },
@@ -178,10 +178,10 @@ auto TheoryAtom::unpool() const -> std::optional<std::vector<TheoryAtom>> {
 auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
     out << "&" << *atom.name_;
     if (!atom.elems_.empty() || atom.rhs_.has_value()) {
-        out << " { " << p_range_with(atom.elems_, "; ", [](std::ostream &out, TheoryAtom::Element const &elem) {
-            out << p_range(elem.first);
+        out << " { " << Util::p_range_with(atom.elems_, "; ", [](std::ostream &out, TheoryAtom::Element const &elem) {
+            out << Util::p_range(elem.first);
             if (!elem.second.empty() || elem.first.empty()) {
-                out << ": " << p_range(elem.second, ", ");
+                out << ": " << Util::p_range(elem.second, ", ");
             }
         }) << (atom.elems_.empty() ? "}" : " }");
     }
@@ -200,17 +200,15 @@ void TheoryAtom::visit_variables(VarVisitFun fun, VariableContext ctx) const {
 }
 
 auto TheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<TheoryAtom> {
-    auto fun = overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
-                          [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); },
-                          [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
-    return Util::transform_construct<TheoryAtom>(Util::Trans{name_, fun}, Util::Trans{elems_, fun},
-                                                 Util::Trans{rhs_, fun});
+    auto fun = Util::overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
+                                [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); },
+                                [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
+    return transform_construct<TheoryAtom>(Trans{name_, fun}, Trans{elems_, fun}, Trans{rhs_, fun});
 }
 
 auto TheoryAtom::project_anonymous() const -> std::optional<TheoryAtom> {
     auto fun = [](SLiteral const &lit) { return lit->project_anonymous(); };
-    return Util::transform_construct<TheoryAtom>(Util::Trans{name_, fun}, Util::Trans{elems_, fun},
-                                                 Util::Trans{rhs_, fun});
+    return transform_construct<TheoryAtom>(Trans{name_, fun}, Trans{elems_, fun}, Trans{rhs_, fun});
 }
 
 } // namespace Gringo::Input

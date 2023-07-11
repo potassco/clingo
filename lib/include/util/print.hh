@@ -5,6 +5,8 @@
 
 #include <util/shared_ptr.hh>
 
+namespace Gringo::Util {
+
 template <class T> struct p_elem {
     p_elem(T const &elem) : elem(elem) {}
     friend auto operator<<(std::ostream &out, p_elem const &elem) -> std::ostream & {
@@ -87,3 +89,5 @@ inline void print_quoted(std::ostream &out, std::string const &str) {
     }
     out << '"';
 }
+
+} // namespace Gringo::Util

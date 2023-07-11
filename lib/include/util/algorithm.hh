@@ -4,7 +4,9 @@
 #include <optional>
 #include <vector>
 
-namespace detail {
+namespace Gringo::Util {
+
+namespace Detail {
 
 template <class T> struct is_opt_ : std::false_type {};
 template <class T> struct is_opt_<std::optional<T>> : std::true_type {};
@@ -23,7 +25,7 @@ template <class T, class M>
 using opt_vec_ret_t =
     std::optional<std::vector<std::decay_t<decltype(std::declval<M>()(std::move(std::declval<T>().value().front())))>>>;
 
-} // namespace detail
+} // namespace Detail
 
 auto copy_n(auto const &vec, size_t n) {
     std::decay_t<decltype(vec)> ret;
@@ -35,7 +37,7 @@ auto copy_n(auto const &vec, size_t n) {
 }
 
 template <class T, class M>
-auto map_opt(T &&opt, M &&map) -> std::enable_if_t<detail::is_opt_v<T>, detail::opt_ret_t<T, M>> {
+auto map_opt(T &&opt, M &&map) -> std::enable_if_t<Detail::is_opt_v<T>, Detail::opt_ret_t<T, M>> {
     if (opt.has_value()) {
         return std::make_optional(std::invoke(std::forward<M>(map), std::forward<T>(opt).value()));
     }
@@ -51,9 +53,9 @@ auto and_then_opt(T &&opt, M &&map) -> decltype(std::invoke(std::forward<M>(map)
 }
 
 template <class T, class M>
-auto map_opt_vec(T &&vec, M &&map) -> std::enable_if_t<detail::is_opt_vec_v<T>, detail::opt_vec_ret_t<T, M>> {
+auto map_opt_vec(T &&vec, M &&map) -> std::enable_if_t<Detail::is_opt_vec_v<T>, Detail::opt_vec_ret_t<T, M>> {
     return map_opt(std::move(vec), [&map](auto &&vec) {
-        typename detail::opt_vec_ret_t<T, M>::value_type ret;
+        typename Detail::opt_vec_ret_t<T, M>::value_type ret;
         ret.reserve(vec.size());
         for (auto &&elem : vec) {
             // Note we assume that the vector owns the values and move them out
@@ -75,3 +77,5 @@ template <class T, class... Ts> auto make_vec(Ts &&...args) {
     (res.emplace_back(std::forward<Ts>(args)), ...);
     return res;
 }
+
+} // namespace Gringo::Util

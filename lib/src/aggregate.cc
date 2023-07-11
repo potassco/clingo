@@ -44,20 +44,21 @@ auto SetAggregate::unpool() const -> std::optional<std::vector<SetAggregate>> {
         [&](auto lhs, auto elems, auto rhs) {
             return SetAggregate{std::move(lhs), std::move(elems), std::move(rhs)};
         },
-        overloaded{
+        Util::overloaded{
             [](ElementVec const &elems) -> std::optional<std::vector<ElementVec>> {
-                return map_opt(
-                    unpool_union(elems,
-                                 [](auto elem) {
-                                     return unpool_crossproducts(
-                                         [](auto lit, auto cond) {
-                                             return Element{std::move(lit), std::move(cond)};
-                                         },
-                                         overloaded{[](SLiteral const &lit) { return lit->unpool(); },
-                                                    [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
-                                         std::get<0>(elem), std::get<1>(elem));
-                                 }),
-                    [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
+                return map_opt(unpool_union(elems,
+                                            [](auto elem) {
+                                                return unpool_crossproducts(
+                                                    [](auto lit, auto cond) {
+                                                        return Element{std::move(lit), std::move(cond)};
+                                                    },
+                                                    Util::overloaded{[](SLiteral const &lit) { return lit->unpool(); },
+                                                                     [](SLiteralVec const &lits) {
+                                                                         return unpool_crossproduct(lits);
+                                                                     }},
+                                                    std::get<0>(elem), std::get<1>(elem));
+                                            }),
+                               [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
                 return and_then_opt(lhs, [](auto const &lhs) {
@@ -81,10 +82,10 @@ auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream & {
     if (aggr.lhs_) {
         out << *aggr.lhs_->first << " " << aggr.lhs_->second << " ";
     }
-    out << "{ " << p_range_with(aggr.elems_, "; ", [](std::ostream &out, auto const &elem) {
+    out << "{ " << Util::p_range_with(aggr.elems_, "; ", [](std::ostream &out, auto const &elem) {
         out << *std::get<0>(elem);
         if (!std::get<1>(elem).empty()) {
-            out << ": " << p_range{std::get<1>(elem), ", "};
+            out << ": " << Util::p_range{std::get<1>(elem), ", "};
         }
     }) << (aggr.elems_.empty() ? "}" : " }");
     if (aggr.rhs_) {
@@ -116,21 +117,20 @@ auto SetAggregate::project(Projection project, bool in_negative_scope) const -> 
 
         // project literals in condition
         auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
-        return Util::transform_construct<Element>(lit, Util::Trans(cond, fun));
+        return transform_construct<Element>(lit, Trans(cond, fun));
     };
-    return Util::transform_construct<SetAggregate>(lhs_, Util::Trans{elems_, fun}, rhs_);
+    return transform_construct<SetAggregate>(lhs_, Trans{elems_, fun}, rhs_);
 }
 
 auto SetAggregate::project_anonymous() const -> std::optional<SetAggregate> {
     auto fun = [](SLiteral const &lit) { return lit->project_anonymous(); };
-    return Util::transform_construct<SetAggregate>(lhs_, Util::Trans{elems_, fun}, rhs_);
+    return transform_construct<SetAggregate>(lhs_, Trans{elems_, fun}, rhs_);
 }
 
 auto SetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SetAggregate> {
-    auto fun = overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
-                          [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
-    return Util::transform_construct<SetAggregate>(Util::Trans{lhs_, fun}, Util::Trans{elems_, fun},
-                                                   Util::Trans{rhs_, fun});
+    auto fun = Util::overloaded{[&gen](STerm const &term) { return term->rewrite_anonymous(gen); },
+                                [&gen](SLiteral const &lit) { return lit->rewrite_anonymous(gen); }};
+    return transform_construct<SetAggregate>(Trans{lhs_, fun}, Trans{elems_, fun}, Trans{rhs_, fun});
 }
 
 } // namespace Gringo::Input

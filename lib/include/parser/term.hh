@@ -56,13 +56,13 @@ class element_trail_vec {
 struct construct_symbol {
     using return_type = STerm;
 
-    auto operator()(int value) const -> STerm { return construct_shared<TermSymbol, Term>(Symbol{value}); }
+    auto operator()(int value) const -> STerm { return Util::construct_shared<TermSymbol, Term>(Symbol{value}); }
 
     auto operator()(std::string value) const -> STerm {
-        return construct_shared<TermSymbol, Term>(Symbol{QuotedString{value}});
+        return Util::construct_shared<TermSymbol, Term>(Symbol{QuotedString{value}});
     }
 
-    auto operator()(Constant value) const -> STerm { return construct_shared<TermSymbol, Term>(Symbol{value}); }
+    auto operator()(Constant value) const -> STerm { return Util::construct_shared<TermSymbol, Term>(Symbol{value}); }
 };
 
 } // namespace Detail
@@ -175,7 +175,7 @@ struct term_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<term_function_pool>);
     static constexpr auto value = lexy::callback<STerm>([](std::string name, std::optional<PoolVec> value) {
-        return construct_shared<TermFunction, Term>(std::move(name), Detail::empty_args(std::move(value)), false);
+        return Util::construct_shared<TermFunction, Term>(std::move(name), Detail::empty_args(std::move(value)), false);
     });
 };
 
@@ -183,7 +183,7 @@ struct term_external_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = LEXY_LIT("@") >> dsl::p<identifier> + dsl::opt(dsl::p<term_function_pool>);
     static constexpr auto value = lexy::callback<STerm>([](std::string name, std::optional<PoolVec> value) {
-        return construct_shared<TermFunction, Term>(std::move(name), Detail::empty_args(std::move(value)), true);
+        return Util::construct_shared<TermFunction, Term>(std::move(name), Detail::empty_args(std::move(value)), true);
     });
 };
 
@@ -216,7 +216,7 @@ struct term_tuple {
                                       if (elem.size() == 1 && std::holds_alternative<STerm>(elem.front())) {
                                           return std::move(std::get<STerm>(elem.front()));
                                       }
-                                      return construct_shared<TermTuple, Term>(std::move(elem));
+                                      return Util::construct_shared<TermTuple, Term>(std::move(elem));
                                   });
 };
 
@@ -234,7 +234,7 @@ struct term_anonymous_variable {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = anonymous_variable;
     static constexpr auto value =
-        lexy::callback<STerm>([]() { return construct_shared<TermVariable, Term>("_", true); });
+        lexy::callback<STerm>([]() { return Util::construct_shared<TermVariable, Term>("_", true); });
 };
 
 struct term_rec : lexy::expression_production {

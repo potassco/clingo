@@ -13,7 +13,7 @@ namespace Gringo::Input {
 
 class BodyLiteral;
 //! A shared pointer to a body literal.
-using SBodyLiteral = shared_ptr<BodyLiteral>;
+using SBodyLiteral = Util::shared_ptr<BodyLiteral>;
 //! A vector of shared pointers to body literals.
 using SBodyLiteralVec = std::vector<SBodyLiteral>;
 

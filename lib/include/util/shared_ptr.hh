@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <utility>
 
+namespace Gringo::Util {
+
 // Alternative intrusive shared_ptr implementation. It is intrusive to ease C
 // integration and also avoid some complexity in view of an optimal make_shared
 // implementation. This implementation should be faster than the STL
@@ -174,3 +176,5 @@ template <class X, class Y>
 template <typename T, typename B = T, typename... Args> auto construct_single(Args &&...args) {
     return single_owner_ptr<B>{new T{std::forward<Args>(args)...}};
 }
+
+} // namespace Gringo::Util

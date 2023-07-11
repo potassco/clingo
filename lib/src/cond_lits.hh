@@ -4,6 +4,8 @@
 
 #include <literal.hh>
 
+#include <util/print.hh>
+
 #include "transform.hh"
 #include "unpool.hh"
 #include "variables.hh"
@@ -39,7 +41,7 @@ template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
 
     // copy literals if conditions have been unpooled
     if (elem_conds.has_value() && !elem_lits.has_value()) {
-        elem_lits = make_vec<ElementVec>(ElementVec{});
+        elem_lits = Util::make_vec<ElementVec>(ElementVec{});
         elem_lits->back().reserve(elems.size());
         for (auto const &elem : elems) {
             elem_lits->back().emplace_back(Element{elem.first, {}});
@@ -77,18 +79,18 @@ auto is_simple(auto const &elems) -> bool {
 
 void print(auto const &elems, std::ostream &out, char const *kw, bool simple_empty) {
     if (elems.empty() ? simple_empty : is_simple(elems)) {
-        out << p_range_with(elems, "; ", [](std::ostream &out, auto const &elem) {
+        out << Util::p_range_with(elems, "; ", [](std::ostream &out, auto const &elem) {
             auto cs = elem.second.empty() ? "" : ": ";
-            out << *elem.first.front() << cs << p_range(elem.second, ", ");
+            out << *elem.first.front() << cs << Util::p_range(elem.second, ", ");
         });
     } else {
         char const *sp = elems.empty() ? "" : " ";
         out << kw << " { "
-            << p_range_with(elems, "; ",
-                            [&](std::ostream &out, auto const &elem) {
-                                char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
-                                out << p_range(elem.first, ", ") << cs << p_range(elem.second, ", ");
-                            })
+            << Util::p_range_with(elems, "; ",
+                                  [&](std::ostream &out, auto const &elem) {
+                                      char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
+                                      out << Util::p_range(elem.first, ", ") << cs << Util::p_range(elem.second, ", ");
+                                  })
             << sp << "}";
     }
 }
@@ -104,7 +106,7 @@ void visit_variables(auto const &elems, VarVisitFun const &fun, VariableContext 
 }
 template <class T, class B, class P>
 auto project(typename T::ElementVec const &elems, P project, bool project_lits, bool in_classical_scope)
-    -> std::optional<shared_ptr<B>> {
+    -> std::optional<Util::shared_ptr<B>> {
     using Elem = typename T::ElementVec::value_type;
     auto fun = [&](Elem const &elem) -> std::optional<Elem> {
         auto const &[lits, cond] = elem;
@@ -114,19 +116,19 @@ auto project(typename T::ElementVec const &elems, P project, bool project_lits, 
         // project conclusion
         std::optional<SLiteralVec> projected_lits = std::nullopt;
         if (project_lits) {
-            projected_lits = Util::transform(fun, lits);
+            projected_lits = transform(fun, lits);
         }
         // project premise
         std::optional<SLiteralVec> projected_cond = std::nullopt;
         if (project_cond) {
-            projected_cond = Util::transform(fun, cond);
+            projected_cond = transform(fun, cond);
         }
         if (projected_lits.has_value() || projected_cond.has_value()) {
             return Elem{std::move(projected_lits).value_or(lits), std::move(projected_cond).value_or(cond)};
         }
         return std::nullopt;
     };
-    return Util::transform_construct_shared<T, B>(Util::Trans{elems, fun});
+    return transform_construct_shared<T, B>(Trans{elems, fun});
 }
 
 auto is_atom(auto const &elems) -> bool {

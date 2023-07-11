@@ -70,7 +70,7 @@ class GlobalVarSelectorHelper {
     VariableSet global_;
 };
 
-using GlobalVarSelector = detail::VarVisitHelper<GlobalVarSelectorHelper>;
+using GlobalVarSelector = Detail::VarVisitHelper<GlobalVarSelectorHelper>;
 
 class GlobalVarCounterHelper {
   public:
@@ -95,10 +95,10 @@ class GlobalVarCounterHelper {
 
   private:
     VariableSet const &global_;
-    detail::VarOccCounts counts_;
+    Detail::VarOccCounts counts_;
 };
 
-using GlobalVarCounter = detail::VarVisitHelper<GlobalVarCounterHelper>;
+using GlobalVarCounter = Detail::VarVisitHelper<GlobalVarCounterHelper>;
 
 struct Project {
     auto operator()(SHeadLiteral const &lit) const { return lit->project(project); }
@@ -131,7 +131,7 @@ auto vcp(auto const &...args) {
 
 auto tp(auto const &x, ProjectionMode mode, std::unordered_map<std::string, size_t> const &counts,
         bool in_classical_scope = true) {
-    return Util::Trans{x, Project{Projection{mode, counts}, in_classical_scope}};
+    return Trans{x, Project{Projection{mode, counts}, in_classical_scope}};
 }
 
 auto ngra(Statement const &stm) {
@@ -140,9 +140,9 @@ auto ngra(Statement const &stm) {
     return NameGen{std::move(vars)};
 };
 
-auto tra(auto const &x, auto &gen) { return Util::Trans{x, RewriteAnonymous{gen}}; };
+auto tra(auto const &x, auto &gen) { return Trans{x, RewriteAnonymous{gen}}; };
 
-auto tpa(auto const &x) { return Util::Trans(x, ProjectAnonymous{}); }
+auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
 
 } // namespace
 
@@ -234,7 +234,7 @@ auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream & {
 void Rule::print(std::ostream &out) const {
     out << *head_;
     if (head_->print_empty() || !body_.empty()) {
-        out << " :- " << p_range(body_, "; ");
+        out << " :- " << Util::p_range(body_, "; ");
     }
     out << ".";
 }
@@ -305,7 +305,7 @@ auto operator<<(std::ostream &out, TheoryTermDefinition const &def) -> std::ostr
         out << " " << def.op_defs_.front() << " }";
     } else {
         out << "\n"
-            << p_range_with(def.op_defs_, ";\n", [](std::ostream &out, auto &op_def) { out << "    " << op_def; })
+            << Util::p_range_with(def.op_defs_, ";\n", [](std::ostream &out, auto &op_def) { out << "    " << op_def; })
             << "\n  }";
     }
     return out;
@@ -338,7 +338,7 @@ auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream & {
 auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream & {
     out << "  &" << def.name_ << "/" << def.arity_ << ": " << def.term_ << ", ";
     if (def.rhs_) {
-        out << "{" << p_range(def.rhs_->first, ",") << "}, " << def.rhs_->second << ", ";
+        out << "{" << Util::p_range(def.rhs_->first, ",") << "}, " << def.rhs_->second << ", ";
     }
     out << def.type_;
     return out;
@@ -348,14 +348,14 @@ auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostr
 
 void TheoryDefinition::print(std::ostream &out) const {
     out << "#theory " << name_ << (term_defs_.empty() && atom_defs_.empty() ? " { " : " {\n");
-    out << p_range(term_defs_, ";\n");
+    out << Util::p_range(term_defs_, ";\n");
     if (!term_defs_.empty()) {
         if (!atom_defs_.empty()) {
             out << ";";
         }
         out << "\n";
     }
-    out << p_range(atom_defs_, ";\n");
+    out << Util::p_range(atom_defs_, ";\n");
     if (!atom_defs_.empty()) {
         out << "\n";
     }
@@ -396,21 +396,21 @@ auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
 
 void StatementOptimize::print(std::ostream &out) const {
     out << type_ << " { "
-        << p_range_with(elems_, "; ",
-                        [](std::ostream &out, auto const &elem) {
-                            auto const &[tuple, cond] = elem;
-                            auto const &[weight, prio, terms] = tuple;
-                            out << *weight;
-                            if (prio) {
-                                out << "@" << *prio.value();
-                            }
-                            if (!terms.empty()) {
-                                out << "," << p_range(terms);
-                            }
-                            if (!cond.empty()) {
-                                out << ": " << p_range(cond, ", ");
-                            }
-                        })
+        << Util::p_range_with(elems_, "; ",
+                              [](std::ostream &out, auto const &elem) {
+                                  auto const &[tuple, cond] = elem;
+                                  auto const &[weight, prio, terms] = tuple;
+                                  out << *weight;
+                                  if (prio) {
+                                      out << "@" << *prio.value();
+                                  }
+                                  if (!terms.empty()) {
+                                      out << "," << Util::p_range(terms);
+                                  }
+                                  if (!cond.empty()) {
+                                      out << ": " << Util::p_range(cond, ", ");
+                                  }
+                              })
         << (elems_.empty() ? "}" : " }") << ".";
 }
 
@@ -438,9 +438,9 @@ auto StatementOptimize::do_project(ProjectionMode mode) const -> std::optional<S
 
         // project literals in condition
         auto fun = [project](SLiteral const &lit) { return lit->project(project); };
-        return Util::transform_construct<Element>(tuple, Util::Trans{cond, fun});
+        return transform_construct<Element>(tuple, Trans{cond, fun});
     };
-    return transform_construct_shared<StatementOptimize, Statement>(type_, Util::Trans{elems_, fun});
+    return transform_construct_shared<StatementOptimize, Statement>(type_, Trans{elems_, fun});
 }
 
 auto StatementOptimize::do_project_anonymous() const -> std::optional<SStatement> {
@@ -456,12 +456,12 @@ auto StatementOptimize::rewrite_anonymous() const -> std::optional<SStatement> {
 
 void StatementWeakConstraint::print(std::ostream &out) const {
     auto const &[weight, prio, terms] = tuple_;
-    out << " :~ " << p_range(body_, "; ") << ". [" << *weight;
+    out << " :~ " << Util::p_range(body_, "; ") << ". [" << *weight;
     if (prio) {
         out << "@" << *prio.value();
     }
     if (!terms.empty()) {
-        out << "," << p_range(terms);
+        out << "," << Util::p_range(terms);
     }
     out << "]";
 }
@@ -503,7 +503,7 @@ void StatementShow::print(std::ostream &out) const {
         lp = "(";
         rp = ")";
     }
-    out << "#show " << lp << *term_ << rp << ": " << p_range(body_, "; ") << ".";
+    out << "#show " << lp << *term_ << rp << ": " << Util::p_range(body_, "; ") << ".";
 }
 
 auto StatementShow::do_unpool() const -> std::optional<SStatementVec> {
@@ -558,7 +558,7 @@ auto StatementShowSig::rewrite_anonymous() const -> std::optional<SStatement> { 
 ////////// StatementProject //////////
 
 void StatementProject::print(std::ostream &out) const {
-    out << "#project " << *term_ << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
+    out << "#project " << *term_ << (body_.empty() ? "" : ": ") << Util::p_range(body_, "; ") << ".";
 }
 
 auto StatementProject::do_unpool() const -> std::optional<SStatementVec> {
@@ -635,7 +635,7 @@ auto StatementDefined::rewrite_anonymous() const -> std::optional<SStatement> { 
 ////////// StatementExternal //////////
 
 void StatementExternal::print(std::ostream &out) const {
-    out << "#external " << *term_ << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
+    out << "#external " << *term_ << (body_.empty() ? "" : ": ") << Util::p_range(body_, "; ") << ".";
     if (type_.has_value()) {
         out << " [" << *type_.value() << "]";
     }
@@ -673,8 +673,9 @@ auto StatementExternal::rewrite_anonymous() const -> std::optional<SStatement> {
 
 void StatementEdge::print(std::ostream &out) const {
     out << "#edge ("
-        << p_range_with(edges_, ";", [](std::ostream &out, auto &edge) { out << *edge.first << "," << *edge.second; })
-        << ")" << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ".";
+        << Util::p_range_with(edges_, ";",
+                              [](std::ostream &out, auto &edge) { out << *edge.first << "," << *edge.second; })
+        << ")" << (body_.empty() ? "" : ": ") << Util::p_range(body_, "; ") << ".";
 }
 
 auto StatementEdge::do_unpool() const -> std::optional<SStatementVec> {
@@ -715,7 +716,7 @@ auto StatementEdge::rewrite_anonymous() const -> std::optional<SStatement> {
 ////////// StatementHeuristic //////////
 
 void StatementHeuristic::print(std::ostream &out) const {
-    out << "#heuristic " << *atom_ << (body_.empty() ? "" : ": ") << p_range(body_, "; ") << ". [" << *type_;
+    out << "#heuristic " << *atom_ << (body_.empty() ? "" : ": ") << Util::p_range(body_, "; ") << ". [" << *type_;
     if (prio_) {
         out << "@" << *prio_.value();
     }
@@ -808,7 +809,7 @@ void StatementInclude::print(std::ostream &out) const {
         out << "#include <" << path_ << ">.";
     } else {
         out << "#include ";
-        print_quoted(out, path_);
+        Util::print_quoted(out, path_);
         out << ".";
     }
 }
@@ -834,7 +835,7 @@ auto StatementInclude::rewrite_anonymous() const -> std::optional<SStatement> { 
 void StatementProgram::print(std::ostream &out) const {
     out << "#program " << name_;
     if (!args_.empty()) {
-        out << "(" << p_range(args_) << ")";
+        out << "(" << Util::p_range(args_) << ")";
     }
     out << ".";
 }

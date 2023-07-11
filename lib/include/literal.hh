@@ -45,7 +45,7 @@ using GuardVec = std::vector<Guard>;
 
 class Literal;
 //! A shared pointer to a literal.
-using SLiteral = shared_ptr<Literal>;
+using SLiteral = Util::shared_ptr<Literal>;
 //! A vector of shared pointers to literals.
 using SLiteralVec = std::vector<SLiteral>;
 

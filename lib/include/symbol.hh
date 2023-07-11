@@ -6,6 +6,8 @@
 
 #include <util/hash.hh>
 
+namespace Gringo {
+
 // Currently meant as a placeholder for the real thing.
 
 enum class Constant : int {
@@ -46,5 +48,7 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
 
 [[nodiscard]] auto has_sign(Symbol const &sym) -> bool;
 
-HASH(QuotedString)
-HASH(Function)
+} // namespace Gringo
+
+HASH(Gringo::QuotedString)
+HASH(Gringo::Function)

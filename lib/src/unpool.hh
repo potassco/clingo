@@ -11,7 +11,9 @@
 
 #define FWD(x) std::forward<decltype(x)>(x)
 
-namespace detail {
+namespace Gringo::Input {
+
+namespace Detail {
 
 template <size_t i, size_t n>
 auto unpool_crossproducts_build(auto &build, auto &vec, auto &orig, auto &unpooled, auto &&...cs) {
@@ -44,10 +46,11 @@ auto unpool_crossproducts(auto &build, std::tuple<As const &...> orig, auto unpo
     return std::optional<return_type>(std::nullopt);
 }
 
-} // namespace detail
+} // namespace Detail
 
 struct Unpooler {
-    template <class T> auto operator()(shared_ptr<T> const &elem) const -> std::optional<std::vector<shared_ptr<T>>> {
+    template <class T>
+    auto operator()(Util::shared_ptr<T> const &elem) const -> std::optional<std::vector<Util::shared_ptr<T>>> {
         return elem->unpool();
     }
 };
@@ -133,6 +136,8 @@ auto unpool_union(std::vector<T> const &elems, U &&unpool = U{}) -> std::optiona
 }
 
 auto unpool_crossproducts(auto build, auto unpool, auto const &...args) {
-    return detail::unpool_crossproducts(build, std::forward_as_tuple(args...), std::forward_as_tuple(unpool(args)...),
+    return Detail::unpool_crossproducts(build, std::forward_as_tuple(args...), std::forward_as_tuple(unpool(args)...),
                                         std::index_sequence_for<decltype(args)...>());
 }
+
+} // namespace Gringo::Input

@@ -8,7 +8,7 @@
 namespace Gringo::Input {
 
 class Statement;
-using SStatement = shared_ptr<Statement>;
+using SStatement = Util::shared_ptr<Statement>;
 using SStatementVec = std::vector<SStatement>;
 
 // TODO 1:
@@ -70,8 +70,6 @@ struct RewriteOptions {
 };
 
 class Statement {
-    friend shared_ptr<Statement>;
-
   public:
     virtual ~Statement() = default;
 

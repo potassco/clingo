@@ -12,6 +12,8 @@
 
 #include <util/shared_ptr.hh>
 
+namespace Gringo::Util {
+
 #define HASH(T)                                                                                                        \
     namespace std {                                                                                                    \
                                                                                                                        \
@@ -44,7 +46,7 @@ template <class A, class B, class C, class D> auto value_equal(std::pair<A, B> c
     return value_equal(a.first, b.first) && value_equal(a.second, b.second);
 }
 
-namespace detail {
+namespace Detail {
 
 template <class... T, size_t... Indices>
 inline auto value_equal_to_tuple(std::tuple<T...> const &a, std::tuple<T...> const &b,
@@ -53,11 +55,11 @@ inline auto value_equal_to_tuple(std::tuple<T...> const &a, std::tuple<T...> con
     return (true && ... && value_equal(std::get<Indices>(a), std::get<Indices>(b)));
 }
 
-} // namespace detail
+} // namespace Detail
 
 template <class... A, class... B> auto value_equal(std::tuple<A...> const &a, std::tuple<B...> const &b) {
     static_assert(std::tuple_size_v<std::tuple<A...>> == std::tuple_size_v<std::tuple<B...>>);
-    return detail::value_equal_to_tuple(a, b, std::index_sequence_for<A...>{});
+    return Detail::value_equal_to_tuple(a, b, std::index_sequence_for<A...>{});
 }
 
 template <class A, class B> auto value_equal(std::vector<A> const &a, std::vector<B> const &b) {
@@ -97,7 +99,7 @@ template <class A, class B> inline auto value_hash(std::pair<A, B> const &value)
     return value_hash(value.first, value.second);
 }
 
-namespace detail {
+namespace Detail {
 
 template <class... T, size_t... Indices>
 inline auto value_hash_tuple(std::tuple<T...> const &value, std::index_sequence<Indices...> indices) -> size_t {
@@ -105,10 +107,10 @@ inline auto value_hash_tuple(std::tuple<T...> const &value, std::index_sequence<
     return value_hash(std::get<Indices>(value)...);
 }
 
-} // namespace detail
+} // namespace Detail
 
 template <class... T> inline auto value_hash(std::tuple<T...> const &value) -> size_t {
-    return detail::value_hash_tuple(value, std::index_sequence_for<T...>{});
+    return Detail::value_hash_tuple(value, std::index_sequence_for<T...>{});
 }
 
 template <class... T> inline auto value_hash(std::variant<T...> const &value) -> size_t {
@@ -145,3 +147,5 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 template <class V, class... Fs> auto visit_variant(V &&v, Fs &&...fs) {
     return std::visit(overloaded{std::forward<Fs>(fs)...}, std::forward<V>(v));
 }
+
+} // namespace Gringo::Util

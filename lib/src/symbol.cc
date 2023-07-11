@@ -2,6 +2,8 @@
 
 #include <symbol.hh>
 
+namespace Gringo {
+
 auto operator<<(std::ostream &out, Constant op) -> std::ostream & {
     switch (op) {
         case Constant::supremum: {
@@ -21,20 +23,20 @@ auto QuotedString::hash() const -> size_t { return std::hash<std::string>{}(valu
 auto operator==(QuotedString const &a, QuotedString const &b) -> bool { return a.value == b.value; }
 
 auto operator<<(std::ostream &out, QuotedString const &sym) -> std::ostream & {
-    print_quoted(out, sym.value);
+    Util::print_quoted(out, sym.value);
     return out;
 }
 
 auto Function::hash() const -> size_t {
-    auto hash = hash_combine(std::hash<bool>{}(has_sign), std::hash<std::string>{}(name));
+    auto hash = Util::hash_combine(std::hash<bool>{}(has_sign), std::hash<std::string>{}(name));
     for (auto const &value : args) {
-        hash = hash_combine(hash, std::hash<Symbol>{}(value));
+        hash = Util::hash_combine(hash, std::hash<Symbol>{}(value));
     }
     return hash;
 }
 
 auto operator==(Function const &a, Function const &b) -> bool {
-    return value_equal(a.has_sign, b.has_sign, a.name, b.name, a.args, b.args);
+    return Util::value_equal(a.has_sign, b.has_sign, a.name, b.name, a.args, b.args);
 }
 
 auto operator<<(std::ostream &out, Function const &sym) -> std::ostream & {
@@ -44,7 +46,7 @@ auto operator<<(std::ostream &out, Function const &sym) -> std::ostream & {
     out << sym.name;
     if (!sym.args.empty() || sym.name.empty()) {
         bool comma = sym.name.empty() && sym.args.size() == 1;
-        out << "(" << p_range(sym.args) << (comma ? "," : "") << ")";
+        out << "(" << Util::p_range(sym.args) << (comma ? "," : "") << ")";
     }
     return out;
 }
@@ -75,3 +77,5 @@ auto has_sign(Constant cst) -> bool {
 auto has_sign(Symbol const &sym) -> bool {
     return std::visit([](auto &&symbol) { return has_sign(symbol); }, sym);
 }
+
+} // namespace Gringo

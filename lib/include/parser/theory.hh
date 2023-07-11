@@ -43,8 +43,10 @@ template <TheoryTermTupleType type> struct make_tuple {
     static constexpr auto value =
         lexy::as_list<STheoryTermVec> >>
         lexy::callback<STheoryTerm>(
-            [](lexy::nullopt) { return construct_shared<TheoryTermTuple, TheoryTerm>(type, STheoryTermVec{}); },
-            [](STheoryTermVec elems) { return construct_shared<TheoryTermTuple, TheoryTerm>(type, std::move(elems)); });
+            [](lexy::nullopt) { return Util::construct_shared<TheoryTermTuple, TheoryTerm>(type, STheoryTermVec{}); },
+            [](STheoryTermVec elems) {
+                return Util::construct_shared<TheoryTermTuple, TheoryTerm>(type, std::move(elems));
+            });
 };
 
 struct tuple_trail_vec {
@@ -60,18 +62,19 @@ struct theory_term_tuple : Detail::make_tuple<TheoryTermTupleType::Tuple> {
     static constexpr char const *name = "theory term tuple";
     static constexpr auto rule =
         dsl::round_bracketed.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::capture(dsl::lit_c<','>)));
-    static constexpr auto value =
-        lexy::as_list<Detail::tuple_trail_vec> >>
-        lexy::callback<STheoryTerm>(
-            [](lexy::nullopt) -> STheoryTerm {
-                return construct_shared<TheoryTermTuple, TheoryTerm>(TheoryTermTupleType::Tuple, STheoryTermVec{});
-            },
-            [](Detail::tuple_trail_vec elems) -> STheoryTerm {
-                if (elems.vec.size() == 1 && !elems.trail) {
-                    return std::move(elems.vec.back());
-                }
-                return construct_shared<TheoryTermTuple, TheoryTerm>(TheoryTermTupleType::Tuple, std::move(elems.vec));
-            });
+    static constexpr auto value = lexy::as_list<Detail::tuple_trail_vec> >>
+                                  lexy::callback<STheoryTerm>(
+                                      [](lexy::nullopt) -> STheoryTerm {
+                                          return Util::construct_shared<TheoryTermTuple, TheoryTerm>(
+                                              TheoryTermTupleType::Tuple, STheoryTermVec{});
+                                      },
+                                      [](Detail::tuple_trail_vec elems) -> STheoryTerm {
+                                          if (elems.vec.size() == 1 && !elems.trail) {
+                                              return std::move(elems.vec.back());
+                                          }
+                                          return Util::construct_shared<TheoryTermTuple, TheoryTerm>(
+                                              TheoryTermTupleType::Tuple, std::move(elems.vec));
+                                      });
 };
 
 struct theory_term_set : Detail::make_tuple<TheoryTermTupleType::Set> {
@@ -106,7 +109,7 @@ struct theory_term_anonymous_variable {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = anonymous_variable;
     static constexpr auto value =
-        lexy::callback<STheoryTerm>([]() { return construct_shared<TheoryTermVariable, TheoryTerm>("_", true); });
+        lexy::callback<STheoryTerm>([]() { return Util::construct_shared<TheoryTermVariable, TheoryTerm>("_", true); });
 };
 
 struct theory_term_root {
@@ -118,9 +121,11 @@ struct theory_term_root {
                                  dsl::error<expected_term>;
     static constexpr auto value = lexy::callback<STheoryTerm>(
         lexy::forward<STheoryTerm>,
-        [](int value) { return construct_shared<TheoryTermSymbol, TheoryTerm>(Symbol{value}); },
-        [](std::string value) { return construct_shared<TheoryTermSymbol, TheoryTerm>(Symbol{QuotedString{value}}); },
-        [](Constant value) { return construct_shared<TheoryTermSymbol, TheoryTerm>(Symbol{value}); });
+        [](int value) { return Util::construct_shared<TheoryTermSymbol, TheoryTerm>(Symbol{value}); },
+        [](std::string value) {
+            return Util::construct_shared<TheoryTermSymbol, TheoryTerm>(Symbol{QuotedString{value}});
+        },
+        [](Constant value) { return Util::construct_shared<TheoryTermSymbol, TheoryTerm>(Symbol{value}); });
 };
 
 struct theory_term_unparsed_guards {

@@ -9,19 +9,19 @@
 
 namespace Gringo::Input::Grammar {
 
-using SBodyAggregate = shared_ptr<BodyAggregate>;
-using SBodySetAggregate = shared_ptr<BodySetAggregate>;
+using SBodyAggregate = Util::shared_ptr<BodyAggregate>;
+using SBodySetAggregate = Util::shared_ptr<BodySetAggregate>;
 
 namespace Detail {
 
 inline auto construct_body_aggr(SBodyAggregate aggr) -> SBodyAggregate { return aggr; }
 
 inline auto construct_body_aggr(SetAggregate aggr) -> SBodySetAggregate {
-    return construct_shared<BodySetAggregate>(std::move(aggr));
+    return Util::construct_shared<BodySetAggregate>(std::move(aggr));
 }
 
 auto construct_conjunction(SLiteral lit, SLiteralVec cond) {
-    return construct_shared<Conjunction, BodyLiteral>(
+    return Util::construct_shared<Conjunction, BodyLiteral>(
         Conjunction::ElementVec{Conjunction::Element{SLiteralVec{std::move(lit)}, std::move(cond)}});
 }
 
@@ -62,7 +62,7 @@ struct body_aggregate {
     static constexpr auto value = lexy::callback<SBodyAggregate>(
         lexy::new_<BodyAggregate, SBodyAggregate>,
         [](AggregateFunction fun, BodyAggregate::ElementVec elems, STerm rhs) {
-            return construct_shared<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
+            return Util::construct_shared<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
 };
 
@@ -115,11 +115,11 @@ struct body_atom : lexy::transparent_production {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
-            auto lit = construct_shared<LiteralRelation, Literal>(std::move(lhs), std::move(guards));
+            auto lit = Util::construct_shared<LiteralRelation, Literal>(std::move(lhs), std::move(guards));
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         },
         [](STerm term, SLiteralVec cond) {
-            auto lit = construct_shared<LiteralSymbolic, Literal>(std::move(term));
+            auto lit = Util::construct_shared<LiteralSymbolic, Literal>(std::move(term));
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         });
 };

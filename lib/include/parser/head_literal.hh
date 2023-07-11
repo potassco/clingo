@@ -8,15 +8,15 @@
 
 namespace Gringo::Input::Grammar {
 
-using SHeadAggregate = shared_ptr<HeadAggregate>;
-using SHeadSetAggregate = shared_ptr<HeadSetAggregate>;
+using SHeadAggregate = Util::shared_ptr<HeadAggregate>;
+using SHeadSetAggregate = Util::shared_ptr<HeadSetAggregate>;
 
 namespace Detail {
 
 inline auto construct_head_aggr(SHeadAggregate aggr) -> SHeadAggregate { return aggr; }
 
 inline auto construct_head_aggr(SetAggregate aggr) -> SHeadSetAggregate {
-    return construct_shared<HeadSetAggregate>(std::move(aggr));
+    return Util::construct_shared<HeadSetAggregate>(std::move(aggr));
 }
 
 struct construct_disjunction_element {
@@ -92,7 +92,7 @@ struct head_aggregate {
     static constexpr auto value = lexy::callback<SHeadAggregate>(
         lexy::new_<HeadAggregate, SHeadAggregate>,
         [](AggregateFunction fun, HeadAggregate::ElementVec elems, STerm rhs) {
-            return construct_shared<HeadAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
+            return Util::construct_shared<HeadAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
 };
 
@@ -149,16 +149,18 @@ struct head_literal {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
-            elems.insert(elems.begin(), Disjunction::Element{SLiteralVec{construct_shared<LiteralRelation, Literal>(
-                                                                 std::move(lhs), std::move(guards))},
-                                                             std::move(cond)});
-            return construct_shared<Disjunction, HeadLiteral>(std::move(elems));
+            elems.insert(elems.begin(),
+                         Disjunction::Element{SLiteralVec{Util::construct_shared<LiteralRelation, Literal>(
+                                                  std::move(lhs), std::move(guards))},
+                                              std::move(cond)});
+            return Util::construct_shared<Disjunction, HeadLiteral>(std::move(elems));
         },
         [](STerm term, SLiteralVec cond, Disjunction::ElementVec elems) {
-            elems.insert(elems.begin(),
-                         Disjunction::Element{SLiteralVec{construct_shared<LiteralSymbolic, Literal>(std::move(term))},
-                                              std::move(cond)});
-            return construct_shared<Disjunction, HeadLiteral>(std::move(elems));
+            elems.insert(
+                elems.begin(),
+                Disjunction::Element{SLiteralVec{Util::construct_shared<LiteralSymbolic, Literal>(std::move(term))},
+                                     std::move(cond)});
+            return Util::construct_shared<Disjunction, HeadLiteral>(std::move(elems));
         });
 };
 

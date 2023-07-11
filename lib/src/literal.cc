@@ -16,15 +16,15 @@ namespace Gringo::Input {
 namespace {
 
 auto tra(auto const &x, NameGen &gen) {
-    return Util::Trans(x, [&gen](STerm const &term) { return term->rewrite_anonymous(gen); });
+    return Trans(x, [&gen](STerm const &term) { return term->rewrite_anonymous(gen); });
 }
 
 auto tpa(auto const &x) {
-    return Util::Trans(x, [](STerm const &term) { return term->project_anonymous(); });
+    return Trans(x, [](STerm const &term) { return term->project_anonymous(); });
 }
 
 auto tp(auto const &x, Projection project) {
-    return Util::Trans(x, [project](STerm const &term) { return term->project(project); });
+    return Trans(x, [project](STerm const &term) { return term->project(project); });
 }
 
 } // namespace
@@ -142,7 +142,7 @@ auto LiteralRelation::unpool() const -> std::optional<SLiteralVec> {
         [this](auto lhs, auto rhs) {
             return construct_shared<LiteralRelation, Literal>(sign_, std::move(lhs), std::move(rhs));
         },
-        overloaded{
+        Util::overloaded{
             [](STerm const &term) { return term->unpool(); },
             [](GuardVec const &guard) {
                 return unpool_crossproduct(guard, [](Guard const &guard) {
@@ -157,10 +157,10 @@ auto LiteralRelation::unpool() const -> std::optional<SLiteralVec> {
 
 auto LiteralRelation::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralRelation const *>(&other);
-    return d != nullptr && value_equal(sign_, d->sign_, lhs_, d->lhs_, rhs_, d->rhs_);
+    return d != nullptr && Util::value_equal(sign_, d->sign_, lhs_, d->lhs_, rhs_, d->rhs_);
 }
 
-auto LiteralRelation::hash() const -> size_t { return value_hash(typeid(LiteralRelation), sign_, lhs_, rhs_); }
+auto LiteralRelation::hash() const -> size_t { return Util::value_hash(typeid(LiteralRelation), sign_, lhs_, rhs_); }
 
 void LiteralRelation::visit_variables(VarVisitFun const &fun) const {
     lhs_->visit_variables(fun);
@@ -177,7 +177,7 @@ auto LiteralRelation::project(Projection project) const -> std::optional<SLitera
 auto LiteralRelation::project_anonymous() const -> std::optional<SLiteral> { return std::nullopt; }
 
 auto LiteralRelation::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
-    return Util::transform_construct_shared<LiteralRelation, Literal>(tra(lhs_, gen), tra(rhs_, gen));
+    return transform_construct_shared<LiteralRelation, Literal>(tra(lhs_, gen), tra(rhs_, gen));
 }
 
 ////////// LiteralBoolean //////////
@@ -190,10 +190,10 @@ auto LiteralBoolean::unpool() const -> std::optional<SLiteralVec> { return std::
 
 auto LiteralBoolean::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralBoolean const *>(&other);
-    return d != nullptr && value_equal(sign_, d->sign_, value_, d->value_);
+    return d != nullptr && Util::value_equal(sign_, d->sign_, value_, d->value_);
 }
 
-auto LiteralBoolean::hash() const -> size_t { return value_hash(typeid(LiteralSymbolic), sign_, value_); }
+auto LiteralBoolean::hash() const -> size_t { return Util::value_hash(typeid(LiteralSymbolic), sign_, value_); }
 
 void LiteralBoolean::visit_variables(VarVisitFun const &fun) const { static_cast<void>(fun); }
 
@@ -223,23 +223,23 @@ auto LiteralSymbolic::unpool() const -> std::optional<SLiteralVec> {
 
 auto LiteralSymbolic::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralSymbolic const *>(&other);
-    return d != nullptr && value_equal(sign_, d->sign_, term_, d->term_);
+    return d != nullptr && Util::value_equal(sign_, d->sign_, term_, d->term_);
 }
 
-auto LiteralSymbolic::hash() const -> size_t { return value_hash(typeid(LiteralSymbolic), sign_, term_); }
+auto LiteralSymbolic::hash() const -> size_t { return Util::value_hash(typeid(LiteralSymbolic), sign_, term_); }
 
 void LiteralSymbolic::visit_variables(VarVisitFun const &fun) const { term_->visit_variables(fun); }
 
 auto LiteralSymbolic::project(Projection project) const -> std::optional<SLiteral> {
     if (sign_ == Sign::none) {
-        return Util::transform_construct_shared<LiteralSymbolic, Literal>(sign_, tp(term_, project));
+        return transform_construct_shared<LiteralSymbolic, Literal>(sign_, tp(term_, project));
     }
     return std::nullopt;
 }
 
 auto LiteralSymbolic::project_anonymous() const -> std::optional<SLiteral> {
     if (sign_ != Sign::none) {
-        return Util::transform_construct_shared<LiteralSymbolic, Literal>(sign_, tpa(term_));
+        return transform_construct_shared<LiteralSymbolic, Literal>(sign_, tpa(term_));
     }
     return std::nullopt;
 }
@@ -249,7 +249,7 @@ auto LiteralSymbolic::is_atom() const -> bool { return sign_ == Sign::none; }
 auto LiteralSymbolic::is_test() const -> bool { return false; }
 
 auto LiteralSymbolic::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
-    return Util::transform_construct_shared<LiteralSymbolic, Literal>(sign_, tra(term_, gen));
+    return transform_construct_shared<LiteralSymbolic, Literal>(sign_, tra(term_, gen));
 }
 
 } // namespace Gringo::Input

@@ -61,10 +61,11 @@ template <class E, class J, class L> struct junction {
         auto sep = dsl::sep(LEXY_LIT(";"));
         return kw >> dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
     };
-    static constexpr auto value = lexy::as_list<typename J::ElementVec> >>
-                                  lexy::callback<shared_ptr<L>>(lexy::new_<J, shared_ptr<L>>, [](lexy::nullopt) {
-                                      return construct_shared<J, L>(typename J::ElementVec{});
-                                  });
+    static constexpr auto
+        value = lexy::as_list<typename J::ElementVec> >>
+                lexy::callback<Util::shared_ptr<L>>(lexy::new_<J, Util::shared_ptr<L>>, [](lexy::nullopt) {
+                    return Util::construct_shared<J, L>(typename J::ElementVec{});
+                });
 };
 
 template <class E>

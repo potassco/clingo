@@ -20,7 +20,7 @@ namespace {
 
 struct p_tuple {
     auto operator()(std::ostream &out, TupleElem const &elem) const -> std::ostream & {
-        visit_variant(
+        Util::visit_variant(
             elem, [&](std::monostate) { out << "*"; }, [&](auto const &elem) { out << *elem; });
         return out;
     }
@@ -104,7 +104,7 @@ struct ProjectAnonymous {
             return {std::monostate{}};
         }
         auto sub = [](STerm const &term) { return term->project_anonymous(); };
-        return Util::transform(sub, elem);
+        return transform(sub, elem);
     };
 };
 
@@ -115,18 +115,18 @@ struct Project {
             return {std::monostate{}};
         }
         auto sub = [project = project](STerm const &term) { return term->project(project); };
-        return Util::transform(sub, elem);
+        return transform(sub, elem);
     };
     Projection project;
 };
 
 auto tra(auto const &x, NameGen &gen) {
-    return Util::Trans(x, [&gen](STerm const &term) { return term->rewrite_anonymous(gen); });
+    return Trans(x, [&gen](STerm const &term) { return term->rewrite_anonymous(gen); });
 }
 
-auto tpa(auto const &x) { return Util::Trans(x, ProjectAnonymous{}); }
+auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
 
-auto tp(auto const &x, Projection project) { return Util::Trans(x, Project{project}); }
+auto tp(auto const &x, Projection project) { return Trans(x, Project{project}); }
 
 } // namespace
 
@@ -228,7 +228,7 @@ void TermSymbol::do_print(std::ostream &out, bool no_leading_op, unsigned int pr
 }
 
 auto TermSymbol::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    return visit_variant(
+    return Util::visit_variant(
         value_,
         [&](int value) {
             if (type == TermCheckType::pos_number && value >= 0) {
@@ -262,10 +262,10 @@ auto TermSymbol::unpool() const -> std::optional<STermVec> { return std::nullopt
 
 auto TermSymbol::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermSymbol const *>(&other);
-    return d != nullptr && value_equal(value_, d->value_);
+    return d != nullptr && Util::value_equal(value_, d->value_);
 }
 
-auto TermSymbol::hash() const -> size_t { return value_hash(typeid(TermSymbol), value_); }
+auto TermSymbol::hash() const -> size_t { return Util::value_hash(typeid(TermSymbol), value_); }
 
 void TermSymbol::visit_variables(VarVisitFun const &fun) const { static_cast<void>(fun); }
 
@@ -302,11 +302,11 @@ void TermTuple::do_print(std::ostream &out, bool no_leading_op, unsigned int pri
     if (pool_.size() == 1 && std::holds_alternative<STerm>(pool_.front())) {
         std::get<STerm>(pool_.front())->do_print(out, no_leading_op, prio, pos);
     } else {
-        out << "(" << p_range_with(pool_, ";", [](std::ostream &out, auto const &term_or_tuple) {
-            visit_variant(
+        out << "(" << Util::p_range_with(pool_, ";", [](std::ostream &out, auto const &term_or_tuple) {
+            Util::visit_variant(
                 term_or_tuple, [&](STerm const &term) { term->print(out); },
                 [&](TupleVec const &tuple) {
-                    out << p_range_with(tuple, ",", p_tuple{});
+                    out << Util::p_range_with(tuple, ",", p_tuple{});
                     if (tuple.size() == 1) {
                         out << ",";
                     }
@@ -317,10 +317,10 @@ void TermTuple::do_print(std::ostream &out, bool no_leading_op, unsigned int pri
 
 auto TermTuple::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermTuple const *>(&other);
-    return d != nullptr && value_equal(pool_, d->pool_);
+    return d != nullptr && Util::value_equal(pool_, d->pool_);
 }
 
-auto TermTuple::hash() const -> size_t { return value_hash(typeid(TermTuple), pool_); }
+auto TermTuple::hash() const -> size_t { return Util::value_hash(typeid(TermTuple), pool_); }
 
 void TermTuple::visit_variables(VarVisitFun const &fun) const {
     VarVisitor visit{fun};
@@ -328,21 +328,21 @@ void TermTuple::visit_variables(VarVisitFun const &fun) const {
 }
 
 auto TermTuple::project(Projection project) const -> std::optional<STerm> {
-    return Util::transform_construct_shared<TermTuple, Term>(tp(pool_, project));
+    return transform_construct_shared<TermTuple, Term>(tp(pool_, project));
 }
 
 auto TermTuple::project_anonymous() const -> std::optional<STerm> {
-    return Util::transform_construct_shared<TermTuple, Term>(tpa(pool_));
+    return transform_construct_shared<TermTuple, Term>(tpa(pool_));
 }
 
 auto TermTuple::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return Util::transform_construct_shared<TermTuple, Term>(tra(pool_, gen));
+    return transform_construct_shared<TermTuple, Term>(tra(pool_, gen));
 }
 
 auto TermTuple::unpool() const -> std::optional<STermVec> {
     // unpool the elements
     auto elems = unpool_union(pool_, [](Element const &tuple_or_term) {
-        return visit_variant(
+        return Util::visit_variant(
             tuple_or_term,
             [](STerm const &term) -> std::optional<ElementVec> {
                 return map_opt_vec(term->unpool(), [](auto term) { return Element{std::move(term)}; });
@@ -350,7 +350,7 @@ auto TermTuple::unpool() const -> std::optional<STermVec> {
             [](TupleVec const &tuple) -> std::optional<ElementVec> {
                 return map_opt_vec(unpool_crossproduct(tuple,
                                                        [](TupleElem const &elem) {
-                                                           return visit_variant(
+                                                           return Util::visit_variant(
                                                                elem,
                                                                [](STerm const &term) -> std::optional<TupleVec> {
                                                                    return map_opt_vec(term->unpool(), [](auto term) {
@@ -371,9 +371,9 @@ auto TermTuple::unpool() const -> std::optional<STermVec> {
         elems = pool_;
     }
     return map_opt_vec(std::move(elems), [](auto elem) -> STerm {
-        return visit_variant(
+        return Util::visit_variant(
             std::move(elem), [](STerm term) { return term; },
-            [](TupleVec tuple) { return construct_shared<TermTuple, Term>(ElementVec{std::move(tuple)}); });
+            [](TupleVec tuple) { return Util::construct_shared<TermTuple, Term>(ElementVec{std::move(tuple)}); });
     });
 }
 
@@ -399,7 +399,7 @@ auto TermVariable::is_equal(Term const &other) const -> bool {
     return d != nullptr && name_ == d->name_;
 }
 
-auto TermVariable::hash() const -> size_t { return value_hash(typeid(TermVariable), name_); }
+auto TermVariable::hash() const -> size_t { return Util::value_hash(typeid(TermVariable), name_); }
 
 auto TermVariable::unpool() const -> std::optional<STermVec> { return std::nullopt; }
 
@@ -414,7 +414,7 @@ auto TermVariable::project_anonymous() const -> std::optional<STerm> { return st
 
 auto TermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     if (is_anonymous_) {
-        return construct_shared<TermVariable, Term>(gen.new_name(), true);
+        return Util::construct_shared<TermVariable, Term>(gen.new_name(), true);
     }
     return std::nullopt;
 }
@@ -429,7 +429,7 @@ void TermAbs::do_print(std::ostream &out, bool no_leading_op, unsigned int prio,
     static_cast<void>(no_leading_op);
     static_cast<void>(prio);
     static_cast<void>(pos);
-    out << "|" << p_range(pool_, ";") << "|";
+    out << "|" << Util::p_range(pool_, ";") << "|";
 }
 
 auto TermAbs::is_equal(Term const &other) const -> bool {
@@ -437,7 +437,7 @@ auto TermAbs::is_equal(Term const &other) const -> bool {
     return d != nullptr && pool_ == d->pool_;
 }
 
-auto TermAbs::hash() const -> size_t { return value_hash(typeid(TermAbs), pool_); }
+auto TermAbs::hash() const -> size_t { return Util::value_hash(typeid(TermAbs), pool_); }
 
 auto TermAbs::unpool() const -> std::optional<STermVec> {
     auto unpooled = unpool_union(pool_);
@@ -445,7 +445,7 @@ auto TermAbs::unpool() const -> std::optional<STermVec> {
         unpooled = pool_;
     }
     return map_opt_vec(std::move(unpooled),
-                       [](auto term) { return construct_shared<TermAbs, Term>(STermVec{std::move(term)}); });
+                       [](auto term) { return Util::construct_shared<TermAbs, Term>(STermVec{std::move(term)}); });
 }
 
 void TermAbs::visit_variables(VarVisitFun const &fun) const {
@@ -462,7 +462,7 @@ auto TermAbs::project(Projection project) const -> std::optional<STerm> {
 auto TermAbs::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
 auto TermAbs::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return Util::transform_construct_shared<TermAbs, Term>(tra(pool_, gen));
+    return transform_construct_shared<TermAbs, Term>(tra(pool_, gen));
 }
 
 /*
@@ -480,24 +480,24 @@ void TermFunction::do_print(std::ostream &out, bool no_leading_op, unsigned int 
     }
     out << name_;
     if (pool_.size() != 1 || !pool_.front().empty()) {
-        out << "(" << p_range_with(pool_, ";", [](std::ostream &out, TupleVec const &tuple) {
-            out << p_range_with(tuple, ",", p_tuple{});
+        out << "(" << Util::p_range_with(pool_, ";", [](std::ostream &out, TupleVec const &tuple) {
+            out << Util::p_range_with(tuple, ",", p_tuple{});
         }) << ")";
     }
 }
 
 auto TermFunction::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermFunction const *>(&other);
-    return d != nullptr && value_equal(external_, d->external_, name_, d->name_, pool_, d->pool_);
+    return d != nullptr && Util::value_equal(external_, d->external_, name_, d->name_, pool_, d->pool_);
 }
 
-auto TermFunction::hash() const -> size_t { return value_hash(typeid(TermFunction), external_, name_, pool_); }
+auto TermFunction::hash() const -> size_t { return Util::value_hash(typeid(TermFunction), external_, name_, pool_); }
 
 auto TermFunction::unpool() const -> std::optional<STermVec> {
     auto elems = unpool_union(pool_, [](TupleVec const &tuple) {
         // unpool the elements
         return unpool_crossproduct(tuple, [](TupleElem const &elem) {
-            return visit_variant(
+            return Util::visit_variant(
                 elem,
                 [](STerm const &term) -> std::optional<TupleVec> {
                     return map_opt_vec(term->unpool(), [](auto term) { return TupleElem{std::move(term)}; });
@@ -515,7 +515,7 @@ auto TermFunction::unpool() const -> std::optional<STermVec> {
 
     return map_opt_vec(std::move(elems), [this](auto elem) {
         // turn individual elements into function terms
-        return construct_shared<TermFunction, Term>(name_, PoolVec{std::move(elem)}, external_);
+        return Util::construct_shared<TermFunction, Term>(name_, PoolVec{std::move(elem)}, external_);
     });
 }
 
@@ -528,18 +528,18 @@ auto TermFunction::project(Projection project) const -> std::optional<STerm> {
     if (external_) {
         return std::nullopt;
     }
-    return Util::transform_construct_shared<TermFunction, Term>(name_, tp(pool_, project), external_);
+    return transform_construct_shared<TermFunction, Term>(name_, tp(pool_, project), external_);
 }
 
 auto TermFunction::project_anonymous() const -> std::optional<STerm> {
     if (external_) {
         return std::nullopt;
     }
-    return Util::transform_construct_shared<TermFunction, Term>(name_, tpa(pool_), external_);
+    return transform_construct_shared<TermFunction, Term>(name_, tpa(pool_), external_);
 }
 
 auto TermFunction::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return Util::transform_construct_shared<TermFunction, Term>(name_, tra(pool_, gen), external_);
+    return transform_construct_shared<TermFunction, Term>(name_, tra(pool_, gen), external_);
 }
 
 auto TermFunction::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
@@ -584,18 +584,18 @@ void TermUnary::do_print(std::ostream &out, bool no_leading_op, unsigned int pri
 
 auto TermUnary::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermUnary const *>(&other);
-    return d != nullptr && value_equal(op_, d->op_, rhs_, d->rhs_);
+    return d != nullptr && Util::value_equal(op_, d->op_, rhs_, d->rhs_);
 }
 
-auto TermUnary::hash() const -> size_t { return value_hash(typeid(TermUnary), op_, rhs_); }
+auto TermUnary::hash() const -> size_t { return Util::value_hash(typeid(TermUnary), op_, rhs_); }
 
 auto TermUnary::unpool() const -> std::optional<STermVec> {
     return map_opt_vec(rhs_->unpool(),
-                       [this](auto term) { return construct_shared<TermUnary, Term>(op_, std::move(term)); });
+                       [this](auto term) { return Util::construct_shared<TermUnary, Term>(op_, std::move(term)); });
 }
 
 auto TermUnary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return Util::transform_construct_shared<TermUnary, Term>(op_, tra(rhs_, gen));
+    return transform_construct_shared<TermUnary, Term>(op_, tra(rhs_, gen));
 }
 
 auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
@@ -616,14 +616,14 @@ void TermUnary::visit_variables(VarVisitFun const &fun) const { rhs_->visit_vari
 
 auto TermUnary::project(Projection project) const -> std::optional<STerm> {
     if (check_type(TermCheckType::atom, nullptr)) {
-        return Util::transform_construct_shared<TermUnary, Term>(op_, tp(rhs_, project));
+        return transform_construct_shared<TermUnary, Term>(op_, tp(rhs_, project));
     }
     return std::nullopt;
 }
 
 auto TermUnary::project_anonymous() const -> std::optional<STerm> {
     if (check_type(TermCheckType::atom, nullptr)) {
-        return Util::transform_construct_shared<TermUnary, Term>(op_, tpa(rhs_));
+        return transform_construct_shared<TermUnary, Term>(op_, tpa(rhs_));
     }
     return std::nullopt;
 }
@@ -720,15 +720,15 @@ void TermBinary::do_print(std::ostream &out, bool no_leading_op, unsigned int pr
 
 auto TermBinary::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermBinary const *>(&other);
-    return d != nullptr && value_equal(op_, d->op_, lhs_, d->lhs_, rhs_, d->rhs_);
+    return d != nullptr && Util::value_equal(op_, d->op_, lhs_, d->lhs_, rhs_, d->rhs_);
 }
 
-auto TermBinary::hash() const -> size_t { return value_hash(typeid(TermBinary), op_, lhs_, rhs_); }
+auto TermBinary::hash() const -> size_t { return Util::value_hash(typeid(TermBinary), op_, lhs_, rhs_); }
 
 auto TermBinary::unpool() const -> std::optional<STermVec> {
     return unpool_crossproducts(
         [this](STerm lhs, STerm rhs) {
-            return construct_shared<TermBinary, Term>(std::move(lhs), op_, std::move(rhs));
+            return Util::construct_shared<TermBinary, Term>(std::move(lhs), op_, std::move(rhs));
         },
         [](STerm const &term) { return term->unpool(); }, lhs_, rhs_);
 }
@@ -754,7 +754,7 @@ auto TermBinary::project(Projection project) const -> std::optional<STerm> {
 auto TermBinary::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
 auto TermBinary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return Util::transform_construct_shared<TermBinary, Term>(tra(lhs_, gen), op_, tra(rhs_, gen));
+    return transform_construct_shared<TermBinary, Term>(tra(lhs_, gen), op_, tra(rhs_, gen));
 }
 
 /*

@@ -8,7 +8,7 @@
 namespace Gringo::Input {
 
 class TheoryTerm;
-using STheoryTerm = shared_ptr<TheoryTerm>;
+using STheoryTerm = Util::shared_ptr<TheoryTerm>;
 using STheoryTermVec = std::vector<STheoryTerm>;
 
 class TheoryTerm {

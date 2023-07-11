@@ -28,9 +28,9 @@ struct ProjectAnonymous {
     auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.project_anonymous(); };
 };
 
-auto tpa(auto const &x) { return Util::Trans(x, ProjectAnonymous{}); }
+auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
 
-auto tra(auto const &x, NameGen &gen) { return Util::Trans(x, RewriteAnonymous{gen}); }
+auto tra(auto const &x, NameGen &gen) { return Trans(x, RewriteAnonymous{gen}); }
 
 } // namespace
 
@@ -98,10 +98,10 @@ void BodyAggregate::print(std::ostream &out) const {
     if (lhs_) {
         out << *lhs_->first << " " << lhs_->second << " ";
     }
-    out << fun_ << " { " << p_range_with(elems_, "; ", [](std::ostream &out, auto const &elem) {
-        out << p_range{std::get<0>(elem), ","};
+    out << fun_ << " { " << Util::p_range_with(elems_, "; ", [](std::ostream &out, auto const &elem) {
+        out << Util::p_range{std::get<0>(elem), ","};
         if (!std::get<1>(elem).empty()) {
-            out << ": " << p_range{std::get<1>(elem), ", "};
+            out << ": " << Util::p_range{std::get<1>(elem), ", "};
         }
     }) << (elems_.empty() ? "}" : " }");
     if (rhs_) {
@@ -112,10 +112,10 @@ void BodyAggregate::print(std::ostream &out) const {
 auto BodyAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
     return unpool_crossproducts(
         [this](auto lhs, auto elem_lits, auto rhs) {
-            return construct_shared<BodyAggregate, BodyLiteral>(sign_, std::move(lhs), fun_, std::move(elem_lits),
-                                                                std::move(rhs));
+            return Util::construct_shared<BodyAggregate, BodyLiteral>(sign_, std::move(lhs), fun_, std::move(elem_lits),
+                                                                      std::move(rhs));
         },
-        overloaded{
+        Util::overloaded{
             [](ElementVec const &elem_lits) -> std::optional<std::vector<ElementVec>> {
                 return map_opt(
                     unpool_union(elem_lits,
@@ -124,22 +124,23 @@ auto BodyAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
                                          [](auto tuple, auto cond) {
                                              return Element{std::move(tuple), std::move(cond)};
                                          },
-                                         overloaded{[](STermVec const &tuple) { return unpool_crossproduct(tuple); },
-                                                    [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
+                                         Util::overloaded{
+                                             [](STermVec const &tuple) { return unpool_crossproduct(tuple); },
+                                             [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
                                          std::get<0>(elem), std::get<1>(elem));
                                  }),
                     [](auto elem_lits) { return make_vec<ElementVec>(std::move(elem_lits)); });
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
                 return and_then_opt(lhs, [](auto const &lhs) {
-                    return map_opt_vec(lhs.first->unpool(), [&lhs](auto term) {
+                    return Util::map_opt_vec(lhs.first->unpool(), [&lhs](auto term) {
                         return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
                     });
                 });
             },
             [](RGuard const &rhs) -> std::optional<std::vector<RGuard>> {
                 return and_then_opt(rhs, [](auto const &rhs) {
-                    return map_opt_vec(rhs.second->unpool(), [&rhs](auto term) {
+                    return Util::map_opt_vec(rhs.second->unpool(), [&rhs](auto term) {
                         return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
                     });
                 });
@@ -171,9 +172,9 @@ auto BodyAggregate::project(Projection project, bool in_classical_scope) const -
 
         // project literals in condition
         auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
-        return Util::transform_construct<Element>(lit, Util::Trans(cond, fun));
+        return transform_construct<Element>(lit, Trans(cond, fun));
     };
-    return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, Util::Trans{elems_, fun}, rhs_);
+    return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, Trans{elems_, fun}, rhs_);
 }
 
 auto BodyAggregate::project_anonymous() const -> std::optional<SBodyLiteral> {
@@ -188,8 +189,8 @@ auto BodyAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SBody
 ////////// BodySetAggregate //////////
 
 auto BodySetAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
-    return map_opt_vec(aggr_.unpool(), [this](auto aggr) {
-        return construct_shared<BodySetAggregate, BodyLiteral>(sign_, std::move(aggr));
+    return Util::map_opt_vec(aggr_.unpool(), [this](auto aggr) {
+        return Util::construct_shared<BodySetAggregate, BodyLiteral>(sign_, std::move(aggr));
     });
 }
 
@@ -206,7 +207,7 @@ void BodySetAggregate::visit_variables(VarVisitFun const &fun, VariableContext c
 auto BodySetAggregate::project(Projection project, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
     auto projected = aggr_.project(project, in_classical_scope || sign_ != Sign::none);
     if (projected.has_value()) {
-        return construct_shared<BodySetAggregate, BodyLiteral>(std::move(projected).value());
+        return Util::construct_shared<BodySetAggregate, BodyLiteral>(std::move(projected).value());
     }
     return std::nullopt;
 }
@@ -222,8 +223,8 @@ auto BodySetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SB
 ////////// BodyTheoryAtom //////////
 
 auto BodyTheoryAtom::unpool() const -> std::optional<SBodyLiteralVec> {
-    return map_opt_vec(atom_.unpool(), [this](auto atom) {
-        return construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, std::move(atom));
+    return Util::map_opt_vec(atom_.unpool(), [this](auto atom) {
+        return Util::construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, std::move(atom));
     });
 }
 

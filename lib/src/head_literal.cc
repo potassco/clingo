@@ -33,9 +33,9 @@ struct ProjectAnonymous {
     auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.project_anonymous(); };
 };
 
-auto tpa(auto const &x) { return Util::Trans(x, ProjectAnonymous{}); }
+auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
 
-auto tra(auto const &x, NameGen &gen) { return Util::Trans(x, RewriteAnonymous{gen}); }
+auto tra(auto const &x, NameGen &gen) { return Trans(x, RewriteAnonymous{gen}); }
 
 } // namespace
 
@@ -79,7 +79,7 @@ auto Disjunction::project(Projection project) const -> std::optional<SHeadLitera
 }
 
 auto Disjunction::project_anonymous() const -> std::optional<SHeadLiteral> {
-    return Util::transform_construct_shared<Disjunction, HeadLiteral>(tpa(elems_));
+    return transform_construct_shared<Disjunction, HeadLiteral>(tpa(elems_));
 }
 
 auto Disjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
@@ -98,7 +98,7 @@ auto Disjunction::is_classical() const -> bool {
 }
 
 auto Disjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    return Util::transform_construct_shared<Disjunction, HeadLiteral>(tra(elems_, gen));
+    return transform_construct_shared<Disjunction, HeadLiteral>(tra(elems_, gen));
 }
 
 ////////// HeadTheoryAtom //////////
@@ -106,8 +106,8 @@ auto Disjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLi
 void HeadTheoryAtom::print(std::ostream &out) const { out << atom_; }
 
 auto HeadTheoryAtom::unpool() const -> std::optional<SHeadLiteralVec> {
-    return map_opt_vec(atom_.unpool(),
-                       [](auto atom) { return construct_shared<HeadTheoryAtom, HeadLiteral>(std::move(atom)); });
+    return Util::map_opt_vec(
+        atom_.unpool(), [](auto atom) { return Util::construct_shared<HeadTheoryAtom, HeadLiteral>(std::move(atom)); });
 }
 
 void HeadTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
@@ -120,11 +120,11 @@ auto HeadTheoryAtom::project(Projection project) const -> std::optional<SHeadLit
 }
 
 auto HeadTheoryAtom::project_anonymous() const -> std::optional<SHeadLiteral> {
-    return Util::transform_construct_shared<HeadTheoryAtom, HeadLiteral>(tpa(atom_));
+    return transform_construct_shared<HeadTheoryAtom, HeadLiteral>(tpa(atom_));
 }
 
 auto HeadTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    return Util::transform_construct_shared<HeadTheoryAtom, HeadLiteral>(tra(atom_, gen));
+    return transform_construct_shared<HeadTheoryAtom, HeadLiteral>(tra(atom_, gen));
 }
 
 ////////// HeadAggregate //////////
@@ -135,10 +135,10 @@ void HeadAggregate::print(std::ostream &out) const {
     if (lhs_) {
         out << *lhs_->first << " " << lhs_->second << " ";
     }
-    out << fun_ << " { " << p_range_with(elems_, "; ", [](std::ostream &out, auto const &elem) {
-        out << p_range{std::get<0>(elem), ","} << ": " << *std::get<1>(elem);
+    out << fun_ << " { " << Util::p_range_with(elems_, "; ", [](std::ostream &out, auto const &elem) {
+        out << Util::p_range{std::get<0>(elem), ","} << ": " << *std::get<1>(elem);
         if (!std::get<2>(elem).empty()) {
-            out << ": " << p_range{std::get<2>(elem), ", "};
+            out << ": " << Util::p_range{std::get<2>(elem), ", "};
         }
     }) << (elems_.empty() ? "}" : " }");
     if (rhs_) {
@@ -149,10 +149,10 @@ void HeadAggregate::print(std::ostream &out) const {
 auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
     return unpool_crossproducts(
         [this](auto lhs, auto elem_lits, auto rhs) {
-            return construct_shared<HeadAggregate, HeadLiteral>(std::move(lhs), fun_, std::move(elem_lits),
-                                                                std::move(rhs));
+            return Util::construct_shared<HeadAggregate, HeadLiteral>(std::move(lhs), fun_, std::move(elem_lits),
+                                                                      std::move(rhs));
         },
-        overloaded{
+        Util::overloaded{
             [](ElementVec const &elem_lits) -> std::optional<std::vector<ElementVec>> {
                 return map_opt(
                     unpool_union(elem_lits,
@@ -161,23 +161,24 @@ auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
                                          [](auto tuple, auto lit, auto cond) {
                                              return Element{std::move(tuple), std::move(lit), std::move(cond)};
                                          },
-                                         overloaded{[](STermVec const &tuple) { return unpool_crossproduct(tuple); },
-                                                    [](SLiteral const &lit) { return lit->unpool(); },
-                                                    [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
+                                         Util::overloaded{
+                                             [](STermVec const &tuple) { return unpool_crossproduct(tuple); },
+                                             [](SLiteral const &lit) { return lit->unpool(); },
+                                             [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
                                          std::get<0>(elem), std::get<1>(elem), std::get<2>(elem));
                                  }),
                     [](auto elem_lits) { return make_vec<ElementVec>(std::move(elem_lits)); });
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
                 return and_then_opt(lhs, [](auto const &lhs) {
-                    return map_opt_vec(lhs.first->unpool(), [&lhs](auto term) {
+                    return Util::map_opt_vec(lhs.first->unpool(), [&lhs](auto term) {
                         return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
                     });
                 });
             },
             [](RGuard const &rhs) -> std::optional<std::vector<RGuard>> {
                 return and_then_opt(rhs, [](auto const &rhs) {
-                    return map_opt_vec(rhs.second->unpool(), [&rhs](auto term) {
+                    return Util::map_opt_vec(rhs.second->unpool(), [&rhs](auto term) {
                         return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
                     });
                 });
@@ -205,18 +206,18 @@ auto HeadAggregate::project(Projection project) const -> std::optional<SHeadLite
 
         // project literals in condition
         auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
-        return transform_construct<Element>(tuple, lit, Util::Trans(cond, fun));
+        return transform_construct<Element>(tuple, lit, Trans(cond, fun));
     };
-    return Util::transform_construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, Util::Trans{elems_, fun}, rhs_);
+    return transform_construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, Trans{elems_, fun}, rhs_);
 }
 
 auto HeadAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
-    return Util::transform_construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, tpa(elems_), rhs_);
+    return transform_construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, tpa(elems_), rhs_);
 }
 
 auto HeadAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    return Util::transform_construct_shared<HeadAggregate, HeadLiteral>(tra(lhs_, gen), fun_, tra(elems_, gen),
-                                                                        tra(rhs_, gen));
+    return transform_construct_shared<HeadAggregate, HeadLiteral>(tra(lhs_, gen), fun_, tra(elems_, gen),
+                                                                  tra(rhs_, gen));
 }
 
 ////////// HeadSetAggregate //////////
@@ -226,8 +227,9 @@ void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(s
 void HeadSetAggregate::print(std::ostream &out) const { out << aggr_; }
 
 auto HeadSetAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
-    return map_opt_vec(aggr_.unpool(),
-                       [](auto aggr) { return construct_shared<HeadSetAggregate, HeadLiteral>(std::move(aggr)); });
+    return Util::map_opt_vec(aggr_.unpool(), [](auto aggr) {
+        return Util::construct_shared<HeadSetAggregate, HeadLiteral>(std::move(aggr));
+    });
 }
 
 void HeadSetAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
@@ -240,17 +242,17 @@ auto HeadSetAggregate::project(Projection project) const -> std::optional<SHeadL
     // integrity constraint.
     auto projected = aggr_.project(project, true);
     if (projected.has_value()) {
-        return construct_shared<HeadSetAggregate, HeadLiteral>(std::move(projected).value());
+        return Util::construct_shared<HeadSetAggregate, HeadLiteral>(std::move(projected).value());
     }
     return std::nullopt;
 }
 
 auto HeadSetAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
-    return Util::transform_construct_shared<HeadSetAggregate, HeadLiteral>(tpa(aggr_));
+    return transform_construct_shared<HeadSetAggregate, HeadLiteral>(tpa(aggr_));
 }
 
 auto HeadSetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    return Util::transform_construct_shared<HeadSetAggregate, HeadLiteral>(tra(aggr_, gen));
+    return transform_construct_shared<HeadSetAggregate, HeadLiteral>(tra(aggr_, gen));
 }
 
 } // namespace Gringo::Input

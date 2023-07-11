@@ -74,7 +74,7 @@ auto operator<<(std::ostream &out, Attribute attr) -> std::ostream &;
 
 class Term;
 //! A shared pointer to a term.
-using STerm = shared_ptr<Term>;
+using STerm = Util::shared_ptr<Term>;
 //! A vector of shared term pointers.
 using STermVec = std::vector<STerm>;
 //! A vector of vecors of shared term pointers.

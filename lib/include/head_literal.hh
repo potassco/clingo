@@ -9,7 +9,7 @@
 namespace Gringo::Input {
 
 class HeadLiteral;
-using SHeadLiteral = shared_ptr<HeadLiteral>;
+using SHeadLiteral = Util::shared_ptr<HeadLiteral>;
 using SHeadLiteralVec = std::vector<SHeadLiteral>;
 
 class HeadLiteral {
