@@ -186,7 +186,7 @@ class Term {
     [[nodiscard]] auto to_string() const -> std::string;
     //! Check if the term has the given type optionally adding context information.
     [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
-    //! Remove argument pools from term.
+    //! Remove all pooled arguments from the term.
     [[nodiscard]] virtual auto unpool() const -> std::optional<STermVec> = 0;
     //! Equality compare two terms.
     [[nodiscard]] virtual auto is_equal(Term const &other) const -> bool = 0;
