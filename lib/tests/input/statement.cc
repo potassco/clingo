@@ -172,6 +172,8 @@ TEST_CASE("project_statement_body") {
     REQUIRE(project_str(parse_statement("h:- p(X): q(X,Y).")) == "h :- p(X): q(X,Y).");
     REQUIRE(project_str(parse_statement("h:- p(X): q(X,_).")) == "h :- p(X): q(X,_).");
     REQUIRE(project_str(parse_statement("h:- p(X): q(X,*).")) == "h :- p(X): q(X,*).");
+    REQUIRE(project_str(parse_statement("h(X) :- #false: q(X,Y).")) == "h(X) :- #false: q(X,*).");
+    REQUIRE(project_str(parse_statement("h(X) :- #false: q(X,_).")) == "h(X) :- #false: q(X,*).");
     // TODO
     // disjunctions
     // TODO

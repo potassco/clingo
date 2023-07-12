@@ -9,6 +9,8 @@ TEST_CASE("parse_body_literal") {
     REQUIRE(to_str(parse_body_literal("a")) == "a");
     REQUIRE(to_str(parse_body_literal("not a")) == "not a");
     REQUIRE(to_str(parse_body_literal("not not a")) == "not not a");
+    REQUIRE(to_str(parse_body_literal("#true")) == "#true");
+    REQUIRE(to_str(parse_body_literal("#false")) == "#false");
     // theory_atom | aggregate | set_aggregate
     REQUIRE(to_str(parse_body_literal("&x{}")) == "&x");
     REQUIRE(to_str(parse_body_literal("not &x{}")) == "not &x");
@@ -36,6 +38,8 @@ TEST_CASE("parse_body_literal") {
     REQUIRE(to_str(parse_body_literal("-a")) == "-a");
     REQUIRE(to_str(parse_body_literal("-a(X)")) == "-a(X)");
     REQUIRE(to_str(parse_body_literal("a:b,c")) == "a: b, c");
+    REQUIRE(to_str(parse_body_literal("#true:a")) == "#true: a");
+    REQUIRE(to_str(parse_body_literal("not #true:a")) == "not #true: a");
     // aggregates with guards
     REQUIRE(to_str(parse_body_literal("a<{}<b")) == "a < { } < b");
     REQUIRE(to_str(parse_body_literal("a{}b")) == "a <= { } <= b");

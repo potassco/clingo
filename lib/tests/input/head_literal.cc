@@ -41,6 +41,7 @@ TEST_CASE("parse_head_literal") {
     REQUIRE(to_str(parse_head_literal("a,b")) == "a; b");
     REQUIRE(to_str(parse_head_literal("a;b")) == "a; b");
     REQUIRE(to_str(parse_head_literal("a|b")) == "a; b");
+    REQUIRE(to_str(parse_head_literal("#true|#false|not #true")) == "#true; #false; not #true");
     // aggregates with guards
     REQUIRE(to_str(parse_head_literal("a<{}<b")) == "a < { } < b");
     REQUIRE(to_str(parse_head_literal("a{}b")) == "a <= { } <= b");

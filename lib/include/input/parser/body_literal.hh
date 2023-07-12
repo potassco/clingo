@@ -94,6 +94,7 @@ struct body_atom : lexy::transparent_production {
             dsl::else_ >> dsl::error<expected_rel_aggr>;
 
         return dsl::p<theory_atom> | dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
+               dsl::p<atom_bool> >> dsl::p<opt_condition> |                           //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
     static constexpr auto value = lexy::callback<SBodyLiteral>(
@@ -118,6 +119,7 @@ struct body_atom : lexy::transparent_production {
             auto lit = Util::construct_shared<LiteralRelation, Literal>(std::move(lhs), std::move(guards));
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         },
+        [](SLiteral lit, SLiteralVec cond) { return Detail::construct_conjunction(std::move(lit), std::move(cond)); },
         [](STerm term, SLiteralVec cond) {
             auto lit = Util::construct_shared<LiteralSymbolic, Literal>(std::move(term));
             return Detail::construct_conjunction(std::move(lit), std::move(cond));

@@ -124,8 +124,10 @@ struct head_literal {
             is_atom.is_set() >> dsl::p<opt_condition> + dsl::p<simple_disjunction_element> | //
             dsl::else_ >> dsl::error<expected_rel_aggr>;
 
-        return dsl::peek(kw_not) >> dsl::p<simple_disjunction> | dsl::p<disjunction> | //
-               dsl::p<theory_atom> | dsl::p<head_aggregate> | dsl::p<set_aggregate> |  //
+        auto peek = dsl::peek(kw_not | dsl::symbol<atom_bool::bool_symbols>(keyword_base));
+
+        return peek >> dsl::p<simple_disjunction> | dsl::p<disjunction> |             //
+               dsl::p<theory_atom> | dsl::p<head_aggregate> | dsl::p<set_aggregate> | //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
 
