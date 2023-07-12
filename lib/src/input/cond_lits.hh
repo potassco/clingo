@@ -112,15 +112,24 @@ auto project(typename T::ElementVec const &elems, P project, bool project_lits, 
         auto const &[lits, cond] = elem;
         bool project_cond = in_classical_scope ||
                             std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return !lit->is_atom(); });
-        auto fun = [project](SLiteral const &lit) { return lit->project(project); };
         // project conclusion
         std::optional<SLiteralVec> projected_lits = std::nullopt;
         if (project_lits) {
+            auto fun = [project](SLiteral const &lit) { return lit->project(project); };
             projected_lits = transform(fun, lits);
         }
         // project premise
         std::optional<SLiteralVec> projected_cond = std::nullopt;
         if (project_cond) {
+            // add counts of local variables
+            VarCounter counter{project.counts()};
+            counter.add(lits);
+            counter.add(cond);
+            // Note that there can be no global variables with just one
+            // occurrence in a condition. However, we can project local
+            // variables.
+            auto sub_project = Projection{project.mode(), counter};
+            auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
             projected_cond = transform(fun, cond);
         }
         if (projected_lits.has_value() || projected_cond.has_value()) {

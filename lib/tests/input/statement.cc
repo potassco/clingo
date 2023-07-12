@@ -160,13 +160,18 @@ TEST_CASE("project_statement_body") {
     // simple literals
     REQUIRE(project_str(parse_statement(":- p(X,Y), q(X).")) == " :- p(X,*); q(X).");
     REQUIRE(project_str(parse_statement(":- p(X,_), q(X).")) == " :- p(X,*); q(X).");
+    REQUIRE(project_str(parse_statement(":- p(X,*), q(X).")) == " :- p(X,*); q(X).");
     REQUIRE(project_str(parse_statement("p(X) :- p(X,Y), q(X).")) == "p(X) :- p(X,*); q(X).");
     REQUIRE(project_str(parse_statement("p(X) :- p(X,Y), X > 10.")) == "p(X) :- p(X,Y); X>10.");
     // conjunctions
     REQUIRE(project_str(parse_statement(":- p(X,Y): q(X).")) == " :- p(X,*): q(X).");
     REQUIRE(project_str(parse_statement(":- p(X,_): q(X).")) == " :- p(X,*): q(X).");
+    REQUIRE(project_str(parse_statement(":- p(X,*): q(X).")) == " :- p(X,*): q(X).");
     REQUIRE(project_str(parse_statement(":- p(X): q(X,Y).")) == " :- p(X): q(X,*).");
+    REQUIRE(project_str(parse_statement(":- p(X): q(X,_).")) == " :- p(X): q(X,*).");
     REQUIRE(project_str(parse_statement("h:- p(X): q(X,Y).")) == "h :- p(X): q(X,Y).");
+    REQUIRE(project_str(parse_statement("h:- p(X): q(X,_).")) == "h :- p(X): q(X,_).");
+    REQUIRE(project_str(parse_statement("h:- p(X): q(X,*).")) == "h :- p(X): q(X,*).");
     // TODO
     // disjunctions
     // TODO
