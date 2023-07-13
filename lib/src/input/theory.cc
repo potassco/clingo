@@ -208,7 +208,7 @@ auto TheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<TheoryAt
 
 auto TheoryAtom::project_anonymous() const -> std::optional<TheoryAtom> {
     auto fun = [](SLiteral const &lit) { return lit->project_anonymous(); };
-    return transform_construct<TheoryAtom>(Trans{name_, fun}, Trans{elems_, fun}, Trans{rhs_, fun});
+    return transform_construct<TheoryAtom>(name_, Trans{elems_, fun}, rhs_);
 }
 
 } // namespace Gringo::Input

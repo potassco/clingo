@@ -174,6 +174,33 @@ TEST_CASE("project_statement_body") {
     REQUIRE(project_str(parse_statement("h:- p(X): q(X,*).")) == "h :- p(X): q(X,*).");
     REQUIRE(project_str(parse_statement("h(X) :- #false: q(X,Y).")) == "h(X) :- #false: q(X,*).");
     REQUIRE(project_str(parse_statement("h(X) :- #false: q(X,_).")) == "h(X) :- #false: q(X,*).");
+    // set aggregates
+    REQUIRE(project_str(parse_statement(":- { p(X) : q(X,Y) } != 5.")) == " :- { p(X): q(X,*) } != 5.");
+    REQUIRE(project_str(parse_statement("h :- { p(X) : q(X,Y) } != 5.")) == "h :- { p(X): q(X,Y) } != 5.");
+    REQUIRE(project_str(parse_statement("h :- { p(X) : q(X,Y) } > 5.")) == "h :- { p(X): q(X,*) } > 5.");
+    REQUIRE(project_str(parse_statement("h :- not { p(X) : q(X,Y) } != 5.")) == "h :- not { p(X): q(X,*) } != 5.");
+    // aggregates
+    REQUIRE(project_str(parse_statement(":- #count { X: p(X), q(X,Y) } != 5.")) ==
+            " :- #count { X: p(X), q(X,*) } != 5.");
+    REQUIRE(project_str(parse_statement("h :- #count { X: p(X), q(X,Y) } != 5.")) ==
+            "h :- #count { X: p(X), q(X,Y) } != 5.");
+    REQUIRE(project_str(parse_statement("h :- #count { X: p(X), q(X,Y) } > 5.")) ==
+            "h :- #count { X: p(X), q(X,*) } > 5.");
+    REQUIRE(project_str(parse_statement("h :- not #count { X: p(X), q(X,Y) } != 5.")) ==
+            "h :- not #count { X: p(X), q(X,*) } != 5.");
+    REQUIRE(project_str(parse_statement("h :- 1 < #count { X: p(X), q(X,Y) } < 2.")) ==
+            "h :- 1 < #count { X: p(X), q(X,*) } < 2.");
+    REQUIRE(project_str(parse_statement("h :- 1 < #sum+ { X: p(X), q(X,Y) } < 2.")) ==
+            "h :- 1 < #sum+ { X: p(X), q(X,*) } < 2.");
+    REQUIRE(project_str(parse_statement("h :- 1 < #sum { X: p(X), q(X,Y) } < 2.")) ==
+            "h :- 1 < #sum { X: p(X), q(X,Y) } < 2.");
+    // theory
+    REQUIRE(project_str(parse_statement(":- &p { X: p(X), q(X,Y) } != 5.")) == " :- &p { X: p(X), q(X,Y) } != 5.");
+    REQUIRE(project_str(parse_statement(":- not &p { X: p(X), q(X,Y) } != 5.")) ==
+            " :- not &p { X: p(X), q(X,Y) } != 5.");
+}
+
+TEST_CASE("project_statement_head") {
     // disjunctions
     REQUIRE(project_str(parse_statement("p(X,Y): q(X).")) == "p(X,Y): q(X).");
     REQUIRE(project_str(parse_statement("p(X,_): q(X).")) == "p(X,_): q(X).");
@@ -184,27 +211,11 @@ TEST_CASE("project_statement_body") {
     REQUIRE(project_str(parse_statement("#false: q(X,Y):- p(X).")) == "#false: q(X,*) :- p(X).");
     REQUIRE(project_str(parse_statement("#false: q(X,_):- p(X).")) == "#false: q(X,*) :- p(X).");
     // set aggregates
-    REQUIRE(project_str(parse_statement(":- #count { p(X) : q(X,Y) } != 5.")) == " :- #count { p(X): q(X,*) } != 5.");
-    REQUIRE(project_str(parse_statement("h :- #count { p(X) : q(X,Y) } != 5.")) ==
-            "h :- #count { p(X): q(X,Y) } != 5.");
-    REQUIRE(project_str(parse_statement("h :- #count { p(X) : q(X,Y) } > 5.")) == "h :- #count { p(X): q(X,*) } > 5.");
-    REQUIRE(project_str(parse_statement("h :- not #count { p(X) : q(X,Y) } != 5.")) ==
-            "h :- not #count { p(X): q(X,*) } != 5.");
-    // aggregates
-    // TODO
-    // theory
-    // TODO
-}
-
-TEST_CASE("project_statement_head") {
-    // disjunctions
-    // TODO
-    // set aggregates
     // TODO
     // aggregates
     // TODO
     // theory
-    // TODO
+    REQUIRE(project_str(parse_statement("&p { X: p(X), q(X,Y) } != 5.")) == "&p { X: p(X), q(X,Y) } != 5.");
 }
 
 TEST_CASE("project_statement") {

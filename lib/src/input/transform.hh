@@ -67,7 +67,9 @@ template <class T>
 auto transform_value(auto &&fun, std::optional<T> const &opt)
     -> Detail::can_not_apply_t<std::optional<T>, decltype(fun)> {
     if (opt.has_value()) {
-        return transform_value(fun, opt.value());
+        if (auto ret = transform_value(fun, opt.value()); ret.has_value()) {
+            return ret;
+        }
     }
     return std::nullopt;
 }

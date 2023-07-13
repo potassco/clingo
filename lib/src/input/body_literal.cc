@@ -207,7 +207,7 @@ void BodySetAggregate::visit_variables(VarVisitFun const &fun, VariableContext c
 auto BodySetAggregate::project(Projection project, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
     auto projected = aggr_.project(project, in_classical_scope || sign_ != Sign::none);
     if (projected.has_value()) {
-        return Util::construct_shared<BodySetAggregate, BodyLiteral>(std::move(projected).value());
+        return Util::construct_shared<BodySetAggregate, BodyLiteral>(sign_, std::move(projected).value());
     }
     return std::nullopt;
 }
