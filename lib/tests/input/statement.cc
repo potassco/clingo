@@ -211,11 +211,25 @@ TEST_CASE("project_statement_head") {
     REQUIRE(project_str(parse_statement("#false: q(X,Y):- p(X).")) == "#false: q(X,*) :- p(X).");
     REQUIRE(project_str(parse_statement("#false: q(X,_):- p(X).")) == "#false: q(X,*) :- p(X).");
     // set aggregates
-    // TODO
+    REQUIRE(project_str(parse_statement("{ p(X) : q(X,Y) } != 5.")) == "{ p(X): q(X,*) } != 5.");
+    REQUIRE(project_str(parse_statement("{ p(X) : q(X,_) } != 5.")) == "{ p(X): q(X,*) } != 5.");
+    REQUIRE(project_str(parse_statement("{ p(X) : q(X,Y) } > 5.")) == "{ p(X): q(X,*) } > 5.");
+    REQUIRE(project_str(parse_statement("{ p(X,Y) : q(X) } > 5.")) == "{ p(X,Y): q(X) } > 5.");
+    REQUIRE(project_str(parse_statement("{ not p(X,Y) : q(X) } > 5.")) == "{ not p(X,Y): q(X) } > 5.");
+    REQUIRE(project_str(parse_statement("{ not p(X,_) : q(X) } > 5.")) == "{ not p(X,*): q(X) } > 5.");
     // aggregates
-    // TODO
+    REQUIRE(project_str(parse_statement("#count { X: p(X) : q(X,Y) } != 5.")) == "#count { X: p(X): q(X,*) } != 5.");
+    REQUIRE(project_str(parse_statement("#count { X: p(X) : q(X,_) } != 5.")) == "#count { X: p(X): q(X,*) } != 5.");
+    REQUIRE(project_str(parse_statement("#count { X: p(X) : q(X,Y) } > 5.")) == "#count { X: p(X): q(X,*) } > 5.");
+    REQUIRE(project_str(parse_statement("#count { X: p(X,Y) : q(X) } > 5.")) == "#count { X: p(X,Y): q(X) } > 5.");
+    REQUIRE(project_str(parse_statement("#count { X: p(X,_) : q(X) } > 5.")) == "#count { X: p(X,_): q(X) } > 5.");
+    REQUIRE(project_str(parse_statement("#count { X: not p(X,Y) : q(X) } > 5.")) ==
+            "#count { X: not p(X,Y): q(X) } > 5.");
+    REQUIRE(project_str(parse_statement("#count { X: not p(X,_) : q(X) } > 5.")) ==
+            "#count { X: not p(X,*): q(X) } > 5.");
     // theory
     REQUIRE(project_str(parse_statement("&p { X: p(X), q(X,Y) } != 5.")) == "&p { X: p(X), q(X,Y) } != 5.");
+    REQUIRE(project_str(parse_statement("&p { X: p(X), not q(X,_) } != 5.")) == "&p { X: p(X), not q(X,*) } != 5.");
 }
 
 TEST_CASE("project_statement") {
