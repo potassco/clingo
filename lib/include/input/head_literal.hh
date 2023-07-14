@@ -9,6 +9,7 @@
 namespace Gringo::Input {
 
 class HeadLiteral;
+class HeadLiteralVisitor;
 using SHeadLiteral = Util::shared_ptr<HeadLiteral>;
 using SHeadLiteralVec = std::vector<SHeadLiteral>;
 
@@ -17,7 +18,6 @@ class HeadLiteral {
     virtual ~HeadLiteral() = default;
 
     [[nodiscard]] virtual auto print_empty() const -> bool;
-    virtual void print(std::ostream &out) const = 0;
     virtual void visit_variables(VarVisitFun const &fun, VariableContext ctx) const = 0;
     [[nodiscard]] virtual auto project(Projection project) const -> std::optional<SHeadLiteral> = 0;
     [[nodiscard]] virtual auto project_anonymous() const -> std::optional<SHeadLiteral> = 0;
@@ -25,10 +25,10 @@ class HeadLiteral {
     [[nodiscard]] virtual auto is_test() const -> bool;
     [[nodiscard]] virtual auto is_classical() const -> bool;
     [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> = 0;
-
-    [[nodiscard]] auto to_string() const -> std::string;
-    friend auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream &;
     [[nodiscard]] virtual auto unpool() const -> std::optional<SHeadLiteralVec> = 0;
+
+    //! Visit head literals with the given visitor.
+    virtual void accept(HeadLiteralVisitor const &visitor) const = 0;
 
   private:
     friend void inc_ref_count(HeadLiteral &lit) { ++lit.refs_; }
@@ -45,8 +45,10 @@ class Disjunction : public HeadLiteral {
 
     explicit Disjunction(ElementVec elems) : elems_{std::move(elems)} {}
 
+    //! Get the elements of the disjunction.
+    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
+
     [[nodiscard]] auto print_empty() const -> bool override;
-    void print(std::ostream &out) const override;
     [[nodiscard]] auto unpool() const -> std::optional<SHeadLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
@@ -56,6 +58,8 @@ class Disjunction : public HeadLiteral {
     [[nodiscard]] auto is_classical() const -> bool override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
 
+    void accept(HeadLiteralVisitor const &visitor) const override;
+
   private:
     ElementVec elems_;
 };
@@ -64,12 +68,16 @@ class HeadTheoryAtom : public HeadLiteral {
   public:
     explicit HeadTheoryAtom(TheoryAtom atom) : atom_{std::move(atom)} {}
 
-    void print(std::ostream &out) const override;
+    //! Get the theory atom.
+    [[nodiscard]] auto atom() const -> TheoryAtom const & { return atom_; }
+
     [[nodiscard]] auto unpool() const -> std::optional<SHeadLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
+
+    void accept(HeadLiteralVisitor const &visitor) const override;
 
   private:
     TheoryAtom atom_;
@@ -86,13 +94,23 @@ class HeadAggregate : public HeadLiteral {
     explicit HeadAggregate(AggregateFunction fun, ElementVec elems, Relation rel, STerm rhs)
         : fun_(fun), elems_(std::move(elems)), rhs_(std::make_pair(rel, std::move(rhs))) {}
 
+    //! Get the aggregate function.
+    [[nodiscard]] auto function() const -> AggregateFunction { return fun_; }
+    //! Get the aggregate elements.
+    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
+    //! Get the left-hand-side.
+    [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
+    //! Get the right-hand-side.
+    [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
+
     void set_left_guard(STerm lhs, Relation rel);
-    void print(std::ostream &out) const override;
     [[nodiscard]] auto unpool() const -> std::optional<SHeadLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
+
+    void accept(HeadLiteralVisitor const &visitor) const override;
 
   private:
     AggregateFunction fun_;
@@ -105,16 +123,36 @@ class HeadSetAggregate : public HeadLiteral {
   public:
     explicit HeadSetAggregate(SetAggregate aggr) : aggr_{std::move(aggr)} {}
 
+    //! Get the set aggregate atom.
+    [[nodiscard]] auto atom() const -> SetAggregate const & { return aggr_; }
+
     void set_left_guard(STerm lhs, Relation rel);
-    void print(std::ostream &out) const override;
     [[nodiscard]] auto unpool() const -> std::optional<SHeadLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
 
+    void accept(HeadLiteralVisitor const &visitor) const override;
+
   private:
     SetAggregate aggr_;
+};
+
+//! A visitor for available head literal types.
+class HeadLiteralVisitor {
+  public:
+    //! Virtual destructor.
+    virtual ~HeadLiteralVisitor() = default;
+
+    //! Visit a disjunction.
+    virtual void visit(Disjunction const &lit) const = 0;
+    //! Visit a head set aggregate.
+    virtual void visit(HeadSetAggregate const &lit) const = 0;
+    //! Visit a head aggregate.
+    virtual void visit(HeadAggregate const &lit) const = 0;
+    //! Visit a theory atom in the head.
+    virtual void visit(HeadTheoryAtom const &lit) const = 0;
 };
 
 } // namespace Gringo::Input

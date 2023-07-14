@@ -4,7 +4,6 @@
 //! This file contains the term interface and derived terms.
 
 #include <optional>
-#include <ostream>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -36,15 +35,6 @@ struct CheckTypeResult {
     int pos_number = 0;
     //! The identifier represented by the term.
     std::string identifier;
-};
-
-//! Enumeration of term positions.
-//!
-//! @see Term::do_print()
-enum class Position : int {
-    left,  //!< The term is directly on the right-hand-side of a term.
-    right, //!< The term is directly on the left-hand-side of a term.
-    none   //!< No position information.
 };
 
 /*
@@ -172,18 +162,14 @@ class Projection {
     ProjectionMode mode_;
 };
 
+class TermVisitor;
+
 //! The term interface.
 class Term {
   public:
     //! Virtual destructor.
     virtual ~Term() = default;
 
-    //! Output the term to the given stream.
-    void print(std::ostream &out) const;
-    //! Output the term to the given stream taking operator precedence to avoid parenthesis into account.
-    virtual void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const = 0;
-    //! Output the term to the given stream.
-    friend auto operator<<(std::ostream &out, Term const &ast) -> std::ostream &;
     //! Convert the term to string.
     [[nodiscard]] auto to_string() const -> std::string;
     //! Check if the term has the given type optionally adding context information.
@@ -207,6 +193,9 @@ class Term {
     [[nodiscard]] virtual auto project_anonymous() const -> std::optional<STerm> = 0;
     //! Give anonymous variables a unique name.
     [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> = 0;
+
+    //! Visit terms with the given visitor.
+    virtual void accept(TermVisitor const &visitor) const = 0;
 
     // AST interface
     /*
@@ -298,7 +287,8 @@ class TermSymbol : public Term {
     //! Construct term with the given symbol.
     explicit TermSymbol(Symbol value) : value_{std::move(value)} {}
 
-    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
+    [[nodiscard]] auto symbol() const -> Symbol const & { return value_; }
+
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
@@ -308,6 +298,7 @@ class TermSymbol : public Term {
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
+    void accept(TermVisitor const &visitor) const override;
     // AST interface
     /*
     [[nodiscard]] auto type() const -> TermType override;
@@ -332,8 +323,9 @@ class TermTuple : public Term {
 
     //! Construct a  tuple.
     explicit TermTuple(ElementVec args) : pool_{std::move(args)} {}
+    //! Get the argument pool of the term tuple.
+    [[nodiscard]] auto pool() const -> ElementVec const & { return pool_; }
 
-    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -342,6 +334,7 @@ class TermTuple : public Term {
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
+    void accept(TermVisitor const &visitor) const override;
     // AST interface
     /*
     [[nodiscard]] auto type() const -> TermType override;
@@ -368,7 +361,6 @@ class TermVariable : public Term {
     //! Check if the variable is an anonymous variable.
     [[nodiscard]] auto is_anonymous() const -> bool;
 
-    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -377,6 +369,7 @@ class TermVariable : public Term {
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
+    void accept(TermVisitor const &visitor) const override;
     /*
     [[nodiscard]] auto type() const -> TermType override;
     */
@@ -396,7 +389,9 @@ class TermAbs : public Term {
     //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
     explicit TermAbs(STermVec pool) : pool_{std::move(pool)} {}
 
-    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
+    //! Return the argument pool of the absolute term.
+    [[nodiscard]] auto pool() const -> STermVec const & { return pool_; }
+
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -405,6 +400,7 @@ class TermAbs : public Term {
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
+    void accept(TermVisitor const &visitor) const override;
     // AST interface
     /*
     [[nodiscard]] auto type() const -> TermType override;
@@ -426,7 +422,13 @@ class TermFunction : public Term {
     explicit TermFunction(std::string name, PoolVec args, bool external)
         : name_(std::move(name)), pool_{std::move(args)}, external_{external} {}
 
-    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
+    //! Check whether the function is external.
+    [[nodiscard]] auto is_external() const -> bool { return external_; }
+    //! Get the name of the function.
+    [[nodiscard]] auto name() const -> std::string const & { return name_; }
+    //! Get the argument pool of the function.
+    [[nodiscard]] auto pool() const -> PoolVec const & { return pool_; }
+
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
@@ -436,6 +438,7 @@ class TermFunction : public Term {
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
+    void accept(TermVisitor const &visitor) const override;
     // AST interface
     /*
     [[nodiscard]] auto type() const -> TermType override;
@@ -453,9 +456,6 @@ enum class UnaryOperator : int {
     invert, //!< The unary negation sign (~).
 };
 
-//! Print the string reprentation of a unary operator.
-auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream &;
-
 //! Term representing an unary operation.
 //!
 //! For example <tt>-X</tt>.
@@ -464,7 +464,11 @@ class TermUnary : public Term {
     //! Contruct a term for an unary operation.
     explicit TermUnary(UnaryOperator op, STerm e) : op_{op}, rhs_{std::move(e)} {}
 
-    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
+    //! Get the operator of the unary term.
+    [[nodiscard]] auto unary_operator() const -> UnaryOperator { return op_; }
+    //! Get the right-hand-side of the unary term.
+    [[nodiscard]] auto rhs() const -> STerm const & { return rhs_; }
+
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
@@ -474,6 +478,7 @@ class TermUnary : public Term {
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
+    void accept(TermVisitor const &visitor) const override;
     // AST interface
     /*
     [[nodiscard]] auto type() const -> TermType override;
@@ -500,9 +505,6 @@ enum class BinaryOperator : int {
     pow,   //!< The exponentiation arithmetic operation.
 };
 
-//! Print the string reprentation of a binary operator.
-auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream &;
-
 //! Term representing a binary operation.
 //!
 //! For example <tt>X-Y</tt>.
@@ -512,7 +514,13 @@ class TermBinary : public Term {
     explicit TermBinary(STerm lhs, BinaryOperator op, STerm rhs)
         : op_{op}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
 
-    void do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const override;
+    //! Get the operator of the unary term.
+    [[nodiscard]] auto binary_operator() const -> BinaryOperator { return op_; }
+    //! Get the left-hand-side of the unary term.
+    [[nodiscard]] auto lhs() const -> STerm const & { return lhs_; }
+    //! Get the right-hand-side of the unary term.
+    [[nodiscard]] auto rhs() const -> STerm const & { return rhs_; }
+
     [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
     [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
     [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
@@ -522,6 +530,7 @@ class TermBinary : public Term {
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
+    void accept(TermVisitor const &visitor) const override;
     // AST interface
     /*
     [[nodiscard]] auto type() const -> TermType override;
@@ -533,6 +542,28 @@ class TermBinary : public Term {
     BinaryOperator op_;
     STerm lhs_;
     STerm rhs_;
+};
+
+//! A visitor for available term types.
+class TermVisitor {
+  public:
+    //! Virtual destructor.
+    virtual ~TermVisitor() = default;
+
+    //! Visit a symbolic term.
+    virtual void visit(TermSymbol const &term) const = 0;
+    //! Visit a variable term.
+    virtual void visit(TermVariable const &term) const = 0;
+    //! Visit a function term.
+    virtual void visit(TermFunction const &term) const = 0;
+    //! Visit a tuple term.
+    virtual void visit(TermTuple const &term) const = 0;
+    //! Visit an absolute term.
+    virtual void visit(TermAbs const &term) const = 0;
+    //! Visit an unary term.
+    virtual void visit(TermUnary const &term) const = 0;
+    //! Visit a binary term.
+    virtual void visit(TermBinary const &term) const = 0;
 };
 
 } // namespace Gringo::Input

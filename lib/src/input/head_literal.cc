@@ -1,12 +1,9 @@
 #include <iterator>
 #include <optional>
-#include <sstream>
 #include <stdexcept>
 #include <tuple>
 #include <type_traits>
 #include <utility>
-
-#include <util/print.hh>
 
 #include <input/head_literal.hh>
 
@@ -41,17 +38,6 @@ auto tra(auto const &x, NameGen &gen) { return Trans(x, RewriteAnonymous{gen}); 
 
 [[nodiscard]] auto HeadLiteral::print_empty() const -> bool { return false; }
 
-[[nodiscard]] auto HeadLiteral::to_string() const -> std::string {
-    std::ostringstream out;
-    out << *this;
-    return out.str();
-}
-
-auto operator<<(std::ostream &out, HeadLiteral const &literal) -> std::ostream & {
-    literal.print(out);
-    return out;
-}
-
 auto HeadLiteral::is_atom() const -> bool { return false; }
 
 auto HeadLiteral::is_test() const -> bool { return false; }
@@ -60,9 +46,9 @@ auto HeadLiteral::is_classical() const -> bool { return false; }
 
 ////////// Disjunction //////////
 
-auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
+void Disjunction::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
 
-void Disjunction::print(std::ostream &out) const { CondLits::print(elems_, out, "#or", true); }
+auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
 
 auto Disjunction::unpool() const -> std::optional<SHeadLiteralVec> {
     return CondLits::unpool<Disjunction, HeadLiteral>(elems_);
@@ -103,7 +89,7 @@ auto Disjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLi
 
 ////////// HeadTheoryAtom //////////
 
-void HeadTheoryAtom::print(std::ostream &out) const { out << atom_; }
+void HeadTheoryAtom::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
 
 auto HeadTheoryAtom::unpool() const -> std::optional<SHeadLiteralVec> {
     return Util::map_opt_vec(
@@ -129,22 +115,9 @@ auto HeadTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SHea
 
 ////////// HeadAggregate //////////
 
-void HeadAggregate::set_left_guard(STerm lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
+void HeadAggregate::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
 
-void HeadAggregate::print(std::ostream &out) const {
-    if (lhs_) {
-        out << *lhs_->first << " " << lhs_->second << " ";
-    }
-    out << fun_ << " { " << Util::p_range_with(elems_, "; ", [](std::ostream &out, auto const &elem) {
-        out << Util::p_range{std::get<0>(elem), ","} << ": " << *std::get<1>(elem);
-        if (!std::get<2>(elem).empty()) {
-            out << ": " << Util::p_range{std::get<2>(elem), ", "};
-        }
-    }) << (elems_.empty() ? "}" : " }");
-    if (rhs_) {
-        out << " " << rhs_->first << " " << *rhs_->second;
-    }
-}
+void HeadAggregate::set_left_guard(STerm lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
 
 auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
     return unpool_crossproducts(
@@ -222,9 +195,9 @@ auto HeadAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHead
 
 ////////// HeadSetAggregate //////////
 
-void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
+void HeadSetAggregate::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
 
-void HeadSetAggregate::print(std::ostream &out) const { out << aggr_; }
+void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
 
 auto HeadSetAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
     return Util::map_opt_vec(aggr_.unpool(), [](auto aggr) {

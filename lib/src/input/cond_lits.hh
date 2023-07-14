@@ -72,29 +72,6 @@ template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
     });
 }
 
-auto is_simple(auto const &elems) -> bool {
-    return !elems.empty() &&
-           std::all_of(elems.begin(), elems.end(), [&](auto const &elem) { return elem.first.size() == 1; });
-}
-
-void print(auto const &elems, std::ostream &out, char const *kw, bool simple_empty) {
-    if (elems.empty() ? simple_empty : is_simple(elems)) {
-        out << Util::p_range_with(elems, "; ", [](std::ostream &out, auto const &elem) {
-            auto cs = elem.second.empty() ? "" : ": ";
-            out << *elem.first.front() << cs << Util::p_range(elem.second, ", ");
-        });
-    } else {
-        char const *sp = elems.empty() ? "" : " ";
-        out << kw << " { "
-            << Util::p_range_with(elems, "; ",
-                                  [&](std::ostream &out, auto const &elem) {
-                                      char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
-                                      out << Util::p_range(elem.first, ", ") << cs << Util::p_range(elem.second, ", ");
-                                  })
-            << sp << "}";
-    }
-}
-
 void visit_variables(auto const &elems, VarVisitFun const &fun, VariableContext ctx) {
     VarVisitor visit{fun};
     for (auto const &elem : elems) {

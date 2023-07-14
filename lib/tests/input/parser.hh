@@ -4,6 +4,7 @@
 #include <optional>
 #include <sstream>
 
+#include <input/print.hh>
 #include <input/statement.hh>
 
 #include <util/print.hh>
@@ -18,12 +19,12 @@ auto parse_statement(std::string str) -> std::optional<SStatement>;
 
 template <class T> auto to_str(std::optional<T> const &value) -> std::string {
     if (value) {
-        return value.value()->to_string();
+        return to_string(*value.value());
     }
     return "<failed>";
 }
 
-template <class T> auto to_str(Util::shared_ptr<T> const &value) -> std::string { return value->to_string(); }
+template <class T> auto to_str(Util::shared_ptr<T> const &value) -> std::string { return to_string(*value); }
 
 template <class T> auto to_str(std::vector<T> const &value, char const *sep = ", ") -> std::string {
     std::ostringstream oss;

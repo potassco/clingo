@@ -20,8 +20,6 @@ auto operator-(Sign a) -> Sign;
 auto operator+(Sign a, Sign b) -> Sign;
 //! Combine two signs.
 auto operator+=(Sign &a, Sign b) -> Sign &;
-//! Output the sign to the given stream.
-auto operator<<(std::ostream &out, Sign op) -> std::ostream &;
 
 //! Enumeration of relation symbols.
 enum class Relation {
@@ -33,9 +31,6 @@ enum class Relation {
     inequal,       //!< The not equal to symbol (!=).
 };
 
-//! Output the relation to the given stream.
-auto operator<<(std::ostream &out, Relation op) -> std::ostream &;
-
 //! The right-hand-side of a relation atom including the symbol.
 //!
 //! @see LiteralRelation
@@ -44,6 +39,7 @@ using Guard = std::pair<Relation, STerm>;
 using GuardVec = std::vector<Guard>;
 
 class Literal;
+class LiteralVisitor;
 //! A shared pointer to a literal.
 using SLiteral = Util::shared_ptr<Literal>;
 //! A vector of shared pointers to literals.
@@ -60,13 +56,9 @@ class Literal {
 
     //! Convert the literal to a string.
     [[nodiscard]] auto to_string() const -> std::string;
-    //! Output the literal to the given stream.
-    friend auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream &;
     //! Equality compare two literals.
     friend auto operator==(Literal const &a, Literal const &b) { return a.is_equal(b); }
 
-    //! Output the literal to the given stream.
-    virtual void print(std::ostream &out) const = 0;
     //! Add a sign to the literal.
     //!
     //! Note that this function has to be used with care because the library uses shared pointers to literals.
@@ -100,6 +92,9 @@ class Literal {
     //! Give anonymous variables a unique name.
     [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> = 0;
 
+    //! Visit literals with the given visitor.
+    virtual void accept(LiteralVisitor const &visitor) const = 0;
+
   private:
     //! Increment reference count of the literal.
     friend void inc_ref_count(Literal &lit) { ++lit.refs_; }
@@ -121,7 +116,14 @@ class LiteralRelation : public Literal {
     LiteralRelation(STerm lhs, GuardVec rhs) : LiteralRelation{Sign::none, std::move(lhs), std::move(rhs)} {}
     //! Construct a relation literal.
     LiteralRelation(Sign sign, STerm lhs, GuardVec rhs) : sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
-    void print(std::ostream &out) const override;
+
+    //! Get the sign of the symbolic literal.
+    [[nodiscard]] auto sign() const -> Sign { return sign_; }
+    //! Get the left-hand-side of the relation literal.
+    [[nodiscard]] auto lhs() const -> STerm const & { return lhs_; }
+    //! Get the right-hand-side of the relation literal.
+    [[nodiscard]] auto rhs() const -> GuardVec const & { return rhs_; }
+
     void add_sign(Sign s) override;
     [[nodiscard]] auto unpool() const -> std::optional<SLiteralVec> override;
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
@@ -130,6 +132,8 @@ class LiteralRelation : public Literal {
     [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> override;
+
+    void accept(LiteralVisitor const &visitor) const override;
 
   private:
     Sign sign_;
@@ -146,7 +150,12 @@ class LiteralBoolean : public Literal {
     LiteralBoolean(bool value) : LiteralBoolean{Sign::none, value} {}
     //! Construct a Boolean literal.
     LiteralBoolean(Sign sign, bool value) : sign_(sign), value_(value) {}
-    void print(std::ostream &out) const override;
+
+    //! Get the sign of the Boolean literal.
+    [[nodiscard]] auto sign() const -> Sign { return sign_; }
+    //! Get the value of the Boolean literal.
+    [[nodiscard]] auto value() const -> bool { return value_; }
+
     void add_sign(Sign s) override;
     [[nodiscard]] auto unpool() const -> std::optional<SLiteralVec> override;
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
@@ -155,6 +164,8 @@ class LiteralBoolean : public Literal {
     [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SLiteral> override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> override;
+
+    void accept(LiteralVisitor const &visitor) const override;
 
   private:
     Sign sign_;
@@ -170,7 +181,12 @@ class LiteralSymbolic : public Literal {
     LiteralSymbolic(STerm term) : LiteralSymbolic{Sign::none, std::move(term)} {}
     //! Construct a symbolic literal.
     LiteralSymbolic(Sign sign, STerm term) : sign_(sign), term_(std::move(term)) {}
-    void print(std::ostream &out) const override;
+
+    //! Get the sign of the symbolic literal.
+    [[nodiscard]] auto sign() const -> Sign { return sign_; }
+    //! Get the (function) term representing the symbolic literal.
+    [[nodiscard]] auto term() const -> STerm const & { return term_; }
+
     void add_sign(Sign s) override;
     [[nodiscard]] auto unpool() const -> std::optional<SLiteralVec> override;
     [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
@@ -182,9 +198,25 @@ class LiteralSymbolic : public Literal {
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
 
+    void accept(LiteralVisitor const &visitor) const override;
+
   private:
     Sign sign_;
     STerm term_;
+};
+
+//! A visitor for available literal types.
+class LiteralVisitor {
+  public:
+    //! Virtual destructor.
+    virtual ~LiteralVisitor() = default;
+
+    //! Visit a boolean literal.
+    virtual void visit(LiteralBoolean const &lit) const = 0;
+    //! Visit a relation literal.
+    virtual void visit(LiteralRelation const &lit) const = 0;
+    //! Visit a symbolic literal.
+    virtual void visit(LiteralSymbolic const &lit) const = 0;
 };
 
 } // namespace Gringo::Input

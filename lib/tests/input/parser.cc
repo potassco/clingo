@@ -94,7 +94,7 @@ auto Parser::scan() const -> std::optional<std::string> {
     impl->input.discard_before(impl->scanner.position());
     auto res = impl->scanner.parse<Grammar::parse_root<Input::Grammar::statement, '*'>>();
     if (res) {
-        return res.value()->to_string();
+        return to_string(*res.value());
     }
     return std::nullopt;
 }

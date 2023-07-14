@@ -15,8 +15,6 @@ enum class AggregateFunction {
     max,
 };
 
-auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream &;
-
 using LGuard = std::optional<std::pair<STerm, Relation>>;
 using RGuard = std::optional<std::pair<Relation, STerm>>;
 
@@ -44,6 +42,13 @@ class SetAggregate {
     SetAggregate(ElementVec elems, Relation rel, STerm rhs)
         : elems_{std::move(elems)}, rhs_(std::make_pair(rel, std::move(rhs))) {}
 
+    //! Get the aggregate elements.
+    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
+    //! Get the left-hand-side.
+    [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
+    //! Get the right-hand-side.
+    [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
+
     void set_rhs(STerm lhs, Relation rel);
     [[nodiscard]] auto unpool() const -> std::optional<std::vector<SetAggregate>>;
     void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
@@ -52,8 +57,6 @@ class SetAggregate {
     [[nodiscard]] auto project(Projection project, bool in_negative_scope) const -> std::optional<SetAggregate>;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SetAggregate>;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SetAggregate>;
-
-    friend auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream &;
 
   private:
     ElementVec elems_;

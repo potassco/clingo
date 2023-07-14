@@ -1,6 +1,6 @@
 #include <sstream>
 
-#include <util/print.hh>
+#include <input/print.hh>
 
 #include <input/statement.hh>
 
@@ -218,26 +218,9 @@ void rewrite(SStatement stm, RewriteOptions opts, SStatementVec &stms) {
     }
 }
 
-auto Statement::to_string() const -> std::string {
-    std::ostringstream out;
-    out << *this;
-    return out.str();
-}
-
-auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream & {
-    stm.print(out);
-    return out;
-}
-
 ////////// Rule //////////
 
-void Rule::print(std::ostream &out) const {
-    out << *head_;
-    if (head_->print_empty() || !body_.empty()) {
-        out << " :- " << Util::p_range(body_, "; ");
-    }
-    out << ".";
-}
+void Rule::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto Rule::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
@@ -274,93 +257,9 @@ auto Rule::rewrite_anonymous() const -> std::optional<SStatement> {
     return transform_construct_shared<Rule, Statement>(tra(head_, gen), tra(body_, gen));
 }
 
-////////// TheoryOpDefinition //////////
-
-auto operator<<(std::ostream &out, TheoryOpDefinition const &def) -> std::ostream & {
-    out << def.op_ << " : " << def.prio_ << ", ";
-    switch (def.type_) {
-        case TheoryOpType::unary: {
-            out << "unary";
-            break;
-        }
-        case TheoryOpType::binary_left: {
-            out << "binary, left";
-            break;
-        }
-        case TheoryOpType::binary_right: {
-            out << "binary, right";
-            break;
-        }
-    }
-    return out;
-}
-
-////////// TheoryTermDefinition //////////
-
-auto operator<<(std::ostream &out, TheoryTermDefinition const &def) -> std::ostream & {
-    out << "  " << def.name_ << " {";
-    if (def.op_defs_.empty()) {
-        out << " }";
-    } else if (def.op_defs_.size() == 1) {
-        out << " " << def.op_defs_.front() << " }";
-    } else {
-        out << "\n"
-            << Util::p_range_with(def.op_defs_, ";\n", [](std::ostream &out, auto &op_def) { out << "    " << op_def; })
-            << "\n  }";
-    }
-    return out;
-}
-
-////////// TheoryAtomDefinition //////////
-
-auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream & {
-    switch (type) {
-        case TheoryAtomType::head: {
-            out << "head";
-            break;
-        }
-        case TheoryAtomType::body: {
-            out << "body";
-            break;
-        }
-        case TheoryAtomType::any: {
-            out << "any";
-            break;
-        }
-        case TheoryAtomType::directive: {
-            out << "directive";
-            break;
-        }
-    }
-    return out;
-}
-
-auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream & {
-    out << "  &" << def.name_ << "/" << def.arity_ << ": " << def.term_ << ", ";
-    if (def.rhs_) {
-        out << "{" << Util::p_range(def.rhs_->first, ",") << "}, " << def.rhs_->second << ", ";
-    }
-    out << def.type_;
-    return out;
-}
-
 ////////// TheoryDefinition //////////
 
-void TheoryDefinition::print(std::ostream &out) const {
-    out << "#theory " << name_ << (term_defs_.empty() && atom_defs_.empty() ? " { " : " {\n");
-    out << Util::p_range(term_defs_, ";\n");
-    if (!term_defs_.empty()) {
-        if (!atom_defs_.empty()) {
-            out << ";";
-        }
-        out << "\n";
-    }
-    out << Util::p_range(atom_defs_, ";\n");
-    if (!atom_defs_.empty()) {
-        out << "\n";
-    }
-    out << "}.";
-}
+void TheoryDefinition::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto TheoryDefinition::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
@@ -380,39 +279,7 @@ auto TheoryDefinition::rewrite_anonymous() const -> std::optional<SStatement> { 
 
 ////////// StatementOptimize //////////
 
-auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
-    switch (type) {
-        case OptimizeType::maximize: {
-            out << "#maximize";
-            break;
-        }
-        case OptimizeType::minimize: {
-            out << "#minimize";
-            break;
-        }
-    }
-    return out;
-}
-
-void StatementOptimize::print(std::ostream &out) const {
-    out << type_ << " { "
-        << Util::p_range_with(elems_, "; ",
-                              [](std::ostream &out, auto const &elem) {
-                                  auto const &[tuple, cond] = elem;
-                                  auto const &[weight, prio, terms] = tuple;
-                                  out << *weight;
-                                  if (prio) {
-                                      out << "@" << *prio.value();
-                                  }
-                                  if (!terms.empty()) {
-                                      out << "," << Util::p_range(terms);
-                                  }
-                                  if (!cond.empty()) {
-                                      out << ": " << Util::p_range(cond, ", ");
-                                  }
-                              })
-        << (elems_.empty() ? "}" : " }") << ".";
-}
+void StatementOptimize::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementOptimize::do_unpool() const -> std::optional<SStatementVec> {
     // TODO: consider turning into weak constraint
@@ -454,17 +321,7 @@ auto StatementOptimize::rewrite_anonymous() const -> std::optional<SStatement> {
 
 ////////// StatementWeakConstraint //////////
 
-void StatementWeakConstraint::print(std::ostream &out) const {
-    auto const &[weight, prio, terms] = tuple_;
-    out << " :~ " << Util::p_range(body_, "; ") << ". [" << *weight;
-    if (prio) {
-        out << "@" << *prio.value();
-    }
-    if (!terms.empty()) {
-        out << "," << Util::p_range(terms);
-    }
-    out << "]";
-}
+void StatementWeakConstraint::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementWeakConstraint::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
@@ -496,15 +353,7 @@ auto StatementWeakConstraint::rewrite_anonymous() const -> std::optional<SStatem
 
 ////////// StatementShow //////////
 
-void StatementShow::print(std::ostream &out) const {
-    char const *lp = "";
-    char const *rp = "";
-    if (term_->check_type(TermCheckType::sig, nullptr)) {
-        lp = "(";
-        rp = ")";
-    }
-    out << "#show " << lp << *term_ << rp << ": " << Util::p_range(body_, "; ") << ".";
-}
+void StatementShow::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementShow::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
@@ -535,9 +384,7 @@ auto StatementShow::rewrite_anonymous() const -> std::optional<SStatement> {
 
 ////////// StatementShowSig //////////
 
-void StatementShowSig::print(std::ostream &out) const {
-    out << "#show " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
-}
+void StatementShowSig::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementShowSig::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
@@ -557,9 +404,7 @@ auto StatementShowSig::rewrite_anonymous() const -> std::optional<SStatement> { 
 
 ////////// StatementProject //////////
 
-void StatementProject::print(std::ostream &out) const {
-    out << "#project " << *term_ << (body_.empty() ? "" : ": ") << Util::p_range(body_, "; ") << ".";
-}
+void StatementProject::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementProject::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
@@ -590,9 +435,7 @@ auto StatementProject::rewrite_anonymous() const -> std::optional<SStatement> {
 
 ////////// StatementProjectSig //////////
 
-void StatementProjectSig::print(std::ostream &out) const {
-    out << "#project " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
-}
+void StatementProjectSig::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementProjectSig::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
@@ -612,9 +455,7 @@ auto StatementProjectSig::rewrite_anonymous() const -> std::optional<SStatement>
 
 ////////// StatementDefined //////////
 
-void StatementDefined::print(std::ostream &out) const {
-    out << "#defined " << (has_sign_ ? "-" : "") << name_ << "/" << arity_ << ".";
-}
+void StatementDefined::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementDefined::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
@@ -634,12 +475,7 @@ auto StatementDefined::rewrite_anonymous() const -> std::optional<SStatement> { 
 
 ////////// StatementExternal //////////
 
-void StatementExternal::print(std::ostream &out) const {
-    out << "#external " << *term_ << (body_.empty() ? "" : ": ") << Util::p_range(body_, "; ") << ".";
-    if (type_.has_value()) {
-        out << " [" << *type_.value() << "]";
-    }
-}
+void StatementExternal::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementExternal::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
@@ -671,12 +507,7 @@ auto StatementExternal::rewrite_anonymous() const -> std::optional<SStatement> {
 
 ////////// StatementEdge //////////
 
-void StatementEdge::print(std::ostream &out) const {
-    out << "#edge ("
-        << Util::p_range_with(edges_, ";",
-                              [](std::ostream &out, auto &edge) { out << *edge.first << "," << *edge.second; })
-        << ")" << (body_.empty() ? "" : ": ") << Util::p_range(body_, "; ") << ".";
-}
+void StatementEdge::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementEdge::do_unpool() const -> std::optional<SStatementVec> {
     auto bodies = StatementUnpool{}(body_);
@@ -715,13 +546,7 @@ auto StatementEdge::rewrite_anonymous() const -> std::optional<SStatement> {
 
 ////////// StatementHeuristic //////////
 
-void StatementHeuristic::print(std::ostream &out) const {
-    out << "#heuristic " << *atom_ << (body_.empty() ? "" : ": ") << Util::p_range(body_, "; ") << ". [" << *type_;
-    if (prio_) {
-        out << "@" << *prio_.value();
-    }
-    out << "," << *mod_ << "]";
-}
+void StatementHeuristic::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementHeuristic::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
@@ -756,21 +581,7 @@ auto StatementHeuristic::rewrite_anonymous() const -> std::optional<SStatement> 
 
 ////////// StatementScript //////////
 
-auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
-    switch (type) {
-        case ScriptType::lua: {
-            out << "lua";
-            break;
-        }
-        case ScriptType::python: {
-            out << "python";
-            break;
-        }
-    }
-    return out;
-}
-
-void StatementScript::print(std::ostream &out) const { out << "#script (" << type_ << ")" << content_ << "#end."; }
+void StatementScript::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementScript::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
@@ -790,29 +601,7 @@ auto StatementScript::rewrite_anonymous() const -> std::optional<SStatement> { r
 
 ////////// StatementInclude //////////
 
-auto operator<<(std::ostream &out, IncludeType type) -> std::ostream & {
-    switch (type) {
-        case IncludeType::inbuild: {
-            out << "lua";
-            break;
-        }
-        case IncludeType::system: {
-            out << "python";
-            break;
-        }
-    }
-    return out;
-}
-
-void StatementInclude::print(std::ostream &out) const {
-    if (type_ == IncludeType::inbuild) {
-        out << "#include <" << path_ << ">.";
-    } else {
-        out << "#include ";
-        Util::print_quoted(out, path_);
-        out << ".";
-    }
-}
+void StatementInclude::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementInclude::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
@@ -832,13 +621,7 @@ auto StatementInclude::rewrite_anonymous() const -> std::optional<SStatement> { 
 
 ////////// StatementProgram //////////
 
-void StatementProgram::print(std::ostream &out) const {
-    out << "#program " << name_;
-    if (!args_.empty()) {
-        out << "(" << Util::p_range(args_) << ")";
-    }
-    out << ".";
-}
+void StatementProgram::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementProgram::do_unpool() const -> std::optional<SStatementVec> { return std::nullopt; }
 
@@ -858,23 +641,7 @@ auto StatementProgram::rewrite_anonymous() const -> std::optional<SStatement> { 
 
 ////////// StatementConst //////////
 
-auto operator<<(std::ostream &out, ConstType type) -> std::ostream & {
-    switch (type) {
-        case ConstType::default_: {
-            out << "default";
-            break;
-        }
-        case ConstType::override_: {
-            out << "override";
-            break;
-        }
-    }
-    return out;
-}
-
-void StatementConst::print(std::ostream &out) const {
-    out << "#const " << name_ << "=" << *value_ << ". [" << type_ << "]";
-}
+void StatementConst::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
 
 auto StatementConst::do_unpool() const -> std::optional<SStatementVec> {
     auto ret = unpool_crossproducts(

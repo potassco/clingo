@@ -1,8 +1,5 @@
 #include <optional>
-#include <sstream>
 #include <utility>
-
-#include <util/print.hh>
 
 #include <input/literal.hh>
 
@@ -64,76 +61,11 @@ auto operator+=(Sign &a, Sign b) -> Sign & {
     return a;
 }
 
-auto operator<<(std::ostream &out, Sign op) -> std::ostream & {
-    switch (op) {
-        case Sign::none: {
-            break;
-        }
-        case Sign::once: {
-            out << "not ";
-            break;
-        }
-        case Sign::twice: {
-            out << "not not ";
-            break;
-        }
-    }
-    return out;
-}
-
-auto Literal::to_string() const -> std::string {
-    std::ostringstream out;
-    out << *this;
-    return out.str();
-}
-
-auto operator<<(std::ostream &out, Literal const &literal) -> std::ostream & {
-    literal.print(out);
-    return out;
-}
-
 auto Literal::is_atom() const -> bool { return false; }
 
 auto Literal::is_test() const -> bool { return true; }
 
 ////////// LiteralRelation //////////
-
-auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
-    switch (op) {
-        case Relation::less: {
-            out << "<";
-            break;
-        }
-        case Relation::less_equal: {
-            out << "<=";
-            break;
-        }
-        case Relation::greater: {
-            out << ">";
-            break;
-        }
-        case Relation::greater_equal: {
-            out << ">=";
-            break;
-        }
-        case Relation::equal: {
-            out << "=";
-            break;
-        }
-        case Relation::inequal: {
-            out << "!=";
-            break;
-        }
-    }
-    return out;
-}
-
-void LiteralRelation::print(std::ostream &out) const {
-    out << sign_ << *lhs_;
-    for (auto const &guard : rhs_) {
-        out << guard.first << *guard.second;
-    }
-}
 
 void LiteralRelation::add_sign(Sign s) { sign_ += s; }
 
@@ -180,9 +112,9 @@ auto LiteralRelation::rewrite_anonymous(NameGen &gen) const -> std::optional<SLi
     return transform_construct_shared<LiteralRelation, Literal>(tra(lhs_, gen), tra(rhs_, gen));
 }
 
-////////// LiteralBoolean //////////
+void LiteralRelation::accept(LiteralVisitor const &visitor) const { visitor.visit(*this); }
 
-void LiteralBoolean::print(std::ostream &out) const { out << sign_ << (value_ ? "#true" : "#false"); }
+////////// LiteralBoolean //////////
 
 void LiteralBoolean::add_sign(Sign s) { sign_ += s; }
 
@@ -209,9 +141,9 @@ auto LiteralBoolean::rewrite_anonymous(NameGen &gen) const -> std::optional<SLit
     return std::nullopt;
 }
 
-////////// LiteralSymbolic //////////
+void LiteralBoolean::accept(LiteralVisitor const &visitor) const { visitor.visit(*this); }
 
-void LiteralSymbolic::print(std::ostream &out) const { out << sign_ << *term_; }
+////////// LiteralSymbolic //////////
 
 void LiteralSymbolic::add_sign(Sign s) { sign_ += s; }
 
@@ -251,5 +183,7 @@ auto LiteralSymbolic::is_test() const -> bool { return false; }
 auto LiteralSymbolic::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
     return transform_construct_shared<LiteralSymbolic, Literal>(sign_, tra(term_, gen));
 }
+
+void LiteralSymbolic::accept(LiteralVisitor const &visitor) const { visitor.visit(*this); }
 
 } // namespace Gringo::Input

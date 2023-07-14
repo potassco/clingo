@@ -8,6 +8,7 @@
 namespace Gringo::Input {
 
 class TheoryTerm;
+class TheoryTermVisitor;
 using STheoryTerm = Util::shared_ptr<TheoryTerm>;
 using STheoryTermVec = std::vector<STheoryTerm>;
 
@@ -15,12 +16,11 @@ class TheoryTerm {
   public:
     virtual ~TheoryTerm() = default;
 
-    virtual void print(std::ostream &out) const = 0;
     virtual void visit_variables(VarVisitFun fun) const = 0;
     [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> = 0;
 
-    [[nodiscard]] auto to_string() const -> std::string;
-    friend auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream &;
+    //! Visit theory terms with the given visitor.
+    virtual void accept(TheoryTermVisitor const &visitor) const = 0;
 
   private:
     friend void inc_ref_count(TheoryTerm &term) { ++term.refs_; }
@@ -33,28 +33,24 @@ class TheoryTerm {
 class TheoryTermUnparsed : public TheoryTerm {
   public:
     using OpVec = std::vector<std::string>;
-    using RHS = std::pair<OpVec, STheoryTerm>;
-    using RHSVec = std::vector<RHS>;
+    using Element = std::pair<OpVec, STheoryTerm>;
+    using ElementVec = std::vector<Element>;
 
-    explicit TheoryTermUnparsed(OpVec ops, STheoryTerm term, RHSVec rhs = {})
-        : ops_{std::move(ops)}, term_{std::move(term)}, rhs_{std::move(rhs)} {}
-    explicit TheoryTermUnparsed(STheoryTerm term, RHSVec rhs) : term_{std::move(term)}, rhs_{std::move(rhs)} {}
+    explicit TheoryTermUnparsed(ElementVec elems) : elems_{std::move(elems)} {}
 
-    void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun fun) const override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
+    void accept(TheoryTermVisitor const &visitor) const override;
+
+    //! Get the elements of the unparsed term.
+    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
+
   private:
-    OpVec ops_;
-    STheoryTerm term_;
-    RHSVec rhs_;
+    ElementVec elems_;
 };
 
 enum class TheoryTermTupleType { Tuple, Set, List };
-
-auto left_bracket(TheoryTermTupleType type) -> char;
-
-auto right_bracket(TheoryTermTupleType type) -> char;
 
 class TheoryTermTuple : public TheoryTerm {
   public:
@@ -63,9 +59,15 @@ class TheoryTermTuple : public TheoryTerm {
 
     explicit TheoryTermTuple(TheoryTermTupleType type, ElementVec elems) : type_{type}, elems_{std::move(elems)} {}
 
-    void print(std::ostream &out) const override;
+    //! Get the type of the theory term tuple.
+    [[nodiscard]] auto type() const -> TheoryTermTupleType { return type_; }
+    //! Get the elements of the theory term tuple.
+    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
+
     void visit_variables(VarVisitFun fun) const override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
+
+    void accept(TheoryTermVisitor const &visitor) const override;
 
   private:
     TheoryTermTupleType type_;
@@ -79,9 +81,13 @@ class TheoryTermSymbol : public TheoryTerm {
 
     explicit TheoryTermSymbol(Symbol value) : value_{std::move(value)} {}
 
-    void print(std::ostream &out) const override;
+    //! Get the symbol of the theory term symbol.
+    [[nodiscard]] auto symbol() const -> Symbol { return value_; }
+
     void visit_variables(VarVisitFun fun) const override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
+
+    void accept(TheoryTermVisitor const &visitor) const override;
 
   private:
     Symbol value_;
@@ -95,9 +101,15 @@ class TheoryTermVariable : public TheoryTerm {
     explicit TheoryTermVariable(std::string value, bool is_anonymous = false)
         : name_{std::move(value)}, is_anonymous_{is_anonymous} {}
 
-    void print(std::ostream &out) const override;
+    //! Get the variable name of the theory term variable.
+    [[nodiscard]] auto name() const -> std::string const & { return name_; }
+    //! Check whether the variable is anonymous.
+    [[nodiscard]] auto is_anonymous() const -> bool { return is_anonymous_; }
+
     void visit_variables(VarVisitFun fun) const override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
+
+    void accept(TheoryTermVisitor const &visitor) const override;
 
   private:
     std::string name_;
@@ -109,13 +121,37 @@ class TheoryTermFunction : public TheoryTerm {
     explicit TheoryTermFunction(std::string name, STheoryTermVec args = {})
         : name_(std::move(name)), args_{std::move(args)} {}
 
-    void print(std::ostream &out) const override;
     void visit_variables(VarVisitFun fun) const override;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
+
+    //! Get the name of the theory term function.
+    [[nodiscard]] auto name() const -> std::string const & { return name_; }
+    //! Get the arguments of the theory term function.
+    [[nodiscard]] auto arguments() const -> STheoryTermVec const & { return args_; }
+
+    void accept(TheoryTermVisitor const &visitor) const override;
 
   private:
     std::string name_;
     STheoryTermVec args_;
+};
+
+//! A visitor for available theory term types.
+class TheoryTermVisitor {
+  public:
+    //! Virtual destructor.
+    virtual ~TheoryTermVisitor() = default;
+
+    //! Visit an unparsed theory term.
+    virtual void visit(TheoryTermUnparsed const &term) const = 0;
+    //! Visit a theory term symbol.
+    virtual void visit(TheoryTermSymbol const &term) const = 0;
+    //! Visit a theory term variable.
+    virtual void visit(TheoryTermVariable const &term) const = 0;
+    //! Visit a tuple theory term.
+    virtual void visit(TheoryTermTuple const &term) const = 0;
+    //! Visit a function theory term.
+    virtual void visit(TheoryTermFunction const &term) const = 0;
 };
 
 class TheoryAtom {
@@ -131,12 +167,17 @@ class TheoryAtom {
         : name_{std::move(name)}, elems_{std::move(elems)},
           rhs_{std::in_place, std::move(rhs_op), std::move(rhs_term)} {}
 
+    //! Get the name of the theory atom.
+    [[nodiscard]] auto name() const -> STerm const & { return name_; }
+    //! Get the elements of the theory atom.
+    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
+    //! Get the right-hand-side of the theory atom.
+    [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
+
     [[nodiscard]] auto unpool() const -> std::optional<std::vector<TheoryAtom>>;
     void visit_variables(VarVisitFun fun, VariableContext ctx) const;
     [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<TheoryAtom>;
     [[nodiscard]] auto project_anonymous() const -> std::optional<TheoryAtom>;
-
-    friend auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream &;
 
   private:
     STerm name_;

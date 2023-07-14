@@ -3,6 +3,8 @@
 #include <lexy/action/scan.hpp>
 #include <lexy/input/file.hpp>
 
+#include <input/print.hh>
+
 #include <input/parser/statement.hh>
 
 using namespace Gringo::Input;

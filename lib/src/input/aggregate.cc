@@ -11,32 +11,6 @@
 
 namespace Gringo::Input {
 
-auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
-    switch (fun) {
-        case AggregateFunction::count: {
-            out << "#count";
-            break;
-        }
-        case AggregateFunction::sum: {
-            out << "#sum";
-            break;
-        }
-        case AggregateFunction::sump: {
-            out << "#sum+";
-            break;
-        }
-        case AggregateFunction::min: {
-            out << "#min";
-            break;
-        }
-        case AggregateFunction::max: {
-            out << "#max";
-            break;
-        }
-    }
-    return out;
-}
-
 void SetAggregate::set_rhs(STerm lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
 
 auto SetAggregate::unpool() const -> std::optional<std::vector<SetAggregate>> {
@@ -76,22 +50,6 @@ auto SetAggregate::unpool() const -> std::optional<std::vector<SetAggregate>> {
             },
         },
         lhs_, elems_, rhs_);
-}
-
-auto operator<<(std::ostream &out, SetAggregate const &aggr) -> std::ostream & {
-    if (aggr.lhs_) {
-        out << *aggr.lhs_->first << " " << aggr.lhs_->second << " ";
-    }
-    out << "{ " << Util::p_range_with(aggr.elems_, "; ", [](std::ostream &out, auto const &elem) {
-        out << *std::get<0>(elem);
-        if (!std::get<1>(elem).empty()) {
-            out << ": " << Util::p_range{std::get<1>(elem), ", "};
-        }
-    }) << (aggr.elems_.empty() ? "}" : " }");
-    if (aggr.rhs_) {
-        out << " " << aggr.rhs_->first << " " << *aggr.rhs_->second;
-    }
-    return out;
 }
 
 void SetAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {

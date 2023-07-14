@@ -1,7 +1,3 @@
-#include <sstream>
-
-#include <util/print.hh>
-
 #include <input/body_literal.hh>
 
 #include "cond_lits.hh"
@@ -34,22 +30,13 @@ auto tra(auto const &x, NameGen &gen) { return Trans(x, RewriteAnonymous{gen}); 
 
 } // namespace
 
-[[nodiscard]] auto BodyLiteral::to_string() const -> std::string {
-    std::ostringstream out;
-    out << *this;
-    return out.str();
-}
-
-auto operator<<(std::ostream &out, BodyLiteral const &literal) -> std::ostream & {
-    literal.print(out);
-    return out;
-}
-
 auto BodyLiteral::is_atom() const -> bool { return false; }
 
 auto BodyLiteral::is_test() const -> bool { return false; }
 
 ////////// ConditionalLiteral //////////
+
+void Conjunction::accept(BodyLiteralVisitor const &visitor) const { visitor.visit(*this); }
 
 void Conjunction::add_sign(Sign sign) {
     if (elems_.size() != 1 || elems_.front().first.size() != 1) {
@@ -57,8 +44,6 @@ void Conjunction::add_sign(Sign sign) {
     }
     elems_.front().first.front()->add_sign(sign);
 }
-
-void Conjunction::print(std::ostream &out) const { CondLits::print(elems_, out, "#and", false); }
 
 auto Conjunction::unpool() const -> std::optional<SBodyLiteralVec> {
     return CondLits::unpool<Conjunction, BodyLiteral>(elems_);
@@ -89,25 +74,11 @@ auto Conjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLi
 
 ////////// BodyAggregate //////////
 
+void BodyAggregate::accept(BodyLiteralVisitor const &visitor) const { visitor.visit(*this); }
+
 void BodyAggregate::add_sign(Sign sign) { sign_ += sign; }
 
 void BodyAggregate::set_left_guard(STerm lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
-
-void BodyAggregate::print(std::ostream &out) const {
-    out << sign_;
-    if (lhs_) {
-        out << *lhs_->first << " " << lhs_->second << " ";
-    }
-    out << fun_ << " { " << Util::p_range_with(elems_, "; ", [](std::ostream &out, auto const &elem) {
-        out << Util::p_range{std::get<0>(elem), ","};
-        if (!std::get<1>(elem).empty()) {
-            out << ": " << Util::p_range{std::get<1>(elem), ", "};
-        }
-    }) << (elems_.empty() ? "}" : " }");
-    if (rhs_) {
-        out << " " << rhs_->first << " " << *rhs_->second;
-    }
-}
 
 auto BodyAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
     return unpool_crossproducts(
@@ -188,6 +159,8 @@ auto BodyAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SBody
 
 ////////// BodySetAggregate //////////
 
+void BodySetAggregate::accept(BodyLiteralVisitor const &visitor) const { visitor.visit(*this); }
+
 auto BodySetAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
     return Util::map_opt_vec(aggr_.unpool(), [this](auto aggr) {
         return Util::construct_shared<BodySetAggregate, BodyLiteral>(sign_, std::move(aggr));
@@ -197,8 +170,6 @@ auto BodySetAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
 void BodySetAggregate::add_sign(Sign sign) { sign_ += sign; }
 
 void BodySetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
-
-void BodySetAggregate::print(std::ostream &out) const { out << sign_ << aggr_; }
 
 void BodySetAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     aggr_.visit_variables(std::move(fun), ctx);
@@ -222,6 +193,8 @@ auto BodySetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SB
 
 ////////// BodyTheoryAtom //////////
 
+void BodyTheoryAtom::accept(BodyLiteralVisitor const &visitor) const { visitor.visit(*this); }
+
 auto BodyTheoryAtom::unpool() const -> std::optional<SBodyLiteralVec> {
     return Util::map_opt_vec(atom_.unpool(), [this](auto atom) {
         return Util::construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, std::move(atom));
@@ -229,8 +202,6 @@ auto BodyTheoryAtom::unpool() const -> std::optional<SBodyLiteralVec> {
 }
 
 void BodyTheoryAtom::add_sign(Sign sign) { sign_ += sign; }
-
-void BodyTheoryAtom::print(std::ostream &out) const { out << sign_ << atom_; }
 
 void BodyTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     atom_.visit_variables(std::move(fun), ctx);

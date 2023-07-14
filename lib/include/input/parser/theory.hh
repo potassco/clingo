@@ -131,15 +131,24 @@ struct theory_term_root {
 struct theory_term_unparsed_guards {
     static constexpr char const *name = "theory term guards";
     static constexpr auto rule = dsl::list(dsl::p<theory_ops> >> dsl::p<theory_term_root>);
-    static constexpr auto value = lexy::collect<TheoryTermUnparsed::RHSVec>(lexy::construct<TheoryTermUnparsed::RHS>);
+    static constexpr auto value =
+        lexy::collect<TheoryTermUnparsed::ElementVec>(lexy::construct<TheoryTermUnparsed::Element>);
 };
 
 struct theory_term_unparsed : lexy::transparent_production {
     static constexpr char const *name = "theory term";
     static constexpr auto rule =
         dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> + dsl::if_(dsl::p<theory_term_unparsed_guards>);
-    static constexpr auto value =
-        lexy::callback<STheoryTerm>(lexy::forward<STheoryTerm>, lexy::new_<TheoryTermUnparsed, STheoryTerm>);
+    static constexpr auto value = lexy::callback<STheoryTerm>(
+        lexy::forward<STheoryTerm>,
+        [](std::vector<std::string> ops, STheoryTerm term, TheoryTermUnparsed::ElementVec guards = {}) {
+            guards.insert(guards.begin(), TheoryTermUnparsed::Element{std::move(ops), std::move(term)});
+            return construct_shared<TheoryTermUnparsed, TheoryTerm>(std::move(guards));
+        },
+        [](STheoryTerm term, TheoryTermUnparsed::ElementVec guards) {
+            guards.insert(guards.begin(), TheoryTermUnparsed::Element{{}, std::move(term)});
+            return construct_shared<TheoryTermUnparsed, TheoryTerm>(std::move(guards));
+        });
 };
 
 struct theory_atom_element_tuple {

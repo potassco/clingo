@@ -10,88 +10,24 @@
 
 namespace Gringo::Input {
 
-////////// TheoryTerm //////////
-
-[[nodiscard]] auto TheoryTerm::to_string() const -> std::string {
-    std::ostringstream out;
-    out << *this;
-    return out.str();
-}
-
-auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
-    term.print(out);
-    return out;
-}
-
 ////////// TheoryTermUnparsed //////////
 
-void TheoryTermUnparsed::print(std::ostream &out) const {
-    bool needs_parens = !ops_.empty() || !rhs_.empty();
-    if (needs_parens) {
-        out << "(";
-    }
-    if (!ops_.empty()) {
-        out << Util::p_range(ops_, " ") << " ";
-    }
-    out << *term_ << Util::p_range_with(rhs_, [](std::ostream &out, RHS const &guard) {
-        out << " " << Util::p_range(guard.first, " ") << " " << *guard.second;
-    });
-    if (needs_parens) {
-        out << ")";
-    }
-}
+void TheoryTermUnparsed::accept(TheoryTermVisitor const &visitor) const { visitor.visit(*this); }
 
 void TheoryTermUnparsed::visit_variables(VarVisitFun fun) const {
-    term_->visit_variables(fun);
-    for (auto const &guard : rhs_) {
-        guard.second->visit_variables(fun);
+    for (auto const &elem : elems_) {
+        elem.second->visit_variables(fun);
     }
 }
 
 [[nodiscard]] auto TheoryTermUnparsed::rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> {
     auto fun = [&gen](STheoryTerm const &term) { return term->rewrite_anonymous(gen); };
-    return transform_construct_shared<TheoryTermUnparsed, TheoryTerm>(ops_, Trans{term_, fun}, Trans{rhs_, fun});
+    return transform_construct_shared<TheoryTermUnparsed, TheoryTerm>(Trans{elems_, fun});
 }
 
 ////////// TheoryTermTuple //////////
 
-auto left_bracket(TheoryTermTupleType type) -> char {
-    switch (type) {
-        case TheoryTermTupleType::Tuple: {
-            return '(';
-        }
-        case TheoryTermTupleType::Set: {
-            return '{';
-        }
-        case TheoryTermTupleType::List: {
-            break;
-        }
-    }
-    return '[';
-}
-
-auto right_bracket(TheoryTermTupleType type) -> char {
-    switch (type) {
-        case TheoryTermTupleType::Tuple: {
-            return ')';
-        }
-        case TheoryTermTupleType::Set: {
-            return '}';
-        }
-        case TheoryTermTupleType::List: {
-            break;
-        }
-    }
-    return ']';
-}
-
-void TheoryTermTuple::print(std::ostream &out) const {
-    out << left_bracket(type_) << Util::p_range(elems_);
-    if (type_ == TheoryTermTupleType::Tuple && elems_.size() == 1) {
-        out << ",";
-    }
-    out << right_bracket(type_);
-}
+void TheoryTermTuple::accept(TheoryTermVisitor const &visitor) const { visitor.visit(*this); }
 
 void TheoryTermTuple::visit_variables(VarVisitFun fun) const {
     for (auto const &term : elems_) {
@@ -106,7 +42,7 @@ void TheoryTermTuple::visit_variables(VarVisitFun fun) const {
 
 ////////// TheoryTermConstant //////////
 
-void TheoryTermSymbol::print(std::ostream &out) const { out << value_; }
+void TheoryTermSymbol::accept(TheoryTermVisitor const &visitor) const { visitor.visit(*this); }
 
 void TheoryTermSymbol::visit_variables(VarVisitFun fun) const { static_cast<void>(fun); }
 
@@ -117,7 +53,7 @@ void TheoryTermSymbol::visit_variables(VarVisitFun fun) const { static_cast<void
 
 ////////// TheoryTermVariable //////////
 
-void TheoryTermVariable::print(std::ostream &out) const { out << name_; }
+void TheoryTermVariable::accept(TheoryTermVisitor const &visitor) const { visitor.visit(*this); }
 
 void TheoryTermVariable::visit_variables(VarVisitFun fun) const { fun(name_); }
 
@@ -130,12 +66,7 @@ void TheoryTermVariable::visit_variables(VarVisitFun fun) const { fun(name_); }
 
 ////////// TheoryTermFunction //////////
 
-void TheoryTermFunction::print(std::ostream &out) const {
-    out << name_;
-    if (!args_.empty()) {
-        out << "(" << Util::p_range(args_) << ")";
-    }
-}
+void TheoryTermFunction::accept(TheoryTermVisitor const &visitor) const { visitor.visit(*this); }
 
 void TheoryTermFunction::visit_variables(VarVisitFun fun) const {
     for (auto const &term : args_) {
@@ -173,22 +104,6 @@ auto TheoryAtom::unpool() const -> std::optional<std::vector<TheoryAtom>> {
             [](STerm const &name) { return name->unpool(); },
         },
         name_, elems_);
-}
-
-auto operator<<(std::ostream &out, TheoryAtom const &atom) -> std::ostream & {
-    out << "&" << *atom.name_;
-    if (!atom.elems_.empty() || atom.rhs_.has_value()) {
-        out << " { " << Util::p_range_with(atom.elems_, "; ", [](std::ostream &out, TheoryAtom::Element const &elem) {
-            out << Util::p_range(elem.first);
-            if (!elem.second.empty() || elem.first.empty()) {
-                out << ": " << Util::p_range(elem.second, ", ");
-            }
-        }) << (atom.elems_.empty() ? "}" : " }");
-    }
-    if (atom.rhs_.has_value()) {
-        out << " " << atom.rhs_.value().first << " " << *atom.rhs_.value().second;
-    }
-    return out;
 }
 
 void TheoryAtom::visit_variables(VarVisitFun fun, VariableContext ctx) const {

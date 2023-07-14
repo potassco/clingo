@@ -1,10 +1,7 @@
 #include <cmath>
 #include <optional>
-#include <sstream>
 #include <tuple>
 #include <utility>
-
-#include <util/print.hh>
 
 #include <input/term.hh>
 
@@ -17,14 +14,6 @@ namespace Gringo::Input {
 ////////// Term //////////
 
 namespace {
-
-struct p_tuple {
-    auto operator()(std::ostream &out, TupleElem const &elem) const -> std::ostream & {
-        Util::visit_variant(
-            elem, [&](std::monostate) { out << "*"; }, [&](auto const &elem) { out << *elem; });
-        return out;
-    }
-};
 
 auto projectable(Projection project, STerm const *term) -> bool {
     if (term == nullptr) {
@@ -40,61 +29,6 @@ auto is_anonymous(STerm const *term) -> bool {
     }
     auto const *var = dynamic_cast<TermVariable const *>(term->get());
     return var != nullptr && var->is_anonymous();
-}
-
-auto associativity(BinaryOperator op) {
-    switch (op) {
-        case BinaryOperator::dots:
-        case BinaryOperator::xor_:
-        case BinaryOperator::or_:
-        case BinaryOperator::and_:
-        case BinaryOperator::plus:
-        case BinaryOperator::minus:
-        case BinaryOperator::times:
-        case BinaryOperator::div:
-        case BinaryOperator::mod: {
-            return Position::left;
-        }
-        case BinaryOperator::pow: {
-            break;
-        }
-    }
-    return Position::right;
-}
-
-auto priority(BinaryOperator op) -> unsigned int {
-    switch (op) {
-        case BinaryOperator::dots: {
-            return 1;
-        }
-        case BinaryOperator::xor_: {
-            return 2;
-        }
-        case BinaryOperator::or_: {
-            return 3;
-        }
-        case BinaryOperator::and_: {
-            return 4;
-        }
-        case BinaryOperator::plus:
-        case BinaryOperator::minus: {
-            return 5; // NOLINT
-        }
-        case BinaryOperator::times:
-        case BinaryOperator::div:
-        case BinaryOperator::mod: {
-            return 6; // NOLINT
-        }
-        case BinaryOperator::pow: {
-            break;
-        }
-    }
-    return 8; // NOLINT
-}
-
-auto priority(UnaryOperator op) -> unsigned int {
-    static_cast<void>(op);
-    return priority(BinaryOperator::times) + 1;
 }
 
 struct ProjectAnonymous {
@@ -155,8 +89,6 @@ auto Projection::projectable(std::string const &var, bool anonymous) const -> bo
 
 auto Projection::mode() const -> ProjectionMode { return mode_; }
 
-void Term::print(std::ostream &out) const { do_print(out, false, 0, Position::none); }
-
 /*
 auto operator<<(std::ostream &out, TermType type) -> std::ostream & {
     static_cast<void>(type);
@@ -170,16 +102,6 @@ auto operator<<(std::ostream &out, Attribute attr) -> std::ostream & {
     return out;
 }
 */
-auto Term::to_string() const -> std::string {
-    std::ostringstream out;
-    out << *this;
-    return out.str();
-}
-
-auto operator<<(std::ostream &out, Term const &ast) -> std::ostream & {
-    ast.print(out);
-    return out;
-}
 
 /*
 auto Term::get_int(Attribute attr) -> int & {
@@ -214,18 +136,6 @@ auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
 }
 
 ////////// TermSymbol //////////
-
-void TermSymbol::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
-    static_cast<void>(prio);
-    static_cast<void>(pos);
-    char const *lp = "";
-    char const *rp = "";
-    if (no_leading_op && has_sign(value_)) {
-        lp = "(";
-        rp = "(";
-    }
-    out << lp << value_ << rp;
-}
 
 auto TermSymbol::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     return Util::visit_variant(
@@ -281,6 +191,8 @@ auto TermSymbol::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     return std::nullopt;
 }
 
+void TermSymbol::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
+
 /*
 auto TermSymbol::type() const -> TermType { return TermType::TermSymbol; }
 
@@ -297,23 +209,6 @@ auto TermSymbol::get_int(Attribute attr) -> int & {
 */
 
 ////////// TermTuple //////////
-
-void TermTuple::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
-    if (pool_.size() == 1 && std::holds_alternative<STerm>(pool_.front())) {
-        std::get<STerm>(pool_.front())->do_print(out, no_leading_op, prio, pos);
-    } else {
-        out << "(" << Util::p_range_with(pool_, ";", [](std::ostream &out, auto const &term_or_tuple) {
-            Util::visit_variant(
-                term_or_tuple, [&](STerm const &term) { term->print(out); },
-                [&](TupleVec const &tuple) {
-                    out << Util::p_range_with(tuple, ",", p_tuple{});
-                    if (tuple.size() == 1) {
-                        out << ",";
-                    }
-                });
-        }) << ")";
-    }
-}
 
 auto TermTuple::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermTuple const *>(&other);
@@ -377,6 +272,8 @@ auto TermTuple::unpool() const -> std::optional<STermVec> {
     });
 }
 
+void TermTuple::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
+
 /*
 auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
 */
@@ -386,13 +283,6 @@ auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
 auto TermVariable::name() const -> std::string const & { return name_; }
 
 auto TermVariable::is_anonymous() const -> bool { return is_anonymous_; }
-
-void TermVariable::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
-    static_cast<void>(no_leading_op);
-    static_cast<void>(prio);
-    static_cast<void>(pos);
-    out << name_;
-}
 
 auto TermVariable::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermVariable const *>(&other);
@@ -419,18 +309,13 @@ auto TermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm>
     return std::nullopt;
 }
 
+void TermVariable::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
+
 /*
 auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
 */
 
 ////////// TermAbs //////////
-
-void TermAbs::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
-    static_cast<void>(no_leading_op);
-    static_cast<void>(prio);
-    static_cast<void>(pos);
-    out << "|" << Util::p_range(pool_, ";") << "|";
-}
 
 auto TermAbs::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermAbs const *>(&other);
@@ -465,26 +350,13 @@ auto TermAbs::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     return transform_construct_shared<TermAbs, Term>(tra(pool_, gen));
 }
 
+void TermAbs::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
+
 /*
 auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
 */
 
 ////////// TermFunction //////////
-
-void TermFunction::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
-    static_cast<void>(no_leading_op);
-    static_cast<void>(prio);
-    static_cast<void>(pos);
-    if (external_) {
-        out << "@";
-    }
-    out << name_;
-    if (pool_.size() != 1 || !pool_.front().empty()) {
-        out << "(" << Util::p_range_with(pool_, ";", [](std::ostream &out, TupleVec const &tuple) {
-            out << Util::p_range_with(tuple, ",", p_tuple{});
-        }) << ")";
-    }
-}
 
 auto TermFunction::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermFunction const *>(&other);
@@ -556,31 +428,13 @@ auto TermFunction::check_type(TermCheckType type, CheckTypeResult *res) const ->
     return false;
 }
 
+void TermFunction::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
+
 /*
 auto TermFunction::type() const -> TermType { return TermType::TermFunction; }
 */
 
 ////////// TermUnary //////////
-
-auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
-    out << (op == UnaryOperator::negate ? "-" : "~");
-    return out;
-}
-
-void TermUnary::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
-    static_cast<void>(pos);
-    char const *lp = "";
-    char const *rp = "";
-    // No need to consider associativity/position because the unary priority is
-    // different from all binary ones.
-    if (no_leading_op || (priority(op_) < prio)) {
-        lp = "(";
-        rp = ")";
-    }
-    out << lp << op_;
-    rhs_->do_print(out, true, priority(op_), Position::none);
-    out << rp;
-}
 
 auto TermUnary::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermUnary const *>(&other);
@@ -628,6 +482,8 @@ auto TermUnary::project_anonymous() const -> std::optional<STerm> {
     return std::nullopt;
 }
 
+void TermUnary::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
+
 /*
 auto TermUnary::type() const -> TermType { return TermType::TermUnary; }
 
@@ -655,68 +511,6 @@ auto TermUnary::get_ast(Attribute attr) -> STerm & {
 */
 
 ////////// TermBinary //////////
-
-auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
-    switch (op) {
-        case BinaryOperator::dots: {
-            out << "..";
-            break;
-        }
-        case BinaryOperator::xor_: {
-            out << "^";
-            break;
-        }
-        case BinaryOperator::or_: {
-            out << "?";
-            break;
-        }
-        case BinaryOperator::and_: {
-            out << "&";
-            break;
-        }
-        case BinaryOperator::plus: {
-            out << "+";
-            break;
-        }
-        case BinaryOperator::minus: {
-            out << "-";
-            break;
-        }
-        case BinaryOperator::times: {
-            out << "*";
-            break;
-        }
-        case BinaryOperator::div: {
-            out << "/";
-            break;
-        }
-        case BinaryOperator::mod: {
-            out << "\\";
-            break;
-        }
-        case BinaryOperator::pow: {
-            out << "**";
-            break;
-        }
-    }
-    return out;
-}
-
-void TermBinary::do_print(std::ostream &out, bool no_leading_op, unsigned int prio, Position pos) const {
-    char const *lp = "";
-    char const *rp = "";
-    // We assume that operators with the same priority have the same associativity.
-    if (priority(op_) < prio || (prio == priority(op_) && associativity(op_) != pos)) {
-        lp = "(";
-        rp = ")";
-        no_leading_op = false;
-    }
-    out << lp;
-    lhs_->do_print(out, no_leading_op, priority(op_), Position::left);
-    out << op_;
-    rhs_->do_print(out, true, priority(op_), Position::right);
-    out << rp;
-}
 
 auto TermBinary::is_equal(Term const &other) const -> bool {
     auto const *d = dynamic_cast<TermBinary const *>(&other);
@@ -757,6 +551,7 @@ auto TermBinary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
     return transform_construct_shared<TermBinary, Term>(tra(lhs_, gen), op_, tra(rhs_, gen));
 }
 
+void TermBinary::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
 /*
 auto TermBinary::type() const -> TermType { return TermType::TermBinary; }
 
