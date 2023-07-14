@@ -6,15 +6,14 @@
 #include "transform.hh"
 #include "unpool.hh"
 
+// TODO: remove
+#include <input/rewrite_anonymous.hh>
+
 namespace Gringo::Input {
 
 ////////// Literal //////////
 
 namespace {
-
-auto tra(auto const &x, NameGen &gen) {
-    return Trans(x, [&gen](STerm const &term) { return term->rewrite_anonymous(gen); });
-}
 
 auto tpa(auto const &x) {
     return Trans(x, [](STerm const &term) { return term->project_anonymous(); });
@@ -65,6 +64,10 @@ auto Literal::is_atom() const -> bool { return false; }
 
 auto Literal::is_test() const -> bool { return true; }
 
+auto Literal::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
+    return Gringo::Input::rewrite_anonymous(*this, gen);
+}
+
 ////////// LiteralRelation //////////
 
 void LiteralRelation::add_sign(Sign s) { sign_ += s; }
@@ -108,10 +111,6 @@ auto LiteralRelation::project(Projection project) const -> std::optional<SLitera
 
 auto LiteralRelation::project_anonymous() const -> std::optional<SLiteral> { return std::nullopt; }
 
-auto LiteralRelation::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
-    return transform_construct_shared<LiteralRelation, Literal>(tra(lhs_, gen), tra(rhs_, gen));
-}
-
 void LiteralRelation::accept(LiteralVisitor const &visitor) const { visitor.visit(*this); }
 
 ////////// LiteralBoolean //////////
@@ -135,11 +134,6 @@ auto LiteralBoolean::project(Projection project) const -> std::optional<SLiteral
 }
 
 auto LiteralBoolean::project_anonymous() const -> std::optional<SLiteral> { return std::nullopt; }
-
-auto LiteralBoolean::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
-    static_cast<void>(gen);
-    return std::nullopt;
-}
 
 void LiteralBoolean::accept(LiteralVisitor const &visitor) const { visitor.visit(*this); }
 
@@ -179,10 +173,6 @@ auto LiteralSymbolic::project_anonymous() const -> std::optional<SLiteral> {
 auto LiteralSymbolic::is_atom() const -> bool { return sign_ == Sign::none; }
 
 auto LiteralSymbolic::is_test() const -> bool { return false; }
-
-auto LiteralSymbolic::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
-    return transform_construct_shared<LiteralSymbolic, Literal>(sign_, tra(term_, gen));
-}
 
 void LiteralSymbolic::accept(LiteralVisitor const &visitor) const { visitor.visit(*this); }
 

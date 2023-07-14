@@ -191,8 +191,8 @@ class Term {
     //! This is a deprecated feature to support old programs.
     //! The projection star should be used instead.
     [[nodiscard]] virtual auto project_anonymous() const -> std::optional<STerm> = 0;
-    //! Give anonymous variables a unique name.
-    [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> = 0;
+    // TODO: remove
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm>;
 
     //! Visit terms with the given visitor.
     virtual void accept(TermVisitor const &visitor) const = 0;
@@ -296,7 +296,6 @@ class TermSymbol : public Term {
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     void accept(TermVisitor const &visitor) const override;
     // AST interface
@@ -332,7 +331,6 @@ class TermTuple : public Term {
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     void accept(TermVisitor const &visitor) const override;
     // AST interface
@@ -352,7 +350,7 @@ class TermVariable : public Term {
     //! Construct a variable.
     //!
     //! Anonymous variables should set parameter is_anonymous to true.
-    //! Such variables receive a unique name after calling Term::rewrite_anonymous().
+    //! Such variables receive a unique name after calling rewrite_anonymous().
     explicit TermVariable(std::string name, bool is_anonymous = false)
         : name_{std::move(name)}, is_anonymous_{is_anonymous} {}
 
@@ -367,7 +365,6 @@ class TermVariable : public Term {
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     void accept(TermVisitor const &visitor) const override;
     /*
@@ -398,7 +395,6 @@ class TermAbs : public Term {
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     void accept(TermVisitor const &visitor) const override;
     // AST interface
@@ -436,7 +432,6 @@ class TermFunction : public Term {
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     void accept(TermVisitor const &visitor) const override;
     // AST interface
@@ -476,7 +471,6 @@ class TermUnary : public Term {
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     void accept(TermVisitor const &visitor) const override;
     // AST interface
@@ -528,7 +522,6 @@ class TermBinary : public Term {
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> override;
 
     void accept(TermVisitor const &visitor) const override;
     // AST interface

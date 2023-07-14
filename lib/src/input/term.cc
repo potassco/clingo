@@ -9,6 +9,9 @@
 #include "unpool.hh"
 #include "variables.hh"
 
+// TODO: remove
+#include <input/rewrite_anonymous.hh>
+
 namespace Gringo::Input {
 
 ////////// Term //////////
@@ -89,6 +92,16 @@ auto Projection::projectable(std::string const &var, bool anonymous) const -> bo
 
 auto Projection::mode() const -> ProjectionMode { return mode_; }
 
+auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
+    static_cast<void>(type);
+    static_cast<void>(res);
+    return false;
+}
+
+auto Term::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
+    return Gringo::Input::rewrite_anonymous(*this, gen);
+}
+
 /*
 auto operator<<(std::ostream &out, TermType type) -> std::ostream & {
     static_cast<void>(type);
@@ -128,12 +141,6 @@ auto Term::get_ast_vec_vec(Attribute attr) -> STermVecVec & {
     throw std::runtime_error(out.str().c_str());
 }
 */
-
-auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    static_cast<void>(type);
-    static_cast<void>(res);
-    return false;
-}
 
 ////////// TermSymbol //////////
 
@@ -186,11 +193,6 @@ auto TermSymbol::project(Projection project) const -> std::optional<STerm> {
 
 auto TermSymbol::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
-auto TermSymbol::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    static_cast<void>(gen);
-    return std::nullopt;
-}
-
 void TermSymbol::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
 
 /*
@@ -228,10 +230,6 @@ auto TermTuple::project(Projection project) const -> std::optional<STerm> {
 
 auto TermTuple::project_anonymous() const -> std::optional<STerm> {
     return transform_construct_shared<TermTuple, Term>(tpa(pool_));
-}
-
-auto TermTuple::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return transform_construct_shared<TermTuple, Term>(tra(pool_, gen));
 }
 
 auto TermTuple::unpool() const -> std::optional<STermVec> {
@@ -302,13 +300,6 @@ auto TermVariable::project(Projection project) const -> std::optional<STerm> {
 
 auto TermVariable::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
-auto TermVariable::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    if (is_anonymous_) {
-        return Util::construct_shared<TermVariable, Term>(gen.new_name(), true);
-    }
-    return std::nullopt;
-}
-
 void TermVariable::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
 
 /*
@@ -345,10 +336,6 @@ auto TermAbs::project(Projection project) const -> std::optional<STerm> {
 }
 
 auto TermAbs::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
-
-auto TermAbs::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return transform_construct_shared<TermAbs, Term>(tra(pool_, gen));
-}
 
 void TermAbs::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
 
@@ -410,10 +397,6 @@ auto TermFunction::project_anonymous() const -> std::optional<STerm> {
     return transform_construct_shared<TermFunction, Term>(name_, tpa(pool_), external_);
 }
 
-auto TermFunction::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return transform_construct_shared<TermFunction, Term>(name_, tra(pool_, gen), external_);
-}
-
 auto TermFunction::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     if (type == TermCheckType::atom) {
         return !external_;
@@ -446,10 +429,6 @@ auto TermUnary::hash() const -> size_t { return Util::value_hash(typeid(TermUnar
 auto TermUnary::unpool() const -> std::optional<STermVec> {
     return map_opt_vec(rhs_->unpool(),
                        [this](auto term) { return Util::construct_shared<TermUnary, Term>(op_, std::move(term)); });
-}
-
-auto TermUnary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return transform_construct_shared<TermUnary, Term>(op_, tra(rhs_, gen));
 }
 
 auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
@@ -546,10 +525,6 @@ auto TermBinary::project(Projection project) const -> std::optional<STerm> {
 }
 
 auto TermBinary::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
-
-auto TermBinary::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return transform_construct_shared<TermBinary, Term>(tra(lhs_, gen), op_, tra(rhs_, gen));
-}
 
 void TermBinary::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
 /*

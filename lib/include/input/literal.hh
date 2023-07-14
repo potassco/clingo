@@ -89,8 +89,8 @@ class Literal {
     //! This is a deprecated feature to support old programs.
     //! The projection star should be used instead.
     [[nodiscard]] virtual auto project_anonymous() const -> std::optional<SLiteral> = 0;
-    //! Give anonymous variables a unique name.
-    [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> = 0;
+    // TODO: remove
+    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral>;
 
     //! Visit literals with the given visitor.
     virtual void accept(LiteralVisitor const &visitor) const = 0;
@@ -131,7 +131,6 @@ class LiteralRelation : public Literal {
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SLiteral> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> override;
 
     void accept(LiteralVisitor const &visitor) const override;
 
@@ -163,7 +162,6 @@ class LiteralBoolean : public Literal {
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SLiteral> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> override;
 
     void accept(LiteralVisitor const &visitor) const override;
 
@@ -194,7 +192,6 @@ class LiteralSymbolic : public Literal {
     void visit_variables(VarVisitFun const &fun) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SLiteral> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> override;
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
 
