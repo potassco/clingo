@@ -10,14 +10,6 @@ namespace Gringo::Input {
 
 namespace {
 
-struct RewriteAnonymous {
-    auto operator()(STerm const &term) const { return term->rewrite_anonymous(gen); }
-    auto operator()(SLiteral const &lit) const { return lit->rewrite_anonymous(gen); }
-    auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> { return aggr.rewrite_anonymous(gen); };
-    auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.rewrite_anonymous(gen); };
-    NameGen &gen;
-};
-
 struct ProjectAnonymous {
     auto operator()(SLiteral const &lit) const { return lit->project_anonymous(); }
     auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> { return aggr.project_anonymous(); };
@@ -25,8 +17,6 @@ struct ProjectAnonymous {
 };
 
 auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
-
-auto tra(auto const &x, NameGen &gen) { return Trans(x, RewriteAnonymous{gen}); }
 
 } // namespace
 
@@ -67,10 +57,6 @@ auto Conjunction::project_anonymous() const -> std::optional<SBodyLiteral> {
 auto Conjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
 
 auto Conjunction::is_test() const -> bool { return CondLits::is_test(elems_); }
-
-auto Conjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
-    return transform_construct_shared<Conjunction, BodyLiteral>(tra(elems_, gen));
-}
 
 ////////// BodyAggregate //////////
 
@@ -152,11 +138,6 @@ auto BodyAggregate::project_anonymous() const -> std::optional<SBodyLiteral> {
     return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, tpa(elems_), rhs_);
 }
 
-auto BodyAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
-    return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, tra(lhs_, gen), fun_, tra(elems_, gen),
-                                                                  tra(rhs_, gen));
-}
-
 ////////// BodySetAggregate //////////
 
 void BodySetAggregate::accept(BodyLiteralVisitor const &visitor) const { visitor.visit(*this); }
@@ -187,10 +168,6 @@ auto BodySetAggregate::project_anonymous() const -> std::optional<SBodyLiteral> 
     return transform_construct_shared<BodySetAggregate, BodyLiteral>(sign_, tpa(aggr_));
 }
 
-auto BodySetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
-    return transform_construct_shared<BodySetAggregate, BodyLiteral>(sign_, tra(aggr_, gen));
-}
-
 ////////// BodyTheoryAtom //////////
 
 void BodyTheoryAtom::accept(BodyLiteralVisitor const &visitor) const { visitor.visit(*this); }
@@ -215,10 +192,6 @@ auto BodyTheoryAtom::project(Projection project, bool in_classical_scope) const 
 
 auto BodyTheoryAtom::project_anonymous() const -> std::optional<SBodyLiteral> {
     return transform_construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, tpa(atom_));
-}
-
-auto BodyTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> {
-    return transform_construct_shared<BodyTheoryAtom, BodyLiteral>(sign_, tra(atom_, gen));
 }
 
 } // namespace Gringo::Input

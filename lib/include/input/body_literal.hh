@@ -58,8 +58,6 @@ class BodyLiteral {
     //! This corresponds to conjunctions where the right-hand-side of elements is empty
     //! and the left-hand-side is composed of tests.
     [[nodiscard]] virtual auto is_test() const -> bool;
-    //! Give anonymous variables a unique name.
-    [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> = 0;
 
   private:
     //! Increment reference count of the body literal.
@@ -91,7 +89,6 @@ class Conjunction : public BodyLiteral {
     [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
     void accept(BodyLiteralVisitor const &visitor) const override;
 
@@ -128,7 +125,6 @@ class BodyAggregate : public BodyLiteral {
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
         -> std::optional<SBodyLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
     void accept(BodyLiteralVisitor const &visitor) const override;
 
@@ -157,7 +153,6 @@ class BodySetAggregate : public BodyLiteral {
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
         -> std::optional<SBodyLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
     void accept(BodyLiteralVisitor const &visitor) const override;
 
@@ -182,7 +177,6 @@ class BodyTheoryAtom : public BodyLiteral {
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
         -> std::optional<SBodyLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SBodyLiteral> override;
 
     void accept(BodyLiteralVisitor const &visitor) const override;
 

@@ -1,7 +1,7 @@
 #include <sstream>
 
 #include <input/print.hh>
-
+#include <input/rewrite_anonymous.hh>
 #include <input/statement.hh>
 
 #include "transform.hh"
@@ -107,14 +107,6 @@ struct Project {
     bool in_classical_scope;
 };
 
-struct RewriteAnonymous {
-    auto operator()(SBodyLiteral const &lit) -> std::optional<SBodyLiteral> { return lit->rewrite_anonymous(gen); }
-    auto operator()(SHeadLiteral const &lit) -> std::optional<SHeadLiteral> { return lit->rewrite_anonymous(gen); }
-    auto operator()(SLiteral const &lit) -> std::optional<SLiteral> { return lit->rewrite_anonymous(gen); }
-    auto operator()(STerm const &term) -> std::optional<STerm> { return term->rewrite_anonymous(gen); }
-    NameGen &gen;
-};
-
 struct ProjectAnonymous {
     auto operator()(SLiteral const &lit) -> std::optional<SLiteral> { return lit->project_anonymous(); };
     auto operator()(SHeadLiteral const &lit) -> std::optional<SHeadLiteral> { return lit->project_anonymous(); };
@@ -133,14 +125,6 @@ auto tp(auto const &x, ProjectionMode mode, std::unordered_map<std::string, size
         bool in_classical_scope = true) {
     return Trans{x, Project{Projection{mode, counts}, in_classical_scope}};
 }
-
-auto ngra(Statement const &stm) {
-    VariableSet vars;
-    stm.visit_variables([&vars](std::string const &var) { vars.emplace(var); }, VariableContext::all);
-    return NameGen{std::move(vars)};
-};
-
-auto tra(auto const &x, auto &gen) { return Trans{x, RewriteAnonymous{gen}}; };
 
 auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
 
@@ -195,7 +179,7 @@ void rewrite(SStatement stm, RewriteOptions opts, SStatementVec &stms) {
         stms.emplace_back(std::move(stm));
         return;
     }
-    stm = stm->rewrite_anonymous().value_or(stm);
+    stm = rewrite_anonymous(*stm).value_or(stm);
     if (opts.level < RewriteLevel::unpool) {
         stms.emplace_back(std::move(stm));
         return;
@@ -252,11 +236,6 @@ auto Rule::do_project_anonymous() const -> std::optional<SStatement> {
     return transform_construct_shared<Rule, Statement>(tpa(head_), tpa(body_));
 }
 
-auto Rule::rewrite_anonymous() const -> std::optional<SStatement> {
-    auto gen = ngra(*this);
-    return transform_construct_shared<Rule, Statement>(tra(head_, gen), tra(body_, gen));
-}
-
 ////////// TheoryDefinition //////////
 
 void TheoryDefinition::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
@@ -274,8 +253,6 @@ auto TheoryDefinition::do_project(ProjectionMode mode) const -> std::optional<SS
 }
 
 auto TheoryDefinition::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
-
-auto TheoryDefinition::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementOptimize //////////
 
@@ -314,11 +291,6 @@ auto StatementOptimize::do_project_anonymous() const -> std::optional<SStatement
     return transform_construct_shared<StatementOptimize, Statement>(type_, tpa(elems_));
 }
 
-auto StatementOptimize::rewrite_anonymous() const -> std::optional<SStatement> {
-    auto gen = ngra(*this);
-    return transform_construct_shared<StatementOptimize, Statement>(type_, tra(elems_, gen));
-}
-
 ////////// StatementWeakConstraint //////////
 
 void StatementWeakConstraint::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
@@ -344,11 +316,6 @@ auto StatementWeakConstraint::do_project(ProjectionMode mode) const -> std::opti
 
 auto StatementWeakConstraint::do_project_anonymous() const -> std::optional<SStatement> {
     return transform_construct_shared<StatementWeakConstraint, Statement>(tpa(body_), tuple_);
-}
-
-auto StatementWeakConstraint::rewrite_anonymous() const -> std::optional<SStatement> {
-    auto gen = ngra(*this);
-    return transform_construct_shared<StatementWeakConstraint, Statement>(tra(body_, gen), tra(tuple_, gen));
 }
 
 ////////// StatementShow //////////
@@ -377,11 +344,6 @@ auto StatementShow::do_project_anonymous() const -> std::optional<SStatement> {
     return transform_construct_shared<StatementShow, Statement>(term_, tpa(body_));
 }
 
-auto StatementShow::rewrite_anonymous() const -> std::optional<SStatement> {
-    auto gen = ngra(*this);
-    return transform_construct_shared<StatementShow, Statement>(tra(term_, gen), tra(body_, gen));
-}
-
 ////////// StatementShowSig //////////
 
 void StatementShowSig::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
@@ -399,8 +361,6 @@ auto StatementShowSig::do_project(ProjectionMode mode) const -> std::optional<SS
 }
 
 auto StatementShowSig::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
-
-auto StatementShowSig::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementProject //////////
 
@@ -428,11 +388,6 @@ auto StatementProject::do_project_anonymous() const -> std::optional<SStatement>
     return transform_construct_shared<StatementProject, Statement>(term_, tpa(body_));
 }
 
-auto StatementProject::rewrite_anonymous() const -> std::optional<SStatement> {
-    auto gen = ngra(*this);
-    return transform_construct_shared<StatementProject, Statement>(tra(term_, gen), tra(body_, gen));
-}
-
 ////////// StatementProjectSig //////////
 
 void StatementProjectSig::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
@@ -451,8 +406,6 @@ auto StatementProjectSig::do_project(ProjectionMode mode) const -> std::optional
 
 auto StatementProjectSig::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
-auto StatementProjectSig::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
-
 ////////// StatementDefined //////////
 
 void StatementDefined::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
@@ -470,8 +423,6 @@ auto StatementDefined::do_project(ProjectionMode mode) const -> std::optional<SS
 }
 
 auto StatementDefined::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
-
-auto StatementDefined::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementExternal //////////
 
@@ -498,11 +449,6 @@ auto StatementExternal::do_project(ProjectionMode mode) const -> std::optional<S
 
 auto StatementExternal::do_project_anonymous() const -> std::optional<SStatement> {
     return transform_construct_shared<StatementExternal, Statement>(term_, tpa(body_), type_);
-}
-
-auto StatementExternal::rewrite_anonymous() const -> std::optional<SStatement> {
-    auto gen = ngra(*this);
-    return transform_construct_shared<StatementExternal, Statement>(tra(term_, gen), tra(body_, gen), tra(type_, gen));
 }
 
 ////////// StatementEdge //////////
@@ -539,11 +485,6 @@ auto StatementEdge::do_project_anonymous() const -> std::optional<SStatement> {
     return transform_construct_shared<StatementEdge, Statement>(edges_, tpa(body_));
 }
 
-auto StatementEdge::rewrite_anonymous() const -> std::optional<SStatement> {
-    auto gen = ngra(*this);
-    return transform_construct_shared<StatementEdge, Statement>(tra(edges_, gen), tra(body_, gen));
-}
-
 ////////// StatementHeuristic //////////
 
 void StatementHeuristic::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
@@ -573,12 +514,6 @@ auto StatementHeuristic::do_project_anonymous() const -> std::optional<SStatemen
     return transform_construct_shared<StatementHeuristic, Statement>(atom_, tpa(body_), type_, prio_, mod_);
 }
 
-auto StatementHeuristic::rewrite_anonymous() const -> std::optional<SStatement> {
-    auto gen = ngra(*this);
-    return transform_construct_shared<StatementHeuristic, Statement>(tra(atom_, gen), tra(body_, gen), tra(type_, gen),
-                                                                     tra(prio_, gen), tra(mod_, gen));
-}
-
 ////////// StatementScript //////////
 
 void StatementScript::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
@@ -596,8 +531,6 @@ auto StatementScript::do_project(ProjectionMode mode) const -> std::optional<SSt
 }
 
 auto StatementScript::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
-
-auto StatementScript::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementInclude //////////
 
@@ -617,8 +550,6 @@ auto StatementInclude::do_project(ProjectionMode mode) const -> std::optional<SS
 
 auto StatementInclude::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
-auto StatementInclude::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
-
 ////////// StatementProgram //////////
 
 void StatementProgram::accept(StatementVisitor const &visitor) const { visitor.visit(*this); }
@@ -636,8 +567,6 @@ auto StatementProgram::do_project(ProjectionMode mode) const -> std::optional<SS
 }
 
 auto StatementProgram::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
-
-auto StatementProgram::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 ////////// StatementConst //////////
 
@@ -664,7 +593,5 @@ auto StatementConst::do_project(ProjectionMode mode) const -> std::optional<SSta
 }
 
 auto StatementConst::do_project_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
-
-auto StatementConst::rewrite_anonymous() const -> std::optional<SStatement> { return std::nullopt; }
 
 } // namespace Gringo::Input

@@ -16,14 +16,6 @@ namespace Gringo::Input {
 
 namespace {
 
-struct RewriteAnonymous {
-    auto operator()(STerm const &term) const { return term->rewrite_anonymous(gen); }
-    auto operator()(SLiteral const &lit) const { return lit->rewrite_anonymous(gen); }
-    auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> { return aggr.rewrite_anonymous(gen); };
-    auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.rewrite_anonymous(gen); };
-    NameGen &gen;
-};
-
 struct ProjectAnonymous {
     auto operator()(SLiteral const &lit) const { return lit->project_anonymous(); }
     auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> { return aggr.project_anonymous(); };
@@ -31,8 +23,6 @@ struct ProjectAnonymous {
 };
 
 auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
-
-auto tra(auto const &x, NameGen &gen) { return Trans(x, RewriteAnonymous{gen}); }
 
 } // namespace
 
@@ -83,10 +73,6 @@ auto Disjunction::is_classical() const -> bool {
     return true;
 }
 
-auto Disjunction::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    return transform_construct_shared<Disjunction, HeadLiteral>(tra(elems_, gen));
-}
-
 ////////// HeadTheoryAtom //////////
 
 void HeadTheoryAtom::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
@@ -107,10 +93,6 @@ auto HeadTheoryAtom::project(Projection project) const -> std::optional<SHeadLit
 
 auto HeadTheoryAtom::project_anonymous() const -> std::optional<SHeadLiteral> {
     return transform_construct_shared<HeadTheoryAtom, HeadLiteral>(tpa(atom_));
-}
-
-auto HeadTheoryAtom::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    return transform_construct_shared<HeadTheoryAtom, HeadLiteral>(tra(atom_, gen));
 }
 
 ////////// HeadAggregate //////////
@@ -188,11 +170,6 @@ auto HeadAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
     return transform_construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, tpa(elems_), rhs_);
 }
 
-auto HeadAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    return transform_construct_shared<HeadAggregate, HeadLiteral>(tra(lhs_, gen), fun_, tra(elems_, gen),
-                                                                  tra(rhs_, gen));
-}
-
 ////////// HeadSetAggregate //////////
 
 void HeadSetAggregate::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
@@ -222,10 +199,6 @@ auto HeadSetAggregate::project(Projection project) const -> std::optional<SHeadL
 
 auto HeadSetAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
     return transform_construct_shared<HeadSetAggregate, HeadLiteral>(tpa(aggr_));
-}
-
-auto HeadSetAggregate::rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> {
-    return transform_construct_shared<HeadSetAggregate, HeadLiteral>(tra(aggr_, gen));
 }
 
 } // namespace Gringo::Input

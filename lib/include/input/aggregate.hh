@@ -55,7 +55,6 @@ class SetAggregate {
     /// Projects pure variables in the condition if the aggregate is not
     /// nonmonotone or occurs in a negative scope.
     [[nodiscard]] auto project(Projection project, bool in_negative_scope) const -> std::optional<SetAggregate>;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SetAggregate>;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SetAggregate>;
 
   private:

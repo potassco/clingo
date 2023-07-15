@@ -6,9 +6,6 @@
 #include "transform.hh"
 #include "unpool.hh"
 
-// TODO: remove
-#include <input/rewrite_anonymous.hh>
-
 namespace Gringo::Input {
 
 ////////// Literal //////////
@@ -63,10 +60,6 @@ auto operator+=(Sign &a, Sign b) -> Sign & {
 auto Literal::is_atom() const -> bool { return false; }
 
 auto Literal::is_test() const -> bool { return true; }
-
-auto Literal::rewrite_anonymous(NameGen &gen) const -> std::optional<SLiteral> {
-    return Gringo::Input::rewrite_anonymous(*this, gen);
-}
 
 ////////// LiteralRelation //////////
 

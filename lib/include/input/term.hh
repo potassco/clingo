@@ -114,23 +114,6 @@ template <class E> auto select_variables(E &expr, VariableSelectMode mode) -> Va
     return vars;
 }
 
-//! Generator for auxiliary variables.
-class NameGen {
-  public:
-    //! Constructor taking a set of variables names.
-    //!
-    //! The generator ensures that there are no collisions with these names.
-    NameGen(VariableSet vars) : vars_{std::move(vars)} {}
-    //! Generate a unique variable name.
-    [[nodiscard]] auto new_name() -> std::string;
-
-  private:
-    //! Taken variable names.
-    VariableSet vars_;
-    //! Running number used to generate variable names.
-    size_t num_ = 0;
-};
-
 //! Enumeration to select variables to project.
 //!
 //! @see Projection
@@ -191,8 +174,6 @@ class Term {
     //! This is a deprecated feature to support old programs.
     //! The projection star should be used instead.
     [[nodiscard]] virtual auto project_anonymous() const -> std::optional<STerm> = 0;
-    // TODO: remove
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STerm>;
 
     //! Visit terms with the given visitor.
     virtual void accept(TermVisitor const &visitor) const = 0;

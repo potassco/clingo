@@ -78,7 +78,6 @@ class Statement {
 
     [[nodiscard]] auto unpool() const -> std::optional<SStatementVec>;
     [[nodiscard]] auto project(ProjectionMode mode, bool project_anonymous) const -> std::optional<SStatement>;
-    [[nodiscard]] virtual auto rewrite_anonymous() const -> std::optional<SStatement> = 0;
 
     //! Visit statements with the given visitor.
     virtual void accept(StatementVisitor const &visitor) const = 0;
@@ -108,7 +107,6 @@ class Rule : public Statement {
     [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -203,7 +201,6 @@ class TheoryDefinition : public Statement {
     [[nodiscard]] auto atom_defs() const -> TheoryAtomDefinitionVec const & { return atom_defs_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -234,7 +231,6 @@ class StatementOptimize : public Statement {
     [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -261,7 +257,6 @@ class StatementWeakConstraint : public Statement {
     [[nodiscard]] auto tuple() const -> Tuple const & { return tuple_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -280,7 +275,6 @@ class StatementShow : public Statement {
     StatementShow(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     //! Get the term.
     [[nodiscard]] auto term() const -> STerm const & { return term_; }
@@ -312,7 +306,6 @@ class StatementShowSig : public Statement {
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -337,7 +330,6 @@ class StatementProject : public Statement {
     [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -364,7 +356,6 @@ class StatementProjectSig : public Statement {
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -392,7 +383,6 @@ class StatementDefined : public Statement {
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -420,7 +410,6 @@ class StatementExternal : public Statement {
     [[nodiscard]] auto type() const -> std::optional<STerm> const & { return type_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -449,7 +438,6 @@ class StatementEdge : public Statement {
     [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -486,7 +474,6 @@ class StatementHeuristic : public Statement {
     [[nodiscard]] auto modifier() const -> STerm const & { return mod_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -518,7 +505,6 @@ class StatementScript : public Statement {
     [[nodiscard]] auto content() const -> std::string const & { return content_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -547,7 +533,6 @@ class StatementInclude : public Statement {
     [[nodiscard]] auto path() const -> std::string const & { return path_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -572,7 +557,6 @@ class StatementProgram : public Statement {
     [[nodiscard]] auto arguments() const -> std::vector<std::string> const & { return args_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -601,7 +585,6 @@ class StatementConst : public Statement {
     [[nodiscard]] auto value() const -> STerm const & { return value_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto rewrite_anonymous() const -> std::optional<SStatement> override;
 
     void accept(StatementVisitor const &visitor) const override;
 

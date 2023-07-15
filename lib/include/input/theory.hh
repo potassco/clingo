@@ -17,7 +17,6 @@ class TheoryTerm {
     virtual ~TheoryTerm() = default;
 
     virtual void visit_variables(VarVisitFun fun) const = 0;
-    [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> = 0;
 
     //! Visit theory terms with the given visitor.
     virtual void accept(TheoryTermVisitor const &visitor) const = 0;
@@ -39,7 +38,6 @@ class TheoryTermUnparsed : public TheoryTerm {
     explicit TheoryTermUnparsed(ElementVec elems) : elems_{std::move(elems)} {}
 
     void visit_variables(VarVisitFun fun) const override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
     void accept(TheoryTermVisitor const &visitor) const override;
 
@@ -65,7 +63,6 @@ class TheoryTermTuple : public TheoryTerm {
     [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
 
     void visit_variables(VarVisitFun fun) const override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
     void accept(TheoryTermVisitor const &visitor) const override;
 
@@ -85,7 +82,6 @@ class TheoryTermSymbol : public TheoryTerm {
     [[nodiscard]] auto symbol() const -> Symbol { return value_; }
 
     void visit_variables(VarVisitFun fun) const override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
     void accept(TheoryTermVisitor const &visitor) const override;
 
@@ -107,7 +103,6 @@ class TheoryTermVariable : public TheoryTerm {
     [[nodiscard]] auto is_anonymous() const -> bool { return is_anonymous_; }
 
     void visit_variables(VarVisitFun fun) const override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
     void accept(TheoryTermVisitor const &visitor) const override;
 
@@ -122,7 +117,6 @@ class TheoryTermFunction : public TheoryTerm {
         : name_(std::move(name)), args_{std::move(args)} {}
 
     void visit_variables(VarVisitFun fun) const override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<STheoryTerm> override;
 
     //! Get the name of the theory term function.
     [[nodiscard]] auto name() const -> std::string const & { return name_; }
@@ -176,7 +170,6 @@ class TheoryAtom {
 
     [[nodiscard]] auto unpool() const -> std::optional<std::vector<TheoryAtom>>;
     void visit_variables(VarVisitFun fun, VariableContext ctx) const;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<TheoryAtom>;
     [[nodiscard]] auto project_anonymous() const -> std::optional<TheoryAtom>;
 
   private:

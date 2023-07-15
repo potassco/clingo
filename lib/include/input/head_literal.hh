@@ -24,7 +24,6 @@ class HeadLiteral {
     [[nodiscard]] virtual auto is_atom() const -> bool;
     [[nodiscard]] virtual auto is_test() const -> bool;
     [[nodiscard]] virtual auto is_classical() const -> bool;
-    [[nodiscard]] virtual auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> = 0;
     [[nodiscard]] virtual auto unpool() const -> std::optional<SHeadLiteralVec> = 0;
 
     //! Visit head literals with the given visitor.
@@ -56,7 +55,6 @@ class Disjunction : public HeadLiteral {
     [[nodiscard]] auto is_atom() const -> bool override;
     [[nodiscard]] auto is_test() const -> bool override;
     [[nodiscard]] auto is_classical() const -> bool override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
 
     void accept(HeadLiteralVisitor const &visitor) const override;
 
@@ -75,7 +73,6 @@ class HeadTheoryAtom : public HeadLiteral {
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SHeadLiteral> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
 
     void accept(HeadLiteralVisitor const &visitor) const override;
 
@@ -108,7 +105,6 @@ class HeadAggregate : public HeadLiteral {
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SHeadLiteral> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
 
     void accept(HeadLiteralVisitor const &visitor) const override;
 
@@ -131,7 +127,6 @@ class HeadSetAggregate : public HeadLiteral {
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project) const -> std::optional<SHeadLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SHeadLiteral> override;
-    [[nodiscard]] auto rewrite_anonymous(NameGen &gen) const -> std::optional<SHeadLiteral> override;
 
     void accept(HeadLiteralVisitor const &visitor) const override;
 

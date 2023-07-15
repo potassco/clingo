@@ -9,9 +9,6 @@
 #include "unpool.hh"
 #include "variables.hh"
 
-// TODO: remove
-#include <input/rewrite_anonymous.hh>
-
 namespace Gringo::Input {
 
 ////////// Term //////////
@@ -57,25 +54,11 @@ struct Project {
     Projection project;
 };
 
-auto tra(auto const &x, NameGen &gen) {
-    return Trans(x, [&gen](STerm const &term) { return term->rewrite_anonymous(gen); });
-}
-
 auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
 
 auto tp(auto const &x, Projection project) { return Trans(x, Project{project}); }
 
 } // namespace
-
-auto NameGen::new_name() -> std::string {
-    while (true) {
-        std::string name = "__Aux_" + std::to_string(num_);
-        ++num_;
-        if (!vars_.contains(name)) {
-            return name;
-        }
-    }
-}
 
 auto Projection::projectable(std::string const &var, bool anonymous) const -> bool {
     if (mode_ == ProjectionMode::disabled) {
@@ -96,10 +79,6 @@ auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
     static_cast<void>(type);
     static_cast<void>(res);
     return false;
-}
-
-auto Term::rewrite_anonymous(NameGen &gen) const -> std::optional<STerm> {
-    return Gringo::Input::rewrite_anonymous(*this, gen);
 }
 
 /*
