@@ -21,4 +21,4 @@ void visit_variables(HeadLiteral const &lit, VarVisitFun fun, VariableContext ct
 void visit_variables(BodyLiteral const &lit, VarVisitFun fun, VariableContext ctx);
 void visit_variables(Statement const &stm, VarVisitFun fun, VariableContext ctx);
 
-}
+} // namespace Gringo::Input

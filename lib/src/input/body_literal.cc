@@ -86,7 +86,10 @@ auto BodyAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
                                              return Element{std::move(tuple), std::move(cond)};
                                          },
                                          Util::overloaded{
-                                             [](TermVec const &tuple) { return unpool_crossproduct(tuple, [](auto const &term){ return unpool(term); }); },
+                                             [](TermVec const &tuple) {
+                                                 return unpool_crossproduct(
+                                                     tuple, [](auto const &term) { return unpool(term); });
+                                             },
                                              [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
                                          std::get<0>(elem), std::get<1>(elem));
                                  }),

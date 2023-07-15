@@ -7,9 +7,7 @@ namespace Gringo::Input {
 namespace {
 
 struct RewriteAnonymous {
-    auto operator()(TermV2 const &term) const {
-        return rewrite_anonymous(term, gen);
-    }
+    auto operator()(TermV2 const &term) const { return rewrite_anonymous(term, gen); }
     auto operator()(STheoryTerm const &term) const { return rewrite_anonymous(*term, gen); }
     auto operator()(SLiteral const &lit) const { return rewrite_anonymous(*lit, gen); }
     auto operator()(TheoryAtom const &aggr) const -> std::optional<TheoryAtom> {

@@ -121,7 +121,10 @@ auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
                                              return Element{std::move(tuple), std::move(lit), std::move(cond)};
                                          },
                                          Util::overloaded{
-                                             [](TermVec const &tuple) { return unpool_crossproduct(tuple, [](auto const &term){ return unpool(term); }); },
+                                             [](TermVec const &tuple) {
+                                                 return unpool_crossproduct(
+                                                     tuple, [](auto const &term) { return unpool(term); });
+                                             },
                                              [](SLiteral const &lit) { return lit->unpool(); },
                                              [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
                                          std::get<0>(elem), std::get<1>(elem), std::get<2>(elem));

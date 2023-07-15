@@ -2,8 +2,8 @@
 
 #include <util/print.hh>
 
-#include <input/algo/print.hh>
 #include <input/algo/check_type.hh>
+#include <input/algo/print.hh>
 
 namespace Gringo::Input {
 
@@ -611,9 +611,7 @@ class PrintVisitor : public TheoryTermVisitor,
         }
     }
 
-    void visit(LiteralSymbolic const &lit) const override {
-        out_ << lit.sign() << lit.term();
-    }
+    void visit(LiteralSymbolic const &lit) const override { out_ << lit.sign() << lit.term(); }
 
     // visit head literals
 
@@ -782,9 +780,7 @@ class PrintVisitor : public TheoryTermVisitor,
 
     void visit(StatementEdge const &stm) const override {
         out_ << "#edge (";
-        apply_to_range_with(stm.edges(), ";", [this](auto const &edge) {
-            out_ << edge.first << "," << edge.second;
-        });
+        apply_to_range_with(stm.edges(), ";", [this](auto const &edge) { out_ << edge.first << "," << edge.second; });
         out_ << ")" << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
         out_ << ".";

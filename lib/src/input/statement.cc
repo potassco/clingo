@@ -4,8 +4,8 @@
 
 #include <input/algo/print.hh>
 #include <input/algo/rewrite_anonymous.hh>
-#include <input/algo/visit_variables.hh>
 #include <input/algo/unpool.hh>
+#include <input/algo/visit_variables.hh>
 
 #include "algo/transform.hh"
 #include "algo/unpool.hh"
@@ -66,7 +66,8 @@ class GlobalVarSelectorHelper {
 
   protected:
     void visit_(auto const &x, auto... args) {
-        visit_variables(x, [this](std::string const &var) { global_.emplace(var); }, args...);
+        visit_variables(
+            x, [this](std::string const &var) { global_.emplace(var); }, args...);
     }
 
   private:
@@ -87,7 +88,8 @@ class GlobalVarCounterHelper {
 
   protected:
     void visit_(auto const &x, auto... args) {
-        visit_variables(x,
+        visit_variables(
+            x,
             [this](std::string const &var) {
                 if (global_.contains(var)) {
                     ++counts_[var];
