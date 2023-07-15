@@ -4,6 +4,6 @@
 
 namespace Gringo::Input {
 
-[[nodiscard]] auto project(TermV2 const &term, Projection project) -> std::optional<TermV2>;
+[[nodiscard]] auto project(Term const &term, Projection project) -> std::optional<Term>;
 
 }

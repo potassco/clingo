@@ -18,11 +18,11 @@ namespace Gringo::Input {
 namespace {
 
 auto tpa(auto const &x) {
-    return Trans(x, [](TermV2 const &term) { return Gringo::Input::project_anonymous(term); });
+    return Trans(x, [](Term const &term) { return Gringo::Input::project_anonymous(term); });
 }
 
 auto tp(auto const &x, Projection project) {
-    return Trans(x, [project](TermV2 const &term) { return Gringo::Input::project(term, project); });
+    return Trans(x, [project](Term const &term) { return Gringo::Input::project(term, project); });
 }
 
 } // namespace
@@ -76,7 +76,7 @@ auto LiteralRelation::unpool() const -> std::optional<SLiteralVec> {
             return construct_shared<LiteralRelation, Literal>(sign_, std::move(lhs), std::move(rhs));
         },
         Util::overloaded{
-            [](TermV2 const &term) { return Gringo::Input::unpool(term); },
+            [](Term const &term) { return Gringo::Input::unpool(term); },
             [](GuardVec const &guard) {
                 return unpool_crossproduct(guard, [](Guard const &guard) {
                     return map_opt_vec(Gringo::Input::unpool(guard.second), [&guard](auto term) {

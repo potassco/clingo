@@ -18,7 +18,7 @@ namespace dsl = lexy::dsl;
 namespace Detail {
 
 auto empty_args(std::optional<TermVecVec> value) {
-    PoolVecV2 ret;
+    PoolVec ret;
     if (value.has_value()) {
         ret.reserve(value->size());
         for (auto &tuple : value.value()) {
@@ -34,34 +34,34 @@ auto empty_args(std::optional<TermVecVec> value) {
     return ret;
 };
 
-auto empty_args(std::optional<PoolVecV2> value) { return std::move(value).value_or(PoolVecV2{TupleVecV2{}}); };
+auto empty_args(std::optional<PoolVec> value) { return std::move(value).value_or(PoolVec{TupleVec{}}); };
 
 class element_trail_vec {
   public:
     void push_back(std::monostate p) { vec_.emplace_back(p); }
     void push_front(std::monostate p) { vec_.emplace(vec_.begin(), p); }
-    void push_back(TermV2 term) { vec_.emplace_back(std::move(term)); }
+    void push_back(Term term) { vec_.emplace_back(std::move(term)); }
     template <typename Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail_ = true; }
     auto to_tuple() -> TermTuple::Element {
-        if (vec_.size() == 1 && !trail_ && std::holds_alternative<TermV2>(vec_.back())) {
-            return std::get<TermV2>(std::move(vec_.back()));
+        if (vec_.size() == 1 && !trail_ && std::holds_alternative<Term>(vec_.back())) {
+            return std::get<Term>(std::move(vec_.back()));
         }
         return std::move(vec_);
     }
 
   private:
-    TupleVecV2 vec_;
+    TupleVec vec_;
     bool trail_ = false;
 };
 
 struct construct_symbol {
-    using return_type = TermV2;
+    using return_type = Term;
 
-    auto operator()(int value) const -> TermV2 { return TermSymbol{Symbol{value}}; }
+    auto operator()(int value) const -> Term { return TermSymbol{Symbol{value}}; }
 
-    auto operator()(std::string value) const -> TermV2 { return TermSymbol{Symbol{QuotedString{value}}}; }
+    auto operator()(std::string value) const -> Term { return TermSymbol{Symbol{QuotedString{value}}}; }
 
-    auto operator()(Constant value) const -> TermV2 { return TermSymbol{Symbol{value}}; }
+    auto operator()(Constant value) const -> Term { return TermSymbol{Symbol{value}}; }
 };
 
 } // namespace Detail
@@ -128,7 +128,7 @@ struct variable {
 struct term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::p<variable>;
-    static constexpr auto value = Detail::construct_v<TermVariable, TermV2>;
+    static constexpr auto value = Detail::construct_v<TermVariable, Term>;
 };
 
 static constexpr auto constants = lexy::symbol_table<Constant> //
@@ -142,7 +142,7 @@ static constexpr auto constant = dsl::symbol<constants>(keyword_base);
 struct term {
     static constexpr char const *name = "term";
     static constexpr auto rule = dsl::recurse<struct term_rec>;
-    static constexpr auto value = lexy::forward<TermV2>;
+    static constexpr auto value = lexy::forward<Term>;
 };
 
 struct term_list {
@@ -155,7 +155,7 @@ struct term_function_tuple {
     static constexpr char const *name = "list of terms";
     static constexpr auto rule =
         dsl::list(dsl::symbol<projection_symbol> | dsl::else_ >> dsl::p<term>, dsl::sep(dsl::comma));
-    static constexpr auto value = lexy::as_list<TupleVecV2>;
+    static constexpr auto value = lexy::as_list<TupleVec>;
 };
 
 struct term_function_pool {
@@ -167,25 +167,23 @@ struct term_function_pool {
         auto sep = dsl::sep(dsl::semicolon);
         return LEXY_LIT("(") >> dsl::list(item, sep) + LEXY_LIT(")");
     }();
-    static constexpr auto value = lexy::collect<PoolVecV2>(lexy::as_list<TupleVecV2>);
+    static constexpr auto value = lexy::collect<PoolVec>(lexy::as_list<TupleVec>);
 };
 
 struct term_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<term_function_pool>);
-    static constexpr auto value =
-        lexy::callback<TermV2>([](std::string name, std::optional<PoolVecV2> value) -> TermV2 {
-            return construct_shared<TermFunction>(std::move(name), Detail::empty_args(std::move(value)), false);
-        });
+    static constexpr auto value = lexy::callback<Term>([](std::string name, std::optional<PoolVec> value) -> Term {
+        return construct_shared<TermFunction>(std::move(name), Detail::empty_args(std::move(value)), false);
+    });
 };
 
 struct term_external_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = LEXY_LIT("@") >> dsl::p<identifier> + dsl::opt(dsl::p<term_function_pool>);
-    static constexpr auto value =
-        lexy::callback<TermV2>([](std::string name, std::optional<PoolVecV2> value) -> TermV2 {
-            return Util::construct_shared<TermFunction>(std::move(name), Detail::empty_args(std::move(value)), true);
-        });
+    static constexpr auto value = lexy::callback<Term>([](std::string name, std::optional<PoolVec> value) -> Term {
+        return Util::construct_shared<TermFunction>(std::move(name), Detail::empty_args(std::move(value)), true);
+    });
 };
 
 struct term_tuple_element {
@@ -198,8 +196,8 @@ struct term_tuple_element {
     }();
     static constexpr auto
         value = lexy::as_list<Detail::element_trail_vec> >>
-                lexy::callback<TermTuple::Element>([]() -> TupleVecV2 { return {}; },
-                                                   [](std::monostate p) -> TupleVecV2 { return {p}; },
+                lexy::callback<TermTuple::Element>([]() -> TupleVec { return {}; },
+                                                   [](std::monostate p) -> TupleVec { return {p}; },
                                                    [](std::monostate p, Detail::element_trail_vec elem) {
                                                        elem.push_front(p);
                                                        return elem.to_tuple();
@@ -213,9 +211,9 @@ struct term_tuple {
     static constexpr auto rule = LEXY_LIT("(") >>
                                  dsl::list(dsl::p<term_tuple_element>, dsl::sep(dsl::semicolon)) + LEXY_LIT(")");
     static constexpr auto value = lexy::as_list<TermTuple::ElementVec> >>
-                                  lexy::callback<TermV2>([](TermTuple::ElementVec elem) -> TermV2 {
-                                      if (elem.size() == 1 && std::holds_alternative<TermV2>(elem.front())) {
-                                          return std::move(std::get<TermV2>(elem.front()));
+                                  lexy::callback<Term>([](TermTuple::ElementVec elem) -> Term {
+                                      if (elem.size() == 1 && std::holds_alternative<Term>(elem.front())) {
+                                          return std::move(std::get<Term>(elem.front()));
                                       }
                                       return Util::construct_shared<TermTuple>(std::move(elem));
                                   });
@@ -225,7 +223,7 @@ struct term_abs {
     static constexpr char const *name = "absolute value";
     static constexpr auto rule =
         dsl::brackets(LEXY_LIT("|"), LEXY_LIT("|")).list(dsl::p<term>, dsl::sep(dsl::semicolon));
-    static constexpr auto value = lexy::as_list<TermVec> >> Detail::construct_sv<TermAbs, TermV2>;
+    static constexpr auto value = lexy::as_list<TermVec> >> Detail::construct_sv<TermAbs, Term>;
 };
 
 static constexpr auto anonymous_variable =
@@ -234,7 +232,7 @@ static constexpr auto anonymous_variable =
 struct term_anonymous_variable {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = anonymous_variable;
-    static constexpr auto value = lexy::callback<TermV2>([]() { return TermVariable{"_", true}; });
+    static constexpr auto value = lexy::callback<Term>([]() { return TermVariable{"_", true}; });
 };
 
 struct term_rec : lexy::expression_production {
@@ -301,8 +299,8 @@ struct term_rec : lexy::expression_production {
 
     using operation = term_dots;
     static constexpr auto value =
-        lexy::callback<TermV2>(lexy::forward<TermV2>, Detail::construct_symbol{},
-                               Detail::construct_sv<TermUnary, TermV2>, Detail::construct_sv<TermBinary, TermV2>);
+        lexy::callback<Term>(lexy::forward<Term>, Detail::construct_symbol{}, Detail::construct_sv<TermUnary, Term>,
+                             Detail::construct_sv<TermBinary, Term>);
 };
 
 } // namespace Gringo::Input::Grammar

@@ -34,7 +34,7 @@ enum class Relation {
 //! The right-hand-side of a relation atom including the symbol.
 //!
 //! @see LiteralRelation
-using Guard = std::pair<Relation, TermV2>;
+using Guard = std::pair<Relation, Term>;
 //! A vector of guards.
 using GuardVec = std::vector<Guard>;
 
@@ -108,14 +108,14 @@ class Literal {
 class LiteralRelation : public Literal {
   public:
     //! Construct a relation literal.
-    LiteralRelation(TermV2 lhs, GuardVec rhs) : LiteralRelation{Sign::none, std::move(lhs), std::move(rhs)} {}
+    LiteralRelation(Term lhs, GuardVec rhs) : LiteralRelation{Sign::none, std::move(lhs), std::move(rhs)} {}
     //! Construct a relation literal.
-    LiteralRelation(Sign sign, TermV2 lhs, GuardVec rhs) : sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
+    LiteralRelation(Sign sign, Term lhs, GuardVec rhs) : sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
 
     //! Get the sign of the symbolic literal.
     [[nodiscard]] auto sign() const -> Sign { return sign_; }
     //! Get the left-hand-side of the relation literal.
-    [[nodiscard]] auto lhs() const -> TermV2 const & { return lhs_; }
+    [[nodiscard]] auto lhs() const -> Term const & { return lhs_; }
     //! Get the right-hand-side of the relation literal.
     [[nodiscard]] auto rhs() const -> GuardVec const & { return rhs_; }
 
@@ -131,7 +131,7 @@ class LiteralRelation : public Literal {
 
   private:
     Sign sign_;
-    TermV2 lhs_;
+    Term lhs_;
     GuardVec rhs_;
 };
 
@@ -171,14 +171,14 @@ class LiteralBoolean : public Literal {
 class LiteralSymbolic : public Literal {
   public:
     //! Construct a symbolic literal.
-    LiteralSymbolic(TermV2 term) : LiteralSymbolic{Sign::none, std::move(term)} {}
+    LiteralSymbolic(Term term) : LiteralSymbolic{Sign::none, std::move(term)} {}
     //! Construct a symbolic literal.
-    LiteralSymbolic(Sign sign, TermV2 term) : sign_(sign), term_(std::move(term)) {}
+    LiteralSymbolic(Sign sign, Term term) : sign_(sign), term_(std::move(term)) {}
 
     //! Get the sign of the symbolic literal.
     [[nodiscard]] auto sign() const -> Sign { return sign_; }
     //! Get the (function) term representing the symbolic literal.
-    [[nodiscard]] auto term() const -> TermV2 const & { return term_; }
+    [[nodiscard]] auto term() const -> Term const & { return term_; }
 
     void add_sign(Sign s) override;
     [[nodiscard]] auto unpool() const -> std::optional<SLiteralVec> override;
@@ -194,7 +194,7 @@ class LiteralSymbolic : public Literal {
 
   private:
     Sign sign_;
-    TermV2 term_;
+    Term term_;
 };
 
 //! A visitor for available literal types.

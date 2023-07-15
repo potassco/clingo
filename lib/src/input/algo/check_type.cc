@@ -36,26 +36,41 @@ struct CheckType {
             });
     }
 
-    auto operator()(TermFunction const &term) const -> bool {
+    auto operator()(TermVariable const &term) const -> bool {
+        static_cast<void>(term);
+        return false;
+    }
+
+    auto operator()(Util::shared_ptr<TermTuple> const &term) const -> bool {
+        static_cast<void>(term);
+        return false;
+    }
+
+    auto operator()(Util::shared_ptr<TermFunction> const &term) const -> bool {
         if (type == TermCheckType::atom) {
-            return !term.external;
+            return !term->external;
         }
-        if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) && !term.external &&
-            term.pool.size() == 1 && term.pool.front().empty()) {
+        if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) && !term->external &&
+            term->pool.size() == 1 && term->pool.front().empty()) {
             if (res != nullptr) {
-                res->identifier = term.name;
+                res->identifier = term->name;
             }
             return true;
         }
         return false;
     }
 
-    auto operator()(TermUnary const &term) const -> bool {
+    auto operator()(Util::shared_ptr<TermAbs> const &term) const -> bool {
+        static_cast<void>(term);
+        return false;
+    }
+
+    auto operator()(Util::shared_ptr<TermUnary> const &term) const -> bool {
         if (type == TermCheckType::atom) {
-            return term.op == UnaryOperator::negate && std::visit(*this, term.rhs);
+            return term->op == UnaryOperator::negate && std::visit(*this, term->rhs);
         }
-        if (type == TermCheckType::signed_identifier && term.op == UnaryOperator::negate &&
-            std::visit(CheckType{TermCheckType::identifier, res}, term.rhs)) {
+        if (type == TermCheckType::signed_identifier && term->op == UnaryOperator::negate &&
+            std::visit(CheckType{TermCheckType::identifier, res}, term->rhs)) {
             if (res != nullptr) {
                 res->has_sign = true;
             }
@@ -64,17 +79,12 @@ struct CheckType {
         return false;
     }
 
-    auto operator()(TermBinary const &term) const -> bool {
+    auto operator()(Util::shared_ptr<TermBinary> const &term) const -> bool {
         if (type == TermCheckType::sig) {
-            return term.op == BinaryOperator::div &&
-                   std::visit(CheckType{TermCheckType::signed_identifier, res}, term.lhs) &&
-                   std::visit(CheckType{TermCheckType::signed_identifier, res}, term.rhs);
+            return term->op == BinaryOperator::div &&
+                   std::visit(CheckType{TermCheckType::signed_identifier, res}, term->lhs) &&
+                   std::visit(CheckType{TermCheckType::pos_number, res}, term->rhs);
         }
-        return false;
-    }
-
-    auto operator()(auto const &term) const -> bool {
-        static_cast<void>(term);
         return false;
     }
 
@@ -84,7 +94,7 @@ struct CheckType {
 
 } // namespace
 
-auto check_type(TermV2 const &term, TermCheckType type, CheckTypeResult *res) -> bool {
+auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> bool {
     return std::visit(CheckType{type, res}, term);
 }
 

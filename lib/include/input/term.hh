@@ -16,28 +16,6 @@
 
 namespace Gringo::Input {
 
-// TODO: move
-//! Enumeration for Term::check_type().
-enum class TermCheckType : int {
-    atom,              //!< Check if term is an atom.
-    sig,               //!< Check if term is a signature.
-    identifier,        //!< Check if term is an identifier.
-    signed_identifier, //!< Check if term is a signed identifier.
-    pos_number         //!< Check if term is a positive number.
-};
-
-//! Extract additional information while checking the type of a term.
-//!
-//! @see Term::check_type()
-struct CheckTypeResult {
-    //! Wheather the term is signed.
-    bool has_sign = false;
-    //! The number represented by the term.
-    int pos_number = 0;
-    //! The identifier represented by the term.
-    std::string identifier;
-};
-
 //! Variable selection modes for select_variables().
 enum VariableSelectMode {
     add, //!< Add variables to the set.
@@ -116,20 +94,20 @@ struct TermAbs;
 struct TermUnary;
 struct TermBinary;
 //! Variant holding the different term types.
-using TermV2 = std::variant<TermVariable, TermSymbol, Util::shared_ptr<TermTuple>, Util::shared_ptr<TermFunction>,
-                            Util::shared_ptr<TermAbs>, Util::shared_ptr<TermUnary>, Util::shared_ptr<TermBinary>>;
+using Term = std::variant<TermVariable, TermSymbol, Util::shared_ptr<TermTuple>, Util::shared_ptr<TermFunction>,
+                          Util::shared_ptr<TermAbs>, Util::shared_ptr<TermUnary>, Util::shared_ptr<TermBinary>>;
 
 //! A vector of terms.
-using TermVec = std::vector<TermV2>;
+using TermVec = std::vector<Term>;
 //! A vector of vecors of terms.
 using TermVecVec = std::vector<TermVec>;
 
 //! A variant capturing either a term or a position that is to be projected.
-using TupleElemV2 = std::variant<std::monostate, TermV2>;
+using TupleElem = std::variant<std::monostate, Term>;
 //! A tuple of terms or positions to project.
-using TupleVecV2 = std::vector<TupleElemV2>;
+using TupleVec = std::vector<TupleElem>;
 //! A vector of tuples used as function or predicate arguments.
-using PoolVecV2 = std::vector<TupleVecV2>;
+using PoolVec = std::vector<TupleVec>;
 
 //! Term representing a variable.
 //!
@@ -166,7 +144,7 @@ auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
 //!
 //! For example <tt>(a,b;c)</tt>.
 struct TermTuple : Util::enable_shared {
-    using Element = std::variant<TupleVecV2, TermV2>;
+    using Element = std::variant<TupleVec, Term>;
     using ElementVec = std::vector<Element>;
 
     //! Construct a  tuple.
@@ -187,13 +165,13 @@ struct TermFunction : Util::enable_shared {
     //!
     //! The function takes a pool of term tuples, which will be reduced to a single element after calling
     //! Term::unpool().
-    explicit TermFunction(std::string name, PoolVecV2 args, bool external)
+    explicit TermFunction(std::string name, PoolVec args, bool external)
         : name(std::move(name)), pool{std::move(args)}, external{external} {}
 
     //! The name of the function.
     std::string name;
     //! The argument pool of the function.
-    PoolVecV2 pool;
+    PoolVec pool;
     //! Whether this is an external function.
     bool external;
 };
@@ -228,12 +206,12 @@ enum class UnaryOperator : int {
 //! For example <tt>-X</tt>.
 struct TermUnary : Util::enable_shared {
     //! Contruct a term for an unary operation.
-    explicit TermUnary(UnaryOperator op, TermV2 rhs) : op{op}, rhs{std::move(rhs)} {}
+    explicit TermUnary(UnaryOperator op, Term rhs) : op{op}, rhs{std::move(rhs)} {}
 
     //! The operation.
     UnaryOperator op;
     //! The right-hand-side.
-    TermV2 rhs;
+    Term rhs;
 };
 
 //! Compare two unary terms.
@@ -258,14 +236,14 @@ enum class BinaryOperator : int {
 //! For example <tt>X-Y</tt>.
 struct TermBinary : Util::enable_shared {
     //! Contruct a term for an binary operation.
-    explicit TermBinary(TermV2 lhs, BinaryOperator op, TermV2 rhs) : op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
+    explicit TermBinary(Term lhs, BinaryOperator op, Term rhs) : op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
 
     //! The operation.
     BinaryOperator op;
     //! The left-hand-side.
-    TermV2 lhs;
+    Term lhs;
     //! The right-hand-side.
-    TermV2 rhs;
+    Term rhs;
 };
 
 //! Compare two binary terms.

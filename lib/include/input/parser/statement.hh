@@ -6,8 +6,6 @@
 #include <input/parser/body_literal.hh>
 #include <input/parser/head_literal.hh>
 
-#include <input/algo/check_type.hh>
-
 namespace Gringo::Input::Grammar {
 
 struct mark_end : lexy::scan_production<void> {
@@ -158,10 +156,10 @@ struct statement_optimize_tuple {
     static constexpr auto
         value = lexy::as_list<TermVec> >>
                 lexy::callback<StatementOptimize::Tuple>(
-                    [](TermV2 weight, std::optional<TermVec> terms) -> StatementOptimize::Tuple {
+                    [](Term weight, std::optional<TermVec> terms) -> StatementOptimize::Tuple {
                         return {std::move(weight), std::nullopt, std::move(terms).value_or(TermVec{})};
                     },
-                    [](TermV2 weight, TermV2 priority, std::optional<TermVec> terms) -> StatementOptimize::Tuple {
+                    [](Term weight, Term priority, std::optional<TermVec> terms) -> StatementOptimize::Tuple {
                         return {std::move(weight), std::move(priority), std::move(terms).value_or(TermVec{})};
                     });
 };
@@ -211,7 +209,7 @@ struct statement_show {
         return show >> dsl::position + dsl::p<term> + dsl::position + opt_body + eos;
     }();
     static constexpr auto value = lexy::callback<SStatement>(
-        [](auto begin, TermV2 term, auto end, lexy::nullopt) -> SStatement {
+        [](auto begin, Term term, auto end, lexy::nullopt) -> SStatement {
             CheckTypeResult res;
             if (check_type(term, TermCheckType::sig, &res)) {
                 // Note that parsing via the range input does not pass the state
@@ -224,7 +222,7 @@ struct statement_show {
             }
             return Util::construct_shared<StatementShow, Statement>(std::move(term), SBodyLiteralVec{});
         },
-        [](auto begin, TermV2 term, auto end, SBodyLiteralVec body) -> SStatement {
+        [](auto begin, Term term, auto end, SBodyLiteralVec body) -> SStatement {
             static_cast<void>(begin);
             static_cast<void>(end);
             return Util::construct_shared<StatementShow, Statement>(std::move(term), std::move(body));
@@ -240,9 +238,9 @@ struct sign_classical {
 struct symbolic_atom {
     static constexpr char const *name = "symbolic atom";
     static constexpr auto rule = dsl::opt(LEXY_LIT("-")) + dsl::p<term_function>;
-    static constexpr auto value = lexy::callback<TermV2>(
-        [](TermV2 term) { return Util::construct_shared<TermUnary>(UnaryOperator::negate, std::move(term)); },
-        [](lexy::nullopt, TermV2 term) { return term; });
+    static constexpr auto value = lexy::callback<Term>(
+        [](Term term) { return Util::construct_shared<TermUnary>(UnaryOperator::negate, std::move(term)); },
+        [](lexy::nullopt, Term term) { return term; });
 };
 
 struct statement_defined {
@@ -291,8 +289,8 @@ struct statement_project {
     }();
     static constexpr auto value = lexy::callback<SStatement>(
         lexy::new_<StatementProjectSig, SStatement>,
-        [](bool has_sign, std::string name, std::optional<PoolVecV2> pool, SBodyLiteralVec body) {
-            TermV2 atom =
+        [](bool has_sign, std::string name, std::optional<PoolVec> pool, SBodyLiteralVec body) {
+            Term atom =
                 Util::construct_shared<TermFunction>(std::move(name), Detail::empty_args(std::move(pool)), false);
             if (has_sign) {
                 atom = Util::construct_shared<TermUnary>(UnaryOperator::negate, std::move(atom));
@@ -324,7 +322,7 @@ struct statement_external {
         auto atom = dsl::p<sign_classical> + dsl::p<term_function>;
         return kw >> atom + dsl::p<statement_opt_body> + eos + dsl::if_(square_bracketed_end(dsl::p<term>));
     }();
-    static constexpr auto value = lexy::callback<SStatement>([](bool has_sign, TermV2 atom, auto &&...args) {
+    static constexpr auto value = lexy::callback<SStatement>([](bool has_sign, Term atom, auto &&...args) {
         if (has_sign) {
             atom = Util::construct_shared<TermUnary>(UnaryOperator::negate, std::move(atom));
         }
@@ -384,11 +382,11 @@ struct statement_const {
         return kw >> id + dsl::equal_sign + dsl::p<term> + eos + type;
     }();
     static constexpr auto value = lexy::callback<SStatement>(
-        [](std::string name, TermV2 value) {
+        [](std::string name, Term value) {
             return Util::construct_shared<StatementConst, Statement>(ConstType::default_, std::move(name),
                                                                      std::move(value));
         },
-        [](std::string name, TermV2 value, ConstType type) {
+        [](std::string name, Term value, ConstType type) {
             return Util::construct_shared<StatementConst, Statement>(type, std::move(name), std::move(value));
         });
 };

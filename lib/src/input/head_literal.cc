@@ -102,7 +102,7 @@ auto HeadTheoryAtom::project_anonymous() const -> std::optional<SHeadLiteral> {
 
 void HeadAggregate::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
 
-void HeadAggregate::set_left_guard(TermV2 lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
+void HeadAggregate::set_left_guard(Term lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
 
 auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
     using Gringo::Input::unpool;
@@ -181,7 +181,7 @@ auto HeadAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
 
 void HeadSetAggregate::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
 
-void HeadSetAggregate::set_left_guard(TermV2 lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
+void HeadSetAggregate::set_left_guard(Term lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
 
 auto HeadSetAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
     return Util::map_opt_vec(aggr_.unpool(), [](auto aggr) {

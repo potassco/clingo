@@ -77,7 +77,7 @@ auto TheoryAtom::unpool() const -> std::optional<std::vector<TheoryAtom>> {
                                             }),
                                [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
             },
-            [](TermV2 const &name) {
+            [](Term const &name) {
                 using Gringo::Input::unpool;
                 return unpool(name);
             },

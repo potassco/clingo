@@ -1,92 +1,120 @@
-/*
-auto TermSymbol::unpool() const -> std::optional<STermVec> { return std::nullopt; }
+#include <input/algo/unpool.hh>
 
-auto TermTuple::unpool() const -> std::optional<STermVec> {
-    // unpool the elements
-    auto elems = unpool_union(pool_, [](Element const &tuple_or_term) {
-        return Util::visit_variant(
-            tuple_or_term,
-            [](STerm const &term) -> std::optional<ElementVec> {
-                return map_opt_vec(term->unpool(), [](auto term) { return Element{std::move(term)}; });
-            },
-            [](TupleVec const &tuple) -> std::optional<ElementVec> {
-                return map_opt_vec(unpool_crossproduct(tuple,
-                                                       [](TupleElem const &elem) {
-                                                           return Util::visit_variant(
-                                                               elem,
-                                                               [](STerm const &term) -> std::optional<TupleVec> {
-                                                                   return map_opt_vec(term->unpool(), [](auto term) {
-                                                                       return TupleElem{std::move(term)};
-                                                                   });
-                                                               },
-                                                               [](std::monostate x) -> std::optional<TupleVec> {
-                                                                   static_cast<void>(x);
-                                                                   return std::nullopt;
-                                                               });
-                                                       }),
-                                   [](auto tuple) { return Element{std::move(tuple)}; });
-            });
-    });
+#include "unpool.hh"
 
-    // turn the elements into individual tuple terms or terms
-    if (!elems.has_value() && (pool_.size() != 1 || std::holds_alternative<STerm>(pool_.front()))) {
-        elems = pool_;
+namespace Gringo::Input {
+
+namespace {
+
+struct Unpool {
+
+    auto operator()(Term const &term) const -> std::optional<TermVec> { return std::visit(*this, term); }
+
+    auto operator()(TermSymbol const &term) const -> std::optional<TermVec> {
+        static_cast<void>(term);
+        return std::nullopt;
     }
-    return map_opt_vec(std::move(elems), [](auto elem) -> STerm {
-        return Util::visit_variant(
-            std::move(elem), [](STerm term) { return term; },
-            [](TupleVec tuple) { return Util::construct_shared<TermTuple, Term>(ElementVec{std::move(tuple)}); });
-    });
-}
 
-auto TermVariable::unpool() const -> std::optional<STermVec> { return std::nullopt; }
-
-auto TermAbs::unpool() const -> std::optional<STermVec> {
-    auto unpooled = unpool_union(pool_);
-    if (!unpooled.has_value() && pool_.size() != 1) {
-        unpooled = pool_;
+    auto operator()(TermVariable const &term) const -> std::optional<TermVec> {
+        static_cast<void>(term);
+        return std::nullopt;
     }
-    return map_opt_vec(std::move(unpooled),
-                       [](auto term) { return Util::construct_shared<TermAbs, Term>(STermVec{std::move(term)}); });
-}
 
-auto TermFunction::unpool() const -> std::optional<STermVec> {
-    auto elems = unpool_union(pool_, [](TupleVec const &tuple) {
+    auto operator()(Util::shared_ptr<TermTuple> const &term) const -> std::optional<TermVec> {
         // unpool the elements
-        return unpool_crossproduct(tuple, [](TupleElem const &elem) {
+        auto elems = unpool_union(term->pool, [this](TermTuple::Element const &tuple_or_term) {
             return Util::visit_variant(
-                elem,
-                [](STerm const &term) -> std::optional<TupleVec> {
-                    return map_opt_vec(term->unpool(), [](auto term) { return TupleElem{std::move(term)}; });
+                tuple_or_term,
+                [this](Term const &term) -> std::optional<TermTuple::ElementVec> {
+                    return map_opt_vec(std::visit(*this, term),
+                                       [](auto term) { return TermTuple::Element{std::move(term)}; });
                 },
-                [](std::monostate x) -> std::optional<TupleVec> {
-                    static_cast<void>(x);
-                    return std::nullopt;
+                [this](TupleVec const &tuple) -> std::optional<TermTuple::ElementVec> {
+                    return map_opt_vec(unpool_crossproduct(tuple,
+                                                           [this](TupleElem const &elem) {
+                                                               return Util::visit_variant(
+                                                                   elem,
+                                                                   [this](Term const &term) -> std::optional<TupleVec> {
+                                                                       return map_opt_vec(
+                                                                           std::visit(*this, term), [](auto term) {
+                                                                               return TupleElem{std::move(term)};
+                                                                           });
+                                                                   },
+                                                                   [](std::monostate x) -> std::optional<TupleVec> {
+                                                                       static_cast<void>(x);
+                                                                       return std::nullopt;
+                                                                   });
+                                                           }),
+                                       [](auto tuple) { return TermTuple::Element{std::move(tuple)}; });
                 });
         });
-    });
 
-    if (!elems.has_value() && pool_.size() != 1) {
-        elems = pool_;
+        // turn the elements into individual tuple terms or terms
+        if (!elems.has_value() && (term->pool.size() != 1 || std::holds_alternative<Term>(term->pool.front()))) {
+            elems = term->pool;
+        }
+        return map_opt_vec(std::move(elems), [](auto elem) -> Term {
+            return Util::visit_variant(
+                std::move(elem), [](Term term) { return term; },
+                [](TupleVec tuple) -> Term {
+                    return Util::construct_shared<TermTuple>(TermTuple::ElementVec{std::move(tuple)});
+                });
+        });
     }
 
-    return map_opt_vec(std::move(elems), [this](auto elem) {
-        // turn individual elements into function terms
-        return Util::construct_shared<TermFunction, Term>(name_, PoolVec{std::move(elem)}, external_);
-    });
-}
+    auto operator()(Util::shared_ptr<TermAbs> const &term) const -> std::optional<TermVec> {
+        auto unpooled = unpool_union(term->pool, *this);
+        if (!unpooled.has_value() && term->pool.size() != 1) {
+            unpooled = term->pool;
+        }
+        return map_opt_vec(std::move(unpooled),
+                           [](auto term) -> Term { return Util::construct_shared<TermAbs>(TermVec{std::move(term)}); });
+    }
 
-auto TermUnary::unpool() const -> std::optional<STermVec> {
-    return map_opt_vec(rhs_->unpool(),
-                       [this](auto term) { return Util::construct_shared<TermUnary, Term>(op_, std::move(term)); });
-}
+    auto operator()(Util::shared_ptr<TermFunction> const &term) const -> std::optional<TermVec> {
+        auto elems = unpool_union(term->pool, [this](TupleVec const &tuple) {
+            // unpool the elements
+            return unpool_crossproduct(tuple, [this](TupleElem const &elem) {
+                return Util::visit_variant(
+                    elem,
+                    [this](Term const &term) -> std::optional<TupleVec> {
+                        return map_opt_vec(std::visit(*this, term),
+                                           [](auto term) { return TupleElem{std::move(term)}; });
+                    },
+                    [](std::monostate x) -> std::optional<TupleVec> {
+                        static_cast<void>(x);
+                        return std::nullopt;
+                    });
+            });
+        });
 
-auto TermBinary::unpool() const -> std::optional<STermVec> {
-    return unpool_crossproducts(
-        [this](STerm lhs, STerm rhs) {
-            return Util::construct_shared<TermBinary, Term>(std::move(lhs), op_, std::move(rhs));
-        },
-        [](STerm const &term) { return term->unpool(); }, lhs_, rhs_);
-}
+        if (!elems.has_value() && term->pool.size() != 1) {
+            elems = term->pool;
+        }
 
-*/
+        return map_opt_vec(std::move(elems), [&term](auto elem) -> Term {
+            // turn individual elements into function terms
+            return Util::construct_shared<TermFunction>(term->name, PoolVec{std::move(elem)}, term->external);
+        });
+    }
+
+    auto operator()(Util::shared_ptr<TermUnary> const &term) const -> std::optional<TermVec> {
+        return map_opt_vec(std::visit(*this, term->rhs), [&term](auto rhs) -> Term {
+            return Util::construct_shared<TermUnary>(term->op, std::move(rhs));
+        });
+    }
+
+    auto operator()(Util::shared_ptr<TermBinary> const &term) const -> std::optional<TermVec> {
+        return unpool_crossproducts(
+            [&term](Term lhs, Term rhs) -> Term {
+                return Util::construct_shared<TermBinary>(std::move(lhs), term->op, std::move(rhs));
+            },
+            *this, term->lhs, term->rhs);
+    }
+};
+
+} // namespace
+
+auto unpool(Term const &term) -> std::optional<TermVec> { return std::visit(Unpool{}, term); }
+
+} // namespace Gringo::Input

@@ -4,6 +4,6 @@
 
 namespace Gringo::Input {
 
-[[nodiscard]] auto project_anonymous(TermV2 const &term) -> std::optional<TermV2>;
+[[nodiscard]] auto project_anonymous(Term const &term) -> std::optional<Term>;
 
 }

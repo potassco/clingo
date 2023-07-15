@@ -59,7 +59,7 @@ template <typename Control> auto match(std::string str) {
 
 } // namespace Grammar
 
-auto parse_term(std::string str) -> std::optional<TermV2> {
+auto parse_term(std::string str) -> std::optional<Term> {
     return Grammar::parse<Grammar::parse_root<Input::Grammar::term>>(std::move(str));
 }
 

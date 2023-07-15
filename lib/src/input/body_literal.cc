@@ -67,7 +67,7 @@ void BodyAggregate::accept(BodyLiteralVisitor const &visitor) const { visitor.vi
 
 void BodyAggregate::add_sign(Sign sign) { sign_ += sign; }
 
-void BodyAggregate::set_left_guard(TermV2 lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
+void BodyAggregate::set_left_guard(Term lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
 
 auto BodyAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
     using Gringo::Input::unpool;
@@ -157,7 +157,7 @@ auto BodySetAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
 
 void BodySetAggregate::add_sign(Sign sign) { sign_ += sign; }
 
-void BodySetAggregate::set_left_guard(TermV2 lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
+void BodySetAggregate::set_left_guard(Term lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
 
 void BodySetAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
     aggr_.visit_variables(std::move(fun), ctx);

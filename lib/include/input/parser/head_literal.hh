@@ -91,20 +91,20 @@ struct head_aggregate {
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<SHeadAggregate>(
         lexy::new_<HeadAggregate, SHeadAggregate>,
-        [](AggregateFunction fun, HeadAggregate::ElementVec elems, TermV2 rhs) {
+        [](AggregateFunction fun, HeadAggregate::ElementVec elems, Term rhs) {
             return Util::construct_shared<HeadAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
 };
 
 struct head_literal {
     static constexpr char const *name = "head literal";
-    using scan_result = lexy::scan_result<TermV2>;
+    using scan_result = lexy::scan_result<Term>;
 
     static constexpr auto is_atom = dsl::context_flag<head_literal>;
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        auto res_term = scanner.template parse<TermV2>(dsl::p<term>);
+        auto res_term = scanner.template parse<Term>(dsl::p<term>);
         if (res_term.has_value() && check_type(res_term.value(), TermCheckType::atom)) {
             scanner.parse(is_atom.set());
         }
@@ -134,17 +134,17 @@ struct head_literal {
     static constexpr auto value = lexy::callback<SHeadLiteral>(
         lexy::forward<SHeadLiteral>, lexy::new_<HeadTheoryAtom, SHeadLiteral>,
         lexy::new_<HeadSetAggregate, SHeadLiteral>,
-        [](TermV2 term, auto aggr) {
+        [](Term term, auto aggr) {
             auto ret = Detail::construct_head_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);
             return ret;
         },
-        [](TermV2 term, Relation rel, auto aggr) {
+        [](Term term, Relation rel, auto aggr) {
             auto ret = Detail::construct_head_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), rel);
             return ret;
         },
-        [](TermV2 lhs, Relation rel, TermV2 rhs, std::optional<GuardVec> opt_guards, SLiteralVec cond,
+        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, SLiteralVec cond,
            Disjunction::ElementVec elems) {
             GuardVec guards;
             if (opt_guards.has_value()) {
@@ -157,7 +157,7 @@ struct head_literal {
                                               std::move(cond)});
             return Util::construct_shared<Disjunction, HeadLiteral>(std::move(elems));
         },
-        [](TermV2 term, SLiteralVec cond, Disjunction::ElementVec elems) {
+        [](Term term, SLiteralVec cond, Disjunction::ElementVec elems) {
             elems.insert(
                 elems.begin(),
                 Disjunction::Element{SLiteralVec{Util::construct_shared<LiteralSymbolic, Literal>(std::move(term))},

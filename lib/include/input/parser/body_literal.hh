@@ -61,14 +61,14 @@ struct body_aggregate {
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<SBodyAggregate>(
         lexy::new_<BodyAggregate, SBodyAggregate>,
-        [](AggregateFunction fun, BodyAggregate::ElementVec elems, TermV2 rhs) {
+        [](AggregateFunction fun, BodyAggregate::ElementVec elems, Term rhs) {
             return Util::construct_shared<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
 };
 
 struct body_atom : lexy::transparent_production {
     static constexpr char const *name = "body atom";
-    using scan_result = lexy::scan_result<TermV2>;
+    using scan_result = lexy::scan_result<Term>;
 
     static constexpr auto is_atom = dsl::context_flag<body_atom>;
 
@@ -76,7 +76,7 @@ struct body_atom : lexy::transparent_production {
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        auto res_term = scanner.template parse<TermV2>(dsl::p<term>);
+        auto res_term = scanner.template parse<Term>(dsl::p<term>);
         if (res_term.has_value() && check_type(res_term.value(), TermCheckType::atom)) {
             scanner.parse(is_atom.set());
         }
@@ -100,17 +100,17 @@ struct body_atom : lexy::transparent_production {
     static constexpr auto value = lexy::callback<SBodyLiteral>(
         lexy::forward<SBodyLiteral>, lexy::new_<BodySetAggregate, SBodyLiteral>,
         lexy::new_<BodyTheoryAtom, SBodyLiteral>,
-        [](TermV2 term, auto aggr) {
+        [](Term term, auto aggr) {
             auto ret = Detail::construct_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);
             return ret;
         },
-        [](TermV2 term, Relation rel, auto aggr) {
+        [](Term term, Relation rel, auto aggr) {
             auto ret = Detail::construct_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), rel);
             return ret;
         },
-        [](TermV2 lhs, Relation rel, TermV2 rhs, std::optional<GuardVec> opt_guards, SLiteralVec cond) {
+        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, SLiteralVec cond) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
@@ -120,7 +120,7 @@ struct body_atom : lexy::transparent_production {
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         },
         [](SLiteral lit, SLiteralVec cond) { return Detail::construct_conjunction(std::move(lit), std::move(cond)); },
-        [](TermV2 term, SLiteralVec cond) {
+        [](Term term, SLiteralVec cond) {
             auto lit = Util::construct_shared<LiteralSymbolic, Literal>(std::move(term));
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         });

@@ -104,7 +104,7 @@ class BodyAggregate : public BodyLiteral {
     explicit BodyAggregate(Sign sign, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
         : sign_{sign}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
     explicit BodyAggregate(AggregateFunction fun, ElementVec elems) : fun_(fun), elems_(std::move(elems)) {}
-    explicit BodyAggregate(AggregateFunction fun, ElementVec elems, Relation rel, TermV2 rhs)
+    explicit BodyAggregate(AggregateFunction fun, ElementVec elems, Relation rel, Term rhs)
         : fun_(fun), elems_(std::move(elems)), rhs_(std::make_pair(rel, std::move(rhs))) {}
 
     //! Get the sign of the literal.
@@ -119,7 +119,7 @@ class BodyAggregate : public BodyLiteral {
     [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
 
     void add_sign(Sign sign) override;
-    void set_left_guard(TermV2 lhs, Relation rel);
+    void set_left_guard(Term lhs, Relation rel);
     [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
@@ -147,7 +147,7 @@ class BodySetAggregate : public BodyLiteral {
     [[nodiscard]] auto atom() const -> SetAggregate const & { return aggr_; }
 
     void add_sign(Sign sign) override;
-    void set_left_guard(TermV2 lhs, Relation rel);
+    void set_left_guard(Term lhs, Relation rel);
     [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
     [[nodiscard]] auto project(Projection project, bool in_classical_scope) const

@@ -4,6 +4,6 @@
 
 namespace Gringo::Input {
 
-[[nodiscard]] auto unpool(TermV2 const &term) -> std::optional<TermVec>;
+[[nodiscard]] auto unpool(Term const &term) -> std::optional<TermVec>;
 
 }

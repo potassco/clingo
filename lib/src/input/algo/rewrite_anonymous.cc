@@ -7,7 +7,7 @@ namespace Gringo::Input {
 namespace {
 
 struct RewriteAnonymous {
-    auto operator()(TermV2 const &term) const { return rewrite_anonymous(term, gen); }
+    auto operator()(Term const &term) const { return rewrite_anonymous(term, gen); }
     auto operator()(STheoryTerm const &term) const { return rewrite_anonymous(*term, gen); }
     auto operator()(SLiteral const &lit) const { return rewrite_anonymous(*lit, gen); }
     auto operator()(TheoryAtom const &aggr) const -> std::optional<TheoryAtom> {
@@ -30,39 +30,39 @@ struct RewriteAnonymous {
 struct TermRewriter {
     TermRewriter(NameGen &gen) : gen{gen} {}
 
-    auto operator()(TermV2 const &term) const { return std::visit(*this, term); }
+    auto operator()(Term const &term) const { return std::visit(*this, term); }
 
     [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
 
-    auto operator()(TermSymbol const &term) const -> std::optional<TermV2> {
+    auto operator()(TermSymbol const &term) const -> std::optional<Term> {
         static_cast<void>(term);
         return std::nullopt;
     }
 
-    auto operator()(TermVariable const &term) const -> std::optional<TermV2> {
+    auto operator()(TermVariable const &term) const -> std::optional<Term> {
         if (term.is_anonymous) {
             return TermVariable{gen.new_name(), true};
         }
         return std::nullopt;
     }
 
-    auto operator()(Util::shared_ptr<TermFunction> const &term) const -> std::optional<TermV2> {
+    auto operator()(Util::shared_ptr<TermFunction> const &term) const -> std::optional<Term> {
         return transform_construct_shared<TermFunction>(term->name, tr(term->pool), term->external);
     }
 
-    auto operator()(Util::shared_ptr<TermTuple> const &term) const -> std::optional<TermV2> {
+    auto operator()(Util::shared_ptr<TermTuple> const &term) const -> std::optional<Term> {
         return transform_construct_shared<TermTuple>(tr(term->pool));
     }
 
-    auto operator()(Util::shared_ptr<TermAbs> const &term) const -> std::optional<TermV2> {
+    auto operator()(Util::shared_ptr<TermAbs> const &term) const -> std::optional<Term> {
         return transform_construct_shared<TermAbs>(tr(term->pool));
     }
 
-    auto operator()(Util::shared_ptr<TermUnary> const &term) const -> std::optional<TermV2> {
+    auto operator()(Util::shared_ptr<TermUnary> const &term) const -> std::optional<Term> {
         return transform_construct_shared<TermUnary>(term->op, tr(term->rhs));
     }
 
-    auto operator()(Util::shared_ptr<TermBinary> const &term) const -> std::optional<TermV2> {
+    auto operator()(Util::shared_ptr<TermBinary> const &term) const -> std::optional<Term> {
         return transform_construct_shared<TermBinary>(tr(term->lhs), term->op, tr(term->rhs));
     }
 
@@ -250,7 +250,7 @@ auto NameGen::new_name() -> std::string {
     }
 }
 
-[[nodiscard]] auto rewrite_anonymous(TermV2 const &term, NameGen &gen) -> std::optional<TermV2> {
+[[nodiscard]] auto rewrite_anonymous(Term const &term, NameGen &gen) -> std::optional<Term> {
     return std::visit(TermRewriter{gen}, term);
 }
 

@@ -14,7 +14,7 @@
 
 namespace Gringo::Input {
 
-void SetAggregate::set_rhs(TermV2 lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
+void SetAggregate::set_rhs(Term lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
 
 auto SetAggregate::unpool() const -> std::optional<std::vector<SetAggregate>> {
     return unpool_crossproducts(

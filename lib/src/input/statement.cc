@@ -24,10 +24,10 @@ void visit_body(VarVisitFun const &fun, VariableContext ctx, SBodyLiteralVec con
 }
 
 struct StatementUnpool {
-    auto operator()(TermV2 const &term) const { return unpool(term); }
+    auto operator()(Term const &term) const { return unpool(term); }
     auto operator()(TermVec const &terms) const { return unpool_crossproduct(terms, *this); }
-    auto operator()(std::optional<TermV2> const &term) const {
-        return and_then_opt(term, [](TermV2 const &term) { return unpool(term); });
+    auto operator()(std::optional<Term> const &term) const {
+        return and_then_opt(term, [](Term const &term) { return unpool(term); });
     }
     auto operator()(SLiteralVec const &lits) const { return unpool_crossproduct(lits); }
     auto operator()(SHeadLiteral const &lit) const { return lit->unpool(); }

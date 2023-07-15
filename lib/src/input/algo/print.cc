@@ -320,9 +320,9 @@ struct PrintTerm : Print<PrintTerm> {
         : out{out}, pos{pos}, prio{prio}, no_leading_op{no_leading_op} {}
 
     // aux
-    void operator()(TupleElemV2 const &elem) const {
+    void operator()(TupleElem const &elem) const {
         Util::visit_variant(
-            elem, [this](std::monostate) { out << "*"; }, [&](TermV2 const &term) { std::visit(*this, term); });
+            elem, [this](std::monostate) { out << "*"; }, [&](Term const &term) { std::visit(*this, term); });
     }
 
     // term
@@ -353,14 +353,14 @@ struct PrintTerm : Print<PrintTerm> {
 
     void operator()(TermTuple const &term) const {
         auto const &pool = term.pool;
-        if (pool.size() == 1 && std::holds_alternative<TermV2>(pool.front())) {
-            std::visit(*this, std::get<TermV2>(term.pool.front()));
+        if (pool.size() == 1 && std::holds_alternative<Term>(pool.front())) {
+            std::visit(*this, std::get<Term>(term.pool.front()));
         } else {
             out << "(";
             PrintTerm{out}.apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
                 Util::visit_variant(
-                    term_or_tuple, [this](TermV2 const &term) { std::visit(*this, term); },
-                    [this](TupleVecV2 const &tuple) {
+                    term_or_tuple, [this](Term const &term) { std::visit(*this, term); },
+                    [this](TupleVec const &tuple) {
                         apply_to_range(tuple);
                         if (tuple.size() == 1) {
                             out << ",";
@@ -830,7 +830,7 @@ class PrintVisitor : public TheoryTermVisitor,
 
 } // namespace
 
-auto operator<<(std::ostream &out, TermV2 const &term) -> std::ostream & {
+auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
     std::visit(PrintTerm{out}, term);
     return out;
 }
@@ -860,7 +860,7 @@ auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream & {
     return out;
 }
 
-auto to_string(TermV2 const &term) -> std::string {
+auto to_string(Term const &term) -> std::string {
     std::ostringstream oss;
     oss << term;
     return oss.str();

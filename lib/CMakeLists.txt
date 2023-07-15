@@ -11,6 +11,8 @@ add_library(parsertest
     "src/input/algo/rewrite_anonymous.cc" 
     "src/input/algo/check_type.cc"
     "src/input/algo/project.cc"
+    "src/input/algo/unpool.cc"
+    "src/input/algo/visit_variables.cc"
     "src/input/algo/project_anonymous.cc"
     )
 target_link_libraries(parsertest foonathan::lexy::core foonathan::lexy::file)
