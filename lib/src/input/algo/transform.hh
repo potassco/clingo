@@ -13,30 +13,15 @@ template <class F, class T> struct Trans;
 
 namespace Detail {
 
-template <class T, class F>
-using can_apply_t = std::enable_if_t<std::is_invocable_r_v<std::optional<T>, F, T const &>, std::optional<T>>;
+// Note: GCC 11 has some problem with forward defined function and auto
+// arguments. Thus, we simply make the functions available via ADL.
+struct some_arg {};
 
 template <class T, class F>
-using can_not_apply_t = std::enable_if_t<!std::is_invocable_r_v<std::optional<T>, F, T const &>, std::optional<T>>;
+using can_transform_t = std::enable_if_t<std::is_invocable_r_v<std::optional<T>, F, T const &>, std::optional<T>>;
 
-template <class T> auto transform_value(auto &&fun, T const &x) -> Detail::can_apply_t<T, decltype(fun)>;
-
-template <class T> auto transform_value(auto &&fun, T const &x) -> Detail::can_not_apply_t<T, decltype(fun)>;
-
-template <class T>
-auto transform_value(auto &&fun, std::optional<T> const &opt)
-    -> Detail::can_not_apply_t<std::optional<T>, decltype(fun)>;
-
-template <class... T>
-auto transform_value(auto &&fun, std::tuple<T...> const &tup)
-    -> Detail::can_not_apply_t<std::tuple<T...>, decltype(fun)>;
-
-template <class... T>
-auto transform_value(auto &&fun, std::variant<T...> const &var)
-    -> Detail::can_not_apply_t<std::variant<T...>, decltype(fun)>;
-
-template <class T>
-auto transform_value(auto &&fun, std::vector<T> const &vec) -> Detail::can_not_apply_t<std::vector<T>, decltype(fun)>;
+template <class T, class F>
+using can_not_transform_t = std::enable_if_t<!std::is_invocable_r_v<std::optional<T>, F, T const &>, std::optional<T>>;
 
 template <class... T, size_t... Indices>
 auto transform_tuple(std::tuple<T...> const &tup, std::index_sequence<Indices...> indices,
@@ -51,23 +36,28 @@ auto transform_tuple(std::tuple<T...> const &tup, std::index_sequence<Indices...
 template <class... T, size_t... Indices>
 auto transform_tuple(auto &&fun, std::tuple<T...> const &tup, std::index_sequence<Indices...> indices)
     -> std::optional<std::tuple<T...>> {
-    return transform_tuple(tup, indices, transform_value(fun, std::get<Indices>(tup))...);
+    return transform_tuple(tup, indices, transform_value(some_arg{}, fun, std::get<Indices>(tup))...);
 }
 
-template <class T> auto transform_value(auto &&fun, T const &x) -> Detail::can_apply_t<T, decltype(fun)> {
+template <class T>
+auto transform_value(some_arg arg, auto &&fun, T const &x) -> Detail::can_transform_t<T, decltype(fun)> {
+    static_cast<void>(arg);
     return fun(x);
 }
 
-template <class T> auto transform_value(auto &&fun, T const &x) -> Detail::can_not_apply_t<T, decltype(fun)> {
+template <class T>
+auto transform_value(some_arg arg, auto &&fun, T const &x) -> Detail::can_not_transform_t<T, decltype(fun)> {
+    static_cast<void>(arg);
     static_cast<void>(x);
     return std::nullopt;
 }
 
 template <class T>
-auto transform_value(auto &&fun, std::optional<T> const &opt)
-    -> Detail::can_not_apply_t<std::optional<T>, decltype(fun)> {
+auto transform_value(some_arg arg, auto &&fun, std::optional<T> const &opt)
+    -> Detail::can_not_transform_t<std::optional<T>, decltype(fun)> {
+    static_cast<void>(arg);
     if (opt.has_value()) {
-        if (auto ret = transform_value(fun, opt.value()); ret.has_value()) {
+        if (auto ret = transform_value(some_arg{}, fun, opt.value()); ret.has_value()) {
             return ret;
         }
     }
@@ -75,10 +65,11 @@ auto transform_value(auto &&fun, std::optional<T> const &opt)
 }
 
 template <class T, class U>
-auto transform_value(auto &&fun, std::pair<T, U> const &pair)
-    -> Detail::can_not_apply_t<std::pair<T, U>, decltype(fun)> {
-    auto first = transform_value(fun, pair.first);
-    auto second = transform_value(fun, pair.second);
+auto transform_value(some_arg arg, auto &&fun, std::pair<T, U> const &pair)
+    -> Detail::can_not_transform_t<std::pair<T, U>, decltype(fun)> {
+    static_cast<void>(arg);
+    auto first = transform_value(some_arg{}, fun, pair.first);
+    auto second = transform_value(some_arg{}, fun, pair.second);
     if (first.has_value() || second.has_value()) {
         return std::pair<T, U>{std::move(first).value_or(pair.first), std::move(second).value_or(pair.second)};
     }
@@ -86,17 +77,19 @@ auto transform_value(auto &&fun, std::pair<T, U> const &pair)
 }
 
 template <class... T>
-auto transform_value(auto &&fun, std::tuple<T...> const &tup)
-    -> Detail::can_not_apply_t<std::tuple<T...>, decltype(fun)> {
+auto transform_value(some_arg arg, auto &&fun, std::tuple<T...> const &tup)
+    -> Detail::can_not_transform_t<std::tuple<T...>, decltype(fun)> {
+    static_cast<void>(arg);
     return Detail::transform_tuple(fun, tup, std::index_sequence_for<T...>{});
 }
 
 template <class... T>
-auto transform_value(auto &&fun, std::variant<T...> const &var)
-    -> Detail::can_not_apply_t<std::variant<T...>, decltype(fun)> {
+auto transform_value(some_arg arg, auto &&fun, std::variant<T...> const &var)
+    -> Detail::can_not_transform_t<std::variant<T...>, decltype(fun)> {
+    static_cast<void>(arg);
     return std::visit(
         [&fun](auto const &elem) -> std::optional<std::variant<T...>> {
-            auto ret = transform_value(fun, elem);
+            auto ret = transform_value(some_arg{}, fun, elem);
             if (ret.has_value()) {
                 return std::variant<T...>{std::move(ret).value()};
             }
@@ -106,11 +99,13 @@ auto transform_value(auto &&fun, std::variant<T...> const &var)
 }
 
 template <class T>
-auto transform_value(auto &&fun, std::vector<T> const &vec) -> Detail::can_not_apply_t<std::vector<T>, decltype(fun)> {
+auto transform_value(some_arg arg, auto &&fun, std::vector<T> const &vec)
+    -> Detail::can_not_transform_t<std::vector<T>, decltype(fun)> {
+    static_cast<void>(arg);
     size_t n = 0;
     std::optional<std::vector<T>> ret;
     for (auto &elem : vec) {
-        std::optional<T> transformed = transform_value(fun, elem);
+        std::optional<T> transformed = transform_value(some_arg{}, fun, elem);
         if (transformed.has_value() && !ret.has_value()) {
             ret = Util::copy_n(vec, n);
         }
@@ -123,7 +118,7 @@ auto transform_value(auto &&fun, std::vector<T> const &vec) -> Detail::can_not_a
 }
 
 template <class F, class T> auto transform_construct_apply(Trans<F, T> &arg) {
-    return arg.transformed = transform_value(arg.fun, arg.orig);
+    return arg.transformed = transform_value(some_arg{}, arg.fun, arg.orig);
 }
 
 template <class T> auto transform_construct_apply(T &&arg) { static_cast<void>(arg); }
@@ -145,7 +140,9 @@ template <class F, class T> auto transform_construct_has_value(Trans<F, T> const
 
 } // namespace Detail
 
-auto transform(auto &&fun, auto const &x) { return Detail::transform_value(std::forward<decltype(fun)>(fun), x); };
+auto transform(auto &&fun, auto const &x) {
+    return Detail::transform_value(Detail::some_arg{}, std::forward<decltype(fun)>(fun), x);
+};
 
 template <class F, class T> struct Trans {
     Trans(T const &arg, F fun) : fun{std::move(fun)}, orig{arg} {}

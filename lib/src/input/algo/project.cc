@@ -21,11 +21,19 @@ struct TermProject {
 
     auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
 
+    auto operator()(std::monostate x) const -> std::optional<Term> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
     auto operator()(TupleElem const &elem) const -> std::optional<TupleElem> {
         if (projectable(project, std::get_if<Term>(&elem))) {
             return {std::monostate{}};
         }
-        return transform(*this, elem);
+        // Note: a tiny bit lazy. Because monostate always maps to nullopt, we
+        // can safely convert the resulting optional term back into a tuple
+        // elem.
+        return std::visit(*this, elem);
     };
 
     auto operator()(TermVariable const &term) const -> std::optional<Term> {
