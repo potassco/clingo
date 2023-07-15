@@ -154,7 +154,7 @@ template <class F, class T> struct Trans {
     std::optional<T> transformed;
 };
 
-template <class T, class B, class... Args>
+template <class T, class B=T, class... Args>
 auto transform_construct_shared(Args &&...args) -> std::optional<Util::shared_ptr<B>> {
     (Detail::transform_construct_apply(args), ...);
     if ((Detail::transform_construct_has_value(args) || ...)) {

@@ -1,12 +1,13 @@
 #include <sstream>
 
-#include <input/print.hh>
-#include <input/rewrite_anonymous.hh>
 #include <input/statement.hh>
 
-#include "transform.hh"
-#include "unpool.hh"
-#include "variables.hh"
+#include <input/algo/print.hh>
+#include <input/algo/rewrite_anonymous.hh>
+
+#include "algo/transform.hh"
+#include "algo/unpool.hh"
+#include "algo/variables.hh"
 
 namespace Gringo::Input {
 

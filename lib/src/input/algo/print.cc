@@ -2,7 +2,7 @@
 
 #include <util/print.hh>
 
-#include <input/print.hh>
+#include <input/algo/print.hh>
 
 namespace Gringo::Input {
 

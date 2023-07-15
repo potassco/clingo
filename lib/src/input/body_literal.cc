@@ -1,8 +1,8 @@
 #include <input/body_literal.hh>
 
-#include "cond_lits.hh"
-#include "transform.hh"
-#include "variables.hh"
+#include "algo/cond_lits.hh"
+#include "algo/transform.hh"
+#include "algo/variables.hh"
 
 namespace Gringo::Input {
 

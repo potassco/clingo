@@ -1,4 +1,4 @@
-#include <input/rewrite_anonymous.hh>
+#include <input/algo/rewrite_anonymous.hh>
 
 #include "transform.hh"
 
@@ -27,39 +27,92 @@ struct RewriteAnonymous {
     NameGen &gen;
 };
 
+struct TermRewriterV2 {
+    TermRewriterV2(NameGen &gen) : gen{gen} {}
+
+    auto operator()(TermV2 const &term) const { return std::visit(*this, term); }
+
+    [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
+
+    auto operator()(TermSymbol const &term) const -> std::optional<TermV2> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+
+    auto operator()(TermVariable const &term) const -> std::optional<TermV2> {
+        if (term.is_anonymous) {
+            return TermVariable{gen.new_name(), true};
+        }
+        return std::nullopt;
+    }
+
+    auto operator()(Util::shared_ptr<TermFunction> const &term) const -> std::optional<TermV2> {
+        return transform_construct_shared<TermFunction>(term->name, tr(term->pool), term->external);
+    }
+
+    auto operator()(Util::shared_ptr<TermTuple> const &term) const -> std::optional<TermV2> {
+        return transform_construct_shared<TermTuple>(tr(term->pool));
+    }
+
+    auto operator()(Util::shared_ptr<TermAbs> const &term) const -> std::optional<TermV2> {
+        return transform_construct_shared<TermAbs>(tr(term->pool));
+    }
+
+    auto operator()(Util::shared_ptr<TermUnary> const &term) const -> std::optional<TermV2> {
+        return transform_construct_shared<TermUnary>(term->op, tr(term->rhs));
+    }
+
+    auto operator()(Util::shared_ptr<TermBinary> const &term) const -> std::optional<TermV2> {
+        return transform_construct_shared<TermBinary>(tr(term->lhs), term->op, tr(term->rhs));
+    }
+
+    NameGen &gen;
+};
+
 class TermRewriter : public TermVisitor {
   public:
     TermRewriter(NameGen &gen, std::optional<STerm> &result) : gen_{gen}, result_{result} {}
 
-    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymous{gen_}); }
-
-    void visit(TermSymbol const &term) const override { static_cast<void>(term); }
+    void visit(TermSymbol const &term) const override {
+        if (auto res = TermRewriterV2{gen_}(term)) {
+            result_ = construct_shared<Term>(std::move(res).value());
+        }
+    }
 
     void visit(TermVariable const &term) const override {
-        if (term.is_anonymous()) {
-            result_ = Util::construct_shared<TermVariable, Term>(gen_.new_name(), true);
+        if (auto res = TermRewriterV2{gen_}(term)) {
+            result_ = construct_shared<Term>(std::move(res).value());
         }
     }
 
     void visit(TermFunction const &term) const override {
-        result_ = transform_construct_shared<TermFunction, Term>(term.name(), tra(term.pool()), term.is_external());
+        if (auto res = TermRewriterV2{gen_}(construct_shared<TermFunction>(term))) {
+            result_ = construct_shared<Term>(std::move(res).value());
+        }
     }
 
     void visit(TermTuple const &term) const override {
-        result_ = transform_construct_shared<TermTuple, Term>(tra(term.pool()));
+        if (auto res = TermRewriterV2{gen_}(construct_shared<TermTuple>(term))) {
+            result_ = construct_shared<Term>(std::move(res).value());
+        }
     }
 
     void visit(TermAbs const &term) const override {
-        result_ = transform_construct_shared<TermAbs, Term>(tra(term.pool()));
+        if (auto res = TermRewriterV2{gen_}(construct_shared<TermAbs>(term))) {
+            result_ = construct_shared<Term>(std::move(res).value());
+        }
     }
 
     void visit(TermUnary const &term) const override {
-        result_ = transform_construct_shared<TermUnary, Term>(term.unary_operator(), tra(term.rhs()));
+        if (auto res = TermRewriterV2{gen_}(construct_shared<TermUnary>(term))) {
+            result_ = construct_shared<Term>(std::move(res).value());
+        }
     }
 
     void visit(TermBinary const &term) const override {
-        result_ =
-            transform_construct_shared<TermBinary, Term>(tra(term.lhs()), term.binary_operator(), tra(term.rhs()));
+        if (auto res = TermRewriterV2{gen_}(construct_shared<TermBinary>(term))) {
+            result_ = construct_shared<Term>(std::move(res).value());
+        }
     }
 
   private:

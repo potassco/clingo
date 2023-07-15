@@ -3,8 +3,8 @@
 
 #include <input/literal.hh>
 
-#include "transform.hh"
-#include "unpool.hh"
+#include "algo/transform.hh"
+#include "algo/unpool.hh"
 
 namespace Gringo::Input {
 

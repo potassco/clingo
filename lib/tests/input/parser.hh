@@ -4,8 +4,9 @@
 #include <optional>
 #include <sstream>
 
-#include <input/print.hh>
 #include <input/statement.hh>
+
+#include <input/algo/print.hh>
 
 #include <util/print.hh>
 

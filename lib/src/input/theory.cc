@@ -4,9 +4,9 @@
 
 #include <input/theory.hh>
 
-#include "transform.hh"
-#include "unpool.hh"
-#include "variables.hh"
+#include "algo/transform.hh"
+#include "algo/unpool.hh"
+#include "algo/variables.hh"
 
 namespace Gringo::Input {
 

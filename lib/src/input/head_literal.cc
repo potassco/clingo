@@ -7,8 +7,8 @@
 
 #include <input/head_literal.hh>
 
-#include "cond_lits.hh"
-#include "transform.hh"
+#include "algo/cond_lits.hh"
+#include "algo/transform.hh"
 
 namespace Gringo::Input {
 

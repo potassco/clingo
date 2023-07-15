@@ -24,7 +24,7 @@ class QuotedString {
     friend auto operator==(QuotedString const &a, QuotedString const &b) -> bool;
     friend auto operator<<(std::ostream &out, QuotedString const &sym) -> std::ostream &;
 
-    std::string const value;
+    std::string value;
 };
 
 class Function;
@@ -40,8 +40,8 @@ class Function {
     friend auto operator<<(std::ostream &out, Function const &sym) -> std::ostream &;
 
     bool has_sign = false;
-    std::string const name;
-    SymVec const args;
+    std::string name;
+    SymVec args;
 };
 
 auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
