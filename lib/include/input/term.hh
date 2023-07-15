@@ -37,30 +37,148 @@ struct CheckTypeResult {
     std::string identifier;
 };
 
-/*
-enum class TermType : int {
-    TermSymbol,
-    TermTuple,
-    TermVariable,
-    TermAbs,
-    TermFunction,
-    TermUnary,
-    TermBinary,
+struct TermVariableV2;
+struct TermSymbolV2;
+struct TermTupleV2;
+struct TermFunctionV2;
+struct TermAbsV2;
+struct TermUnaryV2;
+struct TermBinaryV2;
+using TermV2 =
+    std::variant<TermVariableV2, TermSymbolV2, Util::shared_ptr<TermTupleV2>, Util::shared_ptr<TermFunctionV2>,
+                 Util::shared_ptr<TermAbsV2>, Util::shared_ptr<TermUnaryV2>, Util::shared_ptr<TermBinaryV2>>;
+
+//! A vector of terms.
+using TermVec = std::vector<TermV2>;
+//! A vector of vecors of terms.
+using TermVecVec = std::vector<TermVec>;
+
+//! A variant capturing either a term or a position that is to be projected.
+using TupleElemV2 = std::variant<std::monostate, TermV2>;
+//! A tuple of terms or positions to project.
+using TupleVecV2 = std::vector<TupleElemV2>;
+//! A vector of tuples used as function or predicate arguments.
+using PoolVecV2 = std::vector<TupleVecV2>;
+
+//! Term representing a variable.
+//!
+//! For example <tt>X</tt>.
+struct TermVariableV2 {
+    //! Construct a variable.
+    explicit TermVariableV2(std::string name, bool is_anonymous = false)
+        : name{std::move(name)}, is_anonymous{is_anonymous} {}
+
+    //! The name of the variable.
+    std::string name;
+    //! Whether the variable is anonymous.
+    bool is_anonymous;
 };
 
-enum class Attribute : int {
-    Value,
-    Name,
-    Pool,
-    Arguments,
-    Left,
-    Right,
-    Operator,
+//! Term representing a symbol.
+//!
+//! For example <tt>1</tt>.
+struct TermSymbolV2 {
+    //! Construct term with the given symbol.
+    explicit TermSymbolV2(Symbol value) : value{std::move(value)} {}
+
+    //! The associated symbol.
+    Symbol value;
 };
 
-auto operator<<(std::ostream &out, TermType type) -> std::ostream &;
-auto operator<<(std::ostream &out, Attribute attr) -> std::ostream &;
-*/
+//! Term representing a tuple.
+//!
+//! For example <tt>(a,b;c)</tt>.
+struct TermTupleV2 : Util::enable_shared {
+    using Element = std::variant<TupleVecV2, TermV2>;
+    using ElementVec = std::vector<Element>;
+
+    //! Construct a  tuple.
+    explicit TermTupleV2(ElementVec args) : pool{std::move(args)} {}
+
+    //! The argument pool of the tuple.
+    ElementVec pool;
+};
+
+//! Term representing a symbolic or external function.
+//!
+//! For example <tt>f(a,b;c)</tt>.
+struct TermFunctionV2 : Util::enable_shared {
+    //! Construct a symbolic function.
+    //!
+    //! The function takes a pool of term tuples, which will be reduced to a single element after calling
+    //! Term::unpool().
+    explicit TermFunctionV2(std::string name, PoolVecV2 args, bool external)
+        : name(std::move(name)), pool{std::move(args)}, external{external} {}
+
+    //! The name of the function.
+    std::string name;
+    //! The argument pool of the function.
+    PoolVecV2 pool;
+    //! Whether this is an external function.
+    bool external;
+};
+
+//! Term representing the absolute function.
+//!
+//! For example <tt>|-X|</tt>.
+struct TermAbsV2 : Util::enable_shared {
+    //! Construct an absolute term.
+    //!
+    //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
+    explicit TermAbsV2(TermVec pool) : pool{std::move(pool)} {}
+
+    //! The argument pool of the absolute term.
+    TermVec pool;
+};
+
+//! Enumeration of available unary operators.
+enum class UnaryOperator : int {
+    negate, //!< The unary minus sign (-).
+    invert, //!< The unary negation sign (~).
+};
+
+//! Term representing an unary operation.
+//!
+//! For example <tt>-X</tt>.
+struct TermUnaryV2 : Util::enable_shared {
+    //! Contruct a term for an unary operation.
+    explicit TermUnaryV2(UnaryOperator op, TermV2 rhs) : op{op}, rhs{std::move(rhs)} {}
+
+    //! The operation.
+    UnaryOperator op;
+    //! The right-hand-side.
+    TermV2 rhs;
+};
+
+//! Enumaration of available binary operators.
+enum class BinaryOperator : int {
+    dots,  //!< The interval operator.
+    xor_,  //!< The XOR bit operation.
+    or_,   //!< The OR bit operation.
+    and_,  //!< The AND bit operation.
+    plus,  //!< The plus arithmetic operation.
+    minus, //!< The minus arithmetic operation.
+    times, //!< The multiply arithmetic operation.
+    div,   //!< The (integer) divide arithmetic operation.
+    mod,   //!< The modulo arithmetic operation.
+    pow,   //!< The exponentiation arithmetic operation.
+};
+
+//! Term representing a binary operation.
+//!
+//! For example <tt>X-Y</tt>.
+struct TermBinaryV2 : Util::enable_shared {
+    //! Contruct a term for an binary operation.
+    explicit TermBinaryV2(TermV2 lhs, BinaryOperator op, TermV2 rhs)
+        : op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
+
+    //! The operation.
+    BinaryOperator op;
+    //! The left-hand-side.
+    TermV2 lhs;
+    //! The right-hand-side.
+    TermV2 rhs;
+};
 
 class Term;
 //! A shared pointer to a term.
@@ -424,12 +542,6 @@ class TermFunction : public Term {
     bool external_;
 };
 
-//! Enumeration of available unary operators.
-enum class UnaryOperator : int {
-    negate, //!< The unary minus sign (-).
-    invert, //!< The unary negation sign (~).
-};
-
 //! Term representing an unary operation.
 //!
 //! For example <tt>-X</tt>.
@@ -462,20 +574,6 @@ class TermUnary : public Term {
   private:
     UnaryOperator op_;
     STerm rhs_;
-};
-
-//! Enumaration of available binary operators.
-enum class BinaryOperator : int {
-    dots,  //!< The interval operator.
-    xor_,  //!< The XOR bit operation.
-    or_,   //!< The OR bit operation.
-    and_,  //!< The AND bit operation.
-    plus,  //!< The plus arithmetic operation.
-    minus, //!< The minus arithmetic operation.
-    times, //!< The multiply arithmetic operation.
-    div,   //!< The (integer) divide arithmetic operation.
-    mod,   //!< The modulo arithmetic operation.
-    pow,   //!< The exponentiation arithmetic operation.
 };
 
 //! Term representing a binary operation.

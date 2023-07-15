@@ -101,6 +101,21 @@ template <typename T, typename B = T, typename... Args> auto construct_shared(Ar
     return shared_ptr<B>{new T{std::forward<Args>(args)...}};
 }
 
+//! Helper to convieniently add a reference count to an object.
+struct enable_shared {
+  public:
+    //! Increment reference count of the object.
+    friend void inc_ref_count(enable_shared &x) { ++x.refs_; }
+    //! Decrement reference count of the object.
+    friend void dec_ref_count(enable_shared &x) { ++x.refs_; }
+    //! Get reference count of the object.
+    [[nodiscard]] friend auto get_ref_count(enable_shared const &x) -> size_t { return x.refs_; }
+
+  private:
+    //! The reference count.
+    size_t refs_ = 0;
+};
+
 template <typename T> class single_owner_ptr {
   public:
     using element_type = T;
