@@ -5,6 +5,8 @@
 
 #include <input/term.hh>
 
+#include <input/algo/check_type.hh>
+
 #include "transform.hh"
 #include "unpool.hh"
 #include "variables.hh"
@@ -12,6 +14,8 @@
 namespace Gringo::Input {
 
 ////////// Term //////////
+
+// TODO: move/remove this
 
 namespace {
 
@@ -75,101 +79,36 @@ auto Projection::projectable(std::string const &var, bool anonymous) const -> bo
 
 auto Projection::mode() const -> ProjectionMode { return mode_; }
 
-struct CheckType {
-    auto operator()(TermSymbol const &term) const -> bool {
-        return Util::visit_variant(
-            term.value,
-            [this](int value) {
-                if (type == TermCheckType::pos_number && value >= 0) {
-                    if (res != nullptr) {
-                        res->pos_number = value;
-                    }
-                    return true;
-                }
-                return false;
-            },
-            [this](Function const &value) {
-                if (type == TermCheckType::atom) {
-                    return true;
-                }
-                if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) &&
-                    !value.name.empty() && value.args.empty()) {
-                    if (res != nullptr) {
-                        res->identifier = value.name;
-                    }
-                    return true;
-                }
-                return false;
-            },
-            [](auto &&value) {
-                static_cast<void>(value);
-                return false;
-            });
-    }
-
-    auto operator()(TermFunction const &term) const -> bool {
-        if (type == TermCheckType::atom) {
-            return !term.external;
-        }
-        if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) && !term.external &&
-            term.pool.size() == 1 && term.pool.front().empty()) {
-            if (res != nullptr) {
-                res->identifier = term.name;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    auto operator()(TermUnary const &term) const -> bool {
-        if (type == TermCheckType::atom) {
-            return term.op == UnaryOperator::negate && std::visit(*this, term.rhs);
-        }
-        if (type == TermCheckType::signed_identifier && term.op == UnaryOperator::negate &&
-            std::visit(CheckType{TermCheckType::identifier, res}, term.rhs)) {
-            if (res != nullptr) {
-                res->has_sign = true;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    auto operator()(TermBinary const &term) const -> bool {
-        if (type == TermCheckType::sig) {
-            return term.op == BinaryOperator::div &&
-                   std::visit(CheckType{TermCheckType::signed_identifier, res}, term.lhs) &&
-                   std::visit(CheckType{TermCheckType::signed_identifier, res}, term.rhs);
-        }
-        return false;
-    }
-
-    auto operator()(auto const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
-    }
-
-    TermCheckType type;
-    CheckTypeResult *res;
-};
-
 auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    return std::visit(CheckType{type, res}, term);
+    return Gringo::Input::check_type(term, type, res);
 }
+
+auto Term::is_equal(Term const &other) const -> bool { return value_equal(term, other.term); }
+
+// until here
+
+auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return Util::value_equal(a.name, b.name); }
+
+auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool { return Util::value_equal(a.value, b.value); }
+
+auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return Util::value_equal(a.pool, b.pool); }
+
+auto operator==(TermFunction const &a, TermFunction const &b) -> bool {
+    return Util::value_equal(a.name, b.name, a.pool, b.pool, a.external, b.external);
+}
+
+auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return Util::value_equal(a.pool, b.pool); }
+
+auto operator==(TermUnary const &a, TermUnary const &b) -> bool { return Util::value_equal(a.op, b.op, a.rhs, b.rhs); };
+
+auto operator==(TermBinary const &a, TermBinary const &b) -> bool {
+    return Util::value_equal(a.op, b.op, a.lhs, b.lhs, a.rhs, b.rhs);
+};
 
 /*
 ////////// TermSymbol //////////
 
 auto TermSymbol::unpool() const -> std::optional<STermVec> { return std::nullopt; }
-
-auto TermSymbol::is_equal(Term const &other) const -> bool {
-    auto const *d = dynamic_cast<TermSymbol const *>(&other);
-    return d != nullptr && Util::value_equal(value_, d->value_);
-}
-
-auto TermSymbol::hash() const -> size_t { return Util::value_hash(typeid(TermSymbol), value_); }
-
-void TermSymbol::visit_variables(VarVisitFun const &fun) const { static_cast<void>(fun); }
 
 auto TermSymbol::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
@@ -178,21 +117,7 @@ auto TermSymbol::project(Projection project) const -> std::optional<STerm> {
 
 auto TermSymbol::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
-void TermSymbol::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-
 ////////// TermTuple //////////
-
-auto TermTuple::is_equal(Term const &other) const -> bool {
-    auto const *d = dynamic_cast<TermTuple const *>(&other);
-    return d != nullptr && Util::value_equal(pool_, d->pool_);
-}
-
-auto TermTuple::hash() const -> size_t { return Util::value_hash(typeid(TermTuple), pool_); }
-
-void TermTuple::visit_variables(VarVisitFun const &fun) const {
-    VarVisitor visit{fun};
-    visit.add(pool_);
-}
 
 auto TermTuple::project(Projection project) const -> std::optional<STerm> {
     return transform_construct_shared<TermTuple, Term>(tp(pool_, project));
@@ -240,24 +165,9 @@ auto TermTuple::unpool() const -> std::optional<STermVec> {
     });
 }
 
-void TermTuple::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-
 ////////// TermVariable //////////
 
-auto TermVariable::name() const -> std::string const & { return name_; }
-
-auto TermVariable::is_anonymous() const -> bool { return is_anonymous_; }
-
-auto TermVariable::is_equal(Term const &other) const -> bool {
-    auto const *d = dynamic_cast<TermVariable const *>(&other);
-    return d != nullptr && name_ == d->name_;
-}
-
-auto TermVariable::hash() const -> size_t { return Util::value_hash(typeid(TermVariable), name_); }
-
 auto TermVariable::unpool() const -> std::optional<STermVec> { return std::nullopt; }
-
-void TermVariable::visit_variables(VarVisitFun const &fun) const { fun(name_); }
 
 auto TermVariable::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
@@ -266,16 +176,7 @@ auto TermVariable::project(Projection project) const -> std::optional<STerm> {
 
 auto TermVariable::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
-void TermVariable::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-
 ////////// TermAbs //////////
-
-auto TermAbs::is_equal(Term const &other) const -> bool {
-    auto const *d = dynamic_cast<TermAbs const *>(&other);
-    return d != nullptr && pool_ == d->pool_;
-}
-
-auto TermAbs::hash() const -> size_t { return Util::value_hash(typeid(TermAbs), pool_); }
 
 auto TermAbs::unpool() const -> std::optional<STermVec> {
     auto unpooled = unpool_union(pool_);
@@ -286,12 +187,6 @@ auto TermAbs::unpool() const -> std::optional<STermVec> {
                        [](auto term) { return Util::construct_shared<TermAbs, Term>(STermVec{std::move(term)}); });
 }
 
-void TermAbs::visit_variables(VarVisitFun const &fun) const {
-    for (auto const &term : pool_) {
-        term->visit_variables(fun);
-    }
-}
-
 auto TermAbs::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
     return std::nullopt;
@@ -299,16 +194,7 @@ auto TermAbs::project(Projection project) const -> std::optional<STerm> {
 
 auto TermAbs::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
-void TermAbs::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-
 ////////// TermFunction //////////
-
-auto TermFunction::is_equal(Term const &other) const -> bool {
-    auto const *d = dynamic_cast<TermFunction const *>(&other);
-    return d != nullptr && Util::value_equal(external_, d->external_, name_, d->name_, pool_, d->pool_);
-}
-
-auto TermFunction::hash() const -> size_t { return Util::value_hash(typeid(TermFunction), external_, name_, pool_); }
 
 auto TermFunction::unpool() const -> std::optional<STermVec> {
     auto elems = unpool_union(pool_, [](TupleVec const &tuple) {
@@ -336,11 +222,6 @@ auto TermFunction::unpool() const -> std::optional<STermVec> {
     });
 }
 
-void TermFunction::visit_variables(VarVisitFun const &fun) const {
-    VarVisitor visit{fun};
-    visit.add(pool_);
-}
-
 auto TermFunction::project(Projection project) const -> std::optional<STerm> {
     if (external_) {
         return std::nullopt;
@@ -355,23 +236,12 @@ auto TermFunction::project_anonymous() const -> std::optional<STerm> {
     return transform_construct_shared<TermFunction, Term>(name_, tpa(pool_), external_);
 }
 
-void TermFunction::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-
 ////////// TermUnary //////////
-
-auto TermUnary::is_equal(Term const &other) const -> bool {
-    auto const *d = dynamic_cast<TermUnary const *>(&other);
-    return d != nullptr && Util::value_equal(op_, d->op_, rhs_, d->rhs_);
-}
-
-auto TermUnary::hash() const -> size_t { return Util::value_hash(typeid(TermUnary), op_, rhs_); }
 
 auto TermUnary::unpool() const -> std::optional<STermVec> {
     return map_opt_vec(rhs_->unpool(),
                        [this](auto term) { return Util::construct_shared<TermUnary, Term>(op_, std::move(term)); });
 }
-
-void TermUnary::visit_variables(VarVisitFun const &fun) const { rhs_->visit_variables(fun); }
 
 auto TermUnary::project(Projection project) const -> std::optional<STerm> {
     if (check_type(TermCheckType::atom, nullptr)) {
@@ -387,16 +257,7 @@ auto TermUnary::project_anonymous() const -> std::optional<STerm> {
     return std::nullopt;
 }
 
-void TermUnary::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-
 ////////// TermBinary //////////
-
-auto TermBinary::is_equal(Term const &other) const -> bool {
-    auto const *d = dynamic_cast<TermBinary const *>(&other);
-    return d != nullptr && Util::value_equal(op_, d->op_, lhs_, d->lhs_, rhs_, d->rhs_);
-}
-
-auto TermBinary::hash() const -> size_t { return Util::value_hash(typeid(TermBinary), op_, lhs_, rhs_); }
 
 auto TermBinary::unpool() const -> std::optional<STermVec> {
     return unpool_crossproducts(
@@ -406,11 +267,6 @@ auto TermBinary::unpool() const -> std::optional<STermVec> {
         [](STerm const &term) { return term->unpool(); }, lhs_, rhs_);
 }
 
-void TermBinary::visit_variables(VarVisitFun const &fun) const {
-    lhs_->visit_variables(fun);
-    rhs_->visit_variables(fun);
-}
-
 auto TermBinary::project(Projection project) const -> std::optional<STerm> {
     static_cast<void>(project);
     return std::nullopt;
@@ -418,7 +274,38 @@ auto TermBinary::project(Projection project) const -> std::optional<STerm> {
 
 auto TermBinary::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
-void TermBinary::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
 */
 
 } // namespace Gringo::Input
+
+namespace std {
+
+auto hash<Gringo::Input::TermVariable>::operator()(Gringo::Input::TermVariable const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TermVariable), x.name);
+}
+
+auto hash<Gringo::Input::TermSymbol>::operator()(Gringo::Input::TermSymbol const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TermSymbol), x.value);
+}
+
+auto hash<Gringo::Input::TermTuple>::operator()(Gringo::Input::TermTuple const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TermTuple), x.pool);
+}
+
+auto hash<Gringo::Input::TermFunction>::operator()(Gringo::Input::TermFunction const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TermFunction), x.name, x.pool, x.external);
+}
+
+auto hash<Gringo::Input::TermAbs>::operator()(Gringo::Input::TermAbs const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TermAbs), x.pool);
+}
+
+auto hash<Gringo::Input::TermUnary>::operator()(Gringo::Input::TermUnary const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TermUnary), x.op, x.rhs);
+}
+
+auto hash<Gringo::Input::TermBinary>::operator()(Gringo::Input::TermBinary const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TermBinary), x.op, x.lhs, x.rhs);
+}
+
+} // namespace std

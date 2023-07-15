@@ -16,6 +16,7 @@
 
 namespace Gringo::Input {
 
+// TODO: move
 //! Enumeration for Term::check_type().
 enum class TermCheckType : int {
     atom,              //!< Check if term is an atom.
@@ -25,6 +26,7 @@ enum class TermCheckType : int {
     pos_number         //!< Check if term is a positive number.
 };
 
+// TODO: move
 //! Extract additional information while checking the type of a term.
 //!
 //! @see Term::check_type()
@@ -44,6 +46,7 @@ struct TermFunction;
 struct TermAbs;
 struct TermUnary;
 struct TermBinary;
+//! Variant holding the different term types.
 using TermV2 = std::variant<TermVariable, TermSymbol, Util::shared_ptr<TermTuple>, Util::shared_ptr<TermFunction>,
                             Util::shared_ptr<TermAbs>, Util::shared_ptr<TermUnary>, Util::shared_ptr<TermBinary>>;
 
@@ -73,6 +76,9 @@ struct TermVariable {
     bool is_anonymous;
 };
 
+//! Compare two variables.
+auto operator==(TermVariable const &a, TermVariable const &b) -> bool;
+
 //! Term representing a symbol.
 //!
 //! For example <tt>1</tt>.
@@ -83,6 +89,9 @@ struct TermSymbol {
     //! The associated symbol.
     Symbol value;
 };
+
+//! Compare two symbols.
+auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
 
 //! Term representing a tuple.
 //!
@@ -97,6 +106,9 @@ struct TermTuple : Util::enable_shared {
     //! The argument pool of the tuple.
     ElementVec pool;
 };
+
+//! Compare two tuple terms.
+auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
 
 //! Term representing a symbolic or external function.
 //!
@@ -117,6 +129,9 @@ struct TermFunction : Util::enable_shared {
     bool external;
 };
 
+//! Compare two function terms.
+auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
+
 //! Term representing the absolute function.
 //!
 //! For example <tt>|-X|</tt>.
@@ -129,6 +144,9 @@ struct TermAbs : Util::enable_shared {
     //! The argument pool of the absolute term.
     TermVec pool;
 };
+
+//! Compare two absolute terms.
+auto operator==(TermAbs const &a, TermAbs const &b) -> bool;
 
 //! Enumeration of available unary operators.
 enum class UnaryOperator : int {
@@ -148,6 +166,9 @@ struct TermUnary : Util::enable_shared {
     //! The right-hand-side.
     TermV2 rhs;
 };
+
+//! Compare two unary terms.
+auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
 
 //! Enumaration of available binary operators.
 enum class BinaryOperator : int {
@@ -178,27 +199,39 @@ struct TermBinary : Util::enable_shared {
     TermV2 rhs;
 };
 
+//! Compare two binary terms.
+auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
+
+// TODO: remove
 class Term;
 //! A shared pointer to a term.
+// TODO: remove
 using STerm = Util::shared_ptr<Term>;
 //! A vector of shared term pointers.
+// TODO: remove
 using STermVec = std::vector<STerm>;
 //! A vector of vecors of shared term pointers.
+// TODO: remove
 using STermVecVec = std::vector<STermVec>;
 
 //! A variant capturing either a term or a position that is to be projected.
+// TODO: remove
 using TupleElem = std::variant<std::monostate, STerm>;
 //! A tuple of terms or positions to project.
+// TODO: remove
 using TupleVec = std::vector<TupleElem>;
 //! A vector of tuples used as function or predicate arguments.
+// TODO: remove
 using PoolVec = std::vector<TupleVec>;
 
+// TODO: move
 //! Variable selection modes for select_variables().
 enum VariableSelectMode {
     add, //!< Add variables to the set.
     del, //!< Remove variables from the set.
 };
 
+// TODO: move
 //! Variable selection scopes.
 //!
 //! @see Statement::visit_variables()
@@ -207,6 +240,7 @@ enum class VariableContext {
     all,    //!< Visit all variable occurrences.
 };
 
+// TODO: move
 //! A set of variable names.
 using VariableSet = std::unordered_set<std::string>;
 //! A vector of variable names.
@@ -214,6 +248,7 @@ using VariableVec = std::vector<std::string>;
 //! A function to visit variable occurrences.
 using VarVisitFun = std::function<void(std::string const &var)>;
 
+// TODO: move
 //! Add/remove variables to/from a set occuring in the given expression.
 template <class E> void select_variables(E &expr, VariableSet &vars, VariableSelectMode mode) {
     if (mode == VariableSelectMode::add) {
@@ -223,6 +258,7 @@ template <class E> void select_variables(E &expr, VariableSet &vars, VariableSel
     }
 }
 
+// TODO: move
 //! Convenience method for @ref select_variables(E, VariableSet &, VariableSelectMode) returning a set.
 template <class E> auto select_variables(E &expr, VariableSelectMode mode) -> VariableSet {
     VariableSet vars;
@@ -230,6 +266,7 @@ template <class E> auto select_variables(E &expr, VariableSelectMode mode) -> Va
     return vars;
 }
 
+// TODO: move
 //! Enumeration to select variables to project.
 //!
 //! @see Projection
@@ -239,6 +276,7 @@ enum class ProjectionMode {
     pure = 2,      //!< Project pure variables.
 };
 
+// TODO: move
 //! Helper to gather projection related arguments.
 class Projection {
   public:
@@ -261,8 +299,10 @@ class Projection {
     ProjectionMode mode_;
 };
 
+// TODO: remove
 class TermVisitor;
 
+// TODO: remove
 //! The term interface to be removed.
 class Term : public Util::enable_shared {
   public:
@@ -293,6 +333,7 @@ class Term : public Util::enable_shared {
     TermV2 term;
 };
 
+// TODO: remove
 //! A visitor for available term types.
 class TermVisitor {
   public:
@@ -317,4 +358,13 @@ class TermVisitor {
 
 } // namespace Gringo::Input
 
-HASH(Gringo::Input::Term)
+// TODO: remove
+HASH(Gringo::Input::Term);
+
+HASH_PROTO(Gringo::Input::TermVariable);
+HASH_PROTO(Gringo::Input::TermSymbol);
+HASH_PROTO(Gringo::Input::TermFunction);
+HASH_PROTO(Gringo::Input::TermTuple);
+HASH_PROTO(Gringo::Input::TermAbs);
+HASH_PROTO(Gringo::Input::TermUnary);
+HASH_PROTO(Gringo::Input::TermBinary);

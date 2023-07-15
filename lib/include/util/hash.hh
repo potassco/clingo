@@ -18,7 +18,16 @@ namespace Gringo::Util {
     namespace std {                                                                                                    \
                                                                                                                        \
     template <> struct hash<T> {                                                                                       \
-        auto operator()(T const &b) const { return b.hash(); }                                                         \
+        auto operator()(T const &x) const { return x.hash(); }                                                         \
+    };                                                                                                                 \
+                                                                                                                       \
+    } // namespace std
+
+#define HASH_PROTO(T)                                                                                                  \
+    namespace std {                                                                                                    \
+                                                                                                                       \
+    template <> struct hash<T> {                                                                                       \
+        auto operator()(T const &x) const -> size_t;                                                                   \
     };                                                                                                                 \
                                                                                                                        \
     } // namespace std
@@ -50,16 +59,27 @@ namespace Detail {
 
 template <class... T, size_t... Indices>
 inline auto value_equal_to_tuple(std::tuple<T...> const &a, std::tuple<T...> const &b,
-                                 std::index_sequence<Indices...> indices) -> size_t {
+                                 std::index_sequence<Indices...> indices) -> bool {
     static_cast<void>(indices);
     return (true && ... && value_equal(std::get<Indices>(a), std::get<Indices>(b)));
 }
 
+template <class... T, size_t... Indices>
+inline auto value_equal_to_variant(std::variant<T...> const &a, std::variant<T...> const &b,
+                                   std::index_sequence<Indices...> indices) -> bool {
+    static_cast<void>(indices);
+    return (false || ... ||
+            (a.index() == Indices && b.index() == Indices && value_equal(std::get<Indices>(a), std::get<Indices>(b))));
+}
+
 } // namespace Detail
 
-template <class... A, class... B> auto value_equal(std::tuple<A...> const &a, std::tuple<B...> const &b) {
-    static_assert(std::tuple_size_v<std::tuple<A...>> == std::tuple_size_v<std::tuple<B...>>);
+template <class... A> auto value_equal(std::tuple<A...> const &a, std::tuple<A...> const &b) {
     return Detail::value_equal_to_tuple(a, b, std::index_sequence_for<A...>{});
+}
+
+template <class... A> auto value_equal(std::variant<A...> const &a, std::variant<A...> const &b) {
+    return Detail::value_equal_to_variant(a, b, std::index_sequence_for<A...>{});
 }
 
 template <class A, class B> auto value_equal(std::vector<A> const &a, std::vector<B> const &b) {
