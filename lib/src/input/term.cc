@@ -19,16 +19,16 @@ auto projectable(Projection project, STerm const *term) -> bool {
     if (term == nullptr) {
         return false;
     }
-    auto const *var = dynamic_cast<TermVariable const *>(term->get());
-    return var != nullptr && project.projectable(var->name(), var->is_anonymous());
+    auto const *var = std::get_if<TermVariable>(&term->get()->term);
+    return var != nullptr && project.projectable(var->name, var->is_anonymous);
 }
 
 auto is_anonymous(STerm const *term) -> bool {
     if (term == nullptr) {
         return false;
     }
-    auto const *var = dynamic_cast<TermVariable const *>(term->get());
-    return var != nullptr && var->is_anonymous();
+    auto const *var = std::get_if<TermVariable>(&term->get()->term);
+    return var != nullptr && var->is_anonymous;
 }
 
 struct ProjectAnonymous {
@@ -75,84 +75,90 @@ auto Projection::projectable(std::string const &var, bool anonymous) const -> bo
 
 auto Projection::mode() const -> ProjectionMode { return mode_; }
 
+struct CheckType {
+    auto operator()(TermSymbol const &term) const -> bool {
+        return Util::visit_variant(
+            term.value,
+            [this](int value) {
+                if (type == TermCheckType::pos_number && value >= 0) {
+                    if (res != nullptr) {
+                        res->pos_number = value;
+                    }
+                    return true;
+                }
+                return false;
+            },
+            [this](Function const &value) {
+                if (type == TermCheckType::atom) {
+                    return true;
+                }
+                if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) &&
+                    !value.name.empty() && value.args.empty()) {
+                    if (res != nullptr) {
+                        res->identifier = value.name;
+                    }
+                    return true;
+                }
+                return false;
+            },
+            [](auto &&value) {
+                static_cast<void>(value);
+                return false;
+            });
+    }
+
+    auto operator()(TermFunction const &term) const -> bool {
+        if (type == TermCheckType::atom) {
+            return !term.external;
+        }
+        if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) && !term.external &&
+            term.pool.size() == 1 && term.pool.front().empty()) {
+            if (res != nullptr) {
+                res->identifier = term.name;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    auto operator()(TermUnary const &term) const -> bool {
+        if (type == TermCheckType::atom) {
+            return term.op == UnaryOperator::negate && std::visit(*this, term.rhs);
+        }
+        if (type == TermCheckType::signed_identifier && term.op == UnaryOperator::negate &&
+            std::visit(CheckType{TermCheckType::identifier, res}, term.rhs)) {
+            if (res != nullptr) {
+                res->has_sign = true;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    auto operator()(TermBinary const &term) const -> bool {
+        if (type == TermCheckType::sig) {
+            return term.op == BinaryOperator::div &&
+                   std::visit(CheckType{TermCheckType::signed_identifier, res}, term.lhs) &&
+                   std::visit(CheckType{TermCheckType::signed_identifier, res}, term.rhs);
+        }
+        return false;
+    }
+
+    auto operator()(auto const &term) const -> bool {
+        static_cast<void>(term);
+        return false;
+    }
+
+    TermCheckType type;
+    CheckTypeResult *res;
+};
+
 auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    static_cast<void>(type);
-    static_cast<void>(res);
-    return false;
+    return std::visit(CheckType{type, res}, term);
 }
 
 /*
-auto operator<<(std::ostream &out, TermType type) -> std::ostream & {
-    static_cast<void>(type);
-    out << "TODO: type";
-    return out;
-}
-
-auto operator<<(std::ostream &out, Attribute attr) -> std::ostream & {
-    static_cast<void>(attr);
-    out << "TODO: attr";
-    return out;
-}
-*/
-
-/*
-auto Term::get_int(Attribute attr) -> int & {
-    std::ostringstream out;
-    out << "unknown attribute: " << attr;
-    throw std::runtime_error(out.str().c_str());
-}
-
-auto Term::get_ast(Attribute attr) -> STerm & {
-    std::ostringstream out;
-    out << "unknown attribute: " << attr;
-    throw std::runtime_error(out.str().c_str());
-}
-
-auto Term::get_ast_vec(Attribute attr) -> STermVec & {
-    std::ostringstream out;
-    out << "unknown attribute: " << attr;
-    throw std::runtime_error(out.str().c_str());
-}
-
-auto Term::get_ast_vec_vec(Attribute attr) -> STermVecVec & {
-    std::ostringstream out;
-    out << "unknown attribute: " << attr;
-    throw std::runtime_error(out.str().c_str());
-}
-*/
-
 ////////// TermSymbol //////////
-
-auto TermSymbol::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    return Util::visit_variant(
-        value_,
-        [&](int value) {
-            if (type == TermCheckType::pos_number && value >= 0) {
-                if (res != nullptr) {
-                    res->pos_number = value;
-                }
-                return true;
-            }
-            return false;
-        },
-        [&](Function const &value) {
-            if (type == TermCheckType::atom) {
-                return true;
-            }
-            if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) &&
-                !value.name.empty() && value.args.empty()) {
-                if (res != nullptr) {
-                    res->identifier = value.name;
-                }
-                return true;
-            }
-            return false;
-        },
-        [&](auto &&value) {
-            static_cast<void>(value);
-            return false;
-        });
-}
 
 auto TermSymbol::unpool() const -> std::optional<STermVec> { return std::nullopt; }
 
@@ -173,21 +179,6 @@ auto TermSymbol::project(Projection project) const -> std::optional<STerm> {
 auto TermSymbol::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
 void TermSymbol::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-
-/*
-auto TermSymbol::type() const -> TermType { return TermType::TermSymbol; }
-
-auto TermSymbol::get_int(Attribute attr) -> int & {
-    switch (attr) {
-        case Attribute::Value: {
-            return reinterpret_cast<int &>(value_);
-        }
-        default: {
-            return Term::get_int(attr);
-        }
-    }
-}
-*/
 
 ////////// TermTuple //////////
 
@@ -251,10 +242,6 @@ auto TermTuple::unpool() const -> std::optional<STermVec> {
 
 void TermTuple::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
 
-/*
-auto TermTuple::type() const -> TermType { return TermType::TermTuple; }
-*/
-
 ////////// TermVariable //////////
 
 auto TermVariable::name() const -> std::string const & { return name_; }
@@ -280,10 +267,6 @@ auto TermVariable::project(Projection project) const -> std::optional<STerm> {
 auto TermVariable::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
 void TermVariable::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-
-/*
-auto TermVariable::type() const -> TermType { return TermType::TermVariable; }
-*/
 
 ////////// TermAbs //////////
 
@@ -317,10 +300,6 @@ auto TermAbs::project(Projection project) const -> std::optional<STerm> {
 auto TermAbs::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
 void TermAbs::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-
-/*
-auto TermAbs::type() const -> TermType { return TermType::TermAbs; }
-*/
 
 ////////// TermFunction //////////
 
@@ -376,25 +355,7 @@ auto TermFunction::project_anonymous() const -> std::optional<STerm> {
     return transform_construct_shared<TermFunction, Term>(name_, tpa(pool_), external_);
 }
 
-auto TermFunction::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    if (type == TermCheckType::atom) {
-        return !external_;
-    }
-    if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) && !external_ &&
-        pool_.size() == 1 && pool_.front().empty()) {
-        if (res != nullptr) {
-            res->identifier = name_;
-        }
-        return true;
-    }
-    return false;
-}
-
 void TermFunction::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-
-/*
-auto TermFunction::type() const -> TermType { return TermType::TermFunction; }
-*/
 
 ////////// TermUnary //////////
 
@@ -408,20 +369,6 @@ auto TermUnary::hash() const -> size_t { return Util::value_hash(typeid(TermUnar
 auto TermUnary::unpool() const -> std::optional<STermVec> {
     return map_opt_vec(rhs_->unpool(),
                        [this](auto term) { return Util::construct_shared<TermUnary, Term>(op_, std::move(term)); });
-}
-
-auto TermUnary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    if (type == TermCheckType::atom) {
-        return op_ == UnaryOperator::negate && rhs_->check_type(type);
-    }
-    if (type == TermCheckType::signed_identifier && op_ == UnaryOperator::negate &&
-        rhs_->check_type(TermCheckType::identifier, res)) {
-        if (res != nullptr) {
-            res->has_sign = true;
-        }
-        return true;
-    }
-    return false;
 }
 
 void TermUnary::visit_variables(VarVisitFun const &fun) const { rhs_->visit_variables(fun); }
@@ -442,32 +389,6 @@ auto TermUnary::project_anonymous() const -> std::optional<STerm> {
 
 void TermUnary::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
 
-/*
-auto TermUnary::type() const -> TermType { return TermType::TermUnary; }
-
-auto TermUnary::get_int(Attribute attr) -> int & {
-    switch (attr) {
-        case Attribute::Operator: {
-            return reinterpret_cast<int &>(op_);
-        }
-        default: {
-            return Term::get_int(attr);
-        }
-    }
-}
-
-auto TermUnary::get_ast(Attribute attr) -> STerm & {
-    switch (attr) {
-        case Attribute::Right: {
-            return rhs_;
-        }
-        default: {
-            return Term::get_ast(attr);
-        }
-    }
-}
-*/
-
 ////////// TermBinary //////////
 
 auto TermBinary::is_equal(Term const &other) const -> bool {
@@ -485,14 +406,6 @@ auto TermBinary::unpool() const -> std::optional<STermVec> {
         [](STerm const &term) { return term->unpool(); }, lhs_, rhs_);
 }
 
-auto TermBinary::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    if (type == TermCheckType::sig) {
-        return op_ == BinaryOperator::div && lhs_->check_type(TermCheckType::signed_identifier, res) &&
-               rhs_->check_type(TermCheckType::pos_number, res);
-    }
-    return false;
-}
-
 void TermBinary::visit_variables(VarVisitFun const &fun) const {
     lhs_->visit_variables(fun);
     rhs_->visit_variables(fun);
@@ -506,33 +419,6 @@ auto TermBinary::project(Projection project) const -> std::optional<STerm> {
 auto TermBinary::project_anonymous() const -> std::optional<STerm> { return std::nullopt; }
 
 void TermBinary::accept(TermVisitor const &visitor) const { visitor.visit(*this); }
-/*
-auto TermBinary::type() const -> TermType { return TermType::TermBinary; }
-
-auto TermBinary::get_int(Attribute attr) -> int & {
-    switch (attr) {
-        case Attribute::Operator: {
-            return reinterpret_cast<int &>(op_);
-        }
-        default: {
-            return Term::get_int(attr);
-        }
-    }
-}
-
-auto TermBinary::get_ast(Attribute attr) -> STerm & {
-    switch (attr) {
-        case Attribute::Left: {
-            return lhs_;
-        }
-        case Attribute::Right: {
-            return rhs_;
-        }
-        default: {
-            return Term::get_ast(attr);
-        }
-    }
-}
 */
 
 } // namespace Gringo::Input

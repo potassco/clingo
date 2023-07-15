@@ -37,16 +37,15 @@ struct CheckTypeResult {
     std::string identifier;
 };
 
-struct TermVariableV2;
-struct TermSymbolV2;
-struct TermTupleV2;
-struct TermFunctionV2;
-struct TermAbsV2;
-struct TermUnaryV2;
-struct TermBinaryV2;
-using TermV2 =
-    std::variant<TermVariableV2, TermSymbolV2, Util::shared_ptr<TermTupleV2>, Util::shared_ptr<TermFunctionV2>,
-                 Util::shared_ptr<TermAbsV2>, Util::shared_ptr<TermUnaryV2>, Util::shared_ptr<TermBinaryV2>>;
+struct TermVariable;
+struct TermSymbol;
+struct TermTuple;
+struct TermFunction;
+struct TermAbs;
+struct TermUnary;
+struct TermBinary;
+using TermV2 = std::variant<TermVariable, TermSymbol, Util::shared_ptr<TermTuple>, Util::shared_ptr<TermFunction>,
+                            Util::shared_ptr<TermAbs>, Util::shared_ptr<TermUnary>, Util::shared_ptr<TermBinary>>;
 
 //! A vector of terms.
 using TermVec = std::vector<TermV2>;
@@ -63,9 +62,9 @@ using PoolVecV2 = std::vector<TupleVecV2>;
 //! Term representing a variable.
 //!
 //! For example <tt>X</tt>.
-struct TermVariableV2 {
+struct TermVariable {
     //! Construct a variable.
-    explicit TermVariableV2(std::string name, bool is_anonymous = false)
+    explicit TermVariable(std::string name, bool is_anonymous = false)
         : name{std::move(name)}, is_anonymous{is_anonymous} {}
 
     //! The name of the variable.
@@ -77,9 +76,9 @@ struct TermVariableV2 {
 //! Term representing a symbol.
 //!
 //! For example <tt>1</tt>.
-struct TermSymbolV2 {
+struct TermSymbol {
     //! Construct term with the given symbol.
-    explicit TermSymbolV2(Symbol value) : value{std::move(value)} {}
+    explicit TermSymbol(Symbol value) : value{std::move(value)} {}
 
     //! The associated symbol.
     Symbol value;
@@ -88,12 +87,12 @@ struct TermSymbolV2 {
 //! Term representing a tuple.
 //!
 //! For example <tt>(a,b;c)</tt>.
-struct TermTupleV2 : Util::enable_shared {
+struct TermTuple : Util::enable_shared {
     using Element = std::variant<TupleVecV2, TermV2>;
     using ElementVec = std::vector<Element>;
 
     //! Construct a  tuple.
-    explicit TermTupleV2(ElementVec args) : pool{std::move(args)} {}
+    explicit TermTuple(ElementVec args) : pool{std::move(args)} {}
 
     //! The argument pool of the tuple.
     ElementVec pool;
@@ -102,12 +101,12 @@ struct TermTupleV2 : Util::enable_shared {
 //! Term representing a symbolic or external function.
 //!
 //! For example <tt>f(a,b;c)</tt>.
-struct TermFunctionV2 : Util::enable_shared {
+struct TermFunction : Util::enable_shared {
     //! Construct a symbolic function.
     //!
     //! The function takes a pool of term tuples, which will be reduced to a single element after calling
     //! Term::unpool().
-    explicit TermFunctionV2(std::string name, PoolVecV2 args, bool external)
+    explicit TermFunction(std::string name, PoolVecV2 args, bool external)
         : name(std::move(name)), pool{std::move(args)}, external{external} {}
 
     //! The name of the function.
@@ -121,11 +120,11 @@ struct TermFunctionV2 : Util::enable_shared {
 //! Term representing the absolute function.
 //!
 //! For example <tt>|-X|</tt>.
-struct TermAbsV2 : Util::enable_shared {
+struct TermAbs : Util::enable_shared {
     //! Construct an absolute term.
     //!
     //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
-    explicit TermAbsV2(TermVec pool) : pool{std::move(pool)} {}
+    explicit TermAbs(TermVec pool) : pool{std::move(pool)} {}
 
     //! The argument pool of the absolute term.
     TermVec pool;
@@ -140,9 +139,9 @@ enum class UnaryOperator : int {
 //! Term representing an unary operation.
 //!
 //! For example <tt>-X</tt>.
-struct TermUnaryV2 : Util::enable_shared {
+struct TermUnary : Util::enable_shared {
     //! Contruct a term for an unary operation.
-    explicit TermUnaryV2(UnaryOperator op, TermV2 rhs) : op{op}, rhs{std::move(rhs)} {}
+    explicit TermUnary(UnaryOperator op, TermV2 rhs) : op{op}, rhs{std::move(rhs)} {}
 
     //! The operation.
     UnaryOperator op;
@@ -167,10 +166,9 @@ enum class BinaryOperator : int {
 //! Term representing a binary operation.
 //!
 //! For example <tt>X-Y</tt>.
-struct TermBinaryV2 : Util::enable_shared {
+struct TermBinary : Util::enable_shared {
     //! Contruct a term for an binary operation.
-    explicit TermBinaryV2(TermV2 lhs, BinaryOperator op, TermV2 rhs)
-        : op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
+    explicit TermBinary(TermV2 lhs, BinaryOperator op, TermV2 rhs) : op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
 
     //! The operation.
     BinaryOperator op;
@@ -265,353 +263,34 @@ class Projection {
 
 class TermVisitor;
 
-//! The term interface.
-class Term {
+//! The term interface to be removed.
+class Term : public Util::enable_shared {
   public:
-    //! Virtual destructor.
-    virtual ~Term() = default;
-
+    Term(TermV2 term) : term{std::move(term)} {}
     //! Check if the term has the given type optionally adding context information.
-    [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
+    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
     //! Remove all pooled arguments from the term.
-    [[nodiscard]] virtual auto unpool() const -> std::optional<STermVec> = 0;
+    [[nodiscard]] auto unpool() const -> std::optional<STermVec>;
     //! Equality compare two terms.
-    [[nodiscard]] virtual auto is_equal(Term const &other) const -> bool = 0;
+    [[nodiscard]] auto is_equal(Term const &other) const -> bool;
     //! Equality compare two terms.
     [[nodiscard]] friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
     //! Compute a hash for the term.
-    [[nodiscard]] virtual auto hash() const -> size_t = 0;
+    [[nodiscard]] auto hash() const -> size_t;
     //! Visit variables with the given function.
-    virtual void visit_variables(VarVisitFun const &fun) const = 0;
+    void visit_variables(VarVisitFun const &fun) const;
     //! Project variables according to given projection mode.
-    [[nodiscard]] virtual auto project(Projection project) const -> std::optional<STerm> = 0;
+    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm>;
     //! Unconditionally project anonymous variables.
     //!
     //! This is a deprecated feature to support old programs.
     //! The projection star should be used instead.
-    [[nodiscard]] virtual auto project_anonymous() const -> std::optional<STerm> = 0;
+    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm>;
 
     //! Visit terms with the given visitor.
-    virtual void accept(TermVisitor const &visitor) const = 0;
+    void accept(TermVisitor const &visitor) const;
 
-    // AST interface
-    /*
-    [[nodiscard]] virtual auto type() const -> TermType = 0;
-    [[nodiscard]] virtual auto get_int(Attribute attr) -> int &;
-    [[nodiscard]] virtual auto get_ast(Attribute attr) -> STerm &;
-    [[nodiscard]] virtual auto get_ast_vec(Attribute attr) -> STermVec &;
-    [[nodiscard]] virtual auto get_ast_vec_vec(Attribute attr) -> STermVecVec &;
-    template <class T> auto get(Attribute attr) -> T & {
-        // Note that getters and setters for SASTs will work fine. However,
-        // getters and setters for vectors won't work without some special treatment because vectors of shared pointers
-        // cannot be upcasted. One alternative could be to use ASTs or at least types storing ASTs:
-        //   ASTRef<Term>:
-        //     // the ref can make sure that we always have a term
-        //     // and fail if we do not have a term
-        //     Term *operator-> ()
-        //     Term &operator* ()
-        //     SAST value;
-        //   ASTVec<Term>
-        //     // the vec can make sure that all SASTs in values are terms.
-        //     emplace_back(ASTRef<Term>)
-        //     emplace_back(SAST)
-        //     SASTVec values;
-        //   Advantages:
-        //     no unnecessary allocations
-        //     we can pass around references
-        //     less type safe
-        // Otherwise, it is also possible to implement a view on an AST holding a vector:
-        //   ASTVec:
-        //     vector methods
-        //     get/set/length for attribute
-        //     shared pointer to AST
-        //   Advantages:
-        //     view on the actual type safe datastructure
-        //   Disadvantages:
-        //     additional allocations for construction
-        //     indirection for get/set of vectors
-        // Maybe, it would also be a good idea to represent at least the base classes in the AST:
-        //   Classes:
-        //     ASTTerm
-        //     ASTLiteral
-        //     ASTHeadLiteral
-        //     ASTBodyLiteral
-        //     ASTStatement
-        //   Advantages:
-        //     asts and vectors of asts can be passed directly
-        //     vectors of the respective types can be construrted right away!
-        //     the huge enums in the clingo API will become more specific
-        //     by providing enough meta info, the python interface can still be generated
-        //   Disadvantages:
-        //     a bit more boiler plate
-        //   Implementation:
-        //     each base class provides an interface similar to what we have for term now
-        //     the current ast and term will be merged
-        //   I think, I'll go for this variant!
-        //
-        if constexpr (std::is_same_v<T, STerm>) {
-            return get_ast(attr);
-        } else if constexpr (std::is_same_v<T, STermVec>) {
-            return get_ast_vec(attr);
-        } else if constexpr (std::is_same_v<T, STermVecVec>) {
-            return get_ast_vec_vec(attr);
-        } else if constexpr (std::is_same_v<T, STerm>) {
-            return get_ast(attr);
-        } else if constexpr (std::is_same_v<T, int>) {
-            return get_int(attr);
-        } else {
-            static_assert(sizeof(T *) == 0, "unsupported type in AST::get");
-        }
-    };
-    */
-  private:
-    //! Increment reference count of the term.
-    friend void inc_ref_count(Term &term) { ++term.refs_; }
-    //! Decrement reference count of the term.
-    friend void dec_ref_count(Term &term) { ++term.refs_; }
-    //! Get reference count of the term.
-    [[nodiscard]] friend auto get_ref_count(Term const &term) -> size_t { return term.refs_; }
-
-    //! The reference count of the term.
-    size_t refs_ = 0;
-};
-
-//! Term representing a symbol.
-//!
-//! For example <tt>1</tt>.
-class TermSymbol : public Term {
-  public:
-    //! Construct term with the given symbol.
-    explicit TermSymbol(Symbol value) : value_{std::move(value)} {}
-
-    [[nodiscard]] auto symbol() const -> Symbol const & { return value_; }
-
-    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
-    [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
-    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
-    [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-
-    void accept(TermVisitor const &visitor) const override;
-    // AST interface
-    /*
-    [[nodiscard]] auto type() const -> TermType override;
-    [[nodiscard]] auto get_int(Attribute attr) -> int & override;
-    */
-
-  private:
-    Symbol value_;
-};
-
-//! Term representing a tuple.
-//!
-//! For example <tt>(a,b;c)</tt>.
-class TermTuple : public Term {
-  public:
-    //! A tuple element is either a term tuple or an individual term.
-    using Element = std::variant<TupleVec, STerm>;
-    //! A pool of elements.
-    //!
-    //! The pool will be reduced to a single element after calling Term::unpool().
-    using ElementVec = std::vector<Element>;
-
-    //! Construct a  tuple.
-    explicit TermTuple(ElementVec args) : pool_{std::move(args)} {}
-    //! Get the argument pool of the term tuple.
-    [[nodiscard]] auto pool() const -> ElementVec const & { return pool_; }
-
-    [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
-    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
-    [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-
-    void accept(TermVisitor const &visitor) const override;
-    // AST interface
-    /*
-    [[nodiscard]] auto type() const -> TermType override;
-    */
-
-  private:
-    ElementVec pool_;
-};
-
-//! Term representing a variable.
-//!
-//! For example <tt>X</tt>.
-class TermVariable : public Term {
-  public:
-    //! Construct a variable.
-    //!
-    //! Anonymous variables should set parameter is_anonymous to true.
-    //! Such variables receive a unique name after calling rewrite_anonymous().
-    explicit TermVariable(std::string name, bool is_anonymous = false)
-        : name_{std::move(name)}, is_anonymous_{is_anonymous} {}
-
-    //! Get the name of the variable.
-    [[nodiscard]] auto name() const -> std::string const &;
-    //! Check if the variable is an anonymous variable.
-    [[nodiscard]] auto is_anonymous() const -> bool;
-
-    [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
-    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
-    [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-
-    void accept(TermVisitor const &visitor) const override;
-    /*
-    [[nodiscard]] auto type() const -> TermType override;
-    */
-
-  private:
-    std::string name_;
-    bool is_anonymous_;
-};
-
-//! Term representing the absolute function.
-//!
-//! For example <tt>|-X|</tt>.
-class TermAbs : public Term {
-  public:
-    //! Construct an absolute term.
-    //!
-    //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
-    explicit TermAbs(STermVec pool) : pool_{std::move(pool)} {}
-
-    //! Return the argument pool of the absolute term.
-    [[nodiscard]] auto pool() const -> STermVec const & { return pool_; }
-
-    [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
-    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
-    [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-
-    void accept(TermVisitor const &visitor) const override;
-    // AST interface
-    /*
-    [[nodiscard]] auto type() const -> TermType override;
-    */
-
-  private:
-    STermVec pool_;
-};
-
-//! Term representing a symbolic or external function.
-//!
-//! For example <tt>f(a,b;c)</tt>.
-class TermFunction : public Term {
-  public:
-    //! Construct a symbolic function.
-    //!
-    //! The function takes a pool of term tuples, which will be reduced to a single element after calling
-    //! Term::unpool().
-    explicit TermFunction(std::string name, PoolVec args, bool external)
-        : name_(std::move(name)), pool_{std::move(args)}, external_{external} {}
-
-    //! Check whether the function is external.
-    [[nodiscard]] auto is_external() const -> bool { return external_; }
-    //! Get the name of the function.
-    [[nodiscard]] auto name() const -> std::string const & { return name_; }
-    //! Get the argument pool of the function.
-    [[nodiscard]] auto pool() const -> PoolVec const & { return pool_; }
-
-    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
-    [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
-    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
-    [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-
-    void accept(TermVisitor const &visitor) const override;
-    // AST interface
-    /*
-    [[nodiscard]] auto type() const -> TermType override;
-    */
-
-  private:
-    std::string name_;
-    PoolVec pool_;
-    bool external_;
-};
-
-//! Term representing an unary operation.
-//!
-//! For example <tt>-X</tt>.
-class TermUnary : public Term {
-  public:
-    //! Contruct a term for an unary operation.
-    explicit TermUnary(UnaryOperator op, STerm e) : op_{op}, rhs_{std::move(e)} {}
-
-    //! Get the operator of the unary term.
-    [[nodiscard]] auto unary_operator() const -> UnaryOperator { return op_; }
-    //! Get the right-hand-side of the unary term.
-    [[nodiscard]] auto rhs() const -> STerm const & { return rhs_; }
-
-    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
-    [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
-    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
-    [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-
-    void accept(TermVisitor const &visitor) const override;
-    // AST interface
-    /*
-    [[nodiscard]] auto type() const -> TermType override;
-    [[nodiscard]] auto get_int(Attribute attr) -> int & override;
-    [[nodiscard]] auto get_ast(Attribute attr) -> STerm & override;
-    */
-
-  private:
-    UnaryOperator op_;
-    STerm rhs_;
-};
-
-//! Term representing a binary operation.
-//!
-//! For example <tt>X-Y</tt>.
-class TermBinary : public Term {
-  public:
-    //! Contruct a term for an binary operation.
-    explicit TermBinary(STerm lhs, BinaryOperator op, STerm rhs)
-        : op_{op}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
-
-    //! Get the operator of the unary term.
-    [[nodiscard]] auto binary_operator() const -> BinaryOperator { return op_; }
-    //! Get the left-hand-side of the unary term.
-    [[nodiscard]] auto lhs() const -> STerm const & { return lhs_; }
-    //! Get the right-hand-side of the unary term.
-    [[nodiscard]] auto rhs() const -> STerm const & { return rhs_; }
-
-    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res) const -> bool override;
-    [[nodiscard]] auto unpool() const -> std::optional<STermVec> override;
-    [[nodiscard]] auto is_equal(Term const &other) const -> bool override;
-    [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm> override;
-
-    void accept(TermVisitor const &visitor) const override;
-    // AST interface
-    /*
-    [[nodiscard]] auto type() const -> TermType override;
-    [[nodiscard]] auto get_int(Attribute attr) -> int & override;
-    [[nodiscard]] auto get_ast(Attribute attr) -> STerm & override;
-    */
-
-  private:
-    BinaryOperator op_;
-    STerm lhs_;
-    STerm rhs_;
+    TermV2 term;
 };
 
 //! A visitor for available term types.

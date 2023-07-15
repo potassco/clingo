@@ -288,6 +288,135 @@ auto right_bracket(TheoryTermTupleType type) -> char {
     return ']';
 }
 
+template <class T> struct Print {
+    void apply_to_range_with(auto const &rng, char const *sep, auto const &fun) const {
+        bool comma = false;
+        for (auto const &x : rng) {
+            if (comma) {
+                static_cast<T const *>(this)->out << sep;
+            } else {
+                comma = true;
+            }
+            fun(x);
+        }
+    }
+
+    void apply_to_range(auto const &rng, char const *sep = ",") const {
+        apply_to_range_with(rng, sep, [this](auto const &x) { static_cast<T const *>(this)->operator()(x); });
+    }
+
+    void visit_range(auto const &rng, char const *sep = ",") const {
+        apply_to_range_with(rng, sep, [this](auto const &x) { std::visit(*static_cast<T const *>(this), x); });
+    }
+
+    void print_range(auto const &rng, char const *sep = ",") const {
+        apply_to_range_with(rng, sep, [this](auto const &x) { T::out << x; });
+    }
+};
+
+struct PrintTerm : Print<PrintTerm> {
+    PrintTerm(std::ostream &out, Position pos = Position::none, unsigned int prio = 0, bool no_leading_op = false)
+        : out{out}, pos{pos}, prio{prio}, no_leading_op{no_leading_op} {}
+
+    // aux
+    void operator()(TupleElemV2 const &elem) const {
+        Util::visit_variant(
+            elem, [this](std::monostate) { out << "*"; }, [&](TermV2 const &term) { std::visit(*this, term); });
+    }
+
+    // term
+    void operator()(TermSymbol const &term) const {
+        char const *lp = "";
+        char const *rp = "";
+        if (no_leading_op && has_sign(term.value)) {
+            lp = "(";
+            rp = "(";
+        }
+        out << lp << term.value << rp;
+    }
+
+    void operator()(TermVariable const &term) const { out << term.name; }
+
+    void operator()(TermFunction const &term) const {
+        if (term.external) {
+            out << "@";
+        }
+        out << term.name;
+        auto const &pool = term.pool;
+        if (pool.size() != 1 || !pool.front().empty()) {
+            out << "(";
+            PrintTerm{out}.apply_to_range_with(pool, ";", [this](auto const &tuple) { apply_to_range(tuple); });
+            out << ")";
+        }
+    }
+
+    void operator()(TermTuple const &term) const {
+        auto const &pool = term.pool;
+        if (pool.size() == 1 && std::holds_alternative<TermV2>(pool.front())) {
+            std::visit(*this, std::get<TermV2>(term.pool.front()));
+        } else {
+            out << "(";
+            PrintTerm{out}.apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
+                Util::visit_variant(
+                    term_or_tuple, [this](TermV2 const &term) { std::visit(*this, term); },
+                    [this](TupleVecV2 const &tuple) {
+                        apply_to_range(tuple);
+                        if (tuple.size() == 1) {
+                            out << ",";
+                        }
+                    });
+            });
+            out << ")";
+        }
+    }
+
+    void operator()(TermAbs const &term) const {
+        out << "|";
+        PrintTerm{out}.visit_range(term.pool, ";");
+        out << "|";
+    }
+
+    void operator()(TermUnary const &term) const {
+        char const *lp = "";
+        char const *rp = "";
+        auto op = term.op;
+        // No need to consider associativity/position because the unary priority is
+        // different from all binary ones.
+        if (no_leading_op || (priority(op) < prio)) {
+            lp = "(";
+            rp = ")";
+        }
+        out << lp << op;
+        std::visit(PrintTerm{out, Position::none, priority(op), true}, term.rhs);
+        out << rp;
+    }
+
+    void operator()(TermBinary const &term) const {
+        char const *lp = "";
+        char const *rp = "";
+        auto op = term.op;
+        bool lhs_no_leading_op = no_leading_op;
+        // We assume that operators with the same priority have the same associativity.
+        if (priority(op) < prio || (prio == priority(op) && associativity(op) != pos)) {
+            lp = "(";
+            rp = ")";
+            lhs_no_leading_op = false;
+        }
+        out << lp;
+        std::visit(PrintTerm{out, Position::left, priority(op), lhs_no_leading_op}, term.lhs);
+        out << op;
+        std::visit(PrintTerm{out, Position::right, priority(op), true}, term.rhs);
+        out << rp;
+    }
+
+    template <class T> void operator()(Util::shared_ptr<T> const &term) const { this->operator()(*term); }
+
+    std::ostream &out;
+    Position pos = Position::none;
+    unsigned int prio = 0;
+    bool no_leading_op = false;
+};
+
 class PrintVisitor : public TermVisitor,
                      public TheoryTermVisitor,
                      public LiteralVisitor,
@@ -295,12 +424,11 @@ class PrintVisitor : public TermVisitor,
                      public BodyLiteralVisitor,
                      public StatementVisitor {
   public:
-    PrintVisitor(std::ostream &out, Position pos = Position::none, unsigned int prio = 0, bool no_leading_op = false)
-        : out_{out}, pos_{pos}, prio_{prio}, no_leading_op_{no_leading_op} {}
+    PrintVisitor(std::ostream &out) : out_{out} {}
 
     // generic functions
 
-    void accept_range_with(auto const &rng, char const *sep, auto const &fun) const {
+    void apply_to_range_with(auto const &rng, char const *sep, auto const &fun) const {
         bool comma = false;
         for (auto const &x : rng) {
             if (comma) {
@@ -312,16 +440,16 @@ class PrintVisitor : public TermVisitor,
         }
     }
 
-    void accept_range(auto const &rng, char const *sep = ",") const {
-        accept_range_with(rng, sep, [this](auto const &x) { x->accept(*this); });
+    void visit_range(auto const &rng, char const *sep = ",") const {
+        apply_to_range_with(rng, sep, [this](auto const &x) { x->accept(*this); });
     }
 
-    void visit_range(auto const &rng, char const *sep = ",") const {
-        accept_range_with(rng, sep, [this](auto const &x) { this->visit(x); });
+    void apply_to_range(auto const &rng, char const *sep = ",") const {
+        apply_to_range_with(rng, sep, [this](auto const &x) { this->visit(x); });
     }
 
     void print_range(auto const &rng, char const *sep = ",") const {
-        accept_range_with(rng, sep, [this](auto const &x) { out_ << x; });
+        apply_to_range_with(rng, sep, [this](auto const &x) { out_ << x; });
     }
 
     // auxiliary functions
@@ -336,19 +464,19 @@ class PrintVisitor : public TermVisitor,
             return elem.first.size() == 1;
         });
         if (is_simple) {
-            accept_range_with(elems, "; ", [this](auto const &elem) {
+            apply_to_range_with(elems, "; ", [this](auto const &elem) {
                 auto cs = elem.second.empty() ? "" : ": ";
                 out_ << *elem.first.front() << cs;
-                accept_range(elem.second, ", ");
+                visit_range(elem.second, ", ");
             });
         } else {
             char const *sp = elems.empty() ? "" : " ";
             out_ << kw << " { ";
-            accept_range_with(elems, "; ", [this](auto const &elem) {
+            apply_to_range_with(elems, "; ", [this](auto const &elem) {
                 char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
-                accept_range_with(elem.first, ", ", [this](auto const &term) { out_ << *term; });
+                apply_to_range_with(elem.first, ", ", [this](auto const &term) { out_ << *term; });
                 out_ << cs;
-                accept_range(elem.second, ", ");
+                visit_range(elem.second, ", ");
             });
             out_ << sp << "}";
         }
@@ -359,11 +487,11 @@ class PrintVisitor : public TermVisitor,
             out_ << *aggr.lhs()->first << " " << aggr.lhs()->second << " ";
         }
         out_ << "{ ";
-        accept_range_with(aggr.elements(), "; ", [this](auto const &elem) {
+        apply_to_range_with(aggr.elements(), "; ", [this](auto const &elem) {
             std::get<0>(elem)->accept(*this);
             if (!std::get<1>(elem).empty()) {
                 out_ << ": ";
-                accept_range(std::get<1>(elem), ", ");
+                visit_range(std::get<1>(elem), ", ");
             }
         });
         out_ << (aggr.elements().empty() ? "}" : " }");
@@ -377,11 +505,11 @@ class PrintVisitor : public TermVisitor,
         auto const &elems = atom.elements();
         if (!elems.empty() || atom.rhs().has_value()) {
             out_ << " { ";
-            accept_range_with(elems, "; ", [this](TheoryAtom::Element const &elem) {
-                accept_range(elem.first);
+            apply_to_range_with(elems, "; ", [this](TheoryAtom::Element const &elem) {
+                visit_range(elem.first);
                 if (!elem.second.empty() || elem.first.empty()) {
                     out_ << ": ";
-                    accept_range(elem.second, ", ");
+                    visit_range(elem.second, ", ");
                 }
             });
             out_ << (elems.empty() ? "}" : " }");
@@ -420,7 +548,7 @@ class PrintVisitor : public TermVisitor,
             out_ << " }";
         } else {
             out_ << "\n";
-            accept_range_with(def.operator_definitions(), ";\n", [this](auto &op_def) {
+            apply_to_range_with(def.operator_definitions(), ";\n", [this](auto &op_def) {
                 out_ << "    ";
                 visit(op_def);
             });
@@ -440,89 +568,19 @@ class PrintVisitor : public TermVisitor,
 
     // visit terms
 
-    void visit(TermSymbol const &term) const override {
-        char const *lp = "";
-        char const *rp = "";
-        if (no_leading_op_ && has_sign(term.symbol())) {
-            lp = "(";
-            rp = "(";
-        }
-        out_ << lp << term.symbol() << rp;
-    }
+    void visit(TermSymbol const &term) const override { PrintTerm{out_}.operator()(term); }
 
-    void visit(TermVariable const &term) const override { out_ << term.name(); }
+    void visit(TermVariable const &term) const override { PrintTerm{out_}.operator()(term); }
 
-    void visit(TermFunction const &term) const override {
-        if (term.is_external()) {
-            out_ << "@";
-        }
-        out_ << term.name();
-        auto const &pool = term.pool();
-        if (pool.size() != 1 || !pool.front().empty()) {
-            out_ << "(";
-            PrintVisitor{out_}.accept_range_with(pool, ";", [this](TupleVec const &tuple) { visit_range(tuple); });
-            out_ << ")";
-        }
-    }
+    void visit(TermFunction const &term) const override { PrintTerm{out_}.operator()(term); }
 
-    void visit(TermTuple const &term) const override {
-        auto const &pool = term.pool();
-        if (pool.size() == 1 && std::holds_alternative<STerm>(pool.front())) {
-            std::get<STerm>(term.pool().front())->accept(*this);
-        } else {
-            out_ << "(";
-            PrintVisitor{out_}.accept_range_with(pool, ";", [this](auto const &term_or_tuple) {
-                Util::visit_variant(
-                    term_or_tuple, [this](STerm const &term) { term->accept(*this); },
-                    [this](TupleVec const &tuple) {
-                        visit_range(tuple);
-                        if (tuple.size() == 1) {
-                            out_ << ",";
-                        }
-                    });
-            });
-            out_ << ")";
-        }
-    }
+    void visit(TermTuple const &term) const override { PrintTerm{out_}.operator()(term); }
 
-    void visit(TermAbs const &term) const override {
-        out_ << "|";
-        PrintVisitor{out_}.accept_range(term.pool(), ";");
-        out_ << "|";
-    }
+    void visit(TermAbs const &term) const override { PrintTerm{out_}.operator()(term); }
 
-    void visit(TermUnary const &term) const override {
-        char const *lp = "";
-        char const *rp = "";
-        auto op = term.unary_operator();
-        // No need to consider associativity/position because the unary priority is
-        // different from all binary ones.
-        if (no_leading_op_ || (priority(op) < prio_)) {
-            lp = "(";
-            rp = ")";
-        }
-        out_ << lp << op;
-        term.rhs()->accept(PrintVisitor{out_, Position::none, priority(op), true});
-        out_ << rp;
-    }
+    void visit(TermUnary const &term) const override { PrintTerm{out_}.operator()(term); }
 
-    void visit(TermBinary const &term) const override {
-        char const *lp = "";
-        char const *rp = "";
-        auto op = term.binary_operator();
-        bool no_leading_op = no_leading_op_;
-        // We assume that operators with the same priority have the same associativity.
-        if (priority(op) < prio_ || (prio_ == priority(op) && associativity(op) != pos_)) {
-            lp = "(";
-            rp = ")";
-            no_leading_op = false;
-        }
-        out_ << lp;
-        term.lhs()->accept(PrintVisitor{out_, Position::left, priority(op), no_leading_op});
-        out_ << op;
-        term.rhs()->accept(PrintVisitor{out_, Position::right, priority(op), true});
-        out_ << rp;
-    }
+    void visit(TermBinary const &term) const override { PrintTerm{out_}.operator()(term); }
 
     // visit theory terms
 
@@ -532,7 +590,7 @@ class PrintVisitor : public TermVisitor,
         if (needs_parens) {
             out_ << "(";
         }
-        accept_range_with(elems, " ", [this](auto const &elem) {
+        apply_to_range_with(elems, " ", [this](auto const &elem) {
             for (auto const &op : elem.first) {
                 out_ << op << " ";
             }
@@ -549,7 +607,7 @@ class PrintVisitor : public TermVisitor,
 
     void visit(TheoryTermTuple const &term) const override {
         out_ << left_bracket(term.type());
-        accept_range(term.elements());
+        visit_range(term.elements());
         if (term.type() == TheoryTermTupleType::Tuple && term.elements().size() == 1) {
             out_ << ",";
         }
@@ -560,7 +618,7 @@ class PrintVisitor : public TermVisitor,
         out_ << term.name();
         if (!term.arguments().empty()) {
             out_ << "(";
-            accept_range(term.arguments());
+            visit_range(term.arguments());
             out_ << ")";
         }
     }
@@ -594,13 +652,13 @@ class PrintVisitor : public TermVisitor,
             out_ << " " << lhs->second << " ";
         }
         out_ << lit.function() << " { ";
-        accept_range_with(lit.elements(), "; ", [this](auto const &elem) {
-            accept_range(std::get<0>(elem));
+        apply_to_range_with(lit.elements(), "; ", [this](auto const &elem) {
+            visit_range(std::get<0>(elem));
             out_ << ": ";
             std::get<1>(elem)->accept(*this);
             if (!std::get<2>(elem).empty()) {
                 out_ << ": ";
-                accept_range(std::get<2>(elem), ", ");
+                visit_range(std::get<2>(elem), ", ");
             }
         });
         out_ << (lit.elements().empty() ? "}" : " }");
@@ -627,11 +685,11 @@ class PrintVisitor : public TermVisitor,
             out_ << *lit.lhs()->first << " " << lit.lhs()->second << " ";
         }
         out_ << lit.function() << " { ";
-        accept_range_with(lit.elements(), "; ", [this](auto const &elem) {
-            accept_range(std::get<0>(elem));
+        apply_to_range_with(lit.elements(), "; ", [this](auto const &elem) {
+            visit_range(std::get<0>(elem));
             if (!std::get<1>(elem).empty()) {
                 out_ << ": ";
-                accept_range(std::get<1>(elem), ", ");
+                visit_range(std::get<1>(elem), ", ");
             }
         });
         out_ << (lit.elements().empty() ? "}" : " }");
@@ -651,21 +709,21 @@ class PrintVisitor : public TermVisitor,
         out_ << *stm.head();
         if (stm.head()->print_empty() || !stm.body().empty()) {
             out_ << " :- ";
-            accept_range(stm.body(), "; ");
+            visit_range(stm.body(), "; ");
         }
         out_ << ".";
     }
 
     void visit(TheoryDefinition const &stm) const override {
         out_ << "#theory " << stm.name() << (stm.term_defs().empty() && stm.atom_defs().empty() ? " { " : " {\n");
-        visit_range(stm.term_defs(), ";\n");
+        apply_to_range(stm.term_defs(), ";\n");
         if (!stm.term_defs().empty()) {
             if (!stm.atom_defs().empty()) {
                 out_ << ";";
             }
             out_ << "\n";
         }
-        visit_range(stm.atom_defs(), ";\n");
+        apply_to_range(stm.atom_defs(), ";\n");
         if (!stm.atom_defs().empty()) {
             out_ << "\n";
         }
@@ -674,7 +732,7 @@ class PrintVisitor : public TermVisitor,
 
     void visit(StatementOptimize const &stm) const override {
         out_ << stm.type() << " { ";
-        accept_range_with(stm.elements(), "; ", [this](auto const &elem) {
+        apply_to_range_with(stm.elements(), "; ", [this](auto const &elem) {
             auto const &[tuple, cond] = elem;
             auto const &[weight, prio, terms] = tuple;
             weight->accept(*this);
@@ -684,11 +742,11 @@ class PrintVisitor : public TermVisitor,
             }
             if (!terms.empty()) {
                 out_ << ",";
-                accept_range(terms);
+                visit_range(terms);
             }
             if (!cond.empty()) {
                 out_ << ": ";
-                accept_range(cond, ", ");
+                visit_range(cond, ", ");
             }
         });
         out_ << (stm.elements().empty() ? "}" : " }") << ".";
@@ -697,7 +755,7 @@ class PrintVisitor : public TermVisitor,
     void visit(StatementWeakConstraint const &stm) const override {
         auto const &[weight, prio, terms] = stm.tuple();
         out_ << " :~ ";
-        accept_range(stm.body(), "; ");
+        visit_range(stm.body(), "; ");
         out_ << ". [" << *weight;
         if (prio) {
             out_ << "@";
@@ -705,7 +763,7 @@ class PrintVisitor : public TermVisitor,
         }
         if (!terms.empty()) {
             out_ << ",";
-            accept_range(terms);
+            visit_range(terms);
         }
         out_ << "]";
     }
@@ -720,7 +778,7 @@ class PrintVisitor : public TermVisitor,
         out_ << "#show " << lp;
         stm.term()->accept(*this);
         out_ << rp << ": ";
-        accept_range(stm.body(), "; ");
+        visit_range(stm.body(), "; ");
         out_ << ".";
     }
 
@@ -732,7 +790,7 @@ class PrintVisitor : public TermVisitor,
         out_ << "#project ";
         stm.term()->accept(*this);
         out_ << (stm.body().empty() ? "" : ": ");
-        accept_range(stm.body(), "; ");
+        visit_range(stm.body(), "; ");
         out_ << ".";
     }
 
@@ -748,7 +806,7 @@ class PrintVisitor : public TermVisitor,
         out_ << "#external ";
         stm.term()->accept(*this);
         out_ << (stm.body().empty() ? "" : ": ");
-        accept_range(stm.body(), "; ");
+        visit_range(stm.body(), "; ");
         out_ << ".";
         if (stm.type().has_value()) {
             out_ << " [";
@@ -759,13 +817,13 @@ class PrintVisitor : public TermVisitor,
 
     void visit(StatementEdge const &stm) const override {
         out_ << "#edge (";
-        accept_range_with(stm.edges(), ";", [this](auto const &edge) {
+        apply_to_range_with(stm.edges(), ";", [this](auto const &edge) {
             edge.first->accept(*this);
             out_ << ",";
             edge.second->accept(*this);
         });
         out_ << ")" << (stm.body().empty() ? "" : ": ");
-        accept_range(stm.body(), "; ");
+        visit_range(stm.body(), "; ");
         out_ << ".";
     }
 
@@ -773,7 +831,7 @@ class PrintVisitor : public TermVisitor,
         out_ << "#heuristic ";
         stm.atom()->accept(*this);
         out_ << (stm.body().empty() ? "" : ": ");
-        accept_range(stm.body(), "; ");
+        visit_range(stm.body(), "; ");
         out_ << ". [";
         stm.type()->accept(*this);
         if (stm.priority().has_value()) {
@@ -817,20 +875,17 @@ class PrintVisitor : public TermVisitor,
 
   private:
     std::ostream &out_;
-    Position pos_;
-    unsigned int prio_;
-    bool no_leading_op_;
 };
 
 } // namespace
 
 auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
-    term.accept(PrintVisitor{out, Position::none, 0, false});
+    term.accept(PrintVisitor{out});
     return out;
 }
 
 auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
-    term.accept(PrintVisitor{out, Position::none, 0, false});
+    term.accept(PrintVisitor{out});
     return out;
 }
 
