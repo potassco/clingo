@@ -153,8 +153,6 @@ class Term {
     //! Virtual destructor.
     virtual ~Term() = default;
 
-    //! Convert the term to string.
-    [[nodiscard]] auto to_string() const -> std::string;
     //! Check if the term has the given type optionally adding context information.
     [[nodiscard]] virtual auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
     //! Remove all pooled arguments from the term.

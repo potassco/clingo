@@ -54,11 +54,8 @@ class Literal {
     //! The virtual destructor.
     virtual ~Literal() = default;
 
-    //! Convert the literal to a string.
-    [[nodiscard]] auto to_string() const -> std::string;
     //! Equality compare two literals.
     friend auto operator==(Literal const &a, Literal const &b) { return a.is_equal(b); }
-
     //! Add a sign to the literal.
     //!
     //! Note that this function has to be used with care because the library uses shared pointers to literals.
