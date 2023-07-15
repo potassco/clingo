@@ -219,7 +219,7 @@ enum class OptimizeType { minimize, maximize };
 
 class StatementOptimize : public Statement {
   public:
-    using Tuple = std::tuple<STerm, std::optional<STerm>, STermVec>;
+    using Tuple = std::tuple<TermV2, std::optional<TermV2>, TermVec>;
     using Element = std::pair<Tuple, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
@@ -272,12 +272,12 @@ class StatementWeakConstraint : public Statement {
 
 class StatementShow : public Statement {
   public:
-    StatementShow(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
+    StatementShow(TermV2 term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
     //! Get the term.
-    [[nodiscard]] auto term() const -> STerm const & { return term_; }
+    [[nodiscard]] auto term() const -> TermV2 const & { return term_; }
     //! Get the body.
     [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
 
@@ -289,7 +289,7 @@ class StatementShow : public Statement {
     [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
-    STerm term_;
+    TermV2 term_;
     SBodyLiteralVec body_;
 };
 
@@ -322,10 +322,10 @@ class StatementShowSig : public Statement {
 
 class StatementProject : public Statement {
   public:
-    explicit StatementProject(STerm term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
+    explicit StatementProject(TermV2 term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
 
     //! Get the term.
-    [[nodiscard]] auto term() const -> STerm const & { return term_; }
+    [[nodiscard]] auto term() const -> TermV2 const & { return term_; }
     //! Get the body.
     [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
 
@@ -339,7 +339,7 @@ class StatementProject : public Statement {
     [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
-    STerm term_;
+    TermV2 term_;
     SBodyLiteralVec body_;
 };
 
@@ -399,15 +399,15 @@ class StatementDefined : public Statement {
 
 class StatementExternal : public Statement {
   public:
-    explicit StatementExternal(STerm term, SBodyLiteralVec body, std::optional<STerm> type = std::nullopt)
+    explicit StatementExternal(TermV2 term, SBodyLiteralVec body, std::optional<TermV2> type = std::nullopt)
         : term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
 
     //! Get the term.
-    [[nodiscard]] auto term() const -> STerm const & { return term_; }
+    [[nodiscard]] auto term() const -> TermV2 const & { return term_; }
     //! Get the body.
     [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
     //! Get the type.
-    [[nodiscard]] auto type() const -> std::optional<STerm> const & { return type_; }
+    [[nodiscard]] auto type() const -> std::optional<TermV2> const & { return type_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
@@ -419,14 +419,14 @@ class StatementExternal : public Statement {
     [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
-    STerm term_;
+    TermV2 term_;
     SBodyLiteralVec body_;
-    std::optional<STerm> type_;
+    std::optional<TermV2> type_;
 };
 
 class StatementEdge : public Statement {
   public:
-    using Edge = std::pair<STerm, STerm>;
+    using Edge = std::pair<TermV2, TermV2>;
     using EdgeVec = std::vector<Edge>;
 
     explicit StatementEdge(EdgeVec edges, SBodyLiteralVec body = {})
@@ -453,25 +453,25 @@ class StatementEdge : public Statement {
 
 class StatementHeuristic : public Statement {
   public:
-    explicit StatementHeuristic(STerm atom, SBodyLiteralVec body, STerm type, std::optional<STerm> prio, STerm mod)
+    explicit StatementHeuristic(TermV2 atom, SBodyLiteralVec body, TermV2 type, std::optional<TermV2> prio, TermV2 mod)
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
           mod_(std::move(mod)) {}
-    explicit StatementHeuristic(STerm atom, SBodyLiteralVec body, STerm type, STerm prio, STerm mod)
+    explicit StatementHeuristic(TermV2 atom, SBodyLiteralVec body, TermV2 type, TermV2 prio, TermV2 mod)
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
           mod_(std::move(mod)) {}
-    explicit StatementHeuristic(STerm atom, SBodyLiteralVec body, STerm type, STerm mod)
+    explicit StatementHeuristic(TermV2 atom, SBodyLiteralVec body, TermV2 type, TermV2 mod)
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), mod_(std::move(mod)) {}
 
     //! Get the atom.
-    [[nodiscard]] auto atom() const -> STerm const & { return atom_; }
+    [[nodiscard]] auto atom() const -> TermV2 const & { return atom_; }
     //! Get the body.
     [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
     //! Get the type.
-    [[nodiscard]] auto type() const -> STerm const & { return type_; }
+    [[nodiscard]] auto type() const -> TermV2 const & { return type_; }
     //! Get the priority.
-    [[nodiscard]] auto priority() const -> std::optional<STerm> const & { return prio_; }
+    [[nodiscard]] auto priority() const -> std::optional<TermV2> const & { return prio_; }
     //! Get the modifier.
-    [[nodiscard]] auto modifier() const -> STerm const & { return mod_; }
+    [[nodiscard]] auto modifier() const -> TermV2 const & { return mod_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
@@ -483,11 +483,11 @@ class StatementHeuristic : public Statement {
     [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
-    STerm atom_;
+    TermV2 atom_;
     SBodyLiteralVec body_;
-    STerm type_;
-    std::optional<STerm> prio_;
-    STerm mod_;
+    TermV2 type_;
+    std::optional<TermV2> prio_;
+    TermV2 mod_;
 };
 
 enum class ScriptType {
@@ -574,7 +574,7 @@ enum class ConstType { default_, override_ };
 
 class StatementConst : public Statement {
   public:
-    explicit StatementConst(ConstType type, std::string name, STerm value)
+    explicit StatementConst(ConstType type, std::string name, TermV2 value)
         : type_(type), name_(std::move(name)), value_(std::move(value)) {}
 
     //! Get the type.
@@ -582,7 +582,7 @@ class StatementConst : public Statement {
     //! Get the name.
     [[nodiscard]] auto name() const -> std::string const & { return name_; }
     //! Get the value.
-    [[nodiscard]] auto value() const -> STerm const & { return value_; }
+    [[nodiscard]] auto value() const -> TermV2 const & { return value_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
@@ -596,7 +596,7 @@ class StatementConst : public Statement {
   private:
     ConstType type_;
     std::string name_;
-    STerm value_;
+    TermV2 value_;
 };
 
 //! A visitor for available term types.

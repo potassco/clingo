@@ -3,6 +3,11 @@
 
 #include <input/literal.hh>
 
+#include <input/algo/unpool.hh>
+#include <input/algo/project.hh>
+#include <input/algo/project_anonymous.hh>
+#include <input/algo/visit_variables.hh>
+
 #include "algo/transform.hh"
 #include "algo/unpool.hh"
 
@@ -13,11 +18,11 @@ namespace Gringo::Input {
 namespace {
 
 auto tpa(auto const &x) {
-    return Trans(x, [](STerm const &term) { return term->project_anonymous(); });
+    return Trans(x, [](TermV2 const &term) { return Gringo::Input::project_anonymous(term); });
 }
 
 auto tp(auto const &x, Projection project) {
-    return Trans(x, [project](STerm const &term) { return term->project(project); });
+    return Trans(x, [project](TermV2 const &term) { return Gringo::Input::project(term, project); });
 }
 
 } // namespace
@@ -71,10 +76,10 @@ auto LiteralRelation::unpool() const -> std::optional<SLiteralVec> {
             return construct_shared<LiteralRelation, Literal>(sign_, std::move(lhs), std::move(rhs));
         },
         Util::overloaded{
-            [](STerm const &term) { return term->unpool(); },
+            [](TermV2 const &term) { return Gringo::Input::unpool(term); },
             [](GuardVec const &guard) {
                 return unpool_crossproduct(guard, [](Guard const &guard) {
-                    return map_opt_vec(guard.second->unpool(), [&guard](auto term) {
+                    return map_opt_vec(Gringo::Input::unpool(guard.second), [&guard](auto term) {
                         return Guard{guard.first, std::move(term)};
                     });
                 });
@@ -91,9 +96,10 @@ auto LiteralRelation::is_equal(Literal const &other) const -> bool {
 auto LiteralRelation::hash() const -> size_t { return Util::value_hash(typeid(LiteralRelation), sign_, lhs_, rhs_); }
 
 void LiteralRelation::visit_variables(VarVisitFun const &fun) const {
-    lhs_->visit_variables(fun);
+    using Gringo::Input::visit_variables;
+    visit_variables(lhs_, fun);
     for (auto const &guard : rhs_) {
-        guard.second->visit_variables(fun);
+        visit_variables(guard.second, fun);
     }
 }
 
@@ -135,7 +141,7 @@ void LiteralBoolean::accept(LiteralVisitor const &visitor) const { visitor.visit
 void LiteralSymbolic::add_sign(Sign s) { sign_ += s; }
 
 auto LiteralSymbolic::unpool() const -> std::optional<SLiteralVec> {
-    return map_opt_vec(term_->unpool(), [this](auto term) {
+    return map_opt_vec(Gringo::Input::unpool(term_), [this](auto term) {
         return construct_shared<LiteralSymbolic, Literal>(sign_, std::move(term));
     });
 }
@@ -147,7 +153,10 @@ auto LiteralSymbolic::is_equal(Literal const &other) const -> bool {
 
 auto LiteralSymbolic::hash() const -> size_t { return Util::value_hash(typeid(LiteralSymbolic), sign_, term_); }
 
-void LiteralSymbolic::visit_variables(VarVisitFun const &fun) const { term_->visit_variables(fun); }
+void LiteralSymbolic::visit_variables(VarVisitFun const &fun) const {
+    using Gringo::Input::visit_variables;
+    visit_variables(term_, fun);
+}
 
 auto LiteralSymbolic::project(Projection project) const -> std::optional<SLiteral> {
     if (sign_ == Sign::none) {

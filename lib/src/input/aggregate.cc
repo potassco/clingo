@@ -5,13 +5,16 @@
 
 #include <input/aggregate.hh>
 
+#include <input/algo/unpool.hh>
+#include <input/algo/visit_variables.hh>
+
 #include "algo/transform.hh"
 #include "algo/unpool.hh"
 #include "algo/variables.hh"
 
 namespace Gringo::Input {
 
-void SetAggregate::set_rhs(STerm lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
+void SetAggregate::set_rhs(TermV2 lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
 
 auto SetAggregate::unpool() const -> std::optional<std::vector<SetAggregate>> {
     return unpool_crossproducts(
@@ -36,14 +39,14 @@ auto SetAggregate::unpool() const -> std::optional<std::vector<SetAggregate>> {
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
                 return and_then_opt(lhs, [](auto const &lhs) {
-                    return map_opt_vec(lhs.first->unpool(), [&lhs](auto term) {
+                    return map_opt_vec(Gringo::Input::unpool(lhs.first), [&lhs](auto term) {
                         return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
                     });
                 });
             },
             [](RGuard const &rhs) -> std::optional<std::vector<RGuard>> {
                 return and_then_opt(rhs, [](auto const &rhs) {
-                    return map_opt_vec(rhs.second->unpool(), [&rhs](auto term) {
+                    return map_opt_vec(Gringo::Input::unpool(rhs.second), [&rhs](auto term) {
                         return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
                     });
                 });
@@ -53,6 +56,7 @@ auto SetAggregate::unpool() const -> std::optional<std::vector<SetAggregate>> {
 }
 
 void SetAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
+    using Gringo::Input::visit_variables;
     VarVisitor visit{std::move(fun)};
     visit.add(lhs_, rhs_);
     if (ctx == VariableContext::all) {

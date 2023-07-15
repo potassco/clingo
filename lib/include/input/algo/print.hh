@@ -5,7 +5,7 @@
 namespace Gringo::Input {
 
 //! Output the term to the given stream.
-auto operator<<(std::ostream &out, Term const &term) -> std::ostream &;
+auto operator<<(std::ostream &out, TermV2 const &term) -> std::ostream &;
 
 //! Output the theory term to the given stream.
 auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream &;
@@ -23,7 +23,7 @@ auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream &;
 auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream &;
 
 //! Convert the given term into a string.
-auto to_string(Term const &term) -> std::string;
+auto to_string(TermV2 const &term) -> std::string;
 
 //! Convert the given term into a string.
 auto to_string(TheoryTerm const &term) -> std::string;

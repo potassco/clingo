@@ -7,7 +7,9 @@ namespace Gringo::Input {
 namespace {
 
 struct RewriteAnonymous {
-    auto operator()(STerm const &term) const { return rewrite_anonymous(*term, gen); }
+    auto operator()(TermV2 const &term) const {
+        return rewrite_anonymous(term, gen);
+    }
     auto operator()(STheoryTerm const &term) const { return rewrite_anonymous(*term, gen); }
     auto operator()(SLiteral const &lit) const { return rewrite_anonymous(*lit, gen); }
     auto operator()(TheoryAtom const &aggr) const -> std::optional<TheoryAtom> {
@@ -27,8 +29,8 @@ struct RewriteAnonymous {
     NameGen &gen;
 };
 
-struct TermRewriterV2 {
-    TermRewriterV2(NameGen &gen) : gen{gen} {}
+struct TermRewriter {
+    TermRewriter(NameGen &gen) : gen{gen} {}
 
     auto operator()(TermV2 const &term) const { return std::visit(*this, term); }
 
@@ -67,57 +69,6 @@ struct TermRewriterV2 {
     }
 
     NameGen &gen;
-};
-
-class TermRewriter : public TermVisitor {
-  public:
-    TermRewriter(NameGen &gen, std::optional<STerm> &result) : gen_{gen}, result_{result} {}
-
-    void visit(TermSymbol const &term) const override {
-        if (auto res = TermRewriterV2{gen_}(term)) {
-            result_ = construct_shared<Term>(std::move(res).value());
-        }
-    }
-
-    void visit(TermVariable const &term) const override {
-        if (auto res = TermRewriterV2{gen_}(term)) {
-            result_ = construct_shared<Term>(std::move(res).value());
-        }
-    }
-
-    void visit(TermFunction const &term) const override {
-        if (auto res = TermRewriterV2{gen_}(construct_shared<TermFunction>(term))) {
-            result_ = construct_shared<Term>(std::move(res).value());
-        }
-    }
-
-    void visit(TermTuple const &term) const override {
-        if (auto res = TermRewriterV2{gen_}(construct_shared<TermTuple>(term))) {
-            result_ = construct_shared<Term>(std::move(res).value());
-        }
-    }
-
-    void visit(TermAbs const &term) const override {
-        if (auto res = TermRewriterV2{gen_}(construct_shared<TermAbs>(term))) {
-            result_ = construct_shared<Term>(std::move(res).value());
-        }
-    }
-
-    void visit(TermUnary const &term) const override {
-        if (auto res = TermRewriterV2{gen_}(construct_shared<TermUnary>(term))) {
-            result_ = construct_shared<Term>(std::move(res).value());
-        }
-    }
-
-    void visit(TermBinary const &term) const override {
-        if (auto res = TermRewriterV2{gen_}(construct_shared<TermBinary>(term))) {
-            result_ = construct_shared<Term>(std::move(res).value());
-        }
-    }
-
-  private:
-    NameGen &gen_;
-    std::optional<STerm> &result_;
 };
 
 class TheoryTermRewriter : public TheoryTermVisitor {
@@ -301,10 +252,8 @@ auto NameGen::new_name() -> std::string {
     }
 }
 
-[[nodiscard]] auto rewrite_anonymous(Term const &term, NameGen &gen) -> std::optional<STerm> {
-    std::optional<STerm> result;
-    term.accept(TermRewriter{gen, result});
-    return result;
+[[nodiscard]] auto rewrite_anonymous(TermV2 const &term, NameGen &gen) -> std::optional<TermV2> {
+    return std::visit(TermRewriter{gen}, term);
 }
 
 [[nodiscard]] auto rewrite_anonymous(TheoryTerm const &term, NameGen &gen) -> std::optional<STheoryTerm> {

@@ -4,6 +4,9 @@
 
 #include <input/theory.hh>
 
+#include <input/algo/unpool.hh>
+#include <input/algo/visit_variables.hh>
+
 #include "algo/transform.hh"
 #include "algo/unpool.hh"
 #include "algo/variables.hh"
@@ -74,7 +77,10 @@ auto TheoryAtom::unpool() const -> std::optional<std::vector<TheoryAtom>> {
                                             }),
                                [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
             },
-            [](STerm const &name) { return name->unpool(); },
+            [](TermV2 const &name) {
+                using Gringo::Input::unpool;
+                return unpool(name);
+            },
         },
         name_, elems_);
 }

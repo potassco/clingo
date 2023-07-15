@@ -4,6 +4,8 @@
 
 #include <input/algo/print.hh>
 #include <input/algo/rewrite_anonymous.hh>
+#include <input/algo/visit_variables.hh>
+#include <input/algo/unpool.hh>
 
 #include "algo/transform.hh"
 #include "algo/unpool.hh"
@@ -22,10 +24,10 @@ void visit_body(VarVisitFun const &fun, VariableContext ctx, SBodyLiteralVec con
 }
 
 struct StatementUnpool {
-    auto operator()(STerm const &term) const { return term->unpool(); }
-    auto operator()(STermVec const &terms) const { return unpool_crossproduct(terms); }
-    auto operator()(std::optional<STerm> const &term) const {
-        return and_then_opt(term, [](STerm const &term) { return term->unpool(); });
+    auto operator()(TermV2 const &term) const { return unpool(term); }
+    auto operator()(TermVec const &terms) const { return unpool_crossproduct(terms, *this); }
+    auto operator()(std::optional<TermV2> const &term) const {
+        return and_then_opt(term, [](TermV2 const &term) { return unpool(term); });
     }
     auto operator()(SLiteralVec const &lits) const { return unpool_crossproduct(lits); }
     auto operator()(SHeadLiteral const &lit) const { return lit->unpool(); }
@@ -64,7 +66,7 @@ class GlobalVarSelectorHelper {
 
   protected:
     void visit_(auto const &x, auto... args) {
-        x.visit_variables([this](std::string const &var) { global_.emplace(var); }, args...);
+        visit_variables(x, [this](std::string const &var) { global_.emplace(var); }, args...);
     }
 
   private:
@@ -85,7 +87,7 @@ class GlobalVarCounterHelper {
 
   protected:
     void visit_(auto const &x, auto... args) {
-        x.visit_variables(
+        visit_variables(x,
             [this](std::string const &var) {
                 if (global_.contains(var)) {
                     ++counts_[var];
@@ -332,7 +334,8 @@ auto StatementShow::do_unpool() const -> std::optional<SStatementVec> {
 }
 
 void StatementShow::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    term_->visit_variables(fun);
+    using Gringo::Input::visit_variables;
+    visit_variables(term_, fun);
     visit_body(fun, ctx, body_);
 }
 
@@ -376,7 +379,8 @@ auto StatementProject::do_unpool() const -> std::optional<SStatementVec> {
 }
 
 void StatementProject::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    term_->visit_variables(fun);
+    using Gringo::Input::visit_variables;
+    visit_variables(term_, fun);
     visit_body(fun, ctx, body_);
 }
 

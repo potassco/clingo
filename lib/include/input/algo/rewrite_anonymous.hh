@@ -22,7 +22,7 @@ class NameGen {
 };
 
 //! Give anonymous variables a unique name.
-[[nodiscard]] auto rewrite_anonymous(Term const &term, NameGen &gen) -> std::optional<STerm>;
+[[nodiscard]] auto rewrite_anonymous(TermV2 const &term, NameGen &gen) -> std::optional<TermV2>;
 
 //! Give anonymous variables a unique name.
 [[nodiscard]] auto rewrite_anonymous(TheoryTerm const &term, NameGen &gen) -> std::optional<STheoryTerm>;

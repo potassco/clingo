@@ -7,6 +7,9 @@
 
 #include <input/head_literal.hh>
 
+#include <input/algo/unpool.hh>
+#include <input/algo/visit_variables.hh>
+
 #include "algo/cond_lits.hh"
 #include "algo/transform.hh"
 
@@ -99,9 +102,10 @@ auto HeadTheoryAtom::project_anonymous() const -> std::optional<SHeadLiteral> {
 
 void HeadAggregate::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
 
-void HeadAggregate::set_left_guard(STerm lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
+void HeadAggregate::set_left_guard(TermV2 lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
 
 auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
+    using Gringo::Input::unpool;
     return unpool_crossproducts(
         [this](auto lhs, auto elem_lits, auto rhs) {
             return Util::construct_shared<HeadAggregate, HeadLiteral>(std::move(lhs), fun_, std::move(elem_lits),
@@ -117,7 +121,7 @@ auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
                                              return Element{std::move(tuple), std::move(lit), std::move(cond)};
                                          },
                                          Util::overloaded{
-                                             [](STermVec const &tuple) { return unpool_crossproduct(tuple); },
+                                             [](TermVec const &tuple) { return unpool_crossproduct(tuple, [](auto const &term){ return unpool(term); }); },
                                              [](SLiteral const &lit) { return lit->unpool(); },
                                              [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
                                          std::get<0>(elem), std::get<1>(elem), std::get<2>(elem));
@@ -126,14 +130,14 @@ auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
                 return and_then_opt(lhs, [](auto const &lhs) {
-                    return Util::map_opt_vec(lhs.first->unpool(), [&lhs](auto term) {
+                    return Util::map_opt_vec(unpool(lhs.first), [&lhs](auto term) {
                         return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
                     });
                 });
             },
             [](RGuard const &rhs) -> std::optional<std::vector<RGuard>> {
                 return and_then_opt(rhs, [](auto const &rhs) {
-                    return Util::map_opt_vec(rhs.second->unpool(), [&rhs](auto term) {
+                    return Util::map_opt_vec(unpool(rhs.second), [&rhs](auto term) {
                         return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
                     });
                 });
@@ -174,7 +178,7 @@ auto HeadAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
 
 void HeadSetAggregate::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
 
-void HeadSetAggregate::set_left_guard(STerm lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
+void HeadSetAggregate::set_left_guard(TermV2 lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
 
 auto HeadSetAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
     return Util::map_opt_vec(aggr_.unpool(), [](auto aggr) {

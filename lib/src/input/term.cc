@@ -5,36 +5,7 @@
 
 #include <input/term.hh>
 
-// TODO: remove
-#include <input/algo/check_type.hh>
-#include <input/algo/project.hh>
-#include <input/algo/project_anonymous.hh>
-
 namespace Gringo::Input {
-
-// TODO: move/remove this
-
-auto Term::check_type(TermCheckType type, CheckTypeResult *res) const -> bool {
-    return Gringo::Input::check_type(term, type, res);
-}
-
-auto Term::is_equal(Term const &other) const -> bool { return value_equal(term, other.term); }
-
-auto Term::project(Projection project) const -> std::optional<STerm> {
-    if (auto x = Gringo::Input::project(term, project); x.has_value()) {
-        return construct_shared<Term>(std::move(x).value());
-    }
-    return std::nullopt;
-}
-
-auto Term::project_anonymous() const -> std::optional<STerm> {
-    if (auto x = Gringo::Input::project_anonymous(term); x.has_value()) {
-        return construct_shared<Term>(std::move(x).value());
-    }
-    return std::nullopt;
-}
-
-// until here
 
 auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return Util::value_equal(a.name, b.name); }
 

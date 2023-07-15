@@ -26,7 +26,6 @@ enum class TermCheckType : int {
     pos_number         //!< Check if term is a positive number.
 };
 
-// TODO: move
 //! Extract additional information while checking the type of a term.
 //!
 //! @see Term::check_type()
@@ -38,6 +37,76 @@ struct CheckTypeResult {
     //! The identifier represented by the term.
     std::string identifier;
 };
+
+//! Variable selection modes for select_variables().
+enum VariableSelectMode {
+    add, //!< Add variables to the set.
+    del, //!< Remove variables from the set.
+};
+
+//! Variable selection scopes.
+//!
+//! @see Statement::visit_variables()
+enum class VariableContext {
+    global, //!< Visit variables occurring in global scope.
+    all,    //!< Visit all variable occurrences.
+};
+
+//! A set of variable names.
+using VariableSet = std::unordered_set<std::string>;
+//! A vector of variable names.
+using VariableVec = std::vector<std::string>;
+//! A function to visit variable occurrences.
+using VarVisitFun = std::function<void(std::string const &var)>;
+
+//! Add/remove variables to/from a set occuring in the given expression.
+template <class E> void select_variables(E &expr, VariableSet &vars, VariableSelectMode mode) {
+    if (mode == VariableSelectMode::add) {
+        expr.visit_variables([&vars](std::string const &var) { vars.emplace(var); });
+    } else {
+        expr.visit_variables([&vars](std::string const &var) { vars.erase(var); });
+    }
+}
+
+//! Convenience method for @ref select_variables(E, VariableSet &, VariableSelectMode) returning a set.
+template <class E> auto select_variables(E &expr, VariableSelectMode mode) -> VariableSet {
+    VariableSet vars;
+    select_variables(expr, vars, mode);
+    return vars;
+}
+
+//! Enumeration to select variables to project.
+//!
+//! @see Projection
+enum class ProjectionMode {
+    disabled = 0,  //!< Disable projection.
+    anonymous = 1, //!< Only project anonymous variables.
+    pure = 2,      //!< Project pure variables.
+};
+
+//! Helper to gather projection related arguments.
+class Projection {
+  public:
+    //! Constructor taking the mode which variables to project and a map with counts of variables.
+    explicit Projection(ProjectionMode mode, std::unordered_map<std::string, size_t> const &counts)
+        : counts_{counts}, mode_{mode} {};
+    //! Return whether a the given variable should be projected.
+    //!
+    //! Only variables with a count of exactly one can be projected while the mode adds further restrictions.
+    [[nodiscard]] auto projectable(std::string const &var, bool anonymous) const -> bool;
+    //! Return the variable counts.
+    [[nodiscard]] auto counts() const -> std::unordered_map<std::string, size_t> const &;
+    //! Return the mode.
+    [[nodiscard]] auto mode() const -> ProjectionMode;
+
+  private:
+    //! The variable counts.
+    std::unordered_map<std::string, size_t> const &counts_;
+    //! The projection mode.
+    ProjectionMode mode_;
+};
+
+// TODO: until here
 
 struct TermVariable;
 struct TermSymbol;
@@ -202,164 +271,7 @@ struct TermBinary : Util::enable_shared {
 //! Compare two binary terms.
 auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
 
-// TODO: remove
-class Term;
-//! A shared pointer to a term.
-// TODO: remove
-using STerm = Util::shared_ptr<Term>;
-//! A vector of shared term pointers.
-// TODO: remove
-using STermVec = std::vector<STerm>;
-//! A vector of vecors of shared term pointers.
-// TODO: remove
-using STermVecVec = std::vector<STermVec>;
-
-//! A variant capturing either a term or a position that is to be projected.
-// TODO: remove
-using TupleElem = std::variant<std::monostate, STerm>;
-//! A tuple of terms or positions to project.
-// TODO: remove
-using TupleVec = std::vector<TupleElem>;
-//! A vector of tuples used as function or predicate arguments.
-// TODO: remove
-using PoolVec = std::vector<TupleVec>;
-
-// TODO: move
-//! Variable selection modes for select_variables().
-enum VariableSelectMode {
-    add, //!< Add variables to the set.
-    del, //!< Remove variables from the set.
-};
-
-// TODO: move
-//! Variable selection scopes.
-//!
-//! @see Statement::visit_variables()
-enum class VariableContext {
-    global, //!< Visit variables occurring in global scope.
-    all,    //!< Visit all variable occurrences.
-};
-
-// TODO: move
-//! A set of variable names.
-using VariableSet = std::unordered_set<std::string>;
-//! A vector of variable names.
-using VariableVec = std::vector<std::string>;
-//! A function to visit variable occurrences.
-using VarVisitFun = std::function<void(std::string const &var)>;
-
-// TODO: move
-//! Add/remove variables to/from a set occuring in the given expression.
-template <class E> void select_variables(E &expr, VariableSet &vars, VariableSelectMode mode) {
-    if (mode == VariableSelectMode::add) {
-        expr.visit_variables([&vars](std::string const &var) { vars.emplace(var); });
-    } else {
-        expr.visit_variables([&vars](std::string const &var) { vars.erase(var); });
-    }
-}
-
-// TODO: move
-//! Convenience method for @ref select_variables(E, VariableSet &, VariableSelectMode) returning a set.
-template <class E> auto select_variables(E &expr, VariableSelectMode mode) -> VariableSet {
-    VariableSet vars;
-    select_variables(expr, vars, mode);
-    return vars;
-}
-
-// TODO: move
-//! Enumeration to select variables to project.
-//!
-//! @see Projection
-enum class ProjectionMode {
-    disabled = 0,  //!< Disable projection.
-    anonymous = 1, //!< Only project anonymous variables.
-    pure = 2,      //!< Project pure variables.
-};
-
-// TODO: move
-//! Helper to gather projection related arguments.
-class Projection {
-  public:
-    //! Constructor taking the mode which variables to project and a map with counts of variables.
-    explicit Projection(ProjectionMode mode, std::unordered_map<std::string, size_t> const &counts)
-        : counts_{counts}, mode_{mode} {};
-    //! Return whether a the given variable should be projected.
-    //!
-    //! Only variables with a count of exactly one can be projected while the mode adds further restrictions.
-    [[nodiscard]] auto projectable(std::string const &var, bool anonymous) const -> bool;
-    //! Return the variable counts.
-    [[nodiscard]] auto counts() const -> std::unordered_map<std::string, size_t> const &;
-    //! Return the mode.
-    [[nodiscard]] auto mode() const -> ProjectionMode;
-
-  private:
-    //! The variable counts.
-    std::unordered_map<std::string, size_t> const &counts_;
-    //! The projection mode.
-    ProjectionMode mode_;
-};
-
-// TODO: remove
-class TermVisitor;
-
-// TODO: remove
-//! The term interface to be removed.
-class Term : public Util::enable_shared {
-  public:
-    Term(TermV2 term) : term{std::move(term)} {}
-    //! Check if the term has the given type optionally adding context information.
-    [[nodiscard]] auto check_type(TermCheckType type, CheckTypeResult *res = nullptr) const -> bool;
-    //! Remove all pooled arguments from the term.
-    [[nodiscard]] auto unpool() const -> std::optional<STermVec>;
-    //! Equality compare two terms.
-    [[nodiscard]] auto is_equal(Term const &other) const -> bool;
-    //! Equality compare two terms.
-    [[nodiscard]] friend auto operator==(Term const &a, Term const &b) { return a.is_equal(b); }
-    //! Compute a hash for the term.
-    [[nodiscard]] auto hash() const -> size_t;
-    //! Visit variables with the given function.
-    void visit_variables(VarVisitFun const &fun) const;
-    //! Project variables according to given projection mode.
-    [[nodiscard]] auto project(Projection project) const -> std::optional<STerm>;
-    //! Unconditionally project anonymous variables.
-    //!
-    //! This is a deprecated feature to support old programs.
-    //! The projection star should be used instead.
-    [[nodiscard]] auto project_anonymous() const -> std::optional<STerm>;
-
-    //! Visit terms with the given visitor.
-    void accept(TermVisitor const &visitor) const;
-
-    TermV2 term;
-};
-
-// TODO: remove
-//! A visitor for available term types.
-class TermVisitor {
-  public:
-    //! Virtual destructor.
-    virtual ~TermVisitor() = default;
-
-    //! Visit a symbolic term.
-    virtual void visit(TermSymbol const &term) const = 0;
-    //! Visit a variable term.
-    virtual void visit(TermVariable const &term) const = 0;
-    //! Visit a function term.
-    virtual void visit(TermFunction const &term) const = 0;
-    //! Visit a tuple term.
-    virtual void visit(TermTuple const &term) const = 0;
-    //! Visit an absolute term.
-    virtual void visit(TermAbs const &term) const = 0;
-    //! Visit an unary term.
-    virtual void visit(TermUnary const &term) const = 0;
-    //! Visit a binary term.
-    virtual void visit(TermBinary const &term) const = 0;
-};
-
 } // namespace Gringo::Input
-
-// TODO: remove
-HASH(Gringo::Input::Term);
 
 HASH_PROTO(Gringo::Input::TermVariable);
 HASH_PROTO(Gringo::Input::TermSymbol);

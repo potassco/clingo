@@ -3,6 +3,7 @@
 #include <util/print.hh>
 
 #include <input/algo/print.hh>
+#include <input/algo/check_type.hh>
 
 namespace Gringo::Input {
 
@@ -417,8 +418,7 @@ struct PrintTerm : Print<PrintTerm> {
     bool no_leading_op = false;
 };
 
-class PrintVisitor : public TermVisitor,
-                     public TheoryTermVisitor,
+class PrintVisitor : public TheoryTermVisitor,
                      public LiteralVisitor,
                      public HeadLiteralVisitor,
                      public BodyLiteralVisitor,
@@ -454,11 +454,6 @@ class PrintVisitor : public TermVisitor,
 
     // auxiliary functions
 
-    void visit(TupleElem const &elem) const {
-        Util::visit_variant(
-            elem, [this](std::monostate) { out_ << "*"; }, [this](STerm const &term) { term->accept(*this); });
-    }
-
     void visit(Disjunction::ElementVec const &elems, char const *kw, bool simple_empty) const {
         auto is_simple = elems.empty() ? simple_empty : std::all_of(elems.begin(), elems.end(), [&](auto const &elem) {
             return elem.first.size() == 1;
@@ -484,7 +479,7 @@ class PrintVisitor : public TermVisitor,
 
     void visit(SetAggregate const &aggr) const {
         if (aggr.lhs().has_value()) {
-            out_ << *aggr.lhs()->first << " " << aggr.lhs()->second << " ";
+            out_ << aggr.lhs()->first << " " << aggr.lhs()->second << " ";
         }
         out_ << "{ ";
         apply_to_range_with(aggr.elements(), "; ", [this](auto const &elem) {
@@ -496,12 +491,12 @@ class PrintVisitor : public TermVisitor,
         });
         out_ << (aggr.elements().empty() ? "}" : " }");
         if (aggr.rhs().has_value()) {
-            out_ << " " << aggr.rhs()->first << " " << *aggr.rhs()->second;
+            out_ << " " << aggr.rhs()->first << " " << aggr.rhs()->second;
         }
     }
 
     void visit(TheoryAtom const &atom) const {
-        out_ << "&" << *atom.name();
+        out_ << "&" << atom.name();
         auto const &elems = atom.elements();
         if (!elems.empty() || atom.rhs().has_value()) {
             out_ << " { ";
@@ -566,22 +561,6 @@ class PrintVisitor : public TermVisitor,
         out_ << def.type();
     }
 
-    // visit terms
-
-    void visit(TermSymbol const &term) const override { PrintTerm{out_}.operator()(term); }
-
-    void visit(TermVariable const &term) const override { PrintTerm{out_}.operator()(term); }
-
-    void visit(TermFunction const &term) const override { PrintTerm{out_}.operator()(term); }
-
-    void visit(TermTuple const &term) const override { PrintTerm{out_}.operator()(term); }
-
-    void visit(TermAbs const &term) const override { PrintTerm{out_}.operator()(term); }
-
-    void visit(TermUnary const &term) const override { PrintTerm{out_}.operator()(term); }
-
-    void visit(TermBinary const &term) const override { PrintTerm{out_}.operator()(term); }
-
     // visit theory terms
 
     void visit(TheoryTermUnparsed const &term) const override {
@@ -626,16 +605,14 @@ class PrintVisitor : public TermVisitor,
     void visit(LiteralBoolean const &lit) const override { out_ << lit.sign() << (lit.value() ? "#true" : "#false"); }
 
     void visit(LiteralRelation const &lit) const override {
-        out_ << lit.sign() << *lit.lhs();
+        out_ << lit.sign() << lit.lhs();
         for (auto const &[rel, term] : lit.rhs()) {
-            out_ << rel;
-            term->accept(*this);
+            out_ << rel << term;
         }
     }
 
     void visit(LiteralSymbolic const &lit) const override {
-        out_ << lit.sign();
-        lit.term()->accept(*this);
+        out_ << lit.sign() << lit.term();
     }
 
     // visit head literals
@@ -648,12 +625,11 @@ class PrintVisitor : public TermVisitor,
         auto const &lhs = lit.lhs();
         auto const &rhs = lit.rhs();
         if (lhs.has_value()) {
-            lhs->first->accept(*this);
-            out_ << " " << lhs->second << " ";
+            out_ << lhs->first << " " << lhs->second << " ";
         }
         out_ << lit.function() << " { ";
         apply_to_range_with(lit.elements(), "; ", [this](auto const &elem) {
-            visit_range(std::get<0>(elem));
+            PrintTerm{out_}.visit_range(std::get<0>(elem));
             out_ << ": ";
             std::get<1>(elem)->accept(*this);
             if (!std::get<2>(elem).empty()) {
@@ -663,8 +639,7 @@ class PrintVisitor : public TermVisitor,
         });
         out_ << (lit.elements().empty() ? "}" : " }");
         if (rhs.has_value()) {
-            out_ << " " << rhs->first << " ";
-            rhs->second->accept(*this);
+            out_ << " " << rhs->first << " " << rhs->second;
         }
     }
 
@@ -682,11 +657,11 @@ class PrintVisitor : public TermVisitor,
     void visit(BodyAggregate const &lit) const override {
         out_ << lit.sign();
         if (lit.lhs().has_value()) {
-            out_ << *lit.lhs()->first << " " << lit.lhs()->second << " ";
+            out_ << lit.lhs()->first << " " << lit.lhs()->second << " ";
         }
         out_ << lit.function() << " { ";
         apply_to_range_with(lit.elements(), "; ", [this](auto const &elem) {
-            visit_range(std::get<0>(elem));
+            PrintTerm{out_}.visit_range(std::get<0>(elem));
             if (!std::get<1>(elem).empty()) {
                 out_ << ": ";
                 visit_range(std::get<1>(elem), ", ");
@@ -694,7 +669,7 @@ class PrintVisitor : public TermVisitor,
         });
         out_ << (lit.elements().empty() ? "}" : " }");
         if (lit.rhs().has_value()) {
-            out_ << " " << lit.rhs()->first << " " << *lit.rhs()->second;
+            out_ << " " << lit.rhs()->first << " " << lit.rhs()->second;
         }
     }
 
@@ -735,14 +710,13 @@ class PrintVisitor : public TermVisitor,
         apply_to_range_with(stm.elements(), "; ", [this](auto const &elem) {
             auto const &[tuple, cond] = elem;
             auto const &[weight, prio, terms] = tuple;
-            weight->accept(*this);
+            out_ << weight;
             if (prio) {
-                out_ << "@";
-                prio.value()->accept(*this);
+                out_ << "@" << prio.value();
             }
             if (!terms.empty()) {
                 out_ << ",";
-                visit_range(terms);
+                PrintTerm{out_}.visit_range(terms);
             }
             if (!cond.empty()) {
                 out_ << ": ";
@@ -756,14 +730,13 @@ class PrintVisitor : public TermVisitor,
         auto const &[weight, prio, terms] = stm.tuple();
         out_ << " :~ ";
         visit_range(stm.body(), "; ");
-        out_ << ". [" << *weight;
+        out_ << ". [" << weight;
         if (prio) {
-            out_ << "@";
-            prio.value()->accept(*this);
+            out_ << "@" << prio.value();
         }
         if (!terms.empty()) {
             out_ << ",";
-            visit_range(terms);
+            PrintTerm{out_}.visit_range(terms);
         }
         out_ << "]";
     }
@@ -771,13 +744,11 @@ class PrintVisitor : public TermVisitor,
     void visit(StatementShow const &stm) const override {
         char const *lp = "";
         char const *rp = "";
-        if (stm.term()->check_type(TermCheckType::sig, nullptr)) {
+        if (check_type(stm.term(), TermCheckType::sig, nullptr)) {
             lp = "(";
             rp = ")";
         }
-        out_ << "#show " << lp;
-        stm.term()->accept(*this);
-        out_ << rp << ": ";
+        out_ << "#show " << lp << stm.term() << rp << ": ";
         visit_range(stm.body(), "; ");
         out_ << ".";
     }
@@ -787,9 +758,7 @@ class PrintVisitor : public TermVisitor,
     }
 
     void visit(StatementProject const &stm) const override {
-        out_ << "#project ";
-        stm.term()->accept(*this);
-        out_ << (stm.body().empty() ? "" : ": ");
+        out_ << "#project " << stm.term() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
         out_ << ".";
     }
@@ -803,24 +772,18 @@ class PrintVisitor : public TermVisitor,
     }
 
     void visit(StatementExternal const &stm) const override {
-        out_ << "#external ";
-        stm.term()->accept(*this);
-        out_ << (stm.body().empty() ? "" : ": ");
+        out_ << "#external " << stm.term() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
         out_ << ".";
         if (stm.type().has_value()) {
-            out_ << " [";
-            stm.type().value()->accept(*this);
-            out_ << "]";
+            out_ << " [" << stm.type().value() << "]";
         }
     }
 
     void visit(StatementEdge const &stm) const override {
         out_ << "#edge (";
         apply_to_range_with(stm.edges(), ";", [this](auto const &edge) {
-            edge.first->accept(*this);
-            out_ << ",";
-            edge.second->accept(*this);
+            out_ << edge.first << "," << edge.second;
         });
         out_ << ")" << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
@@ -828,19 +791,13 @@ class PrintVisitor : public TermVisitor,
     }
 
     void visit(StatementHeuristic const &stm) const override {
-        out_ << "#heuristic ";
-        stm.atom()->accept(*this);
-        out_ << (stm.body().empty() ? "" : ": ");
+        out_ << "#heuristic " << stm.atom() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
-        out_ << ". [";
-        stm.type()->accept(*this);
+        out_ << ". [" << stm.type();
         if (stm.priority().has_value()) {
-            out_ << "@";
-            stm.priority().value()->accept(*this);
+            out_ << "@" << stm.priority().value();
         }
-        out_ << ",";
-        stm.modifier()->accept(*this);
-        out_ << "]";
+        out_ << "," << stm.modifier() << "]";
     }
 
     void visit(StatementScript const &stm) const override {
@@ -868,9 +825,7 @@ class PrintVisitor : public TermVisitor,
     }
 
     void visit(StatementConst const &stm) const override {
-        out_ << "#const " << stm.name() << "=";
-        stm.value()->accept(*this);
-        out_ << ". [" << stm.type() << "]";
+        out_ << "#const " << stm.name() << "=" << stm.value() << ". [" << stm.type() << "]";
     }
 
   private:
@@ -879,8 +834,8 @@ class PrintVisitor : public TermVisitor,
 
 } // namespace
 
-auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
-    term.accept(PrintVisitor{out});
+auto operator<<(std::ostream &out, TermV2 const &term) -> std::ostream & {
+    std::visit(PrintTerm{out}, term);
     return out;
 }
 
@@ -909,7 +864,7 @@ auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream & {
     return out;
 }
 
-auto to_string(Term const &term) -> std::string {
+auto to_string(TermV2 const &term) -> std::string {
     std::ostringstream oss;
     oss << term;
     return oss.str();

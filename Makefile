@@ -1,10 +1,10 @@
 SHELL := /bin/zsh
 
 all: configure
-	cmake --build build --target $@ --parallel
+	make -C build $@
 
 test: all
-	cmake --build build --target $@ --parallel
+	make -C build $@
 
 compdb: all
 	compdb -p "build" list -1 > compile_commands.json

@@ -23,7 +23,7 @@ template <class P> class VarVisitHelper : public P {
 
     template <class... T> VarVisitHelper(T &&...args) : P{std::forward<T>(args)...} {}
 
-    template <class T> auto add(T const &x) -> std::void_t<decltype(x.visit_variables(std::declval<VarVisitFun>()))> {
+    template <class T> auto add(T const &x) -> std::void_t<decltype(visit_variables(x, std::declval<VarVisitFun>()))> {
         P::visit_(x);
     }
 
@@ -93,7 +93,7 @@ class VarCounterHelper {
 
   protected:
     template <class T> void visit_(T const &x) {
-        x.visit_variables([this](std::string const &var) {
+        visit_variables(x, [this](std::string const &var) {
             if (!global_.contains(var)) {
                 ++local_[var];
             }
@@ -112,7 +112,7 @@ class VarVisitorHelper {
     [[nodiscard]] auto visitor() const -> VarVisitFun const & { return fun_; }
 
   protected:
-    template <class T> void visit_(T const &var) { var.visit_variables(fun_); }
+    template <class T> void visit_(T const &var) { visit_variables(var, fun_); }
     static void add(no_such x) { static_cast<void>(x); };
 
   private:

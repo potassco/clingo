@@ -154,15 +154,15 @@ class TheoryAtom {
     using Element = std::pair<STheoryTermVec, SLiteralVec>;
     using ElementVec = std::vector<Element>;
 
-    explicit TheoryAtom(STerm name, ElementVec elems, RGuard rhs)
+    explicit TheoryAtom(TermV2 name, ElementVec elems, RGuard rhs)
         : name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {}
-    explicit TheoryAtom(STerm name, ElementVec elems) : name_{std::move(name)}, elems_{std::move(elems)} {}
-    explicit TheoryAtom(STerm name, ElementVec elems, std::string rhs_op, STheoryTerm rhs_term)
+    explicit TheoryAtom(TermV2 name, ElementVec elems) : name_{std::move(name)}, elems_{std::move(elems)} {}
+    explicit TheoryAtom(TermV2 name, ElementVec elems, std::string rhs_op, STheoryTerm rhs_term)
         : name_{std::move(name)}, elems_{std::move(elems)},
           rhs_{std::in_place, std::move(rhs_op), std::move(rhs_term)} {}
 
     //! Get the name of the theory atom.
-    [[nodiscard]] auto name() const -> STerm const & { return name_; }
+    [[nodiscard]] auto name() const -> TermV2 const & { return name_; }
     //! Get the elements of the theory atom.
     [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
     //! Get the right-hand-side of the theory atom.
@@ -173,7 +173,7 @@ class TheoryAtom {
     [[nodiscard]] auto project_anonymous() const -> std::optional<TheoryAtom>;
 
   private:
-    STerm name_;
+    TermV2 name_;
     ElementVec elems_;
     RGuard rhs_;
 };
