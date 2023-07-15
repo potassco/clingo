@@ -24,7 +24,7 @@ struct relation {
 struct right_guard {
     static constexpr char const *name = "guard";
     static constexpr auto rule = dsl::p<relation> >> dsl::p<term>;
-    static constexpr auto value = lexy::construct<std::pair<Relation, STerm>>;
+    static constexpr auto value = lexy::construct<std::pair<Relation, TermV2>>;
 };
 
 struct right_guards {
@@ -44,7 +44,7 @@ struct atom_bool : lexy::token_production {
 
 struct atom {
     static constexpr char const *name = "atom";
-    using scan_result = lexy::scan_result<STerm>;
+    using scan_result = lexy::scan_result<TermV2>;
 
     STRING_TAG(relation, "expected relation");
 
@@ -52,8 +52,8 @@ struct atom {
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        auto res_term = scanner.template parse<STerm>(dsl::p<term>);
-        if (res_term.has_value() && res_term.value()->check_type(TermCheckType::atom)) {
+        auto res_term = scanner.template parse<TermV2>(dsl::p<term>);
+        if (res_term.has_value() && check_type(res_term.value(), TermCheckType::atom)) {
             scanner.parse(is_atom.set());
         }
         return res_term;

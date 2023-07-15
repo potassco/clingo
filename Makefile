@@ -1,10 +1,10 @@
 SHELL := /bin/zsh
 
 all: configure
-	make -C build $@
+	$(MAKE) -C build $@
 
 test: all
-	make -C build $@
+	$(MAKE) -C build $@
 
 compdb: all
 	compdb -p "build" list -1 > compile_commands.json

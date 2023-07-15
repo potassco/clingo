@@ -34,8 +34,8 @@ struct body_aggregate_element {
         return dsl::opt(peek >> dsl::p<term_list>) + dsl::p<opt_condition>;
     }();
     static constexpr auto value =
-        lexy::callback<BodyAggregate::Element>([](std::optional<STermVec> tuple, std::optional<SLiteralVec> cond) {
-            auto ret = BodyAggregate::Element{STermVec{}, SLiteralVec{}};
+        lexy::callback<BodyAggregate::Element>([](std::optional<TermVec> tuple, std::optional<SLiteralVec> cond) {
+            auto ret = BodyAggregate::Element{TermVec{}, SLiteralVec{}};
             if (tuple) {
                 std::get<0>(ret) = std::move(tuple).value();
             }
@@ -61,14 +61,14 @@ struct body_aggregate {
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<SBodyAggregate>(
         lexy::new_<BodyAggregate, SBodyAggregate>,
-        [](AggregateFunction fun, BodyAggregate::ElementVec elems, STerm rhs) {
+        [](AggregateFunction fun, BodyAggregate::ElementVec elems, TermV2 rhs) {
             return Util::construct_shared<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
 };
 
 struct body_atom : lexy::transparent_production {
     static constexpr char const *name = "body atom";
-    using scan_result = lexy::scan_result<STerm>;
+    using scan_result = lexy::scan_result<TermV2>;
 
     static constexpr auto is_atom = dsl::context_flag<body_atom>;
 
@@ -76,8 +76,8 @@ struct body_atom : lexy::transparent_production {
 
     template <typename Reader, typename Context>
     static auto scan(lexy::rule_scanner<Context, Reader> &scanner) -> scan_result {
-        auto res_term = scanner.template parse<STerm>(dsl::p<term>);
-        if (res_term.has_value() && res_term.value()->check_type(TermCheckType::atom)) {
+        auto res_term = scanner.template parse<TermV2>(dsl::p<term>);
+        if (res_term.has_value() && check_type(res_term.value(), TermCheckType::atom)) {
             scanner.parse(is_atom.set());
         }
         return res_term;
@@ -100,17 +100,17 @@ struct body_atom : lexy::transparent_production {
     static constexpr auto value = lexy::callback<SBodyLiteral>(
         lexy::forward<SBodyLiteral>, lexy::new_<BodySetAggregate, SBodyLiteral>,
         lexy::new_<BodyTheoryAtom, SBodyLiteral>,
-        [](STerm term, auto aggr) {
+        [](TermV2 term, auto aggr) {
             auto ret = Detail::construct_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);
             return ret;
         },
-        [](STerm term, Relation rel, auto aggr) {
+        [](TermV2 term, Relation rel, auto aggr) {
             auto ret = Detail::construct_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), rel);
             return ret;
         },
-        [](STerm lhs, Relation rel, STerm rhs, std::optional<GuardVec> opt_guards, SLiteralVec cond) {
+        [](TermV2 lhs, Relation rel, TermV2 rhs, std::optional<GuardVec> opt_guards, SLiteralVec cond) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
@@ -120,7 +120,7 @@ struct body_atom : lexy::transparent_production {
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         },
         [](SLiteral lit, SLiteralVec cond) { return Detail::construct_conjunction(std::move(lit), std::move(cond)); },
-        [](STerm term, SLiteralVec cond) {
+        [](TermV2 term, SLiteralVec cond) {
             auto lit = Util::construct_shared<LiteralSymbolic, Literal>(std::move(term));
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         });

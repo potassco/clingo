@@ -8,6 +8,7 @@
 
 #include <util/lexy_report_error.hh>
 #include <util/lexy_stream_input.hh>
+#include <util/shared_ptr.hh>
 
 #define STRING_TAG(n, v)                                                                                               \
     struct expected_##n {                                                                                              \
@@ -68,6 +69,32 @@ struct has_state_<std::void_t<decltype(std::declval<T &>().remaining_input().rea
 
 /// Check if the reader associated with the given scanner has a state method.
 template <typename T> constexpr bool has_state = has_state_<void, T>::value_t::value;
+
+template <typename T, typename R = Util::shared_ptr<T>> struct construct_sv_ {
+    using return_type = R;
+
+    template <typename... Args>
+    constexpr auto operator()(Args &&...args) const
+        -> std::enable_if_t<std::is_constructible_v<T, Args &&...>, return_type> {
+        return Util::construct_shared<T>(std::forward<Args>(args)...);
+    }
+};
+
+//! Helper to construct a shared pointer and then convert it to another type.
+template <typename T, typename R = Util::shared_ptr<T>> constexpr auto construct_sv = construct_sv_<T, R>{};
+
+template <typename T, typename R> struct construct_v_ {
+    using return_type = R;
+
+    template <typename... Args>
+    constexpr auto operator()(Args &&...args) const
+        -> std::enable_if_t<std::is_constructible_v<T, Args &&...>, return_type> {
+        return T{std::forward<Args>(args)...};
+    }
+};
+
+//! Helper to construct an object and then convert it to another type.
+template <typename T, typename R> constexpr auto construct_v = construct_v_<T, R>{};
 
 } // namespace Detail
 
