@@ -162,7 +162,7 @@ struct theory_atom_element {
     static constexpr auto rule =
         dsl::p<condition> | dsl::else_ >> dsl::p<theory_atom_element_tuple> + dsl::p<opt_condition>;
     static constexpr auto value =
-        lexy::callback<TheoryAtom::Element>(lexy::construct<TheoryAtom::Element>, [](SLiteralVec cond) {
+        lexy::callback<TheoryAtom::Element>(lexy::construct<TheoryAtom::Element>, [](LiteralVec cond) {
             return TheoryAtom::Element{STheoryTermVec{}, std::move(cond)};
         });
 };

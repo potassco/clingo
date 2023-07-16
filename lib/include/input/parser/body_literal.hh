@@ -20,9 +20,9 @@ inline auto construct_body_aggr(SetAggregate aggr) -> SBodySetAggregate {
     return Util::construct_shared<BodySetAggregate>(std::move(aggr));
 }
 
-auto construct_conjunction(SLiteral lit, SLiteralVec cond) {
+auto construct_conjunction(Literal lit, LiteralVec cond) {
     return Util::construct_shared<Conjunction, BodyLiteral>(
-        Conjunction::ElementVec{Conjunction::Element{SLiteralVec{std::move(lit)}, std::move(cond)}});
+        Conjunction::ElementVec{Conjunction::Element{LiteralVec{std::move(lit)}, std::move(cond)}});
 }
 
 } // namespace Detail
@@ -34,8 +34,8 @@ struct body_aggregate_element {
         return dsl::opt(peek >> dsl::p<term_list>) + dsl::p<opt_condition>;
     }();
     static constexpr auto value =
-        lexy::callback<BodyAggregate::Element>([](std::optional<TermVec> tuple, std::optional<SLiteralVec> cond) {
-            auto ret = BodyAggregate::Element{TermVec{}, SLiteralVec{}};
+        lexy::callback<BodyAggregate::Element>([](std::optional<TermVec> tuple, std::optional<LiteralVec> cond) {
+            auto ret = BodyAggregate::Element{TermVec{}, LiteralVec{}};
             if (tuple) {
                 std::get<0>(ret) = std::move(tuple).value();
             }
@@ -110,18 +110,18 @@ struct body_atom : lexy::transparent_production {
             ret->set_left_guard(std::move(term), rel);
             return ret;
         },
-        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, SLiteralVec cond) {
+        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, LiteralVec cond) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
-            auto lit = Util::construct_shared<LiteralRelation, Literal>(std::move(lhs), std::move(guards));
+            auto lit = LiteralRelation{std::move(lhs), std::move(guards)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         },
-        [](SLiteral lit, SLiteralVec cond) { return Detail::construct_conjunction(std::move(lit), std::move(cond)); },
-        [](Term term, SLiteralVec cond) {
-            auto lit = Util::construct_shared<LiteralSymbolic, Literal>(std::move(term));
+        [](Literal lit, LiteralVec cond) { return Detail::construct_conjunction(std::move(lit), std::move(cond)); },
+        [](Term term, LiteralVec cond) {
+            auto lit = LiteralSymbolic{std::move(term)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         });
 };

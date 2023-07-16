@@ -29,19 +29,19 @@ struct condition {
         auto peek = dsl::peek_not(LEXY_ASCII_ONE_OF(".;}"));
         return colon >> dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
     }();
-    static constexpr auto value = lexy::as_list<SLiteralVec>;
+    static constexpr auto value = lexy::as_list<LiteralVec>;
 };
 
 struct opt_condition {
     static constexpr char const *name = "condition";
     static constexpr auto rule = dsl::if_(dsl::p<condition>);
-    static constexpr auto value = lexy::construct<SLiteralVec>;
+    static constexpr auto value = lexy::construct<LiteralVec>;
 };
 
 struct conditional_literal {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::construct<std::pair<SLiteral, SLiteralVec>>;
+    static constexpr auto value = lexy::construct<std::pair<Literal, LiteralVec>>;
 };
 
 template <class E> struct junction_element {
@@ -49,11 +49,11 @@ template <class E> struct junction_element {
         auto peek = dsl::peek_not(LEXY_LIT(":"));
         return dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")))) + dsl::p<opt_condition>;
     }();
-    static constexpr auto value = lexy::as_list<SLiteralVec> >> lexy::callback<E>(
-                                                                    [](lexy::nullopt, SLiteralVec cond) {
-                                                                        return E{{}, std::move(cond)};
-                                                                    },
-                                                                    lexy::construct<E>);
+    static constexpr auto value = lexy::as_list<LiteralVec> >> lexy::callback<E>(
+                                                                   [](lexy::nullopt, LiteralVec cond) {
+                                                                       return E{{}, std::move(cond)};
+                                                                   },
+                                                                   lexy::construct<E>);
 };
 
 template <class E, class J, class L> struct junction {

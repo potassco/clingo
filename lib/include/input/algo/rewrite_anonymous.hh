@@ -28,7 +28,7 @@ class NameGen {
 [[nodiscard]] auto rewrite_anonymous(TheoryTerm const &term, NameGen &gen) -> std::optional<STheoryTerm>;
 
 //! Give anonymous variables a unique name.
-[[nodiscard]] auto rewrite_anonymous(Literal const &lit, NameGen &gen) -> std::optional<SLiteral>;
+[[nodiscard]] auto rewrite_anonymous(Literal const &lit, NameGen &gen) -> std::optional<Literal>;
 
 //! Give anonymous variables a unique name.
 [[nodiscard]] auto rewrite_anonymous(HeadLiteral const &lit, NameGen &gen) -> std::optional<SHeadLiteral>;

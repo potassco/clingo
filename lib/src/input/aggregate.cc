@@ -5,6 +5,8 @@
 
 #include <input/aggregate.hh>
 
+#include <input/algo/project.hh>
+#include <input/algo/project_anonymous.hh>
 #include <input/algo/unpool.hh>
 #include <input/algo/visit_variables.hh>
 
@@ -17,25 +19,28 @@ namespace Gringo::Input {
 void SetAggregate::set_rhs(Term lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
 
 auto SetAggregate::unpool() const -> std::optional<std::vector<SetAggregate>> {
+    using Gringo::Input::unpool;
     return unpool_crossproducts(
         [&](auto lhs, auto elems, auto rhs) {
             return SetAggregate{std::move(lhs), std::move(elems), std::move(rhs)};
         },
         Util::overloaded{
             [](ElementVec const &elems) -> std::optional<std::vector<ElementVec>> {
-                return map_opt(unpool_union(elems,
-                                            [](auto elem) {
-                                                return unpool_crossproducts(
-                                                    [](auto lit, auto cond) {
-                                                        return Element{std::move(lit), std::move(cond)};
-                                                    },
-                                                    Util::overloaded{[](SLiteral const &lit) { return lit->unpool(); },
-                                                                     [](SLiteralVec const &lits) {
-                                                                         return unpool_crossproduct(lits);
-                                                                     }},
-                                                    std::get<0>(elem), std::get<1>(elem));
-                                            }),
-                               [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
+                return Util::map_opt(
+                    unpool_union(elems,
+                                 [](auto elem) {
+                                     return unpool_crossproducts(
+                                         [](auto lit, auto cond) {
+                                             return Element{std::move(lit), std::move(cond)};
+                                         },
+                                         Util::overloaded{[](Literal const &lit) { return unpool(lit); },
+                                                          [](LiteralVec const &lits) {
+                                                              return unpool_crossproduct(
+                                                                  lits, [](auto const &lit) { return unpool(lit); });
+                                                          }},
+                                         std::get<0>(elem), std::get<1>(elem));
+                                 }),
+                    [](auto elems) { return Util::make_vec<ElementVec>(std::move(elems)); });
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
                 return Util::and_then_opt(lhs, [](auto const &lhs) {
@@ -64,28 +69,30 @@ void SetAggregate::visit_variables(std::function<void(std::string const &var)> f
     }
 }
 
-auto SetAggregate::project(Projection project, bool in_negative_scope) const -> std::optional<SetAggregate> {
+auto SetAggregate::project(Projection prj, bool in_negative_scope) const -> std::optional<SetAggregate> {
+    using Gringo::Input::project;
     if (!in_negative_scope && reduct_is_nonmonotone(lhs_, AggregateFunction::count, rhs_)) {
         return std::nullopt;
     }
-    auto fun = [project](Element const &elem) -> std::optional<Element> {
+    auto fun = [prj](Element const &elem) -> std::optional<Element> {
         auto const &[lit, cond] = elem;
 
         // add counts of local variables
-        VarCounter counter{project.counts()};
+        VarCounter counter{prj.counts()};
         counter.add(lit);
         counter.add(cond);
-        auto sub_project = Projection{project.mode(), counter};
+        auto sub_project = Projection{prj.mode(), counter};
 
         // project literals in condition
-        auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
+        auto fun = [sub_project](Literal const &lit) { return project(lit, sub_project); };
         return transform_construct<Element>(lit, Trans(cond, fun));
     };
     return transform_construct<SetAggregate>(lhs_, Trans{elems_, fun}, rhs_);
 }
 
 auto SetAggregate::project_anonymous() const -> std::optional<SetAggregate> {
-    auto fun = [](SLiteral const &lit) { return lit->project_anonymous(); };
+    using Gringo::Input::project_anonymous;
+    auto fun = [](Literal const &lit) { return project_anonymous(lit); };
     return transform_construct<SetAggregate>(lhs_, Trans{elems_, fun}, rhs_);
 }
 

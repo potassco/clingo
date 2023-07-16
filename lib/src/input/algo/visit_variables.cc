@@ -33,6 +33,14 @@ struct VisitVariables {
         visit(*this, term.rhs);
     }
 
+    void operator()(Literal const &lit) const { std::visit(*this, lit); }
+
+    void operator()(LiteralBoolean const &lit) const { static_cast<void>(lit); }
+
+    void operator()(LiteralRelation const &lit) const { static_cast<void>(lit); }
+
+    void operator()(LiteralSymbolic const &lit) const { visit(*this, lit.term); }
+
     VarVisitFun fun;
 };
 
@@ -60,7 +68,7 @@ void visit_variables(Term const &term, VarVisitFun fun) { std::visit(VisitVariab
 
 void visit_variables(TheoryTerm const &term, VarVisitFun fun) { term.visit_variables(std::move(fun)); }
 
-void visit_variables(Literal const &lit, VarVisitFun fun) { lit.visit_variables(std::move(fun)); }
+void visit_variables(Literal const &lit, VarVisitFun fun) { std::visit(VisitVariables{std::move(fun)}, lit); }
 
 void visit_variables(HeadLiteral const &lit, VarVisitFun fun, VariableContext ctx) {
     lit.visit_variables(std::move(fun), ctx);

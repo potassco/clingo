@@ -320,6 +320,10 @@ struct PrintTerm : Print<PrintTerm> {
         : out{out}, pos{pos}, prio{prio}, no_leading_op{no_leading_op} {}
 
     // aux
+    void operator()(Term const &term) const { std::visit(*this, term); }
+
+    void operator()(Literal const &lit) const { std::visit(*this, lit); }
+
     void operator()(TupleElem const &elem) const {
         Util::visit_variant(
             elem, [this](std::monostate) { out << "*"; }, [&](Term const &term) { std::visit(*this, term); });
@@ -410,6 +414,17 @@ struct PrintTerm : Print<PrintTerm> {
         out << rp;
     }
 
+    void operator()(LiteralBoolean const &lit) const { out << lit.sign << (lit.value ? "#true" : "#false"); }
+
+    void operator()(LiteralRelation const &lit) const {
+        out << lit.sign << lit.lhs;
+        for (auto const &[rel, term] : lit.rhs) {
+            out << rel << term;
+        }
+    }
+
+    void operator()(LiteralSymbolic const &lit) const { out << lit.sign << lit.term; }
+
     std::ostream &out;
     Position pos = Position::none;
     unsigned int prio = 0;
@@ -417,7 +432,6 @@ struct PrintTerm : Print<PrintTerm> {
 };
 
 class PrintVisitor : public TheoryTermVisitor,
-                     public LiteralVisitor,
                      public HeadLiteralVisitor,
                      public BodyLiteralVisitor,
                      public StatementVisitor {
@@ -459,17 +473,18 @@ class PrintVisitor : public TheoryTermVisitor,
         if (is_simple) {
             apply_to_range_with(elems, "; ", [this](auto const &elem) {
                 auto cs = elem.second.empty() ? "" : ": ";
-                out_ << *elem.first.front() << cs;
-                visit_range(elem.second, ", ");
+                PrintTerm{out_}(elem.first.front());
+                out_ << cs;
+                PrintTerm{out_}.visit_range(elem.second, ", ");
             });
         } else {
             char const *sp = elems.empty() ? "" : " ";
             out_ << kw << " { ";
             apply_to_range_with(elems, "; ", [this](auto const &elem) {
                 char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
-                apply_to_range_with(elem.first, ", ", [this](auto const &term) { out_ << *term; });
+                apply_to_range_with(elem.first, ", ", [this](auto const &lit) { PrintTerm{out_}(lit); });
                 out_ << cs;
-                visit_range(elem.second, ", ");
+                PrintTerm{out_}.visit_range(elem.second, ", ");
             });
             out_ << sp << "}";
         }
@@ -481,10 +496,10 @@ class PrintVisitor : public TheoryTermVisitor,
         }
         out_ << "{ ";
         apply_to_range_with(aggr.elements(), "; ", [this](auto const &elem) {
-            std::get<0>(elem)->accept(*this);
+            PrintTerm{out_}(std::get<0>(elem));
             if (!std::get<1>(elem).empty()) {
                 out_ << ": ";
-                visit_range(std::get<1>(elem), ", ");
+                PrintTerm{out_}.visit_range(std::get<1>(elem), ", ");
             }
         });
         out_ << (aggr.elements().empty() ? "}" : " }");
@@ -502,7 +517,7 @@ class PrintVisitor : public TheoryTermVisitor,
                 visit_range(elem.first);
                 if (!elem.second.empty() || elem.first.empty()) {
                     out_ << ": ";
-                    visit_range(elem.second, ", ");
+                    PrintTerm{out_}.visit_range(elem.second, ", ");
                 }
             });
             out_ << (elems.empty() ? "}" : " }");
@@ -600,17 +615,6 @@ class PrintVisitor : public TheoryTermVisitor,
         }
     }
 
-    void visit(LiteralBoolean const &lit) const override { out_ << lit.sign() << (lit.value() ? "#true" : "#false"); }
-
-    void visit(LiteralRelation const &lit) const override {
-        out_ << lit.sign() << lit.lhs();
-        for (auto const &[rel, term] : lit.rhs()) {
-            out_ << rel << term;
-        }
-    }
-
-    void visit(LiteralSymbolic const &lit) const override { out_ << lit.sign() << lit.term(); }
-
     // visit head literals
 
     void visit(Disjunction const &lit) const override { visit(lit.elements(), "#or", true); }
@@ -627,10 +631,10 @@ class PrintVisitor : public TheoryTermVisitor,
         apply_to_range_with(lit.elements(), "; ", [this](auto const &elem) {
             PrintTerm{out_}.visit_range(std::get<0>(elem));
             out_ << ": ";
-            std::get<1>(elem)->accept(*this);
+            PrintTerm{out_}(std::get<1>(elem));
             if (!std::get<2>(elem).empty()) {
                 out_ << ": ";
-                visit_range(std::get<2>(elem), ", ");
+                PrintTerm{out_}.visit_range(std::get<2>(elem), ", ");
             }
         });
         out_ << (lit.elements().empty() ? "}" : " }");
@@ -660,7 +664,7 @@ class PrintVisitor : public TheoryTermVisitor,
             PrintTerm{out_}.visit_range(std::get<0>(elem));
             if (!std::get<1>(elem).empty()) {
                 out_ << ": ";
-                visit_range(std::get<1>(elem), ", ");
+                PrintTerm{out_}.visit_range(std::get<1>(elem), ", ");
             }
         });
         out_ << (lit.elements().empty() ? "}" : " }");
@@ -716,7 +720,7 @@ class PrintVisitor : public TheoryTermVisitor,
             }
             if (!cond.empty()) {
                 out_ << ": ";
-                visit_range(cond, ", ");
+                PrintTerm{out_}.visit_range(cond, ", ");
             }
         });
         out_ << (stm.elements().empty() ? "}" : " }") << ".";
@@ -839,7 +843,7 @@ auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
 }
 
 auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream & {
-    lit.accept(PrintVisitor{out});
+    std::visit(PrintTerm{out}, lit);
     return out;
 }
 

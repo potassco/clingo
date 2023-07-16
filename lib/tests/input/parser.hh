@@ -16,7 +16,7 @@
 namespace Gringo::Input::Test {
 
 auto parse_term(std::string str) -> std::optional<Term>;
-auto parse_literal(std::string str) -> std::optional<SLiteral>;
+auto parse_literal(std::string str) -> std::optional<Literal>;
 auto parse_head_literal(std::string str) -> std::optional<SHeadLiteral>;
 auto parse_body_literal(std::string str) -> std::optional<SBodyLiteral>;
 auto parse_statement(std::string str) -> std::optional<SStatement>;

@@ -144,7 +144,7 @@ class TheoryTermVisitor {
 class TheoryAtom {
   public:
     using RGuard = std::optional<std::pair<std::string, STheoryTerm>>;
-    using Element = std::pair<STheoryTermVec, SLiteralVec>;
+    using Element = std::pair<STheoryTermVec, LiteralVec>;
     using ElementVec = std::vector<Element>;
 
     explicit TheoryAtom(Term name, ElementVec elems, RGuard rhs)

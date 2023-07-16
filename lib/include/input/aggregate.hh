@@ -33,7 +33,7 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
 
 class SetAggregate {
   public:
-    using Element = std::pair<SLiteral, SLiteralVec>;
+    using Element = std::pair<Literal, LiteralVec>;
     using ElementVec = std::vector<Element>;
 
     SetAggregate(ElementVec elems) : elems_{std::move(elems)} {}
@@ -54,7 +54,7 @@ class SetAggregate {
     void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
     /// Projects pure variables in the condition if the aggregate is not
     /// nonmonotone or occurs in a negative scope.
-    [[nodiscard]] auto project(Projection project, bool in_negative_scope) const -> std::optional<SetAggregate>;
+    [[nodiscard]] auto project(Projection prj, bool in_negative_scope) const -> std::optional<SetAggregate>;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SetAggregate>;
 
   private:

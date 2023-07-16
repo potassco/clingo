@@ -213,7 +213,7 @@ enum class OptimizeType { minimize, maximize };
 class StatementOptimize : public Statement {
   public:
     using Tuple = std::tuple<Term, std::optional<Term>, TermVec>;
-    using Element = std::pair<Tuple, SLiteralVec>;
+    using Element = std::pair<Tuple, LiteralVec>;
     using ElementVec = std::vector<Element>;
 
     explicit StatementOptimize(OptimizeType type, ElementVec elems) : type_{type}, elems_{std::move(elems)} {}

@@ -63,7 +63,7 @@ auto parse_term(std::string str) -> std::optional<Term> {
     return Grammar::parse<Grammar::parse_root<Input::Grammar::term>>(std::move(str));
 }
 
-auto parse_literal(std::string str) -> std::optional<SLiteral> {
+auto parse_literal(std::string str) -> std::optional<Literal> {
     return Grammar::parse<Grammar::parse_root<Input::Grammar::literal>>(std::move(str));
 }
 

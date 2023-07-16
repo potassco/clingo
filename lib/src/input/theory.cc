@@ -4,6 +4,7 @@
 
 #include <input/theory.hh>
 
+#include <input/algo/project_anonymous.hh>
 #include <input/algo/unpool.hh>
 #include <input/algo/visit_variables.hh>
 
@@ -58,6 +59,7 @@ void TheoryTermFunction::visit_variables(VarVisitFun fun) const {
 ////////// TheoryAtom //////////
 
 auto TheoryAtom::unpool() const -> std::optional<std::vector<TheoryAtom>> {
+    using Gringo::Input::unpool;
     return unpool_crossproducts(
         [&](auto name, auto elems) {
             return TheoryAtom{std::move(name), std::move(elems), rhs_};
@@ -70,8 +72,9 @@ auto TheoryAtom::unpool() const -> std::optional<std::vector<TheoryAtom>> {
                                                     [&elem](auto cond) {
                                                         return Element{std::get<0>(elem), std::move(cond)};
                                                     },
-                                                    Util::overloaded{[](SLiteralVec const &lits) {
-                                                        return unpool_crossproduct(lits);
+                                                    Util::overloaded{[](LiteralVec const &lits) {
+                                                        return unpool_crossproduct(
+                                                            lits, [](auto const &lit) { return unpool(lit); });
                                                     }},
                                                     std::get<1>(elem));
                                             }),
@@ -94,7 +97,8 @@ void TheoryAtom::visit_variables(VarVisitFun fun, VariableContext ctx) const {
 }
 
 auto TheoryAtom::project_anonymous() const -> std::optional<TheoryAtom> {
-    auto fun = [](SLiteral const &lit) { return lit->project_anonymous(); };
+    using Gringo::Input::project_anonymous;
+    auto fun = [](Literal const &lit) { return project_anonymous(lit); };
     return transform_construct<TheoryAtom>(name_, Trans{elems_, fun}, rhs_);
 }
 

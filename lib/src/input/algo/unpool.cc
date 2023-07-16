@@ -109,10 +109,39 @@ struct Unpool {
             },
             *this, *term.lhs, *term.rhs);
     }
+
+    auto operator()(GuardVec const &guards) const -> std::optional<std::vector<GuardVec>> {
+        return unpool_crossproduct(guards, [](Guard const &guard) {
+            return Util::map_opt_vec(Gringo::Input::unpool(guard.second), [&guard](auto term) {
+                return Guard{guard.first, std::move(term)};
+            });
+        });
+    }
+
+    auto operator()(LiteralBoolean const &lit) const -> std::optional<LiteralVec> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
+    auto operator()(LiteralRelation const &lit) const -> std::optional<LiteralVec> {
+        return unpool_crossproducts(
+            [&lit](auto lhs, auto rhs) -> Literal {
+                return LiteralRelation{lit.sign, std::move(lhs), std::move(rhs)};
+            },
+            *this, lit.lhs, lit.rhs);
+    }
+
+    auto operator()(LiteralSymbolic const &lit) const -> std::optional<LiteralVec> {
+        return Util::map_opt_vec(std::visit(*this, lit.term), [&lit](auto term) -> Literal {
+            return LiteralSymbolic{lit.sign, std::move(term)};
+        });
+    }
 };
 
 } // namespace
 
 auto unpool(Term const &term) -> std::optional<TermVec> { return std::visit(Unpool{}, term); }
+
+auto unpool(Literal const &lit) -> std::optional<LiteralVec> { return std::visit(Unpool{}, lit); }
 
 } // namespace Gringo::Input

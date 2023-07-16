@@ -7,6 +7,8 @@
 
 #include <input/head_literal.hh>
 
+#include <input/algo/project.hh>
+#include <input/algo/project_anonymous.hh>
 #include <input/algo/unpool.hh>
 #include <input/algo/visit_variables.hh>
 
@@ -20,7 +22,7 @@ namespace Gringo::Input {
 namespace {
 
 struct ProjectAnonymous {
-    auto operator()(SLiteral const &lit) const { return lit->project_anonymous(); }
+    auto operator()(Literal const &lit) const { return project_anonymous(lit); }
     auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> { return aggr.project_anonymous(); };
     auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.project_anonymous(); };
 };
@@ -66,9 +68,10 @@ auto Disjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
 auto Disjunction::is_test() const -> bool { return CondLits::is_test(elems_); }
 
 auto Disjunction::is_classical() const -> bool {
+    using Gringo::Input::is_atom;
     for (auto const &elem : elems_) {
         for (auto const &lit : elem.first) {
-            if (lit->is_atom()) {
+            if (is_atom(lit)) {
                 return false;
             }
         }
@@ -113,23 +116,25 @@ auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
         },
         Util::overloaded{
             [](ElementVec const &elem_lits) -> std::optional<std::vector<ElementVec>> {
-                return map_opt(
+                return Util::map_opt(
                     unpool_union(elem_lits,
                                  [](auto elem) {
                                      return unpool_crossproducts(
                                          [](auto tuple, auto lit, auto cond) {
                                              return Element{std::move(tuple), std::move(lit), std::move(cond)};
                                          },
-                                         Util::overloaded{
-                                             [](TermVec const &tuple) {
-                                                 return unpool_crossproduct(
-                                                     tuple, [](auto const &term) { return unpool(term); });
-                                             },
-                                             [](SLiteral const &lit) { return lit->unpool(); },
-                                             [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
+                                         Util::overloaded{[](TermVec const &tuple) {
+                                                              return unpool_crossproduct(
+                                                                  tuple, [](auto const &term) { return unpool(term); });
+                                                          },
+                                                          [](Literal const &lit) { return unpool(lit); },
+                                                          [](LiteralVec const &lits) {
+                                                              return unpool_crossproduct(
+                                                                  lits, [](Literal const &lit) { return unpool(lit); });
+                                                          }},
                                          std::get<0>(elem), std::get<1>(elem), std::get<2>(elem));
                                  }),
-                    [](auto elem_lits) { return make_vec<ElementVec>(std::move(elem_lits)); });
+                    [](auto elem_lits) { return Util::make_vec<ElementVec>(std::move(elem_lits)); });
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
                 return Util::and_then_opt(lhs, [](auto const &lhs) {
@@ -157,17 +162,18 @@ void HeadAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     }
 }
 
-auto HeadAggregate::project(Projection project) const -> std::optional<SHeadLiteral> {
-    auto fun = [project](Element const &elem) -> std::optional<Element> {
+auto HeadAggregate::project(Projection prj) const -> std::optional<SHeadLiteral> {
+    using Gringo::Input::project;
+    auto fun = [prj](Element const &elem) -> std::optional<Element> {
         auto const &[tuple, lit, cond] = elem;
 
         // counts of local variables
-        VarCounter counter{project.counts()};
+        VarCounter counter{prj.counts()};
         counter.add(tuple, lit, cond);
-        auto sub_project = Projection{project.mode(), counter};
+        auto sub_project = Projection{prj.mode(), counter};
 
         // project literals in condition
-        auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
+        auto fun = [sub_project](Literal const &lit) { return project(lit, sub_project); };
         return transform_construct<Element>(tuple, lit, Trans(cond, fun));
     };
     return transform_construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, Trans{elems_, fun}, rhs_);

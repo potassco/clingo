@@ -1,5 +1,6 @@
 #include <input/body_literal.hh>
 
+#include <input/algo/project_anonymous.hh>
 #include <input/algo/unpool.hh>
 #include <input/algo/visit_variables.hh>
 
@@ -14,7 +15,7 @@ namespace Gringo::Input {
 namespace {
 
 struct ProjectAnonymous {
-    auto operator()(SLiteral const &lit) const { return lit->project_anonymous(); }
+    auto operator()(Literal const &lit) const { return project_anonymous(lit); }
     auto operator()(TheoryAtom const &aggr) -> std::optional<TheoryAtom> { return aggr.project_anonymous(); };
     auto operator()(SetAggregate const &aggr) -> std::optional<SetAggregate> { return aggr.project_anonymous(); };
 };
@@ -32,10 +33,11 @@ auto BodyLiteral::is_test() const -> bool { return false; }
 void Conjunction::accept(BodyLiteralVisitor const &visitor) const { visitor.visit(*this); }
 
 void Conjunction::add_sign(Sign sign) {
+    using Gringo::Input::add_sign;
     if (elems_.size() != 1 || elems_.front().first.size() != 1) {
         throw std::logic_error("there must be exactly one element");
     }
-    elems_.front().first.front()->add_sign(sign);
+    add_sign(elems_.front().first.front(), sign);
 }
 
 auto Conjunction::unpool() const -> std::optional<SBodyLiteralVec> {
@@ -78,22 +80,24 @@ auto BodyAggregate::unpool() const -> std::optional<SBodyLiteralVec> {
         },
         Util::overloaded{
             [](ElementVec const &elem_lits) -> std::optional<std::vector<ElementVec>> {
-                return map_opt(
+                return Util::map_opt(
                     unpool_union(elem_lits,
                                  [](auto elem) {
                                      return unpool_crossproducts(
                                          [](auto tuple, auto cond) {
                                              return Element{std::move(tuple), std::move(cond)};
                                          },
-                                         Util::overloaded{
-                                             [](TermVec const &tuple) {
-                                                 return unpool_crossproduct(
-                                                     tuple, [](auto const &term) { return unpool(term); });
-                                             },
-                                             [](SLiteralVec const &lits) { return unpool_crossproduct(lits); }},
+                                         Util::overloaded{[](TermVec const &tuple) {
+                                                              return unpool_crossproduct(
+                                                                  tuple, [](auto const &term) { return unpool(term); });
+                                                          },
+                                                          [](LiteralVec const &lits) {
+                                                              return unpool_crossproduct(
+                                                                  lits, [](auto const &lit) { return unpool(lit); });
+                                                          }},
                                          std::get<0>(elem), std::get<1>(elem));
                                  }),
-                    [](auto elem_lits) { return make_vec<ElementVec>(std::move(elem_lits)); });
+                    [](auto elem_lits) { return Util::make_vec<ElementVec>(std::move(elem_lits)); });
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
                 return Util::and_then_opt(lhs, [](auto const &lhs) {
@@ -121,21 +125,22 @@ void BodyAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx)
     }
 }
 
-auto BodyAggregate::project(Projection project, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
+auto BodyAggregate::project(Projection prj, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
+    using Gringo::Input::project;
     if (sign_ == Sign::none && !in_classical_scope && reduct_is_nonmonotone(lhs_, fun_, rhs_)) {
         return std::nullopt;
     }
 
-    auto fun = [project](Element const &elem) -> std::optional<Element> {
+    auto fun = [prj](Element const &elem) -> std::optional<Element> {
         auto const &[lit, cond] = elem;
 
         // counts of local variables
-        VarCounter counter{project.counts()};
+        VarCounter counter{prj.counts()};
         counter.add(lit, cond);
-        auto sub_project = Projection{project.mode(), counter};
+        auto sub_prj = Projection{prj.mode(), counter};
 
         // project literals in condition
-        auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
+        auto fun = [sub_prj](Literal const &lit) { return project(lit, sub_prj); };
         return transform_construct<Element>(lit, Trans(cond, fun));
     };
     return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, Trans{elems_, fun}, rhs_);

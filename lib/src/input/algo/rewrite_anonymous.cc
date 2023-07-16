@@ -7,30 +7,10 @@ namespace Gringo::Input {
 namespace {
 
 struct RewriteAnonymous {
-    auto operator()(Term const &term) const { return rewrite_anonymous(term, gen); }
-    auto operator()(STheoryTerm const &term) const { return rewrite_anonymous(*term, gen); }
-    auto operator()(SLiteral const &lit) const { return rewrite_anonymous(*lit, gen); }
-    auto operator()(TheoryAtom const &aggr) const -> std::optional<TheoryAtom> {
-        return transform_construct<TheoryAtom>(Trans{aggr.name(), *this}, Trans{aggr.elements(), *this},
-                                               Trans{aggr.rhs(), *this});
-    };
-    auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
-        return transform_construct<SetAggregate>(Trans{aggr.lhs(), *this}, Trans{aggr.elements(), *this},
-                                                 Trans{aggr.rhs(), *this});
-    };
-    auto operator()(SHeadLiteral const &lit) const -> std::optional<SHeadLiteral> {
-        return rewrite_anonymous(*lit, gen);
-    };
-    auto operator()(SBodyLiteral const &lit) const -> std::optional<SBodyLiteral> {
-        return rewrite_anonymous(*lit, gen);
-    };
-    NameGen &gen;
-};
-
-struct TermRewriter {
-    TermRewriter(NameGen &gen) : gen{gen} {}
+    RewriteAnonymous(NameGen &gen) : gen{gen} {}
 
     auto operator()(Term const &term) const { return std::visit(*this, term); }
+    auto operator()(Literal const &lit) const { return std::visit(*this, lit); }
 
     [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
 
@@ -66,6 +46,40 @@ struct TermRewriter {
         return transform_construct<TermBinary>(tr(term.lhs), term.op, tr(term.rhs));
     }
 
+    auto operator()(LiteralBoolean const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
+    auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
+        return transform_construct<LiteralRelation>(lit.sign, tr(lit.lhs), tr(lit.rhs));
+    }
+
+    auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
+        return transform_construct<LiteralSymbolic>(lit.sign, tr(lit.term));
+    }
+
+    NameGen &gen;
+};
+
+struct RewriteAnonymousOld {
+    auto operator()(Term const &term) const { return rewrite_anonymous(term, gen); }
+    auto operator()(STheoryTerm const &term) const { return rewrite_anonymous(*term, gen); }
+    auto operator()(Literal const &lit) const { return rewrite_anonymous(lit, gen); }
+    auto operator()(TheoryAtom const &aggr) const -> std::optional<TheoryAtom> {
+        return transform_construct<TheoryAtom>(Trans{aggr.name(), *this}, Trans{aggr.elements(), *this},
+                                               Trans{aggr.rhs(), *this});
+    };
+    auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
+        return transform_construct<SetAggregate>(Trans{aggr.lhs(), *this}, Trans{aggr.elements(), *this},
+                                                 Trans{aggr.rhs(), *this});
+    };
+    auto operator()(SHeadLiteral const &lit) const -> std::optional<SHeadLiteral> {
+        return rewrite_anonymous(*lit, gen);
+    };
+    auto operator()(SBodyLiteral const &lit) const -> std::optional<SBodyLiteral> {
+        return rewrite_anonymous(*lit, gen);
+    };
     NameGen &gen;
 };
 
@@ -73,7 +87,7 @@ class TheoryTermRewriter : public TheoryTermVisitor {
   public:
     TheoryTermRewriter(NameGen &gen, std::optional<STheoryTerm> &result) : gen_{gen}, result_{result} {}
 
-    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymous{gen_}); }
+    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymousOld{gen_}); }
 
     void visit(TheoryTermUnparsed const &term) const override {
         result_ = transform_construct_shared<TheoryTermUnparsed, TheoryTerm>(tra(term.elements()));
@@ -100,32 +114,11 @@ class TheoryTermRewriter : public TheoryTermVisitor {
     std::optional<STheoryTerm> &result_;
 };
 
-class LiteralRewriter : public LiteralVisitor {
-  public:
-    LiteralRewriter(NameGen &gen, std::optional<SLiteral> &result) : gen_{gen}, result_{result} {}
-
-    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymous{gen_}); }
-
-    void visit(LiteralBoolean const &lit) const override { static_cast<void>(lit); }
-
-    void visit(LiteralRelation const &lit) const override {
-        result_ = transform_construct_shared<LiteralRelation, Literal>(lit.sign(), tra(lit.lhs()), tra(lit.rhs()));
-    }
-
-    void visit(LiteralSymbolic const &lit) const override {
-        result_ = transform_construct_shared<LiteralSymbolic, Literal>(lit.sign(), tra(lit.term()));
-    }
-
-  private:
-    NameGen &gen_;
-    std::optional<SLiteral> &result_;
-};
-
 class HeadLiteralRewriter : public HeadLiteralVisitor {
   public:
     HeadLiteralRewriter(NameGen &gen, std::optional<SHeadLiteral> &result) : gen_{gen}, result_{result} {}
 
-    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymous{gen_}); }
+    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymousOld{gen_}); }
 
     void visit(Disjunction const &lit) const override {
         result_ = transform_construct_shared<Disjunction, HeadLiteral>(tra(lit.elements()));
@@ -153,7 +146,7 @@ class BodyLiteralRewriter : public BodyLiteralVisitor {
   public:
     BodyLiteralRewriter(NameGen &gen, std::optional<SBodyLiteral> &result) : gen_{gen}, result_{result} {}
 
-    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymous{gen_}); }
+    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymousOld{gen_}); }
 
     void visit(Conjunction const &lit) const override {
         result_ = transform_construct_shared<Conjunction, BodyLiteral>(tra(lit.elements()));
@@ -181,7 +174,7 @@ class StatementRewriter : public StatementVisitor {
   public:
     StatementRewriter(NameGen &gen, std::optional<SStatement> &result) : gen_{gen}, result_{result} {}
 
-    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymous{gen_}); }
+    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymousOld{gen_}); }
 
     void visit(Rule const &stm) const override {
         result_ = transform_construct_shared<Rule, Statement>(tra(stm.head()), tra(stm.body()));
@@ -251,7 +244,7 @@ auto NameGen::new_name() -> std::string {
 }
 
 [[nodiscard]] auto rewrite_anonymous(Term const &term, NameGen &gen) -> std::optional<Term> {
-    return std::visit(TermRewriter{gen}, term);
+    return std::visit(RewriteAnonymous{gen}, term);
 }
 
 [[nodiscard]] auto rewrite_anonymous(TheoryTerm const &term, NameGen &gen) -> std::optional<STheoryTerm> {
@@ -260,10 +253,8 @@ auto NameGen::new_name() -> std::string {
     return result;
 }
 
-[[nodiscard]] auto rewrite_anonymous(Literal const &lit, NameGen &gen) -> std::optional<SLiteral> {
-    std::optional<SLiteral> result;
-    lit.accept(LiteralRewriter{gen, result});
-    return result;
+[[nodiscard]] auto rewrite_anonymous(Literal const &lit, NameGen &gen) -> std::optional<Literal> {
+    return std::visit(RewriteAnonymous{gen}, lit);
 }
 
 [[nodiscard]] auto rewrite_anonymous(HeadLiteral const &lit, NameGen &gen) -> std::optional<SHeadLiteral> {

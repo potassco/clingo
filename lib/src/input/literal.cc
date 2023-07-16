@@ -62,6 +62,7 @@ auto operator+=(Sign &a, Sign b) -> Sign & {
     return a;
 }
 
+/*
 auto Literal::is_atom() const -> bool { return false; }
 
 auto Literal::is_test() const -> bool { return true; }
@@ -69,24 +70,6 @@ auto Literal::is_test() const -> bool { return true; }
 ////////// LiteralRelation //////////
 
 void LiteralRelation::add_sign(Sign s) { sign_ += s; }
-
-auto LiteralRelation::unpool() const -> std::optional<SLiteralVec> {
-    return unpool_crossproducts(
-        [this](auto lhs, auto rhs) {
-            return Util::construct_shared<LiteralRelation, Literal>(sign_, std::move(lhs), std::move(rhs));
-        },
-        Util::overloaded{
-            [](Term const &term) { return Gringo::Input::unpool(term); },
-            [](GuardVec const &guard) {
-                return unpool_crossproduct(guard, [](Guard const &guard) {
-                    return Util::map_opt_vec(Gringo::Input::unpool(guard.second), [&guard](auto term) {
-                        return Guard{guard.first, std::move(term)};
-                    });
-                });
-            },
-        },
-        lhs_, rhs_);
-}
 
 auto LiteralRelation::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralRelation const *>(&other);
@@ -116,8 +99,6 @@ void LiteralRelation::accept(LiteralVisitor const &visitor) const { visitor.visi
 
 void LiteralBoolean::add_sign(Sign s) { sign_ += s; }
 
-auto LiteralBoolean::unpool() const -> std::optional<SLiteralVec> { return std::nullopt; }
-
 auto LiteralBoolean::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralBoolean const *>(&other);
     return d != nullptr && Util::value_equal(sign_, d->sign_, value_, d->value_);
@@ -139,12 +120,6 @@ void LiteralBoolean::accept(LiteralVisitor const &visitor) const { visitor.visit
 ////////// LiteralSymbolic //////////
 
 void LiteralSymbolic::add_sign(Sign s) { sign_ += s; }
-
-auto LiteralSymbolic::unpool() const -> std::optional<SLiteralVec> {
-    return Util::map_opt_vec(Gringo::Input::unpool(term_), [this](auto term) {
-        return Util::construct_shared<LiteralSymbolic, Literal>(sign_, std::move(term));
-    });
-}
 
 auto LiteralSymbolic::is_equal(Literal const &other) const -> bool {
     auto const *d = dynamic_cast<LiteralSymbolic const *>(&other);
@@ -177,5 +152,7 @@ auto LiteralSymbolic::is_atom() const -> bool { return sign_ == Sign::none; }
 auto LiteralSymbolic::is_test() const -> bool { return false; }
 
 void LiteralSymbolic::accept(LiteralVisitor const &visitor) const { visitor.visit(*this); }
+
+*/
 
 } // namespace Gringo::Input

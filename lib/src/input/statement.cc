@@ -3,6 +3,8 @@
 #include <input/statement.hh>
 
 #include <input/algo/print.hh>
+#include <input/algo/project.hh>
+#include <input/algo/project_anonymous.hh>
 #include <input/algo/rewrite_anonymous.hh>
 #include <input/algo/unpool.hh>
 #include <input/algo/visit_variables.hh>
@@ -29,7 +31,9 @@ struct StatementUnpool {
     auto operator()(std::optional<Term> const &term) const {
         return Util::and_then_opt(term, [](Term const &term) { return unpool(term); });
     }
-    auto operator()(SLiteralVec const &lits) const { return unpool_crossproduct(lits); }
+    auto operator()(LiteralVec const &lits) const {
+        return unpool_crossproduct(lits, [](auto const &lit) { return unpool(lit); });
+    }
     auto operator()(SHeadLiteral const &lit) const { return lit->unpool(); }
     auto operator()(SBodyLiteralVec const &body) const { return unpool_crossproduct(body); }
     auto operator()(StatementOptimize::Tuple const &tuple) const {
@@ -113,7 +117,7 @@ struct Project {
 };
 
 struct ProjectAnonymous {
-    auto operator()(SLiteral const &lit) -> std::optional<SLiteral> { return lit->project_anonymous(); };
+    auto operator()(Literal const &lit) -> std::optional<Literal> { return project_anonymous(lit); };
     auto operator()(SHeadLiteral const &lit) -> std::optional<SHeadLiteral> { return lit->project_anonymous(); };
     auto operator()(SBodyLiteral const &lit) -> std::optional<SBodyLiteral> { return lit->project_anonymous(); };
 };
@@ -265,7 +269,7 @@ void StatementOptimize::accept(StatementVisitor const &visitor) const { visitor.
 
 auto StatementOptimize::do_unpool() const -> std::optional<SStatementVec> {
     // TODO: consider turning into weak constraint
-    return map_opt(unpool_union(elems_, StatementUnpool{}), [this](auto elems) {
+    return Util::map_opt(unpool_union(elems_, StatementUnpool{}), [this](auto elems) {
         return Util::make_vec<SStatement>(
             Util::construct_shared<StatementOptimize, Statement>(type_, std::move(elems)));
     });
@@ -279,15 +283,16 @@ void StatementOptimize::visit_variables(VarVisitFun const &fun, VariableContext 
 }
 
 auto StatementOptimize::do_project(ProjectionMode mode) const -> std::optional<SStatement> {
+    using Gringo::Input::project;
     auto fun = [mode](Element const &elem) -> std::optional<Element> {
         auto const &[tuple, cond] = elem;
 
         // add counts of variables
         auto counts = vcp(tuple, cond);
-        auto project = Projection{mode, counts};
+        auto prj = Projection{mode, counts};
 
         // project literals in condition
-        auto fun = [project](SLiteral const &lit) { return lit->project(project); };
+        auto fun = [prj](Literal const &lit) { return project(lit, prj); };
         return transform_construct<Element>(tuple, Trans{cond, fun});
     };
     return transform_construct_shared<StatementOptimize, Statement>(type_, Trans{elems_, fun});

@@ -62,7 +62,7 @@ class BodyLiteral {
 
 class Conjunction : public BodyLiteral {
   public:
-    using Element = std::pair<SLiteralVec, SLiteralVec>;
+    using Element = std::pair<LiteralVec, LiteralVec>;
     using ElementVec = std::vector<Element>;
 
     explicit Conjunction(ElementVec elems) : elems_{std::move(elems)} {}
@@ -87,7 +87,7 @@ class Conjunction : public BodyLiteral {
 
 class BodyAggregate : public BodyLiteral {
   public:
-    using Element = std::tuple<TermVec, SLiteralVec>;
+    using Element = std::tuple<TermVec, LiteralVec>;
     using ElementVec = std::vector<Element>;
 
     explicit BodyAggregate(Sign sign, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
@@ -111,8 +111,7 @@ class BodyAggregate : public BodyLiteral {
     void set_left_guard(Term lhs, Relation rel);
     [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
-        -> std::optional<SBodyLiteral> override;
+    [[nodiscard]] auto project(Projection prj, bool in_classical_scope) const -> std::optional<SBodyLiteral> override;
     [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
 
     void accept(BodyLiteralVisitor const &visitor) const override;

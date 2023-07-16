@@ -32,7 +32,7 @@ class HeadLiteral {
 
 class Disjunction : public HeadLiteral {
   public:
-    using Element = std::pair<SLiteralVec, SLiteralVec>;
+    using Element = std::pair<LiteralVec, LiteralVec>;
     using ElementVec = std::vector<Element>;
 
     explicit Disjunction(ElementVec elems) : elems_{std::move(elems)} {}
@@ -75,7 +75,7 @@ class HeadTheoryAtom : public HeadLiteral {
 
 class HeadAggregate : public HeadLiteral {
   public:
-    using Element = std::tuple<TermVec, SLiteral, SLiteralVec>;
+    using Element = std::tuple<TermVec, Literal, LiteralVec>;
     using ElementVec = std::vector<Element>;
 
     explicit HeadAggregate(LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)

@@ -6,6 +6,8 @@
 
 #include <util/print.hh>
 
+#include <input/algo/project.hh>
+
 #include "transform.hh"
 #include "unpool.hh"
 #include "variables.hh"
@@ -13,7 +15,7 @@
 namespace Gringo::Input::CondLits {
 
 template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
-    using Conds = std::vector<SLiteralVec>;
+    using Conds = std::vector<LiteralVec>;
     using OConds = std::optional<Conds>;
     using ElemConds = std::vector<OConds>;
     using OElemConds = std::optional<ElemConds>;
@@ -24,7 +26,7 @@ template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
     OElemConds elem_conds;
     size_t i = 0;
     for (auto const &elem : elems) {
-        auto conds = unpool_crossproduct(elem.second);
+        auto conds = unpool_crossproduct(elem.second, [](auto const &lit) { return unpool(lit); });
         if (conds.has_value()) {
             if (!elem_conds.has_value()) {
                 elem_conds = ElemConds(elems.size());
@@ -36,7 +38,10 @@ template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
 
     // unpool literals
     auto elem_lits = unpool_crossproduct(elems, [](auto const &elem) {
-        return map_opt_vec(unpool_crossproduct(elem.first), [](auto lits) { return Element{std::move(lits), {}}; });
+        return Util::map_opt_vec(unpool_crossproduct(elem.first, [](auto const &lit) { return unpool(lit); }),
+                                 [](auto lits) {
+                                     return Element{std::move(lits), {}};
+                                 });
     });
 
     // copy literals if conditions have been unpooled
@@ -49,14 +54,14 @@ template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
     }
 
     // set conditions of unpooled literals and build disjunctions
-    return map_opt_vec(std::move(elem_lits), [&elem_conds, &elems](ElementVec elem_lits) {
+    return Util::map_opt_vec(std::move(elem_lits), [&elem_conds, &elems](ElementVec elem_lits) {
         if (!elem_conds.has_value()) {
             size_t i = 0;
             for (auto &elem : elem_lits) {
                 elem.second = elems[i].second;
                 ++i;
             }
-            return construct_shared<T, B>(elem_lits);
+            return Util::construct_shared<T, B>(elem_lits);
         }
         ElementVec unpooled;
         for (size_t i = 0; i < elem_conds->size(); ++i) {
@@ -68,7 +73,7 @@ template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
                 unpooled.emplace_back(elem_lits[i].first, elems[i].second);
             }
         }
-        return construct_shared<T, B>(std::move(unpooled));
+        return Util::construct_shared<T, B>(std::move(unpooled));
     });
 }
 
@@ -82,31 +87,33 @@ void visit_variables(auto const &elems, VarVisitFun const &fun, VariableContext 
     }
 }
 template <class T, class B, class P>
-auto project(typename T::ElementVec const &elems, P project, bool project_lits, bool in_classical_scope)
+auto project(typename T::ElementVec const &elems, P prj, bool project_lits, bool in_classical_scope)
     -> std::optional<Util::shared_ptr<B>> {
+    using Gringo::Input::is_atom;
+    using Gringo::Input::project;
     using Elem = typename T::ElementVec::value_type;
     auto fun = [&](Elem const &elem) -> std::optional<Elem> {
         auto const &[lits, cond] = elem;
-        bool project_cond = in_classical_scope ||
-                            std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return !lit->is_atom(); });
+        bool project_cond =
+            in_classical_scope || std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return !is_atom(lit); });
         // project conclusion
-        std::optional<SLiteralVec> projected_lits = std::nullopt;
+        std::optional<LiteralVec> projected_lits = std::nullopt;
         if (project_lits) {
-            auto fun = [project](SLiteral const &lit) { return lit->project(project); };
+            auto fun = [prj](Literal const &lit) { return project(lit, prj); };
             projected_lits = transform(fun, lits);
         }
         // project premise
-        std::optional<SLiteralVec> projected_cond = std::nullopt;
+        std::optional<LiteralVec> projected_cond = std::nullopt;
         if (project_cond) {
             // add counts of local variables
-            VarCounter counter{project.counts()};
+            VarCounter counter{prj.counts()};
             counter.add(lits);
             counter.add(cond);
             // Note that there can be no global variables with just one
             // occurrence in a condition. However, we can project local
             // variables.
-            auto sub_project = Projection{project.mode(), counter};
-            auto fun = [sub_project](SLiteral const &lit) { return lit->project(sub_project); };
+            auto sub_prj = Projection{prj.mode(), counter};
+            auto fun = [sub_prj](Literal const &lit) { return project(lit, sub_prj); };
             projected_cond = transform(fun, cond);
         }
         if (projected_lits.has_value() || projected_cond.has_value()) {
@@ -118,17 +125,19 @@ auto project(typename T::ElementVec const &elems, P project, bool project_lits, 
 }
 
 auto is_atom(auto const &elems) -> bool {
+    using Gringo::Input::is_atom;
     if (elems.size() != 1) {
         return false;
     }
     auto const &[lits, cond] = elems.front();
-    return cond.empty() && lits.size() == 1 && lits.front()->is_atom();
+    return cond.empty() && lits.size() == 1 && is_atom(lits.front());
 }
 
 auto is_test(auto const &elems) -> bool {
+    using Gringo::Input::is_test;
     return std::all_of(elems.begin(), elems.end(), [](auto const &elem) {
         auto const &[lits, cond] = elem;
-        return cond.empty() && std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return lit->is_test(); });
+        return cond.empty() && std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return is_test(lit); });
     });
 }
 
