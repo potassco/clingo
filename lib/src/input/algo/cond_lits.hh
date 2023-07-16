@@ -15,69 +15,6 @@
 
 namespace Gringo::Input::CondLits {
 
-template <class T, class B> auto unpool(typename T::ElementVec const &elems) {
-    using Conds = std::vector<LiteralVec>;
-    using OConds = std::optional<Conds>;
-    using ElemConds = std::vector<OConds>;
-    using OElemConds = std::optional<ElemConds>;
-    using Element = typename T::Element;
-    using ElementVec = typename T::ElementVec;
-
-    // unpool the conditions
-    OElemConds elem_conds;
-    size_t i = 0;
-    for (auto const &elem : elems) {
-        auto conds = unpool_crossproduct(elem.second, [](auto const &lit) { return unpool(lit); });
-        if (conds.has_value()) {
-            if (!elem_conds.has_value()) {
-                elem_conds = ElemConds(elems.size());
-            }
-            elem_conds->at(i) = std::move(conds).value();
-        }
-        ++i;
-    }
-
-    // unpool literals
-    auto elem_lits = unpool_crossproduct(elems, [](auto const &elem) {
-        return Util::map_opt_vec(unpool_crossproduct(elem.first, [](auto const &lit) { return unpool(lit); }),
-                                 [](auto lits) {
-                                     return Element{std::move(lits), {}};
-                                 });
-    });
-
-    // copy literals if conditions have been unpooled
-    if (elem_conds.has_value() && !elem_lits.has_value()) {
-        elem_lits = Util::make_vec<ElementVec>(ElementVec{});
-        elem_lits->back().reserve(elems.size());
-        for (auto const &elem : elems) {
-            elem_lits->back().emplace_back(Element{elem.first, {}});
-        }
-    }
-
-    // set conditions of unpooled literals and build disjunctions
-    return Util::map_opt_vec(std::move(elem_lits), [&elem_conds, &elems](ElementVec elem_lits) {
-        if (!elem_conds.has_value()) {
-            size_t i = 0;
-            for (auto &elem : elem_lits) {
-                elem.second = elems[i].second;
-                ++i;
-            }
-            return Util::construct_shared<T, B>(elem_lits);
-        }
-        ElementVec unpooled;
-        for (size_t i = 0; i < elem_conds->size(); ++i) {
-            if (elem_conds->at(i).has_value()) {
-                for (auto &cond : elem_conds->at(i).value()) {
-                    unpooled.emplace_back(elem_lits[i].first, cond);
-                }
-            } else {
-                unpooled.emplace_back(elem_lits[i].first, elems[i].second);
-            }
-        }
-        return Util::construct_shared<T, B>(std::move(unpooled));
-    });
-}
-
 void visit_variables(auto const &elems, VarVisitFun const &fun, VariableContext ctx) {
     VarVisitor visit{fun};
     for (auto const &elem : elems) {

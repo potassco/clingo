@@ -77,6 +77,8 @@ auto visit_value(some_arg arg, auto &&fun, std::vector<T> const &vec)
 
 } // namespace Detail
 
-void visit(auto &&fun, auto const &x) { Detail::visit_value(Detail::some_arg{}, std::forward<decltype(fun)>(fun), x); };
+template <class... Args> void visit_rec(auto &&fun, Args const &...args) {
+    (Detail::visit_value(Detail::some_arg{}, std::forward<decltype(fun)>(fun), args), ...);
+}
 
 } // namespace Gringo::Input

@@ -96,6 +96,17 @@ using Literal = std::variant<LiteralBoolean, LiteralRelation, LiteralSymbolic>;
 //! A vector of shared pointers to literals.
 using LiteralVec = std::vector<Literal>;
 
+//! A conditional literal.
+struct ConditionalLiteral {
+    LiteralVec lits;
+    LiteralVec cond;
+};
+
+//! A vector of conditional literals.
+//!
+//! Can be either used in the head or body.
+using ConditionalLiteralVec = std::vector<ConditionalLiteral>;
+
 //! Add a sign to the literal.
 void add_sign(Literal &lit, Sign sign);
 

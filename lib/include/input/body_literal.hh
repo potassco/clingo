@@ -11,13 +11,7 @@
 
 namespace Gringo::Input {
 
-class BodyLiteral;
-class BodyLiteralVisitor;
-//! A shared pointer to a body literal.
-using SBodyLiteral = Util::shared_ptr<BodyLiteral>;
-//! A vector of shared pointers to body literals.
-using SBodyLiteralVec = std::vector<SBodyLiteral>;
-
+/*
 //! The body literal interface.
 class BodyLiteral {
   public:
@@ -59,134 +53,53 @@ class BodyLiteral {
     //! and the left-hand-side is composed of tests.
     [[nodiscard]] virtual auto is_test() const -> bool;
 };
+*/
 
-class Conjunction : public BodyLiteral {
-  public:
-    using Element = std::pair<LiteralVec, LiteralVec>;
-    using ElementVec = std::vector<Element>;
+struct Conjunction {
+    explicit Conjunction(ConditionalLiteralVec elems) : elems{std::move(elems)} {}
 
-    explicit Conjunction(ElementVec elems) : elems_{std::move(elems)} {}
-
-    //! Get the elements of the conjunction.
-    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
-
-    void add_sign(Sign sign) override;
-    [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
-    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
-        -> std::optional<SBodyLiteral> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
-    [[nodiscard]] auto is_atom() const -> bool override;
-    [[nodiscard]] auto is_test() const -> bool override;
-
-    void accept(BodyLiteralVisitor const &visitor) const override;
-
-  private:
-    ElementVec elems_;
+    ConditionalLiteralVec elems;
 };
 
-class BodyAggregate : public BodyLiteral {
-  public:
-    using Element = std::tuple<TermVec, LiteralVec>;
+struct BodyAggregate {
+    struct Element {
+        Element(TermVec tuple, LiteralVec cond) : tuple{std::move(tuple)}, cond{std::move(cond)} {}
+        TermVec tuple;
+        LiteralVec cond;
+    };
     using ElementVec = std::vector<Element>;
 
     explicit BodyAggregate(Sign sign, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
-        : sign_{sign}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
-    explicit BodyAggregate(AggregateFunction fun, ElementVec elems) : fun_(fun), elems_(std::move(elems)) {}
+        : sign{sign}, fun(fun), elems(std::move(elems)), lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
     explicit BodyAggregate(AggregateFunction fun, ElementVec elems, Relation rel, Term rhs)
-        : fun_(fun), elems_(std::move(elems)), rhs_(std::make_pair(rel, std::move(rhs))) {}
+        : BodyAggregate{Sign::none, std::nullopt, fun, std::move(elems), std::make_pair(rel, std::move(rhs))} {}
+    explicit BodyAggregate(AggregateFunction fun, ElementVec elems)
+        : BodyAggregate{Sign::none, std::nullopt, fun, std::move(elems), std::nullopt} {}
 
-    //! Get the sign of the literal.
-    [[nodiscard]] auto sign() const -> Sign { return sign_; }
-    //! Get the aggregate function.
-    [[nodiscard]] auto function() const -> AggregateFunction { return fun_; }
-    //! Get the aggregate elements.
-    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
-    //! Get the left-hand-side.
-    [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
-    //! Get the right-hand-side.
-    [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
-
-    void add_sign(Sign sign) override;
-    void set_left_guard(Term lhs, Relation rel);
-    [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
-    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection prj, bool in_classical_scope) const -> std::optional<SBodyLiteral> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
-
-    void accept(BodyLiteralVisitor const &visitor) const override;
-
-  private:
-    Sign sign_ = Sign::none;
-    AggregateFunction fun_;
-    ElementVec elems_;
-    LGuard lhs_;
-    RGuard rhs_;
+    Sign sign;
+    AggregateFunction fun;
+    ElementVec elems;
+    LGuard lhs;
+    RGuard rhs;
 };
 
-class BodySetAggregate : public BodyLiteral {
-  public:
-    explicit BodySetAggregate(Sign sign, SetAggregate aggr) : sign_{sign}, aggr_{std::move(aggr)} {}
-    explicit BodySetAggregate(SetAggregate aggr) : aggr_{std::move(aggr)} {}
+struct BodySetAggregate {
+    explicit BodySetAggregate(Sign sign, SetAggregate aggr) : sign{sign}, aggr{std::move(aggr)} {}
+    explicit BodySetAggregate(SetAggregate aggr) : BodySetAggregate{Sign::none, std::move(aggr)} {}
 
-    //! Get the sign of the literal.
-    [[nodiscard]] auto sign() const -> Sign { return sign_; }
-    //! Get the set aggregate atom.
-    [[nodiscard]] auto atom() const -> SetAggregate const & { return aggr_; }
-
-    void add_sign(Sign sign) override;
-    void set_left_guard(Term lhs, Relation rel);
-    [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
-    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
-        -> std::optional<SBodyLiteral> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
-
-    void accept(BodyLiteralVisitor const &visitor) const override;
-
-  private:
-    Sign sign_ = Sign::none;
-    SetAggregate aggr_;
+    Sign sign;
+    SetAggregate aggr;
 };
 
-class BodyTheoryAtom : public BodyLiteral {
-  public:
-    explicit BodyTheoryAtom(TheoryAtom atom) : atom_(std::move(atom)) {}
-    explicit BodyTheoryAtom(Sign sign, TheoryAtom atom) : sign_{sign}, atom_(std::move(atom)) {}
+struct BodyTheoryAtom {
+    explicit BodyTheoryAtom(Sign sign, TheoryAtom atom) : sign{sign}, atom{std::move(atom)} {}
+    explicit BodyTheoryAtom(TheoryAtom atom) : BodyTheoryAtom{Sign::none, std::move(atom)} {}
 
-    //! Get the sign of the literal.
-    [[nodiscard]] auto sign() const -> Sign { return sign_; }
-    //! Get the theory atom.
-    [[nodiscard]] auto atom() const -> TheoryAtom const & { return atom_; }
-
-    void add_sign(Sign sign) override;
-    [[nodiscard]] auto unpool() const -> std::optional<SBodyLiteralVec> override;
-    void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
-    [[nodiscard]] auto project(Projection project, bool in_classical_scope) const
-        -> std::optional<SBodyLiteral> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<SBodyLiteral> override;
-
-    void accept(BodyLiteralVisitor const &visitor) const override;
-
-  private:
-    Sign sign_ = Sign::none;
-    TheoryAtom atom_;
+    Sign sign;
+    TheoryAtom atom;
 };
 
-//! A visitor for available body literal types.
-class BodyLiteralVisitor {
-  public:
-    //! Virtual destructor.
-    virtual ~BodyLiteralVisitor() = default;
-
-    //! Visit a disjunction.
-    virtual void visit(Conjunction const &lit) const = 0;
-    //! Visit a head set aggregate.
-    virtual void visit(BodySetAggregate const &lit) const = 0;
-    //! Visit a head aggregate.
-    virtual void visit(BodyAggregate const &lit) const = 0;
-    //! Visit a theory atom in the head.
-    virtual void visit(BodyTheoryAtom const &lit) const = 0;
-};
+using BodyLiteral = std::variant<Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;
+using BodyLiteralVec = std::vector<BodyLiteral>;
 
 } // namespace Gringo::Input

@@ -31,7 +31,22 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nul
 //! Check if the literal is a symbolic atom.
 auto is_atom(Literal const &lit) -> bool;
 
+//! Check if the literal is a symbolic atom.
+auto is_atom(HeadLiteral const &lit) -> bool;
+
+//! Check if the literal is a symbolic atom.
+auto is_atom(BodyLiteral const &lit) -> bool;
+
 //! Check if the literal is a test.
 auto is_test(Literal const &lit) -> bool;
+
+//! Check if the literal is a test.
+auto is_test(HeadLiteral const &lit) -> bool;
+
+//! Check if the literal is a test.
+auto is_test(BodyLiteral const &lit) -> bool;
+
+//! Check if the literal is classical.
+auto is_classical(HeadLiteral const &lit) -> bool;
 
 } // namespace Gringo::Input

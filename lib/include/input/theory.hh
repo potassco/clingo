@@ -66,34 +66,20 @@ inline TheoryTermFunction::TheoryTermFunction(std::string name, TheoryTermVec ar
     : name(std::move(name)), args{std::move(args)} {}
 inline TheoryTermUnparsed::TheoryTermUnparsed(ElementVec elems) : elems{std::move(elems)} {}
 
-class TheoryAtom {
-  public:
+struct TheoryAtom {
     using RGuard = std::optional<std::pair<std::string, TheoryTerm>>;
     using Element = std::pair<TheoryTermVec, LiteralVec>;
     using ElementVec = std::vector<Element>;
 
     explicit TheoryAtom(Term name, ElementVec elems, RGuard rhs)
-        : name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {}
-    explicit TheoryAtom(Term name, ElementVec elems) : name_{std::move(name)}, elems_{std::move(elems)} {}
+        : name{std::move(name)}, elems{std::move(elems)}, rhs{std::move(rhs)} {}
+    explicit TheoryAtom(Term name, ElementVec elems) : TheoryAtom{std::move(name), std::move(elems), std::nullopt} {}
     explicit TheoryAtom(Term name, ElementVec elems, std::string rhs_op, TheoryTerm rhs_term)
-        : name_{std::move(name)}, elems_{std::move(elems)},
-          rhs_{std::in_place, std::move(rhs_op), std::move(rhs_term)} {}
+        : TheoryAtom{std::move(name), std::move(elems), std::make_pair(std::move(rhs_op), std::move(rhs_term))} {}
 
-    //! Get the name of the theory atom.
-    [[nodiscard]] auto name() const -> Term const & { return name_; }
-    //! Get the elements of the theory atom.
-    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
-    //! Get the right-hand-side of the theory atom.
-    [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
-
-    [[nodiscard]] auto unpool() const -> std::optional<std::vector<TheoryAtom>>;
-    void visit_variables(VarVisitFun fun, VariableContext ctx) const;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<TheoryAtom>;
-
-  private:
-    Term name_;
-    ElementVec elems_;
-    RGuard rhs_;
+    Term name;
+    ElementVec elems;
+    RGuard rhs;
 };
 
 } // namespace Gringo::Input

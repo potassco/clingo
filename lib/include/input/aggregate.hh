@@ -31,36 +31,23 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
     return fun == AggregateFunction::sum;
 }
 
-class SetAggregate {
-  public:
-    using Element = std::pair<Literal, LiteralVec>;
+struct SetAggregate {
+    struct Element {
+        Element(Literal lit, LiteralVec cond) : lit{std::move(lit)}, cond{std::move(cond)} {}
+        Literal lit;
+        LiteralVec cond;
+    };
     using ElementVec = std::vector<Element>;
 
-    SetAggregate(ElementVec elems) : elems_{std::move(elems)} {}
     SetAggregate(LGuard lhs, ElementVec elems, RGuard rhs)
-        : elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
+        : elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    SetAggregate(ElementVec elems) : SetAggregate{std::nullopt, std::move(elems), std::nullopt} {}
     SetAggregate(ElementVec elems, Relation rel, Term rhs)
-        : elems_{std::move(elems)}, rhs_(std::make_pair(rel, std::move(rhs))) {}
+        : SetAggregate{std::nullopt, std::move(elems), std::make_pair(rel, std::move(rhs))} {}
 
-    //! Get the aggregate elements.
-    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
-    //! Get the left-hand-side.
-    [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
-    //! Get the right-hand-side.
-    [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
-
-    void set_rhs(Term lhs, Relation rel);
-    [[nodiscard]] auto unpool() const -> std::optional<std::vector<SetAggregate>>;
-    void visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const;
-    /// Projects pure variables in the condition if the aggregate is not
-    /// nonmonotone or occurs in a negative scope.
-    [[nodiscard]] auto project(Projection prj, bool in_negative_scope) const -> std::optional<SetAggregate>;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<SetAggregate>;
-
-  private:
-    ElementVec elems_;
-    LGuard lhs_;
-    RGuard rhs_;
+    ElementVec elems;
+    LGuard lhs;
+    RGuard rhs;
 };
 
 } // namespace Gringo::Input

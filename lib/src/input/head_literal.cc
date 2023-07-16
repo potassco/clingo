@@ -9,8 +9,6 @@
 
 #include <input/algo/project.hh>
 #include <input/algo/project_anonymous.hh>
-#include <input/algo/unpool.hh>
-#include <input/algo/visit_variables.hh>
 
 #include "algo/cond_lits.hh"
 #include "algo/transform.hh"
@@ -33,25 +31,9 @@ auto tpa(auto const &x) { return Trans(x, ProjectAnonymous{}); }
 
 [[nodiscard]] auto HeadLiteral::print_empty() const -> bool { return false; }
 
-auto HeadLiteral::is_atom() const -> bool { return false; }
-
-auto HeadLiteral::is_test() const -> bool { return false; }
-
-auto HeadLiteral::is_classical() const -> bool { return false; }
-
 ////////// Disjunction //////////
 
-void Disjunction::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
-
 auto Disjunction::print_empty() const -> bool { return elems_.empty(); }
-
-auto Disjunction::unpool() const -> std::optional<SHeadLiteralVec> {
-    return CondLits::unpool<Disjunction, HeadLiteral>(elems_);
-}
-
-void Disjunction::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    CondLits::visit_variables(elems_, fun, ctx);
-}
 
 auto Disjunction::project(Projection project) const -> std::optional<SHeadLiteral> {
     // Note when to project:
@@ -63,34 +45,7 @@ auto Disjunction::project_anonymous() const -> std::optional<SHeadLiteral> {
     return transform_construct_shared<Disjunction, HeadLiteral>(tpa(elems_));
 }
 
-auto Disjunction::is_atom() const -> bool { return CondLits::is_atom(elems_); }
-
-auto Disjunction::is_test() const -> bool { return CondLits::is_test(elems_); }
-
-auto Disjunction::is_classical() const -> bool {
-    using Gringo::Input::is_atom;
-    for (auto const &elem : elems_) {
-        for (auto const &lit : elem.first) {
-            if (is_atom(lit)) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 ////////// HeadTheoryAtom //////////
-
-void HeadTheoryAtom::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
-
-auto HeadTheoryAtom::unpool() const -> std::optional<SHeadLiteralVec> {
-    return Util::map_opt_vec(
-        atom_.unpool(), [](auto atom) { return Util::construct_shared<HeadTheoryAtom, HeadLiteral>(std::move(atom)); });
-}
-
-void HeadTheoryAtom::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    atom_.visit_variables(fun, ctx);
-}
 
 auto HeadTheoryAtom::project(Projection project) const -> std::optional<SHeadLiteral> {
     static_cast<void>(project);
@@ -102,65 +57,6 @@ auto HeadTheoryAtom::project_anonymous() const -> std::optional<SHeadLiteral> {
 }
 
 ////////// HeadAggregate //////////
-
-void HeadAggregate::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
-
-void HeadAggregate::set_left_guard(Term lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
-
-auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
-    using Gringo::Input::unpool;
-    return unpool_crossproducts(
-        [this](auto lhs, auto elem_lits, auto rhs) {
-            return Util::construct_shared<HeadAggregate, HeadLiteral>(std::move(lhs), fun_, std::move(elem_lits),
-                                                                      std::move(rhs));
-        },
-        Util::overloaded{
-            [](ElementVec const &elem_lits) -> std::optional<std::vector<ElementVec>> {
-                return Util::map_opt(
-                    unpool_union(elem_lits,
-                                 [](auto elem) {
-                                     return unpool_crossproducts(
-                                         [](auto tuple, auto lit, auto cond) {
-                                             return Element{std::move(tuple), std::move(lit), std::move(cond)};
-                                         },
-                                         Util::overloaded{[](TermVec const &tuple) {
-                                                              return unpool_crossproduct(
-                                                                  tuple, [](auto const &term) { return unpool(term); });
-                                                          },
-                                                          [](Literal const &lit) { return unpool(lit); },
-                                                          [](LiteralVec const &lits) {
-                                                              return unpool_crossproduct(
-                                                                  lits, [](Literal const &lit) { return unpool(lit); });
-                                                          }},
-                                         std::get<0>(elem), std::get<1>(elem), std::get<2>(elem));
-                                 }),
-                    [](auto elem_lits) { return Util::make_vec<ElementVec>(std::move(elem_lits)); });
-            },
-            [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
-                return Util::and_then_opt(lhs, [](auto const &lhs) {
-                    return Util::map_opt_vec(unpool(lhs.first), [&lhs](auto term) {
-                        return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
-                    });
-                });
-            },
-            [](RGuard const &rhs) -> std::optional<std::vector<RGuard>> {
-                return Util::and_then_opt(rhs, [](auto const &rhs) {
-                    return Util::map_opt_vec(unpool(rhs.second), [&rhs](auto term) {
-                        return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
-                    });
-                });
-            },
-        },
-        lhs_, elems_, rhs_);
-}
-
-void HeadAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    VarVisitor visit{fun};
-    visit.add(lhs_, rhs_);
-    if (ctx == VariableContext::all) {
-        visit.add(elems_);
-    }
-}
 
 auto HeadAggregate::project(Projection prj) const -> std::optional<SHeadLiteral> {
     using Gringo::Input::project;
@@ -184,20 +80,6 @@ auto HeadAggregate::project_anonymous() const -> std::optional<SHeadLiteral> {
 }
 
 ////////// HeadSetAggregate //////////
-
-void HeadSetAggregate::accept(HeadLiteralVisitor const &visitor) const { visitor.visit(*this); }
-
-void HeadSetAggregate::set_left_guard(Term lhs, Relation rel) { aggr_.set_rhs(std::move(lhs), rel); }
-
-auto HeadSetAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
-    return Util::map_opt_vec(aggr_.unpool(), [](auto aggr) {
-        return Util::construct_shared<HeadSetAggregate, HeadLiteral>(std::move(aggr));
-    });
-}
-
-void HeadSetAggregate::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    aggr_.visit_variables(std::move(fun), ctx);
-}
 
 auto HeadSetAggregate::project(Projection project) const -> std::optional<SHeadLiteral> {
     // Note that we can always project in conditions. Semantic-wise a head

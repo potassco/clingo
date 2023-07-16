@@ -5,6 +5,8 @@ namespace Gringo::Input {
 namespace {
 
 struct CheckType {
+    auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
+
     auto operator()(TermSymbol const &term) const -> bool {
         return Util::visit_variant(
             term.value,
@@ -93,6 +95,11 @@ struct CheckType {
 };
 
 struct IsTest {
+
+    // literals
+
+    auto operator()(Literal const &lit) const -> bool { return std::visit(*this, lit); }
+
     auto operator()(LiteralBoolean const &lit) const -> bool {
         static_cast<void>(lit);
         return true;
@@ -107,9 +114,66 @@ struct IsTest {
         static_cast<void>(lit);
         return false;
     }
+
+    // conditional literals
+
+    auto operator()(ConditionalLiteralVec const &elems) const -> bool {
+        return std::all_of(elems.begin(), elems.end(), [this](auto const &elem) {
+            auto const &[lits, cond] = elem;
+            return cond.empty() &&
+                   std::all_of(lits.begin(), lits.end(), [this](auto const &lit) { return this->operator()(lit); });
+        });
+    }
+
+    // head literal
+
+    auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+
+    auto operator()(HeadAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(HeadSetAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(HeadTheoryAtom const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(Disjunction const &lit) const -> bool { return operator()(lit.elems); }
+
+    // body literal
+
+    auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+
+    auto operator()(Conjunction const &lit) const -> bool { return operator()(lit.elems); }
+
+    auto operator()(BodyAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(BodySetAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(BodyTheoryAtom const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
 };
 
 struct IsAtom {
+
+    // literal
+
+    auto operator()(Literal const &lit) const -> bool { return std::visit(*this, lit); }
+
     auto operator()(LiteralBoolean const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
@@ -121,16 +185,111 @@ struct IsAtom {
     }
 
     auto operator()(LiteralSymbolic const &lit) const -> bool { return lit.sign == Sign::none; }
+
+    // conditional literals
+
+    auto operator()(ConditionalLiteralVec const &elems) const -> bool {
+        if (elems.size() != 1) {
+            return false;
+        }
+        auto const &[lits, cond] = elems.front();
+        return cond.empty() && lits.size() == 1 && operator()(lits.front());
+    }
+
+    // head literal
+
+    auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+
+    auto operator()(HeadAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(HeadSetAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(HeadTheoryAtom const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(Disjunction const &lit) const -> bool { return operator()(lit.elems); }
+
+    // body literal
+
+    auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+
+    auto operator()(Conjunction const &lit) const -> bool { return operator()(lit.elems); }
+
+    auto operator()(BodyAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(BodySetAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(BodyTheoryAtom const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+};
+
+struct IsClassical {
+
+    // head literal
+
+    auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+
+    auto operator()(HeadAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(HeadSetAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(HeadTheoryAtom const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(Disjunction const &lit) const -> bool {
+        for (auto const &elem : lit.elems) {
+            for (auto const &lit : elem.lits) {
+                if (is_atom(lit)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 };
 
 } // namespace
 
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> bool {
-    return std::visit(CheckType{type, res}, term);
+    return CheckType{type, res}(term);
 }
 
-auto is_atom(Literal const &lit) -> bool { return std::visit(IsAtom{}, lit); }
+auto is_atom(Literal const &lit) -> bool { return IsAtom{}(lit); }
 
-auto is_test(Literal const &lit) -> bool { return std::visit(IsTest{}, lit); }
+auto is_atom(HeadLiteral const &lit) -> bool { return IsAtom{}(lit); }
+
+auto is_atom(BodyLiteral const &lit) -> bool { return IsAtom{}(lit); }
+
+auto is_test(Literal const &lit) -> bool { return IsTest{}(lit); }
+
+auto is_test(HeadLiteral const &lit) -> bool { return IsTest{}(lit); }
+
+auto is_test(BodyLiteral const &lit) -> bool { return IsTest{}(lit); }
+
+auto is_classical(HeadLiteral const &lit) -> bool { return IsClassical{}(lit); }
 
 } // namespace Gringo::Input

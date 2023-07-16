@@ -22,18 +22,15 @@ struct VisitVariables {
 
     void operator()(TermVariable const &term) const { fun(term.name); }
 
-    void operator()(TermTuple const &term) const { visit(*this, term.pool); }
+    void operator()(TermTuple const &term) const { visit_rec(*this, term.pool); }
 
-    void operator()(TermFunction const &term) const { visit(*this, term.pool); }
+    void operator()(TermFunction const &term) const { visit_rec(*this, term.pool); }
 
-    void operator()(TermAbs const &term) const { visit(*this, term.pool); }
+    void operator()(TermAbs const &term) const { visit_rec(*this, term.pool); }
 
-    void operator()(TermUnary const &term) const { visit(*this, term.rhs); }
+    void operator()(TermUnary const &term) const { visit_rec(*this, term.rhs); }
 
-    void operator()(TermBinary const &term) const {
-        visit(*this, term.lhs);
-        visit(*this, term.rhs);
-    }
+    void operator()(TermBinary const &term) const { visit_rec(*this, term.lhs, term.rhs); }
 
     // theory terms
 
@@ -43,11 +40,11 @@ struct VisitVariables {
 
     void operator()(TheoryTermVariable const &term) const { fun(term.name); }
 
-    void operator()(TheoryTermTuple const &term) const { visit(*this, term.elems); }
+    void operator()(TheoryTermTuple const &term) const { visit_rec(*this, term.elems); }
 
-    void operator()(TheoryTermFunction const &term) const { visit(*this, term.args); }
+    void operator()(TheoryTermFunction const &term) const { visit_rec(*this, term.args); }
 
-    void operator()(TheoryTermUnparsed const &term) const { visit(*this, term.elems); }
+    void operator()(TheoryTermUnparsed const &term) const { visit_rec(*this, term.elems); }
 
     // literals
 
@@ -57,9 +54,48 @@ struct VisitVariables {
 
     void operator()(LiteralRelation const &lit) const { static_cast<void>(lit); }
 
-    void operator()(LiteralSymbolic const &lit) const { visit(*this, lit.term); }
+    void operator()(LiteralSymbolic const &lit) const { visit_rec(*this, lit.term); }
+
+    // conditional literal
+
+    void operator()(ConditionalLiteral const &cond_lit) const { visit_rec(*this, cond_lit.lits, cond_lit.cond); }
+
+    // aggregate
+
+    void operator()(SetAggregate::Element const &elem) const { visit_rec(*this, elem.lit, elem.cond); }
+
+    void operator()(SetAggregate const &lit) const { visit_rec(*this, lit.elems, lit.lhs, lit.rhs); }
+
+    // theory
+
+    void operator()(TheoryAtom const &atom) const { visit_rec(*this, atom.name, atom.elems); }
+
+    // head literal
+
+    void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
+
+    void operator()(Disjunction const &lit) const { visit_rec(*this, lit.elems); }
+
+    void operator()(HeadAggregate const &lit) const { visit_rec(*this, lit.elems, lit.lhs, lit.rhs); }
+
+    void operator()(HeadSetAggregate const &lit) const { visit_rec(*this, lit.aggr); }
+
+    void operator()(HeadTheoryAtom const &lit) const { visit_rec(*this, lit.atom); }
+
+    // body literal
+
+    void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
+
+    void operator()(Conjunction const &lit) const { visit_rec(*this, lit.elems); }
+
+    void operator()(BodyAggregate const &lit) const { visit_rec(*this, lit.elems, lit.lhs, lit.rhs); }
+
+    void operator()(BodySetAggregate const &lit) const { visit_rec(*this, lit.aggr); }
+
+    void operator()(BodyTheoryAtom const &lit) const { visit_rec(*this, lit.atom); }
 
     VarVisitFun fun;
+    VariableContext ctx = VariableContext::all;
 };
 
 } // namespace
@@ -82,18 +118,18 @@ void visit_variables(TermBinary const &term, VarVisitFun fun) { VisitVariables{s
 
 // TODO: remove until here!
 
-void visit_variables(Term const &term, VarVisitFun fun) { std::visit(VisitVariables{std::move(fun)}, term); }
+void visit_variables(Term const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
 
-void visit_variables(TheoryTerm const &term, VarVisitFun fun) { std::visit(VisitVariables{std::move(fun)}, term); }
+void visit_variables(TheoryTerm const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
 
-void visit_variables(Literal const &lit, VarVisitFun fun) { std::visit(VisitVariables{std::move(fun)}, lit); }
+void visit_variables(Literal const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}(lit); }
 
 void visit_variables(HeadLiteral const &lit, VarVisitFun fun, VariableContext ctx) {
-    lit.visit_variables(std::move(fun), ctx);
+    VisitVariables{std::move(fun), ctx}(lit);
 }
 
 void visit_variables(BodyLiteral const &lit, VarVisitFun fun, VariableContext ctx) {
-    lit.visit_variables(std::move(fun), ctx);
+    VisitVariables{std::move(fun), ctx}(lit);
 }
 
 void visit_variables(Statement const &stm, VarVisitFun fun, VariableContext ctx) {

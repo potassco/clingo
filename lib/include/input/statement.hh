@@ -92,12 +92,12 @@ void rewrite(SStatement stm, RewriteOptions opts, SStatementVec &stms);
 
 class Rule : public Statement {
   public:
-    explicit Rule(SHeadLiteral head, SBodyLiteralVec body) : head_{std::move(head)}, body_{std::move(body)} {}
+    explicit Rule(HeadLiteral head, BodyLiteralVec body) : head_{std::move(head)}, body_{std::move(body)} {}
 
     //! Get the head of the rule.
-    [[nodiscard]] auto head() const -> SHeadLiteral const & { return head_; }
+    [[nodiscard]] auto head() const -> HeadLiteral const & { return head_; }
     //! Get the body of the rule.
-    [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
@@ -109,8 +109,8 @@ class Rule : public Statement {
     [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
-    SHeadLiteral head_;
-    SBodyLiteralVec body_;
+    HeadLiteral head_;
+    BodyLiteralVec body_;
 };
 
 enum class TheoryOpType { unary, binary_left, binary_right };
@@ -241,11 +241,11 @@ class StatementWeakConstraint : public Statement {
   public:
     using Tuple = StatementOptimize::Tuple;
 
-    explicit StatementWeakConstraint(SBodyLiteralVec body, Tuple tuple)
+    explicit StatementWeakConstraint(BodyLiteralVec body, Tuple tuple)
         : body_{std::move(body)}, tuple_{std::move(tuple)} {}
 
     //! Get the body.
-    [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
     //! Get the elements.
     [[nodiscard]] auto tuple() const -> Tuple const & { return tuple_; }
 
@@ -259,20 +259,20 @@ class StatementWeakConstraint : public Statement {
     [[nodiscard]] auto do_project_anonymous() const -> std::optional<SStatement> override;
 
   private:
-    SBodyLiteralVec body_;
+    BodyLiteralVec body_;
     Tuple tuple_;
 };
 
 class StatementShow : public Statement {
   public:
-    StatementShow(Term term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
+    StatementShow(Term term, BodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
     //! Get the term.
     [[nodiscard]] auto term() const -> Term const & { return term_; }
     //! Get the body.
-    [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
 
     void accept(StatementVisitor const &visitor) const override;
 
@@ -283,7 +283,7 @@ class StatementShow : public Statement {
 
   private:
     Term term_;
-    SBodyLiteralVec body_;
+    BodyLiteralVec body_;
 };
 
 class StatementShowSig : public Statement {
@@ -315,12 +315,12 @@ class StatementShowSig : public Statement {
 
 class StatementProject : public Statement {
   public:
-    explicit StatementProject(Term term, SBodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
+    explicit StatementProject(Term term, BodyLiteralVec body) : term_(std::move(term)), body_(std::move(body)) {}
 
     //! Get the term.
     [[nodiscard]] auto term() const -> Term const & { return term_; }
     //! Get the body.
-    [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
@@ -333,7 +333,7 @@ class StatementProject : public Statement {
 
   private:
     Term term_;
-    SBodyLiteralVec body_;
+    BodyLiteralVec body_;
 };
 
 class StatementProjectSig : public Statement {
@@ -392,13 +392,13 @@ class StatementDefined : public Statement {
 
 class StatementExternal : public Statement {
   public:
-    explicit StatementExternal(Term term, SBodyLiteralVec body, std::optional<Term> type = std::nullopt)
+    explicit StatementExternal(Term term, BodyLiteralVec body, std::optional<Term> type = std::nullopt)
         : term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
 
     //! Get the term.
     [[nodiscard]] auto term() const -> Term const & { return term_; }
     //! Get the body.
-    [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
     //! Get the type.
     [[nodiscard]] auto type() const -> std::optional<Term> const & { return type_; }
 
@@ -413,7 +413,7 @@ class StatementExternal : public Statement {
 
   private:
     Term term_;
-    SBodyLiteralVec body_;
+    BodyLiteralVec body_;
     std::optional<Term> type_;
 };
 
@@ -422,13 +422,13 @@ class StatementEdge : public Statement {
     using Edge = std::pair<Term, Term>;
     using EdgeVec = std::vector<Edge>;
 
-    explicit StatementEdge(EdgeVec edges, SBodyLiteralVec body = {})
+    explicit StatementEdge(EdgeVec edges, BodyLiteralVec body = {})
         : edges_{std::move(edges)}, body_{std::move(body)} {}
 
     //! Get the edges.
     [[nodiscard]] auto edges() const -> EdgeVec const & { return edges_; }
     //! Get the body.
-    [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
 
     void visit_variables(VarVisitFun const &fun, VariableContext ctx) const override;
 
@@ -441,24 +441,24 @@ class StatementEdge : public Statement {
 
   private:
     EdgeVec edges_;
-    SBodyLiteralVec body_;
+    BodyLiteralVec body_;
 };
 
 class StatementHeuristic : public Statement {
   public:
-    explicit StatementHeuristic(Term atom, SBodyLiteralVec body, Term type, std::optional<Term> prio, Term mod)
+    explicit StatementHeuristic(Term atom, BodyLiteralVec body, Term type, std::optional<Term> prio, Term mod)
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
           mod_(std::move(mod)) {}
-    explicit StatementHeuristic(Term atom, SBodyLiteralVec body, Term type, Term prio, Term mod)
+    explicit StatementHeuristic(Term atom, BodyLiteralVec body, Term type, Term prio, Term mod)
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), prio_(std::move(prio)),
           mod_(std::move(mod)) {}
-    explicit StatementHeuristic(Term atom, SBodyLiteralVec body, Term type, Term mod)
+    explicit StatementHeuristic(Term atom, BodyLiteralVec body, Term type, Term mod)
         : atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)), mod_(std::move(mod)) {}
 
     //! Get the atom.
     [[nodiscard]] auto atom() const -> Term const & { return atom_; }
     //! Get the body.
-    [[nodiscard]] auto body() const -> SBodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
     //! Get the type.
     [[nodiscard]] auto type() const -> Term const & { return type_; }
     //! Get the priority.
@@ -477,7 +477,7 @@ class StatementHeuristic : public Statement {
 
   private:
     Term atom_;
-    SBodyLiteralVec body_;
+    BodyLiteralVec body_;
     Term type_;
     std::optional<Term> prio_;
     Term mod_;

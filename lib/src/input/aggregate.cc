@@ -16,50 +16,6 @@
 
 namespace Gringo::Input {
 
-void SetAggregate::set_rhs(Term lhs, Relation rel) { lhs_ = std::make_pair(std::move(lhs), rel); }
-
-auto SetAggregate::unpool() const -> std::optional<std::vector<SetAggregate>> {
-    using Gringo::Input::unpool;
-    return unpool_crossproducts(
-        [&](auto lhs, auto elems, auto rhs) {
-            return SetAggregate{std::move(lhs), std::move(elems), std::move(rhs)};
-        },
-        Util::overloaded{
-            [](ElementVec const &elems) -> std::optional<std::vector<ElementVec>> {
-                return Util::map_opt(
-                    unpool_union(elems,
-                                 [](auto elem) {
-                                     return unpool_crossproducts(
-                                         [](auto lit, auto cond) {
-                                             return Element{std::move(lit), std::move(cond)};
-                                         },
-                                         Util::overloaded{[](Literal const &lit) { return unpool(lit); },
-                                                          [](LiteralVec const &lits) {
-                                                              return unpool_crossproduct(
-                                                                  lits, [](auto const &lit) { return unpool(lit); });
-                                                          }},
-                                         std::get<0>(elem), std::get<1>(elem));
-                                 }),
-                    [](auto elems) { return Util::make_vec<ElementVec>(std::move(elems)); });
-            },
-            [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
-                return Util::and_then_opt(lhs, [](auto const &lhs) {
-                    return Util::map_opt_vec(Gringo::Input::unpool(lhs.first), [&lhs](auto term) {
-                        return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
-                    });
-                });
-            },
-            [](RGuard const &rhs) -> std::optional<std::vector<RGuard>> {
-                return Util::and_then_opt(rhs, [](auto const &rhs) {
-                    return Util::map_opt_vec(Gringo::Input::unpool(rhs.second), [&rhs](auto term) {
-                        return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
-                    });
-                });
-            },
-        },
-        lhs_, elems_, rhs_);
-}
-
 void SetAggregate::visit_variables(std::function<void(std::string const &var)> fun, VariableContext ctx) const {
     using Gringo::Input::visit_variables;
     VarVisitor visit{std::move(fun)};
