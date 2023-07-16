@@ -94,9 +94,7 @@ struct TermAbs;
 struct TermUnary;
 struct TermBinary;
 struct RecTerm;
-// TODO: I think that the code would be nicer moving the shared pointers into
-// the struct. The small size overhead should not matter because all structs
-// are relatively small.
+
 //! Variant holding the different term types.
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
 
@@ -254,6 +252,9 @@ struct TermBinary {
 
 //! Compare two binary terms.
 auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
+
+// Note that constructors are defined here because at this point all types are
+// complete.
 
 inline TermAbs::TermAbs(TermVec pool) : pool{std::move(pool)} {}
 inline TermUnary::TermUnary(UnaryOperator op, Term rhs) : op{op}, rhs{Util::construct_shared<Term>(std::move(rhs))} {}
