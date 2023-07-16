@@ -63,7 +63,7 @@ template <class E, class J, class L> struct junction {
     };
     static constexpr auto
         value = lexy::as_list<typename J::ElementVec> >>
-                lexy::callback<Util::shared_ptr<L>>(lexy::new_<J, Util::shared_ptr<L>>, [](lexy::nullopt) {
+                lexy::callback<Util::shared_ptr<L>>(Detail::construct_shared<J, L>, [](lexy::nullopt) {
                     return Util::construct_shared<J, L>(typename J::ElementVec{});
                 });
 };

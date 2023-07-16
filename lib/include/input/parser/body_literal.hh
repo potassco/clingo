@@ -60,7 +60,7 @@ struct body_aggregate {
     static constexpr char const *name = "body aggregate";
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<SBodyAggregate>(
-        lexy::new_<BodyAggregate, SBodyAggregate>,
+        Detail::construct_shared<BodyAggregate, BodyAggregate>,
         [](AggregateFunction fun, BodyAggregate::ElementVec elems, Term rhs) {
             return Util::construct_shared<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
@@ -98,8 +98,8 @@ struct body_atom : lexy::transparent_production {
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
     static constexpr auto value = lexy::callback<SBodyLiteral>(
-        lexy::forward<SBodyLiteral>, lexy::new_<BodySetAggregate, SBodyLiteral>,
-        lexy::new_<BodyTheoryAtom, SBodyLiteral>,
+        lexy::forward<SBodyLiteral>, Detail::construct_shared<BodySetAggregate, BodyLiteral>,
+        Detail::construct_shared<BodyTheoryAtom, BodyLiteral>,
         [](Term term, auto aggr) {
             auto ret = Detail::construct_body_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);

@@ -42,7 +42,7 @@ template <class T> auto unpool_str(std::optional<T> value, char const *sep = ", 
     if (value) {
         auto unpooled = unpool(value.value());
         if (!unpooled.has_value()) {
-            unpooled = make_vec<T>(value.value());
+            unpooled = Util::make_vec<T>(value.value());
         }
         return to_str(unpooled.value(), sep);
     }
@@ -53,7 +53,7 @@ template <class T> auto unpool_str(std::optional<Util::shared_ptr<T>> value, cha
     if (value) {
         auto unpooled = value.value()->unpool();
         if (!unpooled.has_value()) {
-            unpooled = make_vec<Util::shared_ptr<T>>(value.value());
+            unpooled = Util::make_vec<Util::shared_ptr<T>>(value.value());
         }
         return to_str(unpooled.value(), sep);
     }

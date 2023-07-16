@@ -174,7 +174,7 @@ struct term_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = dsl::p<identifier> >> dsl::opt(dsl::p<term_function_pool>);
     static constexpr auto value = lexy::callback<Term>([](std::string name, std::optional<PoolVec> value) -> Term {
-        return construct_shared<TermFunction>(std::move(name), Detail::empty_args(std::move(value)), false);
+        return TermFunction{std::move(name), Detail::empty_args(std::move(value)), false};
     });
 };
 
@@ -182,7 +182,7 @@ struct term_external_function {
     static constexpr char const *name = "function";
     static constexpr auto rule = LEXY_LIT("@") >> dsl::p<identifier> + dsl::opt(dsl::p<term_function_pool>);
     static constexpr auto value = lexy::callback<Term>([](std::string name, std::optional<PoolVec> value) -> Term {
-        return Util::construct_shared<TermFunction>(std::move(name), Detail::empty_args(std::move(value)), true);
+        return TermFunction{std::move(name), Detail::empty_args(std::move(value)), true};
     });
 };
 
@@ -215,7 +215,7 @@ struct term_tuple {
                                       if (elem.size() == 1 && std::holds_alternative<Term>(elem.front())) {
                                           return std::move(std::get<Term>(elem.front()));
                                       }
-                                      return Util::construct_shared<TermTuple>(std::move(elem));
+                                      return TermTuple{std::move(elem)};
                                   });
 };
 
@@ -223,7 +223,7 @@ struct term_abs {
     static constexpr char const *name = "absolute value";
     static constexpr auto rule =
         dsl::brackets(LEXY_LIT("|"), LEXY_LIT("|")).list(dsl::p<term>, dsl::sep(dsl::semicolon));
-    static constexpr auto value = lexy::as_list<TermVec> >> Detail::construct_sv<TermAbs, Term>;
+    static constexpr auto value = lexy::as_list<TermVec> >> lexy::construct<TermAbs>;
 };
 
 static constexpr auto anonymous_variable =
@@ -298,9 +298,8 @@ struct term_rec : lexy::expression_production {
     };
 
     using operation = term_dots;
-    static constexpr auto value =
-        lexy::callback<Term>(lexy::forward<Term>, Detail::construct_symbol{}, Detail::construct_sv<TermUnary, Term>,
-                             Detail::construct_sv<TermBinary, Term>);
+    static constexpr auto value = lexy::callback<Term>(lexy::forward<Term>, Detail::construct_symbol{},
+                                                       lexy::construct<TermUnary>, lexy::construct<TermBinary>);
 };
 
 } // namespace Gringo::Input::Grammar

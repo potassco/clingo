@@ -32,6 +32,45 @@ namespace Gringo::Util {
                                                                                                                        \
     } // namespace std
 
+// interface
+
+template <class A, class B> auto value_equal(A const &a, B const &b);
+template <class A, class B> auto value_equal(A const *a, B const *b);
+template <class A, class B> auto value_equal(std::optional<A> const &a, std::optional<B> const &b);
+template <class A, class B> auto value_equal(std::unique_ptr<A> const &a, std::unique_ptr<B> const &b);
+template <class A, class B> auto value_equal(shared_ptr<A> const &a, shared_ptr<B> const &b);
+template <class A, class B, class C, class D> auto value_equal(std::pair<A, B> const &a, std::pair<C, D> const &b);
+template <class... A> auto value_equal(std::tuple<A...> const &a, std::tuple<A...> const &b);
+template <class... A> auto value_equal(std::variant<A...> const &a, std::variant<A...> const &b);
+template <class A, class B> auto value_equal(std::vector<A> const &a, std::vector<B> const &b);
+inline auto value_equal();
+template <class A, class B, class... Args> auto value_equal(A const &a, B const &b, Args const &...args);
+
+inline auto hash_combine(size_t a, size_t b) -> size_t;
+inline auto hash_combine(std::initializer_list<size_t> list) -> size_t;
+
+template <class T> inline auto value_hash(T const &value) -> size_t;
+inline auto value_hash(std::type_info const &value) -> size_t;
+template <class T> inline auto value_hash(T const *value) -> size_t;
+template <class T> inline auto value_hash(std::unique_ptr<T> const &value) -> size_t;
+template <class T> inline auto value_hash(shared_ptr<T> const &value) -> size_t;
+template <class A, class B> inline auto value_hash(std::pair<A, B> const &value) -> size_t;
+template <class... T> inline auto value_hash(std::tuple<T...> const &value) -> size_t;
+template <class... T> inline auto value_hash(std::variant<T...> const &value) -> size_t;
+template <class T> inline auto value_hash(std::vector<T> const &value) -> size_t;
+template <class T, class U, class... Args>
+inline auto value_hash(T const &a, U const &b, Args const &...value) -> size_t;
+
+struct value_equal_to {
+    template <class A, class B> auto operator()(A const &a, B const &b) const -> size_t;
+};
+
+struct value_hasher {
+    template <class T> auto operator()(T const &value) const -> size_t;
+};
+
+// implementation
+
 template <class A, class B> auto value_equal(A const &a, B const &b) { return a == b; }
 
 template <class A, class B> auto value_equal(A const *a, B const *b) { return *a == *b; }
@@ -150,22 +189,10 @@ inline auto value_hash(T const &a, U const &b, Args const &...value) -> size_t {
     return hash_combine(value_hash(a), value_hash(b, value...));
 }
 
-struct value_equal_to {
-    template <class A, class B> auto operator()(A const &a, B const &b) const -> size_t { return value_equal(a, b); }
-};
-
-struct value_hasher {
-    template <class T> auto operator()(T const &value) const -> size_t { return value_hash(value); }
-};
-
-template <class... Ts> struct overloaded : Ts... {
-    using Ts::operator()...;
-};
-
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-template <class V, class... Fs> auto visit_variant(V &&v, Fs &&...fs) {
-    return std::visit(overloaded{std::forward<Fs>(fs)...}, std::forward<V>(v));
+template <class A, class B> auto value_equal_to::operator()(A const &a, B const &b) const -> size_t {
+    return value_equal(a, b);
 }
+
+template <class T> auto value_hasher::operator()(T const &value) const -> size_t { return value_hash(value); }
 
 } // namespace Gringo::Util

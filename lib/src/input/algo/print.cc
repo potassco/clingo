@@ -388,7 +388,7 @@ struct PrintTerm : Print<PrintTerm> {
             rp = ")";
         }
         out << lp << op;
-        std::visit(PrintTerm{out, Position::none, priority(op), true}, term.rhs);
+        std::visit(PrintTerm{out, Position::none, priority(op), true}, *term.rhs);
         out << rp;
     }
 
@@ -404,13 +404,11 @@ struct PrintTerm : Print<PrintTerm> {
             lhs_no_leading_op = false;
         }
         out << lp;
-        std::visit(PrintTerm{out, Position::left, priority(op), lhs_no_leading_op}, term.lhs);
+        std::visit(PrintTerm{out, Position::left, priority(op), lhs_no_leading_op}, *term.lhs);
         out << op;
-        std::visit(PrintTerm{out, Position::right, priority(op), true}, term.rhs);
+        std::visit(PrintTerm{out, Position::right, priority(op), true}, *term.rhs);
         out << rp;
     }
-
-    template <class T> void operator()(Util::shared_ptr<T> const &term) const { this->operator()(*term); }
 
     std::ostream &out;
     Position pos = Position::none;

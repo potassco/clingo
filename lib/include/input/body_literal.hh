@@ -58,17 +58,6 @@ class BodyLiteral {
     //! This corresponds to conjunctions where the right-hand-side of elements is empty
     //! and the left-hand-side is composed of tests.
     [[nodiscard]] virtual auto is_test() const -> bool;
-
-  private:
-    //! Increment reference count of the body literal.
-    friend void inc_ref_count(BodyLiteral &lit) { ++lit.refs_; }
-    //! Decrement reference count of the body literal.
-    friend void dec_ref_count(BodyLiteral &lit) { ++lit.refs_; }
-    //! Get reference count of the body literal.
-    [[nodiscard]] friend auto get_ref_count(BodyLiteral const &lit) -> size_t { return lit.refs_; }
-
-    //! The reference count of the body literal.
-    size_t refs_ = 0;
 };
 
 class Conjunction : public BodyLiteral {

@@ -194,7 +194,7 @@ struct statement_optimize {
                                           return Util::construct_shared<StatementOptimize, Statement>(
                                               type, std::move(elems).value_or(StatementOptimize::ElementVec{}));
                                       },
-                                      lexy::new_<StatementWeakConstraint, SStatement>);
+                                      Detail::construct_shared<StatementWeakConstraint, Statement>);
 };
 
 struct is_signature : control {
@@ -239,7 +239,9 @@ struct symbolic_atom {
     static constexpr char const *name = "symbolic atom";
     static constexpr auto rule = dsl::opt(LEXY_LIT("-")) + dsl::p<term_function>;
     static constexpr auto value = lexy::callback<Term>(
-        [](Term term) { return Util::construct_shared<TermUnary>(UnaryOperator::negate, std::move(term)); },
+        [](Term term) {
+            return TermUnary{UnaryOperator::negate, std::move(term)};
+        },
         [](lexy::nullopt, Term term) { return term; });
 };
 
@@ -249,7 +251,7 @@ struct statement_defined {
         auto def = LEXY_KEYWORD("#defined", keyword_base);
         return def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + simple_number + eos;
     }();
-    static constexpr auto value = lexy::new_<StatementDefined, SStatement>;
+    static constexpr auto value = Detail::construct_shared<StatementDefined, Statement>;
 };
 
 struct statement_edge {
@@ -262,7 +264,7 @@ struct statement_edge {
     }();
     static constexpr auto value = []() {
         auto sink = lexy::collect<StatementEdge::EdgeVec>(lexy::construct<StatementEdge::Edge>);
-        auto cb = lexy::new_<StatementEdge, SStatement>;
+        auto cb = Detail::construct_shared<StatementEdge, Statement>;
         return sink >> cb;
     }();
 };
@@ -275,7 +277,7 @@ struct statement_heuristic {
             square_bracketed_end(dsl::p<term> + dsl::if_(dsl::at_sign >> dsl::p<term>) + dsl::comma + dsl::p<term>);
         return kw >> dsl::p<symbolic_atom> + dsl::p<statement_opt_body> + eos + tuple;
     }();
-    static constexpr auto value = lexy::new_<StatementHeuristic, SStatement>;
+    static constexpr auto value = Detail::construct_shared<StatementHeuristic, Statement>;
 };
 
 struct statement_project {
@@ -288,12 +290,11 @@ struct statement_project {
         return kw >> name + (arity | dsl::else_ >> pool) + eos;
     }();
     static constexpr auto value = lexy::callback<SStatement>(
-        lexy::new_<StatementProjectSig, SStatement>,
+        Detail::construct_shared<StatementProjectSig, Statement>,
         [](bool has_sign, std::string name, std::optional<PoolVec> pool, SBodyLiteralVec body) {
-            Term atom =
-                Util::construct_shared<TermFunction>(std::move(name), Detail::empty_args(std::move(pool)), false);
+            Term atom = TermFunction{std::move(name), Detail::empty_args(std::move(pool)), false};
             if (has_sign) {
-                atom = Util::construct_shared<TermUnary>(UnaryOperator::negate, std::move(atom));
+                atom = TermUnary{UnaryOperator::negate, std::move(atom)};
             }
             return Util::construct_shared<StatementProject, Statement>(std::move(atom), std::move(body));
         });
@@ -312,7 +313,8 @@ struct statement_script {
         auto end = LEXY_KEYWORD("#end", keyword_base);
         return script >> open + type + dsl::delimited(close, end)(dsl::code_point) + eos;
     }();
-    static constexpr auto value = lexy::as_string<std::string, encoding> >> lexy::new_<StatementScript, SStatement>;
+    static constexpr auto value =
+        lexy::as_string<std::string, encoding> >> Detail::construct_shared<StatementScript, Statement>;
 };
 
 struct statement_external {
@@ -324,7 +326,7 @@ struct statement_external {
     }();
     static constexpr auto value = lexy::callback<SStatement>([](bool has_sign, Term atom, auto &&...args) {
         if (has_sign) {
-            atom = Util::construct_shared<TermUnary>(UnaryOperator::negate, std::move(atom));
+            atom = TermUnary{UnaryOperator::negate, std::move(atom)};
         }
         return Util::construct_shared<StatementExternal, Statement>(std::move(atom),
                                                                     std::forward<decltype(args)>(args)...);
@@ -398,7 +400,7 @@ struct statement_rule {
         return (if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body)) + eos;
     }();
     static constexpr auto value = lexy::callback<SStatement>(
-        lexy::new_<Rule, SStatement>,
+        Detail::construct_shared<Rule, Statement>,
         [](SHeadLiteral head) { return Util::construct_shared<Rule, Statement>(std::move(head), SBodyLiteralVec{}); },
         [](SBodyLiteralVec body) {
             return Util::construct_shared<Rule, Statement>(

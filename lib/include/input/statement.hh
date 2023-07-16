@@ -86,13 +86,6 @@ class Statement {
     [[nodiscard]] virtual auto do_unpool() const -> std::optional<SStatementVec> = 0;
     [[nodiscard]] virtual auto do_project(ProjectionMode mode) const -> std::optional<SStatement> = 0;
     [[nodiscard]] virtual auto do_project_anonymous() const -> std::optional<SStatement> = 0;
-
-  private:
-    friend void inc_ref_count(Statement &stm) { ++stm.refs_; }
-    friend void dec_ref_count(Statement &stm) { ++stm.refs_; }
-    [[nodiscard]] friend auto get_ref_count(Statement const &stm) -> size_t { return stm.refs_; }
-
-    size_t refs_ = 0;
 };
 
 void rewrite(SStatement stm, RewriteOptions opts, SStatementVec &stms);

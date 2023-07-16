@@ -27,7 +27,7 @@ struct StatementUnpool {
     auto operator()(Term const &term) const { return unpool(term); }
     auto operator()(TermVec const &terms) const { return unpool_crossproduct(terms, *this); }
     auto operator()(std::optional<Term> const &term) const {
-        return and_then_opt(term, [](Term const &term) { return unpool(term); });
+        return Util::and_then_opt(term, [](Term const &term) { return unpool(term); });
     }
     auto operator()(SLiteralVec const &lits) const { return unpool_crossproduct(lits); }
     auto operator()(SHeadLiteral const &lit) const { return lit->unpool(); }
@@ -266,7 +266,8 @@ void StatementOptimize::accept(StatementVisitor const &visitor) const { visitor.
 auto StatementOptimize::do_unpool() const -> std::optional<SStatementVec> {
     // TODO: consider turning into weak constraint
     return map_opt(unpool_union(elems_, StatementUnpool{}), [this](auto elems) {
-        return make_vec<SStatement>(construct_shared<StatementOptimize, Statement>(type_, std::move(elems)));
+        return Util::make_vec<SStatement>(
+            Util::construct_shared<StatementOptimize, Statement>(type_, std::move(elems)));
     });
 }
 
@@ -303,7 +304,7 @@ void StatementWeakConstraint::accept(StatementVisitor const &visitor) const { vi
 auto StatementWeakConstraint::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
         [](auto body, auto tuple) {
-            return construct_shared<StatementWeakConstraint, Statement>(std::move(body), std::move(tuple));
+            return Util::construct_shared<StatementWeakConstraint, Statement>(std::move(body), std::move(tuple));
         },
         StatementUnpool{}, body_, tuple_);
 }
@@ -330,7 +331,7 @@ void StatementShow::accept(StatementVisitor const &visitor) const { visitor.visi
 auto StatementShow::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
         [](auto term, auto body) {
-            return construct_shared<StatementShow, Statement>(std::move(term), std::move(body));
+            return Util::construct_shared<StatementShow, Statement>(std::move(term), std::move(body));
         },
         StatementUnpool{}, term_, body_);
 }
@@ -375,7 +376,7 @@ void StatementProject::accept(StatementVisitor const &visitor) const { visitor.v
 auto StatementProject::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
         [](auto term, auto body) {
-            return construct_shared<StatementProject, Statement>(std::move(term), std::move(body));
+            return Util::construct_shared<StatementProject, Statement>(std::move(term), std::move(body));
         },
         StatementUnpool{}, term_, body_);
 }
@@ -438,7 +439,8 @@ void StatementExternal::accept(StatementVisitor const &visitor) const { visitor.
 auto StatementExternal::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
         [](auto term, auto body, auto type) {
-            return construct_shared<StatementExternal, Statement>(std::move(term), std::move(body), std::move(type));
+            return Util::construct_shared<StatementExternal, Statement>(std::move(term), std::move(body),
+                                                                        std::move(type));
         },
         StatementUnpool{}, term_, body_, type_);
 }
@@ -467,9 +469,9 @@ auto StatementEdge::do_unpool() const -> std::optional<SStatementVec> {
     auto edges = StatementUnpool{}(edges_);
     if (edges_.size() != 1 || edges.has_value() || bodies.has_value()) {
         SStatementVec ret;
-        for (auto &body : bodies.value_or(make_vec<SBodyLiteralVec>(body_))) {
+        for (auto &body : bodies.value_or(Util::make_vec<SBodyLiteralVec>(body_))) {
             for (auto &edge : edges.value_or(edges_)) {
-                ret.emplace_back(construct_shared<StatementEdge, Statement>(make_vec<Edge>(edge), body));
+                ret.emplace_back(Util::construct_shared<StatementEdge, Statement>(Util::make_vec<Edge>(edge), body));
             }
         }
         return ret;
@@ -499,8 +501,8 @@ void StatementHeuristic::accept(StatementVisitor const &visitor) const { visitor
 auto StatementHeuristic::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
         [](auto atom, auto body, auto type, auto prio, auto mod) {
-            return construct_shared<StatementHeuristic, Statement>(std::move(atom), std::move(body), std::move(type),
-                                                                   std::move(prio), std::move(mod));
+            return Util::construct_shared<StatementHeuristic, Statement>(
+                std::move(atom), std::move(body), std::move(type), std::move(prio), std::move(mod));
         },
         StatementUnpool{}, atom_, body_, type_, prio_, mod_);
 }
@@ -581,7 +583,9 @@ void StatementConst::accept(StatementVisitor const &visitor) const { visitor.vis
 
 auto StatementConst::do_unpool() const -> std::optional<SStatementVec> {
     auto ret = unpool_crossproducts(
-        [this](auto value) { return construct_shared<StatementConst, Statement>(type_, name_, std::move(value)); },
+        [this](auto value) {
+            return Util::construct_shared<StatementConst, Statement>(type_, name_, std::move(value));
+        },
         StatementUnpool{}, value_);
     if (ret.has_value() && ret->size() != 1) {
         throw std::runtime_error("const statements must not contain pools");

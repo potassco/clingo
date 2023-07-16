@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include <util/algorithm.hh>
 #include <util/shared_ptr.hh>
 
 #define FWD(x) std::forward<decltype(x)>(x)
@@ -119,7 +120,7 @@ auto unpool_union(std::vector<T> const &elems, U &&unpool = U{}) -> std::optiona
     for (auto const &elem : elems) {
         auto unpooled = unpool(elem);
         if (unpooled.has_value() && !ret.has_value()) {
-            ret = copy_n(elems, n);
+            ret = Util::copy_n(elems, n);
         }
         if (ret.has_value()) {
             if (!unpooled.has_value()) {

@@ -46,24 +46,24 @@ struct TermRewriter {
         return std::nullopt;
     }
 
-    auto operator()(Util::shared_ptr<TermFunction> const &term) const -> std::optional<Term> {
-        return transform_construct_shared<TermFunction>(term->name, tr(term->pool), term->external);
+    auto operator()(TermFunction const &term) const -> std::optional<Term> {
+        return transform_construct<TermFunction>(term.name, tr(term.pool), term.external);
     }
 
-    auto operator()(Util::shared_ptr<TermTuple> const &term) const -> std::optional<Term> {
-        return transform_construct_shared<TermTuple>(tr(term->pool));
+    auto operator()(TermTuple const &term) const -> std::optional<Term> {
+        return transform_construct<TermTuple>(tr(term.pool));
     }
 
-    auto operator()(Util::shared_ptr<TermAbs> const &term) const -> std::optional<Term> {
-        return transform_construct_shared<TermAbs>(tr(term->pool));
+    auto operator()(TermAbs const &term) const -> std::optional<Term> {
+        return transform_construct<TermAbs>(tr(term.pool));
     }
 
-    auto operator()(Util::shared_ptr<TermUnary> const &term) const -> std::optional<Term> {
-        return transform_construct_shared<TermUnary>(term->op, tr(term->rhs));
+    auto operator()(TermUnary const &term) const -> std::optional<Term> {
+        return transform_construct<TermUnary>(term.op, tr(term.rhs));
     }
 
-    auto operator()(Util::shared_ptr<TermBinary> const &term) const -> std::optional<Term> {
-        return transform_construct_shared<TermBinary>(tr(term->lhs), term->op, tr(term->rhs));
+    auto operator()(TermBinary const &term) const -> std::optional<Term> {
+        return transform_construct<TermBinary>(tr(term.lhs), term.op, tr(term.rhs));
     }
 
     NameGen &gen;

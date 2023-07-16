@@ -89,17 +89,6 @@ class Literal {
 
     //! Visit literals with the given visitor.
     virtual void accept(LiteralVisitor const &visitor) const = 0;
-
-  private:
-    //! Increment reference count of the literal.
-    friend void inc_ref_count(Literal &lit) { ++lit.refs_; }
-    //! Decrement reference count of the literal.
-    friend void dec_ref_count(Literal &lit) { ++lit.refs_; }
-    //! Get reference count of the literal.
-    friend auto get_ref_count(Literal const &lit) -> size_t { return lit.refs_; }
-
-    //! The reference count of the literal.
-    size_t refs_ = 0;
 };
 
 //! Literal representing a relation literal.

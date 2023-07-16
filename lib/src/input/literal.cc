@@ -73,13 +73,13 @@ void LiteralRelation::add_sign(Sign s) { sign_ += s; }
 auto LiteralRelation::unpool() const -> std::optional<SLiteralVec> {
     return unpool_crossproducts(
         [this](auto lhs, auto rhs) {
-            return construct_shared<LiteralRelation, Literal>(sign_, std::move(lhs), std::move(rhs));
+            return Util::construct_shared<LiteralRelation, Literal>(sign_, std::move(lhs), std::move(rhs));
         },
         Util::overloaded{
             [](Term const &term) { return Gringo::Input::unpool(term); },
             [](GuardVec const &guard) {
                 return unpool_crossproduct(guard, [](Guard const &guard) {
-                    return map_opt_vec(Gringo::Input::unpool(guard.second), [&guard](auto term) {
+                    return Util::map_opt_vec(Gringo::Input::unpool(guard.second), [&guard](auto term) {
                         return Guard{guard.first, std::move(term)};
                     });
                 });
@@ -141,8 +141,8 @@ void LiteralBoolean::accept(LiteralVisitor const &visitor) const { visitor.visit
 void LiteralSymbolic::add_sign(Sign s) { sign_ += s; }
 
 auto LiteralSymbolic::unpool() const -> std::optional<SLiteralVec> {
-    return map_opt_vec(Gringo::Input::unpool(term_), [this](auto term) {
-        return construct_shared<LiteralSymbolic, Literal>(sign_, std::move(term));
+    return Util::map_opt_vec(Gringo::Input::unpool(term_), [this](auto term) {
+        return Util::construct_shared<LiteralSymbolic, Literal>(sign_, std::move(term));
     });
 }
 

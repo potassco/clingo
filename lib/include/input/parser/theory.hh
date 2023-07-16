@@ -96,13 +96,13 @@ struct theory_term_arguments {
 struct theory_term_function {
     static constexpr char const *name = "theory function";
     static constexpr auto rule = dsl::p<identifier> >> dsl::if_(dsl::p<theory_term_arguments>);
-    static constexpr auto value = lexy::new_<TheoryTermFunction, STheoryTerm>;
+    static constexpr auto value = Detail::construct_shared<TheoryTermFunction, TheoryTerm>;
 };
 
 struct theory_term_variable {
     static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::p<variable>;
-    static constexpr auto value = lexy::new_<TheoryTermVariable, STheoryTerm>;
+    static constexpr auto value = Detail::construct_shared<TheoryTermVariable, TheoryTerm>;
 };
 
 struct theory_term_anonymous_variable {

@@ -28,13 +28,6 @@ class HeadLiteral {
 
     //! Visit head literals with the given visitor.
     virtual void accept(HeadLiteralVisitor const &visitor) const = 0;
-
-  private:
-    friend void inc_ref_count(HeadLiteral &lit) { ++lit.refs_; }
-    friend void dec_ref_count(HeadLiteral &lit) { ++lit.refs_; }
-    [[nodiscard]] friend auto get_ref_count(HeadLiteral const &lit) -> size_t { return lit.refs_; }
-
-    size_t refs_ = 0;
 };
 
 class Disjunction : public HeadLiteral {

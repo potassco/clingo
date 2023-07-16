@@ -44,7 +44,7 @@ struct simple_disjunction {
     static constexpr char const *name = "disjunction";
     static constexpr auto rule = dsl::list(dsl::p<conditional_literal>, dsl::sep(disjunction_sep));
     static constexpr auto value = lexy::collect<Disjunction::ElementVec>(Detail::construct_disjunction_element{}) >>
-                                  lexy::new_<Disjunction, SHeadLiteral>;
+                                  Detail::construct_shared<Disjunction, HeadLiteral>;
 };
 
 struct disjunction_element : private junction_element<Disjunction::Element> {
@@ -90,7 +90,7 @@ struct head_aggregate {
     static constexpr char const *name = "head aggregate";
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<SHeadAggregate>(
-        lexy::new_<HeadAggregate, SHeadAggregate>,
+        Detail::construct_shared<HeadAggregate, HeadAggregate>,
         [](AggregateFunction fun, HeadAggregate::ElementVec elems, Term rhs) {
             return Util::construct_shared<HeadAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
@@ -132,8 +132,8 @@ struct head_literal {
     }();
 
     static constexpr auto value = lexy::callback<SHeadLiteral>(
-        lexy::forward<SHeadLiteral>, lexy::new_<HeadTheoryAtom, SHeadLiteral>,
-        lexy::new_<HeadSetAggregate, SHeadLiteral>,
+        lexy::forward<SHeadLiteral>, Detail::construct_shared<HeadTheoryAtom, HeadLiteral>,
+        Detail::construct_shared<HeadSetAggregate, HeadLiteral>,
         [](Term term, auto aggr) {
             auto ret = Detail::construct_head_aggr(std::move(aggr));
             ret->set_left_guard(std::move(term), Relation::less_equal);

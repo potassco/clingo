@@ -132,14 +132,14 @@ auto HeadAggregate::unpool() const -> std::optional<SHeadLiteralVec> {
                     [](auto elem_lits) { return make_vec<ElementVec>(std::move(elem_lits)); });
             },
             [](LGuard const &lhs) -> std::optional<std::vector<LGuard>> {
-                return and_then_opt(lhs, [](auto const &lhs) {
+                return Util::and_then_opt(lhs, [](auto const &lhs) {
                     return Util::map_opt_vec(unpool(lhs.first), [&lhs](auto term) {
                         return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
                     });
                 });
             },
             [](RGuard const &rhs) -> std::optional<std::vector<RGuard>> {
-                return and_then_opt(rhs, [](auto const &rhs) {
+                return Util::and_then_opt(rhs, [](auto const &rhs) {
                     return Util::map_opt_vec(unpool(rhs.second), [&rhs](auto term) {
                         return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
                     });

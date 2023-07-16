@@ -93,9 +93,12 @@ struct TermFunction;
 struct TermAbs;
 struct TermUnary;
 struct TermBinary;
+struct RecTerm;
+// TODO: I think that the code would be nicer moving the shared pointers into
+// the struct. The small size overhead should not matter because all structs
+// are relatively small.
 //! Variant holding the different term types.
-using Term = std::variant<TermVariable, TermSymbol, Util::shared_ptr<TermTuple>, Util::shared_ptr<TermFunction>,
-                          Util::shared_ptr<TermAbs>, Util::shared_ptr<TermUnary>, Util::shared_ptr<TermBinary>>;
+using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
 
 //! A vector of terms.
 using TermVec = std::vector<Term>;
@@ -143,12 +146,12 @@ auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
 //! Term representing a tuple.
 //!
 //! For example <tt>(a,b;c)</tt>.
-struct TermTuple : Util::enable_shared {
+struct TermTuple {
     using Element = std::variant<TupleVec, Term>;
     using ElementVec = std::vector<Element>;
 
     //! Construct a  tuple.
-    explicit TermTuple(ElementVec args) : pool{std::move(args)} {}
+    explicit TermTuple(ElementVec args);
 
     //! The argument pool of the tuple.
     ElementVec pool;
@@ -160,13 +163,12 @@ auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
 //! Term representing a symbolic or external function.
 //!
 //! For example <tt>f(a,b;c)</tt>.
-struct TermFunction : Util::enable_shared {
+struct TermFunction {
     //! Construct a symbolic function.
     //!
     //! The function takes a pool of term tuples, which will be reduced to a single element after calling
     //! Term::unpool().
-    explicit TermFunction(std::string name, PoolVec args, bool external)
-        : name(std::move(name)), pool{std::move(args)}, external{external} {}
+    explicit TermFunction(std::string name, PoolVec args, bool external);
 
     //! The name of the function.
     std::string name;
@@ -182,11 +184,11 @@ auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
 //! Term representing the absolute function.
 //!
 //! For example <tt>|-X|</tt>.
-struct TermAbs : Util::enable_shared {
+struct TermAbs {
     //! Construct an absolute term.
     //!
     //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
-    explicit TermAbs(TermVec pool) : pool{std::move(pool)} {}
+    explicit TermAbs(TermVec pool);
 
     //! The argument pool of the absolute term.
     TermVec pool;
@@ -204,14 +206,16 @@ enum class UnaryOperator : int {
 //! Term representing an unary operation.
 //!
 //! For example <tt>-X</tt>.
-struct TermUnary : Util::enable_shared {
+struct TermUnary {
     //! Contruct a term for an unary operation.
-    explicit TermUnary(UnaryOperator op, Term rhs) : op{op}, rhs{std::move(rhs)} {}
+    explicit TermUnary(UnaryOperator op, Term rhs);
+    //! Contruct a term for an unary operation.
+    explicit TermUnary(UnaryOperator op, Util::shared_ptr<Term> rhs);
 
     //! The operation.
     UnaryOperator op;
     //! The right-hand-side.
-    Term rhs;
+    Util::shared_ptr<Term> rhs;
 };
 
 //! Compare two unary terms.
@@ -234,20 +238,33 @@ enum class BinaryOperator : int {
 //! Term representing a binary operation.
 //!
 //! For example <tt>X-Y</tt>.
-struct TermBinary : Util::enable_shared {
+struct TermBinary {
     //! Contruct a term for an binary operation.
-    explicit TermBinary(Term lhs, BinaryOperator op, Term rhs) : op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
+    explicit TermBinary(Term lhs, BinaryOperator op, Term rhs);
+    //! Contruct a term for an binary operation.
+    explicit TermBinary(Util::shared_ptr<Term> lhs, BinaryOperator op, Util::shared_ptr<Term> rhs);
 
     //! The operation.
     BinaryOperator op;
     //! The left-hand-side.
-    Term lhs;
+    Util::shared_ptr<Term> lhs;
     //! The right-hand-side.
-    Term rhs;
+    Util::shared_ptr<Term> rhs;
 };
 
 //! Compare two binary terms.
 auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
+
+inline TermAbs::TermAbs(TermVec pool) : pool{std::move(pool)} {}
+inline TermUnary::TermUnary(UnaryOperator op, Term rhs) : op{op}, rhs{Util::construct_shared<Term>(std::move(rhs))} {}
+inline TermUnary::TermUnary(UnaryOperator op, Util::shared_ptr<Term> rhs) : op{op}, rhs{std::move(rhs)} {}
+inline TermBinary::TermBinary(Term lhs, BinaryOperator op, Term rhs)
+    : op{op}, lhs{Util::construct_shared<Term>(std::move(lhs))}, rhs{Util::construct_shared<Term>(std::move(rhs))} {}
+inline TermBinary::TermBinary(Util::shared_ptr<Term> lhs, BinaryOperator op, Util::shared_ptr<Term> rhs)
+    : op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
+inline TermFunction::TermFunction(std::string name, PoolVec args, bool external)
+    : name(std::move(name)), pool{std::move(args)}, external{external} {}
+inline TermTuple::TermTuple(ElementVec args) : pool{std::move(args)} {}
 
 } // namespace Gringo::Input
 

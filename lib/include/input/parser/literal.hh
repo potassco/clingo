@@ -41,7 +41,7 @@ struct atom_bool : lexy::token_production {
                                              .map<LEXY_SYMBOL("#true")>(true)
                                              .map<LEXY_SYMBOL("#false")>(false);
     static constexpr auto rule = dsl::symbol<bool_symbols>(keyword_base);
-    static constexpr auto value = lexy::new_<LiteralBoolean, SLiteral>;
+    static constexpr auto value = Detail::construct_shared<LiteralBoolean, Literal>;
 };
 
 struct atom {
@@ -66,8 +66,9 @@ struct atom {
         auto rel_or_sym_atom = is_atom.create() + dsl::scan + cont;
         return dsl::p<atom_bool> | dsl::else_ >> rel_or_sym_atom;
     }();
-    static constexpr auto value = lexy::callback<SLiteral>(
-        lexy::forward<SLiteral>, lexy::new_<LiteralSymbolic, SLiteral>, lexy::new_<LiteralRelation, SLiteral>);
+    static constexpr auto value =
+        lexy::callback<SLiteral>(lexy::forward<SLiteral>, Detail::construct_shared<LiteralSymbolic, Literal>,
+                                 Detail::construct_shared<LiteralRelation, Literal>);
 };
 
 struct naf_sign {

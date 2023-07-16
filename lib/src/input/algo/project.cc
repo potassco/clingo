@@ -46,30 +46,30 @@ struct TermProject {
         return std::nullopt;
     }
 
-    auto operator()(Util::shared_ptr<TermTuple> const &term) const -> std::optional<Term> {
-        return transform_construct_shared<TermTuple>(tr(term->pool));
+    auto operator()(TermTuple const &term) const -> std::optional<Term> {
+        return transform_construct<TermTuple>(tr(term.pool));
     }
 
-    auto operator()(Util::shared_ptr<TermFunction> const &term) const -> std::optional<Term> {
-        if (term->external) {
+    auto operator()(TermFunction const &term) const -> std::optional<Term> {
+        if (term.external) {
             return std::nullopt;
         }
-        return transform_construct_shared<TermFunction>(term->name, tr(term->pool), term->external);
+        return transform_construct<TermFunction>(term.name, tr(term.pool), term.external);
     }
 
-    auto operator()(Util::shared_ptr<TermAbs> const &term) const -> std::optional<Term> {
+    auto operator()(TermAbs const &term) const -> std::optional<Term> {
         static_cast<void>(term);
         return std::nullopt;
     }
 
-    auto operator()(Util::shared_ptr<TermUnary> const &term) const -> std::optional<Term> {
+    auto operator()(TermUnary const &term) const -> std::optional<Term> {
         if (check_type(term, TermCheckType::atom, nullptr)) {
-            return transform_construct_shared<TermUnary>(term->op, tr(term->rhs));
+            return transform_construct<TermUnary>(term.op, tr(term.rhs));
         }
         return std::nullopt;
     }
 
-    auto operator()(Util::shared_ptr<TermBinary> const &term) const -> std::optional<Term> {
+    auto operator()(TermBinary const &term) const -> std::optional<Term> {
         static_cast<void>(term);
         return std::nullopt;
     }

@@ -1,25 +1,19 @@
 #pragma once
 
 #include <cstddef>
+#include <tuple>
 #include <utility>
 
 namespace Gringo::Util {
 
-// Alternative intrusive shared_ptr implementation. It is intrusive to ease C
-// integration and also avoid some complexity in view of an optimal make_shared
+// Alternative shared_ptr implementation. It is necessary to ease C integration
+// and also avoid some complexity in view of an optimal make_shared
 // implementation. This implementation should be faster than the STL
 // implementation. However, it cannot be used safely in multi-threaded
 // applications.
 template <typename T> class shared_ptr {
   public:
     using element_type = T;
-
-    explicit shared_ptr(element_type *ptr) noexcept : ptr_{ptr} { inc_(); }
-
-    template <typename Y, typename = std::enable_if_t<std::is_base_of_v<T, Y>>>
-    explicit shared_ptr(Y *ptr) noexcept : ptr_{ptr} {
-        inc_();
-    }
 
     constexpr shared_ptr() noexcept : ptr_{nullptr} {}
 
@@ -55,7 +49,7 @@ template <typename T> class shared_ptr {
 
     [[nodiscard]] explicit operator bool() const noexcept { return ptr_ != nullptr; }
 
-    [[nodiscard]] auto use_count() const noexcept -> size_t { return get_ref_count(*ptr_); }
+    [[nodiscard]] auto use_count() const noexcept -> size_t { return ref_count(); }
 
     [[nodiscard]] auto get() const noexcept -> element_type * { return ptr_; }
 
@@ -68,24 +62,48 @@ template <typename T> class shared_ptr {
   private:
     template <typename Y> friend class shared_ptr;
 
+    template <typename U, typename B, typename... Args> friend auto construct_shared(Args &&...args);
+
+    constexpr shared_ptr(element_type *ptr) noexcept : ptr_{ptr} {}
+
     void inc_() noexcept {
         if (ptr_ != nullptr) {
-            inc_ref_count(*ptr_);
+            ++ref_count();
         }
     }
 
     void dec_() {
         if (ptr_ != nullptr) {
-            dec_ref_count(*ptr_);
-            if (use_count() == 0) {
-                delete ptr_;
+            --ref_count();
+            if (ref_count() == 0) {
+                ptr_->~T();
+                ::operator delete(reinterpret_cast<size_t *>(ptr_) - 1);
                 ptr_ = nullptr;
             }
         }
     }
 
-    element_type *ptr_;
+    [[nodiscard]] auto ref_count() const -> size_t & { return *(reinterpret_cast<size_t *>(ptr_) - 1); }
+
+    T *ptr_;
 };
+
+namespace Detail {
+
+template <class T> struct shared_ptr_data {
+    template <class... Args> shared_ptr_data(Args &&...args) : value{std::forward<Args>(args)...} {
+        static_assert(sizeof(size_t) + sizeof(T) == sizeof(shared_ptr_data));
+    }
+    size_t refs = 1;
+    T value;
+};
+
+} // namespace Detail
+
+template <typename U, typename B = U, typename... Args> auto construct_shared(Args &&...args) {
+    auto *data = new Detail::shared_ptr_data<U>(std::forward<Args>(args)...);
+    return shared_ptr<B>{&data->value};
+}
 
 template <class X, class Y>
 [[nodiscard]] auto operator==(const shared_ptr<X> &lhs, const shared_ptr<Y> &rhs) noexcept -> bool {
@@ -96,25 +114,6 @@ template <class X, class Y>
 [[nodiscard]] auto operator!=(const shared_ptr<X> &lhs, const shared_ptr<Y> &rhs) noexcept -> bool {
     return lhs.get() != rhs.get();
 }
-
-template <typename T, typename B = T, typename... Args> auto construct_shared(Args &&...args) {
-    return shared_ptr<B>{new T{std::forward<Args>(args)...}};
-}
-
-//! Helper to convieniently add a reference count to an object.
-struct enable_shared {
-  public:
-    //! Increment reference count of the object.
-    friend void inc_ref_count(enable_shared &x) { ++x.refs_; }
-    //! Decrement reference count of the object.
-    friend void dec_ref_count(enable_shared &x) { ++x.refs_; }
-    //! Get reference count of the object.
-    [[nodiscard]] friend auto get_ref_count(enable_shared const &x) -> size_t { return x.refs_; }
-
-  private:
-    //! The reference count.
-    size_t refs_ = 0;
-};
 
 template <typename T> class single_owner_ptr {
   public:

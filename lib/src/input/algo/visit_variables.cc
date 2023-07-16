@@ -20,17 +20,17 @@ struct VisitVariables {
 
     void operator()(TermVariable const &term) const { fun(term.name); }
 
-    void operator()(Util::shared_ptr<TermTuple> const &term) const { visit(*this, term->pool); }
+    void operator()(TermTuple const &term) const { visit(*this, term.pool); }
 
-    void operator()(Util::shared_ptr<TermFunction> const &term) const { visit(*this, term->pool); }
+    void operator()(TermFunction const &term) const { visit(*this, term.pool); }
 
-    void operator()(Util::shared_ptr<TermAbs> const &term) const { visit(*this, term->pool); }
+    void operator()(TermAbs const &term) const { visit(*this, term.pool); }
 
-    void operator()(Util::shared_ptr<TermUnary> const &term) const { visit(*this, term->rhs); }
+    void operator()(TermUnary const &term) const { visit(*this, term.rhs); }
 
-    void operator()(Util::shared_ptr<TermBinary> const &term) const {
-        visit(*this, term->lhs);
-        visit(*this, term->rhs);
+    void operator()(TermBinary const &term) const {
+        visit(*this, term.lhs);
+        visit(*this, term.rhs);
     }
 
     VarVisitFun fun;
@@ -44,25 +44,15 @@ void visit_variables(TermVariable const &term, VarVisitFun fun) { VisitVariables
 
 void visit_variables(TermSymbol const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
 
-void visit_variables(TermTuple const &term, VarVisitFun fun) {
-    VisitVariables{std::move(fun)}(construct_shared<TermTuple>(term));
-}
+void visit_variables(TermTuple const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
 
-void visit_variables(TermFunction const &term, VarVisitFun fun) {
-    VisitVariables{std::move(fun)}(construct_shared<TermFunction>(term));
-}
+void visit_variables(TermFunction const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
 
-void visit_variables(TermAbs const &term, VarVisitFun fun) {
-    VisitVariables{std::move(fun)}(construct_shared<TermAbs>(term));
-}
+void visit_variables(TermAbs const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
 
-void visit_variables(TermUnary const &term, VarVisitFun fun) {
-    VisitVariables{std::move(fun)}(construct_shared<TermUnary>(term));
-}
+void visit_variables(TermUnary const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
 
-void visit_variables(TermBinary const &term, VarVisitFun fun) {
-    VisitVariables{std::move(fun)}(construct_shared<TermBinary>(term));
-}
+void visit_variables(TermBinary const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
 
 // TODO: remove until here!
 

@@ -70,12 +70,25 @@ auto map_opt_vec(T &&vec, M &&map) -> std::enable_if_t<Detail::is_opt_vec_v<T>, 
     });
 }
 
-/// Avoids copies of initializer_lists.
+//! Avoids copies of initializer_lists.
 template <class T, class... Ts> auto make_vec(Ts &&...args) {
     std::vector<T> res;
     res.reserve(sizeof...(Ts));
     (res.emplace_back(std::forward<Ts>(args)), ...);
     return res;
+}
+
+//! Helper to overload lambdas.
+template <class... Ts> struct overloaded : Ts... {
+    using Ts::operator()...;
+};
+
+//! Deduction guide.
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+//! Visit a single variant with the given functions.
+template <class V, class... Fs> auto visit_variant(V &&v, Fs &&...fs) {
+    return std::visit(overloaded{std::forward<Fs>(fs)...}, std::forward<V>(v));
 }
 
 } // namespace Gringo::Util

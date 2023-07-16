@@ -20,13 +20,6 @@ class TheoryTerm {
 
     //! Visit theory terms with the given visitor.
     virtual void accept(TheoryTermVisitor const &visitor) const = 0;
-
-  private:
-    friend void inc_ref_count(TheoryTerm &term) { ++term.refs_; }
-    friend void dec_ref_count(TheoryTerm &term) { ++term.refs_; }
-    [[nodiscard]] friend auto get_ref_count(TheoryTerm const &term) -> size_t { return term.refs_; }
-
-    size_t refs_ = 0;
 };
 
 class TheoryTermUnparsed : public TheoryTerm {
