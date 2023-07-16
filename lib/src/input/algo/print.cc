@@ -261,13 +261,13 @@ auto operator<<(std::ostream &out, ConstType type) -> std::ostream & {
 
 auto left_bracket(TheoryTermTupleType type) -> char {
     switch (type) {
-        case TheoryTermTupleType::Tuple: {
+        case TheoryTermTupleType::tuple: {
             return '(';
         }
-        case TheoryTermTupleType::Set: {
+        case TheoryTermTupleType::set: {
             return '{';
         }
-        case TheoryTermTupleType::List: {
+        case TheoryTermTupleType::list: {
             break;
         }
     }
@@ -276,25 +276,27 @@ auto left_bracket(TheoryTermTupleType type) -> char {
 
 auto right_bracket(TheoryTermTupleType type) -> char {
     switch (type) {
-        case TheoryTermTupleType::Tuple: {
+        case TheoryTermTupleType::tuple: {
             return ')';
         }
-        case TheoryTermTupleType::Set: {
+        case TheoryTermTupleType::set: {
             return '}';
         }
-        case TheoryTermTupleType::List: {
+        case TheoryTermTupleType::list: {
             break;
         }
     }
     return ']';
 }
 
-template <class T> struct Print {
+struct Print {
+    // generic
+
     void apply_to_range_with(auto const &rng, char const *sep, auto const &fun) const {
         bool comma = false;
         for (auto const &x : rng) {
             if (comma) {
-                static_cast<T const *>(this)->out << sep;
+                out << sep;
             } else {
                 comma = true;
             }
@@ -303,22 +305,16 @@ template <class T> struct Print {
     }
 
     void apply_to_range(auto const &rng, char const *sep = ",") const {
-        apply_to_range_with(rng, sep, [this](auto const &x) { static_cast<T const *>(this)->operator()(x); });
+        apply_to_range_with(rng, sep, [this](auto const &x) { this->operator()(x); });
     }
 
     void visit_range(auto const &rng, char const *sep = ",") const {
-        apply_to_range_with(rng, sep, [this](auto const &x) { std::visit(*static_cast<T const *>(this), x); });
+        apply_to_range_with(rng, sep, [this](auto const &x) { std::visit(*this, x); });
     }
 
     void print_range(auto const &rng, char const *sep = ",") const {
-        apply_to_range_with(rng, sep, [this](auto const &x) { T::out << x; });
+        apply_to_range_with(rng, sep, [this](auto const &x) { out << x; });
     }
-};
-
-struct PrintTerm : Print<PrintTerm> {
-    PrintTerm(std::ostream &out, Position pos = Position::none, unsigned int prio = 0, bool no_leading_op = false)
-        : out{out}, pos{pos}, prio{prio}, no_leading_op{no_leading_op} {}
-
     // aux
     void operator()(Term const &term) const { std::visit(*this, term); }
 
@@ -330,6 +326,7 @@ struct PrintTerm : Print<PrintTerm> {
     }
 
     // term
+
     void operator()(TermSymbol const &term) const {
         char const *lp = "";
         char const *rp = "";
@@ -350,7 +347,7 @@ struct PrintTerm : Print<PrintTerm> {
         auto const &pool = term.pool;
         if (pool.size() != 1 || !pool.front().empty()) {
             out << "(";
-            PrintTerm{out}.apply_to_range_with(pool, ";", [this](auto const &tuple) { apply_to_range(tuple); });
+            Print{out}.apply_to_range_with(pool, ";", [this](auto const &tuple) { apply_to_range(tuple); });
             out << ")";
         }
     }
@@ -361,7 +358,7 @@ struct PrintTerm : Print<PrintTerm> {
             std::visit(*this, std::get<Term>(term.pool.front()));
         } else {
             out << "(";
-            PrintTerm{out}.apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
+            Print{out}.apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
                 Util::visit_variant(
                     term_or_tuple, [this](Term const &term) { std::visit(*this, term); },
                     [this](TupleVec const &tuple) {
@@ -377,7 +374,7 @@ struct PrintTerm : Print<PrintTerm> {
 
     void operator()(TermAbs const &term) const {
         out << "|";
-        PrintTerm{out}.visit_range(term.pool, ";");
+        Print{out}.visit_range(term.pool, ";");
         out << "|";
     }
 
@@ -392,7 +389,7 @@ struct PrintTerm : Print<PrintTerm> {
             rp = ")";
         }
         out << lp << op;
-        std::visit(PrintTerm{out, Position::none, priority(op), true}, *term.rhs);
+        std::visit(Print{out, Position::none, priority(op), true}, *term.rhs);
         out << rp;
     }
 
@@ -408,11 +405,56 @@ struct PrintTerm : Print<PrintTerm> {
             lhs_no_leading_op = false;
         }
         out << lp;
-        std::visit(PrintTerm{out, Position::left, priority(op), lhs_no_leading_op}, *term.lhs);
+        std::visit(Print{out, Position::left, priority(op), lhs_no_leading_op}, *term.lhs);
         out << op;
-        std::visit(PrintTerm{out, Position::right, priority(op), true}, *term.rhs);
+        std::visit(Print{out, Position::right, priority(op), true}, *term.rhs);
         out << rp;
     }
+
+    // theory terms
+
+    void operator()(TheoryTerm const &term) const { std::visit(*this, term); }
+
+    void operator()(TheoryTermSymbol const &term) const { out << term.value; }
+
+    void operator()(TheoryTermVariable const &term) const { out << term.name; }
+
+    void operator()(TheoryTermTuple const &term) const {
+        out << left_bracket(term.type);
+        visit_range(term.elems);
+        if (term.type == TheoryTermTupleType::tuple && term.elems.size() == 1) {
+            out << ",";
+        }
+        out << right_bracket(term.type);
+    }
+
+    void operator()(TheoryTermFunction const &term) const {
+        out << term.name;
+        if (!term.args.empty()) {
+            out << "(";
+            visit_range(term.args);
+            out << ")";
+        }
+    }
+
+    void operator()(TheoryTermUnparsed const &term) const {
+        auto elems = term.elems;
+        bool needs_parens = elems.size() != 1 || !elems.front().first.empty();
+        if (needs_parens) {
+            out << "(";
+        }
+        apply_to_range_with(elems, " ", [this](auto const &elem) {
+            for (auto const &op : elem.first) {
+                out << op << " ";
+            }
+            operator()(elem.second);
+        });
+        if (needs_parens) {
+            out << ")";
+        }
+    }
+
+    // literals
 
     void operator()(LiteralBoolean const &lit) const { out << lit.sign << (lit.value ? "#true" : "#false"); }
 
@@ -431,10 +473,7 @@ struct PrintTerm : Print<PrintTerm> {
     bool no_leading_op = false;
 };
 
-class PrintVisitor : public TheoryTermVisitor,
-                     public HeadLiteralVisitor,
-                     public BodyLiteralVisitor,
-                     public StatementVisitor {
+class PrintVisitor : public HeadLiteralVisitor, public BodyLiteralVisitor, public StatementVisitor {
   public:
     PrintVisitor(std::ostream &out) : out_{out} {}
 
@@ -473,18 +512,18 @@ class PrintVisitor : public TheoryTermVisitor,
         if (is_simple) {
             apply_to_range_with(elems, "; ", [this](auto const &elem) {
                 auto cs = elem.second.empty() ? "" : ": ";
-                PrintTerm{out_}(elem.first.front());
+                Print{out_}(elem.first.front());
                 out_ << cs;
-                PrintTerm{out_}.visit_range(elem.second, ", ");
+                Print{out_}.visit_range(elem.second, ", ");
             });
         } else {
             char const *sp = elems.empty() ? "" : " ";
             out_ << kw << " { ";
             apply_to_range_with(elems, "; ", [this](auto const &elem) {
                 char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
-                apply_to_range_with(elem.first, ", ", [this](auto const &lit) { PrintTerm{out_}(lit); });
+                apply_to_range_with(elem.first, ", ", [this](auto const &lit) { Print{out_}(lit); });
                 out_ << cs;
-                PrintTerm{out_}.visit_range(elem.second, ", ");
+                Print{out_}.visit_range(elem.second, ", ");
             });
             out_ << sp << "}";
         }
@@ -496,10 +535,10 @@ class PrintVisitor : public TheoryTermVisitor,
         }
         out_ << "{ ";
         apply_to_range_with(aggr.elements(), "; ", [this](auto const &elem) {
-            PrintTerm{out_}(std::get<0>(elem));
+            Print{out_}(std::get<0>(elem));
             if (!std::get<1>(elem).empty()) {
                 out_ << ": ";
-                PrintTerm{out_}.visit_range(std::get<1>(elem), ", ");
+                Print{out_}.visit_range(std::get<1>(elem), ", ");
             }
         });
         out_ << (aggr.elements().empty() ? "}" : " }");
@@ -514,17 +553,17 @@ class PrintVisitor : public TheoryTermVisitor,
         if (!elems.empty() || atom.rhs().has_value()) {
             out_ << " { ";
             apply_to_range_with(elems, "; ", [this](TheoryAtom::Element const &elem) {
-                visit_range(elem.first);
+                Print{out_}.visit_range(elem.first);
                 if (!elem.second.empty() || elem.first.empty()) {
                     out_ << ": ";
-                    PrintTerm{out_}.visit_range(elem.second, ", ");
+                    Print{out_}.visit_range(elem.second, ", ");
                 }
             });
             out_ << (elems.empty() ? "}" : " }");
         }
         if (atom.rhs().has_value()) {
             out_ << " " << atom.rhs().value().first << " ";
-            atom.rhs().value().second->accept(*this);
+            Print{out_}(atom.rhs().value().second);
         }
     }
 
@@ -574,47 +613,6 @@ class PrintVisitor : public TheoryTermVisitor,
         out_ << def.type();
     }
 
-    // visit theory terms
-
-    void visit(TheoryTermUnparsed const &term) const override {
-        auto elems = term.elements();
-        bool needs_parens = elems.size() != 1 || !elems.front().first.empty();
-        if (needs_parens) {
-            out_ << "(";
-        }
-        apply_to_range_with(elems, " ", [this](auto const &elem) {
-            for (auto const &op : elem.first) {
-                out_ << op << " ";
-            }
-            elem.second->accept(*this);
-        });
-        if (needs_parens) {
-            out_ << ")";
-        }
-    }
-
-    void visit(TheoryTermSymbol const &term) const override { out_ << term.symbol(); }
-
-    void visit(TheoryTermVariable const &term) const override { out_ << term.name(); }
-
-    void visit(TheoryTermTuple const &term) const override {
-        out_ << left_bracket(term.type());
-        visit_range(term.elements());
-        if (term.type() == TheoryTermTupleType::Tuple && term.elements().size() == 1) {
-            out_ << ",";
-        }
-        out_ << right_bracket(term.type());
-    }
-
-    void visit(TheoryTermFunction const &term) const override {
-        out_ << term.name();
-        if (!term.arguments().empty()) {
-            out_ << "(";
-            visit_range(term.arguments());
-            out_ << ")";
-        }
-    }
-
     // visit head literals
 
     void visit(Disjunction const &lit) const override { visit(lit.elements(), "#or", true); }
@@ -629,12 +627,12 @@ class PrintVisitor : public TheoryTermVisitor,
         }
         out_ << lit.function() << " { ";
         apply_to_range_with(lit.elements(), "; ", [this](auto const &elem) {
-            PrintTerm{out_}.visit_range(std::get<0>(elem));
+            Print{out_}.visit_range(std::get<0>(elem));
             out_ << ": ";
-            PrintTerm{out_}(std::get<1>(elem));
+            Print{out_}(std::get<1>(elem));
             if (!std::get<2>(elem).empty()) {
                 out_ << ": ";
-                PrintTerm{out_}.visit_range(std::get<2>(elem), ", ");
+                Print{out_}.visit_range(std::get<2>(elem), ", ");
             }
         });
         out_ << (lit.elements().empty() ? "}" : " }");
@@ -661,10 +659,10 @@ class PrintVisitor : public TheoryTermVisitor,
         }
         out_ << lit.function() << " { ";
         apply_to_range_with(lit.elements(), "; ", [this](auto const &elem) {
-            PrintTerm{out_}.visit_range(std::get<0>(elem));
+            Print{out_}.visit_range(std::get<0>(elem));
             if (!std::get<1>(elem).empty()) {
                 out_ << ": ";
-                PrintTerm{out_}.visit_range(std::get<1>(elem), ", ");
+                Print{out_}.visit_range(std::get<1>(elem), ", ");
             }
         });
         out_ << (lit.elements().empty() ? "}" : " }");
@@ -716,11 +714,11 @@ class PrintVisitor : public TheoryTermVisitor,
             }
             if (!terms.empty()) {
                 out_ << ",";
-                PrintTerm{out_}.visit_range(terms);
+                Print{out_}.visit_range(terms);
             }
             if (!cond.empty()) {
                 out_ << ": ";
-                PrintTerm{out_}.visit_range(cond, ", ");
+                Print{out_}.visit_range(cond, ", ");
             }
         });
         out_ << (stm.elements().empty() ? "}" : " }") << ".";
@@ -736,7 +734,7 @@ class PrintVisitor : public TheoryTermVisitor,
         }
         if (!terms.empty()) {
             out_ << ",";
-            PrintTerm{out_}.visit_range(terms);
+            Print{out_}.visit_range(terms);
         }
         out_ << "]";
     }
@@ -833,17 +831,17 @@ class PrintVisitor : public TheoryTermVisitor,
 } // namespace
 
 auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
-    std::visit(PrintTerm{out}, term);
+    std::visit(Print{out}, term);
     return out;
 }
 
 auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
-    term.accept(PrintVisitor{out});
+    std::visit(Print{out}, term);
     return out;
 }
 
 auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream & {
-    std::visit(PrintTerm{out}, lit);
+    std::visit(Print{out}, lit);
     return out;
 }
 

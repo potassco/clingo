@@ -14,50 +14,6 @@
 
 namespace Gringo::Input {
 
-////////// TheoryTermUnparsed //////////
-
-void TheoryTermUnparsed::accept(TheoryTermVisitor const &visitor) const { visitor.visit(*this); }
-
-void TheoryTermUnparsed::visit_variables(VarVisitFun fun) const {
-    for (auto const &elem : elems_) {
-        elem.second->visit_variables(fun);
-    }
-}
-
-////////// TheoryTermTuple //////////
-
-void TheoryTermTuple::accept(TheoryTermVisitor const &visitor) const { visitor.visit(*this); }
-
-void TheoryTermTuple::visit_variables(VarVisitFun fun) const {
-    for (auto const &term : elems_) {
-        term->visit_variables(fun);
-    }
-}
-
-////////// TheoryTermConstant //////////
-
-void TheoryTermSymbol::accept(TheoryTermVisitor const &visitor) const { visitor.visit(*this); }
-
-void TheoryTermSymbol::visit_variables(VarVisitFun fun) const { static_cast<void>(fun); }
-
-////////// TheoryTermVariable //////////
-
-void TheoryTermVariable::accept(TheoryTermVisitor const &visitor) const { visitor.visit(*this); }
-
-void TheoryTermVariable::visit_variables(VarVisitFun fun) const { fun(name_); }
-
-////////// TheoryTermFunction //////////
-
-void TheoryTermFunction::accept(TheoryTermVisitor const &visitor) const { visitor.visit(*this); }
-
-void TheoryTermFunction::visit_variables(VarVisitFun fun) const {
-    for (auto const &term : args_) {
-        term->visit_variables(fun);
-    }
-}
-
-////////// TheoryAtom //////////
-
 auto TheoryAtom::unpool() const -> std::optional<std::vector<TheoryAtom>> {
     using Gringo::Input::unpool;
     return unpool_crossproducts(
@@ -66,19 +22,19 @@ auto TheoryAtom::unpool() const -> std::optional<std::vector<TheoryAtom>> {
         },
         Util::overloaded{
             [](ElementVec const &elems) -> std::optional<std::vector<ElementVec>> {
-                return map_opt(unpool_union(elems,
-                                            [](auto elem) {
-                                                return unpool_crossproducts(
-                                                    [&elem](auto cond) {
-                                                        return Element{std::get<0>(elem), std::move(cond)};
-                                                    },
-                                                    Util::overloaded{[](LiteralVec const &lits) {
-                                                        return unpool_crossproduct(
-                                                            lits, [](auto const &lit) { return unpool(lit); });
-                                                    }},
-                                                    std::get<1>(elem));
-                                            }),
-                               [](auto elems) { return make_vec<ElementVec>(std::move(elems)); });
+                return Util::map_opt(unpool_union(elems,
+                                                  [](auto elem) {
+                                                      return unpool_crossproducts(
+                                                          [&elem](auto cond) {
+                                                              return Element{std::get<0>(elem), std::move(cond)};
+                                                          },
+                                                          Util::overloaded{[](LiteralVec const &lits) {
+                                                              return unpool_crossproduct(
+                                                                  lits, [](auto const &lit) { return unpool(lit); });
+                                                          }},
+                                                          std::get<1>(elem));
+                                                  }),
+                                     [](auto elems) { return Util::make_vec<ElementVec>(std::move(elems)); });
             },
             [](Term const &name) {
                 using Gringo::Input::unpool;

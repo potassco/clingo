@@ -14,6 +14,8 @@ namespace {
 
 struct VisitVariables {
 
+    // terms
+
     void operator()(Term const &term) const { std::visit(*this, term); }
 
     void operator()(TermSymbol const &term) const { static_cast<void>(term); }
@@ -32,6 +34,22 @@ struct VisitVariables {
         visit(*this, term.lhs);
         visit(*this, term.rhs);
     }
+
+    // theory terms
+
+    void operator()(TheoryTerm const &term) const { std::visit(*this, term); }
+
+    void operator()(TheoryTermSymbol const &term) const { static_cast<void>(term); }
+
+    void operator()(TheoryTermVariable const &term) const { fun(term.name); }
+
+    void operator()(TheoryTermTuple const &term) const { visit(*this, term.elems); }
+
+    void operator()(TheoryTermFunction const &term) const { visit(*this, term.args); }
+
+    void operator()(TheoryTermUnparsed const &term) const { visit(*this, term.elems); }
+
+    // literals
 
     void operator()(Literal const &lit) const { std::visit(*this, lit); }
 
@@ -66,7 +84,7 @@ void visit_variables(TermBinary const &term, VarVisitFun fun) { VisitVariables{s
 
 void visit_variables(Term const &term, VarVisitFun fun) { std::visit(VisitVariables{std::move(fun)}, term); }
 
-void visit_variables(TheoryTerm const &term, VarVisitFun fun) { term.visit_variables(std::move(fun)); }
+void visit_variables(TheoryTerm const &term, VarVisitFun fun) { std::visit(VisitVariables{std::move(fun)}, term); }
 
 void visit_variables(Literal const &lit, VarVisitFun fun) { std::visit(VisitVariables{std::move(fun)}, lit); }
 

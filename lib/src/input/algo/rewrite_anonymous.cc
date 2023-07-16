@@ -59,12 +59,36 @@ struct RewriteAnonymous {
         return transform_construct<LiteralSymbolic>(lit.sign, tr(lit.term));
     }
 
+    auto operator()(TheoryTermUnparsed const &term) const -> std::optional<TheoryTerm> {
+        return transform_construct<TheoryTermUnparsed>(tr(term.elems));
+    }
+
+    auto operator()(TheoryTermSymbol const &term) const -> std::optional<TheoryTerm> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+
+    auto operator()(TheoryTermVariable const &term) const -> std::optional<TheoryTerm> {
+        if (term.is_anonymous) {
+            return TheoryTermVariable{gen.new_name(), true};
+        }
+        return std::nullopt;
+    }
+
+    auto operator()(TheoryTermTuple const &term) const -> std::optional<TheoryTerm> {
+        return transform_construct<TheoryTermTuple>(term.type, tr(term.elems));
+    }
+
+    auto operator()(TheoryTermFunction const &term) const -> std::optional<TheoryTerm> {
+        return transform_construct<TheoryTermFunction>(term.name, tr(term.args));
+    }
+
     NameGen &gen;
 };
 
 struct RewriteAnonymousOld {
     auto operator()(Term const &term) const { return rewrite_anonymous(term, gen); }
-    auto operator()(STheoryTerm const &term) const { return rewrite_anonymous(*term, gen); }
+    auto operator()(TheoryTerm const &term) const { return rewrite_anonymous(term, gen); }
     auto operator()(Literal const &lit) const { return rewrite_anonymous(lit, gen); }
     auto operator()(TheoryAtom const &aggr) const -> std::optional<TheoryAtom> {
         return transform_construct<TheoryAtom>(Trans{aggr.name(), *this}, Trans{aggr.elements(), *this},
@@ -81,37 +105,6 @@ struct RewriteAnonymousOld {
         return rewrite_anonymous(*lit, gen);
     };
     NameGen &gen;
-};
-
-class TheoryTermRewriter : public TheoryTermVisitor {
-  public:
-    TheoryTermRewriter(NameGen &gen, std::optional<STheoryTerm> &result) : gen_{gen}, result_{result} {}
-
-    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymousOld{gen_}); }
-
-    void visit(TheoryTermUnparsed const &term) const override {
-        result_ = transform_construct_shared<TheoryTermUnparsed, TheoryTerm>(tra(term.elements()));
-    }
-
-    void visit(TheoryTermSymbol const &term) const override { static_cast<void>(term); }
-
-    void visit(TheoryTermVariable const &term) const override {
-        if (term.is_anonymous()) {
-            result_ = Util::construct_shared<TheoryTermVariable, TheoryTerm>(gen_.new_name(), true);
-        }
-    }
-
-    void visit(TheoryTermTuple const &term) const override {
-        result_ = transform_construct_shared<TheoryTermTuple, TheoryTerm>(term.type(), tra(term.elements()));
-    }
-
-    void visit(TheoryTermFunction const &term) const override {
-        result_ = transform_construct_shared<TheoryTermFunction, TheoryTerm>(term.name(), tra(term.arguments()));
-    }
-
-  private:
-    NameGen &gen_;
-    std::optional<STheoryTerm> &result_;
 };
 
 class HeadLiteralRewriter : public HeadLiteralVisitor {
@@ -247,10 +240,8 @@ auto NameGen::new_name() -> std::string {
     return std::visit(RewriteAnonymous{gen}, term);
 }
 
-[[nodiscard]] auto rewrite_anonymous(TheoryTerm const &term, NameGen &gen) -> std::optional<STheoryTerm> {
-    std::optional<STheoryTerm> result;
-    term.accept(TheoryTermRewriter{gen, result});
-    return result;
+[[nodiscard]] auto rewrite_anonymous(TheoryTerm const &term, NameGen &gen) -> std::optional<TheoryTerm> {
+    return std::visit(RewriteAnonymous{gen}, term);
 }
 
 [[nodiscard]] auto rewrite_anonymous(Literal const &lit, NameGen &gen) -> std::optional<Literal> {

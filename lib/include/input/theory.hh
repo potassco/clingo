@@ -7,150 +7,75 @@
 
 namespace Gringo::Input {
 
-class TheoryTerm;
-class TheoryTermVisitor;
-using STheoryTerm = Util::shared_ptr<TheoryTerm>;
-using STheoryTermVec = std::vector<STheoryTerm>;
+struct TheoryTermSymbol;
+struct TheoryTermVariable;
+struct TheoryTermTuple;
+struct TheoryTermFunction;
+struct TheoryTermUnparsed;
 
-class TheoryTerm {
-  public:
-    virtual ~TheoryTerm() = default;
+using TheoryTerm =
+    std::variant<TheoryTermSymbol, TheoryTermVariable, TheoryTermTuple, TheoryTermFunction, TheoryTermUnparsed>;
+using TheoryTermVec = std::vector<TheoryTerm>;
 
-    virtual void visit_variables(VarVisitFun fun) const = 0;
+enum class TheoryTermTupleType { tuple, set, list };
 
-    //! Visit theory terms with the given visitor.
-    virtual void accept(TheoryTermVisitor const &visitor) const = 0;
+struct TheoryTermSymbol {
+    explicit TheoryTermSymbol(Symbol value) : value{std::move(value)} {}
+
+    Symbol value;
 };
 
-class TheoryTermUnparsed : public TheoryTerm {
+struct TheoryTermVariable {
+    explicit TheoryTermVariable(std::string value, bool is_anonymous = false)
+        : name{std::move(value)}, is_anonymous{is_anonymous} {}
+
+    std::string name;
+    bool is_anonymous;
+};
+
+struct TheoryTermTuple {
+    explicit TheoryTermTuple(TheoryTermTupleType type, TheoryTermVec elems);
+
+    TheoryTermTupleType type;
+    TheoryTermVec elems;
+};
+
+struct TheoryTermFunction {
   public:
+    explicit TheoryTermFunction(std::string name);
+    explicit TheoryTermFunction(std::string name, TheoryTermVec args);
+
+    std::string name;
+    TheoryTermVec args;
+};
+
+struct TheoryTermUnparsed {
     using OpVec = std::vector<std::string>;
-    using Element = std::pair<OpVec, STheoryTerm>;
+    using Element = std::pair<OpVec, TheoryTerm>;
     using ElementVec = std::vector<Element>;
 
-    explicit TheoryTermUnparsed(ElementVec elems) : elems_{std::move(elems)} {}
+    explicit TheoryTermUnparsed(ElementVec elems);
 
-    void visit_variables(VarVisitFun fun) const override;
-
-    void accept(TheoryTermVisitor const &visitor) const override;
-
-    //! Get the elements of the unparsed term.
-    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
-
-  private:
-    ElementVec elems_;
+    ElementVec elems;
 };
 
-enum class TheoryTermTupleType { Tuple, Set, List };
-
-class TheoryTermTuple : public TheoryTerm {
-  public:
-    using Element = STheoryTerm;
-    using ElementVec = std::vector<STheoryTerm>;
-
-    explicit TheoryTermTuple(TheoryTermTupleType type, ElementVec elems) : type_{type}, elems_{std::move(elems)} {}
-
-    //! Get the type of the theory term tuple.
-    [[nodiscard]] auto type() const -> TheoryTermTupleType { return type_; }
-    //! Get the elements of the theory term tuple.
-    [[nodiscard]] auto elements() const -> ElementVec const & { return elems_; }
-
-    void visit_variables(VarVisitFun fun) const override;
-
-    void accept(TheoryTermVisitor const &visitor) const override;
-
-  private:
-    TheoryTermTupleType type_;
-    ElementVec elems_;
-};
-
-class TheoryTermSymbol : public TheoryTerm {
-  public:
-    using Element = STheoryTerm;
-    using ElementVec = std::vector<STheoryTerm>;
-
-    explicit TheoryTermSymbol(Symbol value) : value_{std::move(value)} {}
-
-    //! Get the symbol of the theory term symbol.
-    [[nodiscard]] auto symbol() const -> Symbol { return value_; }
-
-    void visit_variables(VarVisitFun fun) const override;
-
-    void accept(TheoryTermVisitor const &visitor) const override;
-
-  private:
-    Symbol value_;
-};
-
-class TheoryTermVariable : public TheoryTerm {
-  public:
-    using Element = STheoryTerm;
-    using ElementVec = std::vector<STheoryTerm>;
-
-    explicit TheoryTermVariable(std::string value, bool is_anonymous = false)
-        : name_{std::move(value)}, is_anonymous_{is_anonymous} {}
-
-    //! Get the variable name of the theory term variable.
-    [[nodiscard]] auto name() const -> std::string const & { return name_; }
-    //! Check whether the variable is anonymous.
-    [[nodiscard]] auto is_anonymous() const -> bool { return is_anonymous_; }
-
-    void visit_variables(VarVisitFun fun) const override;
-
-    void accept(TheoryTermVisitor const &visitor) const override;
-
-  private:
-    std::string name_;
-    bool is_anonymous_;
-};
-
-class TheoryTermFunction : public TheoryTerm {
-  public:
-    explicit TheoryTermFunction(std::string name, STheoryTermVec args = {})
-        : name_(std::move(name)), args_{std::move(args)} {}
-
-    void visit_variables(VarVisitFun fun) const override;
-
-    //! Get the name of the theory term function.
-    [[nodiscard]] auto name() const -> std::string const & { return name_; }
-    //! Get the arguments of the theory term function.
-    [[nodiscard]] auto arguments() const -> STheoryTermVec const & { return args_; }
-
-    void accept(TheoryTermVisitor const &visitor) const override;
-
-  private:
-    std::string name_;
-    STheoryTermVec args_;
-};
-
-//! A visitor for available theory term types.
-class TheoryTermVisitor {
-  public:
-    //! Virtual destructor.
-    virtual ~TheoryTermVisitor() = default;
-
-    //! Visit an unparsed theory term.
-    virtual void visit(TheoryTermUnparsed const &term) const = 0;
-    //! Visit a theory term symbol.
-    virtual void visit(TheoryTermSymbol const &term) const = 0;
-    //! Visit a theory term variable.
-    virtual void visit(TheoryTermVariable const &term) const = 0;
-    //! Visit a tuple theory term.
-    virtual void visit(TheoryTermTuple const &term) const = 0;
-    //! Visit a function theory term.
-    virtual void visit(TheoryTermFunction const &term) const = 0;
-};
+inline TheoryTermTuple::TheoryTermTuple(TheoryTermTupleType type, TheoryTermVec elems)
+    : type(type), elems{std::move(elems)} {}
+inline TheoryTermFunction::TheoryTermFunction(std::string name) : TheoryTermFunction{std::move(name), {}} {}
+inline TheoryTermFunction::TheoryTermFunction(std::string name, TheoryTermVec args)
+    : name(std::move(name)), args{std::move(args)} {}
+inline TheoryTermUnparsed::TheoryTermUnparsed(ElementVec elems) : elems{std::move(elems)} {}
 
 class TheoryAtom {
   public:
-    using RGuard = std::optional<std::pair<std::string, STheoryTerm>>;
-    using Element = std::pair<STheoryTermVec, LiteralVec>;
+    using RGuard = std::optional<std::pair<std::string, TheoryTerm>>;
+    using Element = std::pair<TheoryTermVec, LiteralVec>;
     using ElementVec = std::vector<Element>;
 
     explicit TheoryAtom(Term name, ElementVec elems, RGuard rhs)
         : name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {}
     explicit TheoryAtom(Term name, ElementVec elems) : name_{std::move(name)}, elems_{std::move(elems)} {}
-    explicit TheoryAtom(Term name, ElementVec elems, std::string rhs_op, STheoryTerm rhs_term)
+    explicit TheoryAtom(Term name, ElementVec elems, std::string rhs_op, TheoryTerm rhs_term)
         : name_{std::move(name)}, elems_{std::move(elems)},
           rhs_{std::in_place, std::move(rhs_op), std::move(rhs_term)} {}
 
