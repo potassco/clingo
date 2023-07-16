@@ -13,6 +13,8 @@
 
 #include <input/parser/statement.hh>
 
+#include <input/algo/print.hh>
+
 using namespace Gringo::Input;
 
 template <typename Scanner> auto recover(Scanner &scanner) {
