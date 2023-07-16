@@ -28,4 +28,10 @@ struct CheckTypeResult {
 //! Query information about the structure of the given term.
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nullptr) -> bool;
 
+//! Check if the literal is a symbolic atom.
+auto is_atom(Literal const &lit) -> bool;
+
+//! Check if the literal is a test.
+auto is_test(Literal const &lit) -> bool;
+
 } // namespace Gringo::Input

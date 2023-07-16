@@ -92,10 +92,45 @@ struct CheckType {
     CheckTypeResult *res;
 };
 
+struct IsTest {
+    auto operator()(LiteralBoolean const &lit) const -> bool {
+        static_cast<void>(lit);
+        return true;
+    }
+
+    auto operator()(LiteralRelation const &lit) const -> bool {
+        static_cast<void>(lit);
+        return true;
+    }
+
+    auto operator()(LiteralSymbolic const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+};
+
+struct IsAtom {
+    auto operator()(LiteralBoolean const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(LiteralRelation const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(LiteralSymbolic const &lit) const -> bool { return lit.sign == Sign::none; }
+};
+
 } // namespace
 
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> bool {
     return std::visit(CheckType{type, res}, term);
 }
+
+auto is_atom(Literal const &lit) -> bool { return std::visit(IsAtom{}, lit); }
+
+auto is_test(Literal const &lit) -> bool { return std::visit(IsTest{}, lit); }
 
 } // namespace Gringo::Input

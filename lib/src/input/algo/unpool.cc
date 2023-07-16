@@ -20,34 +20,34 @@ struct Unpool {
         return std::nullopt;
     }
 
+    auto operator()(TupleElem const &elem) const -> std::optional<TupleVec> {
+        return Util::visit_variant(
+            elem,
+            [this](Term const &term) -> std::optional<TupleVec> {
+                return Util::map_opt_vec(std::visit(*this, term), [](auto term) { return TupleElem{std::move(term)}; });
+            },
+            [](std::monostate x) -> std::optional<TupleVec> {
+                static_cast<void>(x);
+                return std::nullopt;
+            });
+    }
+
+    auto operator()(TermTuple::Element const &tuple_or_term) const -> std::optional<TermTuple::ElementVec> {
+        return Util::visit_variant(
+            tuple_or_term,
+            [this](Term const &term) -> std::optional<TermTuple::ElementVec> {
+                return Util::map_opt_vec(std::visit(*this, term),
+                                         [](auto term) { return TermTuple::Element{std::move(term)}; });
+            },
+            [this](TupleVec const &tuple) -> std::optional<TermTuple::ElementVec> {
+                return Util::map_opt_vec(unpool_crossproduct(tuple, *this),
+                                         [](auto tuple) { return TermTuple::Element{std::move(tuple)}; });
+            });
+    }
+
     auto operator()(TermTuple const &term) const -> std::optional<TermVec> {
         // unpool the elements
-        auto elems = unpool_union(term.pool, [this](TermTuple::Element const &tuple_or_term) {
-            return Util::visit_variant(
-                tuple_or_term,
-                [this](Term const &term) -> std::optional<TermTuple::ElementVec> {
-                    return Util::map_opt_vec(std::visit(*this, term),
-                                             [](auto term) { return TermTuple::Element{std::move(term)}; });
-                },
-                [this](TupleVec const &tuple) -> std::optional<TermTuple::ElementVec> {
-                    return Util::map_opt_vec(
-                        unpool_crossproduct(tuple,
-                                            [this](TupleElem const &elem) {
-                                                return Util::visit_variant(
-                                                    elem,
-                                                    [this](Term const &term) -> std::optional<TupleVec> {
-                                                        return Util::map_opt_vec(
-                                                            std::visit(*this, term),
-                                                            [](auto term) { return TupleElem{std::move(term)}; });
-                                                    },
-                                                    [](std::monostate x) -> std::optional<TupleVec> {
-                                                        static_cast<void>(x);
-                                                        return std::nullopt;
-                                                    });
-                                            }),
-                        [](auto tuple) { return TermTuple::Element{std::move(tuple)}; });
-                });
-        });
+        auto elems = unpool_union(term.pool, *this);
 
         // turn the elements into individual tuple terms or terms
         if (!elems.has_value() && (term.pool.size() != 1 || std::holds_alternative<Term>(term.pool.front()))) {
@@ -63,18 +63,7 @@ struct Unpool {
     auto operator()(TermFunction const &term) const -> std::optional<TermVec> {
         auto elems = unpool_union(term.pool, [this](TupleVec const &tuple) {
             // unpool the elements
-            return unpool_crossproduct(tuple, [this](TupleElem const &elem) {
-                return Util::visit_variant(
-                    elem,
-                    [this](Term const &term) -> std::optional<TupleVec> {
-                        return Util::map_opt_vec(std::visit(*this, term),
-                                                 [](auto term) { return TupleElem{std::move(term)}; });
-                    },
-                    [](std::monostate x) -> std::optional<TupleVec> {
-                        static_cast<void>(x);
-                        return std::nullopt;
-                    });
-            });
+            return unpool_crossproduct(tuple, *this);
         });
 
         if (!elems.has_value() && term.pool.size() != 1) {

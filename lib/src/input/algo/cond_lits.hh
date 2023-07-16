@@ -6,6 +6,7 @@
 
 #include <util/print.hh>
 
+#include <input/algo/check_type.hh>
 #include <input/algo/project.hh>
 
 #include "transform.hh"

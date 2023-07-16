@@ -15,7 +15,7 @@ auto projectable(Projection project, Term const *term) -> bool {
     return var != nullptr && project.projectable(var->name, var->is_anonymous);
 }
 
-struct TermProject {
+struct Project {
 
     [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
 
@@ -74,6 +74,23 @@ struct TermProject {
         return std::nullopt;
     }
 
+    auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
+    auto operator()(LiteralBoolean const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
+    auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
+        if (lit.sign == Sign::none) {
+            return transform_construct<LiteralSymbolic>(lit.sign, tr(lit.term));
+        }
+        return std::nullopt;
+    }
+
     Projection project;
 };
 
@@ -95,7 +112,11 @@ auto Projection::projectable(std::string const &var, bool anonymous) const -> bo
 auto Projection::mode() const -> ProjectionMode { return mode_; }
 
 [[nodiscard]] auto project(Term const &term, Projection project) -> std::optional<Term> {
-    return std::visit(TermProject{project}, term);
+    return std::visit(Project{project}, term);
+}
+
+[[nodiscard]] auto project(Literal const &lit, Projection project) -> std::optional<Literal> {
+    return std::visit(Project{project}, lit);
 }
 
 } // namespace Gringo::Input

@@ -1,7 +1,7 @@
 #pragma once
 
 //! @file
-//! This file contains the literal interface and derived literals.
+//! This file declares the available simple literals.
 
 #include <input/term.hh>
 
@@ -52,7 +52,8 @@ class LiteralBoolean {
     bool value;
 };
 
-auto operator==(LiteralBoolean const &a, LiteralBoolean const &b);
+//! Check whether two Boolean literals are equivalent.
+auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
 
 //! Literal representing a relation literal.
 //!
@@ -69,7 +70,8 @@ class LiteralRelation {
     GuardVec rhs;
 };
 
-auto operator==(LiteralRelation const &a, LiteralRelation const &b);
+//! Check whether two relation literals are equivalent.
+auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool;
 
 //! Literal representing a symbolic literal.
 //!
@@ -81,25 +83,12 @@ struct LiteralSymbolic {
     //! Construct a symbolic literal.
     LiteralSymbolic(Sign sign, Term term) : sign(sign), term(std::move(term)) {}
 
-    /*
-    void add_sign(Sign s) override;
-    [[nodiscard]] auto unpool() const -> std::optional<SLiteralVec> override;
-    [[nodiscard]] auto is_equal(Literal const &other) const -> bool override;
-    [[nodiscard]] auto hash() const -> size_t override;
-    void visit_variables(VarVisitFun const &fun) const override;
-    [[nodiscard]] auto project(Projection project) const -> std::optional<SLiteral> override;
-    [[nodiscard]] auto project_anonymous() const -> std::optional<SLiteral> override;
-    [[nodiscard]] auto is_atom() const -> bool override;
-    [[nodiscard]] auto is_test() const -> bool override;
-
-    void accept(LiteralVisitor const &visitor) const override;
-    */
-
     Sign sign;
     Term term;
 };
 
-auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b);
+//! Check whether two symbolic literals are equivalent.
+auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
 
 //! Variant holding the different literal types.
 using Literal = std::variant<LiteralBoolean, LiteralRelation, LiteralSymbolic>;
@@ -107,10 +96,8 @@ using Literal = std::variant<LiteralBoolean, LiteralRelation, LiteralSymbolic>;
 //! A vector of shared pointers to literals.
 using LiteralVec = std::vector<Literal>;
 
-// TODO: move somewhere or maybe even keep here
+//! Add a sign to the literal.
 void add_sign(Literal &lit, Sign sign);
-auto is_atom(Literal const &lit) -> bool;
-auto is_test(Literal const &lit) -> bool;
 
 } // namespace Gringo::Input
 

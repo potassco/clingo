@@ -15,7 +15,7 @@ auto is_anonymous(Term const *term) -> bool {
     return var != nullptr && var->is_anonymous;
 }
 
-struct TermProjectAnonymous {
+struct ProjectAnonymous {
     [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
 
     auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
@@ -72,12 +72,33 @@ struct TermProjectAnonymous {
         static_cast<void>(term);
         return std::nullopt;
     }
+
+    auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
+    auto operator()(LiteralBoolean const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
+    auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
+        if (lit.sign != Sign::none) {
+            return transform_construct<LiteralSymbolic>(lit.sign, tr(lit.term));
+        }
+        return std::nullopt;
+    }
 };
 
 } // namespace
 
 [[nodiscard]] auto project_anonymous(Term const &term) -> std::optional<Term> {
-    return std::visit(TermProjectAnonymous{}, term);
+    return std::visit(ProjectAnonymous{}, term);
+}
+
+[[nodiscard]] auto project_anonymous(Literal const &lit) -> std::optional<Literal> {
+    return std::visit(ProjectAnonymous{}, lit);
 }
 
 } // namespace Gringo::Input
