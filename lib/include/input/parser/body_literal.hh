@@ -11,15 +11,16 @@
 
 namespace Gringo::Input::Grammar {
 
-using SBodyAggregate = Util::shared_ptr<BodyAggregate>;
-using SBodySetAggregate = Util::shared_ptr<BodySetAggregate>;
-
 namespace Detail {
 
-inline auto construct_body_aggr(SBodyAggregate aggr) -> SBodyAggregate { return aggr; }
+inline auto construct_body_aggr(Term term, Relation rel, BodyAggregate aggr) -> BodyAggregate {
+    aggr.lhs = LGuard::value_type{term, rel};
+    return aggr;
+}
 
-inline auto construct_body_aggr(SetAggregate aggr) -> SBodySetAggregate {
-    return Util::construct_shared<BodySetAggregate>(std::move(aggr));
+inline auto construct_body_aggr(Term term, Relation rel, SetAggregate aggr) -> BodySetAggregate {
+    aggr.lhs = LGuard::value_type{term, rel};
+    return BodySetAggregate{std::move(aggr)};
 }
 
 auto construct_conjunction(Literal lit, LiteralVec cond) {
@@ -60,10 +61,9 @@ struct body_aggregate_elements {
 struct body_aggregate {
     static constexpr char const *name = "body aggregate";
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
-    static constexpr auto value = lexy::callback<SBodyAggregate>(
-        Detail::construct_shared<BodyAggregate, BodyAggregate>,
-        [](AggregateFunction fun, BodyAggregate::ElementVec elems, Term rhs) {
-            return Util::construct_shared<BodyAggregate>(fun, std::move(elems), Relation::less_equal, std::move(rhs));
+    static constexpr auto value = lexy::callback<BodyAggregate>(
+        lexy::construct<BodyAggregate>, [](AggregateFunction fun, BodyAggregate::ElementVec elems, Term rhs) {
+            return BodyAggregate{fun, std::move(elems), Relation::less_equal, std::move(rhs)};
         });
 };
 
@@ -99,17 +99,12 @@ struct body_atom : lexy::transparent_production {
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
     static constexpr auto value = lexy::callback<BodyLiteral>(
-        lexy::forward<BodyLiteral>, Detail::construct_shared<BodySetAggregate, BodyLiteral>,
-        Detail::construct_shared<BodyTheoryAtom, BodyLiteral>,
+        lexy::forward<BodyLiteral>, lexy::construct<BodySetAggregate>, lexy::construct<BodyTheoryAtom>,
         [](Term term, auto aggr) {
-            auto ret = Detail::construct_body_aggr(std::move(aggr));
-            ret->set_left_guard(std::move(term), Relation::less_equal);
-            return ret;
+            return Detail::construct_body_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },
         [](Term term, Relation rel, auto aggr) {
-            auto ret = Detail::construct_body_aggr(std::move(aggr));
-            ret->set_left_guard(std::move(term), rel);
-            return ret;
+            return Detail::construct_body_aggr(std::move(term), rel, std::move(aggr));
         },
         [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, LiteralVec cond) {
             GuardVec guards;

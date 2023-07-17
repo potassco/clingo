@@ -32,16 +32,15 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
 
 struct SetAggregate {
     struct Element {
-        Element(Literal lit, LiteralVec cond) : lit{std::move(lit)}, cond{std::move(cond)} {}
         Literal lit;
         LiteralVec cond;
     };
     using ElementVec = std::vector<Element>;
 
-    SetAggregate(LGuard lhs, ElementVec elems, RGuard rhs)
+    explicit SetAggregate(LGuard lhs, ElementVec elems, RGuard rhs)
         : elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {}
-    SetAggregate(ElementVec elems) : SetAggregate{std::nullopt, std::move(elems), std::nullopt} {}
-    SetAggregate(ElementVec elems, Relation rel, Term rhs)
+    explicit SetAggregate(ElementVec elems) : SetAggregate{std::nullopt, std::move(elems), std::nullopt} {}
+    explicit SetAggregate(ElementVec elems, Relation rel, Term rhs)
         : SetAggregate{std::nullopt, std::move(elems), std::make_pair(rel, std::move(rhs))} {}
 
     ElementVec elems;

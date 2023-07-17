@@ -21,6 +21,8 @@ struct Project {
 
     [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
 
+    // term
+
     auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
 
     auto operator()(std::monostate x) const -> std::optional<Term> {
@@ -75,6 +77,10 @@ struct Project {
         static_cast<void>(term);
         return std::nullopt;
     }
+
+    // literal
+
+    auto operator()(Literal const &lit) const -> std::optional<Literal> { return std::visit(*this, lit); }
 
     auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
         static_cast<void>(lit);
@@ -246,25 +252,18 @@ auto Projection::projectable(std::string const &var, bool anonymous) const -> bo
     return it != counts_.end() && it->second == 1;
 }
 
-[[nodiscard]] auto Projection::counts() const -> std::unordered_map<std::string, size_t> const & { return counts_; }
+auto Projection::counts() const -> std::unordered_map<std::string, size_t> const & { return counts_; }
 
 auto Projection::mode() const -> ProjectionMode { return mode_; }
 
-[[nodiscard]] auto project(Term const &term, Projection project) -> std::optional<Term> {
-    return std::visit(Project{project}, term);
-}
+auto project(Term const &term, Projection project) -> std::optional<Term> { return Project{project}(term); }
 
-[[nodiscard]] auto project(Literal const &lit, Projection project) -> std::optional<Literal> {
-    return std::visit(Project{project}, lit);
-}
+auto project(Literal const &lit, Projection project) -> std::optional<Literal> { return Project{project}(lit); }
 
-[[nodiscard]] auto project(HeadLiteral const &lit, Projection project) -> std::optional<HeadLiteral> {
-    return std::visit(Project{project}, lit);
-}
+auto project(HeadLiteral const &lit, Projection project) -> std::optional<HeadLiteral> { return Project{project}(lit); }
 
-[[nodiscard]] auto project(BodyLiteral const &lit, Projection project, bool in_classical_scope)
-    -> std::optional<BodyLiteral> {
-    return std::visit(Project{project, in_classical_scope}, lit);
+auto project(BodyLiteral const &lit, Projection project, bool in_classical_scope) -> std::optional<BodyLiteral> {
+    return Project{project, in_classical_scope}(lit);
 }
 
 } // namespace Gringo::Input

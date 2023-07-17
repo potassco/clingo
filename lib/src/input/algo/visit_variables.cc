@@ -58,17 +58,32 @@ struct VisitVariables {
 
     // conditional literal
 
-    void operator()(ConditionalLiteral const &cond_lit) const { visit_rec(*this, cond_lit.lits, cond_lit.cond); }
+    void operator()(ConditionalLiteral const &cond_lit) const {
+        if (ctx == VariableContext::all) {
+            visit_rec(*this, cond_lit.cond);
+        }
+        visit_rec(*this, cond_lit.lits);
+    }
 
     // aggregate
 
     void operator()(SetAggregate::Element const &elem) const { visit_rec(*this, elem.lit, elem.cond); }
 
-    void operator()(SetAggregate const &lit) const { visit_rec(*this, lit.elems, lit.lhs, lit.rhs); }
+    void operator()(SetAggregate const &lit) const {
+        if (ctx == VariableContext::all) {
+            visit_rec(*this, lit.elems);
+        }
+        visit_rec(*this, lit.lhs, lit.rhs);
+    }
 
     // theory
 
-    void operator()(TheoryAtom const &atom) const { visit_rec(*this, atom.name, atom.elems); }
+    void operator()(TheoryAtom const &atom) const {
+        if (ctx == VariableContext::all) {
+            visit_rec(*this, atom.elems);
+        }
+        visit_rec(*this, atom.name);
+    }
 
     // head literal
 
@@ -78,7 +93,12 @@ struct VisitVariables {
 
     void operator()(HeadAggregate::Element const &elem) const { visit_rec(*this, elem.tuple, elem.lit, elem.cond); }
 
-    void operator()(HeadAggregate const &lit) const { visit_rec(*this, lit.elems, lit.lhs, lit.rhs); }
+    void operator()(HeadAggregate const &lit) const {
+        if (ctx == VariableContext::all) {
+            visit_rec(*this, lit.elems);
+        }
+        visit_rec(*this, lit.lhs, lit.rhs);
+    }
 
     void operator()(HeadSetAggregate const &lit) const { visit_rec(*this, lit.aggr); }
 
@@ -92,7 +112,12 @@ struct VisitVariables {
 
     void operator()(BodyAggregate::Element const &elem) const { visit_rec(*this, elem.tuple, elem.cond); }
 
-    void operator()(BodyAggregate const &lit) const { visit_rec(*this, lit.elems, lit.lhs, lit.rhs); }
+    void operator()(BodyAggregate const &lit) const {
+        if (ctx == VariableContext::all) {
+            visit_rec(*this, lit.elems);
+        }
+        visit_rec(*this, lit.lhs, lit.rhs);
+    }
 
     void operator()(BodySetAggregate const &lit) const { visit_rec(*this, lit.aggr); }
 

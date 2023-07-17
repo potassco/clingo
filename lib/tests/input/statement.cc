@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "input/parser.hh"
+#include <iostream>
 
 namespace Gringo::Input::Test {
 

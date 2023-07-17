@@ -17,7 +17,7 @@ namespace Gringo::Input {
 //!
 //! Some literal occurrences cannot be projected preserving equivalence.
 //! For example, variables in nonmonotone aggregates are only projected in classical scope.
-[[nodiscard]] auto project(BodyLiteral const &lit, Projection project, bool is_classical_scope)
+[[nodiscard]] auto project(BodyLiteral const &lit, Projection project, bool in_classical_scope)
     -> std::optional<BodyLiteral>;
 
 } // namespace Gringo::Input

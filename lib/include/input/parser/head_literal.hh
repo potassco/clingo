@@ -34,18 +34,13 @@ static constexpr auto disjunction_sep = LEXY_ASCII_ONE_OF(",;|");
 struct simple_disjunction_element {
     static constexpr char const *name = "disjunction element";
     static constexpr auto rule = dsl::opt(dsl::list(disjunction_sep >> dsl::p<conditional_literal>));
-    static constexpr auto value = lexy::collect<ConditionalLiteralVec>(Detail::construct_disjunction_element{}) >>
-                                  lexy::callback<ConditionalLiteralVec>(lexy::forward<ConditionalLiteralVec>,
-                                                                          [](lexy::nullopt) {
-                                                                              return ConditionalLiteralVec{};
-                                                                          });
+    static constexpr auto value = lexy::as_list<ConditionalLiteralVec>;
 };
 
 struct simple_disjunction {
     static constexpr char const *name = "disjunction";
     static constexpr auto rule = dsl::list(dsl::p<conditional_literal>, dsl::sep(disjunction_sep));
-    static constexpr auto value = lexy::collect<ConditionalLiteralVec>(Detail::construct_disjunction_element{}) >>
-                                  Detail::construct_v<Disjunction, HeadLiteral>;
+    static constexpr auto value = lexy::as_list<ConditionalLiteralVec> >> Detail::construct_v<Disjunction, HeadLiteral>;
 };
 
 struct disjunction_element : private junction_element<ConditionalLiteral> {
@@ -91,8 +86,7 @@ struct head_aggregate {
     static constexpr char const *name = "head aggregate";
     static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<HeadAggregate>(
-        lexy::construct<HeadAggregate>,
-        [](AggregateFunction fun, HeadAggregate::ElementVec elems, Term rhs) {
+        lexy::construct<HeadAggregate>, [](AggregateFunction fun, HeadAggregate::ElementVec elems, Term rhs) {
             return HeadAggregate(fun, std::move(elems), Relation::less_equal, std::move(rhs));
         });
 };
@@ -133,9 +127,7 @@ struct head_literal {
     }();
 
     static constexpr auto value = lexy::callback<HeadLiteral>(
-        lexy::forward<HeadLiteral>,
-        lexy::construct<HeadSetAggregate>,
-        lexy::construct<HeadTheoryAtom>,
+        lexy::forward<HeadLiteral>, lexy::construct<HeadSetAggregate>, lexy::construct<HeadTheoryAtom>,
         [](Term term, auto aggr) -> HeadLiteral {
             return Detail::construct_head_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },

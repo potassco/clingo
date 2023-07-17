@@ -41,7 +41,15 @@ struct opt_condition {
 struct conditional_literal {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::construct<std::pair<Literal, LiteralVec>>;
+    static constexpr auto value = lexy::callback<ConditionalLiteral>([](Literal lit, LiteralVec cond) {
+        return ConditionalLiteral{LiteralVec{std::move(lit)}, std::move(cond)};
+    });
+};
+
+struct set_aggregate_element {
+    static constexpr char const *name = "conditional literal";
+    static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
+    static constexpr auto value = lexy::construct<SetAggregate::Element>;
 };
 
 template <class E> struct junction_element {
@@ -61,9 +69,9 @@ template <class E, class J, class L> struct junction {
         auto sep = dsl::sep(LEXY_LIT(";"));
         return kw >> dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
     };
-    static constexpr auto
-        value = lexy::as_list<ConditionalLiteralVec> >>
-                lexy::callback<L>(lexy::construct<J>, [](lexy::nullopt) { return J{ConditionalLiteralVec{}}; });
+    static constexpr auto value = lexy::as_list<ConditionalLiteralVec> >>
+                                  lexy::callback<L>(lexy::construct<J>,
+                                                    [](lexy::nullopt) { return J{ConditionalLiteralVec{}}; });
 };
 
 template <class E>
@@ -81,7 +89,7 @@ static constexpr auto aggregate_right_guard = []() {
 struct set_aggregate_elements {
     static constexpr char const *name = "set aggregate elements";
     static constexpr auto rule =
-        dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<conditional_literal>, dsl::sep(LEXY_LIT(";"))));
+        dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<set_aggregate_element>, dsl::sep(LEXY_LIT(";"))));
     static constexpr auto value = lexy::as_list<SetAggregate::ElementVec>;
 };
 
