@@ -28,4 +28,10 @@ namespace Gringo::Input {
 //! The projection star should be used instead.
 [[nodiscard]] auto project_anonymous(BodyLiteral const &lit) -> std::optional<BodyLiteral>;
 
+//! Project anonymous variables in (nested) negated symbolic literals.
+//!
+//! This is a deprecated feature to support old programs.
+//! The projection star should be used instead.
+[[nodiscard]] auto project_anonymous(Statement const &stm) -> std::optional<Statement>;
+
 } // namespace Gringo::Input

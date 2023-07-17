@@ -4,6 +4,7 @@
 #include <lexy/input/file.hpp>
 
 #include <input/algo/print.hh>
+#include <input/algo/rewrite.hh>
 
 #include <input/parser/statement.hh>
 
@@ -46,7 +47,7 @@ void parse(RewriteOptions opts, auto &&input, auto &&output) {
     scanner.parse(lexy::dsl::whitespace(Grammar::control::whitespace));
     while (scanner && !scanner.is_at_eof()) {
         discard(input, scanner);
-        lexy::scan_result<SStatement> res_stm = scanner.template parse<Grammar::statement>();
+        lexy::scan_result<Statement> res_stm = scanner.template parse<Grammar::statement>();
         if (res_stm.has_value()) {
             // output comments before end of statement
             for (auto &comment : comments) {
@@ -54,10 +55,10 @@ void parse(RewriteOptions opts, auto &&input, auto &&output) {
             }
             comments.clear();
             // rewrite statements
-            SStatementVec stms;
+            StatementVec stms;
             rewrite(std::move(res_stm.value()), opts, stms);
             for (auto const &stm : stms) {
-                output << *stm << "\n";
+                output << stm << "\n";
             }
         }
         if (!scanner) {

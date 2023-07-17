@@ -1,4 +1,8 @@
+#include <sstream>
+
+#include <input/algo/print.hh>
 #include <input/algo/unpool.hh>
+#include <input/algo/visit_variables.hh>
 
 #include "unpool.hh"
 
@@ -11,6 +15,12 @@ struct Unpool {
     // terms
 
     auto operator()(Term const &term) const -> std::optional<TermVec> { return std::visit(*this, term); }
+
+    auto operator()(std::optional<Term> const &term) const -> std::optional<std::vector<std::optional<Term>>> {
+        return Util::and_then_opt(term, [this](Term const &term) {
+            return Util::map_opt_vec(operator()(term), [](Term term) { return std::make_optional(std::move(term)); });
+        });
+    }
 
     auto operator()(TermVec const &terms) const -> std::optional<std::vector<TermVec>> {
         return unpool_crossproduct(terms, *this);
@@ -310,6 +320,10 @@ struct Unpool {
 
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteralVec> { return std::visit(*this, lit); }
 
+    auto operator()(BodyLiteralVec const &lits) const -> std::optional<std::vector<BodyLiteralVec>> {
+        return unpool_crossproduct(lits, *this);
+    }
+
     auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteralVec> {
         return Util::map_opt_vec(operator()(lit.elems),
                                  [](auto elem) -> BodyLiteral { return Conjunction{std::move(elem)}; });
@@ -348,6 +362,155 @@ struct Unpool {
             return BodyTheoryAtom{lit.sign, std::move(atom)};
         });
     }
+
+    // statement
+
+    auto operator()(Statement const &stm) const -> std::optional<StatementVec> { return std::visit(*this, stm); }
+
+    auto operator()(StatementEdge::Edge const &edge) const -> std::optional<StatementEdge::EdgeVec> {
+        return unpool_crossproducts(
+            [](auto u, auto v) {
+                return StatementEdge::Edge{std::move(u), std::move(v)};
+            },
+            *this, edge.u, edge.v);
+    }
+
+    auto operator()(StatementEdge::EdgeVec const &edges) const { return unpool_union(edges, *this); }
+
+    auto operator()(Rule const &stm) const -> std::optional<StatementVec> {
+        return unpool_crossproducts(
+            [](auto head, auto body) -> Statement {
+                return Rule{std::move(head), std::move(body)};
+            },
+            *this, stm.head, stm.body);
+    }
+
+    auto operator()(TheoryDefinition const &stm) const -> std::optional<StatementVec> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementOptimize::Tuple const &tuple) const
+        -> std::optional<std::vector<StatementOptimize::Tuple>> {
+        return unpool_crossproducts(
+            [](auto weight, auto prio, auto terms) {
+                return StatementOptimize::Tuple{std::move(weight), std::move(prio), std::move(terms)};
+            },
+            *this, tuple.weight, tuple.priority, tuple.terms);
+    }
+
+    auto operator()(StatementOptimize::Element const &elem) const -> std::optional<StatementOptimize::ElementVec> {
+        return unpool_crossproducts(
+            [](auto tuple, auto cond) {
+                return StatementOptimize::Element{std::move(tuple), std::move(cond)};
+            },
+            *this, std::get<0>(elem), std::get<1>(elem));
+    }
+
+    auto operator()(StatementOptimize const &stm) const -> std::optional<StatementVec> {
+        // TODO: consider turning into weak constraint
+        return Util::map_opt(unpool_union(stm.elems, *this), [&stm](auto elems) {
+            return Util::make_vec<Statement>(StatementOptimize{stm.type, std::move(elems)});
+        });
+    }
+
+    auto operator()(StatementWeakConstraint const &stm) const -> std::optional<StatementVec> {
+        return unpool_crossproducts(
+            [](auto body, auto tuple) -> Statement {
+                return StatementWeakConstraint{std::move(body), std::move(tuple)};
+            },
+            *this, stm.body, stm.tuple);
+    }
+
+    auto operator()(StatementShow const &stm) const -> std::optional<StatementVec> {
+        return unpool_crossproducts(
+            [](auto term, auto body) -> Statement {
+                return StatementShow{std::move(term), std::move(body)};
+            },
+            *this, stm.term, stm.body);
+    }
+
+    auto operator()(StatementShowSig const &stm) const -> std::optional<StatementVec> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementProject const &stm) const -> std::optional<StatementVec> {
+        return unpool_crossproducts(
+            [](auto term, auto body) -> Statement {
+                return StatementProject{std::move(term), std::move(body)};
+            },
+            *this, stm.term, stm.body);
+    }
+
+    auto operator()(StatementProjectSig const &stm) const -> std::optional<StatementVec> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementDefined const &stm) const -> std::optional<StatementVec> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementExternal const &stm) const -> std::optional<StatementVec> {
+        return unpool_crossproducts(
+            [](auto term, auto body, auto type) -> Statement {
+                return StatementExternal{std::move(term), std::move(body), std::move(type)};
+            },
+            *this, stm.term, stm.body, stm.type);
+    }
+
+    auto operator()(StatementEdge const &stm) const -> std::optional<StatementVec> {
+        auto edges = operator()(stm.edges);
+        auto bodies = operator()(stm.body);
+        if (stm.edges.size() != 1 || edges.has_value() || bodies.has_value()) {
+            StatementVec ret;
+            for (auto &body : bodies.value_or(Util::make_vec<BodyLiteralVec>(stm.body))) {
+                for (auto &edge : edges.value_or(stm.edges)) {
+                    ret.emplace_back(StatementEdge{Util::make_vec<StatementEdge::Edge>(edge), body});
+                }
+            }
+            return ret;
+        }
+        return std::nullopt;
+    }
+
+    auto operator()(StatementHeuristic const &stm) const -> std::optional<StatementVec> {
+        return unpool_crossproducts(
+            [](auto atom, auto body, auto type, auto prio, auto mod) -> Statement {
+                return StatementHeuristic{std::move(atom), std::move(body), std::move(type), std::move(prio),
+                                          std::move(mod)};
+            },
+            *this, stm.atom, stm.body, stm.type, stm.prio, stm.mod);
+    }
+
+    auto operator()(StatementScript const &stm) const -> std::optional<StatementVec> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementInclude const &stm) const -> std::optional<StatementVec> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementProgram const &stm) const -> std::optional<StatementVec> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementConst const &stm) const -> std::optional<StatementVec> {
+        auto ret = unpool_crossproducts(
+            [&stm](auto value) -> Statement {
+                return StatementConst{stm.type, stm.name, std::move(value)};
+            },
+            *this, stm.value);
+        if (ret.has_value() && ret->size() != 1) {
+            throw std::runtime_error("const statements must not contain pools");
+        }
+        return ret;
+    }
 };
 
 } // namespace
@@ -359,5 +522,33 @@ auto unpool(Literal const &lit) -> std::optional<LiteralVec> { return Unpool{}(l
 auto unpool(HeadLiteral const &lit) -> std::optional<HeadLiteralVec> { return Unpool{}(lit); }
 
 auto unpool(BodyLiteral const &lit) -> std::optional<BodyLiteralVec> { return Unpool{}(lit); }
+
+auto unpool(Statement const &stm) -> std::optional<StatementVec> {
+    auto stms = Unpool{}(stm);
+    if (stms.has_value()) {
+        VariableSet old_global;
+        VariableSet new_global;
+        visit_variables(
+            stm, [&old_global](std::string const &var) { old_global.emplace(var); }, VariableContext::global);
+        for (auto &unpooled : stms.value()) {
+            new_global.clear();
+            visit_variables(
+                unpooled, [&new_global](std::string const &var) { new_global.emplace(var); }, VariableContext::global);
+            visit_variables(
+                unpooled,
+                [&](std::string const &var) {
+                    if (old_global.contains(var) != new_global.contains(var)) {
+                        std::ostringstream oss;
+                        oss << "variable " << var << " in\n"
+                            << "  " << stm << "\n"
+                            << "is unsafe";
+                        throw std::runtime_error(oss.str());
+                    }
+                },
+                VariableContext::all);
+        }
+    }
+    return stms;
+}
 
 } // namespace Gringo::Input

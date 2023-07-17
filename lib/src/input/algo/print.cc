@@ -196,6 +196,7 @@ auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
     return out;
 }
 
+/*
 auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream & {
     switch (type) {
         case TheoryAtomType::head: {
@@ -259,6 +260,7 @@ auto operator<<(std::ostream &out, ConstType type) -> std::ostream & {
     }
     return out;
 }
+*/
 
 auto left_bracket(TheoryTermTupleType type) -> char {
     switch (type) {
@@ -605,6 +607,7 @@ struct Print {
     bool no_leading_op = false;
 };
 
+/*
 class PrintVisitor : public StatementVisitor {
   public:
     PrintVisitor(std::ostream &out) : out_{out} {}
@@ -689,7 +692,7 @@ class PrintVisitor : public StatementVisitor {
 
     // visit statements
 
-    void visit(Rule const &stm) const override {
+    void visit(Rule const &stm) const {
         auto const *disj = std::get_if<Disjunction>(&stm.head());
         bool empty_head = disj != nullptr && disj->elems.empty();
         if (!empty_head) {
@@ -702,7 +705,7 @@ class PrintVisitor : public StatementVisitor {
         out_ << ".";
     }
 
-    void visit(TheoryDefinition const &stm) const override {
+    void visit(TheoryDefinition const &stm) const {
         out_ << "#theory " << stm.name() << (stm.term_defs().empty() && stm.atom_defs().empty() ? " { " : " {\n");
         apply_to_range(stm.term_defs(), ";\n");
         if (!stm.term_defs().empty()) {
@@ -718,7 +721,7 @@ class PrintVisitor : public StatementVisitor {
         out_ << "}.";
     }
 
-    void visit(StatementOptimize const &stm) const override {
+    void visit(StatementOptimize const &stm) const {
         out_ << stm.type() << " { ";
         apply_to_range_with(stm.elements(), "; ", [this](auto const &elem) {
             auto const &[tuple, cond] = elem;
@@ -739,7 +742,7 @@ class PrintVisitor : public StatementVisitor {
         out_ << (stm.elements().empty() ? "}" : " }") << ".";
     }
 
-    void visit(StatementWeakConstraint const &stm) const override {
+    void visit(StatementWeakConstraint const &stm) const {
         auto const &[weight, prio, terms] = stm.tuple();
         out_ << " :~ ";
         Print{out_}.visit_range(stm.body(), "; ");
@@ -754,7 +757,7 @@ class PrintVisitor : public StatementVisitor {
         out_ << "]";
     }
 
-    void visit(StatementShow const &stm) const override {
+    void visit(StatementShow const &stm) const {
         char const *lp = "";
         char const *rp = "";
         if (check_type(stm.term(), TermCheckType::sig, nullptr)) {
@@ -766,25 +769,25 @@ class PrintVisitor : public StatementVisitor {
         out_ << ".";
     }
 
-    void visit(StatementShowSig const &stm) const override {
+    void visit(StatementShowSig const &stm) const {
         out_ << "#show " << (stm.has_sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
     }
 
-    void visit(StatementProject const &stm) const override {
+    void visit(StatementProject const &stm) const {
         out_ << "#project " << stm.term() << (stm.body().empty() ? "" : ": ");
         Print{out_}.visit_range(stm.body(), "; ");
         out_ << ".";
     }
 
-    void visit(StatementProjectSig const &stm) const override {
+    void visit(StatementProjectSig const &stm) const {
         out_ << "#project " << (stm.has_sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
     }
 
-    void visit(StatementDefined const &stm) const override {
+    void visit(StatementDefined const &stm) const {
         out_ << "#defined " << (stm.has_sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
     }
 
-    void visit(StatementExternal const &stm) const override {
+    void visit(StatementExternal const &stm) const {
         out_ << "#external " << stm.term() << (stm.body().empty() ? "" : ": ");
         Print{out_}.visit_range(stm.body(), "; ");
         out_ << ".";
@@ -793,7 +796,7 @@ class PrintVisitor : public StatementVisitor {
         }
     }
 
-    void visit(StatementEdge const &stm) const override {
+    void visit(StatementEdge const &stm) const {
         out_ << "#edge (";
         apply_to_range_with(stm.edges(), ";", [this](auto const &edge) { out_ << edge.first << "," << edge.second; });
         out_ << ")" << (stm.body().empty() ? "" : ": ");
@@ -801,7 +804,7 @@ class PrintVisitor : public StatementVisitor {
         out_ << ".";
     }
 
-    void visit(StatementHeuristic const &stm) const override {
+    void visit(StatementHeuristic const &stm) const {
         out_ << "#heuristic " << stm.atom() << (stm.body().empty() ? "" : ": ");
         Print{out_}.visit_range(stm.body(), "; ");
         out_ << ". [" << stm.type();
@@ -811,11 +814,11 @@ class PrintVisitor : public StatementVisitor {
         out_ << "," << stm.modifier() << "]";
     }
 
-    void visit(StatementScript const &stm) const override {
+    void visit(StatementScript const &stm) const {
         out_ << "#script (" << stm.type() << ")" << stm.content() << "#end.";
     }
 
-    void visit(StatementInclude const &stm) const override {
+    void visit(StatementInclude const &stm) const {
         if (stm.type() == IncludeType::inbuild) {
             out_ << "#include <" << stm.path() << ">.";
         } else {
@@ -825,7 +828,7 @@ class PrintVisitor : public StatementVisitor {
         }
     }
 
-    void visit(StatementProgram const &stm) const override {
+    void visit(StatementProgram const &stm) const {
         out_ << "#program " << stm.name();
         if (!stm.arguments().empty()) {
             out_ << "(";
@@ -835,13 +838,14 @@ class PrintVisitor : public StatementVisitor {
         out_ << ".";
     }
 
-    void visit(StatementConst const &stm) const override {
+    void visit(StatementConst const &stm) const {
         out_ << "#const " << stm.name() << "=" << stm.value() << ". [" << stm.type() << "]";
     }
 
   private:
     std::ostream &out_;
 };
+*/
 
 } // namespace
 
@@ -871,8 +875,9 @@ auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream & {
 }
 
 auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream & {
-    stm.accept(PrintVisitor{out});
-    return out;
+    static_cast<void>(out);
+    static_cast<void>(stm);
+    throw std::logic_error("implement me!!!");
 }
 
 auto to_string(Term const &term) -> std::string {

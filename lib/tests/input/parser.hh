@@ -21,7 +21,7 @@ auto parse_term(std::string str) -> std::optional<Term>;
 auto parse_literal(std::string str) -> std::optional<Literal>;
 auto parse_head_literal(std::string str) -> std::optional<HeadLiteral>;
 auto parse_body_literal(std::string str) -> std::optional<BodyLiteral>;
-auto parse_statement(std::string str) -> std::optional<SStatement>;
+auto parse_statement(std::string str) -> std::optional<Statement>;
 
 template <class T> auto to_str(T const &value) -> std::string { return to_string(value); }
 

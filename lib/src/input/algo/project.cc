@@ -266,4 +266,11 @@ auto project(BodyLiteral const &lit, Projection project, bool in_classical_scope
     return Project{project, in_classical_scope}(lit);
 }
 
+auto project(Statement const &lit, ProjectionMode project, bool project_anonymous) -> std::optional<Statement> {
+    static_cast<void>(lit);
+    static_cast<void>(project);
+    static_cast<void>(project_anonymous);
+    throw std::logic_error("implement me!!!");
+}
+
 } // namespace Gringo::Input

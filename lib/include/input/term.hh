@@ -14,78 +14,6 @@
 
 namespace Gringo::Input {
 
-// TODO: move those
-
-//! Variable selection modes for select_variables().
-enum VariableSelectMode {
-    add, //!< Add variables to the set.
-    del, //!< Remove variables from the set.
-};
-
-//! Variable selection scopes.
-//!
-//! @see Statement::visit_variables()
-enum class VariableContext {
-    global, //!< Visit variables occurring in global scope.
-    all,    //!< Visit all variable occurrences.
-};
-
-//! A set of variable names.
-using VariableSet = std::unordered_set<std::string>;
-//! A vector of variable names.
-using VariableVec = std::vector<std::string>;
-//! A function to visit variable occurrences.
-using VarVisitFun = std::function<void(std::string const &var)>;
-
-//! Add/remove variables to/from a set occuring in the given expression.
-template <class E> void select_variables(E &expr, VariableSet &vars, VariableSelectMode mode) {
-    if (mode == VariableSelectMode::add) {
-        expr.visit_variables([&vars](std::string const &var) { vars.emplace(var); });
-    } else {
-        expr.visit_variables([&vars](std::string const &var) { vars.erase(var); });
-    }
-}
-
-//! Convenience method for @ref select_variables(E, VariableSet &, VariableSelectMode) returning a set.
-template <class E> auto select_variables(E &expr, VariableSelectMode mode) -> VariableSet {
-    VariableSet vars;
-    select_variables(expr, vars, mode);
-    return vars;
-}
-
-//! Enumeration to select variables to project.
-//!
-//! @see Projection
-enum class ProjectionMode {
-    disabled = 0,  //!< Disable projection.
-    anonymous = 1, //!< Only project anonymous variables.
-    pure = 2,      //!< Project pure variables.
-};
-
-//! Helper to gather projection related arguments.
-class Projection {
-  public:
-    //! Constructor taking the mode which variables to project and a map with counts of variables.
-    explicit Projection(ProjectionMode mode, std::unordered_map<std::string, size_t> const &counts)
-        : counts_{counts}, mode_{mode} {};
-    //! Return whether a the given variable should be projected.
-    //!
-    //! Only variables with a count of exactly one can be projected while the mode adds further restrictions.
-    [[nodiscard]] auto projectable(std::string const &var, bool anonymous) const -> bool;
-    //! Return the variable counts.
-    [[nodiscard]] auto counts() const -> std::unordered_map<std::string, size_t> const &;
-    //! Return the mode.
-    [[nodiscard]] auto mode() const -> ProjectionMode;
-
-  private:
-    //! The variable counts.
-    std::unordered_map<std::string, size_t> const &counts_;
-    //! The projection mode.
-    ProjectionMode mode_;
-};
-
-// TODO: until here
-
 struct TermVariable;
 struct TermSymbol;
 struct TermTuple;
@@ -93,7 +21,11 @@ struct TermFunction;
 struct TermAbs;
 struct TermUnary;
 struct TermBinary;
-struct RecTerm;
+
+//! A set of variable names.
+using VariableSet = std::unordered_set<std::string>;
+//! A vector of variable names.
+using VariableVec = std::vector<std::string>;
 
 //! Variant holding the different term types.
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;

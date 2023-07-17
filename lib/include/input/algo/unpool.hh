@@ -16,4 +16,7 @@ namespace Gringo::Input {
 //! Remove all pooled arguments from the literal.
 [[nodiscard]] auto unpool(BodyLiteral const &lit) -> std::optional<BodyLiteralVec>;
 
+//! Remove all pooled arguments from the statement.
+[[nodiscard]] auto unpool(Statement const &stm) -> std::optional<StatementVec>;
+
 } // namespace Gringo::Input

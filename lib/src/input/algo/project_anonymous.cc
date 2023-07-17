@@ -166,6 +166,82 @@ struct ProjectAnonymous {
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
         return transform_construct<BodyTheoryAtom>(lit.sign, tr(lit.atom));
     }
+
+    // statement
+
+    auto operator()(Statement const &stm) const -> std::optional<Statement> { return std::visit(*this, stm); }
+
+    auto operator()(Rule const &stm) const -> std::optional<Statement> {
+        return transform_construct<Rule>(tr(stm.head), tr(stm.body));
+    }
+
+    auto operator()(TheoryDefinition const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementOptimize const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementOptimize>(stm.type, tr(stm.elems));
+    }
+
+    auto operator()(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementWeakConstraint>(tr(stm.body), stm.tuple);
+    }
+
+    auto operator()(StatementShow const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementShow>(stm.term, tr(stm.body));
+    }
+
+    auto operator()(StatementShowSig const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementProject const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementProject>(stm.term, tr(stm.body));
+    }
+
+    auto operator()(StatementProjectSig const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementDefined const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementExternal const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementExternal>(stm.term, tr(stm.body), stm.type);
+    }
+
+    auto operator()(StatementEdge const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementEdge>(stm.edges, tr(stm.body));
+    }
+
+    auto operator()(StatementHeuristic const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementHeuristic>(stm.atom, tr(stm.body), stm.type, stm.prio, stm.mod);
+    }
+
+    auto operator()(StatementScript const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementInclude const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementProgram const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementConst const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
 };
 
 } // namespace
@@ -177,5 +253,7 @@ auto project_anonymous(Literal const &lit) -> std::optional<Literal> { return Pr
 auto project_anonymous(HeadLiteral const &lit) -> std::optional<HeadLiteral> { return ProjectAnonymous{}(lit); }
 
 auto project_anonymous(BodyLiteral const &lit) -> std::optional<BodyLiteral> { return ProjectAnonymous{}(lit); }
+
+auto project_anonymous(Statement const &stm) -> std::optional<Statement> { return ProjectAnonymous{}(stm); }
 
 } // namespace Gringo::Input

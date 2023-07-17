@@ -113,20 +113,17 @@ struct statement_theory {
         auto kw_theory = LEXY_KEYWORD("#theory", identifier_base);
         return kw_theory >> dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + eos;
     }();
-    static constexpr auto value = lexy::callback<SStatement>(
+    static constexpr auto value = lexy::callback<Statement>(
         // Note: called during error recovery if the expression between the
         // parenthesis did not match.
         [](std::string name) {
-            return Util::construct_shared<TheoryDefinition, Statement>(std::move(name), TheoryTermDefinitionVec{},
-                                                                       TheoryAtomDefinitionVec{});
+            return TheoryDefinition{std::move(name), TheoryTermDefinitionVec{}, TheoryAtomDefinitionVec{}};
         },
         [](std::string name, lexy::nullopt) {
-            return Util::construct_shared<TheoryDefinition, Statement>(std::move(name), TheoryTermDefinitionVec{},
-                                                                       TheoryAtomDefinitionVec{});
+            return TheoryDefinition{std::move(name), TheoryTermDefinitionVec{}, TheoryAtomDefinitionVec{}};
         },
         [](std::string name, theory_definitions::value_type defs) {
-            return Util::construct_shared<TheoryDefinition, Statement>(std::move(name), std::move(defs.term_defs),
-                                                                       std::move(defs.atom_defs));
+            return TheoryDefinition{std::move(name), std::move(defs.term_defs), std::move(defs.atom_defs)};
         });
 };
 
@@ -187,14 +184,13 @@ struct statement_optimize {
         auto weak = LEXY_LIT(":~") >> dsl::p<statement_body> + eos + tuple;
         return opt | weak;
     }();
-    static constexpr auto value = lexy::as_list<StatementOptimize::ElementVec> >>
-                                  lexy::callback<SStatement>(
-                                      [](OptimizeType type,
-                                         std::optional<StatementOptimize::ElementVec> elems) -> SStatement {
-                                          return Util::construct_shared<StatementOptimize, Statement>(
-                                              type, std::move(elems).value_or(StatementOptimize::ElementVec{}));
-                                      },
-                                      Detail::construct_shared<StatementWeakConstraint, Statement>);
+    static constexpr auto
+        value = lexy::as_list<StatementOptimize::ElementVec> >>
+                lexy::callback<Statement>(
+                    [](OptimizeType type, std::optional<StatementOptimize::ElementVec> elems) -> Statement {
+                        return StatementOptimize{type, std::move(elems).value_or(StatementOptimize::ElementVec{})};
+                    },
+                    Detail::construct_v<StatementWeakConstraint, Statement>);
 };
 
 struct is_signature : control {
@@ -208,24 +204,23 @@ struct statement_show {
         auto opt_body = dsl::opt(LEXY_LIT(":") >> dsl::p<statement_body>);
         return show >> dsl::position + dsl::p<term> + dsl::position + opt_body + eos;
     }();
-    static constexpr auto value = lexy::callback<SStatement>(
-        [](auto begin, Term term, auto end, lexy::nullopt) -> SStatement {
+    static constexpr auto value = lexy::callback<Statement>(
+        [](auto begin, Term term, auto end, lexy::nullopt) -> Statement {
             CheckTypeResult res;
             if (check_type(term, TermCheckType::sig, &res)) {
                 // Note that parsing via the range input does not pass the state
                 // to the whitespace parser, which is exactly as intended here.
                 auto input = lexy::range_input<encoding, decltype(begin)>{begin, end};
                 if (lexy::match<is_signature>(input)) {
-                    return Util::construct_shared<StatementShowSig, Statement>(res.has_sign, res.identifier,
-                                                                               res.pos_number);
+                    return StatementShowSig{res.has_sign, res.identifier, res.pos_number};
                 }
             }
-            return Util::construct_shared<StatementShow, Statement>(std::move(term), BodyLiteralVec{});
+            return StatementShow{std::move(term), BodyLiteralVec{}};
         },
-        [](auto begin, Term term, auto end, BodyLiteralVec body) -> SStatement {
+        [](auto begin, Term term, auto end, BodyLiteralVec body) -> Statement {
             static_cast<void>(begin);
             static_cast<void>(end);
-            return Util::construct_shared<StatementShow, Statement>(std::move(term), std::move(body));
+            return StatementShow{std::move(term), std::move(body)};
         });
 };
 
@@ -251,7 +246,7 @@ struct statement_defined {
         auto def = LEXY_KEYWORD("#defined", keyword_base);
         return def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + simple_number + eos;
     }();
-    static constexpr auto value = Detail::construct_shared<StatementDefined, Statement>;
+    static constexpr auto value = Detail::construct_v<StatementDefined, Statement>;
 };
 
 struct statement_edge {
@@ -264,7 +259,7 @@ struct statement_edge {
     }();
     static constexpr auto value = []() {
         auto sink = lexy::collect<StatementEdge::EdgeVec>(lexy::construct<StatementEdge::Edge>);
-        auto cb = Detail::construct_shared<StatementEdge, Statement>;
+        auto cb = Detail::construct_v<StatementEdge, Statement>;
         return sink >> cb;
     }();
 };
@@ -277,7 +272,7 @@ struct statement_heuristic {
             square_bracketed_end(dsl::p<term> + dsl::if_(dsl::at_sign >> dsl::p<term>) + dsl::comma + dsl::p<term>);
         return kw >> dsl::p<symbolic_atom> + dsl::p<statement_opt_body> + eos + tuple;
     }();
-    static constexpr auto value = Detail::construct_shared<StatementHeuristic, Statement>;
+    static constexpr auto value = Detail::construct_v<StatementHeuristic, Statement>;
 };
 
 struct statement_project {
@@ -289,14 +284,14 @@ struct statement_project {
         auto name = dsl::p<sign_classical> + dsl::p<identifier>;
         return kw >> name + (arity | dsl::else_ >> pool) + eos;
     }();
-    static constexpr auto value = lexy::callback<SStatement>(
-        Detail::construct_shared<StatementProjectSig, Statement>,
+    static constexpr auto value = lexy::callback<Statement>(
+        Detail::construct_v<StatementProjectSig, Statement>,
         [](bool has_sign, std::string name, std::optional<PoolVec> pool, BodyLiteralVec body) {
             Term atom = TermFunction{std::move(name), Detail::empty_args(std::move(pool)), false};
             if (has_sign) {
                 atom = TermUnary{UnaryOperator::negate, std::move(atom)};
             }
-            return Util::construct_shared<StatementProject, Statement>(std::move(atom), std::move(body));
+            return StatementProject{std::move(atom), std::move(body)};
         });
 };
 
@@ -314,7 +309,7 @@ struct statement_script {
         return script >> open + type + dsl::delimited(close, end)(dsl::code_point) + eos;
     }();
     static constexpr auto value =
-        lexy::as_string<std::string, encoding> >> Detail::construct_shared<StatementScript, Statement>;
+        lexy::as_string<std::string, encoding> >> Detail::construct_v<StatementScript, Statement>;
 };
 
 struct statement_external {
@@ -324,12 +319,11 @@ struct statement_external {
         auto atom = dsl::p<sign_classical> + dsl::p<term_function>;
         return kw >> atom + dsl::p<statement_opt_body> + eos + dsl::if_(square_bracketed_end(dsl::p<term>));
     }();
-    static constexpr auto value = lexy::callback<SStatement>([](bool has_sign, Term atom, auto &&...args) {
+    static constexpr auto value = lexy::callback<Statement>([](bool has_sign, Term atom, auto &&...args) {
         if (has_sign) {
             atom = TermUnary{UnaryOperator::negate, std::move(atom)};
         }
-        return Util::construct_shared<StatementExternal, Statement>(std::move(atom),
-                                                                    std::forward<decltype(args)>(args)...);
+        return StatementExternal{std::move(atom), std::forward<decltype(args)>(args)...};
     });
 };
 
@@ -341,15 +335,14 @@ struct statement_include {
         auto sys = dsl::delimited(LEXY_LIT("<"), LEXY_LIT(">"))(dsl::ascii::alpha_digit_underscore);
         return kw >> (dsl::inline_<string> | sys >> dsl::nullopt | dsl::error<expected_path>)+eos;
     }();
-    static constexpr auto value =
-        lexy::as_string<std::string, encoding> >>
-        lexy::callback<SStatement>(
-            [](std::string path) {
-                return Util::construct_shared<StatementInclude, Statement>(IncludeType::system, std::move(path));
-            },
-            [](std::string path, lexy::nullopt) {
-                return Util::construct_shared<StatementInclude, Statement>(IncludeType::inbuild, std::move(path));
-            });
+    static constexpr auto value = lexy::as_string<std::string, encoding> >>
+                                  lexy::callback<Statement>(
+                                      [](std::string path) {
+                                          return StatementInclude{IncludeType::system, std::move(path)};
+                                      },
+                                      [](std::string path, lexy::nullopt) {
+                                          return StatementInclude{IncludeType::inbuild, std::move(path)};
+                                      });
 };
 
 struct statement_program {
@@ -360,14 +353,12 @@ struct statement_program {
         return kw >> id + dsl::opt(dsl::round_bracketed.opt_list(id, dsl::sep(dsl::comma))) + eos;
     }();
     static constexpr auto value = lexy::as_list<std::vector<std::string>> >>
-                                  lexy::callback<SStatement>(
+                                  lexy::callback<Statement>(
                                       [](std::string name, std::vector<std::string> args) {
-                                          return Util::construct_shared<StatementProgram, Statement>(std::move(name),
-                                                                                                     std::move(args));
+                                          return StatementProgram{std::move(name), std::move(args)};
                                       },
                                       [](std::string name, lexy::nullopt) {
-                                          return Util::construct_shared<StatementProgram, Statement>(
-                                              std::move(name), std::vector<std::string>{});
+                                          return StatementProgram{std::move(name), std::vector<std::string>{}};
                                       });
 };
 
@@ -383,13 +374,12 @@ struct statement_const {
         // Note: we overparse here to avoid duplicating code
         return kw >> id + dsl::equal_sign + dsl::p<term> + eos + type;
     }();
-    static constexpr auto value = lexy::callback<SStatement>(
+    static constexpr auto value = lexy::callback<Statement>(
         [](std::string name, Term value) {
-            return Util::construct_shared<StatementConst, Statement>(ConstType::default_, std::move(name),
-                                                                     std::move(value));
+            return StatementConst{ConstType::default_, std::move(name), std::move(value)};
         },
         [](std::string name, Term value, ConstType type) {
-            return Util::construct_shared<StatementConst, Statement>(type, std::move(name), std::move(value));
+            return StatementConst{type, std::move(name), std::move(value)};
         });
 };
 
@@ -399,12 +389,13 @@ struct statement_rule {
         auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body>;
         return (if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body)) + eos;
     }();
-    static constexpr auto value = lexy::callback<SStatement>(
-        Detail::construct_shared<Rule, Statement>,
-        [](HeadLiteral head) { return Util::construct_shared<Rule, Statement>(std::move(head), BodyLiteralVec{}); },
+    static constexpr auto value = lexy::callback<Statement>(
+        Detail::construct_v<Rule, Statement>,
+        [](HeadLiteral head) {
+            return Rule{std::move(head), BodyLiteralVec{}};
+        },
         [](BodyLiteralVec body) {
-            return Util::construct_shared<Rule, Statement>(
-                Disjunction{ConditionalLiteralVec{}}, std::move(body));
+            return Rule{Disjunction{ConditionalLiteralVec{}}, std::move(body)};
         });
 };
 
@@ -415,7 +406,7 @@ struct statement {
                                  dsl::p<statement_project> | dsl::p<statement_script> | dsl::p<statement_external> |
                                  dsl::p<statement_include> | dsl::p<statement_program> | dsl::p<statement_const> |
                                  dsl::else_ >> dsl::p<statement_rule>;
-    static constexpr auto value = lexy::forward<SStatement>;
+    static constexpr auto value = lexy::forward<Statement>;
 };
 
 } // namespace Gringo::Input::Grammar

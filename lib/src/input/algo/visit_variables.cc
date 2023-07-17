@@ -123,6 +123,54 @@ struct VisitVariables {
 
     void operator()(BodyTheoryAtom const &lit) const { visit_rec(*this, lit.atom); }
 
+    // statement
+
+    void operator()(Statement const &stm) const { return std::visit(*this, stm); }
+
+    void operator()(Rule const &stm) const { visit_rec(stm.head, stm.body); }
+
+    void operator()(TheoryDefinition const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementOptimize::Tuple const &tuple) const {
+        visit_rec(tuple.weight, tuple.priority, tuple.terms);
+    }
+
+    void operator()(StatementOptimize const &stm) const {
+        if (ctx == VariableContext::all) {
+            visit_rec(*this, stm.elems);
+        }
+    }
+
+    void operator()(StatementWeakConstraint const &stm) const { visit_rec(*this, stm.body, stm.tuple); }
+
+    void operator()(StatementShow const &stm) const { visit_rec(*this, stm.term, stm.body); }
+
+    void operator()(StatementShowSig const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementProject const &stm) const { visit_rec(*this, stm.term, stm.body); }
+
+    void operator()(StatementProjectSig const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementDefined const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementExternal const &stm) const { visit_rec(*this, stm.term, stm.body, stm.type); }
+
+    void operator()(StatementEdge::Edge const &edge) const { visit_rec(*this, edge.u, edge.v); }
+
+    void operator()(StatementEdge const &stm) const { visit_rec(*this, stm.edges, stm.body); }
+
+    void operator()(StatementHeuristic const &stm) const {
+        visit_rec(*this, stm.atom, stm.body, stm.type, stm.prio, stm.mod);
+    }
+
+    void operator()(StatementScript const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementInclude const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementProgram const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementConst const &stm) const { static_cast<void>(stm); }
+
     VarVisitFun fun;
     VariableContext ctx = VariableContext::all;
 };
@@ -144,7 +192,7 @@ void visit_variables(BodyLiteral const &lit, VarVisitFun fun, VariableContext ct
 }
 
 void visit_variables(Statement const &stm, VarVisitFun fun, VariableContext ctx) {
-    stm.visit_variables(std::move(fun), ctx);
+    VisitVariables{std::move(fun), ctx}(stm);
 }
 
 } // namespace Gringo::Input

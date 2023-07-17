@@ -75,7 +75,7 @@ auto parse_body_literal(std::string str) -> std::optional<BodyLiteral> {
     return Grammar::parse<Grammar::parse_root<Input::Grammar::body_literal, '.'>>(std::move(str));
 }
 
-auto parse_statement(std::string str) -> std::optional<SStatement> {
+auto parse_statement(std::string str) -> std::optional<Statement> {
     return Grammar::parse<Grammar::parse_root<Input::Grammar::statement>>(std::move(str));
 }
 
@@ -94,7 +94,7 @@ auto Parser::scan() const -> std::optional<std::string> {
     impl->input.discard_before(impl->scanner.position());
     auto res = impl->scanner.parse<Grammar::parse_root<Input::Grammar::statement, '*'>>();
     if (res) {
-        return to_string(*res.value());
+        return to_string(res.value());
     }
     return std::nullopt;
 }

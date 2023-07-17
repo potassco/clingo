@@ -1,4 +1,5 @@
 #include <input/algo/rewrite_anonymous.hh>
+#include <input/algo/visit_variables.hh>
 
 #include "transform.hh"
 
@@ -162,9 +163,18 @@ struct RewriteAnonymous {
         return transform_construct<BodyTheoryAtom>(lit.sign, tr(lit.atom));
     }
 
+    // statement
+
+    auto operator()(Statement const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        // return std::visit(*this, stm);
+        throw std::logic_error("implement me!!!");
+    }
+
     NameGen &gen;
 };
 
+/*
 struct RewriteAnonymousOld {
     auto operator()(Term const &term) const { return rewrite_anonymous(term, gen); }
     auto operator()(TheoryTerm const &term) const { return rewrite_anonymous(term, gen); }
@@ -234,6 +244,7 @@ class StatementRewriter : public StatementVisitor {
     NameGen &gen_;
     std::optional<SStatement> &result_;
 };
+*/
 
 } // namespace
 
@@ -267,13 +278,12 @@ auto NameGen::new_name() -> std::string {
     return RewriteAnonymous{gen}(lit);
 }
 
-[[nodiscard]] auto rewrite_anonymous(Statement const &stm) -> std::optional<SStatement> {
-    std::optional<SStatement> result;
+[[nodiscard]] auto rewrite_anonymous(Statement const &stm) -> std::optional<Statement> {
     VariableSet vars;
-    stm.visit_variables([&vars](std::string const &var) { vars.emplace(var); }, VariableContext::all);
+    visit_variables(
+        stm, [&vars](auto const &var) { vars.emplace(var); }, VariableContext::all);
     auto gen = NameGen{std::move(vars)};
-    stm.accept(StatementRewriter{gen, result});
-    return result;
+    return RewriteAnonymous{gen}(stm);
 }
 
 } // namespace Gringo::Input
