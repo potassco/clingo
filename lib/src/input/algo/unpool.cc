@@ -279,7 +279,7 @@ struct Unpool {
             [](auto tuple, auto lit, auto cond) {
                 return HeadAggregate::Element{std::move(tuple), std::move(lit), std::move(cond)};
             },
-            *this, std::get<0>(elem), std::get<1>(elem), std::get<2>(elem));
+            *this, elem.tuple, elem.lit, elem.cond);
     }
 
     auto operator()(HeadAggregate::ElementVec const &elems) -> std::optional<std::vector<HeadAggregate::ElementVec>> {

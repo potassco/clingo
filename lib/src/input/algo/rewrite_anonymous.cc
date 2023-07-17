@@ -9,8 +9,9 @@ namespace {
 struct RewriteAnonymous {
     RewriteAnonymous(NameGen &gen) : gen{gen} {}
 
+    // term
+
     auto operator()(Term const &term) const { return std::visit(*this, term); }
-    auto operator()(Literal const &lit) const { return std::visit(*this, lit); }
 
     [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
 
@@ -46,18 +47,9 @@ struct RewriteAnonymous {
         return transform_construct<TermBinary>(tr(term.lhs), term.op, tr(term.rhs));
     }
 
-    auto operator()(LiteralBoolean const &lit) const -> std::optional<Literal> {
-        static_cast<void>(lit);
-        return std::nullopt;
-    }
+    // theory
 
-    auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
-        return transform_construct<LiteralRelation>(lit.sign, tr(lit.lhs), tr(lit.rhs));
-    }
-
-    auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
-        return transform_construct<LiteralSymbolic>(lit.sign, tr(lit.term));
-    }
+    auto operator()(TheoryTerm const &term) const -> std::optional<TheoryTerm> { return std::visit(*this, term); }
 
     auto operator()(TheoryTermUnparsed const &term) const -> std::optional<TheoryTerm> {
         return transform_construct<TheoryTermUnparsed>(tr(term.elems));
@@ -83,6 +75,93 @@ struct RewriteAnonymous {
         return transform_construct<TheoryTermFunction>(term.name, tr(term.args));
     }
 
+    // literal
+
+    auto operator()(Literal const &lit) const { return std::visit(*this, lit); }
+
+    auto operator()(LiteralBoolean const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
+    auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
+        return transform_construct<LiteralRelation>(lit.sign, tr(lit.lhs), tr(lit.rhs));
+    }
+
+    auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
+        return transform_construct<LiteralSymbolic>(lit.sign, tr(lit.term));
+    }
+
+    // conditional literal
+
+    auto operator()(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
+        return transform_construct<ConditionalLiteral>(tr(lit.lits), tr(lit.cond));
+    }
+
+    // set aggregate
+
+    auto operator()(SetAggregate::Element const &elem) const -> std::optional<SetAggregate::Element> {
+        return transform_construct<SetAggregate::Element>(tr(elem.lit), tr(elem.cond));
+    }
+
+    auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
+        return transform_construct<SetAggregate>(tr(aggr.lhs), tr(aggr.elems), tr(aggr.rhs));
+    }
+
+    // theory
+
+    auto operator()(TheoryAtom const &aggr) const -> std::optional<TheoryAtom> {
+        return transform_construct<TheoryAtom>(tr(aggr.name), tr(aggr.elems), tr(aggr.rhs));
+    }
+
+    // head literal
+
+    auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(Disjunction const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<Disjunction>(tr(lit.elems));
+    }
+
+    auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadSetAggregate>(tr(lit.aggr));
+    }
+
+    auto operator()(HeadAggregate::Element const &lit) const -> std::optional<HeadAggregate::Element> {
+        return transform_construct<HeadAggregate::Element>(tr(lit.tuple), tr(lit.lit), tr(lit.cond));
+    }
+
+    auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadAggregate>(tr(lit.lhs), lit.fun, tr(lit.elems), tr(lit.rhs));
+    }
+
+    auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadTheoryAtom>(tr(lit.atom));
+    }
+
+    // body literal
+
+    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<Conjunction>(tr(lit.elems));
+    }
+
+    auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodySetAggregate>(lit.sign, tr(lit.aggr));
+    }
+
+    auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
+        return transform_construct<BodyAggregate::Element>(tr(elem.tuple), tr(elem.cond));
+    }
+
+    auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodyAggregate>(lit.sign, tr(lit.lhs), lit.fun, tr(lit.elems), tr(lit.rhs));
+    }
+
+    auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodyTheoryAtom>(lit.sign, tr(lit.atom));
+    }
+
     NameGen &gen;
 };
 
@@ -90,77 +169,9 @@ struct RewriteAnonymousOld {
     auto operator()(Term const &term) const { return rewrite_anonymous(term, gen); }
     auto operator()(TheoryTerm const &term) const { return rewrite_anonymous(term, gen); }
     auto operator()(Literal const &lit) const { return rewrite_anonymous(lit, gen); }
-    auto operator()(TheoryAtom const &aggr) const -> std::optional<TheoryAtom> {
-        return transform_construct<TheoryAtom>(Trans{aggr.name(), *this}, Trans{aggr.elements(), *this},
-                                               Trans{aggr.rhs(), *this});
-    };
-    auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
-        return transform_construct<SetAggregate>(Trans{aggr.lhs(), *this}, Trans{aggr.elements(), *this},
-                                                 Trans{aggr.rhs(), *this});
-    };
-    auto operator()(SHeadLiteral const &lit) const -> std::optional<SHeadLiteral> {
-        return rewrite_anonymous(*lit, gen);
-    };
-    auto operator()(SBodyLiteral const &lit) const -> std::optional<SBodyLiteral> {
-        return rewrite_anonymous(*lit, gen);
-    };
+    auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return rewrite_anonymous(lit, gen); };
+    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return rewrite_anonymous(lit, gen); };
     NameGen &gen;
-};
-
-class HeadLiteralRewriter : public HeadLiteralVisitor {
-  public:
-    HeadLiteralRewriter(NameGen &gen, std::optional<SHeadLiteral> &result) : gen_{gen}, result_{result} {}
-
-    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymousOld{gen_}); }
-
-    void visit(Disjunction const &lit) const override {
-        result_ = transform_construct_shared<Disjunction, HeadLiteral>(tra(lit.elements()));
-    }
-
-    void visit(HeadSetAggregate const &lit) const override {
-        result_ = transform_construct_shared<HeadSetAggregate, HeadLiteral>(tra(lit.atom()));
-    }
-
-    void visit(HeadAggregate const &lit) const override {
-        result_ = transform_construct_shared<HeadAggregate, HeadLiteral>(tra(lit.lhs()), lit.function(),
-                                                                         tra(lit.elements()), tra(lit.rhs()));
-    }
-
-    void visit(HeadTheoryAtom const &lit) const override {
-        result_ = transform_construct_shared<HeadTheoryAtom, HeadLiteral>(tra(lit.atom()));
-    }
-
-  private:
-    NameGen &gen_;
-    std::optional<SHeadLiteral> &result_;
-};
-
-class BodyLiteralRewriter : public BodyLiteralVisitor {
-  public:
-    BodyLiteralRewriter(NameGen &gen, std::optional<SBodyLiteral> &result) : gen_{gen}, result_{result} {}
-
-    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymousOld{gen_}); }
-
-    void visit(Conjunction const &lit) const override {
-        result_ = transform_construct_shared<Conjunction, BodyLiteral>(tra(lit.elements()));
-    }
-
-    void visit(BodySetAggregate const &lit) const override {
-        result_ = transform_construct_shared<BodySetAggregate, BodyLiteral>(lit.sign(), tra(lit.atom()));
-    }
-
-    void visit(BodyAggregate const &lit) const override {
-        result_ = transform_construct_shared<BodyAggregate, BodyLiteral>(lit.sign(), tra(lit.lhs()), lit.function(),
-                                                                         tra(lit.elements()), tra(lit.rhs()));
-    }
-
-    void visit(BodyTheoryAtom const &lit) const override {
-        result_ = transform_construct_shared<BodyTheoryAtom, BodyLiteral>(lit.sign(), tra(lit.atom()));
-    }
-
-  private:
-    NameGen &gen_;
-    std::optional<SBodyLiteral> &result_;
 };
 
 class StatementRewriter : public StatementVisitor {
@@ -237,27 +248,23 @@ auto NameGen::new_name() -> std::string {
 }
 
 [[nodiscard]] auto rewrite_anonymous(Term const &term, NameGen &gen) -> std::optional<Term> {
-    return std::visit(RewriteAnonymous{gen}, term);
+    return RewriteAnonymous{gen}(term);
 }
 
 [[nodiscard]] auto rewrite_anonymous(TheoryTerm const &term, NameGen &gen) -> std::optional<TheoryTerm> {
-    return std::visit(RewriteAnonymous{gen}, term);
+    return RewriteAnonymous{gen}(term);
 }
 
 [[nodiscard]] auto rewrite_anonymous(Literal const &lit, NameGen &gen) -> std::optional<Literal> {
-    return std::visit(RewriteAnonymous{gen}, lit);
+    return RewriteAnonymous{gen}(lit);
 }
 
-[[nodiscard]] auto rewrite_anonymous(HeadLiteral const &lit, NameGen &gen) -> std::optional<SHeadLiteral> {
-    std::optional<SHeadLiteral> result;
-    lit.accept(HeadLiteralRewriter{gen, result});
-    return result;
+[[nodiscard]] auto rewrite_anonymous(HeadLiteral const &lit, NameGen &gen) -> std::optional<HeadLiteral> {
+    return RewriteAnonymous{gen}(lit);
 }
 
-[[nodiscard]] auto rewrite_anonymous(BodyLiteral const &lit, NameGen &gen) -> std::optional<SBodyLiteral> {
-    std::optional<SBodyLiteral> result;
-    lit.accept(BodyLiteralRewriter{gen, result});
-    return result;
+[[nodiscard]] auto rewrite_anonymous(BodyLiteral const &lit, NameGen &gen) -> std::optional<BodyLiteral> {
+    return RewriteAnonymous{gen}(lit);
 }
 
 [[nodiscard]] auto rewrite_anonymous(Statement const &stm) -> std::optional<SStatement> {

@@ -21,7 +21,11 @@ struct HeadTheoryAtom {
 };
 
 struct HeadAggregate {
-    using Element = std::tuple<TermVec, Literal, LiteralVec>;
+    struct Element {
+        TermVec tuple;
+        Literal lit;
+        LiteralVec cond;
+    };
     using ElementVec = std::vector<Element>;
 
     explicit HeadAggregate(LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)

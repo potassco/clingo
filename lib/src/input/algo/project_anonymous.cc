@@ -126,6 +126,10 @@ struct ProjectAnonymous {
         return transform_construct<Disjunction>(tr(lit.elems));
     }
 
+    auto operator()(HeadAggregate::Element const &lit) const -> std::optional<HeadAggregate::Element> {
+        return transform_construct<HeadAggregate::Element>(tr(lit.lit), tr(lit.cond));
+    }
+
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
         return transform_construct<HeadAggregate>(lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
     }
@@ -144,6 +148,10 @@ struct ProjectAnonymous {
 
     auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteral> {
         return transform_construct<Conjunction>(tr(lit.elems));
+    }
+
+    auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
+        return transform_construct<BodyAggregate::Element>(elem.tuple, tr(elem.cond));
     }
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {

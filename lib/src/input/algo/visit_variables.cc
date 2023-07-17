@@ -76,6 +76,8 @@ struct VisitVariables {
 
     void operator()(Disjunction const &lit) const { visit_rec(*this, lit.elems); }
 
+    void operator()(HeadAggregate::Element const &elem) const { visit_rec(*this, elem.tuple, elem.lit, elem.cond); }
+
     void operator()(HeadAggregate const &lit) const { visit_rec(*this, lit.elems, lit.lhs, lit.rhs); }
 
     void operator()(HeadSetAggregate const &lit) const { visit_rec(*this, lit.aggr); }
@@ -87,6 +89,8 @@ struct VisitVariables {
     void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
 
     void operator()(Conjunction const &lit) const { visit_rec(*this, lit.elems); }
+
+    void operator()(BodyAggregate::Element const &elem) const { visit_rec(*this, elem.tuple, elem.cond); }
 
     void operator()(BodyAggregate const &lit) const { visit_rec(*this, lit.elems, lit.lhs, lit.rhs); }
 

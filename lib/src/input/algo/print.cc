@@ -1,5 +1,6 @@
 #include <sstream>
 
+#include <util/algorithm.hh>
 #include <util/print.hh>
 
 #include <input/algo/check_type.hh>
@@ -315,17 +316,10 @@ struct Print {
     void print_range(auto const &rng, char const *sep = ",") const {
         apply_to_range_with(rng, sep, [this](auto const &x) { out << x; });
     }
-    // aux
-    void operator()(Term const &term) const { std::visit(*this, term); }
-
-    void operator()(Literal const &lit) const { std::visit(*this, lit); }
-
-    void operator()(TupleElem const &elem) const {
-        Util::visit_variant(
-            elem, [this](std::monostate) { out << "*"; }, [&](Term const &term) { std::visit(*this, term); });
-    }
 
     // term
+
+    void operator()(Term const &term) const { std::visit(*this, term); }
 
     void operator()(TermSymbol const &term) const {
         char const *lp = "";
@@ -339,17 +333,9 @@ struct Print {
 
     void operator()(TermVariable const &term) const { out << term.name; }
 
-    void operator()(TermFunction const &term) const {
-        if (term.external) {
-            out << "@";
-        }
-        out << term.name;
-        auto const &pool = term.pool;
-        if (pool.size() != 1 || !pool.front().empty()) {
-            out << "(";
-            Print{out}.apply_to_range_with(pool, ";", [this](auto const &tuple) { apply_to_range(tuple); });
-            out << ")";
-        }
+    void operator()(TupleElem const &elem) const {
+        Util::visit_variant(
+            elem, [this](std::monostate) { out << "*"; }, [&](Term const &term) { std::visit(*this, term); });
     }
 
     void operator()(TermTuple const &term) const {
@@ -368,6 +354,19 @@ struct Print {
                         }
                     });
             });
+            out << ")";
+        }
+    }
+
+    void operator()(TermFunction const &term) const {
+        if (term.external) {
+            out << "@";
+        }
+        out << term.name;
+        auto const &pool = term.pool;
+        if (pool.size() != 1 || !pool.front().empty()) {
+            out << "(";
+            Print{out}.apply_to_range_with(pool, ";", [this](auto const &tuple) { apply_to_range(tuple); });
             out << ")";
         }
     }
@@ -456,6 +455,8 @@ struct Print {
 
     // literals
 
+    void operator()(Literal const &lit) const { std::visit(*this, lit); }
+
     void operator()(LiteralBoolean const &lit) const { out << lit.sign << (lit.value ? "#true" : "#false"); }
 
     void operator()(LiteralRelation const &lit) const {
@@ -467,13 +468,144 @@ struct Print {
 
     void operator()(LiteralSymbolic const &lit) const { out << lit.sign << lit.term; }
 
+    // conditional literal
+
+    void operator()(ConditionalLiteralVec const &elems, char const *kw, bool simple_empty) const {
+        auto is_simple = elems.empty() ? simple_empty : std::all_of(elems.begin(), elems.end(), [&](auto const &elem) {
+            return elem.lits.size() == 1;
+        });
+        if (is_simple) {
+            apply_to_range_with(elems, "; ", [this](auto const &elem) {
+                auto cs = elem.cond.empty() ? "" : ": ";
+                operator()(elem.lits.front());
+                out << cs;
+                visit_range(elem.cond, ", ");
+            });
+        } else {
+            char const *sp = elems.empty() ? "" : " ";
+            out << kw << " { ";
+            apply_to_range_with(elems, "; ", [this](auto const &elem) {
+                char const *cs = !elem.cond.empty() ? ": " : elem.lits.empty() ? ":" : "";
+                visit_range(elem.lits, ", ");
+                out << cs;
+                visit_range(elem.cond, ", ");
+            });
+            out << sp << "}";
+        }
+    }
+
+    void operator()(SetAggregate const &aggr) const {
+        if (aggr.lhs.has_value()) {
+            out << aggr.lhs->first << " " << aggr.lhs->second << " ";
+        }
+        out << "{ ";
+        apply_to_range_with(aggr.elems, "; ", [this](auto const &elem) {
+            operator()(elem.lit);
+            if (!elem.cond.empty()) {
+                out << ": ";
+                visit_range(elem.cond, ", ");
+            }
+        });
+        out << (aggr.elems.empty() ? "}" : " }");
+        if (aggr.rhs.has_value()) {
+            out << " " << aggr.rhs->first << " " << aggr.rhs->second;
+        }
+    }
+
+    void operator()(TheoryAtom const &atom) const {
+        out << "&" << atom.name;
+        auto const &elems = atom.elems;
+        if (!elems.empty() || atom.rhs.has_value()) {
+            out << " { ";
+            apply_to_range_with(elems, "; ", [this](TheoryAtom::Element const &elem) {
+                visit_range(elem.first);
+                if (!elem.second.empty() || elem.first.empty()) {
+                    out << ": ";
+                    visit_range(elem.second, ", ");
+                }
+            });
+            out << (elems.empty() ? "}" : " }");
+        }
+        if (atom.rhs.has_value()) {
+            out << " " << atom.rhs.value().first << " ";
+            operator()(atom.rhs.value().second);
+        }
+    }
+
+    // head literals
+
+    void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
+
+    void operator()(Disjunction const &lit) const { operator()(lit.elems, "#or", true); }
+
+    void operator()(HeadSetAggregate const &lit) const { operator()(lit.aggr); }
+
+    void operator()(HeadAggregate const &lit) const {
+        auto const &lhs = lit.lhs;
+        auto const &rhs = lit.rhs;
+        if (lhs.has_value()) {
+            out << lhs->first << " " << lhs->second << " ";
+        }
+        out << lit.fun << " { ";
+        apply_to_range_with(lit.elems, "; ", [this](auto const &elem) {
+            visit_range(elem.tuple);
+            out << ": ";
+            operator()(elem.lit);
+            if (!elem.cond.empty()) {
+                out << ": ";
+                visit_range(elem.cond, ", ");
+            }
+        });
+        out << (lit.elems.empty() ? "}" : " }");
+        if (rhs.has_value()) {
+            out << " " << rhs->first << " " << rhs->second;
+        }
+    }
+
+    void operator()(HeadTheoryAtom const &lit) const { operator()(lit.atom); }
+
+    // body literals
+
+    void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
+
+    void operator()(Conjunction const &lit) const { operator()(lit.elems, "#and", false); }
+
+    void operator()(BodySetAggregate const &lit) const {
+        out << lit.sign;
+        operator()(lit.aggr);
+    }
+
+    void operator()(BodyAggregate const &lit) const {
+        out << lit.sign;
+        if (lit.lhs.has_value()) {
+            out << lit.lhs->first << " " << lit.lhs->second << " ";
+        }
+        out << lit.fun << " { ";
+        apply_to_range_with(lit.elems, "; ", [this](auto const &elem) {
+            visit_range(elem.tuple);
+            if (!elem.cond.empty()) {
+                out << ": ";
+                visit_range(elem.cond, ", ");
+            }
+        });
+        out << (lit.elems.empty() ? "}" : " }");
+        if (lit.rhs.has_value()) {
+            out << " " << lit.rhs->first << " " << lit.rhs->second;
+        }
+    }
+
+    void operator()(BodyTheoryAtom const &lit) const {
+        out << lit.sign;
+        operator()(lit.atom);
+    }
+
     std::ostream &out;
     Position pos = Position::none;
     unsigned int prio = 0;
     bool no_leading_op = false;
 };
 
-class PrintVisitor : public HeadLiteralVisitor, public BodyLiteralVisitor, public StatementVisitor {
+class PrintVisitor : public StatementVisitor {
   public:
     PrintVisitor(std::ostream &out) : out_{out} {}
 
@@ -504,68 +636,6 @@ class PrintVisitor : public HeadLiteralVisitor, public BodyLiteralVisitor, publi
     }
 
     // auxiliary functions
-
-    void visit(Disjunction::ElementVec const &elems, char const *kw, bool simple_empty) const {
-        auto is_simple = elems.empty() ? simple_empty : std::all_of(elems.begin(), elems.end(), [&](auto const &elem) {
-            return elem.first.size() == 1;
-        });
-        if (is_simple) {
-            apply_to_range_with(elems, "; ", [this](auto const &elem) {
-                auto cs = elem.second.empty() ? "" : ": ";
-                Print{out_}(elem.first.front());
-                out_ << cs;
-                Print{out_}.visit_range(elem.second, ", ");
-            });
-        } else {
-            char const *sp = elems.empty() ? "" : " ";
-            out_ << kw << " { ";
-            apply_to_range_with(elems, "; ", [this](auto const &elem) {
-                char const *cs = !elem.second.empty() ? ": " : elem.first.empty() ? ":" : "";
-                apply_to_range_with(elem.first, ", ", [this](auto const &lit) { Print{out_}(lit); });
-                out_ << cs;
-                Print{out_}.visit_range(elem.second, ", ");
-            });
-            out_ << sp << "}";
-        }
-    }
-
-    void visit(SetAggregate const &aggr) const {
-        if (aggr.lhs().has_value()) {
-            out_ << aggr.lhs()->first << " " << aggr.lhs()->second << " ";
-        }
-        out_ << "{ ";
-        apply_to_range_with(aggr.elements(), "; ", [this](auto const &elem) {
-            Print{out_}(std::get<0>(elem));
-            if (!std::get<1>(elem).empty()) {
-                out_ << ": ";
-                Print{out_}.visit_range(std::get<1>(elem), ", ");
-            }
-        });
-        out_ << (aggr.elements().empty() ? "}" : " }");
-        if (aggr.rhs().has_value()) {
-            out_ << " " << aggr.rhs()->first << " " << aggr.rhs()->second;
-        }
-    }
-
-    void visit(TheoryAtom const &atom) const {
-        out_ << "&" << atom.name();
-        auto const &elems = atom.elements();
-        if (!elems.empty() || atom.rhs().has_value()) {
-            out_ << " { ";
-            apply_to_range_with(elems, "; ", [this](TheoryAtom::Element const &elem) {
-                Print{out_}.visit_range(elem.first);
-                if (!elem.second.empty() || elem.first.empty()) {
-                    out_ << ": ";
-                    Print{out_}.visit_range(elem.second, ", ");
-                }
-            });
-            out_ << (elems.empty() ? "}" : " }");
-        }
-        if (atom.rhs().has_value()) {
-            out_ << " " << atom.rhs().value().first << " ";
-            Print{out_}(atom.rhs().value().second);
-        }
-    }
 
     void visit(TheoryOpDefinition const &def) const {
         out_ << def.theory_operator() << " : " << def.priority() << ", ";
@@ -615,74 +685,19 @@ class PrintVisitor : public HeadLiteralVisitor, public BodyLiteralVisitor, publi
 
     // visit head literals
 
-    void visit(Disjunction const &lit) const override { visit(lit.elements(), "#or", true); }
-
-    void visit(HeadSetAggregate const &lit) const override { visit(lit.atom()); }
-
-    void visit(HeadAggregate const &lit) const override {
-        auto const &lhs = lit.lhs();
-        auto const &rhs = lit.rhs();
-        if (lhs.has_value()) {
-            out_ << lhs->first << " " << lhs->second << " ";
-        }
-        out_ << lit.function() << " { ";
-        apply_to_range_with(lit.elements(), "; ", [this](auto const &elem) {
-            Print{out_}.visit_range(std::get<0>(elem));
-            out_ << ": ";
-            Print{out_}(std::get<1>(elem));
-            if (!std::get<2>(elem).empty()) {
-                out_ << ": ";
-                Print{out_}.visit_range(std::get<2>(elem), ", ");
-            }
-        });
-        out_ << (lit.elements().empty() ? "}" : " }");
-        if (rhs.has_value()) {
-            out_ << " " << rhs->first << " " << rhs->second;
-        }
-    }
-
-    void visit(HeadTheoryAtom const &lit) const override { visit(lit.atom()); }
-
     // visit body literals
-
-    void visit(Conjunction const &lit) const override { visit(lit.elements(), "#and", false); }
-
-    void visit(BodySetAggregate const &lit) const override {
-        out_ << lit.sign();
-        visit(lit.atom());
-    }
-
-    void visit(BodyAggregate const &lit) const override {
-        out_ << lit.sign();
-        if (lit.lhs().has_value()) {
-            out_ << lit.lhs()->first << " " << lit.lhs()->second << " ";
-        }
-        out_ << lit.function() << " { ";
-        apply_to_range_with(lit.elements(), "; ", [this](auto const &elem) {
-            Print{out_}.visit_range(std::get<0>(elem));
-            if (!std::get<1>(elem).empty()) {
-                out_ << ": ";
-                Print{out_}.visit_range(std::get<1>(elem), ", ");
-            }
-        });
-        out_ << (lit.elements().empty() ? "}" : " }");
-        if (lit.rhs().has_value()) {
-            out_ << " " << lit.rhs()->first << " " << lit.rhs()->second;
-        }
-    }
-
-    void visit(BodyTheoryAtom const &lit) const override {
-        out_ << lit.sign();
-        visit(lit.atom());
-    }
 
     // visit statements
 
     void visit(Rule const &stm) const override {
-        out_ << *stm.head();
-        if (stm.head()->print_empty() || !stm.body().empty()) {
+        auto const *disj = std::get_if<Disjunction>(&stm.head());
+        bool empty_head = disj != nullptr && disj->elems.empty();
+        if (!empty_head) {
+            out_ << stm.head();
+        }
+        if (empty_head || !stm.body().empty()) {
             out_ << " :- ";
-            visit_range(stm.body(), "; ");
+            Print{out_}.visit_range(stm.body(), "; ");
         }
         out_ << ".";
     }
@@ -727,7 +742,7 @@ class PrintVisitor : public HeadLiteralVisitor, public BodyLiteralVisitor, publi
     void visit(StatementWeakConstraint const &stm) const override {
         auto const &[weight, prio, terms] = stm.tuple();
         out_ << " :~ ";
-        visit_range(stm.body(), "; ");
+        Print{out_}.visit_range(stm.body(), "; ");
         out_ << ". [" << weight;
         if (prio) {
             out_ << "@" << prio.value();
@@ -747,7 +762,7 @@ class PrintVisitor : public HeadLiteralVisitor, public BodyLiteralVisitor, publi
             rp = ")";
         }
         out_ << "#show " << lp << stm.term() << rp << ": ";
-        visit_range(stm.body(), "; ");
+        Print{out_}.visit_range(stm.body(), "; ");
         out_ << ".";
     }
 
@@ -757,7 +772,7 @@ class PrintVisitor : public HeadLiteralVisitor, public BodyLiteralVisitor, publi
 
     void visit(StatementProject const &stm) const override {
         out_ << "#project " << stm.term() << (stm.body().empty() ? "" : ": ");
-        visit_range(stm.body(), "; ");
+        Print{out_}.visit_range(stm.body(), "; ");
         out_ << ".";
     }
 
@@ -771,7 +786,7 @@ class PrintVisitor : public HeadLiteralVisitor, public BodyLiteralVisitor, publi
 
     void visit(StatementExternal const &stm) const override {
         out_ << "#external " << stm.term() << (stm.body().empty() ? "" : ": ");
-        visit_range(stm.body(), "; ");
+        Print{out_}.visit_range(stm.body(), "; ");
         out_ << ".";
         if (stm.type().has_value()) {
             out_ << " [" << stm.type().value() << "]";
@@ -782,13 +797,13 @@ class PrintVisitor : public HeadLiteralVisitor, public BodyLiteralVisitor, publi
         out_ << "#edge (";
         apply_to_range_with(stm.edges(), ";", [this](auto const &edge) { out_ << edge.first << "," << edge.second; });
         out_ << ")" << (stm.body().empty() ? "" : ": ");
-        visit_range(stm.body(), "; ");
+        Print{out_}.visit_range(stm.body(), "; ");
         out_ << ".";
     }
 
     void visit(StatementHeuristic const &stm) const override {
         out_ << "#heuristic " << stm.atom() << (stm.body().empty() ? "" : ": ");
-        visit_range(stm.body(), "; ");
+        Print{out_}.visit_range(stm.body(), "; ");
         out_ << ". [" << stm.type();
         if (stm.priority().has_value()) {
             out_ << "@" << stm.priority().value();
@@ -831,27 +846,27 @@ class PrintVisitor : public HeadLiteralVisitor, public BodyLiteralVisitor, publi
 } // namespace
 
 auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
-    std::visit(Print{out}, term);
+    Print{out}(term);
     return out;
 }
 
 auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
-    std::visit(Print{out}, term);
+    Print{out}(term);
     return out;
 }
 
 auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream & {
-    std::visit(Print{out}, lit);
+    Print{out}(lit);
     return out;
 }
 
 auto operator<<(std::ostream &out, HeadLiteral const &lit) -> std::ostream & {
-    lit.accept(PrintVisitor{out});
+    Print{out}(lit);
     return out;
 }
 
 auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream & {
-    lit.accept(PrintVisitor{out});
+    Print{out}(lit);
     return out;
 }
 
