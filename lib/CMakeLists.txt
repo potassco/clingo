@@ -2,7 +2,6 @@ add_library(parsertest
     "src/symbol.cc"
     "src/input/term.cc"
     "src/input/literal.cc"
-    "src/input/head_literal.cc"
     "src/input/body_literal.cc"
     "src/input/statement.cc"
     "src/input/algo/print.cc"

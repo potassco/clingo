@@ -31,10 +31,10 @@ class NameGen {
 [[nodiscard]] auto rewrite_anonymous(Literal const &lit, NameGen &gen) -> std::optional<Literal>;
 
 //! Give anonymous variables a unique name.
-[[nodiscard]] auto rewrite_anonymous(HeadLiteral const &lit, NameGen &gen) -> std::optional<SHeadLiteral>;
+[[nodiscard]] auto rewrite_anonymous(HeadLiteral const &lit, NameGen &gen) -> std::optional<HeadLiteral>;
 
 //! Give anonymous variables a unique name.
-[[nodiscard]] auto rewrite_anonymous(BodyLiteral const &lit, NameGen &gen) -> std::optional<SBodyLiteral>;
+[[nodiscard]] auto rewrite_anonymous(BodyLiteral const &lit, NameGen &gen) -> std::optional<BodyLiteral>;
 
 //! Give anonymous variables a unique name.
 [[nodiscard]] auto rewrite_anonymous(Statement const &stm) -> std::optional<SStatement>;

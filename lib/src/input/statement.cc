@@ -19,7 +19,7 @@ namespace Gringo::Input {
 
 namespace {
 
-void visit_body(VarVisitFun const &fun, VariableContext ctx, SBodyLiteralVec const &body) {
+void visit_body(VarVisitFun const &fun, VariableContext ctx, BodyLiteralVec const &body) {
     for (auto const &lit : body) {
         lit->visit_variables(fun, ctx);
     }
@@ -34,8 +34,8 @@ struct StatementUnpool {
     auto operator()(LiteralVec const &lits) const {
         return unpool_crossproduct(lits, [](auto const &lit) { return unpool(lit); });
     }
-    auto operator()(SHeadLiteral const &lit) const { return lit->unpool(); }
-    auto operator()(SBodyLiteralVec const &body) const { return unpool_crossproduct(body); }
+    auto operator()(HeadLiteral const &lit) const { return lit->unpool(); }
+    auto operator()(BodyLiteralVec const &body) const { return unpool_crossproduct(body); }
     auto operator()(StatementOptimize::Tuple const &tuple) const {
         return unpool_crossproducts(
             [](auto weight, auto prio, auto terms) {
@@ -110,16 +110,16 @@ class GlobalVarCounterHelper {
 using GlobalVarCounter = Detail::VarVisitHelper<GlobalVarCounterHelper>;
 
 struct Project {
-    auto operator()(SHeadLiteral const &lit) const { return lit->project(project); }
-    auto operator()(SBodyLiteral const &lit) const { return lit->project(project, in_classical_scope); }
+    auto operator()(HeadLiteral const &lit) const { return lit->project(project); }
+    auto operator()(BodyLiteral const &lit) const { return lit->project(project, in_classical_scope); }
     Projection project;
     bool in_classical_scope;
 };
 
 struct ProjectAnonymous {
     auto operator()(Literal const &lit) -> std::optional<Literal> { return project_anonymous(lit); };
-    auto operator()(SHeadLiteral const &lit) -> std::optional<SHeadLiteral> { return lit->project_anonymous(); };
-    auto operator()(SBodyLiteral const &lit) -> std::optional<SBodyLiteral> { return lit->project_anonymous(); };
+    auto operator()(HeadLiteral const &lit) -> std::optional<HeadLiteral> { return lit->project_anonymous(); };
+    auto operator()(BodyLiteral const &lit) -> std::optional<BodyLiteral> { return lit->project_anonymous(); };
 };
 
 auto vcp(auto const &...args) {
@@ -474,7 +474,7 @@ auto StatementEdge::do_unpool() const -> std::optional<SStatementVec> {
     auto edges = StatementUnpool{}(edges_);
     if (edges_.size() != 1 || edges.has_value() || bodies.has_value()) {
         SStatementVec ret;
-        for (auto &body : bodies.value_or(Util::make_vec<SBodyLiteralVec>(body_))) {
+        for (auto &body : bodies.value_or(Util::make_vec<BodyLiteralVec>(body_))) {
             for (auto &edge : edges.value_or(edges_)) {
                 ret.emplace_back(Util::construct_shared<StatementEdge, Statement>(Util::make_vec<Edge>(edge), body));
             }

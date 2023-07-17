@@ -14,6 +14,8 @@
 
 namespace Gringo::Input {
 
+// TODO: move those
+
 //! Variable selection modes for select_variables().
 enum VariableSelectMode {
     add, //!< Add variables to the set.

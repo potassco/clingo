@@ -6,7 +6,7 @@ namespace {
 
 struct AddSign {
 
-    void operator()(Conjunction const &lit) {
+    void operator()(Conjunction &lit) const {
         if (lit.elems.size() != 1 || lit.elems.front().lits.size() != 1) {
             throw std::logic_error("there must be exactly one element");
         }
