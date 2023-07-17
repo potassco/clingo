@@ -1,7 +1,5 @@
 #pragma once
 
-#include <functional>
-
 #include <input/literal.hh>
 #include <input/term.hh>
 

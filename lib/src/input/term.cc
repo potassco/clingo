@@ -1,8 +1,3 @@
-#include <cmath>
-#include <optional>
-#include <tuple>
-#include <utility>
-
 #include <input/term.hh>
 
 namespace Gringo::Input {

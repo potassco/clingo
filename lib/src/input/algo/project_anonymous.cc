@@ -18,6 +18,8 @@ auto is_anonymous(Term const *term) -> bool {
 struct ProjectAnonymous {
     [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
 
+    // term
+
     auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
 
     auto operator()(std::monostate x) const -> std::optional<Term> {
@@ -73,6 +75,10 @@ struct ProjectAnonymous {
         return std::nullopt;
     }
 
+    // literal
+
+    auto operator()(Literal const &lit) const -> std::optional<Literal> { return std::visit(*this, lit); }
+
     auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
         static_cast<void>(lit);
         return std::nullopt;
@@ -89,16 +95,78 @@ struct ProjectAnonymous {
         }
         return std::nullopt;
     }
+
+    // conditional literal
+
+    auto operator()(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
+        return transform_construct<ConditionalLiteral>(tr(lit.lits), tr(lit.lits));
+    }
+
+    // aggregate
+
+    auto operator()(SetAggregate::Element const &elem) const -> std::optional<SetAggregate::Element> {
+        return transform_construct<SetAggregate::Element>(tr(elem.lit), tr(elem.cond));
+    }
+
+    auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
+        return transform_construct<SetAggregate>(aggr.lhs, tr(aggr.elems), aggr.rhs);
+    }
+
+    // theory
+
+    auto operator()(TheoryAtom const &atom) const -> std::optional<TheoryAtom> {
+        return transform_construct<TheoryAtom>(atom.name, tr(atom.elems), atom.rhs);
+    }
+
+    // head literal
+
+    auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(Disjunction const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<Disjunction>(tr(lit.elems));
+    }
+
+    auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadAggregate>(lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
+    }
+
+    auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadSetAggregate>(tr(lit.aggr));
+    }
+
+    auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadTheoryAtom>(tr(lit.atom));
+    }
+
+    // body literal
+
+    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<Conjunction>(tr(lit.elems));
+    }
+
+    auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodyAggregate>(lit.sign, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
+    }
+
+    auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodySetAggregate>(lit.sign, tr(lit.aggr));
+    }
+
+    auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodyTheoryAtom>(lit.sign, tr(lit.atom));
+    }
 };
 
 } // namespace
 
-[[nodiscard]] auto project_anonymous(Term const &term) -> std::optional<Term> {
-    return std::visit(ProjectAnonymous{}, term);
-}
+auto project_anonymous(Term const &term) -> std::optional<Term> { return ProjectAnonymous{}(term); }
 
-[[nodiscard]] auto project_anonymous(Literal const &lit) -> std::optional<Literal> {
-    return std::visit(ProjectAnonymous{}, lit);
-}
+auto project_anonymous(Literal const &lit) -> std::optional<Literal> { return ProjectAnonymous{}(lit); }
+
+auto project_anonymous(HeadLiteral const &lit) -> std::optional<HeadLiteral> { return ProjectAnonymous{}(lit); }
+
+auto project_anonymous(BodyLiteral const &lit) -> std::optional<BodyLiteral> { return ProjectAnonymous{}(lit); }
 
 } // namespace Gringo::Input

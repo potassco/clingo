@@ -1,15 +1,4 @@
-#include <optional>
-#include <utility>
-
 #include <input/literal.hh>
-
-#include <input/algo/project.hh>
-#include <input/algo/project_anonymous.hh>
-#include <input/algo/unpool.hh>
-#include <input/algo/visit_variables.hh>
-
-#include "algo/transform.hh"
-#include "algo/unpool.hh"
 
 namespace Gringo::Input {
 

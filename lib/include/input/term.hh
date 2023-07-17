@@ -3,12 +3,10 @@
 //! @file
 //! This file contains the term interface and derived terms.
 
-#include <optional>
 #include <unordered_set>
 #include <variant>
 #include <vector>
 
-#include <util/algorithm.hh>
 #include <util/hash.hh>
 #include <util/shared_ptr.hh>
 

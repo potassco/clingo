@@ -100,24 +100,6 @@ struct VisitVariables {
 
 } // namespace
 
-// TODO: remove from here!
-
-void visit_variables(TermVariable const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
-
-void visit_variables(TermSymbol const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
-
-void visit_variables(TermTuple const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
-
-void visit_variables(TermFunction const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
-
-void visit_variables(TermAbs const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
-
-void visit_variables(TermUnary const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
-
-void visit_variables(TermBinary const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
-
-// TODO: remove until here!
-
 void visit_variables(Term const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }
 
 void visit_variables(TheoryTerm const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}(term); }

@@ -28,7 +28,10 @@ struct CheckTypeResult {
 //! Query information about the structure of the given term.
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nullptr) -> bool;
 
-//! Check if the literal is a symbolic atom.
+//! Check whether the literal is an atoms.
+//!
+//! A literal is an atom if it is a symbolic literal without a sign.
+//! This corresponds for example to a conjunction with one element equal to a such an atom.
 auto is_atom(Literal const &lit) -> bool;
 
 //! Check if the literal is a symbolic atom.
@@ -37,7 +40,11 @@ auto is_atom(HeadLiteral const &lit) -> bool;
 //! Check if the literal is a symbolic atom.
 auto is_atom(BodyLiteral const &lit) -> bool;
 
-//! Check if the literal is a test.
+//! Check whether the literal is a test.
+//!
+//! A test is a negated or not a symbolic literal.
+//! This corresponds to conjunctions where the right-hand-side of elements is empty
+//! and the left-hand-side is composed of tests.
 auto is_test(Literal const &lit) -> bool;
 
 //! Check if the literal is a test.

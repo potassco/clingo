@@ -4,8 +4,16 @@
 
 namespace Gringo::Input {
 
+//! Remove all pooled arguments from the term.
 [[nodiscard]] auto unpool(Term const &term) -> std::optional<TermVec>;
 
+//! Remove all pooled arguments from the literal.
 [[nodiscard]] auto unpool(Literal const &lit) -> std::optional<LiteralVec>;
+
+//! Remove all pooled arguments from the literal.
+[[nodiscard]] auto unpool(HeadLiteral const &lit) -> std::optional<HeadLiteralVec>;
+
+//! Remove all pooled arguments from the literal.
+[[nodiscard]] auto unpool(BodyLiteral const &lit) -> std::optional<BodyLiteralVec>;
 
 } // namespace Gringo::Input

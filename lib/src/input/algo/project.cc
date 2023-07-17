@@ -91,6 +91,154 @@ struct Project {
         return std::nullopt;
     }
 
+    // conditional literal
+
+    template <class T, class B, class P>
+    auto project(typename T::ElementVec const &elems, P prj, bool project_lits, bool in_classical_scope)
+        -> std::optional<Util::shared_ptr<B>> {
+        using Gringo::Input::is_atom;
+        using Gringo::Input::project;
+        using Elem = typename T::ElementVec::value_type;
+        auto fun = [&](Elem const &elem) -> std::optional<Elem> {
+            auto const &[lits, cond] = elem;
+            bool project_cond = in_classical_scope ||
+                                std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return !is_atom(lit); });
+            // project conclusion
+            std::optional<LiteralVec> projected_lits = std::nullopt;
+            if (project_lits) {
+                auto fun = [prj](Literal const &lit) { return project(lit, prj); };
+                projected_lits = transform(fun, lits);
+            }
+            // project premise
+            std::optional<LiteralVec> projected_cond = std::nullopt;
+            if (project_cond) {
+                // add counts of local variables
+                VarCounter counter{prj.counts()};
+                counter.add(lits);
+                counter.add(cond);
+                // Note that there can be no global variables with just one
+                // occurrence in a condition. However, we can project local
+                // variables.
+                auto sub_prj = Projection{prj.mode(), counter};
+                auto fun = [sub_prj](Literal const &lit) { return project(lit, sub_prj); };
+                projected_cond = transform(fun, cond);
+            }
+            if (projected_lits.has_value() || projected_cond.has_value()) {
+                return Elem{std::move(projected_lits).value_or(lits), std::move(projected_cond).value_or(cond)};
+            }
+            return std::nullopt;
+        };
+        return transform_construct_shared<T, B>(Trans{elems, fun});
+    }
+
+    // aggregate
+
+    auto SetAggregate::project(Projection prj, bool in_negative_scope) const -> std::optional<SetAggregate> {
+        using Gringo::Input::project;
+        if (!in_negative_scope && reduct_is_nonmonotone(lhs_, AggregateFunction::count, rhs_)) {
+            return std::nullopt;
+        }
+        auto fun = [prj](Element const &elem) -> std::optional<Element> {
+            auto const &[lit, cond] = elem;
+
+            // add counts of local variables
+            VarCounter counter{prj.counts()};
+            counter.add(lit);
+            counter.add(cond);
+            auto sub_project = Projection{prj.mode(), counter};
+
+            // project literals in condition
+            auto fun = [sub_project](Literal const &lit) { return project(lit, sub_project); };
+            return transform_construct<Element>(lit, Trans(cond, fun));
+        };
+        return transform_construct<SetAggregate>(lhs_, Trans{elems_, fun}, rhs_);
+    }
+
+    // head literal
+
+    auto Disjunction::project(Projection project) const -> std::optional<SHeadLiteral> {
+        // Note when to project:
+        // - variables in conditions (almost body literals)
+        return CondLits::project<Disjunction, HeadLiteral>(elems_, project, false, true);
+    }
+
+    auto HeadTheoryAtom::project(Projection project) const -> std::optional<SHeadLiteral> {
+        static_cast<void>(project);
+        return std::nullopt;
+    }
+
+    auto HeadAggregate::project(Projection prj) const -> std::optional<SHeadLiteral> {
+        using Gringo::Input::project;
+        auto fun = [prj](Element const &elem) -> std::optional<Element> {
+            auto const &[tuple, lit, cond] = elem;
+
+            // counts of local variables
+            VarCounter counter{prj.counts()};
+            counter.add(tuple, lit, cond);
+            auto sub_project = Projection{prj.mode(), counter};
+
+            // project literals in condition
+            auto fun = [sub_project](Literal const &lit) { return project(lit, sub_project); };
+            return transform_construct<Element>(tuple, lit, Trans(cond, fun));
+        };
+        return transform_construct_shared<HeadAggregate, HeadLiteral>(lhs_, fun_, Trans{elems_, fun}, rhs_);
+    }
+
+    auto HeadSetAggregate::project(Projection project) const -> std::optional<SHeadLiteral> {
+        // Note that we can always project in conditions. Semantic-wise a head
+        // aggregate is a shortcut for a choice rule + a body aggregate in an
+        // integrity constraint.
+        auto projected = aggr_.project(project, true);
+        if (projected.has_value()) {
+            return Util::construct_shared<HeadSetAggregate, HeadLiteral>(std::move(projected).value());
+        }
+        return std::nullopt;
+    }
+
+    // body literal
+
+    auto Conjunction::project(Projection project, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
+        // Note when to project:
+        // - variables in premise if in classical scope,
+        // - varibales in conclusion.
+        return CondLits::project<Conjunction, BodyLiteral>(elems_, project, true, in_classical_scope);
+    }
+
+    auto BodyAggregate::project(Projection prj, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
+        using Gringo::Input::project;
+        if (sign_ == Sign::none && !in_classical_scope && reduct_is_nonmonotone(lhs_, fun_, rhs_)) {
+            return std::nullopt;
+        }
+
+        auto fun = [prj](Element const &elem) -> std::optional<Element> {
+            auto const &[lit, cond] = elem;
+
+            // counts of local variables
+            VarCounter counter{prj.counts()};
+            counter.add(lit, cond);
+            auto sub_prj = Projection{prj.mode(), counter};
+
+            // project literals in condition
+            auto fun = [sub_prj](Literal const &lit) { return project(lit, sub_prj); };
+            return transform_construct<Element>(lit, Trans(cond, fun));
+        };
+        return transform_construct_shared<BodyAggregate, BodyLiteral>(sign_, lhs_, fun_, Trans{elems_, fun}, rhs_);
+    }
+
+    auto BodySetAggregate::project(Projection project, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
+        auto projected = aggr_.project(project, in_classical_scope || sign_ != Sign::none);
+        if (projected.has_value()) {
+            return Util::construct_shared<BodySetAggregate, BodyLiteral>(sign_, std::move(projected).value());
+        }
+        return std::nullopt;
+    }
+
+    auto BodyTheoryAtom::project(Projection project, bool in_classical_scope) const -> std::optional<SBodyLiteral> {
+        static_cast<void>(project);
+        static_cast<void>(in_classical_scope);
+        return std::nullopt;
+    }
+
     Projection project;
 };
 

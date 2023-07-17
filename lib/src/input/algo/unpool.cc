@@ -267,6 +267,8 @@ struct Unpool {
 
     // head literal
 
+    auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteralVec> { return std::visit(*this, lit); }
+
     auto operator()(Disjunction const &lit) const -> std::optional<HeadLiteralVec> {
         return Util::map_opt_vec(operator()(lit.elems),
                                  [](auto elem) -> HeadLiteral { return Disjunction{std::move(elem)}; });
@@ -304,6 +306,8 @@ struct Unpool {
     }
 
     // body literal
+
+    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteralVec> { return std::visit(*this, lit); }
 
     auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteralVec> {
         return Util::map_opt_vec(operator()(lit.elems),
@@ -350,5 +354,9 @@ struct Unpool {
 auto unpool(Term const &term) -> std::optional<TermVec> { return Unpool{}(term); }
 
 auto unpool(Literal const &lit) -> std::optional<LiteralVec> { return Unpool{}(lit); }
+
+auto unpool(HeadLiteral const &lit) -> std::optional<HeadLiteralVec> { return Unpool{}(lit); }
+
+auto unpool(BodyLiteral const &lit) -> std::optional<BodyLiteralVec> { return Unpool{}(lit); }
 
 } // namespace Gringo::Input
