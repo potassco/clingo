@@ -62,10 +62,8 @@ template <class E, class J, class L> struct junction {
         return kw >> dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
     };
     static constexpr auto
-        value = lexy::as_list<typename J::ElementVec> >>
-                lexy::callback<Util::shared_ptr<L>>(Detail::construct_shared<J, L>, [](lexy::nullopt) {
-                    return Util::construct_shared<J, L>(typename J::ElementVec{});
-                });
+        value = lexy::as_list<ConditionalLiteralVec> >>
+                lexy::callback<L>(lexy::construct<J>, [](lexy::nullopt) { return J{ConditionalLiteralVec{}}; });
 };
 
 template <class E>

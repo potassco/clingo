@@ -7,6 +7,8 @@
 #include <input/parser/literal.hh>
 #include <input/parser/theory.hh>
 
+#include <util/algorithm.hh>
+
 namespace Gringo::Input::Grammar {
 
 using SBodyAggregate = Util::shared_ptr<BodyAggregate>;
@@ -21,8 +23,7 @@ inline auto construct_body_aggr(SetAggregate aggr) -> SBodySetAggregate {
 }
 
 auto construct_conjunction(Literal lit, LiteralVec cond) {
-    return Util::construct_shared<Conjunction, BodyLiteral>(
-        Conjunction::ElementVec{Conjunction::Element{LiteralVec{std::move(lit)}, std::move(cond)}});
+    return Conjunction{ConditionalLiteralVec{ConditionalLiteral{LiteralVec{std::move(lit)}, std::move(cond)}}};
 }
 
 } // namespace Detail
@@ -37,10 +38,10 @@ struct body_aggregate_element {
         lexy::callback<BodyAggregate::Element>([](std::optional<TermVec> tuple, std::optional<LiteralVec> cond) {
             auto ret = BodyAggregate::Element{TermVec{}, LiteralVec{}};
             if (tuple) {
-                std::get<0>(ret) = std::move(tuple).value();
+                ret.tuple = std::move(tuple).value();
             }
             if (cond) {
-                std::get<1>(ret) = std::move(cond).value();
+                ret.cond = std::move(cond).value();
             }
             return ret;
         });
@@ -97,8 +98,8 @@ struct body_atom : lexy::transparent_production {
                dsl::p<atom_bool> >> dsl::p<opt_condition> |                           //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
-    static constexpr auto value = lexy::callback<SBodyLiteral>(
-        lexy::forward<SBodyLiteral>, Detail::construct_shared<BodySetAggregate, BodyLiteral>,
+    static constexpr auto value = lexy::callback<BodyLiteral>(
+        lexy::forward<BodyLiteral>, Detail::construct_shared<BodySetAggregate, BodyLiteral>,
         Detail::construct_shared<BodyTheoryAtom, BodyLiteral>,
         [](Term term, auto aggr) {
             auto ret = Detail::construct_body_aggr(std::move(aggr));
@@ -126,7 +127,7 @@ struct body_atom : lexy::transparent_production {
         });
 };
 
-struct conjunction_element : private junction_element<Conjunction::Element> {
+struct conjunction_element : private junction_element<ConditionalLiteral> {
     using junction_element::rule;
     using junction_element::value;
 };
@@ -140,8 +141,8 @@ struct body_literal {
     static constexpr char const *name = "body literal";
     static constexpr auto rule = dsl::p<conjunction> | dsl::else_ >> dsl::p<naf_sign> + dsl::p<body_atom>;
     static constexpr auto value =
-        lexy::callback<SBodyLiteral>(lexy::forward<SBodyLiteral>, [](Sign sign, SBodyLiteral literal) {
-            literal->add_sign(sign);
+        lexy::callback<BodyLiteral>(lexy::forward<BodyLiteral>, [](Sign sign, BodyLiteral literal) {
+            add_sign(literal, sign);
             return literal;
         });
 };

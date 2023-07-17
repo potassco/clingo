@@ -67,11 +67,11 @@ auto parse_literal(std::string str) -> std::optional<Literal> {
     return Grammar::parse<Grammar::parse_root<Input::Grammar::literal>>(std::move(str));
 }
 
-auto parse_head_literal(std::string str) -> std::optional<SHeadLiteral> {
+auto parse_head_literal(std::string str) -> std::optional<HeadLiteral> {
     return Grammar::parse<Grammar::parse_root<Input::Grammar::head_literal, '.'>>(std::move(str));
 }
 
-auto parse_body_literal(std::string str) -> std::optional<SBodyLiteral> {
+auto parse_body_literal(std::string str) -> std::optional<BodyLiteral> {
     return Grammar::parse<Grammar::parse_root<Input::Grammar::body_literal, '.'>>(std::move(str));
 }
 

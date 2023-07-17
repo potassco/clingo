@@ -137,13 +137,13 @@ struct statement_body {
         auto sep = dsl::sep(dsl::comma / dsl::semicolon);
         return dsl::opt(peek >> dsl::list(dsl::p<body_literal>, sep));
     }();
-    static constexpr auto value = lexy::as_list<SBodyLiteralVec>;
+    static constexpr auto value = lexy::as_list<BodyLiteralVec>;
 };
 
 struct statement_opt_body {
     static constexpr char const *name = "body";
     static constexpr auto rule = dsl::if_(dsl::colon >> dsl::p<statement_body>);
-    static constexpr auto value = lexy::construct<SBodyLiteralVec>;
+    static constexpr auto value = lexy::construct<BodyLiteralVec>;
 };
 
 struct statement_optimize_tuple {
@@ -220,9 +220,9 @@ struct statement_show {
                                                                                res.pos_number);
                 }
             }
-            return Util::construct_shared<StatementShow, Statement>(std::move(term), SBodyLiteralVec{});
+            return Util::construct_shared<StatementShow, Statement>(std::move(term), BodyLiteralVec{});
         },
-        [](auto begin, Term term, auto end, SBodyLiteralVec body) -> SStatement {
+        [](auto begin, Term term, auto end, BodyLiteralVec body) -> SStatement {
             static_cast<void>(begin);
             static_cast<void>(end);
             return Util::construct_shared<StatementShow, Statement>(std::move(term), std::move(body));
@@ -291,7 +291,7 @@ struct statement_project {
     }();
     static constexpr auto value = lexy::callback<SStatement>(
         Detail::construct_shared<StatementProjectSig, Statement>,
-        [](bool has_sign, std::string name, std::optional<PoolVec> pool, SBodyLiteralVec body) {
+        [](bool has_sign, std::string name, std::optional<PoolVec> pool, BodyLiteralVec body) {
             Term atom = TermFunction{std::move(name), Detail::empty_args(std::move(pool)), false};
             if (has_sign) {
                 atom = TermUnary{UnaryOperator::negate, std::move(atom)};
@@ -401,10 +401,10 @@ struct statement_rule {
     }();
     static constexpr auto value = lexy::callback<SStatement>(
         Detail::construct_shared<Rule, Statement>,
-        [](SHeadLiteral head) { return Util::construct_shared<Rule, Statement>(std::move(head), SBodyLiteralVec{}); },
-        [](SBodyLiteralVec body) {
+        [](HeadLiteral head) { return Util::construct_shared<Rule, Statement>(std::move(head), BodyLiteralVec{}); },
+        [](BodyLiteralVec body) {
             return Util::construct_shared<Rule, Statement>(
-                Util::construct_shared<Disjunction, HeadLiteral>(Disjunction::ElementVec{}), std::move(body));
+                Disjunction{ConditionalLiteralVec{}}, std::move(body));
         });
 };
 
