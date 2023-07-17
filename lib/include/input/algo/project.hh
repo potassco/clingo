@@ -54,7 +54,7 @@ class Projection {
 //! Project variables according to given projection mode.
 //!
 //! Optionally, project anonymous variables in negative scope (deprecated).
-[[nodiscard]] auto project(Statement const &lit, ProjectionMode project, bool project_anonymous)
+[[nodiscard]] auto project(Statement const &stm, ProjectionMode mode, bool project_anonymous)
     -> std::optional<Statement>;
 
 } // namespace Gringo::Input

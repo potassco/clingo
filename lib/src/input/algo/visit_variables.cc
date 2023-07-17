@@ -183,12 +183,24 @@ void visit_variables(TheoryTerm const &term, VarVisitFun fun) { VisitVariables{s
 
 void visit_variables(Literal const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}(lit); }
 
+void visit_variables(ConditionalLiteral const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}(lit); }
+
+void visit_variables(SetAggregate::Element const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}(elem); }
+
+void visit_variables(HeadAggregate::Element const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}(elem); }
+
 void visit_variables(HeadLiteral const &lit, VarVisitFun fun, VariableContext ctx) {
     VisitVariables{std::move(fun), ctx}(lit);
 }
 
+void visit_variables(BodyAggregate::Element const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}(elem); }
+
 void visit_variables(BodyLiteral const &lit, VarVisitFun fun, VariableContext ctx) {
     VisitVariables{std::move(fun), ctx}(lit);
+}
+
+void visit_variables(StatementOptimize::Element const &elem, VarVisitFun fun) {
+    visit_rec(VisitVariables{std::move(fun)}, elem);
 }
 
 void visit_variables(Statement const &stm, VarVisitFun fun, VariableContext ctx) {

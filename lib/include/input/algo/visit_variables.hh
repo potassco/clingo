@@ -23,10 +23,20 @@ void visit_variables(Term const &term, VarVisitFun fun);
 void visit_variables(TheoryTerm const &term, VarVisitFun fun);
 //! Visit variables with the given function.
 void visit_variables(Literal const &lit, VarVisitFun fun);
+//! Visit variables with the given function.
+void visit_variables(ConditionalLiteral const &lit, VarVisitFun fun);
+//! Visit variables with the given function.
+void visit_variables(SetAggregate::Element const &elem, VarVisitFun fun);
+//! Visit variables with the given function.
+void visit_variables(HeadAggregate::Element const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
 void visit_variables(HeadLiteral const &lit, VarVisitFun fun, VariableContext ctx);
+//! Visit variables with the given function.
+void visit_variables(BodyAggregate::Element const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
 void visit_variables(BodyLiteral const &lit, VarVisitFun fun, VariableContext ctx);
+//! Visit variables with the given function.
+void visit_variables(StatementOptimize::Element const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
 void visit_variables(Statement const &stm, VarVisitFun fun, VariableContext ctx);
 
