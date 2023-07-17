@@ -220,7 +220,7 @@ struct Unpool {
         });
     }
 
-    auto operator()(SetAggregate::Element const &elem) -> std::optional<std::vector<SetAggregate::Element>> {
+    auto operator()(SetAggregate::Element const &elem) const -> std::optional<std::vector<SetAggregate::Element>> {
         return unpool_crossproducts(
             [](auto lit, auto cond) {
                 return SetAggregate::Element{std::move(lit), std::move(cond)};
@@ -244,7 +244,7 @@ struct Unpool {
 
     // theory
 
-    auto operator()(TheoryAtom::Element const &elem) -> std::optional<std::vector<TheoryAtom::Element>> {
+    auto operator()(TheoryAtom::Element const &elem) const -> std::optional<std::vector<TheoryAtom::Element>> {
         return unpool_crossproducts(
             [&elem](auto cond) {
                 return TheoryAtom::Element{std::get<0>(elem), std::move(cond)};
@@ -252,7 +252,7 @@ struct Unpool {
             *this, std::get<1>(elem));
     }
 
-    auto operator()(TheoryAtom::ElementVec const &elems) -> std::optional<std::vector<TheoryAtom::ElementVec>> {
+    auto operator()(TheoryAtom::ElementVec const &elems) const -> std::optional<std::vector<TheoryAtom::ElementVec>> {
         return Util::map_opt(unpool_union(elems, *this),
                              [](auto elems) { return Util::make_vec<TheoryAtom::ElementVec>(std::move(elems)); });
     }
@@ -274,7 +274,7 @@ struct Unpool {
                                  [](auto elem) -> HeadLiteral { return Disjunction{std::move(elem)}; });
     }
 
-    auto operator()(HeadAggregate::Element const &elem) -> std::optional<HeadAggregate::ElementVec> {
+    auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::ElementVec> {
         return unpool_crossproducts(
             [](auto tuple, auto lit, auto cond) {
                 return HeadAggregate::Element{std::move(tuple), std::move(lit), std::move(cond)};
@@ -282,7 +282,8 @@ struct Unpool {
             *this, elem.tuple, elem.lit, elem.cond);
     }
 
-    auto operator()(HeadAggregate::ElementVec const &elems) -> std::optional<std::vector<HeadAggregate::ElementVec>> {
+    auto operator()(HeadAggregate::ElementVec const &elems) const
+        -> std::optional<std::vector<HeadAggregate::ElementVec>> {
         return Util::map_opt(unpool_union(elems, *this),
                              [](auto elems) { return Util::make_vec<HeadAggregate::ElementVec>(std::move(elems)); });
     }

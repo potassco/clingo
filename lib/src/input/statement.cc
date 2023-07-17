@@ -2,6 +2,7 @@
 
 #include <input/statement.hh>
 
+#include <input/algo/check_type.hh>
 #include <input/algo/print.hh>
 #include <input/algo/project.hh>
 #include <input/algo/project_anonymous.hh>
@@ -21,7 +22,7 @@ namespace {
 
 void visit_body(VarVisitFun const &fun, VariableContext ctx, BodyLiteralVec const &body) {
     for (auto const &lit : body) {
-        lit->visit_variables(fun, ctx);
+        visit_variables(lit, fun, ctx);
     }
 }
 
@@ -34,8 +35,9 @@ struct StatementUnpool {
     auto operator()(LiteralVec const &lits) const {
         return unpool_crossproduct(lits, [](auto const &lit) { return unpool(lit); });
     }
-    auto operator()(HeadLiteral const &lit) const { return lit->unpool(); }
-    auto operator()(BodyLiteralVec const &body) const { return unpool_crossproduct(body); }
+    auto operator()(HeadLiteral const &lit) const { return unpool(lit); }
+    auto operator()(BodyLiteral const &lit) const { return unpool(lit); }
+    auto operator()(BodyLiteralVec const &body) const { return unpool_crossproduct(body, *this); }
     auto operator()(StatementOptimize::Tuple const &tuple) const {
         return unpool_crossproducts(
             [](auto weight, auto prio, auto terms) {
@@ -110,16 +112,16 @@ class GlobalVarCounterHelper {
 using GlobalVarCounter = Detail::VarVisitHelper<GlobalVarCounterHelper>;
 
 struct Project {
-    auto operator()(HeadLiteral const &lit) const { return lit->project(project); }
-    auto operator()(BodyLiteral const &lit) const { return lit->project(project, in_classical_scope); }
+    auto operator()(HeadLiteral const &lit) const { return Gringo::Input::project(lit, project); }
+    auto operator()(BodyLiteral const &lit) const { return Gringo::Input::project(lit, project, in_classical_scope); }
     Projection project;
     bool in_classical_scope;
 };
 
 struct ProjectAnonymous {
     auto operator()(Literal const &lit) -> std::optional<Literal> { return project_anonymous(lit); };
-    auto operator()(HeadLiteral const &lit) -> std::optional<HeadLiteral> { return lit->project_anonymous(); };
-    auto operator()(BodyLiteral const &lit) -> std::optional<BodyLiteral> { return lit->project_anonymous(); };
+    auto operator()(HeadLiteral const &lit) -> std::optional<HeadLiteral> { return project_anonymous(lit); };
+    auto operator()(BodyLiteral const &lit) -> std::optional<BodyLiteral> { return project_anonymous(lit); };
 };
 
 auto vcp(auto const &...args) {
@@ -217,25 +219,25 @@ void Rule::accept(StatementVisitor const &visitor) const { visitor.visit(*this);
 
 auto Rule::do_unpool() const -> std::optional<SStatementVec> {
     return unpool_crossproducts(
-        [](auto head, auto body) { return construct_shared<Rule, Statement>(std::move(head), std::move(body)); },
+        [](auto head, auto body) { return Util::construct_shared<Rule, Statement>(std::move(head), std::move(body)); },
         StatementUnpool{}, head_, body_);
 }
 
 void Rule::visit_variables(VarVisitFun const &fun, VariableContext ctx) const {
-    head_->visit_variables(fun, ctx);
+    Gringo::Input::visit_variables(head_, fun, ctx);
     visit_body(fun, ctx, body_);
 }
 
 auto Rule::do_project(ProjectionMode mode) const -> std::optional<SStatement> {
     // do not project projection-like rules
-    if (head_->is_atom()) {
-        auto has_atom = std::any_of(body_.begin(), body_.end(), [](auto const &lit) { return lit->is_atom(); });
-        size_t n_test = std::count_if(body_.begin(), body_.end(), [](auto const &lit) { return lit->is_test(); });
+    if (is_atom(head_)) {
+        auto has_atom = std::any_of(body_.begin(), body_.end(), [](auto const &lit) { return is_atom(lit); });
+        size_t n_test = std::count_if(body_.begin(), body_.end(), [](auto const &lit) { return is_test(lit); });
         if (has_atom && n_test == body_.size() - 1) {
             return std::nullopt;
         }
     }
-    bool in_classical_scope = head_->is_classical();
+    bool in_classical_scope = is_classical(head_);
     auto counts = vcp(*this);
     return transform_construct_shared<Rule, Statement>(tp(head_, mode, counts),
                                                        tp(body_, mode, counts, in_classical_scope));

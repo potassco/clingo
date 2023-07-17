@@ -16,6 +16,7 @@ auto is_anonymous(Term const *term) -> bool {
 }
 
 struct ProjectAnonymous {
+
     [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
 
     // term
@@ -127,7 +128,7 @@ struct ProjectAnonymous {
     }
 
     auto operator()(HeadAggregate::Element const &lit) const -> std::optional<HeadAggregate::Element> {
-        return transform_construct<HeadAggregate::Element>(tr(lit.lit), tr(lit.cond));
+        return transform_construct<HeadAggregate::Element>(tr(lit.tuple), tr(lit.lit), tr(lit.cond));
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {

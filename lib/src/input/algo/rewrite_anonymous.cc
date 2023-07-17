@@ -9,11 +9,11 @@ namespace {
 struct RewriteAnonymous {
     RewriteAnonymous(NameGen &gen) : gen{gen} {}
 
+    [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
+
     // term
 
     auto operator()(Term const &term) const { return std::visit(*this, term); }
-
-    [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
 
     auto operator()(TermSymbol const &term) const -> std::optional<Term> {
         static_cast<void>(term);
@@ -126,8 +126,8 @@ struct RewriteAnonymous {
         return transform_construct<HeadSetAggregate>(tr(lit.aggr));
     }
 
-    auto operator()(HeadAggregate::Element const &lit) const -> std::optional<HeadAggregate::Element> {
-        return transform_construct<HeadAggregate::Element>(tr(lit.tuple), tr(lit.lit), tr(lit.cond));
+    auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
+        return transform_construct<HeadAggregate::Element>(tr(elem.tuple), tr(elem.lit), tr(elem.cond));
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
