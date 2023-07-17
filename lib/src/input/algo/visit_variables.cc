@@ -1,7 +1,5 @@
 #include <input/algo/visit_variables.hh>
 
-// TODO: this is bogus and should be removed
-#include "variables.hh"
 #include "visit.hh"
 
 namespace Gringo::Input {
@@ -127,7 +125,7 @@ struct VisitVariables {
 
     void operator()(Statement const &stm) const { return std::visit(*this, stm); }
 
-    void operator()(Rule const &stm) const { visit_rec(stm.head, stm.body); }
+    void operator()(Rule const &stm) const { visit_rec(*this, stm.head, stm.body); }
 
     void operator()(TheoryDefinition const &stm) const { static_cast<void>(stm); }
 

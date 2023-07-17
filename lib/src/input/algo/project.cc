@@ -4,7 +4,6 @@
 #include <input/algo/visit_variables.hh>
 
 #include "transform.hh"
-#include "variables.hh"
 
 namespace Gringo::Input {
 
@@ -225,7 +224,7 @@ struct Project {
 
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
         auto sub_project = Project{project, in_classical_scope || lit.sign != Sign::none};
-        return transform_construct<BodySetAggregate>(sub_project.tr(lit.aggr));
+        return transform_construct<BodySetAggregate>(lit.sign, sub_project.tr(lit.aggr));
     }
 
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {

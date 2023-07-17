@@ -196,7 +196,6 @@ auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
     return out;
 }
 
-/*
 auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream & {
     switch (type) {
         case TheoryAtomType::head: {
@@ -260,7 +259,6 @@ auto operator<<(std::ostream &out, ConstType type) -> std::ostream & {
     }
     return out;
 }
-*/
 
 auto left_bracket(TheoryTermTupleType type) -> char {
     switch (type) {
@@ -601,251 +599,213 @@ struct Print {
         operator()(lit.atom);
     }
 
+    // visit statements
+
+    void operator()(Statement const &stm) const { std::visit(*this, stm); }
+
+    void operator()(Rule const &stm) const {
+        auto const *disj = std::get_if<Disjunction>(&stm.head);
+        bool empty_head = disj != nullptr && disj->elems.empty();
+        if (!empty_head) {
+            out << stm.head;
+        }
+        if (empty_head || !stm.body.empty()) {
+            out << " :- ";
+            visit_range(stm.body, "; ");
+        }
+        out << ".";
+    }
+
+    void operator()(TheoryOpDefinition const &def) const {
+        out << def.op << " : " << def.prio << ", ";
+        switch (def.type) {
+            case TheoryOpType::unary: {
+                out << "unary";
+                break;
+            }
+            case TheoryOpType::binary_left: {
+                out << "binary, left";
+                break;
+            }
+            case TheoryOpType::binary_right: {
+                out << "binary, right";
+                break;
+            }
+        }
+    }
+
+    void operator()(TheoryTermDefinition const &def) const {
+        out << "  " << def.name << " {";
+        if (def.op_defs.empty()) {
+            out << " }";
+        } else if (def.op_defs.size() == 1) {
+            out << " ";
+            operator()(def.op_defs.front());
+            out << " }";
+        } else {
+            out << "\n";
+            apply_to_range_with(def.op_defs, ";\n", [this](auto &op_def) {
+                out << "    ";
+                operator()(op_def);
+            });
+            out << "\n  }";
+        }
+    }
+
+    void operator()(TheoryAtomDefinition const &def) const {
+        out << "  &" << def.name << "/" << def.arity << ": " << def.term << ", ";
+        if (def.rhs.has_value()) {
+            out << "{";
+            print_range(def.rhs->first);
+            out << "}, " << def.rhs->second << ", ";
+        }
+        out << def.type;
+    }
+
+    void operator()(TheoryDefinition const &stm) const {
+        out << "#theory " << stm.name << (stm.term_defs.empty() && stm.atom_defs.empty() ? " { " : " {\n");
+        apply_to_range(stm.term_defs, ";\n");
+        if (!stm.term_defs.empty()) {
+            if (!stm.atom_defs.empty()) {
+                out << ";";
+            }
+            out << "\n";
+        }
+        apply_to_range(stm.atom_defs, ";\n");
+        if (!stm.atom_defs.empty()) {
+            out << "\n";
+        }
+        out << "}.";
+    }
+
+    void operator()(StatementOptimize const &stm) const {
+        out << stm.type << " { ";
+        apply_to_range_with(stm.elems, "; ", [this](auto const &elem) {
+            auto const &[tuple, cond] = elem;
+            auto const &[weight, prio, terms] = tuple;
+            out << weight;
+            if (prio) {
+                out << "@" << prio.value();
+            }
+            if (!terms.empty()) {
+                out << ",";
+                visit_range(terms);
+            }
+            if (!cond.empty()) {
+                out << ": ";
+                visit_range(cond, ", ");
+            }
+        });
+        out << (stm.elems.empty() ? "}" : " }") << ".";
+    }
+
+    void operator()(StatementWeakConstraint const &stm) const {
+        auto const &[weight, prio, terms] = stm.tuple;
+        out << " :~ ";
+        visit_range(stm.body, "; ");
+        out << ". [" << weight;
+        if (prio) {
+            out << "@" << prio.value();
+        }
+        if (!terms.empty()) {
+            out << ",";
+            visit_range(terms);
+        }
+        out << "]";
+    }
+
+    void operator()(StatementShow const &stm) const {
+        char const *lp = "";
+        char const *rp = "";
+        if (check_type(stm.term, TermCheckType::sig, nullptr)) {
+            lp = "(";
+            rp = ")";
+        }
+        out << "#show " << lp << stm.term << rp << ": ";
+        visit_range(stm.body, "; ");
+        out << ".";
+    }
+
+    void operator()(StatementShowSig const &stm) const {
+        out << "#show " << (stm.has_sign ? "-" : "") << stm.name << "/" << stm.arity << ".";
+    }
+
+    void operator()(StatementProject const &stm) const {
+        out << "#project " << stm.term << (stm.body.empty() ? "" : ": ");
+        visit_range(stm.body, "; ");
+        out << ".";
+    }
+
+    void operator()(StatementProjectSig const &stm) const {
+        out << "#project " << (stm.has_sign ? "-" : "") << stm.name << "/" << stm.arity << ".";
+    }
+
+    void operator()(StatementDefined const &stm) const {
+        out << "#defined " << (stm.has_sign ? "-" : "") << stm.name << "/" << stm.arity << ".";
+    }
+
+    void operator()(StatementExternal const &stm) const {
+        out << "#external " << stm.term << (stm.body.empty() ? "" : ": ");
+        visit_range(stm.body, "; ");
+        out << ".";
+        if (stm.type.has_value()) {
+            out << " [" << stm.type.value() << "]";
+        }
+    }
+
+    void operator()(StatementEdge const &stm) const {
+        out << "#edge (";
+        apply_to_range_with(stm.edges, ";", [this](auto const &edge) { out << edge.u << "," << edge.v; });
+        out << ")" << (stm.body.empty() ? "" : ": ");
+        visit_range(stm.body, "; ");
+        out << ".";
+    }
+
+    void operator()(StatementHeuristic const &stm) const {
+        out << "#heuristic " << stm.atom << (stm.body.empty() ? "" : ": ");
+        visit_range(stm.body, "; ");
+        out << ". [" << stm.type;
+        if (stm.prio.has_value()) {
+            out << "@" << stm.prio.value();
+        }
+        out << "," << stm.mod << "]";
+    }
+
+    void operator()(StatementScript const &stm) const {
+        out << "#script (" << stm.type << ")" << stm.content << "#end.";
+    }
+
+    void operator()(StatementInclude const &stm) const {
+        if (stm.type == IncludeType::inbuild) {
+            out << "#include <" << stm.path << ">.";
+        } else {
+            out << "#include ";
+            Util::print_quoted(out, stm.path);
+            out << ".";
+        }
+    }
+
+    void operator()(StatementProgram const &stm) const {
+        out << "#program " << stm.name;
+        if (!stm.args.empty()) {
+            out << "(";
+            print_range(stm.args);
+            out << ")";
+        }
+        out << ".";
+    }
+
+    void operator()(StatementConst const &stm) const {
+        out << "#const " << stm.name << "=";
+        operator()(stm.value);
+        out << ". [" << stm.type << "]";
+    }
+
     std::ostream &out;
     Position pos = Position::none;
     unsigned int prio = 0;
     bool no_leading_op = false;
 };
-
-/*
-class PrintVisitor : public StatementVisitor {
-  public:
-    PrintVisitor(std::ostream &out) : out_{out} {}
-
-    // generic functions
-
-    void apply_to_range_with(auto const &rng, char const *sep, auto const &fun) const {
-        bool comma = false;
-        for (auto const &x : rng) {
-            if (comma) {
-                out_ << sep;
-            } else {
-                comma = true;
-            }
-            fun(x);
-        }
-    }
-
-    void visit_range(auto const &rng, char const *sep = ",") const {
-        apply_to_range_with(rng, sep, [this](auto const &x) { x->accept(*this); });
-    }
-
-    void apply_to_range(auto const &rng, char const *sep = ",") const {
-        apply_to_range_with(rng, sep, [this](auto const &x) { this->visit(x); });
-    }
-
-    void print_range(auto const &rng, char const *sep = ",") const {
-        apply_to_range_with(rng, sep, [this](auto const &x) { out_ << x; });
-    }
-
-    // auxiliary functions
-
-    void visit(TheoryOpDefinition const &def) const {
-        out_ << def.theory_operator() << " : " << def.priority() << ", ";
-        switch (def.type()) {
-            case TheoryOpType::unary: {
-                out_ << "unary";
-                break;
-            }
-            case TheoryOpType::binary_left: {
-                out_ << "binary, left";
-                break;
-            }
-            case TheoryOpType::binary_right: {
-                out_ << "binary, right";
-                break;
-            }
-        }
-    }
-
-    void visit(TheoryTermDefinition const &def) const {
-        out_ << "  " << def.name() << " {";
-        if (def.operator_definitions().empty()) {
-            out_ << " }";
-        } else if (def.operator_definitions().size() == 1) {
-            out_ << " ";
-            visit(def.operator_definitions().front());
-            out_ << " }";
-        } else {
-            out_ << "\n";
-            apply_to_range_with(def.operator_definitions(), ";\n", [this](auto &op_def) {
-                out_ << "    ";
-                visit(op_def);
-            });
-            out_ << "\n  }";
-        }
-    }
-
-    void visit(TheoryAtomDefinition const &def) const {
-        out_ << "  &" << def.name() << "/" << def.arity() << ": " << def.term() << ", ";
-        if (def.rhs().has_value()) {
-            out_ << "{";
-            print_range(def.rhs()->first);
-            out_ << "}, " << def.rhs()->second << ", ";
-        }
-        out_ << def.type();
-    }
-
-    // visit head literals
-
-    // visit body literals
-
-    // visit statements
-
-    void visit(Rule const &stm) const {
-        auto const *disj = std::get_if<Disjunction>(&stm.head());
-        bool empty_head = disj != nullptr && disj->elems.empty();
-        if (!empty_head) {
-            out_ << stm.head();
-        }
-        if (empty_head || !stm.body().empty()) {
-            out_ << " :- ";
-            Print{out_}.visit_range(stm.body(), "; ");
-        }
-        out_ << ".";
-    }
-
-    void visit(TheoryDefinition const &stm) const {
-        out_ << "#theory " << stm.name() << (stm.term_defs().empty() && stm.atom_defs().empty() ? " { " : " {\n");
-        apply_to_range(stm.term_defs(), ";\n");
-        if (!stm.term_defs().empty()) {
-            if (!stm.atom_defs().empty()) {
-                out_ << ";";
-            }
-            out_ << "\n";
-        }
-        apply_to_range(stm.atom_defs(), ";\n");
-        if (!stm.atom_defs().empty()) {
-            out_ << "\n";
-        }
-        out_ << "}.";
-    }
-
-    void visit(StatementOptimize const &stm) const {
-        out_ << stm.type() << " { ";
-        apply_to_range_with(stm.elements(), "; ", [this](auto const &elem) {
-            auto const &[tuple, cond] = elem;
-            auto const &[weight, prio, terms] = tuple;
-            out_ << weight;
-            if (prio) {
-                out_ << "@" << prio.value();
-            }
-            if (!terms.empty()) {
-                out_ << ",";
-                Print{out_}.visit_range(terms);
-            }
-            if (!cond.empty()) {
-                out_ << ": ";
-                Print{out_}.visit_range(cond, ", ");
-            }
-        });
-        out_ << (stm.elements().empty() ? "}" : " }") << ".";
-    }
-
-    void visit(StatementWeakConstraint const &stm) const {
-        auto const &[weight, prio, terms] = stm.tuple();
-        out_ << " :~ ";
-        Print{out_}.visit_range(stm.body(), "; ");
-        out_ << ". [" << weight;
-        if (prio) {
-            out_ << "@" << prio.value();
-        }
-        if (!terms.empty()) {
-            out_ << ",";
-            Print{out_}.visit_range(terms);
-        }
-        out_ << "]";
-    }
-
-    void visit(StatementShow const &stm) const {
-        char const *lp = "";
-        char const *rp = "";
-        if (check_type(stm.term(), TermCheckType::sig, nullptr)) {
-            lp = "(";
-            rp = ")";
-        }
-        out_ << "#show " << lp << stm.term() << rp << ": ";
-        Print{out_}.visit_range(stm.body(), "; ");
-        out_ << ".";
-    }
-
-    void visit(StatementShowSig const &stm) const {
-        out_ << "#show " << (stm.has_sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
-    }
-
-    void visit(StatementProject const &stm) const {
-        out_ << "#project " << stm.term() << (stm.body().empty() ? "" : ": ");
-        Print{out_}.visit_range(stm.body(), "; ");
-        out_ << ".";
-    }
-
-    void visit(StatementProjectSig const &stm) const {
-        out_ << "#project " << (stm.has_sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
-    }
-
-    void visit(StatementDefined const &stm) const {
-        out_ << "#defined " << (stm.has_sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
-    }
-
-    void visit(StatementExternal const &stm) const {
-        out_ << "#external " << stm.term() << (stm.body().empty() ? "" : ": ");
-        Print{out_}.visit_range(stm.body(), "; ");
-        out_ << ".";
-        if (stm.type().has_value()) {
-            out_ << " [" << stm.type().value() << "]";
-        }
-    }
-
-    void visit(StatementEdge const &stm) const {
-        out_ << "#edge (";
-        apply_to_range_with(stm.edges(), ";", [this](auto const &edge) { out_ << edge.first << "," << edge.second; });
-        out_ << ")" << (stm.body().empty() ? "" : ": ");
-        Print{out_}.visit_range(stm.body(), "; ");
-        out_ << ".";
-    }
-
-    void visit(StatementHeuristic const &stm) const {
-        out_ << "#heuristic " << stm.atom() << (stm.body().empty() ? "" : ": ");
-        Print{out_}.visit_range(stm.body(), "; ");
-        out_ << ". [" << stm.type();
-        if (stm.priority().has_value()) {
-            out_ << "@" << stm.priority().value();
-        }
-        out_ << "," << stm.modifier() << "]";
-    }
-
-    void visit(StatementScript const &stm) const {
-        out_ << "#script (" << stm.type() << ")" << stm.content() << "#end.";
-    }
-
-    void visit(StatementInclude const &stm) const {
-        if (stm.type() == IncludeType::inbuild) {
-            out_ << "#include <" << stm.path() << ">.";
-        } else {
-            out_ << "#include ";
-            Util::print_quoted(out_, stm.path());
-            out_ << ".";
-        }
-    }
-
-    void visit(StatementProgram const &stm) const {
-        out_ << "#program " << stm.name();
-        if (!stm.arguments().empty()) {
-            out_ << "(";
-            print_range(stm.arguments());
-            out_ << ")";
-        }
-        out_ << ".";
-    }
-
-    void visit(StatementConst const &stm) const {
-        out_ << "#const " << stm.name() << "=" << stm.value() << ". [" << stm.type() << "]";
-    }
-
-  private:
-    std::ostream &out_;
-};
-*/
 
 } // namespace
 
@@ -875,9 +835,8 @@ auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream & {
 }
 
 auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream & {
-    static_cast<void>(out);
-    static_cast<void>(stm);
-    throw std::logic_error("implement me!!!");
+    Print{out}(stm);
+    return out;
 }
 
 auto to_string(Term const &term) -> std::string {

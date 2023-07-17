@@ -3,7 +3,6 @@ add_library(parsertest
     "src/input/term.cc"
     "src/input/literal.cc"
     "src/input/body_literal.cc"
-    "src/input/statement.cc"
     "src/input/algo/print.cc"
     "src/input/algo/rewrite_anonymous.cc" 
     "src/input/algo/check_type.cc"

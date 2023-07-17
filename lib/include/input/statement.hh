@@ -61,9 +61,9 @@ enum class TheoryOpType { unary, binary_left, binary_right };
 
 struct TheoryOpDefinition {
     explicit TheoryOpDefinition(std::string op, int prio, TheoryOpType type)
-        : op_{std::move(op)}, prio{prio}, type{type} {}
+        : op{std::move(op)}, prio{prio}, type{type} {}
 
-    std::string op_;
+    std::string op;
     int prio;
     TheoryOpType type;
 };
