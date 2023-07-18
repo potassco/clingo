@@ -1,78 +1,43 @@
 #pragma once
 
-#include <memory>
-#include <ostream>
+//! @file
+//! This file contains utilities for printing.
 
-#include <util/shared_ptr.hh>
+#include <ostream>
 
 namespace Gringo::Util {
 
-template <class T> struct p_elem {
-    p_elem(T const &elem) : elem(elem) {}
-    friend auto operator<<(std::ostream &out, p_elem const &elem) -> std::ostream & {
-        out << elem.elem;
-        return out;
-    }
-
-    T const &elem;
+//! An identity mapper used for printing.
+struct p_map {
+    //! Map the given object to itself.
+    auto operator()(auto const &x) -> auto const & { return x; }
 };
 
-template <class T> struct p_elem<std::unique_ptr<T>> {
-    p_elem(std::unique_ptr<T> const &elem) : elem(elem) {}
-    friend auto operator<<(std::ostream &out, p_elem const &elem) -> std::ostream & {
-        out << *elem.elem;
-        return out;
-    }
-
-    std::unique_ptr<T> const &elem;
-};
-
-template <class T> struct p_elem<shared_ptr<T>> {
-    p_elem(shared_ptr<T> const &elem) : elem(elem) {}
-    friend auto operator<<(std::ostream &out, p_elem const &elem) -> std::ostream & {
-        out << *elem.elem;
-        return out;
-    }
-
-    shared_ptr<T> const &elem;
-};
-
-template <class T> struct p_range {
-    p_range(T const &rng, char const *sep = ",") : rng(rng), sep(sep) {}
-    friend auto operator<<(std::ostream &out, p_range const &rng) -> std::ostream & {
+//! Wrapper for range with a separator and a mapper for printing.
+template <class T, class M = p_map> struct p_range : private M {
+    //! Print the range with the given separator.
+    p_range(T const &rng, char const *sep, M map = M{}) : M{std::move(map)}, rng_{rng}, sep_{sep} {}
+    //! Print the range with a comma separator.
+    p_range(T const &rng, M map = M{}) : M{std::move(map)}, rng_{rng}, sep_{","} {}
+    //! Output the range.
+    friend auto operator<<(std::ostream &out, p_range rng) -> std::ostream & {
         bool comma = false;
-        for (auto &elem : rng.rng) {
+        for (auto &elem : rng.rng_) {
             if (comma) {
-                out << rng.sep;
+                out << rng.sep_;
             }
             comma = true;
-            out << p_elem{elem};
+            out << static_cast<M &>(rng)(elem);
         }
         return out;
     }
-    T const &rng;
-    char const *sep;
+
+  private:
+    T const &rng_;
+    char const *sep_;
 };
 
-template <class T, class F> struct p_range_with {
-    p_range_with(T const &rng, char const *sep, F &&f) : rng(rng), f(std::forward<F>(f)), sep(sep) {}
-    p_range_with(T const &rng, F &&f) : p_range_with(rng, ",", std::forward<F>(f)) {}
-    friend auto operator<<(std::ostream &out, p_range_with const &rng) -> std::ostream & {
-        bool comma = false;
-        for (auto &elem : rng.rng) {
-            if (comma) {
-                out << rng.sep;
-            }
-            comma = true;
-            rng.f(out, elem);
-        }
-        return out;
-    }
-    T const &rng;
-    F f;
-    char const *sep;
-};
-
+//! Print a string in quotes escaping special characters.
 inline void print_quoted(std::ostream &out, std::string const &str) {
     // TODO: in principle there are the codepoints too...
     out << '"';
