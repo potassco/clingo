@@ -22,34 +22,34 @@ auto operator==(TermBinary const &a, TermBinary const &b) -> bool {
 
 } // namespace Gringo::Input
 
-namespace std {
+namespace Gringo::Util {
 
-auto hash<Gringo::Input::TermVariable>::operator()(Gringo::Input::TermVariable const &x) const -> size_t {
+auto value_hasher<Gringo::Input::TermVariable>::operator()(Gringo::Input::TermVariable const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermVariable), x.name);
 }
 
-auto hash<Gringo::Input::TermSymbol>::operator()(Gringo::Input::TermSymbol const &x) const -> size_t {
+auto value_hasher<Gringo::Input::TermSymbol>::operator()(Gringo::Input::TermSymbol const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermSymbol), x.value);
 }
 
-auto hash<Gringo::Input::TermTuple>::operator()(Gringo::Input::TermTuple const &x) const -> size_t {
+auto value_hasher<Gringo::Input::TermTuple>::operator()(Gringo::Input::TermTuple const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermTuple), x.pool);
 }
 
-auto hash<Gringo::Input::TermFunction>::operator()(Gringo::Input::TermFunction const &x) const -> size_t {
+auto value_hasher<Gringo::Input::TermFunction>::operator()(Gringo::Input::TermFunction const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermFunction), x.name, x.pool, x.external);
 }
 
-auto hash<Gringo::Input::TermAbs>::operator()(Gringo::Input::TermAbs const &x) const -> size_t {
+auto value_hasher<Gringo::Input::TermAbs>::operator()(Gringo::Input::TermAbs const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermAbs), x.pool);
 }
 
-auto hash<Gringo::Input::TermUnary>::operator()(Gringo::Input::TermUnary const &x) const -> size_t {
+auto value_hasher<Gringo::Input::TermUnary>::operator()(Gringo::Input::TermUnary const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermUnary), x.op, x.rhs);
 }
 
-auto hash<Gringo::Input::TermBinary>::operator()(Gringo::Input::TermBinary const &x) const -> size_t {
+auto value_hasher<Gringo::Input::TermBinary>::operator()(Gringo::Input::TermBinary const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermBinary), x.op, x.lhs, x.rhs);
 }
 
-} // namespace std
+} // namespace Gringo::Util

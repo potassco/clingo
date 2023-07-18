@@ -1,5 +1,8 @@
 #pragma once
 
+//! @file
+//! This file contains utilities for equality comparision and hashes.
+
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -14,185 +17,167 @@
 
 namespace Gringo::Util {
 
-#define HASH(T)                                                                                                        \
-    namespace std {                                                                                                    \
-                                                                                                                       \
-    template <> struct hash<T> {                                                                                       \
-        auto operator()(T const &x) const { return x.hash(); }                                                         \
-    };                                                                                                                 \
-                                                                                                                       \
-    } // namespace std
-
 #define HASH_PROTO(T)                                                                                                  \
-    namespace std {                                                                                                    \
+    namespace Gringo::Util {                                                                                           \
                                                                                                                        \
-    template <> struct hash<T> {                                                                                       \
+    template <> struct value_hasher<T> {                                                                               \
         auto operator()(T const &x) const -> size_t;                                                                   \
     };                                                                                                                 \
-                                                                                                                       \
-    } // namespace std
-
-// interface
-
-template <class A, class B> auto value_equal(A const &a, B const &b);
-template <class A, class B> auto value_equal(A const *a, B const *b);
-template <class A, class B> auto value_equal(std::optional<A> const &a, std::optional<B> const &b);
-template <class A, class B> auto value_equal(std::unique_ptr<A> const &a, std::unique_ptr<B> const &b);
-template <class A, class B> auto value_equal(shared_ptr<A> const &a, shared_ptr<B> const &b);
-template <class A, class B, class C, class D> auto value_equal(std::pair<A, B> const &a, std::pair<C, D> const &b);
-template <class... A> auto value_equal(std::tuple<A...> const &a, std::tuple<A...> const &b);
-template <class... A> auto value_equal(std::variant<A...> const &a, std::variant<A...> const &b);
-template <class A, class B> auto value_equal(std::vector<A> const &a, std::vector<B> const &b);
-inline auto value_equal();
-template <class A, class B, class... Args> auto value_equal(A const &a, B const &b, Args const &...args);
-
-inline auto hash_combine(size_t a, size_t b) -> size_t;
-inline auto hash_combine(std::initializer_list<size_t> list) -> size_t;
-
-template <class T> inline auto value_hash(T const &value) -> size_t;
-inline auto value_hash(std::type_info const &value) -> size_t;
-template <class T> inline auto value_hash(T const *value) -> size_t;
-template <class T> inline auto value_hash(std::unique_ptr<T> const &value) -> size_t;
-template <class T> inline auto value_hash(shared_ptr<T> const &value) -> size_t;
-template <class A, class B> inline auto value_hash(std::pair<A, B> const &value) -> size_t;
-template <class... T> inline auto value_hash(std::tuple<T...> const &value) -> size_t;
-template <class... T> inline auto value_hash(std::variant<T...> const &value) -> size_t;
-template <class T> inline auto value_hash(std::vector<T> const &value) -> size_t;
-template <class T, class U, class... Args>
-inline auto value_hash(T const &a, U const &b, Args const &...value) -> size_t;
-
-struct value_equal_to {
-    template <class A, class B> auto operator()(A const &a, B const &b) const -> size_t;
-};
-
-struct value_hasher {
-    template <class T> auto operator()(T const &value) const -> size_t;
-};
-
-// implementation
-
-template <class A, class B> auto value_equal(A const &a, B const &b) { return a == b; }
-
-template <class A, class B> auto value_equal(A const *a, B const *b) { return *a == *b; }
-
-template <class A, class B> auto value_equal(std::optional<A> const &a, std::optional<B> const &b) {
-    if (a.has_value() && b.has_value()) {
-        return value_equal(a.value(), b.value());
     }
-    return !a.has_value() && !b.has_value();
-}
 
-template <class A, class B> auto value_equal(std::unique_ptr<A> const &a, std::unique_ptr<B> const &b) {
-    return *a == *b;
-}
+//! Compare by value with support for pointers, optionals, pairs, tuples, variants, and vectors.
+template <class T = std::equal_to<>> struct value_equal_to : public T {
+    using T::operator();
 
-template <class A, class B> auto value_equal(shared_ptr<A> const &a, shared_ptr<B> const &b) {
-    return value_equal(*a, *b);
-}
+    template <class A, class B> auto operator()(A const *a, B const *b) const { return operator()(*a, *b); }
 
-template <class A, class B, class C, class D> auto value_equal(std::pair<A, B> const &a, std::pair<C, D> const &b) {
-    return value_equal(a.first, b.first) && value_equal(a.second, b.second);
-}
+    template <class A, class B> auto operator()(std::optional<A> const &a, std::optional<B> const &b) const {
+        if (a.has_value() && b.has_value()) {
+            return operator()(a.value(), b.value());
+        }
+        return !a.has_value() && !b.has_value();
+    }
 
-namespace Detail {
+    template <class A, class B> auto operator()(std::unique_ptr<A> const &a, std::unique_ptr<B> const &b) const {
+        return operator()(*a, *b);
+    }
 
-template <class... T, size_t... Indices>
-inline auto value_equal_to_tuple(std::tuple<T...> const &a, std::tuple<T...> const &b,
-                                 std::index_sequence<Indices...> indices) -> bool {
-    static_cast<void>(indices);
-    return (true && ... && value_equal(std::get<Indices>(a), std::get<Indices>(b)));
-}
+    template <class A, class B> auto operator()(shared_ptr<A> const &a, shared_ptr<B> const &b) const {
+        return operator()(*a, *b);
+    }
 
-template <class... T, size_t... Indices>
-inline auto value_equal_to_variant(std::variant<T...> const &a, std::variant<T...> const &b,
-                                   std::index_sequence<Indices...> indices) -> bool {
-    static_cast<void>(indices);
-    return (false || ... ||
-            (a.index() == Indices && b.index() == Indices && value_equal(std::get<Indices>(a), std::get<Indices>(b))));
-}
+    template <class A, class B, class C, class D>
+    auto operator()(std::pair<A, B> const &a, std::pair<C, D> const &b) const {
+        return operator()(a.first, b.first) && operator()(a.second, b.second);
+    }
 
-} // namespace Detail
+    template <class... A> auto operator()(std::tuple<A...> const &a, std::tuple<A...> const &b) const {
+        return value_equal_to_tuple(a, b, std::index_sequence_for<A...>{});
+    }
 
-template <class... A> auto value_equal(std::tuple<A...> const &a, std::tuple<A...> const &b) {
-    return Detail::value_equal_to_tuple(a, b, std::index_sequence_for<A...>{});
-}
+    template <class... A> auto operator()(std::variant<A...> const &a, std::variant<A...> const &b) const {
+        return value_equal_to_variant(a, b, std::index_sequence_for<A...>{});
+    }
 
-template <class... A> auto value_equal(std::variant<A...> const &a, std::variant<A...> const &b) {
-    return Detail::value_equal_to_variant(a, b, std::index_sequence_for<A...>{});
-}
+    template <class A, class B> auto operator()(std::vector<A> const &a, std::vector<B> const &b) const {
+        return std::equal(a.begin(), a.end(), b.begin(), b.end(),
+                          [this](auto const &a, auto const &b) { return this->operator()(a, b); });
+    }
 
-template <class A, class B> auto value_equal(std::vector<A> const &a, std::vector<B> const &b) {
-    return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-                      [](auto const &a, auto const &b) { return value_equal(a, b); });
-}
+  private:
+    template <class... A, size_t... Indices>
+    inline auto value_equal_to_tuple(std::tuple<A...> const &a, std::tuple<A...> const &b,
+                                     std::index_sequence<Indices...> indices) const -> bool {
+        static_cast<void>(indices);
+        return (true && ... && operator()(std::get<Indices>(a), std::get<Indices>(b)));
+    }
+
+    template <class... A, size_t... Indices>
+    inline auto value_equal_to_variant(std::variant<A...> const &a, std::variant<A...> const &b,
+                                       std::index_sequence<Indices...> indices) const -> bool {
+        static_cast<void>(indices);
+        return (
+            false || ... ||
+            (a.index() == Indices && b.index() == Indices && operator()(std::get<Indices>(a), std::get<Indices>(b))));
+    }
+};
 
 inline auto value_equal() { return true; }
 
+//! Check whether all argument pairs are value equal.
 template <class A, class B, class... Args> auto value_equal(A const &a, B const &b, Args const &...args) {
-    return value_equal(a, b) && value_equal(args...);
+    return value_equal_to{}(a, b) && value_equal(args...);
 }
 
-inline auto hash_combine(size_t a, size_t b) -> size_t {
-    std::array<char, 2 * sizeof(size_t)> buf;
-    std::memcpy(buf.data(), &a, sizeof(a));
-    std::memcpy(buf.data() + sizeof(a), &b, sizeof(b));
-    return std::hash<std::string_view>{}(std::string_view(buf.begin(), buf.end()));
-}
-
+//! Combine the given seeds.
 inline auto hash_combine(std::initializer_list<size_t> list) -> size_t {
     return std::hash<std::string_view>{}(
         std::string_view(reinterpret_cast<char const *>(list.begin()), sizeof(size_t) * list.size()));
 }
 
-template <class T> inline auto value_hash(T const &value) -> size_t { return std::hash<T>{}(value); }
+//! Combine the given seeds.
+template <class... Args> inline auto hash_combine(Args... args) -> size_t { return hash_combine({args...}); }
 
-inline auto value_hash(std::type_info const &value) -> size_t { return value.hash_code(); }
+//! Perturb the given seed.
+inline auto hash_mix(size_t a) -> size_t { return hash_combine({a}); }
 
-template <class T> inline auto value_hash(T const *value) -> size_t { return value_hash(*value); }
+//! Perturb the given seed.
+template <class T> struct value_hasher : std::hash<T> {
+    using std::hash<T>::operator();
+};
 
-template <class T> inline auto value_hash(std::unique_ptr<T> const &value) -> size_t { return value_hash(*value); }
+//! Compute a hash for pointers, optionals, pairs, tuples, variants, and vectors.
+template <> struct value_hasher<std::type_info> {
+    auto operator()(std::type_info const &value) const -> size_t { return hash_mix(value.hash_code()); }
+};
 
-template <class T> inline auto value_hash(shared_ptr<T> const &value) -> size_t { return value_hash(*value); }
+template <class T> struct value_hasher<std::enable_if<std::is_arithmetic_v<T> || std::is_enum_v<T>, T>> {
+    auto operator()(T value) const -> size_t { return hash_mix(std::hash<T>{}(value)); }
+};
 
-template <class A, class B> inline auto value_hash(std::pair<A, B> const &value) -> size_t {
-    return value_hash(value.first, value.second);
-}
-
-namespace Detail {
-
-template <class... T, size_t... Indices>
-inline auto value_hash_tuple(std::tuple<T...> const &value, std::index_sequence<Indices...> indices) -> size_t {
-    static_cast<void>(indices);
-    return value_hash(std::get<Indices>(value)...);
-}
-
-} // namespace Detail
-
-template <class... T> inline auto value_hash(std::tuple<T...> const &value) -> size_t {
-    return Detail::value_hash_tuple(value, std::index_sequence_for<T...>{});
-}
-
-template <class... T> inline auto value_hash(std::variant<T...> const &value) -> size_t {
-    return std::visit([](auto &&arg) { return value_hash(arg); }, value);
-}
-
-template <class T> inline auto value_hash(std::vector<T> const &value) -> size_t {
-    size_t hash = 0;
-    for (auto const &elem : value) {
-        hash = hash_combine(hash, value_hash(elem));
+template <class T> struct value_hasher<T const *> {
+    auto operator()(T const *value) const -> size_t {
+        return hash_combine(typeid(T *).hash_code(), value_hasher<T>{}(value));
     }
-    return hash;
-}
+};
 
-template <class T, class U, class... Args>
-inline auto value_hash(T const &a, U const &b, Args const &...value) -> size_t {
-    return hash_combine(value_hash(a), value_hash(b, value...));
-}
+template <class T> struct value_hasher<std::unique_ptr<T>> {
+    auto operator()(std::unique_ptr<T> const &value) const -> size_t {
+        return hash_combine(typeid(std::unique_ptr<T>).hash_code(), value_hasher<T>{}(*value));
+    }
+};
 
-template <class A, class B> auto value_equal_to::operator()(A const &a, B const &b) const -> size_t {
-    return value_equal(a, b);
-}
+template <class T> struct value_hasher<shared_ptr<T>> {
+    auto operator()(shared_ptr<T> const &value) const -> size_t {
+        return hash_combine(typeid(shared_ptr<T>).hash_code(), value_hasher<T>{}(*value));
+    }
+};
 
-template <class T> auto value_hasher::operator()(T const &value) const -> size_t { return value_hash(value); }
+template <class T, class U> struct value_hasher<std::pair<T, U>> {
+    auto operator()(std::pair<T, U> const &value) const -> size_t {
+        return hash_combine(
+            {typeid(std::pair<T, U>).hash_code(), value_hasher<T>{}(value.first), value_hasher<U>{}(value.second)});
+    }
+};
+
+template <class... T> struct value_hasher<std::tuple<T...>> {
+    auto operator()(std::tuple<T...> const &value) const -> size_t {
+        return value_hash_tuple(value, std::index_sequence_for<T...>{});
+    }
+
+  private:
+    template <size_t... Indices>
+    inline auto value_hash_tuple(std::tuple<T...> const &value, std::index_sequence<Indices...> indices) const
+        -> size_t {
+        static_cast<void>(indices);
+        return hash_combine({typeid(std::tuple<T...>).hash_code(), value_hasher<T>{}(std::get<Indices>(value))...});
+    }
+};
+
+template <class... T> struct value_hasher<std::variant<T...>> {
+    auto operator()(std::variant<T...> const &value) const -> size_t {
+        return std::visit(
+            [](auto &&arg) {
+                using U = std::decay_t<decltype(arg)>;
+                return hash_combine({typeid(std::variant<T...>).hash_code(), value_hasher<U>{}(arg)});
+            },
+            value);
+    }
+};
+
+template <class T> struct value_hasher<std::vector<T>> {
+    auto operator()(std::vector<T> const &value) const -> size_t {
+        size_t hash = typeid(std::vector<T>).hash_code();
+        for (auto const &elem : value) {
+            hash = hash_combine({hash, value_hasher<T>{}(elem)});
+        }
+        return hash;
+    }
+};
+
+//! Compute and combine the hashes for the given values.
+template <class... Args> inline auto value_hash(Args const &...value) -> size_t {
+    return hash_combine(value_hasher<Args>{}(value)...);
+}
 
 } // namespace Gringo::Util

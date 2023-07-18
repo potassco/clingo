@@ -65,18 +65,18 @@ void add_sign(Literal &lit, Sign sign) { std::visit(AddSign{sign}, lit); }
 
 } // namespace Gringo::Input
 
-namespace std {
+namespace Gringo::Util {
 
-auto hash<Gringo::Input::LiteralBoolean>::operator()(Gringo::Input::LiteralBoolean const &x) const -> size_t {
+auto value_hasher<Gringo::Input::LiteralBoolean>::operator()(Gringo::Input::LiteralBoolean const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermVariable), x.sign, x.value);
 }
 
-auto hash<Gringo::Input::LiteralRelation>::operator()(Gringo::Input::LiteralRelation const &x) const -> size_t {
+auto value_hasher<Gringo::Input::LiteralRelation>::operator()(Gringo::Input::LiteralRelation const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermSymbol), x.sign, x.lhs, x.rhs);
 }
 
-auto hash<Gringo::Input::LiteralSymbolic>::operator()(Gringo::Input::LiteralSymbolic const &x) const -> size_t {
+auto value_hasher<Gringo::Input::LiteralSymbolic>::operator()(Gringo::Input::LiteralSymbolic const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermTuple), x.sign, x.term);
 }
 
-} // namespace std
+} // namespace Gringo::Util

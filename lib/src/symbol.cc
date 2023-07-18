@@ -18,21 +18,11 @@ auto operator<<(std::ostream &out, Constant op) -> std::ostream & {
     return out;
 }
 
-auto QuotedString::hash() const -> size_t { return std::hash<std::string>{}(value); }
-
 auto operator==(QuotedString const &a, QuotedString const &b) -> bool { return a.value == b.value; }
 
 auto operator<<(std::ostream &out, QuotedString const &sym) -> std::ostream & {
     Util::print_quoted(out, sym.value);
     return out;
-}
-
-auto Function::hash() const -> size_t {
-    auto hash = Util::hash_combine(std::hash<bool>{}(has_sign), std::hash<std::string>{}(name));
-    for (auto const &value : args) {
-        hash = Util::hash_combine(hash, std::hash<Symbol>{}(value));
-    }
-    return hash;
 }
 
 auto operator==(Function const &a, Function const &b) -> bool {
@@ -76,6 +66,14 @@ auto has_sign(Constant cst) -> bool {
 
 auto has_sign(Symbol const &sym) -> bool {
     return std::visit([](auto &&symbol) { return has_sign(symbol); }, sym);
+}
+
+auto Util::value_hasher<QuotedString>::operator()(QuotedString const &x) const -> size_t {
+    return Util::value_hash(x.value);
+}
+
+auto Util::value_hasher<Function>::operator()(Function const &x) const -> size_t {
+    return Util::value_hash(x.has_sign, x.name, x.args);
 }
 
 } // namespace Gringo
