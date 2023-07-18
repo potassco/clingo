@@ -7,14 +7,29 @@ namespace Gringo::Input {
 
 namespace {
 
-struct RewriteAnonymous {
+struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     RewriteAnonymous(NameGen &gen) : gen{gen} {}
 
-    [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
+    // ignore
+
+    auto operator()(std::monostate const &x) const -> std::optional<std::monostate> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
+    auto operator()(std::string const &x) const -> std::optional<std::string> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
+    template <class T> auto operator()(T const &x) const -> std::enable_if_t<std::is_enum_v<T>, std::optional<T>> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
 
     // term
 
-    auto operator()(Term const &term) const { return std::visit(*this, term); }
+    auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
 
     auto operator()(TermSymbol const &term) const -> std::optional<Term> {
         static_cast<void>(term);
@@ -173,78 +188,6 @@ struct RewriteAnonymous {
 
     NameGen &gen;
 };
-
-/*
-struct RewriteAnonymousOld {
-    auto operator()(Term const &term) const { return rewrite_anonymous(term, gen); }
-    auto operator()(TheoryTerm const &term) const { return rewrite_anonymous(term, gen); }
-    auto operator()(Literal const &lit) const { return rewrite_anonymous(lit, gen); }
-    auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return rewrite_anonymous(lit, gen); };
-    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return rewrite_anonymous(lit, gen); };
-    NameGen &gen;
-};
-
-class StatementRewriter : public StatementVisitor {
-  public:
-    StatementRewriter(NameGen &gen, std::optional<SStatement> &result) : gen_{gen}, result_{result} {}
-
-    [[nodiscard]] auto tra(auto const &x) const { return Trans(x, RewriteAnonymousOld{gen_}); }
-
-    void visit(Rule const &stm) const override {
-        result_ = transform_construct_shared<Rule, Statement>(tra(stm.head()), tra(stm.body()));
-    }
-
-    void visit(TheoryDefinition const &stm) const override { static_cast<void>(stm); }
-
-    void visit(StatementOptimize const &stm) const override {
-        result_ = transform_construct_shared<StatementOptimize, Statement>(stm.type(), tra(stm.elements()));
-    }
-
-    void visit(StatementWeakConstraint const &stm) const override {
-        result_ = transform_construct_shared<StatementWeakConstraint, Statement>(tra(stm.body()), tra(stm.tuple()));
-    }
-
-    void visit(StatementShow const &stm) const override {
-        result_ = transform_construct_shared<StatementShow, Statement>(tra(stm.term()), tra(stm.body()));
-    }
-
-    void visit(StatementShowSig const &stm) const override { static_cast<void>(stm); }
-
-    void visit(StatementProject const &stm) const override {
-        result_ = transform_construct_shared<StatementProject, Statement>(tra(stm.term()), tra(stm.body()));
-    }
-
-    void visit(StatementProjectSig const &stm) const override { static_cast<void>(stm); }
-
-    void visit(StatementDefined const &stm) const override { static_cast<void>(stm); }
-
-    void visit(StatementExternal const &stm) const override {
-        result_ =
-            transform_construct_shared<StatementExternal, Statement>(tra(stm.term()), tra(stm.body()), tra(stm.type()));
-    }
-
-    void visit(StatementEdge const &stm) const override {
-        result_ = transform_construct_shared<StatementEdge, Statement>(tra(stm.edges()), tra(stm.body()));
-    }
-
-    void visit(StatementHeuristic const &stm) const override {
-        result_ = transform_construct_shared<StatementHeuristic, Statement>(
-            tra(stm.atom()), tra(stm.body()), tra(stm.type()), tra(stm.priority()), tra(stm.modifier()));
-    }
-
-    void visit(StatementScript const &stm) const override { static_cast<void>(stm); }
-
-    void visit(StatementInclude const &stm) const override { static_cast<void>(stm); }
-
-    void visit(StatementProgram const &stm) const override { static_cast<void>(stm); }
-
-    void visit(StatementConst const &stm) const override { static_cast<void>(stm); }
-
-  private:
-    NameGen &gen_;
-    std::optional<SStatement> &result_;
-};
-*/
 
 } // namespace
 

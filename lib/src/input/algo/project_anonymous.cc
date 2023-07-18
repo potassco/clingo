@@ -15,9 +15,19 @@ auto is_anonymous(Term const *term) -> bool {
     return var != nullptr && var->is_anonymous;
 }
 
-struct ProjectAnonymous {
+struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
-    [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
+    // ignore
+
+    auto operator()(std::string const &x) const -> std::optional<std::string> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
+    template <class T> auto operator()(T const &x) const -> std::enable_if_t<std::is_enum_v<T>, std::optional<T>> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
 
     // term
 
@@ -72,6 +82,13 @@ struct ProjectAnonymous {
     }
 
     auto operator()(TermBinary const &term) const -> std::optional<Term> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+
+    // theory term
+
+    auto operator()(TheoryTerm const &term) const -> std::optional<TheoryTerm> {
         static_cast<void>(term);
         return std::nullopt;
     }
@@ -178,6 +195,10 @@ struct ProjectAnonymous {
     auto operator()(TheoryDefinition const &stm) const -> std::optional<Statement> {
         static_cast<void>(stm);
         return std::nullopt;
+    }
+
+    auto operator()(StatementOptimize::Element const &elem) const -> std::optional<StatementOptimize::Element> {
+        return transform_construct<StatementOptimize::Element>(elem.first, tr(elem.second));
     }
 
     auto operator()(StatementOptimize const &stm) const -> std::optional<Statement> {

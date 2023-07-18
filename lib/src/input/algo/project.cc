@@ -27,15 +27,28 @@ auto get_counts(Projection project, auto const &elem) {
     return counts;
 }
 
-struct Project {
+struct Project : Transformer<Project> {
 
-    [[nodiscard]] auto tr(auto const &x) const { return Trans(x, *this); }
+    Project(Projection project, bool in_classical_scope = true, bool project_lits = true)
+        : project{std::move(project)}, in_classical_scope{in_classical_scope}, project_lits{project_lits} {}
+
+    // ignore
+
+    auto operator()(std::string const &x) const -> std::optional<std::string> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
+    template <class T> auto operator()(T const &x) const -> std::enable_if_t<std::is_enum_v<T>, std::optional<T>> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
 
     // term
 
     auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
 
-    auto operator()(std::monostate x) const -> std::optional<Term> {
+    auto operator()(std::monostate const &x) const -> std::optional<Term> {
         static_cast<void>(x);
         return std::nullopt;
     }
@@ -118,7 +131,7 @@ struct Project {
         // project conclusion
         std::optional<LiteralVec> projected_lits = std::nullopt;
         if (project_lits) {
-            projected_lits = transform(*this, lits);
+            projected_lits = transform(lits);
         }
         // project premise
         std::optional<LiteralVec> projected_cond = std::nullopt;
@@ -130,7 +143,7 @@ struct Project {
             // Note that there can be no global variables with just one
             // occurrence in a condition. However, we can project local
             // variables.
-            projected_cond = transform(sub_project, cond);
+            projected_cond = sub_project.transform(cond);
         }
         if (projected_lits.has_value() || projected_cond.has_value()) {
             return ConditionalLiteral{std::move(projected_lits).value_or(lits),
@@ -147,7 +160,7 @@ struct Project {
         auto sub_project = Project{Projection{project.mode(), counts}};
 
         // project literals in condition
-        return transform_construct<SetAggregate::Element>(elem.lit, sub_project.tr(elem.cond));
+        return sub_project.transform_construct<SetAggregate::Element>(elem.lit, tr(elem.cond));
     }
 
     auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
@@ -165,7 +178,7 @@ struct Project {
         // Note when to project:
         // - variables in conditions (almost body literals)
         auto sub_project = Project{project, true, false};
-        return transform_construct<Disjunction>(sub_project.tr(lit.elems));
+        return sub_project.transform_construct<Disjunction>(tr(lit.elems));
     }
 
     auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
@@ -179,7 +192,7 @@ struct Project {
         auto sub_project = Project{Projection{project.mode(), counts}};
 
         // project literals in condition
-        return transform_construct<HeadAggregate::Element>(elem.tuple, elem.lit, sub_project.tr(elem.cond));
+        return sub_project.transform_construct<HeadAggregate::Element>(elem.tuple, elem.lit, tr(elem.cond));
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
@@ -190,8 +203,8 @@ struct Project {
         // Note that we can always project in conditions. Semantic-wise a head
         // aggregate is a shortcut for a choice rule + a body aggregate in an
         // integrity constraint.
-        auto sub_project = Project{project, true};
-        return transform_construct<HeadSetAggregate>(sub_project.tr(lit.aggr));
+        auto sub_project = Project{project, true, true};
+        return sub_project.transform_construct<HeadSetAggregate>(tr(lit.aggr));
     }
 
     // body literal
@@ -203,7 +216,7 @@ struct Project {
         // - variables in premise if in classical scope,
         // - varibales in conclusion.
         auto sub_project = Project{project, in_classical_scope, true};
-        return transform_construct<Conjunction>(sub_project.tr(lit.elems));
+        return sub_project.transform_construct<Conjunction>(tr(lit.elems));
     }
 
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
@@ -212,7 +225,7 @@ struct Project {
         auto sub_project = Project{Projection{project.mode(), counts}};
 
         // project literals in condition
-        return transform_construct<BodyAggregate::Element>(elem.tuple, sub_project.tr(elem.cond));
+        return sub_project.transform_construct<BodyAggregate::Element>(elem.tuple, tr(elem.cond));
     }
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
@@ -224,7 +237,7 @@ struct Project {
 
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
         auto sub_project = Project{project, in_classical_scope || lit.sign != Sign::none};
-        return transform_construct<BodySetAggregate>(lit.sign, sub_project.tr(lit.aggr));
+        return sub_project.transform_construct<BodySetAggregate>(lit.sign, tr(lit.aggr));
     }
 
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
@@ -248,7 +261,11 @@ struct Project {
         }
         bool in_classical_scope = is_classical(stm.head);
         auto sub_project = Project{project, in_classical_scope};
-        return transform_construct<Rule>(tr(stm.head), sub_project.tr(stm.body));
+        // Note that it would be nicest to be able to have to different
+        // translators for head and body because the scope setting would
+        // ideally just apply to the body. In the current implementation, the
+        // head literals simply set the scope themselves.
+        return sub_project.transform_construct<Rule>(tr(stm.head), tr(stm.body));
     }
 
     auto operator()(TheoryDefinition const &stm) const -> std::optional<Statement> {
@@ -259,7 +276,7 @@ struct Project {
     auto operator()(StatementOptimize::Element const &elem) const -> std::optional<StatementOptimize::Element> {
         auto counts = get_counts(project, elem);
         auto sub_project = Project{Projection{project.mode(), counts}};
-        return transform_construct<StatementOptimize::Element>(elem.first, sub_project.tr(elem.second));
+        return sub_project.transform_construct<StatementOptimize::Element>(elem.first, tr(elem.second));
     }
 
     auto operator()(StatementOptimize const &stm) const -> std::optional<Statement> {
@@ -326,8 +343,8 @@ struct Project {
     }
 
     Projection project;
-    bool in_classical_scope = true;
-    bool project_lits = true;
+    bool in_classical_scope;
+    bool project_lits;
 };
 
 } // namespace
