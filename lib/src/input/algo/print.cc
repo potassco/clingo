@@ -333,10 +333,12 @@ struct Print {
 
     void operator()(TermVariable const &term) const { out << term.name; }
 
-    void operator()(TupleElem const &elem) const {
-        Util::visit_variant(
-            elem, [this](std::monostate) { out << "*"; }, [&](Term const &term) { std::visit(*this, term); });
+    void operator()(std::monostate const &x) const {
+        static_cast<void>(x);
+        out << "*";
     }
+
+    void operator()(TupleElem const &elem) const { std::visit(*this, elem); }
 
     void operator()(TermTuple const &term) const {
         auto const &pool = term.pool;
@@ -345,14 +347,19 @@ struct Print {
         } else {
             out << "(";
             Print{out}.apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
-                Util::visit_variant(
-                    term_or_tuple, [this](Term const &term) { std::visit(*this, term); },
-                    [this](TupleVec const &tuple) {
-                        apply_to_range(tuple);
-                        if (tuple.size() == 1) {
-                            out << ",";
+                std::visit(
+                    [this](auto const &x) {
+                        if constexpr (GRINGO_IS_OF_TYPE(x, Term)) {
+                            operator()(x);
                         }
-                    });
+                        if constexpr (GRINGO_IS_OF_TYPE(x, TupleVec)) {
+                            apply_to_range(x);
+                            if (x.size() == 1) {
+                                out << ",";
+                            }
+                        }
+                    },
+                    term_or_tuple);
             });
             out << ")";
         }

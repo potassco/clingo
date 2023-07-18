@@ -1,5 +1,8 @@
 #pragma once
 
+//! @file
+//! This file contains utilities for working with variants, optionals, and vectors.
+
 #include <functional>
 #include <optional>
 #include <variant>
@@ -9,25 +12,19 @@ namespace Gringo::Util {
 
 namespace Detail {
 
-template <class T> struct is_opt_ : std::false_type {};
-template <class T> struct is_opt_<std::optional<T>> : std::true_type {};
-
-template <class T> constexpr bool is_opt_v = is_opt_<std::remove_cvref_t<T>>::value;
-
 template <class T, class M>
 using opt_ret_t = decltype(std::make_optional(std::declval<M>()(std::forward<T>(std::declval<T>()).value())));
 
-template <class T> struct is_opt_vec_ : std::false_type {};
-template <class T> struct is_opt_vec_<std::optional<std::vector<T>>> : std::true_type {};
-
-template <class T> constexpr bool is_opt_vec_v = is_opt_vec_<std::remove_cvref_t<T>>::value;
+template <class T, class M>
+using and_then_opt_ret_t = std::invoke_result_t<M, decltype(std::forward<T>(std::declval<T>()).value())>;
 
 template <class T, class M>
-using opt_vec_ret_t =
-    std::optional<std::vector<std::decay_t<decltype(std::declval<M>()(std::move(std::declval<T>().value().front())))>>>;
+using opt_vec_ret_t = std::optional<
+    std::vector<std::decay_t<std::invoke_result_t<M, decltype(std::move(std::declval<T>().value().front()))>>>>;
 
 } // namespace Detail
 
+//! Return a vector with the first n elements from the given one.
 auto copy_n(auto const &vec, size_t n) {
     std::decay_t<decltype(vec)> ret;
     ret.reserve(vec.size());
@@ -37,25 +34,25 @@ auto copy_n(auto const &vec, size_t n) {
     return ret;
 }
 
-template <class T, class M>
-auto map_opt(T &&opt, M &&map) -> std::enable_if_t<Detail::is_opt_v<T>, Detail::opt_ret_t<T, M>> {
+//! Map the value in the optional with the given predicate.
+template <class T, class M> auto map_opt(T &&opt, M &&map) -> Detail::opt_ret_t<T, M> {
     if (opt.has_value()) {
         return std::make_optional(std::invoke(std::forward<M>(map), std::forward<T>(opt).value()));
     }
     return std::nullopt;
 }
 
-template <class T, class M>
-auto and_then_opt(T &&opt, M &&map) -> decltype(std::invoke(std::forward<M>(map), std::forward<T>(opt).value())) {
+//! Similar to map_opt() but the predicate can fail by returning an optional.
+template <class T, class M> auto and_then_opt(T &&opt, M &&map) -> Detail::and_then_opt_ret_t<T, M> {
     if (opt.has_value()) {
         return std::invoke(std::forward<M>(map), std::forward<T>(opt).value());
     }
     return std::nullopt;
 }
 
-template <class T, class M>
-auto map_opt_vec(T &&vec, M &&map) -> std::enable_if_t<Detail::is_opt_vec_v<T>, Detail::opt_vec_ret_t<T, M>> {
-    return map_opt(std::move(vec), [&map](auto &&vec) {
+//! Map the given predicate over an optional vector.
+template <class T, class M> auto map_opt_vec(T &&vec, M &&map) -> Detail::opt_vec_ret_t<T, M> {
+    return map_opt(std::forward<T>(vec), [&map](auto &&vec) {
         typename Detail::opt_vec_ret_t<T, M>::value_type ret;
         ret.reserve(vec.size());
         for (auto &&elem : vec) {
@@ -79,17 +76,7 @@ template <class T, class... Ts> auto make_vec(Ts &&...args) {
     return res;
 }
 
-//! Helper to overload lambdas.
-template <class... Ts> struct overloaded : Ts... {
-    using Ts::operator()...;
-};
-
-//! Deduction guide.
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-//! Visit a single variant with the given functions.
-template <class V, class... Fs> auto visit_variant(V &&v, Fs &&...fs) {
-    return std::visit(overloaded{std::forward<Fs>(fs)...}, std::forward<V>(v));
-}
+//! Helper template to ease using std::visit.
+#define GRINGO_IS_OF_TYPE(x, T) std::is_same_v<std::decay_t<decltype(x)>, T>
 
 } // namespace Gringo::Util

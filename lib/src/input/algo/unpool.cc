@@ -37,28 +37,31 @@ struct Unpool {
     }
 
     auto operator()(TupleElem const &elem) const -> std::optional<TupleVec> {
-        return Util::visit_variant(
-            elem,
-            [this](Term const &term) -> std::optional<TupleVec> {
-                return Util::map_opt_vec(operator()(term), [](auto term) { return TupleElem{std::move(term)}; });
+        return std::visit(
+            [this](auto const &x) -> std::optional<TupleVec> {
+                if constexpr (GRINGO_IS_OF_TYPE(x, Term)) {
+                    return Util::map_opt_vec(operator()(x), [](auto term) { return TupleElem{std::move(term)}; });
+                }
+                if constexpr (GRINGO_IS_OF_TYPE(x, std::monostate)) {
+                    return std::nullopt;
+                }
             },
-            [](std::monostate x) -> std::optional<TupleVec> {
-                static_cast<void>(x);
-                return std::nullopt;
-            });
+            elem);
     }
 
     auto operator()(TermTuple::Element const &tuple_or_term) const -> std::optional<TermTuple::ElementVec> {
-        return Util::visit_variant(
-            tuple_or_term,
-            [this](Term const &term) -> std::optional<TermTuple::ElementVec> {
-                return Util::map_opt_vec(operator()(term),
-                                         [](auto term) { return TermTuple::Element{std::move(term)}; });
+        return std::visit(
+            [this](auto const &x) -> std::optional<TermTuple::ElementVec> {
+                if constexpr (GRINGO_IS_OF_TYPE(x, Term)) {
+                    return Util::map_opt_vec(operator()(x),
+                                             [](auto term) { return TermTuple::Element{std::move(term)}; });
+                }
+                if constexpr (GRINGO_IS_OF_TYPE(x, TupleVec)) {
+                    return Util::map_opt_vec(unpool_crossproduct(x, *this),
+                                             [](auto tuple) { return TermTuple::Element{std::move(tuple)}; });
+                }
             },
-            [this](TupleVec const &tuple) -> std::optional<TermTuple::ElementVec> {
-                return Util::map_opt_vec(unpool_crossproduct(tuple, *this),
-                                         [](auto tuple) { return TermTuple::Element{std::move(tuple)}; });
-            });
+            tuple_or_term);
     }
 
     auto operator()(TermTuple const &term) const -> std::optional<TermVec> {
@@ -70,9 +73,16 @@ struct Unpool {
             elems = term.pool;
         }
         return Util::map_opt_vec(std::move(elems), [](auto elem) -> Term {
-            return Util::visit_variant(
-                std::move(elem), [](Term term) { return term; },
-                [](TupleVec tuple) -> Term { return TermTuple{TermTuple::ElementVec{std::move(tuple)}}; });
+            return std::visit(
+                [](auto x) -> Term {
+                    if constexpr (GRINGO_IS_OF_TYPE(x, Term)) {
+                        return x;
+                    }
+                    if constexpr (GRINGO_IS_OF_TYPE(x, TupleVec)) {
+                        return TermTuple{TermTuple::ElementVec{std::move(x)}};
+                    }
+                },
+                std::move(elem));
         });
     }
 

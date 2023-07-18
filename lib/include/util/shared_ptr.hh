@@ -6,9 +6,8 @@
 
 namespace Gringo::Util {
 
-// Alternative shared_ptr implementation. It is necessary to ease C integration
-// and also avoid some complexity in view of an optimal make_shared
-// implementation. This implementation should be faster than the STL
+// Alternative shared_ptr implementation to ease C integration (full control
+// over the reference count). This implementation should be faster than the STL
 // implementation. However, it cannot be used safely in multi-threaded
 // applications.
 template <typename T> class shared_ptr {
