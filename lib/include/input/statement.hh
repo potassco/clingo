@@ -134,6 +134,8 @@ enum class TheoryAtomType {
 //! For example: <tt>name/2: term, any</tt>.
 struct TheoryAtomDefinition {
     //! An optional definition for the right-hand-side of a theory atom.
+    //!
+    //! It consists of a list of possible operators and a name of a term definition.
     using RHS = std::optional<std::pair<std::vector<std::string>, std::string>>;
 
     //! Construct a theory atom definition.
@@ -144,8 +146,11 @@ struct TheoryAtomDefinition {
     std::string name;
     //! The arity of the atom.
     int arity;
+    //! The name of the term definition used in elements.
     std::string term;
+    //! The definition for the right hand side of the atom.
     RHS rhs;
+    //! The type of the atom.
     TheoryAtomType type;
 };
 
@@ -298,7 +303,7 @@ struct StatementExternal {
     explicit StatementExternal(Term term, BodyLiteralVec body, std::optional<Term> type = std::nullopt)
         : term(std::move(term)), body(std::move(body)), type{std::move(type)} {}
 
-    //! The term represnting the atom to project.
+    //! The term representing the atom to project.
     Term term;
     //! The body.
     BodyLiteralVec body;
@@ -310,9 +315,11 @@ struct StatementExternal {
 //!
 //! Example: <tt>\#edge (X,Y): connected(X,Y).</tt>.
 struct StatementEdge {
-    //! An edge.
+    //! An directed edge.
     struct Edge {
+        //! The source vertex.
         Term u;
+        //! The target vertex.
         Term v;
     };
     //! A vector of edges.

@@ -5,55 +5,108 @@
 
 namespace Gringo::Input {
 
+//! @defgroup theory Theory Terms and Atoms
+//! @ingroup language
+//!
+//! Data structures and functions to represent theory terms and atoms.
+//!
+//! @{
+
 struct TheoryTermSymbol;
 struct TheoryTermVariable;
 struct TheoryTermTuple;
 struct TheoryTermFunction;
 struct TheoryTermUnparsed;
 
+//! A variant for the different theory terms.
 using TheoryTerm =
     std::variant<TheoryTermSymbol, TheoryTermVariable, TheoryTermTuple, TheoryTermFunction, TheoryTermUnparsed>;
+//! A vector of theory terms.
 using TheoryTermVec = std::vector<TheoryTerm>;
 
-enum class TheoryTermTupleType { tuple, set, list };
-
+//! A symbolic theory term.
+//!
+//! For example: <tt>1</tt>.
 struct TheoryTermSymbol {
+    //! Construct a symbolic theory term.
     explicit TheoryTermSymbol(Symbol value) : value{std::move(value)} {}
 
+    //! The symbol.
     Symbol value;
 };
 
+//! A variable theory term.
+//!
+//! For example: <tt>X</tt>.
 struct TheoryTermVariable {
+    //! Construct a variable theory term.
     explicit TheoryTermVariable(std::string value, bool is_anonymous = false)
         : name{std::move(value)}, is_anonymous{is_anonymous} {}
 
+    //! The name of the variable.
     std::string name;
+    //! Whether the variable is anonymous.
     bool is_anonymous;
 };
 
+//! Enumeration of theory term tuple types.
+//!
+//! @related TheoryTermTuple
+enum class TheoryTermTupleType {
+    tuple, //!< A tuple of terms enclosed in parentheses.
+    set,   //!< A set of terms enclosed in braces.
+    list   //!< A list of terms enclosed in brackets.
+};
+
+//! A tuple (set or list) theory term.
+//!
+//! For example: <tt>f(X,y)</tt>.
 struct TheoryTermTuple {
+    //! Construct a tuple theory term.
     explicit TheoryTermTuple(TheoryTermTupleType type, TheoryTermVec elems);
 
+    //! The type of the term.
     TheoryTermTupleType type;
+    //! The elements of the tuple.
     TheoryTermVec elems;
 };
 
+//! A tuple (set or list) theory term.
+//!
+//! For example: <tt>{f(X,y), Z}</tt>.
 struct TheoryTermFunction {
-  public:
+    //! Construct a function theory term.
     explicit TheoryTermFunction(std::string name);
+    //! Construct a function theory term.
     explicit TheoryTermFunction(std::string name, TheoryTermVec args);
 
+    //! The name of the function.
     std::string name;
+    //! The arguments of the function.
     TheoryTermVec args;
 };
 
+//! An unparsed theory term.
+//!
+//! The priorities and associativities of the operators have not yet been applied.
+//! They are simply stored as a list.
+//!
+//! For example: <tt>- X ++ Y << Z</tt>.
 struct TheoryTermUnparsed {
+    //! A vector of operators.
     using OpVec = std::vector<std::string>;
+    //! An element having the form of a right guard.
     using Element = std::pair<OpVec, TheoryTerm>;
+    //! A vector of elements.
+    //!
+    //! In this context, it has to have at least length one.
+    //! Furthermore, all but the first element must have at least one operator.
     using ElementVec = std::vector<Element>;
 
+    //! Construct an unparsed theory term.
     explicit TheoryTermUnparsed(ElementVec elems);
 
+    //! The vector of elements.
     ElementVec elems;
 };
 
@@ -64,20 +117,34 @@ inline TheoryTermFunction::TheoryTermFunction(std::string name, TheoryTermVec ar
     : name(std::move(name)), args{std::move(args)} {}
 inline TheoryTermUnparsed::TheoryTermUnparsed(ElementVec elems) : elems{std::move(elems)} {}
 
+//! A theory atom.
+//!
+//! For example: <tt>&sum { X+Y: p(X), q(Y) } >= 0</tt>.
 struct TheoryAtom {
+    //! The optional right guard of the theory atom.
     using RGuard = std::optional<std::pair<std::string, TheoryTerm>>;
+    //! An element of the theory atom.
     using Element = std::pair<TheoryTermVec, LiteralVec>;
+    //! A vector of theory atom elements.
     using ElementVec = std::vector<Element>;
 
+    //! Construct a theory atom.
     explicit TheoryAtom(Term name, ElementVec elems, RGuard rhs)
         : name{std::move(name)}, elems{std::move(elems)}, rhs{std::move(rhs)} {}
+    //! Construct a theory atom.
     explicit TheoryAtom(Term name, ElementVec elems) : TheoryAtom{std::move(name), std::move(elems), std::nullopt} {}
+    //! Construct a theory atom.
     explicit TheoryAtom(Term name, ElementVec elems, std::string rhs_op, TheoryTerm rhs_term)
         : TheoryAtom{std::move(name), std::move(elems), std::make_pair(std::move(rhs_op), std::move(rhs_term))} {}
 
+    //! The name of the atom.
     Term name;
+    //! The elements of the atom.
     ElementVec elems;
+    //! The optional right guard of the atom.
     RGuard rhs;
 };
+
+//! @}
 
 } // namespace Gringo::Input
