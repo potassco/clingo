@@ -1,5 +1,8 @@
 #pragma once
 
+//! @file
+//! This file contains helpers to parse input from a stream.
+
 #include <cassert>
 #include <istream>
 #include <vector>

@@ -4,8 +4,6 @@
 
 namespace Gringo::Input {
 
-// TODO: maybe specialize more
-
 //! Variable selection scopes.
 //!
 //! @see Statement::visit_variables()
@@ -40,25 +38,27 @@ void visit_variables(StatementOptimize::Element const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
 void visit_variables(Statement const &stm, VarVisitFun fun, VariableContext ctx);
 
-//! Variable selection modes for select_variables().
-enum VariableSelectMode {
-    add, //!< Add variables to the set.
-    del, //!< Remove variables from the set.
-};
-
-//! Add/remove variables to/from a set occuring in the given expression.
-template <class E> void select_variables(E &expr, VariableSet &vars, VariableSelectMode mode) {
-    if (mode == VariableSelectMode::add) {
-        visit_variables(expr, [&vars](std::string const &var) { vars.emplace(var); });
-    } else {
-        visit_variables(expr, [&vars](std::string const &var) { vars.erase(var); });
+//! Get all variables in an expression.
+template <class T, class C = decltype(static_cast<void (*)(T const &, VarVisitFun)>(visit_variables))>
+inline auto select_variables(T const &x, size_t size_hint = 0) -> VariableSet {
+    VariableSet vars;
+    if (size_hint > 0) {
+        vars.reserve(size_hint);
     }
+    visit_variables(x, [&](std::string const &var) { vars.emplace(var); });
+    return vars;
 }
 
-//! Convenience method for @ref select_variables(E, VariableSet &, VariableSelectMode) returning a set.
-template <class E> auto select_variables(E &expr, VariableSelectMode mode) -> VariableSet {
+//! Get all variables in an expression in the given context.
+template <class T, class C = decltype(static_cast<void (*)(T const &, VarVisitFun, VariableContext)>(visit_variables))>
+inline auto select_variables(T const &x, VariableContext context = VariableContext::all, size_t size_hint = 0)
+    -> VariableSet {
     VariableSet vars;
-    select_variables(expr, vars, mode);
+    if (size_hint > 0) {
+        vars.reserve(size_hint);
+    }
+    visit_variables(
+        x, [&](std::string const &var) { vars.emplace(var); }, context);
     return vars;
 }
 

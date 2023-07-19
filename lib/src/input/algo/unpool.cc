@@ -536,14 +536,9 @@ auto unpool(BodyLiteral const &lit) -> std::optional<BodyLiteralVec> { return Un
 auto unpool(Statement const &stm) -> std::optional<StatementVec> {
     auto stms = Unpool{}(stm);
     if (stms.has_value()) {
-        VariableSet old_global;
-        VariableSet new_global;
-        visit_variables(
-            stm, [&old_global](std::string const &var) { old_global.emplace(var); }, VariableContext::global);
+        VariableSet old_global = select_variables(stm, VariableContext::global);
         for (auto &unpooled : stms.value()) {
-            new_global.clear();
-            visit_variables(
-                unpooled, [&new_global](std::string const &var) { new_global.emplace(var); }, VariableContext::global);
+            VariableSet new_global = select_variables(unpooled, VariableContext::global, old_global.size());
             visit_variables(
                 unpooled,
                 [&](std::string const &var) {

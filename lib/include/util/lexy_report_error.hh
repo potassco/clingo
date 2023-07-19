@@ -1,5 +1,8 @@
 #pragma once
 
+//! @file
+//! This file contains helpers to write out error messages during parsing.
+
 #include <lexy_ext/report_error.hpp>
 
 namespace Gringo::Util {

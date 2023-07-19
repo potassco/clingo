@@ -76,27 +76,23 @@ template <class T> auto project_str(std::optional<Util::shared_ptr<T>> value) ->
     return "<failed>";
 }
 
-template <class T> auto variables_str(std::optional<T> value, auto mode) -> std::string {
+template <class T> auto variables_str(T const &value) -> std::string {
+    auto vars = select_variables(value);
+    auto sorted = std::vector<VariableSet::value_type>{vars.begin(), vars.end()};
+    std::sort(sorted.begin(), sorted.end());
+    return to_str(sorted);
+}
+
+template <class T> auto variables_str(Util::shared_ptr<T> const &value) -> std::string {
     if (value) {
-        VariableSet vars;
-        if (mode == VariableSelectMode::add) {
-            visit_variables(value.value(), [&vars](std::string const &var) { vars.emplace(var); });
-        } else {
-            visit_variables(value.value(), [&vars](std::string const &var) { vars.erase(var); });
-        }
-        auto sorted = std::vector<VariableSet::value_type>{vars.begin(), vars.end()};
-        std::sort(sorted.begin(), sorted.end());
-        return to_str(sorted);
+        return variables_str(*value);
     }
     return "<failed>";
 }
 
-template <class T> auto variables_str(std::optional<Util::shared_ptr<T>> value, auto mode) -> std::string {
-    if (value) {
-        auto vars = select_variables(*value.value(), mode);
-        auto sorted = std::vector<VariableSet::value_type>{vars.begin(), vars.end()};
-        std::sort(sorted.begin(), sorted.end());
-        return to_str(sorted);
+template <class T> auto variables_str(std::optional<T> const &value) -> std::string {
+    if (value.has_value()) {
+        return variables_str(value.value());
     }
     return "<failed>";
 }

@@ -222,10 +222,7 @@ auto NameGen::new_name() -> std::string {
 }
 
 [[nodiscard]] auto rewrite_anonymous(Statement const &stm) -> std::optional<Statement> {
-    VariableSet vars;
-    visit_variables(
-        stm, [&vars](auto const &var) { vars.emplace(var); }, VariableContext::all);
-    auto gen = NameGen{std::move(vars)};
+    auto gen = NameGen{select_variables(stm, VariableContext::all)};
     return RewriteAnonymous{gen}(stm);
 }
 

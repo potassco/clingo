@@ -49,9 +49,8 @@ TEST_CASE("unpool_term") {
 }
 
 TEST_CASE("variables_term") {
-    REQUIRE(variables_str(parse_term("f(X;Y)"), VariableSelectMode::add) == "[X, Y]");
-    REQUIRE(variables_str(parse_term("f(X;Y)"), VariableSelectMode::del) == "[]");
-    REQUIRE(variables_str(parse_term("f(X,Z;X,Y,Z;X,Y)"), VariableSelectMode::add) == "[X, Y, Z]");
+    REQUIRE(variables_str(parse_term("f(X;Y)")) == "[X, Y]");
+    REQUIRE(variables_str(parse_term("f(X,Z;X,Y,Z;X,Y)")) == "[X, Y, Z]");
 }
 
 } // namespace Gringo::Input::Test

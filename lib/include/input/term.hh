@@ -32,7 +32,7 @@ using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, Ter
 
 //! A vector of terms.
 using TermVec = std::vector<Term>;
-//! A vector of vecors of terms.
+//! A vector of vectors of terms.
 using TermVecVec = std::vector<TermVec>;
 
 //! A variant capturing either a term or a position that is to be projected.
@@ -137,9 +137,9 @@ enum class UnaryOperator : int {
 //!
 //! For example <tt>-X</tt>.
 struct TermUnary {
-    //! Contruct a term for an unary operation.
+    //! Construct a term for an unary operation.
     explicit TermUnary(UnaryOperator op, Term rhs);
-    //! Contruct a term for an unary operation.
+    //! Construct a term for an unary operation.
     explicit TermUnary(UnaryOperator op, Util::shared_ptr<Term> rhs);
 
     //! The operation.
@@ -151,7 +151,7 @@ struct TermUnary {
 //! Compare two unary terms.
 auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
 
-//! Enumaration of available binary operators.
+//! Enumeration of available binary operators.
 enum class BinaryOperator : int {
     dots,  //!< The interval operator.
     xor_,  //!< The XOR bit operation.
@@ -201,10 +201,17 @@ inline TermTuple::TermTuple(ElementVec args) : pool{std::move(args)} {}
 
 } // namespace Gringo::Input
 
-HASH_PROTO(Gringo::Input::TermVariable);
-HASH_PROTO(Gringo::Input::TermSymbol);
-HASH_PROTO(Gringo::Input::TermFunction);
-HASH_PROTO(Gringo::Input::TermTuple);
-HASH_PROTO(Gringo::Input::TermAbs);
-HASH_PROTO(Gringo::Input::TermUnary);
-HASH_PROTO(Gringo::Input::TermBinary);
+//! Hash operator for Gringo::Input::TermSymbol.
+GRINGO_HASH_PROTO(Gringo::Input::TermVariable);
+//! Hash operator for Gringo::Input::TermSymbol.
+GRINGO_HASH_PROTO(Gringo::Input::TermSymbol);
+//! Hash operator for Gringo::Input::TermSymbol.
+GRINGO_HASH_PROTO(Gringo::Input::TermFunction);
+//! Hash operator for Gringo::Input::TermFunction.
+GRINGO_HASH_PROTO(Gringo::Input::TermTuple);
+//! Hash operator for Gringo::Input::TermTuple.
+GRINGO_HASH_PROTO(Gringo::Input::TermAbs);
+//! Hash operator for Gringo::Input::TermAbs.
+GRINGO_HASH_PROTO(Gringo::Input::TermUnary);
+//! Hash operator for Gringo::Input::TermUnary.
+GRINGO_HASH_PROTO(Gringo::Input::TermBinary);

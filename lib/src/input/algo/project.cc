@@ -377,10 +377,9 @@ auto project(BodyLiteral const &lit, Projection project, bool in_classical_scope
 auto project(Statement const &stm, ProjectionMode mode, bool project_anonymous) -> std::optional<Statement> {
     std::optional<Statement> res;
     if (mode != ProjectionMode::disabled) {
-        VariableSet vars;
+        VariableSet vars = select_variables(stm, VariableContext::global);
         std::unordered_map<std::string, size_t> counts;
-        visit_variables(
-            stm, [&vars](auto const &var) { vars.emplace(var); }, VariableContext::global);
+        counts.reserve(vars.size());
         visit_variables(
             stm,
             [&vars, &counts](auto const &var) {

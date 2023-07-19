@@ -6,10 +6,6 @@ namespace Gringo::Input {
 
 namespace {
 
-// Note: no need for a std::function here. Once everything is in place, this
-// part can also be hidden and only the more specific functions have to be
-// visible.
-
 struct VisitVariables : Visitor<VisitVariables> {
     VisitVariables(VarVisitFun fun, VariableContext ctx = VariableContext::all) : fun{std::move(fun)}, ctx{ctx} {}
 

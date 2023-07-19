@@ -112,6 +112,6 @@ void add_sign(Literal &lit, Sign sign);
 
 } // namespace Gringo::Input
 
-HASH_PROTO(Gringo::Input::LiteralBoolean)
-HASH_PROTO(Gringo::Input::LiteralRelation)
-HASH_PROTO(Gringo::Input::LiteralSymbolic)
+GRINGO_HASH_PROTO(Gringo::Input::LiteralBoolean)
+GRINGO_HASH_PROTO(Gringo::Input::LiteralRelation)
+GRINGO_HASH_PROTO(Gringo::Input::LiteralSymbolic)

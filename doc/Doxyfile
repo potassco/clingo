@@ -943,9 +943,10 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = ../lib/include \ 
-                         ../lib/include/util \ 
-                         ../lib/include/parser
+INPUT                  = ../lib/include \
+                         ../lib/include/util \
+                         ../lib/include/input \
+                         ../lib/include/input/parser
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -1069,7 +1070,11 @@ EXCLUDE_PATTERNS       =
 # wildcard * is used, a substring. Examples: ANamespace, AClass,
 # ANamespace::AClass, ANamespace::*Test
 
-EXCLUDE_SYMBOLS        =
+EXCLUDE_SYMBOLS        = "Detail::*" \
+                         "Gringo::Detail::*" \
+                         "Gringo::Util::Detail::*" \
+                         "Gringo::Input::Detail::*" \
+                         "Gringo::Input::Grammar::*"
 
 # The EXAMPLE_PATH tag can be used to specify one or more files or directories
 # that contain example code fragments that are included (see the \include
@@ -1291,7 +1296,7 @@ CLANG_OPTIONS          = -std=c++17 -stdlib=libc++ -isystem /usr/lib/llvm-16/inc
 # Note: The availability of this option depends on whether or not doxygen was
 # generated with the -Duse_libclang=ON option for CMake.
 
-CLANG_DATABASE_PATH    = 
+CLANG_DATABASE_PATH    =
 
 #---------------------------------------------------------------------------
 # Configuration options related to the alphabetical class index
