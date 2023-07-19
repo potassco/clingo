@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 #include <input/statement.hh>
 
 namespace Gringo::Input {

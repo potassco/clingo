@@ -22,6 +22,11 @@ namespace Gringo::Input {
 //!
 //! @{
 
+//! A set of variable names.
+using VariableSet = std::unordered_set<std::string>;
+//! A vector of variable names.
+using VariableVec = std::vector<std::string>;
+
 struct TermVariable;
 struct TermSymbol;
 struct TermTuple;
@@ -29,11 +34,6 @@ struct TermFunction;
 struct TermAbs;
 struct TermUnary;
 struct TermBinary;
-
-//! A set of variable names.
-using VariableSet = std::unordered_set<std::string>;
-//! A vector of variable names.
-using VariableVec = std::vector<std::string>;
 
 //! Variant holding the different term types.
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;

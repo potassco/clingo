@@ -71,6 +71,8 @@ struct Rule {
 };
 
 //! The type of a theory operator.
+//!
+//! @see TheoryOpDefinition
 enum class TheoryOpType {
     unary,       //!< An unary theory operator.
     binary_left, //!< An binary left associative theory operator.
@@ -118,6 +120,8 @@ struct TheoryTermDefinition {
 using TheoryTermDefinitionVec = std::vector<TheoryTermDefinition>;
 
 //! Enumeration of theory atom types.
+//!
+//! @see TheoryAtomDefinition
 enum class TheoryAtomType {
     head,     //!< A theory atom that can appear only in the head.
     body,     //!< A theory atom that can appear only in the body.
@@ -152,7 +156,7 @@ using TheoryAtomDefinitionVec = std::vector<TheoryAtomDefinition>;
 
 //! A theory definition.
 //!
-//! For example: <tt>#theory name { term { - : 0, unary }; name/2: term, any }</tt>.
+//! For example: <tt>\#theory name { term { - : 0, unary }; name/2: term, any }</tt>.
 struct TheoryDefinition {
     //! Construct a theory definition.
     explicit TheoryDefinition(std::string name, TheoryTermDefinitionVec term_defs, TheoryAtomDefinitionVec atom_defs)
@@ -173,7 +177,7 @@ enum class OptimizeType { minimize, maximize };
 
 //! An optimization statement.
 //!
-//! For example: <tt>#minimize { 1@0,X: p(X) }</tt>.
+//! For example: <tt>\#minimize { 1@0,X: p(X) }</tt>.
 struct StatementOptimize {
     //! The tuple of a minimize element.
     struct Tuple {
@@ -212,133 +216,233 @@ struct StatementWeakConstraint {
     Tuple tuple;
 };
 
+//! A show statement.
+//!
+//! Example: <tt>\#show p(X): q(X)</tt>.
 struct StatementShow {
+    //! Construct a show statement.
     explicit StatementShow(Term term, BodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
 
+    //! The term to show.
     Term term;
+    //! The body.
     BodyLiteralVec body;
 };
 
+//! A show signature statement.
+//!
+//! Example: <tt>\#show p/2</tt>.
 struct StatementShowSig {
+    //! Construct a show signature statement.
     explicit StatementShowSig(bool has_sign, std::string name, int arity)
         : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
 
+    //! Whether the signature is negative.
     bool has_sign;
+    //! The name.
     std::string name;
+    //! The arity.
     int arity;
 };
 
+//! A project statement.
+//!
+//! Example: <tt>\#project p(X): q(X)</tt>.
 struct StatementProject {
+    //! Construct a project statement.
     explicit StatementProject(Term term, BodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
 
+    //! The term representing the atom to project.
     Term term;
+    //! The body.
     BodyLiteralVec body;
 };
 
+//! A project signature statement.
+//!
+//! Example: <tt>\#project p/2</tt>.
 struct StatementProjectSig {
+    //! Construct a project signature statement.
     explicit StatementProjectSig(bool has_sign, std::string name, int arity)
         : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
 
+    //! Whether the signature is negative.
     bool has_sign;
+    //! The name.
     std::string name;
+    //! The arity.
     int arity;
 };
 
+//! A defined statement.
+//!
+//! Example: <tt>\#defined p/2</tt>.
 struct StatementDefined {
+    //! Construct a defined statement.
     explicit StatementDefined(bool has_sign, std::string name, int arity)
         : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
 
+    //! Whether the signature is negative.
     bool has_sign;
+    //! The name.
     std::string name;
+    //! The arity.
     int arity;
 };
 
+//! An external statement.
+//!
+//! Example: <tt>\#external p(X): q(X)</tt>.
 struct StatementExternal {
+    //! Construct an external statement.
     explicit StatementExternal(Term term, BodyLiteralVec body, std::optional<Term> type = std::nullopt)
         : term(std::move(term)), body(std::move(body)), type{std::move(type)} {}
 
+    //! The term represnting the atom to project.
     Term term;
+    //! The body.
     BodyLiteralVec body;
+    //! The type of the statement.
     std::optional<Term> type;
 };
 
+//! An edge statement.
+//!
+//! Example: <tt>\#edge (X,Y): connected(X,Y).</tt>.
 struct StatementEdge {
+    //! An edge.
     struct Edge {
         Term u;
         Term v;
     };
+    //! A vector of edges.
     using EdgeVec = std::vector<Edge>;
 
+    //! Construct an edge statement.
     explicit StatementEdge(EdgeVec edges, BodyLiteralVec body = {}) : edges{std::move(edges)}, body{std::move(body)} {}
 
+    //! The pool of edges.
     EdgeVec edges;
+    //! The body.
     BodyLiteralVec body;
 };
 
+//! A heuristic statement.
+//!
+//! Example: <tt>\#heuristic p(X). [sign,false]</tt>.
 struct StatementHeuristic {
+    //! Construct a heuristic statement.
     explicit StatementHeuristic(Term atom, BodyLiteralVec body, Term type, std::optional<Term> prio, Term mod)
         : atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)), prio(std::move(prio)),
           mod(std::move(mod)) {}
+    //! Construct a heuristic statement.
     explicit StatementHeuristic(Term atom, BodyLiteralVec body, Term type, Term prio, Term mod)
         : StatementHeuristic{std::move(atom), std::move(body), std::move(type), std::make_optional(std::move(prio)),
                              std::move(mod)} {}
+    //! Construct a heuristic statement.
     explicit StatementHeuristic(Term atom, BodyLiteralVec body, Term type, Term mod)
         : StatementHeuristic{std::move(atom), std::move(body), std::move(type), std::nullopt, std::move(mod)} {}
 
+    //! The atom to modify.
     Term atom;
+    //! The body.
     BodyLiteralVec body;
+    //! The type.
     Term type;
+    //! The optional priority.
     std::optional<Term> prio;
+    //! The modifier.
     Term mod;
 };
 
+//! Enumeration of script types.
+//!
+//! @see StatementScript
 enum class ScriptType {
-    lua,
-    python,
+    lua,    //!< Lua code.
+    python, //!< Python code.
 };
 
+//! A script statement.
+//!
+//! For example: <tt>\#script(python) some code \#end</tt>.
 struct StatementScript {
+    //! Construct a script statement.
     explicit StatementScript(ScriptType type, std::string content) : type(type), content(std::move(content)) {}
 
+    //! The code type.
     ScriptType type;
+    //! The code.
     std::string content;
 };
 
+//! Enumeration of include types.
+//!
+//! @related StatementInclude
 enum class IncludeType {
-    system,
-    inbuild,
+    system,  //!< Include from path.
+    inbuild, //!< Include inbuilt script.
 };
 
+//! An include statement.
+//!
+//! For example: <tt>\#include "encoding.lp"</tt>.
 struct StatementInclude {
+    //! Construct an include statement.
     explicit StatementInclude(IncludeType type, std::string path) : type(type), path(std::move(path)) {}
 
+    //! The include type.
     IncludeType type;
+    //! The path.
     std::string path;
 };
 
+//! A program statement.
+//!
+//! For example: <tt>\#program check(t)"</tt>.
 struct StatementProgram {
+    //! Construct an program statement.
     explicit StatementProgram(std::string name, std::vector<std::string> args)
         : name(std::move(name)), args(std::move(args)) {}
 
+    //! The name of the program.
     std::string name;
+    //! The arguments of the program.
     std::vector<std::string> args;
 };
 
-enum class ConstType { default_, override_ };
+//! Enumeration of constant statement types.
+//!
+//! @see StatementConst
+enum class ConstType {
+    default_, //! A statement providing default value.
+    override_ //! A statement overriding a default value.
+};
 
+//! A const statement.
+//!
+//! For example: <tt>\#const n=42</tt>.
 struct StatementConst {
+    //! Construct a const statement.
     explicit StatementConst(ConstType type, std::string name, Term value)
         : type(type), name(std::move(name)), value(std::move(value)) {}
 
+    //! The type of the statement.
     ConstType type;
+    //! The name of the constant.
     std::string name;
+    //! The value of the constant
+    //!
+    //! @todo This should become a symbol at some point.
     Term value;
 };
 
+//! Variant of available statements.
 using Statement =
     std::variant<Rule, TheoryDefinition, StatementOptimize, StatementWeakConstraint, StatementShow, StatementShowSig,
                  StatementProject, StatementProjectSig, StatementDefined, StatementExternal, StatementEdge,
                  StatementHeuristic, StatementScript, StatementInclude, StatementProgram, StatementConst>;
+//! A vector of statements.
 using StatementVec = std::vector<Statement>;
 
 //! @}

@@ -1,3 +1,5 @@
+#include <unordered_map>
+
 #include <input/algo/check_type.hh>
 #include <input/algo/project.hh>
 #include <input/algo/project_anonymous.hh>
