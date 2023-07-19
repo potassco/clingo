@@ -1,8 +1,5 @@
 #pragma once
 
-//! @file
-//! This file contains utilities for equality comparision and hashes.
-
 #include <memory>
 #include <optional>
 #include <string>
@@ -13,6 +10,9 @@
 #include <util/shared_ptr.hh>
 
 namespace Gringo::Util {
+
+//! @addtogroup util
+//! @{
 
 //! Helper to declare the value hash struct for a type.
 #define GRINGO_HASH_PROTO(T)                                                                                           \
@@ -87,7 +87,8 @@ template <class T = std::equal_to<>> struct value_equal_to : public T {
     }
 };
 
-//! Base case for value_equal(A const &, B const &, Args const &...).
+//! Base case for Gringo::Util::value_equal<class A, class B, class... Args>(A const &a, B const &b, Args const
+//! &...args).
 inline auto value_equal() { return true; }
 
 //! Check whether all argument pairs are value equal.
@@ -131,7 +132,7 @@ template <class T> struct value_hasher<std::enable_if<std::is_arithmetic_v<T> ||
 
 //! Hasher for pointers.
 //!
-//! The hash of the derefenced pointer is used.
+//! The hash of the defenced pointer is used.
 //! This function assumes that the pointer is not null.
 template <class T> struct value_hasher<T const *> {
     //! Operator to compute the hash.
@@ -213,5 +214,7 @@ template <class T> struct value_hasher<std::vector<T>> {
 template <class... Args> inline auto value_hash(Args const &...value) -> size_t {
     return hash_combine(value_hasher<Args>{}(value)...);
 }
+
+//! @}
 
 } // namespace Gringo::Util

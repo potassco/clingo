@@ -1,11 +1,11 @@
 #pragma once
 
-//! @file
-//! This file declares the available simple literals.
-
 #include <input/term.hh>
 
 namespace Gringo::Input {
+
+//! @addtogroup language
+//! @{
 
 //! Enumeration of signs (default negation).
 enum class Sign {
@@ -32,8 +32,6 @@ enum class Relation {
 };
 
 //! The right-hand-side of a relation atom including the symbol.
-//!
-//! @see LiteralRelation
 using Guard = std::pair<Relation, Term>;
 //! A vector of guards.
 using GuardVec = std::vector<Guard>;
@@ -48,11 +46,15 @@ class LiteralBoolean {
     //! Construct a Boolean literal.
     LiteralBoolean(Sign sign, bool value) : sign(sign), value(value) {}
 
+    //! The sign of the literal.
     Sign sign;
+    //! The Boolean value.
     bool value;
 };
 
 //! Check whether two Boolean literals are equivalent.
+//!
+//! \related LiteralBoolean
 auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
 
 //! Literal representing a relation literal.
@@ -65,12 +67,17 @@ class LiteralRelation {
     //! Construct a relation literal.
     LiteralRelation(Sign sign, Term lhs, GuardVec rhs) : sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
+    //! The sign of the literal.
     Sign sign;
+    //! The term on the left hand side.
     Term lhs;
+    //! The guards on the right hand side.
     GuardVec rhs;
 };
 
 //! Check whether two relation literals are equivalent.
+//!
+//! \related LiteralRelation
 auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool;
 
 //! Literal representing a symbolic literal.
@@ -83,11 +90,15 @@ struct LiteralSymbolic {
     //! Construct a symbolic literal.
     LiteralSymbolic(Sign sign, Term term) : sign(sign), term(std::move(term)) {}
 
+    //! The sign of the literal.
     Sign sign;
+    //! The term representing the atom.
     Term term;
 };
 
 //! Check whether two symbolic literals are equivalent.
+//!
+//! \related LiteralSymbolic
 auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
 
 //! Variant holding the different literal types.
@@ -98,20 +109,30 @@ using LiteralVec = std::vector<Literal>;
 
 //! A conditional literal.
 struct ConditionalLiteral {
+    //! The literals on the left-hand-side.
     LiteralVec lits;
+    //! The literals on the right-hand-side.
     LiteralVec cond;
 };
 
 //! A vector of conditional literals.
 //!
 //! Can be either used in the head or body.
+//!
+//! \related ConditionalLiteral
 using ConditionalLiteralVec = std::vector<ConditionalLiteral>;
 
 //! Add a sign to the literal.
 void add_sign(Literal &lit, Sign sign);
 
+//! @}
+
 } // namespace Gringo::Input
+
+#ifndef GRINGO_DOXYGEN_SKIP
 
 GRINGO_HASH_PROTO(Gringo::Input::LiteralBoolean)
 GRINGO_HASH_PROTO(Gringo::Input::LiteralRelation)
 GRINGO_HASH_PROTO(Gringo::Input::LiteralSymbolic)
+
+#endif

@@ -4,6 +4,9 @@
 
 namespace Gringo::Input {
 
+//! @addtogroup algo
+//! @{
+
 //! Enumeration to select variables to project.
 //!
 //! @see Projection
@@ -35,6 +38,9 @@ class Projection {
     ProjectionMode mode_;
 };
 
+//! @name Functions to project variables
+//! @{
+
 //! Project variables according to given projection mode.
 [[nodiscard]] auto project(Term const &term, Projection project) -> std::optional<Term>;
 
@@ -56,5 +62,9 @@ class Projection {
 //! Optionally, project anonymous variables in negative scope (deprecated).
 [[nodiscard]] auto project(Statement const &stm, ProjectionMode mode, bool project_anonymous)
     -> std::optional<Statement>;
+
+//! @}
+
+//! @}
 
 } // namespace Gringo::Input

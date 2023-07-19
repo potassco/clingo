@@ -1,8 +1,5 @@
 #pragma once
 
-//! @file
-//! This file contains the body literal interface and derived body literals.
-
 #include <tuple>
 
 #include <input/aggregate.hh>

@@ -1,8 +1,5 @@
 #pragma once
 
-//! @file
-//! This file contains the term interface and derived terms.
-
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -13,6 +10,12 @@
 #include <symbol.hh>
 
 namespace Gringo::Input {
+
+//! @defgroup language Input Language
+//!
+//! Data structures and functions to represent the gringo language.
+//!
+//! @{
 
 struct TermVariable;
 struct TermSymbol;
@@ -57,6 +60,8 @@ struct TermVariable {
 };
 
 //! Compare two variables.
+//!
+//! @related TermVariable
 auto operator==(TermVariable const &a, TermVariable const &b) -> bool;
 
 //! Term representing a symbol.
@@ -71,6 +76,8 @@ struct TermSymbol {
 };
 
 //! Compare two symbols.
+//!
+//! @related TermSymbol
 auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
 
 //! Term representing a tuple.
@@ -88,6 +95,8 @@ struct TermTuple {
 };
 
 //! Compare two tuple terms.
+//!
+//! @related TermTuple
 auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
 
 //! Term representing a symbolic or external function.
@@ -109,6 +118,8 @@ struct TermFunction {
 };
 
 //! Compare two function terms.
+//!
+//! @related TermFunction
 auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
 
 //! Term representing the absolute function.
@@ -125,6 +136,8 @@ struct TermAbs {
 };
 
 //! Compare two absolute terms.
+//!
+//! @related TermAbs
 auto operator==(TermAbs const &a, TermAbs const &b) -> bool;
 
 //! Enumeration of available unary operators.
@@ -149,6 +162,8 @@ struct TermUnary {
 };
 
 //! Compare two unary terms.
+//!
+//! @related TermUnary
 auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
 
 //! Enumeration of available binary operators.
@@ -169,9 +184,9 @@ enum class BinaryOperator : int {
 //!
 //! For example <tt>X-Y</tt>.
 struct TermBinary {
-    //! Contruct a term for an binary operation.
+    //! Construct a term for an binary operation.
     explicit TermBinary(Term lhs, BinaryOperator op, Term rhs);
-    //! Contruct a term for an binary operation.
+    //! Construct a term for an binary operation.
     explicit TermBinary(Util::shared_ptr<Term> lhs, BinaryOperator op, Util::shared_ptr<Term> rhs);
 
     //! The operation.
@@ -183,7 +198,11 @@ struct TermBinary {
 };
 
 //! Compare two binary terms.
+//!
+//! @related TermBinary
 auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
+
+//! @}
 
 // Note that constructors are defined here because at this point all types are
 // complete.
@@ -201,17 +220,14 @@ inline TermTuple::TermTuple(ElementVec args) : pool{std::move(args)} {}
 
 } // namespace Gringo::Input
 
-//! Hash operator for Gringo::Input::TermSymbol.
+#ifndef GRINGO_DOXYGEN_SKIP
+
 GRINGO_HASH_PROTO(Gringo::Input::TermVariable);
-//! Hash operator for Gringo::Input::TermSymbol.
 GRINGO_HASH_PROTO(Gringo::Input::TermSymbol);
-//! Hash operator for Gringo::Input::TermSymbol.
 GRINGO_HASH_PROTO(Gringo::Input::TermFunction);
-//! Hash operator for Gringo::Input::TermFunction.
 GRINGO_HASH_PROTO(Gringo::Input::TermTuple);
-//! Hash operator for Gringo::Input::TermTuple.
 GRINGO_HASH_PROTO(Gringo::Input::TermAbs);
-//! Hash operator for Gringo::Input::TermAbs.
 GRINGO_HASH_PROTO(Gringo::Input::TermUnary);
-//! Hash operator for Gringo::Input::TermUnary.
 GRINGO_HASH_PROTO(Gringo::Input::TermBinary);
+
+#endif

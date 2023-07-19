@@ -4,6 +4,9 @@
 
 namespace Gringo::Input {
 
+//! @addtogroup algo
+//! @{
+
 //! Enumeration for Term::check_type().
 enum class TermCheckType : int {
     atom,              //!< Check if term is an atom.
@@ -24,6 +27,9 @@ struct CheckTypeResult {
     //! The identifier represented by the term.
     std::string identifier;
 };
+
+//! @name Functions to analyze expressions
+//! @{
 
 //! Query information about the structure of the given term.
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nullptr) -> bool;
@@ -55,5 +61,9 @@ auto is_test(BodyLiteral const &lit) -> bool;
 
 //! Check if the literal is classical.
 auto is_classical(HeadLiteral const &lit) -> bool;
+
+//! @}
+
+//! @}
 
 } // namespace Gringo::Input

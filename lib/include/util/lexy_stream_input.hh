@@ -1,8 +1,5 @@
 #pragma once
 
-//! @file
-//! This file contains helpers to parse input from a stream.
-
 #include <cassert>
 #include <istream>
 #include <vector>
@@ -11,34 +8,48 @@
 
 namespace Gringo::Util {
 
-/// Location counting based on encoding.
+//! @addtogroup util
+//! @{
+
+//! Location counting based on encoding.
+//!
+//! @related StreamInput
 template <typename Encoding>
 using default_location_counting = std::conditional_t<std::is_same_v<Encoding, lexy::byte_encoding>,
                                                      lexy::byte_location_counting<>, lexy::code_unit_location_counting>;
 
-/// An input to read from a stream.
+//! An input to read from a stream.
 template <typename Encoding = lexy::default_encoding, typename Counting = default_location_counting<Encoding>>
 class StreamInput {
   public:
+    //! The character encoding to use.
     using encoding = Encoding;
+    //! The counting strategy to use.
     using counting = Counting;
+    //! The character type to use.
     using char_type = typename encoding::char_type;
     static_assert(sizeof(char_type) == sizeof(char), "only support single-byte encodings");
 
+    //! A buffered stream part of which can be discarded.
     class StreamBuffer {
       public:
+        //! The character encoding to use.
         using encoding = StreamInput::encoding;
+        //! The counting strategy to use.
         using counting = StreamInput::counting;
+        //! The character type to use.
         using char_type = StreamInput::char_type;
 
+        //! The number of bytes to read in advance.
         static constexpr size_t chunk_size = 4096;
 
+        //! Construct a stream buffer reading from the given stream.
         StreamBuffer(std::istream &in) : in_{in} {}
 
-        /// Check if the given offset no longer points to valid input.
-        ///
-        /// This function might read bytes from the input stream to determine the
-        /// information.
+        //! Check if the given offset no longer points to valid input.
+        //!
+        //! This function might read bytes from the input stream to determine the
+        //! information.
         auto is_eoi(size_t id) -> bool {
             while (id - start_ + discard_ >= buffer_.size()) {
                 if (eoi_) {
@@ -60,17 +71,17 @@ class StreamInput {
             return false;
         }
 
-        /// Mark bytes before the given offset for disposal.
+        //! Mark bytes before the given offset for disposal.
         void discard(size_t id) {
             discard_ += id - start_;
             start_ = id;
         }
 
-        /// Get the byte at the given offset.
-        ///
-        /// The offset must either point to a byte in the buffer. Or, if the
-        /// offset points to a previously discarded byte, a space character is
-        /// returned.
+        //! Get the byte at the given offset.
+        //!
+        //! The offset must either point to a byte in the buffer. Or, if the
+        //! offset points to a previously discarded byte, a space character is
+        //! returned.
         [[nodiscard]] auto at(size_t id) const -> char_type {
             if (id >= start_) {
                 return static_cast<char_type>(buffer_[id - start_ + discard_]);
@@ -83,7 +94,7 @@ class StreamInput {
             return buffer_.data() + id - start_ + discard_;
         }
 
-        /// Offsets before this value have been discarded.
+        //! Offsets before this value have been discarded.
         [[nodiscard]] auto offset() const { return start_; }
 
       private:
@@ -94,37 +105,49 @@ class StreamInput {
         bool eoi_{false};
     };
 
-    /// A forward iterator that stays valid even if the underlying buffer is relocated.
+    //! A forward iterator that stays valid even if the underlying buffer is relocated.
     class iterator {
       public:
+        //! The difference type.
         using difference_type = std::ptrdiff_t;
+        //! The character type.
         using value_type = char_type;
+        //! A pointer to a character.
         using pointer = char_type const *;
+        //! A reference to a character.
         using reference = char_type const &;
+        //! The iterator category.
         using iterator_category = std::forward_iterator_tag;
 
-        iterator() : buffer_{nullptr}, offset_{0} {}
+        //! Construct an invalid iterator.
+        constexpr iterator() : buffer_{nullptr}, offset_{0} {}
 
+        //! Construct an iterator pointing at the given offset in the buffer.
         iterator(StreamBuffer &buffer, size_t offset) : buffer_{&buffer}, offset_{offset} {}
 
+        //! Increment the iterator.
         auto operator++() -> iterator & {
             ++offset_;
             return *this;
         }
 
+        //! Preincrement the iterator.
         auto operator++(int) -> iterator {
             iterator retval = *this;
             ++(*this);
             return retval;
         }
 
+        //! Equality compare two iterators.
         auto operator==(iterator other) const -> bool { return offset_ == other.offset_ && buffer_ == other.buffer_; }
 
+        //! Inequality compare two iterators.
         auto operator!=(iterator other) const -> bool { return !(*this == other); }
 
+        //! Dereference the iterator.
         auto operator*() const -> char_type { return buffer_->at(offset_); }
 
-        /// The offset from the beginning of the underlying buffer.
+        //! The offset from the beginning of the underlying buffer.
         [[nodiscard]] auto offset() const -> size_t { return offset_; }
 
       private:
@@ -132,21 +155,28 @@ class StreamInput {
         size_t offset_;
     };
 
-    /// Reader to read bytes from a buffer coupled with iterators that stay valid
-    /// even if the underlying buffer is reallocated.
+    //! Reader to read bytes from a buffer coupled with iterators that stay valid
+    //! even if the underlying buffer is reallocated.
     class StreamReader : lexy::_detail::_swar_base {
       public:
+        //! The used encoding.
         using encoding = StreamInput::encoding;
+        //! The used counting strategy.
         using couning = StreamInput::counting;
+        //! The used character type.
         using char_type = StreamInput::char_type;
+        //! The underlying iterator.
         using iterator = StreamInput::iterator;
+        //! The type that is read at once.
         using swar_int = lexy::_detail::swar_int;
 
+        //! Number of bytes to consume at once.
         static constexpr auto swar_length = sizeof(swar_int) / sizeof(unsigned char);
 
+        //! Construct a reader for the buffer.
         explicit StreamReader(StreamBuffer &buffer) : buffer_(&buffer), offset_{buffer.offset()} {}
 
-        /// Obtain the next byte without changing the reader's position.
+        //! Obtain the next byte without changing the reader's position.
         [[nodiscard]] auto peek() const {
             if (buffer_->is_eoi(offset_)) {
                 return encoding::eof();
@@ -154,16 +184,16 @@ class StreamInput {
             return encoding::to_int_type(buffer_->at(offset_));
         }
 
-        /// Advance position to the next byte.
+        //! Advance position to the next byte.
         void bump() noexcept { ++offset_; }
 
-        /// Get an iterator to the current position of the reader.
+        //! Get an iterator to the current position of the reader.
         [[nodiscard]] auto position() const noexcept { return iterator(*buffer_, offset_); }
 
-        /// Set the current position of the reader.
+        //! Set the current position of the reader.
         void set_position(iterator new_pos) noexcept { offset_ = new_pos.offset(); }
 
-        /// Peek bytes fitting into the largest available unsigned integer.
+        //! Peek bytes fitting into the largest available unsigned integer.
         [[nodiscard]] auto peek_swar() const -> swar_int {
             swar_int result = 0;
             if (!buffer_->is_eoi(offset_ + swar_length - 1)) {
@@ -190,10 +220,10 @@ class StreamInput {
             return result;
         }
 
-        /// Advance according to size of largest available unsigned integer.
+        //! Advance according to size of largest available unsigned integer.
         void bump_swar() { offset_ += swar_length; }
 
-        /// Advance by the given number of bytes.
+        //! Advance by the given number of bytes.
         void bump_swar(std::size_t char_count) { offset_ += char_count; }
 
       private:
@@ -201,16 +231,17 @@ class StreamInput {
         std::size_t offset_;
     };
 
+    //! Construct an input for the given stream.
     explicit StreamInput(std::istream &in) : buffer_{in} {}
 
-    /// Get the reader for the input.
-    ///
-    /// The reader starts at the latest discarded position.
+    //! Get the reader for the input.
+    //!
+    //! The reader starts at the latest discarded position.
     auto reader() const & { return StreamReader{buffer_}; }
 
-    /// Discard all bytes before the given iterator.
-    ///
-    /// Additionally, place an anchor at the last newline before this position.
+    //! Discard all bytes before the given iterator.
+    //!
+    //! Additionally, place an anchor at the last newline before this position.
     auto discard_before(iterator it) {
         auto id = it.offset();
         if (id > buffer_.offset()) {
@@ -234,8 +265,8 @@ class StreamInput {
         }
     }
 
-    /// Get the beginning of the line w.r.t. the characters at the beginning of
-    /// the underlying buffer.
+    //! Get the beginning of the line w.r.t. the characters at the beginning of
+    //! the underlying buffer.
     auto anchor() const { return lexy::input_location_anchor<StreamInput>{iterator{buffer_, last_nl_}, nl_}; }
 
   private:
@@ -243,5 +274,7 @@ class StreamInput {
     size_t last_nl_{0};
     unsigned nl_{1};
 };
+
+//! @}
 
 } // namespace Gringo::Util

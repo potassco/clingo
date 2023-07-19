@@ -1,28 +1,43 @@
 #pragma once
 
-//! @file
-//! This file contains helpers to write out error messages during parsing.
-
 #include <lexy_ext/report_error.hpp>
 
 namespace Gringo::Util {
 
+//! @addtogroup util
+//! @{
+
+//! Get the default counting strategy if the input does not define one.
+//!
+//! @related report_error_
 template <class Input, class Void = void> struct get_counting {
     using type = lexy::_default_location_counting<Input>;
 };
 
+//! Get the counting strategy if the input defines one.
+//!
+//! @related report_error_
 template <class Input> struct get_counting<Input, std::void_t<typename Input::counting>> {
     using type = typename Input::counting;
 };
 
-template <class Input> auto get_anchor(Input const &input, int /*unused*/) -> decltype(input.anchor()) {
-    return input.anchor();
-}
-
+//! Get an anchor if the input does not define one.
+//!
+//! @related report_error_
 template <class Input> auto get_anchor(Input const &input, long /*unused*/) {
     return lexy::input_location_anchor{input};
 }
 
+//! Get the current anchor if the input defines one.
+//!
+//! @related report_error_
+template <class Input> auto get_anchor(Input const &input, int /*unused*/) -> decltype(input.anchor()) {
+    return input.anchor();
+}
+
+//! Write out an error message.
+//!
+//! @related report_error_
 template <typename OutputIt, typename Input, typename Reader, typename Tag>
 auto write_error(OutputIt out, const lexy::error_context<Input> &context, const lexy::error<Reader, Tag> &error,
                  lexy::visualization_options opts, const char *path) -> OutputIt {
@@ -92,15 +107,35 @@ auto write_error(OutputIt out, const lexy::error_context<Input> &context, const 
     return out;
 }
 
-template <typename OutputIterator = int> struct _report_error {
-    OutputIterator _iter;
-    lexy::visualization_options _opts;
-    const char *_path;
+//! An error reporter outputting to the given iterator.
+template <typename OutputIterator = int> class report_error_ {
+  public:
+    //! Construct a reporter for errors.
+    constexpr report_error_(OutputIterator iter = {}, char const *path = nullptr) : iter_{iter}, path_{path} {}
 
-    struct _sink {
-        OutputIterator _iter;
-        lexy::visualization_options _opts;
-        const char *_path;
+    //! Get the corresponding error sink.
+    [[nodiscard]] constexpr auto sink() const { return sink_{iter_, opts_, path_, 0}; }
+
+    //! Specifies a path that will be printed alongside the diagnostic.
+    constexpr auto path(const char *path) const -> report_error_ { return {iter_, opts_, path}; }
+
+    //! Specifies an output iterator where the errors are written to.
+    template <typename OI> constexpr auto to(OI out) const -> report_error_<OI> { return {out, opts_, path_}; }
+
+    //! Overrides visualization options.
+    [[nodiscard]] constexpr auto opts(lexy::visualization_options opts) const -> report_error_ {
+        return {iter_, opts, path_};
+    }
+
+  private:
+    OutputIterator iter_;
+    lexy::visualization_options opts_;
+    const char *path_ = nullptr;
+
+    struct sink_ {
+        OutputIterator iter_;
+        lexy::visualization_options opts_;
+        const char *path_;
         std::size_t _count;
 
         using return_type = std::size_t;
@@ -108,9 +143,9 @@ template <typename OutputIterator = int> struct _report_error {
         template <typename Input, typename Reader, typename Tag>
         void operator()(const lexy::error_context<Input> &context, const lexy::error<Reader, Tag> &error) {
             if constexpr (std::is_same_v<OutputIterator, int>) {
-                write_error(lexy::cfile_output_iterator{stderr}, context, error, _opts, _path);
+                write_error(lexy::cfile_output_iterator{stderr}, context, error, opts_, path_);
             } else {
-                _iter = write_error(_iter, context, error, _opts, _path);
+                iter_ = write_error(iter_, context, error, opts_, path_);
             }
             ++_count;
         }
@@ -122,21 +157,13 @@ template <typename OutputIterator = int> struct _report_error {
             return _count;
         }
     };
-    [[nodiscard]] constexpr auto sink() const { return _sink{_iter, _opts, _path, 0}; }
-
-    /// Specifies a path that will be printed alongside the diagnostic.
-    constexpr auto path(const char *path) const -> _report_error { return {_iter, _opts, path}; }
-
-    /// Specifies an output iterator where the errors are written to.
-    template <typename OI> constexpr auto to(OI out) const -> _report_error<OI> { return {out, _opts, _path}; }
-
-    /// Overrides visualization options.
-    [[nodiscard]] constexpr auto opts(lexy::visualization_options opts) const -> _report_error {
-        return {_iter, opts, _path};
-    }
 };
 
-/// An error callback that uses diagnostic_writer to print to stderr (by default).
-constexpr auto report_error = _report_error{};
+//! An error callback that uses write_error() to print to stderr (by default).
+//!
+//! @related report_error_
+constexpr auto report_error = report_error_{};
+
+//! @}
 
 } // namespace Gringo::Util

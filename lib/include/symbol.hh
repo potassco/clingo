@@ -1,9 +1,5 @@
 #pragma once
 
-//! @file
-//! The symbol implementation available here is currently a placeholder.
-//! Something similar to what is used in gringo should be used.
-
 #include <ostream>
 #include <variant>
 #include <vector>
@@ -11,6 +7,15 @@
 #include <util/hash.hh>
 
 namespace Gringo {
+
+//! @defgroup symbol Symbol
+//!
+//! Data structures and functions to represent functions.
+//!
+//! The symbol implementation available here is currently a placeholder.
+//! Something similar to what is used in gringo should be used.
+//!
+//! @{
 
 //! The supremum and infimum constants.
 enum class Constant : int {
@@ -53,7 +58,9 @@ using SymVec = std::vector<Symbol>;
 struct Function {
     //! Construct a function symbol.
     explicit Function(std::string name, SymVec args = {}) : name{std::move(name)}, args{std::move(args)} {}
+    //! Compare two functions.
     friend auto operator==(Function const &a, Function const &b) -> bool;
+    //! Output the function.
     friend auto operator<<(std::ostream &out, Function const &sym) -> std::ostream &;
 
     //! Whether the symbol is negated.
@@ -74,7 +81,21 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
 //! Returns true for negative integers and negated functions.
 [[nodiscard]] auto has_sign(Symbol const &sym) -> bool;
 
+//! @}
+
 } // namespace Gringo
 
+//! @addtogroup symbol
+//! @{
+
+//! @name Hash Operators
+//! @{
+
+//! Hash operator for Gringo::QuotedString.
 GRINGO_HASH_PROTO(Gringo::QuotedString)
+//! Hash operator for Gringo::Function.
 GRINGO_HASH_PROTO(Gringo::Function)
+
+//! @}
+
+//! @}

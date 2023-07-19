@@ -1,13 +1,16 @@
 #pragma once
 
-//! @file
-//! This file contains a shared pointer and a single owner pointer implementation.
-
 #include <cstddef>
 #include <tuple>
 #include <utility>
 
 namespace Gringo::Util {
+
+//! @defgroup util Utility
+//!
+//! Utility data structures and functions.
+//!
+//! @{
 
 //! Alternative shared_ptr implementation.
 //!
@@ -138,18 +141,24 @@ template <class T> struct shared_ptr_data {
 } // namespace Detail
 
 //! Construct a shared pointer.
+//!
+//! @related shared_ptr
 template <typename U, typename B = U, typename... Args> auto construct_shared(Args &&...args) {
     auto *data = new Detail::shared_ptr_data<U>(std::forward<Args>(args)...);
     return shared_ptr<B>{&data->value};
 }
 
 //! Equality compare two shared pointers.
+//!
+//! @related shared_ptr
 template <class X, class Y>
 [[nodiscard]] auto operator==(const shared_ptr<X> &lhs, const shared_ptr<Y> &rhs) noexcept -> bool {
     return lhs.get() == rhs.get();
 }
 
 //! Inequality compare two shared pointers.
+//!
+//! @related shared_ptr
 template <class X, class Y>
 [[nodiscard]] auto operator!=(const shared_ptr<X> &lhs, const shared_ptr<Y> &rhs) noexcept -> bool {
     return lhs.get() != rhs.get();
@@ -257,20 +266,28 @@ template <typename T> class single_owner_ptr {
 };
 
 //! Equality compare two single owner pointers.
+//!
+//! @related single_owner_ptr
 template <class X, class Y>
 [[nodiscard]] auto operator==(const single_owner_ptr<X> &lhs, const single_owner_ptr<Y> &rhs) noexcept -> bool {
     return lhs.get() == rhs.get();
 }
 
 //! Inequality compare two single owner pointers.
+//!
+//! @related single_owner_ptr
 template <class X, class Y>
 [[nodiscard]] auto operator!=(const single_owner_ptr<X> &lhs, const single_owner_ptr<Y> &rhs) noexcept -> bool {
     return lhs.get() != rhs.get();
 }
 
 //! Construct a single owner pointer.
+//!
+//! @related single_owner_ptr
 template <typename T, typename B = T, typename... Args> auto construct_single(Args &&...args) {
     return single_owner_ptr<B>{new T{std::forward<Args>(args)...}};
 }
+
+//! @}
 
 } // namespace Gringo::Util

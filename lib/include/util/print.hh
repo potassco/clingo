@@ -1,11 +1,10 @@
 #pragma once
 
-//! @file
-//! This file contains utilities for printing.
-
 #include <ostream>
 
 namespace Gringo::Util {
+
+//! @addtogroup util
 
 //! An identity mapper used for printing.
 struct p_map {
@@ -54,5 +53,7 @@ inline void print_quoted(std::ostream &out, std::string const &str) {
     }
     out << '"';
 }
+
+//! @}
 
 } // namespace Gringo::Util

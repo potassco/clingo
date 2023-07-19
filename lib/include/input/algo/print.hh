@@ -4,6 +4,12 @@
 
 namespace Gringo::Input {
 
+//! @addtogroup algo
+//! @{
+
+//! @name Functions to output expressions
+//! @{
+
 //! Output the term to the given stream.
 auto operator<<(std::ostream &out, Term const &term) -> std::ostream &;
 
@@ -39,5 +45,9 @@ auto to_string(BodyLiteral const &lit) -> std::string;
 
 //! Convert the given head literal into a string.
 auto to_string(Statement const &stm) -> std::string;
+
+//! @}
+
+//! @}
 
 } // namespace Gringo::Input

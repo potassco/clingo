@@ -1,8 +1,5 @@
 #pragma once
 
-//! @file
-//! This file contains utilities for working with variants, optionals, and vectors.
-
 #include <functional>
 #include <optional>
 #include <variant>
@@ -23,6 +20,9 @@ using opt_vec_ret_t = std::optional<
     std::vector<std::decay_t<std::invoke_result_t<M, decltype(std::move(std::declval<T>().value().front()))>>>>;
 
 } // namespace Detail
+
+//! @addtogroup util
+//! @{
 
 //! Return a vector with the first n elements from the given one.
 auto copy_n(auto const &vec, size_t n) {
@@ -78,5 +78,7 @@ template <class T, class... Ts> auto make_vec(Ts &&...args) {
 
 //! Helper template to ease using std::visit.
 #define GRINGO_IS_OF_TYPE(x, T) std::is_same_v<std::decay_t<decltype(x)>, T>
+
+//! @}
 
 } // namespace Gringo::Util
