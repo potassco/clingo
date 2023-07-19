@@ -9,16 +9,19 @@ namespace Gringo::Input {
 
 //! Enumeration of available rewrite levels.
 enum class RewriteLevel {
-    disabled = 0,
-    rewrite_anonymous = 1,
-    unpool = 2,
-    project = 3,
+    disabled = 0,          //!< Disable rewriting.
+    rewrite_anonymous = 1, //!< Give names to anonymous variables.
+    unpool = 2,            //!< Remove argument pools.
+    project = 3,           //!< Project variables.
 };
 
 //! Options to configure rewriting.
 struct RewriteOptions {
+    //! The rewrite level.
     RewriteLevel level = RewriteLevel::project;
+    //! The projection mode.
     ProjectionMode project_mode = ProjectionMode::pure;
+    //! Whether to project anonymous variables in negative literals.
     bool project_anonymous = false;
 };
 

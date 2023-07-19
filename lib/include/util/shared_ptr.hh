@@ -26,7 +26,7 @@ template <typename T> class shared_ptr {
     //! Construct a null pointer.
     constexpr shared_ptr() noexcept : ptr_{nullptr} {}
 
-    //! Explicitely construct a null pointer.
+    //! Explicitly construct a null pointer.
     constexpr shared_ptr(std::nullptr_t) noexcept : ptr_{nullptr} {}
 
     //! Copy a shared pointer.
@@ -167,6 +167,7 @@ template <class X, class Y>
 //! A smart pointer with exactly one owner.
 template <typename T> class single_owner_ptr {
   public:
+    //! The type of the pointer.
     using element_type = T;
 
     //! Construct a null pointer.

@@ -5,6 +5,7 @@
 namespace Gringo::Util {
 
 //! @addtogroup util
+//! @{
 
 //! An identity mapper used for printing.
 struct p_map {

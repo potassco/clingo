@@ -4,7 +4,11 @@
 
 namespace Gringo::Input {
 
-//! @addtogroup language
+//! @defgroup literal Literals
+//! @ingroup language
+//!
+//! Data structures and functions to represent simple literals.
+//!
 //! @{
 
 //! Enumeration of signs (default negation).
@@ -38,7 +42,7 @@ using GuardVec = std::vector<Guard>;
 
 //! Literal representing a Boolean constant.
 //!
-//! For example <tt>#true</tt>.
+//! For example <tt>\#true</tt>.
 class LiteralBoolean {
   public:
     //! Construct a Boolean literal.

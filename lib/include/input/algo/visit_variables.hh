@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include <input/statement.hh>
 
 namespace Gringo::Input {

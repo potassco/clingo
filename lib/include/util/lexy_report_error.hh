@@ -11,6 +11,7 @@ namespace Gringo::Util {
 //!
 //! @related report_error_
 template <class Input, class Void = void> struct get_counting {
+    //! The counting strategy.
     using type = lexy::_default_location_counting<Input>;
 };
 
@@ -18,6 +19,7 @@ template <class Input, class Void = void> struct get_counting {
 //!
 //! @related report_error_
 template <class Input> struct get_counting<Input, std::void_t<typename Input::counting>> {
+    //! The counting strategy.
     using type = typename Input::counting;
 };
 

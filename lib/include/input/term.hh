@@ -14,6 +14,11 @@ namespace Gringo::Input {
 //! @defgroup language Input Language
 //!
 //! Data structures and functions to represent the gringo language.
+
+//! @defgroup term Terms
+//! @ingroup language
+//!
+//! Data structures and functions to represent terms.
 //!
 //! @{
 
@@ -84,7 +89,9 @@ auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
 //!
 //! For example <tt>(a,b;c)</tt>.
 struct TermTuple {
+    //! A tuple element.
     using Element = std::variant<TupleVec, Term>;
+    //! A vector of tuple elements.
     using ElementVec = std::vector<Element>;
 
     //! Construct a  tuple.

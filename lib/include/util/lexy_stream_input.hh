@@ -89,6 +89,7 @@ class StreamInput {
             return ' ';
         }
 
+        //! Get a pointer to the underlying char array.
         [[nodiscard]] auto data(size_t id) const -> char const * {
             assert(id >= start_);
             return buffer_.data() + id - start_ + discard_;

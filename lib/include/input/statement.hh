@@ -50,83 +50,165 @@ namespace Gringo::Input {
 // - assignments should be sets to avoid introducing duplicates
 // - provisional name: normalize_terms (maybe cannot all be done in one function)
 
+//! @defgroup statement Statements
+//! @ingroup language
+//!
+//! Data structures and functions to represent statements.
+//!
+//! @{
+
+//! A rule.
+//!
+//! For example: <tt>p(X) :- q(X)</tt>.
 struct Rule {
+    //! Construct a rule.
     explicit Rule(HeadLiteral head, BodyLiteralVec body) : head{std::move(head)}, body{std::move(body)} {}
 
+    //! The head.
     HeadLiteral head;
+    //! The body.
     BodyLiteralVec body;
 };
 
-enum class TheoryOpType { unary, binary_left, binary_right };
+//! The type of a theory operator.
+enum class TheoryOpType {
+    unary,       //!< An unary theory operator.
+    binary_left, //!< An binary left associative theory operator.
+    binary_right //!< An binary right associative theory operator.
+};
 
+//! A theory operator definition.
+//!
+//! For example: <tt>- : 0, unary</tt>.
 struct TheoryOpDefinition {
+    //! Construct a theory operator definition.
     explicit TheoryOpDefinition(std::string op, int prio, TheoryOpType type)
         : op{std::move(op)}, prio{prio}, type{type} {}
 
+    //! The representation of the operator.
     std::string op;
+    //! The priority of the operator.
     int prio;
+    //! The type of the operator.
     TheoryOpType type;
 };
 
+//! A vector of theory operator definitions.
+//!
+//! @related TheoryOpDefinition
 using TheoryOpDefinitionVec = std::vector<TheoryOpDefinition>;
 
+//! A theory term definition.
+//!
+//! For example: <tt>term { - : 0, unary }</tt>.
 struct TheoryTermDefinition {
+    //! Construct a theory term definition.
     explicit TheoryTermDefinition(std::string name, TheoryOpDefinitionVec op_defs)
         : name{std::move(name)}, op_defs{std::move(op_defs)} {}
 
+    //! The name of the definition.
     std::string name;
+    //! The associated operator definitions.
     std::vector<TheoryOpDefinition> op_defs;
 };
 
+//! A vector of theory term definitions.
+//!
+//! @related TheoryTermDefinition
 using TheoryTermDefinitionVec = std::vector<TheoryTermDefinition>;
 
-enum class TheoryAtomType { head, body, any, directive };
+//! Enumeration of theory atom types.
+enum class TheoryAtomType {
+    head,     //!< A theory atom that can appear only in the head.
+    body,     //!< A theory atom that can appear only in the body.
+    any,      //!< A theory atom that can appear only in the head and a body.
+    directive //!< A theory atom that can appear only in the head with an empty body.
+};
 
+//! A theory atom definition.
+//!
+//! For example: <tt>name/2: term, any</tt>.
 struct TheoryAtomDefinition {
+    //! An optional definition for the right-hand-side of a theory atom.
     using RHS = std::optional<std::pair<std::vector<std::string>, std::string>>;
 
+    //! Construct a theory atom definition.
     explicit TheoryAtomDefinition(std::string name, int arity, std::string term, RHS rhs, TheoryAtomType type)
         : name(std::move(name)), arity(arity), term(std::move(term)), rhs(std::move(rhs)), type(type) {}
 
+    //! The name of the atom.
     std::string name;
+    //! The arity of the atom.
     int arity;
     std::string term;
     RHS rhs;
     TheoryAtomType type;
 };
+
+//! A vector of theory atom definitions.
+//!
+//! @related TheoryAtomDefinition
 using TheoryAtomDefinitionVec = std::vector<TheoryAtomDefinition>;
 
+//! A theory definition.
+//!
+//! For example: <tt>#theory name { term { - : 0, unary }; name/2: term, any }</tt>.
 struct TheoryDefinition {
+    //! Construct a theory definition.
     explicit TheoryDefinition(std::string name, TheoryTermDefinitionVec term_defs, TheoryAtomDefinitionVec atom_defs)
         : name{std::move(name)}, term_defs{std::move(term_defs)}, atom_defs{std::move(atom_defs)} {}
 
+    //! The name of the definition.
     std::string name;
+    //! The theory term definitions.
     TheoryTermDefinitionVec term_defs;
+    //! The theory atom definitions.
     TheoryAtomDefinitionVec atom_defs;
 };
 
+//! Enumeration of optimization statement types.
+//!
+//! @related StatementOptimize
 enum class OptimizeType { minimize, maximize };
 
+//! An optimization statement.
+//!
+//! For example: <tt>#minimize { 1@0,X: p(X) }</tt>.
 struct StatementOptimize {
+    //! The tuple of a minimize element.
     struct Tuple {
+        //! The weight.
         Term weight;
+        //! The optional priority.
         std::optional<Term> priority;
+        //! The remaining terms.
         TermVec terms;
     };
+    //! An element.
     using Element = std::pair<Tuple, LiteralVec>;
+    //! A vector of elements.
     using ElementVec = std::vector<Element>;
 
+    //! The type of the statement.
     OptimizeType type;
+    //! The elements of the statement.
     ElementVec elems;
 };
 
+//! A weak constraint.
+//!
+//! For example: <tt>:~ p(X). [1@0,X]</tt>.
 struct StatementWeakConstraint {
+    //! A weak constraint uses the same tuple as an optimize statement.
     using Tuple = StatementOptimize::Tuple;
 
+    //! Construct a weak constraint.
     explicit StatementWeakConstraint(BodyLiteralVec body, Tuple tuple)
         : body{std::move(body)}, tuple{std::move(tuple)} {}
 
+    //! The body of the constraint.
     BodyLiteralVec body;
+    //! The tuple of the constraint.
     Tuple tuple;
 };
 
@@ -258,5 +340,7 @@ using Statement =
                  StatementProject, StatementProjectSig, StatementDefined, StatementExternal, StatementEdge,
                  StatementHeuristic, StatementScript, StatementInclude, StatementProgram, StatementConst>;
 using StatementVec = std::vector<Statement>;
+
+//! @}
 
 } // namespace Gringo::Input

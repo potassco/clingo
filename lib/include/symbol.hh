@@ -10,7 +10,7 @@ namespace Gringo {
 
 //! @defgroup symbol Symbol
 //!
-//! Data structures and functions to represent functions.
+//! Data structures and functions to represent symbols.
 //!
 //! The symbol implementation available here is currently a placeholder.
 //! Something similar to what is used in gringo should be used.
