@@ -1,7 +1,7 @@
 #pragma once
 
+#include <deque>
 #include <string>
-#include <vector>
 
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
@@ -17,19 +17,37 @@
 
 namespace Gringo::Input {
 
+//! @defgroup parser Parser
+//! @ingroup language
+//!
+//! Data structures and functions for parsing.
+//!
+//! @{
+
+//! Helper class to attach state information to a reader.
+//!
+//! @todo Move into separate header.
 template <typename Reader, typename State> class StatefulReader : public Reader {
   public:
+    //! Construct a stateful reader.
     explicit StatefulReader(Reader reader, State &state) : Reader{std::move(reader)}, state_{&state} {};
 
+    //! Return the state associated with the reader.
     [[nodiscard]] auto state() const -> State & { return *state_; }
 
   private:
     State *state_;
 };
 
+//! Helper class to attach state information to an input.
+//!
+//! @todo Move into separate header.
 template <typename Input, typename State> class StatefulInput {
   public:
+    //! Construct a stateful input.
     StatefulInput(Input &input, State &state) : input_{input}, state_{&state} {}
+
+    //! Return the state associated with the input.
     [[nodiscard]] auto reader() const & { return StatefulReader(input_.reader(), *state_); }
 
   private:
@@ -37,18 +55,26 @@ template <typename Input, typename State> class StatefulInput {
     State *state_;
 };
 
+//! Helper class to track comments.
 class Comments {
   public:
+    //! Append the given comment to a list.
     void append(std::string comment) { comments_.emplace_back(std::move(comment)); }
+    //! Mark the position of the last comment appended.
     void mark() { mark_ = comments_.size(); }
-    auto begin() -> std::vector<std::string>::iterator { return comments_.begin(); }
-    auto end() -> std::vector<std::string>::iterator { return comments_.begin() + mark_; }
+    //! Return an iterator to the first available comment.
+    auto begin() -> std::deque<std::string>::iterator { return comments_.begin(); }
+    //! Return an iterator after the last marked comment.
+    auto end() -> std::deque<std::string>::iterator { return comments_.begin() + mark_; }
+    //! Clear the comments up to the marker.
     void clear() { comments_.erase(comments_.begin(), comments_.begin() + mark_); };
 
   private:
-    std::vector<std::string> comments_;
+    std::deque<std::string> comments_;
     size_t mark_ = 0;
 };
+
+//! @}
 
 namespace Grammar {
 

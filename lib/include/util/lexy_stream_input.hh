@@ -19,6 +19,8 @@ using default_location_counting = std::conditional_t<std::is_same_v<Encoding, le
                                                      lexy::byte_location_counting<>, lexy::code_unit_location_counting>;
 
 //! An input to read from a stream.
+//!
+//! @todo Move into input/parser module.
 template <typename Encoding = lexy::default_encoding, typename Counting = default_location_counting<Encoding>>
 class StreamInput {
   public:
