@@ -2,9 +2,9 @@
 
 #include <input/statement.hh>
 
-#include <input/parser/base.hh>
-#include <input/parser/body_literal.hh>
-#include <input/parser/head_literal.hh>
+#include "base.hh"
+#include "body_literal.hh"
+#include "head_literal.hh"
 
 namespace Gringo::Input::Grammar {
 

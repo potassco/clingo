@@ -2,8 +2,7 @@
 
 #include <input/aggregate.hh>
 
-#include <input/parser/base.hh>
-#include <input/parser/literal.hh>
+#include "literal.hh"
 
 namespace Gringo::Input::Grammar {
 
@@ -82,7 +81,7 @@ static constexpr auto rule_junction = [](auto kw) {
 
 static constexpr auto aggregate_right_guard = []() {
     // Note an aggregate without a guard is terminated by one of the symbols below.
-    auto peek = dsl::peek_not(LEXY_ASCII_ONE_OF(":.,;"));
+    auto peek = dsl::peek_not(LEXY_ASCII_ONE_OF(":.,;") | dsl::eof);
     return dsl::if_(peek >> dsl::if_(dsl::p<relation>) >> dsl::p<term>);
 }();
 

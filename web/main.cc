@@ -34,5 +34,5 @@ extern "C" void run(char const *program, int level, int project_mode, bool proje
     }
     auto opts =
         RewriteOptions{static_cast<RewriteLevel>(level), static_cast<ProjectionMode>(project_mode), project_anonymous};
-    process(opts, parse_string(program), std::cout);
+    process(opts, scan_string(program), std::cout);
 }

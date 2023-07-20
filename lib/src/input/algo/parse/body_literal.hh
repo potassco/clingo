@@ -1,13 +1,10 @@
 #pragma once
 
+#include <util/algorithm.hh>
+
 #include <input/body_literal.hh>
 
-#include <input/parser/aggregate.hh>
-#include <input/parser/base.hh>
-#include <input/parser/literal.hh>
-#include <input/parser/theory.hh>
-
-#include <util/algorithm.hh>
+#include "theory.hh"
 
 namespace Gringo::Input::Grammar {
 

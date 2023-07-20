@@ -19,10 +19,10 @@ void process(RewriteOptions opts, auto &&scanner, auto &&output) {
 auto main(int argc, char **argv) -> int {
     auto opts = RewriteOptions{};
     if (argc == 1) {
-        process(opts, parse_stream(std::cin), std::cout);
+        process(opts, scan_stream(std::cin), std::cout);
     } else {
         for (int i = 1; i < argc; ++i) {
-            process(opts, parse_file(argv[i]), std::cout);
+            process(opts, scan_file(argv[i]), std::cout);
         }
     }
 }

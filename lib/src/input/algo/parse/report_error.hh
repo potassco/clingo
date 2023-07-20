@@ -2,7 +2,7 @@
 
 #include <lexy_ext/report_error.hpp>
 
-namespace Gringo::Util {
+namespace Gringo::Input {
 
 //! @addtogroup util
 //! @{
@@ -170,4 +170,4 @@ constexpr auto report_error = report_error_{};
 
 //! @}
 
-} // namespace Gringo::Util
+} // namespace Gringo::Input

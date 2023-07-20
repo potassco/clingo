@@ -4,12 +4,9 @@
 
 #include <lexy/dsl.hpp>
 
-#include <util/lexy_report_error.hh>
-#include <util/lexy_stream_input.hh>
-
-#include <input/parser/base.hh>
-
 #include <input/term.hh>
+
+#include "base.hh"
 
 namespace Gringo::Input::Grammar {
 

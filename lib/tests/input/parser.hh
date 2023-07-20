@@ -6,22 +6,16 @@
 
 #include <input/statement.hh>
 
+#include <input/algo/parse.hh>
 #include <input/algo/print.hh>
 #include <input/algo/project.hh>
 #include <input/algo/unpool.hh>
 #include <input/algo/visit_variables.hh>
 
 #include <util/algorithm.hh>
-
 #include <util/print.hh>
 
 namespace Gringo::Input::Test {
-
-auto parse_term(std::string str) -> std::optional<Term>;
-auto parse_literal(std::string str) -> std::optional<Literal>;
-auto parse_head_literal(std::string str) -> std::optional<HeadLiteral>;
-auto parse_body_literal(std::string str) -> std::optional<BodyLiteral>;
-auto parse_statement(std::string str) -> std::optional<Statement>;
 
 template <class T> auto to_str(T const &value) -> std::string { return to_string(value); }
 

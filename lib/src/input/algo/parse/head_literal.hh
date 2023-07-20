@@ -2,9 +2,7 @@
 
 #include <input/head_literal.hh>
 
-#include <input/parser/aggregate.hh>
-#include <input/parser/literal.hh>
-#include <input/parser/theory.hh>
+#include "theory.hh"
 
 namespace Gringo::Input::Grammar {
 

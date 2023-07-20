@@ -13,7 +13,7 @@ add_library(parsertest
     "src/input/algo/parse.cc"
     "src/input/algo/project_anonymous.cc"
     )
-target_link_libraries(parsertest foonathan::lexy::core foonathan::lexy::file)
+target_link_libraries(parsertest PRIVATE foonathan::lexy::core foonathan::lexy::file)
 target_include_directories(parsertest PUBLIC "include")
 # for lexy using >> and + in combination
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

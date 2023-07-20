@@ -2,10 +2,9 @@
 
 #include <input/literal.hh>
 
-#include <input/parser/base.hh>
-#include <input/parser/term.hh>
-
 #include <input/algo/check_type.hh>
+
+#include "term.hh"
 
 namespace Gringo::Input::Grammar {
 

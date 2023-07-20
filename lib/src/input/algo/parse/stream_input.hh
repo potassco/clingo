@@ -6,7 +6,7 @@
 
 #include <lexy/input_location.hpp>
 
-namespace Gringo::Util {
+namespace Gringo::Input {
 
 //! @addtogroup util
 //! @{
@@ -280,4 +280,4 @@ class StreamInput {
 
 //! @}
 
-} // namespace Gringo::Util
+} // namespace Gringo::Input

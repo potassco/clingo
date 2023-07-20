@@ -1,14 +1,12 @@
 #include <sstream>
 
-#include <lexy/action/parse.hpp>
-#include <lexy/action/scan.hpp>
-
-#include <input/parser/statement.hh>
+#include <input/algo/parse.hh>
 
 #include "input/parser.hh"
 
 namespace Gringo::Input::Test {
 
+/*
 namespace Grammar {
 
 using input = Util::StreamInput<Input::Grammar::encoding>;
@@ -78,26 +76,21 @@ auto parse_body_literal(std::string str) -> std::optional<BodyLiteral> {
 auto parse_statement(std::string str) -> std::optional<Statement> {
     return Grammar::parse<Grammar::parse_root<Input::Grammar::statement>>(std::move(str));
 }
+*/
 
 struct Parser::Impl {
-    Impl(std::string str)
-        : in{str}, input{in}, scanner{lexy::scan<Input::Grammar::control>(input, Util::report_error)} {}
+    Impl(std::string str) : in{str}, scanner{scan_stream(in)} {}
 
     std::istringstream in;
-    Grammar::input input;
-    decltype(lexy::scan<Input::Grammar::control>(input, Util::report_error)) scanner;
+    Scanner scanner;
 };
 
 Parser::Parser(std::string input) : impl{std::make_unique<Impl>(std::move(input))} {}
 
 auto Parser::scan() const -> std::optional<std::string> {
-    impl->input.discard_before(impl->scanner.position());
-    auto res = impl->scanner.parse<Grammar::parse_root<Input::Grammar::statement, '*'>>();
-    if (res) {
-        return to_string(res.value());
-    }
-    return std::nullopt;
+    return Util::map_opt(impl->scanner.scan(), [](auto stm) { return to_string(stm); });
 }
+
 Parser::~Parser() = default;
 
 } // namespace Gringo::Input::Test

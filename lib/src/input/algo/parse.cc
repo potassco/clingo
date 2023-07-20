@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <lexy/action/parse.hpp>
 #include <lexy/action/scan.hpp>
 #include <lexy/input/file.hpp>
 #include <lexy/input/string_input.hpp>
@@ -8,9 +9,26 @@
 #include <input/algo/print.hh>
 #include <input/algo/rewrite.hh>
 
-#include <input/parser/statement.hh>
+#include "parse/statement.hh"
 
 namespace Gringo::Input {
+
+namespace {
+
+template <class P> struct root : Grammar::control {
+    static constexpr auto rule = lexy::dsl::p<P> + lexy::dsl::eof;
+    static constexpr auto value = lexy::forward<typename decltype(P::value)::return_type>;
+};
+
+template <typename Control>
+auto parse(std::string_view str) -> std::optional<typename decltype(Control::value)::return_type> {
+    auto input = lexy::string_input<Grammar::encoding>{str};
+    auto res = lexy::parse<root<Control>>(input, report_error);
+    if (res.has_value()) {
+        return std::move(res).value();
+    }
+    return std::nullopt;
+}
 
 template <typename Scanner> auto recover(Scanner &scanner) {
     auto recovery = scanner.error_recovery();
@@ -37,9 +55,11 @@ template <typename Input, typename Scanner> void discard(Input &input, Scanner &
 }
 
 template <typename Encoding, typename Counting, typename Scanner>
-void discard(Gringo::Util::StreamInput<Encoding, Counting> &input, Scanner &scanner) {
+void discard(StreamInput<Encoding, Counting> &input, Scanner &scanner) {
     input.discard_before(scanner.position());
 }
+
+} // namespace
 
 class ScannerImpl {
   public:
@@ -98,15 +118,15 @@ class StreamScanner : public ScannerImpl {
   public:
     StreamScanner(std::istream &in)
         : base_input_{in}, input_{base_input_, comments_},
-          scanner_{lexy::scan<Grammar::control>(input_, Gringo::Util::report_error)} {}
+          scanner_{lexy::scan<Grammar::control>(input_, report_error)} {}
     auto scan() -> std::optional<Statement> override { return scan_(*this); }
 
   private:
     friend ScannerImpl;
 
-    using BaseInput = Util::StreamInput<Grammar::encoding>;
+    using BaseInput = StreamInput<Grammar::encoding>;
     using Input = StatefulInput<BaseInput, Comments>;
-    using Scanner = decltype(lexy::scan<Grammar::control>(std::declval<Input>(), Gringo::Util::report_error));
+    using Scanner = decltype(lexy::scan<Grammar::control>(std::declval<Input>(), report_error));
 
     Comments comments_;
     std::optional<Statement> res_;
@@ -120,7 +140,7 @@ class FileScanner : public ScannerImpl {
   public:
     FileScanner(char const *path)
         : handle_{lexy::read_file<Grammar::encoding>(path)}, base_input_{handle_.buffer()},
-          input_{base_input_, comments_}, scanner_{lexy::scan<Grammar::control>(input_, Gringo::Util::report_error)} {}
+          input_{base_input_, comments_}, scanner_{lexy::scan<Grammar::control>(input_, report_error)} {}
     auto scan() -> std::optional<Statement> override { return scan_(*this); }
 
   private:
@@ -129,8 +149,7 @@ class FileScanner : public ScannerImpl {
     using FileHandle = std::remove_cvref_t<decltype(lexy::read_file<Grammar::encoding>(std::declval<char const *>()))>;
     using BaseInput = std::remove_cvref_t<decltype(std::declval<FileHandle>().buffer())>;
     using Input = StatefulInput<BaseInput, Comments>;
-    using Scanner =
-        std::remove_cvref_t<decltype(lexy::scan<Grammar::control>(std::declval<Input>(), Gringo::Util::report_error))>;
+    using Scanner = std::remove_cvref_t<decltype(lexy::scan<Grammar::control>(std::declval<Input>(), report_error))>;
 
     Comments comments_;
     std::optional<Statement> res_;
@@ -145,15 +164,15 @@ class StringScanner : public ScannerImpl {
   public:
     StringScanner(std::string_view content)
         : base_input_{content}, input_{base_input_, comments_},
-          scanner_{lexy::scan<Grammar::control>(input_, Gringo::Util::report_error)} {}
+          scanner_{lexy::scan<Grammar::control>(input_, report_error)} {}
     auto scan() -> std::optional<Statement> override { return scan_(*this); }
 
   private:
     friend ScannerImpl;
 
-    using BaseInput = decltype(lexy::string_input<Grammar::encoding>(std::declval<std::string>()));
+    using BaseInput = lexy::string_input<Grammar::encoding>;
     using Input = StatefulInput<BaseInput, Comments>;
-    using Scanner = decltype(lexy::scan<Grammar::control>(std::declval<Input>(), Gringo::Util::report_error));
+    using Scanner = decltype(lexy::scan<Grammar::control>(std::declval<Input>(), report_error));
 
     Comments comments_;
     std::optional<Statement> res_;
@@ -163,10 +182,24 @@ class StringScanner : public ScannerImpl {
     bool init_ = true;
 };
 
-auto parse_stream(std::istream &in) -> Scanner { return Scanner{std::make_unique<StreamScanner>(in)}; }
+auto scan_stream(std::istream &in) -> Scanner { return Scanner{std::make_unique<StreamScanner>(in)}; }
 
-auto parse_file(char const *path) -> Scanner { return Scanner{std::make_unique<FileScanner>(path)}; }
+auto scan_file(char const *path) -> Scanner { return Scanner{std::make_unique<FileScanner>(path)}; }
 
-auto parse_string(std::string_view content) -> Scanner { return Scanner{std::make_unique<StringScanner>(content)}; }
+auto scan_string(std::string_view content) -> Scanner { return Scanner{std::make_unique<StringScanner>(content)}; }
+
+auto parse_term(std::string_view str) -> std::optional<Term> { return parse<Grammar::term>(str); }
+
+auto parse_literal(std::string_view str) -> std::optional<Literal> { return parse<Grammar::literal>(str); }
+
+auto parse_head_literal(std::string_view str) -> std::optional<HeadLiteral> {
+    return parse<Grammar::head_literal>(str);
+}
+
+auto parse_body_literal(std::string_view str) -> std::optional<BodyLiteral> {
+    return parse<Grammar::body_literal>(str);
+}
+
+auto parse_statement(std::string_view str) -> std::optional<Statement> { return parse<Grammar::statement>(str); }
 
 } // namespace Gringo::Input

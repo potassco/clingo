@@ -1,16 +1,26 @@
+#pragma once
+
 #include <input/statement.hh>
 
 namespace Gringo::Input {
 
+//! @addtogroup algo
+//! @{
+
+//! @internal The scanner implementation.
 class ScannerImpl;
 
+//! A scanner to parse statements.
 class Scanner {
   public:
-    friend auto parse_stream(std::istream &in) -> Scanner;
-    friend auto parse_file(char const *path) -> Scanner;
-    friend auto parse_string(std::string_view content) -> Scanner;
+    friend auto scan_stream(std::istream &in) -> Scanner;
+    friend auto scan_file(char const *path) -> Scanner;
+    friend auto scan_string(std::string_view content) -> Scanner;
 
+    //! Destroy the scanner.
     ~Scanner() noexcept;
+
+    //! Scan the next statement.
     auto scan() -> std::optional<Statement>;
 
   private:
@@ -19,8 +29,24 @@ class Scanner {
     std::unique_ptr<ScannerImpl> impl_;
 };
 
-auto parse_stream(std::istream &in) -> Scanner;
-auto parse_file(char const *path) -> Scanner;
-auto parse_string(std::string_view content) -> Scanner;
+//! Parse a term.
+auto parse_term(std::string_view str) -> std::optional<Term>;
+//! Parse a literal.
+auto parse_literal(std::string_view str) -> std::optional<Literal>;
+//! Parse a head literal.
+auto parse_head_literal(std::string_view str) -> std::optional<HeadLiteral>;
+//! Parse a body literal.
+auto parse_body_literal(std::string_view str) -> std::optional<BodyLiteral>;
+//! Parse a statement.
+auto parse_statement(std::string_view str) -> std::optional<Statement>;
+
+//! Return a scanner to parse statements one by one.
+auto scan_stream(std::istream &in) -> Scanner;
+//! Return a scanner to parse statements one by one.
+auto scan_file(char const *path) -> Scanner;
+//! Return a scanner to parse statements one by one.
+auto scan_string(std::string_view content) -> Scanner;
+
+//! @}
 
 } // namespace Gringo::Input

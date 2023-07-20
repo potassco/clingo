@@ -2,8 +2,7 @@
 
 #include <input/theory.hh>
 
-#include <input/parser/aggregate.hh>
-#include <input/parser/literal.hh>
+#include "aggregate.hh"
 
 namespace Gringo::Input::Grammar {
 
