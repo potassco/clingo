@@ -234,7 +234,24 @@ TEST_CASE("project_statement_head") {
 }
 
 TEST_CASE("project_statement") {
-    // TODO: test remaining statements
+    REQUIRE(project_str(parse_statement("#theory t {}.")) == "#theory t { }.");
+    REQUIRE(project_str(parse_statement("#minimize { X,Y: p(X), p(Z) }.")) == "#minimize { X,Y: p(X), p(*) }.");
+    REQUIRE(project_str(parse_statement(":~ p(X), p(Z). [X,Y]")) == " :~ p(X); p(*). [X,Y]");
+    REQUIRE(project_str(parse_statement("#show p(X,Y): q(X,Z).")) == "#show p(X,Y): q(X,*).");
+    REQUIRE(project_str(parse_statement("#show p/2.")) == "#show p/2.");
+    REQUIRE(project_str(parse_statement("#project p(X,Y): q(X,Z).")) == "#project p(X,Y): q(X,*).");
+    REQUIRE(project_str(parse_statement("#project p/2.")) == "#project p/2.");
+    REQUIRE(project_str(parse_statement("#defined p/2.")) == "#defined p/2.");
+    REQUIRE(project_str(parse_statement("#external p(X,Y): q(X,Z). [U]")) == "#external p(X,Y): q(X,*). [U]");
+    REQUIRE(project_str(parse_statement("#edge (X,Y): q(X,Z).")) == "#edge (X,Y): q(X,*).");
+    REQUIRE(project_str(parse_statement("#heuristic p(X,Y): q(X,Z). [X,U]")) == "#heuristic p(X,Y): q(X,*). [X,U]");
+    REQUIRE(project_str(parse_statement("#script (python) #end.")) == "#script (python) #end.");
+    REQUIRE(project_str(parse_statement("#program p(k,t).")) == "#program p(k,t).");
+    REQUIRE(project_str(parse_statement("#const x=42.")) == "#const x=42. [default]");
+}
+
+TEST_CASE("rewrite_anonymous") {
+    // TODO
 }
 
 } // namespace Gringo::Input::Test

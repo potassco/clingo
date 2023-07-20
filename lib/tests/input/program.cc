@@ -5,15 +5,16 @@
 namespace Gringo::Input::Test {
 
 TEST_CASE("program") {
-    Parser parser{"a.b.c"};
-    auto stm = parser.scan();
-    REQUIRE(stm.has_value());
-    REQUIRE(stm.value() == "a.");
-    stm = parser.scan();
-    REQUIRE(stm.has_value());
-    REQUIRE(stm.value() == "b.");
-    stm = parser.scan();
-    REQUIRE(!stm.has_value());
+    std::istringstream in{"%p\na.%a\nb%b\n.%c\nc%d\n"};
+    auto scanner = scan_stream(in);
+    REQUIRE(to_str(scanner.scan()) == "%p");
+    REQUIRE(to_str(scanner.scan()) == "a.");
+    REQUIRE(to_str(scanner.scan()) == "%a");
+    REQUIRE(to_str(scanner.scan()) == "%b");
+    REQUIRE(to_str(scanner.scan()) == "b.");
+    REQUIRE(to_str(scanner.scan()) == "%c");
+    REQUIRE(to_str(scanner.scan()) == "%d");
+    REQUIRE(to_str(scanner.scan()) == "<failed>");
 }
 
 } // namespace Gringo::Input::Test

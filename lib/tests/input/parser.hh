@@ -1,10 +1,6 @@
 #pragma once
 
-#include <memory>
-#include <optional>
 #include <sstream>
-
-#include <input/statement.hh>
 
 #include <input/algo/parse.hh>
 #include <input/algo/print.hh>
@@ -90,13 +86,5 @@ template <class T> auto variables_str(std::optional<T> const &value) -> std::str
     }
     return "<failed>";
 }
-
-struct Parser {
-    struct Impl;
-    Parser(std::string input);
-    ~Parser();
-    [[nodiscard]] auto scan() const -> std::optional<std::string>;
-    std::unique_ptr<Impl> impl;
-};
 
 } // namespace Gringo::Input::Test
