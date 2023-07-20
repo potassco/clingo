@@ -59,7 +59,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     void operator()(LiteralBoolean const &lit) const { static_cast<void>(lit); }
 
-    void operator()(LiteralRelation const &lit) const { static_cast<void>(lit); }
+    void operator()(LiteralRelation const &lit) const { visit(lit.lhs, lit.rhs); }
 
     void operator()(LiteralSymbolic const &lit) const { visit(lit.term); }
 
