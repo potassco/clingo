@@ -1,6 +1,6 @@
 #pragma once
 
-#include <deque>
+#include <queue>
 #include <string>
 
 #include <lexy/callback.hpp>
@@ -58,19 +58,26 @@ template <typename Input, typename State> class StatefulInput {
 //! Helper class to track comments.
 class Comments {
   public:
-    //! Append the given comment to a list.
-    void append(std::string comment) { comments_.emplace_back(std::move(comment)); }
-    //! Mark the position of the last comment appended.
+    //! Add a comment.
+    void push(std::string comment) { comments_.push(std::move(comment)); }
+
+    //! Mark all currently available comments for popping.
     void mark() { mark_ = comments_.size(); }
-    //! Return an iterator to the first available comment.
-    auto begin() -> std::deque<std::string>::iterator { return comments_.begin(); }
-    //! Return an iterator after the last marked comment.
-    auto end() -> std::deque<std::string>::iterator { return comments_.begin() + mark_; }
-    //! Clear the comments up to the marker.
-    void clear() { comments_.erase(comments_.begin(), comments_.begin() + mark_); };
+
+    //! Check if a comment is available.
+    [[nodiscard]] auto empty() const -> bool { return mark_ == 0; }
+
+    //! Pop the last comment.
+    auto pop() -> std::string {
+        assert(mark_ > 0);
+        auto ret = std::move(comments_.front());
+        comments_.pop();
+        --mark_;
+        return ret;
+    }
 
   private:
-    std::deque<std::string> comments_;
+    std::queue<std::string> comments_;
     size_t mark_ = 0;
 };
 
@@ -159,7 +166,7 @@ struct block_comment : lexy::scan_production<void> {
         } while (n > 0);
         auto end = scanner.position();
         if constexpr (Detail::has_state<lexy::rule_scanner<Context, Reader>>) {
-            scanner.remaining_input().reader().state().append(lexy::as_string<std::string, encoding>(begin, end));
+            scanner.remaining_input().reader().state().push(lexy::as_string<std::string, encoding>(begin, end));
         }
         return scan_result{true};
     }
@@ -179,7 +186,7 @@ struct comment : lexy::scan_production<void> {
         };
         auto end = scanner.position();
         if constexpr (Detail::has_state<lexy::rule_scanner<Context, Reader>>) {
-            scanner.remaining_input().reader().state().append(lexy::as_string<std::string, encoding>(begin, end));
+            scanner.remaining_input().reader().state().push(lexy::as_string<std::string, encoding>(begin, end));
         }
         return scan_result{true};
     }

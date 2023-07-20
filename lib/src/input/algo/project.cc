@@ -34,6 +34,10 @@ struct Project : Transformer<Project> {
     Project(Projection project, bool in_classical_scope = true, bool project_lits = true)
         : project{std::move(project)}, in_classical_scope{in_classical_scope}, project_lits{project_lits} {}
 
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &x) const -> std::optional<T> = delete;
+
     // ignore
 
     auto operator()(std::string const &x) const -> std::optional<std::string> {
@@ -340,6 +344,11 @@ struct Project : Transformer<Project> {
     }
 
     auto operator()(StatementConst const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(Comment const &stm) const -> std::optional<Statement> {
         static_cast<void>(stm);
         return std::nullopt;
     }

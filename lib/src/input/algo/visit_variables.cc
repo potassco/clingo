@@ -9,15 +9,17 @@ namespace {
 struct VisitVariables : Visitor<VisitVariables> {
     VisitVariables(VarVisitFun fun, VariableContext ctx = VariableContext::all) : fun{std::move(fun)}, ctx{ctx} {}
 
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &) const -> std::optional<T> = delete;
+
     // ignore
 
     void operator()(std::monostate x) const { static_cast<void>(x); }
 
     void operator()(std::string const &x) const { static_cast<void>(x); }
 
-    template <class T, class U = std::enable_if_t<std::is_enum_v<T>>> void operator()(T const &x) const {
-        static_cast<void>(x);
-    }
+    void operator()(Relation const &x) const { static_cast<void>(x); }
 
     // terms
 
@@ -171,6 +173,8 @@ struct VisitVariables : Visitor<VisitVariables> {
     void operator()(StatementProgram const &stm) const { static_cast<void>(stm); }
 
     void operator()(StatementConst const &stm) const { static_cast<void>(stm); }
+
+    void operator()(Comment const &stm) const { static_cast<void>(stm); }
 
     VarVisitFun fun;
     VariableContext ctx;

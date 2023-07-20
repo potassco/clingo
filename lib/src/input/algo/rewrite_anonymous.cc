@@ -10,6 +10,10 @@ namespace {
 struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     RewriteAnonymous(NameGen &gen) : gen{gen} {}
 
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &x) const -> std::optional<T> = delete;
+
     // ignore
 
     auto operator()(std::monostate const &x) const -> std::optional<std::monostate> {
@@ -22,7 +26,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
         return std::nullopt;
     }
 
-    template <class T> auto operator()(T const &x) const -> std::enable_if_t<std::is_enum_v<T>, std::optional<T>> {
+    auto operator()(Relation const &x) const -> std::optional<Relation> {
         static_cast<void>(x);
         return std::nullopt;
     }
@@ -180,10 +184,96 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 
     // statement
 
-    auto operator()(Statement const &stm) const -> std::optional<Statement> {
+    auto operator()(Statement const &stm) const -> std::optional<Statement> { return std::visit(*this, stm); }
+
+    auto operator()(Rule const &stm) const -> std::optional<Statement> {
+        return transform_construct<Rule>(tr(stm.head), tr(stm.body));
+    }
+
+    auto operator()(TheoryDefinition const &stm) const -> std::optional<Statement> {
         static_cast<void>(stm);
-        // return std::visit(*this, stm);
-        throw std::logic_error("implement me!!!");
+        return std::nullopt;
+    }
+
+    auto operator()(StatementOptimize::Tuple const &elem) const -> std::optional<StatementOptimize::Tuple> {
+        return transform_construct<StatementOptimize::Tuple>(tr(elem.weight), tr(elem.priority), tr(elem.terms));
+    }
+
+    auto operator()(StatementOptimize::Element const &elem) const -> std::optional<StatementOptimize::Element> {
+        return transform_construct<StatementOptimize::Element>(tr(elem.first), tr(elem.second));
+    }
+
+    auto operator()(StatementOptimize const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementOptimize>(stm.type, tr(stm.elems));
+    }
+
+    auto operator()(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementWeakConstraint>(tr(stm.body), tr(stm.tuple));
+    }
+
+    auto operator()(StatementShow const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementShow>(tr(stm.term), tr(stm.body));
+    }
+
+    auto operator()(StatementShowSig const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementProject const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementProject>(tr(stm.term), tr(stm.body));
+    }
+
+    auto operator()(StatementProjectSig const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementDefined const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementExternal const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementExternal>(tr(stm.term), tr(stm.body), tr(stm.type));
+    }
+
+    auto operator()(StatementEdge::Edge const &edge) const -> std::optional<StatementEdge::Edge> {
+        return transform_construct<StatementEdge::Edge>(tr(edge.u), tr(edge.v));
+    }
+
+    auto operator()(StatementEdge const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementEdge>(tr(stm.edges), tr(stm.body));
+    }
+
+    auto operator()(StatementHeuristic const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementHeuristic>(tr(stm.atom), tr(stm.body), tr(stm.type), tr(stm.prio),
+                                                       tr(stm.mod));
+    }
+
+    auto operator()(StatementScript const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementInclude const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementProgram const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementConst const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(Comment const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
     }
 
     NameGen &gen;

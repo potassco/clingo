@@ -17,6 +17,10 @@ auto is_anonymous(Term const *term) -> bool {
 
 struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &) const -> std::optional<T> = delete;
+
     // ignore
 
     auto operator()(std::string const &x) const -> std::optional<std::string> {
@@ -260,6 +264,11 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     auto operator()(StatementConst const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(Comment const &stm) const -> std::optional<Statement> {
         static_cast<void>(stm);
         return std::nullopt;
     }

@@ -444,11 +444,26 @@ struct StatementConst {
     Term value;
 };
 
+//! Enumeration of comment types.
+enum class CommentType {
+    line,  //!< A newline terminated comment starting with <tt>%</tt>.
+    block, //!< A block comment enclosed in <tt>%*</tt> and <tt>*%</tt>.
+};
+
+//! A commment.
+//!
+//! For example: <tt>%* comment *%</tt>
+struct Comment {
+    explicit Comment(CommentType type, std::string value) : type{type}, value{std::move(value)} {}
+    CommentType type;
+    std::string value;
+};
+
 //! Variant of available statements.
 using Statement =
     std::variant<Rule, TheoryDefinition, StatementOptimize, StatementWeakConstraint, StatementShow, StatementShowSig,
                  StatementProject, StatementProjectSig, StatementDefined, StatementExternal, StatementEdge,
-                 StatementHeuristic, StatementScript, StatementInclude, StatementProgram, StatementConst>;
+                 StatementHeuristic, StatementScript, StatementInclude, StatementProgram, StatementConst, Comment>;
 //! A vector of statements.
 using StatementVec = std::vector<Statement>;
 

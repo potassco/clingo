@@ -12,6 +12,10 @@ namespace {
 
 struct Unpool {
 
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &x) const -> std::optional<std::vector<T>> = delete;
+
     // terms
 
     auto operator()(Term const &term) const -> std::optional<TermVec> { return std::visit(*this, term); }
@@ -520,6 +524,11 @@ struct Unpool {
             throw std::runtime_error("const statements must not contain pools");
         }
         return ret;
+    }
+
+    auto operator()(Comment const &stm) const -> std::optional<StatementVec> {
+        static_cast<void>(stm);
+        return std::nullopt;
     }
 };
 

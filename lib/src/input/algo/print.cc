@@ -808,6 +808,8 @@ struct Print {
         out << ". [" << stm.type << "]";
     }
 
+    void operator()(Comment const &stm) const { out << stm.value; }
+
     std::ostream &out;
     Position pos = Position::none;
     unsigned int prio = 0;
