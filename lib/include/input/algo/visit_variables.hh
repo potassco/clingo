@@ -6,7 +6,10 @@
 
 namespace Gringo::Input {
 
-//! @addtogroup algo
+//! @defgroup input_visit_variables Visit Variables
+//! @ingroup input_algo
+//!
+//! Functions to visit variables in expressions.
 //! @{
 
 //! Variable selection scopes.
@@ -19,9 +22,6 @@ enum class VariableContext {
 
 //! A function to visit variable occurrences.
 using VarVisitFun = std::function<void(std::string const &var)>;
-
-//! @name Functions to gather variables
-//! @{
 
 //! Visit variables with the given function.
 void visit_variables(Term const &term, VarVisitFun fun);
@@ -69,8 +69,6 @@ inline auto select_variables(T const &x, VariableContext context = VariableConte
         x, [&](std::string const &var) { vars.emplace(var); }, context);
     return vars;
 }
-
-//! @}
 
 //! @}
 

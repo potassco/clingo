@@ -8,7 +8,12 @@
 
 namespace Gringo {
 
-//! @defgroup symbol Symbol
+//! @defgroup core Core
+//!
+//! Core functionality shared across modules.
+
+//! @defgroup core_symbol Symbols
+//! @ingroup core
 //!
 //! Data structures and functions to represent symbols.
 //!
@@ -85,17 +90,9 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
 
 } // namespace Gringo
 
-//! @addtogroup symbol
-//! @{
+#ifndef GRINGO_DOXYGEN_SKIP
 
-//! @name Hash Operators
-//! @{
-
-//! Hash operator for Gringo::QuotedString.
 GRINGO_HASH_PROTO(Gringo::QuotedString)
-//! Hash operator for Gringo::Function.
 GRINGO_HASH_PROTO(Gringo::Function)
 
-//! @}
-
-//! @}
+#endif

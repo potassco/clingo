@@ -4,7 +4,11 @@
 
 namespace Gringo::Input {
 
-//! @addtogroup algo
+//! @defgroup input_rewrite Rewrite
+//! @ingroup input_algo
+//!
+//! Functions to rewrite statements
+//!
 //! @{
 
 //! Enumeration of available rewrite levels.
@@ -25,17 +29,12 @@ struct RewriteOptions {
     bool project_anonymous = false;
 };
 
-//! @name Functions to rewrite statements
-//! @{
-
 //! Rewrite the given statement.
 //!
 //! This functions pulls together all the different rewriting steps.
 //! The highest rewrite level is used to rewrite a program before grounding.
 //! There are some optional rewriting steps that can be configured via the given options.
 void rewrite(Statement const &stm, RewriteOptions opts, StatementVec &stms);
-
-//! @}
 
 //! @}
 

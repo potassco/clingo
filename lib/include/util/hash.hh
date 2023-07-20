@@ -11,7 +11,11 @@
 
 namespace Gringo::Util {
 
-//! @addtogroup util
+//! @defgroup core_hash Hash Functions
+//! @ingroup core_util
+//!
+//! Generic functions for equality comparison and hash computation.
+//!
 //! @{
 
 //! Helper to declare the value hash struct for a type.

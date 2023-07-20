@@ -21,7 +21,11 @@ using opt_vec_ret_t = std::optional<
 
 } // namespace Detail
 
-//! @addtogroup util
+//! @defgroup core_algorithm Generic Algorithms
+//! @ingroup core_util
+//!
+//! Generic algorithms used throughout the library.
+//!
 //! @{
 
 //! Return a vector with the first n elements from the given one.

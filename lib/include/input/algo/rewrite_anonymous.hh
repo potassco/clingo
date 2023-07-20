@@ -4,6 +4,13 @@
 
 namespace Gringo::Input {
 
+//! @defgroup input_rewrite_anonymous Rewrite Anonymous
+//! @ingroup input_algo
+//!
+//! Functions to give anonymous variables in expressions a unique name.
+//!
+//! @{
+
 //! Generator for auxiliary variables.
 class NameGen {
   public:
@@ -38,5 +45,7 @@ class NameGen {
 
 //! Give anonymous variables a unique name.
 [[nodiscard]] auto rewrite_anonymous(Statement const &stm) -> std::optional<Statement>;
+
+//! @}
 
 } // namespace Gringo::Input

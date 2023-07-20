@@ -15,8 +15,6 @@ namespace Gringo::Input {
 //! @{
 
 //! Helper class to attach state information to a reader.
-//!
-//! @todo Move into separate header.
 template <typename Reader, typename State> class StatefulReader : public Reader {
   public:
     //! Construct a stateful reader.
@@ -30,8 +28,6 @@ template <typename Reader, typename State> class StatefulReader : public Reader 
 };
 
 //! Helper class to attach state information to an input.
-//!
-//! @todo Move into separate header.
 template <typename Input, typename State> class StatefulInput {
   public:
     //! Construct a stateful input.

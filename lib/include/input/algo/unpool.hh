@@ -4,14 +4,11 @@
 
 namespace Gringo::Input {
 
-//! @defgroup algo Algorithms
-//! @ingroup language
+//! @defgroup input_unpool Unpool
+//! @ingroup input_algo
 //!
-//! Algorithms for the input language
+//! Functions to unpool expressions.
 //!
-//! @{
-
-//! @name Functions to unpool expressions
 //! @{
 
 //! Remove all pooled arguments from the term.
@@ -28,8 +25,6 @@ namespace Gringo::Input {
 
 //! Remove all pooled arguments from the statement.
 [[nodiscard]] auto unpool(Statement const &stm) -> std::optional<StatementVec>;
-
-//! @}
 
 //! @}
 

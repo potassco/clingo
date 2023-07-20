@@ -4,10 +4,11 @@
 
 namespace Gringo::Input {
 
-//! @addtogroup algo
-//! @{
-
-//! @name Functions to output expressions
+//! @defgroup input_print Print
+//! @ingroup input_algo
+//!
+//! Functions to output expressions.
+//!
 //! @{
 
 //! Output the term to the given stream.
@@ -45,8 +46,6 @@ auto to_string(BodyLiteral const &lit) -> std::string;
 
 //! Convert the given head literal into a string.
 auto to_string(Statement const &stm) -> std::string;
-
-//! @}
 
 //! @}
 

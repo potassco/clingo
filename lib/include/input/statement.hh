@@ -50,8 +50,8 @@ namespace Gringo::Input {
 // - assignments should be sets to avoid introducing duplicates
 // - provisional name: normalize_terms (maybe cannot all be done in one function)
 
-//! @defgroup statement Statements
-//! @ingroup language
+//! @defgroup input_statement Statements
+//! @ingroup input_language
 //!
 //! Data structures and functions to represent statements.
 //!

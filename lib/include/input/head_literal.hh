@@ -8,8 +8,8 @@
 
 namespace Gringo::Input {
 
-//! @defgroup head_literal Head Literals
-//! @ingroup language
+//! @defgroup input_head_literal Head Literals
+//! @ingroup input_language
 //!
 //! Data structures and functions to represent head literals.
 //!

@@ -4,7 +4,11 @@
 
 namespace Gringo::Util {
 
-//! @addtogroup util
+//! @defgroup core_print Printing
+//! @ingroup core_util
+//!
+//! Generic functions for printing.
+//!
 //! @{
 
 //! An identity mapper used for printing.

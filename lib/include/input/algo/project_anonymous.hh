@@ -4,10 +4,11 @@
 
 namespace Gringo::Input {
 
-//! @addtogroup algo
-//! @{
-
-//! @name Functions to project anonymous variables (deprecated)
+//! @defgroup input_project_anonymous Project Anonymous
+//! @ingroup input_algo
+//!
+//! Functions to project anonymous variables (deprecated)
+//!
 //! @{
 
 //! Project positional anonymous variables in the term.
@@ -24,8 +25,6 @@ namespace Gringo::Input {
 
 //! Project anonymous variables in (nested) negated symbolic literals.
 [[nodiscard]] auto project_anonymous(Statement const &stm) -> std::optional<Statement>;
-
-//! @}
 
 //! @}
 

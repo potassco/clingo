@@ -6,9 +6,15 @@
 
 namespace Gringo::Util {
 
-//! @defgroup util Utility
+//! @defgroup core_util Utility
+//! @ingroup core
 //!
 //! Utility data structures and functions.
+
+//! @defgroup core_shared_ptr Shared Pointers
+//! @ingroup core_util
+//!
+//! A shared and single owner pointer implementation.
 //!
 //! @{
 

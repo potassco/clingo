@@ -40,8 +40,6 @@ template <class Input> auto get_anchor(Input const &input, int /*unused*/) -> de
 //! Write out an error message.
 //!
 //! @related report_error_
-//!
-//! @todo Move into input/parser module.
 template <typename OutputIt, typename Input, typename Reader, typename Tag>
 auto write_error(OutputIt out, const lexy::error_context<Input> &context, const lexy::error<Reader, Tag> &error,
                  lexy::visualization_options opts, const char *path) -> OutputIt {

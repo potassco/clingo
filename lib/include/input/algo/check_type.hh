@@ -4,7 +4,16 @@
 
 namespace Gringo::Input {
 
-//! @addtogroup algo
+//! @defgroup input_algo Algorithms
+//! @ingroup input
+//!
+//! Alogorithms for the input language.
+
+//! @defgroup input_check_type Check Type
+//! @ingroup input_algo
+//!
+//! Functions to analyze expressions.
+//!
 //! @{
 
 //! Enumeration for Term::check_type().
@@ -27,9 +36,6 @@ struct CheckTypeResult {
     //! The identifier represented by the term.
     std::string identifier;
 };
-
-//! @name Functions to analyze expressions
-//! @{
 
 //! Query information about the structure of the given term.
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nullptr) -> bool;
@@ -61,8 +67,6 @@ auto is_test(BodyLiteral const &lit) -> bool;
 
 //! Check if the literal is classical.
 auto is_classical(HeadLiteral const &lit) -> bool;
-
-//! @}
 
 //! @}
 
