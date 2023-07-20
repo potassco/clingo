@@ -74,7 +74,7 @@ class ScannerImpl {
         }
         // report comments
         if (!self.comments_.empty()) {
-            return Comment{CommentType::line, self.comments_.pop()};
+            return self.comments_.pop();
         }
         // report last statement
         if (self.res_.has_value()) {
@@ -90,10 +90,10 @@ class ScannerImpl {
                 recover(self.scanner_);
             }
             if (res.has_value()) {
-                // delay reporting statement reporting comments first
+                // report comments before statement
                 if (!self.comments_.empty()) {
                     self.res_ = std::move(res).value();
-                    return Comment{CommentType::line, self.comments_.pop()};
+                    return self.comments_.pop();
                 }
                 // report statement
                 return std::move(res).value();
@@ -102,7 +102,7 @@ class ScannerImpl {
         // ensure all comments are reported
         self.comments_.mark();
         if (!self.comments_.empty()) {
-            return Comment{CommentType::line, self.comments_.pop()};
+            return self.comments_.pop();
         }
         return std::nullopt;
     }

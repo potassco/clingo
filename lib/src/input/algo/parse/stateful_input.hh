@@ -2,8 +2,8 @@
 
 #include <cassert>
 #include <queue>
-#include <string>
-#include <utility>
+
+#include <input/statement.hh>
 
 namespace Gringo::Input {
 
@@ -58,12 +58,12 @@ class Comments {
     [[nodiscard]] auto empty() const -> bool { return mark_ == 0; }
 
     //! Pop the last comment.
-    auto pop() -> std::string {
+    auto pop() -> Comment {
         assert(mark_ > 0);
         auto ret = std::move(comments_.front());
         comments_.pop();
         --mark_;
-        return ret;
+        return Comment{ret.rfind("%*", 0) == 0 ? CommentType::block : CommentType::line, ret};
     }
 
   private:

@@ -445,6 +445,8 @@ struct StatementConst {
 };
 
 //! Enumeration of comment types.
+//!
+//! @related Comment
 enum class CommentType {
     line,  //!< A newline terminated comment starting with <tt>%</tt>.
     block, //!< A block comment enclosed in <tt>%*</tt> and <tt>*%</tt>.
@@ -454,8 +456,11 @@ enum class CommentType {
 //!
 //! For example: <tt>%* comment *%</tt>
 struct Comment {
+    //! Construct a comment.
     explicit Comment(CommentType type, std::string value) : type{type}, value{std::move(value)} {}
+    //! The type of the comment.
     CommentType type;
+    //! The content of the comment including comment markers.
     std::string value;
 };
 
