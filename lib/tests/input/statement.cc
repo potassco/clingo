@@ -250,8 +250,56 @@ TEST_CASE("project_statement") {
     REQUIRE(project_str(parse_statement("#const x=42.")) == "#const x=42. [default]");
 }
 
+TEST_CASE("project_anonymous_head") {
+    // disjunctions
+    REQUIRE(project_anonymous_str(parse_statement("p(X,_,*): q(X,_,*).")) == "p(X,_,*): q(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement("not p(X,_,*): not r(X,_,*).")) == "not p(X,*,*): not r(X,*,*).");
+    REQUIRE(project_anonymous_str(parse_statement("f(X,_,*)<g(X,_,*).")) == "f(X,_,*)<g(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement("#false:#true.")) == "#false: #true.");
+    // set aggregates
+    REQUIRE(project_anonymous_str(parse_statement("{ p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
+            "{ p(X,_,*): q(X,_,*) } != f(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement("{ not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
+            "{ not p(X,*,*): not q(X,*,*) } != f(X,_,*).");
+    // aggregates
+    REQUIRE(project_anonymous_str(parse_statement("#count { f(X,_,*): p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
+            "#count { f(X,_,*): p(X,_,*): q(X,_,*) } != f(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement("#count { f(X,_,*): not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
+            "#count { f(X,_,*): not p(X,*,*): not q(X,*,*) } != f(X,_,*).");
+    // theory
+    REQUIRE(project_anonymous_str(parse_statement("&p(X,_,*) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
+            "&p(X,_,*) { f(X,_): p(X,_,*), not q(X,*,*) } != f(X,_).");
+}
+
+TEST_CASE("project_anonymous_body") {
+    // conjunctions
+    REQUIRE(project_anonymous_str(parse_statement(":- p(X,_,*): q(X,_,*).")) == " :- p(X,_,*): q(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement(":- not p(X,_,*): not r(X,_,*).")) ==
+            " :- not p(X,*,*): not r(X,*,*).");
+    REQUIRE(project_anonymous_str(parse_statement(":- f(X,_,*)<g(X,_,*).")) == " :- f(X,_,*)<g(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement(":- #false:#true.")) == " :- #false: #true.");
+    // set aggregates
+    REQUIRE(project_anonymous_str(parse_statement(":- { p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
+            " :- { p(X,_,*): q(X,_,*) } != f(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement(":- { not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
+            " :- { not p(X,*,*): not q(X,*,*) } != f(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement(":- not { not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
+            " :- not { not p(X,*,*): not q(X,*,*) } != f(X,_,*).");
+    // aggregates
+    REQUIRE(project_anonymous_str(parse_statement(":- #count { f(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
+            " :- #count { f(X,_,*): q(X,_,*) } != f(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement(":- #count { f(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
+            " :- #count { f(X,_,*): not q(X,*,*) } != f(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement(":- not #count { f(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
+            " :- not #count { f(X,_,*): not q(X,*,*) } != f(X,_,*).");
+    // theory
+    REQUIRE(project_anonymous_str(parse_statement(" :- &p(X,_,*) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
+            " :- &p(X,_,*) { f(X,_): p(X,_,*), not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_anonymous_str(parse_statement(" :- not &p(X,_,*) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
+            " :- not &p(X,_,*) { f(X,_): p(X,_,*), not q(X,*,*) } != f(X,_).");
+}
+
 TEST_CASE("project_anonymous_statement") {
-    // TODO: rules with different head/body literals
     REQUIRE(project_anonymous_str(parse_statement("#theory t {}.")) == "#theory t { }.");
     REQUIRE(project_anonymous_str(parse_statement("#minimize { Y@Z: not p(X), not p(_) }.")) ==
             "#minimize { Y@Z: not p(X), not p(*) }.");
@@ -274,8 +322,15 @@ TEST_CASE("project_anonymous_statement") {
     REQUIRE(project_anonymous_str(parse_statement("#const x=42.")) == "#const x=42. [default]");
 }
 
+TEST_CASE("rewrite_anonymous_head") {
+    // TODO: rules with different head literals
+}
+
+TEST_CASE("rewrite_anonymous_body") {
+    // TODO: rules with different body literals
+}
+
 TEST_CASE("rewrite_anonymous_statement") {
-    // TODO: rules with different head/body literals
     REQUIRE(rewrite_anonymous_str(parse_statement("#theory t {}.")) == "#theory t { }.");
     REQUIRE(rewrite_anonymous_str(parse_statement("#minimize { Y@Z: not p(X), not p(_) }.")) ==
             "#minimize { Y@Z: not p(X), not p(__Aux_0) }.");
