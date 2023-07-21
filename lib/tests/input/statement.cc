@@ -250,8 +250,53 @@ TEST_CASE("project_statement") {
     REQUIRE(project_str(parse_statement("#const x=42.")) == "#const x=42. [default]");
 }
 
-TEST_CASE("rewrite_anonymous") {
-    // TODO
+TEST_CASE("project_anonymous_statement") {
+    // TODO: rules with different head/body literals
+    REQUIRE(project_anonymous_str(parse_statement("#theory t {}.")) == "#theory t { }.");
+    REQUIRE(project_anonymous_str(parse_statement("#minimize { Y@Z: not p(X), not p(_) }.")) ==
+            "#minimize { Y@Z: not p(X), not p(*) }.");
+    REQUIRE(project_anonymous_str(parse_statement(":~ not p(X); not p(_). [Y]")) == " :~ not p(X); not p(*). [Y]");
+    REQUIRE(project_anonymous_str(parse_statement("#show p(X,Y): not p(X), not q(_).")) ==
+            "#show p(X,Y): not p(X); not q(*).");
+    REQUIRE(project_anonymous_str(parse_statement("#show p/2.")) == "#show p/2.");
+    REQUIRE(project_anonymous_str(parse_statement("#project p(X): not q(Y), not q(_).")) ==
+            "#project p(X): not q(Y); not q(*).");
+    REQUIRE(project_anonymous_str(parse_statement("#project p/2.")) == "#project p/2.");
+    REQUIRE(project_anonymous_str(parse_statement("#defined p/2.")) == "#defined p/2.");
+    REQUIRE(project_anonymous_str(parse_statement("#external p(X): not q(Y), not q(_). [Z]")) ==
+            "#external p(X): not q(Y); not q(*). [Z]");
+    REQUIRE(project_anonymous_str(parse_statement("#edge (X,X): not q(Y), not q(_).")) ==
+            "#edge (X,X): not q(Y); not q(*).");
+    REQUIRE(project_anonymous_str(parse_statement("#heuristic p(X): not q(Y), not q(_). [U,V]")) ==
+            "#heuristic p(X): not q(Y); not q(*). [U,V]");
+    REQUIRE(project_anonymous_str(parse_statement("#script (python) #end.")) == "#script (python) #end.");
+    REQUIRE(project_anonymous_str(parse_statement("#program p(k,t).")) == "#program p(k,t).");
+    REQUIRE(project_anonymous_str(parse_statement("#const x=42.")) == "#const x=42. [default]");
+}
+
+TEST_CASE("rewrite_anonymous_statement") {
+    // TODO: rules with different head/body literals
+    REQUIRE(rewrite_anonymous_str(parse_statement("#theory t {}.")) == "#theory t { }.");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#minimize { Y@Z: not p(X), not p(_) }.")) ==
+            "#minimize { Y@Z: not p(X), not p(__Aux_0) }.");
+    REQUIRE(rewrite_anonymous_str(parse_statement(":~ not p(X), not p(_). [Y]")) ==
+            " :~ not p(X); not p(__Aux_0). [Y]");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#show p(X,Y): not p(X); not q(_).")) ==
+            "#show p(X,Y): not p(X); not q(__Aux_0).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#show p/2.")) == "#show p/2.");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#project p(X): not q(Y), not q(_).")) ==
+            "#project p(X): not q(Y); not q(__Aux_0).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#project p/2.")) == "#project p/2.");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#defined p/2.")) == "#defined p/2.");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#external p(X): not q(Y), not q(_). [Z]")) ==
+            "#external p(X): not q(Y); not q(__Aux_0). [Z]");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#edge (X,X): not q(Y), not q(_).")) ==
+            "#edge (X,X): not q(Y); not q(__Aux_0).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#heuristic p(X): not q(Y), not q(_). [U,V]")) ==
+            "#heuristic p(X): not q(Y); not q(__Aux_0). [U,V]");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#script (python) #end.")) == "#script (python) #end.");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#program p(k,t).")) == "#program p(k,t).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#const x=42.")) == "#const x=42. [default]");
 }
 
 } // namespace Gringo::Input::Test

@@ -121,7 +121,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // conditional literal
 
     auto operator()(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
-        return transform_construct<ConditionalLiteral>(tr(lit.lits), tr(lit.lits));
+        return transform_construct<ConditionalLiteral>(tr(lit.lits), tr(lit.cond));
     }
 
     // aggregate

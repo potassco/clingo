@@ -57,7 +57,12 @@ template <class T> class Transformer {
 
     template <class U> auto transform_(std::optional<U> const &opt) const -> std::optional<std::optional<U>> {
         if (opt.has_value()) {
-            return {transform(opt.value())};
+            // Note that the transformer will never remove an optional. If this
+            // is desired, then the visitor extending the transformer should
+            // handle this case.
+            if (auto ret = transform(opt.value()); ret.has_value()) {
+                return std::move(ret);
+            }
         }
         return std::nullopt;
     }
