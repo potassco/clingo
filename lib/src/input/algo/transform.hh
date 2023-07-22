@@ -45,14 +45,19 @@ template <class T> class Transformer {
         return std::nullopt;
     }
 
-    template <class... U, size_t... I>
-    auto transform_(std::tuple<U...> const &tup, std::index_sequence<I...> indices) const
-        -> std::optional<std::tuple<U...>> {
-        return transform_(tup, indices, transform(std::get<I>(tup))...);
+    template <size_t i, class... U, class... Args>
+    auto transform_(std::tuple<U...> const &tup, Args &&...args) const -> std::optional<std::tuple<U...>> {
+        // Note: we have to use the complicated recursive version because the
+        // C++ standard leaves the order of argument evaluation unspecified.
+        if constexpr (i == sizeof...(U)) {
+            return transform_(tup, std::forward<Args>(args)..., std::index_sequence_for<U...>{});
+        } else {
+            return transform_(tup, std::forward<Args>(args)..., transform(std::get<i>(tup)));
+        }
     }
 
     template <class... U> auto transform_(std::tuple<U...> const &tup) const -> std::optional<std::tuple<U...>> {
-        return transform_(tup, std::index_sequence_for<U...>{});
+        return transform_<0>(tup);
     }
 
     template <class U> auto transform_(std::optional<U> const &opt) const -> std::optional<std::optional<U>> {

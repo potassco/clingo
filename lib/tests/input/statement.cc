@@ -323,7 +323,25 @@ TEST_CASE("project_anonymous_statement") {
 }
 
 TEST_CASE("rewrite_anonymous_head") {
-    // TODO: rules with different head literals
+    // disjunctions
+    REQUIRE(rewrite_anonymous_str(parse_statement("p(X,_,*): q(X,_,*).")) == "p(X,__Aux_0,*): q(X,__Aux_1,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("not p(X,_,*): not r(X,_,*).")) ==
+            "not p(X,__Aux_0,*): not r(X,__Aux_1,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("f(X,_,*)<g(X,_,*).")) == "f(X,__Aux_0,*)<g(X,__Aux_1,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#false:#true.")) == "#false: #true.");
+    // set aggregates
+    REQUIRE(rewrite_anonymous_str(parse_statement("{ p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
+            "{ p(X,__Aux_0,*): q(X,__Aux_1,*) } != f(X,__Aux_2,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("{ not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
+            "{ not p(X,__Aux_0,*): not q(X,__Aux_1,*) } != f(X,__Aux_2,*).");
+    // aggregates
+    REQUIRE(rewrite_anonymous_str(parse_statement("#count { f(X,_,*): p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
+            "#count { f(X,__Aux_0,*): p(X,__Aux_1,*): q(X,__Aux_2,*) } != f(X,__Aux_3,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#count { f(X,_,*): not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
+            "#count { f(X,__Aux_0,*): not p(X,__Aux_1,*): not q(X,__Aux_2,*) } != f(X,__Aux_3,*).");
+    // theory
+    REQUIRE(rewrite_anonymous_str(parse_statement("&p(X,_,*) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
+            "&p(X,__Aux_0,*) { f(X,__Aux_1): p(X,__Aux_2,*), not q(X,__Aux_3,*) } != f(X,__Aux_4).");
 }
 
 TEST_CASE("rewrite_anonymous_body") {
