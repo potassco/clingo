@@ -5,6 +5,16 @@
 
 namespace Gringo::Input {
 
+// TODO: rewrite arithmetic
+// - p(1..X) -> Aux=1..X
+// - p(X+Y)  -> Aux=X+Y
+// - p(X-1)  -> fine!
+// - X < Y < Z+B -> fine if conjunctive
+// - not X < Y < Z+B -> Aux=Z+B if disjunctive
+// - p(X), f(Y)=X, not q(Y)
+//   - no need to add X=f(Y) because Y cannot be bound
+//   - could be done by pruning equations
+
 // TODO 1:
 // - comparison literals should be normalized
 //   - can expand disjunctively and conjunctively
