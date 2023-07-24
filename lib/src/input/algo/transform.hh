@@ -66,7 +66,7 @@ template <class T> class Transformer {
             // is desired, then the visitor extending the transformer should
             // handle this case.
             if (auto ret = transform(opt.value()); ret.has_value()) {
-                return std::move(ret);
+                return {std::move(ret)};
             }
         }
         return std::nullopt;

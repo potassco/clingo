@@ -20,6 +20,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(parsertest PUBLIC "-Wno-parentheses")
 endif()
 
-if (NOT PARSER_BUILD_WEB)
+if (PARSER_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
