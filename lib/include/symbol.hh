@@ -62,20 +62,21 @@ using SymVec = std::vector<Symbol>;
 //! For example: <tt>f(x,y)</tt>.
 struct Function {
     //! Construct a function symbol.
-    explicit Function(std::string name, SymVec args = {}) : name{std::move(name)}, args{std::move(args)} {}
+    explicit Function(std::string name, SymVec args = {}, bool has_sign = false)
+        : name{std::move(name)}, args{std::move(args)}, has_sign{has_sign} {}
     //! Compare two functions.
     friend auto operator==(Function const &a, Function const &b) -> bool;
     //! Output the function.
     friend auto operator<<(std::ostream &out, Function const &sym) -> std::ostream &;
 
-    //! Whether the symbol is negated.
-    //!
-    //! Only functions can be negated not tuples.
-    bool has_sign = false;
     //! The name of the function symbol (or empty for tuples).
     std::string name;
     //! The arguments of the function.
     SymVec args;
+    //! Whether the symbol is negated.
+    //!
+    //! Only functions can be negated not tuples.
+    bool has_sign;
 };
 
 //! Output the given symbol.

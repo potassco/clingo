@@ -1,6 +1,6 @@
 add_library(parsertest
     "src/input/algo/check_type.cc"
-    "src/input/algo/eval_const.cc"
+    "src/input/algo/evaluate.cc"
     "src/input/algo/parse.cc"
     "src/input/algo/print.cc"
     "src/input/algo/project_anonymous.cc"
