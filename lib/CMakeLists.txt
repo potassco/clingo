@@ -1,17 +1,18 @@
-add_library(parsertest 
-    "src/symbol.cc"
-    "src/input/term.cc"
-    "src/input/literal.cc"
-    "src/input/body_literal.cc"
-    "src/input/algo/print.cc"
-    "src/input/algo/rewrite_anonymous.cc" 
+add_library(parsertest
     "src/input/algo/check_type.cc"
+    "src/input/algo/eval_const.cc"
+    "src/input/algo/parse.cc"
+    "src/input/algo/print.cc"
+    "src/input/algo/project_anonymous.cc"
     "src/input/algo/project.cc"
+    "src/input/algo/rewrite_anonymous.cc"
     "src/input/algo/rewrite.cc"
     "src/input/algo/unpool.cc"
     "src/input/algo/visit_variables.cc"
-    "src/input/algo/parse.cc"
-    "src/input/algo/project_anonymous.cc"
+    "src/input/body_literal.cc"
+    "src/input/literal.cc"
+    "src/input/term.cc"
+    "src/symbol.cc"
     )
 target_link_libraries(parsertest PRIVATE foonathan::lexy::core foonathan::lexy::file)
 target_include_directories(parsertest PUBLIC "include")
