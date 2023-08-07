@@ -82,6 +82,29 @@ template <class S> inline auto check_div(S a, S b) -> std::enable_if_t<std::is_s
     if (b == 0 || (b == -1 && a == std::numeric_limits<S>::min())) {
         return std::nullopt;
     }
+    // TODO: This is C's integer division
+    // For example clingcon uses:
+    /*
+      template<typename I>
+      I floordiv(I n, I m) {
+          using std::div;
+          auto a = div(n, m);
+          if (((n < 0) ^ (m < 0)) && a.rem != 0) {
+              a.quot--;
+          }
+          return a.quot;
+      }
+
+      template<typename I>
+      I ceildiv(I n, I m) {
+          using std::div;
+          auto a = div(n, m);
+          if (((n < 0) ^ (m < 0)) && a.rem != 0) {
+              a.quot++;
+          }
+          return a.quot;
+      }
+    */
     return a / b;
 }
 
