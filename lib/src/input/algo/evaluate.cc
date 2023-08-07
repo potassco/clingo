@@ -4,15 +4,15 @@
 
 #include <input/algo/evaluate.hh>
 
+#include "checked_math.hh"
+
 namespace Gringo::Input {
 
 namespace {
 
-// TODO: add logger for error reporting!!!
-
 struct EvaluateUnary {
     auto operator()(int val) const -> std::optional<Symbol> {
-        // TODO: using an optional allows for nice overflow checking
+        // TODO: handle overflows + info
         switch (op) {
             case UnaryOperator::invert: {
                 return Symbol{~val};
@@ -25,11 +25,13 @@ struct EvaluateUnary {
     }
     auto operator()(Constant val) const -> std::optional<Symbol> {
         static_cast<void>(val);
+        // TODO: info reporting
         std::cerr << "could not evaluate symbol" << std::endl;
         return std::nullopt;
     }
     auto operator()(QuotedString val) const -> std::optional<Symbol> {
         static_cast<void>(val);
+        // TODO: info reporting
         std::cerr << "could not evaluate symbol" << std::endl;
         return std::nullopt;
     }
@@ -40,11 +42,12 @@ struct EvaluateUnary {
             }
             case UnaryOperator::negate: {
                 if (!val.name.empty()) {
-                    return Function{val.name, val.args, val.has_sign};
+                    return Function{val.name, val.args, !val.has_sign};
                 }
                 break;
             }
         }
+        // TODO: info reporting
         std::cerr << "could not evaluate symbol" << std::endl;
         return std::nullopt;
     }
@@ -53,19 +56,47 @@ struct EvaluateUnary {
 
 struct EvaluateBinary {
     auto operator()(int lhs, int rhs) const -> std::optional<Symbol> {
-        // TODO: using an optional allows for nice overflow checking
+        // TODO: standard mathematical operators + handle overflows (empty pools) + info
         switch (op) {
-            case BinaryOperator::plus: {
-                return Symbol{lhs + rhs};
+            case BinaryOperator::dots: {
+                break;
             }
-            default: {
-                throw std::logic_error("implement me!!!");
+            case BinaryOperator::xor_: {
+                return Symbol{lhs ^ rhs};
+            }
+            case BinaryOperator::or_: {
+                return Symbol{lhs | rhs};
+            }
+            case BinaryOperator::and_: {
+                return Symbol{lhs & rhs};
+            }
+            case BinaryOperator::plus: {
+                return check_add(lhs, rhs);
+            }
+            case BinaryOperator::minus: {
+                return check_sub(lhs, rhs);
+            }
+            case BinaryOperator::times: {
+                return Symbol{lhs * rhs};
+            }
+            case BinaryOperator::div: {
+                return check_div(lhs, rhs);
+            }
+            case BinaryOperator::mod: {
+                return Symbol{lhs % rhs};
+            }
+            case BinaryOperator::pow: {
+                return Symbol{static_cast<int>(std::pow(lhs, rhs))};
             }
         }
+        // TODO: handle syntax error
+        std::cerr << "intervals cannot be used here" << std::endl;
+        return std::nullopt;
     }
     template <class L, class R> auto operator()(L const &lhs, R const &rhs) const -> std::optional<Symbol> {
         static_cast<void>(lhs);
         static_cast<void>(rhs);
+        // TODO: handle info
         std::cerr << "could not evaluate symbol" << std::endl;
         return std::nullopt;
     }
@@ -166,11 +197,37 @@ struct Evaluate {
 
     template <class T> auto operator()(T const &x) const -> std::optional<Symbol> = delete;
 
+    // symbols
+
+    auto operator()(Symbol const &sym) const -> std::optional<Symbol> { return std::visit(*this, sym); }
+
+    auto operator()(int const &val) const -> std::optional<Symbol> { return Symbol{val}; }
+
+    auto operator()(Constant const &val) const -> std::optional<Symbol> { return Symbol{val}; }
+
+    auto operator()(QuotedString const &val) const -> std::optional<Symbol> { return Symbol{val}; }
+
+    auto operator()(Function const &val) const -> std::optional<Symbol> {
+        if (val.args.empty()) {
+            return Symbol{val};
+        }
+        auto it = map.find(val.name);
+        if (it == map.end()) {
+            return Symbol{val};
+        }
+        auto const &rep = it->second;
+        if (rep.has_value() && val.has_sign) {
+            return evaluate(UnaryOperator::negate, rep.value());
+        }
+        return rep;
+    }
+
     // term
 
     auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
 
     auto operator()(std::monostate const &x) const -> std::optional<Symbol> {
+        // TODO: handle syntax error
         std::cerr << "projection is not permitted here" << std::endl;
         static_cast<void>(x);
         return std::nullopt;
@@ -182,7 +239,7 @@ struct Evaluate {
         std::vector<Symbol> args;
         args.reserve(vec.size());
         for (auto const &elem : vec) {
-            auto res = std::visit(*this, elem);
+            auto res = operator()(elem);
             if (!res.has_value()) {
                 return std::nullopt;
             }
@@ -210,12 +267,13 @@ struct Evaluate {
             if (auto it = map.find(fun->name); it != map.end()) {
                 auto const &val = it->second;
                 if (val.has_value() && fun->has_sign) {
-                    throw std::logic_error("invert value");
+                    return evaluate(UnaryOperator::negate, val.value());
                 }
                 return val;
             }
         }
-        return term.value;
+        // also arguments of functions have to be evaluated
+        return operator()(term.value);
     }
 
     auto operator()(TermTuple const &term) const -> std::optional<Symbol> {
@@ -226,7 +284,11 @@ struct Evaluate {
     }
 
     auto operator()(TermFunction const &term) const -> std::optional<Symbol> {
-        if (!term.external && term.pool.size() == 1 && term.pool.front().empty()) {
+        if (term.pool.size() != 1) {
+            std::cerr << "pools are not permitted here" << std::endl;
+            return std::nullopt;
+        }
+        if (!term.external && term.pool.front().empty()) {
             if (auto it = map.find(term.name); it != map.end()) {
                 return it->second;
             }
@@ -239,18 +301,37 @@ struct Evaluate {
     }
 
     auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
-        static_cast<void>(term);
-        throw std::logic_error("implement me!!!");
+        if (term.pool.size() != 1) {
+            std::cerr << "pools are not permitted here" << std::endl;
+            return std::nullopt;
+        }
+        auto val = operator()(term.pool.front());
+        if (!val.has_value()) {
+            return std::nullopt;
+        }
+        auto const *value = std::get_if<int>(&val.value());
+        if (value == nullptr) {
+            std::cerr << "can only compute absolute of integers" << std::endl;
+            return std::nullopt;
+        }
+        return Symbol{std::abs(*value)};
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<Symbol> {
-        static_cast<void>(term);
-        throw std::logic_error("implement me!!!");
+        auto rhs = operator()(*term.rhs);
+        if (!rhs.has_value()) {
+            return std::nullopt;
+        }
+        return evaluate(term.op, rhs.value());
     }
 
     auto operator()(TermBinary const &term) const -> std::optional<Symbol> {
-        static_cast<void>(term);
-        throw std::logic_error("implement me!!!");
+        auto lhs = operator()(*term.lhs);
+        auto rhs = operator()(*term.rhs);
+        if (!lhs.has_value() || !rhs.has_value()) {
+            return std::nullopt;
+        }
+        return evaluate(lhs.value(), term.op, rhs.value());
     }
 
     std::map<std::string, std::optional<Symbol>> const &map;
@@ -279,6 +360,7 @@ auto evaluate_const(std::vector<StatementConst> const &stms) -> std::map<std::st
             if (res.first->second.stm.type < stm.type) {
                 res.first->second.stm = stm;
             } else {
+                // TODO: handle info
                 std::cerr << "constant already defined: " << stm.name << std::endl;
             }
         }
