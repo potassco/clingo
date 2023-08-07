@@ -6,6 +6,7 @@
 #include <input/algo/print.hh>
 
 #include "checked_math.hh"
+#include "graph.hh"
 
 namespace Gringo::Input {
 
@@ -51,7 +52,7 @@ struct EvaluateUnary {
 struct EvaluateBinary {
     auto operator()(int lhs, int rhs) const -> std::optional<Symbol> {
         // Note that the bitwise binary operations on signed integers became
-        // well-defined with C++20. Even though this libary also supports
+        // well-defined with C++20. Even though this library also supports
         // C++17, we rely on two's complement for integers.
         switch (op) {
             case BinaryOperator::dots: {
@@ -164,23 +165,20 @@ struct BuildDep {
         operator()(*term.rhs);
     }
 
-    //! Add a dependency to the map.
+    //! Add a dependency to the graph.
     void add_(std::string const &name) const {
-        if (auto it = depend.find(name); it != depend.end() && it->second.gen < gen) {
-            it->second.gen = gen;
-            ++dep;
-            it->second.rev.emplace_back(name);
+        if (auto it = map.find(name); it != map.end()) {
+            // TODO: check if the direction is correct
+            dep.add_edge(it->second, id);
         }
     }
 
-    //! The dependency map.
-    std::map<std::string, StateDep> &depend;
-    //! The name of the constant at hand.
-    std::optional<std::string> name;
-    //! The dependency count of the constant at hand.
-    size_t &dep;
-    //! Generation of last name inserted.
-    size_t gen;
+    //! A map from constant names to indices of const statements.
+    std::map<std::string, size_t> &map;
+    //! The dependency graph to build.
+    Graph &dep;
+    //! The id of the const statement at hand.
+    size_t id;
 };
 
 struct Evaluate {
@@ -200,8 +198,24 @@ struct Evaluate {
     auto operator()(QuotedString const &val) const -> std::optional<Symbol> { return Symbol{val}; }
 
     auto operator()(Function const &val) const -> std::optional<Symbol> {
-        if (val.args.empty()) {
-            return Symbol{val};
+        if (!val.args.empty()) {
+            // Note: this implementation is a bit unfortunate because, ideally,
+            // the symbol would only be reconstructed if there are actual
+            // changes. This might be noticeable performance-wise because
+            // evaluation is a very common operation.
+            // However, this is nothing that should be addressed right away.
+            // The required code also depends on the eventual symbol
+            // implementation that might not even use variants.
+            std::vector<Symbol> args;
+            args.reserve(val.args.size());
+            for (auto const &arg : val.args) {
+                auto val = operator()(arg);
+                if (!val.has_value()) {
+                    return std::nullopt;
+                }
+                args.emplace_back(val.value());
+            }
+            return Function{val.name, std::move(args), val.has_sign};
         }
         auto it = map.find(val.name);
         if (it == map.end()) {
@@ -365,54 +379,44 @@ auto evaluate(std::map<std::string, std::optional<Symbol>> const &map, Term cons
 
 auto evaluate_const(std::vector<StatementConst> const &stms) -> std::map<std::string, std::optional<Symbol>> {
     // build map
-    std::map<std::string, StateDep> map;
-    for (auto const &stm : stms) {
-        auto res = map.try_emplace(stm.name, stm);
+    std::map<std::string, size_t> map;
+    size_t id_stm = 0;
+    for (auto const &stm_a : stms) {
+        auto res = map.try_emplace(stm_a.name, id_stm);
         if (!res.second) {
-            if (res.first->second.stm.type < stm.type) {
-                res.first->second.stm = stm;
+            auto const &stm_b = stms[res.first->second];
+            if (stm_b.type < stm_a.type) {
+                res.first->second = id_stm;
             } else {
                 // TODO: proper reporting
-                std::cerr << "info: constant already defined: " << stm.name << std::endl;
+                std::cerr << "info: constant already defined: " << stm_a.name << std::endl;
             }
         }
+        ++id_stm;
     }
-    // build dependency graph and initialize counters
-    size_t gen = 0;
-    for (auto &[name, state] : map) {
-        ++gen;
-        BuildDep{map, state.stm.name, state.dep, gen}(state.stm.value);
+    // build dependency graph
+    Graph dep;
+    for (auto &[name, id_stm] : map) {
+        BuildDep{map, dep, id_stm}(stms[id_stm].value);
     }
-    // initialize queue
-    std::deque<std::map<std::string, StateDep>::iterator> todo;
-    for (auto it = map.begin(); it != map.end();) {
-        if (it->second.dep == 0) {
-            todo.emplace_back(it);
-        } else {
-            ++it;
-        }
-    }
-    // process queue and evaluate
+    // evaluate const statements
     std::map<std::string, std::optional<Symbol>> res;
-    while (!todo.empty()) {
-        auto it = todo.front();
-        todo.pop_front();
-        for (auto const &name : it->second.rev) {
-            auto &dep = map.find(name)->second.dep;
-            if (--dep; dep == 0) {
-                todo.emplace_back(map.find(name));
+    dep.tarjan([&stms, &res](auto const &scc) {
+        if (scc.size() == 1) {
+            auto const &stm = stms[scc.front()];
+            res.emplace(stm.name, evaluate(res, stm.value));
+        } else {
+            for (auto id_stm : scc) {
+                res.emplace(stms[id_stm].name, std::nullopt);
             }
+            // TODO: proper reporting
+            std::cerr << "error: the following const statements depend cyclically on each other:";
+            for (auto id_stm : scc) {
+                std::cerr << "\n  " << stms[id_stm];
+            }
+            std::cerr << std::endl;
         }
-        res.emplace(it->second.stm.name, evaluate(res, it->second.stm.value));
-        map.erase(it);
-    }
-    // report errors
-    if (!map.empty()) {
-        std::cerr << "Some constants could not be evaluated because they depend cyclicly on each other.\n"
-                  << "To report them nicely, it is easiest to compute strongly connected components.\n"
-                  << "Clingo's graph class should be ported for this.\n"
-                  << "Furthermore, errors during term evaluation have to be reported properly." << std::endl;
-    }
+    });
     return res;
 }
 
