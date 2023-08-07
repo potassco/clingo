@@ -3,6 +3,7 @@
 #include <map>
 
 #include <input/algo/evaluate.hh>
+#include <input/algo/print.hh>
 
 #include "checked_math.hh"
 
@@ -12,7 +13,6 @@ namespace {
 
 struct EvaluateUnary {
     auto operator()(int val) const -> std::optional<Symbol> {
-        // TODO: handle overflows + info
         switch (op) {
             case UnaryOperator::invert: {
                 return Symbol{~val};
@@ -21,18 +21,14 @@ struct EvaluateUnary {
                 break;
             }
         }
-        return Symbol{-val};
+        return check_neg(val);
     }
     auto operator()(Constant val) const -> std::optional<Symbol> {
         static_cast<void>(val);
-        // TODO: info reporting
-        std::cerr << "could not evaluate symbol" << std::endl;
         return std::nullopt;
     }
     auto operator()(QuotedString val) const -> std::optional<Symbol> {
         static_cast<void>(val);
-        // TODO: info reporting
-        std::cerr << "could not evaluate symbol" << std::endl;
         return std::nullopt;
     }
     auto operator()(Function val) const -> std::optional<Symbol> {
@@ -47,8 +43,6 @@ struct EvaluateUnary {
                 break;
             }
         }
-        // TODO: info reporting
-        std::cerr << "could not evaluate symbol" << std::endl;
         return std::nullopt;
     }
     UnaryOperator op;
@@ -56,7 +50,9 @@ struct EvaluateUnary {
 
 struct EvaluateBinary {
     auto operator()(int lhs, int rhs) const -> std::optional<Symbol> {
-        // TODO: standard mathematical operators + handle overflows (empty pools) + info
+        // Note that the bitwise binary operations on signed integers became
+        // well-defined with C++20. Even though this libary also supports
+        // C++17, we rely on two's complement for integers.
         switch (op) {
             case BinaryOperator::dots: {
                 break;
@@ -77,27 +73,23 @@ struct EvaluateBinary {
                 return check_sub(lhs, rhs);
             }
             case BinaryOperator::times: {
-                return Symbol{lhs * rhs};
+                return check_mul(lhs, rhs);
             }
             case BinaryOperator::div: {
                 return check_div(lhs, rhs);
             }
             case BinaryOperator::mod: {
-                return Symbol{lhs % rhs};
+                return check_mod(lhs, rhs);
             }
             case BinaryOperator::pow: {
-                return Symbol{static_cast<int>(std::pow(lhs, rhs))};
+                return check_pow(lhs, rhs);
             }
         }
-        // TODO: handle syntax error
-        std::cerr << "intervals cannot be used here" << std::endl;
-        return std::nullopt;
+        throw std::runtime_error("cannot evaluate intervals");
     }
     template <class L, class R> auto operator()(L const &lhs, R const &rhs) const -> std::optional<Symbol> {
         static_cast<void>(lhs);
         static_cast<void>(rhs);
-        // TODO: handle info
-        std::cerr << "could not evaluate symbol" << std::endl;
         return std::nullopt;
     }
     BinaryOperator op;
@@ -227,8 +219,8 @@ struct Evaluate {
     auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
 
     auto operator()(std::monostate const &x) const -> std::optional<Symbol> {
-        // TODO: handle syntax error
-        std::cerr << "projection is not permitted here" << std::endl;
+        // TODO: proper error handling
+        std::cerr << "error: projection is not permitted here" << std::endl;
         static_cast<void>(x);
         return std::nullopt;
     }
@@ -302,7 +294,8 @@ struct Evaluate {
 
     auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
         if (term.pool.size() != 1) {
-            std::cerr << "pools are not permitted here" << std::endl;
+            // TODO: proper error handling
+            std::cerr << "error: pools are not permitted here" << std::endl;
             return std::nullopt;
         }
         auto val = operator()(term.pool.front());
@@ -311,7 +304,9 @@ struct Evaluate {
         }
         auto const *value = std::get_if<int>(&val.value());
         if (value == nullptr) {
-            std::cerr << "can only compute absolute of integers" << std::endl;
+            // TODO: proper reporting
+            std::cerr << "info: could not evaluate absolute " << Term{term} << " with " << term.pool.front() << "="
+                      << val.value() << std::endl;
             return std::nullopt;
         }
         return Symbol{std::abs(*value)};
@@ -322,16 +317,33 @@ struct Evaluate {
         if (!rhs.has_value()) {
             return std::nullopt;
         }
-        return evaluate(term.op, rhs.value());
+        auto res = evaluate(term.op, rhs.value());
+        if (!res.has_value()) {
+            // TODO: proper reporting
+            std::cerr << "info: could not evaluate unary operation " << Term{term} << " with " << *term.rhs << "="
+                      << rhs.value() << std::endl;
+        }
+        return res;
     }
 
     auto operator()(TermBinary const &term) const -> std::optional<Symbol> {
         auto lhs = operator()(*term.lhs);
         auto rhs = operator()(*term.rhs);
+        if (term.op == BinaryOperator::dots) {
+            // TODO: proper error handling
+            std::cerr << "error: intervals are not permitted here" << std::endl;
+            return std::nullopt;
+        }
         if (!lhs.has_value() || !rhs.has_value()) {
             return std::nullopt;
         }
-        return evaluate(lhs.value(), term.op, rhs.value());
+        auto res = evaluate(lhs.value(), term.op, rhs.value());
+        if (!res.has_value()) {
+            // TODO: proper reporting
+            std::cerr << "info: could not evaluate binary operation " << Term{term} << " with " << *term.lhs << "="
+                      << lhs.value() << " and " << *term.rhs << "=" << rhs.value() << std::endl;
+        }
+        return res;
     }
 
     std::map<std::string, std::optional<Symbol>> const &map;
@@ -360,8 +372,8 @@ auto evaluate_const(std::vector<StatementConst> const &stms) -> std::map<std::st
             if (res.first->second.stm.type < stm.type) {
                 res.first->second.stm = stm;
             } else {
-                // TODO: handle info
-                std::cerr << "constant already defined: " << stm.name << std::endl;
+                // TODO: proper reporting
+                std::cerr << "info: constant already defined: " << stm.name << std::endl;
             }
         }
     }
