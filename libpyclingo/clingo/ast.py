@@ -693,12 +693,25 @@ class UnaryOperator(IntEnum):
 class ASTSequence(abc.MutableSequence):
     """
     A sequence holding `AST` nodes.
+
+    Sequences implement Python's rich comparison operators and are ordered
+    structurally ignoring the location. They can also be used as dictionary
+    keys.
     """
 
     def __init__(self, rep, attribute):
         self._rep = rep
         self._attribute = attribute
         _lib.clingo_ast_acquire(self._rep)
+
+    def __eq__(self, other):
+        return tuple(self) == tuple(other)
+
+    def __lt__(self, other):
+        return tuple(self) < tuple(other)
+
+    def __hash__(self):
+        return hash(tuple(self))
 
     def __del__(self):
         _lib.clingo_ast_release(self._rep)
