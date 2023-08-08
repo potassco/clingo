@@ -61,6 +61,14 @@ struct construct_symbol {
     auto operator()(Constant value) const -> Term { return TermSymbol{Symbol{value}}; }
 };
 
+struct construct_position {
+    using return_type = Position;
+
+    template <class State, class It> auto operator()(State const &state, It pos) const -> Position {
+        return state.pos(pos);
+    }
+};
+
 } // namespace Detail
 
 static constexpr auto projection_symbol = lexy::symbol_table<std::monostate> //
@@ -120,6 +128,12 @@ struct variable {
         return dsl::capture(dsl::token(prefix + dsl::ascii::upper + suffix));
     }();
     static constexpr auto value = lexy::as_string<std::string, encoding>;
+};
+
+struct position {
+    static constexpr char const *name = "position";
+    static constexpr auto rule = dsl::position;
+    static constexpr auto value = lexy::bind(Detail::construct_position{}, lexy::parse_state, lexy::values);
 };
 
 struct term_variable : lexy::token_production {

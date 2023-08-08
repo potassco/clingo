@@ -9,6 +9,8 @@
 
 #include <symbol.hh>
 
+#include <input/location.hh>
+
 namespace Gringo::Input {
 
 //! @defgroup input Input

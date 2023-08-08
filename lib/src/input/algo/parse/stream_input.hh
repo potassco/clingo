@@ -128,15 +128,58 @@ class StreamInput {
 
         //! Increment the iterator.
         auto operator++() -> iterator & {
+            assert(buffer_ != nullptr);
             ++offset_;
+            return *this;
+        }
+
+        //! Decrement the iterator.
+        auto operator--() -> iterator & {
+            assert(buffer_ != nullptr);
+            --offset_;
             return *this;
         }
 
         //! Preincrement the iterator.
         auto operator++(int) -> iterator {
+            assert(buffer_ != nullptr);
             iterator retval = *this;
             ++(*this);
             return retval;
+        }
+
+        //! Predecrement the iterator.
+        auto operator--(int) -> iterator {
+            assert(buffer_ != nullptr);
+            iterator retval = *this;
+            --(*this);
+            return retval;
+        }
+
+        //! Advance the iterator.
+        auto operator+=(difference_type n) -> iterator & {
+            assert(buffer_ != nullptr);
+            offset_ += n;
+            return *this;
+        }
+
+        //! Advance the iterator.
+        auto operator-=(difference_type n) -> iterator & {
+            assert(buffer_ != nullptr);
+            offset_ -= n;
+            return *this;
+        }
+
+        //! Advance the iterator.
+        auto operator+(difference_type n) const -> iterator {
+            assert(buffer_ != nullptr);
+            return {*buffer_, offset_ + n};
+        }
+
+        //! Advance the iterator.
+        auto operator-(difference_type n) const -> iterator {
+            assert(buffer_ != nullptr);
+            return {*buffer_, offset_ - n};
         }
 
         //! Equality compare two iterators.
@@ -145,11 +188,37 @@ class StreamInput {
         //! Inequality compare two iterators.
         auto operator!=(iterator other) const -> bool { return !(*this == other); }
 
+        //! Less than compare two iterators.
+        auto operator<(iterator other) const -> bool {
+            if (buffer_ == nullptr) {
+                return false;
+            }
+            if (other.buffer_ == nullptr) {
+                return true;
+            }
+            return offset_ < other.offset_;
+        }
+
+        //! Greater than compare two iterators.
+        auto operator>(iterator other) const -> bool { return other < *this; }
+
+        //! Less equal compare two iterators.
+        auto operator<=(iterator other) const -> bool { return !(other < *this); }
+
+        //! Greater equal compare two iterators.
+        auto operator>=(iterator other) const -> bool { return !(*this < other); }
+
         //! Dereference the iterator.
-        auto operator*() const -> char_type { return buffer_->at(offset_); }
+        auto operator*() const -> char_type {
+            assert(buffer_ != nullptr);
+            return buffer_->at(offset_);
+        }
 
         //! The offset from the beginning of the underlying buffer.
-        [[nodiscard]] auto offset() const -> size_t { return offset_; }
+        [[nodiscard]] auto offset() const -> size_t {
+            assert(buffer_ != nullptr);
+            return offset_;
+        }
 
       private:
         StreamBuffer const *buffer_;
