@@ -308,8 +308,7 @@ struct statement_script {
         auto end = LEXY_KEYWORD("#end", keyword_base);
         return script >> open + type + dsl::delimited(close, end)(dsl::code_point) + eos;
     }();
-    static constexpr auto value =
-        lexy::as_string<std::string, encoding> >> Detail::construct_v<StatementScript, Statement>;
+    static constexpr auto value = Detail::as_string >> Detail::construct_v<StatementScript, Statement>;
 };
 
 struct statement_external {
@@ -335,7 +334,7 @@ struct statement_include {
         auto sys = dsl::delimited(LEXY_LIT("<"), LEXY_LIT(">"))(dsl::ascii::alpha_digit_underscore);
         return kw >> (dsl::inline_<string> | sys >> dsl::nullopt | dsl::error<expected_path>)+eos;
     }();
-    static constexpr auto value = lexy::as_string<std::string, encoding> >>
+    static constexpr auto value = Detail::as_string >>
                                   lexy::callback<Statement>(
                                       [](std::string path) {
                                           return StatementInclude{IncludeType::system, std::move(path)};

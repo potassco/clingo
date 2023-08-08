@@ -20,8 +20,7 @@ struct theory_op {
                kw_not;
     }();
 
-    static constexpr auto value =
-        lexy::callback<std::string>(lexy::as_string<std::string, encoding>, lexy::constant("not"));
+    static constexpr auto value = lexy::callback<std::string>(Detail::as_string, lexy::constant("not"));
 };
 
 struct theory_ops {
@@ -99,14 +98,18 @@ struct theory_term_function {
 
 struct theory_term_variable {
     static constexpr char const *name = "variable";
-    static constexpr auto rule = dsl::p<variable>;
-    static constexpr auto value = Detail::construct_v<TheoryTermVariable, TheoryTerm>;
+    static constexpr auto rule = variable;
+    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto var) {
+        return TheoryTermVariable{Detail::loc(state, var), Detail::as_string(var)};
+    });
 };
 
 struct theory_term_anonymous_variable {
     static constexpr char const *name = "anonymous variable";
-    static constexpr auto rule = anonymous_variable;
-    static constexpr auto value = lexy::callback<TheoryTerm>([]() { return TheoryTermVariable{"_", true}; });
+    static constexpr auto rule = dsl::position(anonymous_variable);
+    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto pos) {
+        return TheoryTermVariable{Detail::loc(state, pos, pos + 1), "_", true};
+    });
 };
 
 struct theory_term_root {

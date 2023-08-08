@@ -76,6 +76,26 @@ template <typename T, typename B> struct construct_shared_ {
 //! Helper to construct a shared pointer.
 template <typename T, typename R> constexpr auto construct_shared = construct_shared_<T, R>{};
 
+template <class R, class... CB> constexpr auto with_state(CB... cb) {
+    return lexy::bind(lexy::callback<R>([cb](auto &state, auto &&...args) {
+                          return cb(state, std::forward<decltype(args)>(args)...);
+                      })...,
+                      lexy::parse_state, lexy::values);
+}
+
+//! Construct a location from the two given iterators.
+auto loc(auto &state, auto begin, auto end) {
+    auto pos_end = state.pos(end);
+    auto pos_begin = state.pos(begin);
+    return Location{std::move(pos_begin), std::move(pos_end)};
+}
+
+//! Construct a location from the given lexeme.
+auto loc(auto &state, auto token) { return loc(state, token.begin(), token.end()); }
+
+//! Convert a lexeme or sink to string.
+static constexpr auto as_string = lexy::as_string<std::string, encoding>;
+
 } // namespace Detail
 
 struct block_comment : lexy::scan_production<void> {
@@ -100,7 +120,7 @@ struct block_comment : lexy::scan_production<void> {
         } while (n > 0);
         auto end = scanner.position();
         if constexpr (Detail::has_state<lexy::rule_scanner<Context, Reader>>) {
-            scanner.remaining_input().reader().state().push(lexy::as_string<std::string, encoding>(begin, end));
+            scanner.remaining_input().reader().state().push(Detail::as_string(begin, end));
         }
         return scan_result{true};
     }
@@ -120,7 +140,7 @@ struct comment : lexy::scan_production<void> {
         };
         auto end = scanner.position();
         if constexpr (Detail::has_state<lexy::rule_scanner<Context, Reader>>) {
-            scanner.remaining_input().reader().state().push(lexy::as_string<std::string, encoding>(begin, end));
+            scanner.remaining_input().reader().state().push(Detail::as_string(begin, end));
         }
         return scan_result{true};
     }

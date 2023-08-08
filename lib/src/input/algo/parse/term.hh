@@ -61,13 +61,6 @@ struct construct_symbol {
     auto operator()(Constant value) const -> Term { return TermSymbol{Symbol{value}}; }
 };
 
-template <class R, class... CB> constexpr auto with_state(CB... cb) {
-    return lexy::bind(lexy::callback<R>([cb](auto &state, auto &&...args) {
-                          return cb(state, std::forward<decltype(args)>(args)...);
-                      })...,
-                      lexy::parse_state, lexy::values);
-}
-
 } // namespace Detail
 
 static constexpr auto projection_symbol = lexy::symbol_table<std::monostate> //
@@ -87,7 +80,7 @@ struct identifier : lexy::token_production {
         auto prefix = dsl::while_one(LEXY_LIT("_") / LEXY_LIT("'"));
         return identifier_base.reserve(kw_not) | dsl::capture(dsl::token(prefix + identifier_base));
     }();
-    static constexpr auto value = lexy::as_string<std::string>;
+    static constexpr auto value = Detail::as_string;
 };
 
 static constexpr auto simple_number = dsl::integer<int>(dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero());
@@ -116,30 +109,20 @@ struct string : lexy::token_production {
         return dsl::quoted(inner, escape);
     }();
 
-    static constexpr auto value = lexy::as_string<std::string, encoding>;
+    static constexpr auto value = Detail::as_string;
 };
 
-struct variable {
-    static constexpr char const *name = "variable";
-    static constexpr auto rule = []() {
-        auto prefix = dsl::while_(LEXY_LIT("_") / LEXY_LIT("'"));
-        auto suffix = dsl::while_(dsl::ascii::alpha_digit_underscore / LEXY_LIT("'"));
-        return dsl::capture(dsl::token(prefix + dsl::ascii::upper + suffix));
-    }();
-    static constexpr auto value = lexy::as_string<std::string, encoding>;
-};
-
-auto loc(auto &state, auto begin, auto end) {
-    auto pos_end = state.pos(end);
-    auto pos_begin = state.pos(begin);
-    return Location{std::move(pos_begin), std::move(pos_end)};
-}
+static constexpr auto variable = []() {
+    auto prefix = dsl::while_(LEXY_LIT("_") / LEXY_LIT("'"));
+    auto suffix = dsl::while_(dsl::ascii::alpha_digit_underscore / LEXY_LIT("'"));
+    return dsl::capture(dsl::token(prefix + dsl::ascii::upper + suffix));
+}();
 
 struct term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
-    static constexpr auto rule = dsl::position(dsl::p<variable> >> dsl::position);
-    static constexpr auto value = Detail::with_state<Term>([](auto &state, auto begin, auto var, auto end) {
-        return TermVariable{loc(state, begin, end), std::move(var)};
+    static constexpr auto rule = variable;
+    static constexpr auto value = Detail::with_state<Term>([](auto &state, auto var) {
+        return TermVariable{Detail::loc(state, var), Detail::as_string(var)};
     });
 };
 
@@ -243,9 +226,9 @@ static constexpr auto anonymous_variable =
 
 struct term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
-    static constexpr auto rule = dsl::position(anonymous_variable >> dsl::position);
-    static constexpr auto value = Detail::with_state<Term>([](auto &state, auto begin, auto end) {
-        return TermVariable{loc(state, begin, end), "_", true};
+    static constexpr auto rule = dsl::position(anonymous_variable);
+    static constexpr auto value = Detail::with_state<Term>([](auto &state, auto pos) {
+        return TermVariable{Detail::loc(state, pos, pos + 1), "_", true};
     });
 };
 

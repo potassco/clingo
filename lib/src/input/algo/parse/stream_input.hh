@@ -124,7 +124,7 @@ class StreamInput {
         constexpr iterator() : buffer_{nullptr}, offset_{0} {}
 
         //! Construct an iterator pointing at the given offset in the buffer.
-        iterator(StreamBuffer &buffer, size_t offset) : buffer_{&buffer}, offset_{offset} {}
+        iterator(StreamBuffer const &buffer, size_t offset) : buffer_{&buffer}, offset_{offset} {}
 
         //! Increment the iterator.
         auto operator++() -> iterator & {

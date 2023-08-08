@@ -40,9 +40,11 @@ struct TheoryTermSymbol {
 //! For example: <tt>X</tt>.
 struct TheoryTermVariable {
     //! Construct a variable theory term.
-    explicit TheoryTermVariable(std::string value, bool is_anonymous = false)
-        : name{std::move(value)}, is_anonymous{is_anonymous} {}
+    explicit TheoryTermVariable(Location loc, std::string name, bool is_anonymous = false)
+        : loc{std::move(loc)}, name{std::move(name)}, is_anonymous{is_anonymous} {}
 
+    //! The location of the variable.
+    Location loc;
     //! The name of the variable.
     std::string name;
     //! Whether the variable is anonymous.
