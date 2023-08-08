@@ -42,7 +42,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 
     auto operator()(TermVariable const &term) const -> std::optional<Term> {
         if (term.is_anonymous) {
-            return TermVariable{gen.new_name(), true};
+            return TermVariable{term.loc, gen.new_name(), true};
         }
         return std::nullopt;
     }

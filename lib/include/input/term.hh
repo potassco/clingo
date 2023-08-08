@@ -62,9 +62,11 @@ using PoolVec = std::vector<TupleVec>;
 //! For example <tt>X</tt>.
 struct TermVariable {
     //! Construct a variable.
-    explicit TermVariable(std::string name, bool is_anonymous = false)
-        : name{std::move(name)}, is_anonymous{is_anonymous} {}
+    explicit TermVariable(Location loc, std::string name, bool is_anonymous = false)
+        : loc{std::move(loc)}, name{std::move(name)}, is_anonymous{is_anonymous} {}
 
+    //! The location of the variable.
+    Location loc;
     //! The name of the variable.
     std::string name;
     //! Whether the variable is anonymous.

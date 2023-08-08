@@ -61,13 +61,12 @@ struct construct_symbol {
     auto operator()(Constant value) const -> Term { return TermSymbol{Symbol{value}}; }
 };
 
-struct construct_position {
-    using return_type = Position;
-
-    template <class State, class It> auto operator()(State const &state, It pos) const -> Position {
-        return state.pos(pos);
-    }
-};
+template <class R, class... CB> constexpr auto with_state(CB... cb) {
+    return lexy::bind(lexy::callback<R>([cb](auto &state, auto &&...args) {
+                          return cb(state, std::forward<decltype(args)>(args)...);
+                      })...,
+                      lexy::parse_state, lexy::values);
+}
 
 } // namespace Detail
 
@@ -130,16 +129,18 @@ struct variable {
     static constexpr auto value = lexy::as_string<std::string, encoding>;
 };
 
-struct position {
-    static constexpr char const *name = "position";
-    static constexpr auto rule = dsl::position;
-    static constexpr auto value = lexy::bind(Detail::construct_position{}, lexy::parse_state, lexy::values);
-};
+auto loc(auto &state, auto begin, auto end) {
+    auto pos_end = state.pos(end);
+    auto pos_begin = state.pos(begin);
+    return Location{std::move(pos_begin), std::move(pos_end)};
+}
 
 struct term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
-    static constexpr auto rule = dsl::p<variable>;
-    static constexpr auto value = Detail::construct_v<TermVariable, Term>;
+    static constexpr auto rule = dsl::position(dsl::p<variable> >> dsl::position);
+    static constexpr auto value = Detail::with_state<Term>([](auto &state, auto begin, auto var, auto end) {
+        return TermVariable{loc(state, begin, end), std::move(var)};
+    });
 };
 
 static constexpr auto constants = lexy::symbol_table<Constant> //
@@ -240,10 +241,12 @@ struct term_abs {
 static constexpr auto anonymous_variable =
     dsl::not_followed_by(LEXY_LIT("_"), dsl::ascii::alpha_digit_underscore / LEXY_LIT("'"));
 
-struct term_anonymous_variable {
+struct term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
-    static constexpr auto rule = anonymous_variable;
-    static constexpr auto value = lexy::callback<Term>([]() { return TermVariable{"_", true}; });
+    static constexpr auto rule = dsl::position(anonymous_variable >> dsl::position);
+    static constexpr auto value = Detail::with_state<Term>([](auto &state, auto begin, auto end) {
+        return TermVariable{loc(state, begin, end), "_", true};
+    });
 };
 
 struct term_rec : lexy::expression_production {

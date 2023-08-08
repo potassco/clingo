@@ -6,6 +6,7 @@
 // Currently, it is not included because it is a bit heavy (7k loc) and we need
 // only a few functions here. I still have to make up my mind here.
 
+#include <limits>
 #include <optional>
 #include <type_traits>
 

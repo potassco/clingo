@@ -197,7 +197,7 @@ class ScannerImpl {
         while (self.scanner_ && !self.scanner_.is_at_eof()) {
             auto pos = self.state_.pos(self.scanner_.position());
             self.state_.discard(self.scanner_.position());
-            discard(self.input_, self.scanner_);
+            discard(self.base_input_, self.scanner_);
             auto res = self.scanner_.template parse<Grammar::statement>();
             if (!self.scanner_) {
                 recover(self.scanner_);
