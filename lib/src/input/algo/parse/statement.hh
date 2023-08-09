@@ -332,7 +332,7 @@ struct statement_include {
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#include", keyword_base);
         auto sys = dsl::delimited(LEXY_LIT("<"), LEXY_LIT(">"))(dsl::ascii::alpha_digit_underscore);
-        return kw >> (dsl::inline_<string> | sys >> dsl::nullopt | dsl::error<expected_path>)+eos;
+        return kw >> (string | sys >> dsl::nullopt | dsl::error<expected_path>)+eos;
     }();
     static constexpr auto value = Detail::as_string >>
                                   lexy::callback<Statement>(

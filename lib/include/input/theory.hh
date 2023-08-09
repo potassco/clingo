@@ -29,8 +29,10 @@ using TheoryTermVec = std::vector<TheoryTerm>;
 //! For example: <tt>1</tt>.
 struct TheoryTermSymbol {
     //! Construct a symbolic theory term.
-    explicit TheoryTermSymbol(Symbol value) : value{std::move(value)} {}
+    explicit TheoryTermSymbol(Location loc, Symbol value) : loc{std::move(loc)}, value{std::move(value)} {}
 
+    //! The location of the symbol.
+    Location loc;
     //! The symbol.
     Symbol value;
 };

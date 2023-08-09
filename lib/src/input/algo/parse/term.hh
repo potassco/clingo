@@ -10,8 +10,6 @@
 
 namespace Gringo::Input::Grammar {
 
-namespace dsl = lexy::dsl;
-
 namespace Detail {
 
 auto empty_args(std::optional<TermVecVec> value) {
@@ -33,7 +31,7 @@ auto empty_args(std::optional<TermVecVec> value) {
 
 auto empty_args(std::optional<PoolVec> value) { return std::move(value).value_or(PoolVec{TupleVec{}}); };
 
-class element_trail_vec {
+class tuple_trail {
   public:
     void push_back(std::monostate p) { vec_.emplace_back(p); }
     void push_front(std::monostate p) { vec_.emplace(vec_.begin(), p); }
@@ -49,16 +47,6 @@ class element_trail_vec {
   private:
     TupleVec vec_;
     bool trail_ = false;
-};
-
-struct construct_symbol {
-    using return_type = Term;
-
-    auto operator()(int value) const -> Term { return TermSymbol{Symbol{value}}; }
-
-    auto operator()(std::string value) const -> Term { return TermSymbol{Symbol{QuotedString{value}}}; }
-
-    auto operator()(Constant value) const -> Term { return TermSymbol{Symbol{value}}; }
 };
 
 } // namespace Detail
@@ -85,42 +73,48 @@ struct identifier : lexy::token_production {
 
 static constexpr auto simple_number = dsl::integer<int>(dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero());
 
-struct number : lexy::token_production {
+static constexpr auto number = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> |
+                               LEXY_LIT("0o") >> dsl::integer<int, dsl::octal> |
+                               LEXY_LIT("0b") >> dsl::integer<int, dsl::binary> | simple_number;
+
+struct term_number : lexy::token_production {
     static constexpr char const *name = "number";
-    static constexpr auto rule = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> |
-                                 LEXY_LIT("0o") >> dsl::integer<int, dsl::octal> |
-                                 LEXY_LIT("0b") >> dsl::integer<int, dsl::binary> | simple_number;
-    static constexpr auto value = lexy::forward<int>;
+    static constexpr auto rule = dsl::position(number >> dsl::position);
+    static constexpr auto value = Detail::with_state<Term>(
+        [](auto &state, auto begin, auto num, auto end) { return TermSymbol(Detail::loc(state, begin, end), num); });
 };
 
-struct string : lexy::token_production {
+static constexpr auto escaped_symbols = lexy::symbol_table<char> //
+                                            .map<'"'>('"')
+                                            .map<'\\'>('\\')
+                                            .map<'n'>('\n')
+                                            .map<'t'>('\t');
+static constexpr auto string = [] {
+    auto inner = dsl::code_point;
+    auto escape = dsl::backslash_escape //
+                      .symbol<escaped_symbols>()
+                      .rule(dsl::lit_c<'u'> >> dsl::code_point_id<4>);
+    return dsl::quoted(inner, escape);
+}();
+
+struct term_string : lexy::token_production {
     static constexpr char const *name = "string";
-    static constexpr auto escaped_symbols = lexy::symbol_table<char> //
-                                                .map<'"'>('"')
-                                                .map<'\\'>('\\')
-                                                .map<'n'>('\n')
-                                                .map<'t'>('\t');
-
-    static constexpr auto rule = [] {
-        auto inner = dsl::code_point;
-        auto escape = dsl::backslash_escape //
-                          .symbol<escaped_symbols>()
-                          .rule(dsl::lit_c<'u'> >> dsl::code_point_id<4>);
-        return dsl::quoted(inner, escape);
-    }();
-
-    static constexpr auto value = Detail::as_string;
+    static constexpr auto rule = dsl::position(string >> dsl::position);
+    static constexpr auto value = Detail::as_string >>
+                                  Detail::with_state<Term>([](auto &state, auto begin, auto str, auto end) {
+                                      return TermSymbol{Detail::loc(state, begin, end), QuotedString{str}};
+                                  });
 };
 
 static constexpr auto variable = []() {
     auto prefix = dsl::while_(LEXY_LIT("_") / LEXY_LIT("'"));
     auto suffix = dsl::while_(dsl::ascii::alpha_digit_underscore / LEXY_LIT("'"));
-    return dsl::capture(dsl::token(prefix + dsl::ascii::upper + suffix));
+    return prefix + dsl::ascii::upper + suffix;
 }();
 
 struct term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
-    static constexpr auto rule = variable;
+    static constexpr auto rule = dsl::capture(dsl::token(variable));
     static constexpr auto value = Detail::with_state<Term>([](auto &state, auto var) {
         return TermVariable{Detail::loc(state, var), Detail::as_string(var)};
     });
@@ -133,6 +127,13 @@ static constexpr auto constants = lexy::symbol_table<Constant> //
                                       .map<LEXY_SYMBOL("#sup")>(Constant::supremum);
 
 static constexpr auto constant = dsl::symbol<constants>(keyword_base);
+
+struct term_constant : lexy::token_production {
+    static constexpr char const *name = "constant";
+    static constexpr auto rule = dsl::position(constant >> dsl::position);
+    static constexpr auto value = Detail::with_state<Term>(
+        [](auto &state, auto begin, auto val, auto end) { return TermSymbol(Detail::loc(state, begin, end), val); });
+};
 
 struct term {
     static constexpr char const *name = "term";
@@ -189,15 +190,16 @@ struct term_tuple_element {
         auto ps = dsl::symbol<projection_symbol>;
         return dsl::if_(ps >> dsl::comma) + dsl::if_(dsl::list(ps | peek >> dsl::p<term>, sep));
     }();
-    static constexpr auto
-        value = lexy::as_list<Detail::element_trail_vec> >>
-                lexy::callback<TermTuple::Element>([]() -> TupleVec { return {}; },
-                                                   [](std::monostate p) -> TupleVec { return {p}; },
-                                                   [](std::monostate p, Detail::element_trail_vec elem) {
-                                                       elem.push_front(p);
-                                                       return elem.to_tuple();
-                                                   },
-                                                   [](Detail::element_trail_vec elem) { return elem.to_tuple(); });
+    static constexpr auto value = lexy::as_list<Detail::tuple_trail> >>
+                                  lexy::callback<TermTuple::Element>([]() -> TupleVec { return {}; },
+                                                                     [](std::monostate p) -> TupleVec { return {p}; },
+                                                                     [](std::monostate p, Detail::tuple_trail elem) {
+                                                                         elem.push_front(p);
+                                                                         return elem.to_tuple();
+                                                                     },
+                                                                     [](Detail::tuple_trail elem) {
+                                                                         return elem.to_tuple();
+                                                                     });
 };
 
 struct term_tuple {
@@ -236,9 +238,9 @@ struct term_rec : lexy::expression_production {
     static constexpr char const *name = "term";
     STRING_TAG(term, "expected term");
 
-    static constexpr auto atom = dsl::p<number> | dsl::p<term_tuple> | dsl::p<term_variable> | dsl::p<term_abs> |
-                                 dsl::p<term_external_function> | dsl::p<term_function> | dsl::p<string> | constant |
-                                 dsl::p<term_anonymous_variable> | dsl::error<expected_term>;
+    static constexpr auto atom = dsl::p<term_number> | dsl::p<term_tuple> | dsl::p<term_variable> | dsl::p<term_abs> |
+                                 dsl::p<term_external_function> | dsl::p<term_function> | dsl::p<term_string> |
+                                 dsl::p<term_constant> | dsl::p<term_anonymous_variable> | dsl::error<expected_term>;
 
     struct term_power : dsl::infix_op_right {
         static constexpr char const *name = "exponentiation";
@@ -295,8 +297,8 @@ struct term_rec : lexy::expression_production {
     };
 
     using operation = term_dots;
-    static constexpr auto value = lexy::callback<Term>(lexy::forward<Term>, Detail::construct_symbol{},
-                                                       lexy::construct<TermUnary>, lexy::construct<TermBinary>);
+    static constexpr auto value =
+        lexy::callback<Term>(lexy::forward<Term>, lexy::construct<TermUnary>, lexy::construct<TermBinary>);
 };
 
 } // namespace Gringo::Input::Grammar

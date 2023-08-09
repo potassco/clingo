@@ -83,8 +83,10 @@ auto operator==(TermVariable const &a, TermVariable const &b) -> bool;
 //! For example <tt>1</tt>.
 struct TermSymbol {
     //! Construct term with the given symbol.
-    explicit TermSymbol(Symbol value) : value{std::move(value)} {}
+    explicit TermSymbol(Location loc, Symbol value) : loc{std::move(loc)}, value{std::move(value)} {}
 
+    //! The location of the symbol.
+    Location loc;
     //! The associated symbol.
     Symbol value;
 };
