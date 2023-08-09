@@ -106,8 +106,10 @@ struct TermTuple {
     using ElementVec = std::vector<Element>;
 
     //! Construct a  tuple.
-    explicit TermTuple(ElementVec args);
+    explicit TermTuple(Location loc, ElementVec args);
 
+    //! The location of the tuple.
+    Location loc;
     //! The argument pool of the tuple.
     ElementVec pool;
 };
@@ -125,8 +127,10 @@ struct TermFunction {
     //!
     //! The function takes a pool of term tuples, which will be reduced to a single element after calling
     //! Term::unpool().
-    explicit TermFunction(std::string name, PoolVec args, bool external);
+    explicit TermFunction(Location loc, std::string name, PoolVec args, bool external);
 
+    //! The location of the function.
+    Location loc;
     //! The name of the function.
     std::string name;
     //! The argument pool of the function.
@@ -147,8 +151,10 @@ struct TermAbs {
     //! Construct an absolute term.
     //!
     //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
-    explicit TermAbs(TermVec pool);
+    explicit TermAbs(Location loc, TermVec pool);
 
+    //! The location of the function.
+    Location loc;
     //! The argument pool of the absolute term.
     TermVec pool;
 };
@@ -169,10 +175,12 @@ enum class UnaryOperator : int {
 //! For example <tt>-X</tt>.
 struct TermUnary {
     //! Construct a term for an unary operation.
-    explicit TermUnary(UnaryOperator op, Term rhs);
+    explicit TermUnary(Location loc, UnaryOperator op, Term rhs);
     //! Construct a term for an unary operation.
-    explicit TermUnary(UnaryOperator op, Util::shared_ptr<Term> rhs);
+    explicit TermUnary(Location loc, UnaryOperator op, Util::shared_ptr<Term> rhs);
 
+    //! The location of the function.
+    Location loc;
     //! The operation.
     UnaryOperator op;
     //! The right-hand-side.
@@ -203,10 +211,12 @@ enum class BinaryOperator : int {
 //! For example <tt>X-Y</tt>.
 struct TermBinary {
     //! Construct a term for an binary operation.
-    explicit TermBinary(Term lhs, BinaryOperator op, Term rhs);
+    explicit TermBinary(Location loc, Term lhs, BinaryOperator op, Term rhs);
     //! Construct a term for an binary operation.
-    explicit TermBinary(Util::shared_ptr<Term> lhs, BinaryOperator op, Util::shared_ptr<Term> rhs);
+    explicit TermBinary(Location loc, Util::shared_ptr<Term> lhs, BinaryOperator op, Util::shared_ptr<Term> rhs);
 
+    //! The location of the function.
+    Location loc;
     //! The operation.
     BinaryOperator op;
     //! The left-hand-side.
@@ -225,16 +235,19 @@ auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
 // Note that constructors are defined here because at this point all types are
 // complete.
 
-inline TermAbs::TermAbs(TermVec pool) : pool{std::move(pool)} {}
-inline TermUnary::TermUnary(UnaryOperator op, Term rhs) : op{op}, rhs{Util::construct_shared<Term>(std::move(rhs))} {}
-inline TermUnary::TermUnary(UnaryOperator op, Util::shared_ptr<Term> rhs) : op{op}, rhs{std::move(rhs)} {}
-inline TermBinary::TermBinary(Term lhs, BinaryOperator op, Term rhs)
-    : op{op}, lhs{Util::construct_shared<Term>(std::move(lhs))}, rhs{Util::construct_shared<Term>(std::move(rhs))} {}
-inline TermBinary::TermBinary(Util::shared_ptr<Term> lhs, BinaryOperator op, Util::shared_ptr<Term> rhs)
-    : op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
-inline TermFunction::TermFunction(std::string name, PoolVec args, bool external)
-    : name(std::move(name)), pool{std::move(args)}, external{external} {}
-inline TermTuple::TermTuple(ElementVec args) : pool{std::move(args)} {}
+inline TermAbs::TermAbs(Location loc, TermVec pool) : loc{std::move(loc)}, pool{std::move(pool)} {}
+inline TermUnary::TermUnary(Location loc, UnaryOperator op, Term rhs)
+    : loc{std::move(loc)}, op{op}, rhs{Util::construct_shared<Term>(std::move(rhs))} {}
+inline TermUnary::TermUnary(Location loc, UnaryOperator op, Util::shared_ptr<Term> rhs)
+    : loc{std::move(loc)}, op{op}, rhs{std::move(rhs)} {}
+inline TermBinary::TermBinary(Location loc, Term lhs, BinaryOperator op, Term rhs)
+    : loc{std::move(loc)}, op{op}, lhs{Util::construct_shared<Term>(std::move(lhs))},
+      rhs{Util::construct_shared<Term>(std::move(rhs))} {}
+inline TermBinary::TermBinary(Location loc, Util::shared_ptr<Term> lhs, BinaryOperator op, Util::shared_ptr<Term> rhs)
+    : loc{std::move(loc)}, op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
+inline TermFunction::TermFunction(Location loc, std::string name, PoolVec args, bool external)
+    : loc{std::move(loc)}, name(std::move(name)), pool{std::move(args)}, external{external} {}
+inline TermTuple::TermTuple(Location loc, ElementVec args) : loc{std::move(loc)}, pool{std::move(args)} {}
 
 } // namespace Gringo::Input
 

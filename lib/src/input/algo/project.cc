@@ -80,14 +80,14 @@ struct Project : Transformer<Project> {
     }
 
     auto operator()(TermTuple const &term) const -> std::optional<Term> {
-        return transform_construct<TermTuple>(tr(term.pool));
+        return transform_construct<TermTuple>(term.loc, tr(term.pool));
     }
 
     auto operator()(TermFunction const &term) const -> std::optional<Term> {
         if (term.external) {
             return std::nullopt;
         }
-        return transform_construct<TermFunction>(term.name, tr(term.pool), term.external);
+        return transform_construct<TermFunction>(term.loc, term.name, tr(term.pool), term.external);
     }
 
     auto operator()(TermAbs const &term) const -> std::optional<Term> {
@@ -97,7 +97,7 @@ struct Project : Transformer<Project> {
 
     auto operator()(TermUnary const &term) const -> std::optional<Term> {
         if (check_type(term, TermCheckType::atom, nullptr)) {
-            return transform_construct<TermUnary>(term.op, tr(term.rhs));
+            return transform_construct<TermUnary>(term.loc, term.op, tr(term.rhs));
         }
         return std::nullopt;
     }

@@ -16,4 +16,10 @@ struct Location {
     Position end;
 };
 
+template <class T> auto location(T const &x) -> Location const & { return x.loc; }
+
+template <class... T> auto location(std::variant<T...> const &x) -> Location const & {
+    return std::visit([](auto const &y) -> Location const & { return location(y); }, x);
+}
+
 } // namespace Gringo::Input

@@ -76,10 +76,12 @@ template <typename T, typename B> struct construct_shared_ {
 //! Helper to construct a shared pointer.
 template <typename T, typename R> constexpr auto construct_shared = construct_shared_<T, R>{};
 
+//! Helper to inject the state object of the parser.
 template <class R, class... CB> constexpr auto with_state(CB... cb) {
-    return lexy::bind(lexy::callback<R>([cb](auto &state, auto &&...args) {
+    return lexy::bind(lexy::callback<R>([cb](auto &state, auto &&...args)
+                                            -> std::invoke_result_t<decltype(cb), decltype(state), decltype(args)...> {
                           return cb(state, std::forward<decltype(args)>(args)...);
-                      })...,
+                      }...),
                       lexy::parse_state, lexy::values);
 }
 
@@ -95,6 +97,8 @@ auto loc(auto &state, auto token) { return loc(state, token.begin(), token.end()
 
 //! Convert a lexeme or sink to string.
 static constexpr auto as_string = lexy::as_string<std::string, encoding>;
+
+static constexpr auto post_position = [](auto rule) { return dsl::no_whitespace(rule >> dsl::position); };
 
 } // namespace Detail
 

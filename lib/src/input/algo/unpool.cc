@@ -76,14 +76,14 @@ struct Unpool {
         if (!elems.has_value() && (term.pool.size() != 1 || std::holds_alternative<Term>(term.pool.front()))) {
             elems = term.pool;
         }
-        return Util::map_opt_vec(std::move(elems), [](auto elem) -> Term {
+        return Util::map_opt_vec(std::move(elems), [&term](auto elem) -> Term {
             return std::visit(
-                [](auto x) -> Term {
+                [&term](auto x) -> Term {
                     if constexpr (GRINGO_IS_OF_TYPE(x, Term)) {
                         return x;
                     }
                     if constexpr (GRINGO_IS_OF_TYPE(x, TupleVec)) {
-                        return TermTuple{TermTuple::ElementVec{std::move(x)}};
+                        return TermTuple{term.loc, TermTuple::ElementVec{std::move(x)}};
                     }
                 },
                 std::move(elem));
@@ -102,7 +102,7 @@ struct Unpool {
 
         return Util::map_opt_vec(std::move(elems), [&term](auto elem) -> Term {
             // turn individual elements into function terms
-            return TermFunction{term.name, PoolVec{std::move(elem)}, term.external};
+            return TermFunction{term.loc, term.name, PoolVec{std::move(elem)}, term.external};
         });
     }
 
@@ -111,20 +111,21 @@ struct Unpool {
         if (!unpooled.has_value() && term.pool.size() != 1) {
             unpooled = term.pool;
         }
-        return Util::map_opt_vec(std::move(unpooled),
-                                 [](auto term) -> Term { return TermAbs{TermVec{std::move(term)}}; });
+        return Util::map_opt_vec(std::move(unpooled), [&term](auto arg) -> Term {
+            return TermAbs{term.loc, TermVec{std::move(arg)}};
+        });
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<TermVec> {
         return Util::map_opt_vec(operator()(*term.rhs), [&term](auto rhs) -> Term {
-            return TermUnary{term.op, std::move(rhs)};
+            return TermUnary{term.loc, term.op, std::move(rhs)};
         });
     }
 
     auto operator()(TermBinary const &term) const -> std::optional<TermVec> {
         return unpool_crossproducts(
             [&term](auto lhs, auto rhs) -> Term {
-                return TermBinary{std::move(lhs), term.op, std::move(rhs)};
+                return TermBinary{term.loc, std::move(lhs), term.op, std::move(rhs)};
             },
             *this, *term.lhs, *term.rhs);
     }

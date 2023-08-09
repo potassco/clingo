@@ -48,23 +48,23 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(TermFunction const &term) const -> std::optional<Term> {
-        return transform_construct<TermFunction>(term.name, tr(term.pool), term.external);
+        return transform_construct<TermFunction>(term.loc, term.name, tr(term.pool), term.external);
     }
 
     auto operator()(TermTuple const &term) const -> std::optional<Term> {
-        return transform_construct<TermTuple>(tr(term.pool));
+        return transform_construct<TermTuple>(term.loc, tr(term.pool));
     }
 
     auto operator()(TermAbs const &term) const -> std::optional<Term> {
-        return transform_construct<TermAbs>(tr(term.pool));
+        return transform_construct<TermAbs>(term.loc, tr(term.pool));
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<Term> {
-        return transform_construct<TermUnary>(term.op, tr(term.rhs));
+        return transform_construct<TermUnary>(term.loc, term.op, tr(term.rhs));
     }
 
     auto operator()(TermBinary const &term) const -> std::optional<Term> {
-        return transform_construct<TermBinary>(tr(term.lhs), term.op, tr(term.rhs));
+        return transform_construct<TermBinary>(term.loc, tr(term.lhs), term.op, tr(term.rhs));
     }
 
     // theory
