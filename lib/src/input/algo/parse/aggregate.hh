@@ -60,7 +60,8 @@ struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
     static constexpr auto value = lexy::callback<SetAggregate::Element>([](Literal lit, OptCondition cond) {
-        return SetAggregate::Element{std::move(lit), std::move(cond.first)};
+        auto loc = location(lit) + cond.second;
+        return SetAggregate::Element{std::move(loc), std::move(lit), std::move(cond.first)};
     });
 };
 
@@ -116,11 +117,21 @@ struct set_aggregate_elements {
 
 struct set_aggregate {
     static constexpr char const *name = "set aggregate";
-    static constexpr auto rule = LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >>
-                                 LEXY_LIT("}") + aggregate_right_guard;
-    static constexpr auto value =
-        lexy::callback<SetAggregate>(lexy::construct<SetAggregate>, [](SetAggregate::ElementVec elems, Term rhs) {
-            return SetAggregate{std::move(elems), Relation::less_equal, std::move(rhs)};
+    static constexpr auto rule = dsl::position(LEXY_LIT("{")) >> dsl::p<set_aggregate_elements> >>
+                                 Detail::post_position(LEXY_LIT("}")) + aggregate_right_guard;
+    static constexpr auto value = Detail::with_state<SetAggregate>(
+        [](auto &state, auto begin, SetAggregate::ElementVec elems, auto end) {
+            return SetAggregate{Detail::loc(state, begin, end), std::move(elems)};
+        },
+        [](auto &state, auto begin, SetAggregate::ElementVec elems, auto end, Term rhs) {
+            static_cast<void>(end);
+            auto loc = Location{state.pos(begin), location(rhs).end};
+            return SetAggregate{loc, std::move(elems), Relation::less_equal, std::move(rhs)};
+        },
+        [](auto &state, auto begin, SetAggregate::ElementVec elems, auto end, Relation rel, Term rhs) {
+            static_cast<void>(end);
+            auto loc = Location{state.pos(begin), location(rhs).end};
+            return SetAggregate{loc, std::move(elems), rel, std::move(rhs)};
         });
 };
 

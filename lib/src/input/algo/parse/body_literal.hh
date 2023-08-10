@@ -16,6 +16,7 @@ inline auto construct_body_aggr(Term term, Relation rel, BodyAggregate aggr) -> 
 }
 
 inline auto construct_body_aggr(Term term, Relation rel, SetAggregate aggr) -> BodySetAggregate {
+    aggr.loc.begin = location(term).begin;
     aggr.lhs = LGuard::value_type{term, rel};
     return BodySetAggregate{std::move(aggr)};
 }

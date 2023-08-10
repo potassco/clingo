@@ -47,6 +47,8 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
 struct SetAggregate {
     //! An element of a set aggregate.
     struct Element {
+        //! The location of the element.
+        Location loc;
         //! The literal.
         Literal lit;
         //! The condition.
@@ -56,14 +58,17 @@ struct SetAggregate {
     using ElementVec = std::vector<Element>;
 
     //! Construct a set aggregate.
-    explicit SetAggregate(LGuard lhs, ElementVec elems, RGuard rhs)
-        : elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    explicit SetAggregate(Location loc, LGuard lhs, ElementVec elems, RGuard rhs)
+        : loc{std::move(loc)}, elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     //! Construct a set aggregate.
-    explicit SetAggregate(ElementVec elems) : SetAggregate{std::nullopt, std::move(elems), std::nullopt} {}
+    explicit SetAggregate(Location loc, ElementVec elems)
+        : SetAggregate{std::move(loc), std::nullopt, std::move(elems), std::nullopt} {}
     //! Construct a set aggregate.
-    explicit SetAggregate(ElementVec elems, Relation rel, Term rhs)
-        : SetAggregate{std::nullopt, std::move(elems), std::make_pair(rel, std::move(rhs))} {}
+    explicit SetAggregate(Location loc, ElementVec elems, Relation rel, Term rhs)
+        : SetAggregate{std::move(loc), std::nullopt, std::move(elems), std::make_pair(rel, std::move(rhs))} {}
 
+    //! The location of the aggregate.
+    Location loc;
     //! The elements of the set aggregate.
     ElementVec elems;
     //! The optical right guard of the aggregate.

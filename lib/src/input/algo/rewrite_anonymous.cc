@@ -121,11 +121,11 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     // set aggregate
 
     auto operator()(SetAggregate::Element const &elem) const -> std::optional<SetAggregate::Element> {
-        return transform_construct<SetAggregate::Element>(tr(elem.lit), tr(elem.cond));
+        return transform_construct<SetAggregate::Element>(elem.loc, tr(elem.lit), tr(elem.cond));
     }
 
     auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
-        return transform_construct<SetAggregate>(tr(aggr.lhs), tr(aggr.elems), tr(aggr.rhs));
+        return transform_construct<SetAggregate>(aggr.loc, tr(aggr.lhs), tr(aggr.elems), tr(aggr.rhs));
     }
 
     // theory

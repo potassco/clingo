@@ -247,8 +247,8 @@ struct Unpool {
 
     auto operator()(SetAggregate::Element const &elem) const -> std::optional<std::vector<SetAggregate::Element>> {
         return unpool_crossproducts(
-            [](auto lit, auto cond) {
-                return SetAggregate::Element{std::move(lit), std::move(cond)};
+            [&elem](auto lit, auto cond) {
+                return SetAggregate::Element{elem.loc, std::move(lit), std::move(cond)};
             },
             *this, elem.lit, elem.cond);
     }
@@ -261,8 +261,8 @@ struct Unpool {
 
     auto operator()(SetAggregate const &aggr) const -> std::optional<std::vector<SetAggregate>> {
         return unpool_crossproducts(
-            [&](auto lhs, auto elems, auto rhs) {
-                return SetAggregate{std::move(lhs), std::move(elems), std::move(rhs)};
+            [&aggr](auto lhs, auto elems, auto rhs) {
+                return SetAggregate{aggr.loc, std::move(lhs), std::move(elems), std::move(rhs)};
             },
             *this, aggr.lhs, aggr.elems, aggr.rhs);
     }

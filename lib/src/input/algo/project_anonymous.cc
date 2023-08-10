@@ -127,11 +127,11 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // aggregate
 
     auto operator()(SetAggregate::Element const &elem) const -> std::optional<SetAggregate::Element> {
-        return transform_construct<SetAggregate::Element>(tr(elem.lit), tr(elem.cond));
+        return transform_construct<SetAggregate::Element>(elem.loc, tr(elem.lit), tr(elem.cond));
     }
 
     auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
-        return transform_construct<SetAggregate>(aggr.lhs, tr(aggr.elems), aggr.rhs);
+        return transform_construct<SetAggregate>(aggr.loc, aggr.lhs, tr(aggr.elems), aggr.rhs);
     }
 
     // theory

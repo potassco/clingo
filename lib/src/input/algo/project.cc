@@ -165,14 +165,14 @@ struct Project : Transformer<Project> {
         auto sub_project = Project{Projection{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<SetAggregate::Element>(elem.lit, tr(elem.cond));
+        return sub_project.transform_construct<SetAggregate::Element>(elem.loc, elem.lit, tr(elem.cond));
     }
 
     auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
         if (!in_classical_scope && reduct_is_nonmonotone(aggr.lhs, AggregateFunction::count, aggr.rhs)) {
             return std::nullopt;
         }
-        return transform_construct<SetAggregate>(aggr.lhs, tr(aggr.elems), aggr.rhs);
+        return transform_construct<SetAggregate>(aggr.loc, aggr.lhs, tr(aggr.elems), aggr.rhs);
     }
 
     // head literal
