@@ -26,17 +26,13 @@ using encoding = lexy::utf8_encoding;
 
 namespace Detail {
 
-template <typename V, typename T> struct has_state_ {
-    using value_t = std::false_type;
-};
+template <typename T, typename V = void> struct has_state_ : std::false_type {};
 
 template <typename T>
-struct has_state_<std::void_t<decltype(std::declval<T &>().remaining_input().reader().state())>, T> {
-    using value_t = std::true_type;
-};
+struct has_state_<T, std::void_t<decltype(std::declval<T &>().remaining_input().reader().state())>> : std::true_type {};
 
 /// Check if the reader associated with the given scanner has a state method.
-template <typename T> constexpr bool has_state = has_state_<void, T>::value_t::value;
+template <typename T> constexpr bool has_state = has_state_<T>::value;
 
 template <typename T, typename R = Util::shared_ptr<T>> struct construct_sv_ {
     using return_type = R;

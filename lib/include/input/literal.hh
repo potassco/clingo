@@ -141,9 +141,6 @@ struct ConditionalLiteral {
 //! \related ConditionalLiteral
 using ConditionalLiteralVec = std::vector<ConditionalLiteral>;
 
-//! Add a sign to the literal.
-void add_sign(Literal &lit, Sign sign, std::optional<Position> pos = std::nullopt);
-
 //! @}
 
 } // namespace Gringo::Input

@@ -4,19 +4,6 @@ namespace Gringo::Input {
 
 ////////// Literal //////////
 
-namespace {
-
-struct AddSign {
-    void operator()(auto &lit) const {
-        lit.sign += sign;
-        lit.loc += std::move(pos);
-    }
-    Sign sign;
-    std::optional<Position> pos;
-};
-
-} // namespace
-
 auto operator-(Sign a) -> Sign {
     switch (a) {
         case Sign::none: {
@@ -62,12 +49,6 @@ auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool {
 
 auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
     return Util::value_equal(a.sign, b.sign, a.term, b.term);
-}
-
-void add_sign(Literal &lit, Sign sign, std::optional<Position> pos) {
-    if (sign != Sign::none) {
-        std::visit(AddSign{sign, std::move(pos)}, lit);
-    }
 }
 
 } // namespace Gringo::Input

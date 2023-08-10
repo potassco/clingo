@@ -4,6 +4,7 @@
 
 #include <input/algo/check_type.hh>
 
+#include "../add_sign.hh"
 #include "term.hh"
 
 namespace Gringo::Input::Grammar {

@@ -97,12 +97,6 @@ using BodyLiteral = std::variant<Conjunction, BodyAggregate, BodySetAggregate, B
 //! A vector of body literals.
 using BodyLiteralVec = std::vector<BodyLiteral>;
 
-//! Add a sign to the body literal.
-//!
-//! Note that this function has to be used with care because the library uses shared pointers to literals.
-//! This function is currently only used during construction in the parser.
-void add_sign(BodyLiteral &lit, Sign sign);
-
 //! @}
 
 } // namespace Gringo::Input
