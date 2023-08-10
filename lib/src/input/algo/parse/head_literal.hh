@@ -18,13 +18,6 @@ inline auto construct_head_aggr(Term term, Relation rel, SetAggregate aggr) -> H
     return HeadSetAggregate{std::move(aggr)};
 }
 
-struct construct_disjunction_element {
-    using return_type = ConditionalLiteral;
-    auto operator()(std::pair<Literal, LiteralVec> elem) const -> return_type {
-        return {LiteralVec{std::move(elem.first)}, std::move(elem.second)};
-    }
-};
-
 } // namespace Detail
 
 static constexpr auto disjunction_sep = LEXY_ASCII_ONE_OF(",;|");
@@ -41,7 +34,7 @@ struct simple_disjunction {
     static constexpr auto value = lexy::as_list<ConditionalLiteralVec> >> Detail::construct_v<Disjunction, HeadLiteral>;
 };
 
-struct disjunction_element : private junction_element<ConditionalLiteral> {
+struct disjunction_element : private junction_element {
     using junction_element::rule;
     using junction_element::value;
 };
@@ -54,19 +47,15 @@ struct disjunction : private junction<disjunction_element, Disjunction, HeadLite
 struct head_aggregate_element {
     static constexpr char const *name = "head aggregate element";
     static constexpr auto rule = []() {
-        auto tuple = dsl::opt(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_list>);
+        auto tuple = dsl::if_(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_list>);
         return tuple + LEXY_LIT(":") + dsl::p<literal> + dsl::p<opt_condition>;
     }();
     static constexpr auto value = lexy::callback<HeadAggregate::Element>(
-        [](std::optional<TermVec> tuple, Literal lit, std::optional<LiteralVec> cond) {
-            auto ret = HeadAggregate::Element{TermVec{}, std::move(lit), LiteralVec{}};
-            if (tuple) {
-                ret.tuple = std::move(tuple).value();
-            }
-            if (cond) {
-                ret.cond = std::move(cond).value();
-            }
-            return ret;
+        [](Literal lit, OptCondition cond) {
+            return HeadAggregate::Element{TermVec{}, std::move(lit), std::move(cond.first)};
+        },
+        [](TermVec tuple, Literal lit, OptCondition cond) {
+            return HeadAggregate::Element{std::move(tuple), std::move(lit), std::move(cond.first)};
         });
 };
 
@@ -132,21 +121,29 @@ struct head_literal {
         [](Term term, Relation rel, auto aggr) -> HeadLiteral {
             return Detail::construct_head_aggr(std::move(term), rel, std::move(aggr));
         },
-        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, LiteralVec cond,
+        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, OptCondition cond,
            ConditionalLiteralVec elems) -> HeadLiteral {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
+            auto loc_rel = location(lhs) + location(guards.back().second);
+            auto loc_lit = loc_rel + cond.second;
             elems.insert(
                 elems.begin(),
-                ConditionalLiteral{LiteralVec{LiteralRelation{std::move(lhs), std::move(guards)}}, std::move(cond)});
+                ConditionalLiteral{std::move(loc_lit),
+                                   LiteralVec{LiteralRelation{std::move(loc_rel), std::move(lhs), std::move(guards)}},
+                                   std::move(cond.first)});
             return Disjunction{std::move(elems)};
         },
-        [](Term term, LiteralVec cond, ConditionalLiteralVec elems) {
+        [](Term term, OptCondition cond, ConditionalLiteralVec elems) {
+            auto loc_sym = location(term);
+            auto loc_lit = loc_sym + cond.second;
             elems.insert(elems.begin(),
-                         ConditionalLiteral{LiteralVec{LiteralSymbolic{std::move(term)}}, std::move(cond)});
+                         ConditionalLiteral{std::move(loc_lit),
+                                            LiteralVec{LiteralSymbolic{std::move(loc_sym), std::move(term)}},
+                                            std::move(cond.first)});
             return Disjunction{std::move(elems)};
         });
 };

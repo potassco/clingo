@@ -99,6 +99,9 @@ auto loc(auto &state, auto token) { return loc(state, token.begin(), token.end()
 //! Convert a lexeme or sink to string.
 static constexpr auto as_string = lexy::as_string<std::string, encoding>;
 
+//! Get the location after the given rule.
+//!
+//! Best used with token rules.
 static constexpr auto post_position = [](auto rule) { return dsl::no_whitespace(rule >> dsl::position); };
 
 } // namespace Detail

@@ -123,7 +123,7 @@ struct Project : Transformer<Project> {
 
     auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
         if (lit.sign == Sign::none) {
-            return transform_construct<LiteralSymbolic>(lit.sign, tr(lit.term));
+            return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
         }
         return std::nullopt;
     }
@@ -131,13 +131,12 @@ struct Project : Transformer<Project> {
     // conditional literal
 
     auto operator()(ConditionalLiteral const &elem) const -> std::optional<ConditionalLiteral> {
-        auto const &[lits, cond] = elem;
-        bool project_cond =
-            in_classical_scope || std::all_of(lits.begin(), lits.end(), [](auto const &lit) { return !is_atom(lit); });
+        bool project_cond = in_classical_scope || std::all_of(elem.lits.begin(), elem.lits.end(),
+                                                              [](auto const &lit) { return !is_atom(lit); });
         // project conclusion
         std::optional<LiteralVec> projected_lits = std::nullopt;
         if (project_lits) {
-            projected_lits = transform(lits);
+            projected_lits = transform(elem.lits);
         }
         // project premise
         std::optional<LiteralVec> projected_cond = std::nullopt;
@@ -149,11 +148,11 @@ struct Project : Transformer<Project> {
             // Note that there can be no global variables with just one
             // occurrence in a condition. However, we can project local
             // variables.
-            projected_cond = sub_project.transform(cond);
+            projected_cond = sub_project.transform(elem.cond);
         }
         if (projected_lits.has_value() || projected_cond.has_value()) {
-            return ConditionalLiteral{std::move(projected_lits).value_or(lits),
-                                      std::move(projected_cond).value_or(cond)};
+            return ConditionalLiteral{elem.loc, std::move(projected_lits).value_or(elem.lits),
+                                      std::move(projected_cond).value_or(elem.cond)};
         }
         return std::nullopt;
     }

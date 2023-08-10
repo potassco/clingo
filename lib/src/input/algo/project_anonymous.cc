@@ -113,7 +113,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
         if (lit.sign != Sign::none) {
-            return transform_construct<LiteralSymbolic>(lit.sign, tr(lit.term));
+            return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
         }
         return std::nullopt;
     }
@@ -121,7 +121,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // conditional literal
 
     auto operator()(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
-        return transform_construct<ConditionalLiteral>(tr(lit.lits), tr(lit.cond));
+        return transform_construct<ConditionalLiteral>(lit.loc, tr(lit.lits), tr(lit.cond));
     }
 
     // aggregate

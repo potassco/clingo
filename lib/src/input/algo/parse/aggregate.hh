@@ -31,36 +31,58 @@ struct condition {
     static constexpr auto value = lexy::as_list<LiteralVec>;
 };
 
+using OptCondition = std::pair<LiteralVec, std::optional<Position>>;
+
 struct opt_condition {
     static constexpr char const *name = "condition";
-    static constexpr auto rule = dsl::if_(dsl::p<condition>);
-    static constexpr auto value = lexy::construct<LiteralVec>;
+    static constexpr auto rule = dsl::if_(dsl::position(dsl::p<condition>));
+    static constexpr auto value = Detail::with_state<OptCondition>(
+        [](auto &state, auto begin, auto cond) {
+            auto loc = cond.empty() ? state.pos(std::next(begin)) : location(cond.back()).end;
+            return std::make_pair(std::move(cond), std::move(loc));
+        },
+        [](auto &state) {
+            static_cast<void>(state);
+            return std::make_pair(LiteralVec{}, std::nullopt);
+        });
 };
 
 struct conditional_literal {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::callback<ConditionalLiteral>([](Literal lit, LiteralVec cond) {
-        return ConditionalLiteral{LiteralVec{std::move(lit)}, std::move(cond)};
+    static constexpr auto value = lexy::callback<ConditionalLiteral>([](Literal lit, OptCondition cond) {
+        return ConditionalLiteral{location(lit) + std::move(cond.second), LiteralVec{std::move(lit)},
+                                  std::move(cond.first)};
     });
 };
 
 struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::construct<SetAggregate::Element>;
+    static constexpr auto value = lexy::callback<SetAggregate::Element>([](Literal lit, OptCondition cond) {
+        return SetAggregate::Element{std::move(lit), std::move(cond.first)};
+    });
 };
 
-template <class E> struct junction_element {
+struct junction_element {
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT(":"));
         return dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")))) + dsl::p<opt_condition>;
     }();
-    static constexpr auto value = lexy::as_list<LiteralVec> >> lexy::callback<E>(
-                                                                   [](lexy::nullopt, LiteralVec cond) {
-                                                                       return E{{}, std::move(cond)};
-                                                                   },
-                                                                   lexy::construct<E>);
+    static constexpr auto value =
+        lexy::as_list<LiteralVec> >>
+        lexy::callback<ConditionalLiteral>(
+            [](lexy::nullopt, OptCondition cond) {
+                assert(cond.second.has_value());
+                auto pos = std::move(cond.second).value();
+                auto loc = cond.first.empty() ? Location{Position{pos.file, pos.line, pos.column - 1}, pos}
+                                              : location(cond.first.front()) + pos;
+                return ConditionalLiteral{loc, {}, std::move(cond.first)};
+            },
+            [](LiteralVec lits, OptCondition cond) {
+                assert(!lits.empty());
+                return ConditionalLiteral{location(lits.front()) + cond.second, std::move(lits), std::move(cond.first)};
+            });
 };
 
 template <class E, class J, class L> struct junction {

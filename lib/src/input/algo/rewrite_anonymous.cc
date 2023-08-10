@@ -105,17 +105,17 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
-        return transform_construct<LiteralRelation>(lit.sign, tr(lit.lhs), tr(lit.rhs));
+        return transform_construct<LiteralRelation>(lit.loc, lit.sign, tr(lit.lhs), tr(lit.rhs));
     }
 
     auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
-        return transform_construct<LiteralSymbolic>(lit.sign, tr(lit.term));
+        return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
     }
 
     // conditional literal
 
     auto operator()(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
-        return transform_construct<ConditionalLiteral>(tr(lit.lits), tr(lit.cond));
+        return transform_construct<ConditionalLiteral>(lit.loc, tr(lit.lits), tr(lit.cond));
     }
 
     // set aggregate

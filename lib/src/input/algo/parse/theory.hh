@@ -180,8 +180,11 @@ struct theory_atom_element {
     static constexpr char const *name = "theory atom element";
     static constexpr auto rule =
         dsl::p<condition> | dsl::else_ >> dsl::p<theory_atom_element_tuple> + dsl::p<opt_condition>;
-    static constexpr auto value =
-        lexy::callback<TheoryAtom::Element>(lexy::construct<TheoryAtom::Element>, [](LiteralVec cond) {
+    static constexpr auto value = lexy::callback<TheoryAtom::Element>(
+        [](TheoryTermVec tuple, OptCondition cond) {
+            return TheoryAtom::Element{std::move(tuple), std::move(cond.first)};
+        },
+        [](LiteralVec cond) {
             return TheoryAtom::Element{TheoryTermVec{}, std::move(cond)};
         });
 };

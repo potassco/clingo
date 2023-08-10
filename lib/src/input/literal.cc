@@ -7,9 +7,12 @@ namespace Gringo::Input {
 namespace {
 
 struct AddSign {
-    void operator()(auto &lit) const { lit.sign += sign; }
-
+    void operator()(auto &lit) const {
+        lit.sign += sign;
+        lit.loc += std::move(pos);
+    }
     Sign sign;
+    std::optional<Position> pos;
 };
 
 } // namespace
@@ -61,7 +64,11 @@ auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
     return Util::value_equal(a.sign, b.sign, a.term, b.term);
 }
 
-void add_sign(Literal &lit, Sign sign) { std::visit(AddSign{sign}, lit); }
+void add_sign(Literal &lit, Sign sign, std::optional<Position> pos) {
+    if (sign != Sign::none) {
+        std::visit(AddSign{sign, std::move(pos)}, lit);
+    }
+}
 
 } // namespace Gringo::Input
 

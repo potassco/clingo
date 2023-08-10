@@ -164,7 +164,10 @@ struct statement_optimize_tuple {
 struct statement_optimize_element {
     static constexpr char const *name = "optimize element";
     static constexpr auto rule = dsl::p<statement_optimize_tuple> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::construct<StatementOptimize::Element>;
+    static constexpr auto value =
+        lexy::callback<StatementOptimize::Element>([](StatementOptimize::Tuple tuple, OptCondition cond) {
+            return StatementOptimize::Element{std::move(tuple), std::move(cond).first};
+        });
 };
 
 constexpr auto square_bracketed_end =

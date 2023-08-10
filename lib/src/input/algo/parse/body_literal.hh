@@ -20,8 +20,9 @@ inline auto construct_body_aggr(Term term, Relation rel, SetAggregate aggr) -> B
     return BodySetAggregate{std::move(aggr)};
 }
 
-auto construct_conjunction(Literal lit, LiteralVec cond) {
-    return Conjunction{ConditionalLiteralVec{ConditionalLiteral{LiteralVec{std::move(lit)}, std::move(cond)}}};
+auto construct_conjunction(Literal lit, OptCondition cond) {
+    return Conjunction{ConditionalLiteralVec{
+        ConditionalLiteral{location(lit) + std::move(cond.second), LiteralVec{std::move(lit)}, std::move(cond.first)}}};
 }
 
 } // namespace Detail
@@ -30,18 +31,14 @@ struct body_aggregate_element {
     static constexpr char const *name = "body aggregate element";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT(":"));
-        return dsl::opt(peek >> dsl::p<term_list>) + dsl::p<opt_condition>;
+        return dsl::if_(peek >> dsl::p<term_list>) + dsl::p<opt_condition>;
     }();
-    static constexpr auto value =
-        lexy::callback<BodyAggregate::Element>([](std::optional<TermVec> tuple, std::optional<LiteralVec> cond) {
-            auto ret = BodyAggregate::Element{TermVec{}, LiteralVec{}};
-            if (tuple) {
-                ret.tuple = std::move(tuple).value();
-            }
-            if (cond) {
-                ret.cond = std::move(cond).value();
-            }
-            return ret;
+    static constexpr auto value = lexy::callback<BodyAggregate::Element>(
+        [](OptCondition cond) {
+            return BodyAggregate::Element{TermVec{}, std::move(cond.first)};
+        },
+        [](TermVec tuple, OptCondition cond) {
+            return BodyAggregate::Element{std::move(tuple), std::move(cond.first)};
         });
 };
 
@@ -103,23 +100,25 @@ struct body_atom : lexy::transparent_production {
         [](Term term, Relation rel, auto aggr) {
             return Detail::construct_body_aggr(std::move(term), rel, std::move(aggr));
         },
-        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, LiteralVec cond) {
+        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, OptCondition cond) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
-            auto lit = LiteralRelation{std::move(lhs), std::move(guards)};
+            auto loc = location(lhs) + location(guards.back().second);
+            auto lit = LiteralRelation{loc, std::move(lhs), std::move(guards)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         },
-        [](Literal lit, LiteralVec cond) { return Detail::construct_conjunction(std::move(lit), std::move(cond)); },
-        [](Term term, LiteralVec cond) {
-            auto lit = LiteralSymbolic{std::move(term)};
+        [](Literal lit, OptCondition cond) { return Detail::construct_conjunction(std::move(lit), std::move(cond)); },
+        [](Term term, OptCondition cond) {
+            auto loc = location(term);
+            auto lit = LiteralSymbolic{loc, std::move(term)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         });
 };
 
-struct conjunction_element : private junction_element<ConditionalLiteral> {
+struct conjunction_element : private junction_element {
     using junction_element::rule;
     using junction_element::value;
 };
@@ -133,8 +132,8 @@ struct body_literal {
     static constexpr char const *name = "body literal";
     static constexpr auto rule = dsl::p<conjunction> | dsl::else_ >> dsl::p<naf_sign> + dsl::p<body_atom>;
     static constexpr auto value =
-        lexy::callback<BodyLiteral>(lexy::forward<BodyLiteral>, [](Sign sign, BodyLiteral literal) {
-            add_sign(literal, sign);
+        lexy::callback<BodyLiteral>(lexy::forward<BodyLiteral>, [](auto sign, BodyLiteral literal) {
+            add_sign(literal, sign.second);
             return literal;
         });
 };

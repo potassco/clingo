@@ -46,10 +46,12 @@ using GuardVec = std::vector<Guard>;
 class LiteralBoolean {
   public:
     //! Construct a Boolean literal.
-    LiteralBoolean(bool value) : LiteralBoolean{Sign::none, value} {}
+    explicit LiteralBoolean(Location loc, bool value) : LiteralBoolean{std::move(loc), Sign::none, value} {}
     //! Construct a Boolean literal.
-    LiteralBoolean(Sign sign, bool value) : sign(sign), value(value) {}
+    explicit LiteralBoolean(Location loc, Sign sign, bool value) : loc{std::move(loc)}, sign(sign), value(value) {}
 
+    //! The location of the literal.
+    Location loc;
     //! The sign of the literal.
     Sign sign;
     //! The Boolean value.
@@ -67,10 +69,14 @@ auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
 class LiteralRelation {
   public:
     //! Construct a relation literal.
-    LiteralRelation(Term lhs, GuardVec rhs) : LiteralRelation{Sign::none, std::move(lhs), std::move(rhs)} {}
+    explicit LiteralRelation(Location loc, Term lhs, GuardVec rhs)
+        : LiteralRelation{std::move(loc), Sign::none, std::move(lhs), std::move(rhs)} {}
     //! Construct a relation literal.
-    LiteralRelation(Sign sign, Term lhs, GuardVec rhs) : sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    explicit LiteralRelation(Location loc, Sign sign, Term lhs, GuardVec rhs)
+        : loc{std::move(loc)}, sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
+    //! The location of the literal.
+    Location loc;
     //! The sign of the literal.
     Sign sign;
     //! The term on the left hand side.
@@ -90,10 +96,13 @@ auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool;
 struct LiteralSymbolic {
   public:
     //! Construct a symbolic literal.
-    LiteralSymbolic(Term term) : LiteralSymbolic{Sign::none, std::move(term)} {}
+    explicit LiteralSymbolic(Location loc, Term term) : LiteralSymbolic{std::move(loc), Sign::none, std::move(term)} {}
     //! Construct a symbolic literal.
-    LiteralSymbolic(Sign sign, Term term) : sign(sign), term(std::move(term)) {}
+    explicit LiteralSymbolic(Location loc, Sign sign, Term term)
+        : loc{std::move(loc)}, sign(sign), term(std::move(term)) {}
 
+    //! The location of the literal.
+    Location loc;
     //! The sign of the literal.
     Sign sign;
     //! The term representing the atom.
@@ -113,6 +122,12 @@ using LiteralVec = std::vector<Literal>;
 
 //! A conditional literal.
 struct ConditionalLiteral {
+  public:
+    //! Construct a conditional literal.
+    explicit ConditionalLiteral(Location loc, LiteralVec lits, LiteralVec cond)
+        : loc{std::move(loc)}, lits{std::move(lits)}, cond{std::move(cond)} {}
+    //! The location of the literal.
+    Location loc;
     //! The literals on the left-hand-side.
     LiteralVec lits;
     //! The literals on the right-hand-side.
@@ -127,7 +142,7 @@ struct ConditionalLiteral {
 using ConditionalLiteralVec = std::vector<ConditionalLiteral>;
 
 //! Add a sign to the literal.
-void add_sign(Literal &lit, Sign sign);
+void add_sign(Literal &lit, Sign sign, std::optional<Position> pos = std::nullopt);
 
 //! @}
 

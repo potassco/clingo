@@ -154,14 +154,14 @@ struct Unpool {
     auto operator()(LiteralRelation const &lit) const -> std::optional<LiteralVec> {
         return unpool_crossproducts(
             [&lit](auto lhs, auto rhs) -> Literal {
-                return LiteralRelation{lit.sign, std::move(lhs), std::move(rhs)};
+                return LiteralRelation{lit.loc, lit.sign, std::move(lhs), std::move(rhs)};
             },
             *this, lit.lhs, lit.rhs);
     }
 
     auto operator()(LiteralSymbolic const &lit) const -> std::optional<LiteralVec> {
         return Util::map_opt_vec(operator()(lit.term), [&lit](auto term) -> Literal {
-            return LiteralSymbolic{lit.sign, std::move(term)};
+            return LiteralSymbolic{lit.loc, lit.sign, std::move(term)};
         });
     }
 
@@ -189,8 +189,8 @@ struct Unpool {
 
         // unpool literals
         auto elem_lits = unpool_crossproduct(elems, [this](auto const &elem) {
-            return Util::map_opt_vec(unpool_crossproduct(elem.lits, *this), [](auto lits) {
-                return ConditionalLiteral{std::move(lits), {}};
+            return Util::map_opt_vec(unpool_crossproduct(elem.lits, *this), [&elem](auto lits) {
+                return ConditionalLiteral{elem.loc, std::move(lits), {}};
             });
         });
 
@@ -199,7 +199,7 @@ struct Unpool {
             elem_lits = Util::make_vec<ConditionalLiteralVec>(ConditionalLiteralVec{});
             elem_lits->back().reserve(elems.size());
             for (auto const &elem : elems) {
-                elem_lits->back().emplace_back(ConditionalLiteral{elem.lits, {}});
+                elem_lits->back().emplace_back(ConditionalLiteral{elem.loc, elem.lits, {}});
             }
         }
 
@@ -217,10 +217,10 @@ struct Unpool {
             for (size_t i = 0; i < elem_conds->size(); ++i) {
                 if (elem_conds->at(i).has_value()) {
                     for (auto &cond : elem_conds->at(i).value()) {
-                        unpooled.emplace_back(elem_lits[i].lits, cond);
+                        unpooled.emplace_back(elems[i].loc, elem_lits[i].lits, cond);
                     }
                 } else {
-                    unpooled.emplace_back(elem_lits[i].lits, elems[i].cond);
+                    unpooled.emplace_back(elems[i].loc, elem_lits[i].lits, elems[i].cond);
                 }
             }
             return unpooled;

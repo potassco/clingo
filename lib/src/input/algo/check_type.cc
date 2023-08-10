@@ -118,9 +118,8 @@ struct IsTest {
 
     auto operator()(ConditionalLiteralVec const &elems) const -> bool {
         return std::all_of(elems.begin(), elems.end(), [this](auto const &elem) {
-            auto const &[lits, cond] = elem;
-            return cond.empty() &&
-                   std::all_of(lits.begin(), lits.end(), [this](auto const &lit) { return this->operator()(lit); });
+            return elem.cond.empty() && std::all_of(elem.lits.begin(), elem.lits.end(),
+                                                    [this](auto const &lit) { return this->operator()(lit); });
         });
     }
 
@@ -191,8 +190,8 @@ struct IsAtom {
         if (elems.size() != 1) {
             return false;
         }
-        auto const &[lits, cond] = elems.front();
-        return cond.empty() && lits.size() == 1 && operator()(lits.front());
+        auto const &elem = elems.front();
+        return elem.cond.empty() && elem.lits.size() == 1 && operator()(elem.lits.front());
     }
 
     // head literal
