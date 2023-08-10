@@ -80,7 +80,7 @@ template <typename T, typename R> constexpr auto construct_shared = construct_sh
 template <class R, class... CB> constexpr auto with_state(CB... cb) {
     return lexy::bind(lexy::callback<R>([cb](auto &state, auto &&...args)
                                             -> std::invoke_result_t<decltype(cb), decltype(state), decltype(args)...> {
-                          return cb(state, std::forward<decltype(args)>(args)...);
+                          return std::invoke(cb, state, std::forward<decltype(args)>(args)...);
                       }...),
                       lexy::parse_state, lexy::values);
 }

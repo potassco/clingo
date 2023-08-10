@@ -1,5 +1,6 @@
 #pragma once
 
+#include <any>
 #include <optional>
 
 #include <lexy/dsl.hpp>
@@ -270,10 +271,21 @@ struct term_rec : lexy::expression_production {
         using operand = dsl::atom;
     };
 
+    template <UnaryOperator OP> struct tag_unary {
+        // TODO:
+        // - The std::prev works around a potential bug in lexy, which should be reported.
+        // - Ideally, the constructor would also be called with the state.
+        //   Then, the actual position could be calculated here.
+        //   Maybe I can ask for such an extension to avoid the ugly any.
+        tag_unary(auto it) : it{std::prev(it)} {}
+        static constexpr auto op = OP;
+        std::any it;
+    };
+
     struct op_unary : dsl::prefix_op {
-        static constexpr char const *name = "inverse";
-        static constexpr auto op =
-            dsl::op<UnaryOperator::negate>(LEXY_LIT("-")) / dsl::op<UnaryOperator::invert>(LEXY_LIT("~"));
+        static constexpr char const *name = "unary";
+        static constexpr auto op = dsl::op<tag_unary<UnaryOperator::negate>>(LEXY_LIT("-")) /
+                                   dsl::op<tag_unary<UnaryOperator::invert>>(LEXY_LIT("~"));
         using operand = op_power;
     };
 
@@ -294,7 +306,7 @@ struct term_rec : lexy::expression_production {
         using operand = op_product;
     };
 
-    struct term_and : dsl::infix_op_left {
+    struct op_and : dsl::infix_op_left {
         static constexpr char const *name = "binary and";
         static constexpr auto op = dsl::op<BinaryOperator::and_>(LEXY_LIT("&"));
         using operand = op_sum;
@@ -303,10 +315,10 @@ struct term_rec : lexy::expression_production {
     struct op_or : dsl::infix_op_left {
         static constexpr char const *name = "binary or";
         static constexpr auto op = dsl::op<BinaryOperator::or_>(LEXY_LIT("?"));
-        using operand = term_and;
+        using operand = op_and;
     };
 
-    struct term_xor : dsl::infix_op_left {
+    struct op_xor : dsl::infix_op_left {
         static constexpr char const *name = "binary xor";
         static constexpr auto op = dsl::op<BinaryOperator::xor_>(LEXY_LIT("^"));
         using operand = op_or;
@@ -315,22 +327,20 @@ struct term_rec : lexy::expression_production {
     struct op_dots : dsl::infix_op_left {
         static constexpr char const *name = "interval";
         static constexpr auto op = dsl::op<BinaryOperator::dots>(LEXY_LIT(".."));
-        using operand = term_xor;
+        using operand = op_xor;
     };
 
     using operation = op_dots;
     static constexpr auto value = Detail::with_state<Term>(
-        [](auto &state, auto term) {
+        [](auto &state, Term term) {
             static_cast<void>(state);
-            return std::move(term);
+            return term;
         },
-        [](auto &state, auto op, auto rhs) {
-            // FIXME: get location from op, which seems to be difficult because it seems to be impossible to get the
-            // state
-            static_cast<void>(state);
-            return TermUnary{Location{location(rhs).begin, location(rhs).end}, op, std::move(rhs)};
+        [](auto &state, auto tag, Term rhs) {
+            auto begin = state.pos(std::any_cast<typename std::remove_reference_t<decltype(state)>::iterator>(tag.it));
+            return TermUnary{Location{begin, location(rhs).end}, tag.op, std::move(rhs)};
         },
-        [](auto &state, auto lhs, auto op, auto rhs) {
+        [](auto &state, Term lhs, BinaryOperator op, Term rhs) {
             static_cast<void>(state);
             return TermBinary{Location{location(lhs).begin, location(rhs).end}, std::move(lhs), op, std::move(rhs)};
         });

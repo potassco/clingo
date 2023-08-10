@@ -118,7 +118,7 @@ class StreamInput {
         //! A reference to a character.
         using reference = char_type const &;
         //! The iterator category.
-        using iterator_category = std::forward_iterator_tag;
+        using iterator_category = std::random_access_iterator_tag;
 
         //! Construct an invalid iterator.
         constexpr iterator() : buffer_{nullptr}, offset_{0} {}
@@ -177,9 +177,21 @@ class StreamInput {
         }
 
         //! Advance the iterator.
+        friend auto operator+(difference_type n, iterator it) -> iterator {
+            assert(it.buffer_ != nullptr);
+            return {*it.buffer_, it.offset_ + n};
+        }
+
+        //! Advance the iterator.
         auto operator-(difference_type n) const -> iterator {
             assert(buffer_ != nullptr);
             return {*buffer_, offset_ - n};
+        }
+
+        //! Difference between two iterators.
+        auto operator-(iterator other) const -> difference_type {
+            assert(buffer_ != nullptr && other.buffer_ != nullptr);
+            return static_cast<difference_type>(offset_) - other.offset_;
         }
 
         //! Equality compare two iterators.
@@ -212,6 +224,12 @@ class StreamInput {
         auto operator*() const -> char_type {
             assert(buffer_ != nullptr);
             return buffer_->at(offset_);
+        }
+
+        //! Dereference the iterator.
+        auto operator[](difference_type n) const -> char_type {
+            assert(buffer_ != nullptr);
+            return buffer_->at(offset_ + n);
         }
 
         //! The offset from the beginning of the underlying buffer.

@@ -15,6 +15,9 @@ namespace {
 //! Helper to track comments and locations.
 template <class It> class State {
   public:
+    //! The underlying iterator type.
+    using iterator = It;
+
     //! Construct state with beginning of input.
     State(std::string filename, It begin) : filename_{std::move(filename)}, cur_{begin} {}
 
