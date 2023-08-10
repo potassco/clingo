@@ -67,8 +67,10 @@ enum class TheoryTermTupleType {
 //! For example: <tt>f(X,y)</tt>.
 struct TheoryTermTuple {
     //! Construct a tuple theory term.
-    explicit TheoryTermTuple(TheoryTermTupleType type, TheoryTermVec elems);
+    explicit TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermVec elems);
 
+    //! The location of the symbol.
+    Location loc;
     //! The type of the term.
     TheoryTermTupleType type;
     //! The elements of the tuple.
@@ -80,10 +82,12 @@ struct TheoryTermTuple {
 //! For example: <tt>{f(X,y), Z}</tt>.
 struct TheoryTermFunction {
     //! Construct a function theory term.
-    explicit TheoryTermFunction(std::string name);
+    explicit TheoryTermFunction(Location loc, std::string name);
     //! Construct a function theory term.
-    explicit TheoryTermFunction(std::string name, TheoryTermVec args);
+    explicit TheoryTermFunction(Location loc, std::string name, TheoryTermVec args);
 
+    //! The location of the symbol.
+    Location loc;
     //! The name of the function.
     std::string name;
     //! The arguments of the function.
@@ -108,18 +112,22 @@ struct TheoryTermUnparsed {
     using ElementVec = std::vector<Element>;
 
     //! Construct an unparsed theory term.
-    explicit TheoryTermUnparsed(ElementVec elems);
+    explicit TheoryTermUnparsed(Location loc, ElementVec elems);
 
+    //! The location of the symbol.
+    Location loc;
     //! The vector of elements.
     ElementVec elems;
 };
 
-inline TheoryTermTuple::TheoryTermTuple(TheoryTermTupleType type, TheoryTermVec elems)
-    : type(type), elems{std::move(elems)} {}
-inline TheoryTermFunction::TheoryTermFunction(std::string name) : TheoryTermFunction{std::move(name), {}} {}
-inline TheoryTermFunction::TheoryTermFunction(std::string name, TheoryTermVec args)
-    : name(std::move(name)), args{std::move(args)} {}
-inline TheoryTermUnparsed::TheoryTermUnparsed(ElementVec elems) : elems{std::move(elems)} {}
+inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermVec elems)
+    : loc{std::move(loc)}, type(type), elems{std::move(elems)} {}
+inline TheoryTermFunction::TheoryTermFunction(Location loc, std::string name)
+    : TheoryTermFunction{std::move(loc), std::move(name), {}} {}
+inline TheoryTermFunction::TheoryTermFunction(Location loc, std::string name, TheoryTermVec args)
+    : loc{std::move(loc)}, name(std::move(name)), args{std::move(args)} {}
+inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, ElementVec elems)
+    : loc{std::move(loc)}, elems{std::move(elems)} {}
 
 //! A theory atom.
 //!
@@ -133,14 +141,11 @@ struct TheoryAtom {
     using ElementVec = std::vector<Element>;
 
     //! Construct a theory atom.
-    explicit TheoryAtom(Term name, ElementVec elems, RGuard rhs)
-        : name{std::move(name)}, elems{std::move(elems)}, rhs{std::move(rhs)} {}
-    //! Construct a theory atom.
-    explicit TheoryAtom(Term name, ElementVec elems) : TheoryAtom{std::move(name), std::move(elems), std::nullopt} {}
-    //! Construct a theory atom.
-    explicit TheoryAtom(Term name, ElementVec elems, std::string rhs_op, TheoryTerm rhs_term)
-        : TheoryAtom{std::move(name), std::move(elems), std::make_pair(std::move(rhs_op), std::move(rhs_term))} {}
+    explicit TheoryAtom(Location loc, Term name, ElementVec elems, RGuard rhs)
+        : loc{std::move(loc)}, name{std::move(name)}, elems{std::move(elems)}, rhs{std::move(rhs)} {}
 
+    //! The location of the symbol.
+    Location loc;
     //! The name of the atom.
     Term name;
     //! The elements of the atom.

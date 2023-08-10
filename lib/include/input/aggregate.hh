@@ -47,8 +47,6 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
 struct SetAggregate {
     //! An element of a set aggregate.
     struct Element {
-        //! The location of the element.
-        Location loc;
         //! The literal.
         Literal lit;
         //! The condition.

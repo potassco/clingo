@@ -165,7 +165,7 @@ struct Project : Transformer<Project> {
         auto sub_project = Project{Projection{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<SetAggregate::Element>(elem.loc, elem.lit, tr(elem.cond));
+        return sub_project.transform_construct<SetAggregate::Element>(elem.lit, tr(elem.cond));
     }
 
     auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {

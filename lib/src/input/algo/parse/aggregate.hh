@@ -60,8 +60,7 @@ struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
     static constexpr auto value = lexy::callback<SetAggregate::Element>([](Literal lit, OptCondition cond) {
-        auto loc = location(lit) + cond.second;
-        return SetAggregate::Element{std::move(loc), std::move(lit), std::move(cond.first)};
+        return SetAggregate::Element{std::move(lit), std::move(cond.first)};
     });
 };
 

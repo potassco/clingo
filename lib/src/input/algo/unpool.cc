@@ -247,8 +247,8 @@ struct Unpool {
 
     auto operator()(SetAggregate::Element const &elem) const -> std::optional<std::vector<SetAggregate::Element>> {
         return unpool_crossproducts(
-            [&elem](auto lit, auto cond) {
-                return SetAggregate::Element{elem.loc, std::move(lit), std::move(cond)};
+            [](auto lit, auto cond) {
+                return SetAggregate::Element{std::move(lit), std::move(cond)};
             },
             *this, elem.lit, elem.cond);
     }
@@ -285,7 +285,7 @@ struct Unpool {
     auto operator()(TheoryAtom const &atom) const -> std::optional<std::vector<TheoryAtom>> {
         return unpool_crossproducts(
             [&atom](auto name, auto elems) {
-                return TheoryAtom{std::move(name), std::move(elems), atom.rhs};
+                return TheoryAtom{atom.loc, std::move(name), std::move(elems), atom.rhs};
             },
             *this, atom.name, atom.elems);
     }

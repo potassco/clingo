@@ -8,23 +8,27 @@ namespace Gringo::Input::Grammar {
 
 namespace Detail {
 
-template <TheoryTermTupleType type> struct theory_tuple {
-    static constexpr auto value = lexy::as_list<TheoryTermVec> >>
-                                  lexy::callback<TheoryTerm>(
-                                      [](lexy::nullopt) {
-                                          return TheoryTermTuple{type, TheoryTermVec{}};
-                                      },
-                                      [](TheoryTermVec elems) {
-                                          return TheoryTermTuple{type, std::move(elems)};
-                                      });
-};
-
 struct theory_tuple_trail {
     void push_back(TheoryTerm term) { vec.emplace_back(std::move(term)); }
     template <class Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail = true; }
     TheoryTermVec vec;
     bool trail = false;
 };
+
+template <TheoryTermTupleType type>
+static constexpr auto theory_tuple = Detail::with_state<TheoryTerm>(
+    [](auto &state, auto begin, lexy::nullopt, auto end) {
+        return TheoryTermTuple{Detail::loc(state, begin, end), type, TheoryTermVec{}};
+    },
+    [](auto &state, auto begin, TheoryTermVec elems, auto end) {
+        return TheoryTermTuple{Detail::loc(state, begin, end), type, std::move(elems)};
+    },
+    [](auto &state, auto begin, Detail::theory_tuple_trail elems, auto end) -> TheoryTerm {
+        if (elems.vec.size() == 1 && !elems.trail) {
+            return std::move(elems.vec.back());
+        }
+        return TheoryTermTuple{Detail::loc(state, begin, end), TheoryTermTupleType::tuple, std::move(elems.vec)};
+    });
 
 } // namespace Detail
 
@@ -57,31 +61,26 @@ struct theory_term {
     static constexpr auto value = lexy::forward<TheoryTerm>;
 };
 
-struct theory_term_tuple : Detail::theory_tuple<TheoryTermTupleType::tuple> {
+struct theory_term_tuple {
     static constexpr char const *name = "theory term tuple";
-    static constexpr auto rule =
-        dsl::round_bracketed.opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::capture(dsl::lit_c<','>)));
-    static constexpr auto value = lexy::as_list<Detail::theory_tuple_trail> >>
-                                  lexy::callback<TheoryTerm>(
-                                      [](lexy::nullopt) -> TheoryTerm {
-                                          return TheoryTermTuple{TheoryTermTupleType::tuple, TheoryTermVec{}};
-                                      },
-                                      [](Detail::theory_tuple_trail elems) -> TheoryTerm {
-                                          if (elems.vec.size() == 1 && !elems.trail) {
-                                              return std::move(elems.vec.back());
-                                          }
-                                          return TheoryTermTuple{TheoryTermTupleType::tuple, std::move(elems.vec)};
-                                      });
+    static constexpr auto rule = dsl::brackets(dsl::position(LEXY_LIT("(")), Detail::post_position(LEXY_LIT(")")))
+                                     .opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::capture(dsl::lit_c<','>)));
+    static constexpr auto value =
+        lexy::as_list<Detail::theory_tuple_trail> >> Detail::theory_tuple<TheoryTermTupleType::tuple>;
 };
 
-struct theory_term_set : Detail::theory_tuple<TheoryTermTupleType::set> {
+struct theory_term_set {
     static constexpr char const *name = "theory term set";
-    static constexpr auto rule = dsl::curly_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
+    static constexpr auto rule = dsl::brackets(dsl::position(LEXY_LIT("{")), Detail::post_position(LEXY_LIT("}")))
+                                     .opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
+    static constexpr auto value = lexy::as_list<TheoryTermVec> >> Detail::theory_tuple<TheoryTermTupleType::set>;
 };
 
-struct theory_term_list : Detail::theory_tuple<TheoryTermTupleType::list> {
+struct theory_term_list {
     static constexpr char const *name = "theory term list";
-    static constexpr auto rule = dsl::square_bracketed.opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
+    static constexpr auto rule = dsl::brackets(dsl::position(LEXY_LIT("[")), Detail::post_position(LEXY_LIT("]")))
+                                     .opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
+    static constexpr auto value = lexy::as_list<TheoryTermVec> >> Detail::theory_tuple<TheoryTermTupleType::list>;
 };
 
 struct theory_term_arguments {
@@ -92,8 +91,13 @@ struct theory_term_arguments {
 
 struct theory_term_function {
     static constexpr char const *name = "theory function";
-    static constexpr auto rule = dsl::p<identifier> >> dsl::if_(dsl::p<theory_term_arguments>);
-    static constexpr auto value = Detail::construct_v<TheoryTermFunction, TheoryTerm>;
+    static constexpr auto rule = dsl::inline_<identifier> >> dsl::if_(dsl::p<theory_term_arguments>);
+    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto id,
+                                                                    std::vector<TheoryTerm> args = {}) {
+        auto begin = state.pos(id.begin());
+        auto end = args.empty() ? state.pos(id.end()) : location(args.back()).end;
+        return TheoryTermFunction{Location{std::move(begin), std::move(end)}, Detail::as_string(id), std::move(args)};
+    });
 };
 
 struct theory_term_variable : lexy::token_production {
@@ -156,17 +160,24 @@ struct theory_term_unparsed_guards {
 
 struct theory_term_unparsed : lexy::transparent_production {
     static constexpr char const *name = "theory term";
-    static constexpr auto rule =
-        dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> + dsl::if_(dsl::p<theory_term_unparsed_guards>);
-    static constexpr auto value = lexy::callback<TheoryTerm>(
-        lexy::forward<TheoryTerm>,
-        [](std::vector<std::string> ops, TheoryTerm term, TheoryTermUnparsed::ElementVec guards = {}) {
-            guards.insert(guards.begin(), TheoryTermUnparsed::Element{std::move(ops), std::move(term)});
-            return TheoryTermUnparsed{std::move(guards)};
+    static constexpr auto rule = dsl::position + dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> +
+                                 dsl::if_(dsl::p<theory_term_unparsed_guards>);
+    static constexpr auto value = Detail::with_state<TheoryTerm>(
+        [](auto &state, auto begin, TheoryTerm term) {
+            static_cast<void>(state);
+            static_cast<void>(begin);
+            return term;
         },
-        [](TheoryTerm term, TheoryTermUnparsed::ElementVec guards) {
+        [](auto &state, auto begin, std::vector<std::string> ops, TheoryTerm term,
+           TheoryTermUnparsed::ElementVec guards = {}) {
+            guards.insert(guards.begin(), TheoryTermUnparsed::Element{std::move(ops), std::move(term)});
+            auto loc = Location{state.pos(begin), location(guards.back().second).end};
+            return TheoryTermUnparsed{std::move(loc), std::move(guards)};
+        },
+        [](auto &state, auto begin, TheoryTerm term, TheoryTermUnparsed::ElementVec guards) {
             guards.insert(guards.begin(), TheoryTermUnparsed::Element{{}, std::move(term)});
-            return TheoryTermUnparsed{std::move(guards)};
+            auto loc = Location{state.pos(begin), location(guards.back().second).end};
+            return TheoryTermUnparsed{std::move(loc), std::move(guards)};
         });
 };
 
@@ -190,19 +201,43 @@ struct theory_atom_element {
 };
 
 struct theory_atom_elements {
+    using value_type = std::pair<TheoryAtom::ElementVec, std::optional<Position>>;
     static constexpr char const *name = "theory atom elements";
-    static constexpr auto rule =
-        dsl::opt(dsl::curly_bracketed.opt_list(dsl::p<theory_atom_element>, dsl::sep(dsl::lit_c<';'>)));
-    static constexpr auto value = lexy::as_list<TheoryAtom::ElementVec>;
+    static constexpr auto rule = []() {
+        auto braces = dsl::brackets(LEXY_LIT("{"), Detail::post_position(LEXY_LIT("}")));
+        auto elems = dsl::if_(braces.opt_list(dsl::p<theory_atom_element>, dsl::sep(dsl::lit_c<';'>)));
+        return elems;
+    }();
+    static constexpr auto value = lexy::as_list<TheoryAtom::ElementVec> >>
+                                  Detail::with_state<value_type>(
+                                      [](auto &state, lexy::nullopt, auto end) {
+                                          return value_type{{}, state.pos(end)};
+                                      },
+                                      [](auto &state, TheoryAtom::ElementVec elems, auto end) {
+                                          return value_type{std::move(elems), state.pos(end)};
+                                      },
+                                      [](auto &state) {
+                                          static_cast<void>(state);
+                                          return value_type{{}, std::nullopt};
+                                      });
 };
 
 struct theory_atom {
     static constexpr char const *name = "theory atom";
     static constexpr auto rule = []() {
         auto guard = dsl::p<theory_op> >> dsl::p<theory_term>;
-        return LEXY_LIT("&") >> dsl::p<term_function> + dsl::p<theory_atom_elements> >> dsl::if_(guard);
+        return dsl::position(LEXY_LIT("&")) >> dsl::p<term_function> + dsl::p<theory_atom_elements> + dsl::if_(guard);
     }();
-    static constexpr auto value = lexy::construct<TheoryAtom>;
+    static constexpr auto value = Detail::with_state<TheoryAtom>(
+        [](auto &state, auto begin, Term name, theory_atom_elements::value_type elems, std::string op, TheoryTerm rhs) {
+            auto loc = Location{state.pos(begin), location(rhs).end};
+            return TheoryAtom{std::move(loc), std::move(name), std::move(elems.first),
+                              std::make_pair(std::move(op), std::move(rhs))};
+        },
+        [](auto &state, auto begin, Term name, theory_atom_elements::value_type elems) {
+            auto loc = Location{state.pos(begin), std::move(elems.second).value_or(location(name).end)};
+            return TheoryAtom{std::move(loc), std::move(name), std::move(elems.first), std::nullopt};
+        });
 };
 
 } // namespace Gringo::Input::Grammar

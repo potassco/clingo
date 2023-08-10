@@ -127,7 +127,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // aggregate
 
     auto operator()(SetAggregate::Element const &elem) const -> std::optional<SetAggregate::Element> {
-        return transform_construct<SetAggregate::Element>(elem.loc, tr(elem.lit), tr(elem.cond));
+        return transform_construct<SetAggregate::Element>(tr(elem.lit), tr(elem.cond));
     }
 
     auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
@@ -137,7 +137,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // theory
 
     auto operator()(TheoryAtom const &atom) const -> std::optional<TheoryAtom> {
-        return transform_construct<TheoryAtom>(atom.name, tr(atom.elems), atom.rhs);
+        return transform_construct<TheoryAtom>(atom.loc, atom.name, tr(atom.elems), atom.rhs);
     }
 
     // head literal

@@ -72,7 +72,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     auto operator()(TheoryTerm const &term) const -> std::optional<TheoryTerm> { return std::visit(*this, term); }
 
     auto operator()(TheoryTermUnparsed const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermUnparsed>(tr(term.elems));
+        return transform_construct<TheoryTermUnparsed>(term.loc, tr(term.elems));
     }
 
     auto operator()(TheoryTermSymbol const &term) const -> std::optional<TheoryTerm> {
@@ -88,11 +88,11 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(TheoryTermTuple const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermTuple>(term.type, tr(term.elems));
+        return transform_construct<TheoryTermTuple>(term.loc, term.type, tr(term.elems));
     }
 
     auto operator()(TheoryTermFunction const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermFunction>(term.name, tr(term.args));
+        return transform_construct<TheoryTermFunction>(term.loc, term.name, tr(term.args));
     }
 
     // literal
@@ -121,7 +121,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     // set aggregate
 
     auto operator()(SetAggregate::Element const &elem) const -> std::optional<SetAggregate::Element> {
-        return transform_construct<SetAggregate::Element>(elem.loc, tr(elem.lit), tr(elem.cond));
+        return transform_construct<SetAggregate::Element>(tr(elem.lit), tr(elem.cond));
     }
 
     auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
@@ -131,7 +131,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     // theory
 
     auto operator()(TheoryAtom const &aggr) const -> std::optional<TheoryAtom> {
-        return transform_construct<TheoryAtom>(tr(aggr.name), tr(aggr.elems), tr(aggr.rhs));
+        return transform_construct<TheoryAtom>(aggr.loc, tr(aggr.name), tr(aggr.elems), tr(aggr.rhs));
     }
 
     // head literal
