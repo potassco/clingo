@@ -26,26 +26,12 @@ using encoding = lexy::utf8_encoding;
 
 namespace Detail {
 
-template <typename T, typename V = void> struct has_state_ : std::false_type {};
+/// Check if the reader associated with the given scanner has a state method.
+template <typename T, typename V = void> static constexpr bool has_state = false;
 
 template <typename T>
-struct has_state_<T, std::void_t<decltype(std::declval<T &>().remaining_input().reader().state())>> : std::true_type {};
-
-/// Check if the reader associated with the given scanner has a state method.
-template <typename T> constexpr bool has_state = has_state_<T>::value;
-
-template <typename T, typename R = Util::shared_ptr<T>> struct construct_sv_ {
-    using return_type = R;
-
-    template <typename... Args>
-    constexpr auto operator()(Args &&...args) const
-        -> std::enable_if_t<std::is_constructible_v<T, Args &&...>, return_type> {
-        return Util::construct_shared<T>(std::forward<Args>(args)...);
-    }
-};
-
-//! Helper to construct a shared pointer and then convert it to another type.
-template <typename T, typename R = Util::shared_ptr<T>> constexpr auto construct_sv = construct_sv_<T, R>{};
+static constexpr bool has_state<T, std::void_t<decltype(std::declval<T &>().remaining_input().reader().state())>> =
+    true;
 
 template <typename T, typename R> struct construct_v_ {
     using return_type = R;
