@@ -119,9 +119,6 @@ struct postition_dsl_ : position_ {
     }
 };
 
-/// Produces a position to the current reader position without parsing anything.
-constexpr auto position = postition_dsl_{};
-
 struct post_position_ : lexyd::rule_base {
     template <typename NextParser> struct p {
         template <typename Context, typename Reader, typename... Args>
@@ -134,47 +131,18 @@ struct post_position_ : lexyd::rule_base {
     };
 };
 
-template <typename Rule> struct post_position_rule_ : lexyd::_copy_base<Rule> {
-    template <typename Reader> struct bp {
-        lexy::branch_parser_for<Rule, Reader> rule;
-
-        template <typename ControlBlock> constexpr auto try_parse(const ControlBlock *cb, const Reader &reader) {
-            return rule.try_parse(cb, reader);
-        }
-
-        template <typename Context> constexpr void cancel(Context &context) { rule.cancel(context); }
-
-        template <typename NextParser, typename Context, typename... Args>
-        LEXY_PARSER_FUNC auto finish(Context &context, Reader &reader, Args &&...args) {
-            auto pos = reader.position();
-            context.on(lexyd::_ev::token{}, lexy::position_token_kind, pos, pos);
-            return rule.template finish<NextParser>(context, reader, LEXY_FWD(args)...,
-                                                    context.control_block->parse_state->post_pos(pos));
-        }
-    };
-
-    template <typename NextParser> struct p {
-        template <typename Context, typename Reader, typename... Args>
-        LEXY_PARSER_FUNC static auto parse(Context &context, Reader &reader, Args &&...args) -> bool {
-            auto pos = reader.position();
-            context.on(lexyd::_ev::token{}, lexy::position_token_kind, pos, pos);
-            return lexy::parser_for<Rule, NextParser>::parse(context, reader, LEXY_FWD(args)...,
-                                                             context.control_block->parse_state->post_pos(pos));
-        }
-    };
-};
-
 struct post_position_dsl_ : post_position_ {
-    template <typename Rule> constexpr auto operator()(Rule ph) const {
-        static_cast<void>(ph);
-        return post_position_rule_<Rule>{};
-    }
+    template <typename Rule> constexpr auto operator()(Rule ph) const { return ph >> post_position_{}; }
 };
 
-//! Get the location ignoring leading whitespace.
-//!
-//! Best used with token rules.
+//! Produces a position to the current reader position without parsing anything.
+constexpr auto position = postition_dsl_{};
+
+//! Produce a position ignoring leading whitespace.
 constexpr auto post_position = post_position_dsl_{};
+
+//! Produce begin and end positions along with the given rule.
+template <typename Rule> constexpr auto location(Rule ph) { return position(ph) >> post_position_{}; }
 
 } // namespace Detail
 
