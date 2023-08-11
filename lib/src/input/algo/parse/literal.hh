@@ -46,7 +46,7 @@ struct atom_bool : lexy::token_production {
         auto b = a;
         // NOLINTNEXTLINE(readability-magic-numbers)
         b.column += value ? 5 : 6;
-        return LiteralBoolean{Location{std::move(a), std::move(b)}, value};
+        return LiteralBoolean{Location{std::move(a), std::move(b)}, Sign::none, value};
     });
 };
 
@@ -76,11 +76,11 @@ struct atom {
         lexy::forward<Literal>,
         [](auto term) {
             auto loc = location(term);
-            return LiteralSymbolic{std::move(loc), std::move(term)};
+            return LiteralSymbolic{std::move(loc), Sign::none, std::move(term)};
         },
         [](auto lhs, auto rhs) {
             auto loc = location(lhs) + location(rhs.back().second);
-            return LiteralRelation{std::move(loc), std::move(lhs), std::move(rhs)};
+            return LiteralRelation{std::move(loc), Sign::none, std::move(lhs), std::move(rhs)};
         });
 };
 

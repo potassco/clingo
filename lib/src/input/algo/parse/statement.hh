@@ -406,16 +406,21 @@ struct statement_const {
 struct statement_rule {
     static constexpr char const *name = "rule";
     static constexpr auto rule = []() {
-        auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body>;
-        return (if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body)) + eos;
+        auto if_body = dsl::position(LEXY_LIT(":-")) >> dsl::p<statement_body>;
+        return if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body) + eos;
     }();
-    static constexpr auto value = lexy::callback<Statement>(
-        Detail::construct_v<Rule, Statement>,
-        [](HeadLiteral head) {
+    static constexpr auto value = Detail::with_state<Statement>(
+        [](auto &state, HeadLiteral head, auto begin, BodyLiteralVec body) {
+            static_cast<void>(state);
+            static_cast<void>(begin);
+            return Rule{std::move(head), std::move(body)};
+        },
+        [](auto &state, HeadLiteral head) {
+            static_cast<void>(state);
             return Rule{std::move(head), BodyLiteralVec{}};
         },
-        [](BodyLiteralVec body) {
-            return Rule{Disjunction{ConditionalLiteralVec{}}, std::move(body)};
+        [](auto &state, auto begin, BodyLiteralVec body) {
+            return Rule{Disjunction{Detail::loc(state, begin, begin), ConditionalLiteralVec{}}, std::move(body)};
         });
 };
 

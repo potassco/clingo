@@ -22,8 +22,10 @@ namespace Gringo::Input {
 //! For example: <tt>p(X); q(X,Y): r(Y)</tt>
 struct Disjunction {
     //! Construct a disjunction.
-    explicit Disjunction(ConditionalLiteralVec elems) : elems{std::move(elems)} {}
+    explicit Disjunction(Location loc, ConditionalLiteralVec elems) : loc{std::move(loc)}, elems{std::move(elems)} {}
 
+    //! The location of the disjunction.
+    Location loc;
     //! The vector of conditional literals.
     ConditionalLiteralVec elems;
 };

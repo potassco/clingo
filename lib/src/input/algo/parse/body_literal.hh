@@ -11,19 +11,23 @@ namespace Gringo::Input::Grammar {
 namespace Detail {
 
 inline auto construct_body_aggr(Term term, Relation rel, BodyAggregate aggr) -> BodyAggregate {
-    aggr.lhs = LGuard::value_type{term, rel};
+    aggr.loc.begin = location(term).begin;
+    aggr.lhs = LGuard::value_type{std::move(term), rel};
     return aggr;
 }
 
 inline auto construct_body_aggr(Term term, Relation rel, SetAggregate aggr) -> BodySetAggregate {
     aggr.loc.begin = location(term).begin;
     aggr.lhs = LGuard::value_type{term, rel};
-    return BodySetAggregate{std::move(aggr)};
+    auto loc = aggr.loc;
+    return BodySetAggregate{std::move(loc), Sign::none, std::move(aggr)};
 }
 
 auto construct_conjunction(Literal lit, OptCondition cond) {
-    return Conjunction{ConditionalLiteralVec{
-        ConditionalLiteral{location(lit) + std::move(cond.second), LiteralVec{std::move(lit)}, std::move(cond.first)}}};
+    auto loc = location(lit) + cond.second;
+    return Conjunction{std::move(loc),
+                       ConditionalLiteralVec{ConditionalLiteral{location(lit) + std::move(cond.second),
+                                                                LiteralVec{std::move(lit)}, std::move(cond.first)}}};
 }
 
 } // namespace Detail
@@ -44,21 +48,44 @@ struct body_aggregate_element {
 };
 
 struct body_aggregate_elements {
+    using value_type = std::pair<BodyAggregate::ElementVec, Position>;
     static constexpr char const *name = "body aggregate elements";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT("}"));
         auto elems = dsl::list(dsl::p<body_aggregate_element>, dsl::sep(LEXY_LIT(";")));
-        return LEXY_LIT("{") + dsl::opt(peek >> elems) + LEXY_LIT("}");
+        return LEXY_LIT("{") + dsl::opt(peek >> elems) + Detail::post_position(LEXY_LIT("}"));
     }();
-    static constexpr auto value = lexy::as_list<BodyAggregate::ElementVec>;
+    static constexpr auto value = lexy::as_list<BodyAggregate::ElementVec> >>
+                                  Detail::with_state<value_type>(
+                                      [](auto &state, lexy::nullopt, auto end) {
+                                          return value_type{{}, state.pos(end)};
+                                      },
+                                      [](auto &state, BodyAggregate::ElementVec elems, auto end) {
+                                          return value_type{std::move(elems), state.pos(end)};
+                                      });
 };
 
 struct body_aggregate {
     static constexpr char const *name = "body aggregate";
-    static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
-    static constexpr auto value = lexy::callback<BodyAggregate>(
-        lexy::construct<BodyAggregate>, [](AggregateFunction fun, BodyAggregate::ElementVec elems, Term rhs) {
-            return BodyAggregate{fun, std::move(elems), Relation::less_equal, std::move(rhs)};
+    static constexpr auto rule =
+        dsl::position(dsl::p<aggregate_function>) >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
+    static constexpr auto value = Detail::with_state<BodyAggregate>(
+        [](auto &state, auto begin, AggregateFunction fun, body_aggregate_elements::value_type elems) {
+            auto loc = state.pos(begin) + elems.second;
+            return BodyAggregate{std::move(loc), Sign::none, std::nullopt, fun, std::move(elems.first), std::nullopt};
+        },
+        [](auto &state, auto begin, AggregateFunction fun, body_aggregate_elements::value_type elems, Relation rel,
+           Term rhs) {
+            auto loc = state.pos(begin) + location(rhs);
+            return BodyAggregate{std::move(loc),         Sign::none,
+                                 std::nullopt,           fun,
+                                 std::move(elems.first), RGuard::value_type{rel, std::move(rhs)}};
+        },
+        [](auto &state, auto begin, AggregateFunction fun, body_aggregate_elements::value_type elems, Term rhs) {
+            auto loc = state.pos(begin) + location(rhs);
+            return BodyAggregate{std::move(loc),         Sign::none,
+                                 std::nullopt,           fun,
+                                 std::move(elems.first), RGuard::value_type{Relation::less_equal, std::move(rhs)}};
         });
 };
 
@@ -94,7 +121,15 @@ struct body_atom : lexy::transparent_production {
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
     static constexpr auto value = lexy::callback<BodyLiteral>(
-        lexy::forward<BodyLiteral>, lexy::construct<BodySetAggregate>, lexy::construct<BodyTheoryAtom>,
+        lexy::forward<BodyLiteral>,
+        [](TheoryAtom aggr) {
+            auto loc = aggr.loc;
+            return BodyTheoryAtom(std::move(loc), Sign::none, std::move(aggr));
+        },
+        [](SetAggregate aggr) {
+            auto loc = aggr.loc;
+            return BodySetAggregate(std::move(loc), Sign::none, std::move(aggr));
+        },
         [](Term term, auto aggr) {
             return Detail::construct_body_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },
@@ -108,13 +143,13 @@ struct body_atom : lexy::transparent_production {
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
             auto loc = location(lhs) + location(guards.back().second);
-            auto lit = LiteralRelation{loc, std::move(lhs), std::move(guards)};
+            auto lit = LiteralRelation{loc, Sign::none, std::move(lhs), std::move(guards)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         },
         [](Literal lit, OptCondition cond) { return Detail::construct_conjunction(std::move(lit), std::move(cond)); },
         [](Term term, OptCondition cond) {
             auto loc = location(term);
-            auto lit = LiteralSymbolic{loc, std::move(term)};
+            auto lit = LiteralSymbolic{loc, Sign::none, std::move(term)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond));
         });
 };

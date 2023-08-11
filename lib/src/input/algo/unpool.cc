@@ -295,8 +295,9 @@ struct Unpool {
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteralVec> { return std::visit(*this, lit); }
 
     auto operator()(Disjunction const &lit) const -> std::optional<HeadLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.elems),
-                                 [](auto elem) -> HeadLiteral { return Disjunction{std::move(elem)}; });
+        return Util::map_opt_vec(operator()(lit.elems), [&lit](auto elem) -> HeadLiteral {
+            return Disjunction{lit.loc, std::move(elem)};
+        });
     }
 
     auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::ElementVec> {
@@ -340,8 +341,9 @@ struct Unpool {
     }
 
     auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.elems),
-                                 [](auto elem) -> BodyLiteral { return Conjunction{std::move(elem)}; });
+        return Util::map_opt_vec(operator()(lit.elems), [&lit](auto elem) -> BodyLiteral {
+            return Conjunction{lit.loc, std::move(elem)};
+        });
     }
 
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::ElementVec> {
@@ -361,20 +363,20 @@ struct Unpool {
     auto operator()(BodyAggregate const &aggr) const -> std::optional<BodyLiteralVec> {
         return unpool_crossproducts(
             [&aggr](auto lhs, auto elems, auto rhs) -> BodyLiteral {
-                return BodyAggregate{aggr.sign, std::move(lhs), aggr.fun, std::move(elems), std::move(rhs)};
+                return BodyAggregate{aggr.loc, aggr.sign, std::move(lhs), aggr.fun, std::move(elems), std::move(rhs)};
             },
             *this, aggr.lhs, aggr.elems, aggr.rhs);
     }
 
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteralVec> {
         return Util::map_opt_vec(operator()(lit.aggr), [&lit](auto aggr) -> BodyLiteral {
-            return BodySetAggregate{lit.sign, std::move(aggr)};
+            return BodySetAggregate{lit.loc, lit.sign, std::move(aggr)};
         });
     }
 
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteralVec> {
         return Util::map_opt_vec(operator()(lit.atom), [&lit](auto atom) -> BodyLiteral {
-            return BodyTheoryAtom{lit.sign, std::move(atom)};
+            return BodyTheoryAtom{lit.loc, lit.sign, std::move(atom)};
         });
     }
 

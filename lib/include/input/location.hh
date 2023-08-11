@@ -34,10 +34,18 @@ struct Location {
         }
         return a;
     }
-
+    friend auto operator+(Position a, Location const &b) -> Location { return {std::move(a), b.end}; }
+    friend auto operator+(std::optional<Position> a, Location const &b) -> Location {
+        if (a.has_value()) {
+            return {std::move(a).value(), b.end};
+        }
+        return b;
+    }
     Position begin;
     Position end;
 };
+
+inline auto operator+(Position a, Position b) -> Location { return {std::move(a), std::move(b)}; }
 
 template <class T> auto location(T const &x) -> Location const & { return x.loc; }
 

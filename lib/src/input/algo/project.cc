@@ -183,7 +183,7 @@ struct Project : Transformer<Project> {
         // Note when to project:
         // - variables in conditions (almost body literals)
         auto sub_project = Project{project, true, false};
-        return sub_project.transform_construct<Disjunction>(tr(lit.elems));
+        return sub_project.transform_construct<Disjunction>(lit.loc, tr(lit.elems));
     }
 
     auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
@@ -221,7 +221,7 @@ struct Project : Transformer<Project> {
         // - variables in premise if in classical scope,
         // - varibales in conclusion.
         auto sub_project = Project{project, in_classical_scope, true};
-        return sub_project.transform_construct<Conjunction>(tr(lit.elems));
+        return sub_project.transform_construct<Conjunction>(lit.loc, tr(lit.elems));
     }
 
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
@@ -235,14 +235,14 @@ struct Project : Transformer<Project> {
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
         if (lit.sign != Sign::none || in_classical_scope || !reduct_is_nonmonotone(lit.lhs, lit.fun, lit.rhs)) {
-            return transform_construct<BodyAggregate>(lit.sign, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
+            return transform_construct<BodyAggregate>(lit.loc, lit.sign, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
         }
         return std::nullopt;
     }
 
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
         auto sub_project = Project{project, in_classical_scope || lit.sign != Sign::none};
-        return sub_project.transform_construct<BodySetAggregate>(lit.sign, tr(lit.aggr));
+        return sub_project.transform_construct<BodySetAggregate>(lit.loc, lit.sign, tr(lit.aggr));
     }
 
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {

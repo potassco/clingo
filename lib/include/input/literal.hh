@@ -46,8 +46,6 @@ using GuardVec = std::vector<Guard>;
 class LiteralBoolean {
   public:
     //! Construct a Boolean literal.
-    explicit LiteralBoolean(Location loc, bool value) : LiteralBoolean{std::move(loc), Sign::none, value} {}
-    //! Construct a Boolean literal.
     explicit LiteralBoolean(Location loc, Sign sign, bool value) : loc{std::move(loc)}, sign(sign), value(value) {}
 
     //! The location of the literal.
@@ -68,9 +66,6 @@ auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
 //! For example <tt>1 <= X <= 10</tt>.
 class LiteralRelation {
   public:
-    //! Construct a relation literal.
-    explicit LiteralRelation(Location loc, Term lhs, GuardVec rhs)
-        : LiteralRelation{std::move(loc), Sign::none, std::move(lhs), std::move(rhs)} {}
     //! Construct a relation literal.
     explicit LiteralRelation(Location loc, Sign sign, Term lhs, GuardVec rhs)
         : loc{std::move(loc)}, sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
@@ -95,8 +90,6 @@ auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool;
 //! For example <tt>not p(X)</tt>.
 struct LiteralSymbolic {
   public:
-    //! Construct a symbolic literal.
-    explicit LiteralSymbolic(Location loc, Term term) : LiteralSymbolic{std::move(loc), Sign::none, std::move(term)} {}
     //! Construct a symbolic literal.
     explicit LiteralSymbolic(Location loc, Sign sign, Term term)
         : loc{std::move(loc)}, sign(sign), term(std::move(term)) {}

@@ -145,7 +145,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
 
     auto operator()(Disjunction const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<Disjunction>(tr(lit.elems));
+        return transform_construct<Disjunction>(lit.loc, tr(lit.elems));
     }
 
     auto operator()(HeadAggregate::Element const &lit) const -> std::optional<HeadAggregate::Element> {
@@ -169,7 +169,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
 
     auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<Conjunction>(tr(lit.elems));
+        return transform_construct<Conjunction>(lit.loc, tr(lit.elems));
     }
 
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
@@ -177,15 +177,15 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyAggregate>(lit.sign, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
+        return transform_construct<BodyAggregate>(lit.loc, lit.sign, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
     }
 
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodySetAggregate>(lit.sign, tr(lit.aggr));
+        return transform_construct<BodySetAggregate>(lit.loc, lit.sign, tr(lit.aggr));
     }
 
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyTheoryAtom>(lit.sign, tr(lit.atom));
+        return transform_construct<BodyTheoryAtom>(lit.loc, lit.sign, tr(lit.atom));
     }
 
     // statement

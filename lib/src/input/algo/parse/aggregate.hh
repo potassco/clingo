@@ -88,11 +88,18 @@ struct junction_element {
 template <class E, class J, class L> struct junction {
     static constexpr auto make_rule = [](auto kw) {
         auto sep = dsl::sep(LEXY_LIT(";"));
-        return kw >> dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
+        auto braces = dsl::brackets(LEXY_LIT("{"), Detail::post_position(LEXY_LIT("}")));
+        return dsl::position(kw) >> braces.opt_list(dsl::p<E>, sep);
     };
-    static constexpr auto value = lexy::as_list<ConditionalLiteralVec> >>
-                                  lexy::callback<L>(lexy::construct<J>,
-                                                    [](lexy::nullopt) { return J{ConditionalLiteralVec{}}; });
+    static constexpr auto
+        value = lexy::as_list<ConditionalLiteralVec> >>
+                Detail::with_state<L>(
+                    [](auto &state, auto begin, ConditionalLiteralVec elems, auto end) {
+                        return J{Detail::loc(state, begin, end), ConditionalLiteralVec{std::move(elems)}};
+                    },
+                    [](auto &state, auto begin, lexy::nullopt, auto end) {
+                        return J{Detail::loc(state, begin, end), ConditionalLiteralVec{}};
+                    });
 };
 
 template <class E>

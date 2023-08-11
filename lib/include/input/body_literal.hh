@@ -22,8 +22,10 @@ namespace Gringo::Input {
 //! For example: <tt>p(X); q(X,Y): r(Y)</tt>
 struct Conjunction {
     //! Construct a conjunction.
-    explicit Conjunction(ConditionalLiteralVec elems) : elems{std::move(elems)} {}
+    explicit Conjunction(Location loc, ConditionalLiteralVec elems) : loc{std::move(loc)}, elems{std::move(elems)} {}
 
+    //! The location of the literal.
+    Location loc;
     //! The vector of conditional literals.
     ConditionalLiteralVec elems;
 };
@@ -43,15 +45,12 @@ struct BodyAggregate {
     using ElementVec = std::vector<Element>;
 
     //! Construct a body aggregate.
-    explicit BodyAggregate(Sign sign, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
-        : sign{sign}, fun(fun), elems(std::move(elems)), lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
-    //! Construct a body aggregate.
-    explicit BodyAggregate(AggregateFunction fun, ElementVec elems, Relation rel, Term rhs)
-        : BodyAggregate{Sign::none, std::nullopt, fun, std::move(elems), std::make_pair(rel, std::move(rhs))} {}
-    //! Construct a body aggregate.
-    explicit BodyAggregate(AggregateFunction fun, ElementVec elems)
-        : BodyAggregate{Sign::none, std::nullopt, fun, std::move(elems), std::nullopt} {}
+    explicit BodyAggregate(Location loc, Sign sign, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
+        : loc{std::move(loc)}, sign{sign}, fun(fun), elems(std::move(elems)), lhs{std::move(lhs)}, rhs{std::move(rhs)} {
+    }
 
+    //! The location of the literal.
+    Location loc;
     //! The sign of the literal.
     Sign sign;
     //! The aggregate function.
@@ -69,10 +68,11 @@ struct BodyAggregate {
 //! For example: <tt>#count { p(X): q(X) } = 1</tt>
 struct BodySetAggregate {
     //! Construct a body set aggregate.
-    explicit BodySetAggregate(Sign sign, SetAggregate aggr) : sign{sign}, aggr{std::move(aggr)} {}
-    //! Construct a body set aggregate.
-    explicit BodySetAggregate(SetAggregate aggr) : BodySetAggregate{Sign::none, std::move(aggr)} {}
+    explicit BodySetAggregate(Location loc, Sign sign, SetAggregate aggr)
+        : loc{std::move(loc)}, sign{sign}, aggr{std::move(aggr)} {}
 
+    //! The location of the literal.
+    Location loc;
     //! The sign of the literal.
     Sign sign;
     //! The corresponding set aggregate.
@@ -82,10 +82,11 @@ struct BodySetAggregate {
 //! A body theory atom.
 struct BodyTheoryAtom {
     //! Construct a body theory atom.
-    explicit BodyTheoryAtom(Sign sign, TheoryAtom atom) : sign{sign}, atom{std::move(atom)} {}
-    //! Construct a body theory atom.
-    explicit BodyTheoryAtom(TheoryAtom atom) : BodyTheoryAtom{Sign::none, std::move(atom)} {}
+    explicit BodyTheoryAtom(Location loc, Sign sign, TheoryAtom atom)
+        : loc{std::move(loc)}, sign{sign}, atom{std::move(atom)} {}
 
+    //! The location of the literal.
+    Location loc;
     //! The sign of the literal.
     Sign sign;
     //! The corresponding theory atom aggregate.
