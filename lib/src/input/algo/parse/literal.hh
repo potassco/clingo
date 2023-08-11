@@ -40,13 +40,9 @@ struct atom_bool : lexy::token_production {
     static constexpr auto bool_symbols = lexy::symbol_table<bool> //
                                              .map<LEXY_SYMBOL("#true")>(true)
                                              .map<LEXY_SYMBOL("#false")>(false);
-    static constexpr auto rule = dsl::position(dsl::symbol<bool_symbols>(keyword_base));
-    static constexpr auto value = Detail::with_state<Literal>([](auto &state, auto begin, bool value) {
-        auto a = state.pos(begin);
-        auto b = a;
-        // NOLINTNEXTLINE(readability-magic-numbers)
-        b.column += value ? 5 : 6;
-        return LiteralBoolean{Location{std::move(a), std::move(b)}, Sign::none, value};
+    static constexpr auto rule = Detail::location(dsl::symbol<bool_symbols>(keyword_base));
+    static constexpr auto value = lexy::callback<Literal>([](Position begin, bool value, Position end) {
+        return LiteralBoolean{Location{std::move(begin), std::move(end)}, Sign::none, value};
     });
 };
 
@@ -86,17 +82,11 @@ struct atom {
 
 struct naf_sign {
     static constexpr char const *name = "default negation";
-    static auto constexpr rule = dsl::if_(dsl::position(kw_not) >> dsl::if_(dsl::position(kw_not)));
-    static auto constexpr value = Detail::with_state<std::pair<std::optional<Position>, Sign>>(
-        [](auto &state) {
-            static_cast<void>(state);
-            return std::make_pair(std::nullopt, Sign::none);
-        },
-        [](auto &state, auto begin) { return std::make_pair(state.pos(begin), Sign::once); },
-        [](auto &state, auto begin, auto sentinel) {
-            static_cast<void>(sentinel);
-            return std::make_pair(state.pos(begin), Sign::twice);
-        });
+    static auto constexpr rule = dsl::if_(Detail::position(kw_not) >> dsl::opt(kw_not));
+    static auto constexpr value = lexy::callback<std::pair<std::optional<Position>, Sign>>(
+        []() { return std::make_pair(std::nullopt, Sign::none); },
+        [](Position begin, lexy::nullopt) { return std::make_pair(std::move(begin), Sign::once); },
+        [](Position begin) { return std::make_pair(std::move(begin), Sign::twice); });
 };
 
 struct literal {

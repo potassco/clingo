@@ -142,7 +142,13 @@ constexpr auto position = postition_dsl_{};
 constexpr auto post_position = post_position_dsl_{};
 
 //! Produce begin and end positions along with the given rule.
-template <typename Rule> constexpr auto location(Rule ph) { return position(ph) >> post_position_{}; }
+template <typename Rule> constexpr auto location(Rule ph) {
+    if constexpr (lexy::is_branch_rule<Rule>) {
+        return position(ph) >> post_position_{};
+    } else {
+        return position + ph + post_position_{};
+    }
+}
 
 } // namespace Detail
 

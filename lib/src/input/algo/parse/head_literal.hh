@@ -56,45 +56,42 @@ struct head_aggregate_element {
         return tuple + LEXY_LIT(":") + dsl::p<literal> + dsl::p<opt_condition>;
     }();
     static constexpr auto value = lexy::callback<HeadAggregate::Element>(
-        [](Literal lit, OptCondition cond) {
-            return HeadAggregate::Element{TermVec{}, std::move(lit), std::move(cond.first)};
+        [](Literal lit, LiteralVec cond) {
+            return HeadAggregate::Element{TermVec{}, std::move(lit), std::move(cond)};
         },
-        [](TermVec tuple, Literal lit, OptCondition cond) {
-            return HeadAggregate::Element{std::move(tuple), std::move(lit), std::move(cond.first)};
+        [](TermVec tuple, Literal lit, LiteralVec cond) {
+            return HeadAggregate::Element{std::move(tuple), std::move(lit), std::move(cond)};
         });
 };
 
 struct head_aggregate_elements {
-    using value_type = std::pair<HeadAggregate::ElementVec, Position>;
     static constexpr char const *name = "head aggregate elements";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT("}"));
         auto elems = dsl::list(dsl::p<head_aggregate_element>, dsl::sep(LEXY_LIT(";")));
-        return LEXY_LIT("{") + dsl::opt(peek >> elems) + Detail::post_position(LEXY_LIT("}"));
+        return LEXY_LIT("{") + dsl::opt(peek >> elems) + LEXY_LIT("}");
     }();
-    static constexpr auto value = lexy::as_list<HeadAggregate::ElementVec> >>
-                                  lexy::callback<value_type>(lexy::construct<value_type>, [](lexy::nullopt,
-                                                                                             Position pos) {
-                                      return value_type(HeadAggregate::ElementVec{}, std::move(pos));
-                                  });
+    static constexpr auto value = lexy::as_list<HeadAggregate::ElementVec>;
 };
 
 struct head_aggregate {
     static constexpr char const *name = "head aggregate";
     static constexpr auto rule =
-        Detail::position(dsl::p<aggregate_function>) >> dsl::p<head_aggregate_elements> + aggregate_right_guard;
+        Detail::location(dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard);
     static constexpr auto value = lexy::callback<HeadAggregate>(
-        [](Position begin, AggregateFunction fun, head_aggregate_elements::value_type elems) {
-            return HeadAggregate(begin + elems.second, std::nullopt, fun, std::move(elems.first), std::nullopt);
+        [](Position begin, AggregateFunction fun, HeadAggregate::ElementVec elems, Position end) {
+            auto loc = std::move(begin) + std::move(end);
+            return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems), std::nullopt);
         },
-        [](Position begin, AggregateFunction fun, head_aggregate_elements::value_type elems, Relation rel, Term rhs) {
-            auto loc = Location{begin, location(rhs).end};
-            return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems.first),
+        [](Position begin, AggregateFunction fun, HeadAggregate::ElementVec elems, Relation rel, Term rhs,
+           Position end) {
+            auto loc = std::move(begin) + std::move(end);
+            return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems),
                                  RGuard::value_type{rel, std::move(rhs)});
         },
-        [](Position begin, AggregateFunction fun, head_aggregate_elements::value_type elems, Term rhs) {
-            auto loc = Location{begin, location(rhs).end};
-            return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems.first),
+        [](Position begin, AggregateFunction fun, HeadAggregate::ElementVec elems, Term rhs, Position end) {
+            auto loc = std::move(begin) + std::move(end);
+            return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems),
                                  RGuard::value_type{Relation::less_equal, std::move(rhs)});
         });
 };
@@ -120,11 +117,11 @@ struct head_literal {
         auto with_rel =                                      //
             dsl::p<head_aggregate> | dsl::p<set_aggregate> | //
             dsl::else_ >> dsl::p<term> + dsl::opt(dsl::p<right_guards>) + dsl::p<opt_condition> +
-                              dsl::p<simple_disjunction_element>;
+                              Detail::post_position + dsl::p<simple_disjunction_element>;
 
-        auto with_term =                                                                     //
-            dsl::p<relation> >> with_rel | dsl::p<head_aggregate> | dsl::p<set_aggregate> |  //
-            is_atom.is_set() >> dsl::p<opt_condition> + dsl::p<simple_disjunction_element> | //
+        auto with_term =                                                                                             //
+            dsl::p<relation> >> with_rel | dsl::p<head_aggregate> | dsl::p<set_aggregate> |                          //
+            is_atom.is_set() >> dsl::p<opt_condition> + Detail::post_position + dsl::p<simple_disjunction_element> | //
             dsl::else_ >> dsl::error<expected_rel_aggr>;
 
         auto peek = dsl::peek(kw_not | dsl::symbol<atom_bool::bool_symbols>(keyword_base));
@@ -150,7 +147,7 @@ struct head_literal {
         [](Term term, Relation rel, auto aggr) -> HeadLiteral {
             return Detail::construct_head_aggr(std::move(term), rel, std::move(aggr));
         },
-        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, OptCondition cond,
+        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, LiteralVec cond, Position end,
            ConditionalLiteralVec elems) -> HeadLiteral {
             GuardVec guards;
             if (opt_guards.has_value()) {
@@ -158,22 +155,22 @@ struct head_literal {
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
             auto loc_rel = location(lhs) + location(guards.back().second);
-            auto loc_lit = loc_rel + cond.second;
+            auto loc_lit = loc_rel + std::move(end);
             elems.insert(elems.begin(),
                          ConditionalLiteral{std::move(loc_lit),
                                             LiteralVec{LiteralRelation{std::move(loc_rel), Sign::none, std::move(lhs),
                                                                        std::move(guards)}},
-                                            std::move(cond.first)});
+                                            std::move(cond)});
             auto loc = location(elems.front()) + location(elems.back());
             return Disjunction{std::move(loc), std::move(elems)};
         },
-        [](Term term, OptCondition cond, ConditionalLiteralVec elems) {
+        [](Term term, LiteralVec cond, Position end, ConditionalLiteralVec elems) {
             auto loc_sym = location(term);
-            auto loc_lit = loc_sym + cond.second;
+            auto loc_lit = loc_sym + std::move(end);
             elems.insert(elems.begin(), ConditionalLiteral{std::move(loc_lit),
                                                            LiteralVec{LiteralSymbolic{std::move(loc_sym), Sign::none,
                                                                                       std::move(term)}},
-                                                           std::move(cond.first)});
+                                                           std::move(cond)});
             auto loc = location(elems.front()) + location(elems.back());
             return Disjunction{std::move(loc), std::move(elems)};
         });

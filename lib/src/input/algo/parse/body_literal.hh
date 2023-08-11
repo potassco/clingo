@@ -23,11 +23,11 @@ inline auto construct_body_aggr(Term term, Relation rel, SetAggregate aggr) -> B
     return BodySetAggregate{std::move(loc), Sign::none, std::move(aggr)};
 }
 
-auto construct_conjunction(Literal lit, OptCondition cond) {
-    auto loc = location(lit) + cond.second;
-    return Conjunction{std::move(loc),
-                       ConditionalLiteralVec{ConditionalLiteral{location(lit) + std::move(cond.second),
-                                                                LiteralVec{std::move(lit)}, std::move(cond.first)}}};
+auto construct_conjunction(Literal lit, LiteralVec cond, Position end) {
+    auto loc = location(lit) + std::move(end);
+    auto loc_elem = loc;
+    return Conjunction{std::move(loc), ConditionalLiteralVec{ConditionalLiteral{
+                                           std::move(loc_elem), LiteralVec{std::move(lit)}, std::move(cond)}}};
 }
 
 } // namespace Detail
@@ -39,53 +39,45 @@ struct body_aggregate_element {
         return dsl::if_(peek >> dsl::p<term_list>) + dsl::p<opt_condition>;
     }();
     static constexpr auto value = lexy::callback<BodyAggregate::Element>(
-        [](OptCondition cond) {
-            return BodyAggregate::Element{TermVec{}, std::move(cond.first)};
+        [](LiteralVec cond) {
+            return BodyAggregate::Element{TermVec{}, std::move(cond)};
         },
-        [](TermVec tuple, OptCondition cond) {
-            return BodyAggregate::Element{std::move(tuple), std::move(cond.first)};
+        [](TermVec tuple, LiteralVec cond) {
+            return BodyAggregate::Element{std::move(tuple), std::move(cond)};
         });
 };
 
 struct body_aggregate_elements {
-    using value_type = std::pair<BodyAggregate::ElementVec, Position>;
     static constexpr char const *name = "body aggregate elements";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT("}"));
         auto elems = dsl::list(dsl::p<body_aggregate_element>, dsl::sep(LEXY_LIT(";")));
-        return LEXY_LIT("{") + dsl::opt(peek >> elems) + Detail::post_position(LEXY_LIT("}"));
+        return LEXY_LIT("{") + dsl::opt(peek >> elems) + LEXY_LIT("}");
     }();
-    static constexpr auto value = lexy::as_list<BodyAggregate::ElementVec> >>
-                                  Detail::with_state<value_type>(
-                                      [](auto &state, lexy::nullopt, auto end) {
-                                          return value_type{{}, state.pos(end)};
-                                      },
-                                      [](auto &state, BodyAggregate::ElementVec elems, auto end) {
-                                          return value_type{std::move(elems), state.pos(end)};
-                                      });
+    static constexpr auto value = lexy::as_list<BodyAggregate::ElementVec>;
 };
 
 struct body_aggregate {
     static constexpr char const *name = "body aggregate";
     static constexpr auto rule =
-        dsl::position(dsl::p<aggregate_function>) >> dsl::p<body_aggregate_elements> + aggregate_right_guard;
-    static constexpr auto value = Detail::with_state<BodyAggregate>(
-        [](auto &state, auto begin, AggregateFunction fun, body_aggregate_elements::value_type elems) {
-            auto loc = state.pos(begin) + elems.second;
-            return BodyAggregate{std::move(loc), Sign::none, std::nullopt, fun, std::move(elems.first), std::nullopt};
+        Detail::location(dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard);
+    static constexpr auto value = lexy::callback<BodyAggregate>(
+        [](Position begin, AggregateFunction fun, BodyAggregate::ElementVec elems, Position end) {
+            auto loc = std::move(begin) + std::move(end);
+            return BodyAggregate{std::move(loc), Sign::none, std::nullopt, fun, std::move(elems), std::nullopt};
         },
-        [](auto &state, auto begin, AggregateFunction fun, body_aggregate_elements::value_type elems, Relation rel,
-           Term rhs) {
-            auto loc = state.pos(begin) + location(rhs);
-            return BodyAggregate{std::move(loc),         Sign::none,
-                                 std::nullopt,           fun,
-                                 std::move(elems.first), RGuard::value_type{rel, std::move(rhs)}};
+        [](Position begin, AggregateFunction fun, BodyAggregate::ElementVec elems, Relation rel, Term rhs,
+           Position end) {
+            auto loc = std::move(begin) + std::move(end);
+            return BodyAggregate{std::move(loc),   Sign::none,
+                                 std::nullopt,     fun,
+                                 std::move(elems), RGuard::value_type{rel, std::move(rhs)}};
         },
-        [](auto &state, auto begin, AggregateFunction fun, body_aggregate_elements::value_type elems, Term rhs) {
-            auto loc = state.pos(begin) + location(rhs);
-            return BodyAggregate{std::move(loc),         Sign::none,
-                                 std::nullopt,           fun,
-                                 std::move(elems.first), RGuard::value_type{Relation::less_equal, std::move(rhs)}};
+        [](Position begin, AggregateFunction fun, BodyAggregate::ElementVec elems, Term rhs, Position end) {
+            auto loc = std::move(begin) + std::move(end);
+            return BodyAggregate{std::move(loc),   Sign::none,
+                                 std::nullopt,     fun,
+                                 std::move(elems), RGuard::value_type{Relation::less_equal, std::move(rhs)}};
         });
 };
 
@@ -107,17 +99,18 @@ struct body_atom : lexy::transparent_production {
     }
 
     static constexpr auto rule = []() {
-        auto with_rel = dsl::p<body_aggregate> | dsl::p<set_aggregate> |
-                        dsl::else_ >> dsl::p<term> + dsl::opt(dsl::p<right_guards>) + dsl::p<opt_condition>;
+        auto with_rel =
+            dsl::p<body_aggregate> | dsl::p<set_aggregate> |
+            dsl::else_ >> dsl::p<term> + dsl::opt(dsl::p<right_guards>) + dsl::p<opt_condition> + Detail::post_position;
 
-        auto with_term =                                     //
-            dsl::p<relation> >> with_rel |                   //
-            dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
-            is_atom.is_set() >> dsl::p<opt_condition> |      //
+        auto with_term =                                                        //
+            dsl::p<relation> >> with_rel |                                      //
+            dsl::p<body_aggregate> | dsl::p<set_aggregate> |                    //
+            is_atom.is_set() >> dsl::p<opt_condition> + Detail::post_position | //
             dsl::else_ >> dsl::error<expected_rel_aggr>;
 
         return dsl::p<theory_atom> | dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
-               dsl::p<atom_bool> >> dsl::p<opt_condition> |                           //
+               dsl::p<atom_bool> >> dsl::p<opt_condition> + Detail::post_position |   //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
     static constexpr auto value = lexy::callback<BodyLiteral>(
@@ -136,7 +129,7 @@ struct body_atom : lexy::transparent_production {
         [](Term term, Relation rel, auto aggr) {
             return Detail::construct_body_aggr(std::move(term), rel, std::move(aggr));
         },
-        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, OptCondition cond) {
+        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, LiteralVec cond, Position end) {
             GuardVec guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
@@ -144,13 +137,15 @@ struct body_atom : lexy::transparent_production {
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
             auto loc = location(lhs) + location(guards.back().second);
             auto lit = LiteralRelation{loc, Sign::none, std::move(lhs), std::move(guards)};
-            return Detail::construct_conjunction(std::move(lit), std::move(cond));
+            return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
         },
-        [](Literal lit, OptCondition cond) { return Detail::construct_conjunction(std::move(lit), std::move(cond)); },
-        [](Term term, OptCondition cond) {
+        [](Literal lit, LiteralVec cond, Position end) {
+            return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
+        },
+        [](Term term, LiteralVec cond, Position end) {
             auto loc = location(term);
             auto lit = LiteralSymbolic{loc, Sign::none, std::move(term)};
-            return Detail::construct_conjunction(std::move(lit), std::move(cond));
+            return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
         });
 };
 

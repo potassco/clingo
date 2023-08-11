@@ -31,62 +31,51 @@ struct condition {
     static constexpr auto value = lexy::as_list<LiteralVec>;
 };
 
-using OptCondition = std::pair<LiteralVec, std::optional<Position>>;
-
 struct opt_condition {
     static constexpr char const *name = "condition";
-    static constexpr auto rule = dsl::if_(Detail::position(dsl::p<condition>));
-    static constexpr auto value = lexy::callback<OptCondition>(
-        [](Position begin, auto cond) {
-            auto loc = cond.empty() ? ++begin.column, std::move(begin) : location(cond.back()).end;
-            return std::make_pair(std::move(cond), std::move(loc));
-        },
-        []() { return std::make_pair(LiteralVec{}, std::nullopt); });
+    static constexpr auto rule = dsl::if_(dsl::p<condition>);
+    static constexpr auto value = lexy::construct<LiteralVec>;
 };
 
 struct conditional_literal {
     static constexpr char const *name = "conditional literal";
-    static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::callback<ConditionalLiteral>([](Literal lit, OptCondition cond) {
-        return ConditionalLiteral{location(lit) + std::move(cond.second), LiteralVec{std::move(lit)},
-                                  std::move(cond.first)};
+    static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition> + Detail::post_position;
+    static constexpr auto value = lexy::callback<ConditionalLiteral>([](Literal lit, LiteralVec cond, Position end) {
+        auto loc = location(lit) + std::move(end);
+        return ConditionalLiteral{std::move(loc), LiteralVec{std::move(lit)}, std::move(cond)};
     });
 };
 
 struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::callback<SetAggregate::Element>([](Literal lit, OptCondition cond) {
-        return SetAggregate::Element{std::move(lit), std::move(cond.first)};
+    static constexpr auto value = lexy::callback<SetAggregate::Element>([](Literal lit, LiteralVec cond) {
+        return SetAggregate::Element{std::move(lit), std::move(cond)};
     });
 };
 
 struct junction_element {
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT(":"));
-        return dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")))) + dsl::p<opt_condition>;
+        return Detail::location(dsl::if_(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")))) +
+                                dsl::p<opt_condition>);
     }();
-    static constexpr auto value =
-        lexy::as_list<LiteralVec> >>
-        lexy::callback<ConditionalLiteral>(
-            [](lexy::nullopt, OptCondition cond) {
-                assert(cond.second.has_value());
-                auto pos = std::move(cond.second).value();
-                auto loc = cond.first.empty() ? Location{Position{pos.file, pos.line, pos.column - 1}, pos}
-                                              : location(cond.first.front()) + pos;
-                return ConditionalLiteral{loc, {}, std::move(cond.first)};
-            },
-            [](LiteralVec lits, OptCondition cond) {
-                assert(!lits.empty());
-                return ConditionalLiteral{location(lits.front()) + cond.second, std::move(lits), std::move(cond.first)};
-            });
+    static constexpr auto
+        value = lexy::as_list<LiteralVec> >>
+                lexy::callback<ConditionalLiteral>(
+                    [](Position begin, LiteralVec cond, Position end) {
+                        return ConditionalLiteral{std::move(begin) + std::move(end), {}, std::move(cond)};
+                    },
+                    [](Position begin, LiteralVec lits, LiteralVec cond, Position end) {
+                        return ConditionalLiteral{std::move(begin) + std::move(end), std::move(lits), std::move(cond)};
+                    });
 };
 
 template <class E, class J, class L> struct junction {
     static constexpr auto make_rule = [](auto kw) {
         auto sep = dsl::sep(LEXY_LIT(";"));
-        auto braces = dsl::brackets(LEXY_LIT("{"), Detail::post_position(LEXY_LIT("}")));
-        return Detail::position(kw) >> braces.opt_list(dsl::p<E>, sep);
+        auto elems = dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
+        return Detail::location(kw >> elems);
     };
     static constexpr auto
         value = lexy::as_list<ConditionalLiteralVec> >>
@@ -120,21 +109,18 @@ struct set_aggregate_elements {
 
 struct set_aggregate {
     static constexpr char const *name = "set aggregate";
-    static constexpr auto rule = Detail::position(LEXY_LIT("{")) >> dsl::p<set_aggregate_elements> >>
-                                 Detail::post_position(LEXY_LIT("}")) + aggregate_right_guard;
+    static constexpr auto rule =
+        Detail::location(LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >> LEXY_LIT("}") + aggregate_right_guard);
     static constexpr auto value = lexy::callback<SetAggregate>(
         [](Position begin, SetAggregate::ElementVec elems, Position end) {
             return SetAggregate{Location(std::move(begin), std::move(end)), std::move(elems)};
         },
-        [](Position begin, SetAggregate::ElementVec elems, Position end, Term rhs) {
-            static_cast<void>(end);
-            auto loc = std::move(begin) + location(rhs);
-            return SetAggregate{std::move(loc), std::move(elems), Relation::less_equal, std::move(rhs)};
+        [](Position begin, SetAggregate::ElementVec elems, Term rhs, Position end) {
+            return SetAggregate{std::move(begin) + std::move(end), std::move(elems), Relation::less_equal,
+                                std::move(rhs)};
         },
-        [](Position begin, SetAggregate::ElementVec elems, Position end, Relation rel, Term rhs) {
-            static_cast<void>(end);
-            auto loc = std::move(begin) + location(rhs);
-            return SetAggregate{std::move(loc), std::move(elems), rel, std::move(rhs)};
+        [](Position begin, SetAggregate::ElementVec elems, Relation rel, Term rhs, Position end) {
+            return SetAggregate{std::move(begin) + std::move(end), std::move(elems), rel, std::move(rhs)};
         });
 };
 
