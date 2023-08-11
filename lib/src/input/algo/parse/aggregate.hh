@@ -35,16 +35,13 @@ using OptCondition = std::pair<LiteralVec, std::optional<Position>>;
 
 struct opt_condition {
     static constexpr char const *name = "condition";
-    static constexpr auto rule = dsl::if_(dsl::position(dsl::p<condition>));
-    static constexpr auto value = Detail::with_state<OptCondition>(
-        [](auto &state, auto begin, auto cond) {
-            auto loc = cond.empty() ? state.pos(std::next(begin)) : location(cond.back()).end;
+    static constexpr auto rule = dsl::if_(Detail::position(dsl::p<condition>));
+    static constexpr auto value = lexy::callback<OptCondition>(
+        [](Position begin, auto cond) {
+            auto loc = cond.empty() ? ++begin.column, std::move(begin) : location(cond.back()).end;
             return std::make_pair(std::move(cond), std::move(loc));
         },
-        [](auto &state) {
-            static_cast<void>(state);
-            return std::make_pair(LiteralVec{}, std::nullopt);
-        });
+        []() { return std::make_pair(LiteralVec{}, std::nullopt); });
 };
 
 struct conditional_literal {
@@ -89,16 +86,16 @@ template <class E, class J, class L> struct junction {
     static constexpr auto make_rule = [](auto kw) {
         auto sep = dsl::sep(LEXY_LIT(";"));
         auto braces = dsl::brackets(LEXY_LIT("{"), Detail::post_position(LEXY_LIT("}")));
-        return dsl::position(kw) >> braces.opt_list(dsl::p<E>, sep);
+        return Detail::position(kw) >> braces.opt_list(dsl::p<E>, sep);
     };
     static constexpr auto
         value = lexy::as_list<ConditionalLiteralVec> >>
-                Detail::with_state<L>(
-                    [](auto &state, auto begin, ConditionalLiteralVec elems, auto end) {
-                        return J{Detail::loc(state, begin, end), ConditionalLiteralVec{std::move(elems)}};
+                lexy::callback<L>(
+                    [](Position begin, ConditionalLiteralVec elems, Position end) {
+                        return J{Location(std::move(begin), std::move(end)), ConditionalLiteralVec{std::move(elems)}};
                     },
-                    [](auto &state, auto begin, lexy::nullopt, auto end) {
-                        return J{Detail::loc(state, begin, end), ConditionalLiteralVec{}};
+                    [](Position begin, lexy::nullopt, Position end) {
+                        return J{Location(std::move(begin), std::move(end)), ConditionalLiteralVec{}};
                     });
 };
 
@@ -123,21 +120,21 @@ struct set_aggregate_elements {
 
 struct set_aggregate {
     static constexpr char const *name = "set aggregate";
-    static constexpr auto rule = dsl::position(LEXY_LIT("{")) >> dsl::p<set_aggregate_elements> >>
+    static constexpr auto rule = Detail::position(LEXY_LIT("{")) >> dsl::p<set_aggregate_elements> >>
                                  Detail::post_position(LEXY_LIT("}")) + aggregate_right_guard;
-    static constexpr auto value = Detail::with_state<SetAggregate>(
-        [](auto &state, auto begin, SetAggregate::ElementVec elems, auto end) {
-            return SetAggregate{Detail::loc(state, begin, end), std::move(elems)};
+    static constexpr auto value = lexy::callback<SetAggregate>(
+        [](Position begin, SetAggregate::ElementVec elems, Position end) {
+            return SetAggregate{Location(std::move(begin), std::move(end)), std::move(elems)};
         },
-        [](auto &state, auto begin, SetAggregate::ElementVec elems, auto end, Term rhs) {
+        [](Position begin, SetAggregate::ElementVec elems, Position end, Term rhs) {
             static_cast<void>(end);
-            auto loc = Location{state.pos(begin), location(rhs).end};
-            return SetAggregate{loc, std::move(elems), Relation::less_equal, std::move(rhs)};
+            auto loc = std::move(begin) + location(rhs);
+            return SetAggregate{std::move(loc), std::move(elems), Relation::less_equal, std::move(rhs)};
         },
-        [](auto &state, auto begin, SetAggregate::ElementVec elems, auto end, Relation rel, Term rhs) {
+        [](Position begin, SetAggregate::ElementVec elems, Position end, Relation rel, Term rhs) {
             static_cast<void>(end);
-            auto loc = Location{state.pos(begin), location(rhs).end};
-            return SetAggregate{loc, std::move(elems), rel, std::move(rhs)};
+            auto loc = std::move(begin) + location(rhs);
+            return SetAggregate{std::move(loc), std::move(elems), rel, std::move(rhs)};
         });
 };
 

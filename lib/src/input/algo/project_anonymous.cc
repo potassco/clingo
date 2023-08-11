@@ -153,15 +153,15 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadAggregate>(lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
+        return transform_construct<HeadAggregate>(lit.loc, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
     }
 
     auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadSetAggregate>(tr(lit.aggr));
+        return transform_construct<HeadSetAggregate>(lit.loc, tr(lit.aggr));
     }
 
     auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadTheoryAtom>(tr(lit.atom));
+        return transform_construct<HeadTheoryAtom>(lit.loc, tr(lit.atom));
     }
 
     // body literal

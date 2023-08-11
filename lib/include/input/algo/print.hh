@@ -11,6 +11,12 @@ namespace Gringo::Input {
 //!
 //! @{
 
+//! Output the position to the given stream.
+auto operator<<(std::ostream &out, Position const &pos) -> std::ostream &;
+
+//! Output the location to the given stream.
+auto operator<<(std::ostream &out, Location const &loc) -> std::ostream &;
+
 //! Output the term to the given stream.
 auto operator<<(std::ostream &out, Term const &term) -> std::ostream &;
 

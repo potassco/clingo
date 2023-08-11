@@ -235,15 +235,12 @@ struct sign_classical {
 
 struct symbolic_atom {
     static constexpr char const *name = "symbolic atom";
-    static constexpr auto rule = dsl::if_(dsl::position(LEXY_LIT("-"))) + dsl::p<term_function>;
-    static constexpr auto value = Detail::with_state<Term>(
-        [](auto &state, auto begin, Term term) {
-            return TermUnary{Location(state.pos(begin), location(term).end), UnaryOperator::negate, std::move(term)};
+    static constexpr auto rule = dsl::if_(Detail::position(LEXY_LIT("-"))) + dsl::p<term_function>;
+    static constexpr auto value = lexy::callback<Term>(
+        [](Position begin, Term term) {
+            return TermUnary{std::move(begin) + location(term), UnaryOperator::negate, std::move(term)};
         },
-        [](auto &state, Term term) {
-            static_cast<void>(state);
-            return term;
-        });
+        [](Term term) { return term; });
 };
 
 struct statement_defined {
@@ -286,7 +283,7 @@ struct statement_project {
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#project", keyword_base);
         auto arity = dsl::slash >> simple_number;
-        auto pool = dsl::if_(LEXY_LIT("(") >> dsl::p<term_function_pool> + Detail::post_position(LEXY_LIT(")"))) +
+        auto pool = dsl::if_(LEXY_LIT("(") >> dsl::p<term_function_pool> + dsl::position(LEXY_LIT(")"))) +
                     dsl::p<statement_opt_body>;
         auto name = dsl::position(dsl::p<sign_classical> + dsl::inline_<identifier>);
         return kw >> name + (arity | dsl::else_ >> pool) + eos;
@@ -298,17 +295,17 @@ struct statement_project {
             return StatementProjectSig{has_sign, Detail::as_string(name), arity};
         },
         [](auto &state, auto begin_sign, bool has_sign, auto name, PoolVec pool, auto end_atom, BodyLiteralVec body) {
-            Term atom = TermFunction{Detail::loc(state, name.begin(), end_atom), Detail::as_string(name),
+            Term atom = TermFunction{state.loc(name.begin(), std::next(end_atom)), Detail::as_string(name),
                                      std::move(pool), false};
             if (has_sign) {
-                atom = TermUnary{Detail::loc(state, begin_sign, end_atom), UnaryOperator::negate, std::move(atom)};
+                atom = TermUnary{state.loc(begin_sign, std::next(end_atom)), UnaryOperator::negate, std::move(atom)};
             }
             return StatementProject{std::move(atom), std::move(body)};
         },
         [](auto &state, auto begin_sign, bool has_sign, auto name, BodyLiteralVec body) {
-            Term atom = TermFunction{Detail::loc(state, name), Detail::as_string(name), PoolVec{TupleVec{}}, false};
+            Term atom = TermFunction{state.loc(name), Detail::as_string(name), PoolVec{TupleVec{}}, false};
             if (has_sign) {
-                atom = TermUnary{Detail::loc(state, begin_sign, name.end()), UnaryOperator::negate, std::move(atom)};
+                atom = TermUnary{state.loc(begin_sign, name.end()), UnaryOperator::negate, std::move(atom)};
             }
             return StatementProject{std::move(atom), std::move(body)};
         });
@@ -334,14 +331,13 @@ struct statement_external {
     static constexpr char const *name = "external directive";
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#external", keyword_base);
-        auto atom = dsl::position(dsl::p<sign_classical> + dsl::p<term_function>);
+        auto atom = Detail::position(dsl::p<sign_classical> + dsl::p<term_function>);
         return kw >> atom + dsl::p<statement_opt_body> + eos + dsl::if_(square_bracketed_end(dsl::p<term>));
     }();
     static constexpr auto value =
-        Detail::with_state<Statement>([](auto &state, auto begin_atom, bool has_sign, Term atom, auto &&...args) {
+        lexy::callback<Statement>([](Position begin_atom, bool has_sign, Term atom, auto &&...args) {
             if (has_sign) {
-                atom = TermUnary{Location(state.pos(begin_atom), location(atom).end), UnaryOperator::negate,
-                                 std::move(atom)};
+                atom = TermUnary{std::move(begin_atom) + location(atom), UnaryOperator::negate, std::move(atom)};
             }
             return StatementExternal{std::move(atom), std::forward<decltype(args)>(args)...};
         });
@@ -406,21 +402,20 @@ struct statement_const {
 struct statement_rule {
     static constexpr char const *name = "rule";
     static constexpr auto rule = []() {
-        auto if_body = dsl::position(LEXY_LIT(":-")) >> dsl::p<statement_body>;
-        return if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body) + eos;
+        auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body>;
+        return Detail::position(if_body) | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body) + eos;
     }();
-    static constexpr auto value = Detail::with_state<Statement>(
-        [](auto &state, HeadLiteral head, auto begin, BodyLiteralVec body) {
-            static_cast<void>(state);
-            static_cast<void>(begin);
+    static constexpr auto value = lexy::callback<Statement>(
+        [](HeadLiteral head, BodyLiteralVec body) {
             return Rule{std::move(head), std::move(body)};
         },
-        [](auto &state, HeadLiteral head) {
-            static_cast<void>(state);
+        [](HeadLiteral head) {
             return Rule{std::move(head), BodyLiteralVec{}};
         },
-        [](auto &state, auto begin, BodyLiteralVec body) {
-            return Rule{Disjunction{Detail::loc(state, begin, begin), ConditionalLiteralVec{}}, std::move(body)};
+        [](Position begin, BodyLiteralVec body) {
+            auto end = begin;
+            return Rule{Disjunction{Location(std::move(begin), std::move(end)), ConditionalLiteralVec{}},
+                        std::move(body)};
         });
 };
 

@@ -317,19 +317,21 @@ struct Unpool {
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteralVec> {
         return unpool_crossproducts(
             [&lit](auto lhs, auto elems, auto rhs) -> HeadLiteral {
-                return HeadAggregate{std::move(lhs), lit.fun, std::move(elems), std::move(rhs)};
+                return HeadAggregate{lit.loc, std::move(lhs), lit.fun, std::move(elems), std::move(rhs)};
             },
             *this, lit.lhs, lit.elems, lit.rhs);
     }
 
     auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.aggr),
-                                 [](auto aggr) -> HeadLiteral { return HeadSetAggregate{std::move(aggr)}; });
+        return Util::map_opt_vec(operator()(lit.aggr), [&lit](auto aggr) -> HeadLiteral {
+            return HeadSetAggregate{lit.loc, std::move(aggr)};
+        });
     }
 
     auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.atom),
-                                 [](auto atom) -> HeadLiteral { return HeadTheoryAtom{std::move(atom)}; });
+        return Util::map_opt_vec(operator()(lit.atom), [&lit](auto atom) -> HeadLiteral {
+            return HeadTheoryAtom{lit.loc, std::move(atom)};
+        });
     }
 
     // body literal

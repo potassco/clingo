@@ -9,13 +9,15 @@ namespace Gringo::Input::Grammar {
 namespace Detail {
 
 inline auto construct_head_aggr(Term term, Relation rel, HeadAggregate aggr) -> HeadAggregate {
+    aggr.loc.begin = location(term).begin;
     aggr.lhs = LGuard::value_type{std::move(term), rel};
     return aggr;
 }
 
 inline auto construct_head_aggr(Term term, Relation rel, SetAggregate aggr) -> HeadSetAggregate {
+    auto loc = location(term) + aggr.loc;
     aggr.lhs = LGuard::value_type{std::move(term), rel};
-    return HeadSetAggregate{std::move(aggr)};
+    return HeadSetAggregate{std::move(loc), std::move(aggr)};
 }
 
 } // namespace Detail
@@ -63,21 +65,37 @@ struct head_aggregate_element {
 };
 
 struct head_aggregate_elements {
+    using value_type = std::pair<HeadAggregate::ElementVec, Position>;
     static constexpr char const *name = "head aggregate elements";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT("}"));
         auto elems = dsl::list(dsl::p<head_aggregate_element>, dsl::sep(LEXY_LIT(";")));
-        return LEXY_LIT("{") + dsl::opt(peek >> elems) + LEXY_LIT("}");
+        return LEXY_LIT("{") + dsl::opt(peek >> elems) + Detail::post_position(LEXY_LIT("}"));
     }();
-    static constexpr auto value = lexy::as_list<HeadAggregate::ElementVec>;
+    static constexpr auto value = lexy::as_list<HeadAggregate::ElementVec> >>
+                                  lexy::callback<value_type>(lexy::construct<value_type>, [](lexy::nullopt,
+                                                                                             Position pos) {
+                                      return value_type(HeadAggregate::ElementVec{}, std::move(pos));
+                                  });
 };
 
 struct head_aggregate {
     static constexpr char const *name = "head aggregate";
-    static constexpr auto rule = dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard;
+    static constexpr auto rule =
+        Detail::position(dsl::p<aggregate_function>) >> dsl::p<head_aggregate_elements> + aggregate_right_guard;
     static constexpr auto value = lexy::callback<HeadAggregate>(
-        lexy::construct<HeadAggregate>, [](AggregateFunction fun, HeadAggregate::ElementVec elems, Term rhs) {
-            return HeadAggregate(fun, std::move(elems), Relation::less_equal, std::move(rhs));
+        [](Position begin, AggregateFunction fun, head_aggregate_elements::value_type elems) {
+            return HeadAggregate(begin + elems.second, std::nullopt, fun, std::move(elems.first), std::nullopt);
+        },
+        [](Position begin, AggregateFunction fun, head_aggregate_elements::value_type elems, Relation rel, Term rhs) {
+            auto loc = Location{begin, location(rhs).end};
+            return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems.first),
+                                 RGuard::value_type{rel, std::move(rhs)});
+        },
+        [](Position begin, AggregateFunction fun, head_aggregate_elements::value_type elems, Term rhs) {
+            auto loc = Location{begin, location(rhs).end};
+            return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems.first),
+                                 RGuard::value_type{Relation::less_equal, std::move(rhs)});
         });
 };
 
@@ -117,7 +135,15 @@ struct head_literal {
     }();
 
     static constexpr auto value = lexy::callback<HeadLiteral>(
-        lexy::forward<HeadLiteral>, lexy::construct<HeadSetAggregate>, lexy::construct<HeadTheoryAtom>,
+        lexy::forward<HeadLiteral>,
+        [](SetAggregate aggr) -> HeadLiteral {
+            auto loc = aggr.loc;
+            return HeadSetAggregate{std::move(loc), std::move(aggr)};
+        },
+        [](TheoryAtom aggr) -> HeadLiteral {
+            auto loc = aggr.loc;
+            return HeadTheoryAtom{std::move(loc), std::move(aggr)};
+        },
         [](Term term, auto aggr) -> HeadLiteral {
             return Detail::construct_head_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },

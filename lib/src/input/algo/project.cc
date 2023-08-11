@@ -201,7 +201,7 @@ struct Project : Transformer<Project> {
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadAggregate>(lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
+        return transform_construct<HeadAggregate>(lit.loc, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
     }
 
     auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
@@ -209,7 +209,7 @@ struct Project : Transformer<Project> {
         // aggregate is a shortcut for a choice rule + a body aggregate in an
         // integrity constraint.
         auto sub_project = Project{project, true, true};
-        return sub_project.transform_construct<HeadSetAggregate>(tr(lit.aggr));
+        return sub_project.transform_construct<HeadSetAggregate>(lit.loc, tr(lit.aggr));
     }
 
     // body literal

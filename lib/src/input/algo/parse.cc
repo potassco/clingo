@@ -19,7 +19,8 @@ template <class It> class State {
     using iterator = It;
 
     //! Construct state with beginning of input.
-    State(std::string filename, It begin) : filename_{std::move(filename)}, cur_{begin} {}
+    State(std::string filename, It begin)
+        : filename_{std::move(filename)}, cur_{begin}, ws_begin_{begin}, ws_end_{begin} {}
 
     //! Compute line and column offsets for the given position.
     auto pos(It pos) -> Position {
@@ -40,7 +41,7 @@ template <class It> class State {
         auto reader = input.reader();
 
         auto line = std::get<1>(positions_.back());
-        auto col = std::get<2>(positions_.back());
+        auto col = n_cur_ - std::get<0>(positions_.back()) + std::get<2>(positions_.back());
 
         auto counting = lexy::code_point_location_counting{};
         while (reader.position() != pos) {
@@ -82,6 +83,19 @@ template <class It> class State {
         return Position{filename_, line, col};
     }
 
+    //! Get the last position ignoring consumed white space.
+    auto post_pos(It it) -> Position { return pos(it == ws_end_ ? ws_begin_ : it); }
+
+    [[nodiscard]] auto pos(Position pos) const -> Position { return pos; }
+
+    auto loc(auto begin, auto end) -> Location {
+        auto b = pos(end);
+        auto a = pos(begin);
+        return Location(std::move(a), std::move(b));
+    }
+
+    auto loc(auto rng) -> Location { return loc(rng.begin(), rng.end()); }
+
     //! Discard computed positions before the given position.
     void discard(It cur) {
         // For our grammar, we always have cur_ <= cur and no positions in the middle of code points are discarded.
@@ -108,11 +122,25 @@ template <class It> class State {
         return Comment{ret.rfind("%*", 0) == 0 ? CommentType::block : CommentType::line, ret};
     }
 
+    //! Mark consecutive white space.
+    auto end_token(It begin, It end) {
+        if (ws_end_ < begin) {
+            ws_begin_ = begin;
+        }
+        if (ws_end_ < end) {
+            ws_end_ = end;
+        }
+    }
+
   private:
     //! The name of the file at hand.
     std::string filename_;
     //! Positions have been computed up to and including this iterator.
     It cur_;
+    //! Start of white space.
+    It ws_begin_;
+    //! End of white space.
+    It ws_end_;
     //! The offset of the cur_ iterator.
     size_t n_cur_ = 0;
     //! Positions for which positions have been computed.

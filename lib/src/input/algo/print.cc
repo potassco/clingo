@@ -11,7 +11,7 @@ namespace Gringo::Input {
 namespace {
 
 //! Enumeration of term positions.
-enum class Position : int {
+enum class OperatorPosition : int {
     left,  //!< The term is directly on the right-hand-side of a term.
     right, //!< The term is directly on the left-hand-side of a term.
     none   //!< No position information.
@@ -28,13 +28,13 @@ auto associativity(BinaryOperator op) {
         case BinaryOperator::times:
         case BinaryOperator::div:
         case BinaryOperator::mod: {
-            return Position::left;
+            return OperatorPosition::left;
         }
         case BinaryOperator::pow: {
             break;
         }
     }
-    return Position::right;
+    return OperatorPosition::right;
 }
 
 auto priority(BinaryOperator op) -> unsigned int {
@@ -395,7 +395,7 @@ struct Print {
             rp = ")";
         }
         out << lp << op;
-        std::visit(Print{out, Position::none, priority(op), true}, *term.rhs);
+        std::visit(Print{out, OperatorPosition::none, priority(op), true}, *term.rhs);
         out << rp;
     }
 
@@ -411,9 +411,9 @@ struct Print {
             lhs_no_leading_op = false;
         }
         out << lp;
-        std::visit(Print{out, Position::left, priority(op), lhs_no_leading_op}, *term.lhs);
+        std::visit(Print{out, OperatorPosition::left, priority(op), lhs_no_leading_op}, *term.lhs);
         out << op;
-        std::visit(Print{out, Position::right, priority(op), true}, *term.rhs);
+        std::visit(Print{out, OperatorPosition::right, priority(op), true}, *term.rhs);
         out << rp;
     }
 
@@ -811,12 +811,29 @@ struct Print {
     void operator()(Comment const &stm) const { out << stm.value; }
 
     std::ostream &out;
-    Position pos = Position::none;
+    OperatorPosition pos = OperatorPosition::none;
     unsigned int prio = 0;
     bool no_leading_op = false;
 };
 
 } // namespace
+
+auto operator<<(std::ostream &out, Position const &pos) -> std::ostream & {
+    out << pos.file << ":" << pos.line << ":" << pos.column;
+    return out;
+}
+
+auto operator<<(std::ostream &out, Location const &loc) -> std::ostream & {
+    out << loc.begin << "-";
+    if (loc.end.file != loc.begin.file) {
+        out << loc.end;
+    } else if (loc.end.line != loc.begin.line) {
+        out << loc.end.line << ":" << loc.end.column;
+    } else {
+        out << loc.end.column;
+    }
+    return out;
+}
 
 auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
     Print{out}(term);

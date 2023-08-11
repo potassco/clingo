@@ -16,18 +16,19 @@ struct theory_tuple_trail {
 };
 
 template <TheoryTermTupleType type>
-static constexpr auto theory_tuple = Detail::with_state<TheoryTerm>(
-    [](auto &state, auto begin, lexy::nullopt, auto end) {
-        return TheoryTermTuple{Detail::loc(state, begin, end), type, TheoryTermVec{}};
+static constexpr auto theory_tuple = lexy::callback<TheoryTerm>(
+    [](Position begin, lexy::nullopt, Position end) {
+        return TheoryTermTuple{Location(std::move(begin), std::move(end)), type, TheoryTermVec{}};
     },
-    [](auto &state, auto begin, TheoryTermVec elems, auto end) {
-        return TheoryTermTuple{Detail::loc(state, begin, end), type, std::move(elems)};
+    [](Position begin, TheoryTermVec elems, Position end) {
+        return TheoryTermTuple{Location(std::move(begin), std::move(end)), type, std::move(elems)};
     },
-    [](auto &state, auto begin, Detail::theory_tuple_trail elems, auto end) -> TheoryTerm {
+    [](Position begin, Detail::theory_tuple_trail elems, Position end) -> TheoryTerm {
         if (elems.vec.size() == 1 && !elems.trail) {
             return std::move(elems.vec.back());
         }
-        return TheoryTermTuple{Detail::loc(state, begin, end), TheoryTermTupleType::tuple, std::move(elems.vec)};
+        return TheoryTermTuple{Location(std::move(begin), std::move(end)), TheoryTermTupleType::tuple,
+                               std::move(elems.vec)};
     });
 
 } // namespace Detail
@@ -63,7 +64,7 @@ struct theory_term {
 
 struct theory_term_tuple {
     static constexpr char const *name = "theory term tuple";
-    static constexpr auto rule = dsl::brackets(dsl::position(LEXY_LIT("(")), Detail::post_position(LEXY_LIT(")")))
+    static constexpr auto rule = dsl::brackets(Detail::position(LEXY_LIT("(")), Detail::post_position(LEXY_LIT(")")))
                                      .opt_list(dsl::p<theory_term>, dsl::trailing_sep(dsl::capture(dsl::lit_c<','>)));
     static constexpr auto value =
         lexy::as_list<Detail::theory_tuple_trail> >> Detail::theory_tuple<TheoryTermTupleType::tuple>;
@@ -71,14 +72,14 @@ struct theory_term_tuple {
 
 struct theory_term_set {
     static constexpr char const *name = "theory term set";
-    static constexpr auto rule = dsl::brackets(dsl::position(LEXY_LIT("{")), Detail::post_position(LEXY_LIT("}")))
+    static constexpr auto rule = dsl::brackets(Detail::position(LEXY_LIT("{")), Detail::post_position(LEXY_LIT("}")))
                                      .opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
     static constexpr auto value = lexy::as_list<TheoryTermVec> >> Detail::theory_tuple<TheoryTermTupleType::set>;
 };
 
 struct theory_term_list {
     static constexpr char const *name = "theory term list";
-    static constexpr auto rule = dsl::brackets(dsl::position(LEXY_LIT("[")), Detail::post_position(LEXY_LIT("]")))
+    static constexpr auto rule = dsl::brackets(Detail::position(LEXY_LIT("[")), Detail::post_position(LEXY_LIT("]")))
                                      .opt_list(dsl::p<theory_term>, dsl::sep(dsl::lit_c<','>));
     static constexpr auto value = lexy::as_list<TheoryTermVec> >> Detail::theory_tuple<TheoryTermTupleType::list>;
 };
@@ -104,40 +105,42 @@ struct theory_term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::capture(dsl::token(variable));
     static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto var) {
-        return TheoryTermVariable{Detail::loc(state, var), Detail::as_string(var)};
+        return TheoryTermVariable{Location{state.pos(var.begin()), state.pos(var.end())}, Detail::as_string(var)};
     });
 };
 
 struct theory_term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
-    static constexpr auto rule = dsl::position(anonymous_variable);
-    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto pos) {
-        return TheoryTermVariable{Detail::loc(state, pos, pos + 1), "_", true};
+    static constexpr auto rule = Detail::position(anonymous_variable);
+    static constexpr auto value = lexy::callback<TheoryTerm>([](Position begin) {
+        auto end = begin;
+        end.column += 1;
+        return TheoryTermVariable{Location(std::move(begin), std::move(end)), "_", true};
     });
 };
 
 struct theory_term_number : lexy::token_production {
     static constexpr char const *name = "number";
-    static constexpr auto rule = dsl::position(number >> dsl::position);
-    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto begin, auto num, auto end) {
-        return TheoryTermSymbol(Detail::loc(state, begin, end), num);
+    static constexpr auto rule = Detail::position(number >> Detail::position);
+    static constexpr auto value = lexy::callback<TheoryTerm>([](Position begin, int num, Position end) {
+        return TheoryTermSymbol(Location{std::move(begin), std::move(end)}, num);
     });
 };
 
 struct theory_term_string : lexy::token_production {
     static constexpr char const *name = "string";
-    static constexpr auto rule = dsl::position(string >> dsl::position);
-    static constexpr auto value = Detail::as_string >>
-                                  Detail::with_state<TheoryTerm>([](auto &state, auto begin, auto str, auto end) {
-                                      return TheoryTermSymbol{Detail::loc(state, begin, end), QuotedString{str}};
-                                  });
+    static constexpr auto rule = Detail::position(string >> Detail::position);
+    static constexpr auto
+        value = Detail::as_string >> lexy::callback<TheoryTerm>([](Position begin, auto str, Position end) {
+                    return TheoryTermSymbol{Location{std::move(begin), std::move(end)}, QuotedString{str}};
+                });
 };
 
 struct theory_term_constant : lexy::token_production {
     static constexpr char const *name = "constant";
-    static constexpr auto rule = dsl::position(constant >> dsl::position);
-    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto begin, auto val, auto end) {
-        return TheoryTermSymbol(Detail::loc(state, begin, end), val);
+    static constexpr auto rule = Detail::position(constant >> Detail::position);
+    static constexpr auto value = lexy::callback<TheoryTerm>([](Position begin, auto val, Position end) {
+        return TheoryTermSymbol(Location{std::move(begin), std::move(end)}, val);
     });
 };
 
@@ -160,7 +163,7 @@ struct theory_term_unparsed_guards {
 
 struct theory_term_unparsed : lexy::transparent_production {
     static constexpr char const *name = "theory term";
-    static constexpr auto rule = dsl::position + dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> +
+    static constexpr auto rule = Detail::position + dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> +
                                  dsl::if_(dsl::p<theory_term_unparsed_guards>);
     static constexpr auto value = Detail::with_state<TheoryTerm>(
         [](auto &state, auto begin, TheoryTerm term) {
@@ -226,7 +229,8 @@ struct theory_atom {
     static constexpr char const *name = "theory atom";
     static constexpr auto rule = []() {
         auto guard = dsl::p<theory_op> >> dsl::p<theory_term>;
-        return dsl::position(LEXY_LIT("&")) >> dsl::p<term_function> + dsl::p<theory_atom_elements> + dsl::if_(guard);
+        return Detail::position(LEXY_LIT("&")) >>
+               dsl::p<term_function> + dsl::p<theory_atom_elements> + dsl::if_(guard);
     }();
     static constexpr auto value = Detail::with_state<TheoryAtom>(
         [](auto &state, auto begin, Term name, theory_atom_elements::value_type elems, std::string op, TheoryTerm rhs) {
