@@ -398,8 +398,8 @@ struct Unpool {
 
     auto operator()(Rule const &stm) const -> std::optional<StatementVec> {
         return unpool_crossproducts(
-            [](auto head, auto body) -> Statement {
-                return Rule{std::move(head), std::move(body)};
+            [&stm](auto head, auto body) -> Statement {
+                return Rule{stm.loc, std::move(head), std::move(body)};
             },
             *this, stm.head, stm.body);
     }
@@ -429,22 +429,22 @@ struct Unpool {
     auto operator()(StatementOptimize const &stm) const -> std::optional<StatementVec> {
         // TODO: consider turning into weak constraint
         return Util::map_opt(unpool_union(stm.elems, *this), [&stm](auto elems) {
-            return Util::make_vec<Statement>(StatementOptimize{stm.type, std::move(elems)});
+            return Util::make_vec<Statement>(StatementOptimize{stm.loc, stm.type, std::move(elems)});
         });
     }
 
     auto operator()(StatementWeakConstraint const &stm) const -> std::optional<StatementVec> {
         return unpool_crossproducts(
-            [](auto body, auto tuple) -> Statement {
-                return StatementWeakConstraint{std::move(body), std::move(tuple)};
+            [&stm](auto body, auto tuple) -> Statement {
+                return StatementWeakConstraint{stm.loc, std::move(body), std::move(tuple)};
             },
             *this, stm.body, stm.tuple);
     }
 
     auto operator()(StatementShow const &stm) const -> std::optional<StatementVec> {
         return unpool_crossproducts(
-            [](auto term, auto body) -> Statement {
-                return StatementShow{std::move(term), std::move(body)};
+            [&stm](auto term, auto body) -> Statement {
+                return StatementShow{stm.loc, std::move(term), std::move(body)};
             },
             *this, stm.term, stm.body);
     }
@@ -456,8 +456,8 @@ struct Unpool {
 
     auto operator()(StatementProject const &stm) const -> std::optional<StatementVec> {
         return unpool_crossproducts(
-            [](auto term, auto body) -> Statement {
-                return StatementProject{std::move(term), std::move(body)};
+            [&stm](auto term, auto body) -> Statement {
+                return StatementProject{stm.loc, std::move(term), std::move(body)};
             },
             *this, stm.term, stm.body);
     }
@@ -474,8 +474,8 @@ struct Unpool {
 
     auto operator()(StatementExternal const &stm) const -> std::optional<StatementVec> {
         return unpool_crossproducts(
-            [](auto term, auto body, auto type) -> Statement {
-                return StatementExternal{std::move(term), std::move(body), std::move(type)};
+            [&stm](auto term, auto body, auto type) -> Statement {
+                return StatementExternal{stm.loc, std::move(term), std::move(body), std::move(type)};
             },
             *this, stm.term, stm.body, stm.type);
     }
@@ -487,7 +487,7 @@ struct Unpool {
             StatementVec ret;
             for (auto &body : bodies.value_or(Util::make_vec<BodyLiteralVec>(stm.body))) {
                 for (auto &edge : edges.value_or(stm.edges)) {
-                    ret.emplace_back(StatementEdge{Util::make_vec<StatementEdge::Edge>(edge), body});
+                    ret.emplace_back(StatementEdge{stm.loc, Util::make_vec<StatementEdge::Edge>(edge), body});
                 }
             }
             return ret;
@@ -497,9 +497,9 @@ struct Unpool {
 
     auto operator()(StatementHeuristic const &stm) const -> std::optional<StatementVec> {
         return unpool_crossproducts(
-            [](auto atom, auto body, auto type, auto prio, auto mod) -> Statement {
-                return StatementHeuristic{std::move(atom), std::move(body), std::move(type), std::move(prio),
-                                          std::move(mod)};
+            [&stm](auto atom, auto body, auto type, auto prio, auto mod) -> Statement {
+                return StatementHeuristic{stm.loc,         std::move(atom), std::move(body),
+                                          std::move(type), std::move(prio), std::move(mod)};
             },
             *this, stm.atom, stm.body, stm.type, stm.prio, stm.mod);
     }
@@ -522,7 +522,7 @@ struct Unpool {
     auto operator()(StatementConst const &stm) const -> std::optional<StatementVec> {
         auto ret = unpool_crossproducts(
             [&stm](auto value) -> Statement {
-                return StatementConst{stm.type, stm.name, std::move(value)};
+                return StatementConst{stm.loc, stm.type, stm.name, std::move(value)};
             },
             *this, stm.value);
         if (ret.has_value() && ret->size() != 1) {

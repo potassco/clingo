@@ -7,7 +7,7 @@
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
 
-#include <util/shared_ptr.hh>
+#include <input/statement.hh>
 
 #include "report_error.hh"
 #include "stateful_input.hh"
@@ -229,8 +229,9 @@ struct block_comment : lexy::scan_production<void> {
         } while (n > 0);
         auto end = scanner.position();
         if constexpr (Detail::has_state<lexy::rule_scanner<Context, Reader>>) {
-            scanner.remaining_input().reader().state().end_token(begin, end);
-            scanner.remaining_input().reader().state().push(Detail::as_string(begin, end));
+            auto &state = scanner.remaining_input().reader().state();
+            state.end_token(begin, end);
+            state.push(state.loc(begin, end), CommentType::block, Detail::as_string(begin, end));
         }
         return scan_result{true};
     }
@@ -250,8 +251,9 @@ struct comment : lexy::scan_production<void> {
         };
         auto end = scanner.position();
         if constexpr (Detail::has_state<lexy::rule_scanner<Context, Reader>>) {
+            auto &state = scanner.remaining_input().reader().state();
             scanner.remaining_input().reader().state().end_token(begin, end);
-            scanner.remaining_input().reader().state().push(Detail::as_string(begin, end));
+            state.push(state.loc(begin, end), CommentType::line, Detail::as_string(begin, end));
         }
         return scan_result{true};
     }

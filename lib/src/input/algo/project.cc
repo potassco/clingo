@@ -270,7 +270,7 @@ struct Project : Transformer<Project> {
         // translators for head and body because the scope setting would
         // ideally just apply to the body. In the current implementation, the
         // head literals simply set the scope themselves.
-        return sub_project.transform_construct<Rule>(tr(stm.head), tr(stm.body));
+        return sub_project.transform_construct<Rule>(stm.loc, tr(stm.head), tr(stm.body));
     }
 
     auto operator()(TheoryDefinition const &stm) const -> std::optional<Statement> {
@@ -285,15 +285,15 @@ struct Project : Transformer<Project> {
     }
 
     auto operator()(StatementOptimize const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementOptimize>(stm.type, tr(stm.elems));
+        return transform_construct<StatementOptimize>(stm.loc, stm.type, tr(stm.elems));
     }
 
     auto operator()(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementWeakConstraint>(tr(stm.body), stm.tuple);
+        return transform_construct<StatementWeakConstraint>(stm.loc, tr(stm.body), stm.tuple);
     }
 
     auto operator()(StatementShow const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementShow>(stm.term, tr(stm.body));
+        return transform_construct<StatementShow>(stm.loc, stm.term, tr(stm.body));
     }
 
     auto operator()(StatementShowSig const &stm) const -> std::optional<Statement> {
@@ -302,7 +302,7 @@ struct Project : Transformer<Project> {
     }
 
     auto operator()(StatementProject const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementProject>(stm.term, tr(stm.body));
+        return transform_construct<StatementProject>(stm.loc, stm.term, tr(stm.body));
     }
 
     auto operator()(StatementProjectSig const &stm) const -> std::optional<Statement> {
@@ -316,15 +316,15 @@ struct Project : Transformer<Project> {
     }
 
     auto operator()(StatementExternal const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementExternal>(stm.term, tr(stm.body), stm.type);
+        return transform_construct<StatementExternal>(stm.loc, stm.term, tr(stm.body), stm.type);
     }
 
     auto operator()(StatementEdge const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementEdge>(stm.edges, tr(stm.body));
+        return transform_construct<StatementEdge>(stm.loc, stm.edges, tr(stm.body));
     }
 
     auto operator()(StatementHeuristic const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementHeuristic>(stm.atom, tr(stm.body), stm.type, stm.prio, stm.mod);
+        return transform_construct<StatementHeuristic>(stm.loc, stm.atom, tr(stm.body), stm.type, stm.prio, stm.mod);
     }
 
     auto operator()(StatementScript const &stm) const -> std::optional<Statement> {

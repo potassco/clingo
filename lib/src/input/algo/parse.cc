@@ -105,7 +105,9 @@ template <class It> class State {
     }
 
     //! Add a comment.
-    void push(std::string comment) { comments_.push(std::move(comment)); }
+    void push(Location loc, CommentType type, std::string comment) {
+        comments_.emplace(std::move(loc), type, std::move(comment));
+    }
 
     //! Mark all currently available comments for popping.
     void mark() { mark_ = comments_.size(); }
@@ -119,7 +121,7 @@ template <class It> class State {
         auto ret = std::move(comments_.front());
         comments_.pop();
         --mark_;
-        return Comment{ret.rfind("%*", 0) == 0 ? CommentType::block : CommentType::line, ret};
+        return ret;
     }
 
     //! Mark consecutive white space.
@@ -151,7 +153,7 @@ template <class It> class State {
     //! (that is, all code points in between are represented by a single byte).
     std::vector<std::tuple<size_t, size_t, size_t>> positions_;
     //! A queue of comments.
-    std::queue<std::string> comments_;
+    std::queue<Comment> comments_;
     //! A marker for comments that can be popped.
     size_t mark_ = 0;
 };

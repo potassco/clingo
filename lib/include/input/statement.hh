@@ -5,6 +5,9 @@
 
 namespace Gringo::Input {
 
+// TODO:
+//   Add simple head/body literals
+
 // TODO: rewrite arithmetic
 // - p(1..X) -> Aux=1..X
 // - p(X+Y)  -> Aux=X+Y
@@ -72,8 +75,11 @@ namespace Gringo::Input {
 //! For example: <tt>p(X) :- q(X)</tt>.
 struct Rule {
     //! Construct a rule.
-    explicit Rule(HeadLiteral head, BodyLiteralVec body) : head{std::move(head)}, body{std::move(body)} {}
+    explicit Rule(Location loc, HeadLiteral head, BodyLiteralVec body)
+        : loc{std::move(loc)}, head{std::move(head)}, body{std::move(body)} {}
 
+    //! The location of the rule.
+    Location loc;
     //! The head.
     HeadLiteral head;
     //! The body.
@@ -94,9 +100,11 @@ enum class TheoryOpType {
 //! For example: <tt>- : 0, unary</tt>.
 struct TheoryOpDefinition {
     //! Construct a theory operator definition.
-    explicit TheoryOpDefinition(std::string op, int prio, TheoryOpType type)
-        : op{std::move(op)}, prio{prio}, type{type} {}
+    explicit TheoryOpDefinition(Location loc, std::string op, int prio, TheoryOpType type)
+        : loc{std::move(loc)}, op{std::move(op)}, prio{prio}, type{type} {}
 
+    //! The location of the definition.
+    Location loc;
     //! The representation of the operator.
     std::string op;
     //! The priority of the operator.
@@ -115,9 +123,11 @@ using TheoryOpDefinitionVec = std::vector<TheoryOpDefinition>;
 //! For example: <tt>term { - : 0, unary }</tt>.
 struct TheoryTermDefinition {
     //! Construct a theory term definition.
-    explicit TheoryTermDefinition(std::string name, TheoryOpDefinitionVec op_defs)
-        : name{std::move(name)}, op_defs{std::move(op_defs)} {}
+    explicit TheoryTermDefinition(Location loc, std::string name, TheoryOpDefinitionVec op_defs)
+        : loc{std::move(loc)}, name{std::move(name)}, op_defs{std::move(op_defs)} {}
 
+    //! The location of the definition.
+    Location loc;
     //! The name of the definition.
     std::string name;
     //! The associated operator definitions.
@@ -149,9 +159,13 @@ struct TheoryAtomDefinition {
     using RHS = std::optional<std::pair<std::vector<std::string>, std::string>>;
 
     //! Construct a theory atom definition.
-    explicit TheoryAtomDefinition(std::string name, int arity, std::string term, RHS rhs, TheoryAtomType type)
-        : name(std::move(name)), arity(arity), term(std::move(term)), rhs(std::move(rhs)), type(type) {}
+    explicit TheoryAtomDefinition(Location loc, std::string name, int arity, std::string term, RHS rhs,
+                                  TheoryAtomType type)
+        : loc{std::move(loc)}, name(std::move(name)), arity(arity), term(std::move(term)), rhs(std::move(rhs)),
+          type(type) {}
 
+    //! The location of the definition.
+    Location loc;
     //! The name of the atom.
     std::string name;
     //! The arity of the atom.
@@ -174,9 +188,13 @@ using TheoryAtomDefinitionVec = std::vector<TheoryAtomDefinition>;
 //! For example: <tt>\#theory name { term { - : 0, unary }; name/2: term, any }</tt>.
 struct TheoryDefinition {
     //! Construct a theory definition.
-    explicit TheoryDefinition(std::string name, TheoryTermDefinitionVec term_defs, TheoryAtomDefinitionVec atom_defs)
-        : name{std::move(name)}, term_defs{std::move(term_defs)}, atom_defs{std::move(atom_defs)} {}
+    explicit TheoryDefinition(Location loc, std::string name, TheoryTermDefinitionVec term_defs,
+                              TheoryAtomDefinitionVec atom_defs)
+        : loc{std::move(loc)}, name{std::move(name)}, term_defs{std::move(term_defs)}, atom_defs{std::move(atom_defs)} {
+    }
 
+    //! The location of the definition.
+    Location loc;
     //! The name of the definition.
     std::string name;
     //! The theory term definitions.
@@ -208,6 +226,12 @@ struct StatementOptimize {
     //! A vector of elements.
     using ElementVec = std::vector<Element>;
 
+    //! Construct a weak constraint.
+    explicit StatementOptimize(Location loc, OptimizeType type, ElementVec elems)
+        : loc{std::move(loc)}, type{type}, elems{std::move(elems)} {}
+
+    //! The location of the statement.
+    Location loc;
     //! The type of the statement.
     OptimizeType type;
     //! The elements of the statement.
@@ -222,9 +246,11 @@ struct StatementWeakConstraint {
     using Tuple = StatementOptimize::Tuple;
 
     //! Construct a weak constraint.
-    explicit StatementWeakConstraint(BodyLiteralVec body, Tuple tuple)
-        : body{std::move(body)}, tuple{std::move(tuple)} {}
+    explicit StatementWeakConstraint(Location loc, BodyLiteralVec body, Tuple tuple)
+        : loc{std::move(loc)}, body{std::move(body)}, tuple{std::move(tuple)} {}
 
+    //! The location of the statement.
+    Location loc;
     //! The body of the constraint.
     BodyLiteralVec body;
     //! The tuple of the constraint.
@@ -236,8 +262,11 @@ struct StatementWeakConstraint {
 //! Example: <tt>\#show p(X): q(X)</tt>.
 struct StatementShow {
     //! Construct a show statement.
-    explicit StatementShow(Term term, BodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    explicit StatementShow(Location loc, Term term, BodyLiteralVec body)
+        : loc{std::move(loc)}, term(std::move(term)), body(std::move(body)) {}
 
+    //! The location of the statement.
+    Location loc;
     //! The term to show.
     Term term;
     //! The body.
@@ -249,9 +278,11 @@ struct StatementShow {
 //! Example: <tt>\#show p/2</tt>.
 struct StatementShowSig {
     //! Construct a show signature statement.
-    explicit StatementShowSig(bool has_sign, std::string name, int arity)
-        : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
+    explicit StatementShowSig(Location loc, bool has_sign, std::string name, int arity)
+        : loc{std::move(loc)}, has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
 
+    //! The location of the statement.
+    Location loc;
     //! Whether the signature is negative.
     bool has_sign;
     //! The name.
@@ -265,8 +296,11 @@ struct StatementShowSig {
 //! Example: <tt>\#project p(X): q(X)</tt>.
 struct StatementProject {
     //! Construct a project statement.
-    explicit StatementProject(Term term, BodyLiteralVec body) : term(std::move(term)), body(std::move(body)) {}
+    explicit StatementProject(Location loc, Term term, BodyLiteralVec body)
+        : loc{std::move(loc)}, term(std::move(term)), body(std::move(body)) {}
 
+    //! The location of the statement.
+    Location loc;
     //! The term representing the atom to project.
     Term term;
     //! The body.
@@ -278,9 +312,11 @@ struct StatementProject {
 //! Example: <tt>\#project p/2</tt>.
 struct StatementProjectSig {
     //! Construct a project signature statement.
-    explicit StatementProjectSig(bool has_sign, std::string name, int arity)
-        : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
+    explicit StatementProjectSig(Location loc, bool has_sign, std::string name, int arity)
+        : loc{std::move(loc)}, has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
 
+    //! The location of the statement.
+    Location loc;
     //! Whether the signature is negative.
     bool has_sign;
     //! The name.
@@ -294,9 +330,11 @@ struct StatementProjectSig {
 //! Example: <tt>\#defined p/2</tt>.
 struct StatementDefined {
     //! Construct a defined statement.
-    explicit StatementDefined(bool has_sign, std::string name, int arity)
-        : has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
+    explicit StatementDefined(Location loc, bool has_sign, std::string name, int arity)
+        : loc{std::move(loc)}, has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
 
+    //! The location of the statement.
+    Location loc;
     //! Whether the signature is negative.
     bool has_sign;
     //! The name.
@@ -310,9 +348,11 @@ struct StatementDefined {
 //! Example: <tt>\#external p(X): q(X)</tt>.
 struct StatementExternal {
     //! Construct an external statement.
-    explicit StatementExternal(Term term, BodyLiteralVec body, std::optional<Term> type = std::nullopt)
-        : term(std::move(term)), body(std::move(body)), type{std::move(type)} {}
+    explicit StatementExternal(Location loc, Term term, BodyLiteralVec body, std::optional<Term> type = std::nullopt)
+        : loc{std::move(loc)}, term(std::move(term)), body(std::move(body)), type{std::move(type)} {}
 
+    //! The location of the statement.
+    Location loc;
     //! The term representing the atom to project.
     Term term;
     //! The body.
@@ -336,8 +376,11 @@ struct StatementEdge {
     using EdgeVec = std::vector<Edge>;
 
     //! Construct an edge statement.
-    explicit StatementEdge(EdgeVec edges, BodyLiteralVec body = {}) : edges{std::move(edges)}, body{std::move(body)} {}
+    explicit StatementEdge(Location loc, EdgeVec edges, BodyLiteralVec body = {})
+        : loc{std::move(loc)}, edges{std::move(edges)}, body{std::move(body)} {}
 
+    //! The location of the statement.
+    Location loc;
     //! The pool of edges.
     EdgeVec edges;
     //! The body.
@@ -349,17 +392,22 @@ struct StatementEdge {
 //! Example: <tt>\#heuristic p(X). [sign,false]</tt>.
 struct StatementHeuristic {
     //! Construct a heuristic statement.
-    explicit StatementHeuristic(Term atom, BodyLiteralVec body, Term type, std::optional<Term> prio, Term mod)
-        : atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)), prio(std::move(prio)),
-          mod(std::move(mod)) {}
+    explicit StatementHeuristic(Location loc, Term atom, BodyLiteralVec body, Term type, std::optional<Term> prio,
+                                Term mod)
+        : loc{std::move(loc)}, atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)),
+          prio(std::move(prio)), mod(std::move(mod)) {}
     //! Construct a heuristic statement.
-    explicit StatementHeuristic(Term atom, BodyLiteralVec body, Term type, Term prio, Term mod)
-        : StatementHeuristic{std::move(atom), std::move(body), std::move(type), std::make_optional(std::move(prio)),
-                             std::move(mod)} {}
+    explicit StatementHeuristic(Location loc, Term atom, BodyLiteralVec body, Term type, Term prio, Term mod)
+        : StatementHeuristic{
+              std::move(loc), std::move(atom), std::move(body), std::move(type), std::make_optional(std::move(prio)),
+              std::move(mod)} {}
     //! Construct a heuristic statement.
-    explicit StatementHeuristic(Term atom, BodyLiteralVec body, Term type, Term mod)
-        : StatementHeuristic{std::move(atom), std::move(body), std::move(type), std::nullopt, std::move(mod)} {}
+    explicit StatementHeuristic(Location loc, Term atom, BodyLiteralVec body, Term type, Term mod)
+        : StatementHeuristic{std::move(loc),  std::move(atom), std::move(body),
+                             std::move(type), std::nullopt,    std::move(mod)} {}
 
+    //! The location of the statement.
+    Location loc;
     //! The atom to modify.
     Term atom;
     //! The body.
@@ -385,8 +433,11 @@ enum class ScriptType {
 //! For example: <tt>\#script(python) some code \#end</tt>.
 struct StatementScript {
     //! Construct a script statement.
-    explicit StatementScript(ScriptType type, std::string content) : type(type), content(std::move(content)) {}
+    explicit StatementScript(Location loc, ScriptType type, std::string content)
+        : loc{std::move(loc)}, type(type), content(std::move(content)) {}
 
+    //! The location of the statement.
+    Location loc;
     //! The code type.
     ScriptType type;
     //! The code.
@@ -406,8 +457,11 @@ enum class IncludeType {
 //! For example: <tt>\#include "encoding.lp"</tt>.
 struct StatementInclude {
     //! Construct an include statement.
-    explicit StatementInclude(IncludeType type, std::string path) : type(type), path(std::move(path)) {}
+    explicit StatementInclude(Location loc, IncludeType type, std::string path)
+        : loc{std::move(loc)}, type(type), path(std::move(path)) {}
 
+    //! The location of the statement.
+    Location loc;
     //! The include type.
     IncludeType type;
     //! The path.
@@ -419,9 +473,11 @@ struct StatementInclude {
 //! For example: <tt>\#program check(t)"</tt>.
 struct StatementProgram {
     //! Construct an program statement.
-    explicit StatementProgram(std::string name, std::vector<std::string> args)
-        : name(std::move(name)), args(std::move(args)) {}
+    explicit StatementProgram(Location loc, std::string name, std::vector<std::string> args)
+        : loc{std::move(loc)}, name(std::move(name)), args(std::move(args)) {}
 
+    //! The location of the statement.
+    Location loc;
     //! The name of the program.
     std::string name;
     //! The arguments of the program.
@@ -441,9 +497,11 @@ enum class ConstType {
 //! For example: <tt>\#const n=42</tt>.
 struct StatementConst {
     //! Construct a const statement.
-    explicit StatementConst(ConstType type, std::string name, Term value)
-        : type(type), name(std::move(name)), value(std::move(value)) {}
+    explicit StatementConst(Location loc, ConstType type, std::string name, Term value)
+        : loc{std::move(loc)}, type(type), name(std::move(name)), value(std::move(value)) {}
 
+    //! The location of the statement.
+    Location loc;
     //! The type of the statement.
     ConstType type;
     //! The name of the constant.
@@ -467,7 +525,11 @@ enum class CommentType {
 //! For example: <tt>%* comment *%</tt>
 struct Comment {
     //! Construct a comment.
-    explicit Comment(CommentType type, std::string value) : type{type}, value{std::move(value)} {}
+    explicit Comment(Location loc, CommentType type, std::string value)
+        : loc{std::move(loc)}, type{type}, value{std::move(value)} {}
+
+    //! The location of the statement.
+    Location loc;
     //! The type of the comment.
     CommentType type;
     //! The content of the comment including comment markers.

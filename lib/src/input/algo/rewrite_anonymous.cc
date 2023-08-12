@@ -187,7 +187,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     auto operator()(Statement const &stm) const -> std::optional<Statement> { return std::visit(*this, stm); }
 
     auto operator()(Rule const &stm) const -> std::optional<Statement> {
-        return transform_construct<Rule>(tr(stm.head), tr(stm.body));
+        return transform_construct<Rule>(stm.loc, tr(stm.head), tr(stm.body));
     }
 
     auto operator()(TheoryDefinition const &stm) const -> std::optional<Statement> {
@@ -204,15 +204,15 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(StatementOptimize const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementOptimize>(stm.type, tr(stm.elems));
+        return transform_construct<StatementOptimize>(stm.loc, stm.type, tr(stm.elems));
     }
 
     auto operator()(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementWeakConstraint>(tr(stm.body), tr(stm.tuple));
+        return transform_construct<StatementWeakConstraint>(stm.loc, tr(stm.body), tr(stm.tuple));
     }
 
     auto operator()(StatementShow const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementShow>(tr(stm.term), tr(stm.body));
+        return transform_construct<StatementShow>(stm.loc, tr(stm.term), tr(stm.body));
     }
 
     auto operator()(StatementShowSig const &stm) const -> std::optional<Statement> {
@@ -221,7 +221,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(StatementProject const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementProject>(tr(stm.term), tr(stm.body));
+        return transform_construct<StatementProject>(stm.loc, tr(stm.term), tr(stm.body));
     }
 
     auto operator()(StatementProjectSig const &stm) const -> std::optional<Statement> {
@@ -235,7 +235,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(StatementExternal const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementExternal>(tr(stm.term), tr(stm.body), tr(stm.type));
+        return transform_construct<StatementExternal>(stm.loc, tr(stm.term), tr(stm.body), tr(stm.type));
     }
 
     auto operator()(StatementEdge::Edge const &edge) const -> std::optional<StatementEdge::Edge> {
@@ -243,11 +243,11 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(StatementEdge const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementEdge>(tr(stm.edges), tr(stm.body));
+        return transform_construct<StatementEdge>(stm.loc, tr(stm.edges), tr(stm.body));
     }
 
     auto operator()(StatementHeuristic const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementHeuristic>(tr(stm.atom), tr(stm.body), tr(stm.type), tr(stm.prio),
+        return transform_construct<StatementHeuristic>(stm.loc, tr(stm.atom), tr(stm.body), tr(stm.type), tr(stm.prio),
                                                        tr(stm.mod));
     }
 
