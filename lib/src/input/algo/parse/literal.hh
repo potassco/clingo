@@ -41,8 +41,8 @@ struct atom_bool : lexy::token_production {
                                              .map<LEXY_SYMBOL("#true")>(true)
                                              .map<LEXY_SYMBOL("#false")>(false);
     static constexpr auto rule = Detail::location(dsl::symbol<bool_symbols>(keyword_base));
-    static constexpr auto value = lexy::callback<Literal>([](Position begin, bool value, Position end) {
-        return LiteralBoolean{Location{std::move(begin), std::move(end)}, Sign::none, value};
+    static constexpr auto value = lexy::callback<Literal>([](Location loc, bool value) {
+        return LiteralBoolean{std::move(loc), Sign::none, value};
     });
 };
 

@@ -74,6 +74,20 @@ release:
 	$(MAKE) -C build_release
 	$(MAKE) -C build_release test
 
+release_clang:
+	mkdir -p build_release_clang
+	current="$$(pwd -P)" && cd build_release_clang && cd "$$(pwd -P)" && cmake \
+		-DCMAKE_BUILD_TYPE=release \
+		-DPARSER_BUILD_TESTS=On \
+		-DCMAKE_CXX_COMPILER="clang++" \
+		-DCMAKE_C_COMPILER="clang" \
+		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -L${CONDA_PREFIX}/lib" \
+		-DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
+		"$${current}"
+	$(MAKE) -C build_release_clang
+	$(MAKE) -C build_release_clang test
+
 web:
 	mkdir -p build_web
 	current="$$(pwd -P)" && cd build_web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake \

@@ -79,18 +79,14 @@ struct head_aggregate {
     static constexpr auto rule =
         Detail::location(dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard);
     static constexpr auto value = lexy::callback<HeadAggregate>(
-        [](Position begin, AggregateFunction fun, HeadAggregate::ElementVec elems, Position end) {
-            auto loc = std::move(begin) + std::move(end);
+        [](Location loc, AggregateFunction fun, HeadAggregate::ElementVec elems) {
             return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems), std::nullopt);
         },
-        [](Position begin, AggregateFunction fun, HeadAggregate::ElementVec elems, Relation rel, Term rhs,
-           Position end) {
-            auto loc = std::move(begin) + std::move(end);
+        [](Location loc, AggregateFunction fun, HeadAggregate::ElementVec elems, Relation rel, Term rhs) {
             return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems),
                                  RGuard::value_type{rel, std::move(rhs)});
         },
-        [](Position begin, AggregateFunction fun, HeadAggregate::ElementVec elems, Term rhs, Position end) {
-            auto loc = std::move(begin) + std::move(end);
+        [](Location loc, AggregateFunction fun, HeadAggregate::ElementVec elems, Term rhs) {
             return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems),
                                  RGuard::value_type{Relation::less_equal, std::move(rhs)});
         });

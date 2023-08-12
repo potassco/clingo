@@ -62,19 +62,15 @@ struct body_aggregate {
     static constexpr auto rule =
         Detail::location(dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard);
     static constexpr auto value = lexy::callback<BodyAggregate>(
-        [](Position begin, AggregateFunction fun, BodyAggregate::ElementVec elems, Position end) {
-            auto loc = std::move(begin) + std::move(end);
+        [](Location loc, AggregateFunction fun, BodyAggregate::ElementVec elems) {
             return BodyAggregate{std::move(loc), Sign::none, std::nullopt, fun, std::move(elems), std::nullopt};
         },
-        [](Position begin, AggregateFunction fun, BodyAggregate::ElementVec elems, Relation rel, Term rhs,
-           Position end) {
-            auto loc = std::move(begin) + std::move(end);
+        [](Location loc, AggregateFunction fun, BodyAggregate::ElementVec elems, Relation rel, Term rhs) {
             return BodyAggregate{std::move(loc),   Sign::none,
                                  std::nullopt,     fun,
                                  std::move(elems), RGuard::value_type{rel, std::move(rhs)}};
         },
-        [](Position begin, AggregateFunction fun, BodyAggregate::ElementVec elems, Term rhs, Position end) {
-            auto loc = std::move(begin) + std::move(end);
+        [](Location loc, AggregateFunction fun, BodyAggregate::ElementVec elems, Term rhs) {
             return BodyAggregate{std::move(loc),   Sign::none,
                                  std::nullopt,     fun,
                                  std::move(elems), RGuard::value_type{Relation::less_equal, std::move(rhs)}};

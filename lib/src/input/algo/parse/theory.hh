@@ -17,18 +17,17 @@ struct theory_tuple_trail {
 
 template <TheoryTermTupleType type>
 static constexpr auto theory_tuple = lexy::callback<TheoryTerm>(
-    [](Position begin, lexy::nullopt, Position end) {
-        return TheoryTermTuple{Location(std::move(begin), std::move(end)), type, TheoryTermVec{}};
+    [](Location loc, lexy::nullopt) {
+        return TheoryTermTuple{std::move(loc), type, TheoryTermVec{}};
     },
-    [](Position begin, TheoryTermVec elems, Position end) {
-        return TheoryTermTuple{Location(std::move(begin), std::move(end)), type, std::move(elems)};
+    [](Location loc, TheoryTermVec elems) {
+        return TheoryTermTuple{std::move(loc), type, std::move(elems)};
     },
-    [](Position begin, Detail::theory_tuple_trail elems, Position end) -> TheoryTerm {
+    [](Location loc, Detail::theory_tuple_trail elems) -> TheoryTerm {
         if (elems.vec.size() == 1 && !elems.trail) {
             return std::move(elems.vec.back());
         }
-        return TheoryTermTuple{Location(std::move(begin), std::move(end)), TheoryTermTupleType::tuple,
-                               std::move(elems.vec)};
+        return TheoryTermTuple{std::move(loc), TheoryTermTupleType::tuple, std::move(elems.vec)};
     });
 
 } // namespace Detail
@@ -220,13 +219,11 @@ struct theory_atom {
                                 dsl::p<term_function> + dsl::p<theory_atom_elements> + dsl::if_(guard));
     }();
     static constexpr auto value = lexy::callback<TheoryAtom>(
-        [](Position begin, Term name, TheoryAtom::ElementVec elems, std::string op, TheoryTerm rhs, Position end) {
-            auto loc = std::move(begin) + std::move(end);
+        [](Location loc, Term name, TheoryAtom::ElementVec elems, std::string op, TheoryTerm rhs) {
             return TheoryAtom{std::move(loc), std::move(name), std::move(elems),
                               std::make_pair(std::move(op), std::move(rhs))};
         },
-        [](Position begin, Term name, TheoryAtom::ElementVec elems, Position end) {
-            auto loc = std::move(begin) + std::move(end);
+        [](Location loc, Term name, TheoryAtom::ElementVec elems) {
             return TheoryAtom{std::move(loc), std::move(name), std::move(elems), std::nullopt};
         });
 };

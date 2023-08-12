@@ -33,12 +33,12 @@ auto empty_args(std::optional<TermVecVec> value) {
 template <bool external> struct construct_function {
     using return_type = TermFunction;
 
-    auto operator()(Position begin, auto name, Position end) const {
-        return TermFunction{Location{std::move(begin), std::move(end)}, std::move(name), PoolVec{TupleVec{}}, external};
+    auto operator()(Location loc, auto name) const {
+        return TermFunction{std::move(loc), std::move(name), PoolVec{TupleVec{}}, external};
     }
 
-    auto operator()(Position begin, auto name, auto args, Position end) const {
-        return TermFunction{Location{std::move(begin), std::move(end)}, std::move(name), std::move(args), external};
+    auto operator()(Location loc, auto name, auto args) const {
+        return TermFunction{std::move(loc), std::move(name), std::move(args), external};
     }
 };
 
@@ -93,9 +93,8 @@ static constexpr auto number = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> |
 struct term_number : lexy::token_production {
     static constexpr char const *name = "number";
     static constexpr auto rule = Detail::location(number);
-    static constexpr auto value = lexy::callback<Term>([](Position begin, auto num, Position end) {
-        return TermSymbol(Location{std::move(begin), std::move(end)}, num);
-    });
+    static constexpr auto value =
+        lexy::callback<Term>([](Location loc, auto num) { return TermSymbol(std::move(loc), num); });
 };
 
 static constexpr auto escaped_symbols = lexy::symbol_table<char> //
@@ -114,8 +113,8 @@ static constexpr auto string = [] {
 struct term_string : lexy::token_production {
     static constexpr char const *name = "string";
     static constexpr auto rule = Detail::location(string);
-    static constexpr auto value = Detail::as_string >> lexy::callback<Term>([](Position begin, auto str, Position end) {
-                                      return TermSymbol{Location(std::move(begin), std::move(end)), QuotedString{str}};
+    static constexpr auto value = Detail::as_string >> lexy::callback<Term>([](Location loc, auto str) {
+                                      return TermSymbol{std::move(loc), QuotedString{str}};
                                   });
 };
 
@@ -144,9 +143,8 @@ static constexpr auto constant = dsl::symbol<constants>(keyword_base);
 struct term_constant : lexy::token_production {
     static constexpr char const *name = "constant";
     static constexpr auto rule = Detail::location(constant);
-    static constexpr auto value = lexy::callback<Term>([](Position begin, auto val, Position end) {
-        return TermSymbol(Location(std::move(begin), std::move(end)), val);
-    });
+    static constexpr auto value =
+        lexy::callback<Term>([](Location loc, auto val) { return TermSymbol(std::move(loc), val); });
 };
 
 struct term {
@@ -219,12 +217,11 @@ struct term_tuple {
     static constexpr auto rule = Detail::location(
         LEXY_LIT("(") >> dsl::list(dsl::p<term_tuple_element>, dsl::sep(dsl::semicolon)) + LEXY_LIT(")"));
     static constexpr auto value = lexy::as_list<TermTuple::ElementVec> >>
-                                  lexy::callback<Term>([](Position begin, TermTuple::ElementVec elem,
-                                                          Position end) -> Term {
+                                  lexy::callback<Term>([](Location loc, TermTuple::ElementVec elem) -> Term {
                                       if (elem.size() == 1 && std::holds_alternative<Term>(elem.front())) {
                                           return std::move(std::get<Term>(elem.front()));
                                       }
-                                      return TermTuple{Location(std::move(begin), std::move(end)), std::move(elem)};
+                                      return TermTuple{std::move(loc), std::move(elem)};
                                   });
 };
 
@@ -232,9 +229,8 @@ struct term_abs {
     static constexpr char const *name = "absolute value";
     static constexpr auto rule =
         Detail::location(dsl::brackets(LEXY_LIT("|"), LEXY_LIT("|")).list(dsl::p<term>, dsl::sep(dsl::semicolon)));
-    static constexpr auto value = lexy::as_list<TermVec> >>
-                                  lexy::callback<Term>([](Position begin, auto pool, Position end) {
-                                      return TermAbs{Location(std::move(begin), std::move(end)), std::move(pool)};
+    static constexpr auto value = lexy::as_list<TermVec> >> lexy::callback<Term>([](Location loc, auto pool) {
+                                      return TermAbs{std::move(loc), std::move(pool)};
                                   });
 };
 
@@ -244,8 +240,8 @@ static constexpr auto anonymous_variable =
 struct term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = Detail::location(anonymous_variable);
-    static constexpr auto value = lexy::callback<Term>([](Position begin, Position end) {
-        return TermVariable{Location(std::move(begin), std::move(end)), "_", true};
+    static constexpr auto value = lexy::callback<Term>([](Location loc) {
+        return TermVariable{std::move(loc), "_", true};
     });
 };
 

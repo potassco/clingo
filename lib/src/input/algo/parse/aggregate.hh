@@ -60,15 +60,14 @@ struct junction_element {
         return Detail::location(dsl::if_(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")))) +
                                 dsl::p<opt_condition>);
     }();
-    static constexpr auto
-        value = lexy::as_list<LiteralVec> >>
-                lexy::callback<ConditionalLiteral>(
-                    [](Position begin, LiteralVec cond, Position end) {
-                        return ConditionalLiteral{std::move(begin) + std::move(end), {}, std::move(cond)};
-                    },
-                    [](Position begin, LiteralVec lits, LiteralVec cond, Position end) {
-                        return ConditionalLiteral{std::move(begin) + std::move(end), std::move(lits), std::move(cond)};
-                    });
+    static constexpr auto value = lexy::as_list<LiteralVec> >>
+                                  lexy::callback<ConditionalLiteral>(
+                                      [](Location loc, LiteralVec cond) {
+                                          return ConditionalLiteral{std::move(loc), {}, std::move(cond)};
+                                      },
+                                      [](Location loc, LiteralVec lits, LiteralVec cond) {
+                                          return ConditionalLiteral{std::move(loc), std::move(lits), std::move(cond)};
+                                      });
 };
 
 template <class E, class J, class L> struct junction {
@@ -77,15 +76,14 @@ template <class E, class J, class L> struct junction {
         auto elems = dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
         return Detail::location(kw >> elems);
     };
-    static constexpr auto
-        value = lexy::as_list<ConditionalLiteralVec> >>
-                lexy::callback<L>(
-                    [](Position begin, ConditionalLiteralVec elems, Position end) {
-                        return J{Location(std::move(begin), std::move(end)), ConditionalLiteralVec{std::move(elems)}};
-                    },
-                    [](Position begin, lexy::nullopt, Position end) {
-                        return J{Location(std::move(begin), std::move(end)), ConditionalLiteralVec{}};
-                    });
+    static constexpr auto value = lexy::as_list<ConditionalLiteralVec> >>
+                                  lexy::callback<L>(
+                                      [](Location loc, ConditionalLiteralVec elems) {
+                                          return J{std::move(loc), ConditionalLiteralVec{std::move(elems)}};
+                                      },
+                                      [](Location loc, lexy::nullopt) {
+                                          return J{std::move(loc), ConditionalLiteralVec{}};
+                                      });
 };
 
 template <class E>
@@ -112,15 +110,14 @@ struct set_aggregate {
     static constexpr auto rule =
         Detail::location(LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >> LEXY_LIT("}") + aggregate_right_guard);
     static constexpr auto value = lexy::callback<SetAggregate>(
-        [](Position begin, SetAggregate::ElementVec elems, Position end) {
-            return SetAggregate{Location(std::move(begin), std::move(end)), std::move(elems)};
+        [](Location loc, SetAggregate::ElementVec elems) {
+            return SetAggregate{std::move(loc), std::move(elems)};
         },
-        [](Position begin, SetAggregate::ElementVec elems, Term rhs, Position end) {
-            return SetAggregate{std::move(begin) + std::move(end), std::move(elems), Relation::less_equal,
-                                std::move(rhs)};
+        [](Location loc, SetAggregate::ElementVec elems, Term rhs) {
+            return SetAggregate{std::move(loc), std::move(elems), Relation::less_equal, std::move(rhs)};
         },
-        [](Position begin, SetAggregate::ElementVec elems, Relation rel, Term rhs, Position end) {
-            return SetAggregate{std::move(begin) + std::move(end), std::move(elems), rel, std::move(rhs)};
+        [](Location loc, SetAggregate::ElementVec elems, Relation rel, Term rhs) {
+            return SetAggregate{std::move(loc), std::move(elems), rel, std::move(rhs)};
         });
 };
 
