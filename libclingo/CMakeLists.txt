@@ -58,6 +58,10 @@ target_include_directories(libclingo
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_compile_definitions(libclingo ${clingo_private_scope_} CLINGO_BUILD_LIBRARY)
 
+if (CLINGO_USE_VERSION_SCRIPT)
+    set_target_properties(libclingo PROPERTIES LINK_FLAGS "-Wl,--version-script='${CMAKE_CURRENT_SOURCE_DIR}/clingo.map'")
+endif()
+
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
 endif()
