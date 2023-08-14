@@ -17,7 +17,7 @@ inline auto construct_head_aggr(Term term, Relation rel, HeadAggregate aggr) -> 
 inline auto construct_head_aggr(Term term, Relation rel, SetAggregate aggr) -> HeadSetAggregate {
     auto loc = location(term) + aggr.loc;
     aggr.lhs = LGuard::value_type{std::move(term), rel};
-    return HeadSetAggregate{std::move(loc), std::move(aggr)};
+    return HeadSetAggregate{std::move(aggr)};
 }
 
 } // namespace Detail
@@ -128,15 +128,8 @@ struct head_literal {
     }();
 
     static constexpr auto value = lexy::callback<HeadLiteral>(
-        lexy::forward<HeadLiteral>,
-        [](SetAggregate aggr) -> HeadLiteral {
-            auto loc = aggr.loc;
-            return HeadSetAggregate{std::move(loc), std::move(aggr)};
-        },
-        [](TheoryAtom aggr) -> HeadLiteral {
-            auto loc = aggr.loc;
-            return HeadTheoryAtom{std::move(loc), std::move(aggr)};
-        },
+        lexy::forward<HeadLiteral>, [](SetAggregate aggr) -> HeadLiteral { return HeadSetAggregate{std::move(aggr)}; },
+        [](TheoryAtom aggr) -> HeadLiteral { return HeadTheoryAtom{std::move(aggr)}; },
         [](Term term, auto aggr) -> HeadLiteral {
             return Detail::construct_head_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },

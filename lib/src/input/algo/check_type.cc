@@ -123,6 +123,10 @@ struct IsTest {
         });
     }
 
+    template <bool Conjunctive> auto operator()(Junction<Conjunctive> const &lit) const -> bool {
+        return operator()(lit.elems);
+    }
+
     // head literal
 
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
@@ -142,13 +146,9 @@ struct IsTest {
         return false;
     }
 
-    auto operator()(Disjunction const &lit) const -> bool { return operator()(lit.elems); }
-
     // body literal
 
     auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
-
-    auto operator()(Conjunction const &lit) const -> bool { return operator()(lit.elems); }
 
     auto operator()(BodyAggregate const &lit) const -> bool {
         static_cast<void>(lit);
@@ -194,6 +194,10 @@ struct IsAtom {
         return elem.cond.empty() && elem.lits.size() == 1 && operator()(elem.lits.front());
     }
 
+    template <bool Conjunctive> auto operator()(Junction<Conjunctive> const &lit) const -> bool {
+        return operator()(lit.elems);
+    }
+
     // head literal
 
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
@@ -213,13 +217,9 @@ struct IsAtom {
         return false;
     }
 
-    auto operator()(Disjunction const &lit) const -> bool { return operator()(lit.elems); }
-
     // body literal
 
     auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
-
-    auto operator()(Conjunction const &lit) const -> bool { return operator()(lit.elems); }
 
     auto operator()(BodyAggregate const &lit) const -> bool {
         static_cast<void>(lit);

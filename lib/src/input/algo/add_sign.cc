@@ -4,17 +4,10 @@ namespace Gringo::Input {
 
 namespace {
 
-template <typename T, typename V = void> constexpr bool has_loc_ = false;
-
-template <typename T> constexpr bool has_loc_<T, std::void_t<decltype(std::declval<T>().loc)>> = true;
-
 struct AddSign {
     void operator()(auto &lit) const {
         lit.sign += sign;
-        // TODO: remove once bodyliterals have signs!
-        if constexpr (has_loc_<decltype(lit)>) {
-            lit.loc += std::move(pos);
-        }
+        location(lit) += std::move(pos);
     }
 
     void operator()(Conjunction &lit) const {

@@ -19,8 +19,7 @@ inline auto construct_body_aggr(Term term, Relation rel, BodyAggregate aggr) -> 
 inline auto construct_body_aggr(Term term, Relation rel, SetAggregate aggr) -> BodySetAggregate {
     aggr.loc.begin = location(term).begin;
     aggr.lhs = LGuard::value_type{term, rel};
-    auto loc = aggr.loc;
-    return BodySetAggregate{std::move(loc), Sign::none, std::move(aggr)};
+    return BodySetAggregate{Sign::none, std::move(aggr)};
 }
 
 auto construct_conjunction(Literal lit, LiteralVec cond, Position end) {
@@ -110,15 +109,8 @@ struct body_atom : lexy::transparent_production {
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
     static constexpr auto value = lexy::callback<BodyLiteral>(
-        lexy::forward<BodyLiteral>,
-        [](TheoryAtom aggr) {
-            auto loc = aggr.loc;
-            return BodyTheoryAtom(std::move(loc), Sign::none, std::move(aggr));
-        },
-        [](SetAggregate aggr) {
-            auto loc = aggr.loc;
-            return BodySetAggregate(std::move(loc), Sign::none, std::move(aggr));
-        },
+        lexy::forward<BodyLiteral>, [](TheoryAtom aggr) { return BodyTheoryAtom(Sign::none, std::move(aggr)); },
+        [](SetAggregate aggr) { return BodySetAggregate(Sign::none, std::move(aggr)); },
         [](Term term, auto aggr) {
             return Detail::construct_body_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },

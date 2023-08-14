@@ -477,21 +477,21 @@ struct Print {
 
     // conditional literal
 
-    void operator()(ConditionalLiteralVec const &elems, char const *kw, bool simple_empty) const {
-        auto is_simple = elems.empty() ? simple_empty : std::all_of(elems.begin(), elems.end(), [&](auto const &elem) {
-            return elem.lits.size() == 1;
-        });
+    template <bool Conjunctive> void operator()(Junction<Conjunctive> const &lit) const {
+        auto is_simple = lit.elems.empty() ? !Conjunctive
+                                           : std::all_of(lit.elems.begin(), lit.elems.end(),
+                                                         [&](auto const &elem) { return elem.lits.size() == 1; });
         if (is_simple) {
-            apply_to_range_with(elems, "; ", [this](auto const &elem) {
+            apply_to_range_with(lit.elems, "; ", [this](auto const &elem) {
                 auto cs = elem.cond.empty() ? "" : ": ";
                 operator()(elem.lits.front());
                 out << cs;
                 visit_range(elem.cond, ", ");
             });
         } else {
-            char const *sp = elems.empty() ? "" : " ";
-            out << kw << " { ";
-            apply_to_range_with(elems, "; ", [this](auto const &elem) {
+            char const *sp = lit.elems.empty() ? "" : " ";
+            out << (Conjunctive ? "#and" : "#or") << " { ";
+            apply_to_range_with(lit.elems, "; ", [this](auto const &elem) {
                 char const *cs = !elem.cond.empty() ? ": " : elem.lits.empty() ? ":" : "";
                 visit_range(elem.lits, ", ");
                 out << cs;
@@ -543,8 +543,6 @@ struct Print {
 
     void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
 
-    void operator()(Disjunction const &lit) const { operator()(lit.elems, "#or", true); }
-
     void operator()(HeadSetAggregate const &lit) const { operator()(lit.aggr); }
 
     void operator()(HeadAggregate const &lit) const {
@@ -574,8 +572,6 @@ struct Print {
     // body literals
 
     void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
-
-    void operator()(Conjunction const &lit) const { operator()(lit.elems, "#and", false); }
 
     void operator()(BodySetAggregate const &lit) const {
         out << lit.sign;

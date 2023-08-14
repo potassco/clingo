@@ -72,6 +72,8 @@ struct VisitVariables : Visitor<VisitVariables> {
         visit(cond_lit.lits);
     }
 
+    template <bool Conjunctive> void operator()(Junction<Conjunctive> const &lit) const { visit(lit.elems); }
+
     // aggregate
 
     void operator()(SetAggregate::Element const &elem) const { visit(elem.lit, elem.cond); }
@@ -96,8 +98,6 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
 
-    void operator()(Disjunction const &lit) const { visit(lit.elems); }
-
     void operator()(HeadAggregate::Element const &elem) const { visit(elem.tuple, elem.lit, elem.cond); }
 
     void operator()(HeadAggregate const &lit) const {
@@ -114,8 +114,6 @@ struct VisitVariables : Visitor<VisitVariables> {
     // body literal
 
     void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
-
-    void operator()(Conjunction const &lit) const { visit(lit.elems); }
 
     void operator()(BodyAggregate::Element const &elem) const { visit(elem.tuple, elem.cond); }
 

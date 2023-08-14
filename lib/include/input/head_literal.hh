@@ -15,20 +15,8 @@ namespace Gringo::Input {
 //!
 //! @{
 
-//! A disjunction.
-//!
-//! Can also reprent a single literal.
-//!
-//! For example: <tt>p(X); q(X,Y): r(Y)</tt>
-struct Disjunction {
-    //! Construct a disjunction.
-    explicit Disjunction(Location loc, ConditionalLiteralVec elems) : loc{std::move(loc)}, elems{std::move(elems)} {}
-
-    //! The location of the disjunction.
-    Location loc;
-    //! The vector of conditional literals.
-    ConditionalLiteralVec elems;
-};
+//! A disjunction of oconditional literals.
+using Disjunction = Junction<false>;
 
 //! A head aggregate.
 //!
@@ -73,10 +61,8 @@ struct HeadAggregate {
 //! For example: <tt>#count { p(X): q(X) } = 1</tt>
 struct HeadSetAggregate {
     //! Construct a head set aggregate.
-    explicit HeadSetAggregate(Location loc, SetAggregate aggr) : loc{std::move(loc)}, aggr{std::move(aggr)} {}
+    explicit HeadSetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
 
-    //! The location of the aggregate.
-    Location loc;
     //! The set aggregate.
     SetAggregate aggr;
 };
@@ -84,10 +70,8 @@ struct HeadSetAggregate {
 //! A head theory atom.
 struct HeadTheoryAtom {
     //! Construct a head theory atom.
-    explicit HeadTheoryAtom(Location loc, TheoryAtom atom) : loc{std::move(loc)}, atom{std::move(atom)} {}
+    explicit HeadTheoryAtom(TheoryAtom atom) : atom{std::move(atom)} {}
 
-    //! The location of the theory atom.
-    Location loc;
     //! The corresponding theory atom aggregate.
     TheoryAtom atom;
 };

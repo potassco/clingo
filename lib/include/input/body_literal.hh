@@ -15,22 +15,10 @@ namespace Gringo::Input {
 //!
 //! @{
 
-//! A conjunction.
-//!
-//! Can also represent a single literal.
-//!
-//! For example: <tt>p(X); q(X,Y): r(Y)</tt>
-struct Conjunction {
-    //! Construct a conjunction.
-    explicit Conjunction(Location loc, ConditionalLiteralVec elems) : loc{std::move(loc)}, elems{std::move(elems)} {}
+//! A conjunction of oconditional literals.
+using Conjunction = Junction<true>;
 
-    //! The location of the literal.
-    Location loc;
-    //! The vector of conditional literals.
-    ConditionalLiteralVec elems;
-};
-
-//! A body aggregate.
+//! A conjunction//! A body aggregate.
 //!
 //! For example: <tt>#count { X: q(X) } = 1</tt>
 struct BodyAggregate {
@@ -68,11 +56,8 @@ struct BodyAggregate {
 //! For example: <tt>#count { p(X): q(X) } = 1</tt>
 struct BodySetAggregate {
     //! Construct a body set aggregate.
-    explicit BodySetAggregate(Location loc, Sign sign, SetAggregate aggr)
-        : loc{std::move(loc)}, sign{sign}, aggr{std::move(aggr)} {}
+    explicit BodySetAggregate(Sign sign, SetAggregate aggr) : sign{sign}, aggr{std::move(aggr)} {}
 
-    //! The location of the literal.
-    Location loc;
     //! The sign of the literal.
     Sign sign;
     //! The corresponding set aggregate.
@@ -82,11 +67,8 @@ struct BodySetAggregate {
 //! A body theory atom.
 struct BodyTheoryAtom {
     //! Construct a body theory atom.
-    explicit BodyTheoryAtom(Location loc, Sign sign, TheoryAtom atom)
-        : loc{std::move(loc)}, sign{sign}, atom{std::move(atom)} {}
+    explicit BodyTheoryAtom(Sign sign, TheoryAtom atom) : sign{sign}, atom{std::move(atom)} {}
 
-    //! The location of the literal.
-    Location loc;
     //! The sign of the literal.
     Sign sign;
     //! The corresponding theory atom aggregate.

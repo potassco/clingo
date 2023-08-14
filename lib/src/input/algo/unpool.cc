@@ -290,15 +290,18 @@ struct Unpool {
             *this, atom.name, atom.elems);
     }
 
+    template <bool Conjunctive>
+    auto operator()(Junction<Conjunctive> const &lit) const
+        -> std::optional<std::conditional_t<Conjunctive, BodyLiteralVec, HeadLiteralVec>> {
+        return Util::map_opt_vec(operator()(lit.elems),
+                                 [&lit](auto elem) -> std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral> {
+                                     return Junction<Conjunctive>{lit.loc, std::move(elem)};
+                                 });
+    }
+
     // head literal
 
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteralVec> { return std::visit(*this, lit); }
-
-    auto operator()(Disjunction const &lit) const -> std::optional<HeadLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.elems), [&lit](auto elem) -> HeadLiteral {
-            return Disjunction{lit.loc, std::move(elem)};
-        });
-    }
 
     auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::ElementVec> {
         return unpool_crossproducts(
@@ -323,15 +326,13 @@ struct Unpool {
     }
 
     auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.aggr), [&lit](auto aggr) -> HeadLiteral {
-            return HeadSetAggregate{lit.loc, std::move(aggr)};
-        });
+        return Util::map_opt_vec(operator()(lit.aggr),
+                                 [](auto aggr) -> HeadLiteral { return HeadSetAggregate{std::move(aggr)}; });
     }
 
     auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.atom), [&lit](auto atom) -> HeadLiteral {
-            return HeadTheoryAtom{lit.loc, std::move(atom)};
-        });
+        return Util::map_opt_vec(operator()(lit.atom),
+                                 [](auto atom) -> HeadLiteral { return HeadTheoryAtom{std::move(atom)}; });
     }
 
     // body literal
@@ -340,12 +341,6 @@ struct Unpool {
 
     auto operator()(BodyLiteralVec const &lits) const -> std::optional<std::vector<BodyLiteralVec>> {
         return unpool_crossproduct(lits, *this);
-    }
-
-    auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.elems), [&lit](auto elem) -> BodyLiteral {
-            return Conjunction{lit.loc, std::move(elem)};
-        });
     }
 
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::ElementVec> {
@@ -372,13 +367,13 @@ struct Unpool {
 
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteralVec> {
         return Util::map_opt_vec(operator()(lit.aggr), [&lit](auto aggr) -> BodyLiteral {
-            return BodySetAggregate{lit.loc, lit.sign, std::move(aggr)};
+            return BodySetAggregate{lit.sign, std::move(aggr)};
         });
     }
 
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteralVec> {
         return Util::map_opt_vec(operator()(lit.atom), [&lit](auto atom) -> BodyLiteral {
-            return BodyTheoryAtom{lit.loc, lit.sign, std::move(atom)};
+            return BodyTheoryAtom{lit.sign, std::move(atom)};
         });
     }
 

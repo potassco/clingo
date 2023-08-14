@@ -157,6 +157,18 @@ struct Project : Transformer<Project> {
         return std::nullopt;
     }
 
+    template <bool Conjunctive>
+    auto operator()(Junction<Conjunctive> const &lit) const
+        -> std::optional<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
+        // Projection in disjunctions:
+        // - variables in premise (almost body literals)
+        // Projection in conjunction:
+        // - variables in premise if in classical scope,
+        // - variables in conclusion.
+        auto sub_project = Project{project, !Conjunctive | in_classical_scope, Conjunctive};
+        return sub_project.transform_construct<Junction<Conjunctive>>(lit.loc, tr(lit.elems));
+    }
+
     // aggregate
 
     auto operator()(SetAggregate::Element const &elem) const -> std::optional<SetAggregate::Element> {
@@ -178,13 +190,6 @@ struct Project : Transformer<Project> {
     // head literal
 
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
-
-    auto operator()(Disjunction const &lit) const -> std::optional<HeadLiteral> {
-        // Note when to project:
-        // - variables in conditions (almost body literals)
-        auto sub_project = Project{project, true, false};
-        return sub_project.transform_construct<Disjunction>(lit.loc, tr(lit.elems));
-    }
 
     auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
         static_cast<void>(lit);
@@ -209,20 +214,12 @@ struct Project : Transformer<Project> {
         // aggregate is a shortcut for a choice rule + a body aggregate in an
         // integrity constraint.
         auto sub_project = Project{project, true, true};
-        return sub_project.transform_construct<HeadSetAggregate>(lit.loc, tr(lit.aggr));
+        return sub_project.transform_construct<HeadSetAggregate>(tr(lit.aggr));
     }
 
     // body literal
 
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
-
-    auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteral> {
-        // Note when to project:
-        // - variables in premise if in classical scope,
-        // - varibales in conclusion.
-        auto sub_project = Project{project, in_classical_scope, true};
-        return sub_project.transform_construct<Conjunction>(lit.loc, tr(lit.elems));
-    }
 
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
         // counts of local variables
@@ -242,7 +239,7 @@ struct Project : Transformer<Project> {
 
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
         auto sub_project = Project{project, in_classical_scope || lit.sign != Sign::none};
-        return sub_project.transform_construct<BodySetAggregate>(lit.loc, lit.sign, tr(lit.aggr));
+        return sub_project.transform_construct<BodySetAggregate>(lit.sign, tr(lit.aggr));
     }
 
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {

@@ -75,6 +75,24 @@ struct SetAggregate {
     RGuard rhs;
 };
 
+//! A set of conditional literals interpreted conjunctively or disjunctively.
+//!
+//! Can also represent a single literal.
+//!
+//! For example: <tt>p(X); q(X,Y): r(Y)</tt>
+template <bool Conjunctive> struct Junction {
+    //! Construct a conjunction.
+    explicit Junction(Location loc, ConditionalLiteralVec elems) : loc{std::move(loc)}, elems{std::move(elems)} {}
+
+    static constexpr bool conjunctive = Conjunctive;
+    static constexpr bool disjunctive = !Conjunctive;
+
+    //! The location of the literal.
+    Location loc;
+    //! The vector of conditional literals.
+    ConditionalLiteralVec elems;
+};
+
 //! @}
 
 } // namespace Gringo::Input

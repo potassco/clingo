@@ -47,7 +47,15 @@ struct Location {
 
 inline auto operator+(Position a, Position b) -> Location { return {std::move(a), std::move(b)}; }
 
-template <class T> auto location(T const &x) -> Location const & { return x.loc; }
+template <class T> auto location(T &x) -> decltype((x.loc)) { return x.loc; }
+
+template <class T> auto location(T &x) -> decltype((x.aggr.loc)) { return x.aggr.loc; }
+
+template <class T> auto location(T &x) -> decltype((x.atom.loc)) { return x.atom.loc; }
+
+template <class... T> auto location(std::variant<T...> &x) -> Location const & {
+    return std::visit([](auto &y) -> Location & { return location(y); }, x);
+}
 
 template <class... T> auto location(std::variant<T...> const &x) -> Location const & {
     return std::visit([](auto const &y) -> Location const & { return location(y); }, x);
