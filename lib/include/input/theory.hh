@@ -129,29 +129,45 @@ inline TheoryTermFunction::TheoryTermFunction(Location loc, std::string name, Th
 inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, ElementVec elems)
     : loc{std::move(loc)}, elems{std::move(elems)} {}
 
+//! The optional right guard of the theory atom.
+using TheoryRGuard = std::optional<std::pair<std::string, TheoryTerm>>;
+//! An element of the theory atom.
+using TheoryElement = std::pair<TheoryTermVec, LiteralVec>;
+//! A vector of theory atom elements.
+using TheoryElementVec = std::vector<TheoryElement>;
+
+//! Simple struct with a sign.
+struct Signed {
+    Sign sign;
+};
+
+//! Simple struct without a sign.
+struct Unsigned {};
+
 //! A theory atom.
 //!
 //! For example: <tt>&sum { X+Y: p(X), q(Y) } >= 0</tt>.
-struct TheoryAtom {
-    //! The optional right guard of the theory atom.
-    using RGuard = std::optional<std::pair<std::string, TheoryTerm>>;
-    //! An element of the theory atom.
-    using Element = std::pair<TheoryTermVec, LiteralVec>;
-    //! A vector of theory atom elements.
-    using ElementVec = std::vector<Element>;
+template <bool HasSign> struct TheoryAtom : std::conditional_t<HasSign, Signed, Unsigned> {
+    //! Construct a theory atom.
+    explicit TheoryAtom(Location loc, Term name, TheoryElementVec elems, TheoryRGuard rhs)
+        : loc{std::move(loc)}, name{std::move(name)}, elems{std::move(elems)}, rhs{std::move(rhs)} {
+        static_assert(!HasSign);
+    }
 
     //! Construct a theory atom.
-    explicit TheoryAtom(Location loc, Term name, ElementVec elems, RGuard rhs)
-        : loc{std::move(loc)}, name{std::move(name)}, elems{std::move(elems)}, rhs{std::move(rhs)} {}
+    explicit TheoryAtom(Location loc, Sign sign, Term name, TheoryElementVec elems, TheoryRGuard rhs)
+        : Signed{sign}, loc{std::move(loc)}, name{std::move(name)}, elems{std::move(elems)}, rhs{std::move(rhs)} {
+        static_assert(HasSign);
+    }
 
     //! The location of the symbol.
     Location loc;
     //! The name of the atom.
     Term name;
     //! The elements of the atom.
-    ElementVec elems;
+    TheoryElementVec elems;
     //! The optional right guard of the atom.
-    RGuard rhs;
+    TheoryRGuard rhs;
 };
 
 //! @}

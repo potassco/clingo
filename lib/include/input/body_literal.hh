@@ -65,15 +65,7 @@ struct BodySetAggregate {
 };
 
 //! A body theory atom.
-struct BodyTheoryAtom {
-    //! Construct a body theory atom.
-    explicit BodyTheoryAtom(Sign sign, TheoryAtom atom) : sign{sign}, atom{std::move(atom)} {}
-
-    //! The sign of the literal.
-    Sign sign;
-    //! The corresponding theory atom aggregate.
-    TheoryAtom atom;
-};
+using BodyTheoryAtom = TheoryAtom<true>;
 
 //! A body literal.
 using BodyLiteral = std::variant<Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;

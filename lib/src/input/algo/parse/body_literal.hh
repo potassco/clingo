@@ -104,13 +104,12 @@ struct body_atom : lexy::transparent_production {
             is_atom.is_set() >> dsl::p<opt_condition> + Detail::post_position | //
             dsl::else_ >> dsl::error<expected_rel_aggr>;
 
-        return dsl::p<theory_atom> | dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
-               dsl::p<atom_bool> >> dsl::p<opt_condition> + Detail::post_position |   //
+        return dsl::p<body_theory_atom> | dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
+               dsl::p<atom_bool> >> dsl::p<opt_condition> + Detail::post_position |        //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
     static constexpr auto value = lexy::callback<BodyLiteral>(
-        lexy::forward<BodyLiteral>, [](TheoryAtom aggr) { return BodyTheoryAtom(Sign::none, std::move(aggr)); },
-        [](SetAggregate aggr) { return BodySetAggregate(Sign::none, std::move(aggr)); },
+        lexy::construct<BodyLiteral>, [](SetAggregate aggr) { return BodySetAggregate(Sign::none, std::move(aggr)); },
         [](Term term, auto aggr) {
             return Detail::construct_body_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },

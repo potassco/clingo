@@ -193,12 +193,12 @@ struct theory_atom_element {
     static constexpr char const *name = "theory atom element";
     static constexpr auto rule =
         dsl::p<condition> | dsl::else_ >> dsl::p<theory_atom_element_tuple> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::callback<TheoryAtom::Element>(
+    static constexpr auto value = lexy::callback<TheoryElement>(
         [](TheoryTermVec tuple, LiteralVec cond) {
-            return TheoryAtom::Element{std::move(tuple), std::move(cond)};
+            return TheoryElement{std::move(tuple), std::move(cond)};
         },
         [](LiteralVec cond) {
-            return TheoryAtom::Element{TheoryTermVec{}, std::move(cond)};
+            return TheoryElement{TheoryTermVec{}, std::move(cond)};
         });
 };
 
@@ -208,24 +208,36 @@ struct theory_atom_elements {
         auto elems = dsl::if_(dsl::curly_bracketed.opt_list(dsl::p<theory_atom_element>, dsl::sep(dsl::lit_c<';'>)));
         return elems;
     }();
-    static constexpr auto value = lexy::as_list<TheoryAtom::ElementVec>;
+    static constexpr auto value = lexy::as_list<TheoryElementVec>;
 };
 
-struct theory_atom {
+template <bool HasSign> struct theory_atom {
     static constexpr char const *name = "theory atom";
     static constexpr auto rule = []() {
         auto guard = dsl::p<theory_op> >> dsl::p<theory_term>;
-        return Detail::location(LEXY_LIT("&") >>
-                                dsl::p<term_function> + dsl::p<theory_atom_elements> + dsl::if_(guard));
+        auto atom = LEXY_LIT("&") >> dsl::p<term_function> + dsl::p<theory_atom_elements> + dsl::if_(guard);
+        return Detail::location(atom);
     }();
-    static constexpr auto value = lexy::callback<TheoryAtom>(
-        [](Location loc, Term name, TheoryAtom::ElementVec elems, std::string op, TheoryTerm rhs) {
-            return TheoryAtom{std::move(loc), std::move(name), std::move(elems),
-                              std::make_pair(std::move(op), std::move(rhs))};
+    static constexpr auto value = lexy::callback<TheoryAtom<HasSign>>(
+        [](Location loc, Term name, TheoryElementVec elems, std::string op, TheoryTerm rhs) {
+            if constexpr (HasSign) {
+                return TheoryAtom<HasSign>{std::move(loc), Sign::none, std::move(name), std::move(elems),
+                                           std::make_pair(std::move(op), std::move(rhs))};
+            } else {
+                return TheoryAtom<HasSign>{std::move(loc), std::move(name), std::move(elems),
+                                           std::make_pair(std::move(op), std::move(rhs))};
+            }
         },
-        [](Location loc, Term name, TheoryAtom::ElementVec elems) {
-            return TheoryAtom{std::move(loc), std::move(name), std::move(elems), std::nullopt};
+        [](Location loc, Term name, TheoryElementVec elems) {
+            if constexpr (HasSign) {
+                return TheoryAtom<HasSign>{std::move(loc), Sign::none, std::move(name), std::move(elems), std::nullopt};
+            } else {
+                return TheoryAtom<HasSign>{std::move(loc), std::move(name), std::move(elems), std::nullopt};
+            }
         });
 };
+
+using body_theory_atom = theory_atom<true>;
+using head_theory_atom = theory_atom<false>;
 
 } // namespace Gringo::Input::Grammar

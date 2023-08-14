@@ -122,14 +122,14 @@ struct head_literal {
 
         auto peek = dsl::peek(kw_not | dsl::symbol<atom_bool::bool_symbols>(keyword_base));
 
-        return peek >> dsl::p<simple_disjunction> | dsl::p<disjunction> |             //
-               dsl::p<theory_atom> | dsl::p<head_aggregate> | dsl::p<set_aggregate> | //
+        return peek >> dsl::p<simple_disjunction> | dsl::p<disjunction> |                  //
+               dsl::p<head_theory_atom> | dsl::p<head_aggregate> | dsl::p<set_aggregate> | //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
 
     static constexpr auto value = lexy::callback<HeadLiteral>(
-        lexy::forward<HeadLiteral>, [](SetAggregate aggr) -> HeadLiteral { return HeadSetAggregate{std::move(aggr)}; },
-        [](TheoryAtom aggr) -> HeadLiteral { return HeadTheoryAtom{std::move(aggr)}; },
+        lexy::construct<HeadLiteral>,
+        [](SetAggregate aggr) -> HeadLiteral { return HeadSetAggregate{std::move(aggr)}; },
         [](Term term, auto aggr) -> HeadLiteral {
             return Detail::construct_head_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },

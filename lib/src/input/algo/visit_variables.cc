@@ -87,7 +87,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // theory
 
-    void operator()(TheoryAtom const &atom) const {
+    template <bool HasSign> void operator()(TheoryAtom<HasSign> const &atom) const {
         if (ctx == VariableContext::all) {
             visit(atom.elems);
         }
@@ -109,8 +109,6 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     void operator()(HeadSetAggregate const &lit) const { visit(lit.aggr); }
 
-    void operator()(HeadTheoryAtom const &lit) const { visit(lit.atom); }
-
     // body literal
 
     void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
@@ -125,8 +123,6 @@ struct VisitVariables : Visitor<VisitVariables> {
     }
 
     void operator()(BodySetAggregate const &lit) const { visit(lit.aggr); }
-
-    void operator()(BodyTheoryAtom const &lit) const { visit(lit.atom); }
 
     // statement
 

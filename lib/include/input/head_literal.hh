@@ -68,13 +68,7 @@ struct HeadSetAggregate {
 };
 
 //! A head theory atom.
-struct HeadTheoryAtom {
-    //! Construct a head theory atom.
-    explicit HeadTheoryAtom(TheoryAtom atom) : atom{std::move(atom)} {}
-
-    //! The corresponding theory atom aggregate.
-    TheoryAtom atom;
-};
+using HeadTheoryAtom = TheoryAtom<false>;
 
 //! A head literal.
 using HeadLiteral = std::variant<Disjunction, HeadAggregate, HeadSetAggregate, HeadTheoryAtom>;

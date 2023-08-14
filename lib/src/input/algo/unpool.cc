@@ -269,23 +269,30 @@ struct Unpool {
 
     // theory
 
-    auto operator()(TheoryAtom::Element const &elem) const -> std::optional<std::vector<TheoryAtom::Element>> {
+    auto operator()(TheoryElement const &elem) const -> std::optional<std::vector<TheoryElement>> {
         return unpool_crossproducts(
             [&elem](auto cond) {
-                return TheoryAtom::Element{std::get<0>(elem), std::move(cond)};
+                return TheoryElement{std::get<0>(elem), std::move(cond)};
             },
             *this, std::get<1>(elem));
     }
 
-    auto operator()(TheoryAtom::ElementVec const &elems) const -> std::optional<std::vector<TheoryAtom::ElementVec>> {
+    auto operator()(TheoryElementVec const &elems) const -> std::optional<std::vector<TheoryElementVec>> {
         return Util::map_opt(unpool_union(elems, *this),
-                             [](auto elems) { return Util::make_vec<TheoryAtom::ElementVec>(std::move(elems)); });
+                             [](auto elems) { return Util::make_vec<TheoryElementVec>(std::move(elems)); });
     }
 
-    auto operator()(TheoryAtom const &atom) const -> std::optional<std::vector<TheoryAtom>> {
+    template <bool HasSign>
+    auto operator()(TheoryAtom<HasSign> const &atom) const
+        -> std::optional<std::vector<std::conditional_t<HasSign, BodyLiteral, HeadLiteral>>> {
         return unpool_crossproducts(
             [&atom](auto name, auto elems) {
-                return TheoryAtom{atom.loc, std::move(name), std::move(elems), atom.rhs};
+                if constexpr (HasSign) {
+                    return BodyLiteral{
+                        TheoryAtom<HasSign>{atom.loc, atom.sign, std::move(name), std::move(elems), atom.rhs}};
+                } else {
+                    return HeadLiteral{TheoryAtom<HasSign>{atom.loc, std::move(name), std::move(elems), atom.rhs}};
+                }
             },
             *this, atom.name, atom.elems);
     }
@@ -330,11 +337,6 @@ struct Unpool {
                                  [](auto aggr) -> HeadLiteral { return HeadSetAggregate{std::move(aggr)}; });
     }
 
-    auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.atom),
-                                 [](auto atom) -> HeadLiteral { return HeadTheoryAtom{std::move(atom)}; });
-    }
-
     // body literal
 
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteralVec> { return std::visit(*this, lit); }
@@ -368,12 +370,6 @@ struct Unpool {
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteralVec> {
         return Util::map_opt_vec(operator()(lit.aggr), [&lit](auto aggr) -> BodyLiteral {
             return BodySetAggregate{lit.sign, std::move(aggr)};
-        });
-    }
-
-    auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.atom), [&lit](auto atom) -> BodyLiteral {
-            return BodyTheoryAtom{lit.sign, std::move(atom)};
         });
     }
 

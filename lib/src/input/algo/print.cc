@@ -519,12 +519,15 @@ struct Print {
         }
     }
 
-    void operator()(TheoryAtom const &atom) const {
+    template <bool HasSign> void operator()(TheoryAtom<HasSign> const &atom) const {
+        if constexpr (HasSign) {
+            out << atom.sign;
+        }
         out << "&" << atom.name;
         auto const &elems = atom.elems;
         if (!elems.empty() || atom.rhs.has_value()) {
             out << " { ";
-            apply_to_range_with(elems, "; ", [this](TheoryAtom::Element const &elem) {
+            apply_to_range_with(elems, "; ", [this](TheoryElement const &elem) {
                 visit_range(elem.first);
                 if (!elem.second.empty() || elem.first.empty()) {
                     out << ": ";
@@ -567,8 +570,6 @@ struct Print {
         }
     }
 
-    void operator()(HeadTheoryAtom const &lit) const { operator()(lit.atom); }
-
     // body literals
 
     void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
@@ -595,11 +596,6 @@ struct Print {
         if (lit.rhs.has_value()) {
             out << " " << lit.rhs->first << " " << lit.rhs->second;
         }
-    }
-
-    void operator()(BodyTheoryAtom const &lit) const {
-        out << lit.sign;
-        operator()(lit.atom);
     }
 
     // visit statements

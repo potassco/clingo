@@ -134,12 +134,6 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
         return transform_construct<SetAggregate>(aggr.loc, tr(aggr.lhs), tr(aggr.elems), tr(aggr.rhs));
     }
 
-    // theory
-
-    auto operator()(TheoryAtom const &aggr) const -> std::optional<TheoryAtom> {
-        return transform_construct<TheoryAtom>(aggr.loc, tr(aggr.name), tr(aggr.elems), tr(aggr.rhs));
-    }
-
     // head literal
 
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
@@ -157,7 +151,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadTheoryAtom>(tr(lit.atom));
+        return transform_construct<HeadTheoryAtom>(lit.loc, tr(lit.name), tr(lit.elems), tr(lit.rhs));
     }
 
     // body literal
@@ -177,7 +171,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyTheoryAtom>(lit.sign, tr(lit.atom));
+        return transform_construct<BodyTheoryAtom>(lit.loc, lit.sign, tr(lit.name), tr(lit.elems), tr(lit.rhs));
     }
 
     // statement

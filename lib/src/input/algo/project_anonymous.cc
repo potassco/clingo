@@ -140,12 +140,6 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
         return transform_construct<SetAggregate>(aggr.loc, aggr.lhs, tr(aggr.elems), aggr.rhs);
     }
 
-    // theory
-
-    auto operator()(TheoryAtom const &atom) const -> std::optional<TheoryAtom> {
-        return transform_construct<TheoryAtom>(atom.loc, atom.name, tr(atom.elems), atom.rhs);
-    }
-
     // head literal
 
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
@@ -163,7 +157,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadTheoryAtom>(tr(lit.atom));
+        return transform_construct<HeadTheoryAtom>(lit.loc, lit.name, tr(lit.elems), lit.rhs);
     }
 
     // body literal
@@ -182,8 +176,10 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
         return transform_construct<BodySetAggregate>(lit.sign, tr(lit.aggr));
     }
 
+    // theory
+
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyTheoryAtom>(lit.sign, tr(lit.atom));
+        return transform_construct<BodyTheoryAtom>(lit.loc, lit.sign, lit.name, tr(lit.elems), lit.rhs);
     }
 
     // statement
