@@ -14,10 +14,10 @@ inline auto construct_head_aggr(Term term, Relation rel, HeadAggregate aggr) -> 
     return aggr;
 }
 
-inline auto construct_head_aggr(Term term, Relation rel, SetAggregate aggr) -> HeadSetAggregate {
+inline auto construct_head_aggr(Term term, Relation rel, HeadSetAggregate aggr) -> HeadSetAggregate {
     auto loc = location(term) + aggr.loc;
     aggr.lhs = LGuard::value_type{std::move(term), rel};
-    return HeadSetAggregate{std::move(aggr)};
+    return aggr;
 }
 
 } // namespace Detail
@@ -110,26 +110,25 @@ struct head_literal {
     STRING_TAG(rel_aggr, "relation or aggregate expected");
 
     static constexpr auto rule = []() {
-        auto with_rel =                                      //
-            dsl::p<head_aggregate> | dsl::p<set_aggregate> | //
+        auto with_rel =                                           //
+            dsl::p<head_aggregate> | dsl::p<head_set_aggregate> | //
             dsl::else_ >> dsl::p<term> + dsl::opt(dsl::p<right_guards>) + dsl::p<opt_condition> +
                               Detail::post_position + dsl::p<simple_disjunction_element>;
 
         auto with_term =                                                                                             //
-            dsl::p<relation> >> with_rel | dsl::p<head_aggregate> | dsl::p<set_aggregate> |                          //
+            dsl::p<relation> >> with_rel | dsl::p<head_aggregate> | dsl::p<head_set_aggregate> |                     //
             is_atom.is_set() >> dsl::p<opt_condition> + Detail::post_position + dsl::p<simple_disjunction_element> | //
             dsl::else_ >> dsl::error<expected_rel_aggr>;
 
         auto peek = dsl::peek(kw_not | dsl::symbol<atom_bool::bool_symbols>(keyword_base));
 
-        return peek >> dsl::p<simple_disjunction> | dsl::p<disjunction> |                  //
-               dsl::p<head_theory_atom> | dsl::p<head_aggregate> | dsl::p<set_aggregate> | //
+        return peek >> dsl::p<simple_disjunction> | dsl::p<disjunction> |                       //
+               dsl::p<head_theory_atom> | dsl::p<head_aggregate> | dsl::p<head_set_aggregate> | //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
 
     static constexpr auto value = lexy::callback<HeadLiteral>(
         lexy::construct<HeadLiteral>,
-        [](SetAggregate aggr) -> HeadLiteral { return HeadSetAggregate{std::move(aggr)}; },
         [](Term term, auto aggr) -> HeadLiteral {
             return Detail::construct_head_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },

@@ -127,16 +127,18 @@ struct IsTest {
         return operator()(lit.elems);
     }
 
+    // aggregates
+
+    template <bool HasSign> auto operator()(SetAggregate<HasSign> const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
     // head literal
 
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
     auto operator()(HeadAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(HeadSetAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
@@ -151,11 +153,6 @@ struct IsTest {
     auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
     auto operator()(BodyAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(BodySetAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
@@ -198,16 +195,16 @@ struct IsAtom {
         return operator()(lit.elems);
     }
 
+    template <bool HasSign> auto operator()(SetAggregate<HasSign> const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
     // head literal
 
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
     auto operator()(HeadAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(HeadSetAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
@@ -222,11 +219,6 @@ struct IsAtom {
     auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
     auto operator()(BodyAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(BodySetAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }

@@ -76,9 +76,9 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // aggregate
 
-    void operator()(SetAggregate::Element const &elem) const { visit(elem.lit, elem.cond); }
+    void operator()(SetAggregateElement const &elem) const { visit(elem.lit, elem.cond); }
 
-    void operator()(SetAggregate const &lit) const {
+    template <bool HasSign> void operator()(SetAggregate<HasSign> const &lit) const {
         if (ctx == VariableContext::all) {
             visit(lit.elems);
         }
@@ -107,8 +107,6 @@ struct VisitVariables : Visitor<VisitVariables> {
         visit(lit.lhs, lit.rhs);
     }
 
-    void operator()(HeadSetAggregate const &lit) const { visit(lit.aggr); }
-
     // body literal
 
     void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
@@ -121,8 +119,6 @@ struct VisitVariables : Visitor<VisitVariables> {
         }
         visit(lit.lhs, lit.rhs);
     }
-
-    void operator()(BodySetAggregate const &lit) const { visit(lit.aggr); }
 
     // statement
 
@@ -184,7 +180,7 @@ void visit_variables(Literal const &lit, VarVisitFun fun) { VisitVariables{std::
 
 void visit_variables(ConditionalLiteral const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}(lit); }
 
-void visit_variables(SetAggregate::Element const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}(elem); }
+void visit_variables(SetAggregateElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}(elem); }
 
 void visit_variables(HeadAggregate::Element const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}(elem); }
 

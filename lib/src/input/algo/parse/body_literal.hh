@@ -16,10 +16,10 @@ inline auto construct_body_aggr(Term term, Relation rel, BodyAggregate aggr) -> 
     return aggr;
 }
 
-inline auto construct_body_aggr(Term term, Relation rel, SetAggregate aggr) -> BodySetAggregate {
+inline auto construct_body_aggr(Term term, Relation rel, BodySetAggregate aggr) -> BodySetAggregate {
     aggr.loc.begin = location(term).begin;
     aggr.lhs = LGuard::value_type{term, rel};
-    return BodySetAggregate{Sign::none, std::move(aggr)};
+    return aggr;
 }
 
 auto construct_conjunction(Literal lit, LiteralVec cond, Position end) {
@@ -95,21 +95,21 @@ struct body_atom : lexy::transparent_production {
 
     static constexpr auto rule = []() {
         auto with_rel =
-            dsl::p<body_aggregate> | dsl::p<set_aggregate> |
+            dsl::p<body_aggregate> | dsl::p<body_set_aggregate> |
             dsl::else_ >> dsl::p<term> + dsl::opt(dsl::p<right_guards>) + dsl::p<opt_condition> + Detail::post_position;
 
         auto with_term =                                                        //
             dsl::p<relation> >> with_rel |                                      //
-            dsl::p<body_aggregate> | dsl::p<set_aggregate> |                    //
+            dsl::p<body_aggregate> | dsl::p<body_set_aggregate> |               //
             is_atom.is_set() >> dsl::p<opt_condition> + Detail::post_position | //
             dsl::else_ >> dsl::error<expected_rel_aggr>;
 
-        return dsl::p<body_theory_atom> | dsl::p<body_aggregate> | dsl::p<set_aggregate> | //
-               dsl::p<atom_bool> >> dsl::p<opt_condition> + Detail::post_position |        //
+        return dsl::p<body_theory_atom> | dsl::p<body_aggregate> | dsl::p<body_set_aggregate> | //
+               dsl::p<atom_bool> >> dsl::p<opt_condition> + Detail::post_position |             //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
     static constexpr auto value = lexy::callback<BodyLiteral>(
-        lexy::construct<BodyLiteral>, [](SetAggregate aggr) { return BodySetAggregate(Sign::none, std::move(aggr)); },
+        lexy::construct<BodyLiteral>,
         [](Term term, auto aggr) {
             return Detail::construct_body_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },

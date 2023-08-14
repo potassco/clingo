@@ -25,6 +25,14 @@ auto operator+(Sign a, Sign b) -> Sign;
 //! Combine two signs.
 auto operator+=(Sign &a, Sign b) -> Sign &;
 
+//! Simple struct with a sign.
+struct Signed {
+    Sign sign;
+};
+
+//! Simple struct without a sign.
+struct Unsigned {};
+
 //! Enumeration of relation symbols.
 enum class Relation {
     less,          //!< The less than symbol (<).

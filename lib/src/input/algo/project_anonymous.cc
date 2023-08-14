@@ -132,12 +132,8 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     // aggregate
 
-    auto operator()(SetAggregate::Element const &elem) const -> std::optional<SetAggregate::Element> {
-        return transform_construct<SetAggregate::Element>(tr(elem.lit), tr(elem.cond));
-    }
-
-    auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
-        return transform_construct<SetAggregate>(aggr.loc, aggr.lhs, tr(aggr.elems), aggr.rhs);
+    auto operator()(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
+        return transform_construct<SetAggregateElement>(tr(elem.lit), tr(elem.cond));
     }
 
     // head literal
@@ -153,7 +149,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadSetAggregate>(tr(lit.aggr));
+        return transform_construct<HeadSetAggregate>(lit.loc, lit.lhs, tr(lit.elems), lit.rhs);
     }
 
     auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
@@ -173,7 +169,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodySetAggregate>(lit.sign, tr(lit.aggr));
+        return transform_construct<BodySetAggregate>(lit.loc, lit.sign, lit.lhs, tr(lit.elems), lit.rhs);
     }
 
     // theory

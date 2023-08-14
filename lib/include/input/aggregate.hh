@@ -41,34 +41,38 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
     return fun == AggregateFunction::sum;
 }
 
+//! An element of a set aggregate.
+struct SetAggregateElement {
+    //! The literal.
+    Literal lit;
+    //! The condition.
+    LiteralVec cond;
+};
+
+//! A vector of set aggregate elements.
+using SetAggregateElementVec = std::vector<SetAggregateElement>;
+
 //! A set aggregate.
 //!
 //! For example: <tt>{ p(X): q(X) } = 1</tt>.
-struct SetAggregate {
-    //! An element of a set aggregate.
-    struct Element {
-        //! The literal.
-        Literal lit;
-        //! The condition.
-        LiteralVec cond;
-    };
-    //! A vector of set aggregate elements.
-    using ElementVec = std::vector<Element>;
+template <bool HasSign> struct SetAggregate : std::conditional_t<HasSign, Signed, Unsigned> {
 
     //! Construct a set aggregate.
-    explicit SetAggregate(Location loc, LGuard lhs, ElementVec elems, RGuard rhs)
-        : loc{std::move(loc)}, elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    explicit SetAggregate(Location loc, LGuard lhs, SetAggregateElementVec elems, RGuard rhs)
+        : loc{std::move(loc)}, elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {
+        static_assert(!HasSign);
+    }
+
     //! Construct a set aggregate.
-    explicit SetAggregate(Location loc, ElementVec elems)
-        : SetAggregate{std::move(loc), std::nullopt, std::move(elems), std::nullopt} {}
-    //! Construct a set aggregate.
-    explicit SetAggregate(Location loc, ElementVec elems, Relation rel, Term rhs)
-        : SetAggregate{std::move(loc), std::nullopt, std::move(elems), std::make_pair(rel, std::move(rhs))} {}
+    explicit SetAggregate(Location loc, Sign sign, LGuard lhs, SetAggregateElementVec elems, RGuard rhs)
+        : Signed{sign}, loc{std::move(loc)}, elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {
+        static_assert(HasSign);
+    }
 
     //! The location of the aggregate.
     Location loc;
     //! The elements of the set aggregate.
-    ElementVec elems;
+    SetAggregateElementVec elems;
     //! The optical right guard of the aggregate.
     LGuard lhs;
     //! The optical left guard of the aggregate.

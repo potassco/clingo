@@ -245,24 +245,31 @@ struct Unpool {
         });
     }
 
-    auto operator()(SetAggregate::Element const &elem) const -> std::optional<std::vector<SetAggregate::Element>> {
+    auto operator()(SetAggregateElement const &elem) const -> std::optional<std::vector<SetAggregateElement>> {
         return unpool_crossproducts(
             [](auto lit, auto cond) {
-                return SetAggregate::Element{std::move(lit), std::move(cond)};
+                return SetAggregateElement{std::move(lit), std::move(cond)};
             },
             *this, elem.lit, elem.cond);
     }
 
-    auto operator()(SetAggregate::ElementVec const &elems) const
-        -> std::optional<std::vector<SetAggregate::ElementVec>> {
+    auto operator()(SetAggregateElementVec const &elems) const -> std::optional<std::vector<SetAggregateElementVec>> {
         return Util::map_opt(unpool_union(elems, *this),
-                             [](auto elems) { return Util::make_vec<SetAggregate::ElementVec>(std::move(elems)); });
+                             [](auto elems) { return Util::make_vec<SetAggregateElementVec>(std::move(elems)); });
     }
 
-    auto operator()(SetAggregate const &aggr) const -> std::optional<std::vector<SetAggregate>> {
+    template <bool HasSign>
+    auto operator()(SetAggregate<HasSign> const &aggr) const
+        -> std::optional<std::vector<std::conditional_t<HasSign, BodyLiteral, HeadLiteral>>> {
         return unpool_crossproducts(
             [&aggr](auto lhs, auto elems, auto rhs) {
-                return SetAggregate{aggr.loc, std::move(lhs), std::move(elems), std::move(rhs)};
+                if constexpr (HasSign) {
+                    return BodyLiteral{
+                        SetAggregate<HasSign>{aggr.loc, aggr.sign, std::move(lhs), std::move(elems), std::move(rhs)}};
+                } else {
+                    return HeadLiteral{
+                        SetAggregate<HasSign>{aggr.loc, std::move(lhs), std::move(elems), std::move(rhs)}};
+                }
             },
             *this, aggr.lhs, aggr.elems, aggr.rhs);
     }
@@ -332,11 +339,6 @@ struct Unpool {
             *this, lit.lhs, lit.elems, lit.rhs);
     }
 
-    auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.aggr),
-                                 [](auto aggr) -> HeadLiteral { return HeadSetAggregate{std::move(aggr)}; });
-    }
-
     // body literal
 
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteralVec> { return std::visit(*this, lit); }
@@ -365,12 +367,6 @@ struct Unpool {
                 return BodyAggregate{aggr.loc, aggr.sign, std::move(lhs), aggr.fun, std::move(elems), std::move(rhs)};
             },
             *this, aggr.lhs, aggr.elems, aggr.rhs);
-    }
-
-    auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.aggr), [&lit](auto aggr) -> BodyLiteral {
-            return BodySetAggregate{lit.sign, std::move(aggr)};
-        });
     }
 
     // statement

@@ -126,12 +126,8 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 
     // set aggregate
 
-    auto operator()(SetAggregate::Element const &elem) const -> std::optional<SetAggregate::Element> {
-        return transform_construct<SetAggregate::Element>(tr(elem.lit), tr(elem.cond));
-    }
-
-    auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
-        return transform_construct<SetAggregate>(aggr.loc, tr(aggr.lhs), tr(aggr.elems), tr(aggr.rhs));
+    auto operator()(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
+        return transform_construct<SetAggregateElement>(tr(elem.lit), tr(elem.cond));
     }
 
     // head literal
@@ -139,7 +135,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
 
     auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadSetAggregate>(tr(lit.aggr));
+        return transform_construct<HeadSetAggregate>(lit.loc, tr(lit.lhs), tr(lit.elems), tr(lit.rhs));
     }
 
     auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
@@ -159,7 +155,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
 
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodySetAggregate>(lit.sign, tr(lit.aggr));
+        return transform_construct<BodySetAggregate>(lit.loc, lit.sign, tr(lit.lhs), tr(lit.elems), tr(lit.rhs));
     }
 
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {

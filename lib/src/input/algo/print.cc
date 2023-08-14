@@ -501,7 +501,10 @@ struct Print {
         }
     }
 
-    void operator()(SetAggregate const &aggr) const {
+    template <bool HasSign> void operator()(SetAggregate<HasSign> const &aggr) const {
+        if constexpr (HasSign) {
+            out << aggr.sign;
+        }
         if (aggr.lhs.has_value()) {
             out << aggr.lhs->first << " " << aggr.lhs->second << " ";
         }
@@ -546,8 +549,6 @@ struct Print {
 
     void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
 
-    void operator()(HeadSetAggregate const &lit) const { operator()(lit.aggr); }
-
     void operator()(HeadAggregate const &lit) const {
         auto const &lhs = lit.lhs;
         auto const &rhs = lit.rhs;
@@ -573,11 +574,6 @@ struct Print {
     // body literals
 
     void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
-
-    void operator()(BodySetAggregate const &lit) const {
-        out << lit.sign;
-        operator()(lit.aggr);
-    }
 
     void operator()(BodyAggregate const &lit) const {
         out << lit.sign;

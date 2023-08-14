@@ -171,20 +171,13 @@ struct Project : Transformer<Project> {
 
     // aggregate
 
-    auto operator()(SetAggregate::Element const &elem) const -> std::optional<SetAggregate::Element> {
+    auto operator()(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
         // add counts of local variables
         auto counts = get_counts(project, elem);
         auto sub_project = Project{Projection{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<SetAggregate::Element>(elem.lit, tr(elem.cond));
-    }
-
-    auto operator()(SetAggregate const &aggr) const -> std::optional<SetAggregate> {
-        if (!in_classical_scope && reduct_is_nonmonotone(aggr.lhs, AggregateFunction::count, aggr.rhs)) {
-            return std::nullopt;
-        }
-        return transform_construct<SetAggregate>(aggr.loc, aggr.lhs, tr(aggr.elems), aggr.rhs);
+        return sub_project.transform_construct<SetAggregateElement>(elem.lit, tr(elem.cond));
     }
 
     // head literal
@@ -213,8 +206,7 @@ struct Project : Transformer<Project> {
         // Note that we can always project in conditions. Semantic-wise a head
         // aggregate is a shortcut for a choice rule + a body aggregate in an
         // integrity constraint.
-        auto sub_project = Project{project, true, true};
-        return sub_project.transform_construct<HeadSetAggregate>(tr(lit.aggr));
+        return transform_construct<HeadSetAggregate>(lit.loc, lit.lhs, tr(lit.elems), lit.rhs);
     }
 
     // body literal
@@ -238,8 +230,11 @@ struct Project : Transformer<Project> {
     }
 
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
-        auto sub_project = Project{project, in_classical_scope || lit.sign != Sign::none};
-        return sub_project.transform_construct<BodySetAggregate>(lit.sign, tr(lit.aggr));
+        if (lit.sign == Sign::none && !in_classical_scope &&
+            reduct_is_nonmonotone(lit.lhs, AggregateFunction::count, lit.rhs)) {
+            return std::nullopt;
+        }
+        return transform_construct<BodySetAggregate>(lit.loc, lit.sign, lit.lhs, tr(lit.elems), lit.rhs);
     }
 
     auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {

@@ -57,15 +57,7 @@ struct HeadAggregate {
 };
 
 //! A head set aggregate.
-//!
-//! For example: <tt>#count { p(X): q(X) } = 1</tt>
-struct HeadSetAggregate {
-    //! Construct a head set aggregate.
-    explicit HeadSetAggregate(SetAggregate aggr) : aggr{std::move(aggr)} {}
-
-    //! The set aggregate.
-    SetAggregate aggr;
-};
+using HeadSetAggregate = SetAggregate<false>;
 
 //! A head theory atom.
 using HeadTheoryAtom = TheoryAtom<false>;

@@ -159,6 +159,7 @@ template <class It> class State {
 };
 
 template <class P> struct root : Grammar::control {
+    static constexpr auto name = P::name;
     static constexpr auto rule = lexy::dsl::p<P> + lexy::dsl::eof;
     static constexpr auto value = lexy::forward<typename decltype(P::value)::return_type>;
 };

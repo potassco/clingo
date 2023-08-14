@@ -136,14 +136,6 @@ using TheoryElement = std::pair<TheoryTermVec, LiteralVec>;
 //! A vector of theory atom elements.
 using TheoryElementVec = std::vector<TheoryElement>;
 
-//! Simple struct with a sign.
-struct Signed {
-    Sign sign;
-};
-
-//! Simple struct without a sign.
-struct Unsigned {};
-
 //! A theory atom.
 //!
 //! For example: <tt>&sum { X+Y: p(X), q(Y) } >= 0</tt>.

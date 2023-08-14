@@ -9,13 +9,13 @@
 
 namespace Gringo::Input {
 
+template <class U> struct TranslateArgument {
+    U const &orig;
+    std::optional<U> transformed;
+};
+
 template <class T> class Transformer {
   public:
-    template <class U> struct TranslateArgument {
-        U const &orig;
-        std::optional<U> transformed;
-    };
-
     template <class U> auto tr(U const &arg) const { return TranslateArgument<U>{arg, std::nullopt}; }
 
     template <class U> auto transform(U const &x) const -> std::optional<U> {

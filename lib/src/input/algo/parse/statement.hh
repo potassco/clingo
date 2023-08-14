@@ -410,7 +410,7 @@ struct statement_rule {
     static constexpr char const *name = "rule";
     static constexpr auto rule = []() {
         auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body>;
-        return Detail::location(if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body) + eos);
+        return Detail::location((if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body)) + eos);
     }();
     static constexpr auto value = lexy::callback<Statement>(
         [](Location loc, HeadLiteral head, BodyLiteralVec body) {

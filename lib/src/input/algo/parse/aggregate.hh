@@ -6,6 +6,16 @@
 
 namespace Gringo::Input::Grammar {
 
+namespace Detail {
+template <bool HasSign> static auto construct_set_aggregate(Location loc, SetAggregateElementVec elems, RGuard rhs) {
+    if constexpr (HasSign) {
+        return SetAggregate<HasSign>{std::move(loc), Sign::none, std::nullopt, std::move(elems), std::move(rhs)};
+    } else {
+        return SetAggregate<HasSign>{std::move(loc), std::nullopt, std::move(elems), std::move(rhs)};
+    }
+}
+} // namespace Detail
+
 struct aggregate_function {
     static constexpr char const *name = "aggregate function";
     static constexpr auto symbols = lexy::symbol_table<AggregateFunction> //
@@ -49,8 +59,8 @@ struct conditional_literal {
 struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::callback<SetAggregate::Element>([](Literal lit, LiteralVec cond) {
-        return SetAggregate::Element{std::move(lit), std::move(cond)};
+    static constexpr auto value = lexy::callback<SetAggregateElement>([](Literal lit, LiteralVec cond) {
+        return SetAggregateElement{std::move(lit), std::move(cond)};
     });
 };
 
@@ -102,23 +112,28 @@ struct set_aggregate_elements {
     static constexpr char const *name = "set aggregate elements";
     static constexpr auto rule =
         dsl::opt(dsl::peek_not(LEXY_LIT("}")) >> dsl::list(dsl::p<set_aggregate_element>, dsl::sep(LEXY_LIT(";"))));
-    static constexpr auto value = lexy::as_list<SetAggregate::ElementVec>;
+    static constexpr auto value = lexy::as_list<SetAggregateElementVec>;
 };
 
-struct set_aggregate {
+template <bool HasSign> struct set_aggregate {
     static constexpr char const *name = "set aggregate";
     static constexpr auto rule =
         Detail::location(LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >> LEXY_LIT("}") + aggregate_right_guard);
-    static constexpr auto value = lexy::callback<SetAggregate>(
-        [](Location loc, SetAggregate::ElementVec elems) {
-            return SetAggregate{std::move(loc), std::move(elems)};
+    static constexpr auto value = lexy::callback<SetAggregate<HasSign>>(
+        [](Location loc, SetAggregateElementVec elems) {
+            return Detail::construct_set_aggregate<HasSign>(std::move(loc), std::move(elems), std::nullopt);
         },
-        [](Location loc, SetAggregate::ElementVec elems, Term rhs) {
-            return SetAggregate{std::move(loc), std::move(elems), Relation::less_equal, std::move(rhs)};
+        [](Location loc, SetAggregateElementVec elems, Term rhs) {
+            return Detail::construct_set_aggregate<HasSign>(std::move(loc), std::move(elems),
+                                                            RGuard::value_type{Relation::less_equal, std::move(rhs)});
         },
-        [](Location loc, SetAggregate::ElementVec elems, Relation rel, Term rhs) {
-            return SetAggregate{std::move(loc), std::move(elems), rel, std::move(rhs)};
+        [](Location loc, SetAggregateElementVec elems, Relation rel, Term rhs) {
+            return Detail::construct_set_aggregate<HasSign>(std::move(loc), std::move(elems),
+                                                            RGuard::value_type{rel, std::move(rhs)});
         });
 };
+
+using body_set_aggregate = set_aggregate<true>;
+using head_set_aggregate = set_aggregate<false>;
 
 } // namespace Gringo::Input::Grammar

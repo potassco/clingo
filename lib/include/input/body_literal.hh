@@ -52,17 +52,7 @@ struct BodyAggregate {
 };
 
 //! A body set aggregate.
-//!
-//! For example: <tt>#count { p(X): q(X) } = 1</tt>
-struct BodySetAggregate {
-    //! Construct a body set aggregate.
-    explicit BodySetAggregate(Sign sign, SetAggregate aggr) : sign{sign}, aggr{std::move(aggr)} {}
-
-    //! The sign of the literal.
-    Sign sign;
-    //! The corresponding set aggregate.
-    SetAggregate aggr;
-};
+using BodySetAggregate = SetAggregate<true>;
 
 //! A body theory atom.
 using BodyTheoryAtom = TheoryAtom<true>;

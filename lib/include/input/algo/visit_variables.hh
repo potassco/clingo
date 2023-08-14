@@ -32,7 +32,7 @@ void visit_variables(Literal const &lit, VarVisitFun fun);
 //! Visit variables with the given function.
 void visit_variables(ConditionalLiteral const &lit, VarVisitFun fun);
 //! Visit variables with the given function.
-void visit_variables(SetAggregate::Element const &elem, VarVisitFun fun);
+void visit_variables(SetAggregateElement const &elem, VarVisitFun fun);
 //! Visit variables with the given function.
 void visit_variables(HeadAggregate::Element const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
