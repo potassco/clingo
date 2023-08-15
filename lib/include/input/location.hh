@@ -49,8 +49,6 @@ inline auto operator+(Position a, Position b) -> Location { return {std::move(a)
 
 template <class T> auto location(T &x) -> decltype((x.loc)) { return x.loc; }
 
-template <class T> auto location(T &x) -> decltype((x.aggr.loc)) { return x.aggr.loc; }
-
 template <class... T> auto location(std::variant<T...> &x) -> Location const & {
     return std::visit([](auto &y) -> Location & { return location(y); }, x);
 }

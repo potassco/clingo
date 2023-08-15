@@ -165,7 +165,7 @@ struct Project : Transformer<Project> {
         // Projection in conjunction:
         // - variables in premise if in classical scope,
         // - variables in conclusion.
-        auto sub_project = Project{project, !Conjunctive | in_classical_scope, Conjunctive};
+        auto sub_project = Project{project, !Conjunctive || in_classical_scope, Conjunctive};
         return sub_project.transform_construct<Junction<Conjunctive>>(lit.loc, tr(lit.elems));
     }
 
