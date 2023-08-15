@@ -184,6 +184,11 @@ struct Project : Transformer<Project> {
 
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
 
+    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteral> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
     auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
         static_cast<void>(lit);
         return std::nullopt;

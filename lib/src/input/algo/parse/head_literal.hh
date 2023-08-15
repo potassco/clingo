@@ -33,8 +33,13 @@ struct simple_disjunction_element {
 struct simple_disjunction {
     static constexpr char const *name = "disjunction";
     static constexpr auto rule = dsl::list(dsl::p<conditional_literal>, dsl::sep(disjunction_sep));
-    static constexpr auto value = lexy::as_list<ConditionalLiteralVec> >> lexy::callback<HeadLiteral>([](auto elems) {
+    static constexpr auto value = lexy::as_list<ConditionalLiteralVec> >>
+                                  lexy::callback<HeadLiteral>([](ConditionalLiteralVec elems) -> HeadLiteral {
                                       auto loc = location(elems.front()) + location(elems.back());
+                                      if (elems.size() == 1 && elems.front().lits.size() == 1 &&
+                                          elems.front().cond.empty()) {
+                                          return SimpleHeadLiteral{std::move(elems).front().lits.front()};
+                                      }
                                       return Disjunction{std::move(loc), std::move(elems)};
                                   });
 };
@@ -142,25 +147,25 @@ struct head_literal {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
-            auto loc_rel = location(lhs) + location(guards.back().second);
-            auto loc_lit = loc_rel + std::move(end);
+            auto rel_lit = LiteralRelation{location(lhs) + location(guards.back().second), Sign::none, std::move(lhs),
+                                           std::move(guards)};
+            if (elems.empty() && cond.empty()) {
+                return SimpleHeadLiteral{std::move(rel_lit)};
+            }
+            auto loc_lit = location(rel_lit) + std::move(end);
             elems.insert(elems.begin(),
-                         ConditionalLiteral{std::move(loc_lit),
-                                            LiteralVec{LiteralRelation{std::move(loc_rel), Sign::none, std::move(lhs),
-                                                                       std::move(guards)}},
-                                            std::move(cond)});
-            auto loc = location(elems.front()) + location(elems.back());
-            return Disjunction{std::move(loc), std::move(elems)};
+                         ConditionalLiteral{std::move(loc_lit), LiteralVec{std::move(rel_lit)}, std::move(cond)});
+            return Disjunction{location(elems.front()) + location(elems.back()), std::move(elems)};
         },
-        [](Term term, LiteralVec cond, Position end, ConditionalLiteralVec elems) {
-            auto loc_sym = location(term);
-            auto loc_lit = loc_sym + std::move(end);
-            elems.insert(elems.begin(), ConditionalLiteral{std::move(loc_lit),
-                                                           LiteralVec{LiteralSymbolic{std::move(loc_sym), Sign::none,
-                                                                                      std::move(term)}},
-                                                           std::move(cond)});
-            auto loc = location(elems.front()) + location(elems.back());
-            return Disjunction{std::move(loc), std::move(elems)};
+        [](Term term, LiteralVec cond, Position end, ConditionalLiteralVec elems) -> HeadLiteral {
+            auto sym_lit = LiteralSymbolic{location(term), Sign::none, std::move(term)};
+            if (elems.empty() && cond.empty()) {
+                return SimpleHeadLiteral{std::move(sym_lit)};
+            }
+            auto loc_lit = location(sym_lit) + std::move(end);
+            elems.insert(elems.begin(),
+                         ConditionalLiteral{std::move(loc_lit), LiteralVec{std::move(sym_lit)}, std::move(cond)});
+            return Disjunction{location(elems.front()) + location(elems.back()), std::move(elems)};
         });
 };
 

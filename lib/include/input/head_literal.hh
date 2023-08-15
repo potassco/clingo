@@ -15,6 +15,12 @@ namespace Gringo::Input {
 //!
 //! @{
 
+//! A single literal in a rule head.
+struct SimpleHeadLiteral {
+    SimpleHeadLiteral(Literal lit) : lit{std::move(lit)} {}
+    Literal lit;
+};
+
 //! A disjunction of oconditional literals.
 using Disjunction = Junction<false>;
 
@@ -63,7 +69,7 @@ using HeadSetAggregate = SetAggregate<false>;
 using HeadTheoryAtom = TheoryAtom<false>;
 
 //! A head literal.
-using HeadLiteral = std::variant<Disjunction, HeadAggregate, HeadSetAggregate, HeadTheoryAtom>;
+using HeadLiteral = std::variant<SimpleHeadLiteral, Disjunction, HeadAggregate, HeadSetAggregate, HeadTheoryAtom>;
 //! A vector of head literals.
 using HeadLiteralVec = std::vector<HeadLiteral>;
 

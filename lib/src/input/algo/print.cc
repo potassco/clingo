@@ -291,6 +291,10 @@ auto right_bracket(TheoryTermTupleType type) -> char {
 }
 
 struct Print {
+    // protect ourselves -> no unintended overloads
+
+    template <class T> void operator()(T const &x) const = delete;
+
     // generic
 
     void apply_to_range_with(auto const &rng, char const *sep, auto const &fun) const {
@@ -548,6 +552,8 @@ struct Print {
     // head literals
 
     void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
+
+    void operator()(SimpleHeadLiteral const &lit) const { operator()(lit.lit); }
 
     void operator()(HeadAggregate const &lit) const {
         auto const &lhs = lit.lhs;

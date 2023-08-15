@@ -317,6 +317,11 @@ struct Unpool {
 
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteralVec> { return std::visit(*this, lit); }
 
+    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteralVec> {
+        return Util::map_opt_vec(operator()(lit.lit),
+                                 [](auto lit) -> HeadLiteral { return SimpleHeadLiteral{std::move(lit)}; });
+    }
+
     auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::ElementVec> {
         return unpool_crossproducts(
             [](auto tuple, auto lit, auto cond) {

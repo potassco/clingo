@@ -140,6 +140,8 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
 
+    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteral> { return operator()(lit.lit); }
+
     auto operator()(HeadAggregate::Element const &lit) const -> std::optional<HeadAggregate::Element> {
         return transform_construct<HeadAggregate::Element>(lit.tuple, tr(lit.lit), tr(lit.cond));
     }

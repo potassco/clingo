@@ -98,6 +98,8 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
 
+    void operator()(SimpleHeadLiteral const &lit) const { operator()(lit.lit); }
+
     void operator()(HeadAggregate::Element const &elem) const { visit(elem.tuple, elem.lit, elem.cond); }
 
     void operator()(HeadAggregate const &lit) const {

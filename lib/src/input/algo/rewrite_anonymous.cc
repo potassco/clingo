@@ -134,6 +134,8 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
 
+    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteral> { return operator()(lit.lit); }
+
     auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
         return transform_construct<HeadSetAggregate>(lit.loc, tr(lit.lhs), tr(lit.elems), tr(lit.rhs));
     }

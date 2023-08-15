@@ -7,6 +7,12 @@ namespace Gringo::Input {
 namespace {
 
 struct CheckType {
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &x) const -> bool = delete;
+
+    // terms
+
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
     auto operator()(TermSymbol const &term) const -> bool {
@@ -94,6 +100,9 @@ struct CheckType {
 };
 
 struct IsTest {
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &x) const -> bool = delete;
 
     // literals
 
@@ -138,6 +147,8 @@ struct IsTest {
 
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
+    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit); }
+
     auto operator()(HeadAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
@@ -164,6 +175,9 @@ struct IsTest {
 };
 
 struct IsAtom {
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &x) const -> bool = delete;
 
     // literal
 
@@ -204,6 +218,8 @@ struct IsAtom {
 
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
+    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit); }
+
     auto operator()(HeadAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
@@ -230,10 +246,15 @@ struct IsAtom {
 };
 
 struct IsClassical {
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &x) const -> bool = delete;
 
     // head literal
 
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+
+    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return !is_atom(lit.lit); }
 
     auto operator()(HeadAggregate const &lit) const -> bool {
         static_cast<void>(lit);
