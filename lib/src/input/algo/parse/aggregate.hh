@@ -80,18 +80,22 @@ struct junction_element {
                                       });
 };
 
-template <class E, class J, class L> struct junction {
+template <class S, class J, class L> struct junction {
     static constexpr auto make_rule = [](auto kw) {
         auto sep = dsl::sep(LEXY_LIT(";"));
-        auto elems = dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
+        auto elems = dsl::curly_bracketed.opt_list(dsl::p<junction_element>, sep);
         return Detail::location(kw >> elems);
     };
     static constexpr auto value = lexy::as_list<ConditionalLiteralVec> >>
                                   lexy::callback<L>(
-                                      [](Location loc, ConditionalLiteralVec elems) {
+                                      [](Location loc, ConditionalLiteralVec elems) -> L {
+                                          if (elems.size() == 1 && elems.front().lits.size() == 1 &&
+                                              elems.front().cond.empty()) {
+                                              return S{std::move(elems.front().lits.front())};
+                                          }
                                           return J{std::move(loc), ConditionalLiteralVec{std::move(elems)}};
                                       },
-                                      [](Location loc, lexy::nullopt) {
+                                      [](Location loc, lexy::nullopt) -> L {
                                           return J{std::move(loc), ConditionalLiteralVec{}};
                                       });
 };

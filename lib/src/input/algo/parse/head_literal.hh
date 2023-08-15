@@ -49,7 +49,7 @@ struct disjunction_element : private junction_element {
     using junction_element::value;
 };
 
-struct disjunction : private junction<disjunction_element, Disjunction, HeadLiteral> {
+struct disjunction : private junction<SimpleHeadLiteral, Disjunction, HeadLiteral> {
     static constexpr auto rule = make_rule(LEXY_KEYWORD("#or", keyword_base));
     using junction::value;
 };

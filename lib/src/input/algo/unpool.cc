@@ -348,6 +348,11 @@ struct Unpool {
 
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteralVec> { return std::visit(*this, lit); }
 
+    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteralVec> {
+        return Util::map_opt_vec(operator()(lit.lit),
+                                 [](auto lit) -> BodyLiteral { return SimpleBodyLiteral{std::move(lit)}; });
+    }
+
     auto operator()(BodyLiteralVec const &lits) const -> std::optional<std::vector<BodyLiteralVec>> {
         return unpool_crossproduct(lits, *this);
     }

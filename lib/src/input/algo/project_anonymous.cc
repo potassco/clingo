@@ -162,6 +162,8 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
 
+    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteral> { return operator()(lit.lit); }
+
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
         return transform_construct<BodyAggregate::Element>(elem.tuple, tr(elem.cond));
     }

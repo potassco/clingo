@@ -22,7 +22,10 @@ inline auto construct_body_aggr(Term term, Relation rel, BodySetAggregate aggr) 
     return aggr;
 }
 
-auto construct_conjunction(Literal lit, LiteralVec cond, Position end) {
+auto construct_conjunction(Literal lit, LiteralVec cond, Position end) -> BodyLiteral {
+    if (cond.empty()) {
+        return lit;
+    }
     auto loc = location(lit) + std::move(end);
     auto loc_elem = loc;
     return Conjunction{std::move(loc), ConditionalLiteralVec{ConditionalLiteral{
@@ -126,7 +129,7 @@ struct body_atom : lexy::transparent_production {
             auto lit = LiteralRelation{loc, Sign::none, std::move(lhs), std::move(guards)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
         },
-        [](Literal lit, LiteralVec cond, Position end) {
+        [](Literal lit, LiteralVec cond, Position end) -> BodyLiteral {
             return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
         },
         [](Term term, LiteralVec cond, Position end) {
@@ -136,12 +139,7 @@ struct body_atom : lexy::transparent_production {
         });
 };
 
-struct conjunction_element : private junction_element {
-    using junction_element::rule;
-    using junction_element::value;
-};
-
-struct conjunction : private junction<conjunction_element, Conjunction, BodyLiteral> {
+struct conjunction : private junction<SimpleBodyLiteral, Conjunction, BodyLiteral> {
     static constexpr auto rule = junction::make_rule(LEXY_KEYWORD("#and", keyword_base));
     using junction::value;
 };

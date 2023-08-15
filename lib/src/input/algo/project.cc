@@ -218,6 +218,8 @@ struct Project : Transformer<Project> {
 
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
 
+    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteral> { return operator()(lit.lit); }
+
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
         // counts of local variables
         auto counts = get_counts(project, elem);

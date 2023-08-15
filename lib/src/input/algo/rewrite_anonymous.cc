@@ -156,6 +156,8 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
 
+    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteral> { return operator()(lit.lit); }
+
     auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
         return transform_construct<BodySetAggregate>(lit.loc, lit.sign, tr(lit.lhs), tr(lit.elems), tr(lit.rhs));
     }

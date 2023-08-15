@@ -113,6 +113,8 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
 
+    void operator()(SimpleBodyLiteral const &lit) const { operator()(lit.lit); }
+
     void operator()(BodyAggregate::Element const &elem) const { visit(elem.tuple, elem.cond); }
 
     void operator()(BodyAggregate const &lit) const {

@@ -15,6 +15,12 @@ namespace Gringo::Input {
 //!
 //! @{
 
+//! A single literal in a rule body.
+struct SimpleBodyLiteral {
+    SimpleBodyLiteral(Literal lit) : lit{std::move(lit)} {}
+    Literal lit;
+};
+
 //! A conjunction of oconditional literals.
 using Conjunction = Junction<true>;
 
@@ -58,7 +64,7 @@ using BodySetAggregate = SetAggregate<true>;
 using BodyTheoryAtom = TheoryAtom<true>;
 
 //! A body literal.
-using BodyLiteral = std::variant<Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;
+using BodyLiteral = std::variant<SimpleBodyLiteral, Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;
 //! A vector of body literals.
 using BodyLiteralVec = std::vector<BodyLiteral>;
 

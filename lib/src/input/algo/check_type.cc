@@ -163,6 +163,8 @@ struct IsTest {
 
     auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
+    auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit); }
+
     auto operator()(BodyAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
@@ -233,6 +235,8 @@ struct IsAtom {
     // body literal
 
     auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+
+    auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit); }
 
     auto operator()(BodyAggregate const &lit) const -> bool {
         static_cast<void>(lit);

@@ -581,6 +581,8 @@ struct Print {
 
     void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
 
+    void operator()(SimpleBodyLiteral const &lit) const { operator()(lit.lit); }
+
     void operator()(BodyAggregate const &lit) const {
         out << lit.sign;
         if (lit.lhs.has_value()) {
