@@ -17,11 +17,13 @@ namespace Gringo::Input {
 
 //! A single literal in a rule head.
 struct SimpleHeadLiteral {
+    //! Wrap a literal in a head literal.
     SimpleHeadLiteral(Literal lit) : lit{std::move(lit)} {}
+    //! The literal.
     Literal lit;
 };
 
-//! A disjunction of oconditional literals.
+//! A disjunction of conditional literals.
 using Disjunction = Junction<false>;
 
 //! A head aggregate.

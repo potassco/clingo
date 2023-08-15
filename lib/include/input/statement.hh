@@ -5,9 +5,6 @@
 
 namespace Gringo::Input {
 
-// TODO:
-//   Add simple head/body literals
-
 // TODO: rewrite arithmetic
 // - p(1..X) -> Aux=1..X
 // - p(X+Y)  -> Aux=X+Y

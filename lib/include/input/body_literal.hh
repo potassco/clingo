@@ -17,14 +17,16 @@ namespace Gringo::Input {
 
 //! A single literal in a rule body.
 struct SimpleBodyLiteral {
+    //! Wrap a literal in a body literal.
     SimpleBodyLiteral(Literal lit) : lit{std::move(lit)} {}
+    //! The literal.
     Literal lit;
 };
 
-//! A conjunction of oconditional literals.
+//! A conjunction of conditional literals.
 using Conjunction = Junction<true>;
 
-//! A conjunction//! A body aggregate.
+//! A body aggregate.
 //!
 //! For example: <tt>#count { X: q(X) } = 1</tt>
 struct BodyAggregate {

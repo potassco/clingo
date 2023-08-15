@@ -27,6 +27,7 @@ auto operator+=(Sign &a, Sign b) -> Sign &;
 
 //! Simple struct with a sign.
 struct Signed {
+    //! The sign of the struct.
     Sign sign;
 };
 

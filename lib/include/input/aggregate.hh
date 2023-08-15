@@ -88,7 +88,9 @@ template <bool Conjunctive> struct Junction {
     //! Construct a conjunction.
     explicit Junction(Location loc, ConditionalLiteralVec elems) : loc{std::move(loc)}, elems{std::move(elems)} {}
 
+    //! True if this is a conjunction of conditional literals.
     static constexpr bool conjunctive = Conjunctive;
+    //! True if this is a disjunction of conditional literals.
     static constexpr bool disjunctive = !Conjunctive;
 
     //! The location of the literal.
