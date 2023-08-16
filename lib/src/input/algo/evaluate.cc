@@ -291,6 +291,7 @@ struct Evaluate {
 
     auto operator()(TermFunction const &term) const -> std::optional<Symbol> {
         if (term.pool.size() != 1) {
+            // TODO: proper error handling
             std::cerr << "pools are not permitted here" << std::endl;
             return std::nullopt;
         }
