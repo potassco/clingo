@@ -18,13 +18,11 @@ if (PARSER_BUILD_WEB)
     set(DCMAKE_EXE_LINKER_FLAGS_RELEASE "")
 endif()
 
-
 if (PARSER_BUILD_TESTS)
-    set(CATCH_BUILD_STATIC_LIBRARY ON CACHE INTERNAL "" FORCE)
     enable_testing()
-    add_subdirectory(third_party/Catch2)
 endif()
-add_subdirectory(third_party/lexy)
+
+add_subdirectory(third_party)
 add_subdirectory(lib)
 
 if (PARSER_BUILD_WEB)

@@ -112,6 +112,11 @@ template <class... Args> inline auto hash_combine(Args... args) -> size_t { retu
 //! Perturb the given seed.
 inline auto hash_mix(size_t a) -> size_t { return hash_combine({a}); }
 
+//! Function object producing perturbed hash values.
+template <class T, class H = std::hash<T>> struct mix_hasher : private H {
+    auto operator()(T const &x) const -> size_t { return H::operator()(x); }
+};
+
 //! Compute a hash using std::hash.
 template <class T> struct value_hasher : std::hash<T> {
     using std::hash<T>::operator();
