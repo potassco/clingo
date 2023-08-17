@@ -119,7 +119,7 @@ template <class T, class H = std::hash<T>> struct mix_hasher : private H {
 
 //! Compute a hash using std::hash.
 template <class T> struct value_hasher : std::hash<T> {
-    using std::hash<T>::operator();
+    auto operator()(T const &x) const -> size_t { return std::hash<T>::operator()(x); }
 };
 
 //! Recursively compute a hash for pointers, optionals, pairs, tuples, variants, and vectors.

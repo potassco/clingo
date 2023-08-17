@@ -36,18 +36,12 @@ class String {
     Impl *impl_;
 };
 
-struct String::Impl {
-    Impl(size_t hash, std::string_view str) : hash{hash} { std::copy(str.begin(), str.end(), data); }
-    size_t hash;
-    char data[0];
-};
-
 } // namespace Gringo
 
 namespace std {
 
 template <> struct std::hash<Gringo::String> {
-    auto operator()(Gringo::String str) const -> size_t { return str.impl_->hash; }
+    auto operator()(Gringo::String str) const -> size_t;
 };
 
 } // namespace std
@@ -64,31 +58,6 @@ class SymbolStore {
     mutable std::shared_mutex mut_strings_;
     hash_set<String> strings_;
 };
-
-auto SymbolStore::string(std::string_view str) -> String {
-    size_t hash = std::hash<std::string_view>{}(str);
-    {
-        std::shared_lock rlock(mut_strings_);
-        auto it = strings_.find(str, hash);
-        if (it != strings_.end()) {
-            return *it;
-        }
-    }
-    {
-        // Note: this does not work because the string might be in the map by now
-        // and the string will compare unequal to all other strings...
-        auto res = String{new (::operator new(sizeof(String::Impl) + (str.size() + 1) * sizeof(char)))
-                              String::Impl{hash, str}};
-        std::unique_lock ulock(mut_strings_);
-        return *strings_.insert(res).first;
-    }
-}
-
-SymbolStore::~SymbolStore() noexcept {
-    for (auto str : strings_) {
-        delete str.impl_;
-    }
-}
 
 /*
 

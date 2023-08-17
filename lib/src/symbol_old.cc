@@ -1,27 +1,55 @@
-// {{{ MIT License
+#include <mutex>
+#include <symbol_old.hh>
 
-// Copyright 2017 Roland Kaminski
+namespace Gringo {
 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to
-// deal in the Software without restriction, including without limitation the
-// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-// sell copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+struct String::Impl {
+    Impl(size_t hash, std::string_view str) : hash{hash} {
+        std::copy(str.begin(), str.end(), data);
+        data[str.size()] = '\0';
+    }
+    size_t hash;
+    char data[0];
+};
 
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
+auto SymbolStore::string(std::string_view str) -> String {
+    size_t hash = std::hash<std::string_view>{}(str);
+    {
+        std::shared_lock rlock{mut_strings_};
+        auto it = strings_.find(str, hash);
+        if (it != strings_.end()) {
+            return *it;
+        }
+    }
+    {
+        auto res = String{new (::operator new(sizeof(String::Impl) + (str.size() + 1) * sizeof(char)))
+                              String::Impl{hash, str}};
+        std::unique_lock ulock{mut_strings_};
+        // Note: in multi-threaded mode there is the chance that the string has
+        // been inserted in the mean time.
+        auto it = strings_.find(str, hash);
+        if (it != strings_.end()) {
+            return *it;
+        }
+        return *strings_.insert(res).first;
+    }
+}
 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+SymbolStore::~SymbolStore() noexcept {
+    for (auto str : strings_) {
+        delete str.impl_;
+    }
+}
 
-// }}}
+} // namespace Gringo
 
+namespace std {
+
+auto hash<Gringo::String>::operator()(Gringo::String str) const -> size_t { return str.impl_->hash; }
+
+} // namespace std
+
+/*
 #include <algorithm>
 #include <cstring>
 #include <gringo/hash_set.hh>
@@ -676,3 +704,4 @@ void Symbol::print(std::ostream &out) const {
 // }}}1
 
 } // namespace Gringo
+*/
