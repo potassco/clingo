@@ -6,7 +6,11 @@
 
 namespace Gringo {
 
-class SymbolStore;
+//! The supremum and infimum constants.
+enum class Constant : int {
+    supremum, //!< The supremum (<tt>\#sup</tt>).
+    infimum,  //!< The infimum (<tt>\#inf</tt>).
+};
 
 class String {
   public:
@@ -16,21 +20,17 @@ class String {
     [[nodiscard]] auto size() const -> size_t;
     [[nodiscard]] auto starts_with(char const *prefix) const -> bool;
     [[nodiscard]] auto hash() const -> size_t;
-    friend auto to_rep(String s) noexcept -> uintptr_t;
-    friend auto from_rep(uintptr_t t) noexcept -> String;
-    friend struct std::hash<String>;
-    friend auto operator==(String a, String b) -> bool { return a.impl_ == b.impl_; }
+
+    friend auto operator==(String a, String b) -> bool { return a.rep_ == b.rep_; }
     friend auto operator==(String a, std::string_view b) -> bool { return a.view() == b; }
     friend auto operator==(std::string_view a, String b) -> bool { return a == b.view(); }
 
-  private:
-    friend class Symbol;
-    friend class UnlockedSymbolStore;
-    friend class LockedSymbolStore;
-    struct Impl;
+    static auto to_rep(String str) noexcept -> uint64_t { return str.rep_; }
+    static auto from_rep(uint64_t rep) noexcept -> String { return String{rep}; }
 
-    String(Impl *impl) noexcept;
-    Impl *impl_;
+  private:
+    String(uintptr_t) noexcept;
+    uintptr_t rep_;
 };
 
 enum class SymbolType { number, sup, inf, string, tuple, function };
@@ -46,36 +46,59 @@ class Symbol {
     [[nodiscard]] auto name() const noexcept -> String;
     [[nodiscard]] auto args() const noexcept -> SymbolSpan;
 
-    friend auto operator==(Symbol a, Symbol b) -> bool { return a.repr_ == b.repr_; }
+    friend auto operator==(Symbol a, Symbol b) -> bool { return a.rep_ == b.rep_; }
+
+    static auto to_rep(Symbol sym) noexcept -> uint64_t { return sym.rep_; }
+    static auto from_rep(uint64_t rep) noexcept -> Symbol { return Symbol{rep}; }
 
   private:
-    friend class UnlockedSymbolStore;
-    friend class LockedSymbolStore;
-
-    Symbol() : repr_{0} {}
-    Symbol(uint64_t repr) noexcept : repr_{repr} {}
-    uint64_t repr_;
+    Symbol(uint64_t repr) noexcept : rep_{repr} {}
+    uint64_t rep_;
 };
 
 class SymbolStore {
   public:
+    [[nodiscard]] static auto number(int32_t num) noexcept -> Symbol;
+    [[nodiscard]] static auto string(String str) noexcept -> Symbol;
     [[nodiscard]] virtual auto tuple(SymbolSpan args) -> Symbol = 0;
     [[nodiscard]] virtual auto function(String str, SymbolSpan args) -> Symbol = 0;
     [[nodiscard]] virtual auto string(std::string_view str) -> String = 0;
-    virtual void destroy(String str) noexcept = 0;
     virtual ~SymbolStore() noexcept = default;
 };
+
+using USymbolStore = std::unique_ptr<SymbolStore>;
+
+//! Initialize the default symbol store.
+//!
+//! Fails if there is already a default one.
+void init_default_symbol_store(USymbolStore store);
+
+//! Get the default symbol store.
+//!
+//! If no symbol store has been set, a default one that is *not* thread-safe is
+//! setup and returned.
+auto default_symbol_store() -> SymbolStore &;
+
+//! Construct a new symbol store.
+//!
+//! Either a default store for single-threaded use or a locked one for
+//! multi-threaded use can be created.
+auto make_symbol_store(bool shared) -> USymbolStore;
 
 } // namespace Gringo
 
 namespace std {
 
-template <> struct std::hash<Gringo::String> {
-    auto operator()(Gringo::String str) const -> size_t;
+template <> struct hash<Gringo::String> {
+    auto operator()(Gringo::String str) const -> size_t {
+        return Gringo::Util::value_hash(Gringo::String::to_rep(str));
+    }
 };
 
-template <> struct std::hash<Gringo::Symbol> {
-    auto operator()(Gringo::Symbol sym) const -> size_t;
+template <> struct hash<Gringo::Symbol> {
+    auto operator()(Gringo::Symbol sym) const -> size_t {
+        return Gringo::Util::value_hash(Gringo::Symbol::to_rep(sym));
+    }
 };
 
 } // namespace std
