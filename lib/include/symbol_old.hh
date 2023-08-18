@@ -1,15 +1,10 @@
 #pragma once
 
-#include <shared_mutex>
+#include <span>
 #include <string>
-#include <tsl/hopscotch_set.h>
 #include <util/hash.hh>
 
 namespace Gringo {
-
-template <class Key, class Hash = Util::value_hasher<Key>, class KeyEqual = std::equal_to<>,
-          class Allocator = std::allocator<Key>, unsigned int NeighborhoodSize = 62, bool StoreHash = false> // NOLINT
-using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
 
 class SymbolStore;
 
@@ -29,11 +24,46 @@ class String {
     friend auto operator==(std::string_view a, String b) -> bool { return a == b.view(); }
 
   private:
-    friend class SymbolStore;
+    friend class Symbol;
+    friend class UnlockedSymbolStore;
+    friend class LockedSymbolStore;
     struct Impl;
 
     String(Impl *impl) noexcept;
     Impl *impl_;
+};
+
+enum class SymbolType { number, sup, inf, string, tuple, function };
+
+class Symbol;
+using SymbolSpan = std::span<Symbol const>;
+
+class Symbol {
+  public:
+    [[nodiscard]] auto type() const noexcept -> SymbolType;
+    [[nodiscard]] auto num() const noexcept -> int32_t;
+    [[nodiscard]] auto str() const noexcept -> String;
+    [[nodiscard]] auto name() const noexcept -> String;
+    [[nodiscard]] auto args() const noexcept -> SymbolSpan;
+
+    friend auto operator==(Symbol a, Symbol b) -> bool { return a.repr_ == b.repr_; }
+
+  private:
+    friend class UnlockedSymbolStore;
+    friend class LockedSymbolStore;
+
+    Symbol() : repr_{0} {}
+    Symbol(uint64_t repr) noexcept : repr_{repr} {}
+    uint64_t repr_;
+};
+
+class SymbolStore {
+  public:
+    [[nodiscard]] virtual auto tuple(SymbolSpan args) -> Symbol = 0;
+    [[nodiscard]] virtual auto function(String str, SymbolSpan args) -> Symbol = 0;
+    [[nodiscard]] virtual auto string(std::string_view str) -> String = 0;
+    virtual void destroy(String str) noexcept = 0;
+    virtual ~SymbolStore() noexcept = default;
 };
 
 } // namespace Gringo
@@ -44,20 +74,11 @@ template <> struct std::hash<Gringo::String> {
     auto operator()(Gringo::String str) const -> size_t;
 };
 
-} // namespace std
-
-namespace Gringo {
-
-class SymbolStore {
-  public:
-    [[nodiscard]] auto string(std::string_view str) -> String;
-    void destroy(String str) noexcept;
-    ~SymbolStore() noexcept;
-
-  private:
-    mutable std::shared_mutex mut_strings_;
-    hash_set<String> strings_;
+template <> struct std::hash<Gringo::Symbol> {
+    auto operator()(Gringo::Symbol sym) const -> size_t;
 };
+
+} // namespace std
 
 /*
 
@@ -299,6 +320,6 @@ struct hash<Gringo::Symbol> {
 };
 
 // }}}1
-*/
 
 } // namespace Gringo
+*/
