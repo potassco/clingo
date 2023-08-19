@@ -31,9 +31,9 @@ using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, Neighborhood
 // |                | < max             | pointer to small  | 3           |
 // |                | = max             | pointer to large  | 3           |
 // | Function       | unused            | pointer to string | 4           |
-// |                | = 0               | pointer to unary  | 5           |
-// |                | < max             | pointer to small  | 5           |
-// |                | = max             | pointer to large  | 5           |
+// |                | unused            | pointer to unary  | 5           |
+// |                | < max             | pointer to small  | 6           |
+// |                | = max             | pointer to large  | 6           |
 // ========================================================================
 // | 32 bit layout of symbol                                              |
 // ========================================================================
@@ -50,9 +50,9 @@ using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, Neighborhood
 // |                | pointer to small  | < max             | 3           |
 // |                | pointer to large  | = max             | 3           |
 // | Function       | pointer to string | unused            | 4           |
-// |                | pointer to unary  | = 0               | 5           |
-// |                | pointer to small  | < max             | 5           |
-// |                | pointer to large  | = max             | 5           |
+// |                | pointer to unary  | unuased           | 5           |
+// |                | pointer to small  | < max             | 6           |
+// |                | pointer to large  | = max             | 6           |
 // ------------------------------------------------------------------------
 
 namespace {
@@ -63,7 +63,8 @@ enum RepType : uint64_t {
     rep_empty_tuple = 2,
     rep_tuple = 3,
     rep_empty_function = 4,
-    rep_function = 5,
+    rep_unary_function = 5,
+    rep_function = 6,
 };
 
 enum SubRepType : uint64_t {
@@ -286,10 +287,10 @@ class DefaultSymbolStore : public SymbolStore {
                 it = unary_funs_.insert(std::make_unique<UnaryFunction>(fun)).first;
             }
             auto ptr = reinterpret_cast<uint64_t>(it->get());
-            auto rep = rep_function | (static_cast<uint64_t>(ptr) << MS::ptr_shift);
+            auto rep = rep_unary_function | (static_cast<uint64_t>(ptr) << MS::ptr_shift);
             return Symbol::from_rep(rep);
         }
-        if (size < MS::dynamic_size) {
+        if (size + 1 < MS::dynamic_size) {
             // store a small size function
             auto &[tuples, funs] = size <= MS::small_size
                                        ? very_small_funs_[size]
@@ -307,7 +308,7 @@ class DefaultSymbolStore : public SymbolStore {
                 it = funs.insert(std::make_unique<SmallFunction>(fun)).first;
             }
             auto ptr = reinterpret_cast<uint64_t>(it->get());
-            auto rep = rep_function | (static_cast<uint64_t>(size - 1) << MS::ptr_upper_shift) |
+            auto rep = rep_function | (static_cast<uint64_t>(size - 2) << MS::ptr_upper_shift) |
                        (static_cast<uint64_t>(ptr) << MS::ptr_shift);
             return Symbol::from_rep(rep);
         }
@@ -446,31 +447,31 @@ auto default_symbol_store_() -> USymbolStore & {
     if (type == rep_empty_tuple || type == rep_empty_function) {
         return {};
     }
-    // case: non empty function or tuple
     uintptr_t ptr = (rep_ & MS::ptr_mask) >> MS::ptr_shift;
-    size_t size = ((rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift) + 1;
+    // case: unary function
+    if (type == rep_unary_function) {
+        auto const *fun = reinterpret_cast<UnaryFunction *>(ptr);
+        return {&fun->arg, 1};
+    }
+    // case: function with at least two arguments
+    size_t size = ((rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift);
     // case: non empty function
     if (type == rep_function) {
-        // case: a single argument that is stored along with the function
-        if (size == 1) {
-            auto const *fun = reinterpret_cast<UnaryFunction *>(ptr);
-            return {&fun->arg, 1};
-        }
         // case: size could be stored separately
-        if (size < MS::dynamic_size) {
+        if (size + 1 != MS::dynamic_size) {
             auto const *fun = reinterpret_cast<SmallFunction *>(ptr);
             return {fun->args, size};
         }
         // case: size is stored along with the function
         auto const *fun = reinterpret_cast<LargeFunction *>(ptr);
-        return {fun->args->args, fun->args->size};
+        return {fun->args->args, fun->args->size + 2};
     }
     // case: non empty tuple
     assert(type == rep_tuple);
     // case: size could be stored separately
-    if (size < MS::dynamic_size) {
+    if (size + 1 != MS::dynamic_size) {
         auto const *args = reinterpret_cast<Symbol const *>(ptr);
-        return {args, size};
+        return {args, size + 1};
     }
     // case: size is stored along with the tuple
     auto *tuple = reinterpret_cast<LargeTuple *>(ptr);
