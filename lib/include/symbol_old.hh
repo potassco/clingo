@@ -29,7 +29,7 @@ class String {
     static auto from_rep(uint64_t rep) noexcept -> String { return String{rep}; }
 
   private:
-    String(uintptr_t) noexcept;
+    String(uintptr_t rep) noexcept : rep_{rep} {}
     uintptr_t rep_;
 };
 
