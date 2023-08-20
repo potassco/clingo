@@ -165,6 +165,8 @@ class SymbolArray {
         ::operator delete[](start);
     }
 
+    friend auto operator==(SymbolArray const &a, SymbolArray const &b) -> bool { return a.repr_ == b.repr_; }
+
   private:
     static auto init_(SymbolSpan symbols, bool tagged) -> uintptr_t {
         uintptr_t flag = tagged ? 1 : 0;
@@ -213,7 +215,7 @@ struct SymbolArrayEqual {
         return *a.get() == b.first && std::equal(b.second.begin(), b.second.end(), a.get() + 1);
     }
     auto operator()(std::pair<Symbol, SymbolSpan> a, SymbolArray const &b) const -> bool { return operator()(b, a); }
-    auto operator()(SymbolArray const &a, SymbolArray const &b) const -> bool { return a.get() == b.get(); }
+    auto operator()(SymbolArray const &a, SymbolArray const &b) const -> bool { return a == b; }
 };
 
 using UString = std::unique_ptr<char[]>;
@@ -364,20 +366,25 @@ auto default_symbol_store_() -> USymbolStore & {
             return SymbolSpan{};
         }
         case rep_small_function: {
-            throw std::logic_error("TODO: reimplement me!!!");
+            auto *ptr = reinterpret_cast<Symbol *>(rep_ & MS::ptr_mask);
+            size_t size = (rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift;
+            return SymbolSpan{ptr + 1, size};
         }
         case rep_function: {
-            throw std::logic_error("TODO: reimplement me!!!");
+            auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask);
+            auto size = Symbol::to_rep(*(ptr - 1));
+            return SymbolSpan{ptr + 1, size};
         }
         case rep_small_tuple: {
-            if (rep_ == rep_tuple) {
-                return SymbolSpan{};
-            }
-            throw std::logic_error("TODO: reimplement me!!!");
+            auto *ptr = reinterpret_cast<Symbol *>(rep_ & MS::ptr_mask);
+            size_t size = (rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift;
+            return SymbolSpan{ptr, size};
         }
         default: {
             assert((rep_ & MS::type_mask) == rep_tuple);
-            throw std::logic_error("TODO: reimplement me!!!");
+            auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask);
+            auto size = ptr != nullptr ? Symbol::to_rep(*(ptr - 1)) : 0;
+            return SymbolSpan{ptr, size};
         }
     }
 }
