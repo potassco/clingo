@@ -1,7 +1,6 @@
 #include <cstring>
 #include <map>
 #include <mutex>
-#include <shared_mutex>
 
 #include <tsl/hopscotch_set.h>
 
@@ -367,7 +366,7 @@ auto default_symbol_store_() -> USymbolStore & {
         }
         case rep_small_function: {
             auto *ptr = reinterpret_cast<Symbol *>(rep_ & MS::ptr_mask);
-            size_t size = (rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift;
+            size_t size = ((rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift) + 1;
             return SymbolSpan{ptr + 1, size};
         }
         case rep_function: {
@@ -377,7 +376,7 @@ auto default_symbol_store_() -> USymbolStore & {
         }
         case rep_small_tuple: {
             auto *ptr = reinterpret_cast<Symbol *>(rep_ & MS::ptr_mask);
-            size_t size = (rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift;
+            size_t size = ((rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift) + 1;
             return SymbolSpan{ptr, size};
         }
         default: {

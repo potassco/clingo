@@ -47,6 +47,7 @@ class Symbol {
     [[nodiscard]] auto args() const noexcept -> SymbolSpan;
 
     friend auto operator==(Symbol a, Symbol b) -> bool { return a.rep_ == b.rep_; }
+    friend auto operator!=(Symbol a, Symbol b) -> bool { return a.rep_ != b.rep_; }
 
     static auto to_rep(Symbol sym) noexcept -> uint64_t { return sym.rep_; }
     static auto from_rep(uint64_t rep) noexcept -> Symbol { return Symbol{rep}; }
