@@ -247,11 +247,11 @@ class DefaultSymbolStore : public SymbolStore {
         auto jt = tuples.find(fun);
         if (jt == tuples.end()) {
             // Example: dynamic size = 1 and size = 1, then the size does not
-            // have to be stored explicetly and size zero is stored in the
+            // have to be stored explicitly and size zero is stored in the
             // upper part of the pointer.
             jt = tuples.emplace(SymbolArray{fun.first, fun.second, size > MS::dynamic_size}).first;
             // Even though there are extensions that permit more than 48 bit
-            // addresses, this has to be explicetly requested by an
+            // addresses, this has to be explicitly requested by an
             // application. Also kernel addresses where the upper bits are sign
             // extended should never be allocated here. Hence, the branch below
             // should never be taken.
@@ -262,13 +262,29 @@ class DefaultSymbolStore : public SymbolStore {
         }
         auto rep = reinterpret_cast<uint64_t>(jt->get()) |
                    (jt->has_size() ? rep_function
-                                   : ((static_cast<uint64_t>(size - 2) << MS::ptr_upper_shift) | rep_small_function));
+                                   : ((static_cast<uint64_t>(size - 1) << MS::ptr_upper_shift) | rep_small_function));
         return Symbol::from_rep(rep);
     }
 
     [[nodiscard]] auto tuple(SymbolSpan args) -> Symbol override {
-        static_cast<void>(args);
-        throw std::logic_error("TODO: reimplement me!!!");
+        // Almost the same as for function except that the name does not have to be stored separately.
+        auto size = args.size();
+        if (size == 0) {
+            return Symbol::from_rep(rep_tuple);
+        }
+        auto &tuples = size <= MS::small_size ? small_tuples_[size - 1] : tuples_.try_emplace(size, size).first->second;
+        auto jt = tuples.find(args);
+        if (jt == tuples.end()) {
+            jt = tuples.emplace(SymbolArray{args, size > MS::dynamic_size}).first;
+            if (jt->has_size() && (reinterpret_cast<uintptr_t>(jt->get()) & MS::ptr_upper_mask) != 0) {
+                tuples.erase(jt);
+                jt = tuples.emplace(SymbolArray{args, true}).first;
+            }
+        }
+        auto rep =
+            reinterpret_cast<uint64_t>(jt->get()) |
+            (jt->has_size() ? rep_tuple : ((static_cast<uint64_t>(size - 1) << MS::ptr_upper_shift) | rep_small_tuple));
+        return Symbol::from_rep(rep);
     }
 
     [[nodiscard]] auto string(std::string_view str) -> String override {
@@ -336,10 +352,35 @@ auto default_symbol_store_() -> USymbolStore & {
 
 [[nodiscard]] auto Symbol::name() const noexcept -> String {
     assert(type() == SymbolType::function);
-    return String::from_rep((rep_ & MS::ptr_mask) >> MS::ptr_shift);
+    if ((rep_ & MS::type_mask) == rep_function) {
+        return Symbol::from_rep(rep_ & ~MS::ptr_mask).str();
+    }
+    return Symbol::from_rep(rep_ & ~MS::type_mask).str();
 }
 
-[[nodiscard]] auto Symbol::args() noexcept -> SymbolSpan { throw std::logic_error("TODO: reimplement me!!!"); }
+[[nodiscard]] auto Symbol::args() const noexcept -> SymbolSpan {
+    switch (rep_ & MS::type_mask) {
+        case rep_id: {
+            return SymbolSpan{};
+        }
+        case rep_small_function: {
+            throw std::logic_error("TODO: reimplement me!!!");
+        }
+        case rep_function: {
+            throw std::logic_error("TODO: reimplement me!!!");
+        }
+        case rep_small_tuple: {
+            if (rep_ == rep_tuple) {
+                return SymbolSpan{};
+            }
+            throw std::logic_error("TODO: reimplement me!!!");
+        }
+        default: {
+            assert((rep_ & MS::type_mask) == rep_tuple);
+            throw std::logic_error("TODO: reimplement me!!!");
+        }
+    }
+}
 
 [[nodiscard]] auto Symbol::type() const noexcept -> SymbolType {
     switch (rep_ & MS::type_mask) {

@@ -44,7 +44,7 @@ class Symbol {
     [[nodiscard]] auto num() const noexcept -> int32_t;
     [[nodiscard]] auto str() const noexcept -> String;
     [[nodiscard]] auto name() const noexcept -> String;
-    [[nodiscard]] static auto args() noexcept -> SymbolSpan;
+    [[nodiscard]] auto args() const noexcept -> SymbolSpan;
 
     friend auto operator==(Symbol a, Symbol b) -> bool { return a.rep_ == b.rep_; }
 
