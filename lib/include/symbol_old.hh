@@ -44,7 +44,7 @@ class Symbol {
     [[nodiscard]] auto num() const noexcept -> int32_t;
     [[nodiscard]] auto str() const noexcept -> String;
     [[nodiscard]] auto name() const noexcept -> String;
-    [[nodiscard]] auto args() const noexcept -> SymbolSpan;
+    [[nodiscard]] static auto args() noexcept -> SymbolSpan;
 
     friend auto operator==(Symbol a, Symbol b) -> bool { return a.rep_ == b.rep_; }
 
@@ -58,6 +58,8 @@ class Symbol {
 
 class SymbolStore {
   public:
+    [[nodiscard]] static auto sup() noexcept -> Symbol;
+    [[nodiscard]] static auto inf() noexcept -> Symbol;
     [[nodiscard]] static auto number(int32_t num) noexcept -> Symbol;
     [[nodiscard]] static auto string(String str) noexcept -> Symbol;
     [[nodiscard]] virtual auto tuple(SymbolSpan args) -> Symbol = 0;

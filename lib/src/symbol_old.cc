@@ -15,44 +15,51 @@ template <class Key, class Hash = Util::value_hasher<Key>, class KeyEqual = std:
           class Allocator = std::allocator<Key>, unsigned int NeighborhoodSize = 62, bool StoreHash = false> // NOLINT
 using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
 
+// Note that the implementation switches to the large representation if the
+// upper 16 bits of the pointer are not zero. However, byte aligned pointers
+// are a hard requirement. Furthermore, the design is targeted toward 64bit
+// architectures. There are probably better ways to store symbols on 32bit
+// architectures.
 // ========================================================================
 // | 64 bit layout of symbol                                              |
 // ========================================================================
 // |                | 32b for number    | 29b for subtype   | 3b for type |
 // |----------------+-------------------+-------------------+-------------|
-// | Number         | used              | 0 for number      | 0           |
+// | Number         | the number        | 0 for number      | 0           |
 // | Inf            | unused            | 1 for inf         | 0           |
 // | Sup            | unused            | 2 for sup         | 0           |
 // |----------------+-------------------+-------------------+-------------|
 // |                | 16b for size      | 45b for pointer   |             |
 // |----------------+-------------------+-------------------+-------------|
-// | String         | unused            | used              | 1           |
-// | Tuple          | unused            | unused            | 2           |
-// |                | < max             | pointer to small  | 3           |
-// |                | = max             | pointer to large  | 3           |
-// | Function       | unused            | pointer to string | 4           |
-// |                | unused            | pointer to unary  | 5           |
-// |                | < max             | pointer to small  | 6           |
-// |                | = max             | pointer to large  | 6           |
+// | String         | unused            | pointer to string | 1           |
+// | Tuple          |                   |                   |             |
+// | - small        | used              | pointer to small  | 2           |
+// | - empty        | unused            | 0                 | 3           |
+// | - large        | unused            | pointer to large  | 3           |
+// | Function       |                   |                   |             |
+// | - id           | unused            | pointer to string | 4           |
+// | - small        | used              | pointer to small  | 5           |
+// | - large        | unused            | pointer to large  | 6           |
 // ========================================================================
 // | 32 bit layout of symbol                                              |
 // ========================================================================
 // |                | 32b for number    | 29b for subtype   | 3b for type |
 // |----------------+-------------------+-------------------+-------------|
-// | Number         | used              | 0 for number      | 0           |
+// | Number         | the number        | 0 for number      | 0           |
 // | Inf            | unused            | 1 for inf         | 0           |
 // | Sup            | unused            | 2 for sup         | 0           |
 // |----------------+-------------------+-------------------+-------------|
 // |                | 32b for pointer   | 29b for size      |             |
 // |----------------+-------------------+-------------------+-------------|
-// | String         | used              | unused            | 1           |
-// | Tuple          | unused            | unused            | 2           |
-// |                | pointer to small  | < max             | 3           |
-// |                | pointer to large  | = max             | 3           |
-// | Function       | pointer to string | unused            | 4           |
-// |                | pointer to unary  | unuased           | 5           |
-// |                | pointer to small  | < max             | 6           |
-// |                | pointer to large  | = max             | 6           |
+// | String         | pointer to string | unused            | 1           |
+// | Tuple          |                   |                   |             |
+// | - small        | pointer to small  | the size          | 2           |
+// | - empty        | 0                 | unused            | 3           |
+// | - large        | pointer to large  | unused            | 3           |
+// | Function       |                   |                   |             |
+// | - id           | pointer to string | unused            | 4           |
+// | - small        | pointer to small  | the size          | 5           |
+// | - large        | pointer to large  | unused            | 6           |
 // ------------------------------------------------------------------------
 
 namespace {
@@ -60,10 +67,10 @@ namespace {
 enum RepType : uint64_t {
     rep_number_or_constant = 0,
     rep_string = 1,
-    rep_empty_tuple = 2,
+    rep_small_tuple = 2,
     rep_tuple = 3,
-    rep_empty_function = 4,
-    rep_unary_function = 5,
+    rep_id = 4,
+    rep_small_function = 5,
     rep_function = 6,
 };
 
@@ -85,9 +92,9 @@ template <> struct MS_<8> {
     static constexpr uint64_t ptr_mask = ~(type_mask | ptr_upper_mask);
     static constexpr int ptr_shift = 0;
 
-    static constexpr uint64_t lower_mask = (1ULL >> 32) - 1;
+    static constexpr uint64_t lower_mask = (1ULL << 32) - 1;
 
-    static constexpr size_t dynamic_size = 1ULL >> (64 - ptr_upper_shift);
+    static constexpr size_t dynamic_size = 1ULL << (64 - ptr_upper_shift);
     static constexpr size_t small_size = 8ULL;
 };
 
@@ -118,143 +125,95 @@ template <> struct MS_<4> {
 
 using MS = MS_<sizeof(uint64_t)>;
 
-struct SymbolArrDelete {
-    void operator()(Symbol *ptr) const { ::operator delete[](ptr); }
-};
+template <class T> auto set_flags(T *ptr, uintptr_t flags) -> uintptr_t {
+    return reinterpret_cast<uintptr_t>(ptr) | flags;
+}
 
-using USymbolArr = std::unique_ptr<Symbol[], SymbolArrDelete>;
+auto get_flags(uintptr_t rep) -> uintptr_t { return rep & static_cast<uintptr_t>(7); }
 
-struct SymbolArrayEqual {
-    SymbolArrayEqual(size_t size) : size{size} {}
-    using is_transparent = void;
-    auto operator()(USymbolArr const &a, Symbol const *b) const -> bool {
-        return std::equal(a.get(), a.get() + size, b);
+template <class T> auto get_ptr(uintptr_t ptr) -> T * {
+    return reinterpret_cast<T *>(ptr & ~static_cast<uintptr_t>(7));
+}
+
+class SymbolArray {
+  public:
+    SymbolArray(SymbolSpan symbols, bool tagged) : repr_{init_(symbols, tagged)} {}
+    SymbolArray(Symbol name, SymbolSpan symbols, bool tagged) : repr_{init_(name, symbols, tagged)} {}
+    SymbolArray(SymbolArray const &other) = delete;
+    SymbolArray(SymbolArray &&other) noexcept : repr_{other.repr_} { other.repr_ = 0; }
+
+    auto operator=(SymbolArray const &other) -> SymbolArray & = delete;
+    auto operator=(SymbolArray &&other) noexcept -> SymbolArray & {
+        std::swap(repr_, other.repr_);
+        return *this;
     }
-    auto operator()(Symbol const *a, USymbolArr const &b) const -> bool { return operator()(b, a); }
-    auto operator()(USymbolArr const &a, USymbolArr const &b) const -> bool { return a.get() == b.get(); }
-    size_t size;
+
+    [[nodiscard]] auto get() const noexcept -> Symbol * { return get_ptr<Symbol>(repr_); }
+
+    [[nodiscard]] auto has_size() const noexcept -> bool { return get_flags(repr_) != 0; }
+
+    [[nodiscard]] auto size() const noexcept -> size_t {
+        assert(has_size());
+        return Symbol::to_rep(*(get() - 1));
+    }
+
+    ~SymbolArray() noexcept {
+        auto *start = get();
+        if (has_size()) {
+            --start;
+        }
+        ::operator delete[](start);
+    }
+
+  private:
+    static auto init_(SymbolSpan symbols, bool tagged) -> uintptr_t {
+        uintptr_t flag = tagged ? 1 : 0;
+        // It would be interesting to see the performance of a slotted allocator here.
+        auto *data = reinterpret_cast<Symbol *>(::operator new[]((symbols.size() + flag) * sizeof(Symbol)));
+        if (tagged) {
+            *data++ = Symbol::from_rep(symbols.size());
+        }
+        std::copy(symbols.begin(), symbols.end(), data);
+        return set_flags(data, flag);
+    }
+
+    static auto init_(Symbol name, SymbolSpan symbols, bool tagged) -> uintptr_t {
+        uintptr_t flag = tagged ? 1 : 0;
+        auto *data = reinterpret_cast<Symbol *>(::operator new[]((symbols.size() + 1 + flag) * sizeof(Symbol)));
+        if (tagged) {
+            *data++ = Symbol::from_rep(symbols.size());
+        }
+        *data = name;
+        std::copy(symbols.begin(), symbols.end(), data + 1);
+        return set_flags(data, flag);
+    }
+
+    uintptr_t repr_;
 };
 
 struct SymbolArrayHash {
-    SymbolArrayHash(size_t size) : size{size} {}
-    auto operator()(USymbolArr const &a) const -> size_t { return operator()(a.get()); }
-    auto operator()(Symbol const *a) const -> size_t {
-        std::string_view rep(reinterpret_cast<char const *>(a), sizeof(Symbol) * size);
-        return std::hash<std::string_view>{}(rep);
+    auto operator()(SymbolSpan fun) const -> size_t { return operator()({fun.front(), {fun.data() + 1, size - 1}}); }
+    auto operator()(std::pair<Symbol, SymbolSpan> fun) const -> size_t {
+        return Util::value_hash(fun.first, std::string_view{reinterpret_cast<char const *>(fun.second.data()),
+                                                            fun.second.size() * sizeof(Symbol)});
+    }
+    auto operator()(SymbolArray const &fun) const -> size_t {
+        return operator()({*fun.get(), {fun.get() + 1, size - 1}});
     }
     size_t size;
 };
 
-struct LargeTuple {
-    LargeTuple(size_t size, Symbol const *args) : size{size} { std::copy(args, args + size, this->args); }
-    size_t size;
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#ifdef __clang__
-#pragma GCC diagnostic ignored "-Wzero-length-array"
-#else
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4200)
-#endif
-    Symbol args[0];
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-};
-
-struct LargeTupleDelete {
-    void operator()(LargeTuple *ptr) const { ::operator delete(ptr); }
-};
-
-using ULargeTuple = std::unique_ptr<LargeTuple, LargeTupleDelete>;
-
-struct LargeTupleEqual {
+struct SymbolArrayEqual {
     using is_transparent = void;
-    auto operator()(ULargeTuple const &a, SymbolSpan const &b) const -> bool {
-        return a->size == b.size() && std::equal(a->args, a->args + a->size, b.data());
+    auto operator()(SymbolArray const &a, SymbolSpan b) const -> bool {
+        return std::equal(b.begin(), b.end(), a.get());
     }
-    auto operator()(SymbolSpan const &a, ULargeTuple const &b) const -> bool { return operator()(b, a); }
-    auto operator()(ULargeTuple const &a, ULargeTuple const &b) const -> bool { return a.get() == b.get(); }
-};
-
-struct LargeTupleHash {
-    auto operator()(ULargeTuple const &a) const -> size_t { return operator()(SymbolSpan{a->args, a->size}); }
-    auto operator()(SymbolSpan const &a) const -> size_t {
-        std::string_view rep(reinterpret_cast<char const *>(a.data()), sizeof(Symbol) * a.size());
-        return std::hash<std::string_view>{}(rep);
+    auto operator()(SymbolSpan a, SymbolArray const &b) const -> bool { return operator()(b, a); }
+    auto operator()(SymbolArray const &a, std::pair<Symbol, SymbolSpan> b) const -> bool {
+        return *a.get() == b.first && std::equal(b.second.begin(), b.second.end(), a.get() + 1);
     }
-};
-
-struct UnaryFunction {
-    String name;
-    Symbol arg;
-};
-
-using UUnaryFunction = std::unique_ptr<UnaryFunction>;
-
-struct UnaryFunctionEqual {
-    using is_transparent = void;
-    auto operator()(UUnaryFunction const &a, UnaryFunction const &b) const -> bool {
-        return a->name == b.name && a->arg == b.arg;
-    }
-    auto operator()(UnaryFunction const &a, UUnaryFunction const &b) const -> bool { return operator()(b, a); }
-    auto operator()(UUnaryFunction const &a, UUnaryFunction const &b) const -> bool { return a.get() == b.get(); }
-};
-
-struct UnaryFunctionHash {
-    auto operator()(UUnaryFunction const &a) const -> size_t { return operator()(*a); }
-    auto operator()(UnaryFunction const &a) const -> size_t { return Util::value_hash(a.name, a.arg); }
-};
-
-struct SmallFunction {
-    String name;
-    Symbol const *args;
-};
-
-using USmallFunction = std::unique_ptr<SmallFunction>;
-
-struct SmallFunctionEqual {
-    using is_transparent = void;
-    auto operator()(USmallFunction const &a, SmallFunction const &b) const -> bool {
-        return a->name == b.name && a->args == b.args;
-    }
-    auto operator()(SmallFunction const &a, USmallFunction const &b) const -> bool { return operator()(b, a); }
-    auto operator()(USmallFunction const &a, USmallFunction const &b) const -> bool { return a.get() == b.get(); }
-};
-
-struct SmallFunctionHash {
-    auto operator()(USmallFunction const &a) const -> size_t { return operator()(*a); }
-    auto operator()(SmallFunction const &a) const -> size_t {
-        return Util::value_hash(a.name, reinterpret_cast<uintptr_t>(a.args));
-    }
-};
-
-struct LargeFunction {
-    String name;
-    LargeTuple const *args;
-};
-
-using ULargeFunction = std::unique_ptr<LargeFunction>;
-
-struct LargeFunctionEqual {
-    using is_transparent = void;
-    auto operator()(ULargeFunction const &a, LargeFunction const &b) const -> bool {
-        return a->name == b.name && a->args == b.args;
-    }
-    auto operator()(LargeFunction const &a, ULargeFunction const &b) const -> bool { return operator()(b, a); }
-    auto operator()(ULargeFunction const &a, ULargeFunction const &b) const -> bool { return a.get() == b.get(); }
-};
-
-struct LargeFunctionHash {
-    auto operator()(ULargeFunction const &a) const -> size_t { return operator()(*a); }
-    auto operator()(LargeFunction const &a) const -> size_t {
-        return Util::value_hash(a.name, reinterpret_cast<uintptr_t>(a.args));
-    }
+    auto operator()(std::pair<Symbol, SymbolSpan> a, SymbolArray const &b) const -> bool { return operator()(b, a); }
+    auto operator()(SymbolArray const &a, SymbolArray const &b) const -> bool { return a.get() == b.get(); }
 };
 
 using UString = std::unique_ptr<char[]>;
@@ -276,94 +235,40 @@ class DefaultSymbolStore : public SymbolStore {
     [[nodiscard]] auto function(String name, SymbolSpan args) -> Symbol override {
         auto size = args.size();
         if (size == 0) {
-            auto rep = rep_empty_function | (static_cast<uint64_t>(String::to_rep(name)) << MS::ptr_shift);
+            auto rep = rep_id | (static_cast<uint64_t>(String::to_rep(name)) << MS::ptr_shift);
             return Symbol::from_rep(rep);
         }
-        if (size == 1) {
-            // store a unary function
-            UnaryFunction fun{name, args.front()};
-            auto it = unary_funs_.find(fun);
-            if (it != unary_funs_.end()) {
-                it = unary_funs_.insert(std::make_unique<UnaryFunction>(fun)).first;
-            }
-            auto ptr = reinterpret_cast<uint64_t>(it->get());
-            auto rep = rep_unary_function | (static_cast<uint64_t>(ptr) << MS::ptr_shift);
-            return Symbol::from_rep(rep);
-        }
-        if (size + 1 < MS::dynamic_size) {
-            // store a small size function
-            auto &[tuples, funs] = size <= MS::small_size
-                                       ? very_small_funs_[size]
-                                       : small_funs_.try_emplace(args.size(), args.size()).first->second;
-            // get unique arguments
-            auto jt = tuples.find(args.data());
-            if (jt == tuples.end()) {
-                auto data = USymbolArr(reinterpret_cast<Symbol *>(::operator new[](size)));
-                std::copy(args.begin(), args.end(), data.get());
-                jt = tuples.insert(std::move(data)).first;
-            }
-            SmallFunction fun{name, jt->get()};
-            auto it = funs.find(fun);
-            if (it != funs.end()) {
-                it = funs.insert(std::make_unique<SmallFunction>(fun)).first;
-            }
-            auto ptr = reinterpret_cast<uint64_t>(it->get());
-            auto rep = rep_function | (static_cast<uint64_t>(size - 2) << MS::ptr_upper_shift) |
-                       (static_cast<uint64_t>(ptr) << MS::ptr_shift);
-            return Symbol::from_rep(rep);
-        }
-        // store a large size function
-        auto &[tuples, funs] = large_funs_.try_emplace(args.size()).first->second;
-        auto jt = tuples.find(args);
+        // We need a tuple set for size + 1 to store the name and arguments of
+        // the function. Since we handle the empty argument case above, we only
+        // ever access tuples of size 2 and above.
+        auto &tuples =
+            size < MS::small_size ? small_tuples_[size] : tuples_.try_emplace(size + 1, size + 1).first->second;
+        auto fun = std::make_pair(SymbolStore::string(name), args);
+        auto jt = tuples.find(fun);
         if (jt == tuples.end()) {
-            auto *mem = ::operator new(sizeof(LargeTuple) + size * sizeof(Symbol));
-            jt = tuples.insert(ULargeTuple{new (mem) LargeTuple{size, args.data()}}).first;
+            // Example: dynamic size = 1 and size = 1, then the size does not
+            // have to be stored explicetly and size zero is stored in the
+            // upper part of the pointer.
+            jt = tuples.emplace(SymbolArray{fun.first, fun.second, size > MS::dynamic_size}).first;
+            // Even though there are extensions that permit more than 48 bit
+            // addresses, this has to be explicetly requested by an
+            // application. Also kernel addresses where the upper bits are sign
+            // extended should never be allocated here. Hence, the branch below
+            // should never be taken.
+            if (jt->has_size() && (reinterpret_cast<uintptr_t>(jt->get()) & MS::ptr_upper_mask) != 0) {
+                tuples.erase(jt);
+                jt = tuples.emplace(SymbolArray{fun.first, fun.second, true}).first;
+            }
         }
-        LargeFunction fun{name, jt->get()};
-        auto it = funs.find(fun);
-        if (it != funs.end()) {
-            it = funs.insert(std::make_unique<LargeFunction>(fun)).first;
-        }
-        auto ptr = reinterpret_cast<uint64_t>(it->get());
-        auto rep = rep_function | (static_cast<uint64_t>(MS::dynamic_size - 1) << MS::ptr_upper_shift) |
-                   (static_cast<uint64_t>(ptr) << MS::ptr_shift);
+        auto rep = reinterpret_cast<uint64_t>(jt->get()) |
+                   (jt->has_size() ? rep_function
+                                   : ((static_cast<uint64_t>(size - 2) << MS::ptr_upper_shift) | rep_small_function));
         return Symbol::from_rep(rep);
     }
 
     [[nodiscard]] auto tuple(SymbolSpan args) -> Symbol override {
-        auto size = args.size();
-        if (size == 0) {
-            return Symbol::from_rep(rep_empty_tuple);
-        }
-        // store small tuples
-        if (size < MS::dynamic_size) {
-            // store a small size function
-            auto &[tuples, funs] = size <= MS::small_size
-                                       ? very_small_funs_[size]
-                                       : small_funs_.try_emplace(args.size(), args.size()).first->second;
-            // get unique arguments
-            auto it = tuples.find(args.data());
-            if (it == tuples.end()) {
-                auto data = USymbolArr(reinterpret_cast<Symbol *>(::operator new[](size)));
-                std::copy(args.begin(), args.end(), data.get());
-                it = tuples.insert(std::move(data)).first;
-            }
-            auto ptr = reinterpret_cast<uint64_t>(it->get());
-            auto rep = rep_tuple | (static_cast<uint64_t>(size - 1) << MS::ptr_upper_shift) |
-                       (static_cast<uint64_t>(ptr) << MS::ptr_shift);
-            return Symbol::from_rep(rep);
-        }
-        // store large tuples
-        auto &[tuples, funs] = large_funs_.try_emplace(args.size()).first->second;
-        auto it = tuples.find(args);
-        if (it == tuples.end()) {
-            auto *mem = ::operator new(sizeof(LargeTuple) + size * sizeof(Symbol));
-            it = tuples.insert(ULargeTuple(new (mem) LargeTuple{size, args.data()})).first;
-        }
-        auto ptr = reinterpret_cast<uint64_t>(it->get());
-        auto rep = rep_tuple | (static_cast<uint64_t>(MS::dynamic_size - 1) << MS::ptr_upper_shift) |
-                   (static_cast<uint64_t>(ptr) << MS::ptr_shift);
-        return Symbol::from_rep(rep);
+        static_cast<void>(args);
+        throw std::logic_error("TODO: reimplement me!!!");
     }
 
     [[nodiscard]] auto string(std::string_view str) -> String override {
@@ -377,20 +282,14 @@ class DefaultSymbolStore : public SymbolStore {
     }
 
   private:
-    struct SmallFunStore {
-        SmallFunStore(size_t size) : tuples{0, SymbolArrayHash{size}, SymbolArrayEqual{size}} {}
-        hash_set<USymbolArr, SymbolArrayHash, SymbolArrayEqual> tuples;
-        hash_set<USmallFunction, SmallFunctionHash, SmallFunctionEqual> funs;
-    };
-    struct LargeFunStore {
-        hash_set<ULargeTuple, LargeTupleHash, LargeTupleEqual> tuples;
-        hash_set<ULargeFunction, LargeFunctionHash, LargeFunctionEqual> funs;
-    };
-    hash_set<UString, UStringHash, UStringEqual> strings_;
-    hash_set<UUnaryFunction, UnaryFunctionHash, UnaryFunctionEqual> unary_funs_;
-    std::array<SmallFunStore, MS::small_size> very_small_funs_ = {1, 2, 3, 4, 5, 6, 7, 8};
-    std::map<size_t, SmallFunStore> small_funs_;
-    std::map<size_t, LargeFunStore> large_funs_;
+    using StringSet = hash_set<UString, UStringHash, UStringEqual>;
+    using TupleSet = hash_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
+
+    static auto ts(size_t size) -> TupleSet { return TupleSet{0, SymbolArrayHash{size}}; }
+
+    StringSet strings_;
+    std::array<TupleSet, MS::small_size> small_tuples_ = {ts(1), ts(2), ts(3), ts(4), ts(5), ts(6), ts(7), ts(8)};
+    std::map<size_t, TupleSet> tuples_;
 };
 
 //! Simple thread-safe symbol store.
@@ -440,43 +339,7 @@ auto default_symbol_store_() -> USymbolStore & {
     return String::from_rep((rep_ & MS::ptr_mask) >> MS::ptr_shift);
 }
 
-[[nodiscard]] auto Symbol::args() const noexcept -> SymbolSpan {
-    assert(type() == SymbolType::function || type() == SymbolType::tuple);
-    auto type = rep_ & MS::type_mask;
-    // case: empty tuple or function
-    if (type == rep_empty_tuple || type == rep_empty_function) {
-        return {};
-    }
-    uintptr_t ptr = (rep_ & MS::ptr_mask) >> MS::ptr_shift;
-    // case: unary function
-    if (type == rep_unary_function) {
-        auto const *fun = reinterpret_cast<UnaryFunction *>(ptr);
-        return {&fun->arg, 1};
-    }
-    // case: function with at least two arguments
-    size_t size = ((rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift);
-    // case: non empty function
-    if (type == rep_function) {
-        // case: size could be stored separately
-        if (size + 1 != MS::dynamic_size) {
-            auto const *fun = reinterpret_cast<SmallFunction *>(ptr);
-            return {fun->args, size};
-        }
-        // case: size is stored along with the function
-        auto const *fun = reinterpret_cast<LargeFunction *>(ptr);
-        return {fun->args->args, fun->args->size + 2};
-    }
-    // case: non empty tuple
-    assert(type == rep_tuple);
-    // case: size could be stored separately
-    if (size + 1 != MS::dynamic_size) {
-        auto const *args = reinterpret_cast<Symbol const *>(ptr);
-        return {args, size + 1};
-    }
-    // case: size is stored along with the tuple
-    auto *tuple = reinterpret_cast<LargeTuple *>(ptr);
-    return {tuple->args, tuple->size};
-}
+[[nodiscard]] auto Symbol::args() noexcept -> SymbolSpan { throw std::logic_error("TODO: reimplement me!!!"); }
 
 [[nodiscard]] auto Symbol::type() const noexcept -> SymbolType {
     switch (rep_ & MS::type_mask) {
@@ -494,7 +357,7 @@ auto default_symbol_store_() -> USymbolStore & {
         case rep_string: {
             return SymbolType::string;
         }
-        case rep_empty_tuple:
+        case rep_small_tuple:
         case rep_tuple: {
             return SymbolType::tuple;
         }
@@ -506,6 +369,16 @@ auto default_symbol_store_() -> USymbolStore & {
 
 auto SymbolStore::number(int32_t num) noexcept -> Symbol {
     uint64_t rep = (static_cast<uint64_t>(num) << 32) | (sub_rep_number << MS::type_size) | rep_number_or_constant;
+    return Symbol::from_rep(rep);
+}
+
+[[nodiscard]] auto SymbolStore::sup() noexcept -> Symbol {
+    uint64_t rep = (sub_rep_sup << MS::type_size) | rep_number_or_constant;
+    return Symbol::from_rep(rep);
+}
+
+[[nodiscard]] auto SymbolStore::inf() noexcept -> Symbol {
+    uint64_t rep = (sub_rep_inf << MS::type_size) | rep_number_or_constant;
     return Symbol::from_rep(rep);
 }
 
