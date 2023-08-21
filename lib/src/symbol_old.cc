@@ -1,4 +1,5 @@
 #include <cstring>
+#include <forward_list>
 #include <map>
 #include <mutex>
 
@@ -32,13 +33,11 @@ using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, Neighborhood
 // |----------------+-------------------+-------------------+-------------|
 // | String         | unused            | pointer to string | 1           |
 // | Tuple          |                   |                   |             |
-// | - small        | used              | pointer to small  | 2           |
-// | - empty        | unused            | 0                 | 3           |
-// | - large        | unused            | pointer to large  | 3           |
+// | - empty        | unused            | 0                 | 2           |
+// | - large        | unused            | pointer to large  | 2           |
 // | Function       |                   |                   |             |
-// | - id           | unused            | pointer to string | 4           |
-// | - small        | used              | pointer to small  | 5           |
-// | - large        | unused            | pointer to large  | 6           |
+// | - id           | unused            | pointer to string | 3           |
+// | - large        | unused            | pointer to large  | 4           |
 // ========================================================================
 // | 32 bit layout of symbol                                              |
 // ========================================================================
@@ -52,13 +51,11 @@ using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, Neighborhood
 // |----------------+-------------------+-------------------+-------------|
 // | String         | pointer to string | unused            | 1           |
 // | Tuple          |                   |                   |             |
-// | - small        | pointer to small  | the size          | 2           |
-// | - empty        | 0                 | unused            | 3           |
-// | - large        | pointer to large  | unused            | 3           |
+// | - empty        | 0                 | unused            | 2           |
+// | - large        | pointer to large  | unused            | 2           |
 // | Function       |                   |                   |             |
-// | - id           | pointer to string | unused            | 4           |
-// | - small        | pointer to small  | the size          | 5           |
-// | - large        | pointer to large  | unused            | 6           |
+// | - id           | pointer to string | unused            | 3           |
+// | - large        | pointer to large  | unused            | 4           |
 // ------------------------------------------------------------------------
 
 namespace {
@@ -66,11 +63,9 @@ namespace {
 enum RepType : uint64_t {
     rep_number_or_constant = 0,
     rep_string = 1,
-    rep_small_tuple = 2,
-    rep_tuple = 3,
-    rep_id = 4,
-    rep_small_function = 5,
-    rep_function = 6,
+    rep_tuple = 2,
+    rep_id = 3,
+    rep_function = 4,
 };
 
 enum SubRepType : uint64_t {
@@ -85,16 +80,9 @@ template <> struct MS_<8> {
     static constexpr int type_size = 3;
     static constexpr uint64_t type_mask = (1ULL << type_size) - 1;
 
-    static constexpr int ptr_upper_shift = 48;
-    static constexpr uint64_t ptr_upper_mask = ~((1ULL << ptr_upper_shift) - 1);
-
-    static constexpr uint64_t ptr_mask = ~(type_mask | ptr_upper_mask);
     static constexpr int ptr_shift = 0;
 
     static constexpr uint64_t lower_mask = (1ULL << 32) - 1;
-
-    static constexpr size_t dynamic_size = 1ULL << (64 - ptr_upper_shift);
-    static constexpr size_t small_size = 8ULL;
 };
 
 #ifdef __GNUC__
@@ -106,16 +94,9 @@ template <> struct MS_<4> {
     static constexpr int type_size = 3;
     static constexpr uint64_t type_mask = (1ULL << type_size) - 1;
 
-    static constexpr int ptr_upper_shift = 3;
-    static constexpr uint64_t ptr_upper_mask = ((1ULL << (32 - ptr_upper_shift)) - 1) << ptr_upper_shift;
-
-    static constexpr uint64_t ptr_mask = ~0ULL;
     static constexpr int ptr_shift = 32;
 
     static constexpr uint64_t lower_mask = (1ULL >> 32) - 1;
-
-    static constexpr size_t dynamic_size = 1ULL >> (32 - type_size);
-    static constexpr size_t small_size = 8ULL;
 };
 
 #ifdef __GNUC__
@@ -124,22 +105,151 @@ template <> struct MS_<4> {
 
 using MS = MS_<sizeof(uint64_t)>;
 
-template <class T> auto set_flags(T *ptr, uintptr_t flags) -> uintptr_t {
-    return reinterpret_cast<uintptr_t>(ptr) | flags;
-}
+//! Simple thread-safe allocator prefixing pointers with a size.
+//!
+//! Note that GNU malloc actually prefixes a size already.
+class SimpleAlloc {
+  public:
+    static auto alloc(size_t n) -> void * {
+        auto k = n + sizeof(size_t);
+        auto *data = reinterpret_cast<size_t *>(::operator new[](k));
+        *data = n;
+        return (data + 1);
+    }
 
-auto get_flags(uintptr_t rep) -> uintptr_t { return rep & static_cast<uintptr_t>(7); }
+    static void dealloc(void *mem) { ::operator delete[](reinterpret_cast<size_t *>(mem) - 1); }
 
-template <class T> auto get_ptr(uintptr_t ptr) -> T * {
-    return reinterpret_cast<T *>(ptr & ~static_cast<uintptr_t>(7));
+    static auto size(void *mem) -> size_t { return *(reinterpret_cast<size_t *>(mem) - 1); }
+};
+
+//! A slotted allocator made for single-thread or locked multi-threaded use.
+//!
+//! This allocator should hopefully speed up allocation of symbols.
+class SlottedAlloc {
+  public:
+    struct Sized {
+        size_t size : sizeof(size_t) - 1;
+        size_t tag : 1;
+    };
+    struct Node {
+        size_t size : sizeof(size_t) - 1;
+        size_t tag : 1;
+        Node *next;
+    };
+    struct Head {
+        Node *node = nullptr;
+        size_t use_count = 0;
+    };
+
+    // TODO: maybe this can be done more cleverly decreasing the number of
+    // allocations for large slots.
+    static constexpr size_t ptr_size = sizeof(Node *);
+    static constexpr size_t max_slot = 256;
+    static constexpr size_t max_alloc = 1024;
+
+    auto alloc(size_t n) -> void * {
+        auto l = (n < ptr_size ? ptr_size : n);
+        void *mem = nullptr;
+        auto k = l + sizeof(size_t);
+        if ((l - ptr_size) < max_slot) {
+            auto &head = free_list_[l - ptr_size];
+            auto &node = head.node;
+            if (node == nullptr) {
+                size_t m = max_alloc * k;
+                node = reinterpret_cast<Node *>(::operator new[](m));
+                // tag the beginning of the memory block
+                new (node) Node(m, 1, nullptr);
+            }
+            Node *old = node;
+            if (node->size == k) {
+                node->size = n;
+                node = node->next;
+            } else {
+                node = old + k;
+                new (node) Node(old->size - k, 0, old->next);
+            }
+            old->size = n;
+            mem = reinterpret_cast<Sized *>(old) + 1;
+            ++head.use_count;
+        } else {
+            auto *data = reinterpret_cast<Sized *>(::operator new[](k));
+            new (data) Sized(n, 1);
+            mem = data + 1;
+        }
+        return mem;
+    }
+
+    void dealloc(void *mem) {
+        if (mem != nullptr) {
+            size_t n = size(mem);
+            auto l = (n < ptr_size ? ptr_size : n);
+            auto k = l + sizeof(size_t);
+            if (l - ptr_size < max_slot) {
+                // put node in the free list
+                auto &head = free_list_[l - ptr_size];
+                auto *node = reinterpret_cast<Node *>(reinterpret_cast<Sized *>(mem) - 1);
+                node->next = head.node;
+                node->size = k;
+                head.node = node;
+                --head.use_count;
+                if (head.use_count == 0) {
+                    free_head_(head);
+                }
+            } else {
+                ::operator delete[](reinterpret_cast<Sized *>(mem) - 1);
+            }
+        }
+    }
+
+    static auto size(void *mem) -> size_t { return (reinterpret_cast<Sized *>(mem) - 1)->size; }
+
+    ~SlottedAlloc() noexcept {
+        for (auto &head : free_list_) {
+            free_head_(head);
+        }
+    }
+
+  private:
+    static void free_head_(Head &head) {
+        Node *node = head.node;
+        head.node = nullptr;
+        // filter allocated nodes
+        Node *begin = nullptr;
+        while (node != nullptr) {
+            auto *next = node->next;
+            if (node->tag == 1) {
+                node->next = begin;
+                begin = node;
+            }
+            node = next;
+        }
+        // delete allocated nodes
+        while (begin != nullptr) {
+            auto *next = begin->next;
+            ::operator delete[](begin);
+            begin = next;
+        }
+    }
+
+    std::array<Head, max_slot> free_list_;
+};
+
+template <bool slotted> auto get_alloc() {
+    if constexpr (slotted) {
+        static SlottedAlloc alloc;
+        return alloc;
+    } else {
+        static SimpleAlloc alloc;
+        return alloc;
+    }
 }
 
 class SymbolArray {
   public:
-    SymbolArray(SymbolSpan symbols, bool tagged) : repr_{init_(symbols, tagged)} {}
-    SymbolArray(Symbol name, SymbolSpan symbols, bool tagged) : repr_{init_(name, symbols, tagged)} {}
+    SymbolArray(SymbolSpan symbols) : repr_{init_(symbols)} {}
+    SymbolArray(Symbol name, SymbolSpan symbols) : repr_{init_(name, symbols)} {}
     SymbolArray(SymbolArray const &other) = delete;
-    SymbolArray(SymbolArray &&other) noexcept : repr_{other.repr_} { other.repr_ = 0; }
+    SymbolArray(SymbolArray &&other) noexcept : repr_{other.repr_} { other.repr_ = nullptr; }
 
     auto operator=(SymbolArray const &other) -> SymbolArray & = delete;
     auto operator=(SymbolArray &&other) noexcept -> SymbolArray & {
@@ -147,74 +257,56 @@ class SymbolArray {
         return *this;
     }
 
-    [[nodiscard]] auto get() const noexcept -> Symbol * { return get_ptr<Symbol>(repr_); }
+    [[nodiscard]] auto span() const noexcept -> SymbolSpan { return {repr_, size()}; }
+    [[nodiscard]] auto head() const noexcept -> Symbol { return *repr_; }
+    [[nodiscard]] auto tail() const noexcept -> SymbolSpan { return {repr_ + 1, size() - 1}; }
+    [[nodiscard]] auto data() const noexcept -> Symbol * { return repr_; }
+    [[nodiscard]] auto size() const noexcept -> size_t { return SlottedAlloc::size(repr_) / sizeof(Symbol); }
 
-    [[nodiscard]] auto has_size() const noexcept -> bool { return get_flags(repr_) != 0; }
-
-    [[nodiscard]] auto size() const noexcept -> size_t {
-        assert(has_size());
-        return Symbol::to_rep(*(get() - 1));
-    }
-
-    ~SymbolArray() noexcept {
-        auto *start = get();
-        if (has_size()) {
-            --start;
-        }
-        ::operator delete[](start);
-    }
-
-    friend auto operator==(SymbolArray const &a, SymbolArray const &b) -> bool { return a.repr_ == b.repr_; }
+    ~SymbolArray() noexcept { get_alloc<true>().dealloc(repr_); }
 
   private:
-    static auto init_(SymbolSpan symbols, bool tagged) -> uintptr_t {
-        uintptr_t flag = tagged ? 1 : 0;
-        // It would be interesting to see the performance of a slotted allocator here.
-        auto *data = reinterpret_cast<Symbol *>(::operator new[]((symbols.size() + flag) * sizeof(Symbol)));
-        if (tagged) {
-            *data++ = Symbol::from_rep(symbols.size());
-        }
+    static auto init_(SymbolSpan symbols) -> Symbol * {
+        auto *data = reinterpret_cast<Symbol *>(get_alloc<true>().alloc(symbols.size() * sizeof(Symbol)));
         std::copy(symbols.begin(), symbols.end(), data);
-        return set_flags(data, flag);
+        return data;
     }
 
-    static auto init_(Symbol name, SymbolSpan symbols, bool tagged) -> uintptr_t {
-        uintptr_t flag = tagged ? 1 : 0;
-        auto *data = reinterpret_cast<Symbol *>(::operator new[]((symbols.size() + 1 + flag) * sizeof(Symbol)));
-        if (tagged) {
-            *data++ = Symbol::from_rep(symbols.size());
-        }
+    static auto init_(Symbol name, SymbolSpan symbols) -> Symbol * {
+        auto *data = reinterpret_cast<Symbol *>(get_alloc<true>().alloc((symbols.size() + 1) * sizeof(Symbol)));
         *data = name;
         std::copy(symbols.begin(), symbols.end(), data + 1);
-        return set_flags(data, flag);
+        return data;
     }
 
-    uintptr_t repr_;
+    Symbol *repr_;
 };
 
 struct SymbolArrayHash {
-    auto operator()(SymbolSpan fun) const -> size_t { return operator()({fun.front(), {fun.data() + 1, size - 1}}); }
+    auto operator()(SymbolSpan fun) const -> size_t { return operator()(std::make_pair(fun.front(), fun.subspan(1))); }
     auto operator()(std::pair<Symbol, SymbolSpan> fun) const -> size_t {
         return Util::value_hash(fun.first, std::string_view{reinterpret_cast<char const *>(fun.second.data()),
                                                             fun.second.size() * sizeof(Symbol)});
     }
     auto operator()(SymbolArray const &fun) const -> size_t {
-        return operator()({*fun.get(), {fun.get() + 1, size - 1}});
+        return operator()(std::make_pair(fun.head(), fun.tail()));
     }
-    size_t size;
 };
 
 struct SymbolArrayEqual {
     using is_transparent = void;
-    auto operator()(SymbolArray const &a, SymbolSpan b) const -> bool {
-        return std::equal(b.begin(), b.end(), a.get());
+    auto operator()(SymbolSpan a, SymbolSpan b) const -> bool {
+        return std::equal(a.begin(), a.end(), b.begin(), b.end());
     }
-    auto operator()(SymbolSpan a, SymbolArray const &b) const -> bool { return operator()(b, a); }
+
+    auto operator()(SymbolArray const &a, SymbolSpan b) const -> bool { return operator()(a.span(), b); }
+    auto operator()(SymbolSpan a, SymbolArray const &b) const -> bool { return operator()(a, b.span()); }
+
     auto operator()(SymbolArray const &a, std::pair<Symbol, SymbolSpan> b) const -> bool {
-        return *a.get() == b.first && std::equal(b.second.begin(), b.second.end(), a.get() + 1);
+        return a.head() == b.first && operator()(a.tail(), b.second);
     }
     auto operator()(std::pair<Symbol, SymbolSpan> a, SymbolArray const &b) const -> bool { return operator()(b, a); }
-    auto operator()(SymbolArray const &a, SymbolArray const &b) const -> bool { return a == b; }
+    auto operator()(SymbolArray const &a, SymbolArray const &b) const -> bool { return a.data() == b.data(); }
 };
 
 using UString = std::unique_ptr<char[]>;
@@ -239,31 +331,12 @@ class DefaultSymbolStore : public SymbolStore {
             auto rep = rep_id | (static_cast<uint64_t>(String::to_rep(name)) << MS::ptr_shift);
             return Symbol::from_rep(rep);
         }
-        // We need a tuple set for size + 1 to store the name and arguments of
-        // the function. Since we handle the empty argument case above, we only
-        // ever access tuples of size 2 and above.
-        auto &tuples =
-            size < MS::small_size ? small_tuples_[size] : tuples_.try_emplace(size + 1, size + 1).first->second;
         auto fun = std::make_pair(SymbolStore::string(name), args);
-        auto jt = tuples.find(fun);
-        if (jt == tuples.end()) {
-            // Example: dynamic size = 1 and size = 1, then the size does not
-            // have to be stored explicitly and size zero is stored in the
-            // upper part of the pointer.
-            jt = tuples.emplace(SymbolArray{fun.first, fun.second, size > MS::dynamic_size}).first;
-            // Even though there are extensions that permit more than 48 bit
-            // addresses, this has to be explicitly requested by an
-            // application. Also kernel addresses where the upper bits are sign
-            // extended should never be allocated here. Hence, the branch below
-            // should never be taken.
-            if (jt->has_size() && (reinterpret_cast<uintptr_t>(jt->get()) & MS::ptr_upper_mask) != 0) {
-                tuples.erase(jt);
-                jt = tuples.emplace(SymbolArray{fun.first, fun.second, true}).first;
-            }
+        auto jt = tuples_.find(fun);
+        if (jt == tuples_.end()) {
+            jt = tuples_.emplace(SymbolArray{fun.first, fun.second}).first;
         }
-        auto rep = reinterpret_cast<uint64_t>(jt->get()) |
-                   (jt->has_size() ? rep_function
-                                   : ((static_cast<uint64_t>(size - 1) << MS::ptr_upper_shift) | rep_small_function));
+        auto rep = reinterpret_cast<uint64_t>(jt->data()) | rep_function;
         return Symbol::from_rep(rep);
     }
 
@@ -273,18 +346,11 @@ class DefaultSymbolStore : public SymbolStore {
         if (size == 0) {
             return Symbol::from_rep(rep_tuple);
         }
-        auto &tuples = size <= MS::small_size ? small_tuples_[size - 1] : tuples_.try_emplace(size, size).first->second;
-        auto jt = tuples.find(args);
-        if (jt == tuples.end()) {
-            jt = tuples.emplace(SymbolArray{args, size > MS::dynamic_size}).first;
-            if (jt->has_size() && (reinterpret_cast<uintptr_t>(jt->get()) & MS::ptr_upper_mask) != 0) {
-                tuples.erase(jt);
-                jt = tuples.emplace(SymbolArray{args, true}).first;
-            }
+        auto jt = tuples_.find(args);
+        if (jt == tuples_.end()) {
+            jt = tuples_.emplace(SymbolArray{args}).first;
         }
-        auto rep =
-            reinterpret_cast<uint64_t>(jt->get()) |
-            (jt->has_size() ? rep_tuple : ((static_cast<uint64_t>(size - 1) << MS::ptr_upper_shift) | rep_small_tuple));
+        auto rep = reinterpret_cast<uint64_t>(jt->data()) | rep_tuple;
         return Symbol::from_rep(rep);
     }
 
@@ -298,15 +364,17 @@ class DefaultSymbolStore : public SymbolStore {
         return String::from_rep(reinterpret_cast<uintptr_t>(it->get()));
     }
 
+    void clear() {
+        strings_.clear();
+        tuples_.clear();
+    }
+
   private:
     using StringSet = hash_set<UString, UStringHash, UStringEqual>;
     using TupleSet = hash_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
 
-    static auto ts(size_t size) -> TupleSet { return TupleSet{0, SymbolArrayHash{size}}; }
-
     StringSet strings_;
-    std::array<TupleSet, MS::small_size> small_tuples_ = {ts(1), ts(2), ts(3), ts(4), ts(5), ts(6), ts(7), ts(8)};
-    std::map<size_t, TupleSet> tuples_;
+    TupleSet tuples_;
 };
 
 //! Simple thread-safe symbol store.
@@ -329,6 +397,11 @@ class SharedSymbolStore : public SymbolStore {
         return store_.string(str);
     }
 
+    ~SharedSymbolStore() noexcept override {
+        std::unique_lock ulock{mutex_};
+        store_.clear();
+    }
+
   private:
     std::mutex mutex_;
     DefaultSymbolStore store_;
@@ -348,13 +421,13 @@ auto default_symbol_store_() -> USymbolStore & {
 
 [[nodiscard]] auto Symbol::str() const noexcept -> String {
     assert(type() == SymbolType::string);
-    return String::from_rep((rep_ & MS::ptr_mask) >> MS::ptr_shift);
+    return String::from_rep((rep_ & ~MS::type_mask) >> MS::ptr_shift);
 }
 
 [[nodiscard]] auto Symbol::name() const noexcept -> String {
     assert(type() == SymbolType::function);
     if ((rep_ & MS::type_mask) == rep_function) {
-        return Symbol::from_rep(rep_ & ~MS::ptr_mask).str();
+        return Symbol::from_rep(rep_ & ~MS::type_mask).str();
     }
     return Symbol::from_rep(rep_ & ~MS::type_mask).str();
 }
@@ -364,25 +437,15 @@ auto default_symbol_store_() -> USymbolStore & {
         case rep_id: {
             return SymbolSpan{};
         }
-        case rep_small_function: {
-            auto *ptr = reinterpret_cast<Symbol *>(rep_ & MS::ptr_mask);
-            size_t size = ((rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift) + 1;
-            return SymbolSpan{ptr + 1, size};
-        }
         case rep_function: {
             auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask);
-            auto size = Symbol::to_rep(*(ptr - 1));
-            return SymbolSpan{ptr + 1, size};
-        }
-        case rep_small_tuple: {
-            auto *ptr = reinterpret_cast<Symbol *>(rep_ & MS::ptr_mask);
-            size_t size = ((rep_ & MS::ptr_upper_mask) >> MS::ptr_upper_shift) + 1;
-            return SymbolSpan{ptr, size};
+            auto size = SlottedAlloc::size(ptr) / sizeof(Symbol);
+            return SymbolSpan{ptr + 1, size - 1};
         }
         default: {
             assert((rep_ & MS::type_mask) == rep_tuple);
             auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask);
-            auto size = ptr != nullptr ? Symbol::to_rep(*(ptr - 1)) : 0;
+            auto size = ptr != nullptr ? SlottedAlloc::size(ptr) / sizeof(Symbol) : 0;
             return SymbolSpan{ptr, size};
         }
     }
@@ -404,7 +467,6 @@ auto default_symbol_store_() -> USymbolStore & {
         case rep_string: {
             return SymbolType::string;
         }
-        case rep_small_tuple:
         case rep_tuple: {
             return SymbolType::tuple;
         }
