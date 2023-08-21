@@ -121,7 +121,7 @@ class SimpleAlloc {
     static void dealloc(void *mem) {
 #ifdef __GNUC__
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-const-variable"
+#pragma GCC diagnostic ignored "-Wfree-nonheap-object"
 #endif
         // false positive
         ::operator delete[](reinterpret_cast<size_t *>(mem) - 1);
