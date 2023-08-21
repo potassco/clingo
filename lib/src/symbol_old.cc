@@ -5,6 +5,8 @@
 
 #include <tsl/hopscotch_set.h>
 
+#include <util/print.hh>
+
 #include <symbol_old.hh>
 
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays)
@@ -65,8 +67,10 @@ enum RepType : uint64_t {
     rep_number_or_constant = 0,
     rep_string = 1,
     rep_tuple = 2,
-    rep_id = 3,
-    rep_function = 4,
+    rep_signed_id = 3,
+    rep_id = 4,
+    rep_signed_function = 5,
+    rep_function = 6,
 };
 
 enum SubRepType : uint64_t {
@@ -342,10 +346,10 @@ struct UStringHash {
 
 template <bool slotted> class DefaultSymbolStore : public SymbolStore {
   public:
-    [[nodiscard]] auto fun(String name, SymbolSpan args) -> Symbol override {
+    [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         auto size = args.size();
         if (size == 0) {
-            auto rep = rep_id | (static_cast<uint64_t>(String::to_rep(name)) << MS::ptr_shift);
+            auto rep = (sign ? rep_signed_id : rep_id) | (static_cast<uint64_t>(String::to_rep(name)) << MS::ptr_shift);
             return Symbol::from_rep(rep);
         }
         auto fun = std::make_pair(SymbolStore::str(name), args);
@@ -353,7 +357,7 @@ template <bool slotted> class DefaultSymbolStore : public SymbolStore {
         if (jt == tuples_.end()) {
             jt = tuples_.emplace(SymbolArray<slotted>{fun.first, fun.second}).first;
         }
-        auto rep = reinterpret_cast<uint64_t>(jt->data()) | rep_function;
+        auto rep = reinterpret_cast<uint64_t>(jt->data()) | (sign ? rep_signed_function : rep_function);
         return Symbol::from_rep(rep);
     }
 
@@ -399,9 +403,9 @@ template <bool slotted> class DefaultSymbolStore : public SymbolStore {
 //! More fine-grained locking is possible and also a shared lock is interesting.
 template <bool slotted> class SharedSymbolStore : public SymbolStore {
   public:
-    [[nodiscard]] auto fun(String name, SymbolSpan args) -> Symbol override {
+    [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         std::unique_lock ulock{mutex_};
-        return store_.fun(name, args);
+        return store_.fun(name, args, sign);
     }
 
     [[nodiscard]] auto tup(SymbolSpan args) -> Symbol override {
@@ -431,9 +435,27 @@ auto default_symbol_store_() -> USymbolStore & {
 
 } // namespace
 
+auto String::c_str() const -> const char * { return reinterpret_cast<char const *>(rep_); }
+
+auto String::view() const -> std::string_view {
+    // TODO: it is probably worth it to store the length and return the view right away
+    return c_str();
+}
+
+auto String::empty() const -> bool { return *c_str() == '\0'; }
+
+auto String::size() const -> size_t { return std::strlen(c_str()); }
+
+auto String::starts_with(std::string_view prefix) const -> bool { return view().starts_with(prefix); }
+
+auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
+    out << str.c_str();
+    return out;
+}
+
 [[nodiscard]] auto Symbol::num() const noexcept -> int32_t {
     assert(type() == SymbolType::number);
-    return static_cast<uint32_t>(rep_ >> 32);
+    return static_cast<int32_t>(rep_ >> 32);
 }
 
 [[nodiscard]] auto Symbol::str() const noexcept -> String {
@@ -443,17 +465,24 @@ auto default_symbol_store_() -> USymbolStore & {
 
 [[nodiscard]] auto Symbol::name() const noexcept -> String {
     assert(type() == SymbolType::function);
-    if ((rep_ & MS::type_mask) == rep_function) {
-        return reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask)->str();
+    switch (rep_ & MS::type_mask) {
+        case rep_id:
+        case rep_signed_id: {
+            return String::from_rep((rep_ & ~MS::type_mask) >> MS::ptr_shift);
+        }
+        default: {
+            return reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask)->str();
+        }
     }
-    return String::from_rep((rep_ & ~MS::type_mask) >> MS::ptr_shift);
 }
 
 [[nodiscard]] auto Symbol::args() const noexcept -> SymbolSpan {
     switch (rep_ & MS::type_mask) {
+        case rep_signed_id:
         case rep_id: {
             return SymbolSpan{};
         }
+        case rep_signed_function:
         case rep_function: {
             auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask);
             auto size = SlottedAlloc::size(ptr) / sizeof(Symbol);
@@ -464,6 +493,28 @@ auto default_symbol_store_() -> USymbolStore & {
             auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask);
             auto size = ptr != nullptr ? SlottedAlloc::size(ptr) / sizeof(Symbol) : 0;
             return SymbolSpan{ptr, size};
+        }
+    }
+}
+
+[[nodiscard]] auto Symbol::has_sign() const -> bool {
+    switch (rep_ & MS::type_mask) {
+        case rep_signed_id:
+        case rep_signed_function: {
+            return true;
+        }
+        case rep_number_or_constant: {
+            switch ((rep_ & MS::lower_mask) >> MS::type_size) {
+                case sub_rep_number: {
+                    return static_cast<int32_t>(rep_ >> 32) < 0;
+                }
+                default: {
+                    return false;
+                }
+            }
+        }
+        default: {
+            return false;
         }
     }
 }
@@ -491,6 +542,42 @@ auto default_symbol_store_() -> USymbolStore & {
             return SymbolType::function;
         }
     }
+}
+
+auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
+    switch (sym.type()) {
+        case SymbolType::inf: {
+            out << "#inf";
+            break;
+        }
+        case SymbolType::sup: {
+            out << "#inf";
+            break;
+        }
+        case SymbolType::number: {
+            out << sym.num();
+            break;
+        }
+        case SymbolType::string: {
+            Util::print_quoted(out, sym.str().view());
+            break;
+        }
+        case SymbolType::tuple: {
+            auto args = sym.args();
+            out << "(" << Util::p_range(args, ",") << (args.size() == 1 ? ",)" : ")");
+            break;
+        }
+        case SymbolType::function: {
+            auto args = sym.args();
+            if (args.empty()) {
+                out << Util::p_range(args, ",");
+            } else {
+                out << "(" << Util::p_range(args, ",") << ")";
+            }
+            break;
+        }
+    }
+    return out;
 }
 
 auto SymbolStore::num(int32_t num) noexcept -> Symbol {

@@ -42,7 +42,7 @@ template <class T, class M = p_map> struct p_range : private M {
 };
 
 //! Print a string in quotes escaping special characters.
-inline void print_quoted(std::ostream &out, std::string const &str) {
+inline void print_quoted(std::ostream &out, std::string_view str) {
     // TODO: in principle there are the codepoints too...
     out << '"';
     for (auto c : str) {

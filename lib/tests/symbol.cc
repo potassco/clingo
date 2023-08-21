@@ -28,11 +28,21 @@ template <class F> void with_store(F fun) {
 TEST_CASE("symbol_number") {
     auto n1 = SymbolStore::num(1);
     auto n2 = SymbolStore::num(2);
+    auto n3 = SymbolStore::num(-1);
 
     REQUIRE(n1.type() == SymbolType::number);
     REQUIRE(n2.type() == SymbolType::number);
+    REQUIRE(n3.type() == SymbolType::number);
+
+    REQUIRE(n1.num() == 1);
+    REQUIRE(n2.num() == 2);
+    REQUIRE(n3.num() == -1);
+
     REQUIRE(n1 == n1);
     REQUIRE(!(n1 == n2));
+
+    REQUIRE(!n1.has_sign());
+    REQUIRE(n3.has_sign());
 }
 
 TEST_CASE("symbol_constant") {
@@ -126,20 +136,32 @@ TEST_CASE("symbol_function") {
         auto n2 = SymbolStore::num(2);
         auto n3 = SymbolStore::num(3);
 
-        auto f1 = store.fun(s1, S{});
-        auto f2 = store.fun(s1, S{n0});
-        auto f3 = store.fun(s1, S{n0, n1});
-        auto f4 = store.fun(s1, S{n0, n1, n2});
-        auto f5 = store.fun(s1, S{n0, n1, n3});
-        auto f6 = store.fun(s1, S{n0, n1, n3});
-        auto f7 = store.fun(s2, S{n0, n1, n3});
+        auto f1 = store.fun(s1, S{}, false);
+        auto g1 = store.fun(s1, S{}, true);
+        auto f2 = store.fun(s1, S{n0}, false);
+        auto f3 = store.fun(s1, S{n0, n1}, false);
+        auto f4 = store.fun(s1, S{n0, n1, n2}, false);
+        auto f5 = store.fun(s1, S{n0, n1, n3}, false);
+        auto f6 = store.fun(s1, S{n0, n1, n3}, false);
+        auto f7 = store.fun(s2, S{n0, n1, n3}, false);
+        auto g7 = store.fun(s2, S{n0, n1, n3}, true);
 
         REQUIRE(f1.type() == SymbolType::function);
+        REQUIRE(g1.type() == SymbolType::function);
         REQUIRE(f2.type() == SymbolType::function);
         REQUIRE(f3.type() == SymbolType::function);
         REQUIRE(f4.type() == SymbolType::function);
         REQUIRE(f5.type() == SymbolType::function);
         REQUIRE(f6.type() == SymbolType::function);
+        REQUIRE(f7.type() == SymbolType::function);
+        REQUIRE(g7.type() == SymbolType::function);
+
+        REQUIRE(!f1.has_sign());
+        REQUIRE(g1.has_sign());
+        REQUIRE(f1 != g1);
+        REQUIRE(!f7.has_sign());
+        REQUIRE(g7.has_sign());
+        REQUIRE(f7 != g7);
 
         REQUIRE(f1.name() == s1);
         REQUIRE(f2.name() == s1);
@@ -169,7 +191,7 @@ TEST_CASE("symbol_function") {
         for (size_t i = 0; i < n; ++i) {
             args.emplace_back(SymbolStore::num(i));
         }
-        auto t = store.fun(s1, SymbolSpan{args.data(), args.size()});
+        auto t = store.fun(s1, SymbolSpan{args.data(), args.size()}, false);
         REQUIRE(t.type() == SymbolType::function);
         REQUIRE(t.name() == s1);
         REQUIRE(t.args().size() == n);
