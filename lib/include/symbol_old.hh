@@ -61,10 +61,10 @@ class SymbolStore {
   public:
     [[nodiscard]] static auto sup() noexcept -> Symbol;
     [[nodiscard]] static auto inf() noexcept -> Symbol;
-    [[nodiscard]] static auto number(int32_t num) noexcept -> Symbol;
-    [[nodiscard]] static auto string(String str) noexcept -> Symbol;
-    [[nodiscard]] virtual auto tuple(SymbolSpan args) -> Symbol = 0;
-    [[nodiscard]] virtual auto function(String str, SymbolSpan args) -> Symbol = 0;
+    [[nodiscard]] static auto num(int32_t num) noexcept -> Symbol;
+    [[nodiscard]] static auto str(String str) noexcept -> Symbol;
+    [[nodiscard]] virtual auto tup(SymbolSpan args) -> Symbol = 0;
+    [[nodiscard]] virtual auto fun(String str, SymbolSpan args) -> Symbol = 0;
     [[nodiscard]] virtual auto string(std::string_view str) -> String = 0;
     virtual ~SymbolStore() noexcept = default;
 };

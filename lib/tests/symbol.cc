@@ -8,18 +8,26 @@
 
 namespace Gringo {
 
+// Note: to enable ADL for catch
 using S = std::initializer_list<Symbol>;
 auto operator==(SymbolSpan a, S b) -> bool { return std::equal(a.begin(), a.end(), b.begin(), b.end()); }
 
-} // namespace Gringo
+namespace Test {
 
-namespace Gringo::Test {
+namespace {
+
+template <class F> void with_store(F fun) {
+    fun(*make_symbol_store(false, false));
+    fun(*make_symbol_store(true, false));
+    fun(*make_symbol_store(false, true));
+    fun(*make_symbol_store(true, true));
+}
+
+} // namespace
 
 TEST_CASE("symbol_number") {
-    USymbolStore store = make_symbol_store(false, false);
-
-    auto n1 = store->number(1);
-    auto n2 = store->number(2);
+    auto n1 = SymbolStore::num(1);
+    auto n2 = SymbolStore::num(2);
 
     REQUIRE(n1.type() == SymbolType::number);
     REQUIRE(n2.type() == SymbolType::number);
@@ -28,10 +36,8 @@ TEST_CASE("symbol_number") {
 }
 
 TEST_CASE("symbol_constant") {
-    USymbolStore store = make_symbol_store(false, false);
-
-    auto n1 = store->inf();
-    auto n2 = store->sup();
+    auto n1 = SymbolStore::inf();
+    auto n2 = SymbolStore::sup();
 
     REQUIRE(n1.type() == SymbolType::inf);
     REQUIRE(n2.type() == SymbolType::sup);
@@ -40,76 +46,138 @@ TEST_CASE("symbol_constant") {
 }
 
 TEST_CASE("string") {
-    USymbolStore store = make_symbol_store(false, false);
+    with_store([](SymbolStore &store) {
+        auto sx1 = store.string("x");
+        auto sx2 = store.string("x");
+        auto sy = store.string("y");
 
-    auto sx1 = store->string("x");
-    auto sx2 = store->string("x");
-    auto sy = store->string("y");
-
-    REQUIRE(sx1 == sx1);
-    REQUIRE(sx1 == sx2);
-    REQUIRE(!(sx1 == sy));
+        REQUIRE(sx1 == sx1);
+        REQUIRE(sx1 == sx2);
+        REQUIRE(!(sx1 == sy));
+    });
 }
 
 TEST_CASE("symbol_string") {
-    USymbolStore store = make_symbol_store(false, false);
+    with_store([](SymbolStore &store) {
+        auto sx = store.string("x");
+        auto sy = store.string("y");
+        auto sym_sx = SymbolStore::str(sx);
+        auto sym_sy = SymbolStore::str(sy);
 
-    auto sx = store->string("x");
-    auto sy = store->string("y");
-    auto sym_sx = store->string(sx);
-    auto sym_sy = store->string(sy);
-
-    REQUIRE(sym_sx.type() == SymbolType::string);
-    REQUIRE(sym_sx.str() == sx);
-    REQUIRE(!(sym_sx.str() == sy));
-    REQUIRE(sym_sx == sym_sx);
-    REQUIRE(!(sym_sx == sym_sy));
+        REQUIRE(sym_sx.type() == SymbolType::string);
+        REQUIRE(sym_sx.str() == sx);
+        REQUIRE(!(sym_sx.str() == sy));
+        REQUIRE(sym_sx == sym_sx);
+        REQUIRE(!(sym_sx == sym_sy));
+    });
 }
 
 TEST_CASE("symbol_tuple") {
-    USymbolStore store = make_symbol_store(false, false);
+    with_store([](SymbolStore &store) {
+        auto n0 = SymbolStore::num(0);
+        auto n1 = SymbolStore::num(1);
+        auto n2 = SymbolStore::num(2);
+        auto n3 = SymbolStore::num(3);
 
-    auto n0 = store->number(0);
-    auto n1 = store->number(1);
-    auto n2 = store->number(2);
-    auto n3 = store->number(3);
+        auto t1 = store.tup(S{});
+        auto t2 = store.tup(S{n0});
+        auto t3 = store.tup(S{n0, n1});
+        auto t4 = store.tup(S{n0, n1, n2});
+        auto t5 = store.tup(S{n0, n1, n3});
+        auto t6 = store.tup(S{n0, n1, n3});
 
-    auto t1 = store->tuple(S{});
-    auto t2 = store->tuple(S{n0});
-    auto t3 = store->tuple(S{n0, n1});
-    auto t4 = store->tuple(S{n0, n1, n2});
-    auto t5 = store->tuple(S{n0, n1, n3});
-    auto t6 = store->tuple(S{n0, n1, n3});
+        REQUIRE(t1.type() == SymbolType::tuple);
+        REQUIRE(t2.type() == SymbolType::tuple);
+        REQUIRE(t3.type() == SymbolType::tuple);
+        REQUIRE(t4.type() == SymbolType::tuple);
+        REQUIRE(t5.type() == SymbolType::tuple);
+        REQUIRE(t6.type() == SymbolType::tuple);
 
-    REQUIRE(t1.type() == SymbolType::tuple);
-    REQUIRE(t2.type() == SymbolType::tuple);
-    REQUIRE(t3.type() == SymbolType::tuple);
-    REQUIRE(t4.type() == SymbolType::tuple);
-    REQUIRE(t5.type() == SymbolType::tuple);
-    REQUIRE(t6.type() == SymbolType::tuple);
+        REQUIRE(t1.args().empty());
+        REQUIRE(t2.args() == S{n0});
+        REQUIRE(t3.args() == S{n0, n1});
+        REQUIRE(t4.args() == S{n0, n1, n2});
+        REQUIRE(t5.args() == S{n0, n1, n3});
+        REQUIRE(t6.args() == S{n0, n1, n3});
 
-    REQUIRE(t1.args().empty());
-    REQUIRE(t2.args() == S{n0});
-    REQUIRE(t3.args() == S{n0, n1});
-    REQUIRE(t4.args() == S{n0, n1, n2});
-    REQUIRE(t5.args() == S{n0, n1, n3});
-    REQUIRE(t6.args() == S{n0, n1, n3});
+        REQUIRE(t4 != t5);
+        REQUIRE(t4 != t6);
+        REQUIRE(t5 == t6);
 
-    REQUIRE(t4 != t5);
-    REQUIRE(t4 != t6);
-    REQUIRE(t5 == t6);
+        size_t n = 1 >> 20;
+        std::vector<Symbol> args;
+        args.reserve(n);
+        for (size_t i = 0; i < n; ++i) {
+            args.emplace_back(SymbolStore::num(i));
+        }
+        auto t = store.tup(SymbolSpan{args.data(), args.size()});
+        REQUIRE(t.type() == SymbolType::tuple);
+        REQUIRE(t.args().size() == n);
+    });
+}
 
-    size_t n = 1 >> 20;
-    std::vector<Symbol> args;
-    args.reserve(n);
-    for (size_t i = 0; i < n; ++i) {
-        args.emplace_back(store->number(i));
-    }
-    auto t = store->tuple(SymbolSpan{args.data(), args.size()});
-    REQUIRE(t.type() == SymbolType::tuple);
-    REQUIRE(t.args().size() == n);
+TEST_CASE("symbol_function") {
+    with_store([](SymbolStore &store) {
+        auto s1 = store.string("f");
+        auto s2 = store.string("g");
+
+        auto n0 = SymbolStore::num(0);
+        auto n1 = SymbolStore::num(1);
+        auto n2 = SymbolStore::num(2);
+        auto n3 = SymbolStore::num(3);
+
+        auto f1 = store.fun(s1, S{});
+        auto f2 = store.fun(s1, S{n0});
+        auto f3 = store.fun(s1, S{n0, n1});
+        auto f4 = store.fun(s1, S{n0, n1, n2});
+        auto f5 = store.fun(s1, S{n0, n1, n3});
+        auto f6 = store.fun(s1, S{n0, n1, n3});
+        auto f7 = store.fun(s2, S{n0, n1, n3});
+
+        REQUIRE(f1.type() == SymbolType::function);
+        REQUIRE(f2.type() == SymbolType::function);
+        REQUIRE(f3.type() == SymbolType::function);
+        REQUIRE(f4.type() == SymbolType::function);
+        REQUIRE(f5.type() == SymbolType::function);
+        REQUIRE(f6.type() == SymbolType::function);
+
+        REQUIRE(f1.name() == s1);
+        REQUIRE(f2.name() == s1);
+        REQUIRE(f3.name() == s1);
+        REQUIRE(f4.name() == s1);
+        REQUIRE(f5.name() == s1);
+        REQUIRE(f6.name() == s1);
+        REQUIRE(f7.name() == s2);
+        REQUIRE(f6.name() != f7.name());
+
+        REQUIRE(f1.args().empty());
+        REQUIRE(f2.args() == S{n0});
+        REQUIRE(f3.args() == S{n0, n1});
+        REQUIRE(f4.args() == S{n0, n1, n2});
+        REQUIRE(f5.args() == S{n0, n1, n3});
+        REQUIRE(f6.args() == S{n0, n1, n3});
+        REQUIRE(f7.args() == S{n0, n1, n3});
+
+        REQUIRE(f4 != f5);
+        REQUIRE(f4 != f6);
+        REQUIRE(f5 == f6);
+        REQUIRE(f6 != f7);
+
+        size_t n = 1 >> 20;
+        std::vector<Symbol> args;
+        args.reserve(n);
+        for (size_t i = 0; i < n; ++i) {
+            args.emplace_back(SymbolStore::num(i));
+        }
+        auto t = store.fun(s1, SymbolSpan{args.data(), args.size()});
+        REQUIRE(t.type() == SymbolType::function);
+        REQUIRE(t.name() == s1);
+        REQUIRE(t.args().size() == n);
+    });
 }
 
 // NOLINTEND(readability-magic-numbers)
 
-} // namespace Gringo::Test
+} // namespace Test
+
+} // namespace Gringo

@@ -119,15 +119,9 @@ class SimpleAlloc {
     }
 
     static void dealloc(void *mem) {
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfree-nonheap-object"
-#endif
-        // false positive
-        ::operator delete[](reinterpret_cast<size_t *>(mem) - 1);
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
+        if (mem != nullptr) {
+            ::operator delete[](reinterpret_cast<size_t *>(mem) - 1);
+        }
     }
 
     static auto size(void *mem) -> size_t { return *(reinterpret_cast<size_t *>(mem) - 1); }
@@ -348,13 +342,13 @@ struct UStringHash {
 
 template <bool slotted> class DefaultSymbolStore : public SymbolStore {
   public:
-    [[nodiscard]] auto function(String name, SymbolSpan args) -> Symbol override {
+    [[nodiscard]] auto fun(String name, SymbolSpan args) -> Symbol override {
         auto size = args.size();
         if (size == 0) {
             auto rep = rep_id | (static_cast<uint64_t>(String::to_rep(name)) << MS::ptr_shift);
             return Symbol::from_rep(rep);
         }
-        auto fun = std::make_pair(SymbolStore::string(name), args);
+        auto fun = std::make_pair(SymbolStore::str(name), args);
         auto jt = tuples_.find(fun);
         if (jt == tuples_.end()) {
             jt = tuples_.emplace(SymbolArray<slotted>{fun.first, fun.second}).first;
@@ -363,7 +357,7 @@ template <bool slotted> class DefaultSymbolStore : public SymbolStore {
         return Symbol::from_rep(rep);
     }
 
-    [[nodiscard]] auto tuple(SymbolSpan args) -> Symbol override {
+    [[nodiscard]] auto tup(SymbolSpan args) -> Symbol override {
         // Almost the same as for function except that the name does not have to be stored separately.
         auto size = args.size();
         if (size == 0) {
@@ -405,14 +399,14 @@ template <bool slotted> class DefaultSymbolStore : public SymbolStore {
 //! More fine-grained locking is possible and also a shared lock is interesting.
 template <bool slotted> class SharedSymbolStore : public SymbolStore {
   public:
-    [[nodiscard]] auto function(String name, SymbolSpan args) -> Symbol override {
+    [[nodiscard]] auto fun(String name, SymbolSpan args) -> Symbol override {
         std::unique_lock ulock{mutex_};
-        return store_.function(name, args);
+        return store_.fun(name, args);
     }
 
-    [[nodiscard]] auto tuple(SymbolSpan args) -> Symbol override {
+    [[nodiscard]] auto tup(SymbolSpan args) -> Symbol override {
         std::unique_lock ulock{mutex_};
-        return store_.tuple(args);
+        return store_.tup(args);
     }
 
     [[nodiscard]] auto string(std::string_view str) -> String override {
@@ -450,9 +444,9 @@ auto default_symbol_store_() -> USymbolStore & {
 [[nodiscard]] auto Symbol::name() const noexcept -> String {
     assert(type() == SymbolType::function);
     if ((rep_ & MS::type_mask) == rep_function) {
-        return Symbol::from_rep(rep_ & ~MS::type_mask).str();
+        return reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask)->str();
     }
-    return Symbol::from_rep(rep_ & ~MS::type_mask).str();
+    return String::from_rep((rep_ & ~MS::type_mask) >> MS::ptr_shift);
 }
 
 [[nodiscard]] auto Symbol::args() const noexcept -> SymbolSpan {
@@ -499,22 +493,22 @@ auto default_symbol_store_() -> USymbolStore & {
     }
 }
 
-auto SymbolStore::number(int32_t num) noexcept -> Symbol {
+auto SymbolStore::num(int32_t num) noexcept -> Symbol {
     uint64_t rep = (static_cast<uint64_t>(num) << 32) | (sub_rep_number << MS::type_size) | rep_number_or_constant;
     return Symbol::from_rep(rep);
 }
 
-[[nodiscard]] auto SymbolStore::sup() noexcept -> Symbol {
+auto SymbolStore::sup() noexcept -> Symbol {
     uint64_t rep = (sub_rep_sup << MS::type_size) | rep_number_or_constant;
     return Symbol::from_rep(rep);
 }
 
-[[nodiscard]] auto SymbolStore::inf() noexcept -> Symbol {
+auto SymbolStore::inf() noexcept -> Symbol {
     uint64_t rep = (sub_rep_inf << MS::type_size) | rep_number_or_constant;
     return Symbol::from_rep(rep);
 }
 
-auto SymbolStore::string(String str) noexcept -> Symbol {
+auto SymbolStore::str(String str) noexcept -> Symbol {
     uint64_t rep = reinterpret_cast<uint64_t>(String::to_rep(str)) | rep_string;
     return Symbol::from_rep(rep);
 }
