@@ -137,9 +137,7 @@ template <typename T> class shared_ptr {
 namespace Detail {
 
 template <class T> struct shared_ptr_data {
-    template <class... Args> shared_ptr_data(Args &&...args) : value{std::forward<Args>(args)...} {
-        static_assert(sizeof(size_t) + sizeof(T) == sizeof(shared_ptr_data));
-    }
+    template <class... Args> shared_ptr_data(Args &&...args) : value{std::forward<Args>(args)...} {}
     size_t refs = 1;
     T value;
 };

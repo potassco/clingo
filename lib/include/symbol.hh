@@ -48,8 +48,8 @@ class String {
     friend auto operator==(String a, std::string_view b) -> bool { return a.view() == b; }
     friend auto operator==(std::string_view a, String b) -> bool { return a == b.view(); }
 
-    static auto to_rep(String str) noexcept -> uint64_t { return str.rep_; }
-    static auto from_rep(uint64_t rep) noexcept -> String { return String{rep}; }
+    static auto to_rep(String str) noexcept -> uint64_t { return static_cast<uint64_t>(str.rep_); }
+    static auto from_rep(uint64_t rep) noexcept -> String { return String{static_cast<uintptr_t>(rep)}; }
 
   private:
     constexpr String(uintptr_t rep) noexcept : rep_{rep} {}

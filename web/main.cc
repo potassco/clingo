@@ -12,10 +12,10 @@
 
 using namespace Gringo::Input;
 
-void process(RewriteOptions opts, auto &&scanner, auto &&output) {
+void process(Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, auto &&output) {
     for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
         StatementVec stms;
-        rewrite(std::move(stm).value(), opts, stms);
+        rewrite(store, std::move(stm).value(), opts, stms);
         for (auto const &stm : stms) {
             output << stm << "\n";
         }
@@ -34,5 +34,6 @@ extern "C" void run(char const *program, int level, int project_mode, bool proje
     }
     auto opts =
         RewriteOptions{static_cast<RewriteLevel>(level), static_cast<ProjectionMode>(project_mode), project_anonymous};
-    process(opts, scan_string(program), std::cout);
+    auto store = Gringo::make_symbol_store(false, false);
+    process(*store, opts, scan_string(*store, program), std::cout);
 }
