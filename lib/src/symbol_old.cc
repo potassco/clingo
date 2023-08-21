@@ -118,7 +118,17 @@ class SimpleAlloc {
         return (data + 1);
     }
 
-    static void dealloc(void *mem) { ::operator delete[](reinterpret_cast<size_t *>(mem) - 1); }
+    static void dealloc(void *mem) {
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-const-variable"
+#endif
+        // false positive
+        ::operator delete[](reinterpret_cast<size_t *>(mem) - 1);
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+    }
 
     static auto size(void *mem) -> size_t { return *(reinterpret_cast<size_t *>(mem) - 1); }
 };
