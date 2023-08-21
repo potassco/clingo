@@ -17,9 +17,9 @@ class ScannerImpl;
 //! A scanner to parse statements.
 class Scanner {
   public:
-    friend auto scan_stream(std::istream &in) -> Scanner;
-    friend auto scan_file(char const *path) -> Scanner;
-    friend auto scan_string(std::string_view content) -> Scanner;
+    friend auto scan_stream(SymbolStore &store, std::istream &in) -> Scanner;
+    friend auto scan_file(SymbolStore &store, char const *path) -> Scanner;
+    friend auto scan_string(SymbolStore &store, std::string_view content) -> Scanner;
 
     //! Destroy the scanner.
     ~Scanner() noexcept;
@@ -34,22 +34,22 @@ class Scanner {
 };
 
 //! Parse a term.
-auto parse_term(std::string_view str) -> std::optional<Term>;
+auto parse_term(SymbolStore &store, std::string_view str) -> std::optional<Term>;
 //! Parse a literal.
-auto parse_literal(std::string_view str) -> std::optional<Literal>;
+auto parse_literal(SymbolStore &store, std::string_view str) -> std::optional<Literal>;
 //! Parse a head literal.
-auto parse_head_literal(std::string_view str) -> std::optional<HeadLiteral>;
+auto parse_head_literal(SymbolStore &store, std::string_view str) -> std::optional<HeadLiteral>;
 //! Parse a body literal.
-auto parse_body_literal(std::string_view str) -> std::optional<BodyLiteral>;
+auto parse_body_literal(SymbolStore &store, std::string_view str) -> std::optional<BodyLiteral>;
 //! Parse a statement.
-auto parse_statement(std::string_view str) -> std::optional<Statement>;
+auto parse_statement(SymbolStore &store, std::string_view str) -> std::optional<Statement>;
 
 //! Return a scanner to parse statements one by one.
-auto scan_stream(std::istream &in) -> Scanner;
+auto scan_stream(SymbolStore &store, std::istream &in) -> Scanner;
 //! Return a scanner to parse statements one by one.
-auto scan_file(char const *path) -> Scanner;
+auto scan_file(SymbolStore &store, char const *path) -> Scanner;
 //! Return a scanner to parse statements one by one.
-auto scan_string(std::string_view content) -> Scanner;
+auto scan_string(SymbolStore &store, std::string_view content) -> Scanner;
 
 //! @}
 

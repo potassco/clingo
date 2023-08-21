@@ -5,12 +5,12 @@
 
 namespace Gringo::Input {
 
-void rewrite(Statement const &stm, RewriteOptions opts, StatementVec &stms) {
+void rewrite(SymbolStore &store, Statement const &stm, RewriteOptions opts, StatementVec &stms) {
     if (opts.level < RewriteLevel::rewrite_anonymous) {
         stms.emplace_back(std::move(stm));
         return;
     }
-    auto res = rewrite_anonymous(stm).value_or(stm);
+    auto res = rewrite_anonymous(store, stm).value_or(stm);
     if (opts.level < RewriteLevel::unpool) {
         stms.emplace_back(std::move(res));
         return;

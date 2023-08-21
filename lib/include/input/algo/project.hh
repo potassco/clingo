@@ -26,20 +26,20 @@ enum class ProjectionMode {
 class Projection {
   public:
     //! Constructor taking the mode which variables to project and a map with counts of variables.
-    explicit Projection(ProjectionMode mode, std::unordered_map<std::string, size_t> const &counts)
+    explicit Projection(ProjectionMode mode, std::unordered_map<String, size_t> const &counts)
         : counts_{counts}, mode_{mode} {};
     //! Return whether a the given variable should be projected.
     //!
     //! Only variables with a count of exactly one can be projected while the mode adds further restrictions.
-    [[nodiscard]] auto projectable(std::string const &var, bool anonymous) const -> bool;
+    [[nodiscard]] auto projectable(String const &var, bool anonymous) const -> bool;
     //! Return the variable counts.
-    [[nodiscard]] auto counts() const -> std::unordered_map<std::string, size_t> const &;
+    [[nodiscard]] auto counts() const -> std::unordered_map<String, size_t> const &;
     //! Return the mode.
     [[nodiscard]] auto mode() const -> ProjectionMode;
 
   private:
     //! The variable counts.
-    std::unordered_map<std::string, size_t> const &counts_;
+    std::unordered_map<String, size_t> const &counts_;
     //! The projection mode.
     ProjectionMode mode_;
 };

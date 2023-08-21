@@ -552,7 +552,7 @@ auto unpool(Statement const &stm) -> std::optional<StatementVec> {
             VariableSet new_global = select_variables(unpooled, VariableContext::global, old_global.size());
             visit_variables(
                 unpooled,
-                [&](std::string const &var) {
+                [&](String var) {
                     if (old_global.contains(var) != new_global.contains(var)) {
                         std::ostringstream oss;
                         oss << "variable " << var << " in\n"

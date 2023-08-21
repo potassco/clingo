@@ -34,11 +34,11 @@ template <bool external> struct construct_function {
     using return_type = TermFunction;
 
     auto operator()(Location loc, auto name) const {
-        return TermFunction{std::move(loc), std::move(name), PoolVec{TupleVec{}}, external};
+        return TermFunction{std::move(loc), name, PoolVec{TupleVec{}}, external};
     }
 
     auto operator()(Location loc, auto name, auto args) const {
-        return TermFunction{std::move(loc), std::move(name), std::move(args), external};
+        return TermFunction{std::move(loc), name, std::move(args), external};
     }
 };
 
@@ -64,6 +64,34 @@ class tuple_trail {
 
 } // namespace Detail
 
+struct store_string_ {
+    using return_type = String;
+
+    template <typename... Args>
+    auto operator()(auto &state, Args &&...args) const
+        -> decltype(state.string(Detail::as_string(std::forward<Args>(args)...))) {
+        return state.string(Detail::as_string(std::forward<Args>(args)...));
+    }
+
+    template <class State> struct sink_callback_ {
+        using return_type = String;
+
+        constexpr sink_callback_(State &state) : state{state} {}
+
+        template <typename... Args> auto operator()(Args &&...args) { return sink(std::forward<Args>(args)...); }
+
+        auto finish() && -> String { return state.string(std::move(sink).finish()); }
+
+        State &state;
+        decltype(Detail::as_string.sink()) sink = Detail::as_string.sink();
+    };
+
+    constexpr auto sink(auto &state) const { return sink_callback_{state}; }
+};
+
+static constexpr auto as_stored_string = lexy::bind_sink(store_string_{}, lexy::parse_state) >>
+                                         lexy::bind(store_string_{}, lexy::parse_state, lexy::values);
+
 static constexpr auto projection_symbol = lexy::symbol_table<std::monostate> //
                                               .map<'*'>(std::monostate{});
 static constexpr auto identifier_base = []() {
@@ -81,7 +109,7 @@ struct identifier : lexy::token_production {
         auto prefix = dsl::while_one(LEXY_LIT("_") / LEXY_LIT("'"));
         return identifier_base.reserve(kw_not) | dsl::capture(dsl::token(prefix + identifier_base));
     }();
-    static constexpr auto value = Detail::as_string;
+    static constexpr auto value = as_stored_string;
 };
 
 static constexpr auto simple_number = dsl::integer<int>(dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero());
@@ -110,26 +138,11 @@ static constexpr auto string = [] {
     return dsl::quoted(inner, escape);
 }();
 
-struct store_string_ {
-    template <class State> struct _sink_callback {
-        State &state;
-        decltype(Detail::as_string.sink()) sink = Detail::as_string.sink();
-
-        template <typename... Args> auto operator()(Args &&...args) { return sink(std::forward<Args>(args)...); }
-
-        auto finish() && -> String { return state.string(std::move(sink).finish()); }
-    };
-
-    constexpr auto sink(auto &state) const { return _sink_callback{state}; }
-};
-
-static constexpr auto as_stored_string = lexy::bind_sink(store_string_{}, lexy::parse_state);
-
 struct term_string : lexy::token_production {
     static constexpr char const *name = "string";
     static constexpr auto rule = Detail::location(string);
     static constexpr auto value = as_stored_string >> lexy::callback<Term>([](Location loc, auto str) {
-                                      return TermSymbol{std::move(loc), std::move(str)};
+                                      return TermSymbol{std::move(loc), SymbolStore::str(str)};
                                   });
 };
 
@@ -143,7 +156,7 @@ struct term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::capture(dsl::token(variable));
     static constexpr auto value = Detail::with_state<Term>([](auto &state, auto var) {
-        return TermVariable{state.loc(var), Detail::as_string(var)};
+        return TermVariable{state.loc(var), state.string(Detail::as_string(var))};
     });
 };
 
@@ -158,8 +171,9 @@ static constexpr auto constant = dsl::symbol<constants>(keyword_base);
 struct term_constant : lexy::token_production {
     static constexpr char const *name = "constant";
     static constexpr auto rule = Detail::location(constant);
-    static constexpr auto value =
-        lexy::callback<Term>([](Location loc, auto val) { return TermSymbol(std::move(loc), val); });
+    static constexpr auto value = lexy::callback<Term>([](Location loc, auto val) {
+        return TermSymbol(std::move(loc), val == Constant::infimum ? SymbolStore::inf() : SymbolStore::sup());
+    });
 };
 
 struct term {

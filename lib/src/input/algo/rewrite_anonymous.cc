@@ -21,7 +21,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
         return std::nullopt;
     }
 
-    auto operator()(std::string const &x) const -> std::optional<std::string> {
+    auto operator()(String const &x) const -> std::optional<String> {
         static_cast<void>(x);
         return std::nullopt;
     }
@@ -273,9 +273,9 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 
 } // namespace
 
-auto NameGen::new_name() -> std::string {
+auto NameGen::new_name() -> String {
     while (true) {
-        std::string name = "__Aux_" + std::to_string(num_);
+        auto name = store_.string("__Aux_" + std::to_string(num_));
         ++num_;
         if (!vars_.contains(name)) {
             return name;
@@ -303,8 +303,8 @@ auto NameGen::new_name() -> std::string {
     return RewriteAnonymous{gen}(lit);
 }
 
-[[nodiscard]] auto rewrite_anonymous(Statement const &stm) -> std::optional<Statement> {
-    auto gen = NameGen{select_variables(stm, VariableContext::all)};
+[[nodiscard]] auto rewrite_anonymous(SymbolStore &store, Statement const &stm) -> std::optional<Statement> {
+    auto gen = NameGen{store, select_variables(stm, VariableContext::all)};
     return RewriteAnonymous{gen}(stm);
 }
 

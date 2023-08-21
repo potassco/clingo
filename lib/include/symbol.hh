@@ -36,6 +36,8 @@ auto operator<<(std::ostream &out, Constant op) -> std::ostream &;
 //! Reference to a string stored in a symbol store.
 class String {
   public:
+    constexpr String() : String{0} {};
+
     [[nodiscard]] auto c_str() const -> const char *;
     [[nodiscard]] auto view() const -> std::string_view;
     [[nodiscard]] auto empty() const -> bool;
@@ -50,7 +52,7 @@ class String {
     static auto from_rep(uint64_t rep) noexcept -> String { return String{rep}; }
 
   private:
-    String(uintptr_t rep) noexcept : rep_{rep} {}
+    constexpr String(uintptr_t rep) noexcept : rep_{rep} {}
     uintptr_t rep_;
 };
 

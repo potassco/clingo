@@ -8,7 +8,7 @@ namespace {
 
 template <class T> auto rewrite_anonymous_str(std::optional<T> value) -> std::string {
     if (value) {
-        return to_str(rewrite_anonymous(value.value()).value_or(value.value()));
+        return to_str(rewrite_anonymous(*make_symbol_store(true, true), value.value()).value_or(value.value()));
     }
     return "<failed>";
 }

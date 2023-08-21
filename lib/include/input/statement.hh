@@ -98,7 +98,7 @@ enum class TheoryOpType {
 struct TheoryOpDefinition {
     //! Construct a theory operator definition.
     explicit TheoryOpDefinition(Location loc, String op, int prio, TheoryOpType type)
-        : loc{std::move(loc)}, op{std::move(op)}, prio{prio}, type{type} {}
+        : loc{std::move(loc)}, op{op}, prio{prio}, type{type} {}
 
     //! The location of the definition.
     Location loc;
@@ -121,7 +121,7 @@ using TheoryOpDefinitionVec = std::vector<TheoryOpDefinition>;
 struct TheoryTermDefinition {
     //! Construct a theory term definition.
     explicit TheoryTermDefinition(Location loc, String name, TheoryOpDefinitionVec op_defs)
-        : loc{std::move(loc)}, name{std::move(name)}, op_defs{std::move(op_defs)} {}
+        : loc{std::move(loc)}, name{name}, op_defs{std::move(op_defs)} {}
 
     //! The location of the definition.
     Location loc;
@@ -157,8 +157,7 @@ struct TheoryAtomDefinition {
 
     //! Construct a theory atom definition.
     explicit TheoryAtomDefinition(Location loc, String name, int arity, String term, RHS rhs, TheoryAtomType type)
-        : loc{std::move(loc)}, name(std::move(name)), arity(arity), term(std::move(term)), rhs(std::move(rhs)),
-          type(type) {}
+        : loc{std::move(loc)}, name(name), arity(arity), term(term), rhs(std::move(rhs)), type(type) {}
 
     //! The location of the definition.
     Location loc;
@@ -186,8 +185,7 @@ struct TheoryDefinition {
     //! Construct a theory definition.
     explicit TheoryDefinition(Location loc, String name, TheoryTermDefinitionVec term_defs,
                               TheoryAtomDefinitionVec atom_defs)
-        : loc{std::move(loc)}, name{std::move(name)}, term_defs{std::move(term_defs)}, atom_defs{std::move(atom_defs)} {
-    }
+        : loc{std::move(loc)}, name{name}, term_defs{std::move(term_defs)}, atom_defs{std::move(atom_defs)} {}
 
     //! The location of the definition.
     Location loc;
@@ -275,7 +273,7 @@ struct StatementShow {
 struct StatementShowSig {
     //! Construct a show signature statement.
     explicit StatementShowSig(Location loc, bool has_sign, String name, int arity)
-        : loc{std::move(loc)}, has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
+        : loc{std::move(loc)}, has_sign{has_sign}, name{name}, arity{arity} {}
 
     //! The location of the statement.
     Location loc;
@@ -309,7 +307,7 @@ struct StatementProject {
 struct StatementProjectSig {
     //! Construct a project signature statement.
     explicit StatementProjectSig(Location loc, bool has_sign, String name, int arity)
-        : loc{std::move(loc)}, has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
+        : loc{std::move(loc)}, has_sign{has_sign}, name{name}, arity{arity} {}
 
     //! The location of the statement.
     Location loc;
@@ -327,7 +325,7 @@ struct StatementProjectSig {
 struct StatementDefined {
     //! Construct a defined statement.
     explicit StatementDefined(Location loc, bool has_sign, String name, int arity)
-        : loc{std::move(loc)}, has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
+        : loc{std::move(loc)}, has_sign{has_sign}, name{name}, arity{arity} {}
 
     //! The location of the statement.
     Location loc;
@@ -470,7 +468,7 @@ struct StatementInclude {
 struct StatementProgram {
     //! Construct an program statement.
     explicit StatementProgram(Location loc, String name, std::vector<String> args)
-        : loc{std::move(loc)}, name(std::move(name)), args(std::move(args)) {}
+        : loc{std::move(loc)}, name(name), args(std::move(args)) {}
 
     //! The location of the statement.
     Location loc;
@@ -494,7 +492,7 @@ enum class ConstType {
 struct StatementConst {
     //! Construct a const statement.
     explicit StatementConst(Location loc, ConstType type, String name, Term value)
-        : loc{std::move(loc)}, type(type), name(std::move(name)), value(std::move(value)) {}
+        : loc{std::move(loc)}, type(type), name(name), value(std::move(value)) {}
 
     //! The location of the statement.
     Location loc;

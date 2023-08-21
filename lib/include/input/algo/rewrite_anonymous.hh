@@ -17,11 +17,13 @@ class NameGen {
     //! Constructor taking a set of variables names.
     //!
     //! The generator ensures that there are no collisions with these names.
-    NameGen(VariableSet vars) : vars_{std::move(vars)} {}
+    NameGen(SymbolStore &store, VariableSet vars) : store_{store}, vars_{std::move(vars)} {}
     //! Generate a unique variable name.
-    [[nodiscard]] auto new_name() -> std::string;
+    [[nodiscard]] auto new_name() -> String;
 
   private:
+    //! Symbol store to store strings.
+    SymbolStore &store_;
     //! Taken variable names.
     VariableSet vars_;
     //! Running number used to generate variable names.
@@ -44,7 +46,7 @@ class NameGen {
 [[nodiscard]] auto rewrite_anonymous(BodyLiteral const &lit, NameGen &gen) -> std::optional<BodyLiteral>;
 
 //! Give anonymous variables a unique name.
-[[nodiscard]] auto rewrite_anonymous(Statement const &stm) -> std::optional<Statement>;
+[[nodiscard]] auto rewrite_anonymous(SymbolStore &store, Statement const &stm) -> std::optional<Statement>;
 
 //! @}
 

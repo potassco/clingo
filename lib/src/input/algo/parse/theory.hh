@@ -94,26 +94,28 @@ struct theory_term_arguments {
 struct theory_term_function {
     static constexpr char const *name = "theory function";
     static constexpr auto rule = dsl::inline_<identifier> >> dsl::if_(dsl::p<theory_term_arguments>);
-    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto id,
-                                                                    std::vector<TheoryTerm> args = {}) {
-        auto begin = state.pos(id.begin());
-        auto end = args.empty() ? state.pos(id.end()) : location(args.back()).end;
-        return TheoryTermFunction{Location{std::move(begin), std::move(end)}, Detail::as_string(id), std::move(args)};
-    });
+    static constexpr auto value =
+        Detail::with_state<TheoryTerm>([](auto &state, auto id, std::vector<TheoryTerm> args = {}) {
+            auto begin = state.pos(id.begin());
+            auto end = args.empty() ? state.pos(id.end()) : location(args.back()).end;
+            return TheoryTermFunction{Location{std::move(begin), std::move(end)}, state.string(Detail::as_string(id)),
+                                      std::move(args)};
+        });
 };
 
 struct theory_term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::capture(dsl::token(variable));
     static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto var) {
-        return TheoryTermVariable{Location{state.pos(var.begin()), state.pos(var.end())}, Detail::as_string(var)};
+        return TheoryTermVariable{Location{state.pos(var.begin()), state.pos(var.end())},
+                                  state.string(Detail::as_string(var))};
     });
 };
 
 struct theory_term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = Detail::location(anonymous_variable);
-    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto &loc) {
+    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, Location loc) {
         return TheoryTermVariable{std::move(loc), state.string("_"), true};
     });
 };
@@ -136,9 +138,9 @@ struct theory_term_string : lexy::token_production {
 
 struct theory_term_constant : lexy::token_production {
     static constexpr char const *name = "constant";
-    static constexpr auto rule = Detail::position(constant >> Detail::position);
-    static constexpr auto value = lexy::callback<TheoryTerm>([](Position begin, auto val, Position end) {
-        return TheoryTermSymbol(Location{std::move(begin), std::move(end)}, val);
+    static constexpr auto rule = Detail::location(constant);
+    static constexpr auto value = lexy::callback<TheoryTerm>([](Location loc, Constant val) {
+        return TheoryTermSymbol(std::move(loc), val == Constant::infimum ? SymbolStore::inf() : SymbolStore::sup());
     });
 };
 

@@ -6,10 +6,10 @@
 
 using namespace Gringo::Input;
 
-void process(RewriteOptions opts, auto &&scanner, auto &&output) {
+void process(Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, auto &&output) {
     for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
         StatementVec stms;
-        rewrite(std::move(stm).value(), opts, stms);
+        rewrite(store, std::move(stm).value(), opts, stms);
         for (auto const &stm : stms) {
             output << stm << "\n";
         }
@@ -18,11 +18,12 @@ void process(RewriteOptions opts, auto &&scanner, auto &&output) {
 
 auto main(int argc, char **argv) -> int {
     auto opts = RewriteOptions{};
+    auto store = Gringo::make_symbol_store(false, false);
     if (argc == 1) {
-        process(opts, scan_stream(std::cin), std::cout);
+        process(*store, opts, scan_stream(*store, std::cin), std::cout);
     } else {
         for (int i = 1; i < argc; ++i) {
-            process(opts, scan_file(argv[i]), std::cout);
+            process(*store, opts, scan_file(*store, argv[i]), std::cout);
         }
     }
 }

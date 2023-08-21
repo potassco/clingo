@@ -20,7 +20,7 @@ auto projectable(Projection project, Term const *term) -> bool {
 }
 
 auto get_counts(Projection project, auto const &elem) {
-    std::unordered_map<std::string, size_t> counts;
+    std::unordered_map<String, size_t> counts;
     visit_variables(elem, [&project, &counts](auto const &var) {
         if (!project.counts().contains(var)) {
             ++counts[var];
@@ -40,7 +40,7 @@ struct Project : Transformer<Project> {
 
     // ignore
 
-    auto operator()(std::string const &x) const -> std::optional<std::string> {
+    auto operator()(String const &x) const -> std::optional<String> {
         static_cast<void>(x);
         return std::nullopt;
     }
@@ -265,7 +265,7 @@ struct Project : Transformer<Project> {
         }
         bool in_classical_scope = is_classical(stm.head);
         auto sub_project = Project{project, in_classical_scope};
-        // Note that it would be nicest to be able to have to different
+        // Note that it would be nicest to be able to have two different
         // translators for head and body because the scope setting would
         // ideally just apply to the body. In the current implementation, the
         // head literals simply set the scope themselves.
@@ -358,7 +358,7 @@ struct Project : Transformer<Project> {
 
 } // namespace
 
-auto Projection::projectable(std::string const &var, bool anonymous) const -> bool {
+auto Projection::projectable(String const &var, bool anonymous) const -> bool {
     if (mode_ == ProjectionMode::disabled) {
         return false;
     }
@@ -369,7 +369,7 @@ auto Projection::projectable(std::string const &var, bool anonymous) const -> bo
     return it != counts_.end() && it->second == 1;
 }
 
-auto Projection::counts() const -> std::unordered_map<std::string, size_t> const & { return counts_; }
+auto Projection::counts() const -> std::unordered_map<String, size_t> const & { return counts_; }
 
 auto Projection::mode() const -> ProjectionMode { return mode_; }
 
@@ -387,7 +387,7 @@ auto project(Statement const &stm, ProjectionMode mode, bool project_anonymous) 
     std::optional<Statement> res;
     if (mode != ProjectionMode::disabled) {
         VariableSet vars = select_variables(stm, VariableContext::global);
-        std::unordered_map<std::string, size_t> counts;
+        std::unordered_map<String, size_t> counts;
         counts.reserve(vars.size());
         visit_variables(
             stm,

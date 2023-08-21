@@ -8,7 +8,11 @@ namespace {
 
 template <class T> auto variables_str(T const &value) -> std::string {
     auto vars = select_variables(value);
-    auto sorted = std::vector<VariableSet::value_type>{vars.begin(), vars.end()};
+    std::vector<std::string> sorted;
+    sorted.reserve(vars.size());
+    for (auto &var : vars) {
+        sorted.emplace_back(var.view());
+    }
     std::sort(sorted.begin(), sorted.end());
     return to_str(sorted);
 }

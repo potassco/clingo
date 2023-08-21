@@ -25,6 +25,7 @@ struct CheckType {
                     }
                     return true;
                 }
+                return false;
             }
             case SymbolType::function: {
                 if (type == TermCheckType::atom) {
@@ -37,6 +38,7 @@ struct CheckType {
                     }
                     return true;
                 }
+                return false;
             }
             default: {
                 return false;

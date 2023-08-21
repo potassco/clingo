@@ -34,7 +34,7 @@ struct RewriteOptions {
 //! This functions pulls together all the different rewriting steps.
 //! The highest rewrite level is used to rewrite a program before grounding.
 //! There are some optional rewriting steps that can be configured via the given options.
-void rewrite(Statement const &stm, RewriteOptions opts, StatementVec &stms);
+void rewrite(SymbolStore &store, Statement const &stm, RewriteOptions opts, StatementVec &stms);
 
 //! @}
 

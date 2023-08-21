@@ -328,7 +328,7 @@ struct Print {
     void operator()(TermSymbol const &term) const {
         char const *lp = "";
         char const *rp = "";
-        if (no_leading_op && has_sign(term.value)) {
+        if (no_leading_op && term.value.has_sign()) {
             lp = "(";
             rp = "(";
         }

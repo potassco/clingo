@@ -585,7 +585,7 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
             break;
         }
         case SymbolType::sup: {
-            out << "#inf";
+            out << "#sup";
             break;
         }
         case SymbolType::number: {
