@@ -16,31 +16,32 @@ struct CheckType {
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
     auto operator()(TermSymbol const &term) const -> bool {
-        return std::visit(
-            [this](auto &&value) {
-                if constexpr (GRINGO_IS_OF_TYPE(value, int)) {
-                    if (type == TermCheckType::pos_number && value >= 0) {
-                        if (res != nullptr) {
-                            res->pos_number = value;
-                        }
-                        return true;
+        switch (term.value.type()) {
+            case SymbolType::number: {
+                auto num = term.value.num();
+                if (type == TermCheckType::pos_number && num >= 0) {
+                    if (res != nullptr) {
+                        res->pos_number = num;
                     }
+                    return true;
                 }
-                if constexpr (GRINGO_IS_OF_TYPE(value, Function)) {
-                    if (type == TermCheckType::atom) {
-                        return true;
-                    }
-                    if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) &&
-                        !value.name.empty() && value.args.empty()) {
-                        if (res != nullptr) {
-                            res->identifier = value.name;
-                        }
-                        return true;
-                    }
+            }
+            case SymbolType::function: {
+                if (type == TermCheckType::atom) {
+                    return true;
                 }
+                if ((type == TermCheckType::identifier || type == TermCheckType::signed_identifier) &&
+                    term.value.args().empty()) {
+                    if (res != nullptr) {
+                        res->identifier = term.value.name();
+                    }
+                    return true;
+                }
+            }
+            default: {
                 return false;
-            },
-            term.value);
+            }
+        }
     }
 
     auto operator()(TermVariable const &term) const -> bool {

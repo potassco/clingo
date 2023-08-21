@@ -7,7 +7,7 @@ namespace Gringo::Input {
 //! @defgroup input_algo Algorithms
 //! @ingroup input
 //!
-//! Alogorithms for the input language.
+//! Algorithms for the input language.
 
 //! @defgroup input_check_type Check Type
 //! @ingroup input_algo
@@ -29,12 +29,12 @@ enum class TermCheckType : int {
 //!
 //! @see Term::check_type()
 struct CheckTypeResult {
-    //! Wheather the term is signed.
+    //! Whether the term is signed.
     bool has_sign = false;
     //! The number represented by the term.
     int pos_number = 0;
     //! The identifier represented by the term.
-    std::string identifier;
+    String identifier;
 };
 
 //! Query information about the structure of the given term.

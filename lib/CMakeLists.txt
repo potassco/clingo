@@ -13,7 +13,6 @@ add_library(parsertest
     "src/input/literal.cc"
     "src/input/term.cc"
     "src/symbol.cc"
-    "src/symbol_old.cc"
     )
 
 target_link_libraries(parsertest PUBLIC hopscotch_map PRIVATE foonathan::lexy::core foonathan::lexy::file)

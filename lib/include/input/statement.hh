@@ -97,13 +97,13 @@ enum class TheoryOpType {
 //! For example: <tt>- : 0, unary</tt>.
 struct TheoryOpDefinition {
     //! Construct a theory operator definition.
-    explicit TheoryOpDefinition(Location loc, std::string op, int prio, TheoryOpType type)
+    explicit TheoryOpDefinition(Location loc, String op, int prio, TheoryOpType type)
         : loc{std::move(loc)}, op{std::move(op)}, prio{prio}, type{type} {}
 
     //! The location of the definition.
     Location loc;
     //! The representation of the operator.
-    std::string op;
+    String op;
     //! The priority of the operator.
     int prio;
     //! The type of the operator.
@@ -120,13 +120,13 @@ using TheoryOpDefinitionVec = std::vector<TheoryOpDefinition>;
 //! For example: <tt>term { - : 0, unary }</tt>.
 struct TheoryTermDefinition {
     //! Construct a theory term definition.
-    explicit TheoryTermDefinition(Location loc, std::string name, TheoryOpDefinitionVec op_defs)
+    explicit TheoryTermDefinition(Location loc, String name, TheoryOpDefinitionVec op_defs)
         : loc{std::move(loc)}, name{std::move(name)}, op_defs{std::move(op_defs)} {}
 
     //! The location of the definition.
     Location loc;
     //! The name of the definition.
-    std::string name;
+    String name;
     //! The associated operator definitions.
     std::vector<TheoryOpDefinition> op_defs;
 };
@@ -153,22 +153,21 @@ struct TheoryAtomDefinition {
     //! An optional definition for the right-hand-side of a theory atom.
     //!
     //! It consists of a list of possible operators and a name of a term definition.
-    using RHS = std::optional<std::pair<std::vector<std::string>, std::string>>;
+    using RHS = std::optional<std::pair<std::vector<String>, String>>;
 
     //! Construct a theory atom definition.
-    explicit TheoryAtomDefinition(Location loc, std::string name, int arity, std::string term, RHS rhs,
-                                  TheoryAtomType type)
+    explicit TheoryAtomDefinition(Location loc, String name, int arity, String term, RHS rhs, TheoryAtomType type)
         : loc{std::move(loc)}, name(std::move(name)), arity(arity), term(std::move(term)), rhs(std::move(rhs)),
           type(type) {}
 
     //! The location of the definition.
     Location loc;
     //! The name of the atom.
-    std::string name;
+    String name;
     //! The arity of the atom.
     int arity;
     //! The name of the term definition used in elements.
-    std::string term;
+    String term;
     //! The definition for the right hand side of the atom.
     RHS rhs;
     //! The type of the atom.
@@ -185,7 +184,7 @@ using TheoryAtomDefinitionVec = std::vector<TheoryAtomDefinition>;
 //! For example: <tt>\#theory name { term { - : 0, unary }; name/2: term, any }</tt>.
 struct TheoryDefinition {
     //! Construct a theory definition.
-    explicit TheoryDefinition(Location loc, std::string name, TheoryTermDefinitionVec term_defs,
+    explicit TheoryDefinition(Location loc, String name, TheoryTermDefinitionVec term_defs,
                               TheoryAtomDefinitionVec atom_defs)
         : loc{std::move(loc)}, name{std::move(name)}, term_defs{std::move(term_defs)}, atom_defs{std::move(atom_defs)} {
     }
@@ -193,7 +192,7 @@ struct TheoryDefinition {
     //! The location of the definition.
     Location loc;
     //! The name of the definition.
-    std::string name;
+    String name;
     //! The theory term definitions.
     TheoryTermDefinitionVec term_defs;
     //! The theory atom definitions.
@@ -275,7 +274,7 @@ struct StatementShow {
 //! Example: <tt>\#show p/2</tt>.
 struct StatementShowSig {
     //! Construct a show signature statement.
-    explicit StatementShowSig(Location loc, bool has_sign, std::string name, int arity)
+    explicit StatementShowSig(Location loc, bool has_sign, String name, int arity)
         : loc{std::move(loc)}, has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
 
     //! The location of the statement.
@@ -283,7 +282,7 @@ struct StatementShowSig {
     //! Whether the signature is negative.
     bool has_sign;
     //! The name.
-    std::string name;
+    String name;
     //! The arity.
     int arity;
 };
@@ -309,7 +308,7 @@ struct StatementProject {
 //! Example: <tt>\#project p/2</tt>.
 struct StatementProjectSig {
     //! Construct a project signature statement.
-    explicit StatementProjectSig(Location loc, bool has_sign, std::string name, int arity)
+    explicit StatementProjectSig(Location loc, bool has_sign, String name, int arity)
         : loc{std::move(loc)}, has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
 
     //! The location of the statement.
@@ -317,7 +316,7 @@ struct StatementProjectSig {
     //! Whether the signature is negative.
     bool has_sign;
     //! The name.
-    std::string name;
+    String name;
     //! The arity.
     int arity;
 };
@@ -327,7 +326,7 @@ struct StatementProjectSig {
 //! Example: <tt>\#defined p/2</tt>.
 struct StatementDefined {
     //! Construct a defined statement.
-    explicit StatementDefined(Location loc, bool has_sign, std::string name, int arity)
+    explicit StatementDefined(Location loc, bool has_sign, String name, int arity)
         : loc{std::move(loc)}, has_sign{has_sign}, name{std::move(name)}, arity{arity} {}
 
     //! The location of the statement.
@@ -335,7 +334,7 @@ struct StatementDefined {
     //! Whether the signature is negative.
     bool has_sign;
     //! The name.
-    std::string name;
+    String name;
     //! The arity.
     int arity;
 };
@@ -470,15 +469,15 @@ struct StatementInclude {
 //! For example: <tt>\#program check(t)"</tt>.
 struct StatementProgram {
     //! Construct an program statement.
-    explicit StatementProgram(Location loc, std::string name, std::vector<std::string> args)
+    explicit StatementProgram(Location loc, String name, std::vector<String> args)
         : loc{std::move(loc)}, name(std::move(name)), args(std::move(args)) {}
 
     //! The location of the statement.
     Location loc;
     //! The name of the program.
-    std::string name;
+    String name;
     //! The arguments of the program.
-    std::vector<std::string> args;
+    std::vector<String> args;
 };
 
 //! Enumeration of constant statement types.
@@ -494,7 +493,7 @@ enum class ConstType {
 //! For example: <tt>\#const n=42</tt>.
 struct StatementConst {
     //! Construct a const statement.
-    explicit StatementConst(Location loc, ConstType type, std::string name, Term value)
+    explicit StatementConst(Location loc, ConstType type, String name, Term value)
         : loc{std::move(loc)}, type(type), name(std::move(name)), value(std::move(value)) {}
 
     //! The location of the statement.
@@ -502,7 +501,7 @@ struct StatementConst {
     //! The type of the statement.
     ConstType type;
     //! The name of the constant.
-    std::string name;
+    String name;
     //! The value of the constant
     //!
     //! @todo This should become a symbol at some point.

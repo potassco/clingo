@@ -30,9 +30,9 @@ namespace Gringo::Input {
 //! @{
 
 //! A set of variable names.
-using VariableSet = std::unordered_set<std::string>;
+using VariableSet = std::unordered_set<String>;
 //! A vector of variable names.
-using VariableVec = std::vector<std::string>;
+using VariableVec = std::vector<String>;
 
 struct TermVariable;
 struct TermSymbol;
@@ -62,13 +62,13 @@ using PoolVec = std::vector<TupleVec>;
 //! For example <tt>X</tt>.
 struct TermVariable {
     //! Construct a variable.
-    explicit TermVariable(Location loc, std::string name, bool is_anonymous = false)
+    explicit TermVariable(Location loc, String name, bool is_anonymous = false)
         : loc{std::move(loc)}, name{std::move(name)}, is_anonymous{is_anonymous} {}
 
     //! The location of the variable.
     Location loc;
     //! The name of the variable.
-    std::string name;
+    String name;
     //! Whether the variable is anonymous.
     bool is_anonymous;
 };
@@ -127,12 +127,12 @@ struct TermFunction {
     //!
     //! The function takes a pool of term tuples, which will be reduced to a single element after calling
     //! Term::unpool().
-    explicit TermFunction(Location loc, std::string name, PoolVec args, bool external);
+    explicit TermFunction(Location loc, String name, PoolVec args, bool external);
 
     //! The location of the function.
     Location loc;
     //! The name of the function.
-    std::string name;
+    String name;
     //! The argument pool of the function.
     PoolVec pool;
     //! Whether this is an external function.
@@ -245,7 +245,7 @@ inline TermBinary::TermBinary(Location loc, Term lhs, BinaryOperator op, Term rh
       rhs{Util::construct_shared<Term>(std::move(rhs))} {}
 inline TermBinary::TermBinary(Location loc, Util::shared_ptr<Term> lhs, BinaryOperator op, Util::shared_ptr<Term> rhs)
     : loc{std::move(loc)}, op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
-inline TermFunction::TermFunction(Location loc, std::string name, PoolVec args, bool external)
+inline TermFunction::TermFunction(Location loc, String name, PoolVec args, bool external)
     : loc{std::move(loc)}, name(std::move(name)), pool{std::move(args)}, external{external} {}
 inline TermTuple::TermTuple(Location loc, ElementVec args) : loc{std::move(loc)}, pool{std::move(args)} {}
 
