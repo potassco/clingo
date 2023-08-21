@@ -240,6 +240,7 @@ class SlottedAlloc {
         }
     }
 
+    // TODO: this is a bit wasteful because symbols arrays are always multiples of 8
     std::array<Head, max_slot> free_list_;
 };
 
