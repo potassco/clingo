@@ -42,13 +42,13 @@ struct TheoryTermSymbol {
 //! For example: <tt>X</tt>.
 struct TheoryTermVariable {
     //! Construct a variable theory term.
-    explicit TheoryTermVariable(Location loc, std::string name, bool is_anonymous = false)
-        : loc{std::move(loc)}, name{std::move(name)}, is_anonymous{is_anonymous} {}
+    explicit TheoryTermVariable(Location loc, String name, bool is_anonymous = false)
+        : loc{std::move(loc)}, name{name}, is_anonymous{is_anonymous} {}
 
     //! The location of the variable.
     Location loc;
     //! The name of the variable.
-    std::string name;
+    String name;
     //! Whether the variable is anonymous.
     bool is_anonymous;
 };
@@ -82,14 +82,14 @@ struct TheoryTermTuple {
 //! For example: <tt>{f(X,y), Z}</tt>.
 struct TheoryTermFunction {
     //! Construct a function theory term.
-    explicit TheoryTermFunction(Location loc, std::string name);
+    explicit TheoryTermFunction(Location loc, String name);
     //! Construct a function theory term.
-    explicit TheoryTermFunction(Location loc, std::string name, TheoryTermVec args);
+    explicit TheoryTermFunction(Location loc, String name, TheoryTermVec args);
 
     //! The location of the symbol.
     Location loc;
     //! The name of the function.
-    std::string name;
+    String name;
     //! The arguments of the function.
     TheoryTermVec args;
 };
@@ -102,7 +102,7 @@ struct TheoryTermFunction {
 //! For example: <tt>- X ++ Y << Z</tt>.
 struct TheoryTermUnparsed {
     //! A vector of operators.
-    using OpVec = std::vector<std::string>;
+    using OpVec = std::vector<String>;
     //! An element having the form of a right guard.
     using Element = std::pair<OpVec, TheoryTerm>;
     //! A vector of elements.
@@ -122,15 +122,15 @@ struct TheoryTermUnparsed {
 
 inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermVec elems)
     : loc{std::move(loc)}, type(type), elems{std::move(elems)} {}
-inline TheoryTermFunction::TheoryTermFunction(Location loc, std::string name)
-    : TheoryTermFunction{std::move(loc), std::move(name), {}} {}
-inline TheoryTermFunction::TheoryTermFunction(Location loc, std::string name, TheoryTermVec args)
-    : loc{std::move(loc)}, name(std::move(name)), args{std::move(args)} {}
+inline TheoryTermFunction::TheoryTermFunction(Location loc, String name)
+    : TheoryTermFunction{std::move(loc), name, {}} {}
+inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryTermVec args)
+    : loc{std::move(loc)}, name(name), args{std::move(args)} {}
 inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, ElementVec elems)
     : loc{std::move(loc)}, elems{std::move(elems)} {}
 
 //! The optional right guard of the theory atom.
-using TheoryRGuard = std::optional<std::pair<std::string, TheoryTerm>>;
+using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
 //! An element of the theory atom.
 using TheoryElement = std::pair<TheoryTermVec, LiteralVec>;
 //! A vector of theory atom elements.

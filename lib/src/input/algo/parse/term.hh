@@ -94,7 +94,7 @@ struct term_number : lexy::token_production {
     static constexpr char const *name = "number";
     static constexpr auto rule = Detail::location(number);
     static constexpr auto value =
-        lexy::callback<Term>([](Location loc, auto num) { return TermSymbol(std::move(loc), num); });
+        lexy::callback<Term>([](Location loc, auto num) { return TermSymbol(std::move(loc), SymbolStore::num(num)); });
 };
 
 static constexpr auto escaped_symbols = lexy::symbol_table<char> //
@@ -110,11 +110,26 @@ static constexpr auto string = [] {
     return dsl::quoted(inner, escape);
 }();
 
+struct store_string_ {
+    template <class State> struct _sink_callback {
+        State &state;
+        decltype(Detail::as_string.sink()) sink = Detail::as_string.sink();
+
+        template <typename... Args> auto operator()(Args &&...args) { return sink(std::forward<Args>(args)...); }
+
+        auto finish() && -> String { return state.string(std::move(sink).finish()); }
+    };
+
+    constexpr auto sink(auto &state) const { return _sink_callback{state}; }
+};
+
+static constexpr auto as_stored_string = lexy::bind_sink(store_string_{}, lexy::parse_state);
+
 struct term_string : lexy::token_production {
     static constexpr char const *name = "string";
     static constexpr auto rule = Detail::location(string);
-    static constexpr auto value = Detail::as_string >> lexy::callback<Term>([](Location loc, auto str) {
-                                      return TermSymbol{std::move(loc), QuotedString{str}};
+    static constexpr auto value = as_stored_string >> lexy::callback<Term>([](Location loc, auto str) {
+                                      return TermSymbol{std::move(loc), std::move(str)};
                                   });
 };
 
@@ -240,8 +255,8 @@ static constexpr auto anonymous_variable =
 struct term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = Detail::location(anonymous_variable);
-    static constexpr auto value = lexy::callback<Term>([](Location loc) {
-        return TermVariable{std::move(loc), "_", true};
+    static constexpr auto value = Detail::with_state<Term>([](auto &state, Location loc) {
+        return TermVariable{std::move(loc), state.string("_"), true};
     });
 };
 
