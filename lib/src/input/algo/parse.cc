@@ -19,8 +19,8 @@ template <class It> class State {
     using iterator = It;
 
     //! Construct state with beginning of input.
-    State(SymbolStore &store, std::string filename, It begin)
-        : store_{store}, filename_{std::move(filename)}, cur_{begin}, ws_begin_{begin}, ws_end_{begin} {}
+    State(SymbolStore &store, String filename, It begin)
+        : store_{store}, filename_{filename}, cur_{begin}, ws_begin_{begin}, ws_end_{begin} {}
 
     //! Compute line and column offsets for the given position.
     auto pos(It pos) -> Position {
@@ -142,7 +142,7 @@ template <class It> class State {
     //! The store to construct symbols.
     SymbolStore &store_;
     //! The name of the file at hand.
-    std::string filename_;
+    String filename_;
     //! Positions have been computed up to and including this iterator.
     It cur_;
     //! Start of white space.
@@ -173,7 +173,7 @@ template <class P> struct root : Grammar::control {
 template <typename Control>
 auto parse(SymbolStore &store, std::string_view str) -> std::optional<typename decltype(Control::value)::return_type> {
     auto input = lexy::string_input<Grammar::encoding>{str};
-    auto state = State{store, "<string>", input.reader().position()};
+    auto state = State{store, store.string("<string>"), input.reader().position()};
     auto res = lexy::parse<root<Control>>(input, state, report_error);
     if (res.has_value()) {
         return std::move(res).value();
@@ -235,7 +235,6 @@ class ScannerImpl {
         }
         // scan the next statement
         while (self.scanner_ && !self.scanner_.is_at_eof()) {
-            auto pos = self.state_.pos(self.scanner_.position());
             self.state_.discard(self.scanner_.position());
             discard(self.base_input_, self.scanner_);
             auto res = self.scanner_.template parse<Grammar::statement>();
@@ -270,15 +269,15 @@ auto Scanner::scan() -> std::optional<Statement> { return impl_->scan(); }
 class StreamScanner : public ScannerImpl {
   public:
     StreamScanner(SymbolStore &store, std::istream &in)
-        : base_input_{in}, state_{store, "<stream>", base_input_.reader().position()}, input_{base_input_, state_},
-          scanner_{lexy::scan<Grammar::control>(input_, state_, report_error)} {}
+        : base_input_{in}, state_{store, store.string("<stream>"), base_input_.reader().position()},
+          input_{base_input_, state_}, scanner_{lexy::scan<Grammar::control>(input_, state_, report_error)} {}
     auto scan() -> std::optional<Statement> override { return scan_(*this); }
 
   private:
     friend ScannerImpl;
 
     using BaseInput = StreamInput<Grammar::encoding>;
-    using State = decltype(Gringo::Input::State{std::declval<SymbolStore &>(), "",
+    using State = decltype(Gringo::Input::State{std::declval<SymbolStore &>(), std::declval<String>(),
                                                 std::declval<BaseInput &>().reader().position()});
     using Input = StatefulInput<BaseInput, State>;
     using Scanner =
@@ -296,7 +295,7 @@ class FileScanner : public ScannerImpl {
   public:
     FileScanner(SymbolStore &store, char const *path)
         : handle_{lexy::read_file<Grammar::encoding>(path)}, base_input_{handle_.buffer()},
-          state_{store, path, base_input_.reader().position()}, input_{base_input_, state_},
+          state_{store, store.string(path), base_input_.reader().position()}, input_{base_input_, state_},
           scanner_{lexy::scan<Grammar::control>(input_, state_, report_error)} {}
     auto scan() -> std::optional<Statement> override { return scan_(*this); }
 
@@ -305,7 +304,7 @@ class FileScanner : public ScannerImpl {
 
     using FileHandle = std::remove_cvref_t<decltype(lexy::read_file<Grammar::encoding>(std::declval<char const *>()))>;
     using BaseInput = std::remove_cvref_t<decltype(std::declval<FileHandle>().buffer())>;
-    using State = decltype(Gringo::Input::State{std::declval<SymbolStore &>(), "",
+    using State = decltype(Gringo::Input::State{std::declval<SymbolStore &>(), std::declval<String>(),
                                                 std::declval<BaseInput &>().reader().position()});
     using Input = StatefulInput<BaseInput, State>;
     using Scanner = std::remove_cvref_t<decltype(lexy::scan<Grammar::control>(std::declval<Input &>(),
@@ -323,15 +322,15 @@ class FileScanner : public ScannerImpl {
 class StringScanner : public ScannerImpl {
   public:
     StringScanner(SymbolStore &store, std::string_view content)
-        : base_input_{content}, state_{store, "<string>", base_input_.reader().position()}, input_{base_input_, state_},
-          scanner_{lexy::scan<Grammar::control>(input_, state_, report_error)} {}
+        : base_input_{content}, state_{store, store.string("<string>"), base_input_.reader().position()},
+          input_{base_input_, state_}, scanner_{lexy::scan<Grammar::control>(input_, state_, report_error)} {}
     auto scan() -> std::optional<Statement> override { return scan_(*this); }
 
   private:
     friend ScannerImpl;
 
     using BaseInput = lexy::string_input<Grammar::encoding>;
-    using State = decltype(Gringo::Input::State{std::declval<SymbolStore &>(), "",
+    using State = decltype(Gringo::Input::State{std::declval<SymbolStore &>(), std::declval<String>(),
                                                 std::declval<BaseInput &>().reader().position()});
     using Input = StatefulInput<BaseInput, State>;
     using Scanner =

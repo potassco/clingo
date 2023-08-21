@@ -15,7 +15,7 @@ inline auto construct_head_aggr(Term term, Relation rel, HeadAggregate aggr) -> 
 }
 
 inline auto construct_head_aggr(Term term, Relation rel, HeadSetAggregate aggr) -> HeadSetAggregate {
-    auto loc = location(term) + aggr.loc;
+    aggr.loc = location(term) + aggr.loc;
     aggr.lhs = LGuard::value_type{std::move(term), rel};
     return aggr;
 }

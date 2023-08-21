@@ -1,7 +1,11 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
+#include <variant>
+
+#include <symbol.hh>
 
 namespace Gringo::Input {
 
@@ -15,7 +19,7 @@ namespace Gringo::Input {
 //! A point in an input source.
 struct Position {
     //! The name of a file/stream/string.
-    std::string file;
+    String file;
     //! The line number.
     size_t line;
     //! The column number.
