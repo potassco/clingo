@@ -16,7 +16,7 @@ auto operator==(SymbolSpan a, S b) -> bool { return std::equal(a.begin(), a.end(
 namespace Gringo::Test {
 
 TEST_CASE("symbol_number") {
-    USymbolStore store = make_symbol_store(false);
+    USymbolStore store = make_symbol_store(false, false);
 
     auto n1 = store->number(1);
     auto n2 = store->number(2);
@@ -28,7 +28,7 @@ TEST_CASE("symbol_number") {
 }
 
 TEST_CASE("symbol_constant") {
-    USymbolStore store = make_symbol_store(false);
+    USymbolStore store = make_symbol_store(false, false);
 
     auto n1 = store->inf();
     auto n2 = store->sup();
@@ -40,7 +40,7 @@ TEST_CASE("symbol_constant") {
 }
 
 TEST_CASE("string") {
-    USymbolStore store = make_symbol_store(false);
+    USymbolStore store = make_symbol_store(false, false);
 
     auto sx1 = store->string("x");
     auto sx2 = store->string("x");
@@ -52,7 +52,7 @@ TEST_CASE("string") {
 }
 
 TEST_CASE("symbol_string") {
-    USymbolStore store = make_symbol_store(false);
+    USymbolStore store = make_symbol_store(false, false);
 
     auto sx = store->string("x");
     auto sy = store->string("y");
@@ -67,7 +67,7 @@ TEST_CASE("symbol_string") {
 }
 
 TEST_CASE("symbol_tuple") {
-    USymbolStore store = make_symbol_store(false);
+    USymbolStore store = make_symbol_store(false, false);
 
     auto n0 = store->number(0);
     auto n1 = store->number(1);

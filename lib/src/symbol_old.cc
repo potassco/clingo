@@ -15,11 +15,12 @@ template <class Key, class Hash = Util::value_hasher<Key>, class KeyEqual = std:
           class Allocator = std::allocator<Key>, unsigned int NeighborhoodSize = 62, bool StoreHash = false> // NOLINT
 using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
 
-// Note that the implementation switches to the large representation if the
-// upper 16 bits of the pointer are not zero. However, byte aligned pointers
-// are a hard requirement. Furthermore, the design is targeted toward 64bit
-// architectures. There are probably better ways to store symbols on 32bit
-// architectures.
+// Note: The old system implemented symbol storage using 32bit indices. In
+// principle, we can do something like this here, too, by adding further
+// representation types and caveats regarding usage.
+
+// The design is targeted toward 64bit architectures. There are probably better
+// ways to store symbols on 32bit architectures.
 // ========================================================================
 // | 64 bit layout of symbol                                              |
 // ========================================================================
@@ -244,7 +245,7 @@ template <bool slotted> auto get_alloc() {
     }
 }
 
-class SymbolArray {
+template <bool slotted> class SymbolArray {
   public:
     SymbolArray(SymbolSpan symbols) : repr_{init_(symbols)} {}
     SymbolArray(Symbol name, SymbolSpan symbols) : repr_{init_(name, symbols)} {}
@@ -263,17 +264,17 @@ class SymbolArray {
     [[nodiscard]] auto data() const noexcept -> Symbol * { return repr_; }
     [[nodiscard]] auto size() const noexcept -> size_t { return SlottedAlloc::size(repr_) / sizeof(Symbol); }
 
-    ~SymbolArray() noexcept { get_alloc<true>().dealloc(repr_); }
+    ~SymbolArray() noexcept { get_alloc<slotted>().dealloc(repr_); }
 
   private:
     static auto init_(SymbolSpan symbols) -> Symbol * {
-        auto *data = reinterpret_cast<Symbol *>(get_alloc<true>().alloc(symbols.size() * sizeof(Symbol)));
+        auto *data = reinterpret_cast<Symbol *>(get_alloc<slotted>().alloc(symbols.size() * sizeof(Symbol)));
         std::copy(symbols.begin(), symbols.end(), data);
         return data;
     }
 
     static auto init_(Symbol name, SymbolSpan symbols) -> Symbol * {
-        auto *data = reinterpret_cast<Symbol *>(get_alloc<true>().alloc((symbols.size() + 1) * sizeof(Symbol)));
+        auto *data = reinterpret_cast<Symbol *>(get_alloc<slotted>().alloc((symbols.size() + 1) * sizeof(Symbol)));
         *data = name;
         std::copy(symbols.begin(), symbols.end(), data + 1);
         return data;
@@ -288,7 +289,8 @@ struct SymbolArrayHash {
         return Util::value_hash(fun.first, std::string_view{reinterpret_cast<char const *>(fun.second.data()),
                                                             fun.second.size() * sizeof(Symbol)});
     }
-    auto operator()(SymbolArray const &fun) const -> size_t {
+
+    template <bool slotted> auto operator()(SymbolArray<slotted> const &fun) const -> size_t {
         return operator()(std::make_pair(fun.head(), fun.tail()));
     }
 };
@@ -299,14 +301,25 @@ struct SymbolArrayEqual {
         return std::equal(a.begin(), a.end(), b.begin(), b.end());
     }
 
-    auto operator()(SymbolArray const &a, SymbolSpan b) const -> bool { return operator()(a.span(), b); }
-    auto operator()(SymbolSpan a, SymbolArray const &b) const -> bool { return operator()(a, b.span()); }
+    template <bool slotted> auto operator()(SymbolArray<slotted> const &a, SymbolSpan b) const -> bool {
+        return operator()(a.span(), b);
+    }
+    template <bool slotted> auto operator()(SymbolSpan a, SymbolArray<slotted> const &b) const -> bool {
+        return operator()(a, b.span());
+    }
 
-    auto operator()(SymbolArray const &a, std::pair<Symbol, SymbolSpan> b) const -> bool {
+    template <bool slotted>
+    auto operator()(SymbolArray<slotted> const &a, std::pair<Symbol, SymbolSpan> b) const -> bool {
         return a.head() == b.first && operator()(a.tail(), b.second);
     }
-    auto operator()(std::pair<Symbol, SymbolSpan> a, SymbolArray const &b) const -> bool { return operator()(b, a); }
-    auto operator()(SymbolArray const &a, SymbolArray const &b) const -> bool { return a.data() == b.data(); }
+    template <bool slotted>
+    auto operator()(std::pair<Symbol, SymbolSpan> a, SymbolArray<slotted> const &b) const -> bool {
+        return operator()(b, a);
+    }
+    template <bool slotted>
+    auto operator()(SymbolArray<slotted> const &a, SymbolArray<slotted> const &b) const -> bool {
+        return a.data() == b.data();
+    }
 };
 
 using UString = std::unique_ptr<char[]>;
@@ -323,7 +336,7 @@ struct UStringHash {
     auto operator()(std::string_view a) const -> size_t { return std::hash<std::string_view>{}(a); }
 };
 
-class DefaultSymbolStore : public SymbolStore {
+template <bool slotted> class DefaultSymbolStore : public SymbolStore {
   public:
     [[nodiscard]] auto function(String name, SymbolSpan args) -> Symbol override {
         auto size = args.size();
@@ -334,7 +347,7 @@ class DefaultSymbolStore : public SymbolStore {
         auto fun = std::make_pair(SymbolStore::string(name), args);
         auto jt = tuples_.find(fun);
         if (jt == tuples_.end()) {
-            jt = tuples_.emplace(SymbolArray{fun.first, fun.second}).first;
+            jt = tuples_.emplace(SymbolArray<slotted>{fun.first, fun.second}).first;
         }
         auto rep = reinterpret_cast<uint64_t>(jt->data()) | rep_function;
         return Symbol::from_rep(rep);
@@ -348,7 +361,7 @@ class DefaultSymbolStore : public SymbolStore {
         }
         auto jt = tuples_.find(args);
         if (jt == tuples_.end()) {
-            jt = tuples_.emplace(SymbolArray{args}).first;
+            jt = tuples_.emplace(SymbolArray<slotted>{args}).first;
         }
         auto rep = reinterpret_cast<uint64_t>(jt->data()) | rep_tuple;
         return Symbol::from_rep(rep);
@@ -371,7 +384,7 @@ class DefaultSymbolStore : public SymbolStore {
 
   private:
     using StringSet = hash_set<UString, UStringHash, UStringEqual>;
-    using TupleSet = hash_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
+    using TupleSet = hash_set<SymbolArray<slotted>, SymbolArrayHash, SymbolArrayEqual>;
 
     StringSet strings_;
     TupleSet tuples_;
@@ -380,7 +393,7 @@ class DefaultSymbolStore : public SymbolStore {
 //! Simple thread-safe symbol store.
 //!
 //! More fine-grained locking is possible and also a shared lock is interesting.
-class SharedSymbolStore : public SymbolStore {
+template <bool slotted> class SharedSymbolStore : public SymbolStore {
   public:
     [[nodiscard]] auto function(String name, SymbolSpan args) -> Symbol override {
         std::unique_lock ulock{mutex_};
@@ -404,7 +417,7 @@ class SharedSymbolStore : public SymbolStore {
 
   private:
     std::mutex mutex_;
-    DefaultSymbolStore store_;
+    DefaultSymbolStore<slotted> store_;
 };
 
 auto default_symbol_store_() -> USymbolStore & {
@@ -507,16 +520,22 @@ void init_default_symbol_store(USymbolStore store) {
 auto default_symbol_store() -> SymbolStore & {
     auto &default_store = default_symbol_store_();
     if (default_store.get() == nullptr) {
-        default_store = std::make_unique<DefaultSymbolStore>();
+        default_store = std::make_unique<DefaultSymbolStore<true>>();
     }
     return *default_store;
 }
 
-auto make_symbol_store(bool shared) -> USymbolStore {
+auto make_symbol_store(bool local, bool shared) -> USymbolStore {
     if (shared) {
-        return std::make_unique<SharedSymbolStore>();
+        if (local) {
+            return std::make_unique<SharedSymbolStore<false>>();
+        }
+        return std::make_unique<SharedSymbolStore<true>>();
     }
-    return std::make_unique<DefaultSymbolStore>();
+    if (local) {
+        return std::make_unique<DefaultSymbolStore<false>>();
+    }
+    return std::make_unique<DefaultSymbolStore<true>>();
 }
 
 } // namespace Gringo

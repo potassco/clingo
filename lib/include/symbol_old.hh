@@ -86,7 +86,11 @@ auto default_symbol_store() -> SymbolStore &;
 //!
 //! Either a default store for single-threaded use or a locked one for
 //! multi-threaded use can be created.
-auto make_symbol_store(bool shared) -> USymbolStore;
+//!
+//! Furthermore, it can be selected whether the store can use global state.
+//! Using global state speeds up allocation but can only be used in shared mode
+//! if there is more than one thread accessing symbols.
+auto make_symbol_store(bool local, bool shared) -> USymbolStore;
 
 } // namespace Gringo
 
