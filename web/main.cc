@@ -14,10 +14,10 @@
 
 using namespace Gringo::Input;
 
-void process(Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, auto &&output) {
+void process(Gringo::Logger &log, Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, auto &&output) {
     for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
         StatementVec stms;
-        rewrite(store, std::move(stm).value(), opts, stms);
+        rewrite(log, store, std::move(stm).value(), opts, stms);
         for (auto const &stm : stms) {
             output << stm << "\n";
         }
@@ -26,21 +26,21 @@ void process(Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, au
 
 EMSCRIPTEN_KEEPALIVE
 extern "C" void run(char const *program, int level, int project_mode, bool project_anonymous) {
+    auto log = Gringo::Logger{};
     try {
-        Gringo::with_logger wl{false};
         if (level < 0 || level > 3) {
-            std::cerr << "invalid rewrite level" << std::endl;
+            GRINGO_REPORT(log, error) << "invalid rewrite level";
             return;
         }
         if (project_mode < 0 || project_mode > 2) {
-            std::cerr << "invalid projection mode" << std::endl;
+            GRINGO_REPORT(log, error) << "invalid projection mode";
             return;
         }
         auto opts = RewriteOptions{static_cast<RewriteLevel>(level), static_cast<ProjectionMode>(project_mode),
                                    project_anonymous};
         auto store = Gringo::make_symbol_store(true, false);
-        process(*store, opts, scan_string(*store, program), std::cout);
+        process(log, *store, opts, scan_string(*store, program), std::cout);
     } catch (std::exception const &e) {
-        std::cerr << "error: " << e.what() << std::endl;
+        GRINGO_REPORT(log, error) << e.what();
     }
 }

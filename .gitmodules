@@ -7,9 +7,6 @@
 [submodule "third_party/hopscotch-map"]
 	path = third_party/hopscotch-map
 	url = ../../Tessil/hopscotch-map.git
-[submodule "third_party/spdlog"]
-	path = third_party/spdlog
-	url = ../../gabime/spdlog.git
 [submodule "third_party/CLI11"]
 	path = third_party/CLI11
 	url = ../../CLIUtils/CLI11

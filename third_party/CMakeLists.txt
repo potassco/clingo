@@ -11,8 +11,5 @@ if (PARSER_BUILD_TESTS)
 endif()
 
 if (NOT PARSER_BUILD_WEB)
-    add_subdirectory(spdlog)
     add_subdirectory(CLI11)
-else ()
-    add_subdirectory(spdlog_lite)
 endif()

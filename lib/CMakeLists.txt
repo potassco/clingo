@@ -12,11 +12,10 @@ add_library(parsertest
     "src/input/algo/visit_variables.cc"
     "src/input/literal.cc"
     "src/input/term.cc"
-    "src/logger.cc"
     "src/symbol.cc"
     )
 
-target_link_libraries(parsertest PUBLIC hopscotch_map spdlog PRIVATE foonathan::lexy::core foonathan::lexy::file)
+target_link_libraries(parsertest PUBLIC hopscotch_map PRIVATE foonathan::lexy::core foonathan::lexy::file)
 target_include_directories(parsertest PUBLIC "include")
 # for lexy using >> and + in combination
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

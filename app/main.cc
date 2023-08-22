@@ -10,10 +10,10 @@
 
 using namespace Gringo::Input;
 
-void process(Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, auto &&output) {
+void process(Gringo::Logger &log, Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, auto &&output) {
     for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
         StatementVec stms;
-        rewrite(store, std::move(stm).value(), opts, stms);
+        rewrite(log, store, std::move(stm).value(), opts, stms);
         for (auto const &stm : stms) {
             output << stm << "\n";
         }
@@ -22,34 +22,29 @@ void process(Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, au
 
 auto main() -> int {
     auto opts = RewriteOptions{};
-    auto timestamp = false;
     std::vector<std::string> files;
-    auto loglevel = spdlog::level::info;
+    auto log_level = Gringo::LogLevel::info;
 
     CLI::App app{"ASP preprocessor that wants to become a grounder"};
 
     app.add_option("files", files, "files to parse");
-    app.add_flag("--timestamp", timestamp, "timestamp log messages");
     // later...
     // ->check(CLI::ExistingFile);
-    app.add_option("--loglevel", "{off,critical,error,warn,info,debug,trace}")
-        ->check([&loglevel](std::string const &value) {
-            std::array levels = std::to_array<std::pair<char const *, spdlog::level::level_enum>>(
-                {{"trace", spdlog::level::trace},
-                 {"debug", spdlog::level::debug},
-                 {"info", spdlog::level::info},
-                 {"warn", spdlog::level::warn},
-                 {"error", spdlog::level::err},
-                 {"critical", spdlog::level::critical},
-                 {"off", spdlog::level::off}});
-            for (auto &[name, level] : levels) {
-                if (value == name) {
-                    loglevel = level;
-                    return std::string{};
-                }
+    app.add_option("--log-level", "{error,warn,info,debug,trace}")->check([&log_level](std::string const &value) {
+        std::array levels =
+            std::to_array<std::pair<char const *, Gringo::LogLevel>>({{"trace", Gringo::LogLevel::trace},
+                                                                      {"debug", Gringo::LogLevel::debug},
+                                                                      {"info", Gringo::LogLevel::info},
+                                                                      {"warn", Gringo::LogLevel::warn},
+                                                                      {"error", Gringo::LogLevel::error}});
+        for (auto &[name, level] : levels) {
+            if (value == name) {
+                log_level = level;
+                return std::string{};
             }
-            return std::string{"unexpected value"};
-        });
+        }
+        return std::string{"unexpected value"};
+    });
     app.add_option("--rewrite-level", "{off,anonymous,unpool,project}")->check([&opts](std::string const &value) {
         std::array levels = std::to_array<std::pair<char const *, Gringo::Input::RewriteLevel>>(
             {{"off", Gringo::Input::RewriteLevel::disabled},
@@ -84,21 +79,15 @@ auto main() -> int {
         return app.exit(e);
     }
 
-    Gringo::with_logger wl{false};
+    auto log = Gringo::Logger{};
     auto store = Gringo::make_symbol_store(false, false);
-    auto &log = Gringo::logger();
-    log.set_level(loglevel);
-    if (timestamp) {
-        log.set_pattern("[%Y-%m-%d %T.%e] %^%l%$: %v");
-    } else {
-        log.set_pattern("%^%l%$: %v");
-    }
-    log.debug("starting up");
+    log.set_level(log_level);
+    GRINGO_REPORT(log, debug) << "starting up";
     if (files.empty()) {
-        process(*store, opts, scan_stream(*store, std::cin), std::cout);
+        process(log, *store, opts, scan_stream(*store, std::cin), std::cout);
     } else {
         for (auto const &file : files) {
-            process(*store, opts, scan_file(*store, file.c_str()), std::cout);
+            process(log, *store, opts, scan_file(*store, file.c_str()), std::cout);
         }
     }
 }
