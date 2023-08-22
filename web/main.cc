@@ -6,6 +6,8 @@
 
 #include <iostream>
 
+#include <logger.hh>
+
 #include <input/algo/parse.hh>
 #include <input/algo/print.hh>
 #include <input/algo/rewrite.hh>
@@ -25,6 +27,7 @@ void process(Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, au
 EMSCRIPTEN_KEEPALIVE
 extern "C" void run(char const *program, int level, int project_mode, bool project_anonymous) {
     try {
+        Gringo::with_logger wl{false};
         if (level < 0 || level > 3) {
             std::cerr << "invalid rewrite level" << std::endl;
             return;
