@@ -10,3 +10,4 @@ if (PARSER_BUILD_TESTS)
     add_subdirectory(Catch2)
 endif()
 
+add_subdirectory(spdlog)
