@@ -80,7 +80,7 @@ auto main() -> int {
     }
 
     auto log = Gringo::Logger{};
-    auto store = Gringo::make_symbol_store(false, false);
+    auto store = Gringo::make_symbol_store(true, false);
     log.set_level(log_level);
     GRINGO_REPORT(log, debug) << "starting up";
     if (files.empty()) {

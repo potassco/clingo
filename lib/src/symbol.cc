@@ -9,6 +9,8 @@
 
 #include <symbol.hh>
 
+#include <iostream>
+
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays)
 
 namespace Gringo {
@@ -110,25 +112,32 @@ template <> struct MS_<4> {
 
 using MS = MS_<sizeof(uint64_t)>;
 
+struct Sized {
+    uint64_t size : 63;
+    uint64_t tag : 1;
+};
+
+auto alloc_size(void *mem) -> size_t { return (reinterpret_cast<Sized *>(mem) - 1)->size; }
+
 //! Simple thread-safe allocator prefixing pointers with a size.
 //!
-//! Note that GNU malloc actually prefixes a size already.
+//! The size can be obtained using function alloc_size().
 class SimpleAlloc {
   public:
+    //! Allocated memory aligned to uint64_t.
     static auto alloc(size_t n) -> void * {
-        auto k = n + sizeof(size_t);
-        auto *data = reinterpret_cast<size_t *>(::operator new[](k));
-        *data = n;
-        return (data + 1);
+        auto k = n + sizeof(Sized);
+        auto *data = reinterpret_cast<Sized *>(::operator new[](k));
+        new (data) Sized(n, 1);
+        return data + 1;
     }
 
+    //! Deallocate the given memory.
     static void dealloc(void *mem) {
         if (mem != nullptr) {
-            ::operator delete[](reinterpret_cast<size_t *>(mem) - 1);
+            ::operator delete[](reinterpret_cast<Sized *>(mem) - 1);
         }
     }
-
-    static auto size(void *mem) -> size_t { return *(reinterpret_cast<size_t *>(mem) - 1); }
 };
 
 //! A slotted allocator made for single-thread or locked multi-threaded use.
@@ -136,13 +145,9 @@ class SimpleAlloc {
 //! This allocator should hopefully speed up allocation of symbols.
 class SlottedAlloc {
   public:
-    struct Sized {
-        size_t size : sizeof(size_t) - 1;
-        size_t tag : 1;
-    };
     struct Node {
-        size_t size : sizeof(size_t) - 1;
-        size_t tag : 1;
+        uint64_t size : 63;
+        uint64_t tag : 1;
         Node *next;
     };
     struct Head {
@@ -150,67 +155,60 @@ class SlottedAlloc {
         size_t use_count = 0;
     };
 
-    // TODO: maybe this can be done more cleverly decreasing the number of
-    // allocations for large slots.
     static constexpr size_t ptr_size = sizeof(Node *);
     static constexpr size_t max_slot = 256;
-    static constexpr size_t max_alloc = 1024;
+    static constexpr size_t max_alloc = 4096;
 
+    //! Allocate memory aligned to uint64_t.
     auto alloc(size_t n) -> void * {
-        auto l = (n < ptr_size ? ptr_size : n);
         void *mem = nullptr;
-        auto k = l + sizeof(size_t);
-        if ((l - ptr_size) < max_slot) {
-            auto &head = free_list_[l - ptr_size];
+        if (n < max_slot) {
+            auto k = block_size_(n);
+            auto &head = free_list_[n];
             auto &node = head.node;
             if (node == nullptr) {
-                size_t m = max_alloc * k;
+                // use limited exponential growth scheme for allocation
+                size_t m = (head.use_count < max_alloc ? head.use_count + 1 : max_alloc) * k;
                 node = reinterpret_cast<Node *>(::operator new[](m));
                 // tag the beginning of the memory block
                 new (node) Node(m, 1, nullptr);
             }
             Node *old = node;
             if (node->size == k) {
-                node->size = n;
                 node = node->next;
             } else {
-                node = old + k;
+                node = reinterpret_cast<Node *>(reinterpret_cast<char *>(old) + k);
                 new (node) Node(old->size - k, 0, old->next);
             }
             old->size = n;
             mem = reinterpret_cast<Sized *>(old) + 1;
             ++head.use_count;
         } else {
-            auto *data = reinterpret_cast<Sized *>(::operator new[](k));
-            new (data) Sized(n, 1);
-            mem = data + 1;
+            mem = SimpleAlloc::alloc(n);
         }
         return mem;
     }
 
+    //! Deallocate the given memory.
     void dealloc(void *mem) {
         if (mem != nullptr) {
-            size_t n = size(mem);
-            auto l = (n < ptr_size ? ptr_size : n);
-            auto k = l + sizeof(size_t);
-            if (l - ptr_size < max_slot) {
+            size_t n = alloc_size(mem);
+            if (n < max_slot) {
                 // put node in the free list
-                auto &head = free_list_[l - ptr_size];
+                auto &head = free_list_[n];
                 auto *node = reinterpret_cast<Node *>(reinterpret_cast<Sized *>(mem) - 1);
                 node->next = head.node;
-                node->size = k;
+                node->size = block_size_(n);
                 head.node = node;
                 --head.use_count;
                 if (head.use_count == 0) {
                     free_head_(head);
                 }
             } else {
-                ::operator delete[](reinterpret_cast<Sized *>(mem) - 1);
+                SimpleAlloc::dealloc(mem);
             }
         }
     }
-
-    static auto size(void *mem) -> size_t { return (reinterpret_cast<Sized *>(mem) - 1)->size; }
 
     ~SlottedAlloc() noexcept {
         for (auto &head : free_list_) {
@@ -219,6 +217,19 @@ class SlottedAlloc {
     }
 
   private:
+    static auto block_size_(size_t n) -> size_t {
+        // the usable block must at least be able to hold a pointer
+        auto l = (n < ptr_size ? ptr_size : n);
+        // align the same as Sized
+        // (restricts for which types the allocator can be used)
+        auto r = l % alignof(Sized);
+        if (r > 0) {
+            l += alignof(Sized) - r;
+        }
+        // we have to store the size
+        return l + sizeof(Sized);
+    }
+
     static void free_head_(Head &head) {
         Node *node = head.node;
         head.node = nullptr;
@@ -240,56 +251,37 @@ class SlottedAlloc {
         }
     }
 
-    // TODO: this is a bit wasteful because symbols arrays are always multiples of 8
     std::array<Head, max_slot> free_list_;
 };
 
-template <bool slotted> auto get_alloc() {
-    if constexpr (slotted) {
-        static SlottedAlloc alloc;
-        return alloc;
-    } else {
-        static SimpleAlloc alloc;
-        return alloc;
-    }
-}
-
-template <bool slotted> class SymbolArray {
+class SymbolArray {
   public:
-    SymbolArray(SymbolSpan symbols) : repr_{init_(symbols)} {}
-    SymbolArray(Symbol name, SymbolSpan symbols) : repr_{init_(name, symbols)} {}
-    SymbolArray(SymbolArray const &other) = delete;
-    SymbolArray(SymbolArray &&other) noexcept : repr_{other.repr_} { other.repr_ = nullptr; }
+    SymbolArray() = default;
 
-    auto operator=(SymbolArray const &other) -> SymbolArray & = delete;
-    auto operator=(SymbolArray &&other) noexcept -> SymbolArray & {
-        std::swap(repr_, other.repr_);
-        return *this;
+    template <class Alloc> void init(Alloc &alloc, SymbolSpan symbols) {
+        repr_ = reinterpret_cast<Symbol *>(alloc.alloc(symbols.size() * sizeof(Symbol)));
+        std::copy(symbols.begin(), symbols.end(), repr_);
+    }
+
+    template <class Alloc> void init(Alloc &alloc, Symbol name, SymbolSpan symbols) {
+        repr_ = reinterpret_cast<Symbol *>(alloc.alloc((symbols.size() + 1) * sizeof(Symbol)));
+        *repr_ = name;
+        std::copy(symbols.begin(), symbols.end(), repr_ + 1);
+    }
+
+    template <class Alloc> void destroy(Alloc &alloc) noexcept {
+        alloc.dealloc(repr_);
+        repr_ = nullptr;
     }
 
     [[nodiscard]] auto span() const noexcept -> SymbolSpan { return {repr_, size()}; }
     [[nodiscard]] auto head() const noexcept -> Symbol { return *repr_; }
     [[nodiscard]] auto tail() const noexcept -> SymbolSpan { return {repr_ + 1, size() - 1}; }
     [[nodiscard]] auto data() const noexcept -> Symbol * { return repr_; }
-    [[nodiscard]] auto size() const noexcept -> size_t { return SlottedAlloc::size(repr_) / sizeof(Symbol); }
-
-    ~SymbolArray() noexcept { get_alloc<slotted>().dealloc(repr_); }
+    [[nodiscard]] auto size() const noexcept -> size_t { return alloc_size(repr_) / sizeof(Symbol); }
 
   private:
-    static auto init_(SymbolSpan symbols) -> Symbol * {
-        auto *data = reinterpret_cast<Symbol *>(get_alloc<slotted>().alloc(symbols.size() * sizeof(Symbol)));
-        std::copy(symbols.begin(), symbols.end(), data);
-        return data;
-    }
-
-    static auto init_(Symbol name, SymbolSpan symbols) -> Symbol * {
-        auto *data = reinterpret_cast<Symbol *>(get_alloc<slotted>().alloc((symbols.size() + 1) * sizeof(Symbol)));
-        *data = name;
-        std::copy(symbols.begin(), symbols.end(), data + 1);
-        return data;
-    }
-
-    Symbol *repr_;
+    Symbol *repr_ = nullptr;
 };
 
 struct SymbolArrayHash {
@@ -299,7 +291,7 @@ struct SymbolArrayHash {
                                                             fun.second.size() * sizeof(Symbol)});
     }
 
-    template <bool slotted> auto operator()(SymbolArray<slotted> const &fun) const -> size_t {
+    auto operator()(SymbolArray const &fun) const -> size_t {
         return operator()(std::make_pair(fun.head(), fun.tail()));
     }
 };
@@ -310,42 +302,52 @@ struct SymbolArrayEqual {
         return std::equal(a.begin(), a.end(), b.begin(), b.end());
     }
 
-    template <bool slotted> auto operator()(SymbolArray<slotted> const &a, SymbolSpan b) const -> bool {
-        return operator()(a.span(), b);
-    }
-    template <bool slotted> auto operator()(SymbolSpan a, SymbolArray<slotted> const &b) const -> bool {
-        return operator()(a, b.span());
-    }
+    auto operator()(SymbolArray a, SymbolSpan b) const -> bool { return operator()(a.span(), b); }
+    auto operator()(SymbolSpan a, SymbolArray b) const -> bool { return operator()(a, b.span()); }
 
-    template <bool slotted>
-    auto operator()(SymbolArray<slotted> const &a, std::pair<Symbol, SymbolSpan> b) const -> bool {
+    auto operator()(SymbolArray a, std::pair<Symbol, SymbolSpan> b) const -> bool {
         return a.head() == b.first && operator()(a.tail(), b.second);
     }
-    template <bool slotted>
-    auto operator()(std::pair<Symbol, SymbolSpan> a, SymbolArray<slotted> const &b) const -> bool {
-        return operator()(b, a);
-    }
-    template <bool slotted>
-    auto operator()(SymbolArray<slotted> const &a, SymbolArray<slotted> const &b) const -> bool {
-        return a.data() == b.data();
-    }
+    auto operator()(std::pair<Symbol, SymbolSpan> a, SymbolArray b) const -> bool { return operator()(b, a); }
+    auto operator()(SymbolArray a, SymbolArray b) const -> bool { return a.data() == b.data(); }
 };
 
-using UString = std::unique_ptr<char[]>;
+class CharArray {
+  public:
+    CharArray() = default;
 
-struct UStringEqual {
+    template <class Alloc> void init(Alloc &alloc, std::string_view str) {
+        repr_ = reinterpret_cast<char *>(alloc.alloc((str.size() + 1) * sizeof(char)));
+        std::copy(str.begin(), str.end(), repr_);
+        repr_[str.size()] = '\0';
+    }
+
+    template <class Alloc> void destroy(Alloc &alloc) noexcept {
+        alloc.dealloc(repr_);
+        repr_ = nullptr;
+    }
+
+    [[nodiscard]] auto view() const noexcept -> std::string_view { return {repr_, size()}; }
+    [[nodiscard]] auto data() const noexcept -> char const * { return repr_; }
+    [[nodiscard]] auto size() const noexcept -> size_t { return alloc_size(repr_) / sizeof(char) - 1; }
+
+  private:
+    char *repr_ = nullptr;
+};
+
+struct CharArrayEqual {
     using is_transparent = void;
-    auto operator()(UString const &a, std::string_view b) const -> bool { return std::string_view{a.get()} == b; }
-    auto operator()(std::string_view a, UString const &b) const -> bool { return operator()(b, a); }
-    auto operator()(UString const &a, UString const &b) const -> bool { return a.get() == b.get(); }
+    auto operator()(CharArray a, std::string_view b) const -> bool { return a.view() == b; }
+    auto operator()(std::string_view a, CharArray b) const -> bool { return a == b.view(); }
+    auto operator()(CharArray a, CharArray b) const -> bool { return a.view() == b.view(); }
 };
 
-struct UStringHash {
-    auto operator()(UString const &a) const -> size_t { return operator()(a.get()); }
+struct CharArrayHash {
+    auto operator()(CharArray a) const -> size_t { return operator()(a.view()); }
     auto operator()(std::string_view a) const -> size_t { return std::hash<std::string_view>{}(a); }
 };
 
-template <bool slotted> class DefaultSymbolStore : public SymbolStore {
+template <class Allocator> class DefaultSymbolStore : public SymbolStore {
   public:
     [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         auto size = args.size();
@@ -356,7 +358,7 @@ template <bool slotted> class DefaultSymbolStore : public SymbolStore {
         auto fun = std::make_pair(SymbolStore::str(name), args);
         auto jt = tuples_.find(fun);
         if (jt == tuples_.end()) {
-            jt = tuples_.emplace(SymbolArray<slotted>{fun.first, fun.second}).first;
+            jt = insert_(tuples_, fun.first, fun.second);
         }
         auto rep = reinterpret_cast<uint64_t>(jt->data()) | (sign ? rep_signed_function : rep_function);
         return Symbol::from_rep(rep);
@@ -370,7 +372,7 @@ template <bool slotted> class DefaultSymbolStore : public SymbolStore {
         }
         auto jt = tuples_.find(args);
         if (jt == tuples_.end()) {
-            jt = tuples_.emplace(SymbolArray<slotted>{args}).first;
+            jt = insert_(tuples_, args);
         }
         auto rep = reinterpret_cast<uint64_t>(jt->data()) | rep_tuple;
         return Symbol::from_rep(rep);
@@ -379,22 +381,41 @@ template <bool slotted> class DefaultSymbolStore : public SymbolStore {
     [[nodiscard]] auto string(std::string_view str) -> String override {
         auto it = strings_.find(str);
         if (it == strings_.end()) {
-            auto res = std::make_unique<char[]>(str.size() + 1);
-            std::copy(str.begin(), str.end(), res.get());
-            it = strings_.emplace(std::move(res)).first;
+            it = insert_(strings_, str);
         }
-        return String::from_rep(reinterpret_cast<uintptr_t>(it->get()));
+        return String::from_rep(reinterpret_cast<uintptr_t>(it->data()));
     }
 
     void clear() {
-        strings_.clear();
-        tuples_.clear();
+        clear_(strings_);
+        clear_(tuples_);
     }
 
-  private:
-    using StringSet = hash_set<UString, UStringHash, UStringEqual>;
-    using TupleSet = hash_set<SymbolArray<slotted>, SymbolArrayHash, SymbolArrayEqual>;
+    ~DefaultSymbolStore() noexcept override { clear(); }
 
+  private:
+    using StringSet = hash_set<CharArray, CharArrayHash, CharArrayEqual>;
+    using TupleSet = hash_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
+
+    template <class T, class... Args> auto insert_(T &table, Args &&...args) -> T::iterator {
+        typename T::value_type arr;
+        try {
+            arr.init(alloc_, std::forward<Args>(args)...);
+            return table.emplace(arr).first;
+        } catch (...) {
+            arr.destroy(alloc_);
+            throw;
+        }
+    }
+
+    template <class T> void clear_(T &table) noexcept {
+        for (auto arr : table) {
+            arr.destroy(alloc_);
+        }
+        table.clear();
+    }
+
+    Allocator alloc_;
     StringSet strings_;
     TupleSet tuples_;
 };
@@ -402,7 +423,7 @@ template <bool slotted> class DefaultSymbolStore : public SymbolStore {
 //! Simple thread-safe symbol store.
 //!
 //! More fine-grained locking is possible and also a shared lock is interesting.
-template <bool slotted> class SharedSymbolStore : public SymbolStore {
+template <class Alloc> class SharedSymbolStore : public SymbolStore {
   public:
     [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         std::unique_lock ulock{mutex_};
@@ -426,7 +447,7 @@ template <bool slotted> class SharedSymbolStore : public SymbolStore {
 
   private:
     std::mutex mutex_;
-    DefaultSymbolStore<slotted> store_;
+    DefaultSymbolStore<Alloc> store_;
 };
 
 auto default_symbol_store_() -> USymbolStore & {
@@ -438,19 +459,16 @@ auto default_symbol_store_() -> USymbolStore & {
 
 auto String::c_str() const -> const char * { return reinterpret_cast<char const *>(rep_); }
 
-auto String::view() const -> std::string_view {
-    // TODO: it is probably worth it to store the length and return the view right away
-    return c_str();
-}
+auto String::view() const -> std::string_view { return {c_str(), size()}; }
 
 auto String::empty() const -> bool { return *c_str() == '\0'; }
 
-auto String::size() const -> size_t { return std::strlen(c_str()); }
+auto String::size() const -> size_t { return alloc_size(reinterpret_cast<void *>(rep_)) - 1; }
 
 auto String::starts_with(std::string_view prefix) const -> bool { return view().starts_with(prefix); }
 
 auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
-    out << str.c_str();
+    out << str.view();
     return out;
 }
 
@@ -486,13 +504,13 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
         case rep_signed_function:
         case rep_function: {
             auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask);
-            auto size = SlottedAlloc::size(ptr) / sizeof(Symbol);
+            auto size = alloc_size(ptr) / sizeof(Symbol);
             return SymbolSpan{ptr + 1, size - 1};
         }
         default: {
             assert((rep_ & MS::type_mask) == rep_tuple);
             auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask);
-            auto size = ptr != nullptr ? SlottedAlloc::size(ptr) / sizeof(Symbol) : 0;
+            auto size = ptr != nullptr ? alloc_size(ptr) / sizeof(Symbol) : 0;
             return SymbolSpan{ptr, size};
         }
     }
@@ -646,22 +664,22 @@ void init_default_symbol_store(USymbolStore store) {
 auto default_symbol_store() -> SymbolStore & {
     auto &default_store = default_symbol_store_();
     if (default_store.get() == nullptr) {
-        default_store = std::make_unique<DefaultSymbolStore<true>>();
+        default_store = std::make_unique<DefaultSymbolStore<SlottedAlloc>>();
     }
     return *default_store;
 }
 
-auto make_symbol_store(bool local, bool shared) -> USymbolStore {
+auto make_symbol_store(bool slotted, bool shared) -> USymbolStore {
     if (shared) {
-        if (local) {
-            return std::make_unique<SharedSymbolStore<false>>();
+        if (slotted) {
+            return std::make_unique<SharedSymbolStore<SlottedAlloc>>();
         }
-        return std::make_unique<SharedSymbolStore<true>>();
+        return std::make_unique<SharedSymbolStore<SimpleAlloc>>();
     }
-    if (local) {
-        return std::make_unique<DefaultSymbolStore<false>>();
+    if (slotted) {
+        return std::make_unique<DefaultSymbolStore<SlottedAlloc>>();
     }
-    return std::make_unique<DefaultSymbolStore<true>>();
+    return std::make_unique<DefaultSymbolStore<SimpleAlloc>>();
 }
 
 } // namespace Gringo

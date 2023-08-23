@@ -38,7 +38,7 @@ extern "C" void run(char const *program, int level, int project_mode, bool proje
         }
         auto opts = RewriteOptions{static_cast<RewriteLevel>(level), static_cast<ProjectionMode>(project_mode),
                                    project_anonymous};
-        auto store = Gringo::make_symbol_store(true, false);
+        auto store = Gringo::make_symbol_store(false, false);
         process(log, *store, opts, scan_string(*store, program), std::cout);
     } catch (std::exception const &e) {
         GRINGO_REPORT(log, error) << e.what();
