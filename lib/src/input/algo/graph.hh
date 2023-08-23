@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdio>
 #include <forward_list>
 #include <vector>
 
@@ -51,9 +52,10 @@ inline void Graph::add_edge(size_t u, size_t v) {
     if (nodes_.size() < n) {
         nodes_.reserve(n);
         while (nodes_.size() < n) {
-            nodes_.emplace_back(Node{{}, {}, phase_});
+            nodes_.emplace_back(Node{{}, {}, prev_phase_()});
         }
     }
+    nodes_[u].out.emplace_back(v);
 }
 
 template <class Callback> inline void Graph::tarjan(Callback &&cb) {

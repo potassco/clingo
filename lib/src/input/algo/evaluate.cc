@@ -9,6 +9,7 @@
 
 #include "checked_math.hh"
 #include "graph.hh"
+#include "logger.hh"
 
 namespace Gringo::Input {
 
@@ -305,6 +306,7 @@ struct Evaluate {
         return res;
     }
 
+    Logger &log;
     SymbolStore &store;
     std::unordered_map<String, std::optional<Symbol>> const &map;
 };
@@ -370,12 +372,12 @@ auto evaluate(Symbol const &lhs, BinaryOperator op, Symbol const &rhs) -> std::o
     throw std::runtime_error("cannot evaluate intervals");
 }
 
-auto evaluate(SymbolStore &store, std::unordered_map<String, std::optional<Symbol>> const &map, Term const &term)
-    -> std::optional<Symbol> {
-    return std::visit(Evaluate{store, map}, term);
+auto evaluate(Logger &log, SymbolStore &store, std::unordered_map<String, std::optional<Symbol>> const &map,
+              Term const &term) -> std::optional<Symbol> {
+    return std::visit(Evaluate{log, store, map}, term);
 }
 
-auto evaluate_const(SymbolStore &store, std::vector<StatementConst> const &stms)
+auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst> const &stms)
     -> std::unordered_map<String, std::optional<Symbol>> {
     // build map
     std::unordered_map<String, size_t> map;
@@ -387,8 +389,11 @@ auto evaluate_const(SymbolStore &store, std::vector<StatementConst> const &stms)
             if (stm_b.type < stm_a.type) {
                 res.first->second = id_stm;
             } else {
-                // TODO: proper reporting
-                std::cerr << "info: constant already defined: " << stm_a.name << std::endl;
+                GRINGO_REPORT_LOC(log, error, location(stm_a))
+                    << "redefinition of constant:\n"
+                    << "  " << stm_a << "\n"
+                    << location(stm_b) << ": note: redefinition of constant:\n"
+                    << "  " << stm_b << "\n";
             }
         }
         ++id_stm;
@@ -400,20 +405,26 @@ auto evaluate_const(SymbolStore &store, std::vector<StatementConst> const &stms)
     }
     // evaluate const statements
     std::unordered_map<String, std::optional<Symbol>> res;
-    dep.tarjan([&store, &stms, &res](auto const &scc) {
+    dep.tarjan([&log, &store, &stms, &res](auto const &scc) {
         if (scc.size() == 1) {
             auto const &stm = stms[scc.front()];
-            res.emplace(stm.name, evaluate(store, res, stm.value));
+            res.emplace(stm.name, evaluate(log, store, res, stm.value));
         } else {
+            bool first = true;
+            std::ostringstream oss;
             for (auto id_stm : scc) {
+                auto &stm = stms[id_stm];
+                oss << location(stm);
+                if (first) {
+                    oss << ": " << log.message_prefix(MessageCode::error) << ": cyclic constant definition:\n";
+                    first = false;
+                } else {
+                    oss << ": note: cyclic constant definition:\n";
+                }
+                oss << "  " << stms[id_stm] << "\n";
                 res.emplace(stms[id_stm].name, std::nullopt);
             }
-            // TODO: proper reporting
-            std::cerr << "error: the following const statements depend cyclically on each other:";
-            for (auto id_stm : scc) {
-                std::cerr << "\n  " << stms[id_stm];
-            }
-            std::cerr << std::endl;
+            GRINGO_REPORT_STR(log, error, oss.str());
         }
     });
     return res;

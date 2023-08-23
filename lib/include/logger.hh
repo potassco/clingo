@@ -79,10 +79,14 @@ class Logger {
     void enable(MessageCode code, bool enable);
     //! Unconditonally output a message with a given code.
     void print(MessageCode code, char const *msg);
+    //! Unconditonally output a message with a given code.
+    void print(MessageCode code, std::string const &str);
     //! Set the log level.
     void set_level(LogLevel level);
     //! Set the message limit.
     void set_limit(size_t limit);
+    //! Get a string representation of the message category.
+    [[nodiscard]] auto message_prefix(MessageCode code) const -> char const *;
 
   private:
     Printer p_;
@@ -95,13 +99,16 @@ class Logger {
 
 class Report {
   public:
-    Report(Logger &p, MessageCode code) : p_(p), code_(code) {}
-    ~Report() { p_.print(code_, out_.str().c_str()); }
+    Report(Logger &p, MessageCode code) : log_(p), code_(code) { out_ << log_.message_prefix(code) << ": "; }
+    template <class Loc> Report(Logger &p, MessageCode code, Loc &loc) : log_(p), code_(code) {
+        out_ << loc << ": " << log_.message_prefix(code) << ": ";
+    }
+    ~Report() { log_.print(code_, out_.str().c_str()); }
     [[nodiscard]] auto out() -> std::ostringstream & { return out_; }
 
   private:
     std::ostringstream out_;
-    Logger &p_;
+    Logger &log_;
     MessageCode code_;
 };
 
@@ -152,41 +159,55 @@ inline void Logger::print(MessageCode code, char const *msg) {
     if (p_ != nullptr) {
         p_(code, msg);
     } else {
-        char const *prefix = color_ ? "\033[31m"
-                                      "error"
-                                      "\033[0m"
-                                    : "error";
-        if (code < MessageCode::debug) {
-            prefix = color_ ? "\033[32m"
-                              "trace"
-                              "\033[0m"
-                            : "trace";
-        } else if (code < MessageCode::info) {
-            prefix = color_ ? "\033[34m"
-                              "debug"
-                              "\033[0m"
-                            : "debug";
-        } else if (code < MessageCode::warn) {
-            prefix = color_ ? "\033[35m"
-                              "info"
-                              "\033[0m"
-                            : "info";
-        } else if (code < MessageCode::error) {
-            prefix = color_ ? "\033[33m"
-                              "warning"
-                              "\033[0m"
-                            : "warning";
-        }
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
-        fprintf(stderr, "%s: %s\n", prefix, msg);
+        fprintf(stderr, "%s\n", msg);
         fflush(stderr);
     }
+}
+
+inline void Logger::print(MessageCode code, std::string const &str) { print(code, str.c_str()); }
+
+inline auto Logger::message_prefix(MessageCode code) const -> char const * {
+    auto const *prefix = color_ ? "\033[31m"
+                                  "error"
+                                  "\033[0m"
+                                : "error";
+    if (code < MessageCode::debug) {
+        prefix = color_ ? "\033[32m"
+                          "trace"
+                          "\033[0m"
+                        : "trace";
+    } else if (code < MessageCode::info) {
+        prefix = color_ ? "\033[34m"
+                          "debug"
+                          "\033[0m"
+                        : "debug";
+    } else if (code < MessageCode::warn) {
+        prefix = color_ ? "\033[35m"
+                          "info"
+                          "\033[0m"
+                        : "info";
+    } else if (code < MessageCode::error) {
+        prefix = color_ ? "\033[33m"
+                          "warning"
+                          "\033[0m"
+                        : "warning";
+    }
+    return prefix;
 }
 
 } // namespace Gringo
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define GRINGO_REPORT(p, id)                                                                                           \
-    if (!(p).check(::Gringo::MessageCode::id)) {                                                                       \
-    } else                                                                                                             \
-        Gringo::Report(p, ::Gringo::MessageCode::id).out()
+    if ((p).check(::Gringo::MessageCode::id))                                                                          \
+    Gringo::Report(p, ::Gringo::MessageCode::id).out()
+
+#define GRINGO_REPORT_LOC(p, id, loc)                                                                                  \
+    if ((p).check(::Gringo::MessageCode::id))                                                                          \
+    Gringo::Report(p, ::Gringo::MessageCode::id, loc).out()
+
+#define GRINGO_REPORT_STR(p, id, msg)                                                                                  \
+    if ((p).check(::Gringo::MessageCode::id)) {                                                                        \
+        (p).print(::Gringo::MessageCode::id, msg);                                                                     \
+    }
