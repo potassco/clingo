@@ -121,7 +121,11 @@ inline auto Logger::check(MessageCode code) -> bool {
     if (code < static_cast<MessageCode>(level_) || disabled_[static_cast<int>(code)]) {
         return false;
     }
-    // output the message
+    // report trace and debug messages without reducing the limit
+    if (code < MessageCode::info) {
+        return true;
+    }
+    // report the message
     if (limit_ > 0) {
         if (limit_ != std::numeric_limits<size_t>::max()) {
             --limit_;
