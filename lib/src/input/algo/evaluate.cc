@@ -99,6 +99,13 @@ struct BuildDep {
     size_t id;
 };
 
+auto num_to_sym(std::optional<int> num) -> std::optional<Symbol> {
+    if (num.has_value()) {
+        return SymbolStore::num(num.value());
+    }
+    return std::nullopt;
+}
+
 struct Evaluate {
     // protect ourselves -> no unintended overloads
 
@@ -187,8 +194,8 @@ struct Evaluate {
     auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
 
     auto operator()(std::monostate const &x) const -> std::optional<Symbol> {
-        // TODO: proper error handling
-        std::cerr << "error: projection is not permitted here" << std::endl;
+        // TODO: a location would be nice but hard to obtain...
+        GRINGO_REPORT(log, error) << "projection is not permitted here\n";
         static_cast<void>(x);
         return std::nullopt;
     }
@@ -232,13 +239,11 @@ struct Evaluate {
 
     auto operator()(TermFunction const &term) const -> std::optional<Symbol> {
         if (term.pool.size() != 1) {
-            // TODO: proper error handling
-            std::cerr << "pools are not permitted here" << std::endl;
+            GRINGO_REPORT_LOC(log, error, location(term)) << "pools are not permitted here\n";
             return std::nullopt;
         }
         if (term.external) {
-            // TODO: proper error handling
-            std::cerr << "external functions are not permitted here" << std::endl;
+            GRINGO_REPORT_LOC(log, error, location(term)) << "external functions are not permitted here\n";
             return std::nullopt;
         }
         if (term.pool.front().empty()) {
@@ -255,21 +260,24 @@ struct Evaluate {
 
     auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
         if (term.pool.size() != 1) {
-            // TODO: proper error handling
-            std::cerr << "error: pools are not permitted here" << std::endl;
+            GRINGO_REPORT_LOC(log, error, location(term)) << "pools are not permitted here\n";
             return std::nullopt;
         }
         auto val = operator()(term.pool.front());
         if (!val.has_value()) {
             return std::nullopt;
         }
-        if (val->type() != SymbolType::number) {
-            // TODO: proper reporting
-            std::cerr << "info: could not evaluate absolute " << Term{term} << " with " << term.pool.front() << "="
-                      << val.value() << std::endl;
+        if (val->type() == SymbolType::number) {
+            val = num_to_sym(check_abs(val->num()));
+        } else {
+            val = std::nullopt;
+        }
+        if (!val.has_value()) {
+            GRINGO_REPORT_LOC(log, info_operation_undefined, location(term)) << "operation undefined:\n"
+                                                                             << "  |" << val.value() << "|\n";
             return std::nullopt;
         }
-        return SymbolStore::num(std::abs(val->num()));
+        return val;
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<Symbol> {
@@ -279,9 +287,15 @@ struct Evaluate {
         }
         auto res = evaluate(term.op, rhs.value());
         if (!res.has_value()) {
-            // TODO: proper reporting
-            std::cerr << "info: could not evaluate unary operation " << Term{term} << " with " << *term.rhs << "="
-                      << rhs.value() << std::endl;
+            auto const *lp = "";
+            auto const *rp = "";
+            if (rhs->has_sign()) {
+                lp = "(";
+                rp = ")";
+            }
+            GRINGO_REPORT_LOC(log, info_operation_undefined, location(term))
+                << "operation undefined:\n"
+                << "  " << term.op << lp << rhs.value() << rp << "\n";
         }
         return res;
     }
@@ -290,8 +304,7 @@ struct Evaluate {
         auto lhs = operator()(*term.lhs);
         auto rhs = operator()(*term.rhs);
         if (term.op == BinaryOperator::dots) {
-            // TODO: proper error handling
-            std::cerr << "error: intervals are not permitted here" << std::endl;
+            GRINGO_REPORT_LOC(log, error, location(term)) << "intervals are not permitted here\n";
             return std::nullopt;
         }
         if (!lhs.has_value() || !rhs.has_value()) {
@@ -299,9 +312,15 @@ struct Evaluate {
         }
         auto res = evaluate(lhs.value(), term.op, rhs.value());
         if (!res.has_value()) {
-            // TODO: proper reporting
-            std::cerr << "info: could not evaluate binary operation " << Term{term} << " with " << *term.lhs << "="
-                      << lhs.value() << " and " << *term.rhs << "=" << rhs.value() << std::endl;
+            auto const *lp = "";
+            auto const *rp = "";
+            if (rhs->has_sign()) {
+                lp = "(";
+                rp = ")";
+            }
+            GRINGO_REPORT_LOC(log, info_operation_undefined, location(term))
+                << "operation undefined:\n"
+                << "  " << lhs.value() << term.op << lp << rhs.value() << rp << "\n";
         }
         return res;
     }
@@ -310,13 +329,6 @@ struct Evaluate {
     SymbolStore &store;
     std::unordered_map<String, std::optional<Symbol>> const &map;
 };
-
-auto num_to_sym(std::optional<int> num) -> std::optional<Symbol> {
-    if (num.has_value()) {
-        return SymbolStore::num(num.value());
-    }
-    return std::nullopt;
-}
 
 } // namespace
 

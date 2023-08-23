@@ -119,57 +119,6 @@ auto operator<<(std::ostream &out, Sign op) -> std::ostream & {
     return out;
 }
 
-auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
-    out << (op == UnaryOperator::negate ? "-" : "~");
-    return out;
-}
-
-auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
-    switch (op) {
-        case BinaryOperator::dots: {
-            out << "..";
-            break;
-        }
-        case BinaryOperator::xor_: {
-            out << "^";
-            break;
-        }
-        case BinaryOperator::or_: {
-            out << "?";
-            break;
-        }
-        case BinaryOperator::and_: {
-            out << "&";
-            break;
-        }
-        case BinaryOperator::plus: {
-            out << "+";
-            break;
-        }
-        case BinaryOperator::minus: {
-            out << "-";
-            break;
-        }
-        case BinaryOperator::times: {
-            out << "*";
-            break;
-        }
-        case BinaryOperator::div: {
-            out << "/";
-            break;
-        }
-        case BinaryOperator::mod: {
-            out << "\\";
-            break;
-        }
-        case BinaryOperator::pow: {
-            out << "**";
-            break;
-        }
-    }
-    return out;
-}
-
 auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
     switch (fun) {
         case AggregateFunction::count: {
@@ -813,6 +762,57 @@ struct Print {
 };
 
 } // namespace
+
+auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
+    out << (op == UnaryOperator::negate ? "-" : "~");
+    return out;
+}
+
+auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
+    switch (op) {
+        case BinaryOperator::dots: {
+            out << "..";
+            break;
+        }
+        case BinaryOperator::xor_: {
+            out << "^";
+            break;
+        }
+        case BinaryOperator::or_: {
+            out << "?";
+            break;
+        }
+        case BinaryOperator::and_: {
+            out << "&";
+            break;
+        }
+        case BinaryOperator::plus: {
+            out << "+";
+            break;
+        }
+        case BinaryOperator::minus: {
+            out << "-";
+            break;
+        }
+        case BinaryOperator::times: {
+            out << "*";
+            break;
+        }
+        case BinaryOperator::div: {
+            out << "/";
+            break;
+        }
+        case BinaryOperator::mod: {
+            out << "\\";
+            break;
+        }
+        case BinaryOperator::pow: {
+            out << "**";
+            break;
+        }
+    }
+    return out;
+}
 
 auto operator<<(std::ostream &out, Position const &pos) -> std::ostream & {
     out << pos.file << ":" << pos.line << ":" << pos.column;
