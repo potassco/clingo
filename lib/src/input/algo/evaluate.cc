@@ -191,9 +191,8 @@ struct Evaluate {
     auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
 
     auto operator()(std::monostate const &x) const -> std::optional<Symbol> {
-        // TODO: a location would be nice but hard to obtain...
-        GRINGO_REPORT(log, error) << "projection is not permitted here\n";
         static_cast<void>(x);
+        GRINGO_REPORT_LOC(log, error, location(root)) << "projection is not permitted here\n";
         return std::nullopt;
     }
 
@@ -325,6 +324,7 @@ struct Evaluate {
     Logger &log;
     SymbolStore &store;
     std::unordered_map<String, std::optional<Symbol>> const &map;
+    Term const &root;
 };
 
 } // namespace
@@ -383,7 +383,7 @@ auto evaluate(Symbol const &lhs, BinaryOperator op, Symbol const &rhs) -> std::o
 
 auto evaluate(Logger &log, SymbolStore &store, std::unordered_map<String, std::optional<Symbol>> const &map,
               Term const &term) -> std::optional<Symbol> {
-    return std::visit(Evaluate{log, store, map}, term);
+    return std::visit(Evaluate{log, store, map, term}, term);
 }
 
 auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst> const &stms)
