@@ -35,6 +35,7 @@ TEST_CASE("evaluate_unary") {
 TEST_CASE("evaluate_binary") {
     auto n1 = SymbolStore::num(2);
     auto n2 = SymbolStore::num(1 << 16);
+
     auto r1 = evaluate(n1, BinaryOperator::plus, n2);
     REQUIRE(r1.has_value());
     REQUIRE(r1->num() == (1 << 16) + 2);
