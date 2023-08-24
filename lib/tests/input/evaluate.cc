@@ -2,11 +2,15 @@
 
 #include "input/test.hh"
 
+#include <iostream>
+
 // NOLINTBEGIN(readability-magic-numbers)
 
 namespace Gringo::Input::Test {
 
 namespace {
+
+using SL = std::initializer_list<Symbol>;
 
 auto parse_const(SymbolStore &store, std::string_view str) -> StatementConst {
     using Gringo::Input::parse_statement;
@@ -33,18 +37,59 @@ TEST_CASE("evaluate_unary") {
 }
 
 TEST_CASE("evaluate_binary") {
-    auto n1 = SymbolStore::num(2);
-    auto n2 = SymbolStore::num(1 << 16);
+    int i1 = 3;
+    int i2 = 1 << 16;
+    int i3 = 0;
+    int i4 = 42;
+    auto n1 = SymbolStore::num(i1);
+    auto n2 = SymbolStore::num(i2);
+    auto n3 = SymbolStore::num(i3);
+    auto n4 = SymbolStore::num(i4);
 
-    auto r1 = evaluate(n1, BinaryOperator::plus, n2);
-    REQUIRE(r1.has_value());
-    REQUIRE(r1->num() == (1 << 16) + 2);
-    auto r2 = evaluate(n1, BinaryOperator::times, n2);
-    REQUIRE(r2.has_value());
-    REQUIRE(r2->num() == (1 << 16) * 2);
-    auto r3 = evaluate(n2, BinaryOperator::times, n2);
-    // TODO: check the other ops too
-    REQUIRE(!r3.has_value());
+    // plus
+    auto res = evaluate(n1, BinaryOperator::plus, n2);
+    REQUIRE(res.has_value());
+    REQUIRE(res->num() == i1 + i2);
+    // minus
+    res = evaluate(n1, BinaryOperator::minus, n2);
+    REQUIRE(res.has_value());
+    REQUIRE(res->num() == i1 - i2);
+    // times
+    res = evaluate(n1, BinaryOperator::times, n2);
+    REQUIRE(res.has_value());
+    REQUIRE(res->num() == i1 * i2);
+    res = evaluate(n2, BinaryOperator::times, n2);
+    REQUIRE(!res.has_value());
+    // div
+    res = evaluate(n1, BinaryOperator::div, n2);
+    REQUIRE(res.has_value());
+    REQUIRE(res->num() == i1 / i2);
+    res = evaluate(n2, BinaryOperator::div, n3);
+    REQUIRE(!res.has_value());
+    // mod
+    res = evaluate(n1, BinaryOperator::mod, n2);
+    REQUIRE(res.has_value());
+    REQUIRE(res->num() == i1 % i2);
+    res = evaluate(n2, BinaryOperator::mod, n3);
+    REQUIRE(!res.has_value());
+    // pow
+    res = evaluate(n4, BinaryOperator::pow, n1);
+    REQUIRE(res.has_value());
+    REQUIRE(res->num() == static_cast<int32_t>(std::pow(i4, i1)));
+    res = evaluate(n4, BinaryOperator::pow, n2);
+    REQUIRE(!res.has_value());
+    // xor_
+    res = evaluate(n1, BinaryOperator::xor_, n2);
+    REQUIRE(res.has_value());
+    REQUIRE(res->num() == (i1 ^ i2));
+    // or_
+    res = evaluate(n1, BinaryOperator::or_, n2);
+    REQUIRE(res.has_value());
+    REQUIRE(res->num() == (i1 | i2));
+    // and_
+    res = evaluate(n1, BinaryOperator::and_, n2);
+    REQUIRE(res.has_value());
+    REQUIRE(res->num() == (i1 & i2));
 }
 
 TEST_CASE("evaluate_const") {
@@ -55,31 +100,38 @@ TEST_CASE("evaluate_const") {
     }};
     log.set_level(LogLevel::trace);
     auto store = make_symbol_store(true, true);
-
     auto stms = std::vector<StatementConst>{};
-    stms.emplace_back(parse_const(*store, "#const a = b."));
-    stms.emplace_back(parse_const(*store, "#const b = a."));
-    evaluate_const(log, *store, stms);
-    REQUIRE(log.has_error());
 
-    log.reset();
-    stms.clear();
-    stms.emplace_back(parse_const(*store, "#const a = x."));
-    stms.emplace_back(parse_const(*store, "#const a = y."));
-    evaluate_const(log, *store, stms);
-    REQUIRE(log.has_error());
+    SECTION("cycle") {
+        stms.emplace_back(parse_const(*store, "#const a = b."));
+        stms.emplace_back(parse_const(*store, "#const b = a."));
+        evaluate_const(log, *store, stms);
+        REQUIRE(log.has_error());
+    }
 
-    log.reset();
-    stms.clear();
-    stms.emplace_back(parse_const(*store, "#const a = 1+2."));
-    stms.emplace_back(parse_const(*store, "#const b = 2*a."));
-    auto map = evaluate_const(log, *store, stms);
-    REQUIRE(!log.has_error());
-    REQUIRE(map.size() == 2);
-    REQUIRE(map.contains(store->string("a")));
-    REQUIRE(map.contains(store->string("b")));
-    REQUIRE(map[store->string("a")] == SymbolStore::num(3));
-    REQUIRE(map[store->string("b")] == SymbolStore::num(6));
+    SECTION("redefinition") {
+        stms.emplace_back(parse_const(*store, "#const a = x."));
+        stms.emplace_back(parse_const(*store, "#const a = y."));
+        evaluate_const(log, *store, stms);
+        REQUIRE(log.has_error());
+    }
+
+    SECTION("depend") {
+        auto fg = store->fun(store->string("g"), SL{SymbolStore::num(-18)}, true);
+        auto ff = store->fun(store->string("f"), SL{SymbolStore::num(6), fg}, false);
+        stms.emplace_back(parse_const(*store, "#const a = 1+2."));
+        stms.emplace_back(parse_const(*store, "#const b = 2*a."));
+        stms.emplace_back(parse_const(*store, "#const c = f(b,-g(-a*b))."));
+        auto map = evaluate_const(log, *store, stms);
+        REQUIRE(!log.has_error());
+        REQUIRE(map.size() == 3);
+        REQUIRE(map.contains(store->string("a")));
+        REQUIRE(map.contains(store->string("b")));
+        REQUIRE(map.contains(store->string("c")));
+        REQUIRE(map[store->string("a")] == SymbolStore::num(3));
+        REQUIRE(map[store->string("b")] == SymbolStore::num(6));
+        REQUIRE(map[store->string("c")] == ff);
+    }
 }
 
 } // namespace Gringo::Input::Test

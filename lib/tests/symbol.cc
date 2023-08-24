@@ -1,8 +1,9 @@
+#include <iostream>
+#include <sstream>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <symbol.hh>
-
-#include <iostream>
 
 // NOLINTBEGIN(readability-magic-numbers)
 
@@ -23,6 +24,12 @@ template <class F> void with_store(F fun) {
     fun(*make_symbol_store(true, true));
 }
 
+auto to_str(Symbol sym) -> std::string {
+    std::ostringstream oss;
+    oss << sym;
+    return oss.str();
+}
+
 } // namespace
 
 TEST_CASE("symbol_number") {
@@ -33,6 +40,8 @@ TEST_CASE("symbol_number") {
     REQUIRE(n1.type() == SymbolType::number);
     REQUIRE(n2.type() == SymbolType::number);
     REQUIRE(n3.type() == SymbolType::number);
+
+    // TODO: to_str
 
     REQUIRE(n1.num() == 1);
     REQUIRE(n2.num() == 2);
@@ -48,6 +57,8 @@ TEST_CASE("symbol_number") {
 TEST_CASE("symbol_constant") {
     auto n1 = SymbolStore::inf();
     auto n2 = SymbolStore::sup();
+
+    // TODO: to_str
 
     REQUIRE(n1.type() == SymbolType::inf);
     REQUIRE(n2.type() == SymbolType::sup);
@@ -73,6 +84,8 @@ TEST_CASE("symbol_string") {
         auto sy = store.string("y");
         auto sym_sx = SymbolStore::str(sx);
         auto sym_sy = SymbolStore::str(sy);
+
+        // TODO: to_str
 
         REQUIRE(sym_sx.type() == SymbolType::string);
         REQUIRE(sym_sx.str() == sx);
@@ -102,6 +115,8 @@ TEST_CASE("symbol_tuple") {
         REQUIRE(t4.type() == SymbolType::tuple);
         REQUIRE(t5.type() == SymbolType::tuple);
         REQUIRE(t6.type() == SymbolType::tuple);
+
+        // TODO: to_str
 
         REQUIRE(t1.args().empty());
         REQUIRE(t2.args() == S{n0});
@@ -155,6 +170,16 @@ TEST_CASE("symbol_function") {
         REQUIRE(f6.type() == SymbolType::function);
         REQUIRE(f7.type() == SymbolType::function);
         REQUIRE(g7.type() == SymbolType::function);
+
+        REQUIRE(to_str(f1) == "f");
+        REQUIRE(to_str(g1) == "-f");
+        REQUIRE(to_str(f2) == "f(0)");
+        REQUIRE(to_str(f3) == "f(0,1)");
+        REQUIRE(to_str(f4) == "f(0,1,2)");
+        REQUIRE(to_str(f5) == "f(0,1,3)");
+        REQUIRE(to_str(f6) == "f(0,1,3)");
+        REQUIRE(to_str(f7) == "g(0,1,3)");
+        REQUIRE(to_str(g7) == "-g(0,1,3)");
 
         REQUIRE(!f1.has_sign());
         REQUIRE(g1.has_sign());

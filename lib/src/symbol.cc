@@ -622,6 +622,10 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
         }
         case SymbolType::function: {
             auto args = sym.args();
+            if (sym.has_sign()) {
+                out << "-";
+            }
+            out << sym.name();
             if (args.empty()) {
                 out << Util::p_range(args, ",");
             } else {
