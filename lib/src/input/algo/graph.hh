@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdio>
-#include <forward_list>
 #include <vector>
 
 namespace Gringo::Input {
@@ -20,6 +18,8 @@ class Graph {
     //!
     //! The components are reported in topological order.
     template <class Callback> void tarjan(Callback &&cb);
+    //! Ensure that the graph holds at least n nodes.
+    void ensure_size(size_t n);
     //! Add an edge to the graph.
     //!
     //! Nodes should be labeled consecutively.
@@ -47,14 +47,17 @@ class Graph {
 
 inline auto Graph::prev_phase_() const -> size_t { return phase_ == 0 ? 1 : 0; }
 
-inline void Graph::add_edge(size_t u, size_t v) {
-    size_t n = std::max(u, v) + 1;
+inline void Graph::ensure_size(size_t n) {
     if (nodes_.size() < n) {
         nodes_.reserve(n);
         while (nodes_.size() < n) {
             nodes_.emplace_back(Node{{}, {}, prev_phase_()});
         }
     }
+}
+
+inline void Graph::add_edge(size_t u, size_t v) {
+    ensure_size(std::max(u, v) + 1);
     nodes_[u].out.emplace_back(v);
 }
 

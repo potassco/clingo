@@ -1,5 +1,3 @@
-#include <deque>
-#include <iostream>
 #include <unordered_map>
 
 #include <util/algorithm.hh>
@@ -86,8 +84,7 @@ struct BuildDep {
     //! Add a dependency to the graph.
     void add_(String const &name) const {
         if (auto it = map.find(name); it != map.end()) {
-            // TODO: check if the direction is correct
-            dep.add_edge(it->second, id);
+            dep.add_edge(id, it->second);
         }
     }
 
@@ -412,15 +409,18 @@ auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
     }
     // build dependency graph
     Graph dep;
+    dep.ensure_size(id_stm);
     for (auto &[name, id_stm] : map) {
         BuildDep{map, dep, id_stm}(stms[id_stm].value);
     }
     // evaluate const statements
     std::unordered_map<String, std::optional<Symbol>> res;
-    dep.tarjan([&log, &store, &stms, &res](auto const &scc) {
+    dep.tarjan([&log, &store, &stms, &map, &res](auto const &scc) {
         if (scc.size() == 1) {
             auto const &stm = stms[scc.front()];
-            res.emplace(stm.name, evaluate(log, store, res, stm.value));
+            if (map[stm.name] == scc.front()) {
+                res.emplace(stm.name, evaluate(log, store, res, stm.value));
+            }
         } else {
             bool first = true;
             std::ostringstream oss;
@@ -434,7 +434,9 @@ auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
                     oss << ": note: cyclic constant definition:\n";
                 }
                 oss << "  " << stms[id_stm] << "\n";
-                res.emplace(stms[id_stm].name, std::nullopt);
+                if (map[stm.name] == scc.front()) {
+                    res.emplace(stm.name, std::nullopt);
+                }
             }
             GRINGO_REPORT_STR(log, error, oss.str());
         }

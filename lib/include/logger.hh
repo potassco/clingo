@@ -67,7 +67,7 @@ class Logger {
     Logger(size_t limit = default_message_limit) : Logger{nullptr, limit} {}
     //! Contruct a logger reporting messages via the given callback.
     Logger(Printer p, size_t limit = default_message_limit)
-        : p_(std::move(p)), limit_(limit), color_{isatty(fileno(stderr)) == 1} {}
+        : p_(std::move(p)), limit_{limit}, cur_limit_(limit), color_{isatty(fileno(stderr)) == 1} {}
 
     //! Check if a message with the given code should be reported.
     [[nodiscard]] auto check(MessageCode code) -> bool;
@@ -87,11 +87,16 @@ class Logger {
     void set_limit(size_t limit);
     //! Get a string representation of the message category.
     [[nodiscard]] auto message_prefix(MessageCode code) const -> char const *;
+    //! Reset the logger to the constructed state.
+    //!
+    //! This keeps all settings but resets the error flag and message limit.
+    void reset();
 
   private:
     Printer p_;
     LogLevel level_ = LogLevel::info;
     size_t limit_;
+    size_t cur_limit_;
     std::bitset<static_cast<int>(MessageCode::error) + 1> disabled_;
     bool error_ = false;
     bool color_;
@@ -116,11 +121,11 @@ inline auto Logger::check(MessageCode code) -> bool {
     // unconditionally report errors
     if (code >= MessageCode::error) {
         error_ = true;
-        if (limit_ == 0) {
+        if (cur_limit_ == 0) {
             throw MessageLimitError("too many messages.");
         }
-        if (limit_ != std::numeric_limits<size_t>::max()) {
-            --limit_;
+        if (cur_limit_ != std::numeric_limits<size_t>::max()) {
+            --cur_limit_;
         }
         return true;
     }
@@ -133,9 +138,9 @@ inline auto Logger::check(MessageCode code) -> bool {
         return true;
     }
     // report the message
-    if (limit_ > 0) {
-        if (limit_ != std::numeric_limits<size_t>::max()) {
-            --limit_;
+    if (cur_limit_ > 0) {
+        if (cur_limit_ != std::numeric_limits<size_t>::max()) {
+            --cur_limit_;
         }
         return true;
     }
@@ -153,7 +158,7 @@ inline void Logger::enable(MessageCode code, bool enabled) { disabled_[static_ca
 
 inline void Logger::set_level(LogLevel level) { level_ = level; }
 
-inline void Logger::set_limit(size_t limit) { limit_ = limit; }
+inline void Logger::set_limit(size_t limit) { cur_limit_ = limit; }
 
 inline void Logger::print(MessageCode code, char const *msg) {
     if (p_ != nullptr) {
@@ -163,6 +168,11 @@ inline void Logger::print(MessageCode code, char const *msg) {
         fprintf(stderr, "%s\n", msg);
         fflush(stderr);
     }
+}
+
+inline void Logger::reset() {
+    cur_limit_ = limit_;
+    error_ = false;
 }
 
 inline void Logger::print(MessageCode code, std::string const &str) { print(code, str.c_str()); }
