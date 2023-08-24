@@ -2,6 +2,8 @@
 
 #include "input/test.hh"
 
+// NOLINTBEGIN(readability-magic-numbers)
+
 namespace Gringo::Input::Test {
 
 namespace {
@@ -15,6 +17,34 @@ auto parse_const(SymbolStore &store, std::string_view str) -> StatementConst {
 }
 
 }; // namespace
+
+TEST_CASE("evaluate_unary") {
+    auto n1 = SymbolStore::num(-10);
+    auto n2 = SymbolStore::num(std::numeric_limits<int32_t>::min());
+
+    auto r1 = evaluate(UnaryOperator::invert, n1);
+    REQUIRE(r1.has_value());
+    REQUIRE(r1->num() == ~(-10));
+    auto r2 = evaluate(UnaryOperator::negate, n1);
+    REQUIRE(r2.has_value());
+    REQUIRE(r2->num() == 10);
+    auto r3 = evaluate(UnaryOperator::negate, n2);
+    REQUIRE(!r3.has_value());
+}
+
+TEST_CASE("evaluate_binary") {
+    auto n1 = SymbolStore::num(2);
+    auto n2 = SymbolStore::num(1 << 16);
+    auto r1 = evaluate(n1, BinaryOperator::plus, n2);
+    REQUIRE(r1.has_value());
+    REQUIRE(r1->num() == (1 << 16) + 2);
+    auto r2 = evaluate(n1, BinaryOperator::times, n2);
+    REQUIRE(r2.has_value());
+    REQUIRE(r2->num() == (1 << 16) * 2);
+    auto r3 = evaluate(n2, BinaryOperator::times, n2);
+    // TODO: check the other ops too
+    REQUIRE(!r3.has_value());
+}
 
 TEST_CASE("evaluate_const") {
     Logger log{[](MessageCode code, char const *msg) {
@@ -52,3 +82,5 @@ TEST_CASE("evaluate_const") {
 }
 
 } // namespace Gringo::Input::Test
+
+// NOLINTEND(readability-magic-numbers)
