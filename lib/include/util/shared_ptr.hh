@@ -1,10 +1,21 @@
 #pragma once
 
+#include <cassert>
 #include <cstddef>
 #include <tuple>
 #include <utility>
 
 namespace Gringo::Util {
+
+namespace Detail {
+
+template <class T> struct shared_ptr_data {
+    template <class... Args> shared_ptr_data(Args &&...args) : value{std::forward<Args>(args)...} {}
+    size_t refs = 1;
+    T value;
+};
+
+} // namespace Detail
 
 //! @defgroup core_util Utility
 //! @ingroup core
@@ -106,6 +117,12 @@ template <typename T> class shared_ptr {
     ~shared_ptr() { dec_(); }
 
   private:
+    using data_type = Detail::shared_ptr_data<T>;
+
+    auto as_data_() const -> data_type * {
+        return reinterpret_cast<data_type *>(reinterpret_cast<char *>(ptr_) - offsetof(data_type, value));
+    }
+
     template <typename Y> friend class shared_ptr;
 
     template <typename U, typename B, typename... Args> friend auto construct_shared(Args &&...args);
@@ -122,33 +139,24 @@ template <typename T> class shared_ptr {
         if (ptr_ != nullptr) {
             --ref_count();
             if (ref_count() == 0) {
-                ptr_->~T();
-                ::operator delete(reinterpret_cast<size_t *>(ptr_) - 1);
+                delete as_data_();
                 ptr_ = nullptr;
             }
         }
     }
 
-    [[nodiscard]] auto ref_count() const -> size_t & { return *(reinterpret_cast<size_t *>(ptr_) - 1); }
+    [[nodiscard]] auto ref_count() const -> size_t & { return as_data_()->refs; }
 
     T *ptr_;
 };
-
-namespace Detail {
-
-template <class T> struct shared_ptr_data {
-    template <class... Args> shared_ptr_data(Args &&...args) : value{std::forward<Args>(args)...} {}
-    size_t refs = 1;
-    T value;
-};
-
-} // namespace Detail
 
 //! Construct a shared pointer.
 //!
 //! @related shared_ptr
 template <typename U, typename B = U, typename... Args> auto construct_shared(Args &&...args) {
-    auto *data = new Detail::shared_ptr_data<U>(std::forward<Args>(args)...);
+    using data_type = Detail::shared_ptr_data<U>;
+    auto *data = new data_type(std::forward<Args>(args)...);
+    assert(reinterpret_cast<char *>(&data->value) - offsetof(data_type, value) == reinterpret_cast<char *>(data));
     return shared_ptr<B>{&data->value};
 }
 
