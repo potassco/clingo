@@ -27,7 +27,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     void operator()(TermSymbol const &term) const { static_cast<void>(term); }
 
-    void operator()(TermVariable const &term) const { fun(term.name); }
+    void operator()(TermVariable const &term) const { fun(term.loc, term.name); }
 
     void operator()(TermTuple const &term) const { visit(term.pool); }
 
@@ -45,7 +45,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     void operator()(TheoryTermSymbol const &term) const { static_cast<void>(term); }
 
-    void operator()(TheoryTermVariable const &term) const { fun(term.name); }
+    void operator()(TheoryTermVariable const &term) const { fun(term.loc, term.name); }
 
     void operator()(TheoryTermTuple const &term) const { visit(term.elems); }
 

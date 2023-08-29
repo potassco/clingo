@@ -559,24 +559,24 @@ auto unpool(Logger &log, Statement const &stm) -> std::optional<StatementVec> {
         VariableSet old_global = select_variables(stm, VariableContext::global);
         for (auto &unpooled : stms.value()) {
             VariableSet new_global = select_variables(unpooled, VariableContext::global, old_global.size());
-            std::vector<String> unsafe;
+            std::vector<std::pair<Location, String>> unsafe;
             visit_variables(
                 unpooled,
-                [&](String var) {
+                [&](Location const &loc, String var) {
                     if (old_global.contains(var) != new_global.contains(var)) {
-                        unsafe.emplace_back(var);
+                        unsafe.emplace_back(loc, var);
                     }
                 },
                 VariableContext::all);
             if (!unsafe.empty()) {
-                GRINGO_REPORT_LOC(log, error, location(stm)) << "unsafe variables in:\n"
-                                                             << "  " << stm << "\n"
-                                                             << print{[&unsafe](std::ostream &out) {
-                                                                    for (auto const &var : unsafe) {
-                                                                        // TODO: we need locations for variables!!!
-                                                                        out << "note: '" << var << "' is unsafe";
-                                                                    }
-                                                                }};
+                GRINGO_REPORT_LOC(log, error, location(stm))
+                    << "unsafe variables in:\n"
+                    << "  " << stm << "\n"
+                    << print{[&unsafe](std::ostream &out) {
+                           for (auto const &[loc, var] : unsafe) {
+                               out << loc << ": note: '" << var << "' is unsafe";
+                           }
+                       }};
             }
         }
     }

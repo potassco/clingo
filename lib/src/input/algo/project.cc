@@ -21,7 +21,8 @@ auto projectable(Projection project, Term const *term) -> bool {
 
 auto get_counts(Projection project, auto const &elem) {
     std::unordered_map<String, size_t> counts;
-    visit_variables(elem, [&project, &counts](auto const &var) {
+    visit_variables(elem, [&project, &counts](Location const &loc, String var) {
+        static_cast<void>(loc);
         if (!project.counts().contains(var)) {
             ++counts[var];
         }
@@ -391,7 +392,8 @@ auto project(Statement const &stm, ProjectionMode mode, bool project_anonymous) 
         counts.reserve(vars.size());
         visit_variables(
             stm,
-            [&vars, &counts](auto const &var) {
+            [&vars, &counts](Location const &loc, String var) {
+                static_cast<void>(loc);
                 if (vars.contains(var)) {
                     ++counts[var];
                 }

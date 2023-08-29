@@ -21,7 +21,7 @@ enum class VariableContext {
 };
 
 //! A function to visit variable occurrences.
-using VarVisitFun = std::function<void(String var)>;
+using VarVisitFun = std::function<void(Location const &loc, String var)>;
 
 //! Visit variables with the given function.
 void visit_variables(Term const &term, VarVisitFun fun);
@@ -53,7 +53,10 @@ inline auto select_variables(T const &x, size_t size_hint = 0) -> VariableSet {
     if (size_hint > 0) {
         vars.reserve(size_hint);
     }
-    visit_variables(x, [&](String const &var) { vars.emplace(var); });
+    visit_variables(x, [&](Location const &loc, String const &var) {
+        static_cast<void>(loc);
+        vars.emplace(var);
+    });
     return vars;
 }
 
@@ -66,7 +69,12 @@ inline auto select_variables(T const &x, VariableContext context = VariableConte
         vars.reserve(size_hint);
     }
     visit_variables(
-        x, [&](String const &var) { vars.emplace(var); }, context);
+        x,
+        [&](Location const &loc, String const &var) {
+            static_cast<void>(loc);
+            vars.emplace(var);
+        },
+        context);
     return vars;
 }
 
