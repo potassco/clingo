@@ -36,7 +36,7 @@ void rewrite(Logger &log, SymbolStore &store, Statement const &stm, RewriteOptio
         stm = std::move(opt).value_or(stm);
         stms.emplace_back(std::move(stm));
     };
-    auto unpooled = unpool(res);
+    auto unpooled = unpool(log, res);
     if (unpooled.has_value()) {
         for (auto &stm : unpooled.value()) {
             GRINGO_REPORT(log, trace) << "unpool: " << stm;

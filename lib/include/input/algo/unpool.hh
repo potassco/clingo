@@ -1,5 +1,7 @@
 #pragma once
 
+#include <logger.hh>
+
 #include <input/statement.hh>
 
 namespace Gringo::Input {
@@ -24,7 +26,7 @@ namespace Gringo::Input {
 [[nodiscard]] auto unpool(BodyLiteral const &lit) -> std::optional<BodyLiteralVec>;
 
 //! Remove all pooled arguments from the statement.
-[[nodiscard]] auto unpool(Statement const &stm) -> std::optional<StatementVec>;
+[[nodiscard]] auto unpool(Logger &log, Statement const &stm) -> std::optional<StatementVec>;
 
 //! @}
 

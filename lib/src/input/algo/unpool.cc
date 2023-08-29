@@ -544,24 +544,40 @@ auto unpool(HeadLiteral const &lit) -> std::optional<HeadLiteralVec> { return Un
 
 auto unpool(BodyLiteral const &lit) -> std::optional<BodyLiteralVec> { return Unpool{}(lit); }
 
-auto unpool(Statement const &stm) -> std::optional<StatementVec> {
+template <class F> struct print {
+    print(F const &f) : f{f} {}
+    friend auto operator<<(std::ostream &out, print const &p) -> std::ostream & {
+        p.f(out);
+        return out;
+    }
+    F const &f;
+};
+
+auto unpool(Logger &log, Statement const &stm) -> std::optional<StatementVec> {
     auto stms = Unpool{}(stm);
     if (stms.has_value()) {
         VariableSet old_global = select_variables(stm, VariableContext::global);
         for (auto &unpooled : stms.value()) {
             VariableSet new_global = select_variables(unpooled, VariableContext::global, old_global.size());
+            std::vector<String> unsafe;
             visit_variables(
                 unpooled,
                 [&](String var) {
                     if (old_global.contains(var) != new_global.contains(var)) {
-                        std::ostringstream oss;
-                        oss << "variable " << var << " in\n"
-                            << "  " << stm << "\n"
-                            << "is unsafe";
-                        throw std::runtime_error(oss.str());
+                        unsafe.emplace_back(var);
                     }
                 },
                 VariableContext::all);
+            if (!unsafe.empty()) {
+                GRINGO_REPORT_LOC(log, error, location(stm)) << "unsafe variables in:\n"
+                                                             << "  " << stm << "\n"
+                                                             << print{[&unsafe](std::ostream &out) {
+                                                                    for (auto const &var : unsafe) {
+                                                                        // TODO: we need locations for variables!!!
+                                                                        out << "note: '" << var << "' is unsafe";
+                                                                    }
+                                                                }};
+            }
         }
     }
     return stms;
