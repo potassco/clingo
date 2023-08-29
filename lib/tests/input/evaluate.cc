@@ -1,8 +1,9 @@
+#include <cmath>
+#include <iostream>
+
 #include <input/algo/evaluate.hh>
 
 #include "input/test.hh"
-
-#include <iostream>
 
 // NOLINTBEGIN(readability-magic-numbers)
 
