@@ -1,1 +1,0 @@
-#include <spdlog/spdlog.h>
