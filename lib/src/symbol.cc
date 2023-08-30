@@ -128,7 +128,7 @@ class SimpleAlloc {
     static auto alloc(size_t n) -> void * {
         auto k = n + sizeof(Sized);
         auto *data = reinterpret_cast<Sized *>(::operator new[](k));
-        new (data) Sized(n, 1);
+        new (data) Sized{n, 1};
         return data + 1;
     }
 
@@ -171,14 +171,14 @@ class SlottedAlloc {
                 size_t m = (head.use_count < max_alloc ? head.use_count + 1 : max_alloc) * k;
                 node = reinterpret_cast<Node *>(::operator new[](m));
                 // tag the beginning of the memory block
-                new (node) Node(m, 1, nullptr);
+                new (node) Node{m, 1, nullptr};
             }
             Node *old = node;
             if (node->size == k) {
                 node = node->next;
             } else {
                 node = reinterpret_cast<Node *>(reinterpret_cast<char *>(old) + k);
-                new (node) Node(old->size - k, 0, old->next);
+                new (node) Node{old->size - k, 0, old->next};
             }
             old->size = n;
             mem = reinterpret_cast<Sized *>(old) + 1;
@@ -397,7 +397,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     using StringSet = hash_set<CharArray, CharArrayHash, CharArrayEqual>;
     using TupleSet = hash_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
 
-    template <class T, class... Args> auto insert_(T &table, Args &&...args) -> T::iterator {
+    template <class T, class... Args> auto insert_(T &table, Args &&...args) -> typename T::iterator {
         typename T::value_type arr;
         try {
             arr.init(alloc_, std::forward<Args>(args)...);

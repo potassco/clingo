@@ -91,7 +91,7 @@ template <class It> class State {
     auto loc(auto begin, auto end) -> Location {
         auto b = pos(end);
         auto a = pos(begin);
-        return Location(std::move(a), std::move(b));
+        return Location{std::move(a), std::move(b)};
     }
 
     auto loc(auto rng) -> Location { return loc(rng.begin(), rng.end()); }
