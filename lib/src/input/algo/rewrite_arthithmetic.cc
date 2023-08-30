@@ -1,0 +1,424 @@
+#include <input/algo/evaluate.hh>
+#include <input/algo/rewrite_arithmetic.hh>
+
+#include "transform.hh"
+
+namespace Gringo::Input {
+
+namespace {
+
+struct TermMap {};
+
+//! Check if a term can be used for matching.
+struct SimplifyTerm {
+    enum class Type {
+        numeric,
+        symbolic,
+        tuple,
+        any,
+    };
+    struct Result {
+        Type type;
+        std::variant<bool, Term, TermSymbol> term;
+    };
+
+    auto operator()(Term const &term) const -> Result { return std::visit(*this, term); }
+
+    auto operator()(TermSymbol const &term) const -> Result {
+        // maybe also say something about symbolic/numeric/etc?
+        switch (term.value.type()) {
+            case SymbolType::function:
+                return {Type::symbolic, term};
+            case SymbolType::tuple:
+                return {Type::tuple, term};
+            case SymbolType::number:
+                return {Type::numeric, term};
+            case SymbolType::inf:
+            case SymbolType::sup:
+            case SymbolType::string:
+                return {Type::any, term};
+        }
+    }
+
+    auto operator()(TermVariable const &term) const -> Result {
+        static_cast<void>(term);
+        return {Type::any, true};
+    }
+
+    auto operator()(TermFunction const &term) const -> Result {
+        static_cast<void>(term);
+
+        throw std::runtime_error("implement me!!!");
+    }
+
+    auto operator()(TermTuple const &term) const -> Result {
+        static_cast<void>(term);
+        throw std::runtime_error("implement me!!!");
+    }
+
+    auto operator()(TermAbs const &term) const -> Result {
+        static_cast<void>(term);
+        throw std::runtime_error("implement me!!!");
+    }
+
+    auto operator()(TermUnary const &term) const -> Result {
+        // Note that the function could simplify unary operators further.
+        // Currently, simplification is restricted to functions where it is the
+        // most useful in view of a normal form. Simplifying numeric terms
+        // would be a bit more tricky because `-` can overflow. It is also not
+        // very likely to appear in practice.
+        auto res_rhs = operator()(*term.rhs);
+        // we could not evaluate a nested term
+        if (auto *res = std::get_if<bool>(&res_rhs.term); res != nullptr && !*res) {
+            return {Type::any, false};
+        }
+        // we can always evaluate constants
+        if (auto *sym = std::get_if<TermSymbol>(&res_rhs.term); sym != nullptr) {
+            auto res = evaluate(term.op, sym->value);
+            if (!res.has_value()) {
+                return {Type::any, false};
+            }
+            return {res_rhs.type, TermSymbol{term.loc, *res}};
+        }
+        // we cannot apply unary operations to symbols and tuples
+        if (res_rhs.type == Type::tuple || (term.op == UnaryOperator::invert && res_rhs.type == Type::symbolic)) {
+            return {Type::any, false};
+        }
+        // ~term is always numeric
+        auto type = term.op == UnaryOperator::invert ? Type::numeric : res_rhs.type;
+        // simplify --symbolic to symbolic
+        auto fold = [&term, &res_rhs](Term &rhs) -> Term * {
+            auto *rhs_unary = std::get_if<TermUnary>(&rhs);
+            if (rhs_unary != nullptr && term.op == UnaryOperator::invert && rhs_unary->op == UnaryOperator::invert &&
+                res_rhs.type == Type::symbolic) {
+                return rhs_unary->rhs.get();
+            }
+            return nullptr;
+        };
+        // construct a new term
+        if (auto *rhs = std::get_if<Term>(&res_rhs.term); rhs != nullptr) {
+            if (auto *rhs_rhs = fold(*rhs); rhs_rhs != nullptr) {
+                return {type, std::move(*rhs_rhs)};
+            }
+            return {type, TermUnary{term.loc, term.op, Util::construct_shared<Term>(std::move(*rhs))}};
+        }
+        // the term did not change
+        if (auto *rhs_rhs = fold(*term.rhs); rhs_rhs != nullptr) {
+            return {type, *rhs_rhs};
+        }
+        return {type, true};
+    }
+
+    auto operator()(TermBinary const &term) const -> Result {
+        auto res_lhs = operator()(*term.lhs);
+        auto res_rhs = operator()(*term.rhs);
+        static_cast<void>(res_lhs);
+        static_cast<void>(res_rhs);
+        throw std::runtime_error("implement me!!!");
+    }
+};
+
+//! Check if a term can be used for matching.
+struct TermCanMatch {
+    auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
+
+    auto operator()(TermSymbol const &term) const -> bool {
+        static_cast<void>(term);
+        return true;
+    }
+
+    auto operator()(TermVariable const &term) const -> bool {
+        static_cast<void>(term);
+        return true;
+    }
+
+    auto operator()(TermFunction const &term) const -> bool { return !term.external; }
+
+    auto operator()(TermTuple const &term) const -> bool {
+        static_cast<void>(term);
+        return true;
+    }
+
+    auto operator()(TermAbs const &term) const -> bool {
+        static_cast<void>(term);
+        return false;
+    }
+
+    auto operator()(TermUnary const &term) const -> bool { return term.op == UnaryOperator::negate; }
+
+    auto operator()(TermBinary const &term) const -> bool {
+        static_cast<void>(term);
+        // TODO
+        return true;
+    }
+};
+
+struct RewriteArithmetics : Transformer<RewriteArithmetics> {
+    RewriteArithmetics(TermMap &map) : map{map} {}
+
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &x) const -> std::optional<T> = delete;
+
+    // ignore
+
+    auto operator()(std::monostate const &x) const -> std::optional<std::monostate> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
+    auto operator()(String const &x) const -> std::optional<String> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
+    auto operator()(Relation const &x) const -> std::optional<Relation> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
+    // term
+
+    auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
+
+    auto operator()(TermSymbol const &term) const -> std::optional<Term> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+
+    auto operator()(TermVariable const &term) const -> std::optional<Term> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+
+    auto operator()(TermFunction const &term) const -> std::optional<Term> {
+        return transform_construct<TermFunction>(term.loc, term.name, tr(term.pool), term.external);
+    }
+
+    auto operator()(TermTuple const &term) const -> std::optional<Term> {
+        return transform_construct<TermTuple>(term.loc, tr(term.pool));
+    }
+
+    auto operator()(TermAbs const &term) const -> std::optional<Term> {
+        return transform_construct<TermAbs>(term.loc, tr(term.pool));
+    }
+
+    auto operator()(TermUnary const &term) const -> std::optional<Term> {
+        return transform_construct<TermUnary>(term.loc, term.op, tr(term.rhs));
+    }
+
+    auto operator()(TermBinary const &term) const -> std::optional<Term> {
+        return transform_construct<TermBinary>(term.loc, tr(term.lhs), term.op, tr(term.rhs));
+    }
+
+    // theory
+
+    auto operator()(TheoryTerm const &term) const -> std::optional<TheoryTerm> { return std::visit(*this, term); }
+
+    auto operator()(TheoryTermUnparsed const &term) const -> std::optional<TheoryTerm> {
+        return transform_construct<TheoryTermUnparsed>(term.loc, tr(term.elems));
+    }
+
+    auto operator()(TheoryTermSymbol const &term) const -> std::optional<TheoryTerm> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+
+    auto operator()(TheoryTermVariable const &term) const -> std::optional<TheoryTerm> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+
+    auto operator()(TheoryTermTuple const &term) const -> std::optional<TheoryTerm> {
+        return transform_construct<TheoryTermTuple>(term.loc, term.type, tr(term.elems));
+    }
+
+    auto operator()(TheoryTermFunction const &term) const -> std::optional<TheoryTerm> {
+        return transform_construct<TheoryTermFunction>(term.loc, term.name, tr(term.args));
+    }
+
+    // literal
+
+    auto operator()(Literal const &lit) const { return std::visit(*this, lit); }
+
+    auto operator()(LiteralBoolean const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
+    auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
+        return transform_construct<LiteralRelation>(lit.loc, lit.sign, tr(lit.lhs), tr(lit.rhs));
+    }
+
+    auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
+        return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
+    }
+
+    // conditional literal
+
+    auto operator()(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
+        return transform_construct<ConditionalLiteral>(lit.loc, tr(lit.lits), tr(lit.cond));
+    }
+
+    template <bool Conjunctive>
+    auto operator()(Junction<Conjunctive> const &lit) const
+        -> std::optional<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
+        return transform_construct<Junction<Conjunctive>>(lit.loc, tr(lit.elems));
+    }
+
+    // set aggregate
+
+    auto operator()(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
+        return transform_construct<SetAggregateElement>(tr(elem.lit), tr(elem.cond));
+    }
+
+    // head literal
+
+    auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteral> { return operator()(lit.lit); }
+
+    auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadSetAggregate>(lit.loc, tr(lit.lhs), tr(lit.elems), tr(lit.rhs));
+    }
+
+    auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
+        return transform_construct<HeadAggregate::Element>(tr(elem.tuple), tr(elem.lit), tr(elem.cond));
+    }
+
+    auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadAggregate>(lit.loc, tr(lit.lhs), lit.fun, tr(lit.elems), tr(lit.rhs));
+    }
+
+    auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadTheoryAtom>(lit.loc, tr(lit.name), tr(lit.elems), tr(lit.rhs));
+    }
+
+    // body literal
+
+    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteral> { return operator()(lit.lit); }
+
+    auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodySetAggregate>(lit.loc, lit.sign, tr(lit.lhs), tr(lit.elems), tr(lit.rhs));
+    }
+
+    auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
+        return transform_construct<BodyAggregate::Element>(tr(elem.tuple), tr(elem.cond));
+    }
+
+    auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodyAggregate>(lit.loc, lit.sign, tr(lit.lhs), lit.fun, tr(lit.elems), tr(lit.rhs));
+    }
+
+    auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodyTheoryAtom>(lit.loc, lit.sign, tr(lit.name), tr(lit.elems), tr(lit.rhs));
+    }
+
+    // statement
+
+    auto operator()(Statement const &stm) const -> std::optional<Statement> { return std::visit(*this, stm); }
+
+    auto operator()(Rule const &stm) const -> std::optional<Statement> {
+        return transform_construct<Rule>(stm.loc, tr(stm.head), tr(stm.body));
+    }
+
+    auto operator()(TheoryDefinition const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementOptimize::Tuple const &elem) const -> std::optional<StatementOptimize::Tuple> {
+        return transform_construct<StatementOptimize::Tuple>(tr(elem.weight), tr(elem.priority), tr(elem.terms));
+    }
+
+    auto operator()(StatementOptimize::Element const &elem) const -> std::optional<StatementOptimize::Element> {
+        return transform_construct<StatementOptimize::Element>(tr(elem.first), tr(elem.second));
+    }
+
+    auto operator()(StatementOptimize const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementOptimize>(stm.loc, stm.type, tr(stm.elems));
+    }
+
+    auto operator()(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementWeakConstraint>(stm.loc, tr(stm.body), tr(stm.tuple));
+    }
+
+    auto operator()(StatementShow const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementShow>(stm.loc, tr(stm.term), tr(stm.body));
+    }
+
+    auto operator()(StatementShowSig const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementProject const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementProject>(stm.loc, tr(stm.term), tr(stm.body));
+    }
+
+    auto operator()(StatementProjectSig const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementDefined const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementExternal const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementExternal>(stm.loc, tr(stm.term), tr(stm.body), tr(stm.type));
+    }
+
+    auto operator()(StatementEdge::Edge const &edge) const -> std::optional<StatementEdge::Edge> {
+        return transform_construct<StatementEdge::Edge>(tr(edge.u), tr(edge.v));
+    }
+
+    auto operator()(StatementEdge const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementEdge>(stm.loc, tr(stm.edges), tr(stm.body));
+    }
+
+    auto operator()(StatementHeuristic const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementHeuristic>(stm.loc, tr(stm.atom), tr(stm.body), tr(stm.type), tr(stm.prio),
+                                                       tr(stm.mod));
+    }
+
+    auto operator()(StatementScript const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementInclude const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementProgram const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementConst const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(Comment const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    TermMap &map;
+};
+
+} // namespace
+
+[[nodiscard]] auto rewrite_arthimetics(SymbolStore &store, Statement const &stm) -> std::optional<Statement> {
+    static_cast<void>(store);
+    auto map = TermMap{};
+    return RewriteArithmetics{map}(stm);
+}
+
+} // namespace Gringo::Input
