@@ -290,11 +290,10 @@ struct term_rec : lexy::expression_production {
 
     template <UnaryOperator OP> struct tag_unary {
         // TODO:
-        // - The std::prev works around a potential bug in lexy, which should be reported.
         // - Ideally, the constructor would also be called with the state.
         //   Then, the actual position could be calculated here.
         //   Maybe I can ask for such an extension to avoid the ugly any.
-        tag_unary(auto it) : it{std::prev(it)} {}
+        tag_unary(auto it) : it{it} {}
         static constexpr auto op = OP;
         std::any it;
     };
