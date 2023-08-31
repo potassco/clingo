@@ -7,16 +7,6 @@
 
 namespace Gringo::Util {
 
-namespace Detail {
-
-template <class T> struct shared_ptr_data {
-    template <class... Args> shared_ptr_data(Args &&...args) : value{std::forward<Args>(args)...} {}
-    size_t refs = 1;
-    T value;
-};
-
-} // namespace Detail
-
 //! @defgroup core_util Utility
 //! @ingroup core
 //!
@@ -35,51 +25,30 @@ template <class T> struct shared_ptr_data {
 //! making it is easy to extend to provide full control over the reference count.
 //! It should also be faster than the STL implementation.
 //! However, it cannot be used safely in multi-threaded applications.
+//!
+//! The shared pointer cannot be downcasted. Support could be added.
 template <typename T> class shared_ptr {
   public:
     //! The type of the stored pointer.
     using element_type = T;
 
     //! Construct a null pointer.
-    constexpr shared_ptr() noexcept : ptr_{nullptr} {}
+    constexpr shared_ptr() noexcept : data_{nullptr} {}
 
     //! Explicitly construct a null pointer.
-    constexpr shared_ptr(std::nullptr_t) noexcept : ptr_{nullptr} {}
+    constexpr shared_ptr(std::nullptr_t) noexcept : data_{nullptr} {}
 
     //! Copy a shared pointer.
-    shared_ptr(shared_ptr const &other) noexcept : ptr_{other.ptr_} { inc_(); }
-
-    //! Copy a compatible shared pointer.
-    template <typename Y, typename = std::enable_if_t<std::is_base_of_v<T, Y>>>
-    shared_ptr(shared_ptr<Y> const &other) noexcept : ptr_{other.ptr_} {
-        inc_();
-    }
+    shared_ptr(shared_ptr const &other) noexcept : data_{other.data_} { inc_(); }
 
     //! Move construct a shared pointer.
-    shared_ptr(shared_ptr &&other) noexcept : ptr_{other.ptr_} { other.ptr_ = nullptr; }
-
-    //! Move construct a compatible shared pointer.
-    template <typename Y, typename = std::enable_if_t<std::is_base_of_v<T, Y>>>
-    shared_ptr(shared_ptr<Y> &&other) noexcept : ptr_{other.ptr_} {
-        other.ptr_ = nullptr;
-    }
+    shared_ptr(shared_ptr &&other) noexcept : data_{other.data_} { other.data_ = nullptr; }
 
     //! Copy assign a shared pointer.
     auto operator=(shared_ptr const &other) -> shared_ptr & {
-        if (ptr_ != other.ptr_) {
+        if (data_ != other.data_) {
             dec_();
-            ptr_ = other.ptr_;
-            inc_();
-        }
-        return *this;
-    }
-
-    //! Copy assign a compatible shared pointer.
-    template <typename Y, typename = std::enable_if_t<std::is_base_of_v<T, Y>>>
-    auto operator=(shared_ptr<Y> const &other) -> shared_ptr & {
-        if (ptr_ != other.ptr_) {
-            dec_();
-            ptr_ = other.ptr_;
+            data_ = other.data_;
             inc_();
         }
         return *this;
@@ -87,77 +56,66 @@ template <typename T> class shared_ptr {
 
     //! Move assign a shared pointer.
     auto operator=(shared_ptr &&other) noexcept -> shared_ptr & {
-        std::swap(ptr_, other.ptr_);
-        return *this;
-    }
-
-    //! Move assign a compatible shared pointer.
-    template <typename Y, typename = std::enable_if_t<std::is_base_of_v<T, Y>>>
-    auto operator=(shared_ptr<Y> &&other) noexcept -> shared_ptr & {
-        std::swap(ptr_, other.ptr_);
+        std::swap(data_, other.data_);
         return *this;
     }
 
     //! Check if the shared pointer is null.
-    [[nodiscard]] explicit operator bool() const noexcept { return ptr_ != nullptr; }
+    [[nodiscard]] explicit operator bool() const noexcept { return data_ != nullptr; }
 
     //! Get the reference count of the shared pointer.
-    [[nodiscard]] auto use_count() const noexcept -> size_t { return ref_count(); }
+    [[nodiscard]] auto use_count() const noexcept -> size_t { return data_->refs; }
 
     //! Get the raw pointer.
-    [[nodiscard]] auto get() const noexcept -> element_type * { return ptr_; }
+    [[nodiscard]] auto get() const noexcept -> element_type * { return &data_->value; }
 
     //! Dereference the pointer.
-    [[nodiscard]] auto operator*() const noexcept -> element_type & { return *ptr_; }
+    [[nodiscard]] auto operator*() const noexcept -> element_type & { return *get(); }
 
     //! Get the member of pointer.
-    auto operator->() const noexcept -> element_type * { return ptr_; }
+    auto operator->() const noexcept -> element_type * { return get(); }
 
     //! Decrement reference count and delete contained pointer if zero.
     ~shared_ptr() { dec_(); }
 
   private:
-    using data_type = Detail::shared_ptr_data<T>;
-
-    auto as_data_() const -> data_type * {
-        return reinterpret_cast<data_type *>(reinterpret_cast<char *>(ptr_) - offsetof(data_type, value));
-    }
+    struct data_type {
+        template <class... Args> data_type(Args &&...args) : value{std::forward<Args>(args)...} {}
+        size_t refs = 1;
+        element_type value;
+    };
 
     template <typename Y> friend class shared_ptr;
 
-    template <typename U, typename B, typename... Args> friend auto construct_shared(Args &&...args);
+    template <typename U, typename... Args> friend auto construct_shared(Args &&...args);
 
-    constexpr shared_ptr(element_type *ptr) noexcept : ptr_{ptr} {}
+    constexpr shared_ptr(data_type *data) noexcept : data_{data} {}
 
     void inc_() noexcept {
-        if (ptr_ != nullptr) {
-            ++ref_count();
+        if (data_ != nullptr) {
+            ++data_->refs;
         }
     }
 
     void dec_() {
-        if (ptr_ != nullptr) {
-            --ref_count();
-            if (ref_count() == 0) {
-                delete as_data_();
-                ptr_ = nullptr;
+        if (data_ != nullptr) {
+            --data_->refs;
+            if (data_->refs == 0) {
+                delete data_;
+                data_ = nullptr;
             }
         }
     }
 
-    [[nodiscard]] auto ref_count() const -> size_t & { return as_data_()->refs; }
-
-    T *ptr_;
+    data_type *data_;
 };
 
 //! Construct a shared pointer.
 //!
 //! @related shared_ptr
-template <typename U, typename B = U, typename... Args> auto construct_shared(Args &&...args) {
-    using data_type = Detail::shared_ptr_data<U>;
-    auto *data = new data_type(std::forward<Args>(args)...);
-    assert(reinterpret_cast<char *>(&data->value) - offsetof(data_type, value) == reinterpret_cast<char *>(data));
-    return shared_ptr<B>{&data->value};
+template <typename U, typename... Args> auto construct_shared(Args &&...args) {
+    using data_type = typename shared_ptr<U>::data_type;
+    return shared_ptr<U>{new data_type(std::forward<Args>(args)...)};
 }
 
 //! Equality compare two shared pointers.

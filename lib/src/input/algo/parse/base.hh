@@ -46,19 +46,6 @@ template <typename T, typename R> struct construct_v_ {
 //! Helper to construct an object and then convert it to another type.
 template <typename T, typename R> constexpr auto construct_v = construct_v_<T, R>{};
 
-template <typename T, typename B> struct construct_shared_ {
-    using return_type = Util::shared_ptr<B>;
-
-    template <typename... Args>
-    constexpr auto operator()(Args &&...args) const
-        -> std::enable_if_t<std::is_constructible_v<T, Args &&...>, return_type> {
-        return Util::construct_shared<T, B>(std::forward<Args>(args)...);
-    }
-};
-
-//! Helper to construct a shared pointer.
-template <typename T, typename R> constexpr auto construct_shared = construct_shared_<T, R>{};
-
 //! Helper to inject the state object of the parser.
 template <class R, class... CB> constexpr auto with_state(CB... cb) {
     return lexy::bind(lexy::callback<R>([cb](auto &state, auto &&...args)
