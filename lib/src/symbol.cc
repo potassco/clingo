@@ -169,6 +169,7 @@ class SlottedAlloc {
             if (node == nullptr) {
                 // use limited exponential growth scheme for allocation
                 size_t m = (head.use_count < max_alloc ? head.use_count + 1 : max_alloc) * k;
+                static_assert(alignof(Node *) <= alignof(uint64_t));
                 node = reinterpret_cast<Node *>(::operator new[](m));
                 // tag the beginning of the memory block
                 new (node) Node{m, 1, nullptr};
@@ -259,11 +260,13 @@ class SymbolArray {
     SymbolArray() = default;
 
     template <class Alloc> void init(Alloc &alloc, SymbolSpan symbols) {
+        static_assert(alignof(Symbol) <= alignof(uint64_t));
         repr_ = reinterpret_cast<Symbol *>(alloc.alloc(symbols.size() * sizeof(Symbol)));
         std::copy(symbols.begin(), symbols.end(), repr_);
     }
 
     template <class Alloc> void init(Alloc &alloc, Symbol name, SymbolSpan symbols) {
+        static_assert(alignof(Symbol) <= alignof(uint64_t));
         repr_ = reinterpret_cast<Symbol *>(alloc.alloc((symbols.size() + 1) * sizeof(Symbol)));
         *repr_ = name;
         std::copy(symbols.begin(), symbols.end(), repr_ + 1);
@@ -317,6 +320,7 @@ class CharArray {
     CharArray() = default;
 
     template <class Alloc> void init(Alloc &alloc, std::string_view str) {
+        static_assert(alignof(char) <= alignof(uint64_t));
         repr_ = reinterpret_cast<char *>(alloc.alloc((str.size() + 1) * sizeof(char)));
         std::copy(str.begin(), str.end(), repr_);
         repr_[str.size()] = '\0';
