@@ -36,19 +36,30 @@ auto operator<<(std::ostream &out, Constant op) -> std::ostream &;
 //! Reference to a string stored in a symbol store.
 class String {
   public:
+    //! Construct a string pointing to a null pointer.
     constexpr String() : String{0} {};
 
+    //! Get the underlying C string.
     [[nodiscard]] auto c_str() const -> const char *;
+    //! Get a string view.
     [[nodiscard]] auto view() const -> std::string_view;
+    //! Test if the string is empty.
     [[nodiscard]] auto empty() const -> bool;
+    //! Get the length of the string.
     [[nodiscard]] auto size() const -> size_t;
+    //! Check if the string starts with the given string.
     [[nodiscard]] auto starts_with(std::string_view prefix) const -> bool;
 
+    //! Equality compare two strings.
     friend auto operator==(String a, String b) -> bool { return a.rep_ == b.rep_; }
+    //! Equality compare a string and a string view.
     friend auto operator==(String a, std::string_view b) -> bool { return a.view() == b; }
+    //! Equality compare a string view and a string.
     friend auto operator==(std::string_view a, String b) -> bool { return a == b.view(); }
 
+    //! Convert a string to its representation.
     static auto to_rep(String str) noexcept -> uint64_t { return static_cast<uint64_t>(str.rep_); }
+    //! Construct a string from its representation.
     static auto from_rep(uint64_t rep) noexcept -> String { return String{static_cast<uintptr_t>(rep)}; }
 
   private:
@@ -65,15 +76,23 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream &;
 enum class SymbolType { number, sup, inf, string, tuple, function };
 
 class Symbol;
+//! A span of symbols.
 using SymbolSpan = std::span<Symbol const>;
 
+//! Variant-like class to store symbols.
 class Symbol {
   public:
+    //! Get the type of the symbol.
     [[nodiscard]] auto type() const noexcept -> SymbolType;
+    //! Get the numeric value of the symbol.
     [[nodiscard]] auto num() const noexcept -> int32_t;
+    //! Get the (raw) string value of the symbol.
     [[nodiscard]] auto str() const noexcept -> String;
+    //! Get the name of the symbol.
     [[nodiscard]] auto name() const noexcept -> String;
+    //! Get the arguments of the symbol.
     [[nodiscard]] auto args() const noexcept -> SymbolSpan;
+    //! Flip the sign of the symbol.
     [[nodiscard]] auto flip_sign() const -> std::optional<Symbol>;
 
     //! Check whether the symbol has a sign.
@@ -81,10 +100,14 @@ class Symbol {
     //! Returns true for negative integers and negated functions.
     [[nodiscard]] auto has_sign() const -> bool;
 
+    //! Equality compare two symbols.
     friend auto operator==(Symbol a, Symbol b) -> bool { return a.rep_ == b.rep_; }
+    //! Inequality compare two symbols.
     friend auto operator!=(Symbol a, Symbol b) -> bool { return a.rep_ != b.rep_; }
 
+    //! Get the representation of the symbol.
     static auto to_rep(Symbol sym) noexcept -> uint64_t { return sym.rep_; }
+    //! Create a symbol from its representation.
     static auto from_rep(uint64_t rep) noexcept -> Symbol { return Symbol{rep}; }
 
   private:
@@ -102,11 +125,11 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
 //! the symbol.
 class SymbolStore {
   public:
-    //!< Construct the infimum constant (<tt>\#inf</tt>).
+    //! Construct the infimum constant (<tt>\#inf</tt>).
     [[nodiscard]] static auto sup() noexcept -> Symbol;
-    //!< Construct the supremum constant (<tt>\#sup</tt>).
+    //! Construct the supremum constant (<tt>\#sup</tt>).
     [[nodiscard]] static auto inf() noexcept -> Symbol;
-    //!< Construct a number (e.g., <tt>42</tt>).
+    //! Construct a number (e.g., <tt>42</tt>).
     [[nodiscard]] static auto num(int32_t num) noexcept -> Symbol;
     //! Construct a quoted string.
     //!
@@ -151,19 +174,23 @@ auto default_symbol_store() -> SymbolStore &;
 //! multi-threaded use can be created.
 auto make_symbol_store(bool slotted, bool shared) -> USymbolStore;
 
-} // namespace Gringo
-
 //! @}
+
+} // namespace Gringo
 
 namespace std {
 
+//! Hasher for strings.
 template <> struct hash<Gringo::String> {
+    //! Compute hash of string.
     auto operator()(Gringo::String str) const -> size_t {
         return Gringo::Util::value_hash(Gringo::String::to_rep(str));
     }
 };
 
+//! Hasher for symbols.
 template <> struct hash<Gringo::Symbol> {
+    //! Compute hash of symbol.
     auto operator()(Gringo::Symbol sym) const -> size_t {
         return Gringo::Util::value_hash(Gringo::Symbol::to_rep(sym));
     }

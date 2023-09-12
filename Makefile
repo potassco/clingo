@@ -3,6 +3,9 @@ SHELL := /bin/zsh
 all: configure
 	$(MAKE) -C build $@
 
+doc:
+	cd doc && doxygen
+
 test: all
 	$(MAKE) CTEST_OUTPUT_ON_FAILURE=1 -C build $@
 
@@ -111,5 +114,5 @@ web:
 %: configure
 	cmake --build build --target $@ --parallel
 
-.PHONY: all test compdb configure reconfigure format web
+.PHONY: all doc test compdb configure reconfigure format web
 

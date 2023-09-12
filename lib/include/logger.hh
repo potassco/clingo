@@ -7,24 +7,37 @@
 #include <memory>
 #include <sstream>
 #include <stdexcept>
-
-// TODO: windows
 #include <unistd.h>
 
 namespace Gringo {
 
+//! @defgroup core_logger Logging
+//! @ingroup core
+//!
+//! Functions and classes for logging.
+//!
+//! @{
+
+//! The default message limit.
 static constexpr size_t default_message_limit = 20;
 
 //! Error codes.
 //!
 //! This is used by the C-API.
-enum class ErrorCode : int { success = 0, runtime = 1, logic = 2, bad_alloc = 3, unknown = 4 };
+enum class ErrorCode : int {
+    success = 0,   //!< There was no error.
+    runtime = 1,   //!< A runtime error.
+    logic = 2,     //!< A logic error.
+    bad_alloc = 3, //!< A failed allocation.
+    unknown = 4    //!< An uncategorised error.
+};
 
 //! Exception thrown when an error code is set.
 //!
 //! This is used by the C-API.
 class GringoError : public std::runtime_error {
   public:
+    //! Construct the error.
     GringoError(char const *msg) : std::runtime_error(msg) {}
 };
 
@@ -32,30 +45,31 @@ class GringoError : public std::runtime_error {
 //!
 //! Codes larger or equal to error indicate non-recoverable runtime errors.
 enum class MessageCode : int {
-    trace = 0,
-    debug = 1,
-    info = 3,
-    info_operation_undefined = 4,
-    info_atom_undefined = 5,
-    info_file_included = 6,
-    info_global_variable = 7,
-    warn = 8,
-    error = 9,
+    trace = 0,                    //! Trace messages.
+    debug = 1,                    //! Debug messages.
+    info = 3,                     //! Generic info messages.
+    info_operation_undefined = 4, //! Info message for undefined operations.
+    info_atom_undefined = 5,      //! Info message for undefined atoms.
+    info_file_included = 6,       //! Info message for duplicate includes.
+    info_global_variable = 7,     //! Info message for global variables.
+    warn = 8,                     //! A warning.
+    error = 9,                    //! An error.
 };
 
 //! Exception thrown when there is an error and the message limit has been reached.
 class MessageLimitError : public std::runtime_error {
   public:
+    //! Construct the error.
     MessageLimitError(char const *msg) : std::runtime_error(msg) {}
 };
 
 //! Log levels for course grain configuration of logging.
 enum class LogLevel : int {
-    trace = static_cast<int>(MessageCode::trace),
-    debug = static_cast<int>(MessageCode::debug),
-    info = static_cast<int>(MessageCode::info),
-    warn = static_cast<int>(MessageCode::warn),
-    error = static_cast<int>(MessageCode::error),
+    trace = static_cast<int>(MessageCode::trace), //!< Trace as much as possible.
+    debug = static_cast<int>(MessageCode::debug), //!< Output debug messages.
+    info = static_cast<int>(MessageCode::info),   //!< Output info messages.
+    warn = static_cast<int>(MessageCode::warn),   //!< Output warnings.
+    error = static_cast<int>(MessageCode::error), //!< Output errors.
 };
 
 //! Simple logger to report message to stderr or via a callback.
@@ -102,13 +116,18 @@ class Logger {
     bool color_;
 };
 
+//! Helper class to ease logging.
 class Report {
   public:
+    //! Construct reporter.
     Report(Logger &p, MessageCode code) : log_(p), code_(code) { out_ << log_.message_prefix(code) << ": "; }
+    //! Construct reporter with additional location information.
     template <class Loc> Report(Logger &p, MessageCode code, Loc &loc) : log_(p), code_(code) {
         out_ << loc << ": " << log_.message_prefix(code) << ": ";
     }
+    //! Destroy the reporter and output message.
     ~Report() { log_.print(code_, out_.str().c_str()); }
+    //! Get message sink.
     [[nodiscard]] auto out() -> std::ostringstream & { return out_; }
 
   private:
@@ -206,18 +225,21 @@ inline auto Logger::message_prefix(MessageCode code) const -> char const * {
     return prefix;
 }
 
-} // namespace Gringo
-
+//! Report messages of the given type.
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define GRINGO_REPORT(p, id)                                                                                           \
     if ((p).check(::Gringo::MessageCode::id))                                                                          \
     Gringo::Report(p, ::Gringo::MessageCode::id).out()
 
+//! Report messages of the given type and location.
 #define GRINGO_REPORT_LOC(p, id, loc)                                                                                  \
     if ((p).check(::Gringo::MessageCode::id))                                                                          \
     Gringo::Report(p, ::Gringo::MessageCode::id, loc).out()
 
+//! Report message of the given type given as string.
 #define GRINGO_REPORT_STR(p, id, msg)                                                                                  \
     if ((p).check(::Gringo::MessageCode::id)) {                                                                        \
         (p).print(::Gringo::MessageCode::id, msg);                                                                     \
     }
+
+} // namespace Gringo

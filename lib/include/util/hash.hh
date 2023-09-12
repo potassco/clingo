@@ -114,11 +114,13 @@ inline auto hash_mix(size_t a) -> size_t { return hash_combine({a}); }
 
 //! Function object producing perturbed hash values.
 template <class T, class H = std::hash<T>> struct mix_hasher : private H {
-    auto operator()(T const &x) const -> size_t { return H::operator()(x); }
+    //! Compute the hash of the given vale and perturb it.
+    auto operator()(T const &x) const -> size_t { return hash_mix(H::operator()(x)); }
 };
 
 //! Compute a hash using std::hash.
 template <class T> struct value_hasher : std::hash<T> {
+    //! Compute the hash of the given value.
     auto operator()(T const &x) const -> size_t { return std::hash<T>::operator()(x); }
 };
 

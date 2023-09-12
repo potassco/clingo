@@ -28,7 +28,7 @@ using Conjunction = Junction<true>;
 
 //! A body aggregate.
 //!
-//! For example: <tt>#count { X: q(X) } = 1</tt>
+//! For example: <tt>\#count { X: q(X) } = 1</tt>
 struct BodyAggregate {
     //! An aggregate element.
     struct Element {

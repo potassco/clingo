@@ -28,7 +28,7 @@ using Disjunction = Junction<false>;
 
 //! A head aggregate.
 //!
-//! For example: <tt>#count { X: p(X): q(X) } = 1</tt>
+//! For example: <tt>\#count { X: p(X): q(X) } = 1</tt>
 struct HeadAggregate {
     //! An element of a head aggregate.
     struct Element {
