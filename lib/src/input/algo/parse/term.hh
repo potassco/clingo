@@ -160,6 +160,8 @@ struct term_variable : lexy::token_production {
     });
 };
 
+enum class Constant { supremum, infimum };
+
 static constexpr auto constants = lexy::symbol_table<Constant> //
                                       .map<LEXY_SYMBOL("#infimum")>(Constant::infimum)
                                       .map<LEXY_SYMBOL("#inf")>(Constant::infimum)

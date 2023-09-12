@@ -501,8 +501,6 @@ struct StatementConst {
     //! The name of the constant.
     String name;
     //! The value of the constant
-    //!
-    //! @todo This should become a symbol at some point.
     Term value;
 };
 

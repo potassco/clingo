@@ -22,17 +22,6 @@ namespace Gringo {
 //!
 //! @{
 
-//! The supremum and infimum constants.
-//!
-//! @todo Belongs into statement.
-enum class Constant : int {
-    supremum, //!< The supremum (<tt>\#sup</tt>).
-    infimum,  //!< The infimum (<tt>\#inf</tt>).
-};
-
-//! Output the string representation of the constant.
-auto operator<<(std::ostream &out, Constant op) -> std::ostream &;
-
 //! Reference to a string stored in a symbol store.
 class String {
   public:
