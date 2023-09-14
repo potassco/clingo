@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include <input/algo/visit_variables.hh>
 
 #include "input/test.hh"

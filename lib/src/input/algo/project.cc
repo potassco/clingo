@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <unordered_map>
 
 #include <input/algo/check_type.hh>

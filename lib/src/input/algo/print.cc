@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <sstream>
 
 #include <util/algorithm.hh>

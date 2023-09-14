@@ -1,6 +1,8 @@
-#include <input/algo/check_type.hh>
+#include <algorithm>
 
 #include <util/algorithm.hh>
+
+#include <input/algo/check_type.hh>
 
 namespace Gringo::Input {
 

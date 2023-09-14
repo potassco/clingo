@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include <logger.hh>
 
 #include <input/algo/print.hh>
