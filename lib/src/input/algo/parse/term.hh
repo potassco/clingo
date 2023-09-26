@@ -1,6 +1,5 @@
 #pragma once
 
-#include <any>
 #include <optional>
 
 #include <lexy/dsl.hpp>
@@ -291,13 +290,9 @@ struct term_rec : lexy::expression_production {
     };
 
     template <UnaryOperator OP> struct tag_unary {
-        // TODO:
-        // - Ideally, the constructor would also be called with the state.
-        //   Then, the actual position could be calculated here.
-        //   Maybe I can ask for such an extension to avoid the ugly any.
-        tag_unary(auto it) : it{it} {}
+        template <class State> tag_unary(State &state, auto it) : pos{state.pos(it)} {}
         static constexpr auto op = OP;
-        std::any it;
+        Position pos;
     };
 
     struct op_unary : dsl::prefix_op {
@@ -349,17 +344,12 @@ struct term_rec : lexy::expression_production {
     };
 
     using operation = op_dots;
-    static constexpr auto value = Detail::with_state<Term>(
-        [](auto &state, Term term) {
-            static_cast<void>(state);
-            return term;
+    static constexpr auto value = lexy::callback<Term>(
+        lexy::forward<Term>,
+        [](auto tag, Term rhs) {
+            return TermUnary{Location{tag.pos, location(rhs).end}, tag.op, std::move(rhs)};
         },
-        [](auto &state, auto tag, Term rhs) {
-            auto begin = state.pos(std::any_cast<typename std::remove_reference_t<decltype(state)>::iterator>(tag.it));
-            return TermUnary{Location{begin, location(rhs).end}, tag.op, std::move(rhs)};
-        },
-        [](auto &state, Term lhs, BinaryOperator op, Term rhs) {
-            static_cast<void>(state);
+        [](Term lhs, BinaryOperator op, Term rhs) {
             return TermBinary{Location{location(lhs).begin, location(rhs).end}, std::move(lhs), op, std::move(rhs)};
         });
 };
