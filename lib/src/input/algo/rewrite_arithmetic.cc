@@ -3,6 +3,25 @@
 
 #include "transform.hh"
 
+/*
+// TODO: rename file!!!
+whole process as in gringo atm
+1. apply #const statements (partially done)
+2. unpool (done)
+3. init theory
+4. simplify
+  0. evaluate/linear terms
+  1. extract atoms to project
+  2. dots
+  3. script
+5. unpool comparison
+6. rewrite
+  1. aggregates
+  2. arithmetics
+  4. comparisons to intervals
+  5. assignment aggregates
+*/
+
 namespace Gringo::Input {
 
 namespace {
@@ -19,6 +38,7 @@ struct SimplifyTerm {
     };
     struct Result {
         Type type;
+        // optional<variant<Symbol,pair<Type,optional<Term>>>>
         std::variant<bool, Term, TermSymbol> term;
     };
 
@@ -62,11 +82,6 @@ struct SimplifyTerm {
     }
 
     auto operator()(TermUnary const &term) const -> Result {
-        // Note that the function could simplify unary operators further.
-        // Currently, simplification is restricted to functions where it is the
-        // most useful in view of a normal form. Simplifying numeric terms
-        // would be a bit more tricky because `-` can overflow. It is also not
-        // very likely to appear in practice.
         auto res_rhs = operator()(*term.rhs);
         // we could not evaluate a nested term
         if (auto *res = std::get_if<bool>(&res_rhs.term); res != nullptr && !*res) {
@@ -87,6 +102,7 @@ struct SimplifyTerm {
         // ~term is always numeric
         auto type = term.op == UnaryOperator::invert ? Type::numeric : res_rhs.type;
         // simplify --symbolic to symbolic
+        // (we cannot simplify numeric terms because `-` can overflow)
         auto fold = [&term, &res_rhs](Term &rhs) -> Term * {
             auto *rhs_unary = std::get_if<TermUnary>(&rhs);
             if (rhs_unary != nullptr && term.op == UnaryOperator::invert && rhs_unary->op == UnaryOperator::invert &&
