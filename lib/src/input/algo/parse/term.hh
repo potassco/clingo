@@ -154,7 +154,7 @@ static constexpr auto variable = []() {
 struct term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::capture(dsl::token(variable));
-    static constexpr auto value = Detail::with_state<Term>([](auto &state, auto var) {
+    static constexpr auto value = lexy::callback_with_state<Term>([](auto &state, auto var) {
         return TermVariable{state.loc(var), state.string(Detail::as_string(var))};
     });
 };
@@ -270,7 +270,7 @@ static constexpr auto anonymous_variable =
 struct term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = Detail::location(anonymous_variable);
-    static constexpr auto value = Detail::with_state<Term>([](auto &state, Location loc) {
+    static constexpr auto value = lexy::callback_with_state<Term>([](auto &state, Location loc) {
         return TermVariable{std::move(loc), state.string("_"), true};
     });
 };

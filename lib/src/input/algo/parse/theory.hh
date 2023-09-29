@@ -46,9 +46,9 @@ struct theory_op {
                kw_not;
     }();
 
-    static constexpr auto value =
-        Detail::with_state<String>([](auto &state, auto lexeme) { return state.string(Detail::as_string(lexeme)); },
-                                   [](auto &state) { return state.string("not"); });
+    static constexpr auto value = lexy::callback_with_state<String>(
+        [](auto &state, auto lexeme) { return state.string(Detail::as_string(lexeme)); },
+        [](auto &state) { return state.string("not"); });
 };
 
 struct theory_ops {
@@ -95,7 +95,7 @@ struct theory_term_function {
     static constexpr char const *name = "theory function";
     static constexpr auto rule = dsl::inline_<identifier> >> dsl::if_(dsl::p<theory_term_arguments>);
     static constexpr auto value =
-        Detail::with_state<TheoryTerm>([](auto &state, auto id, std::vector<TheoryTerm> args = {}) {
+        lexy::callback_with_state<TheoryTerm>([](auto &state, auto id, std::vector<TheoryTerm> args = {}) {
             auto begin = state.pos(id.begin());
             auto end = args.empty() ? state.pos(id.end()) : location(args.back()).end;
             return TheoryTermFunction{Location{std::move(begin), std::move(end)}, state.string(Detail::as_string(id)),
@@ -106,7 +106,7 @@ struct theory_term_function {
 struct theory_term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::capture(dsl::token(variable));
-    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, auto var) {
+    static constexpr auto value = lexy::callback_with_state<TheoryTerm>([](auto &state, auto var) {
         return TheoryTermVariable{Location{state.pos(var.begin()), state.pos(var.end())},
                                   state.string(Detail::as_string(var))};
     });
@@ -115,7 +115,7 @@ struct theory_term_variable : lexy::token_production {
 struct theory_term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = Detail::location(anonymous_variable);
-    static constexpr auto value = Detail::with_state<TheoryTerm>([](auto &state, Location loc) {
+    static constexpr auto value = lexy::callback_with_state<TheoryTerm>([](auto &state, Location loc) {
         return TheoryTermVariable{std::move(loc), state.string("_"), true};
     });
 };
@@ -165,7 +165,7 @@ struct theory_term_unparsed : lexy::transparent_production {
     static constexpr char const *name = "theory term";
     static constexpr auto rule = Detail::position + dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> +
                                  dsl::if_(dsl::p<theory_term_unparsed_guards>);
-    static constexpr auto value = Detail::with_state<TheoryTerm>(
+    static constexpr auto value = lexy::callback_with_state<TheoryTerm>(
         [](auto &state, auto begin, TheoryTerm term) {
             static_cast<void>(state);
             static_cast<void>(begin);

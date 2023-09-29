@@ -46,15 +46,6 @@ template <typename T, typename R> struct construct_v_ {
 //! Helper to construct an object and then convert it to another type.
 template <typename T, typename R> constexpr auto construct_v = construct_v_<T, R>{};
 
-//! Helper to inject the state object of the parser.
-template <class R, class... CB> constexpr auto with_state(CB... cb) {
-    return lexy::bind(lexy::callback<R>([cb](auto &state, auto &&...args)
-                                            -> std::invoke_result_t<decltype(cb), decltype(state), decltype(args)...> {
-                          return std::invoke(cb, state, std::forward<decltype(args)>(args)...);
-                      }...),
-                      lexy::parse_state, lexy::values);
-}
-
 //! Convert a lexeme or sink to string.
 static constexpr auto as_string = lexy::as_string<std::string, encoding>;
 
