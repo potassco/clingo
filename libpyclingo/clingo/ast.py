@@ -1252,7 +1252,7 @@ def _pyclingo_ast_callback(ast, data):
 def parse_files(
     files: Sequence[str],
     callback: Callable[[AST], None],
-    control: Control = None,
+    control: Optional[Control] = None,
     logger: Optional[Logger] = None,
     message_limit: int = 20,
 ) -> None:
@@ -1315,7 +1315,7 @@ def parse_files(
 def parse_string(
     program: str,
     callback: Callable[[AST], None],
-    control: Control = None,
+    control: Optional[Control] = None,
     logger: Optional[Logger] = None,
     message_limit: int = 20,
 ) -> None:
