@@ -84,7 +84,7 @@ private:
 // {{{1 declaration of ClingoOptions
 
 struct ClingoOptions {
-    using Foobar = std::vector<Sig>;
+    using SigVec = std::vector<Sig>;
     std::vector<std::string>      defines;
     Output::OutputOptions outputOptions;
     Output::OutputFormat  outputFormat          = Output::OutputFormat::INTERMEDIATE;
@@ -97,7 +97,7 @@ struct ClingoOptions {
     bool                          rewriteMinimize       = false;
     bool                          keepFacts             = false;
     bool                          singleShot            = false;
-    Foobar                        foobar;
+    SigVec                        sigvec;
 };
 
 inline void enableAll(ClingoOptions& out, bool enable) {
@@ -124,6 +124,14 @@ inline bool parseWarning(const std::string& str, ClingoOptions& out) {
     return false;
 }
 
+inline bool parsePreserveFacts(const std::string& str, ClingoOptions& out) {
+    if (str == "none")   { out.keepFacts = false; out.outputOptions.preserveFacts = false; return true; }
+    if (str == "body")   { out.keepFacts = true;  out.outputOptions.preserveFacts = false; return true; }
+    if (str == "symtab") { out.keepFacts = false; out.outputOptions.preserveFacts = true;  return true; }
+    if (str == "all")    { out.keepFacts = true;  out.outputOptions.preserveFacts = true;  return true; }
+    return false;
+}
+
 inline std::vector<std::string> split(std::string const &source, char const *delimiter = " ", bool keepEmpty = false) {
     std::vector<std::string> results;
     size_t prev = 0;
@@ -136,7 +144,7 @@ inline std::vector<std::string> split(std::string const &source, char const *del
     return results;
 }
 
-inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& foobar) {
+inline bool parseSigVec(const std::string& str, ClingoOptions::SigVec& sigvec) {
     for (auto &x : split(str, ",")) {
         auto y = split(x, "/");
         if (y.size() != 2) { return false; }
@@ -144,7 +152,7 @@ inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& foobar) {
         if (!Potassco::string_cast<unsigned>(y[1], a)) { return false; }
         bool sign = !y[0].empty() && y[0][0] == '-';
         if (sign) { y[0] = y[0].substr(1); }
-        foobar.emplace_back(y[0].c_str(), a, sign);
+        sigvec.emplace_back(y[0].c_str(), a, sign);
     }
     return true;
 }

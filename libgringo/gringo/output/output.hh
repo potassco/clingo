@@ -35,7 +35,7 @@ namespace Gringo { namespace Output {
 
 class TranslatorOutput : public AbstractOutput {
 public:
-    TranslatorOutput(UAbstractOutput out);
+    TranslatorOutput(UAbstractOutput out, bool preserveFacts);
     void output(DomainData &data, Statement &stm) override;
 private:
     Translator trans_;
@@ -60,9 +60,10 @@ private:
 };
 
 struct OutputOptions {
-    OutputDebug debug      = OutputDebug::NONE;
-    bool        reifySCCs  = false;
-    bool        reifySteps = false;
+    OutputDebug debug = OutputDebug::NONE;
+    bool reifySCCs  = false;
+    bool reifySteps = false;
+    bool preserveFacts = false;
 };
 
 class OutputPredicates {
