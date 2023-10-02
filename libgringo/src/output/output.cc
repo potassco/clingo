@@ -398,8 +398,8 @@ private:
 
 // {{{1 definition of TranslatorOutput
 
-TranslatorOutput::TranslatorOutput(UAbstractOutput out)
-: trans_(std::move(out)) { }
+TranslatorOutput::TranslatorOutput(UAbstractOutput out, bool preserveFacts)
+: trans_(std::move(out), preserveFacts) { }
 
 void TranslatorOutput::output(DomainData &data, Statement &stm) {
     stm.translate(data, trans_);
@@ -484,7 +484,7 @@ UAbstractOutput OutputBase::fromBackend(UBackend out, OutputOptions opts) {
     if (opts.debug == OutputDebug::TRANSLATE || opts.debug == OutputDebug::ALL) {
         output = gringo_make_unique<TextOutput>("%% ", std::cerr, std::move(output));
     }
-    output = gringo_make_unique<TranslatorOutput>(std::move(output));
+    output = gringo_make_unique<TranslatorOutput>(std::move(output), opts.preserveFacts);
     if (opts.debug == OutputDebug::TEXT || opts.debug == OutputDebug::ALL) {
         output = gringo_make_unique<TextOutput>("% ", std::cerr, std::move(output));
     }
@@ -641,6 +641,7 @@ void OutputBase::registerObserver(UBackend prg, bool replace) {
 void ASPIFOutBackend::initProgram(bool incremental) {
     static_cast<void>(incremental);
 }
+
 void ASPIFOutBackend::beginStep() {
     out_ = &beginOutput();
     bck_ = out_->backend();

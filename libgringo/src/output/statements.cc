@@ -429,8 +429,9 @@ void WeakConstraint::replaceDelayed(DomainData &data, LitVec &delayed) {
 
 // {{{1 definition of Translator
 
-Translator::Translator(UAbstractOutput out)
+Translator::Translator(UAbstractOutput out, bool preserveFacts)
 : out_(std::move(out))
+, preserveFacts_{preserveFacts}
 { }
 
 void Translator::addMinimize(TupleId tuple, LiteralId cond) {
@@ -548,12 +549,12 @@ namespace {
 
 class Atomtab : public Statement {
 public:
-    Atomtab(PredicateDomain::Iterator atom)
-    : atom_(atom) { }
+    Atomtab(PredicateDomain::Iterator atom, bool preserveFacts)
+    : atom_(atom), preserveFacts_{preserveFacts} { }
 
     void output(DomainData &data, UBackend &out) const override {
         static_cast<void>(data);
-        out->output(*atom_, atom_->fact() ? 0 : atom_->uid());
+        out->output(*atom_, !preserveFacts_ && atom_->fact() ? 0 : atom_->uid());
     }
 
     void print(PrintPlain out, char const *prefix) const override {
@@ -578,6 +579,7 @@ public:
 
 private:
     PredicateDomain::Iterator atom_;
+    bool preserveFacts_;
 };
 
 } // namespace
@@ -585,7 +587,7 @@ private:
 void Translator::showAtom(DomainData &data, PredDomMap::iterator it) {
     for (auto jt = (*it)->begin() + (*it)->showOffset(), je = (*it)->end(); jt != je; ++jt) {
         if (jt->defined()) {
-            Atomtab(jt).translate(data, *this);
+            Atomtab{jt, preserveFacts_}.translate(data, *this);
         }
     }
     (*it)->showNext();

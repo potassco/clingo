@@ -46,7 +46,7 @@ namespace Gringo {
 using StrVec = std::vector<std::string>;
 
 struct GringoOptions {
-    using Foobar = std::vector<Sig>;
+    using SigVec = std::vector<Sig>;
     StrVec                     defines;
     Output::OutputOptions outputOptions;
     Output::OutputFormat  outputFormat          = Output::OutputFormat::INTERMEDIATE;
@@ -59,7 +59,7 @@ struct GringoOptions {
     bool                          rewriteMinimize       = false;
     bool                          keepFacts             = false;
     bool                          singleShot            = false;
-    Foobar                        foobar;
+    SigVec                        sigvec;
 };
 
 static inline std::vector<std::string> split(std::string const &source, char const *delimiter = " ", bool keepEmpty = false) {
@@ -74,7 +74,7 @@ static inline std::vector<std::string> split(std::string const &source, char con
     return results;
 }
 
-static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& foobar) {
+static inline bool parseSigVec(const std::string& str, GringoOptions::SigVec& sigvec) {
     for (auto &x : split(str, ",")) {
         auto y = split(x, "/");
         if (y.size() != 2) { return false; }
@@ -82,7 +82,7 @@ static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& fo
         if (!Potassco::string_cast<unsigned>(y[1], a)) { return false; }
         bool sign = !y[0].empty() && y[0][0] == '-';
         if (sign) { y[0] = y[0].substr(1); }
-        foobar.emplace_back(y[0].c_str(), a, sign);
+        sigvec.emplace_back(y[0].c_str(), a, sign);
     }
     return true;
 }
@@ -341,6 +341,14 @@ inline bool parseWarning(const std::string& str, GringoOptions& out) {
     return false;
 }
 
+inline bool parsePreserveFacts(const std::string& str, GringoOptions& out) {
+    if (str == "none")   { out.keepFacts = false; out.outputOptions.preserveFacts = false; return true; }
+    if (str == "body")   { out.keepFacts = true;  out.outputOptions.preserveFacts = false; return true; }
+    if (str == "symtab") { out.keepFacts = false; out.outputOptions.preserveFacts = true;  return true; }
+    if (str == "all")    { out.keepFacts = true;  out.outputOptions.preserveFacts = true;  return true; }
+    return false;
+}
+
 static bool parseText(const std::string&, GringoOptions& out) {
     out.outputFormat = Output::OutputFormat::TEXT;
     return true;
@@ -379,19 +387,26 @@ struct GringoApp : public Potassco::Application {
              "      translate: print translated rules as plain text (prefix %%%%)\n"
              "      all      : combines text and translate")
             ("warn,W,@1", storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
-             "      none:                     disable all warnings\n"
-             "      all:                      enable all warnings\n"
-             "      [no-]atom-undefined:      a :- b.\n"
-             "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
+             "      none                    : disable all warnings\n"
+             "      all                     : enable all warnings\n"
+             "      [no-]atom-undefined     : a :- b.\n"
+             "      [no-]file-included      : #include \"a.lp\". #include \"a.lp\".\n"
              "      [no-]operation-undefined: p(1/0).\n"
-             "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
-             "      [no-]other:               uncategorized warnings")
+             "      [no-]global-variable    : :- #count { X } = 1, X = 1.\n"
+             "      [no-]other              : uncategorized warnings")
             ("rewrite-minimize,@1", flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
-            ("keep-facts,@1", flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
+            // for backward compatibility
+            ("keep-facts,@4", flag(grOpts_.keepFacts = false), "Preserve facts in rule bodies.")
+            ("preserve-facts,@1", storeTo(grOpts_, parsePreserveFacts),
+             "Preserve facts in output:\n"
+             "      none  : do not preserve\n"
+             "      body  : do not preserve\n"
+             "      symtab: do not preserve\n"
+             "      all   : preserve all facts")
             ("reify-sccs,@1", flag(grOpts_.outputOptions.reifySCCs = false), "Calculate SCCs for reified output")
             ("reify-steps,@1", flag(grOpts_.outputOptions.reifySteps = false), "Add step numbers to reified output")
+            ("show-preds,@1", storeTo(grOpts_.sigvec, parseSigVec), "Show the given signatures")
             ("single-shot,@2", flag(grOpts_.singleShot = false), "Force single-shot grounding mode")
-            ("foobar,@4", storeTo(grOpts_.foobar, parseFoobar), "Foobar")
             ;
         root.add(gringo);
         OptionGroup basic("Basic Options");
@@ -456,7 +471,7 @@ struct GringoApp : public Potassco::Application {
             using namespace Gringo;
             grOpts_.verbose = verbose() == UINT_MAX;
             Output::OutputPredicates outPreds;
-            for (auto &x : grOpts_.foobar) {
+            for (auto &x : grOpts_.sigvec) {
                 outPreds.add(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
             }
             Potassco::TheoryData data;

@@ -6,11 +6,13 @@
   * add function to change undo mode (#409)
   * add function to access priorities to API (#406)
   * add `Model::is_consequence` to API (#423)
+  * add option to preserve facts (#457)
   * improve hash table performance (#441)
   * fix `add_theory_atom_with_guard` in Python API
   * fix AST bugs (#403)
   * fix parsing of hexadecimal numbers (#421)
   * fix assignment aggregates (#436)
+  * fix build scripts for Python 3.12 (#452)
   * make sure `clingo_control_ground` is re-entrant (#418)
   * update clasp and dependencies
 

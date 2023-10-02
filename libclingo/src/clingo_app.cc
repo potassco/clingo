@@ -72,19 +72,26 @@ void ClingoApp::initOptions(Potassco::ProgramOptions::OptionContext& root) {
          "      translate: print translated rules as plain text (prefix %%%%)\n"
          "      all      : combines text and translate")
         ("warn,W,@1"                   , storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
-         "      none:                     disable all warnings\n"
-         "      all:                      enable all warnings\n"
-         "      [no-]atom-undefined:      a :- b.\n"
-         "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
+         "      none                    : disable all warnings\n"
+         "      all                     : enable all warnings\n"
+         "      [no-]atom-undefined     : a :- b.\n"
+         "      [no-]file-included      : #include \"a.lp\". #include \"a.lp\".\n"
          "      [no-]operation-undefined: p(1/0).\n"
-         "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
-         "      [no-]other:               clasp related and uncategorized warnings")
+         "      [no-]global-variable    : :- #count { X } = 1, X = 1.\n"
+         "      [no-]other              : clasp related and uncategorized warnings")
         ("rewrite-minimize,@1"      , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
-        ("keep-facts,@1"            , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
+        // for backward compatibility
+        ("keep-facts,@3"            , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
+        ("preserve-facts,@1"        , storeTo(grOpts_, parsePreserveFacts),
+         "Preserve facts in output:\n"
+         "      none  : do not preserve\n"
+         "      body  : do not preserve\n"
+         "      symtab: do not preserve\n"
+         "      all   : preserve all facts")
         ("reify-sccs,@1"            , flag(grOpts_.outputOptions.reifySCCs = false), "Calculate SCCs for reified output")
         ("reify-steps,@1"           , flag(grOpts_.outputOptions.reifySteps = false), "Add step numbers to reified output")
+        ("show-preds,@1"            , storeTo(grOpts_.sigvec, parseSigVec), "Show the given signatures")
         ("single-shot,@2"           , flag(grOpts_.singleShot = false), "Force single-shot solving mode")
-        ("foobar,@4"                , storeTo(grOpts_.foobar, parseFoobar) , "Foobar")
         ;
     root.add(gringo);
 

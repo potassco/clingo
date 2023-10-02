@@ -228,7 +228,7 @@ public:
     using ProjectionVec   = std::vector<std::pair<Potassco::Id_t, Potassco::Id_t>>;
     using TupleLitMap     = ordered_map<TupleId, LiteralId>;
 
-    Translator(UAbstractOutput out);
+    Translator(UAbstractOutput out, bool preserveFacts);
 
     void addMinimize(TupleId tuple, LiteralId cond);
     void atoms(DomainData &data, unsigned atomset, IsTrueLookup const &isTrue, SymVec &atoms, OutputPredicates const &outPreds);
@@ -282,6 +282,7 @@ private:
         static constexpr ClauseKey deleted = { 0xffffffff, 0x3fffffff, 1, 1, std::numeric_limits<uint64_t>::max() - 1 };
     };
     hash_set<ClauseKey, CallHash> clauses_;
+    bool preserveFacts_;
 };
 
 // {{{1 declaration of Minimize
