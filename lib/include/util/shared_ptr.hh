@@ -101,7 +101,9 @@ template <typename T> class shared_ptr {
         if (data_ != nullptr) {
             --data_->refs;
             if (data_->refs == 0) {
+#ifndef __clang_analyzer__
                 delete data_;
+#endif
                 data_ = nullptr;
             }
         }
@@ -114,8 +116,14 @@ template <typename T> class shared_ptr {
 //!
 //! @related shared_ptr
 template <typename U, typename... Args> auto construct_shared(Args &&...args) {
+    // prevent false positive for new/delete mismatch
+#ifdef __clang_analyzer__
+    using data_type = typename shared_ptr<U>::data_type;
+    return std::declval<decltype(shared_ptr<U>{new data_type(std::forward<Args>(args)...)})>();
+#else
     using data_type = typename shared_ptr<U>::data_type;
     return shared_ptr<U>{new data_type(std::forward<Args>(args)...)};
+#endif
 }
 
 //! Equality compare two shared pointers.
