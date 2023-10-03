@@ -51,6 +51,21 @@ struct SimplifyTerm {
     }
 
     auto operator()(TermFunction const &term) const -> Result {
+        assert(term.pool.size() == 1);
+        std::vector<Result::value_type> res_args;
+        for (auto const &arg : term.pool.front()) {
+            if (std::holds_alternative<std::monostate>(arg)) {
+                // TODO: handle
+                continue;
+            }
+            auto res_arg = operator()(std::get<Term>(arg));
+            // early exit in case of failure
+            if (!res_arg.has_value()) {
+                return std::nullopt;
+            }
+            res_args.emplace_back(res_arg.value());
+            // TODO: in case res_arg changes a new argument vector has to be constructed
+        }
         static_cast<void>(term);
         throw std::runtime_error("implement me!!!");
     }
