@@ -303,10 +303,8 @@ struct Print {
             Print{out}.apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
                 std::visit(
                     [this](auto const &x) {
-                        if constexpr (GRINGO_IS_OF_TYPE(x, Term)) {
-                            operator()(x);
-                        }
-                        if constexpr (GRINGO_IS_OF_TYPE(x, TupleVec)) {
+                        GRINGO_MATCH(x, Term) { operator()(x); }
+                        GRINGO_MATCH(x, TupleVec) {
                             apply_to_range(x);
                             if (x.size() == 1) {
                                 out << ",";

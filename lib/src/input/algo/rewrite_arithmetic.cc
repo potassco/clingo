@@ -1,6 +1,7 @@
 #include <input/algo/evaluate.hh>
 #include <input/algo/rewrite_arithmetic.hh>
 
+#include "checked_math.hh"
 #include "transform.hh"
 
 /*
@@ -36,38 +37,21 @@ struct SimplifyTerm {
         tuple,
         any,
     };
-    struct Result {
-        Type type;
-        // optional<variant<Symbol,pair<Type,optional<Term>>>>
-        std::variant<bool, Term, TermSymbol> term;
-    };
+    using TermResult = std::pair<Type, std::optional<Term>>;
+    using Result = std::optional<std::variant<Symbol, TermResult>>;
 
     auto operator()(Term const &term) const -> Result { return std::visit(*this, term); }
 
-    auto operator()(TermSymbol const &term) const -> Result {
-        // maybe also say something about symbolic/numeric/etc?
-        switch (term.value.type()) {
-            case SymbolType::function:
-                return {Type::symbolic, term};
-            case SymbolType::tuple:
-                return {Type::tuple, term};
-            case SymbolType::number:
-                return {Type::numeric, term};
-            case SymbolType::inf:
-            case SymbolType::sup:
-            case SymbolType::string:
-                return {Type::any, term};
-        }
-    }
+    auto operator()(TermSymbol const &term) const -> Result { return term.value; }
 
     auto operator()(TermVariable const &term) const -> Result {
         static_cast<void>(term);
-        return {Type::any, true};
+        // a variable can represent any term
+        return TermResult{Type::any, std::nullopt};
     }
 
     auto operator()(TermFunction const &term) const -> Result {
         static_cast<void>(term);
-
         throw std::runtime_error("implement me!!!");
     }
 
@@ -77,11 +61,48 @@ struct SimplifyTerm {
     }
 
     auto operator()(TermAbs const &term) const -> Result {
-        static_cast<void>(term);
-        throw std::runtime_error("implement me!!!");
+        assert(term.pool.size() == 1);
+        auto opt_res = operator()(term.pool.front());
+        if (!opt_res.has_value()) {
+            return std::nullopt;
+        }
+        return std::visit(
+            [&term](auto &res) -> Result {
+                // evaluate symbol
+                GRINGO_MATCH(res, Symbol) {
+                    if (res.type() != SymbolType::number) {
+                        // TODO: info message???
+                        return std::nullopt;
+                    }
+                    auto res_val = check_abs(res.num());
+                    if (!res_val.has_value()) {
+                        // TODO: info message???
+                        return std::nullopt;
+                    }
+                    return SymbolStore::num(res_val.value());
+                }
+                // handle term
+                GRINGO_MATCH(res, TermResult) {
+                    // handle invalid terms
+                    if (res.first == Type::symbolic || res.first == Type::tuple) {
+                        // TODO: info message???
+                        return std::nullopt;
+                    }
+                    // construct a new term
+                    if (res.second.has_value()) {
+                        TermVec pool;
+                        pool.emplace_back(std::move(*res.second));
+                        return TermResult{Type::numeric, TermAbs{term.loc, std::move(pool)}};
+                    }
+                    // the term did not change
+                    return TermResult{Type::numeric, std::nullopt};
+                }
+            },
+            opt_res.value());
     }
 
     auto operator()(TermUnary const &term) const -> Result {
+        /*
         auto res_rhs = operator()(*term.rhs);
         // we could not evaluate a nested term
         if (auto *res = std::get_if<bool>(&res_rhs.term); res != nullptr && !*res) {
@@ -123,6 +144,9 @@ struct SimplifyTerm {
             return {type, *rhs_rhs};
         }
         return {type, true};
+        */
+        static_cast<void>(term);
+        throw std::runtime_error("implement me!!!");
     }
 
     auto operator()(TermBinary const &term) const -> Result {

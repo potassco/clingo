@@ -43,12 +43,10 @@ struct Unpool {
     auto operator()(TupleElem const &elem) const -> std::optional<TupleVec> {
         return std::visit(
             [this](auto const &x) -> std::optional<TupleVec> {
-                if constexpr (GRINGO_IS_OF_TYPE(x, Term)) {
+                GRINGO_MATCH(x, Term) {
                     return Util::map_opt_vec(operator()(x), [](auto term) { return TupleElem{std::move(term)}; });
                 }
-                if constexpr (GRINGO_IS_OF_TYPE(x, std::monostate)) {
-                    return std::nullopt;
-                }
+                GRINGO_MATCH(x, std::monostate) { return std::nullopt; }
             },
             elem);
     }
@@ -56,11 +54,11 @@ struct Unpool {
     auto operator()(TermTuple::Element const &tuple_or_term) const -> std::optional<TermTuple::ElementVec> {
         return std::visit(
             [this](auto const &x) -> std::optional<TermTuple::ElementVec> {
-                if constexpr (GRINGO_IS_OF_TYPE(x, Term)) {
+                GRINGO_MATCH(x, Term) {
                     return Util::map_opt_vec(operator()(x),
                                              [](auto term) { return TermTuple::Element{std::move(term)}; });
                 }
-                if constexpr (GRINGO_IS_OF_TYPE(x, TupleVec)) {
+                GRINGO_MATCH(x, TupleVec) {
                     return Util::map_opt_vec(unpool_crossproduct(x, *this),
                                              [](auto tuple) { return TermTuple::Element{std::move(tuple)}; });
                 }
@@ -79,12 +77,8 @@ struct Unpool {
         return Util::map_opt_vec(std::move(elems), [&term](auto elem) -> Term {
             return std::visit(
                 [&term](auto x) -> Term {
-                    if constexpr (GRINGO_IS_OF_TYPE(x, Term)) {
-                        return x;
-                    }
-                    if constexpr (GRINGO_IS_OF_TYPE(x, TupleVec)) {
-                        return TermTuple{term.loc, TermTuple::ElementVec{std::move(x)}};
-                    }
+                    GRINGO_MATCH(x, Term) { return x; }
+                    GRINGO_MATCH(x, TupleVec) { return TermTuple{term.loc, TermTuple::ElementVec{std::move(x)}}; }
                 },
                 std::move(elem));
         });
