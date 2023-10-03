@@ -102,51 +102,59 @@ struct SimplifyTerm {
     }
 
     auto operator()(TermUnary const &term) const -> Result {
-        /*
-        auto res_rhs = operator()(*term.rhs);
-        // we could not evaluate a nested term
-        if (auto *res = std::get_if<bool>(&res_rhs.term); res != nullptr && !*res) {
-            return {Type::any, false};
+        auto opt_res_rhs = operator()(*term.rhs);
+        if (!opt_res_rhs.has_value()) {
+            return std::nullopt;
         }
-        // we can always evaluate constants
-        if (auto *sym = std::get_if<TermSymbol>(&res_rhs.term); sym != nullptr) {
-            auto res = evaluate(term.op, sym->value);
-            if (!res.has_value()) {
-                return {Type::any, false};
-            }
-            return {res_rhs.type, TermSymbol{term.loc, *res}};
-        }
-        // we cannot apply unary operations to symbols and tuples
-        if (res_rhs.type == Type::tuple || (term.op == UnaryOperator::invert && res_rhs.type == Type::symbolic)) {
-            return {Type::any, false};
-        }
-        // ~term is always numeric
-        auto type = term.op == UnaryOperator::invert ? Type::numeric : res_rhs.type;
-        // simplify --symbolic to symbolic
-        // (we cannot simplify numeric terms because `-` can overflow)
-        auto fold = [&term, &res_rhs](Term &rhs) -> Term * {
-            auto *rhs_unary = std::get_if<TermUnary>(&rhs);
-            if (rhs_unary != nullptr && term.op == UnaryOperator::invert && rhs_unary->op == UnaryOperator::invert &&
-                res_rhs.type == Type::symbolic) {
-                return rhs_unary->rhs.get();
-            }
-            return nullptr;
-        };
-        // construct a new term
-        if (auto *rhs = std::get_if<Term>(&res_rhs.term); rhs != nullptr) {
-            if (auto *rhs_rhs = fold(*rhs); rhs_rhs != nullptr) {
-                return {type, std::move(*rhs_rhs)};
-            }
-            return {type, TermUnary{term.loc, term.op, Util::construct_shared<Term>(std::move(*rhs))}};
-        }
-        // the term did not change
-        if (auto *rhs_rhs = fold(*term.rhs); rhs_rhs != nullptr) {
-            return {type, *rhs_rhs};
-        }
-        return {type, true};
-        */
-        static_cast<void>(term);
-        throw std::runtime_error("implement me!!!");
+        return std::visit(
+            [&term](auto &res_rhs) -> Result {
+                // evaluate symbol
+                GRINGO_MATCH(res_rhs, Symbol) {
+                    // we can always evaluate constants
+                    auto res = evaluate(term.op, res_rhs);
+                    if (!res.has_value()) {
+                        // TODO: info message???
+                        return std::nullopt;
+                    }
+                    return res.value();
+                }
+                GRINGO_MATCH(res_rhs, TermResult) {
+                    // fail if term is not invertable/negatable
+                    if (res_rhs.first == Type::tuple ||
+                        (term.op == UnaryOperator::invert && res_rhs.first == Type::symbolic)) {
+                        // TODO: info message???
+                        return std::nullopt;
+                    }
+                    // ~term is always numeric
+                    auto type = term.op == UnaryOperator::invert ? Type::numeric : res_rhs.first;
+                    // simplify --symbolic to symbolic
+                    // (we cannot simplify numeric terms because `-` can overflow)
+                    auto fold = [&term, &type](Term const &rhs) -> Term const * {
+                        if (auto const *rhs_unary = std::get_if<TermUnary>(&rhs);
+                            rhs_unary != nullptr && term.op == UnaryOperator::invert &&
+                            rhs_unary->op == UnaryOperator::invert && type == Type::symbolic) {
+                            return rhs_unary->rhs.get();
+                        }
+                        return nullptr;
+                    };
+                    // the argument changed -> construct new term and fold if possible
+                    if (res_rhs.second.has_value()) {
+                        if (auto const *rhs_rhs = fold(res_rhs.second.value()); rhs_rhs != nullptr) {
+                            return TermResult{type, *rhs_rhs};
+                        }
+                        return TermResult{type,
+                                          TermUnary{term.loc, term.op,
+                                                    Util::construct_shared<Term>(std::move(res_rhs.second.value()))}};
+                    }
+                    // the argument did not change but the term be foldable
+                    if (auto const *rhs_rhs = fold(*term.rhs); rhs_rhs != nullptr) {
+                        return TermResult{type, *rhs_rhs};
+                    }
+                    // the term did not change
+                    return TermResult{type, std::nullopt};
+                }
+            },
+            opt_res_rhs.value());
     }
 
     auto operator()(TermBinary const &term) const -> Result {
