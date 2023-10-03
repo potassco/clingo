@@ -85,29 +85,14 @@ template <typename T> class shared_ptr {
         element_type value;
     };
 
-    template <typename Y> friend class shared_ptr;
-
     template <typename U, typename... Args> friend auto construct_shared(Args &&...args);
+
+    template <typename... Args> static auto construct_(Args &&...args) -> shared_ptr;
 
     shared_ptr(data_type *data) noexcept : data_{data} {}
 
-    void inc_() noexcept {
-        if (data_ != nullptr) {
-            ++data_->refs;
-        }
-    }
-
-    void dec_() noexcept {
-        if (data_ != nullptr) {
-            --data_->refs;
-            if (data_->refs == 0) {
-#ifndef __clang_analyzer__
-                delete data_;
-#endif
-                data_ = nullptr;
-            }
-        }
-    }
+    void inc_() noexcept;
+    void dec_() noexcept;
 
     data_type *data_;
 };
@@ -116,15 +101,33 @@ template <typename T> class shared_ptr {
 //!
 //! @related shared_ptr
 template <typename U, typename... Args> auto construct_shared(Args &&...args) {
-    // prevent false positive for new/delete mismatch
-#ifdef __clang_analyzer__
-    using data_type = typename shared_ptr<U>::data_type;
-    return std::declval<decltype(shared_ptr<U>{new data_type(std::forward<Args>(args)...)})>();
-#else
-    using data_type = typename shared_ptr<U>::data_type;
-    return shared_ptr<U>{new data_type(std::forward<Args>(args)...)};
-#endif
+    static_assert(std::is_constructible_v<U, Args...>);
+    return shared_ptr<U>::construct_(std::forward<Args>(args)...);
 }
+
+#ifndef __clang_analyzer__
+
+template <class T> template <typename... Args> auto shared_ptr<T>::construct_(Args &&...args) -> shared_ptr {
+    return {new data_type(std::forward<Args>(args)...)};
+}
+
+template <class T> void shared_ptr<T>::inc_() noexcept {
+    if (data_ != nullptr) {
+        ++data_->refs;
+    }
+}
+
+template <class T> void shared_ptr<T>::dec_() noexcept {
+    if (data_ != nullptr) {
+        --data_->refs;
+        if (data_->refs == 0) {
+            delete data_;
+            data_ = nullptr;
+        }
+    }
+}
+
+#endif
 
 //! Equality compare two shared pointers.
 //!
