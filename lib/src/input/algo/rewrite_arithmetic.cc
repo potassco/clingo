@@ -52,22 +52,96 @@ struct SimplifyTerm {
 
     auto operator()(TermFunction const &term) const -> Result {
         assert(term.pool.size() == 1);
-        std::vector<Result::value_type> res_args;
-        for (auto const &arg : term.pool.front()) {
-            if (std::holds_alternative<std::monostate>(arg)) {
-                // TODO: handle
-                continue;
+        std::optional<std::vector<std::variant<std::monostate, Symbol, Term>>> args;
+        size_t n = 0;
+        bool constant = !term.external;
+        auto type = term.external ? Type::any : Type::symbolic;
+
+        // helper to initialize the arguments
+        auto init = [&]() {
+            if (!args.has_value()) {
+                args = std::vector<std::variant<std::monostate, Symbol, Term>>{};
+                args->reserve(term.pool.front().size());
+                for (auto it = term.pool.front().begin(), ie = it + n; it != ie; ++it) {
+                    std::visit([&args](auto &&res) { args->emplace_back(res); }, *it);
+                }
             }
-            auto res_arg = operator()(std::get<Term>(arg));
-            // early exit in case of failure
-            if (!res_arg.has_value()) {
+        };
+
+        // evaluate arguments
+        for (auto const &var_arg : term.pool.front()) {
+            if (!std::visit(
+                    [&](auto const &arg) {
+                        GRINGO_MATCH(arg, std::monostate) {
+                            constant = false;
+                            init();
+                            args->emplace_back();
+                            return true;
+                        }
+                        GRINGO_MATCH(arg, Term) {
+                            auto opt_res = operator()(arg);
+                            // early exit in case of failure
+                            if (!opt_res.has_value()) {
+                                return false;
+                            }
+                            std::visit(
+                                [&](auto &res) {
+                                    GRINGO_MATCH(res, Symbol) {
+                                        init();
+                                        args->emplace_back(res);
+                                    }
+                                    GRINGO_MATCH(res, TermResult) {
+                                        constant = false;
+                                        if (!args.has_value() && !res.second.has_value()) {
+                                            return;
+                                        }
+                                        init();
+                                        args->emplace_back(res.second.has_value() ? std::move(res.second.value())
+                                                                                  : arg);
+                                    }
+                                },
+                                opt_res.value());
+                        }
+                        return true;
+                    },
+                    var_arg)) {
                 return std::nullopt;
             }
-            res_args.emplace_back(res_arg.value());
-            // TODO: in case res_arg changes a new argument vector has to be constructed
+            ++n;
         }
-        static_cast<void>(term);
-        throw std::runtime_error("implement me!!!");
+
+        // the term did not change
+        if (!args.has_value()) {
+            return TermResult{type, std::nullopt};
+        }
+
+        // the term can be evaluated to a symbol
+        if (constant) {
+            std::vector<Symbol> args_sym;
+            args_sym.reserve(args->size());
+            for (auto const &arg : args.value()) {
+                args_sym.emplace_back(std::get<Symbol>(arg));
+            }
+            throw std::logic_error("implement me: needs symbol store to construct function");
+        }
+
+        // the term cannot be evaluated to a symbol
+        TupleVec tuple;
+        for (auto const &arg : args.value()) {
+            std::visit(
+                [&](auto &&val) {
+                    GRINGO_MATCH(val, Symbol) {
+                        // TODO: add proper location
+                        tuple.emplace_back(TermSymbol{term.loc, val});
+                    }
+                    else {
+                        tuple.emplace_back(val);
+                    }
+                },
+                arg);
+        }
+        return TermResult{type,
+                          TermFunction{term.loc, term.name, Util::make_vec<TupleVec>(std::move(tuple)), term.external}};
     }
 
     auto operator()(TermTuple const &term) const -> Result {
