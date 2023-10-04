@@ -3,6 +3,7 @@ add_executable(tests
     "input/parse.cc"
     "input/variables.cc"
     "input/rewrite_anonymous.cc"
+    "input/simplify.cc"
     "input/unpool.cc"
     "input/evaluate.cc"
     "input/project.cc"

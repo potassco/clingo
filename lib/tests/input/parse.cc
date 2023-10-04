@@ -31,6 +31,8 @@ TEST_CASE("parse_term") {
     REQUIRE(to_str(parse_term("-a+b")) == "-a+b");
     REQUIRE(to_str(parse_term("-a**b")) == "-a**b");
     REQUIRE(to_str(parse_term("(-a)**b")) == "(-a)**b");
+    REQUIRE(to_str(parse_term("-f(1+2)")) == "-f(1+2)");
+    REQUIRE(to_str(parse_term("-f(1+X)")) == "-f(1+X)");
 }
 
 TEST_CASE("parse_literal") {

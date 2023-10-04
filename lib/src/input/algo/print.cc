@@ -300,12 +300,12 @@ struct Print {
             std::visit(*this, std::get<Term>(term.pool.front()));
         } else {
             out << "(";
-            Print{out}.apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
+            apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
                 std::visit(
                     [this](auto const &x) {
-                        GRINGO_MATCH(x, Term) { operator()(x); }
+                        GRINGO_MATCH(x, Term) { Print{out}(x); }
                         GRINGO_MATCH(x, TupleVec) {
-                            apply_to_range(x);
+                            Print{out}.apply_to_range(x);
                             if (x.size() == 1) {
                                 out << ",";
                             }
@@ -325,7 +325,7 @@ struct Print {
         auto const &pool = term.pool;
         if (pool.size() != 1 || !pool.front().empty()) {
             out << "(";
-            Print{out}.apply_to_range_with(pool, ";", [this](auto const &tuple) { apply_to_range(tuple); });
+            apply_to_range_with(pool, ";", [this](auto const &tuple) { Print{out}.apply_to_range(tuple); });
             out << ")";
         }
     }
