@@ -11,11 +11,18 @@ whole process as in gringo atm
 2. unpool (done)
 3. init theory
 4. simplify
-  0. evaluate/linear terms
+  0. evaluate (done)
   1. extract atoms to project
   2. dots
   3. script
+  4. terms that can fail
 5. unpool comparison
+   the comparison
+     not 1+a < 5 < 10
+   is equivalent to
+     X=1+a, X < 5 < 10
+   so any term that can fail to evaluate should be stripped during simplification
+   this also includes intervals and scripts!
 6. rewrite
   1. aggregates
   2. arithmetics
@@ -37,8 +44,9 @@ struct SimplifyTerm {
         tuple,
         any,
     };
-    using TermResult = std::pair<Type, std::optional<Term>>;
-    using Result = std::optional<std::variant<Symbol, TermResult>>;
+    using TermResult = std::pair<Type, Term>;
+    using Result = std::variant<std::monostate, Type, Symbol, TermResult>;
+    // TODO: could also be a variant
     using TupleVecRes = std::vector<std::variant<std::monostate, Symbol, Term>>;
 
     //! Helper to simplify the arguments of the tuple.
@@ -50,7 +58,7 @@ struct SimplifyTerm {
     auto simplify_tuple(TupleVec const &tuple, bool &constant, std::optional<TupleVecRes> &res_tuple) const {
         size_t n = 0;
 
-        // helper to initialize the arguments
+        // helper to initialize the optional result vector
         auto init = [&]() {
             if (!res_tuple.has_value()) {
                 res_tuple = std::vector<std::variant<std::monostate, Symbol, Term>>{};
@@ -61,43 +69,46 @@ struct SimplifyTerm {
             }
         };
 
+        auto simplify = [&, this](auto &&arg) -> bool {
+            // projected argument
+            GRINGO_MATCH(arg, std::monostate) {
+                constant = false;
+                init();
+                res_tuple->emplace_back();
+                return true;
+            }
+            // term argument
+            GRINGO_MATCH(arg, Term) {
+                auto simplify = [&](auto &&res) -> bool {
+                    // evaluation of argument failed
+                    GRINGO_MATCH(res, std::monostate) { return false; }
+                    // argument evaluated to symbol
+                    GRINGO_MATCH(res, Symbol) {
+                        init();
+                        res_tuple->emplace_back(res);
+                    }
+                    // argument did not change
+                    GRINGO_MATCH(res, Type) {
+                        constant = false;
+                        if (res_tuple.has_value()) {
+                            res_tuple->emplace_back(arg);
+                        }
+                    }
+                    // argument changed
+                    GRINGO_MATCH(res, TermResult) {
+                        constant = false;
+                        init();
+                        res_tuple->emplace_back(std::move(res.second));
+                    }
+                    return true;
+                };
+                return std::visit(simplify, operator()(arg));
+            }
+        };
+
         // evaluate arguments
-        for (auto const &var_arg : tuple) {
-            if (!std::visit(
-                    [&, this](auto const &arg) {
-                        GRINGO_MATCH(arg, std::monostate) {
-                            constant = false;
-                            init();
-                            res_tuple->emplace_back();
-                            return true;
-                        }
-                        GRINGO_MATCH(arg, Term) {
-                            auto opt_res = operator()(arg);
-                            // early exit in case of failure
-                            if (!opt_res.has_value()) {
-                                return false;
-                            }
-                            std::visit(
-                                [&](auto &res) {
-                                    GRINGO_MATCH(res, Symbol) {
-                                        init();
-                                        res_tuple->emplace_back(res);
-                                    }
-                                    GRINGO_MATCH(res, TermResult) {
-                                        constant = false;
-                                        if (!res_tuple.has_value() && !res.second.has_value()) {
-                                            return;
-                                        }
-                                        init();
-                                        res_tuple->emplace_back(res.second.has_value() ? std::move(res.second.value())
-                                                                                       : arg);
-                                    }
-                                },
-                                opt_res.value());
-                        }
-                        return true;
-                    },
-                    var_arg)) {
+        for (auto const &arg : tuple) {
+            if (!std::visit(simplify, arg)) {
                 return false;
             }
             ++n;
@@ -108,7 +119,7 @@ struct SimplifyTerm {
     //! Convert the given simplified arguments to a symbol vector.
     //!
     //! The result vector must only store symbols.
-    static auto args_symbol(std::optional<TupleVecRes> const &res_tuple) {
+    static auto args_symbol(std::optional<TupleVecRes> const &res_tuple) -> std::vector<Symbol> {
         std::vector<Symbol> args;
         if (res_tuple.has_value()) {
             args.reserve(res_tuple->size());
@@ -120,7 +131,7 @@ struct SimplifyTerm {
     }
 
     //! Convert the given simplified arguments to term tuple.
-    static auto args_term(TupleVec const &tuple, TupleVecRes const &res_tuple) {
+    static auto args_term(TupleVec const &tuple, TupleVecRes const &res_tuple) -> TupleVec {
         TupleVec args;
         auto it = tuple.begin();
         for (auto const &arg : res_tuple) {
@@ -144,7 +155,7 @@ struct SimplifyTerm {
     auto operator()(TermVariable const &term) const -> Result {
         static_cast<void>(term);
         // a variable can represent any term
-        return TermResult{Type::any, std::nullopt};
+        return Type::any;
     }
 
     auto operator()(TermFunction const &term) const -> Result {
@@ -157,12 +168,12 @@ struct SimplifyTerm {
 
         // simplify arguments
         if (!simplify_tuple(tuple, constant, res_tuple)) {
-            return std::nullopt;
+            return {};
         }
 
         // none of the arguments changed
         if (!res_tuple.has_value() && !constant) {
-            return TermResult{type, std::nullopt};
+            return type;
         }
 
         // the term can be evaluated to a symbol
@@ -186,12 +197,12 @@ struct SimplifyTerm {
 
         // simplify arguments
         if (!simplify_tuple(tuple, constant, res_tuple)) {
-            return std::nullopt;
+            return {};
         }
 
         // none of the arguments changed
         if (!res_tuple.has_value() && !constant) {
-            return TermResult{type, std::nullopt};
+            return type;
         }
 
         // the term can be evaluated to a symbol
@@ -207,158 +218,150 @@ struct SimplifyTerm {
     auto operator()(TermAbs const &term) const -> Result {
         assert(term.pool.size() == 1);
 
-        // simplify argument
-        auto opt_res = operator()(term.pool.front());
-        if (!opt_res.has_value()) {
-            return std::nullopt;
-        }
+        auto simplify = [&term](auto &&res) -> Result {
+            // evaluation of argument failed
+            GRINGO_MATCH(res, std::monostate) { return {}; }
+            // the argument evaluated to a symbol
+            GRINGO_MATCH(res, Symbol) {
+                if (res.type() != SymbolType::number) {
+                    // TODO: info message???
+                    return {};
+                }
+                auto res_val = check_abs(res.num());
+                if (!res_val.has_value()) {
+                    return {};
+                }
+                return SymbolStore::num(res_val.value());
+            }
+            // the argument did not change
+            GRINGO_MATCH(res, Type) {
+                if (res == Type::symbolic || res == Type::tuple) {
+                    // TODO: info message???
+                    return {};
+                }
+                return Type::numeric;
+            }
+            // the argument changed
+            GRINGO_MATCH(res, TermResult) {
+                // handle invalid terms
+                if (res.first == Type::symbolic || res.first == Type::tuple) {
+                    // TODO: info message
+                    return {};
+                }
+                // construct a new term
+                TermVec pool;
+                pool.emplace_back(std::move(res.second));
+                return TermResult{Type::numeric, TermAbs{term.loc, std::move(pool)}};
+            }
+        };
 
-        // construct result
-        return std::visit(
-            [&term](auto &res) -> Result {
-                // evaluate symbol
-                GRINGO_MATCH(res, Symbol) {
-                    if (res.type() != SymbolType::number) {
-                        // TODO: info message???
-                        return std::nullopt;
-                    }
-                    auto res_val = check_abs(res.num());
-                    if (!res_val.has_value()) {
-                        // TODO: info message???
-                        return std::nullopt;
-                    }
-                    return SymbolStore::num(res_val.value());
-                }
-                // handle term
-                GRINGO_MATCH(res, TermResult) {
-                    // handle invalid terms
-                    if (res.first == Type::symbolic || res.first == Type::tuple) {
-                        // TODO: info message???
-                        return std::nullopt;
-                    }
-                    // construct a new term
-                    if (res.second.has_value()) {
-                        TermVec pool;
-                        pool.emplace_back(std::move(*res.second));
-                        return TermResult{Type::numeric, TermAbs{term.loc, std::move(pool)}};
-                    }
-                    // the term did not change
-                    return TermResult{Type::numeric, std::nullopt};
-                }
-            },
-            opt_res.value());
+        return std::visit(simplify, operator()(term.pool.front()));
     }
 
     auto operator()(TermUnary const &term) const -> Result {
-        auto opt_res_rhs = operator()(*term.rhs);
-        if (!opt_res_rhs.has_value()) {
-            return std::nullopt;
-        }
-        return std::visit(
-            [&term](auto &res_rhs) -> Result {
-                // evaluate symbol
-                GRINGO_MATCH(res_rhs, Symbol) {
-                    // we can always evaluate constants
-                    auto res = evaluate(term.op, res_rhs);
-                    if (!res.has_value()) {
-                        // TODO: info message???
-                        return std::nullopt;
-                    }
-                    return res.value();
+        auto simplify = [&term](auto &&res) -> Result {
+            // evaluation of argument failed
+            GRINGO_MATCH(res, std::monostate) { return {}; }
+            // the argument evaluated to a symbol
+            GRINGO_MATCH(res, Symbol) {
+                // we can always evaluate constants
+                auto opt_sym = evaluate(term.op, res);
+                if (!opt_sym.has_value()) {
+                    // TODO: info message???
+                    return {};
                 }
-                GRINGO_MATCH(res_rhs, TermResult) {
-                    // fail if term is not invertable/negatable
-                    if (res_rhs.first == Type::tuple ||
-                        (term.op == UnaryOperator::invert && res_rhs.first == Type::symbolic)) {
-                        // TODO: info message???
-                        return std::nullopt;
-                    }
-                    // ~term is always numeric
-                    auto type = term.op == UnaryOperator::invert ? Type::numeric : res_rhs.first;
-                    // simplify --symbolic to symbolic
-                    // (we cannot simplify numeric terms because `-` can overflow)
-                    auto fold = [&term, &type](Term const &rhs) -> Term const * {
-                        if (auto const *rhs_unary = std::get_if<TermUnary>(&rhs);
-                            rhs_unary != nullptr && term.op == UnaryOperator::invert &&
-                            rhs_unary->op == UnaryOperator::invert && type == Type::symbolic) {
-                            return rhs_unary->rhs.get();
-                        }
-                        return nullptr;
-                    };
-                    // the argument changed -> construct new term and fold if possible
-                    if (res_rhs.second.has_value()) {
-                        if (auto const *rhs_rhs = fold(res_rhs.second.value()); rhs_rhs != nullptr) {
-                            return TermResult{type, *rhs_rhs};
-                        }
-                        return TermResult{type,
-                                          TermUnary{term.loc, term.op,
-                                                    Util::construct_shared<Term>(std::move(res_rhs.second.value()))}};
-                    }
-                    // the argument did not change but the term be foldable
-                    if (auto const *rhs_rhs = fold(*term.rhs); rhs_rhs != nullptr) {
-                        return TermResult{type, *rhs_rhs};
-                    }
-                    // the term did not change
-                    return TermResult{type, std::nullopt};
+                return opt_sym.value();
+            }
+            // get type of term based on the given type of its argument
+            auto check_type = [&term](Type type) -> std::optional<Type> {
+                if (type == Type::tuple || (term.op == UnaryOperator::invert && type == Type::symbolic)) {
+                    // TODO: info message???
+                    return std::nullopt;
                 }
-            },
-            opt_res_rhs.value());
+                // ~term is always numeric
+                return term.op == UnaryOperator::invert ? Type::numeric : type;
+            };
+            // simplify --symbolic to symbolic
+            // (we cannot simplify numeric terms because `-` can overflow)
+            auto fold = [&term](Type type, Term const &rhs) -> std::optional<TermResult> {
+                if (auto const *rhs_unary = std::get_if<TermUnary>(&rhs);
+                    rhs_unary != nullptr && term.op == UnaryOperator::invert &&
+                    rhs_unary->op == UnaryOperator::invert && type == Type::symbolic) {
+                    return TermResult{type, *rhs_unary};
+                }
+                return std::nullopt;
+            };
+            // the argument did not change
+            GRINGO_MATCH(res, Type) {
+                auto type = check_type(res);
+                if (!type.has_value()) {
+                    return {};
+                }
+                // fold if possible
+                if (auto opt_res = fold(type.value(), *term.rhs); opt_res.has_value()) {
+                    return std::move(opt_res).value();
+                }
+                return type.value();
+            }
+            // the argument changed
+            GRINGO_MATCH(res, TermResult) {
+                auto type = check_type(res.first);
+                if (!type.has_value()) {
+                    return {};
+                }
+                // fold if possible
+                if (auto opt_res = fold(type.value(), res.second); opt_res.has_value()) {
+                    return std::move(opt_res).value();
+                }
+                return TermResult{type.value(),
+                                  TermUnary{term.loc, term.op, Util::construct_shared<Term>(std::move(res.second))}};
+            }
+        };
+        return std::visit(simplify, operator()(*term.rhs));
     }
 
     auto operator()(TermBinary const &term) const -> Result {
-        // evaluate arguments
-        auto opt_res_lhs = operator()(*term.lhs);
-        auto opt_res_rhs = operator()(*term.rhs);
-        if (!opt_res_lhs.has_value() || !opt_res_rhs.has_value()) {
-            return std::nullopt;
-        }
-
         auto is_numeric = [](auto &&res) {
-            // TODO: error message
+            GRINGO_MATCH(res, std::monostate) { return false; }
+            // TODO: error messages
+            GRINGO_MATCH(res, Type) { return res == Type::any || res == Type::numeric; }
             GRINGO_MATCH(res, TermResult) { return res.first == Type::any || res.first == Type::numeric; }
             GRINGO_MATCH(res, Symbol) { return res.type() == SymbolType::number; }
         };
 
         auto as_term = [](auto const &term, auto &&res) -> Util::shared_ptr<Term> {
-            GRINGO_MATCH(res, TermResult) {
-                if (res.second.has_value()) {
-                    return Util::construct_shared<Term>(std::move(res.second).value());
-                }
-                return term;
-            }
+            GRINGO_MATCH(res, std::monostate) { throw std::logic_error("cannot happen"); }
+            GRINGO_MATCH(res, Type) { return term; }
+            GRINGO_MATCH(res, TermResult) { return Util::construct_shared<Term>(std::move(res.second)); }
             GRINGO_MATCH(res, Symbol) { return Util::construct_shared<Term>(TermSymbol{location(*term), res}); }
         };
 
+        auto simplify = [&](auto &&res_lhs, auto &&res_rhs) -> Result {
+            // check arguments
+            if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
+                return {};
+            }
+
+            // evaluate to symbol
+            GRINGO_MATCH2(res_lhs, Symbol, res_rhs, Symbol) {
+                auto res = evaluate(res_lhs, term.op, res_rhs);
+                if (!res.has_value()) {
+                    // TODO: info message???
+                    return {};
+                }
+                return res.value();
+            }
+
+            // none of the argument changed
+            GRINGO_MATCH2(res_lhs, Type, res_rhs, Type) { return Type::numeric; }
+
+            // at least one of the arguments changed
+            return TermResult{Type::numeric,
+                              TermBinary(term.loc, as_term(term.lhs, res_lhs), term.op, as_term(term.rhs, res_rhs))};
+        };
+
         // construct result
-        return std::visit(
-            [&](auto &&res_lhs, auto &&res_rhs) -> Result {
-                // check arguments
-                if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
-                    return std::nullopt;
-                }
-
-                // evaluate to symbol
-                GRINGO_MATCH2(res_lhs, Symbol, res_rhs, Symbol) {
-                    auto res = evaluate(res_lhs, term.op, res_rhs);
-                    if (!res.has_value()) {
-                        // TODO: info message???
-                        return std::nullopt;
-                    }
-                    return res.value();
-                }
-
-                // there was no change
-                GRINGO_MATCH2(res_lhs, TermResult, res_rhs, TermResult) {
-                    if (!res_lhs.second.has_value() && !res_rhs.second.has_value()) {
-                        return TermResult{Type::numeric, std::nullopt};
-                    }
-                }
-
-                // construct simplified term
-                return TermResult{Type::numeric, TermBinary(term.loc, as_term(term.lhs, res_lhs), term.op,
-                                                            as_term(term.rhs, res_rhs))};
-            },
-            opt_res_lhs.value(), opt_res_rhs.value());
+        return std::visit(simplify, operator()(*term.lhs), operator()(*term.rhs));
     }
 
     SymbolStore &store;
@@ -663,21 +666,15 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
 
 [[nodiscard]] auto simplify(SymbolStore &store, Term const &term)
     -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
-    auto res = SimplifyTerm{store}(term);
-    if (!res.has_value()) {
-        return std::monostate{};
-    }
+    // just removes the type
     return std::visit(
         [](auto &&res) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
+            GRINGO_MATCH(res, std::monostate) { return {}; }
+            GRINGO_MATCH(res, SimplifyTerm::Type) { return std::nullopt; }
             GRINGO_MATCH(res, Symbol) { return res; }
-            GRINGO_MATCH(res, SimplifyTerm::TermResult) {
-                if (res.second.has_value()) {
-                    return res.second.value();
-                }
-                return std::nullopt;
-            }
+            GRINGO_MATCH(res, SimplifyTerm::TermResult) { return res.second; }
         },
-        res.value());
+        SimplifyTerm{store}(term));
 }
 
 [[nodiscard]] auto rewrite_arthimetics(SymbolStore &store, Statement const &stm) -> std::optional<Statement> {
