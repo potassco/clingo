@@ -13,14 +13,18 @@ whole process as in gringo atm
 4. simplify
   0. evaluate (done)
   1. extract atoms to project
-  2. dots
-  3. script
+  2. dots/script
+     - simply remove them all starting from nested contexts
+     - they should be ignored in specific settings to make the simplify function idempotent
+       this has to be handled by the surrounding literal class
   4. terms that can fail
+     - 1+a < 5 < 10
+     - X < 5 < 10, X=1+a
 5. unpool comparison
    the comparison
      not 1+a < 5 < 10
    is equivalent to
-     X=1+a, X < 5 < 10
+     X=1+a, not X < 5 < 10
    so any term that can fail to evaluate should be stripped during simplification
    this also includes intervals and scripts!
 6. rewrite
