@@ -40,6 +40,8 @@ The following example shows basic (multishot) grounding and solving:
     SAT
 """
 
+import sys
+from collections import abc
 from typing import (
     Any,
     Callable,
@@ -51,8 +53,8 @@ from typing import (
     cast,
     overload,
 )
-from collections import abc
-import sys
+if sys.version_info >= (3, 8):
+    from typing import Literal
 
 from ._internal import (
     _CBData,
@@ -674,9 +676,76 @@ class Control:
             )
         )
 
+    # this assumes that overloads are matched in the order they appear
+    # unfortunately, PEP0484 does not specify any kind of semantics just giving examples
+    if sys.version_info >= (3, 8):
+        @overload
+        def solve(
+            self,
+            assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+            on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+            on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+            on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+            on_finish: Optional[Callable[[SolveResult], None]] = None,
+            on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            *,
+            yield_: Literal[False] = False,
+            async_: Literal[False] = False,
+        ) -> SolveResult: ...
+        @overload
+        def solve(
+            self,
+            assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+            on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+            on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+            on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+            on_finish: Optional[Callable[[SolveResult], None]] = None,
+            on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            *,
+            yield_: Literal[True],
+            async_: bool = False,
+        ) -> SolveHandle: ...
+        @overload
+        def solve(
+            self,
+            assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+            on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+            on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+            on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+            on_finish: Optional[Callable[[SolveResult], None]] = None,
+            on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            *,
+            yield_: bool = False,
+            async_: Literal[True],
+        ) -> SolveHandle: ...
+    else:
+        @overload
+        def solve(
+            self,
+            assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+            on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+            on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+            on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+            on_finish: Optional[Callable[[SolveResult], None]] = None,
+            on_core: Optional[Callable[[Sequence[int]], None]] = None,
+        ) -> SolveResult: ...
+
+    @overload
     def solve(
         self,
-        assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = [],
+        assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+        on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+        on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+        on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+        on_finish: Optional[Callable[[SolveResult], None]] = None,
+        on_core: Optional[Callable[[Sequence[int]], None]] = None,
+        yield_: bool = False,
+        async_: bool = False,
+    ) -> Union[SolveHandle, SolveResult]: ...
+
+    def solve(
+        self,
+        assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
         on_model: Optional[Callable[[Model], Optional[bool]]] = None,
         on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
         on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
