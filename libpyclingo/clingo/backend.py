@@ -897,9 +897,7 @@ class Backend(ContextManager["Backend"]):
             handler=self._error,
         )
 
-    def add_theory_element(
-        self, terms: Sequence[int], condition: Sequence[int]
-    ) -> None:
+    def add_theory_element(self, terms: Sequence[int], condition: Sequence[int]) -> int:
         """
         Create a theory atom element.
 
@@ -926,67 +924,84 @@ class Backend(ContextManager["Backend"]):
         )
 
     def add_theory_atom(
-        self, atom_id_or_zero: int, term_id: int, elements: Sequence[int]
-    ) -> None:
+        self,
+        term_id: int,
+        elements: Sequence[int],
+        atom_id_or_zero: Optional[int] = None,
+    ) -> int:
         """
         Add a theory atom without a guard.
 
-        Note that if an equivalent theory atom already exists, the given atom
-        is ignored. To declare a defined theory atom, a rule defining the atom
-        should be added. Otherwise, the theory atom is consider an external
+        If no atom_id is given, a fresh atom id is assigned.
+
+        In case an atom id is given and an equivalent theory atom already
+        exists, the given atom id is ignored.
+
+        To declare a defined theory atom, a rule defining the program atom
+        should be added. Otherwise, the theory atom is considered an external
         body occurrence.
 
         Parameters
         ----------
-        atom_id_or_zero
-            A program atom or zero for theory directives.
         term_id
             The id of the term associated with the theory atom.
         elements
             A sequence of ids of theory atom elements.
+        atom_id_or_zero
+            An optional program atom or zero for theory directives.
         """
-        _handle_error(
-            _lib.clingo_backend_theory_atom(
-                self._rep, atom_id_or_zero, term_id, elements, len(elements)
-            )
+        if atom_id_or_zero is None:
+            atom_id_or_zero = 2**32
+        return _c_call(
+            "clingo_atom_t",
+            _lib.clingo_backend_theory_atom,
+            self._rep,
+            atom_id_or_zero,
+            term_id,
+            elements,
+            len(elements),
+            handler=self._error,
         )
 
     def add_theory_atom_with_guard(
         self,
-        atom_id_or_zero: int,
         term_id: int,
         elements: Sequence[int],
         operator: str,
         right_hand_side_id: int,
+        atom_id_or_zero: Optional[int] = None,
     ) -> None:
         """
         Add a theory atom with a guard.
 
         Parameters
         ----------
-        atom_id_or_zero
-            A program atom or zero for theory directives.
         term_id
             The id of the term associated with the theory atom.
         elements
             A sequence of ids of theory atom elements.
-        operator:
+        operator
             String representing a theory operator.
-        right_hand_side_id:
+        right_hand_side_id
             Term id for the term on the right hand side.
+        atom_id_or_zero
+            A optional program atom or zero for theory directives.
 
         See Also
         --------
         Backend.add_theory_atom
         """
-        _handle_error(
-            _lib.clingo_backend_theory_atom_with_guard(
-                self._rep,
-                atom_id_or_zero,
-                term_id,
-                elements,
-                len(elements),
-                operator.encode(),
-                right_hand_side_id,
-            )
+        if atom_id_or_zero is None:
+            atom_id_or_zero = 2**32
+        return _c_call(
+            "clingo_atom_t",
+            _lib.clingo_backend_theory_atom_with_guard,
+            self._rep,
+            atom_id_or_zero,
+            term_id,
+            elements,
+            len(elements),
+            operator.encode(),
+            right_hand_side_id,
+            handler=self._error,
         )

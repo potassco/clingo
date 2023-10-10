@@ -203,7 +203,7 @@ enum clingo_truth_value_e {
 //! Corresponding type to ::clingo_truth_value_e.
 typedef int clingo_truth_value_t;
 
-//! Represents a source code location marking its beginnig and end.
+//! Represents a source code location marking its beginning and end.
 //!
 //! @note Not all locations refer to physical files.
 //! By convention, such locations use a name put in angular brackets as filename.
@@ -1205,8 +1205,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_assignment_t const *clingo_propagate_init_assig
 //! To be able to use the variable in clauses during propagation or add watches to it, it has to be frozen.
 //! Otherwise, it might be removed during preprocessing.
 //!
-//! @attention If varibales were added, subsequent calls to functions adding constraints or ::clingo_propagate_init_propagate() are expensive.
-//! It is best to add varables in batches.
+//! @attention If variables were added, subsequent calls to functions adding constraints or ::clingo_propagate_init_propagate() are expensive.
+//! It is best to add variables in batches.
 //!
 //! @param[in] init the target
 //! @param[in] freeze whether to freeze the literal
@@ -1385,7 +1385,7 @@ typedef struct clingo_propagator {
     //! @note This is the last point to access symbolic and theory atoms.
     //! Once the search has started, they are no longer accessible.
     //!
-    //! @param[in] init initizialization object
+    //! @param[in] init initialization object
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
     //! @see ::clingo_propagator_init_callback_t
@@ -1693,9 +1693,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_symbol(clingo_backend_
 //! Add a theory atom element.
 //!
 //! @param[in] backend the target backend
-//! @param[in] tuple the array of term ids represeting the tuple
+//! @param[in] tuple the array of term ids representing the tuple
 //! @param[in] tuple_size the size of the tuple
-//! @param[in] condition an array of program literals represeting the condition
+//! @param[in] condition an array of program literals representing the condition
 //! @param[in] condition_size the size of the condition
 //! @param[out] element_id the resulting element id
 //! @return whether the call was successful; might set one of the following error codes:
@@ -1703,26 +1703,34 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_symbol(clingo_backend_
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_element(clingo_backend_t *backend, clingo_id_t const *tuple, size_t tuple_size, clingo_literal_t const *condition, size_t condition_size, clingo_id_t *element_id);
 //! Add a theory atom without a guard.
 //!
+//! If atom is set to zero, the theory atom is a directive,
+//! if atom is set to UINT32_MAX, the theory atom receives a fresh atom,
+//! and otherwise the theory atom receives the given atom id.
+//!
 //! @param[in] backend the target backend
-//! @param[in] atom_id_or_zero a program atom or zero for theory directives
+//! @param[in] atom an undefined value, program atom, or zero for theory directives
 //! @param[in] term_id the term id of the term associated with the theory atom
 //! @param[in] elements an array of element ids for the theory atoms's elements
 //! @param[in] size the number of elements
+//! @param[out] atom_id the final program atom of the theory atom
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_atom(clingo_backend_t *backend, clingo_atom_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_atom(clingo_backend_t *backend, clingo_atom_t atom, clingo_id_t term_id, clingo_id_t const *elements, size_t size, clingo_atom_t *atom_id);
 //! Add a theory atom with a guard.
 //!
+//! See the note regarding atom at clingo_backend_theory_atom().
+//!
 //! @param[in] backend the target backend
-//! @param[in] atom_id_or_zero a program atom or zero for theory directives
+//! @param[in] atom an undefined value, program atom, or zero for theory directives
 //! @param[in] term_id the term id of the term associated with the theory atom
 //! @param[in] elements an array of element ids for the theory atoms's elements
 //! @param[in] size the number of elements
 //! @param[in] operator_name the string representation of a theory operator
 //! @param[in] right_hand_side_id the term id of the right hand side term
+//! @param[out] atom_id the final program atom of the theory atom
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_atom_with_guard(clingo_backend_t *backend, clingo_atom_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, char const *operator_name, clingo_id_t right_hand_side_id);
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_atom_with_guard(clingo_backend_t *backend, clingo_atom_t atom, clingo_id_t term_id, clingo_id_t const *elements, size_t size, char const *operator_name, clingo_id_t right_hand_side_id, clingo_atom_t *atom_id);
 
 //! @}
 

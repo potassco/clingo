@@ -1191,20 +1191,24 @@ extern "C" bool clingo_backend_theory_element(clingo_backend_t *backend, clingo_
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_backend_theory_atom(clingo_backend_t *backend, clingo_atom_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size) {
+extern "C" bool clingo_backend_theory_atom(clingo_backend_t *backend, clingo_atom_t atom, clingo_id_t term_id, clingo_id_t const *elements, size_t size, clingo_atom_t *atom_id) {
     GRINGO_CLINGO_TRY {
-        auto newAtom = [atom_id_or_zero]() -> Atom_t { return atom_id_or_zero; };
-        backend->theoryData().addAtom(newAtom, term_id, Potassco::IdSpan{elements, size});
+        auto newAtom = [backend, atom]() -> Atom_t {
+            return atom == std::numeric_limits<clingo_atom_t>::max() ? backend->addProgramAtom() : atom;
+        };
+        *atom_id = backend->theoryData().addAtom(newAtom, term_id, Potassco::IdSpan{elements, size}).first.atom();
     }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_backend_theory_atom_with_guard(clingo_backend_t *backend, clingo_atom_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, char const *operator_name, clingo_id_t right_hand_side_id) {
+extern "C" bool clingo_backend_theory_atom_with_guard(clingo_backend_t *backend, clingo_atom_t atom, clingo_id_t term_id, clingo_id_t const *elements, size_t size, char const *operator_name, clingo_id_t right_hand_side_id, clingo_atom_t *atom_id) {
     GRINGO_CLINGO_TRY {
         auto &theory = backend->theoryData();
         auto op_id = theory.addTerm(operator_name);
-        auto newAtom = [atom_id_or_zero]() -> Atom_t { return atom_id_or_zero; };
-        theory.addAtom(newAtom, term_id, Potassco::IdSpan{elements, size}, op_id, right_hand_side_id);
+        auto newAtom = [backend, atom]() -> Atom_t {
+            return atom == std::numeric_limits<clingo_atom_t>::max() ? backend->addProgramAtom() : atom;
+        };
+        *atom_id = theory.addAtom(newAtom, term_id, Potassco::IdSpan{elements, size}, op_id, right_hand_side_id).first.atom();
     }
     GRINGO_CLINGO_CATCH;
 }
