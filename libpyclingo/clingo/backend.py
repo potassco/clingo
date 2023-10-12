@@ -951,7 +951,7 @@ class Backend(ContextManager["Backend"]):
             An optional program atom or zero for theory directives.
         """
         if atom_id_or_zero is None:
-            atom_id_or_zero = 2**32
+            atom_id_or_zero = 0xffffffff
         return _c_call(
             "clingo_atom_t",
             _lib.clingo_backend_theory_atom,
@@ -970,7 +970,7 @@ class Backend(ContextManager["Backend"]):
         operator: str,
         right_hand_side_id: int,
         atom_id_or_zero: Optional[int] = None,
-    ) -> None:
+    ) -> int:
         """
         Add a theory atom with a guard.
 
@@ -992,7 +992,7 @@ class Backend(ContextManager["Backend"]):
         Backend.add_theory_atom
         """
         if atom_id_or_zero is None:
-            atom_id_or_zero = 2**32
+            atom_id_or_zero = 0xffffffff
         return _c_call(
             "clingo_atom_t",
             _lib.clingo_backend_theory_atom_with_guard,
