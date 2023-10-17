@@ -29,7 +29,7 @@
 #include <cmath>
 #include <cstddef>
 
-#define CLINGO_DEBUG_INEQUALITIES
+// #define CLINGO_DEBUG_INEQUALITIES
 
 namespace Gringo {
 
@@ -357,6 +357,9 @@ void IESolver::compute() {
             for (auto const &term : ie.terms) {
                 // In case the slack cannot be updated due to an overflow, no bounds are calculated.
                 if (!update_slack_(term, slack, num_unbounded)) {
+#ifdef CLINGO_DEBUG_INEQUALITIES
+                    std::cerr << "  overflow updating slack of " << ie << std::endl;
+#endif
                     return;
                 }
             }
@@ -382,6 +385,9 @@ void IESolver::compute() {
                         changed = true;
                     }
                     if (res == UpdateResult::overflow) {
+#ifdef CLINGO_DEBUG_INEQUALITIES
+                        std::cerr << "  overflow updating bound of " << *term.variable << std::endl;
+#endif
                         return;
                     }
                 }
@@ -454,6 +460,22 @@ inline bool check_cast(S in, T &out) {
     return  true;
 }
 
+#ifdef __GNUC__
+
+template <class S> inline bool check_add(S a, S b, S &c) {
+    return !__builtin_add_overflow(a, b, &c);
+}
+
+template <class S> inline bool check_sub(S a, S b, S &c) {
+    return !__builtin_sub_overflow(a, b, &c);
+}
+
+template <class S> inline bool check_mul(S a, S b, S &c) {
+    return !__builtin_mul_overflow(a, b, &c);
+}
+
+#else
+
 inline bool check_add(int32_t a, int32_t b, int32_t &c) {
     return check_cast<int32_t>(static_cast<int64_t>(a) + b, c);
 }
@@ -475,9 +497,6 @@ template <class S> inline bool check_sub(S a, S b, S &c) {
 }
 
 template <class S> inline bool check_mul(S a, S b, S &c) {
-#ifdef __GNUC__
-    return !__builtin_mul_overflow(a, b, &c);
-#else
     if (a > 0 && b > 0 && a > std::numeric_limits<S>::max() / b) {
         return false;
     }
@@ -492,8 +511,9 @@ template <class S> inline bool check_mul(S a, S b, S &c) {
     }
     c = a * b;
     return true;
-#endif
 }
+
+#endif
 
 } // namespace
 

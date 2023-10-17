@@ -359,6 +359,49 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("#external p(X):[#inc_base].[X]#external p(X):[#inc_base].[Y]#external p(Y):[#inc_base].[X]#external p(Y):[#inc_base].[Y]" == rewrite(parse("#external p(X;Y). [(X;Y)]")));
     }
 
+    SECTION("iesolver") {
+        // no overflow
+        REQUIRE("q(5)."
+                "p(S):-"
+                "#range(Y,0,1);"
+                "#range(X,0,1);"
+                "#range(S,0,2147483647);"
+                "#range(#Arith0,0,2147483647);"
+                "q(B);"
+                "0<=Y;"
+                "Y<=2147483647;"
+                "0<=X;"
+                "X<=2147483647;"
+                "S=((2147483647*X)+(2147483647*Y));"
+                "#Arith0=((2147483647*X)+(2147483647*Y));"
+                "#Arith0=S;"
+                "S<=B." == rewrite(parse("q(5). "
+                                         "p(S) :- q(B), "
+                                         "S<=B, "
+                                         "0<=X<=0x7FFFFFFF, "
+                                         "0<=Y<=0x7FFFFFFF, "
+                                         "S=0x7FFFFFFF*X+0x7FFFFFFF*Y.")));
+        // overflow
+        REQUIRE("q(5)."
+                "p(S):-q(B);"
+                "#Arith0=S;"
+                "#Arith0=(((2147483647*X)+(2147483647*Y))+(2147483647*Z));"
+                "S=(((2147483647*X)+(2147483647*Y))+(2147483647*Z));"
+                "Z<=2147483647;"
+                "0<=Z;"
+                "Y<=2147483647;"
+                "0<=Y;"
+                "X<=2147483647;"
+                "0<=X;"
+                "S<=B." == rewrite(parse("q(5). "
+                                         "p(S) :- q(B), "
+                                         "S<=B, "
+                                         "0<=X<=0x7FFFFFFF, "
+                                         "0<=Y<=0x7FFFFFFF, "
+                                         "0<=Z<=0x7FFFFFFF, "
+                                         "S=0x7FFFFFFF*X+0x7FFFFFFF*Y+0x7FFFFFFF*Z.")));
+    }
+
     SECTION("theory") {
         REQUIRE("#theory x{}." == rewrite(parse("#theory x{  }.")));
         REQUIRE("#theory x{node{};&edge/0:node,directive}." == rewrite(parse("#theory x{ node{}; &edge/0: node, directive }.")));
