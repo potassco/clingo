@@ -27,8 +27,9 @@
 #include "gringo/logger.hh"
 #include "gringo/graph.hh"
 #include <cmath>
+#include <cstddef>
 
-// #define CLINGO_DEBUG_INEQUALITIES
+#define CLINGO_DEBUG_INEQUALITIES
 
 namespace Gringo {
 
@@ -351,10 +352,13 @@ void IESolver::compute() {
     while (changed) {
         changed = false;
         for (auto const &ie : ies_) {
-            int slack = ie.bound;
+            int64_t slack = ie.bound;
             int num_unbounded = 0;
             for (auto const &term : ie.terms) {
-                update_slack_(term, slack, num_unbounded);
+                // In case the slack cannot be updated due to an overflow, no bounds are calculated.
+                if (!update_slack_(term, slack, num_unbounded)) {
+                    return;
+                }
             }
             if (num_unbounded == 0 && slack > 0) {
                 // we simply set all bounds to empty intervals
@@ -369,17 +373,17 @@ void IESolver::compute() {
             }
             if (num_unbounded <= 1) {
                 for (auto const &term : ie.terms) {
+                    auto res = update_bound_(term, slack, num_unbounded);
+                    if (res == UpdateResult::changed) {
 #ifdef CLINGO_DEBUG_INEQUALITIES
-                    bool bound_changed = update_bound_(term, slack, num_unbounded);
-                    if (bound_changed) {
-                        bool comma = false;
                         std::cerr << "  update bound using " << ie << std::endl;
                         std::cerr << "    the new bound for " << *term.variable << " is "<< bounds_[term.variable] << std::endl;
-                    }
-                    changed = bound_changed || changed;
-#else
-                    changed = update_bound_(term, slack, num_unbounded) || changed;
 #endif
+                        changed = true;
+                    }
+                    if (res == UpdateResult::overflow) {
+                        return;
+                    }
                 }
             }
         }
@@ -400,8 +404,10 @@ void IESolver::add(IEContext &context) {
     subSolvers_.emplace_front(context, this);
 }
 
+namespace {
+
 template<typename I>
-I IESolver::floordiv_(I n, I m) {
+I floordiv(I n, I m) {
     using std::div;
     auto a = div(n, m);
     if (((n < 0) ^ (m < 0)) && a.rem != 0) {
@@ -411,7 +417,7 @@ I IESolver::floordiv_(I n, I m) {
 }
 
 template<typename I>
-I IESolver::ceildiv_(I n, I m) {
+I ceildiv(I n, I m) {
     using std::div;
     auto a = div(n, m);
     if (((n < 0) ^ (m < 0)) && a.rem != 0) {
@@ -420,32 +426,116 @@ I IESolver::ceildiv_(I n, I m) {
     return a.quot;
 }
 
-int IESolver::div_(bool positive, int a, int b) {
-    return positive ? floordiv_(a, b) : ceildiv_(a, b);
+template<typename I>
+I div(bool positive, I a, I b) {
+    return positive ? floordiv(a, b) : ceildiv(a, b);
 }
 
-bool IESolver::update_bound_(IETerm const &term, int slack, int num_unbounded) {
+int clamp_div(bool positive, int64_t a, int64_t b) {
+    if (a == std::numeric_limits<int64_t>::min() && b == -1) {
+        return std::numeric_limits<int>::max();
+    }
+    auto c = div<int64_t>(positive, a, b);
+    if (c > std::numeric_limits<int>::max()) {
+        return std::numeric_limits<int>::max();
+    }
+    if (c < std::numeric_limits<int>::min()) {
+        return std::numeric_limits<int>::min();
+    }
+    return static_cast<int>(c);
+}
+
+template <class T, class S>
+inline bool check_cast(S in, T &out) {
+    if (sizeof(T) < sizeof(S) && (in < std::numeric_limits<T>::min() || in > std::numeric_limits<T>::max())) {
+        return  false;
+    }
+    out = static_cast<T>(in);
+    return  true;
+}
+
+inline bool check_add(int32_t a, int32_t b, int32_t &c) {
+    return check_cast<int32_t>(static_cast<int64_t>(a) + b, c);
+}
+
+template <class S> inline bool check_add(S a, S b, S &c) {
+    using U = std::make_unsigned_t<S>;
+    c = static_cast<S>(static_cast<U>(a) + static_cast<U>(b));
+    return (a < 0 || b < 0 || c >= a) && (a >= 0 || b >= 0 || c <= a);
+}
+
+inline bool check_sub(int32_t a, int32_t b, int32_t &c) {
+    return check_cast<int32_t>(static_cast<int64_t>(a) - b, c);
+}
+
+template <class S> inline bool check_sub(S a, S b, S &c) {
+    using U = std::make_unsigned_t<S>;
+    c = static_cast<S>(static_cast<U>(a) - static_cast<U>(b));
+    return (a < 0 || b >= 0 || c >= a) && (b < 0 || c <= a);
+}
+
+template <class S> inline bool check_mul(S a, S b, S &c) {
+#ifdef __GNUC__
+    return !__builtin_mul_overflow(a, b, &c);
+#else
+    if (a > 0 && b > 0 && a > std::numeric_limits<S>::max() / b) {
+        return false;
+    }
+    if (a < 0 && b < 0 && b < std::numeric_limits<S>::max() / a) {
+        return false;
+    }
+    if (a > 0 && b < 0 && b < std::numeric_limits<S>::min() / a) {
+        return false;
+    }
+    if (a < 0 && b > 0 && a < std::numeric_limits<S>::min() / b) {
+        return false;
+    }
+    c = a * b;
+    return true;
+#endif
+}
+
+} // namespace
+
+IESolver::UpdateResult IESolver::update_bound_(IETerm const &term, int64_t slack, int num_unbounded) {
     bool positive = term.coefficient > 0;
     auto type = positive ? IEBound::Upper : IEBound::Lower;
     if (num_unbounded == 0) {
-        slack += term.coefficient * bounds_[term.variable].get(type);
+        int64_t val = 0;
+        if (!check_mul<int64_t>(term.coefficient, bounds_[term.variable].get(type), val)) {
+            return UpdateResult::overflow;
+        }
+        if (!check_add(slack, val, slack)) {
+            return UpdateResult::overflow;
+        }
     }
     else if (num_unbounded > 1 || bounds_[term.variable].isSet(type)) {
-        return false;
+        return UpdateResult::unchanged;
     }
 
-    auto value = div_(positive, slack, term.coefficient);
-    return bounds_[term.variable].refine(positive ? IEBound::Lower : IEBound::Upper, value);
+
+    auto value = clamp_div(positive, slack, term.coefficient);
+    if (bounds_[term.variable].refine(positive ? IEBound::Lower : IEBound::Upper, value)) {
+        return UpdateResult::changed;
+    }
+    return UpdateResult::unchanged;
 }
 
-void IESolver::update_slack_(IETerm const &term, int &slack, int &num_unbounded) {
+bool IESolver::update_slack_(IETerm const &term, int64_t &slack, int &num_unbounded) {
     auto type = term.coefficient > 0 ? IEBound::Upper : IEBound::Lower;
     if (bounds_[term.variable].isSet(type)) {
-        slack -= term.coefficient * bounds_[term.variable].get(type);
+        int64_t val = 0;
+        if (!check_mul<int64_t>(term.coefficient, bounds_[term.variable].get(type), val)) {
+            return false;
+        }
+        if (!check_sub(slack, val, slack)) {
+            return false;
+        }
     }
     else {
         ++num_unbounded;
     }
+    return true;
 }
 
 // }}}

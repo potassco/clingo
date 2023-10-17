@@ -259,14 +259,10 @@ public:
     void compute();
 
 private:
+    enum class UpdateResult { changed, unchanged, overflow };
     using SubSolvers = std::forward_list<IESolver>;
-    template<typename I>
-    static I floordiv_(I n, I m);
-    template<typename I>
-    static I ceildiv_(I n, I m);
-    static int div_(bool positive, int a, int b);
-    bool update_bound_(IETerm const &term, int slack, int num_unbounded);
-    void update_slack_(IETerm const &term, int &slack, int &num_unbounded);
+    UpdateResult update_bound_(IETerm const &term, int64_t slack, int num_unbounded);
+    bool update_slack_(IETerm const &term, int64_t &slack, int &num_unbounded);
 
     IESolver *parent_;
     IEContext &ctx_;
