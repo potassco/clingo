@@ -9,7 +9,7 @@
   * add option to preserve facts (#457)
   * improve hash table performance (#441)
   * extend add_theory_atom method of backend (#461)
-    (breaks backward compatibility of the Python API)
+    (breaks backward compatibility of the API)
   * fix `add_theory_atom_with_guard` in Python API
   * fix AST bugs (#403)
   * fix parsing of hexadecimal numbers (#421)
