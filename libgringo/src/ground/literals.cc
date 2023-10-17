@@ -294,7 +294,7 @@ private:
 
 } // namespace
 
-// {{{1 definition of PredicateLiteral
+// {{{1 definition of RangeLiteral
 
 RangeLiteral::RangeLiteral(UTerm assign, UTerm left, UTerm right)
 : assign_(std::move(assign))
@@ -333,7 +333,7 @@ Literal::Score RangeLiteral::score(Term::VarSet const &bound, Logger &log) {
         bool undefined = false;
         Symbol l(range_.first->eval(undefined, log));
         Symbol r(range_.second->eval(undefined, log));
-        return (l.type() == SymbolType::Num && r.type() == SymbolType::Num) ? r.num() - l.num() : -1;
+        return (l.type() == SymbolType::Num && r.type() == SymbolType::Num) ? static_cast<double>(r.num()) - l.num() : -1.0;
     }
     return 0;
 }

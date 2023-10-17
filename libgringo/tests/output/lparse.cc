@@ -1132,7 +1132,25 @@ TEST_CASE("output-lparse", "[output]") {
                 "a(6) :- not not { }.\n"
                 , {"a("})));
     }
+    SECTION("IESolver") {
+        // clean
+        REQUIRE(
+            "([[p(1),p(a),q]],[])" ==
+            IO::to_string(solve(
+                "p(1).\n"
+                "p(a).\n"
+                "q :- p(X), -0x7FFFFFFF-1 <= X <= 0x7FFFFFFF.\n"
+                , {"p", "q"})));
+        // relies on two's complemenet
+        REQUIRE(
+            "([[p(1),p(a),q]],[])" ==
+            IO::to_string(solve(
+                "p(1).\n"
+                "p(a).\n"
+                "q :- p(X), 0x80000000 <= X <= 0x7FFFFFFF.\n"
+                , {"p", "q"})));
+    }
+
 }
 
 } } } // namespace Test Output Gringo
-
