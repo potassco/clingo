@@ -13,6 +13,7 @@
   * fix parsing of hexadecimal numbers (#421)
   * fix assignment aggregates (#436)
   * fix build scripts for Python 3.12 (#452)
+  * fix overflows in IESolver (#462)
   * make sure `clingo_control_ground` is re-entrant (#418)
   * update clasp and dependencies
 
