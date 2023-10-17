@@ -260,12 +260,12 @@ class TestBackend(TestCase):
             elem = backend.add_theory_element([num_one, num_two, seq, fun, lst, tup], [1, -2, 3])
 
             # Tests with guards and elements
-            backend.add_theory_atom(0, fun, [])
-            backend.add_theory_atom_with_guard(0, fun, [], "=", num_one)
+            backend.add_theory_atom(fun, [], 0)
+            backend.add_theory_atom_with_guard(fun, [], "=", num_one, 0)
             backend.add_theory_atom(
-                0, backend.add_theory_term_symbol(parse_term("g(1,2)")), []
+                backend.add_theory_term_symbol(parse_term("g(1,2)")), [], 0
             )
-            backend.add_theory_atom(0, fseq, [elem])
+            backend.add_theory_atom(fseq, [elem], 0)
 
         atoms = list(ctl.theory_atoms)
         self.assertListEqual(

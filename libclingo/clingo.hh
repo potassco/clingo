@@ -38,6 +38,7 @@
 #include <tuple>
 #include <forward_list>
 #include <atomic>
+#include <limits>
 
 #include <iostream>
 
@@ -1498,8 +1499,10 @@ public:
     id_t add_theory_term_function(char const *name, IdSpan elements);
     id_t add_theory_term_symbol(Symbol symbol);
     id_t add_theory_element(IdSpan tuple, LiteralSpan condition);
-    void theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements);
-    void theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements, char const *operator_name, id_t right_hand_side_id);
+    atom_t theory_atom(id_t term_id, IdSpan elements);
+    atom_t theory_atom(id_t term_id, IdSpan elements, char const *operator_name, id_t right_hand_side_id);
+    atom_t theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements);
+    atom_t theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements, char const *operator_name, id_t right_hand_side_id);
     clingo_backend_t *to_c() const { return backend_; }
 private:
     clingo_backend_t *backend_;
@@ -3212,12 +3215,28 @@ inline id_t Backend::add_theory_element(IdSpan tuple, LiteralSpan condition) {
     return ret;
 }
 
-inline void Backend::theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements) {
-    Detail::handle_error(clingo_backend_theory_atom(backend_, atom_id_or_zero, term_id, elements.begin(), elements.size()));
+inline atom_t Backend::theory_atom(id_t term_id, IdSpan elements) {
+    atom_t ret = 0;
+    Detail::handle_error(clingo_backend_theory_atom(backend_, std::numeric_limits<atom_t>::max(), term_id, elements.begin(), elements.size(), &ret));
+    return ret;
 }
 
-inline void Backend::theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements, char const *operator_name, id_t right_hand_side_id) {
-    Detail::handle_error(clingo_backend_theory_atom_with_guard(backend_, atom_id_or_zero, term_id, elements.begin(), elements.size(), operator_name, right_hand_side_id));
+inline atom_t Backend::theory_atom(id_t term_id, IdSpan elements, char const *operator_name, id_t right_hand_side_id) {
+    atom_t ret = 0;
+    Detail::handle_error(clingo_backend_theory_atom_with_guard(backend_, std::numeric_limits<atom_t>::max(), term_id, elements.begin(), elements.size(), operator_name, right_hand_side_id, &ret));
+    return ret;
+}
+
+inline atom_t Backend::theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements) {
+    atom_t ret = 0;
+    Detail::handle_error(clingo_backend_theory_atom(backend_, atom_id_or_zero, term_id, elements.begin(), elements.size(), &ret));
+    return ret;
+}
+
+inline atom_t Backend::theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements, char const *operator_name, id_t right_hand_side_id) {
+    atom_t ret = 0;
+    Detail::handle_error(clingo_backend_theory_atom_with_guard(backend_, atom_id_or_zero, term_id, elements.begin(), elements.size(), operator_name, right_hand_side_id, &ret));
+    return ret;
 }
 
 // {{{2 statistics
