@@ -26,3 +26,7 @@ add_library(tl::optional ALIAS optional)
 add_library(variant INTERFACE)
 target_include_directories(variant INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/variant/include>)
 add_library(mpark::variant ALIAS variant)
+
+add_library(wide_integer INTERFACE)
+target_include_directories(wide_integer INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/wide-integer>)
+add_library(math::wide_integer ALIAS wide_integer)

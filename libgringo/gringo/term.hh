@@ -193,7 +193,7 @@ private:
 };
 
 struct IETerm {
-    int coefficient{0};
+    int64_t coefficient{0};
     VarTerm const *variable{nullptr};
 };
 using IETermVec = std::vector<IETerm>;
@@ -203,7 +203,7 @@ void subIETerm(IETermVec &terms, IETerm const &term);
 
 struct IE {
     IETermVec terms;
-    int bound;
+    int64_t bound;
 };
 using IEVec = std::vector<IE>;
 
@@ -259,10 +259,7 @@ public:
     void compute();
 
 private:
-    enum class UpdateResult { changed, unchanged, overflow };
     using SubSolvers = std::forward_list<IESolver>;
-    UpdateResult update_bound_(IETerm const &term, int64_t slack, int num_unbounded);
-    bool update_slack_(IETerm const &term, int64_t &slack, int &num_unbounded);
 
     IESolver *parent_;
     IEContext &ctx_;
