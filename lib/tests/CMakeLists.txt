@@ -1,5 +1,6 @@
 add_executable(tests
     "symbol.cc"
+    "number.cc"
     "input/parse.cc"
     "input/variables.cc"
     "input/rewrite_anonymous.cc"

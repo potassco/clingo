@@ -11,7 +11,7 @@
 #include <optional>
 #include <type_traits>
 
-namespace Gringo::Input {
+namespace Gringo {
 
 // Casting
 
@@ -117,11 +117,19 @@ template <class S> inline auto check_mul(S a, S b) -> std::enable_if_t<std::is_s
     }
     return c;
 #else
-    // Note this is complicated to implement and would most likely never be used.
-    static_cast<void>(a);
-    static_cast<void>(b);
-    throw std::logic_error("overflow checking for multiplication has not been implemented\n"
-                           "please open an issue if it is required for your platform");
+    if (a > 0 && b > 0 && a > std::numeric_limits<S>::max() / b) {
+        return std::nullopt;
+    }
+    if (a > 0 && b < 0 && b < std::numeric_limits<S>::min() / a) {
+        return std::nullopt;
+    }
+    if (a < 0 && b > 0 && a < std::numeric_limits<S>::min() / b) {
+        return std::nullopt;
+    }
+    if (a < 0 && b < 0 && b < std::numeric_limits<S>::max() / a) {
+        return std::nullopt;
+    }
+    return a * b;
 #endif
 }
 
@@ -201,4 +209,4 @@ template <class S> inline auto check_pow(S a, S b) -> std::enable_if_t<std::is_s
     return r;
 }
 
-} // namespace Gringo::Input
+} // namespace Gringo

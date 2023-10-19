@@ -10,3 +10,6 @@
 [submodule "third_party/CLI11"]
 	path = third_party/CLI11
 	url = ../../CLIUtils/CLI11
+[submodule "third_party/imath"]
+	path = third_party/imath
+	url = ../../creachadair/imath.git

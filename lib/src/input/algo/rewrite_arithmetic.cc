@@ -1,7 +1,8 @@
+#include <util/checked_math.hh>
+
 #include <input/algo/evaluate.hh>
 #include <input/algo/rewrite_arithmetic.hh>
 
-#include "checked_math.hh"
 #include "transform.hh"
 
 /*
@@ -369,6 +370,11 @@ struct SimplifyTerm {
     }
 
     SymbolStore &store;
+    //! If set to true, remove subterms that are not matchable.
+    //!
+    //! For example, the term `f(g(X+Y),X+1)` is simplified to `f(g(Z),X+1)`
+    //! together with assignment `Z=X+Y`.
+    bool make_matchable = false;
 };
 
 //! Check if a term can be used for matching.

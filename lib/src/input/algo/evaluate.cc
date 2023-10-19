@@ -1,11 +1,11 @@
 #include <unordered_map>
 
 #include <util/algorithm.hh>
+#include <util/checked_math.hh>
 
 #include <input/algo/evaluate.hh>
 #include <input/algo/print.hh>
 
-#include "checked_math.hh"
 #include "graph.hh"
 #include "logger.hh"
 
