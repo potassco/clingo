@@ -4,6 +4,15 @@
 
 namespace Gringo {
 
+// complement
+// - ~z = -z - 1
+// and/or/xor/...
+// - mp_int_to_binary gives two's complement
+//   - will it work if passed a larger length?
+// - we need two two's complement representations of the same length
+// - the operations on the two representations are trivial
+// - mp_int_read_binary can read the resulting buffer
+
 class Number {
   public:
     Number(int32_t value) noexcept;
