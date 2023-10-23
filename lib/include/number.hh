@@ -100,12 +100,31 @@ class Number {
     friend auto operator-(Number const &a) -> Number;
     friend auto operator-(Number &&a) -> Number;
 
+    // complement
+
+    friend auto operator~(Number const &a) -> Number;
+    friend auto operator~(Number &&a) -> Number;
+
+    // binary and
+    // TODO
+
+    // binary or
+    // TODO
+
+    // binary xor
+    // TODO
+
     // exponentiation
 
     friend auto pow(Number const &a, Number const &b) -> Number;
     friend auto pow(Number &&a, Number const &b) -> Number;
     friend auto pow(Number const &a, Number &&b) -> Number;
     friend auto pow(Number &&a, Number &&b) -> Number;
+
+    // absolute
+
+    friend auto abs(Number const &a) -> Number;
+    friend auto abs(Number &&a) -> Number;
 
     static auto from_repr(uint64_t repr) -> Number { return {repr}; }
 

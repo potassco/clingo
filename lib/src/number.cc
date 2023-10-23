@@ -587,6 +587,26 @@ auto operator-(Number &&a) -> Number {
     return std::move(a);
 }
 
+auto operator~(Number const &a) -> Number {
+    if (repr_is_int(a.repr_)) {
+        return {~repr_to_int(a.repr_)};
+    }
+    mp_int_ptr z;
+    handle_error(mp_int_neg(repr_to_bigint(a.repr_), z));
+    handle_error(mp_int_sub_value(z, 1, z));
+    return {z.release_repr()};
+}
+
+auto operator~(Number &&a) -> Number {
+    if (repr_is_int(a.repr_)) {
+        return {~repr_to_int(a.repr_)};
+    }
+    auto *z = repr_to_bigint(a.repr_);
+    handle_error(mp_int_neg(z, z));
+    handle_error(mp_int_sub_value(z, 1, z));
+    return std::move(a);
+}
+
 // exponentiation
 
 auto pow(Number const &a, Number const &b) -> Number {
@@ -604,6 +624,31 @@ auto pow(Number const &a, Number &&b) -> Number {
 auto pow(Number &&a, Number &&b) -> Number {
     return Number::Impl::op_binary(mp_int_expt_full, mp_int_expt, mp_expt_int_value_inv, check_pow, std::move(a),
                                    std::move(b));
+}
+
+auto abs(Number const &a) -> Number {
+    bool is_int = repr_is_int(a.repr_);
+    if (is_int) {
+        if (auto res = check_abs(repr_to_int(a.repr_))) {
+            return {res.value()};
+        }
+    }
+    mp_int_ptr z;
+    if (is_int) {
+        handle_error(mp_int_init_value(z, repr_to_int(a.repr_)));
+        handle_error(mp_int_abs(z, z));
+    } else {
+        handle_error(mp_int_abs(repr_to_bigint(a.repr_), z));
+    }
+    return {z.release_repr(is_int)};
+}
+
+auto abs(Number &&a) -> Number {
+    if (repr_is_int(a.repr_)) {
+        return abs(a);
+    }
+    handle_error(mp_int_abs(repr_to_bigint(a.repr_), repr_to_bigint(a.repr_)));
+    return std::move(a);
 }
 
 } // namespace Gringo
