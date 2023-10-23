@@ -27,6 +27,11 @@ endif()
 add_subdirectory(third_party)
 add_subdirectory(lib)
 
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/experiment.cc")
+    add_executable(experiment experiment.cc)
+    target_link_libraries(experiment parsertest hopscotch_map foonathan::lexy::core foonathan::lexy::file imath::imath)
+endif()
+
 if (PARSER_BUILD_WEB)
     add_subdirectory(web)
 else()
