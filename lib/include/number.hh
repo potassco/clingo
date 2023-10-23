@@ -87,6 +87,16 @@ class Number {
     friend auto operator/=(Number &a, Number const &b) -> Number &;
     friend auto operator/=(Number &a, Number &&b) -> Number &;
 
+    // division
+
+    friend auto operator%(Number const &a, Number const &b) -> Number;
+    friend auto operator%(Number &&a, Number const &b) -> Number;
+    friend auto operator%(Number const &a, Number &&b) -> Number;
+    friend auto operator%(Number &&a, Number &&b) -> Number;
+
+    friend auto operator%=(Number &a, Number const &b) -> Number &;
+    friend auto operator%=(Number &a, Number &&b) -> Number &;
+
     // unary minus
 
     friend auto operator-(Number const &a) -> Number;
@@ -139,11 +149,15 @@ class Number {
     friend auto abs(Number const &a) -> Number;
     friend auto abs(Number &&a) -> Number;
 
+    // get the sign of the number
+
+    friend auto get_sign(Number const &a) -> int;
+
     // output
 
     friend auto operator<<(std::ostream &out, Number const &num) -> std::ostream &;
 
-    // conversion between representation
+    // conversion between numbers and their representations
 
     static auto from_repr(uint64_t repr) -> Number { return {repr}; }
 

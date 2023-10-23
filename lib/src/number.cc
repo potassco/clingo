@@ -28,6 +28,14 @@ auto repr_to_bigint(uint64_t repr) -> mp_int {
 
 auto int_to_repr(int num) -> uint64_t { return static_cast<uint64_t>(num) << 32; }
 
+auto bigint_to_repr(mp_int a, bool fast = false) -> uint64_t {
+    if (mp_small inum = 0; !fast && mp_int_to_int(a, &inum) == MP_OK && check_cast<int32_t>(inum)) {
+        mp_int_free(a);
+        return int_to_repr(static_cast<int32_t>(inum));
+    }
+    return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(a)) | BIGINT_MASK;
+}
+
 // NOLINTEND(readability-magic-numbers)
 
 void handle_error(mp_result res) {
@@ -62,12 +70,7 @@ class mp_int_ptr {
         ptr_ = nullptr;
         return ptr;
     }
-    auto release_repr(bool fast = false) -> uint64_t {
-        if (mp_small inum = 0; !fast && mp_int_to_int(ptr_, &inum) == MP_OK && check_cast<int32_t>(inum)) {
-            return int_to_repr(static_cast<int32_t>(inum));
-        }
-        return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(release())) | BIGINT_MASK;
-    }
+    auto release_repr(bool fast = false) -> uint64_t { return bigint_to_repr(release(), fast); }
     operator mp_int() const { return ptr_; }
 
   private:
@@ -139,6 +142,81 @@ class mp_int_ptr {
         return res;
     }
     if (auto res = mp_int_floordiv(z, a, c); res != MP_OK) {
+        mp_int_free(z);
+        return res;
+    }
+    mp_int_free(z);
+    return MP_OK;
+}
+
+[[nodiscard]] auto mp_int_floormod(mp_int a, mp_int b, mp_int c) -> mp_result {
+    auto zb = mp_int_compare_zero(b);
+    if (zb == 0) {
+        return MP_RANGE;
+    }
+    mp_int d = b;
+    // we have to make a copy of b for later
+    if (c == b) {
+        d = mp_int_alloc();
+        if (d == nullptr) {
+            return MP_MEMORY;
+        }
+        if (auto res = mp_int_init_copy(d, b); res != MP_OK) {
+            mp_int_free(d);
+            return res;
+        }
+    }
+    if (auto res = mp_int_div(a, d, nullptr, c); res != MP_OK) {
+        if (c == b) {
+            mp_int_free(d);
+        }
+        return res;
+    }
+    auto zr = mp_int_compare_zero(c);
+    if ((zr > 0 && zb < 0) || (zr < 0 && zb > 0)) {
+        if (auto res = mp_int_add(c, d, c); res != MP_OK) {
+            if (c == b) {
+                mp_int_free(d);
+            }
+            return res;
+        }
+    }
+    if (c == b) {
+        mp_int_free(d);
+    }
+    return MP_OK;
+}
+
+[[nodiscard]] auto mp_int_floormod_value(mp_int a, mp_small b, mp_int c) -> mp_result {
+    if (b == 0) {
+        return MP_RANGE;
+    }
+    mp_small rem = 0;
+    if (auto res = mp_int_div_value(a, b, nullptr, &rem); res != MP_OK) {
+        return res;
+    }
+    if ((rem > 0 && b < 0) || (rem < 0 && b > 0)) {
+        rem = b + rem;
+    }
+    return mp_int_set_value(c, rem);
+}
+
+[[nodiscard]] auto mp_int_floormod_value_inv(mp_int a, mp_small b, mp_int c) -> mp_result {
+    if (a != c) {
+        if (auto res = mp_int_set_value(c, b)) {
+            return res;
+        }
+        return mp_int_floormod(c, a, c);
+    }
+    mp_int z = mp_int_alloc();
+    if (z == nullptr) {
+        return MP_MEMORY;
+    }
+    if (auto res = mp_int_init_value(z, b); res != MP_OK) {
+        mp_int_free(z);
+        return res;
+    }
+    if (auto res = mp_int_floormod(z, a, c); res != MP_OK) {
         mp_int_free(z);
         return res;
     }
@@ -294,14 +372,16 @@ class Number::Impl {
     static auto op_binary(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &&a, Number const &b)
         -> Number {
         if (!repr_is_int(a.repr_)) {
+            auto *int_a = repr_to_bigint(a.repr_);
             // op(big, int)
             if (repr_is_int(b.repr_)) {
-                handle_error(op_value(repr_to_bigint(a.repr_), repr_to_int(b.repr_), repr_to_bigint(a.repr_)));
+                handle_error(op_value(int_a, repr_to_int(b.repr_), int_a));
             }
             // op(big, big)
             else {
-                handle_error(op(repr_to_bigint(a.repr_), repr_to_bigint(b.repr_), repr_to_bigint(a.repr_)));
+                handle_error(op(int_a, repr_to_bigint(b.repr_), int_a));
             }
+            a.repr_ = bigint_to_repr(int_a);
             return std::move(a);
         }
         return op_binary(op, op_value, op_value_inv, op_check, a, b);
@@ -310,14 +390,16 @@ class Number::Impl {
     static auto op_binary(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number const &a, Number &&b)
         -> Number {
         if (!repr_is_int(b.repr_)) {
+            auto *int_b = repr_to_bigint(b.repr_);
             // op(int, big)
             if (repr_is_int(a.repr_)) {
-                handle_error(op_value_inv(repr_to_bigint(b.repr_), repr_to_int(a.repr_), repr_to_bigint(b.repr_)));
+                handle_error(op_value_inv(int_b, repr_to_int(a.repr_), int_b));
             }
             // op(big, big)
             else {
-                handle_error(op(repr_to_bigint(a.repr_), repr_to_bigint(b.repr_), repr_to_bigint(b.repr_)));
+                handle_error(op(repr_to_bigint(a.repr_), int_b, int_b));
             }
+            b.repr_ = bigint_to_repr(int_b);
             return std::move(b);
         }
         return op_binary(op, op_value, op_value_inv, op_check, a, b);
@@ -338,30 +420,35 @@ class Number::Impl {
 
     static auto op_assign(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &a, Number const &b)
         -> Number & {
-        // op(int, int)
-        if (repr_is_int(a.repr_) && repr_is_int(b.repr_)) {
-            if (auto c = op_check(repr_to_int(a.repr_), repr_to_int(b.repr_)); c) {
-                a.repr_ = int_to_repr(c.value());
-                return a;
+        if (repr_is_int(a.repr_)) {
+            // op(int, int)
+            if (repr_is_int(b.repr_)) {
+                if (auto c = op_check(repr_to_int(a.repr_), repr_to_int(b.repr_)); c) {
+                    a.repr_ = int_to_repr(c.value());
+                    return a;
+                }
+                mp_int_ptr z;
+                handle_error(mp_int_init_value(z, repr_to_int(a.repr_)));
+                handle_error(op_value(z, repr_to_int(a.repr_), z));
+                a.repr_ = z.release_repr(true);
             }
-            mp_int_ptr z;
-            handle_error(mp_int_init_value(z, repr_to_int(a.repr_)));
-            handle_error(op_value(z, repr_to_int(a.repr_), z));
-            a.repr_ = z.release_repr(true);
-        }
-        // op(int, big)
-        else if (repr_is_int(a.repr_)) {
-            mp_int_ptr z;
-            handle_error(op_value_inv(repr_to_bigint(b.repr_), repr_to_int(a.repr_), z));
-            a.repr_ = z.release_repr();
-        }
-        // op(big, int)
-        else if (repr_is_int(b.repr_)) {
-            handle_error(op_value(repr_to_bigint(a.repr_), repr_to_int(b.repr_), repr_to_bigint(a.repr_)));
-        }
-        // op(big, big)
-        else {
-            handle_error(op(repr_to_bigint(a.repr_), repr_to_bigint(b.repr_), repr_to_bigint(a.repr_)));
+            // op(int, big)
+            else if (repr_is_int(a.repr_)) {
+                mp_int_ptr z;
+                handle_error(op_value_inv(repr_to_bigint(b.repr_), repr_to_int(a.repr_), z));
+                a.repr_ = z.release_repr();
+            }
+        } else {
+            auto *int_a = repr_to_bigint(a.repr_);
+            // op(big, int)
+            if (repr_is_int(b.repr_)) {
+                handle_error(op_value(int_a, repr_to_int(b.repr_), int_a));
+            }
+            // op(big, big)
+            else {
+                handle_error(op(int_a, repr_to_bigint(b.repr_), int_a));
+            }
+            a.repr_ = bigint_to_repr(int_a);
         }
         return a;
     }
@@ -371,7 +458,9 @@ class Number::Impl {
         // op(int, big)
         if (repr_is_int(a.repr_) && !repr_is_int(b.repr_)) {
             std::swap(a.repr_, b.repr_);
-            handle_error(op_value_inv(repr_to_bigint(a.repr_), repr_to_int(b.repr_), repr_to_bigint(a.repr_)));
+            auto *int_a = repr_to_bigint(a.repr_);
+            handle_error(op_value_inv(int_a, repr_to_int(b.repr_), int_a));
+            a.repr_ = bigint_to_repr(int_a);
             return a;
         }
         return op_assign(op, op_value, op_value_inv, op_check, a, b);
@@ -490,8 +579,9 @@ Number::~Number() noexcept {
     std::string ret;
     auto *z = repr_to_bigint(repr_);
     auto len = mp_int_string_len(z, BASE);
-    ret.resize(len - 1, '0');
-    handle_error(mp_int_to_string(z, BASE, ret.data(), len - 1), MP_TRUNC);
+    ret.resize(len, '0');
+    handle_error(mp_int_to_string(z, BASE, ret.data(), len), MP_TRUNC);
+    ret.pop_back();
     return ret;
 }
 
@@ -643,6 +733,36 @@ auto operator/=(Number &a, Number &&b) -> Number & {
                                    std::move(b));
 }
 
+// modulus
+
+auto operator%(Number const &a, Number const &b) -> Number {
+    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod, a, b);
+}
+
+auto operator%(Number &&a, Number const &b) -> Number {
+    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod,
+                                   std::move(a), b);
+}
+
+auto operator%(Number const &a, Number &&b) -> Number {
+    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod, a,
+                                   std::move(b));
+}
+
+auto operator%(Number &&a, Number &&b) -> Number {
+    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod,
+                                   std::move(a), std::move(b));
+}
+
+auto operator%=(Number &a, Number const &b) -> Number & {
+    return Number::Impl::op_assign(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod, a, b);
+}
+
+auto operator%=(Number &a, Number &&b) -> Number & {
+    return Number::Impl::op_assign(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod, a,
+                                   std::move(b));
+}
+
 // unary minus
 
 auto operator-(Number const &a) -> Number {
@@ -666,7 +786,9 @@ auto operator-(Number &&a) -> Number {
     if (repr_is_int(a.repr_)) {
         return -a;
     }
-    handle_error(mp_int_neg(repr_to_bigint(a.repr_), repr_to_bigint(a.repr_)));
+    auto *int_a = repr_to_bigint(a.repr_);
+    handle_error(mp_int_neg(int_a, int_a));
+    a.repr_ = bigint_to_repr(int_a);
     return std::move(a);
 }
 
@@ -679,7 +801,8 @@ auto operator~(Number const &a) -> Number {
     mp_int_ptr z;
     handle_error(mp_int_neg(repr_to_bigint(a.repr_), z));
     handle_error(mp_int_sub_value(z, 1, z));
-    return {z.release_repr()};
+    // Note: cannot become int32_t
+    return {z.release_repr(true)};
 }
 
 auto operator~(Number &&a) -> Number {
@@ -830,8 +953,24 @@ auto abs(Number &&a) -> Number {
     if (repr_is_int(a.repr_)) {
         return abs(a);
     }
-    handle_error(mp_int_abs(repr_to_bigint(a.repr_), repr_to_bigint(a.repr_)));
+    auto *int_a = repr_to_bigint(a.repr_);
+    handle_error(mp_int_abs(int_a, int_a));
+    // Note: cannot become int32_t
     return std::move(a);
+}
+
+auto get_sign(Number const &a) -> int {
+    if (repr_is_int(a.repr_)) {
+        auto num = repr_to_int(a.repr_);
+        if (num > 0) {
+            return 1;
+        }
+        if (num < 0) {
+            return -1;
+        }
+        return 0;
+    }
+    return mp_int_compare_zero(repr_to_bigint(a.repr_));
 }
 
 // output

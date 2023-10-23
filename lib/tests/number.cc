@@ -83,6 +83,20 @@ TEST_CASE("number_op") {
     REQUIRE(big / (big + Number{1}) == 0);
     REQUIRE_THROWS(Number{1} / Number(0));
     REQUIRE_THROWS(Number{0} / Number(0));
+    // mod
+    REQUIRE(Number{1} % Number(2) == 1);
+    REQUIRE(Number{-1} % Number(-2) == -1);
+    REQUIRE(Number{1} % Number(-2) == -1);
+    REQUIRE(Number{-1} % Number(2) == 1);
+    REQUIRE(Number{1} % big == 1);
+    REQUIRE(Number{-1} % big == Number("123456789012345678901234567889"));
+    auto z = -big % (big + Number{1});
+    REQUIRE(-big % (big + Number{1}) == 1);
+    REQUIRE(big % (-big - Number{1}) == -1);
+    REQUIRE(-big % (-big - Number{1}) == Number("-123456789012345678901234567890"));
+    REQUIRE(big % (big + Number{1}) == Number("123456789012345678901234567890"));
+    REQUIRE_THROWS(Number{1} % Number(0));
+    REQUIRE_THROWS(Number{0} % Number(0));
     // unary minus
     REQUIRE(-Number{std::numeric_limits<int32_t>::min()} == Number("2147483648"));
     REQUIRE(-Number{2} == -2);
@@ -139,6 +153,12 @@ TEST_CASE("number_op") {
     REQUIRE(abs(Number(std::numeric_limits<int32_t>::max())) == 2147483647);
     REQUIRE(abs(-big) == big);
     REQUIRE(abs(big) == big);
+    // sign
+    REQUIRE(get_sign(Number(3)) == 1);
+    REQUIRE(get_sign(Number(0)) == 0);
+    REQUIRE(get_sign(Number(-3)) == -1);
+    REQUIRE(get_sign(big) == 1);
+    REQUIRE(get_sign(-big) == -1);
 }
 
 } // namespace Gringo::Test
