@@ -285,7 +285,7 @@ template <char op> auto mp_int_binop(mp_int a, mp_int b, mp_int c) -> mp_result 
             }
         }
         return mp_int_read_binary(c, buf_a.get(), limit);
-    } catch (std::bad_alloc) {
+    } catch (std::bad_alloc const &) {
         return MP_MEMORY;
     }
 }
@@ -316,7 +316,7 @@ template <char op> auto mp_int_binop_value(mp_int a, mp_small b, mp_int c) -> mp
             }
         }
         return mp_int_read_binary(c, buf_a.get(), limit);
-    } catch (std::bad_alloc) {
+    } catch (std::bad_alloc const &) {
         return MP_MEMORY;
     }
 }

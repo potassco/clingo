@@ -104,6 +104,8 @@ web:
 	mkdir -p build_web
 	current="$$(pwd -P)" && cd build_web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake \
 		-DCMAKE_BUILD_TYPE=release \
+		-DCMAKE_EXE_LINKER_FLAGS="" \
+		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic" \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
 		-DPARSER_BUILD_TESTS=On \
 		-DPARSER_BUILD_WEB=On \
