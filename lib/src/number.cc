@@ -28,13 +28,6 @@ auto repr_to_bigint(uint64_t repr) -> mp_int {
 
 auto int_to_repr(int num) -> uint64_t { return static_cast<uint64_t>(num) << 32; }
 
-auto bigint_to_repr(mp_int num, bool fast = false) -> uint64_t {
-    if (mp_small inum = 0; !fast && mp_int_to_int(num, &inum) == MP_OK && check_cast<int32_t>(inum)) {
-        return int_to_repr(static_cast<int32_t>(inum));
-    }
-    return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(num)) | BIGINT_MASK;
-}
-
 // NOLINTEND(readability-magic-numbers)
 
 void handle_error(mp_result res) {
@@ -69,7 +62,12 @@ class mp_int_ptr {
         ptr_ = nullptr;
         return ptr;
     }
-    auto release_repr(bool fast = false) -> uint64_t { return bigint_to_repr(release(), fast); }
+    auto release_repr(bool fast = false) -> uint64_t {
+        if (mp_small inum = 0; !fast && mp_int_to_int(ptr_, &inum) == MP_OK && check_cast<int32_t>(inum)) {
+            return int_to_repr(static_cast<int32_t>(inum));
+        }
+        return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(release())) | BIGINT_MASK;
+    }
     operator mp_int() const { return ptr_; }
 
   private:
@@ -172,6 +170,89 @@ class mp_int_ptr {
         mp_int_free(z);
     }
     return MP_OK;
+}
+
+// NOLINTBEGIN(modernize-avoid-c-arrays,readability-magic-numbers)
+
+auto to_binary(mp_int z, int len, int limit) -> std::unique_ptr<unsigned char[]> {
+    auto msb = limit - len;
+    auto buf = std::make_unique<unsigned char[]>(limit);
+    mp_int_to_binary(z, buf.get() + msb, len);
+    if (len < limit && (buf[msb] & 128) == 128) {
+        for (int i = 0; i < msb; ++i) {
+            buf[i] = 255;
+        }
+    }
+    return buf;
+}
+
+// NOLINTEND(modernize-avoid-c-arrays,readability-magic-numbers)
+
+template <char op> auto mp_int_binop(mp_int a, mp_int b, mp_int c) -> mp_result {
+    try {
+        auto len_a = mp_int_binary_len(a);
+        auto len_b = mp_int_binary_len(b);
+        auto limit = std::max(len_a, len_b);
+        auto buf_a = to_binary(a, len_a, limit);
+        auto buf_b = to_binary(b, len_b, limit);
+        for (int i = 0; i < limit; ++i) {
+            if constexpr (op == '&') {
+                buf_a[i] = buf_a[i] & buf_b[i];
+            }
+            if constexpr (op == '|') {
+                buf_a[i] = buf_a[i] | buf_b[i];
+            }
+            if constexpr (op == '^') {
+                buf_a[i] = buf_a[i] ^ buf_b[i];
+            }
+        }
+        return mp_int_read_binary(c, buf_a.get(), limit);
+    } catch (std::bad_alloc) {
+        return MP_MEMORY;
+    }
+}
+
+template <char op> auto mp_int_binop_value(mp_int a, mp_small b, mp_int c) -> mp_result {
+    try {
+        auto len_a = mp_int_binary_len(a);
+        auto len_b = static_cast<mp_result>(sizeof(mp_small));
+        auto limit = std::max(len_a, len_b);
+        auto buf_a = to_binary(a, len_a, limit);
+        auto *buf_b = reinterpret_cast<unsigned char *>(&b);
+        for (int i = 0; i < limit; ++i) {
+            auto j = limit - i - 1;
+            unsigned char char_b = 0;
+            if (j < len_b) {
+                char_b = buf_b[j];
+            } else if (b < 0) {
+                char_b = 255; // NOLINT(readability-magic-numbers)
+            }
+            if constexpr (op == '&') {
+                buf_a[i] = buf_a[i] & char_b;
+            }
+            if constexpr (op == '|') {
+                buf_a[i] = buf_a[i] | char_b;
+            }
+            if constexpr (op == '^') {
+                buf_a[i] = buf_a[i] ^ char_b;
+            }
+        }
+        return mp_int_read_binary(c, buf_a.get(), limit);
+    } catch (std::bad_alloc) {
+        return MP_MEMORY;
+    }
+}
+
+template <char op> auto check_binop(int32_t a, int32_t b) -> std::optional<int32_t> {
+    if constexpr (op == '&') {
+        return a & b;
+    }
+    if constexpr (op == '|') {
+        return a | b;
+    }
+    if constexpr (op == '^') {
+        return a ^ b;
+    }
 }
 
 } // namespace
@@ -352,7 +433,7 @@ Number::Number(char const *str) : repr_{0} {
     if (res != MP_OK) {
         throw std::runtime_error(mp_error_string(res));
     }
-    repr_ = bigint_to_repr(z.release());
+    repr_ = z.release_repr();
 }
 
 Number::Number(Number const &other) : repr_{0} { *this = other; }
@@ -562,6 +643,8 @@ auto operator/=(Number &a, Number &&b) -> Number & {
                                    std::move(b));
 }
 
+// unary minus
+
 auto operator-(Number const &a) -> Number {
     bool is_int = repr_is_int(a.repr_);
     if (is_int) {
@@ -587,6 +670,8 @@ auto operator-(Number &&a) -> Number {
     return std::move(a);
 }
 
+// complement
+
 auto operator~(Number const &a) -> Number {
     if (repr_is_int(a.repr_)) {
         return {~repr_to_int(a.repr_)};
@@ -607,6 +692,102 @@ auto operator~(Number &&a) -> Number {
     return std::move(a);
 }
 
+// binary and
+
+auto operator&(Number const &a, Number const &b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'&'>, mp_int_binop_value<'&'>, mp_int_binop_value<'&'>,
+                                   check_binop<'&'>, a, b);
+}
+
+auto operator&(Number &&a, Number const &b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'&'>, mp_int_binop_value<'&'>, mp_int_binop_value<'&'>,
+                                   check_binop<'&'>, std::move(a), b);
+}
+
+auto operator&(Number const &a, Number &&b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'&'>, mp_int_binop_value<'&'>, mp_int_binop_value<'&'>,
+                                   check_binop<'&'>, a, std::move(b));
+}
+
+auto operator&(Number &&a, Number &&b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'&'>, mp_int_binop_value<'&'>, mp_int_binop_value<'&'>,
+                                   check_binop<'&'>, std::move(a), std::move(b));
+}
+
+auto operator&=(Number &a, Number const &b) -> Number & {
+    return Number::Impl::op_assign(mp_int_binop<'&'>, mp_int_binop_value<'&'>, mp_int_binop_value<'&'>,
+                                   check_binop<'&'>, a, b);
+}
+
+auto operator&=(Number &a, Number &&b) -> Number & {
+    return Number::Impl::op_assign(mp_int_binop<'&'>, mp_int_binop_value<'&'>, mp_int_binop_value<'&'>,
+                                   check_binop<'&'>, a, std::move(b));
+}
+
+// binary and
+
+auto operator|(Number const &a, Number const &b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'|'>, mp_int_binop_value<'|'>, mp_int_binop_value<'|'>,
+                                   check_binop<'|'>, a, b);
+}
+
+auto operator|(Number &&a, Number const &b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'|'>, mp_int_binop_value<'|'>, mp_int_binop_value<'|'>,
+                                   check_binop<'|'>, std::move(a), b);
+}
+
+auto operator|(Number const &a, Number &&b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'|'>, mp_int_binop_value<'|'>, mp_int_binop_value<'|'>,
+                                   check_binop<'|'>, a, std::move(b));
+}
+
+auto operator|(Number &&a, Number &&b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'|'>, mp_int_binop_value<'|'>, mp_int_binop_value<'|'>,
+                                   check_binop<'|'>, std::move(a), std::move(b));
+}
+
+auto operator|=(Number &a, Number const &b) -> Number & {
+    return Number::Impl::op_assign(mp_int_binop<'|'>, mp_int_binop_value<'|'>, mp_int_binop_value<'|'>,
+                                   check_binop<'|'>, a, b);
+}
+
+auto operator|=(Number &a, Number &&b) -> Number & {
+    return Number::Impl::op_assign(mp_int_binop<'|'>, mp_int_binop_value<'|'>, mp_int_binop_value<'|'>,
+                                   check_binop<'|'>, a, std::move(b));
+}
+
+// binary and
+
+auto operator^(Number const &a, Number const &b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'^'>, mp_int_binop_value<'^'>, mp_int_binop_value<'^'>,
+                                   check_binop<'^'>, a, b);
+}
+
+auto operator^(Number &&a, Number const &b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'^'>, mp_int_binop_value<'^'>, mp_int_binop_value<'^'>,
+                                   check_binop<'^'>, std::move(a), b);
+}
+
+auto operator^(Number const &a, Number &&b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'^'>, mp_int_binop_value<'^'>, mp_int_binop_value<'^'>,
+                                   check_binop<'^'>, a, std::move(b));
+}
+
+auto operator^(Number &&a, Number &&b) -> Number {
+    return Number::Impl::op_binary(mp_int_binop<'^'>, mp_int_binop_value<'^'>, mp_int_binop_value<'^'>,
+                                   check_binop<'^'>, std::move(a), std::move(b));
+}
+
+auto operator^=(Number &a, Number const &b) -> Number & {
+    return Number::Impl::op_assign(mp_int_binop<'^'>, mp_int_binop_value<'^'>, mp_int_binop_value<'^'>,
+                                   check_binop<'^'>, a, b);
+}
+
+auto operator^=(Number &a, Number &&b) -> Number & {
+    return Number::Impl::op_assign(mp_int_binop<'^'>, mp_int_binop_value<'^'>, mp_int_binop_value<'^'>,
+                                   check_binop<'^'>, a, std::move(b));
+}
+
 // exponentiation
 
 auto pow(Number const &a, Number const &b) -> Number {
@@ -625,6 +806,8 @@ auto pow(Number &&a, Number &&b) -> Number {
     return Number::Impl::op_binary(mp_int_expt_full, mp_int_expt, mp_expt_int_value_inv, check_pow, std::move(a),
                                    std::move(b));
 }
+
+// absolute
 
 auto abs(Number const &a) -> Number {
     bool is_int = repr_is_int(a.repr_);
@@ -649,6 +832,17 @@ auto abs(Number &&a) -> Number {
     }
     handle_error(mp_int_abs(repr_to_bigint(a.repr_), repr_to_bigint(a.repr_)));
     return std::move(a);
+}
+
+// output
+
+auto operator<<(std::ostream &out, Number const &num) -> std::ostream & {
+    if (repr_is_int(num.repr_)) {
+        out << repr_to_int(num.repr_);
+    } else {
+        out << num.as_string();
+    }
+    return out;
 }
 
 } // namespace Gringo

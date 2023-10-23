@@ -1,17 +1,9 @@
 #include <cstdint>
 #include <optional>
+#include <ostream>
 #include <string>
 
 namespace Gringo {
-
-// complement
-// - ~z = -z - 1
-// and/or/xor/...
-// - mp_int_to_binary gives two's complement
-//   - will it work if passed a larger length?
-// - we need two two's complement representations of the same length
-// - the operations on the two representations are trivial
-// - mp_int_read_binary can read the resulting buffer
 
 class Number {
   public:
@@ -106,13 +98,34 @@ class Number {
     friend auto operator~(Number &&a) -> Number;
 
     // binary and
-    // TODO
+
+    friend auto operator&(Number const &a, Number const &b) -> Number;
+    friend auto operator&(Number &&a, Number const &b) -> Number;
+    friend auto operator&(Number const &a, Number &&b) -> Number;
+    friend auto operator&(Number &&a, Number &&b) -> Number;
+
+    friend auto operator&=(Number &a, Number const &b) -> Number &;
+    friend auto operator&=(Number &a, Number &&b) -> Number &;
 
     // binary or
-    // TODO
+
+    friend auto operator|(Number const &a, Number const &b) -> Number;
+    friend auto operator|(Number &&a, Number const &b) -> Number;
+    friend auto operator|(Number const &a, Number &&b) -> Number;
+    friend auto operator|(Number &&a, Number &&b) -> Number;
+
+    friend auto operator|=(Number &a, Number const &b) -> Number &;
+    friend auto operator|=(Number &a, Number &&b) -> Number &;
 
     // binary xor
-    // TODO
+
+    friend auto operator^(Number const &a, Number const &b) -> Number;
+    friend auto operator^(Number &&a, Number const &b) -> Number;
+    friend auto operator^(Number const &a, Number &&b) -> Number;
+    friend auto operator^(Number &&a, Number &&b) -> Number;
+
+    friend auto operator^=(Number &a, Number const &b) -> Number &;
+    friend auto operator^=(Number &a, Number &&b) -> Number &;
 
     // exponentiation
 
@@ -125,6 +138,12 @@ class Number {
 
     friend auto abs(Number const &a) -> Number;
     friend auto abs(Number &&a) -> Number;
+
+    // output
+
+    friend auto operator<<(std::ostream &out, Number const &num) -> std::ostream &;
+
+    // conversion between representation
 
     static auto from_repr(uint64_t repr) -> Number { return {repr}; }
 

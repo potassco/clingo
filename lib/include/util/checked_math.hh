@@ -186,7 +186,7 @@ inline auto check_mod(S a, T b) -> std::enable_if_t<std::is_arithmetic_v<S> && s
 //! Note that <tt>a^0 = 1</tt> for all values of <tt>a</tt> and <tt>a^b=0</tt> whenever <tt>b<tt> is less than zero.
 template <class S> inline auto check_pow(S a, S b) -> std::enable_if_t<std::is_signed_v<S>, std::optional<S>> {
     if (b < 0) {
-        return 0;
+        return std::nullopt;
     }
     int r = 1;
     while (b > 0) {
