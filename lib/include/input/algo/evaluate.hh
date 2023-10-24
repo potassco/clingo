@@ -6,8 +6,8 @@
 
 namespace Gringo::Input {
 
-auto evaluate(UnaryOperator op, Symbol const &rhs) -> std::optional<Symbol>;
-auto evaluate(Symbol const &lhs, BinaryOperator op, Symbol const &rhs) -> std::optional<Symbol>;
+auto evaluate(SymbolStore &store, UnaryOperator op, Symbol const &rhs) -> std::optional<Symbol>;
+auto evaluate(SymbolStore &store, Symbol const &lhs, BinaryOperator op, Symbol const &rhs) -> std::optional<Symbol>;
 auto evaluate(Logger &log, SymbolStore &store, std::unordered_map<String, std::optional<Symbol>> const &map,
               Term const &term) -> std::optional<Symbol>;
 auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst> const &stms)

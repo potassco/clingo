@@ -85,7 +85,10 @@ class Symbol {
     [[nodiscard]] auto args() const noexcept -> SymbolSpan;
     //! Flip the classical sign of the symbol.
     [[nodiscard]] auto flip_classical_sign() const -> std::optional<Symbol>;
-
+    //! Check whether the symbol has a sign.
+    //!
+    //! Returns true for negative integers and negated functions.
+    [[nodiscard]] auto has_sign() const -> bool;
     //! Check whether the symbol has a sign.
     //!
     //! Returns true for negated functions.

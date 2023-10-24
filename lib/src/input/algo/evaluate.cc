@@ -96,13 +96,6 @@ struct BuildDep {
     size_t id;
 };
 
-auto num_to_sym(std::optional<int> num) -> std::optional<Symbol> {
-    if (num.has_value()) {
-        return SymbolStore::num(num.value());
-    }
-    return std::nullopt;
-}
-
 struct Evaluate {
     // protect ourselves -> no unintended overloads
 
@@ -149,7 +142,7 @@ struct Evaluate {
                     }
                     auto rep = it->second;
                     if (rep.has_value() && sym.has_sign()) {
-                        return evaluate(UnaryOperator::negate, rep.value());
+                        return evaluate(store, UnaryOperator::negate, rep.value());
                     }
                     return rep;
                 }
@@ -260,7 +253,7 @@ struct Evaluate {
             return std::nullopt;
         }
         if (val->type() == SymbolType::number) {
-            val = num_to_sym(check_abs(val->num()));
+            val = store.num(abs(*val->num()));
         } else {
             val = std::nullopt;
         }
@@ -277,7 +270,7 @@ struct Evaluate {
         if (!rhs.has_value()) {
             return std::nullopt;
         }
-        auto res = evaluate(term.op, rhs.value());
+        auto res = evaluate(store, term.op, rhs.value());
         if (!res.has_value()) {
             auto const *lp = "";
             auto const *rp = "";
@@ -302,7 +295,7 @@ struct Evaluate {
         if (!lhs.has_value() || !rhs.has_value()) {
             return std::nullopt;
         }
-        auto res = evaluate(lhs.value(), term.op, rhs.value());
+        auto res = evaluate(store, lhs.value(), term.op, rhs.value());
         if (!res.has_value()) {
             auto const *lp = "";
             auto const *rp = "";
@@ -325,17 +318,20 @@ struct Evaluate {
 
 } // namespace
 
-auto evaluate(UnaryOperator op, Symbol const &rhs) -> std::optional<Symbol> {
+auto evaluate(SymbolStore &store, UnaryOperator op, Symbol const &rhs) -> std::optional<Symbol> {
     if (op == UnaryOperator::negate) {
-        return rhs.flip_sign();
+        if (rhs.type() == SymbolType::number) {
+            return store.num(-*rhs.num());
+        }
+        return rhs.flip_classical_sign();
     }
     if (rhs.type() == SymbolType::number) {
-        return SymbolStore::num(~rhs.num());
+        return store.num(~*rhs.num());
     }
     return std::nullopt;
 }
 
-auto evaluate(Symbol const &lhs, BinaryOperator op, Symbol const &rhs) -> std::optional<Symbol> {
+auto evaluate(SymbolStore &store, Symbol const &lhs, BinaryOperator op, Symbol const &rhs) -> std::optional<Symbol> {
     // Note that the bitwise binary operations on signed integers became
     // well-defined with C++20. Even though this library also supports
     // C++17, we rely on two's complement for integers.
@@ -347,31 +343,40 @@ auto evaluate(Symbol const &lhs, BinaryOperator op, Symbol const &rhs) -> std::o
             break;
         }
         case BinaryOperator::xor_: {
-            return SymbolStore::num(lhs.num() ^ rhs.num());
+            return store.num(*lhs.num() ^ *rhs.num());
         }
         case BinaryOperator::or_: {
-            return SymbolStore::num(lhs.num() | rhs.num());
+            return store.num(*lhs.num() | *rhs.num());
         }
         case BinaryOperator::and_: {
-            return SymbolStore::num(lhs.num() & rhs.num());
+            return store.num(*lhs.num() & *rhs.num());
         }
         case BinaryOperator::plus: {
-            return num_to_sym(check_add(lhs.num(), rhs.num()));
+            return store.num(*lhs.num() + *rhs.num());
         }
         case BinaryOperator::minus: {
-            return num_to_sym(check_sub(lhs.num(), rhs.num()));
+            return store.num(*lhs.num() - *rhs.num());
         }
         case BinaryOperator::times: {
-            return num_to_sym(check_mul(lhs.num(), rhs.num()));
+            return store.num(*lhs.num() * *rhs.num());
         }
         case BinaryOperator::div: {
-            return num_to_sym(check_div(lhs.num(), rhs.num()));
+            if (*rhs.num() == 0) {
+                return std::nullopt;
+            }
+            return store.num(*lhs.num() / *rhs.num());
         }
         case BinaryOperator::mod: {
-            return num_to_sym(check_mod(lhs.num(), rhs.num()));
+            if (*rhs.num() == 0) {
+                return std::nullopt;
+            }
+            return store.num(*lhs.num() % *rhs.num());
         }
         case BinaryOperator::pow: {
-            return num_to_sym(check_pow(lhs.num(), rhs.num()));
+            if (*rhs.num() < 0) {
+                return std::nullopt;
+            }
+            return store.num(pow(*lhs.num(), *rhs.num()));
         }
     }
     throw std::runtime_error("cannot evaluate intervals");
