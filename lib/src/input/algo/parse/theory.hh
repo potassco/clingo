@@ -123,9 +123,10 @@ struct theory_term_anonymous_variable : lexy::token_production {
 struct theory_term_number : lexy::token_production {
     static constexpr char const *name = "number";
     static constexpr auto rule = Detail::position(number >> Detail::position);
-    static constexpr auto value = lexy::callback<TheoryTerm>([](Position begin, int num, Position end) {
-        return TheoryTermSymbol(Location{std::move(begin), std::move(end)}, SymbolStore::num(num));
-    });
+    static constexpr auto value =
+        lexy::callback_with_state<TheoryTerm>([](auto &state, Position begin, auto num, Position end) {
+            return TheoryTermSymbol(Location{std::move(begin), std::move(end)}, state.num(std::move(num)));
+        });
 };
 
 struct theory_term_string : lexy::token_production {

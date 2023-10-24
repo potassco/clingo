@@ -217,7 +217,9 @@ struct statement_show {
                 // to the whitespace parser, which is exactly as intended here.
                 auto input = lexy::range_input<encoding, decltype(begin)>{begin, end};
                 if (lexy::match<is_signature>(input)) {
-                    return StatementShowSig{std::move(loc), res.has_sign, res.identifier, res.pos_number};
+                    if (auto num = res.pos_number->as_int(); num.has_value()) {
+                        return StatementShowSig{std::move(loc), res.has_sign, res.identifier, *num};
+                    }
                 }
             }
             return StatementShow{std::move(loc), std::move(term), BodyLiteralVec{}};

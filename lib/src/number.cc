@@ -517,9 +517,9 @@ Number::Number(uint64_t repr) : repr_{repr} {}
 
 Number::Number(int32_t value) noexcept : repr_{int_to_repr(value)} {}
 
-Number::Number(char const *str) : repr_{0} {
+Number::Number(char const *str, Base base) : repr_{0} {
     mp_int_ptr z;
-    auto res = mp_int_read_string(z, BASE, str);
+    auto res = mp_int_read_string(z, static_cast<mp_size>(base), str);
     if (res != MP_OK) {
         throw std::runtime_error(mp_error_string(res));
     }

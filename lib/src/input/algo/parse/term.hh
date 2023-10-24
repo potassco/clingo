@@ -111,28 +111,27 @@ struct identifier : lexy::token_production {
     static constexpr auto value = as_stored_string;
 };
 
-struct dec_number {
-    static constexpr auto rule = dsl::capture(dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero());
+template <Base B, class LB> struct number_production {
+    static constexpr auto rule = dsl::capture(dsl::digits<LB>.sep(dsl::digit_sep_tick).no_leading_zero());
     static constexpr auto value = lexy::callback([](auto lex) {
-        // TODO:
-        // - the base must be passed to the constructor because also hex, oct,
-        //   and bin numbers have to be parsed.
-        // - the string has to be processed to discards the ticks
-        return Number{std::string(lex.begin(), lex.end()).c_str()};
+        auto rep = std::string(lex.begin(), lex.end());
+        rep.erase(std::remove(rep.begin(), rep.end(), '\''), rep.end());
+        return Number{rep.c_str(), B};
     });
 };
 
 static constexpr auto simple_number = dsl::integer<int>(dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero());
 
-static constexpr auto number = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> |
-                               LEXY_LIT("0o") >> dsl::integer<int, dsl::octal> |
-                               LEXY_LIT("0b") >> dsl::integer<int, dsl::binary> | simple_number;
+static constexpr auto number = LEXY_LIT("0x") >> dsl::p<number_production<Base::hex, dsl::hex>> |
+                               LEXY_LIT("0o") >> dsl::p<number_production<Base::oct, dsl::octal>> |
+                               LEXY_LIT("0b") >> dsl::p<number_production<Base::bin, dsl::binary>> |
+                               dsl::p<number_production<Base::dec, dsl::decimal>>;
 
 struct term_number : lexy::token_production {
     static constexpr char const *name = "number";
     static constexpr auto rule = Detail::location(number);
     static constexpr auto value = lexy::callback_with_state<Term>(
-        [](auto &state, Location loc, auto num) { return TermSymbol(std::move(loc), state.num(num)); });
+        [](auto &state, Location loc, auto num) { return TermSymbol(std::move(loc), state.num(std::move(num))); });
 };
 
 static constexpr auto escaped_symbols = lexy::symbol_table<char> //

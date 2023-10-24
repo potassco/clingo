@@ -5,10 +5,17 @@
 
 namespace Gringo {
 
+enum class Base {
+    dec = 10,
+    hex = 16,
+    oct = 8,
+    bin = 2,
+};
+
 class Number {
   public:
     Number(int32_t value) noexcept;
-    Number(char const *str);
+    Number(char const *str, Base base = Base::dec);
 
     Number(Number const &other);
     Number(Number &&other) noexcept;
