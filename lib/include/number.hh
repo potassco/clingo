@@ -153,6 +153,10 @@ class Number {
 
     friend auto get_sign(Number const &a) -> int;
 
+    // get a hash value for the number
+
+    friend auto hash_code(Number const &a) -> size_t;
+
     // output
 
     friend auto operator<<(std::ostream &out, Number const &num) -> std::ostream &;
@@ -163,6 +167,12 @@ class Number {
 
     static auto to_repr(Number const &num) -> uint64_t { return num.repr_; }
 
+    static auto release(Number &num) -> uint64_t {
+        auto repr = num.repr_;
+        num.repr_ = 0;
+        return repr;
+    }
+
   private:
     class Impl;
     friend class Impl;
@@ -171,4 +181,28 @@ class Number {
     uint64_t repr_;
 };
 
+///! A const reference to a number.
+class NumberRef {
+  public:
+    NumberRef() : repr_{0} {}
+    explicit NumberRef(uint64_t repr) : repr_{repr} {}
+    explicit NumberRef(Number const &num) : repr_{Number::to_repr(num)} {}
+    auto operator->() const -> Number const * { return reinterpret_cast<Number const *>(&repr_); }
+    operator Number const &() const { return reinterpret_cast<Number const &>(repr_); }
+    auto operator*() const -> Number const & { return reinterpret_cast<Number const &>(repr_); }
+
+  private:
+    uint64_t repr_;
+};
+
 } // namespace Gringo
+
+namespace std {
+
+//! Hasher for numbers.
+template <> struct hash<Gringo::Number> {
+    //! Compute hash of string.
+    auto operator()(Gringo::Number a) const -> size_t { return hash_code(a); }
+};
+
+} // namespace std

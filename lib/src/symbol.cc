@@ -73,6 +73,7 @@ enum RepType : uint64_t {
     rep_id = 4,
     rep_signed_function = 5,
     rep_function = 6,
+    rep_bigint = 7,
 };
 
 enum SubRepType : uint64_t {
@@ -353,6 +354,19 @@ struct CharArrayHash {
 
 template <class Allocator> class DefaultSymbolStore : public SymbolStore {
   public:
+    [[nodiscard]] auto store_num(Number const &num) noexcept -> Symbol override {
+        auto jt = numbers_.find(num);
+        if (jt == numbers_.end()) {
+            jt = numbers_.insert(num).first;
+        }
+        return Symbol::from_rep(Number::to_repr(*jt));
+    }
+
+    [[nodiscard]] auto store_num(Number &&num) noexcept -> Symbol override {
+        auto jt = numbers_.insert(std::move(num)).first;
+        return Symbol::from_rep(Number::to_repr(*jt));
+    }
+
     [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         auto size = args.size();
         if (size == 0) {
@@ -391,6 +405,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     }
 
     void clear() {
+        numbers_ = NumberSet{};
         clear_(strings_);
         clear_(tuples_);
     }
@@ -398,6 +413,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     ~DefaultSymbolStore() noexcept override { clear(); }
 
   private:
+    using NumberSet = hash_set<Number>;
     using StringSet = hash_set<CharArray, CharArrayHash, CharArrayEqual>;
     using TupleSet = hash_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
 
@@ -420,6 +436,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     }
 
     Allocator alloc_;
+    NumberSet numbers_;
     StringSet strings_;
     TupleSet tuples_;
 };
@@ -429,6 +446,16 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 //! More fine-grained locking is possible and also a shared lock is interesting.
 template <class Alloc> class SharedSymbolStore : public SymbolStore {
   public:
+    [[nodiscard]] auto store_num(Number const &num) noexcept -> Symbol override {
+        std::unique_lock ulock{mutex_};
+        return store_.store_num(num);
+    }
+
+    [[nodiscard]] auto store_num(Number &&num) noexcept -> Symbol override {
+        std::unique_lock ulock{mutex_};
+        return store_.store_num(std::move(num));
+    }
+
     [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         std::unique_lock ulock{mutex_};
         return store_.fun(name, args, sign);
@@ -476,9 +503,9 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
     return out;
 }
 
-[[nodiscard]] auto Symbol::num() const noexcept -> int32_t {
+[[nodiscard]] auto Symbol::num() const noexcept -> NumberRef {
     assert(type() == SymbolType::number);
-    return static_cast<int32_t>(rep_ >> 32);
+    return NumberRef{rep_};
 }
 
 [[nodiscard]] auto Symbol::str() const noexcept -> String {
@@ -520,21 +547,11 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
     }
 }
 
-[[nodiscard]] auto Symbol::has_sign() const -> bool {
+[[nodiscard]] auto Symbol::has_classical_sign() const -> bool {
     switch (rep_ & MS::type_mask) {
         case rep_signed_id:
         case rep_signed_function: {
             return true;
-        }
-        case rep_number_or_constant: {
-            switch ((rep_ & MS::lower_mask) >> MS::type_size) {
-                case sub_rep_number: {
-                    return static_cast<int32_t>(rep_ >> 32) < 0;
-                }
-                default: {
-                    return false;
-                }
-            }
         }
         default: {
             return false;
@@ -542,7 +559,7 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
     }
 }
 
-[[nodiscard]] auto Symbol::flip_sign() const -> std::optional<Symbol> {
+[[nodiscard]] auto Symbol::flip_classical_sign() const -> std::optional<Symbol> {
     switch (rep_ & MS::type_mask) {
         case rep_signed_id: {
             return Symbol{(rep_ & ~MS::type_mask) | rep_id};
@@ -555,20 +572,6 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
         }
         case rep_function: {
             return Symbol{(rep_ & ~MS::type_mask) | rep_signed_function};
-        }
-        case rep_number_or_constant: {
-            switch ((rep_ & MS::lower_mask) >> MS::type_size) {
-                case sub_rep_number: {
-                    auto num = static_cast<int32_t>(rep_ >> 32);
-                    if (num == std::numeric_limits<int32_t>::min()) {
-                        return std::nullopt;
-                    }
-                    return Symbol{(static_cast<uint64_t>(-num) << 32) | (rep_ & MS::lower_mask)};
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
         }
         default: {
             return std::nullopt;
@@ -594,6 +597,9 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
         }
         case rep_tuple: {
             return SymbolType::tuple;
+        }
+        case rep_bigint: {
+            return SymbolType::number;
         }
         default: {
             return SymbolType::function;
@@ -626,7 +632,7 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
         }
         case SymbolType::function: {
             auto args = sym.args();
-            if (sym.has_sign()) {
+            if (sym.has_classical_sign()) {
                 out << "-";
             }
             out << sym.name();
@@ -639,11 +645,6 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
         }
     }
     return out;
-}
-
-auto SymbolStore::num(int32_t num) noexcept -> Symbol {
-    uint64_t rep = (static_cast<uint64_t>(num) << 32) | (sub_rep_number << MS::type_size) | rep_number_or_constant;
-    return Symbol::from_rep(rep);
 }
 
 auto SymbolStore::sup() noexcept -> Symbol {
@@ -659,6 +660,20 @@ auto SymbolStore::inf() noexcept -> Symbol {
 auto SymbolStore::str(String str) noexcept -> Symbol {
     uint64_t rep = reinterpret_cast<uint64_t>(String::to_rep(str)) | rep_string;
     return Symbol::from_rep(rep);
+}
+
+auto SymbolStore::num(Number const &num) noexcept -> Symbol {
+    if (auto res = num.as_int(); res) {
+        return Symbol::from_rep(Number::to_repr(num));
+    }
+    return store_num(num);
+}
+
+auto SymbolStore::num(Number &&num) noexcept -> Symbol {
+    if (auto res = num.as_int(); res) {
+        return Symbol::from_rep(Number::to_repr(num));
+    }
+    return store_num(std::move(num));
 }
 
 void init_default_symbol_store(USymbolStore store) {

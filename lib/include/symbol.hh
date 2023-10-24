@@ -6,6 +6,8 @@
 
 #include <util/hash.hh>
 
+#include <number.hh>
+
 namespace Gringo {
 
 //! @defgroup core Core
@@ -74,20 +76,20 @@ class Symbol {
     //! Get the type of the symbol.
     [[nodiscard]] auto type() const noexcept -> SymbolType;
     //! Get the numeric value of the symbol.
-    [[nodiscard]] auto num() const noexcept -> int32_t;
+    [[nodiscard]] auto num() const noexcept -> NumberRef;
     //! Get the (raw) string value of the symbol.
     [[nodiscard]] auto str() const noexcept -> String;
     //! Get the name of the symbol.
     [[nodiscard]] auto name() const noexcept -> String;
     //! Get the arguments of the symbol.
     [[nodiscard]] auto args() const noexcept -> SymbolSpan;
-    //! Flip the sign of the symbol.
-    [[nodiscard]] auto flip_sign() const -> std::optional<Symbol>;
+    //! Flip the classical sign of the symbol.
+    [[nodiscard]] auto flip_classical_sign() const -> std::optional<Symbol>;
 
     //! Check whether the symbol has a sign.
     //!
-    //! Returns true for negative integers and negated functions.
-    [[nodiscard]] auto has_sign() const -> bool;
+    //! Returns true for negated functions.
+    [[nodiscard]] auto has_classical_sign() const -> bool;
 
     //! Equality compare two symbols.
     friend auto operator==(Symbol a, Symbol b) -> bool { return a.rep_ == b.rep_; }
@@ -118,13 +120,15 @@ class SymbolStore {
     [[nodiscard]] static auto sup() noexcept -> Symbol;
     //! Construct the supremum constant (<tt>\#sup</tt>).
     [[nodiscard]] static auto inf() noexcept -> Symbol;
-    //! Construct a number (e.g., <tt>42</tt>).
-    [[nodiscard]] static auto num(int32_t num) noexcept -> Symbol;
     //! Construct a quoted string.
     //!
-    //! A raw string is stored that is quoted when the symbol is output..
+    //! A raw string is stored and quoted when the symbol is output.
     //! For example: <tt>"foo\nbar"</tt>.
     [[nodiscard]] static auto str(String str) noexcept -> Symbol;
+    //! Construct a number (e.g., <tt>42</tt>).
+    [[nodiscard]] auto num(Number const &num) noexcept -> Symbol;
+    //! Construct a number (avoids copying the number).
+    [[nodiscard]] auto num(Number &&num) noexcept -> Symbol;
     //! Construct a tuple.
     //!
     //! For example: <tt>(x,y)</tt>.
@@ -138,6 +142,10 @@ class SymbolStore {
     //! The string is stored as is.
     [[nodiscard]] virtual auto string(std::string_view str) -> String = 0;
     virtual ~SymbolStore() noexcept = default;
+
+  protected:
+    [[nodiscard]] virtual auto store_num(Number const &num) noexcept -> Symbol = 0;
+    [[nodiscard]] virtual auto store_num(Number &&num) noexcept -> Symbol = 0;
 };
 
 //! A pointer to a symbol store.

@@ -21,7 +21,7 @@ struct CheckType {
         switch (term.value.type()) {
             case SymbolType::number: {
                 auto num = term.value.num();
-                if (type == TermCheckType::pos_number && num >= 0) {
+                if (type == TermCheckType::pos_number && *num >= 0) {
                     if (res != nullptr) {
                         res->pos_number = num;
                     }

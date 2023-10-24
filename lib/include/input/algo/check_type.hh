@@ -32,7 +32,7 @@ struct CheckTypeResult {
     //! Whether the term is signed.
     bool has_sign = false;
     //! The number represented by the term.
-    int pos_number = 0;
+    NumberRef pos_number;
     //! The identifier represented by the term.
     String identifier;
 };
