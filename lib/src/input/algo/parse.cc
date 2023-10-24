@@ -136,6 +136,10 @@ template <class It> class State {
         }
     }
 
+    auto num(Number const &num) -> Symbol { return store_.num(num); }
+
+    auto num(Number &&num) -> Symbol { return store_.num(std::move(num)); }
+
     auto string(std::string str) -> String { return store_.string(str); }
 
     auto string(char const *str) -> String { return store_.string(str); }

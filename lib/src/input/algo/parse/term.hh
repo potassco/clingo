@@ -111,6 +111,17 @@ struct identifier : lexy::token_production {
     static constexpr auto value = as_stored_string;
 };
 
+struct dec_number {
+    static constexpr auto rule = dsl::capture(dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero());
+    static constexpr auto value = lexy::callback([](auto lex) {
+        // TODO:
+        // - the base must be passed to the constructor because also hex, oct,
+        //   and bin numbers have to be parsed.
+        // - the string has to be processed to discards the ticks
+        return Number{std::string(lex.begin(), lex.end()).c_str()};
+    });
+};
+
 static constexpr auto simple_number = dsl::integer<int>(dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero());
 
 static constexpr auto number = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> |
@@ -120,8 +131,8 @@ static constexpr auto number = LEXY_LIT("0x") >> dsl::integer<int, dsl::hex> |
 struct term_number : lexy::token_production {
     static constexpr char const *name = "number";
     static constexpr auto rule = Detail::location(number);
-    static constexpr auto value =
-        lexy::callback<Term>([](Location loc, auto num) { return TermSymbol(std::move(loc), SymbolStore::num(num)); });
+    static constexpr auto value = lexy::callback_with_state<Term>(
+        [](auto &state, Location loc, auto num) { return TermSymbol(std::move(loc), state.num(num)); });
 };
 
 static constexpr auto escaped_symbols = lexy::symbol_table<char> //
