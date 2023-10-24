@@ -33,9 +33,10 @@ auto to_str(Symbol sym) -> std::string {
 } // namespace
 
 TEST_CASE("symbol_number") {
-    auto n1 = SymbolStore::num(1);
-    auto n2 = SymbolStore::num(2);
-    auto n3 = SymbolStore::num(-1);
+    auto store = make_symbol_store(false, false);
+    auto n1 = store->num(Number(1));
+    auto n2 = store->num(Number(2));
+    auto n3 = store->num(Number(-1));
 
     REQUIRE(n1.type() == SymbolType::number);
     REQUIRE(n2.type() == SymbolType::number);
@@ -45,9 +46,9 @@ TEST_CASE("symbol_number") {
     REQUIRE(to_str(n2) == "2");
     REQUIRE(to_str(n3) == "-1");
 
-    REQUIRE(n1.num() == 1);
-    REQUIRE(n2.num() == 2);
-    REQUIRE(n3.num() == -1);
+    REQUIRE(*n1.num() == 1);
+    REQUIRE(*n2.num() == 2);
+    REQUIRE(*n3.num() == -1);
 
     REQUIRE(n1 == n1);
     REQUIRE(!(n1 == n2));
@@ -101,10 +102,10 @@ TEST_CASE("symbol_string") {
 
 TEST_CASE("symbol_tuple") {
     with_store([](SymbolStore &store) {
-        auto n0 = SymbolStore::num(0);
-        auto n1 = SymbolStore::num(1);
-        auto n2 = SymbolStore::num(2);
-        auto n3 = SymbolStore::num(3);
+        auto n0 = store.num(Number(0));
+        auto n1 = store.num(Number(1));
+        auto n2 = store.num(Number(2));
+        auto n3 = store.num(Number(3));
 
         auto t1 = store.tup(SL{});
         auto t2 = store.tup(SL{n0});
@@ -142,7 +143,7 @@ TEST_CASE("symbol_tuple") {
         std::vector<Symbol> args;
         args.reserve(n);
         for (size_t i = 0; i < n; ++i) {
-            args.emplace_back(SymbolStore::num(i));
+            args.emplace_back(store.num(Number(static_cast<int32_t>(i))));
         }
         auto t = store.tup(SymbolSpan{args.data(), args.size()});
         REQUIRE(t.type() == SymbolType::tuple);
@@ -155,10 +156,10 @@ TEST_CASE("symbol_function") {
         auto s1 = store.string("f");
         auto s2 = store.string("g");
 
-        auto n0 = SymbolStore::num(0);
-        auto n1 = SymbolStore::num(1);
-        auto n2 = SymbolStore::num(2);
-        auto n3 = SymbolStore::num(3);
+        auto n0 = store.num(Number(0));
+        auto n1 = store.num(Number(1));
+        auto n2 = store.num(Number(2));
+        auto n3 = store.num(Number(3));
 
         auto f1 = store.fun(s1, SL{}, false);
         auto g1 = store.fun(s1, SL{}, true);
@@ -223,7 +224,7 @@ TEST_CASE("symbol_function") {
         std::vector<Symbol> args;
         args.reserve(n);
         for (size_t i = 0; i < n; ++i) {
-            args.emplace_back(SymbolStore::num(i));
+            args.emplace_back(store.num(Number(static_cast<int32_t>(i))));
         }
         auto t = store.fun(s1, SymbolSpan{args.data(), args.size()}, false);
         REQUIRE(t.type() == SymbolType::function);

@@ -559,6 +559,27 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
     }
 }
 
+[[nodiscard]] auto Symbol::has_sign() const -> bool {
+    switch (rep_ & MS::type_mask) {
+        case rep_number_or_constant: {
+            if ((rep_ & MS::lower_mask) >> MS::type_size == sub_rep_number) {
+                return static_cast<int>(rep_ >> 32) < 0;
+            }
+            return false;
+        }
+        case rep_signed_id:
+        case rep_signed_function: {
+            return true;
+        }
+        case rep_bigint: {
+            return *num() < 0;
+        }
+        default: {
+            return false;
+        }
+    }
+}
+
 [[nodiscard]] auto Symbol::flip_classical_sign() const -> std::optional<Symbol> {
     switch (rep_ & MS::type_mask) {
         case rep_signed_id: {
@@ -618,7 +639,7 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
             break;
         }
         case SymbolType::number: {
-            out << sym.num();
+            out << *sym.num();
             break;
         }
         case SymbolType::string: {

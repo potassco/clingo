@@ -223,7 +223,7 @@ struct SimplifyTerm {
     auto operator()(TermAbs const &term) const -> Result {
         assert(term.pool.size() == 1);
 
-        auto simplify = [&term](auto &&res) -> Result {
+        auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
             GRINGO_MATCH(res, std::monostate) { return {}; }
             // the argument evaluated to a symbol
@@ -232,11 +232,7 @@ struct SimplifyTerm {
                     // TODO: info message???
                     return {};
                 }
-                auto res_val = check_abs(res.num());
-                if (!res_val.has_value()) {
-                    return {};
-                }
-                return SymbolStore::num(res_val.value());
+                return store.num(abs(*res.num()));
             }
             // the argument did not change
             GRINGO_MATCH(res, Type) {
@@ -264,13 +260,13 @@ struct SimplifyTerm {
     }
 
     auto operator()(TermUnary const &term) const -> Result {
-        auto simplify = [&term](auto &&res) -> Result {
+        auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
             GRINGO_MATCH(res, std::monostate) { return {}; }
             // the argument evaluated to a symbol
             GRINGO_MATCH(res, Symbol) {
                 // we can always evaluate constants
-                auto opt_sym = evaluate(term.op, res);
+                auto opt_sym = evaluate(store, term.op, res);
                 if (!opt_sym.has_value()) {
                     // TODO: info message???
                     return {};
@@ -341,7 +337,7 @@ struct SimplifyTerm {
             GRINGO_MATCH(res, Symbol) { return Util::construct_shared<Term>(TermSymbol{location(*term), res}); }
         };
 
-        auto simplify = [&](auto &&res_lhs, auto &&res_rhs) -> Result {
+        auto simplify = [&, this](auto &&res_lhs, auto &&res_rhs) -> Result {
             // check arguments
             if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
                 return {};
@@ -349,7 +345,7 @@ struct SimplifyTerm {
 
             // evaluate to symbol
             GRINGO_MATCH2(res_lhs, Symbol, res_rhs, Symbol) {
-                auto res = evaluate(res_lhs, term.op, res_rhs);
+                auto res = evaluate(store, res_lhs, term.op, res_rhs);
                 if (!res.has_value()) {
                     // TODO: info message???
                     return {};
