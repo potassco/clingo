@@ -111,21 +111,21 @@ struct identifier : lexy::token_production {
     static constexpr auto value = as_stored_string;
 };
 
-template <Base B, class LB> struct number_production {
+template <Base B, class LB> struct bigint {
     static constexpr auto rule = dsl::capture(dsl::digits<LB>.sep(dsl::digit_sep_tick).no_leading_zero());
-    static constexpr auto value = lexy::callback([](auto lex) {
+    static constexpr auto value = lexy::callback<Number>([](auto lex) {
         auto rep = std::string(lex.begin(), lex.end());
         rep.erase(std::remove(rep.begin(), rep.end(), '\''), rep.end());
         return Number{rep.c_str(), B};
     });
 };
 
-static constexpr auto simple_number = dsl::integer<int>(dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero());
+static constexpr auto smallint = dsl::integer<int>(dsl::digits<>.sep(dsl::digit_sep_tick).no_leading_zero());
 
-static constexpr auto number = LEXY_LIT("0x") >> dsl::p<number_production<Base::hex, dsl::hex>> |
-                               LEXY_LIT("0o") >> dsl::p<number_production<Base::oct, dsl::octal>> |
-                               LEXY_LIT("0b") >> dsl::p<number_production<Base::bin, dsl::binary>> |
-                               dsl::p<number_production<Base::dec, dsl::decimal>>;
+static constexpr auto
+    number = LEXY_LIT("0x") >> dsl::p<bigint<Base::hex, dsl::hex>> |
+             LEXY_LIT("0o") >> dsl::p<bigint<Base::oct, dsl::octal>> |
+             LEXY_LIT("0b") >> dsl::p<bigint<Base::bin, dsl::binary>> | dsl::p<bigint<Base::dec, dsl::decimal>>;
 
 struct term_number : lexy::token_production {
     static constexpr char const *name = "number";

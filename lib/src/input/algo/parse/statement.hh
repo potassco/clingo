@@ -35,7 +35,7 @@ struct theory_op_definition {
         auto associativity = dsl::symbol<sym_type>(identifier_base);
         auto type = unary | binary >> dsl::comma + associativity | dsl::error<expected_assoc>;
 
-        return Detail::location(dsl::p<theory_op> >> dsl::colon + simple_number + dsl::comma + type);
+        return Detail::location(dsl::p<theory_op> >> dsl::colon + smallint + dsl::comma + type);
     }();
     static constexpr auto value = lexy::callback<TheoryOpDefinition>(
         lexy::construct<TheoryOpDefinition>, [](Location loc, String name, int arity) {
@@ -80,7 +80,7 @@ struct theory_atom_definition {
         .map<LEXY_SYMBOL("any")>(TheoryAtomType::any)
         .map<LEXY_SYMBOL("directive")>(TheoryAtomType::directive);
     static constexpr auto rule = []() {
-        auto sig = dsl::p<identifier> + dsl::slash + simple_number;
+        auto sig = dsl::p<identifier> + dsl::slash + smallint;
         auto term = dsl::p<identifier>;
         auto guard = dsl::opt(dsl::p<theory_guard_definition> >> dsl::comma);
         auto type = dsl::symbol<sym_type>(identifier_base);
@@ -199,7 +199,7 @@ struct statement_optimize {
 };
 
 struct is_signature : control {
-    static constexpr auto rule = dsl::if_(LEXY_LIT("-")) + dsl::p<identifier> + dsl::slash + simple_number;
+    static constexpr auto rule = dsl::if_(LEXY_LIT("-")) + dsl::p<identifier> + dsl::slash + smallint;
 };
 
 struct statement_show {
@@ -251,7 +251,7 @@ struct statement_defined {
     static constexpr char const *name = "defined directive";
     static constexpr auto rule = []() {
         auto def = LEXY_KEYWORD("#defined", keyword_base);
-        return Detail::location(def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + simple_number + eos);
+        return Detail::location(def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + smallint + eos);
     }();
     static constexpr auto value = Detail::construct_v<StatementDefined, Statement>;
 };
@@ -286,7 +286,7 @@ struct statement_project {
     static constexpr char const *name = "project directive";
     static constexpr auto rule = []() {
         auto kw = LEXY_KEYWORD("#project", keyword_base);
-        auto arity = dsl::slash >> simple_number;
+        auto arity = dsl::slash >> smallint;
         auto pool = dsl::if_(LEXY_LIT("(") >> dsl::p<term_function_pool> + LEXY_LIT(")")) + dsl::p<statement_opt_body>;
         auto name = dsl::p<sign_classical> + Detail::position(dsl::p<identifier>);
         return Detail::location(kw >> Detail::location(name + (arity | dsl::else_ >> pool)) + eos);
