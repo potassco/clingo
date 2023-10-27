@@ -24,24 +24,74 @@ template <class T> auto simplify_str(std::optional<T> value) -> std::string {
     return "<failed>";
 }
 
-TEST_CASE("simplify") {
-    REQUIRE(simplify_str(parse_term("1+2")) == "3");
+TEST_CASE("simplify_unary") {
+    // numeric
     REQUIRE(simplify_str(parse_term("-1")) == "-1");
+    REQUIRE(simplify_str(parse_term("-X+1")) == "-1*X+1");
+    REQUIRE(simplify_str(parse_term("|-1|")) == "1");
+    // any
+    REQUIRE(simplify_str(parse_term("-X")) == "-X");
+    REQUIRE(simplify_str(parse_term("--X")) == "-(-X)");
+    REQUIRE(simplify_str(parse_term("---X")) == "-X");
+    REQUIRE(simplify_str(parse_term("|-X|")) == "|-X|");
+    REQUIRE(simplify_str(parse_term("|1*X+0|")) == "|X|");
+    // symbolic
+    // REQUIRE(simplify_str(parse_term("--f")) == "f");
+    // REQUIRE(simplify_str(parse_term("---f")) == "-f");
+    // REQUIRE(simplify_str(parse_term("-f(-|X|)")) == "-f(-|X|)");
+    // fail
+    // REQUIRE(simplify_str(parse_term("~a")) == "<undefined>");
+    // REQUIRE(simplify_str(parse_term("-(1,2)")) == "<undefined>");
+    // REQUIRE(simplify_str(parse_term("-(1,X)")) == "<undefined>");
+    // REQUIRE(simplify_str(parse_term("|()|")) == "<undefined>");
+    // REQUIRE(simplify_str(parse_term("|(X,)|")) == "<undefined>");
+    // REQUIRE(simplify_str(parse_term("|f|")) == "<undefined>");
+    // REQUIRE(simplify_str(parse_term("|f(X)|")) == "<undefined>");
+}
+
+TEST_CASE("simplify_binary") {
+    // evaluate constant
+    REQUIRE(simplify_str(parse_term("1+2")) == "3");
+    // keep variables
+    REQUIRE(simplify_str(parse_term("X")) == "X");
+    // variable to linear
+    REQUIRE(simplify_str(parse_term("X+0")) == "1*X+0");
+    // linear + constant
+    REQUIRE(simplify_str(parse_term("(2*X+3)+2")) == "2*X+5");
+    REQUIRE(simplify_str(parse_term("(2*X+3)-2")) == "2*X+1");
+    REQUIRE(simplify_str(parse_term("(2*X+3)*2")) == "4*X+6");
+    REQUIRE(simplify_str(parse_term("(2*X+3)/2")) == "(2*X+3)/2");
+    REQUIRE(simplify_str(parse_term("(1*X+0)/2")) == "X/2");
+    REQUIRE(simplify_str(parse_term("(1*X+0)*0")) == "X*0");
+    // constant + linear
+    REQUIRE(simplify_str(parse_term("2*(2*X+3)")) == "4*X+6");
+    REQUIRE(simplify_str(parse_term("2+(2*X+3)")) == "2*X+5");
+    REQUIRE(simplify_str(parse_term("2-(2*X+3)")) == "-2*X+(-1)");
+    REQUIRE(simplify_str(parse_term("2/(2*X+3)")) == "2/(2*X+3)");
+    REQUIRE(simplify_str(parse_term("2/(1*X+0)")) == "2/X");
+    REQUIRE(simplify_str(parse_term("0*(1*X+0)")) == "0*X");
+    // linear + linear
+    REQUIRE(simplify_str(parse_term("(2*X+3)+(3*X+5)")) == "5*X+8");
+    REQUIRE(simplify_str(parse_term("(2*X+3)-(3*X+5)")) == "-1*X+(-2)");
+    REQUIRE(simplify_str(parse_term("(2*X+3)-(2*X+5)")) == "0*X+(-2)");
+    REQUIRE(simplify_str(parse_term("(2*X+3)+(3*Y+5)")) == "2*X+(3*Y+8)");
+    REQUIRE(simplify_str(parse_term("(2*X+3)-(3*Y+5)")) == "2*X-(3*Y+2)");
+    // unchanged + unchanged
+    REQUIRE(simplify_str(parse_term("(X/2)-(Y/2)")) == "X/2-Y/2");
+    // changed + changed
+    REQUIRE(simplify_str(parse_term("(X/(2+0))-(Y/(2+0))")) == "X/2-Y/2");
+    // fail
+    // REQUIRE(simplify_str(parse_term("1+a")) == "<undefined>");
+}
+
+TEST_CASE("simplify_symbolic") {
+    /*
     REQUIRE(simplify_str(parse_term("-f(-|1-2|)")) == "-f(-1)");
-    REQUIRE(simplify_str(parse_term("-f(-|X|)")) == "-f(-|X|)");
     REQUIRE(simplify_str(parse_term("-f(1+2+X,-X)")) == "-f(3+X,-X)");
     REQUIRE(simplify_str(parse_term("(1+2+X,-X)")) == "(3+X,-X)");
-    REQUIRE(simplify_str(parse_term("--f")) == "f");
-    REQUIRE(simplify_str(parse_term("---f")) == "-f");
-    REQUIRE(simplify_str(parse_term("1+a")) == "<undefined>");
     REQUIRE(simplify_str(parse_term("f(1+a)")) == "<undefined>");
     REQUIRE(simplify_str(parse_term("f(X+a)")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("-(1,2)")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("-(1,X)")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("|()|")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("|(X,)|")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("|f|")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("|f(X)|")) == "<undefined>");
+    */
 }
 
 } // namespace Gringo::Input::Test

@@ -280,7 +280,7 @@ struct Print {
         char const *rp = "";
         if (no_leading_op && term.value.has_sign()) {
             lp = "(";
-            rp = "(";
+            rp = ")";
         }
         out << lp << term.value << rp;
     }

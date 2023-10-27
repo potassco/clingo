@@ -670,11 +670,11 @@ auto operator-(Number &&a, Number &&b) -> Number {
 }
 
 auto operator-=(Number &a, Number const &b) -> Number & {
-    return Number::Impl::op_assign(mp_int_add, mp_int_sub_value, mp_int_sub_value_inv, check_add, a, b);
+    return Number::Impl::op_assign(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, check_sub, a, b);
 }
 
 auto operator-=(Number &a, Number &&b) -> Number & {
-    return Number::Impl::op_assign(mp_int_add, mp_int_sub_value, mp_int_sub_value_inv, check_add, a, std::move(b));
+    return Number::Impl::op_assign(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, check_sub, a, std::move(b));
 }
 
 // multiplication
