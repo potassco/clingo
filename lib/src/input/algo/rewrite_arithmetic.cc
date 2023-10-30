@@ -14,6 +14,8 @@ whole process as in gringo atm
 4. simplify
   0. evaluate (done)
   1. extract atoms to project
+     (maybe delay until turning to groundable representation;
+      check if valid input could be done already here when making matchable)
   2. dots/script
      - simply remove them all starting from nested contexts
      - they should be ignored in specific settings to make the simplify function idempotent
