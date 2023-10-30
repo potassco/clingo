@@ -43,34 +43,34 @@ template <class T = std::equal_to<>> struct value_equal_to : public T {
 
     //! Compare two unique pointers after dereferencing them.
     template <class A, class B> auto operator()(std::unique_ptr<A> const &a, std::unique_ptr<B> const &b) const {
-        return operator()(*a, *b);
+        return a == b || operator()(*a, *b);
     }
 
     //! Compare two shared pointers after dereferencing them.
     template <class A, class B> auto operator()(shared_ptr<A> const &a, shared_ptr<B> const &b) const {
-        return operator()(*a, *b);
+        return a == b || operator()(*a, *b);
     }
 
     //! Compare two pairs.
     template <class A, class B, class C, class D>
     auto operator()(std::pair<A, B> const &a, std::pair<C, D> const &b) const {
-        return operator()(a.first, b.first) && operator()(a.second, b.second);
+        return &a == &b || (operator()(a.first, b.first) && operator()(a.second, b.second));
     }
 
     //! Compare two tuples.
     template <class... A> auto operator()(std::tuple<A...> const &a, std::tuple<A...> const &b) const {
-        return value_equal_to_tuple(a, b, std::index_sequence_for<A...>{});
+        return &a == &b || value_equal_to_tuple(a, b, std::index_sequence_for<A...>{});
     }
 
     //! Compare two variants.
     template <class... A> auto operator()(std::variant<A...> const &a, std::variant<A...> const &b) const {
-        return value_equal_to_variant(a, b, std::index_sequence_for<A...>{});
+        return &a == &b || value_equal_to_variant(a, b, std::index_sequence_for<A...>{});
     }
 
     //! Compare two vectors.
     template <class A, class B> auto operator()(std::vector<A> const &a, std::vector<B> const &b) const {
-        return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-                          [this](auto const &a, auto const &b) { return this->operator()(a, b); });
+        return &a == &b || std::equal(a.begin(), a.end(), b.begin(), b.end(),
+                                      [this](auto const &a, auto const &b) { return this->operator()(a, b); });
     }
 
   private:

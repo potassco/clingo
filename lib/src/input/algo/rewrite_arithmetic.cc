@@ -35,20 +35,11 @@ whole process as in gringo atm
   5. assignment aggregates
 */
 
-// TODO: remove
-#include <iostream>
-
 namespace Gringo::Input {
 
 namespace {
 
 struct TermMap {};
-
-// TODO: linear terms!!!
-//
-// Result:
-// - fail: error
-// - type: unchanged term
 
 //! Check if a term can be used for matching.
 struct SimplifyTerm {
@@ -81,6 +72,13 @@ struct SimplifyTerm {
     struct ResultTupleFail {};
     using ResultTuple = std::variant<ResultTupleFail, ResultTupleUnchanged, ResultTupleChanged>;
 
+    [[nodiscard]] static auto check_change(Type type, Term const &old, Term new_) -> Result {
+        if (old != new_) {
+            return ResultChanged{type, std::move(new_)};
+        }
+        return ResultUnchanged{type};
+    }
+
     //! Convert a linear result into a term.
     [[nodiscard]] auto linear_as_term(ResultLinear res, bool simplify = true) const -> Term {
         auto mxn = std::move(res.x);
@@ -94,15 +92,25 @@ struct SimplifyTerm {
         return mxn;
     }
 
+    //! Convert a linear result into a term reusing the old term if possible.
+    [[nodiscard]] auto linear_as_term(Util::shared_ptr<Term> const &term, ResultLinear res, bool simplify = true) const
+        -> Util::shared_ptr<Term> {
+        auto ret = linear_as_term(std::move(res), simplify);
+        return ret != *term ? Util::construct_shared<Term>(std::move(ret)) : term;
+    }
     //! Convert a result into a term.
     //!
     //! If the result does not indicate a change, the given term is used instead.
-    [[nodiscard]] auto result_as_term(Term const &term, auto &&res, bool simplify = true) const -> Term {
+    [[nodiscard]] auto result_as_term(Util::shared_ptr<Term> const &term, auto &&res, bool simplify = true) const
+        -> Util::shared_ptr<Term> {
         GRINGO_MATCH(res, ResultFail) { throw std::logic_error("cannot happen"); }
-        GRINGO_MATCH(res, ResultLinear) { return linear_as_term(res, simplify); }
+        GRINGO_MATCH(res, ResultLinear) { return linear_as_term(term, std::move(res), simplify); }
         GRINGO_MATCH(res, ResultUnchanged) { return term; }
-        GRINGO_MATCH(res, ResultChanged) { return std::move(res.term); }
-        GRINGO_MATCH(res, ResultSymbol) { return TermSymbol{location(term), res}; }
+        GRINGO_MATCH(res, ResultChanged) { return Util::construct_shared<Term>(std::move(res.term)); }
+        GRINGO_MATCH(res, ResultSymbol) {
+            Term ret = TermSymbol{location(*term), res};
+            return ret != *term ? Util::construct_shared<Term>(std::move(ret)) : term;
+        }
     }
 
     //! Helper to simplify the arguments of the tuple.
@@ -142,20 +150,22 @@ struct SimplifyTerm {
                     // evaluation of argument failed
                     GRINGO_MATCH(res, ResultFail) { return false; }
                     // argument evaluated to symbol
-                    GRINGO_MATCH(res, ResultSymbol) { init().emplace_back(res); }
+                    GRINGO_MATCH(res, ResultSymbol) {
+                        // see note at check_change for function/tuple visitor
+                        init().emplace_back(res);
+                    }
+                    else {
+                        constant = false;
+                    }
                     GRINGO_MATCH(res, ResultLinear) { init().emplace_back(linear_as_term(std::move(res), false)); }
                     // argument did not change
-                    GRINGO_MATCH(res, ResultChanged) {
-                        constant = false;
-                        if (auto *res_changed = std::get_if<ResultTupleChanged>(&res_tuple)) {
+                    GRINGO_MATCH(res, ResultUnchanged) {
+                        if (auto *res_changed = std::get_if<ResultTupleChanged>(&res_tuple); res_changed != nullptr) {
                             res_changed->emplace_back(arg);
                         }
                     }
                     // argument changed
-                    GRINGO_MATCH(res, ResultChanged) {
-                        constant = false;
-                        init().emplace_back(std::move(res.term));
-                    }
+                    GRINGO_MATCH(res, ResultChanged) { init().emplace_back(std::move(res.term)); }
                     return true;
                 };
                 return std::visit(simplify, operator()(arg));
@@ -175,36 +185,30 @@ struct SimplifyTerm {
     //! Convert the given simplified arguments to a symbol vector.
     //!
     //! The result vector must only store symbols.
-    static auto args_symbol(ResultTuple const &res_tuple) -> std::vector<Symbol> {
+    static auto args_symbol(ResultTupleChanged args_tuple) -> std::vector<Symbol> {
         std::vector<Symbol> args;
-        auto const *args_tuple = std::get_if<ResultTupleChanged>(&res_tuple);
-        if (args_tuple != nullptr) {
-            args.reserve(args_tuple->size());
-            for (auto const &arg : *args_tuple) {
-                args.emplace_back(std::get<Symbol>(arg));
-            }
+        args.reserve(args_tuple.size());
+        for (auto const &arg : args_tuple) {
+            args.emplace_back(std::get<Symbol>(arg));
         }
         return args;
     }
 
     //! Convert the given simplified arguments to term tuple.
-    static auto args_term(TupleVec const &tuple, ResultTuple res_tuple) -> TupleVec {
+    static auto args_term(TupleVec const &tuple, ResultTupleChanged args_tuple) -> TupleVec {
         TupleVec args;
         auto it = tuple.begin();
-        auto *args_tuple = std::get_if<ResultTupleChanged>(&res_tuple);
-        if (args_tuple != nullptr) {
-            args.reserve(tuple.size());
-            for (auto &arg : *args_tuple) {
-                std::visit(
-                    [&](auto &&val) {
-                        GRINGO_MATCH(val, Symbol) { args.emplace_back(TermSymbol{location(std::get<Term>(*it)), val}); }
-                        else {
-                            args.emplace_back(std::move(val));
-                        }
-                    },
-                    arg);
-                ++it;
-            }
+        args.reserve(tuple.size());
+        for (auto &arg : args_tuple) {
+            std::visit(
+                [&](auto &&val) {
+                    GRINGO_MATCH(val, Symbol) { args.emplace_back(TermSymbol{location(std::get<Term>(*it)), val}); }
+                    else {
+                        args.emplace_back(std::move(val));
+                    }
+                },
+                std::move(arg));
+            ++it;
         }
         return args;
     }
@@ -258,8 +262,6 @@ struct SimplifyTerm {
         auto const &tuple = term.pool.front();
 
         // simplify arguments
-        auto res_tuple = simplify_tuple(tuple, constant);
-
         return std::visit(
             [&, this](auto &&res) -> Result {
                 GRINGO_MATCH(res, ResultTupleFail) { return ResultFail{}; }
@@ -268,51 +270,57 @@ struct SimplifyTerm {
                     if (!constant) {
                         return type;
                     }
+                    return store.fun(term.name, {}, false);
                 }
                 GRINGO_MATCH(res, ResultTupleChanged) {
                     // changed term that did not evaluate to a symbol
                     if (!constant) {
-                        return ResultChanged{
-                            type, TermFunction{term.loc, term.name,
-                                               Util::make_vec<TupleVec>(args_term(tuple, std::move(res_tuple))),
-                                               term.external}};
+                        // Note: this is somewhat inefficient because the
+                        // equality comparision recurses into the structure
+                        return check_change(type, term,
+                                            TermFunction{term.loc, term.name,
+                                                         Util::make_vec<TupleVec>(args_term(tuple, std::move(res))),
+                                                         term.external});
                     }
+                    return store.fun(term.name, args_symbol(std::move(res)), false);
                 }
-                // The term evaluated to a symbol
-                return store.fun(term.name, args_symbol(res), false);
             },
-            res_tuple);
+            simplify_tuple(tuple, constant));
     }
 
-    /*
     auto operator()(TermTuple const &term) const -> Result {
         assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
 
         bool constant = true;
         auto type = Type::tuple;
         auto const &tuple = std::get<TupleVec>(term.pool.front());
-        std::optional<ResultTuple> res_tuple;
 
         // simplify arguments
-        if (!simplify_tuple(tuple, constant, res_tuple)) {
-            return {};
-        }
-
-        // none of the arguments changed
-        if (!res_tuple.has_value() && !constant) {
-            return type;
-        }
-
-        // the term can be evaluated to a symbol
-        if (constant) {
-            return store.tup(args_symbol(res_tuple));
-        }
-
-        // the term cannot be evaluated to a symbol
-        return TermResult{type,
-                          TermTuple{term.loc, Util::make_vec<TermTuple::Element>(args_term(tuple, res_tuple.value()))}};
+        return std::visit(
+            [&, this](auto &&res) -> Result {
+                GRINGO_MATCH(res, ResultTupleFail) { return ResultFail{}; }
+                GRINGO_MATCH(res, ResultTupleUnchanged) {
+                    // unchanged term that did not evaluate to a symbol
+                    if (!constant) {
+                        return type;
+                    }
+                    return store.tup(args_symbol({}));
+                }
+                GRINGO_MATCH(res, ResultTupleChanged) {
+                    // changed term that did not evaluate to a symbol
+                    if (!constant) {
+                        // Note: this is somewhat inefficient because the
+                        // equality comparision recurses into the structure
+                        return check_change(
+                            type, term,
+                            TermTuple{term.loc, Util::make_vec<TermTuple::Element>(args_term(tuple, std::move(res)))});
+                    }
+                    return store.tup(args_symbol(std::move(res)));
+                }
+                // the term evaluated to a symbol
+            },
+            simplify_tuple(tuple, constant));
     }
-    */
 
     auto operator()(TermAbs const &term) const -> Result {
         assert(term.pool.size() == 1);
@@ -331,11 +339,7 @@ struct SimplifyTerm {
             GRINGO_MATCH(res, ResultLinear) {
                 TermVec pool;
                 pool.emplace_back(linear_as_term(std::move(res)));
-                auto changed = TermAbs(term.loc, std::move(pool));
-                if (changed != term) {
-                    return ResultChanged{Type::numeric, std::move(changed)};
-                }
-                return ResultUnchanged{Type::numeric};
+                return check_change(Type::numeric, term, TermAbs(term.loc, std::move(pool)));
             }
             // the argument did not change
             GRINGO_MATCH(res, ResultUnchanged) {
@@ -382,11 +386,7 @@ struct SimplifyTerm {
                     res.n = -std::move(res.n);
                     return std::move(res);
                 }
-                auto changed = TermUnary(term.loc, term.op, linear_as_term(std::move(res)));
-                if (changed != term) {
-                    return ResultChanged{Type::numeric, std::move(changed)};
-                }
-                return ResultUnchanged{Type::numeric};
+                return check_change(Type::numeric, term, TermUnary(term.loc, term.op, linear_as_term(std::move(res))));
             }
             // get type of term based on the given type of its argument
             auto check_type = [&term](Type type) -> std::optional<Type> {
@@ -487,12 +487,9 @@ struct SimplifyTerm {
                     res_rhs.n *= res_lhs.num();
                     return std::move(res_rhs);
                 }
-                auto changed = TermBinary(term.loc, result_as_term(*term.lhs, res_lhs), term.op,
-                                          linear_as_term(std::move(res_rhs)));
-                if (changed != term) {
-                    return ResultChanged{Type::numeric, std::move(changed)};
-                }
-                return ResultUnchanged{Type::numeric};
+                return check_change(Type::numeric, term,
+                                    TermBinary(term.loc, result_as_term(term.lhs, res_lhs), term.op,
+                                               linear_as_term(term.rhs, std::move(res_rhs))));
             }
             GRINGO_MATCH2(res_lhs, ResultLinear, res_rhs, Symbol) {
                 if (term.op == BinaryOperator::plus) {
@@ -508,12 +505,9 @@ struct SimplifyTerm {
                     res_lhs.n *= res_rhs.num();
                     return std::move(res_lhs);
                 }
-                auto changed = TermBinary(term.loc, linear_as_term(std::move(res_lhs)), term.op,
-                                          result_as_term(*term.rhs, res_rhs));
-                if (changed != term) {
-                    return ResultChanged{Type::numeric, std::move(changed)};
-                }
-                return ResultUnchanged{Type::numeric};
+                return check_change(Type::numeric, term,
+                                    TermBinary(term.loc, linear_as_term(term.lhs, std::move(res_lhs)), term.op,
+                                               result_as_term(term.rhs, res_rhs)));
             }
             GRINGO_MATCH2(res_lhs, ResultLinear, res_rhs, ResultLinear) {
                 if (term.op == BinaryOperator::plus) {
@@ -534,20 +528,18 @@ struct SimplifyTerm {
                     res_rhs.n -= res_lhs.n;
                     res_lhs.n = Number(0);
                 }
-                auto changed = TermBinary(term.loc, linear_as_term(std::move(res_lhs)), term.op,
-                                          linear_as_term(std::move(res_rhs)));
-                if (changed != term) {
-                    return ResultChanged{Type::numeric, std::move(changed)};
-                }
-                return ResultUnchanged{Type::numeric};
+                return check_change(Type::numeric, term,
+                                    TermBinary(term.loc, linear_as_term(std::move(res_lhs)), term.op,
+                                               linear_as_term(std::move(res_rhs))));
             }
 
             // none of the arguments changed
             GRINGO_MATCH2(res_lhs, Type, res_rhs, Type) { return Type::numeric; }
 
             // at least one of the arguments changed
-            return ResultChanged{Type::numeric, TermBinary(term.loc, result_as_term(*term.lhs, res_lhs), term.op,
-                                                           result_as_term(*term.rhs, res_rhs))};
+            return check_change(
+                Type::numeric, term,
+                TermBinary(term.loc, result_as_term(term.lhs, res_lhs), term.op, result_as_term(term.rhs, res_rhs)));
         };
 
         // construct result

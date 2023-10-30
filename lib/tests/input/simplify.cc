@@ -36,17 +36,17 @@ TEST_CASE("simplify_unary") {
     REQUIRE(simplify_str(parse_term("|-X|")) == "|-X|");
     REQUIRE(simplify_str(parse_term("|1*X+0|")) == "|X|");
     // symbolic
-    // REQUIRE(simplify_str(parse_term("--f")) == "f");
-    // REQUIRE(simplify_str(parse_term("---f")) == "-f");
-    // REQUIRE(simplify_str(parse_term("-f(-|X|)")) == "-f(-|X|)");
+    REQUIRE(simplify_str(parse_term("--f")) == "f");
+    REQUIRE(simplify_str(parse_term("---f")) == "-f");
+    REQUIRE(simplify_str(parse_term("-f(-|X|)")) == "-f(-|X|)");
     // fail
-    // REQUIRE(simplify_str(parse_term("~a")) == "<undefined>");
-    // REQUIRE(simplify_str(parse_term("-(1,2)")) == "<undefined>");
-    // REQUIRE(simplify_str(parse_term("-(1,X)")) == "<undefined>");
-    // REQUIRE(simplify_str(parse_term("|()|")) == "<undefined>");
-    // REQUIRE(simplify_str(parse_term("|(X,)|")) == "<undefined>");
-    // REQUIRE(simplify_str(parse_term("|f|")) == "<undefined>");
-    // REQUIRE(simplify_str(parse_term("|f(X)|")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("~a")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("-(1,2)")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("-(1,X)")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("|()|")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("|(X,)|")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("|f|")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("|f(X)|")) == "<undefined>");
 }
 
 TEST_CASE("simplify_binary") {
@@ -81,17 +81,15 @@ TEST_CASE("simplify_binary") {
     // changed + changed
     REQUIRE(simplify_str(parse_term("(X/(2+0))-(Y/(2+0))")) == "X/2-Y/2");
     // fail
-    // REQUIRE(simplify_str(parse_term("1+a")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("1+a")) == "<undefined>");
 }
 
 TEST_CASE("simplify_symbolic") {
-    /*
     REQUIRE(simplify_str(parse_term("-f(-|1-2|)")) == "-f(-1)");
-    REQUIRE(simplify_str(parse_term("-f(1+2+X,-X)")) == "-f(3+X,-X)");
-    REQUIRE(simplify_str(parse_term("(1+2+X,-X)")) == "(3+X,-X)");
+    REQUIRE(simplify_str(parse_term("-f(1+2+X,-X)")) == "-f(1*X+3,-X)");
+    REQUIRE(simplify_str(parse_term("(1+2+X,-X)")) == "(1*X+3,-X)");
     REQUIRE(simplify_str(parse_term("f(1+a)")) == "<undefined>");
     REQUIRE(simplify_str(parse_term("f(X+a)")) == "<undefined>");
-    */
 }
 
 } // namespace Gringo::Input::Test
