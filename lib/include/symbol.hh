@@ -3,6 +3,7 @@
 #include <ostream>
 #include <span>
 #include <string>
+#include <unordered_set>
 
 #include <util/hash.hh>
 
@@ -58,6 +59,25 @@ class String {
     uintptr_t rep_;
 };
 
+} // namespace Gringo
+
+namespace std {
+
+//! Hasher for strings.
+template <> struct hash<Gringo::String> {
+    //! Compute hash of string.
+    auto operator()(Gringo::String str) const -> size_t {
+        return Gringo::Util::value_hash(Gringo::String::to_rep(str));
+    }
+};
+
+} // namespace std
+
+namespace Gringo {
+
+//! A set of strings.
+using StringSet = std::unordered_set<String>;
+
 //! Output the given string (as is).
 auto operator<<(std::ostream &out, String const &str) -> std::ostream &;
 
@@ -108,6 +128,22 @@ class Symbol {
     Symbol(uint64_t repr) noexcept : rep_{repr} {}
     uint64_t rep_;
 };
+
+} // namespace Gringo
+
+namespace std {
+
+//! Hasher for symbols.
+template <> struct hash<Gringo::Symbol> {
+    //! Compute hash of symbol.
+    auto operator()(Gringo::Symbol sym) const -> size_t {
+        return Gringo::Util::value_hash(Gringo::Symbol::to_rep(sym));
+    }
+};
+
+} // namespace std
+
+namespace Gringo {
 
 //! Output the given symbol.
 auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
@@ -174,26 +210,28 @@ auto default_symbol_store() -> SymbolStore &;
 //! multi-threaded use can be created.
 auto make_symbol_store(bool slotted, bool shared) -> USymbolStore;
 
+//! Generator for auxiliary names.
+class NameGen {
+  public:
+    //! Constructor taking a set of variables names.
+    //!
+    //! The generator ensures that there are no collisions with these names.
+    NameGen(SymbolStore &store, StringSet names, char const *prefix)
+        : store_{store}, names_{std::move(names)}, prefix_{prefix} {}
+    //! Generate a unique variable name.
+    [[nodiscard]] auto new_name() -> String;
+
+  private:
+    //! Symbol store to store strings.
+    SymbolStore &store_;
+    //! Taken variable names.
+    StringSet names_;
+    //! The prefix of the generated names.
+    char const *prefix_;
+    //! Running number used to generate names.
+    size_t num_ = 0;
+};
+
 //! @}
 
 } // namespace Gringo
-
-namespace std {
-
-//! Hasher for strings.
-template <> struct hash<Gringo::String> {
-    //! Compute hash of string.
-    auto operator()(Gringo::String str) const -> size_t {
-        return Gringo::Util::value_hash(Gringo::String::to_rep(str));
-    }
-};
-
-//! Hasher for symbols.
-template <> struct hash<Gringo::Symbol> {
-    //! Compute hash of symbol.
-    auto operator()(Gringo::Symbol sym) const -> size_t {
-        return Gringo::Util::value_hash(Gringo::Symbol::to_rep(sym));
-    }
-};
-
-} // namespace std

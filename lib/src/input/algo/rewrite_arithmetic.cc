@@ -241,12 +241,9 @@ struct SimplifyTerm {
         Term const &term;
     };
 
-    auto operator()(auto const &term) const -> Result {
-        static_cast<void>(term);
-        throw std::logic_error("TODO: must become a deleted function");
-    }
-
     auto operator()(Term const &term) const -> Result { return std::visit(*this, term); }
+
+    auto operator()(auto const &term) const -> Result = delete;
 
     auto operator()(TermSymbol const &term) const -> Result { return term.value; }
 

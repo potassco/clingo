@@ -11,25 +11,6 @@ namespace Gringo::Input {
 //!
 //! @{
 
-//! Generator for auxiliary variables.
-class NameGen {
-  public:
-    //! Constructor taking a set of variables names.
-    //!
-    //! The generator ensures that there are no collisions with these names.
-    NameGen(SymbolStore &store, VariableSet vars) : store_{store}, vars_{std::move(vars)} {}
-    //! Generate a unique variable name.
-    [[nodiscard]] auto new_name() -> String;
-
-  private:
-    //! Symbol store to store strings.
-    SymbolStore &store_;
-    //! Taken variable names.
-    VariableSet vars_;
-    //! Running number used to generate variable names.
-    size_t num_ = 0;
-};
-
 //! Give anonymous variables a unique name.
 [[nodiscard]] auto rewrite_anonymous(Term const &term, NameGen &gen) -> std::optional<Term>;
 

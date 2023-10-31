@@ -30,7 +30,7 @@ namespace Gringo::Input {
 //! @{
 
 //! A set of variable names.
-using VariableSet = std::unordered_set<String>;
+using VariableSet = StringSet;
 //! A vector of variable names.
 using VariableVec = std::vector<String>;
 
