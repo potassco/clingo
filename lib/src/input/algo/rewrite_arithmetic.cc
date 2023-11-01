@@ -13,24 +13,36 @@ whole process as in gringo atm
 3. init theory
 4. simplify
   0. evaluate (done)
-  1. extract atoms to project
-     (maybe delay until turning to groundable representation;
-      check if valid input could be done already here when making matchable)
-  2. dots/script
+  1. extract atoms to project (TODO; add the check)
+     - add option to forbid completely
+     - only check in simplify
+  2. dots/script (done)
      - simply remove them all starting from nested contexts
      - they should be ignored in specific settings to make the simplify function idempotent
        this has to be handled by the surrounding literal class
-  4. terms that can fail
+     (done for terms)
+  4. terms that can fail (TODO)
+     - needs option to avoid if unnecessary
+     - applies to unary, binary, abs, and external in n-ary comparison literals with n > 2
+       (probably the only context)
      - 1+a < 5 < 10
      - X < 5 < 10, X=1+a
-5. unpool comparison
+  5. make matchable (TODO)
+    - can be part of simplify (per option to avoid if unnecessary for example in negated literals)
+    - probably best solved using a separate traversal
+    - p(X+5,X*X)
+      -> p(X+5,Aux), Aux=X*X
+    -> p(X+5,@f(g(X*X))),
+      -> p(X+5,Aux), Aux=@f(g(X*X)))
+      - no traversal into external functions/intervals
+6. unpool comparison
    the comparison
      not 1+a < 5 < 10
    is equivalent to
      X=1+a, not X < 5 < 10
    so any term that can fail to evaluate should be stripped during simplification
    this also includes intervals and scripts!
-6. rewrite
+7. rewrite
   1. aggregates
   2. arithmetics
   4. comparisons to intervals
