@@ -456,6 +456,21 @@ struct SimplifyTerm {
             GRINGO_MATCH(res, ResultSymbol) { return res.type() == SymbolType::number; }
         };
 
+        if (term.op == BinaryOperator::dots) {
+            auto simplify = [&, this](auto &&res_lhs, auto &&res_rhs) -> Result {
+                // check arguments
+                if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
+                    // TODO: error messages
+                    return {};
+                }
+                auto name = gen.new_name();
+                aux.emplace_back(TermVariable{term.loc, name},
+                                 TermBinary{term.loc, result_as_term(term.lhs, std::move(res_lhs)),
+                                            BinaryOperator::dots, result_as_term(term.rhs, std::move(res_rhs))});
+                return ResultLinear{aux.back().first, Number{1}, Number{0}};
+            };
+            return std::visit(simplify, operator()(*term.lhs), operator()(*term.rhs));
+        }
         auto simplify = [&, this](auto &&res_lhs, auto &&res_rhs) -> Result {
             // check arguments
             if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
@@ -548,6 +563,8 @@ struct SimplifyTerm {
     }
 
     SymbolStore &store;
+    NameGen &gen;
+    std::vector<std::pair<Term, Term>> &aux;
     //! If set to true, remove subterms that are not matchable.
     //!
     //! For example, the term `f(g(X+Y),X+1)` is simplified to `f(g(Z),X+1)`
@@ -852,10 +869,11 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
 
 } // namespace
 
-[[nodiscard]] auto simplify(SymbolStore &store, Term const &term)
+[[nodiscard]] auto simplify(SymbolStore &store, NameGen &gen, Term const &term)
     -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
-    // TODO: needs a NameGen too
-    auto visitor = SimplifyTerm{store};
+    // TODO: should be an output parameter
+    std::vector<std::pair<Term, Term>> aux;
+    auto visitor = SimplifyTerm{store, gen, aux};
     return std::visit(
         [&visitor](auto &&res) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
             GRINGO_MATCH(res, SimplifyTerm::ResultFail) { return {}; }
