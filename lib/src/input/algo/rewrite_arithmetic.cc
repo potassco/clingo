@@ -265,21 +265,27 @@ struct SimplifyTerm {
             [&, this](auto &&res) -> Result {
                 GRINGO_MATCH(res, ResultTupleFail) { return ResultFail{}; }
                 GRINGO_MATCH(res, ResultTupleUnchanged) {
-                    // unchanged term that did not evaluate to a symbol
+                    if (term.external) {
+                        aux.emplace_back(TermVariable{term.loc, gen.new_name()}, term);
+                        return ResultChanged{type, aux.back().first};
+                    }
                     if (!constant) {
                         return type;
                     }
                     return store.fun(term.name, {}, false);
                 }
                 GRINGO_MATCH(res, ResultTupleChanged) {
-                    // changed term that did not evaluate to a symbol
                     if (!constant) {
+                        auto fun =
+                            TermFunction{term.loc, term.name,
+                                         Util::make_vec<TupleVec>(args_term(tuple, std::move(res))), term.external};
+                        if (term.external) {
+                            aux.emplace_back(TermVariable{term.loc, gen.new_name()}, std::move(fun));
+                            return ResultChanged{type, aux.back().first};
+                        }
                         // Note: this is somewhat inefficient because the
                         // equality comparision recurses into the structure
-                        return check_change(type, term,
-                                            TermFunction{term.loc, term.name,
-                                                         Util::make_vec<TupleVec>(args_term(tuple, std::move(res))),
-                                                         term.external});
+                        return check_change(type, term, std::move(fun));
                     }
                     return store.fun(term.name, args_symbol(std::move(res)), false);
                 }

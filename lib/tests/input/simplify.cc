@@ -102,6 +102,7 @@ TEST_CASE("simplify_symbolic") {
 TEST_CASE("simplify_aux") {
     REQUIRE(simplify_str(parse_term("1..2")) == "1*__Aux_0+0, __Aux_0=1..2");
     REQUIRE(simplify_str(parse_term("f(1..2)")) == "f(1*__Aux_0+0), __Aux_0=1..2");
-    // TODO: external functions
+    REQUIRE(simplify_str(parse_term("@f")) == "__Aux_0, __Aux_0=@f");
+    REQUIRE(simplify_str(parse_term("@f(@g(1+2))")) == "__Aux_1, __Aux_0=@g(3), __Aux_1=@f(__Aux_0)");
 }
 } // namespace Gringo::Input::Test
