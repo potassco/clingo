@@ -1,19 +1,17 @@
+#include <util/algorithm.hh>
 #include <util/checked_math.hh>
 
 #include <input/algo/evaluate.hh>
-#include <input/algo/rewrite_arithmetic.hh>
-
-#include "transform.hh"
+#include <input/algo/simplify.hh>
 
 /*
-// TODO: rename file!!!
 whole process as in gringo atm
 1. apply #const statements (partially done)
 2. unpool (done)
 3. init theory
-4. simplify
+4. simplify (done for terms)
   0. evaluate (done)
-  1. extract atoms to project (TODO; add the check)
+  1. extract atoms to project (done)
      - add option to forbid completely
      - only check in simplify
   2. dots/script (done)
@@ -21,13 +19,13 @@ whole process as in gringo atm
      - they should be ignored in specific settings to make the simplify function idempotent
        this has to be handled by the surrounding literal class
      (done for terms)
-  4. terms that can fail (TODO)
+  4. terms that can fail (done)
      - needs option to avoid if unnecessary
      - applies to unary, binary, abs, and external in n-ary comparison literals with n > 2
        (probably the only context)
      - 1+a < 5 < 10
      - X < 5 < 10, X=1+a
-  5. make matchable (TODO)
+  5. make matchable (done)
     - can be part of simplify (per option to avoid if unnecessary for example in negated literals)
     - probably best solved using a separate traversal
     - p(X+5,X*X)
@@ -55,9 +53,8 @@ namespace {
 
 struct TermMap {};
 
-//! Check if a term can be used for matching.
+//! Simplify a term.
 struct SimplifyTerm {
-
     enum class Type {
         numeric,
         symbolic,
@@ -133,7 +130,7 @@ struct SimplifyTerm {
     //! Otherwise, each element is either a monostate in case of projection, a
     //! symbol if it could evaluated right away, or a term in case of some
     //! other simplification.
-    auto simplify_tuple(TupleVec const &tuple, bool &constant) const -> ResultTuple {
+    auto simplify_tuple(SimplifyFlags flags, TupleVec const &tuple, bool &constant) const -> ResultTuple {
         size_t n = 0;
 
         ResultTuple res_tuple = ResultTupleUnchanged{};
@@ -154,6 +151,10 @@ struct SimplifyTerm {
         auto simplify = [&, this](auto &&arg) -> bool {
             // projected argument
             GRINGO_MATCH(arg, Projected) {
+                if (!test(flags, SimplifyFlags::projectable)) {
+                    // TODO: error message
+                    return false;
+                }
                 constant = false;
                 init().emplace_back();
                 return true;
@@ -182,7 +183,7 @@ struct SimplifyTerm {
                     GRINGO_MATCH(res, ResultChanged) { init().emplace_back(std::move(res.term)); }
                     return true;
                 };
-                return std::visit(simplify, operator()(arg));
+                return std::visit(simplify, operator()(arg, flags));
             }
         };
 
@@ -253,20 +254,30 @@ struct SimplifyTerm {
         Term const &term;
     };
 
-    auto operator()(Term const &term) const -> Result { return std::visit(*this, term); }
+    auto operator()(Term const &term, SimplifyFlags flags) const -> Result {
+        return std::visit(*this, term, std::variant<SimplifyFlags>{flags});
+    }
 
-    auto operator()(auto const &term) const -> Result = delete;
+    auto operator()(auto const &term, SimplifyFlags flags) const -> Result = delete;
 
-    auto operator()(TermSymbol const &term) const -> Result { return term.value; }
+    auto operator()(TermSymbol const &term, SimplifyFlags flags) const -> Result {
+        static_cast<void>(flags);
+        return term.value;
+    }
 
-    auto operator()(TermVariable const &term) const -> Result {
+    auto operator()(TermVariable const &term, SimplifyFlags flags) const -> Result {
         static_cast<void>(term);
+        static_cast<void>(flags);
         // a variable can represent any term
         return Type::any;
     }
 
-    auto operator()(TermFunction const &term) const -> Result {
+    auto operator()(TermFunction const &term, SimplifyFlags flags) const -> Result {
         assert(term.pool.size() == 1);
+
+        if (term.external) {
+            flags &= ~SimplifyFlags::projectable;
+        }
 
         bool constant = !term.external;
         auto type = term.external ? Type::any : Type::symbolic;
@@ -302,10 +313,10 @@ struct SimplifyTerm {
                     return store.fun(term.name, args_symbol(std::move(res)), false);
                 }
             },
-            simplify_tuple(tuple, constant));
+            simplify_tuple(flags, tuple, constant));
     }
 
-    auto operator()(TermTuple const &term) const -> Result {
+    auto operator()(TermTuple const &term, SimplifyFlags flags) const -> Result {
         assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
 
         bool constant = true;
@@ -336,11 +347,14 @@ struct SimplifyTerm {
                 }
                 // the term evaluated to a symbol
             },
-            simplify_tuple(tuple, constant));
+            simplify_tuple(flags, tuple, constant));
     }
 
-    auto operator()(TermAbs const &term) const -> Result {
+    auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
         assert(term.pool.size() == 1);
+
+        // the term and nested terms are not projectable
+        flags &= ~SimplifyFlags::projectable;
 
         auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
@@ -380,11 +394,13 @@ struct SimplifyTerm {
             }
         };
 
-        return std::visit(simplify, operator()(term.pool.front()));
+        return std::visit(simplify, operator()(term.pool.front(), flags));
     }
 
-    auto operator()(TermUnary const &term) const -> Result {
-        // TODO: handle dots here!
+    auto operator()(TermUnary const &term, SimplifyFlags flags) const -> Result {
+        // the term and nested terms are not projectable
+        flags &= ~SimplifyFlags::projectable;
+
         auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
             GRINGO_MATCH(res, ResultFail) { return ResultFail{}; }
@@ -461,10 +477,13 @@ struct SimplifyTerm {
                                      TermUnary{term.loc, term.op, Util::construct_shared<Term>(std::move(res.term))}};
             }
         };
-        return std::visit(simplify, operator()(*term.rhs));
+        return std::visit(simplify, operator()(*term.rhs, flags));
     }
 
-    auto operator()(TermBinary const &term) const -> Result {
+    auto operator()(TermBinary const &term, SimplifyFlags flags) const -> Result {
+        // the term and nested terms are not projectable
+        flags &= ~SimplifyFlags::projectable;
+
         // check if the result can evaluate to a number
         auto is_numeric = [](auto const &res) -> bool {
             GRINGO_MATCH(res, ResultFail) { return false; }
@@ -487,7 +506,7 @@ struct SimplifyTerm {
                                             BinaryOperator::dots, result_as_term(term.rhs, std::move(res_rhs))});
                 return ResultLinear{aux.back().first, Number{1}, Number{0}};
             };
-            return std::visit(simplify, operator()(*term.lhs), operator()(*term.rhs));
+            return std::visit(simplify, operator()(*term.lhs, flags), operator()(*term.rhs, flags));
         }
         auto simplify = [&, this](auto &&res_lhs, auto &&res_rhs) -> Result {
             // check arguments
@@ -576,20 +595,121 @@ struct SimplifyTerm {
         };
 
         // construct result
-        return std::visit(simplify, std::visit(var_to_linear{*term.lhs}, operator()(*term.lhs)),
-                          std::visit(var_to_linear{*term.rhs}, operator()(*term.rhs)));
+        return std::visit(simplify, std::visit(var_to_linear{*term.lhs}, operator()(*term.lhs, flags)),
+                          std::visit(var_to_linear{*term.rhs}, operator()(*term.rhs, flags)));
     }
 
     SymbolStore &store;
     NameGen &gen;
     AuxTermVec &aux;
-    //! If set to true, remove subterms that are not matchable.
-    //!
-    //! For example, the term `f(g(X+Y),X+1)` is simplified to `f(g(Z),X+1)`
-    //! together with assignment `Z=X+Y`.
-    bool make_matchable = false;
-}; // namespace Gringo::Input
+};
 
+//! Make a term matchable.
+struct MakeMatchableTerm {
+    using Result = std::optional<Term>;
+    using ResultTuple = std::optional<TupleVec>;
+
+    [[nodiscard]] auto handle_tuple(SimplifyFlags flags, TupleVec const &tuple) const -> ResultTuple {
+        size_t n = 0;
+
+        ResultTuple res_tuple;
+
+        // helper to initialize the optional result vector
+        auto init = [&]() -> TupleVec & {
+            if (!res_tuple.has_value()) {
+                res_tuple = Util::copy_n(tuple, n);
+            }
+            return *res_tuple;
+        };
+
+        auto handle_argument = [&, this](auto &&arg) -> void {
+            // projected argument
+            GRINGO_MATCH(arg, std::monostate) {
+                if (res_tuple.has_value()) {
+                    init().emplace_back();
+                }
+            }
+            // term argument
+            GRINGO_MATCH(arg, Term) {
+                if (auto res_arg = operator()(arg, flags); res_arg.has_value() || res_tuple.has_value()) {
+                    init().emplace_back(std::move(res_arg).value_or(arg));
+                }
+            }
+        };
+
+        // evaluate arguments
+        for (auto const &arg : tuple) {
+            std::visit(handle_argument, arg);
+            ++n;
+        }
+        return res_tuple;
+    }
+
+    auto operator()(Term const &term, SimplifyFlags flags) const -> Result {
+        return std::visit(*this, term, std::variant<SimplifyFlags>{flags});
+    }
+
+    auto operator()(TermSymbol const &term, SimplifyFlags flags) const -> Result {
+        static_cast<void>(term);
+        static_cast<void>(flags);
+        return std::nullopt;
+    }
+
+    auto operator()(TermVariable const &term, SimplifyFlags flags) const -> Result {
+        static_cast<void>(term);
+        static_cast<void>(flags);
+        return std::nullopt;
+    }
+
+    auto operator()(TermFunction const &term, SimplifyFlags flags) const -> Result {
+        assert(term.pool.size() == 1);
+        return handle_tuple(flags, term.pool.front()).transform([&term](auto &&args) {
+            return TermFunction{term.loc, term.name, Util::make_vec<TupleVec>(std::move(args)), term.external};
+        });
+    }
+
+    auto operator()(TermTuple const &term, SimplifyFlags flags) const -> Result {
+        assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
+        return handle_tuple(flags, std::get<TupleVec>(term.pool.front())).transform([&term](auto &&args) {
+            return TermTuple{term.loc, Util::make_vec<TermTuple::Element>(std::move(args))};
+        });
+    }
+
+    auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
+        static_cast<void>(flags);
+        auto name = gen.new_name();
+        aux.emplace_back(TermVariable{term.loc, name}, term);
+        return aux.back().first;
+    }
+
+    auto operator()(TermUnary const &term, SimplifyFlags flags) const -> Result {
+        if (!test(flags, SimplifyFlags::unfailable) && term.op == UnaryOperator::negate) {
+            return operator()(*term.rhs, flags).transform([&term](auto &&arg) -> Term {
+                return TermUnary{term.loc, term.op, Util::construct_shared<Term>(std::forward<decltype(arg)>(arg))};
+            });
+        }
+        auto name = gen.new_name();
+        aux.emplace_back(TermVariable{term.loc, name}, term);
+        return aux.back().first;
+    }
+
+    auto operator()(TermBinary const &term, SimplifyFlags flags) const -> Result {
+        if (!test(flags, SimplifyFlags::unfailable) && is_linear(term)) {
+            return std::nullopt;
+        }
+        auto name = gen.new_name();
+        aux.emplace_back(TermVariable{term.loc, name}, term);
+        return aux.back().first;
+    }
+
+    SymbolStore &store;
+    NameGen &gen;
+    AuxTermVec &aux;
+};
+
+} // namespace
+
+/*
 //! Check if a term can be used for matching.
 struct TermCanMatch {
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
@@ -885,26 +1005,58 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
     TermMap &map;
 };
 
-} // namespace
+*/
 
-[[nodiscard]] auto simplify(SymbolStore &store, NameGen &gen, AuxTermVec &aux, Term const &term)
-    -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
-    auto visitor = SimplifyTerm{store, gen, aux};
-    return std::visit(
-        [&visitor](auto &&res) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
-            GRINGO_MATCH(res, SimplifyTerm::ResultFail) { return {}; }
-            GRINGO_MATCH(res, SimplifyTerm::ResultUnchanged) { return std::nullopt; }
-            GRINGO_MATCH(res, SimplifyTerm::ResultSymbol) { return res; }
-            GRINGO_MATCH(res, SimplifyTerm::ResultChanged) { return std::move(res.term); }
-            GRINGO_MATCH(res, SimplifyTerm::ResultLinear) { return visitor.linear_as_term(std::move(res), false); }
-        },
-        visitor(term));
+[[nodiscard]] auto is_linear(TermBinary const &term) -> bool {
+    if (term.op != BinaryOperator::plus) {
+        return false;
+    }
+    auto const *mul = std::get_if<TermBinary>(term.lhs.get());
+    if (mul == nullptr || mul->op != BinaryOperator::times) {
+        return false;
+    }
+    auto const *n = std::get_if<TermSymbol>(term.rhs.get());
+    if (n == nullptr || n->value.type() != SymbolType::number) {
+        return false;
+    }
+    auto const *m = std::get_if<TermSymbol>(mul->lhs.get());
+    if (m == nullptr || m->value.type() != SymbolType::number || *m->value.num() == 0) {
+        return false;
+    }
+    return std::holds_alternative<TermVariable>(*mul->rhs);
 }
 
-[[nodiscard]] auto rewrite_arthimetics(SymbolStore &store, Statement const &stm) -> std::optional<Statement> {
-    static_cast<void>(store);
-    auto map = TermMap{};
-    return RewriteArithmetics{map}(stm);
+[[nodiscard]] auto is_linear(Term const &term) -> bool {
+    auto const *plus = std::get_if<TermBinary>(&term);
+    return plus != nullptr && is_linear(*plus);
+}
+
+[[nodiscard]] auto simplify(SimplifyFlags flags, SymbolStore &store, NameGen &gen, AuxTermVec &aux, Term const &term)
+    -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
+    auto make_matchable = [&](auto &&term,
+                              bool self = true) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
+        if (test(flags, SimplifyFlags::matchable)) {
+            if (auto ret = MakeMatchableTerm{store, gen, aux}(term, flags); ret.has_value()) {
+                return ret.value();
+            }
+        }
+        if (self) {
+            return std::forward<decltype(term)>(term);
+        }
+        return std::nullopt;
+    };
+    auto simp = SimplifyTerm{store, gen, aux};
+    return std::visit(
+        [&](auto &&res) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
+            GRINGO_MATCH(res, SimplifyTerm::ResultFail) { return {}; }
+            GRINGO_MATCH(res, SimplifyTerm::ResultUnchanged) { return make_matchable(term, false); }
+            GRINGO_MATCH(res, SimplifyTerm::ResultSymbol) { return res; }
+            GRINGO_MATCH(res, SimplifyTerm::ResultChanged) { return make_matchable(res.term); }
+            GRINGO_MATCH(res, SimplifyTerm::ResultLinear) {
+                return make_matchable(simp.linear_as_term(std::move(res), false));
+            }
+        },
+        simp(term, flags));
 }
 
 } // namespace Gringo::Input

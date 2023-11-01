@@ -4,12 +4,13 @@
 
 namespace Gringo::Input::Test {
 
-template <class T> auto simplify_str(std::optional<T> value) -> std::string {
+template <class T>
+auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
     if (value) {
         auto store = make_symbol_store(true, true);
         NameGen gen{*store, {}, "__Aux_"};
         AuxTermVec aux;
-        auto res = simplify(*store, gen, aux, value.value());
+        auto res = simplify(flags, *store, gen, aux, value.value());
         std::ostringstream oss;
         oss << std::visit(
             [&value](auto &&val) -> std::string {
@@ -105,4 +106,24 @@ TEST_CASE("simplify_aux") {
     REQUIRE(simplify_str(parse_term("@f")) == "__Aux_0, __Aux_0=@f");
     REQUIRE(simplify_str(parse_term("@f(@g(1+2))")) == "__Aux_1, __Aux_0=@g(3), __Aux_1=@f(__Aux_0)");
 }
+
+TEST_CASE("simplify_project") {
+    REQUIRE(simplify_str(parse_term("f(*,(*,b))")) == "f(*,(*,b))");
+    REQUIRE(simplify_str(parse_term("@f(g(*))")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("f(*)"), SimplifyFlags::none) == "<undefined>");
+}
+
+TEST_CASE("simplify_matchable") {
+    auto flags = SimplifyFlags::matchable | SimplifyFlags::unfailable;
+    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__Aux_0), __Aux_0=X+Y");
+    REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,__Aux_0), __Aux_0=2*X+0");
+    REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) ==
+            "p(__Aux_1,__Aux_0), __Aux_0=@f(g(X*X)), __Aux_1=1*X+5");
+
+    flags &= ~SimplifyFlags::unfailable;
+    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__Aux_0), __Aux_0=X+Y");
+    REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,2*X+0)");
+    REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) == "p(1*X+5,__Aux_0), __Aux_0=@f(g(X*X))");
+}
+
 } // namespace Gringo::Input::Test
