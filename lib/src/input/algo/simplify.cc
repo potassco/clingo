@@ -710,41 +710,6 @@ struct MakeMatchableTerm {
 } // namespace
 
 /*
-//! Check if a term can be used for matching.
-struct TermCanMatch {
-    auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
-
-    auto operator()(TermSymbol const &term) const -> bool {
-        static_cast<void>(term);
-        return true;
-    }
-
-    auto operator()(TermVariable const &term) const -> bool {
-        static_cast<void>(term);
-        return true;
-    }
-
-    auto operator()(TermFunction const &term) const -> bool { return !term.external; }
-
-    auto operator()(TermTuple const &term) const -> bool {
-        static_cast<void>(term);
-        return true;
-    }
-
-    auto operator()(TermAbs const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
-    }
-
-    auto operator()(TermUnary const &term) const -> bool { return term.op == UnaryOperator::negate; }
-
-    auto operator()(TermBinary const &term) const -> bool {
-        static_cast<void>(term);
-        // TODO
-        return true;
-    }
-};
-
 struct RewriteArithmetics : Transformer<RewriteArithmetics> {
     RewriteArithmetics(TermMap &map) : map{map} {}
 

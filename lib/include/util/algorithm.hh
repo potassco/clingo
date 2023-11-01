@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <optional>
-#include <variant>
 #include <vector>
 
 namespace Gringo::Util {
