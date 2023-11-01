@@ -51,6 +51,8 @@ inline void Graph::ensure_size(size_t n) {
     if (nodes_.size() < n) {
         nodes_.reserve(n);
         while (nodes_.size() < n) {
+            // Note: wrong simplification reported
+            // NOLINTNEXTLINE(modernize-use-emplace)
             nodes_.emplace_back(Node{{}, {}, prev_phase_()});
         }
     }
