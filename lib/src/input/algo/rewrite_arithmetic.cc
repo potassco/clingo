@@ -366,6 +366,7 @@ struct SimplifyTerm {
     }
 
     auto operator()(TermUnary const &term) const -> Result {
+        // TODO: handle dots here!
         auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
             GRINGO_MATCH(res, ResultFail) { return ResultFail{}; }
@@ -853,6 +854,7 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
 
 [[nodiscard]] auto simplify(SymbolStore &store, Term const &term)
     -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
+    // TODO: needs a NameGen too
     auto visitor = SimplifyTerm{store};
     return std::visit(
         [&visitor](auto &&res) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
