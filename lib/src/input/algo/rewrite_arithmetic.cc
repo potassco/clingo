@@ -564,7 +564,7 @@ struct SimplifyTerm {
 
     SymbolStore &store;
     NameGen &gen;
-    std::vector<std::pair<Term, Term>> &aux;
+    AuxTermVec &aux;
     //! If set to true, remove subterms that are not matchable.
     //!
     //! For example, the term `f(g(X+Y),X+1)` is simplified to `f(g(Z),X+1)`
@@ -869,10 +869,8 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
 
 } // namespace
 
-[[nodiscard]] auto simplify(SymbolStore &store, NameGen &gen, Term const &term)
+[[nodiscard]] auto simplify(SymbolStore &store, NameGen &gen, AuxTermVec &aux, Term const &term)
     -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
-    // TODO: should be an output parameter
-    std::vector<std::pair<Term, Term>> aux;
     auto visitor = SimplifyTerm{store, gen, aux};
     return std::visit(
         [&visitor](auto &&res) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {

@@ -8,8 +8,10 @@ template <class T> auto simplify_str(std::optional<T> value) -> std::string {
     if (value) {
         auto store = make_symbol_store(true, true);
         NameGen gen{*store, {}, "__Aux_"};
-        auto res = simplify(*store, gen, value.value());
-        return std::visit(
+        AuxTermVec aux;
+        auto res = simplify(*store, gen, aux, value.value());
+        std::ostringstream oss;
+        oss << std::visit(
             [&value](auto &&val) -> std::string {
                 GRINGO_MATCH(val, Symbol) {
                     std::ostringstream oss;
@@ -21,6 +23,10 @@ template <class T> auto simplify_str(std::optional<T> value) -> std::string {
                 GRINGO_MATCH(val, std::nullopt_t) { return to_str(value.value()); }
             },
             res);
+        for (auto const &[lhs, rhs] : aux) {
+            oss << ", " << lhs << "=" << rhs;
+        }
+        return std::move(oss).str();
     }
     return "<failed>";
 }
@@ -94,7 +100,8 @@ TEST_CASE("simplify_symbolic") {
 }
 
 TEST_CASE("simplify_aux") {
-    // TODO: also inspect what has been extracted
-    REQUIRE(simplify_str(parse_term("1..2")) == "1*__Aux_0+0");
+    REQUIRE(simplify_str(parse_term("1..2")) == "1*__Aux_0+0, __Aux_0=1..2");
+    REQUIRE(simplify_str(parse_term("f(1..2)")) == "f(1*__Aux_0+0), __Aux_0=1..2");
+    // TODO: external functions
 }
 } // namespace Gringo::Input::Test
