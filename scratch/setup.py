@@ -1,4 +1,4 @@
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 import os
 
 path = os.path.normpath(os.path.abspath(os.path.join(os.getcwd(), "build", "release", "bin")))

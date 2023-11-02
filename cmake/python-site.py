@@ -7,10 +7,7 @@ if sys.version_info >= (3, 11):
 else:
     NEW_STYLE = False
     from site import USER_SITE
-    try:
-        from setuptools.sysconfig import get_python_lib, get_config_vars
-    except ImportError:
-        from distutils.sysconfig import get_python_lib, get_config_vars
+    from distutils.sysconfig import get_python_lib, get_config_vars
 
 parser = ArgumentParser()
 if sys.version_info >= (3, 7):
