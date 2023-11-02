@@ -13,15 +13,14 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 <!-- omit in toc -->
 ## Table of Contents
 
-- [I Have a Question](#i-have-a-question)
-- [I Want To Contribute](#i-want-to-contribute)
+- [Asking Question](#asking-questions)
+- [Contributing](#contributing)
+  - [Contributing Code](#contributing-code)
   - [Reporting Bugs](#reporting-bugs)
   - [Suggesting Enhancements](#suggesting-enhancements)
-  - [Your First Code Contribution](#your-first-code-contribution)
-  - [Improving The Documentation](#improving-the-documentation)
 
 
-## I Have a Question
+## Asking Questions
 
 > If you want to ask a question, we assume that you have read the available [Documentation](https://potassco.org/support).
 
@@ -35,12 +34,12 @@ If you then still feel the need to ask a question and need clarification, we rec
 
 We will then take care of the issue as soon as possible.
 
-## I Want To Contribute
+## Contributing
 
 > ### Legal Notice <!-- omit in toc -->
 > When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license.
 
-### Code Contributions
+### Contributing Code
 
 To contribute to Clingo, please fork the repository and **open a pull request to the wip branch**. We do not accept pull requests to the master. They will have to be rebased. We currently do not enforce coding styles. Please try to match the existing one as best as possible. To avoid unnecessary work, you can reach out to use to discuss your contribution via one of the ways described here.
 
@@ -100,4 +99,3 @@ Enhancement suggestions are tracked as [GitHub discussions](https://github.com/p
 
 ## Attribution
 This guide is based on the **contributing-gen**. [Make your own](https://github.com/bttger/contributing-gen)!
-
