@@ -12,7 +12,7 @@ Please consult the following resources for further information:
 
   - [**Downloading source and binary releases**](https://github.com/potassco/clingo/releases)
   - [**Installation and software requirements**](INSTALL.md)
-  - [**Contributions**](CONTRIBUTING.md)
+  - [**Contributing**](CONTRIBUTING.md)
   - [Changes between releases](CHANGES.md)
   - [Documentation](https://github.com/potassco/guide/releases)
   - [Potassco clingo page](https://potassco.org/clingo/)
