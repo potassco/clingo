@@ -41,7 +41,7 @@ We will then take care of the issue as soon as possible.
 
 ### Contributing Code
 
-To contribute to Clingo, please fork the repository and **open a pull request to the wip branch**. We do not accept pull requests to the master. They will have to be rebased. We currently do not enforce coding styles. Please try to match the existing one as best as possible. To avoid unnecessary work, you can reach out to use to discuss your contribution via one of the ways described here.
+To contribute to Clingo, please fork the repository and **open a pull request to the wip branch**. We do not accept pull requests to the master. They will have to be rebased. We currently do not enforce coding styles. Please try to match the existing one as best as possible. To avoid unnecessary work, you can reach out to use to discuss your contribution via one of the ways described below.
 
 ### Reporting Bugs
 
