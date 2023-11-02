@@ -707,6 +707,33 @@ struct MakeMatchableTerm {
     AuxTermVec &aux;
 };
 
+struct SimplifyLiteral {
+    auto operator()(Literal const &lit) const { return std::visit(*this, lit); }
+
+    auto operator()(LiteralBoolean const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        // does not change
+        return std::nullopt;
+    }
+
+    auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        // has to differentiate between disjunctive/conjunctive context
+        // in disjunctive contexts, terms have to be made unfailable
+        // assignments
+        // - both directions have to be added to the assignment map
+        // - this should avoid unnecessary assignments
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        // has to differentiate between matchable/nonmatchable contexts
+        // - fewer auxiliaries have to be introduced in nonmatchable contexts
+        throw std::logic_error("implement me!!!");
+    }
+};
+
 } // namespace
 
 /*
@@ -735,38 +762,6 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
     }
 
     // term
-
-    auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
-
-    auto operator()(TermSymbol const &term) const -> std::optional<Term> {
-        static_cast<void>(term);
-        return std::nullopt;
-    }
-
-    auto operator()(TermVariable const &term) const -> std::optional<Term> {
-        static_cast<void>(term);
-        return std::nullopt;
-    }
-
-    auto operator()(TermFunction const &term) const -> std::optional<Term> {
-        return transform_construct<TermFunction>(term.loc, term.name, tr(term.pool), term.external);
-    }
-
-    auto operator()(TermTuple const &term) const -> std::optional<Term> {
-        return transform_construct<TermTuple>(term.loc, tr(term.pool));
-    }
-
-    auto operator()(TermAbs const &term) const -> std::optional<Term> {
-        return transform_construct<TermAbs>(term.loc, tr(term.pool));
-    }
-
-    auto operator()(TermUnary const &term) const -> std::optional<Term> {
-        return transform_construct<TermUnary>(term.loc, term.op, tr(term.rhs));
-    }
-
-    auto operator()(TermBinary const &term) const -> std::optional<Term> {
-        return transform_construct<TermBinary>(term.loc, tr(term.lhs), term.op, tr(term.rhs));
-    }
 
     // theory
 
