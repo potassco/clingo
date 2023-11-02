@@ -29,7 +29,7 @@ Before you ask a question, it is best to search for existing [issues](https://gi
 
 If you then still feel the need to ask a question and need clarification, we recommend the following:
 
-- [Subscribe](https://sourceforge.net/projects/potassco/lists/potassco-users) on sourceforge or open an [issue](https://github.com/potassco/clingo/issues/new) on github.
+- [Subscribe](https://sourceforge.net/projects/potassco/lists/potassco-users) to our mailing list on SourceForge or open an [issue](https://github.com/potassco/clingo/issues/new) on GitHub.
 - Provide as much context as you can about what you're running into.
 - We can best help you if you provide executable code showcasing your problem.
 
@@ -39,6 +39,10 @@ We will then take care of the issue as soon as possible.
 
 > ### Legal Notice <!-- omit in toc -->
 > When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license.
+
+### Code Contributions
+
+To contribute to Clingo, please fork the repository and **open a pull request to the wip branch**. We do not accept pull requests to the master. They will have to be rebased. We currently do not enforce coding styles. Please try to match the existing one as best as possible. To avoid unnecessary work, you can reach out to use to discuss your contribution via one of the ways described here.
 
 ### Reporting Bugs
 
@@ -80,31 +84,19 @@ This section guides you through submitting an enhancement suggestion for Clingo,
 #### Before Submitting an Enhancement
 
 - Make sure that you are using the latest version.
-- Read the [documentation](https://potassco.org) carefully and find out if the functionality is already covered, maybe by an individual configuration.
-- Perform a [search](https://github.com/potassco/clingo/issues) to see if the enhancement has already been suggested. If it has, add a comment to the existing issue instead of opening a new one.
+- Read the [documentation](https://potassco.org/support) carefully and find out if the functionality is already covered, maybe by an individual configuration.
+- Perform a [search](https://github.com/potassco/clingo/discussions) to see if the enhancement has already been suggested. If it has, add a comment to an existing discussion instead of opening a new one.
 - Find out whether your idea fits with the scope and aims of the project. It's up to you to make a strong case to convince the project's developers of the merits of this feature. Keep in mind that we want features that will be useful to the majority of our users and not just a small subset. If you're just targeting a minority of users, consider writing an add-on/plugin library.
 
 <!-- omit in toc -->
 #### How Do I Submit a Good Enhancement Suggestion?
 
-Enhancement suggestions are tracked as [GitHub issues](https://github.com/potassco/clingo/issues).
+Enhancement suggestions are tracked as [GitHub discussions](https://github.com/potassco/clingo/discussions).
 
 - Use a **clear and descriptive title** for the issue to identify the suggestion.
 - Provide a **step-by-step description of the suggested enhancement** in as many details as possible.
 - **Describe the current behavior** and **explain which behavior you expected to see instead** and why. At this point you can also tell which alternatives do not work for you.
 - **Explain why this enhancement would be useful** to most Clingo users. You may also want to point out the other projects that solved it better and which could serve as inspiration.
-
-### Your First Code Contribution
-<!-- TODO
-include Setup of env, IDE and typical getting started instructions?
-
--->
-
-### Improving The Documentation
-<!-- TODO
-Updating, improving and correcting the documentation
-
--->
 
 ## Attribution
 This guide is based on the **contributing-gen**. [Make your own](https://github.com/bttger/contributing-gen)!
