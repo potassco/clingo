@@ -631,7 +631,8 @@ struct MakeMatchableTerm {
             }
             // term argument
             GRINGO_MATCH(arg, Term) {
-                if (auto res_arg = operator()(arg, flags); res_arg.has_value() || res_tuple.has_value()) {
+                if (auto res_arg = operator()(arg, flags & ~SimplifyFlags::nested_matchable);
+                    res_arg.has_value() || res_tuple.has_value()) {
                     init().emplace_back(std::move(res_arg).value_or(arg));
                 }
             }
@@ -676,7 +677,9 @@ struct MakeMatchableTerm {
     }
 
     auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
-        static_cast<void>(flags);
+        if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
+            return std::nullopt;
+        }
         auto name = gen.new_name();
         aux.emplace_back(TermVariable{term.loc, name}, term);
         return aux.back().first;
@@ -688,6 +691,9 @@ struct MakeMatchableTerm {
                 return TermUnary{term.loc, term.op, Util::construct_shared<Term>(std::forward<decltype(arg)>(arg))};
             });
         }
+        if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
+            return std::nullopt;
+        }
         auto name = gen.new_name();
         aux.emplace_back(TermVariable{term.loc, name}, term);
         return aux.back().first;
@@ -695,6 +701,9 @@ struct MakeMatchableTerm {
 
     auto operator()(TermBinary const &term, SimplifyFlags flags) const -> Result {
         if (!test(flags, SimplifyFlags::unfailable) && is_linear(term)) {
+            return std::nullopt;
+        }
+        if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
             return std::nullopt;
         }
         auto name = gen.new_name();
@@ -708,30 +717,157 @@ struct MakeMatchableTerm {
 };
 
 struct SimplifyLiteral {
-    auto operator()(Literal const &lit) const { return std::visit(*this, lit); }
+    //! Simplify literals dispatching based on type stored in variant.
+    auto operator()(Literal const &lit, std::variant<SimplifyFlags> flags) const {
+        return std::visit(*this, lit, flags);
+    }
 
-    auto operator()(LiteralBoolean const &lit) const -> std::optional<Literal> {
+    //! Simplify Boolean literals.
+    //!
+    //! Ensures that the literal is either true or false.
+    auto operator()(LiteralBoolean const &lit, SimplifyFlags flags) const -> std::optional<Literal> {
         static_cast<void>(lit);
-        // does not change
+        static_cast<void>(flags);
+        if (lit.sign != Sign::none) {
+            return LiteralBoolean{lit.loc, Sign::none, lit.sign != Sign::once};
+        }
         return std::nullopt;
     }
 
-    auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
-        static_cast<void>(lit);
-        // has to differentiate between disjunctive/conjunctive context
-        // in disjunctive contexts, terms have to be made unfailable
-        // assignments
-        // - both directions have to be added to the assignment map
-        // - this should avoid unnecessary assignments
-        throw std::logic_error("implement me!!!");
+    //! Simplify relation literals.
+    //!
+    //! The function ensures the following properties:
+    //! (1) both sides of assignments are matchable (if parts of the terms are matchable),
+    //! (2) terms in disjunctive non-binary relations cannot evaluate to empty pools.
+    //! The letter is important to ensure that relations can be split into multiple rules
+    //! without unintuitive side-effects.
+    auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> std::optional<Literal> {
+        if (lit.sign == Sign::once) {
+            flags ^= SimplifyFlags::disjunctive;
+        }
+        auto fixed_flags = SimplifyFlags::none;
+        if (lit.rhs.size() > 1 && test(flags, SimplifyFlags::disjunctive)) {
+            fixed_flags = SimplifyFlags::matchable | SimplifyFlags::unfailable;
+        }
+        auto assign = test(flags, SimplifyFlags::disjunctive) ? Relation::inequal : Relation::equal;
+        size_t n = 0;
+        std::optional<LiteralRelation> res_rel;
+        bool constant = true;
+        auto simp = [&](auto &&res) -> bool {
+            GRINGO_MATCH(res, std::monostate) { return false; }
+            GRINGO_MATCH(res, std::nullopt_t) {
+                constant = false;
+                if (res_rel.has_value()) {
+                    res_rel->rhs.emplace_back(lit.rhs[n - 1]);
+                }
+                return true;
+            }
+            GRINGO_MATCH(res, Symbol) {
+                auto term_sym = Term{TermSymbol{location(lit.lhs), res}};
+                if (n == 0) {
+                    if (term_sym != lit.lhs) {
+                        res_rel = LiteralRelation{lit.loc, lit.sign, std::move(term_sym), {}};
+                    }
+                } else if (term_sym != lit.rhs[n - 1].second) {
+                    if (!res_rel.has_value()) {
+                        res_rel = LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::copy_n(lit.rhs, n - 1)};
+                    }
+                    res_rel->rhs.emplace_back(lit.rhs[n - 1].first, std::move(term_sym));
+                }
+                return true;
+            }
+            GRINGO_MATCH(res, Term) {
+                constant = false;
+                if (n == 0) {
+                    res_rel = LiteralRelation{lit.loc, lit.sign, res, {}};
+                } else {
+                    if (!res_rel.has_value()) {
+                        res_rel = LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::copy_n(lit.rhs, n - 1)};
+                    }
+                    res_rel->rhs.emplace_back(lit.rhs[n - 1].first, std::move(res));
+                }
+                return true;
+            }
+        };
+        auto match_flags = SimplifyFlags::none;
+        if (lit.rhs.front().first == assign) {
+            match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
+        }
+        // simplify lhs
+        if (!std::visit(simp, simplify(fixed_flags | match_flags, store, gen, aux, lit.lhs))) {
+            // TODO: make up mind regarding safety
+            return LiteralBoolean{lit.loc, Sign::none, false};
+        }
+        // simplify rhs
+        for (auto const &[rel, term] : lit.rhs) {
+            ++n;
+            match_flags = SimplifyFlags::none;
+            if (rel == assign || (n < lit.rhs.size() && lit.rhs[n].first == assign)) {
+                match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
+            }
+            if (!std::visit(simp, simplify(fixed_flags | match_flags, store, gen, aux, term))) {
+                // TODO: make up mind regarding safety
+                return LiteralBoolean{lit.loc, Sign::none, false};
+            }
+        }
+        // simplify sign
+        if (lit.sign == Sign::twice) {
+            if (!res_rel.has_value()) {
+                res_rel = lit;
+            }
+            res_rel->sign = Sign::none;
+        }
+        if (constant) {
+            auto a = std::get<TermSymbol>(res_rel.has_value() ? res_rel->lhs : lit.lhs).value;
+            size_t n = 0;
+            for (auto const &[rel, term] : lit.rhs) {
+                auto b = std::get<TermSymbol>(res_rel.has_value() ? res_rel->rhs[n].second : term).value;
+                if (!evaluate(a, rel, b)) {
+                    return LiteralBoolean{lit.loc, Sign::none, lit.sign == Sign::once};
+                }
+                a = b;
+                ++n;
+            }
+            return LiteralBoolean{lit.loc, Sign::none, lit.sign != Sign::once};
+        }
+        return res_rel;
     }
 
-    auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
-        static_cast<void>(lit);
-        // has to differentiate between matchable/nonmatchable contexts
-        // - fewer auxiliaries have to be introduced in nonmatchable contexts
-        throw std::logic_error("implement me!!!");
+    //! Simplify symbolic literals.
+    //!
+    //! The function ensures the following properties:
+    //! (1) the literal is matchable if the corresponding flag has been set,
+    //! (2) projection is accepted if the corresponding flag has been set.
+    auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags) const -> std::optional<Literal> {
+        std::optional<Literal> res_lit;
+        auto simp = [&](auto &&res) -> bool {
+            GRINGO_MATCH(res, std::monostate) { return false; }
+            GRINGO_MATCH(res, std::nullopt_t) { return true; }
+            GRINGO_MATCH(res, Symbol) {
+                auto term_sym = Term{TermSymbol{location(lit.term), res}};
+                if (term_sym != lit.term) {
+                    res_lit = LiteralSymbolic{lit.loc, lit.sign, std::move(term_sym)};
+                }
+                return true;
+            }
+            GRINGO_MATCH(res, Term) {
+                res_lit = LiteralSymbolic{lit.loc, lit.sign, std::move(res)};
+                return true;
+            }
+        };
+        auto sub_flags = flags & (SimplifyFlags::matchable | SimplifyFlags::projectable);
+        if (lit.sign != Sign::none) {
+            sub_flags &= ~SimplifyFlags::matchable;
+        }
+        if (!std::visit(simp, simplify(sub_flags, store, gen, aux, lit.term))) {
+            return LiteralBoolean{lit.loc, Sign::none, false};
+        }
+        return res_lit;
     }
+
+    SymbolStore &store;
+    NameGen &gen;
+    AuxTermVec &aux;
 };
 
 } // namespace
@@ -1017,6 +1153,13 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
             }
         },
         simp(term, flags));
+}
+
+[[nodiscard]] auto simplify(SimplifyFlags flags, SymbolStore &store, NameGen &gen, AuxTermVec &aux, Literal const &lit)
+    -> std::optional<Literal> {
+    // TODO: handling literals evaluating to true/false statically would be nice
+    // the return would be a variant<bool,Unchanged,Literal>
+    return SimplifyLiteral{store, gen, aux}(lit, flags);
 }
 
 } // namespace Gringo::Input

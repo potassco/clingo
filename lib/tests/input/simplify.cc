@@ -1,4 +1,4 @@
-#include <input/algo/rewrite_arithmetic.hh>
+#include <input/algo/simplify.hh>
 
 #include "input/test.hh"
 
@@ -24,6 +24,26 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
                 GRINGO_MATCH(val, std::nullopt_t) { return to_str(value.value()); }
             },
             res);
+        for (auto const &[lhs, rhs] : aux) {
+            oss << ", " << lhs << "=" << rhs;
+        }
+        return std::move(oss).str();
+    }
+    return "<failed>";
+}
+
+auto simplify_str(std::optional<Literal> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
+    if (value) {
+        auto store = make_symbol_store(true, true);
+        NameGen gen{*store, {}, "__Aux_"};
+        AuxTermVec aux;
+        auto res = simplify(flags, *store, gen, aux, value.value());
+        std::ostringstream oss;
+        if (res.has_value()) {
+            oss << to_str(res.value());
+        } else {
+            oss << to_str(value.value());
+        }
         for (auto const &[lhs, rhs] : aux) {
             oss << ", " << lhs << "=" << rhs;
         }
@@ -124,6 +144,28 @@ TEST_CASE("simplify_matchable") {
     REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__Aux_0), __Aux_0=X+Y");
     REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,2*X+0)");
     REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) == "p(1*X+5,__Aux_0), __Aux_0=@f(g(X*X))");
+}
+
+TEST_CASE("simplify_literal") {
+    auto flags = SimplifyFlags::matchable;
+    REQUIRE(simplify_str(parse_literal("1<2"), flags) == "#true");
+    REQUIRE(simplify_str(parse_literal("2<1"), flags) == "#false");
+    REQUIRE(simplify_str(parse_literal("X=Y+Z"), flags) == "X=Y+Z");
+    REQUIRE(simplify_str(parse_literal("X=Y+Z=Z"), flags) == "X=Y+Z=Z");
+    REQUIRE(simplify_str(parse_literal("not not X=Y+Z=Z"), flags) == "X=Y+Z=Z");
+    REQUIRE(simplify_str(parse_literal("not X=Y+Z=Z"), flags) == "not X=__Aux_0=Z, __Aux_0=Y+Z");
+    REQUIRE(simplify_str(parse_literal("X=f(Y+Z,Z+5)<f(Y+Z,Z+5)"), flags) ==
+            "X=f(__Aux_0,1*Z+5)<f(Y+Z,1*Z+5), __Aux_0=Y+Z");
+    REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "#false");
+    REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "#false");
+
+    flags = SimplifyFlags::matchable | SimplifyFlags::projectable;
+    REQUIRE(simplify_str(parse_literal("p(X,*)"), flags) == "p(X,*)");
+    REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "#false");
+    REQUIRE(simplify_str(parse_literal("not p(X,@f(*))"), flags) == "#false");
+    REQUIRE(simplify_str(parse_literal("p(X+Y,Y+1)"), flags) == "p(__Aux_0,1*Y+1), __Aux_0=X+Y");
+    REQUIRE(simplify_str(parse_literal("not p(X+Y,Y+1)"), flags) == "not p(X+Y,1*Y+1)");
+    REQUIRE(simplify_str(parse_literal("not not p(X+Y,Y+1)"), flags) == "not not p(X+Y,1*Y+1)");
 }
 
 } // namespace Gringo::Input::Test

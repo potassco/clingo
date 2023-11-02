@@ -119,6 +119,19 @@ class Symbol {
     //! Inequality compare two symbols.
     friend auto operator!=(Symbol a, Symbol b) -> bool { return a.rep_ != b.rep_; }
 
+    //! Compare two symbols.
+    friend auto compare(Symbol a, Symbol b) -> int;
+
+    //! Less than compare two symbols.
+    friend auto operator<(Symbol a, Symbol b) -> bool { return compare(a, b) < 0; }
+    //! Less equal compare two symbols.
+    friend auto operator<=(Symbol a, Symbol b) -> bool { return compare(a, b) <= 0; }
+
+    //! Greater than compare two symbols.
+    friend auto operator>(Symbol a, Symbol b) -> bool { return compare(a, b) > 0; }
+    //! Greater equal compare two symbols.
+    friend auto operator>=(Symbol a, Symbol b) -> bool { return compare(a, b) <= 0; }
+
     //! Get the representation of the symbol.
     static auto to_rep(Symbol sym) noexcept -> uint64_t { return sym.rep_; }
     //! Create a symbol from its representation.

@@ -1,6 +1,4 @@
 #include <cstring>
-#include <forward_list>
-#include <map>
 #include <mutex>
 
 #include <tsl/hopscotch_set.h>
@@ -734,6 +732,77 @@ auto NameGen::new_name() -> String {
             return name;
         }
     }
+}
+
+auto compare(Symbol a, Symbol b) -> int {
+    if (a == b) {
+        return 0;
+    }
+    auto type_prio = [](SymbolType type) -> int {
+        switch (type) {
+            case SymbolType::inf: {
+                return 0;
+            }
+            case SymbolType::number: {
+                return 1;
+            }
+            case SymbolType::string: {
+                return 2;
+            }
+            case SymbolType::tuple: {
+                return 3;
+            }
+            case SymbolType::function: {
+                return 4;
+            }
+            case SymbolType::sup: {
+                break;
+            }
+        }
+        return 5;
+    };
+    auto type_a = a.type();
+    auto type_b = b.type();
+    if (type_a != type_b) {
+        return type_prio(type_b) - type_prio(type_a);
+    }
+    switch (type_a) {
+        case SymbolType::number: {
+            return compare(*a.num(), *b.num());
+        }
+        case SymbolType::string: {
+            return std::strcmp(a.str().c_str(), a.str().c_str());
+        }
+        case SymbolType::tuple:
+        case SymbolType::function: {
+            if (type_a == SymbolType::function) {
+                auto name_a = a.name();
+                auto name_b = b.name();
+                if (name_a != name_b) {
+                    return std::strcmp(name_a.c_str(), name_b.c_str());
+                }
+            }
+            auto args_a = a.args();
+            auto args_b = b.args();
+            if (args_a.size() != args_b.size()) {
+                return args_a.size() < args_b.size() ? -1 : 1;
+            }
+            for (auto it = args_a.begin(), jt = args_b.begin(), ie = args_a.end(); it != ie; ++it, ++jt) {
+                auto cmp = compare(*it, *jt);
+                if (cmp != 0) {
+                    return cmp;
+                }
+            }
+            break;
+        }
+        case SymbolType::inf: {
+            break;
+        }
+        case SymbolType::sup: {
+            break;
+        }
+    }
+    return 0;
 }
 
 } // namespace Gringo

@@ -125,7 +125,7 @@ struct Evaluate {
         return true;
     }
 
-    auto operator()(Symbol const &sym) const -> std::optional<Symbol> {
+    auto operator()(Symbol sym) const -> std::optional<Symbol> {
         switch (sym.type()) {
             case SymbolType::inf:
             case SymbolType::sup:
@@ -318,7 +318,7 @@ struct Evaluate {
 
 } // namespace
 
-auto evaluate(SymbolStore &store, UnaryOperator op, Symbol const &rhs) -> std::optional<Symbol> {
+auto evaluate(SymbolStore &store, UnaryOperator op, Symbol rhs) -> std::optional<Symbol> {
     if (op == UnaryOperator::negate) {
         if (rhs.type() == SymbolType::number) {
             return store.num(-*rhs.num());
@@ -331,10 +331,31 @@ auto evaluate(SymbolStore &store, UnaryOperator op, Symbol const &rhs) -> std::o
     return std::nullopt;
 }
 
-auto evaluate(SymbolStore &store, Symbol const &lhs, BinaryOperator op, Symbol const &rhs) -> std::optional<Symbol> {
-    // Note that the bitwise binary operations on signed integers became
-    // well-defined with C++20. Even though this library also supports
-    // C++17, we rely on two's complement for integers.
+auto evaluate(Symbol lhs, Relation rel, Symbol rhs) -> bool {
+    switch (rel) {
+        case Relation::equal: {
+            return lhs == rhs;
+        }
+        case Relation::inequal: {
+            return lhs != rhs;
+        }
+        case Relation::less: {
+            return lhs < rhs;
+        }
+        case Relation::less_equal: {
+            return lhs <= rhs;
+        }
+        case Relation::greater: {
+            return lhs > rhs;
+        }
+        case Relation::greater_equal: {
+            break;
+        }
+    }
+    return lhs >= rhs;
+}
+
+auto evaluate(SymbolStore &store, Symbol lhs, BinaryOperator op, Symbol rhs) -> std::optional<Symbol> {
     if (lhs.type() != SymbolType::number || rhs.type() != SymbolType::number) {
         return std::nullopt;
     }

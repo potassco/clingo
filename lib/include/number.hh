@@ -30,6 +30,8 @@ class Number {
 
     // comparison
 
+    friend auto compare(Number const &a, Number const &b) -> int;
+
     friend auto operator==(Number const &a, Number const &b) -> bool;
     friend auto operator==(int32_t a, Number const &b) -> bool;
     friend auto operator==(Number const &a, int32_t b) -> bool;

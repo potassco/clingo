@@ -1,4 +1,3 @@
-#include <cassert>
 #include <memory>
 
 #include <imath.h>
@@ -585,6 +584,8 @@ Number::~Number() noexcept {
     ret.pop_back();
     return ret;
 }
+
+auto compare(Number const &a, Number const &b) -> int { return Number::Impl::cmp(a, b); }
 
 auto operator==(Number const &a, int32_t b) -> bool { return Number::Impl::cmp(a, b) == 0; }
 
