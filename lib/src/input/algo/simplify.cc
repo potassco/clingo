@@ -5,11 +5,14 @@
 #include <input/algo/simplify.hh>
 
 /*
+TODO: time for error/warning reporting!!!
+- add the logger to the function calls
+
 whole process as in gringo atm
 1. apply #const statements (partially done)
 2. unpool (done)
 3. init theory
-4. simplify (done for terms)
+4. simplify (done for terms, literals)
   0. evaluate (done)
   1. extract atoms to project (done)
      - add option to forbid completely
