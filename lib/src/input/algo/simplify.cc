@@ -2,12 +2,10 @@
 #include <util/checked_math.hh>
 
 #include <input/algo/evaluate.hh>
+#include <input/algo/print.hh>
 #include <input/algo/simplify.hh>
 
 /*
-TODO: time for error/warning reporting!!!
-- add the logger to the function calls
-
 whole process as in gringo atm
 1. apply #const statements (partially done)
 2. unpool (done)
@@ -133,7 +131,8 @@ struct SimplifyTerm {
     //! Otherwise, each element is either a monostate in case of projection, a
     //! symbol if it could evaluated right away, or a term in case of some
     //! other simplification.
-    auto simplify_tuple(SimplifyFlags flags, TupleVec const &tuple, bool &constant) const -> ResultTuple {
+    auto simplify_tuple(SimplifyFlags flags, auto const &term, TupleVec const &tuple, bool &constant) const
+        -> ResultTuple {
         size_t n = 0;
 
         ResultTuple res_tuple = ResultTupleUnchanged{};
@@ -155,7 +154,8 @@ struct SimplifyTerm {
             // projected argument
             GRINGO_MATCH(arg, Projected) {
                 if (!test(flags, SimplifyFlags::projectable)) {
-                    // TODO: error message
+                    GRINGO_REPORT_LOC(log, error, term.loc) << "projection not permitted in this context:\n"
+                                                            << "  " << term << "\n";
                     return false;
                 }
                 constant = false;
@@ -316,7 +316,7 @@ struct SimplifyTerm {
                     return store.fun(term.name, args_symbol(std::move(res)), false);
                 }
             },
-            simplify_tuple(flags, tuple, constant));
+            simplify_tuple(flags, term, tuple, constant));
     }
 
     auto operator()(TermTuple const &term, SimplifyFlags flags) const -> Result {
@@ -350,7 +350,7 @@ struct SimplifyTerm {
                 }
                 // the term evaluated to a symbol
             },
-            simplify_tuple(flags, tuple, constant));
+            simplify_tuple(flags, term, tuple, constant));
     }
 
     auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
@@ -365,7 +365,8 @@ struct SimplifyTerm {
             // the argument evaluated to a symbol
             GRINGO_MATCH(res, ResultSymbol) {
                 if (res.type() != SymbolType::number) {
-                    // TODO: info message???
+                    GRINGO_REPORT_LOC(log, info_operation_undefined, term.loc) << "operation undefined:\n"
+                                                                               << "  " << term << "\n";
                     return ResultFail{};
                 }
                 return store.num(abs(*res.num()));
@@ -378,7 +379,8 @@ struct SimplifyTerm {
             // the argument did not change
             GRINGO_MATCH(res, ResultUnchanged) {
                 if (res == Type::symbolic || res == Type::tuple) {
-                    // TODO: info message???
+                    GRINGO_REPORT_LOC(log, info_operation_undefined, term.loc) << "operation undefined:\n"
+                                                                               << "  " << term << "\n";
                     return ResultFail{};
                 }
                 return ResultUnchanged{Type::numeric};
@@ -387,7 +389,8 @@ struct SimplifyTerm {
             GRINGO_MATCH(res, ResultChanged) {
                 // handle invalid terms
                 if (res.type == Type::symbolic || res.type == Type::tuple) {
-                    // TODO: info message
+                    GRINGO_REPORT_LOC(log, info_operation_undefined, term.loc) << "operation undefined:\n"
+                                                                               << "  " << term << "\n";
                     return ResultFail{};
                 }
                 // construct a new term
@@ -412,7 +415,8 @@ struct SimplifyTerm {
                 // we can always evaluate constants
                 auto opt_sym = evaluate(store, term.op, res);
                 if (!opt_sym.has_value()) {
-                    // TODO: info message???
+                    GRINGO_REPORT_LOC(log, info_operation_undefined, term.loc) << "operation undefined:\n"
+                                                                               << "  " << term << "\n";
                     return ResultFail{};
                 }
                 return ResultSymbol{opt_sym.value()};
@@ -426,9 +430,10 @@ struct SimplifyTerm {
                 return check_change(Type::numeric, term, TermUnary(term.loc, term.op, linear_as_term(std::move(res))));
             }
             // get type of term based on the given type of its argument
-            auto check_type = [&term](Type type) -> std::optional<Type> {
+            auto check_type = [this, &term](Type type) -> std::optional<Type> {
                 if (type == Type::tuple || (term.op == UnaryOperator::invert && type == Type::symbolic)) {
-                    // TODO: info message???
+                    GRINGO_REPORT_LOC(log, info_operation_undefined, term.loc) << "operation undefined:\n"
+                                                                               << "  " << term << "\n";
                     return std::nullopt;
                 }
                 // ~term is always numeric
@@ -500,7 +505,8 @@ struct SimplifyTerm {
             auto simplify = [&, this](auto &&res_lhs, auto &&res_rhs) -> Result {
                 // check arguments
                 if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
-                    // TODO: error messages
+                    GRINGO_REPORT_LOC(log, info_operation_undefined, term.loc) << "operation undefined:\n"
+                                                                               << "  " << term << "\n";
                     return {};
                 }
                 auto name = gen.new_name();
@@ -514,7 +520,8 @@ struct SimplifyTerm {
         auto simplify = [&, this](auto &&res_lhs, auto &&res_rhs) -> Result {
             // check arguments
             if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
-                // TODO: error messages
+                GRINGO_REPORT_LOC(log, info_operation_undefined, term.loc) << "operation undefined:\n"
+                                                                           << "  " << term << "\n";
                 return {};
             }
 
@@ -522,7 +529,8 @@ struct SimplifyTerm {
             GRINGO_MATCH2(res_lhs, Symbol, res_rhs, Symbol) {
                 auto res = evaluate(store, res_lhs, term.op, res_rhs);
                 if (!res.has_value()) {
-                    // TODO: info message???
+                    GRINGO_REPORT_LOC(log, info_operation_undefined, term.loc) << "operation undefined:\n"
+                                                                               << "  " << term << "\n";
                     return ResultFail{};
                 }
                 return res.value();
@@ -602,6 +610,7 @@ struct SimplifyTerm {
                           std::visit(var_to_linear{*term.rhs}, operator()(*term.rhs, flags)));
     }
 
+    Logger &log;
     SymbolStore &store;
     NameGen &gen;
     AuxTermVec &aux;
@@ -714,6 +723,7 @@ struct MakeMatchableTerm {
         return aux.back().first;
     }
 
+    Logger &log;
     SymbolStore &store;
     NameGen &gen;
     AuxTermVec &aux;
@@ -797,7 +807,7 @@ struct SimplifyLiteral {
             match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
         }
         // simplify lhs
-        if (!std::visit(simp, simplify(fixed_flags | match_flags, store, gen, aux, lit.lhs))) {
+        if (!std::visit(simp, simplify(fixed_flags | match_flags, log, store, gen, aux, lit.lhs))) {
             // TODO: make up mind regarding safety
             return LiteralBoolean{lit.loc, Sign::none, false};
         }
@@ -808,7 +818,7 @@ struct SimplifyLiteral {
             if (rel == assign || (n < lit.rhs.size() && lit.rhs[n].first == assign)) {
                 match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
             }
-            if (!std::visit(simp, simplify(fixed_flags | match_flags, store, gen, aux, term))) {
+            if (!std::visit(simp, simplify(fixed_flags | match_flags, log, store, gen, aux, term))) {
                 // TODO: make up mind regarding safety
                 return LiteralBoolean{lit.loc, Sign::none, false};
             }
@@ -862,12 +872,13 @@ struct SimplifyLiteral {
         if (lit.sign != Sign::none) {
             sub_flags &= ~SimplifyFlags::matchable;
         }
-        if (!std::visit(simp, simplify(sub_flags, store, gen, aux, lit.term))) {
+        if (!std::visit(simp, simplify(sub_flags, log, store, gen, aux, lit.term))) {
             return LiteralBoolean{lit.loc, Sign::none, false};
         }
         return res_lit;
     }
 
+    Logger &log;
     SymbolStore &store;
     NameGen &gen;
     AuxTermVec &aux;
@@ -1130,12 +1141,12 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
     return plus != nullptr && is_linear(*plus);
 }
 
-[[nodiscard]] auto simplify(SimplifyFlags flags, SymbolStore &store, NameGen &gen, AuxTermVec &aux, Term const &term)
-    -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
+[[nodiscard]] auto simplify(SimplifyFlags flags, Logger &log, SymbolStore &store, NameGen &gen, AuxTermVec &aux,
+                            Term const &term) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
     auto make_matchable = [&](auto &&term,
                               bool self = true) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
         if (test(flags, SimplifyFlags::matchable)) {
-            if (auto ret = MakeMatchableTerm{store, gen, aux}(term, flags); ret.has_value()) {
+            if (auto ret = MakeMatchableTerm{log, store, gen, aux}(term, flags); ret.has_value()) {
                 return ret.value();
             }
         }
@@ -1144,7 +1155,7 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
         }
         return std::nullopt;
     };
-    auto simp = SimplifyTerm{store, gen, aux};
+    auto simp = SimplifyTerm{log, store, gen, aux};
     return std::visit(
         [&](auto &&res) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
             GRINGO_MATCH(res, SimplifyTerm::ResultFail) { return {}; }
@@ -1158,11 +1169,11 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
         simp(term, flags));
 }
 
-[[nodiscard]] auto simplify(SimplifyFlags flags, SymbolStore &store, NameGen &gen, AuxTermVec &aux, Literal const &lit)
-    -> std::optional<Literal> {
+[[nodiscard]] auto simplify(SimplifyFlags flags, Logger &log, SymbolStore &store, NameGen &gen, AuxTermVec &aux,
+                            Literal const &lit) -> std::optional<Literal> {
     // TODO: handling literals evaluating to true/false statically would be nice
     // the return would be a variant<bool,Unchanged,Literal>
-    return SimplifyLiteral{store, gen, aux}(lit, flags);
+    return SimplifyLiteral{log, store, gen, aux}(lit, flags);
 }
 
 } // namespace Gringo::Input

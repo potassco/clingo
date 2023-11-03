@@ -7,10 +7,11 @@ namespace Gringo::Input::Test {
 template <class T>
 auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
     if (value) {
+        Logger log;
         auto store = make_symbol_store(true, true);
         NameGen gen{*store, {}, "__Aux_"};
         AuxTermVec aux;
-        auto res = simplify(flags, *store, gen, aux, value.value());
+        auto res = simplify(flags, log, *store, gen, aux, value.value());
         std::ostringstream oss;
         oss << std::visit(
             [&value](auto &&val) -> std::string {
@@ -34,10 +35,11 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
 
 auto simplify_str(std::optional<Literal> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
     if (value) {
+        Logger log;
         auto store = make_symbol_store(true, true);
         NameGen gen{*store, {}, "__Aux_"};
         AuxTermVec aux;
-        auto res = simplify(flags, *store, gen, aux, value.value());
+        auto res = simplify(flags, log, *store, gen, aux, value.value());
         std::ostringstream oss;
         if (res.has_value()) {
             oss << to_str(res.value());
@@ -46,6 +48,9 @@ auto simplify_str(std::optional<Literal> value, SimplifyFlags flags = SimplifyFl
         }
         for (auto const &[lhs, rhs] : aux) {
             oss << ", " << lhs << "=" << rhs;
+        }
+        if (log.has_error()) {
+            oss << ", E";
         }
         return std::move(oss).str();
     }
@@ -156,13 +161,13 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("not X=Y+Z=Z"), flags) == "not X=__Aux_0=Z, __Aux_0=Y+Z");
     REQUIRE(simplify_str(parse_literal("X=f(Y+Z,Z+5)<f(Y+Z,Z+5)"), flags) ==
             "X=f(__Aux_0,1*Z+5)<f(Y+Z,1*Z+5), __Aux_0=Y+Z");
-    REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "#false");
-    REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "#false");
+    REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "#false, E");
+    REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "#false, E");
 
     flags = SimplifyFlags::matchable | SimplifyFlags::projectable;
     REQUIRE(simplify_str(parse_literal("p(X,*)"), flags) == "p(X,*)");
-    REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "#false");
-    REQUIRE(simplify_str(parse_literal("not p(X,@f(*))"), flags) == "#false");
+    REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "#false, E");
+    REQUIRE(simplify_str(parse_literal("not p(X,@f(*))"), flags) == "#false, E");
     REQUIRE(simplify_str(parse_literal("p(X+Y,Y+1)"), flags) == "p(__Aux_0,1*Y+1), __Aux_0=X+Y");
     REQUIRE(simplify_str(parse_literal("not p(X+Y,Y+1)"), flags) == "not p(X+Y,1*Y+1)");
     REQUIRE(simplify_str(parse_literal("not not p(X+Y,Y+1)"), flags) == "not not p(X+Y,1*Y+1)");

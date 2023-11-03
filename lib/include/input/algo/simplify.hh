@@ -1,5 +1,7 @@
 #pragma once
 
+#include <logger.hh>
+
 #include <util/enum.hh>
 
 #include <input/statement.hh>
@@ -34,10 +36,10 @@ using AuxTermVec = std::vector<std::pair<Term, Term>>;
 //!
 //! The type monostate indicates an error, nullopt that the term did not change, and Symbol/Term correspond to the
 //! simplified term.
-[[nodiscard]] auto simplify(SimplifyFlags flags, SymbolStore &store, NameGen &gen, AuxTermVec &aux, Term const &term)
-    -> std::variant<std::monostate, std::nullopt_t, Symbol, Term>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, Logger &log, SymbolStore &store, NameGen &gen, AuxTermVec &aux,
+                            Term const &term) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term>;
 
-[[nodiscard]] auto simplify(SimplifyFlags flags, SymbolStore &store, NameGen &gen, AuxTermVec &aux, Literal const &lit)
-    -> std::optional<Literal>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, Logger &log, SymbolStore &store, NameGen &gen, AuxTermVec &aux,
+                            Literal const &lit) -> std::optional<Literal>;
 
 } // namespace Gringo::Input
