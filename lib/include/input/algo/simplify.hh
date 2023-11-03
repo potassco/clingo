@@ -21,6 +21,7 @@ enum class SimplifyFlags : unsigned {
 GRINGO_ENUM_FLAGS(SimplifyFlags)
 
 // TODO: a map might also be an idea here to avoid duplicates for the same variable
+//! A vector of term pairs where the second has been substituted by the first in some other term.
 using AuxTermVec = std::vector<std::pair<Term, Term>>;
 
 //! Check if the given term is a linear term.

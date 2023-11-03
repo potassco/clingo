@@ -52,38 +52,49 @@ namespace Gringo::Input {
 
 namespace {
 
-struct TermMap {};
-
-//! Simplify a term.
+//! Simplify terms.
 struct SimplifyTerm {
+    //! The detected type of a term.
     enum class Type {
-        numeric,
-        symbolic,
-        tuple,
-        any,
+        numeric,  //!< Term evaluates to a number.
+        symbolic, //!< Term evaluates to a function.
+        tuple,    //!< Term evaluates to a tuple.
+        any,      //!< Term evaluates to anything.
     };
 
+    //! The evaluation of the term failed.
     struct ResultFail {};
+    //! The evaluation resulted in a term of the given type.
     struct ResultChanged {
         Type type;
         Term term;
     };
+    //! The evaluation resulted in a linear term.
     struct ResultLinear {
         Term x;
         Number m;
         Number n;
     };
+    //! The evaluation resulted in a symbol.
     using ResultSymbol = Symbol;
+    //! The evaluation did not change the term.
     using ResultUnchanged = Type;
 
+    //! Variant for the different evaluation results.
     using Result = std::variant<ResultFail, ResultSymbol, ResultUnchanged, ResultChanged, ResultLinear>;
 
+    //! Struct indicating a projected position.
     using Projected = std::monostate;
+    //! Result indicating a changed tuple.
     using ResultTupleChanged = std::vector<std::variant<Projected, Symbol, Term>>;
+    //! Result indicating an changed tuple.
     struct ResultTupleUnchanged {};
+    //! Result indicating a tuples that failed to simplify.
     struct ResultTupleFail {};
+    //! Variant for the different tuple evaluation results.
     using ResultTuple = std::variant<ResultTupleFail, ResultTupleUnchanged, ResultTupleChanged>;
 
+    //! Construct an unchanged or changed term result depending on whether the old equals the new term or not.
     [[nodiscard]] static auto check_change(Type type, Term const &old, Term new_) -> Result {
         if (old != new_) {
             return ResultChanged{type, std::move(new_)};
@@ -257,17 +268,21 @@ struct SimplifyTerm {
         Term const &term;
     };
 
+    //! Simplify the given term.
     auto operator()(Term const &term, SimplifyFlags flags) const -> Result {
         return std::visit(*this, term, std::variant<SimplifyFlags>{flags});
     }
 
+    //! Protect from calling unindented overloads.
     auto operator()(auto const &term, SimplifyFlags flags) const -> Result = delete;
 
+    //! Simplify the given symbolic term.
     auto operator()(TermSymbol const &term, SimplifyFlags flags) const -> Result {
         static_cast<void>(flags);
         return term.value;
     }
 
+    //! Simplify the given variable.
     auto operator()(TermVariable const &term, SimplifyFlags flags) const -> Result {
         static_cast<void>(term);
         static_cast<void>(flags);
@@ -275,6 +290,7 @@ struct SimplifyTerm {
         return Type::any;
     }
 
+    //! Simplify the given function term.
     auto operator()(TermFunction const &term, SimplifyFlags flags) const -> Result {
         assert(term.pool.size() == 1);
 
@@ -319,6 +335,7 @@ struct SimplifyTerm {
             simplify_tuple(flags, term, tuple, constant));
     }
 
+    //! Simplify the given term tuple.
     auto operator()(TermTuple const &term, SimplifyFlags flags) const -> Result {
         assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
 
@@ -353,6 +370,7 @@ struct SimplifyTerm {
             simplify_tuple(flags, term, tuple, constant));
     }
 
+    //! Simplify the given absolute term.
     auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
         assert(term.pool.size() == 1);
 
@@ -403,6 +421,7 @@ struct SimplifyTerm {
         return std::visit(simplify, operator()(term.pool.front(), flags));
     }
 
+    //! Simplify the given unary term.
     auto operator()(TermUnary const &term, SimplifyFlags flags) const -> Result {
         // the term and nested terms are not projectable
         flags &= ~SimplifyFlags::projectable;
@@ -488,6 +507,7 @@ struct SimplifyTerm {
         return std::visit(simplify, operator()(*term.rhs, flags));
     }
 
+    //! Simplify the given binary term.
     auto operator()(TermBinary const &term, SimplifyFlags flags) const -> Result {
         // the term and nested terms are not projectable
         flags &= ~SimplifyFlags::projectable;
@@ -610,10 +630,10 @@ struct SimplifyTerm {
                           std::visit(var_to_linear{*term.rhs}, operator()(*term.rhs, flags)));
     }
 
-    Logger &log;
-    SymbolStore &store;
-    NameGen &gen;
-    AuxTermVec &aux;
+    Logger &log;        //!< Logger for reporting messages.
+    SymbolStore &store; //!< Symbol store to construct symbols.
+    NameGen &gen;       //!< Name generator to construct names for variables.
+    AuxTermVec &aux;    //!< Vector of substituted terms.
 };
 
 //! Make a term matchable.
