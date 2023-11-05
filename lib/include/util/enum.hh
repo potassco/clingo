@@ -3,6 +3,14 @@
 // NOLINTNEXTLINE(unused-includes)
 #include <type_traits>
 
+//! @defgroup core_enum Helpers for enumurations
+//! @ingroup core_util
+//!
+//! Currently, just provides a macro to create bitsets.
+//!
+//! @{
+
+//! Helper to create a bitset from an enum class.
 #define GRINGO_ENUM_FLAGS(TYPE)                                                                                        \
                                                                                                                        \
     [[nodiscard]] inline auto operator|(TYPE a, TYPE b) -> TYPE {                                                      \
@@ -40,3 +48,5 @@
     }                                                                                                                  \
                                                                                                                        \
     [[nodiscard]] inline auto test(TYPE a, TYPE b) -> bool { return (a & b) == b; }
+
+//! @}
