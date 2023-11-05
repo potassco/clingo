@@ -6,6 +6,8 @@
 #include <input/algo/simplify.hh>
 
 /*
+TODO: to nicely handle parameters a set of them could be passed to the statement simplify methods
+
 whole process as in gringo atm
 1. apply #const statements (partially done)
 2. unpool (done)
