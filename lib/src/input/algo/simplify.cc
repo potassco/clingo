@@ -636,11 +636,16 @@ struct SimplifyTerm {
     AuxTermVec &aux;    //!< Vector of substituted terms.
 };
 
-//! Make a term matchable.
+//! Make a term matchable by removing terms that cannot be matched.
+//!
+//! If the unfailable flag is set, all terms that can evaluate to undefined are
+//! removed as well. Only produces a result if one of the arguments changed;
+//! there are no failures to handle.
 struct MakeMatchableTerm {
     using Result = std::optional<Term>;
     using ResultTuple = std::optional<TupleVec>;
 
+    //! Make the arguments of the given tuple matchable.
     [[nodiscard]] auto handle_tuple(SimplifyFlags flags, TupleVec const &tuple) const -> ResultTuple {
         size_t n = 0;
 
@@ -678,22 +683,26 @@ struct MakeMatchableTerm {
         return res_tuple;
     }
 
+    //! Make the given term matchable.
     auto operator()(Term const &term, SimplifyFlags flags) const -> Result {
         return std::visit(*this, term, std::variant<SimplifyFlags>{flags});
     }
 
+    //! Make the given symbolic term matchable.
     auto operator()(TermSymbol const &term, SimplifyFlags flags) const -> Result {
         static_cast<void>(term);
         static_cast<void>(flags);
         return std::nullopt;
     }
 
+    //! Make the given variable term matchable.
     auto operator()(TermVariable const &term, SimplifyFlags flags) const -> Result {
         static_cast<void>(term);
         static_cast<void>(flags);
         return std::nullopt;
     }
 
+    //! Make the given function term matchable.
     auto operator()(TermFunction const &term, SimplifyFlags flags) const -> Result {
         assert(term.pool.size() == 1);
         return handle_tuple(flags, term.pool.front()).transform([&term](auto &&args) {
@@ -701,6 +710,7 @@ struct MakeMatchableTerm {
         });
     }
 
+    //! Make the given tuple term matchable.
     auto operator()(TermTuple const &term, SimplifyFlags flags) const -> Result {
         assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
         return handle_tuple(flags, std::get<TupleVec>(term.pool.front())).transform([&term](auto &&args) {
@@ -708,6 +718,7 @@ struct MakeMatchableTerm {
         });
     }
 
+    //! Make the given absolute term matchable.
     auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
         if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
             return std::nullopt;
@@ -717,6 +728,7 @@ struct MakeMatchableTerm {
         return aux.back().first;
     }
 
+    //! Make the given unary term matchable.
     auto operator()(TermUnary const &term, SimplifyFlags flags) const -> Result {
         if (!test(flags, SimplifyFlags::unfailable) && term.op == UnaryOperator::negate) {
             return operator()(*term.rhs, flags).transform([&term](auto &&arg) -> Term {
@@ -731,6 +743,7 @@ struct MakeMatchableTerm {
         return aux.back().first;
     }
 
+    //! Make the given binary term matchable.
     auto operator()(TermBinary const &term, SimplifyFlags flags) const -> Result {
         if (!test(flags, SimplifyFlags::unfailable) && is_linear(term)) {
             return std::nullopt;
@@ -743,12 +756,14 @@ struct MakeMatchableTerm {
         return aux.back().first;
     }
 
-    Logger &log;
-    SymbolStore &store;
-    NameGen &gen;
-    AuxTermVec &aux;
+    NameGen &gen;    //!< Name generator for auxiliary variables.
+    AuxTermVec &aux; //!< Vector of substituted terms.
 };
 
+//! Simplify literals.
+//!
+//! Does not return a value if the literal did not change.
+//! \todo Should probably also return failures to remove simplified literals entirely.
 struct SimplifyLiteral {
     //! Simplify literals dispatching based on type stored in variant.
     auto operator()(Literal const &lit, std::variant<SimplifyFlags> flags) const {
@@ -898,10 +913,10 @@ struct SimplifyLiteral {
         return res_lit;
     }
 
-    Logger &log;
-    SymbolStore &store;
-    NameGen &gen;
-    AuxTermVec &aux;
+    Logger &log;        //!< Logger for message reporting.
+    SymbolStore &store; //!< Symbol store to generate new terms.
+    NameGen &gen;       //!< Name generator for auxiliary variables.
+    AuxTermVec &aux;    //!< Vector of substituted terms.
 };
 
 } // namespace
@@ -1166,7 +1181,7 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
     auto make_matchable = [&](auto &&term,
                               bool self = true) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
         if (test(flags, SimplifyFlags::matchable)) {
-            if (auto ret = MakeMatchableTerm{log, store, gen, aux}(term, flags); ret.has_value()) {
+            if (auto ret = MakeMatchableTerm{gen, aux}(term, flags); ret.has_value()) {
                 return ret.value();
             }
         }
