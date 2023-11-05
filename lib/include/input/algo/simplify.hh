@@ -8,14 +8,21 @@
 
 namespace Gringo::Input {
 
+//! @defgroup input_simplify Simplify Arithmetic
+//! @ingroup input_algo
+//!
+//! Functions to simplify arithmetic terms in expressions.
+//!
+//! @{
+
 //! Flags controlling simplification.
 enum class SimplifyFlags : unsigned {
-    none = 0,              //! No flags are set.
-    matchable = 1,         //! Ensure that expressions are matchable.
-    projectable = 2,       //! Permit projection.
-    unfailable = 4,        //! Ensure that there are no expressions that evaluate to empty pools.
-    disjunctive = 8,       //! Indicate that the expression occurs in a disjunctive context.
-    nested_matchable = 16, //! Do not make roots of terms matchable.
+    none = 0,              //!< No flags are set.
+    matchable = 1,         //!< Ensure that expressions are matchable.
+    projectable = 2,       //!< Permit projection.
+    unfailable = 4,        //!< Ensure that there are no expressions that evaluate to empty pools.
+    disjunctive = 8,       //!< Indicate that the expression occurs in a disjunctive context.
+    nested_matchable = 16, //!< Do not make roots of terms matchable.
 };
 
 GRINGO_ENUM_FLAGS(SimplifyFlags)
@@ -40,7 +47,10 @@ using AuxTermVec = std::vector<std::pair<Term, Term>>;
 [[nodiscard]] auto simplify(SimplifyFlags flags, Logger &log, SymbolStore &store, NameGen &gen, AuxTermVec &aux,
                             Term const &term) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term>;
 
+//! Simplifies the given literal.
 [[nodiscard]] auto simplify(SimplifyFlags flags, Logger &log, SymbolStore &store, NameGen &gen, AuxTermVec &aux,
                             Literal const &lit) -> std::optional<Literal>;
+
+//! @}
 
 } // namespace Gringo::Input
