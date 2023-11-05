@@ -196,7 +196,9 @@ class SymbolStore {
     virtual ~SymbolStore() noexcept = default;
 
   protected:
+    //! Store the given number and return a symbol for it.
     [[nodiscard]] virtual auto store_num(Number const &num) noexcept -> Symbol = 0;
+    //! Store the given number and return a symbol for it.
     [[nodiscard]] virtual auto store_num(Number &&num) noexcept -> Symbol = 0;
 };
 
