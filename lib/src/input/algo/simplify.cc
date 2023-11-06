@@ -888,6 +888,27 @@ struct SimplifyLiteral {
         return res_lit;
     }
 
+    auto operator()(ConditionalLiteral const &lit) const -> SimplifyResult<ConditionalLiteral> {
+        // fail in lits or cond implies lit fails!!!
+        // assignments in lits are added to the same
+        // assignments in cond are added to the same
+        // global variables are somewhat tricky:
+        // a simple solution is to handle global/local variables as in unpool:
+        // see: auto unpool(Logger &log, Statement const &stm) -> std::optional<StatementVec>
+        // no global variable must become local!
+        // this can be checked in statements
+        static_cast<void>(lit);
+        // auto res_lits = operator()(lit.lits);
+        throw std::runtime_error("implement me!!!");
+    }
+
+    template <bool Conjunctive>
+    auto operator()(Junction<Conjunctive> const &lit) const
+        -> std::optional<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
+        static_cast<void>(lit);
+        throw std::runtime_error("implement me!!!");
+    }
+
     SimplifyContext ctx; //!< Context used during simplification.
 };
 
