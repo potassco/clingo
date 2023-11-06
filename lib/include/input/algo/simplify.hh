@@ -39,6 +39,18 @@ struct SimplifyContext {
     AuxTermVec &aux;    //!< Vector of variable term pairs.
 };
 
+//! Indicate that simplifying an expression failed due to an invalid operation or error.
+//!
+//! If there has been an error, this will be indicated by the logger.
+struct SimplifyFail {};
+//! Indicate that an expression did not change during simplification.
+struct SimplifyUnchanged {};
+//! Indicate a simplifaction.
+//!
+//! The variant either captures that an expression failed to simplify,
+//! did not change, or the changed expression.
+template <class Expr> using SimplifyResult = std::variant<SimplifyFail, SimplifyUnchanged, Expr>;
+
 //! Check if the given term is a linear term.
 //!
 //! Returns true if the term has form m*X+n where m is a non-zero number, X a
@@ -56,7 +68,7 @@ struct SimplifyContext {
     -> std::variant<std::monostate, std::nullopt_t, Symbol, Term>;
 
 //! Simplifies the given literal.
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> std::optional<Literal>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal>;
 
 //! @}
 

@@ -6,8 +6,6 @@
 #include <input/algo/simplify.hh>
 
 /*
-TODO: to nicely handle parameters a set of them could be passed to the statement simplify methods
-
 whole process as in gringo atm
 1. apply #const statements (partially done)
 2. unpool (done)
@@ -770,13 +768,13 @@ struct SimplifyLiteral {
     //! Simplify Boolean literals.
     //!
     //! Ensures that the literal is either true or false.
-    auto operator()(LiteralBoolean const &lit, SimplifyFlags flags) const -> std::optional<Literal> {
+    auto operator()(LiteralBoolean const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
         static_cast<void>(lit);
         static_cast<void>(flags);
         if (lit.sign != Sign::none) {
             return LiteralBoolean{lit.loc, Sign::none, lit.sign != Sign::once};
         }
-        return std::nullopt;
+        return SimplifyUnchanged{};
     }
 
     //! Simplify relation literals.
@@ -786,7 +784,7 @@ struct SimplifyLiteral {
     //! (2) terms in disjunctive non-binary relations cannot evaluate to empty pools.
     //! The letter is important to ensure that relations can be split into multiple rules
     //! without unintuitive side-effects.
-    auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> std::optional<Literal> {
+    auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
         if (lit.sign == Sign::once) {
             flags ^= SimplifyFlags::disjunctive;
         }
@@ -840,8 +838,7 @@ struct SimplifyLiteral {
         }
         // simplify lhs
         if (!std::visit(simp, simplify(fixed_flags | match_flags, ctx, lit.lhs))) {
-            // TODO: make up mind regarding safety
-            return LiteralBoolean{lit.loc, Sign::none, false};
+            return SimplifyFail{};
         }
         // simplify rhs
         for (auto const &[rel, term] : lit.rhs) {
@@ -851,8 +848,7 @@ struct SimplifyLiteral {
                 match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
             }
             if (!std::visit(simp, simplify(fixed_flags | match_flags, ctx, term))) {
-                // TODO: make up mind regarding safety
-                return LiteralBoolean{lit.loc, Sign::none, false};
+                return SimplifyFail{};
             }
         }
         // simplify sign
@@ -868,14 +864,19 @@ struct SimplifyLiteral {
             for (auto const &[rel, term] : lit.rhs) {
                 auto b = std::get<TermSymbol>(res_rel.has_value() ? res_rel->rhs[n].second : term).value;
                 if (!evaluate(a, rel, b)) {
-                    return LiteralBoolean{lit.loc, Sign::none, lit.sign == Sign::once};
+                    GRINGO_REPORT_LOC(ctx.log, info_operation_undefined, location(term)) << "operation undefined:\n"
+                                                                                         << "  " << term << "\n";
+                    return SimplifyFail{};
                 }
                 a = b;
                 ++n;
             }
             return LiteralBoolean{lit.loc, Sign::none, lit.sign != Sign::once};
         }
-        return res_rel;
+        if (res_rel.has_value()) {
+            return std::move(res_rel).value();
+        }
+        return SimplifyUnchanged{};
     }
 
     //! Simplify symbolic literals.
@@ -883,8 +884,8 @@ struct SimplifyLiteral {
     //! The function ensures the following properties:
     //! (1) the literal is matchable if the corresponding flag has been set,
     //! (2) projection is accepted if the corresponding flag has been set.
-    auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags) const -> std::optional<Literal> {
-        std::optional<Literal> res_lit;
+    auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
+        SimplifyResult<Literal> res_lit = SimplifyUnchanged{};
         auto simp = [&](auto &&res) -> bool {
             GRINGO_MATCH(res, std::monostate) { return false; }
             GRINGO_MATCH(res, std::nullopt_t) { return true; }
@@ -905,7 +906,7 @@ struct SimplifyLiteral {
             sub_flags &= ~SimplifyFlags::matchable;
         }
         if (!std::visit(simp, simplify(sub_flags, ctx, lit.term))) {
-            return LiteralBoolean{lit.loc, Sign::none, false};
+            return SimplifyFail{};
         }
         return res_lit;
     }
@@ -1198,7 +1199,7 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
         simp(term, flags));
 }
 
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> std::optional<Literal> {
+[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal> {
     // TODO: handling literals evaluating to true/false statically would be nice
     // the return would be a variant<bool,Unchanged,Literal>
     return SimplifyLiteral{ctx}(lit, flags);
