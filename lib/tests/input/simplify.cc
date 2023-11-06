@@ -11,7 +11,7 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
         auto store = make_symbol_store(true, true);
         NameGen gen{*store, {}, "__Aux_"};
         AuxTermVec aux;
-        auto res = simplify(flags, log, *store, gen, aux, value.value());
+        auto res = simplify(flags, {log, *store, gen, aux}, value.value());
         std::ostringstream oss;
         oss << std::visit(
             [&value](auto &&val) -> std::string {
@@ -39,7 +39,7 @@ auto simplify_str(std::optional<Literal> value, SimplifyFlags flags = SimplifyFl
         auto store = make_symbol_store(true, true);
         NameGen gen{*store, {}, "__Aux_"};
         AuxTermVec aux;
-        auto res = simplify(flags, log, *store, gen, aux, value.value());
+        auto res = simplify(flags, {log, *store, gen, aux}, value.value());
         std::ostringstream oss;
         if (res.has_value()) {
             oss << to_str(res.value());

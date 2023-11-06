@@ -31,6 +31,14 @@ GRINGO_ENUM_FLAGS(SimplifyFlags)
 //! A vector of term pairs where the second has been substituted by the first in some other term.
 using AuxTermVec = std::vector<std::pair<Term, Term>>;
 
+//! Helper to pass arguments to simplify.
+struct SimplifyContext {
+    Logger &log;        //!< Logger to report messages.
+    SymbolStore &store; //!< Symbol store to create fresh symbols.
+    NameGen &gen;       //!< Genartor to create fresh variable names.
+    AuxTermVec &aux;    //!< Vector of variable term pairs.
+};
+
 //! Check if the given term is a linear term.
 //!
 //! Returns true if the term has form m*X+n where m is a non-zero number, X a
@@ -44,12 +52,11 @@ using AuxTermVec = std::vector<std::pair<Term, Term>>;
 //!
 //! The type monostate indicates an error, nullopt that the term did not change, and Symbol/Term correspond to the
 //! simplified term.
-[[nodiscard]] auto simplify(SimplifyFlags flags, Logger &log, SymbolStore &store, NameGen &gen, AuxTermVec &aux,
-                            Term const &term) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term)
+    -> std::variant<std::monostate, std::nullopt_t, Symbol, Term>;
 
 //! Simplifies the given literal.
-[[nodiscard]] auto simplify(SimplifyFlags flags, Logger &log, SymbolStore &store, NameGen &gen, AuxTermVec &aux,
-                            Literal const &lit) -> std::optional<Literal>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> std::optional<Literal>;
 
 //! @}
 
