@@ -902,7 +902,24 @@ struct SimplifyLiteral {
         static_cast<void>(lit);
         for (auto const &hlit : lit.lits) {
             // it seems like the disjunctive flag can be remvoed
-            std::visit([](auto &&res) { static_cast<void>(res); }, simplify(SimplifyFlags::none, ctx, hlit));
+            if (!std::visit(
+                    [](auto &&res) {
+                        GRINGO_MATCH(res, SimplifyFail) { return false; }
+                        GRINGO_MATCH(res, SimplifyUnchanged) {
+                            // we can remove literal from lits if true
+                            // the conditional literal becomes false if false
+                            return true;
+                        }
+                        GRINGO_MATCH(res, Literal) {
+                            // we can remove literal from lits if true
+                            // the conditional literal becomes false if false
+                            return true;
+                        }
+                        static_cast<void>(res);
+                    },
+                    simplify(SimplifyFlags::none, ctx, hlit))) {
+                return SimplifyFail{};
+            }
         }
         // auto res_lits = operator()(lit.lits);
         throw std::runtime_error("implement me!!!");
