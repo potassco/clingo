@@ -888,6 +888,8 @@ struct SimplifyLiteral {
         return res_lit;
     }
 
+    // TODO: maybe move elsewhere!
+
     auto operator()(ConditionalLiteral const &lit) const -> SimplifyResult<ConditionalLiteral> {
         // fail in lits or cond implies lit fails!!!
         // assignments in lits are added to the same
@@ -898,6 +900,10 @@ struct SimplifyLiteral {
         // no global variable must become local!
         // this can be checked in statements
         static_cast<void>(lit);
+        for (auto const &hlit : lit.lits) {
+            // it seems like the disjunctive flag can be remvoed
+            std::visit([](auto &&res) { static_cast<void>(res); }, simplify(SimplifyFlags::none, ctx, hlit));
+        }
         // auto res_lits = operator()(lit.lits);
         throw std::runtime_error("implement me!!!");
     }
