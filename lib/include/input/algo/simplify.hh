@@ -61,11 +61,7 @@ template <class Expr> using SimplifyResult = std::variant<SimplifyFail, Simplify
 [[nodiscard]] auto is_linear(TermBinary const &term) -> bool;
 
 //! Simplifies the given term.
-//!
-//! The type monostate indicates an error, nullopt that the term did not change, and Symbol/Term correspond to the
-//! simplified term.
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term)
-    -> std::variant<std::monostate, std::nullopt_t, Symbol, Term>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term>;
 
 //! Simplifies the given literal.
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal>;

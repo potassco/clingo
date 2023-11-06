@@ -797,30 +797,16 @@ struct SimplifyLiteral {
         std::optional<LiteralRelation> res_rel;
         bool constant = true;
         auto simp = [&](auto &&res) -> bool {
-            GRINGO_MATCH(res, std::monostate) { return false; }
-            GRINGO_MATCH(res, std::nullopt_t) {
-                constant = false;
+            GRINGO_MATCH(res, SimplifyFail) { return false; }
+            GRINGO_MATCH(res, SimplifyUnchanged) {
+                constant = constant && std::holds_alternative<TermSymbol>(n == 0 ? lit.lhs : lit.rhs[n - 1].second);
                 if (res_rel.has_value()) {
                     res_rel->rhs.emplace_back(lit.rhs[n - 1]);
                 }
                 return true;
             }
-            GRINGO_MATCH(res, Symbol) {
-                auto term_sym = Term{TermSymbol{location(lit.lhs), res}};
-                if (n == 0) {
-                    if (term_sym != lit.lhs) {
-                        res_rel = LiteralRelation{lit.loc, lit.sign, std::move(term_sym), {}};
-                    }
-                } else if (term_sym != lit.rhs[n - 1].second) {
-                    if (!res_rel.has_value()) {
-                        res_rel = LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::copy_n(lit.rhs, n - 1)};
-                    }
-                    res_rel->rhs.emplace_back(lit.rhs[n - 1].first, std::move(term_sym));
-                }
-                return true;
-            }
             GRINGO_MATCH(res, Term) {
-                constant = false;
+                constant = constant && std::holds_alternative<TermSymbol>(res);
                 if (n == 0) {
                     res_rel = LiteralRelation{lit.loc, lit.sign, res, {}};
                 } else {
@@ -864,9 +850,7 @@ struct SimplifyLiteral {
             for (auto const &[rel, term] : lit.rhs) {
                 auto b = std::get<TermSymbol>(res_rel.has_value() ? res_rel->rhs[n].second : term).value;
                 if (!evaluate(a, rel, b)) {
-                    GRINGO_REPORT_LOC(ctx.log, info_operation_undefined, location(term)) << "operation undefined:\n"
-                                                                                         << "  " << term << "\n";
-                    return SimplifyFail{};
+                    return LiteralBoolean{lit.loc, Sign::none, lit.sign == Sign::once};
                 }
                 a = b;
                 ++n;
@@ -887,15 +871,8 @@ struct SimplifyLiteral {
     auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
         SimplifyResult<Literal> res_lit = SimplifyUnchanged{};
         auto simp = [&](auto &&res) -> bool {
-            GRINGO_MATCH(res, std::monostate) { return false; }
-            GRINGO_MATCH(res, std::nullopt_t) { return true; }
-            GRINGO_MATCH(res, Symbol) {
-                auto term_sym = Term{TermSymbol{location(lit.term), res}};
-                if (term_sym != lit.term) {
-                    res_lit = LiteralSymbolic{lit.loc, lit.sign, std::move(term_sym)};
-                }
-                return true;
-            }
+            GRINGO_MATCH(res, SimplifyFail) { return false; }
+            GRINGO_MATCH(res, SimplifyUnchanged) { return true; }
             GRINGO_MATCH(res, Term) {
                 res_lit = LiteralSymbolic{lit.loc, lit.sign, std::move(res)};
                 return true;
@@ -1171,26 +1148,30 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
     return plus != nullptr && is_linear(*plus);
 }
 
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term)
-    -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
-    auto make_matchable = [&](auto &&term,
-                              bool self = true) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
+[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term> {
+    auto make_matchable = [&](auto &&target, bool self = true) -> SimplifyResult<Term> {
         if (test(flags, SimplifyFlags::matchable)) {
-            if (auto ret = MakeMatchableTerm{ctx}(term, flags); ret.has_value()) {
+            if (auto ret = MakeMatchableTerm{ctx}(target, flags); ret.has_value()) {
                 return ret.value();
             }
         }
-        if (self) {
-            return std::forward<decltype(term)>(term);
+        if (self && target != term) {
+            return std::forward<decltype(target)>(target);
         }
-        return std::nullopt;
+        return SimplifyUnchanged{};
     };
     auto simp = SimplifyTerm{ctx};
     return std::visit(
-        [&](auto &&res) -> std::variant<std::monostate, std::nullopt_t, Symbol, Term> {
-            GRINGO_MATCH(res, SimplifyTerm::ResultFail) { return {}; }
+        [&](auto &&res) -> SimplifyResult<Term> {
+            GRINGO_MATCH(res, SimplifyTerm::ResultFail) { return SimplifyFail{}; }
             GRINGO_MATCH(res, SimplifyTerm::ResultUnchanged) { return make_matchable(term, false); }
-            GRINGO_MATCH(res, SimplifyTerm::ResultSymbol) { return res; }
+            GRINGO_MATCH(res, SimplifyTerm::ResultSymbol) {
+                auto sym = Term{TermSymbol{location(term), res}};
+                if (sym != term) {
+                    return sym;
+                }
+                return SimplifyUnchanged{};
+            }
             GRINGO_MATCH(res, SimplifyTerm::ResultChanged) { return make_matchable(res.term); }
             GRINGO_MATCH(res, SimplifyTerm::ResultLinear) {
                 return make_matchable(simp.linear_as_term(std::move(res), false));

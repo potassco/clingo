@@ -11,22 +11,19 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
         auto store = make_symbol_store(true, true);
         NameGen gen{*store, {}, "__Aux_"};
         AuxTermVec aux;
-        auto res = simplify(flags, {log, *store, gen, aux}, value.value());
         std::ostringstream oss;
-        oss << std::visit(
-            [&value](auto &&val) -> std::string {
-                GRINGO_MATCH(val, Symbol) {
-                    std::ostringstream oss;
-                    oss << val;
-                    return oss.str();
-                }
-                GRINGO_MATCH(val, Term) { return to_str(val); }
-                GRINGO_MATCH(val, std::monostate) { return "<undefined>"; }
-                GRINGO_MATCH(val, std::nullopt_t) { return to_str(value.value()); }
+        std::visit(
+            [&](auto &&res) {
+                GRINGO_MATCH(res, SimplifyFail) { oss << "<undefined>"; }
+                GRINGO_MATCH(res, SimplifyUnchanged) { oss << value.value(); }
+                GRINGO_MATCH(res, T) { oss << res; }
             },
-            res);
+            simplify(flags, {log, *store, gen, aux}, value.value()));
         for (auto const &[lhs, rhs] : aux) {
             oss << ", " << lhs << "=" << rhs;
+        }
+        if (log.has_error()) {
+            oss << ", E";
         }
         return std::move(oss).str();
     }
@@ -135,8 +132,8 @@ TEST_CASE("simplify_aux") {
 
 TEST_CASE("simplify_project") {
     REQUIRE(simplify_str(parse_term("f(*,(*,b))")) == "f(*,(*,b))");
-    REQUIRE(simplify_str(parse_term("@f(g(*))")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("f(*)"), SimplifyFlags::none) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("@f(g(*))")) == "<undefined>, E");
+    REQUIRE(simplify_str(parse_term("f(*)"), SimplifyFlags::none) == "<undefined>, E");
 }
 
 TEST_CASE("simplify_matchable") {
@@ -155,7 +152,7 @@ TEST_CASE("simplify_matchable") {
 TEST_CASE("simplify_literal") {
     auto flags = SimplifyFlags::matchable;
     REQUIRE(simplify_str(parse_literal("1<2"), flags) == "#true");
-    REQUIRE(simplify_str(parse_literal("2<1"), flags) == "<undefined>");
+    REQUIRE(simplify_str(parse_literal("2<1"), flags) == "#false");
     REQUIRE(simplify_str(parse_literal("X=Y+Z"), flags) == "X=Y+Z");
     REQUIRE(simplify_str(parse_literal("X=Y+Z=Z"), flags) == "X=Y+Z=Z");
     REQUIRE(simplify_str(parse_literal("not not X=Y+Z=Z"), flags) == "X=Y+Z=Z");
