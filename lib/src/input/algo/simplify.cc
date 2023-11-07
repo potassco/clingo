@@ -957,85 +957,67 @@ struct SimplifyLiteral {
         // this can be checked in statements
         //
         // TODO: the augmented simplification result seems to be the thing to go for
-        auto simp_lit = [this](auto &res_lits, auto const &hlit) {
-            return std::visit(
-                [&](auto &&res) {
-                    GRINGO_MATCH(res, SimplifyFail) { return SimplifyState::fail; }
-                    else {
-                        auto const *nlit = &hlit;
-                        GRINGO_MATCH(res, Literal) { nlit = &res; }
-                        if (auto truth = is_fixed(*nlit); truth.has_value()) {
-                            // the literal can be removed
-                            if (truth.value()) {
-                                res_lits.remove();
+        auto simp_lit = [this](auto &lits) -> std::pair<SimplifyState, SimplifyVec<Literal>> {
+            SimplifyState state_lits = SimplifyState::unknown;
+            SimplifyVec res_lits{lits};
+            for (auto const &lit : lits) {
+                auto state = std::visit(
+                    [&](auto &&res) {
+                        GRINGO_MATCH(res, SimplifyFail) { return SimplifyState::fail; }
+                        else {
+                            auto const *plit = &lit;
+                            GRINGO_MATCH(res, Literal) { plit = &res; }
+                            if (auto truth = is_fixed(*plit); truth.has_value()) {
+                                // the literal can be removed
+                                if (truth.value()) {
+                                    res_lits.remove();
+                                    return SimplifyState::unknown;
+                                }
+                                // the conclusion is false
+                                return SimplifyState::bot;
+                            }
+                            GRINGO_MATCH(res, SimplifyUnchanged) {
+                                res_lits.keep();
                                 return SimplifyState::unknown;
                             }
-                            // the conclusion is false
-                            return SimplifyState::bot;
+                            GRINGO_MATCH(res, Literal) {
+                                res_lits.update(std::move(res));
+                                return SimplifyState::unknown;
+                            }
                         }
-                        GRINGO_MATCH(res, SimplifyUnchanged) {
-                            res_lits.keep();
-                            return SimplifyState::unknown;
-                        }
-                        GRINGO_MATCH(res, Literal) {
-                            res_lits.update(std::move(res));
-                            return SimplifyState::unknown;
-                        }
-                    }
-                },
-                simplify(SimplifyFlags::none, ctx, hlit));
+                    },
+                    simplify(SimplifyFlags::none, ctx, lit));
+                if (state == SimplifyState::fail) {
+                    return {state, std::move(res_lits)};
+                }
+                // the literals became false
+                if (state == SimplifyState::bot) {
+                    // in the body of a rule, a false literal has to be introduced
+                    res_lits.opt_value() = Util::make_vec<Literal>(LiteralBoolean{location(lit), Sign::none, false});
+                    return {state_lits, std::move(res_lits)};
+                }
+            }
+            if (res_lits.value().empty()) {
+                state_lits = SimplifyState::top;
+            }
+            return {state_lits, std::move(res_lits)};
         };
 
-        SimplifyState state_lits = SimplifyState::unknown;
-        SimplifyVec res_lits{lit.lits};
+        auto [state_lits, res_lits] = simp_lit(lit.lits);
+        auto [state_cond, res_cond] = simp_lit(lit.cond);
 
-        for (auto const &hlit : lit.lits) {
-            auto state = simp_lit(res_lits, hlit);
-            if (state == SimplifyState::fail) {
-                return {SimplifyState::fail};
-            }
-            // the literals became false
-            if (state == SimplifyState::bot) {
-                // in the body of a rule, a false literal has to be introduced
-                state_lits = SimplifyState::bot;
-                res_lits.opt_value() = Util::make_vec<Literal>(LiteralBoolean{location(hlit), Sign::none, false});
-                break;
-            }
-        }
-        if (res_lits.value().empty()) {
-            // in the body of a rule, the conditional literal can be considered true
-            if (conjunctive) {
-                // result: ":"
-                return {SimplifyState::top};
-            }
-            state_lits = SimplifyState::top;
+        if (state_lits == SimplifyState::fail || state_cond == SimplifyState::fail) {
+            return {SimplifyState::fail};
         }
 
-        SimplifyState state_cond = SimplifyState::unknown;
-        SimplifyVec res_cond{lit.cond};
-
-        // TODO: became a copy of the above!!!
-        for (auto const &clit : lit.cond) {
-            auto state = simp_lit(res_cond, clit);
-            if (state == SimplifyState::fail) {
-                return {SimplifyState::fail};
-            }
-            if (state == SimplifyState::bot) {
-                // result: ":" or "#false:"
-                state_cond = SimplifyState::bot;
-                res_lits.opt_value() = Util::make_vec<Literal>(LiteralBoolean{location(clit), Sign::none, false});
-                break;
-            }
-        }
-        if (res_cond.value().empty()) {
-            state_cond = SimplifyState::top;
+        // elements of conjunctions can be removed if their conclusion is true
+        // (this is not true for disjunctions)
+        if (conjunctive && state_lits == SimplifyState::top) {
+            // result: ":"
+            return {SimplifyState::top};
         }
 
-        if (conjunctive && state_lits == SimplifyState::bot) {
-            // result: "#false:"
-            return {SimplifyState::bot};
-        }
-
+        // elements of *junctions can be removed if their condition is false
         if (state_cond == SimplifyState::bot) {
             // result: ":" or "#false:"
             return {conjunctive ? SimplifyState::top : SimplifyState::bot};
