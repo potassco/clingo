@@ -1006,6 +1006,13 @@ struct SimplifyLiteral {
         auto [state_lits, res_lits] = simp_lit(lit.lits);
         auto [state_cond, res_cond] = simp_lit(lit.cond);
 
+        auto make_condlit = [&]() -> std::optional<ConditionalLiteral> {
+            if (res_lits.has_value() || res_cond.has_value()) {
+                return ConditionalLiteral{lit.loc, std::move(res_lits).value(), std::move(res_cond).value()};
+            }
+            return std::nullopt;
+        };
+
         if (state_lits == SimplifyState::fail || state_cond == SimplifyState::fail) {
             return {SimplifyState::fail};
         }
@@ -1014,27 +1021,21 @@ struct SimplifyLiteral {
         // (this is not true for disjunctions)
         if (conjunctive && state_lits == SimplifyState::top) {
             // result: ":"
-            return {SimplifyState::top};
+            return {SimplifyState::top, make_condlit()};
         }
 
         // elements of *junctions can be removed if their condition is false
         if (state_cond == SimplifyState::bot) {
             // result: ":" or "#false:"
-            return {conjunctive ? SimplifyState::top : SimplifyState::bot};
+            return {conjunctive ? SimplifyState::top : SimplifyState::bot, make_condlit()};
         }
 
         if (state_cond == SimplifyState::top && state_lits != SimplifyState::unknown) {
             // result: ":" or "#false:"
-            return {state_lits};
+            return {state_lits, make_condlit()};
         }
 
-        // the conditional literal changed
-        if (res_lits.has_value() || res_cond.has_value()) {
-            return {SimplifyState::unknown,
-                    ConditionalLiteral{lit.loc, std::move(res_lits).value(), std::move(res_cond).value()}};
-        }
-        // the conditional did not change
-        return {SimplifyState::unknown};
+        return {SimplifyState::unknown, make_condlit()};
     }
 
     template <bool Conjunctive>
