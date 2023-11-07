@@ -52,10 +52,66 @@ namespace Gringo::Input {
 
 namespace {
 
+enum class SimplifyState {
+    fail,
+    top,
+    bot,
+    unknown,
+};
+
+template <class T> struct SimplifyResult2 {
+    SimplifyState state = SimplifyState::fail;
+    std::optional<T> value = std::nullopt;
+};
+
+template <class T> struct SimplifyVec {
+    SimplifyVec(std::vector<T> const &in) : in_{in} {}
+    void keep() {
+        if (out_.has_value()) {
+            out_->emplace_back(*cur_);
+        }
+        ++cur_;
+    }
+    void remove() {
+        if (!out_.has_value()) {
+            out_ = Util::copy_n(in_, std::distance(in_.begin(), cur_));
+        }
+        ++cur_;
+    }
+    void update(auto &&value) {
+        if (!out_.has_value()) {
+            out_ = Util::copy_n(in_, std::distance(in_.begin(), cur_));
+        }
+        out_->emplace_back(std::forward<decltype(value)>(value));
+        ++cur_;
+    }
+    [[nodiscard]] auto has_value() -> bool { return out_.has_value(); }
+    [[nodiscard]] auto opt_value() & -> std::optional<std::vector<T>> & { return out_; }
+    [[nodiscard]] auto value() const & -> std::vector<T> const & { return out_.has_value() ? out_.value() : in_; }
+    [[nodiscard]] auto value() && -> std::vector<T> {
+        if (out_.has_value()) {
+            return std::move(out_).value();
+        }
+        return in_;
+    }
+
+  private:
+    std::vector<T> const &in_;
+    std::optional<std::vector<T>> out_;
+    std::vector<T>::const_iterator cur_ = in_.begin();
+};
+
 [[nodiscard]] auto map_term(SimplifyContext const &ctx, Term term) -> Term & {
     auto loc = location(term);
     ctx.aux.emplace_back(TermVariable{std::move(loc), ctx.gen.new_name()}, std::move(term));
     return ctx.aux.back().first;
+}
+
+[[nodiscard]] auto is_fixed(Literal const &lit) -> std::optional<bool> {
+    if (auto const *blit = std::get_if<LiteralBoolean>(&lit); blit != nullptr) {
+        return blit->value == (blit->sign != Sign::once);
+    }
+    return std::nullopt;
 }
 
 //! Simplify terms.
@@ -890,7 +946,8 @@ struct SimplifyLiteral {
 
     // TODO: maybe move elsewhere!
 
-    auto operator()(ConditionalLiteral const &lit) const -> SimplifyResult<ConditionalLiteral> {
+    auto operator()(ConditionalLiteral const &lit, bool conjunctive) const -> SimplifyResult2<ConditionalLiteral> {
+        // TODO: it seems like the disjunctive flag can be removed
         // fail in lits or cond implies lit fails!!!
         // assignments in lits are added to the same
         // assignments in cond are added to the same
@@ -899,30 +956,96 @@ struct SimplifyLiteral {
         // see: auto unpool(Logger &log, Statement const &stm) -> std::optional<StatementVec>
         // no global variable must become local!
         // this can be checked in statements
-        static_cast<void>(lit);
-        for (auto const &hlit : lit.lits) {
-            // it seems like the disjunctive flag can be remvoed
-            if (!std::visit(
-                    [](auto &&res) {
-                        GRINGO_MATCH(res, SimplifyFail) { return false; }
+        //
+        // TODO: the augmented simplification result seems to be the thing to go for
+        auto simp_lit = [this](auto &res_lits, auto const &hlit) {
+            return std::visit(
+                [&](auto &&res) {
+                    GRINGO_MATCH(res, SimplifyFail) { return SimplifyState::fail; }
+                    else {
+                        auto const *nlit = &hlit;
+                        GRINGO_MATCH(res, Literal) { nlit = &res; }
+                        if (auto truth = is_fixed(*nlit); truth.has_value()) {
+                            // the literal can be removed
+                            if (truth.value()) {
+                                res_lits.remove();
+                                return SimplifyState::unknown;
+                            }
+                            // the conclusion is false
+                            return SimplifyState::bot;
+                        }
                         GRINGO_MATCH(res, SimplifyUnchanged) {
-                            // we can remove literal from lits if true
-                            // the conditional literal becomes false if false
-                            return true;
+                            res_lits.keep();
+                            return SimplifyState::unknown;
                         }
                         GRINGO_MATCH(res, Literal) {
-                            // we can remove literal from lits if true
-                            // the conditional literal becomes false if false
-                            return true;
+                            res_lits.update(std::move(res));
+                            return SimplifyState::unknown;
                         }
-                        static_cast<void>(res);
-                    },
-                    simplify(SimplifyFlags::none, ctx, hlit))) {
-                return SimplifyFail{};
+                    }
+                },
+                simplify(SimplifyFlags::none, ctx, hlit));
+        };
+
+        SimplifyState state_lits = SimplifyState::unknown;
+        SimplifyVec res_lits{lit.lits};
+
+        for (auto const &hlit : lit.lits) {
+            auto state = simp_lit(res_lits, hlit);
+            if (state == SimplifyState::fail) {
+                return {SimplifyState::fail};
+            }
+            // the literals became false
+            if (state == SimplifyState::bot) {
+                // in the head of a rule, the conditional literal can be considered false
+                if (!conjunctive) {
+                    // result: "#false:"
+                    return {SimplifyState::bot};
+                }
+                // in the body of a rule, a false literal has to be introduced
+                state_lits = SimplifyState::bot;
+                res_lits.opt_value() = Util::make_vec<Literal>(LiteralBoolean{location(hlit), Sign::none, false});
+                break;
             }
         }
-        // auto res_lits = operator()(lit.lits);
-        throw std::runtime_error("implement me!!!");
+        if (res_lits.value().empty()) {
+            // in the body of a rule, the conditional literal can be considered true
+            if (conjunctive) {
+                // result: ":"
+                return {SimplifyState::top};
+            }
+            state_lits = SimplifyState::top;
+        }
+
+        SimplifyState state_cond = SimplifyState::unknown;
+        SimplifyVec res_cond{lit.cond};
+
+        for (auto const &clit : lit.cond) {
+            auto state = simp_lit(res_cond, clit);
+            if (state == SimplifyState::fail) {
+                return {SimplifyState::fail};
+            }
+            if (state == SimplifyState::bot) {
+                // result: ":" or "#false:"
+                return {conjunctive ? SimplifyState::top : SimplifyState::bot};
+            }
+        }
+        if (res_cond.value().empty()) {
+            state_cond = SimplifyState::top;
+        }
+
+        if (state_cond == SimplifyState::top && state_lits != SimplifyState::unknown) {
+            // result: ":" or "#false:"
+            return {state_lits};
+        }
+
+        // the conditional literal changed
+        if (res_lits.has_value() || res_cond.has_value()) {
+            return {SimplifyState::unknown,
+                    ConditionalLiteral{lit.loc, std::move(res_lits).value(), std::move(res_cond).value()}};
+        }
+        // the conditional did not change
+        return {SimplifyState::unknown};
     }
 
     template <bool Conjunctive>
