@@ -814,7 +814,6 @@ struct MakeMatchableTerm {
 //! Simplify literals.
 //!
 //! Does not return a value if the literal did not change.
-//! \todo Should probably also return failures to remove simplified literals entirely.
 struct SimplifyLiteral {
     //! Simplify literals dispatching based on type stored in variant.
     auto operator()(Literal const &lit, std::variant<SimplifyFlags> flags) const {
@@ -997,11 +996,6 @@ struct SimplifyLiteral {
             }
             // the literals became false
             if (state == SimplifyState::bot) {
-                // in the head of a rule, the conditional literal can be considered false
-                if (!conjunctive) {
-                    // result: "#false:"
-                    return {SimplifyState::bot};
-                }
                 // in the body of a rule, a false literal has to be introduced
                 state_lits = SimplifyState::bot;
                 res_lits.opt_value() = Util::make_vec<Literal>(LiteralBoolean{location(hlit), Sign::none, false});
@@ -1020,6 +1014,7 @@ struct SimplifyLiteral {
         SimplifyState state_cond = SimplifyState::unknown;
         SimplifyVec res_cond{lit.cond};
 
+        // TODO: became a copy of the above!!!
         for (auto const &clit : lit.cond) {
             auto state = simp_lit(res_cond, clit);
             if (state == SimplifyState::fail) {
@@ -1027,11 +1022,23 @@ struct SimplifyLiteral {
             }
             if (state == SimplifyState::bot) {
                 // result: ":" or "#false:"
-                return {conjunctive ? SimplifyState::top : SimplifyState::bot};
+                state_cond = SimplifyState::bot;
+                res_lits.opt_value() = Util::make_vec<Literal>(LiteralBoolean{location(clit), Sign::none, false});
+                break;
             }
         }
         if (res_cond.value().empty()) {
             state_cond = SimplifyState::top;
+        }
+
+        if (conjunctive && state_lits == SimplifyState::bot) {
+            // result: "#false:"
+            return {SimplifyState::bot};
+        }
+
+        if (state_cond == SimplifyState::bot) {
+            // result: ":" or "#false:"
+            return {conjunctive ? SimplifyState::top : SimplifyState::bot};
         }
 
         if (state_cond == SimplifyState::top && state_lits != SimplifyState::unknown) {
