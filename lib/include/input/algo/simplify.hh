@@ -27,6 +27,18 @@ enum class SimplifyFlags : unsigned {
 
 GRINGO_ENUM_FLAGS(SimplifyFlags)
 
+enum class SimplifyState {
+    fail,
+    top,
+    bot,
+    unknown,
+};
+
+template <class T> struct SimplifyResult2 {
+    SimplifyState state = SimplifyState::fail;
+    std::optional<T> value = std::nullopt;
+};
+
 // TODO: a map might also be an idea here to avoid duplicates for the same variable
 //! A vector of term pairs where the second has been substituted by the first in some other term.
 using AuxTermVec = std::vector<std::pair<Term, Term>>;
@@ -64,7 +76,7 @@ template <class Expr> using SimplifyResult = std::variant<SimplifyFail, Simplify
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term>;
 
 //! Simplifies the given literal.
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult2<Literal>;
 
 //! @}
 

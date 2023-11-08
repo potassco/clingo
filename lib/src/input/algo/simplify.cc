@@ -52,18 +52,6 @@ namespace Gringo::Input {
 
 namespace {
 
-enum class SimplifyState {
-    fail,
-    top,
-    bot,
-    unknown,
-};
-
-template <class T> struct SimplifyResult2 {
-    SimplifyState state = SimplifyState::fail;
-    std::optional<T> value = std::nullopt;
-};
-
 template <class T> struct SimplifyVec {
     SimplifyVec(std::vector<T> const &in) : in_{in} {}
     void keep() {
@@ -79,11 +67,15 @@ template <class T> struct SimplifyVec {
         ++cur_;
     }
     void update(auto &&value) {
-        if (!out_.has_value()) {
-            out_ = Util::copy_n(in_, std::distance(in_.begin(), cur_));
+        if (!value.has_value()) {
+            keep();
+        } else {
+            if (!out_.has_value()) {
+                out_ = Util::copy_n(in_, std::distance(in_.begin(), cur_));
+            }
+            out_->emplace_back(std::forward<decltype(value)>(value).value());
+            ++cur_;
         }
-        out_->emplace_back(std::forward<decltype(value)>(value));
-        ++cur_;
     }
     [[nodiscard]] auto has_value() -> bool { return out_.has_value(); }
     [[nodiscard]] auto opt_value() & -> std::optional<std::vector<T>> & { return out_; }
@@ -107,12 +99,14 @@ template <class T> struct SimplifyVec {
     return ctx.aux.back().first;
 }
 
+/*
 [[nodiscard]] auto is_fixed(Literal const &lit) -> std::optional<bool> {
     if (auto const *blit = std::get_if<LiteralBoolean>(&lit); blit != nullptr) {
         return blit->value == (blit->sign != Sign::once);
     }
     return std::nullopt;
 }
+*/
 
 //! Simplify terms.
 struct SimplifyTerm {
@@ -816,20 +810,22 @@ struct MakeMatchableTerm {
 //! Does not return a value if the literal did not change.
 struct SimplifyLiteral {
     //! Simplify literals dispatching based on type stored in variant.
-    auto operator()(Literal const &lit, std::variant<SimplifyFlags> flags) const {
-        return std::visit(*this, lit, flags);
+    auto operator()(Literal const &lit, SimplifyFlags flags) const -> SimplifyResult2<Literal> {
+        return std::visit(*this, lit, std::variant<SimplifyFlags>{flags});
     }
 
     //! Simplify Boolean literals.
     //!
     //! Ensures that the literal is either true or false.
-    auto operator()(LiteralBoolean const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
-        static_cast<void>(lit);
+    auto operator()(LiteralBoolean const &lit, SimplifyFlags flags) const -> SimplifyResult2<Literal> {
         static_cast<void>(flags);
+        auto value = (lit.sign != Sign::once) == lit.value;
+        auto state = value ? SimplifyState::top : SimplifyState::bot;
+
         if (lit.sign != Sign::none) {
-            return LiteralBoolean{lit.loc, Sign::none, lit.sign != Sign::once};
+            return {state, LiteralBoolean{lit.loc, Sign::none, value}};
         }
-        return SimplifyUnchanged{};
+        return {state};
     }
 
     //! Simplify relation literals.
@@ -839,7 +835,7 @@ struct SimplifyLiteral {
     //! (2) terms in disjunctive non-binary relations cannot evaluate to empty pools.
     //! The letter is important to ensure that relations can be split into multiple rules
     //! without unintuitive side-effects.
-    auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
+    auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> SimplifyResult2<Literal> {
         if (lit.sign == Sign::once) {
             flags ^= SimplifyFlags::disjunctive;
         }
@@ -879,7 +875,7 @@ struct SimplifyLiteral {
         }
         // simplify lhs
         if (!std::visit(simp, simplify(fixed_flags | match_flags, ctx, lit.lhs))) {
-            return SimplifyFail{};
+            return {SimplifyState::fail};
         }
         // simplify rhs
         for (auto const &[rel, term] : lit.rhs) {
@@ -889,7 +885,7 @@ struct SimplifyLiteral {
                 match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
             }
             if (!std::visit(simp, simplify(fixed_flags | match_flags, ctx, term))) {
-                return SimplifyFail{};
+                return {SimplifyState::fail};
             }
         }
         // simplify sign
@@ -902,20 +898,20 @@ struct SimplifyLiteral {
         if (constant) {
             auto a = std::get<TermSymbol>(res_rel.has_value() ? res_rel->lhs : lit.lhs).value;
             size_t n = 0;
+            auto value = lit.sign != Sign::once;
             for (auto const &[rel, term] : lit.rhs) {
                 auto b = std::get<TermSymbol>(res_rel.has_value() ? res_rel->rhs[n].second : term).value;
                 if (!evaluate(a, rel, b)) {
-                    return LiteralBoolean{lit.loc, Sign::none, lit.sign == Sign::once};
+                    value = !value;
+                    break;
                 }
                 a = b;
                 ++n;
             }
-            return LiteralBoolean{lit.loc, Sign::none, lit.sign != Sign::once};
+            auto state = value ? SimplifyState::top : SimplifyState::bot;
+            return {state, LiteralBoolean{lit.loc, Sign::none, value}};
         }
-        if (res_rel.has_value()) {
-            return std::move(res_rel).value();
-        }
-        return SimplifyUnchanged{};
+        return {SimplifyState::unknown, std::move(res_rel)};
     }
 
     //! Simplify symbolic literals.
@@ -923,33 +919,7 @@ struct SimplifyLiteral {
     //! The function ensures the following properties:
     //! (1) the literal is matchable if the corresponding flag has been set,
     //! (2) projection is accepted if the corresponding flag has been set.
-    auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
-        SimplifyResult<Literal> res_lit = SimplifyUnchanged{};
-        auto simp = [&](auto &&res) -> bool {
-            GRINGO_MATCH(res, SimplifyFail) { return false; }
-            GRINGO_MATCH(res, SimplifyUnchanged) { return true; }
-            GRINGO_MATCH(res, Term) {
-                res_lit = LiteralSymbolic{lit.loc, lit.sign, std::move(res)};
-                return true;
-            }
-        };
-        auto sub_flags = flags & (SimplifyFlags::matchable | SimplifyFlags::projectable);
-        if (lit.sign != Sign::none) {
-            sub_flags &= ~SimplifyFlags::matchable;
-        }
-        if (!std::visit(simp, simplify(sub_flags, ctx, lit.term))) {
-            return SimplifyFail{};
-        }
-        return res_lit;
-    }
-
-    //! Simplify symbolic literals.
-    //!
-    //! The function ensures the following properties:
-    //! (1) the literal is matchable if the corresponding flag has been set,
-    //! (2) projection is accepted if the corresponding flag has been set.
-    auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags, int dummy) const -> SimplifyResult2<Literal> {
-        static_cast<void>(dummy);
+    auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags) const -> SimplifyResult2<Literal> {
         auto simp = [&](auto &&res) -> SimplifyResult2<Literal> {
             GRINGO_MATCH(res, SimplifyFail) { return {SimplifyState::fail}; }
             GRINGO_MATCH(res, SimplifyUnchanged) { return {SimplifyState::unknown}; }
@@ -979,47 +949,28 @@ struct SimplifyLiteral {
         //
         // TODO: the augmented simplification result seems to be the thing to go for
         auto simp_lit = [this](auto &lits) -> std::pair<SimplifyState, SimplifyVec<Literal>> {
-            SimplifyState state_lits = SimplifyState::unknown;
+            SimplifyState state_lits = SimplifyState::top;
             SimplifyVec res_lits{lits};
             for (auto const &lit : lits) {
-                auto state = std::visit(
-                    [&](auto &&res) {
-                        GRINGO_MATCH(res, SimplifyFail) { return SimplifyState::fail; }
-                        else {
-                            auto const *plit = &lit;
-                            GRINGO_MATCH(res, Literal) { plit = &res; }
-                            if (auto truth = is_fixed(*plit); truth.has_value()) {
-                                // the literal can be removed
-                                if (truth.value()) {
-                                    res_lits.remove();
-                                    return SimplifyState::unknown;
-                                }
-                                // the conclusion is false
-                                return SimplifyState::bot;
-                            }
-                            GRINGO_MATCH(res, SimplifyUnchanged) {
-                                res_lits.keep();
-                                return SimplifyState::unknown;
-                            }
-                            GRINGO_MATCH(res, Literal) {
-                                res_lits.update(std::move(res));
-                                return SimplifyState::unknown;
-                            }
-                        }
-                    },
-                    simplify(SimplifyFlags::none, ctx, lit));
+                auto [state, value] = simplify(SimplifyFlags::none, ctx, lit);
                 if (state == SimplifyState::fail) {
-                    return {state, std::move(res_lits)};
+                    return {SimplifyState::fail, std::move(res_lits)};
                 }
                 // the literals became false
                 if (state == SimplifyState::bot) {
                     // in the body of a rule, a false literal has to be introduced
-                    res_lits.opt_value() = Util::make_vec<Literal>(LiteralBoolean{location(lit), Sign::none, false});
-                    return {state_lits, std::move(res_lits)};
+                    if (lits.size() != 1 || value.has_value()) {
+                        res_lits.opt_value() =
+                            Util::make_vec<Literal>(LiteralBoolean{location(lit), Sign::none, false});
+                    }
+                    return {SimplifyState::bot, std::move(res_lits)};
                 }
-            }
-            if (res_lits.value().empty()) {
-                state_lits = SimplifyState::top;
+                if (state == SimplifyState::top) {
+                    res_lits.remove();
+                } else {
+                    state_lits = SimplifyState::unknown;
+                    res_lits.update(std::move(value));
+                }
             }
             return {state_lits, std::move(res_lits)};
         };
@@ -1358,7 +1309,7 @@ struct RewriteArithmetics : Transformer<RewriteArithmetics> {
         simp(term, flags));
 }
 
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal> {
+[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult2<Literal> {
     // TODO: handling literals evaluating to true/false statically would be nice
     // the return would be a variant<bool,Unchanged,Literal>
     return SimplifyLiteral{ctx}(lit, flags);

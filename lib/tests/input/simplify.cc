@@ -4,8 +4,7 @@
 
 namespace Gringo::Input::Test {
 
-template <class T>
-auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
+auto simplify_str(std::optional<Term> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
     if (value) {
         Logger log;
         auto store = make_symbol_store(true, true);
@@ -16,7 +15,7 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
             [&](auto &&res) {
                 GRINGO_MATCH(res, SimplifyFail) { oss << "<undefined>"; }
                 GRINGO_MATCH(res, SimplifyUnchanged) { oss << value.value(); }
-                GRINGO_MATCH(res, T) { oss << res; }
+                GRINGO_MATCH(res, Term) { oss << res; }
             },
             simplify(flags, {log, *store, gen, aux}, value.value()));
         for (auto const &[lhs, rhs] : aux) {
@@ -30,22 +29,40 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
     return "<failed>";
 }
 
-auto simplify_str(std::optional<Literal> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
+template <class T>
+auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
     if (value) {
         Logger log;
         auto store = make_symbol_store(true, true);
         NameGen gen{*store, {}, "__Aux_"};
         AuxTermVec aux;
         std::ostringstream oss;
-        std::visit(
-            [&](auto &&res) {
-                GRINGO_MATCH(res, SimplifyFail) { oss << "<undefined>"; }
-                GRINGO_MATCH(res, SimplifyUnchanged) { oss << value.value(); }
-                GRINGO_MATCH(res, Literal) { oss << res; }
-            },
-            simplify(flags, {log, *store, gen, aux}, value.value()));
+        auto [state, res] = simplify(flags, {log, *store, gen, aux}, value.value());
+        if (res.has_value()) {
+            oss << res.value();
+        } else {
+            oss << "<unchanged>";
+        }
         for (auto const &[lhs, rhs] : aux) {
             oss << ", " << lhs << "=" << rhs;
+        }
+        switch (state) {
+            case SimplifyState::top: {
+                oss << ", T";
+                break;
+            }
+            case SimplifyState::bot: {
+                oss << ", B";
+                break;
+            }
+            case SimplifyState::unknown: {
+                oss << ", U";
+                break;
+            }
+            case SimplifyState::fail: {
+                oss << ", F";
+                break;
+            }
         }
         if (log.has_error()) {
             oss << ", E";
@@ -151,24 +168,27 @@ TEST_CASE("simplify_matchable") {
 
 TEST_CASE("simplify_literal") {
     auto flags = SimplifyFlags::matchable;
-    REQUIRE(simplify_str(parse_literal("1<2"), flags) == "#true");
-    REQUIRE(simplify_str(parse_literal("2<1"), flags) == "#false");
-    REQUIRE(simplify_str(parse_literal("X=Y+Z"), flags) == "X=Y+Z");
-    REQUIRE(simplify_str(parse_literal("X=Y+Z=Z"), flags) == "X=Y+Z=Z");
-    REQUIRE(simplify_str(parse_literal("not not X=Y+Z=Z"), flags) == "X=Y+Z=Z");
-    REQUIRE(simplify_str(parse_literal("not X=Y+Z=Z"), flags) == "not X=__Aux_0=Z, __Aux_0=Y+Z");
+    REQUIRE(simplify_str(parse_literal("1<2"), flags) == "#true, T");
+    REQUIRE(simplify_str(parse_literal("2<1"), flags) == "#false, B");
+    REQUIRE(simplify_str(parse_literal("X=Y+Z"), flags) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_literal("X=Y+Z=Z"), flags) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_literal("not not X=Y+Z=Z"), flags) == "X=Y+Z=Z, U");
+    REQUIRE(simplify_str(parse_literal("not X=Y+Z=Z"), flags) == "not X=__Aux_0=Z, __Aux_0=Y+Z, U");
     REQUIRE(simplify_str(parse_literal("X=f(Y+Z,Z+5)<f(Y+Z,Z+5)"), flags) ==
-            "X=f(__Aux_0,1*Z+5)<f(Y+Z,1*Z+5), __Aux_0=Y+Z");
-    REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "<undefined>, E");
-    REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "<undefined>, E");
+            "X=f(__Aux_0,1*Z+5)<f(Y+Z,1*Z+5), __Aux_0=Y+Z, U");
+    REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "<unchanged>, F, E");
+    REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "<unchanged>, F, E");
 
     flags = SimplifyFlags::matchable | SimplifyFlags::projectable;
-    REQUIRE(simplify_str(parse_literal("p(X,*)"), flags) == "p(X,*)");
-    REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "<undefined>, E");
-    REQUIRE(simplify_str(parse_literal("not p(X,@f(*))"), flags) == "<undefined>, E");
-    REQUIRE(simplify_str(parse_literal("p(X+Y,Y+1)"), flags) == "p(__Aux_0,1*Y+1), __Aux_0=X+Y");
-    REQUIRE(simplify_str(parse_literal("not p(X+Y,Y+1)"), flags) == "not p(X+Y,1*Y+1)");
-    REQUIRE(simplify_str(parse_literal("not not p(X+Y,Y+1)"), flags) == "not not p(X+Y,1*Y+1)");
+    REQUIRE(simplify_str(parse_literal("p(X,*)"), flags) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "<unchanged>, F, E");
+    REQUIRE(simplify_str(parse_literal("not p(X,@f(*))"), flags) == "<unchanged>, F, E");
+    REQUIRE(simplify_str(parse_literal("p(X+Y,Y+1)"), flags) == "p(__Aux_0,1*Y+1), __Aux_0=X+Y, U");
+    REQUIRE(simplify_str(parse_literal("not p(X+Y,Y+1)"), flags) == "not p(X+Y,1*Y+1), U");
+    REQUIRE(simplify_str(parse_literal("not not p(X+Y,Y+1)"), flags) == "not not p(X+Y,1*Y+1), U");
+    REQUIRE(simplify_str(parse_literal("p(X,1*Y+1)"), flags) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_literal("not p(X+Y,1*Y+1)"), flags) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_literal("not not p(X+Y,1*Y+1)"), flags) == "<unchanged>, U");
 }
 
 } // namespace Gringo::Input::Test
