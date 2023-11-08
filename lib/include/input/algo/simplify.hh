@@ -34,7 +34,7 @@ enum class SimplifyState {
     unknown,
 };
 
-template <class T> struct SimplifyResult2 {
+template <class T> struct SimplifyResult {
     SimplifyState state = SimplifyState::fail;
     std::optional<T> value = std::nullopt;
 };
@@ -51,18 +51,6 @@ struct SimplifyContext {
     AuxTermVec &aux;    //!< Vector of variable term pairs.
 };
 
-//! Indicate that simplifying an expression failed due to an invalid operation or error.
-//!
-//! If there has been an error, this will be indicated by the logger.
-struct SimplifyFail {};
-//! Indicate that an expression did not change during simplification.
-struct SimplifyUnchanged {};
-//! Indicate a simplifaction.
-//!
-//! The variant either captures that an expression failed to simplify,
-//! did not change, or the changed expression.
-template <class Expr> using SimplifyResult = std::variant<SimplifyFail, SimplifyUnchanged, Expr>;
-
 //! Check if the given term is a linear term.
 //!
 //! Returns true if the term has form m*X+n where m is a non-zero number, X a
@@ -73,10 +61,13 @@ template <class Expr> using SimplifyResult = std::variant<SimplifyFail, Simplify
 [[nodiscard]] auto is_linear(TermBinary const &term) -> bool;
 
 //! Simplifies the given term.
+//!
+//! Note that the state can only be fail or unknown
+//! where the latter is used to indicate successful simplification of the term.
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term>;
 
 //! Simplifies the given literal.
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult2<Literal>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal>;
 
 //! @}
 

@@ -4,31 +4,6 @@
 
 namespace Gringo::Input::Test {
 
-auto simplify_str(std::optional<Term> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
-    if (value) {
-        Logger log;
-        auto store = make_symbol_store(true, true);
-        NameGen gen{*store, {}, "__Aux_"};
-        AuxTermVec aux;
-        std::ostringstream oss;
-        std::visit(
-            [&](auto &&res) {
-                GRINGO_MATCH(res, SimplifyFail) { oss << "<undefined>"; }
-                GRINGO_MATCH(res, SimplifyUnchanged) { oss << value.value(); }
-                GRINGO_MATCH(res, Term) { oss << res; }
-            },
-            simplify(flags, {log, *store, gen, aux}, value.value()));
-        for (auto const &[lhs, rhs] : aux) {
-            oss << ", " << lhs << "=" << rhs;
-        }
-        if (log.has_error()) {
-            oss << ", E";
-        }
-        return std::move(oss).str();
-    }
-    return "<failed>";
-}
-
 template <class T>
 auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
     if (value) {
@@ -74,96 +49,96 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
 
 TEST_CASE("simplify_unary") {
     // numeric
-    REQUIRE(simplify_str(parse_term("-1")) == "-1");
-    REQUIRE(simplify_str(parse_term("-X+1")) == "-1*X+1");
-    REQUIRE(simplify_str(parse_term("|-1|")) == "1");
+    REQUIRE(simplify_str(parse_term("-1")) == "-1, U");
+    REQUIRE(simplify_str(parse_term("-X+1")) == "-1*X+1, U");
+    REQUIRE(simplify_str(parse_term("|-1|")) == "1, U");
     // any
-    REQUIRE(simplify_str(parse_term("-X")) == "-X");
-    REQUIRE(simplify_str(parse_term("--X")) == "-(-X)");
-    REQUIRE(simplify_str(parse_term("---X")) == "-X");
-    REQUIRE(simplify_str(parse_term("|-X|")) == "|-X|");
-    REQUIRE(simplify_str(parse_term("|1*X+0|")) == "|X|");
+    REQUIRE(simplify_str(parse_term("-X")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_term("--X")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_term("---X")) == "-X, U");
+    REQUIRE(simplify_str(parse_term("|-X|")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_term("|1*X+0|")) == "|X|, U");
     // symbolic
-    REQUIRE(simplify_str(parse_term("--f")) == "f");
-    REQUIRE(simplify_str(parse_term("---f")) == "-f");
-    REQUIRE(simplify_str(parse_term("-f(-|X|)")) == "-f(-|X|)");
+    REQUIRE(simplify_str(parse_term("--f")) == "f, U");
+    REQUIRE(simplify_str(parse_term("---f")) == "-f, U");
+    REQUIRE(simplify_str(parse_term("-f(-|X|)")) == "<unchanged>, U");
     // fail
-    REQUIRE(simplify_str(parse_term("~a")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("-(1,2)")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("-(1,X)")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("|()|")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("|(X,)|")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("|f|")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("|f(X)|")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("~a")) == "<unchanged>, F");
+    REQUIRE(simplify_str(parse_term("-(1,2)")) == "<unchanged>, F");
+    REQUIRE(simplify_str(parse_term("-(1,X)")) == "<unchanged>, F");
+    REQUIRE(simplify_str(parse_term("|()|")) == "<unchanged>, F");
+    REQUIRE(simplify_str(parse_term("|(X,)|")) == "<unchanged>, F");
+    REQUIRE(simplify_str(parse_term("|f|")) == "<unchanged>, F");
+    REQUIRE(simplify_str(parse_term("|f(X)|")) == "<unchanged>, F");
 }
 
 TEST_CASE("simplify_binary") {
     // evaluate constant
-    REQUIRE(simplify_str(parse_term("1+2")) == "3");
+    REQUIRE(simplify_str(parse_term("1+2")) == "3, U");
     // keep variables
-    REQUIRE(simplify_str(parse_term("X")) == "X");
+    REQUIRE(simplify_str(parse_term("X")) == "<unchanged>, U");
     // variable to linear
-    REQUIRE(simplify_str(parse_term("X+0")) == "1*X+0");
+    REQUIRE(simplify_str(parse_term("X+0")) == "1*X+0, U");
     // linear + constant
-    REQUIRE(simplify_str(parse_term("(2*X+3)+2")) == "2*X+5");
-    REQUIRE(simplify_str(parse_term("(2*X+3)-2")) == "2*X+1");
-    REQUIRE(simplify_str(parse_term("(2*X+3)*2")) == "4*X+6");
-    REQUIRE(simplify_str(parse_term("(2*X+3)/2")) == "(2*X+3)/2");
-    REQUIRE(simplify_str(parse_term("(1*X+0)/2")) == "X/2");
-    REQUIRE(simplify_str(parse_term("(1*X+0)*0")) == "X*0");
+    REQUIRE(simplify_str(parse_term("(2*X+3)+2")) == "2*X+5, U");
+    REQUIRE(simplify_str(parse_term("(2*X+3)-2")) == "2*X+1, U");
+    REQUIRE(simplify_str(parse_term("(2*X+3)*2")) == "4*X+6, U");
+    REQUIRE(simplify_str(parse_term("(2*X+3)/2")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_term("(1*X+0)/2")) == "X/2, U");
+    REQUIRE(simplify_str(parse_term("(1*X+0)*0")) == "X*0, U");
     // constant + linear
-    REQUIRE(simplify_str(parse_term("2*(2*X+3)")) == "4*X+6");
-    REQUIRE(simplify_str(parse_term("2+(2*X+3)")) == "2*X+5");
-    REQUIRE(simplify_str(parse_term("2-(2*X+3)")) == "-2*X+(-1)");
-    REQUIRE(simplify_str(parse_term("2/(2*X+3)")) == "2/(2*X+3)");
-    REQUIRE(simplify_str(parse_term("2/(1*X+0)")) == "2/X");
-    REQUIRE(simplify_str(parse_term("0*(1*X+0)")) == "0*X");
+    REQUIRE(simplify_str(parse_term("2*(2*X+3)")) == "4*X+6, U");
+    REQUIRE(simplify_str(parse_term("2+(2*X+3)")) == "2*X+5, U");
+    REQUIRE(simplify_str(parse_term("2-(2*X+3)")) == "-2*X+(-1), U");
+    REQUIRE(simplify_str(parse_term("2/(2*X+3)")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_term("2/(1*X+0)")) == "2/X, U");
+    REQUIRE(simplify_str(parse_term("0*(1*X+0)")) == "0*X, U");
     // linear + linear
-    REQUIRE(simplify_str(parse_term("(2*X+3)+(3*X+5)")) == "5*X+8");
-    REQUIRE(simplify_str(parse_term("(2*X+3)-(3*X+5)")) == "-1*X+(-2)");
-    REQUIRE(simplify_str(parse_term("(2*X+3)-(2*X+5)")) == "0*X+(-2)");
-    REQUIRE(simplify_str(parse_term("(2*X+3)+(3*Y+5)")) == "2*X+(3*Y+8)");
-    REQUIRE(simplify_str(parse_term("(2*X+3)-(3*Y+5)")) == "2*X-(3*Y+2)");
+    REQUIRE(simplify_str(parse_term("(2*X+3)+(3*X+5)")) == "5*X+8, U");
+    REQUIRE(simplify_str(parse_term("(2*X+3)-(3*X+5)")) == "-1*X+(-2), U");
+    REQUIRE(simplify_str(parse_term("(2*X+3)-(2*X+5)")) == "0*X+(-2), U");
+    REQUIRE(simplify_str(parse_term("(2*X+3)+(3*Y+5)")) == "2*X+(3*Y+8), U");
+    REQUIRE(simplify_str(parse_term("(2*X+3)-(3*Y+5)")) == "2*X-(3*Y+2), U");
     // unchanged + unchanged
-    REQUIRE(simplify_str(parse_term("(X/2)-(Y/2)")) == "X/2-Y/2");
+    REQUIRE(simplify_str(parse_term("(X/2)-(Y/2)")) == "<unchanged>, U");
     // changed + changed
-    REQUIRE(simplify_str(parse_term("(X/(2+0))-(Y/(2+0))")) == "X/2-Y/2");
+    REQUIRE(simplify_str(parse_term("(X/(2+0))-(Y/(2+0))")) == "X/2-Y/2, U");
     // fail
-    REQUIRE(simplify_str(parse_term("1+a")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("1+a")) == "<unchanged>, F");
 }
 
 TEST_CASE("simplify_symbolic") {
-    REQUIRE(simplify_str(parse_term("-f(-|1-2|)")) == "-f(-1)");
-    REQUIRE(simplify_str(parse_term("-f(1+2+X,-X)")) == "-f(1*X+3,-X)");
-    REQUIRE(simplify_str(parse_term("(1+2+X,-X)")) == "(1*X+3,-X)");
-    REQUIRE(simplify_str(parse_term("f(1+a)")) == "<undefined>");
-    REQUIRE(simplify_str(parse_term("f(X+a)")) == "<undefined>");
+    REQUIRE(simplify_str(parse_term("-f(-|1-2|)")) == "-f(-1), U");
+    REQUIRE(simplify_str(parse_term("-f(1+2+X,-X)")) == "-f(1*X+3,-X), U");
+    REQUIRE(simplify_str(parse_term("(1+2+X,-X)")) == "(1*X+3,-X), U");
+    REQUIRE(simplify_str(parse_term("f(1+a)")) == "<unchanged>, F");
+    REQUIRE(simplify_str(parse_term("f(X+a)")) == "<unchanged>, F");
 }
 
 TEST_CASE("simplify_aux") {
-    REQUIRE(simplify_str(parse_term("1..2")) == "1*__Aux_0+0, __Aux_0=1..2");
-    REQUIRE(simplify_str(parse_term("f(1..2)")) == "f(1*__Aux_0+0), __Aux_0=1..2");
-    REQUIRE(simplify_str(parse_term("@f")) == "__Aux_0, __Aux_0=@f");
-    REQUIRE(simplify_str(parse_term("@f(@g(1+2))")) == "__Aux_1, __Aux_0=@g(3), __Aux_1=@f(__Aux_0)");
+    REQUIRE(simplify_str(parse_term("1..2")) == "1*__Aux_0+0, __Aux_0=1..2, U");
+    REQUIRE(simplify_str(parse_term("f(1..2)")) == "f(1*__Aux_0+0), __Aux_0=1..2, U");
+    REQUIRE(simplify_str(parse_term("@f")) == "__Aux_0, __Aux_0=@f, U");
+    REQUIRE(simplify_str(parse_term("@f(@g(1+2))")) == "__Aux_1, __Aux_0=@g(3), __Aux_1=@f(__Aux_0), U");
 }
 
 TEST_CASE("simplify_project") {
-    REQUIRE(simplify_str(parse_term("f(*,(*,b))")) == "f(*,(*,b))");
-    REQUIRE(simplify_str(parse_term("@f(g(*))")) == "<undefined>, E");
-    REQUIRE(simplify_str(parse_term("f(*)"), SimplifyFlags::none) == "<undefined>, E");
+    REQUIRE(simplify_str(parse_term("f(*,(*,b))")) == "f(*,(*,b)), U");
+    REQUIRE(simplify_str(parse_term("@f(g(*))")) == "<unchanged>, F, E");
+    REQUIRE(simplify_str(parse_term("f(*)"), SimplifyFlags::none) == "<unchanged>, F, E");
 }
 
 TEST_CASE("simplify_matchable") {
     auto flags = SimplifyFlags::matchable | SimplifyFlags::unfailable;
-    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__Aux_0), __Aux_0=X+Y");
-    REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,__Aux_0), __Aux_0=2*X+0");
+    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__Aux_0), __Aux_0=X+Y, U");
+    REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,__Aux_0), __Aux_0=2*X+0, U");
     REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) ==
-            "p(__Aux_1,__Aux_0), __Aux_0=@f(g(X*X)), __Aux_1=1*X+5");
+            "p(__Aux_1,__Aux_0), __Aux_0=@f(g(X*X)), __Aux_1=1*X+5, U");
 
     flags &= ~SimplifyFlags::unfailable;
-    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__Aux_0), __Aux_0=X+Y");
-    REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,2*X+0)");
-    REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) == "p(1*X+5,__Aux_0), __Aux_0=@f(g(X*X))");
+    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__Aux_0), __Aux_0=X+Y, U");
+    REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,2*X+0), U");
+    REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) == "p(1*X+5,__Aux_0), __Aux_0=@f(g(X*X)), U");
 }
 
 TEST_CASE("simplify_literal") {
