@@ -943,6 +943,27 @@ struct SimplifyLiteral {
         return res_lit;
     }
 
+    //! Simplify symbolic literals.
+    //!
+    //! The function ensures the following properties:
+    //! (1) the literal is matchable if the corresponding flag has been set,
+    //! (2) projection is accepted if the corresponding flag has been set.
+    auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags, int dummy) const -> SimplifyResult2<Literal> {
+        static_cast<void>(dummy);
+        auto simp = [&](auto &&res) -> SimplifyResult2<Literal> {
+            GRINGO_MATCH(res, SimplifyFail) { return {SimplifyState::fail}; }
+            GRINGO_MATCH(res, SimplifyUnchanged) { return {SimplifyState::unknown}; }
+            GRINGO_MATCH(res, Term) {
+                return {SimplifyState::unknown, LiteralSymbolic{lit.loc, lit.sign, std::move(res)}};
+            }
+        };
+        auto sub_flags = flags & (SimplifyFlags::matchable | SimplifyFlags::projectable);
+        if (lit.sign != Sign::none) {
+            sub_flags &= ~SimplifyFlags::matchable;
+        }
+        return std::visit(simp, simplify(sub_flags, ctx, lit.term));
+    }
+
     // TODO: maybe move elsewhere!
 
     auto operator()(ConditionalLiteral const &lit, bool conjunctive) const -> SimplifyResult2<ConditionalLiteral> {
