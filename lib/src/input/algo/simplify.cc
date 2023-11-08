@@ -1078,11 +1078,20 @@ struct SimplifyHBLiteral {
 
     //! Simplify a set aggregate element.
     //!
-    //! Status top and bot will be used if the element is statically true/false.
-    //! Status bot and fail are equivalent.
+    //! Status top and fail will be used if the element is statically true/false.
+    //! In case the element is statically false, no updated aggregate element is provided.
     auto operator()(SetAggregateElement const &elem) const -> SimplifyResult<SetAggregateElement> {
         auto [state_lit, res_lit] = simplify(SimplifyFlags::none, ctx, elem.lit);
         auto [state_cond, res_cond] = simplify_litvec(elem.cond);
+        if (state_lit == SimplifyState::fail || state_cond == SimplifyState::fail || state_lit == SimplifyState::bot ||
+            state_cond == SimplifyState::bot) {
+            return {SimplifyState::fail};
+        }
+        // each true literal can be subtracted from the bounds of the aggregate
+        if (state_lit == SimplifyState::top && state_cond == SimplifyState::top) {
+            // result: "#true:"
+            return {SimplifyState::top};
+        }
         // rewriting should be rather straight-forward and not depend on the body.
         // the elements in the conclusions are treated as a set and not as a disjunction!!!
         throw std::logic_error("implement me!!!");
