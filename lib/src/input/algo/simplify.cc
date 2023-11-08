@@ -86,6 +86,20 @@ template <class T> struct SimplifyVec {
         }
         return in_;
     }
+    void extend(AuxTermVec &aux) {
+        if (aux.empty()) {
+            return;
+        }
+        if (!out_.has_value()) {
+            out_ = in_;
+        }
+        for (auto &[lhs, rhs] : aux) {
+            auto loc = location(lhs);
+            out_->emplace_back(LiteralRelation{loc, Sign::none, std::move(lhs),
+                                               Util::make_vec<Guard>(Guard{Relation::equal, std::move(rhs)})});
+        }
+        aux.clear();
+    }
 
   private:
     std::vector<T> const &in_;
@@ -956,9 +970,7 @@ struct SimplifyLiteral {
                 if (state == SimplifyState::fail) {
                     return {SimplifyState::fail, std::move(res_lits)};
                 }
-                // the literals became false
                 if (state == SimplifyState::bot) {
-                    // in the body of a rule, a false literal has to be introduced
                     if (lits.size() != 1 || value.has_value()) {
                         res_lits.opt_value() =
                             Util::make_vec<Literal>(LiteralBoolean{location(lit), Sign::none, false});
@@ -972,6 +984,7 @@ struct SimplifyLiteral {
                     res_lits.update(std::move(value));
                 }
             }
+            res_lits.extend(ctx.aux);
             return {state_lits, std::move(res_lits)};
         };
 
@@ -992,18 +1005,23 @@ struct SimplifyLiteral {
         // elements of conjunctions can be removed if their conclusion is true
         // (this is not true for disjunctions)
         if (conjunctive && state_lits == SimplifyState::top) {
-            // result: ":"
+            // ensure result: ":"
+            if (!lit.cond.empty()) {
+                res_cond.opt_value() = LiteralVec{};
+            }
             return {SimplifyState::top, make_condlit()};
         }
 
         // elements of *junctions can be removed if their condition is false
         if (state_cond == SimplifyState::bot) {
-            // result: ":" or "#false:"
+            // ensure result: ":#false"
+            if (!lit.lits.empty()) {
+                res_lits.opt_value() = LiteralVec{};
+            }
             return {conjunctive ? SimplifyState::top : SimplifyState::bot, make_condlit()};
         }
 
         if (state_cond == SimplifyState::top && state_lits != SimplifyState::unknown) {
-            // result: ":" or "#false:"
             return {state_lits, make_condlit()};
         }
 
