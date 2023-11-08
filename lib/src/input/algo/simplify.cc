@@ -87,7 +87,7 @@ template <class T> struct SimplifyVec {
         }
         return in_;
     }
-    void extend(AuxTermVec &aux) {
+    void extend(AuxTermVec &aux, bool conjunctive = true) {
         if (aux.empty()) {
             return;
         }
@@ -96,8 +96,9 @@ template <class T> struct SimplifyVec {
         }
         for (auto &[lhs, rhs] : aux) {
             auto loc = location(lhs);
-            out_->emplace_back(LiteralRelation{loc, Sign::none, std::move(lhs),
-                                               Util::make_vec<Guard>(Guard{Relation::equal, std::move(rhs)})});
+            auto rel = conjunctive ? Relation::equal : Relation::inequal;
+            out_->emplace_back(
+                LiteralRelation{loc, Sign::none, std::move(lhs), Util::make_vec<Guard>(Guard{rel, std::move(rhs)})});
         }
         aux.clear();
     }
@@ -850,6 +851,26 @@ struct SimplifyLiteral {
     //! (2) terms in disjunctive non-binary relations cannot evaluate to empty pools.
     //! The letter is important to ensure that relations can be split into multiple rules
     //! without unintuitive side-effects.
+    //!
+    //! Consider the program
+    //!   p(a).
+    //!   2 <= 1 <= X+5 :- p(X).
+    //! This is not equilavent to
+    //!   p(a).
+    //!   2 <= 1 :- p(X).
+    //!   1 <= X+5 :- p(X).
+    //! because first program is satisfiable while the second is unsatisfiable.
+    //!
+    //! A correct translation is
+    //!   p(a).
+    //!   2 <= 1 <= A | A!=X+5 :- p(X).
+    //! equivalent to
+    //!   p(a).
+    //!   2 <= 1 :- p(X), A=X+5.
+    //!   1 <= A :- p(X), A=X+5.
+    //! The seemingly unnecessary assignment ensures that pools are handled correctly.
+    //!
+    //! A similar effect can be observed with negated relation literals in the body.
     auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
         if (lit.sign == Sign::once) {
             flags ^= SimplifyFlags::disjunctive;
@@ -953,37 +974,41 @@ struct SimplifyLiteral {
 
 //! Simplify head/body literals.
 struct SimplifyHBLiteral {
+    //! Simplify a conjunction of literals.
+    [[nodiscard]] auto simplify_litvec(LiteralVec const &lits, bool conjunctive = true) const
+        -> std::pair<SimplifyState, SimplifyVec<Literal>> {
+        auto state_fixed = conjunctive ? SimplifyState::bot : SimplifyState::top;
+        auto state_empty = conjunctive ? SimplifyState::top : SimplifyState::bot;
+        SimplifyState state_lits = state_empty;
+        SimplifyVec res_lits{lits};
+        ctx.aux.clear();
+        for (auto const &lit : lits) {
+            auto [state, value] = simplify(conjunctive ? SimplifyFlags::none : SimplifyFlags::disjunctive, ctx, lit);
+            if (state == SimplifyState::fail) {
+                return {SimplifyState::fail, std::move(res_lits)};
+            }
+            if (state == state_fixed) {
+                if (lits.size() != 1 || value.has_value()) {
+                    res_lits.opt_value() =
+                        Util::make_vec<Literal>(LiteralBoolean{location(lit), Sign::none, !conjunctive});
+                }
+                return {state_fixed, std::move(res_lits)};
+            }
+            if (state == state_empty) {
+                res_lits.remove();
+            } else {
+                state_lits = SimplifyState::unknown;
+                res_lits.update(std::move(value));
+            }
+        }
+        res_lits.extend(ctx.aux, conjunctive);
+        return {state_lits, std::move(res_lits)};
+    }
+
     //! Simplify a conditional literal.
     auto operator()(ConditionalLiteral const &lit, bool conjunctive) const -> SimplifyResult<ConditionalLiteral> {
-        auto simp_lit = [this](auto &lits) -> std::pair<SimplifyState, SimplifyVec<Literal>> {
-            SimplifyState state_lits = SimplifyState::top;
-            SimplifyVec res_lits{lits};
-            ctx.aux.clear();
-            for (auto const &lit : lits) {
-                auto [state, value] = simplify(SimplifyFlags::none, ctx, lit);
-                if (state == SimplifyState::fail) {
-                    return {SimplifyState::fail, std::move(res_lits)};
-                }
-                if (state == SimplifyState::bot) {
-                    if (lits.size() != 1 || value.has_value()) {
-                        res_lits.opt_value() =
-                            Util::make_vec<Literal>(LiteralBoolean{location(lit), Sign::none, false});
-                    }
-                    return {SimplifyState::bot, std::move(res_lits)};
-                }
-                if (state == SimplifyState::top) {
-                    res_lits.remove();
-                } else {
-                    state_lits = SimplifyState::unknown;
-                    res_lits.update(std::move(value));
-                }
-            }
-            res_lits.extend(ctx.aux);
-            return {state_lits, std::move(res_lits)};
-        };
-
-        auto [state_lits, res_lits] = simp_lit(lit.lits);
-        auto [state_cond, res_cond] = simp_lit(lit.cond);
+        auto [state_lits, res_lits] = simplify_litvec(lit.lits, false);
+        auto [state_cond, res_cond] = simplify_litvec(lit.cond);
 
         auto make_condlit = [&]() -> std::optional<ConditionalLiteral> {
             if (res_lits.has_value() || res_cond.has_value()) {
@@ -1049,6 +1074,18 @@ struct SimplifyHBLiteral {
         return {state_elems, std::move(res_elems).opt_value().transform([&](auto value) {
                     return Junction<Conjunctive>{lit.loc, std::move(value)};
                 })};
+    }
+
+    //! Simplify a set aggregate element.
+    //!
+    //! Status top and bot will be used if the element is statically true/false.
+    //! Status bot and fail are equivalent.
+    auto operator()(SetAggregateElement const &elem) const -> SimplifyResult<SetAggregateElement> {
+        auto [state_lit, res_lit] = simplify(SimplifyFlags::none, ctx, elem.lit);
+        auto [state_cond, res_cond] = simplify_litvec(elem.cond);
+        // rewriting should be rather straight-forward and not depend on the body.
+        // the elements in the conclusions are treated as a set and not as a disjunction!!!
+        throw std::logic_error("implement me!!!");
     }
 
     /*
