@@ -116,7 +116,7 @@ template <class T> struct SimplifyVec {
     std::vector<T>::const_iterator cur_ = in_.begin();
 };
 
-[[nodiscard]] auto map_term(SimplifyContext const &ctx, Term term) -> Term & {
+[[nodiscard]] auto map_term(SimplifyContext const &ctx, Term term) -> Term {
     auto loc = location(term);
     ctx.aux.emplace_back(TermVariable{std::move(loc), ctx.gen.new_name()}, std::move(term));
     return ctx.aux.back().first;
@@ -130,6 +130,46 @@ template <class T> struct SimplifyVec {
     return std::nullopt;
 }
 */
+
+struct IsNumeric {
+    auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
+
+    auto operator()(auto const &term) const -> bool = delete;
+
+    auto operator()(TermSymbol const &term) const -> bool { return term.value.type() == SymbolType::number; }
+
+    auto operator()(TermVariable const &term) const -> bool {
+        static_cast<void>(term);
+        return false;
+    }
+
+    auto operator()(TermFunction const &term) const -> bool {
+        static_cast<void>(term);
+        return false;
+    }
+
+    auto operator()(TermTuple const &term) const -> bool {
+        assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
+        static_cast<void>(term);
+        return false;
+    }
+
+    auto operator()(TermAbs const &term) const -> bool {
+        static_cast<void>(term);
+        return true;
+    }
+
+    auto operator()(TermUnary const &term) const -> bool {
+        return term.op == UnaryOperator::invert || std::visit(*this, *term.rhs);
+    }
+
+    auto operator()(TermBinary const &term) const -> bool {
+        static_cast<void>(term);
+        return true;
+    }
+};
+
+[[nodiscard]] auto is_numeric(Term const &term) -> bool { return IsNumeric{}(term); }
 
 //! Simplify terms.
 struct SimplifyTerm {
@@ -793,12 +833,24 @@ struct MakeMatchableTerm {
         });
     }
 
+    //! Ensure that the term only matches numbers.
+    //! TODO: can as well receive the ctx as argument and be used in above.
+    [[nodiscard]] auto as_linear_term(Term term) const -> Term {
+        auto loc = location(term);
+        term = TermBinary(loc, TermSymbol{loc, ctx.store.num(1)}, BinaryOperator::times, std::move(term));
+        return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, ctx.store.num(0)});
+    }
+
     //! Make the given absolute term matchable.
     auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
         if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
             return std::nullopt;
         }
-        return map_term(ctx, term);
+        // TODO: c&p
+        if (test(flags, SimplifyFlags::unfailable)) {
+            return map_term(ctx, term);
+        }
+        return as_linear_term(map_term(ctx, term));
     }
 
     //! Make the given unary term matchable.
@@ -811,6 +863,9 @@ struct MakeMatchableTerm {
         if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
             return std::nullopt;
         }
+        if (!test(flags, SimplifyFlags::unfailable) && is_numeric(term)) {
+            return as_linear_term(map_term(ctx, term));
+        }
         return map_term(ctx, term);
     }
 
@@ -822,7 +877,11 @@ struct MakeMatchableTerm {
         if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
             return std::nullopt;
         }
-        return map_term(ctx, term);
+        // TODO: c&p
+        if (test(flags, SimplifyFlags::unfailable)) {
+            return map_term(ctx, term);
+        }
+        return as_linear_term(map_term(ctx, term));
     }
 
     SimplifyContext ctx; //!< Context used during simplification.
