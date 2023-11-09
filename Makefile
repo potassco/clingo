@@ -34,7 +34,7 @@ reconfigure-clang:
 		-DCMAKE_EXPORT_COMPILE_COMMANDS="On" \
 		-DCMAKE_CXX_COMPILER="clang++" \
 		-DCMAKE_C_COMPILER="clang" \
-		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
+		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -L${CONDA_PREFIX}/lib" \
 		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -Wall -Wextra -pedantic -fsanitize=undefined -D_LIBCPP_ENABLE_ASSERTIONS" \
 		-DPARSER_BUILD_TESTS=On
 

@@ -86,6 +86,8 @@ template <class T, class... Ts> auto make_vec(Ts &&...args) {
 #define GRINGO_MATCH2(x, T, y, U)                                                                                      \
     if constexpr (std::is_same_v<std::decay_t<decltype(x)>, T> && std::is_same_v<std::decay_t<decltype(y)>, U>)
 
+#define GRINGO_FWD(x) std::forward<decltype(x)>(x)
+
 //! @}
 
 } // namespace Gringo::Util

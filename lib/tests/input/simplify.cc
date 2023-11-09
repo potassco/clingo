@@ -4,6 +4,20 @@
 
 namespace Gringo::Input::Test {
 
+template <typename T>
+auto call_simplify(SimplifyFlags flags, SimplifyContext ctx, T const &x) -> decltype(simplify(flags, ctx, x)) {
+    return simplify(flags, ctx, x);
+}
+template <typename T>
+auto call_simplify(SimplifyFlags flags, SimplifyContext ctx, T const &x) -> decltype(simplify(ctx, x)) {
+    static_cast<void>(flags);
+    return simplify(ctx, x);
+}
+auto call_simplify(SimplifyFlags flags, SimplifyContext ctx, Statement const &x) -> SimplifyResult<Statement> {
+    static_cast<void>(flags);
+    return simplify(ctx.log, ctx.store, x);
+}
+
 template <class T>
 auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
     if (value) {
@@ -12,7 +26,7 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
         NameGen gen{*store, {}, "__Aux_"};
         AuxTermVec aux;
         std::ostringstream oss;
-        auto [state, res] = simplify(flags, {log, *store, gen, aux}, value.value());
+        auto [state, res] = call_simplify(flags, {log, *store, gen, aux}, value.value());
         if (res.has_value()) {
             oss << res.value();
         } else {
@@ -164,6 +178,11 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("p(X,1*Y+1)"), flags) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_literal("not p(X+Y,1*Y+1)"), flags) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_literal("not not p(X+Y,1*Y+1)"), flags) == "<unchanged>, U");
+}
+
+TEST_CASE("simplify_rule") {
+    // TODO: consider using 1*__A_0+0 in the rule
+    REQUIRE(simplify_str(parse_statement("p(X+1) :- q(2*X,Y+Z).")) == "p(1*X+1) :- q(2*X+0,__A_0); __A_0=Y+Z., U");
 }
 
 } // namespace Gringo::Input::Test

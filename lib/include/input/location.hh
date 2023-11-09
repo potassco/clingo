@@ -77,8 +77,11 @@ inline auto operator+(Position a, Position b) -> Location { return {std::move(a)
 //! Get the location of an expression.
 template <class T> auto location(T &x) -> decltype((x.loc)) { return x.loc; }
 
+//! Get the location of an expression.
+template <class T> auto location(T &x) -> decltype(location(x.lit)) { return location(x.lit); }
+
 //! Get the location of an expression stored in a variant.
-template <class... T> auto location(std::variant<T...> &x) -> Location const & {
+template <class... T> auto location(std::variant<T...> &x) -> Location & {
     return std::visit([](auto &y) -> Location & { return location(y); }, x);
 }
 

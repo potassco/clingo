@@ -69,6 +69,15 @@ struct SimplifyContext {
 //! Simplifies the given literal.
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal>;
 
+//! Simplifies the given head literal.
+[[nodiscard]] auto simplify(SimplifyContext ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral>;
+
+//! Simplifies the given body literal.
+[[nodiscard]] auto simplify(SimplifyContext ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral>;
+
+//! Simplifies the given statement.
+[[nodiscard]] auto simplify(Logger &log, SymbolStore &store, Statement const &stm) -> SimplifyResult<Statement>;
+
 //! @}
 
 } // namespace Gringo::Input

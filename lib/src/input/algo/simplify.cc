@@ -1,6 +1,8 @@
 #include <util/algorithm.hh>
 #include <util/checked_math.hh>
 
+#include <ctime>
+
 #include <input/algo/evaluate.hh>
 #include <input/algo/print.hh>
 #include <input/algo/simplify.hh>
@@ -97,8 +99,13 @@ template <class T> struct SimplifyVec {
         for (auto &[lhs, rhs] : aux) {
             auto loc = location(lhs);
             auto rel = conjunctive ? Relation::equal : Relation::inequal;
-            out_->emplace_back(
-                LiteralRelation{loc, Sign::none, std::move(lhs), Util::make_vec<Guard>(Guard{rel, std::move(rhs)})});
+            auto lit =
+                LiteralRelation{loc, Sign::none, std::move(lhs), Util::make_vec<Guard>(Guard{rel, std::move(rhs)})};
+            if constexpr (std::is_same_v<T, Literal>) {
+                out_->emplace_back(std::move(lit));
+            } else {
+                out_->emplace_back(SimpleBodyLiteral{std::move(lit)});
+            }
         }
         aux.clear();
     }
@@ -872,6 +879,7 @@ struct SimplifyLiteral {
     //!
     //! A similar effect can be observed with negated relation literals in the body.
     auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
+        flags &= ~SimplifyFlags::matchable;
         if (lit.sign == Sign::once) {
             flags ^= SimplifyFlags::disjunctive;
         }
@@ -1006,7 +1014,8 @@ struct SimplifyHBLiteral {
     }
 
     //! Simplify a conditional literal.
-    auto operator()(ConditionalLiteral const &lit, bool conjunctive) const -> SimplifyResult<ConditionalLiteral> {
+    [[nodiscard]] auto simplify_condlit(ConditionalLiteral const &lit, bool conjunctive) const
+        -> SimplifyResult<ConditionalLiteral> {
         auto [state_lits, res_lits] = simplify_litvec(lit.lits, false);
         auto [state_cond, res_cond] = simplify_litvec(lit.cond);
 
@@ -1050,13 +1059,13 @@ struct SimplifyHBLiteral {
     //! Simplify a conjunction/disjunction of conditional literals.
     template <bool Conjunctive>
     auto operator()(Junction<Conjunctive> const &lit) const
-        -> std::optional<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
+        -> SimplifyResult<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
         auto state_fixed = Conjunctive ? SimplifyState::bot : SimplifyState::top;
         auto state_empty = Conjunctive ? SimplifyState::top : SimplifyState::bot;
         auto state_elems = state_empty;
         auto res_elems = SimplifyVec{lit.elems};
         for (auto const &cond_lit : lit.elems) {
-            auto [state, res_elem] = operator()(cond_lit, Conjunctive);
+            auto [state, res_elem] = simplify_condlit(cond_lit, Conjunctive);
             if (state == SimplifyState::fail || state == state_empty) {
                 res_elems.remove();
             } else if (state == SimplifyState::unknown) {
@@ -1080,52 +1089,33 @@ struct SimplifyHBLiteral {
     //!
     //! Status top and fail will be used if the element is statically true/false.
     //! In case the element is statically false, no updated aggregate element is provided.
-    auto operator()(SetAggregateElement const &elem) const -> SimplifyResult<SetAggregateElement> {
+    [[nodiscard]] auto simplify_element(SetAggregateElement const &elem) const -> SimplifyResult<SetAggregateElement> {
         auto [state_lit, res_lit] = simplify(SimplifyFlags::none, ctx, elem.lit);
         auto [state_cond, res_cond] = simplify_litvec(elem.cond);
+        auto make_elem = [&]() -> std::optional<SetAggregateElement> {
+            if (res_cond.has_value() || res_lit.has_value()) {
+                return SetAggregateElement{std::move(res_lit).value(), std::move(res_cond).value()};
+            }
+            return std::nullopt;
+        };
+        // the literal or condition is false
         if (state_lit == SimplifyState::fail || state_cond == SimplifyState::fail || state_lit == SimplifyState::bot ||
             state_cond == SimplifyState::bot) {
             return {SimplifyState::fail};
         }
+        auto state = SimplifyState::unknown;
         // each true literal can be subtracted from the bounds of the aggregate
         if (state_lit == SimplifyState::top && state_cond == SimplifyState::top) {
             // result: "#true:"
-            return {SimplifyState::top};
+            if (!elem.cond.empty()) {
+                res_cond.opt_value() = LiteralVec{};
+            }
+            state = SimplifyState::top;
         }
-        // rewriting should be rather straight-forward and not depend on the body.
-        // the elements in the conclusions are treated as a set and not as a disjunction!!!
-        throw std::logic_error("implement me!!!");
+        return {state, make_elem()};
     }
 
     /*
-    // set aggregate
-
-    auto operator()(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
-        return transform_construct<SetAggregateElement>(tr(elem.lit), tr(elem.cond));
-    }
-
-    // head literal
-
-    auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
-
-    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteral> { return operator()(lit.lit); }
-
-    auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadSetAggregate>(lit.loc, tr(lit.lhs), tr(lit.elems), tr(lit.rhs));
-    }
-
-    auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
-        return transform_construct<HeadAggregate::Element>(tr(elem.tuple), tr(elem.lit), tr(elem.cond));
-    }
-
-    auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadAggregate>(lit.loc, tr(lit.lhs), lit.fun, tr(lit.elems), tr(lit.rhs));
-    }
-
-    auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadTheoryAtom>(lit.loc, tr(lit.name), tr(lit.elems), tr(lit.rhs));
-    }
-
     // body literal
 
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
@@ -1153,108 +1143,235 @@ struct SimplifyHBLiteral {
     SimplifyContext ctx; //!< Context used during simplification.
 };
 
-} // namespace
+struct SimplifyHeadLiteral : SimplifyHBLiteral {
+    using SimplifyHBLiteral::simplify_element;
 
-/*
-struct SimplifyStatement {
-    // statement
-
-    auto operator()(Statement const &stm) const -> std::optional<Statement> { return std::visit(*this, stm); }
-
-    auto operator()(Rule const &stm) const -> std::optional<Statement> {
-        return transform_construct<Rule>(stm.loc, tr(stm.head), tr(stm.body));
+    [[nodiscard]] static auto simplify_element(HeadAggregate::Element const &elem)
+        -> SimplifyResult<HeadAggregate::Element> {
+        static_cast<void>(elem);
+        throw std::logic_error("implement me");
     }
 
-    auto operator()(TheoryDefinition const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
+    auto operator()(auto const &lit) const -> SimplifyResult<HeadLiteral> = delete;
+
+    using SimplifyHBLiteral::operator();
+
+    auto operator()(HeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(SimpleHeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> {
+        auto [state, res] = simplify(SimplifyFlags::disjunctive, ctx, lit.lit);
+        if (state == SimplifyState::fail || state == SimplifyState::top) {
+            return {SimplifyState::fail};
+        }
+        return {state, res.transform([](auto &&res) { return SimpleHeadLiteral{GRINGO_FWD(res)}; })};
     }
 
-    auto operator()(StatementOptimize::Tuple const &elem) const -> std::optional<StatementOptimize::Tuple> {
-        return transform_construct<StatementOptimize::Tuple>(tr(elem.weight), tr(elem.priority), tr(elem.terms));
+    auto operator()(HeadSetAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me");
     }
 
-    auto operator()(StatementOptimize::Element const &elem) const -> std::optional<StatementOptimize::Element> {
-        return transform_construct<StatementOptimize::Element>(tr(elem.first), tr(elem.second));
+    auto operator()(HeadAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me");
     }
 
-    auto operator()(StatementOptimize const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementOptimize>(stm.loc, stm.type, tr(stm.elems));
+    auto operator()(HeadTheoryAtom const &lit) const -> SimplifyResult<HeadLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me");
     }
-
-    auto operator()(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementWeakConstraint>(stm.loc, tr(stm.body), tr(stm.tuple));
-    }
-
-    auto operator()(StatementShow const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementShow>(stm.loc, tr(stm.term), tr(stm.body));
-    }
-
-    auto operator()(StatementShowSig const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementProject const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementProject>(stm.loc, tr(stm.term), tr(stm.body));
-    }
-
-    auto operator()(StatementProjectSig const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementDefined const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementExternal const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementExternal>(stm.loc, tr(stm.term), tr(stm.body), tr(stm.type));
-    }
-
-    auto operator()(StatementEdge::Edge const &edge) const -> std::optional<StatementEdge::Edge> {
-        return transform_construct<StatementEdge::Edge>(tr(edge.u), tr(edge.v));
-    }
-
-    auto operator()(StatementEdge const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementEdge>(stm.loc, tr(stm.edges), tr(stm.body));
-    }
-
-    auto operator()(StatementHeuristic const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementHeuristic>(stm.loc, tr(stm.atom), tr(stm.body), tr(stm.type), tr(stm.prio),
-                                                       tr(stm.mod));
-    }
-
-    auto operator()(StatementScript const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementInclude const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementProgram const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementConst const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(Comment const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    SimplifyContext &map;
 };
 
-*/
+struct SimplifyBodyLiteral : SimplifyHBLiteral {
+    using SimplifyHBLiteral::simplify_element;
+
+    [[nodiscard]] static auto simplify_element(BodyAggregate::Element const &elem)
+        -> SimplifyResult<BodyAggregate::Element> {
+        static_cast<void>(elem);
+        throw std::logic_error("implement me");
+    }
+
+    auto operator()(auto const &lit) const -> SimplifyResult<BodyLiteral> = delete;
+
+    using SimplifyHBLiteral::operator();
+
+    auto operator()(BodyLiteral const &lit) const -> SimplifyResult<BodyLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(SimpleBodyLiteral const &lit) const -> SimplifyResult<BodyLiteral> {
+        auto [state, res] = simplify(SimplifyFlags::matchable, ctx, lit.lit);
+        if (state == SimplifyState::fail || state == SimplifyState::top) {
+            return {SimplifyState::fail};
+        }
+        return {state, res.transform([](auto &&res) { return SimpleBodyLiteral{GRINGO_FWD(res)}; })};
+    }
+
+    auto operator()(BodySetAggregate const &lit) const -> SimplifyResult<BodyLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me");
+    }
+
+    auto operator()(BodyAggregate const &lit) const -> SimplifyResult<BodyLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me");
+    }
+
+    auto operator()(BodyTheoryAtom const &lit) const -> SimplifyResult<BodyLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me");
+    }
+};
+
+} // namespace
+
+struct SimplifyStatement {
+    [[nodiscard]] static auto simplify_tuple(StatementOptimize::Tuple const &elem)
+        -> SimplifyResult<StatementOptimize::Tuple> {
+        static_cast<void>(elem);
+        throw std::logic_error("implement me!!!");
+    }
+
+    [[nodiscard]] static auto simplify_element(StatementOptimize::Element const &elem)
+        -> SimplifyResult<StatementOptimize::Element> {
+        static_cast<void>(elem);
+        throw std::logic_error("implement me!!!");
+    }
+
+    [[nodiscard]] static auto simplify_edge(StatementEdge::Edge const &edge) -> SimplifyResult<StatementEdge::Edge> {
+        static_cast<void>(edge);
+        throw std::logic_error("implement me!!!");
+    }
+
+    [[nodiscard]] auto simplify_body(BodyLiteralVec const &body) const -> SimplifyResult<BodyLiteralVec> {
+        auto res_body = SimplifyVec{body};
+        auto state_body = SimplifyState::top;
+        for (auto const &lit : body) {
+            auto [state_lit, res_lit] = simplify(ctx, lit);
+            if (state_lit == SimplifyState::fail || state_lit == SimplifyState::top) {
+                res_body.remove();
+            }
+            res_body.update(std::move(res_lit));
+            if (state_lit == SimplifyState::bot) {
+                if (body.size() != 1) {
+                    res_body.opt_value() = Util::make_vec<BodyLiteral>(
+                        SimpleBodyLiteral{LiteralBoolean{location(lit), Sign::none, false}});
+                }
+                // TODO: aborting early leads to some errors regarding projection that are not detected
+                // another (easier) option could be to treat bad projection as an invalid operation
+                // simple example:
+                // :- #false, p(@f(*)).
+                //
+                // It looks like the ideal solution is not to stop early but traverse everything.
+                // This would also report all statically detectable undefinedness.
+                return {SimplifyState::bot};
+            }
+            if (state_lit == SimplifyState::unknown) {
+                state_body = SimplifyState::unknown;
+            }
+        }
+        res_body.extend(ctx.aux);
+        return {state_body, std::move(res_body).opt_value()};
+    }
+
+    auto operator()(auto const &lit) const -> SimplifyResult<Statement> = delete;
+
+    auto operator()(Statement const &stm) const -> SimplifyResult<Statement> { return std::visit(*this, stm); }
+
+    auto operator()(Rule const &stm) const -> SimplifyResult<Statement> {
+        auto [state_head, res_head] = simplify(ctx, stm.head);
+        auto [state_body, res_body] = simplify_body(stm.body);
+        if (state_head == SimplifyState::fail || state_body == SimplifyState::fail ||
+            state_head == SimplifyState::top || state_body == SimplifyState::bot) {
+            return {SimplifyState::fail};
+        }
+        if (res_head.has_value() || res_body.has_value()) {
+            return {SimplifyState::unknown,
+                    Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value_or(stm.body)}};
+        }
+        return {SimplifyState::unknown};
+    }
+
+    auto operator()(TheoryDefinition const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        return {SimplifyState::unknown};
+    }
+
+    auto operator()(StatementOptimize const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(StatementWeakConstraint const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(StatementShow const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(StatementShowSig const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        return {SimplifyState::unknown};
+    }
+
+    auto operator()(StatementProject const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(StatementProjectSig const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        return {SimplifyState::unknown};
+    }
+
+    auto operator()(StatementDefined const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        return {SimplifyState::unknown};
+    }
+
+    auto operator()(StatementExternal const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(StatementEdge const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(StatementHeuristic const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(StatementScript const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        return {SimplifyState::unknown};
+    }
+
+    auto operator()(StatementInclude const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        return {SimplifyState::unknown};
+    }
+
+    auto operator()(StatementProgram const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        return {SimplifyState::unknown};
+    }
+
+    auto operator()(StatementConst const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(Comment const &stm) const -> SimplifyResult<Statement> {
+        static_cast<void>(stm);
+        return {SimplifyState::unknown};
+    }
+
+    SimplifyContext ctx; //!< Context used during simplification.
+};
 
 [[nodiscard]] auto is_linear(TermBinary const &term) -> bool {
     if (term.op != BinaryOperator::plus) {
@@ -1313,9 +1430,21 @@ struct SimplifyStatement {
 }
 
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal> {
-    // TODO: handling literals evaluating to true/false statically would be nice
-    // the return would be a variant<bool,Unchanged,Literal>
     return SimplifyLiteral{ctx}(lit, flags);
+}
+
+[[nodiscard]] auto simplify(SimplifyContext ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral> {
+    return SimplifyHeadLiteral{ctx}(lit);
+}
+
+[[nodiscard]] auto simplify(SimplifyContext ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral> {
+    return SimplifyBodyLiteral{ctx}(lit);
+}
+
+[[nodiscard]] auto simplify(Logger &log, SymbolStore &store, Statement const &stm) -> SimplifyResult<Statement> {
+    AuxTermVec aux;
+    NameGen gen{store, {}, "__A_"};
+    return SimplifyStatement{SimplifyContext{log, store, gen, aux}}(stm);
 }
 
 } // namespace Gringo::Input
