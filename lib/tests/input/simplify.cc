@@ -181,7 +181,6 @@ TEST_CASE("simplify_literal") {
 }
 
 TEST_CASE("simplify_rule") {
-    // TODO: consider using 1*__A_0+0 in the rule
     REQUIRE(simplify_str(parse_statement("p(X+1) :- q(2*X,Y+Z).")) == "p(1*X+1) :- q(2*X+0,1*__A_0+0); __A_0=Y+Z., U");
 }
 

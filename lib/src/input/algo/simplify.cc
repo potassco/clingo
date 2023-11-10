@@ -332,6 +332,7 @@ struct SimplifyTerm {
         // evaluate arguments
         for (auto const &arg : tuple) {
             if (!std::visit(simplify, arg)) {
+                // TODO: early exit
                 return ResultTupleFail{};
             }
             ++n;
@@ -966,6 +967,7 @@ struct SimplifyLiteral {
         }
         // simplify lhs
         if (!simp(simplify(fixed_flags | match_flags, ctx, lit.lhs))) {
+            // TODO: early exit
             return {SimplifyState::fail};
         }
         // simplify rhs
@@ -976,6 +978,7 @@ struct SimplifyLiteral {
                 match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
             }
             if (!simp(simplify(fixed_flags | match_flags, ctx, term))) {
+                // TODO: early exit
                 return {SimplifyState::fail};
             }
         }
@@ -1040,9 +1043,11 @@ struct SimplifyHBLiteral {
         for (auto const &lit : lits) {
             auto [state, value] = simplify(conjunctive ? SimplifyFlags::none : SimplifyFlags::disjunctive, ctx, lit);
             if (state == SimplifyState::fail) {
+                // TODO: early exit
                 return {SimplifyState::fail, std::move(res_lits)};
             }
             if (state == state_fixed) {
+                // TODO: early exit
                 if (lits.size() != 1 || value.has_value()) {
                     res_lits.opt_value() =
                         Util::make_vec<Literal>(LiteralBoolean{location(lit), Sign::none, !conjunctive});
@@ -1268,29 +1273,27 @@ struct SimplifyStatement {
         auto state_body = SimplifyState::top;
         for (auto const &lit : body) {
             auto [state_lit, res_lit] = simplify(ctx, lit);
-            if (state_lit == SimplifyState::fail || state_lit == SimplifyState::top) {
+            // ensure that all literals are processed to emit all messages
+            if (state_body == SimplifyState::bot) {
+                continue;
+            }
+            if (state_lit == SimplifyState::top) {
                 res_body.remove();
             }
             res_body.update(std::move(res_lit));
-            if (state_lit == SimplifyState::bot) {
+            if (state_lit == SimplifyState::fail || state_lit == SimplifyState::bot) {
                 if (body.size() != 1) {
                     res_body.opt_value() = Util::make_vec<BodyLiteral>(
                         SimpleBodyLiteral{LiteralBoolean{location(lit), Sign::none, false}});
                 }
-                // TODO: aborting early leads to some errors regarding projection that are not detected
-                // another (easier) option could be to treat bad projection as an invalid operation
-                // simple example:
-                // :- #false, p(@f(*)).
-                //
-                // It looks like the ideal solution is not to stop early but traverse everything.
-                // This would also report all statically detectable undefinedness.
-                return {SimplifyState::bot};
             }
             if (state_lit == SimplifyState::unknown) {
                 state_body = SimplifyState::unknown;
             }
         }
-        res_body.extend(ctx.aux);
+        if (state_body != SimplifyState::bot) {
+            res_body.extend(ctx.aux);
+        }
         return {state_body, std::move(res_body).opt_value()};
     }
 
