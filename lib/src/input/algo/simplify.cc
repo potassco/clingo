@@ -1087,47 +1087,40 @@ struct SimplifyHBLiteral {
     //! Simplify a conditional literal.
     [[nodiscard]] auto simplify_condlit(ConditionalLiteral const &lit, bool conjunctive) const
         -> SimplifyResult<ConditionalLiteral> {
-        auto [state_lits, res_lits] = simplify_litvec(lit.lits, false);
+        auto [state_lits, res_lits] = simplify_litvec(lit.lits, conjunctive);
         auto [state_cond, res_cond] = simplify_litvec(lit.cond);
-
-        auto make_condlit = [&]() -> std::optional<ConditionalLiteral> {
-            if (res_lits.has_value() || res_cond.has_value()) {
-                return ConditionalLiteral{lit.loc, std::move(res_lits).value_or(lit.lits),
-                                          std::move(res_cond).value_or(lit.cond)};
-            }
-            return std::nullopt;
-        };
 
         if (state_lits == SimplifyState::fail || state_cond == SimplifyState::fail) {
             return {SimplifyState::fail};
         }
 
         auto state_fixed = conjunctive ? SimplifyState::top : SimplifyState::bot;
+        auto state = SimplifyState::unknown;
 
-        // elements of conjunctions can be removed if their conclusion is true
-        // (this is not true for disjunctions)
+        // elements of *junctions can be removed if their conclusion is neutral
         if (state_lits == state_fixed) {
             // ensure result: ":"
             if (!lit.cond.empty()) {
                 res_cond = LiteralVec{};
             }
-            return {state_fixed, make_condlit()};
+            state = state_fixed;
         }
-
         // elements of *junctions can be removed if their condition is false
-        if (state_cond == SimplifyState::bot) {
+        else if (state_cond == SimplifyState::bot) {
             // ensure result: ":#false"
             if (!lit.lits.empty()) {
                 res_lits = LiteralVec{};
             }
-            return {state_fixed, make_condlit()};
+            state = state_fixed;
+        } else if (state_cond == SimplifyState::top && state_lits != SimplifyState::unknown) {
+            state = state_lits;
         }
 
-        if (state_cond == SimplifyState::top && state_lits != SimplifyState::unknown) {
-            return {state_lits, make_condlit()};
+        if (res_lits.has_value() || res_cond.has_value()) {
+            return {state, ConditionalLiteral{lit.loc, std::move(res_lits).value_or(lit.lits),
+                                              std::move(res_cond).value_or(lit.cond)}};
         }
-
-        return {SimplifyState::unknown, make_condlit()};
+        return {state};
     }
 
     //! Simplify a conjunction/disjunction of conditional literals.
@@ -1216,8 +1209,9 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
 
     auto operator()(SimpleHeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> {
         auto [state, res] = simplify(SimplifyFlags::disjunctive, ctx, lit.lit);
-        if (state == SimplifyState::fail || state == SimplifyState::top) {
-            return {SimplifyState::fail};
+        if (state == SimplifyState::fail) {
+            res = LiteralBoolean{location(lit), Sign::none, true};
+            state = SimplifyState::top;
         }
         return {state, res.transform([](auto &&res) { return SimpleHeadLiteral{GRINGO_FWD(res)}; })};
     }
@@ -1255,8 +1249,9 @@ struct SimplifyBodyLiteral : SimplifyHBLiteral {
 
     auto operator()(SimpleBodyLiteral const &lit) const -> SimplifyResult<BodyLiteral> {
         auto [state, res] = simplify(SimplifyFlags::matchable, ctx, lit.lit);
-        if (state == SimplifyState::fail || state == SimplifyState::top) {
-            return {SimplifyState::fail};
+        if (state == SimplifyState::fail) {
+            res = LiteralBoolean{location(lit), Sign::none, false};
+            state = SimplifyState::bot;
         }
         return {state, res.transform([](auto &&res) { return SimpleBodyLiteral{GRINGO_FWD(res)}; })};
     }
@@ -1302,6 +1297,7 @@ struct SimplifyStatement {
         auto state_body = SimplifyState::top;
         for (auto const &lit : body) {
             auto [state_lit, res_lit] = simplify(ctx, lit);
+            assert(state_lit != SimplifyState::fail);
             // ensure that all literals are processed to emit all messages
             if (state_body == SimplifyState::bot) {
                 continue;
@@ -1310,13 +1306,13 @@ struct SimplifyStatement {
                 res_body.remove();
             }
             res_body.update(std::move(res_lit));
-            if (state_lit == SimplifyState::fail || state_lit == SimplifyState::bot) {
+            if (state_lit == SimplifyState::bot) {
                 if (body.size() != 1) {
                     res_body.opt_value() = Util::make_vec<BodyLiteral>(
                         SimpleBodyLiteral{LiteralBoolean{location(lit), Sign::none, false}});
                 }
-            }
-            if (state_lit == SimplifyState::unknown) {
+                state_body = SimplifyState::bot;
+            } else if (state_lit == SimplifyState::unknown) {
                 state_body = SimplifyState::unknown;
             }
         }
@@ -1334,11 +1330,15 @@ struct SimplifyStatement {
         auto [state_head, res_head] = simplify(ctx, stm.head);
         auto [state_body, res_body] = simplify_body(stm.body);
         auto state = SimplifyState::unknown;
-        if (state_head == SimplifyState::top || state_body == SimplifyState::bot || state_body == SimplifyState::fail) {
+        assert(state_head != SimplifyState::fail && state_body != SimplifyState::fail);
+        if (state_head == SimplifyState::top || state_body == SimplifyState::bot) {
+            if (!stm.body.empty()) {
+                res_head = SimpleHeadLiteral{LiteralBoolean{location(stm.head), Sign::none, true}};
+                res_body = BodyLiteralVec{};
+            }
             state = SimplifyState::top;
         }
-        if ((state_head == SimplifyState::bot || state_head == SimplifyState::fail) &&
-            state_body == SimplifyState::top) {
+        if (state_head == SimplifyState::bot && state_body == SimplifyState::top) {
             state = SimplifyState::bot;
         }
         if (res_head.has_value() || res_body.has_value()) {
