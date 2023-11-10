@@ -150,7 +150,7 @@ TEST_CASE("simplify_matchable") {
             "p(__Aux_1,__Aux_0), __Aux_0=@f(g(X*X)), __Aux_1=1*X+5, U");
 
     flags &= ~SimplifyFlags::unfailable;
-    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__Aux_0), __Aux_0=X+Y, U");
+    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,1*__Aux_0+0), __Aux_0=X+Y, U");
     REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,2*X+0), U");
     REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) == "p(1*X+5,__Aux_0), __Aux_0=@f(g(X*X)), U");
 }
@@ -164,7 +164,7 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("not not X=Y+Z=Z"), flags) == "X=Y+Z=Z, U");
     REQUIRE(simplify_str(parse_literal("not X=Y+Z=Z"), flags) == "not X=__Aux_0=Z, __Aux_0=Y+Z, U");
     REQUIRE(simplify_str(parse_literal("X=f(Y+Z,Z+5)<f(Y+Z,Z+5)"), flags) ==
-            "X=f(__Aux_0,1*Z+5)<f(Y+Z,1*Z+5), __Aux_0=Y+Z, U");
+            "X=f(1*__Aux_0+0,1*Z+5)<f(Y+Z,1*Z+5), __Aux_0=Y+Z, U");
     REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "<unchanged>, F, E");
     REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "<unchanged>, F, E");
 
@@ -172,7 +172,7 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("p(X,*)"), flags) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "<unchanged>, F, E");
     REQUIRE(simplify_str(parse_literal("not p(X,@f(*))"), flags) == "<unchanged>, F, E");
-    REQUIRE(simplify_str(parse_literal("p(X+Y,Y+1)"), flags) == "p(__Aux_0,1*Y+1), __Aux_0=X+Y, U");
+    REQUIRE(simplify_str(parse_literal("p(X+Y,Y+1)"), flags) == "p(1*__Aux_0+0,1*Y+1), __Aux_0=X+Y, U");
     REQUIRE(simplify_str(parse_literal("not p(X+Y,Y+1)"), flags) == "not p(X+Y,1*Y+1), U");
     REQUIRE(simplify_str(parse_literal("not not p(X+Y,Y+1)"), flags) == "not not p(X+Y,1*Y+1), U");
     REQUIRE(simplify_str(parse_literal("p(X,1*Y+1)"), flags) == "<unchanged>, U");
@@ -182,7 +182,7 @@ TEST_CASE("simplify_literal") {
 
 TEST_CASE("simplify_rule") {
     // TODO: consider using 1*__A_0+0 in the rule
-    REQUIRE(simplify_str(parse_statement("p(X+1) :- q(2*X,Y+Z).")) == "p(1*X+1) :- q(2*X+0,__A_0); __A_0=Y+Z., U");
+    REQUIRE(simplify_str(parse_statement("p(X+1) :- q(2*X,Y+Z).")) == "p(1*X+1) :- q(2*X+0,1*__A_0+0); __A_0=Y+Z., U");
 }
 
 } // namespace Gringo::Input::Test

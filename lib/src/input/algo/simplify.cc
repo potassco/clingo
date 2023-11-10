@@ -116,10 +116,17 @@ template <class T> struct SimplifyVec {
     std::vector<T>::const_iterator cur_ = in_.begin();
 };
 
-[[nodiscard]] auto map_term(SimplifyContext const &ctx, Term term) -> Term {
+//! Ensure that the term only matches numbers.
+[[nodiscard]] auto as_linear_term(SymbolStore &store, Term term) -> Term {
+    auto loc = location(term);
+    term = TermBinary(loc, TermSymbol{loc, store.num(1)}, BinaryOperator::times, std::move(term));
+    return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, store.num(0)});
+}
+
+[[nodiscard]] auto map_term(SimplifyContext const &ctx, Term term, bool linear = false) -> Term {
     auto loc = location(term);
     ctx.aux.emplace_back(TermVariable{std::move(loc), ctx.gen.new_name()}, std::move(term));
-    return ctx.aux.back().first;
+    return linear ? as_linear_term(ctx.store, ctx.aux.back().first) : ctx.aux.back().first;
 }
 
 /*
@@ -833,24 +840,12 @@ struct MakeMatchableTerm {
         });
     }
 
-    //! Ensure that the term only matches numbers.
-    //! TODO: can as well receive the ctx as argument and be used in above.
-    [[nodiscard]] auto as_linear_term(Term term) const -> Term {
-        auto loc = location(term);
-        term = TermBinary(loc, TermSymbol{loc, ctx.store.num(1)}, BinaryOperator::times, std::move(term));
-        return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, ctx.store.num(0)});
-    }
-
     //! Make the given absolute term matchable.
     auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
         if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
             return std::nullopt;
         }
-        // TODO: c&p
-        if (test(flags, SimplifyFlags::unfailable)) {
-            return map_term(ctx, term);
-        }
-        return as_linear_term(map_term(ctx, term));
+        return map_term(ctx, term, !test(flags, SimplifyFlags::unfailable));
     }
 
     //! Make the given unary term matchable.
@@ -863,10 +858,7 @@ struct MakeMatchableTerm {
         if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
             return std::nullopt;
         }
-        if (!test(flags, SimplifyFlags::unfailable) && is_numeric(term)) {
-            return as_linear_term(map_term(ctx, term));
-        }
-        return map_term(ctx, term);
+        return map_term(ctx, term, !test(flags, SimplifyFlags::unfailable) && is_numeric(term));
     }
 
     //! Make the given binary term matchable.
@@ -877,11 +869,7 @@ struct MakeMatchableTerm {
         if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
             return std::nullopt;
         }
-        // TODO: c&p
-        if (test(flags, SimplifyFlags::unfailable)) {
-            return map_term(ctx, term);
-        }
-        return as_linear_term(map_term(ctx, term));
+        return map_term(ctx, term, !test(flags, SimplifyFlags::unfailable));
     }
 
     SimplifyContext ctx; //!< Context used during simplification.
@@ -1173,31 +1161,6 @@ struct SimplifyHBLiteral {
         }
         return {state, make_elem()};
     }
-
-    /*
-    // body literal
-
-    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
-
-    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteral> { return operator()(lit.lit); }
-
-    auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodySetAggregate>(lit.loc, lit.sign, tr(lit.lhs), tr(lit.elems), tr(lit.rhs));
-    }
-
-    auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
-        return transform_construct<BodyAggregate::Element>(tr(elem.tuple), tr(elem.cond));
-    }
-
-    auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyAggregate>(lit.loc, lit.sign, tr(lit.lhs), lit.fun, tr(lit.elems), tr(lit.rhs));
-    }
-
-    auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyTheoryAtom>(lit.loc, lit.sign, tr(lit.name), tr(lit.elems), tr(lit.rhs));
-    }
-
-     */
 
     SimplifyContext ctx; //!< Context used during simplification.
 };
