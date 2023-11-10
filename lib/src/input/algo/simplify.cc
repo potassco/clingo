@@ -129,15 +129,6 @@ template <class T> struct SimplifyVec {
     return linear ? as_linear_term(ctx.store, ctx.aux.back().first) : ctx.aux.back().first;
 }
 
-/*
-[[nodiscard]] auto is_fixed(Literal const &lit) -> std::optional<bool> {
-    if (auto const *blit = std::get_if<LiteralBoolean>(&lit); blit != nullptr) {
-        return blit->value == (blit->sign != Sign::once);
-    }
-    return std::nullopt;
-}
-*/
-
 struct IsNumeric {
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
@@ -1304,8 +1295,9 @@ struct SimplifyStatement {
             }
             if (state_lit == SimplifyState::top) {
                 res_body.remove();
+            } else {
+                res_body.update(std::move(res_lit));
             }
-            res_body.update(std::move(res_lit));
             if (state_lit == SimplifyState::bot) {
                 if (body.size() != 1) {
                     res_body.opt_value() = Util::make_vec<BodyLiteral>(

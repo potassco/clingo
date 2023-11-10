@@ -197,15 +197,16 @@ TEST_CASE("simplify_rule") {
     REQUIRE(simplify_str(parse_statement("#false | #true: q(X+Y).")) == "#true: q(1*__A_0+0), __A_0=X+Y., U");
     REQUIRE(simplify_str(parse_statement("#false | #false: q(X+Y).")) == "#false., B");
     REQUIRE(simplify_str(parse_statement("#true | p(X+Y): q(X+Y).")) == "#true., T");
-
     REQUIRE(simplify_str(parse_statement("x :- #and { #true; p(X+Y): q(X+Y) }.")) ==
             "x :- #and { p(1*__A_0+0), __A_0=X+Y: q(1*__A_1+0), __A_1=X+Y }., U");
     REQUIRE(simplify_str(parse_statement("x :- #and { #true; not p(X+Y): q(X+Y) }.")) ==
             "x :- not p(X+Y): q(1*__A_0+0), __A_0=X+Y., U");
     REQUIRE(simplify_str(parse_statement("x :- #and { #true; #false: q(X+Y) }.")) ==
             "x :- #false: q(1*__A_0+0), __A_0=X+Y., U");
-    REQUIRE(simplify_str(parse_statement("x :- #and { #true; #true: q(X+Y) }.")) == "x :- #true., U");
+    REQUIRE(simplify_str(parse_statement("x :- #and { #true; #true: q(X+Y) }.")) == "x., U");
     REQUIRE(simplify_str(parse_statement("x :- #and { #false; p(X+Y): q(X+Y) }.")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#false.")) == "<unchanged>, B");
+    REQUIRE(simplify_str(parse_statement("#false :- #true.")) == "#false., B");
 }
 
 } // namespace Gringo::Input::Test

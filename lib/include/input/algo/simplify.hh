@@ -66,7 +66,15 @@ struct SimplifyContext {
 [[nodiscard]] auto is_numeric(Term const &term) -> bool;
 
 //! Check if the term is constant.
-[[nodiscard]] inline auto is_constant(Term const &term) -> bool { return std::holds_alternative<TermSymbol>(term); }
+[[nodiscard]] inline auto is_symbol(Term const &term) -> bool { return std::holds_alternative<TermSymbol>(term); }
+
+//! Get the truth value of a literal, in case it is a Boolean constant.
+[[nodiscard]] inline auto is_fixed(Literal const &lit) -> std::optional<bool> {
+    if (auto const *blit = std::get_if<LiteralBoolean>(&lit); blit != nullptr) {
+        return blit->value == (blit->sign != Sign::once);
+    }
+    return std::nullopt;
+}
 
 //! Simplifies the given term.
 //!
