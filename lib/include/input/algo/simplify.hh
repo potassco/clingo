@@ -60,6 +60,14 @@ struct SimplifyContext {
 //! See is_linear().
 [[nodiscard]] auto is_linear(TermBinary const &term) -> bool;
 
+//! Check if the term always evaluates to a number.
+//!
+//! For examble, X+Y but not X because it can also evaluate to other symbols.
+[[nodiscard]] auto is_numeric(Term const &term) -> bool;
+
+//! Check if the term is constant.
+[[nodiscard]] inline auto is_constant(Term const &term) -> bool { return std::holds_alternative<TermSymbol>(term); }
+
 //! Simplifies the given term.
 //!
 //! Note that the state can only be fail or unknown

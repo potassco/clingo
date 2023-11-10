@@ -176,9 +176,10 @@ struct IsNumeric {
     }
 };
 
-[[nodiscard]] auto is_numeric(Term const &term) -> bool { return IsNumeric{}(term); }
-
 //! Simplify terms.
+//!
+//! \todo Checking projectable terms could be done right away in the parser.
+//! This would make any error reporting at this point unnecessary.
 struct SimplifyTerm {
     //! The detected type of a term.
     enum class Type {
@@ -926,6 +927,16 @@ struct SimplifyLiteral {
     //! The seemingly unnecessary assignment ensures that pools are handled correctly.
     //!
     //! A similar effect can be observed with negated relation literals in the body.
+    //!
+    //! Applied Simplifications:
+    //!
+    //!   (1) X=2<1 => false
+    //!   (2) X=2>1 => X=2>1
+    //!   (3) not X!=2<1 => true
+    //!   (4) not X!=2>1 => not X=2>1
+    //!
+    //! Note that cases (1) and (2) should be fine regarding safety.
+    //! Further, simplifications in cases (2) and (3) are delayed until the comparisons are unpooled.
     auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
         flags &= ~SimplifyFlags::matchable;
         if (lit.sign == Sign::once) {
@@ -936,76 +947,77 @@ struct SimplifyLiteral {
             fixed_flags = SimplifyFlags::matchable | SimplifyFlags::unfailable;
         }
         auto assign = test(flags, SimplifyFlags::disjunctive) ? Relation::inequal : Relation::equal;
-        size_t n = 0;
-        std::optional<LiteralRelation> res_rel;
-        bool constant = true;
-        auto simp = [&](SimplifyResult<Term> res) -> bool {
-            if (res.state == SimplifyState::fail) {
-                return false;
-            }
-            if (!res.value.has_value()) {
-                constant = constant && std::holds_alternative<TermSymbol>(n == 0 ? lit.lhs : lit.rhs[n - 1].second);
-                if (res_rel.has_value()) {
-                    res_rel->rhs.emplace_back(lit.rhs[n - 1]);
+
+        auto get_constant = [](Term const &orig, std::optional<Term> const &res) -> std::optional<Symbol> {
+            if (res.has_value()) {
+                if (auto const *sym = std::get_if<TermSymbol>(&res.value()); sym != nullptr) {
+                    return sym->value;
                 }
             } else {
-                constant = constant && std::holds_alternative<TermSymbol>(res.value.value());
-                if (n == 0) {
-                    res_rel = LiteralRelation{lit.loc, lit.sign, std::move(res.value).value(), {}};
-                } else {
-                    if (!res_rel.has_value()) {
-                        res_rel = LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::copy_n(lit.rhs, n - 1)};
-                    }
-                    res_rel->rhs.emplace_back(lit.rhs[n - 1].first, std::move(res.value).value());
+                if (auto const *sym = std::get_if<TermSymbol>(&orig); sym != nullptr) {
+                    return sym->value;
                 }
             }
-            return true;
+            return std::nullopt;
         };
+
+        // simplify lhs
         auto match_flags = SimplifyFlags::none;
         if (lit.rhs.front().first == assign) {
             match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
         }
-        // simplify lhs
-        if (!simp(simplify(fixed_flags | match_flags, ctx, lit.lhs))) {
-            // TODO: early exit
-            return {SimplifyState::fail};
-        }
+        auto [state, res_lhs] = simplify(fixed_flags | match_flags, ctx, lit.lhs);
+        auto prev_symbol = get_constant(lit.lhs, res_lhs);
+
         // simplify rhs
+        auto res_rhs = SimplifyVec{lit.rhs};
+        size_t n = 0;
+        if (state != SimplifyState::fail) {
+            // the truth value of the relation literal if all comparisions are true
+            state = lit.sign != Sign::once ? SimplifyState::top : SimplifyState::bot;
+        }
+        auto fixed_state = lit.sign != Sign::once ? SimplifyState::bot : SimplifyState::top;
         for (auto const &[rel, term] : lit.rhs) {
             ++n;
             match_flags = SimplifyFlags::none;
             if (rel == assign || (n < lit.rhs.size() && lit.rhs[n].first == assign)) {
                 match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
             }
-            if (!simp(simplify(fixed_flags | match_flags, ctx, term))) {
-                // TODO: early exit
-                return {SimplifyState::fail};
+            auto [state_term, res_term] = simplify(fixed_flags | match_flags, ctx, term);
+            if (state == SimplifyState::fail || state_term == SimplifyState::fail) {
+                state = SimplifyState::fail;
+                continue;
             }
-        }
-        // simplify sign
-        if (lit.sign == Sign::twice) {
-            if (!res_rel.has_value()) {
-                res_rel = lit;
+            if (state == fixed_state) {
+                continue;
             }
-            res_rel->sign = Sign::none;
-        }
-        if (constant) {
-            auto a = std::get<TermSymbol>(res_rel.has_value() ? res_rel->lhs : lit.lhs).value;
-            size_t n = 0;
-            auto value = lit.sign != Sign::once;
-            for (auto const &[rel, term] : lit.rhs) {
-                auto b = std::get<TermSymbol>(res_rel.has_value() ? res_rel->rhs[n].second : term).value;
-                if (!evaluate(a, rel, b)) {
-                    value = !value;
-                    break;
+            res_rhs.update(std::move(res_term).transform([&rel](auto term) { return Guard{rel, std::move(term)}; }));
+            auto cur_symbol = get_constant(term, res_term);
+            if (prev_symbol.has_value() && cur_symbol.has_value()) {
+                // the truth value of the relation literal is fixed if the comparison is false
+                if (!evaluate(prev_symbol.value(), rel, cur_symbol.value())) {
+                    state = fixed_state;
                 }
-                a = b;
-                ++n;
+            } else {
+                state = SimplifyState::unknown;
             }
-            auto state = value ? SimplifyState::top : SimplifyState::bot;
-            return {state, LiteralBoolean{lit.loc, Sign::none, value}};
+
+            prev_symbol = cur_symbol;
         }
-        return {SimplifyState::unknown, std::move(res_rel)};
+
+        // construct result
+        if (state == SimplifyState::fail) {
+            return {SimplifyState::fail};
+        }
+        if (state != SimplifyState::unknown) {
+            return {state, LiteralBoolean{lit.loc, Sign::none, state == SimplifyState::top}};
+        }
+        if (res_lhs.has_value() || res_rhs.has_value() || lit.sign == Sign::twice) {
+            auto sign = lit.sign == Sign::twice ? Sign::none : lit.sign;
+            return {SimplifyState::unknown,
+                    LiteralRelation{lit.loc, sign, std::move(res_lhs).value_or(lit.lhs), std::move(res_rhs).value()}};
+        }
+        return {SimplifyState::unknown};
     }
 
     //! Simplify symbolic literals.
@@ -1421,6 +1433,8 @@ struct SimplifyStatement {
     auto const *plus = std::get_if<TermBinary>(&term);
     return plus != nullptr && is_linear(*plus);
 }
+
+[[nodiscard]] auto is_numeric(Term const &term) -> bool { return IsNumeric{}(term); }
 
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term> {
     auto make_matchable = [&](auto &&target, bool self = true) -> SimplifyResult<Term> {

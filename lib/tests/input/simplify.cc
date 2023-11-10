@@ -168,6 +168,13 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "<unchanged>, F, E");
     REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "<unchanged>, F, E");
 
+    REQUIRE(simplify_str(parse_literal("X=2<1"), flags) == "#false, B");
+    REQUIRE(simplify_str(parse_literal("X=2>1"), flags) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_literal("not X!=2<1"), flags) == "#true, T");
+    REQUIRE(simplify_str(parse_literal("not X!=2>1"), flags) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_literal("1<2<3<4"), flags) == "#true, T");
+    REQUIRE(simplify_str(parse_literal("not 1<2<3<4"), flags) == "#false, B");
+
     flags = SimplifyFlags::matchable | SimplifyFlags::projectable;
     REQUIRE(simplify_str(parse_literal("p(X,*)"), flags) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "<unchanged>, F, E");
