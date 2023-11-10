@@ -189,6 +189,14 @@ TEST_CASE("simplify_literal") {
 
 TEST_CASE("simplify_rule") {
     REQUIRE(simplify_str(parse_statement("p(X+1) :- q(2*X,Y+Z).")) == "p(1*X+1) :- q(2*X+0,1*__A_0+0); __A_0=Y+Z., U");
+    REQUIRE(simplify_str(parse_statement("p(X+1) | p(X+Y).")) == "p(1*X+1); p(X+Y)., U");
+    REQUIRE(simplify_str(parse_statement("p(X) | p(X+Y).")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_statement("p(X+1) | p(X+Y): q(X+Y).")) ==
+            "p(1*X+1); p(X+Y): q(1*__A_0+0), __A_0=X+Y., U");
+    REQUIRE(simplify_str(parse_statement("#false | p(X+Y): q(X+Y).")) == "p(X+Y): q(1*__A_0+0), __A_0=X+Y., U");
+    REQUIRE(simplify_str(parse_statement("#false | #true: q(X+Y).")) == "#true: q(1*__A_0+0), __A_0=X+Y., U");
+    REQUIRE(simplify_str(parse_statement("#false | #false: q(X+Y).")) == "#false., B");
+    REQUIRE(simplify_str(parse_statement("#true | p(X+Y): q(X+Y).")) == "#true., T");
 }
 
 } // namespace Gringo::Input::Test

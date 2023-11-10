@@ -331,12 +331,13 @@ struct SimplifyTerm {
         };
 
         // evaluate arguments
+        auto res = true;
         for (auto const &arg : tuple) {
-            if (!std::visit(simplify, arg)) {
-                // TODO: early exit
-                return ResultTupleFail{};
-            }
+            res = std::visit(simplify, arg) && res;
             ++n;
+        }
+        if (!res) {
+            return ResultTupleFail{};
         }
         return res_tuple;
     }
@@ -1046,35 +1047,41 @@ struct SimplifyLiteral {
 struct SimplifyHBLiteral {
     //! Simplify a conjunction of literals.
     [[nodiscard]] auto simplify_litvec(LiteralVec const &lits, bool conjunctive = true) const
-        -> std::pair<SimplifyState, SimplifyVec<Literal>> {
+        -> SimplifyResult<LiteralVec> {
         auto state_fixed = conjunctive ? SimplifyState::bot : SimplifyState::top;
         auto state_empty = conjunctive ? SimplifyState::top : SimplifyState::bot;
-        SimplifyState state_lits = state_empty;
+        auto state_lits = state_empty;
         SimplifyVec res_lits{lits};
         ctx.aux.clear();
         for (auto const &lit : lits) {
-            auto [state, value] = simplify(conjunctive ? SimplifyFlags::none : SimplifyFlags::disjunctive, ctx, lit);
-            if (state == SimplifyState::fail) {
-                // TODO: early exit
-                return {SimplifyState::fail, std::move(res_lits)};
+            auto [state, value] =
+                simplify(conjunctive ? SimplifyFlags::matchable : SimplifyFlags::disjunctive, ctx, lit);
+            if (state_lits == SimplifyState::fail || state == SimplifyState::fail) {
+                state_lits = SimplifyState::fail;
+                continue;
+            }
+            if (state_lits == state_fixed) {
+                continue;
             }
             if (state == state_fixed) {
-                // TODO: early exit
                 if (lits.size() != 1 || value.has_value()) {
-                    res_lits.opt_value() =
-                        Util::make_vec<Literal>(LiteralBoolean{location(lit), Sign::none, !conjunctive});
+                    res_lits.opt_value() = Util::make_vec<Literal>(std::move(value).value_or(lit));
                 }
-                return {state_fixed, std::move(res_lits)};
-            }
-            if (state == state_empty) {
+                state_lits = state_fixed;
+            } else if (state == state_empty) {
                 res_lits.remove();
             } else {
                 state_lits = SimplifyState::unknown;
                 res_lits.update(std::move(value));
             }
         }
-        res_lits.extend(ctx.aux, conjunctive);
-        return {state_lits, std::move(res_lits)};
+        if (state_lits == SimplifyState::fail) {
+            return {SimplifyState::fail};
+        }
+        if (state_lits == SimplifyState::unknown) {
+            res_lits.extend(ctx.aux, conjunctive);
+        }
+        return {state_lits, std::move(res_lits).opt_value()};
     }
 
     //! Simplify a conditional literal.
@@ -1085,7 +1092,8 @@ struct SimplifyHBLiteral {
 
         auto make_condlit = [&]() -> std::optional<ConditionalLiteral> {
             if (res_lits.has_value() || res_cond.has_value()) {
-                return ConditionalLiteral{lit.loc, std::move(res_lits).value(), std::move(res_cond).value()};
+                return ConditionalLiteral{lit.loc, std::move(res_lits).value_or(lit.lits),
+                                          std::move(res_cond).value_or(lit.cond)};
             }
             return std::nullopt;
         };
@@ -1094,23 +1102,25 @@ struct SimplifyHBLiteral {
             return {SimplifyState::fail};
         }
 
+        auto state_fixed = conjunctive ? SimplifyState::top : SimplifyState::bot;
+
         // elements of conjunctions can be removed if their conclusion is true
         // (this is not true for disjunctions)
-        if (conjunctive && state_lits == SimplifyState::top) {
+        if (state_lits == state_fixed) {
             // ensure result: ":"
             if (!lit.cond.empty()) {
-                res_cond.opt_value() = LiteralVec{};
+                res_cond = LiteralVec{};
             }
-            return {SimplifyState::top, make_condlit()};
+            return {state_fixed, make_condlit()};
         }
 
         // elements of *junctions can be removed if their condition is false
         if (state_cond == SimplifyState::bot) {
             // ensure result: ":#false"
             if (!lit.lits.empty()) {
-                res_lits.opt_value() = LiteralVec{};
+                res_lits = LiteralVec{};
             }
-            return {conjunctive ? SimplifyState::top : SimplifyState::bot, make_condlit()};
+            return {state_fixed, make_condlit()};
         }
 
         if (state_cond == SimplifyState::top && state_lits != SimplifyState::unknown) {
@@ -1127,17 +1137,23 @@ struct SimplifyHBLiteral {
         auto state_fixed = Conjunctive ? SimplifyState::bot : SimplifyState::top;
         auto state_empty = Conjunctive ? SimplifyState::top : SimplifyState::bot;
         auto state_elems = state_empty;
+
         auto res_elems = SimplifyVec{lit.elems};
         for (auto const &cond_lit : lit.elems) {
             auto [state, res_elem] = simplify_condlit(cond_lit, Conjunctive);
+            if (state_elems == state_fixed) {
+                continue;
+            }
             if (state == SimplifyState::fail || state == state_empty) {
                 res_elems.remove();
             } else if (state == SimplifyState::unknown) {
                 state_elems = SimplifyState::unknown;
                 res_elems.update(std::move(res_elem));
             } else if (state == state_fixed) {
+                if (lit.elems.size() != 1 || res_elem.has_value()) {
+                    res_elems.opt_value() = Util::make_vec<ConditionalLiteral>(std::move(res_elem).value_or(cond_lit));
+                }
                 state_elems = state_fixed;
-                break;
             }
         }
         if (state_elems == SimplifyState::top || state_elems == SimplifyState::bot) {
@@ -1158,7 +1174,8 @@ struct SimplifyHBLiteral {
         auto [state_cond, res_cond] = simplify_litvec(elem.cond);
         auto make_elem = [&]() -> std::optional<SetAggregateElement> {
             if (res_cond.has_value() || res_lit.has_value()) {
-                return SetAggregateElement{std::move(res_lit).value(), std::move(res_cond).value()};
+                return SetAggregateElement{std::move(res_lit).value_or(elem.lit),
+                                           std::move(res_cond).value_or(elem.cond)};
             }
             return std::nullopt;
         };
@@ -1172,7 +1189,7 @@ struct SimplifyHBLiteral {
         if (state_lit == SimplifyState::top && state_cond == SimplifyState::top) {
             // result: "#true:"
             if (!elem.cond.empty()) {
-                res_cond.opt_value() = LiteralVec{};
+                res_cond = LiteralVec{};
             }
             state = SimplifyState::top;
         }
@@ -1316,15 +1333,19 @@ struct SimplifyStatement {
     auto operator()(Rule const &stm) const -> SimplifyResult<Statement> {
         auto [state_head, res_head] = simplify(ctx, stm.head);
         auto [state_body, res_body] = simplify_body(stm.body);
-        if (state_head == SimplifyState::fail || state_body == SimplifyState::fail ||
-            state_head == SimplifyState::top || state_body == SimplifyState::bot) {
-            return {SimplifyState::fail};
+        auto state = SimplifyState::unknown;
+        if (state_head == SimplifyState::top || state_body == SimplifyState::bot || state_body == SimplifyState::fail) {
+            state = SimplifyState::top;
+        }
+        if ((state_head == SimplifyState::bot || state_head == SimplifyState::fail) &&
+            state_body == SimplifyState::top) {
+            state = SimplifyState::bot;
         }
         if (res_head.has_value() || res_body.has_value()) {
-            return {SimplifyState::unknown,
+            return {state,
                     Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value_or(stm.body)}};
         }
-        return {SimplifyState::unknown};
+        return {state};
     }
 
     auto operator()(TheoryDefinition const &stm) const -> SimplifyResult<Statement> {
