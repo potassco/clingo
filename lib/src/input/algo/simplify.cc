@@ -1200,23 +1200,27 @@ struct SimplifyHBLiteral {
     //! Simplify the left guard of an aggregate.
     //!
     //! \todo Add option to handle assignments.
-    [[nodiscard]] auto simplify_guard(LGuard const &guard) const -> std::optional<SimplifyResult<LGuard>> {
-        return guard.transform([this](auto const &guard) {
-            return transform_res(simplify(SimplifyFlags::none, ctx, guard.first), [&guard](auto term) -> LGuard {
-                return LGuard::value_type{std::move(term), guard.second};
-            });
-        });
+    [[nodiscard]] auto simplify_guard(LGuard const &guard) const -> SimplifyResult<LGuard::value_type> {
+        if (guard.has_value()) {
+            auto [state, res] = simplify(SimplifyFlags::none, ctx, guard->first);
+            return {state, std::move(res).transform([&guard](auto &&term) {
+                        return LGuard::value_type{std::move(term), guard->second};
+                    })};
+        }
+        return {SimplifyState::unknown};
     }
 
     //! Simplify the right guard of an aggregate.
     //!
     //! \todo Add option to handle assignments.
-    [[nodiscard]] auto simplify_guard(RGuard const &guard) const -> std::optional<SimplifyResult<RGuard>> {
-        return guard.transform([this](auto const &guard) {
-            return transform_res(simplify(SimplifyFlags::none, ctx, guard.second), [&guard](auto term) -> RGuard {
-                return RGuard::value_type{guard.first, std::move(term)};
-            });
-        });
+    [[nodiscard]] auto simplify_guard(RGuard const &guard) const -> SimplifyResult<RGuard::value_type> {
+        if (guard.has_value()) {
+            auto [state, res] = simplify(SimplifyFlags::none, ctx, guard->second);
+            return {state, std::move(res).transform([&guard](auto &&term) {
+                        return RGuard::value_type{guard->first, std::move(term)};
+                    })};
+        }
+        return {SimplifyState::unknown};
     }
 
     SimplifyContext ctx; //!< Context used during simplification.
@@ -1247,11 +1251,12 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
     }
 
     auto operator()(HeadSetAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
-        auto res_lhs = simplify_guard(lit.lhs);
-        auto res_rhs = simplify_guard(lit.rhs);
+        auto [state_lhs, res_lhs] = simplify_guard(lit.lhs);
+        auto [state_rhs, res_rhs] = simplify_guard(lit.rhs);
         AuxTermVec aux;
         auto res_elems = SimplifyVec{lit.elems};
         bool constant = true;
+        auto value = Number{0};
         for (auto const &elem : lit.elems) {
             auto sub = SimplifyHBLiteral{SimplifyContext{ctx.log, ctx.store, ctx.gen, aux}};
             auto [state_elem, res_elem] = sub.simplify_element(elem);
@@ -1261,15 +1266,37 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
             }
             if (state_elem == SimplifyState::unknown) {
                 constant = false;
+            } else {
+                // Note: does not apply to symbol literals (as they are always unknown or fail)
+                value += 1;
             }
             res_elems.update(std::move(res_elem));
         }
-        if ((res_lhs.has_value() && res_lhs->state == SimplifyState::fail) ||
-            (res_rhs.has_value() && res_rhs->state == SimplifyState::fail)) {
+        if (state_lhs == SimplifyState::fail || state_rhs == SimplifyState::fail) {
             return {SimplifyState::top, SimpleHeadLiteral{LiteralBoolean{location(lit), Sign::none, true}}};
         }
+        // Note: value also gives a lower bound for the aggregate, which could be used to detect false aggregates
+        // (unlikely to be relevant in practice)
         if (constant) {
-            throw std::logic_error("we can turn this into a relation literal by accumulating values");
+            if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
+                return {SimplifyState::top, SimpleHeadLiteral{LiteralBoolean{lit.loc, Sign::none, true}}};
+            }
+            auto lhs = Term{TermSymbol{lit.loc, ctx.store.num(value)}};
+            auto guards = GuardVec{};
+            if (lit.lhs.has_value()) {
+                guards.emplace_back(lit.lhs->second, std::move(lhs));
+                lhs = std::move(res_lhs.transform([](auto guard) {
+                          return std::move(guard).first;
+                      })).value_or(lit.lhs->first);
+            }
+            if (lit.rhs.has_value()) {
+                guards.emplace_back(lit.rhs->first, std::move(res_rhs.transform([](auto guard) {
+                                                        return std::move(guard).second;
+                                                    })).value_or(lit.rhs->second));
+            }
+            auto rel_lit = SimpleHeadLiteral{LiteralRelation{lit.loc, Sign::none, std::move(lhs), std::move(guards)}};
+            auto [state_lit, res_lit] = simplify(ctx, rel_lit);
+            return {state_lit, std::move(res_lit).value_or(std::move(rel_lit))};
         }
         // TODO: think about transforming this into a general head aggregate right away
         // to avoid the complexity of handling two kinds of aggregates later.
@@ -1281,12 +1308,9 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
         //   n, vars    for all other literals
         //            where vars are the variables in the lhs literal
         // It might also be worth to make the literal unfailable to avoid processing arthimetics multiple times.
-        if ((res_lhs.has_value() && res_lhs->value.has_value()) ||
-            (res_rhs.has_value() && res_rhs->value.has_value()) || res_elems.has_value()) {
-            auto lhs =
-                lit.lhs.and_then([&res_lhs](auto const &orig) { return std::move(res_lhs->value).value_or(orig); });
-            auto rhs =
-                lit.rhs.and_then([&res_rhs](auto const &orig) { return std::move(res_rhs->value).value_or(orig); });
+        if (res_lhs.has_value() || res_rhs.has_value() || res_elems.has_value()) {
+            auto lhs = lit.lhs.transform([&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
+            auto rhs = lit.rhs.transform([&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
             return {SimplifyState::unknown,
                     HeadSetAggregate{lit.loc, std::move(lhs), std::move(res_elems).value(), std::move(rhs)}};
         }

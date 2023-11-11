@@ -191,6 +191,9 @@ TEST_CASE("simplify_head_set_aggregate") {
     REQUIRE(simplify_str(parse_statement("1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
             "1*__A_0+0 <= { a(1*__A_2+0,X+Y): b(1*__A_3+0), __A_2=3..4, __A_3=A+B } <= 1*__A_1+0 :- __A_0=1..2; "
             "__A_1=5..6., U");
+    REQUIRE(simplify_str(parse_statement("X <= {1!=2;2!=2;#true;#false} <= Y.")) == "X<=2<=Y., U");
+    REQUIRE(simplify_str(parse_statement("1 <= {1!=2;2!=2;#true;#false} <= 2.")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("1 <= {1!=2;2!=2;#true;#false} <= 1.")) == "#false., B");
 }
 
 TEST_CASE("simplify_rule") {
