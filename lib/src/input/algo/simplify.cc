@@ -1272,7 +1272,15 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
             throw std::logic_error("we can turn this into a relation literal by accumulating values");
         }
         // TODO: think about transforming this into a general head aggregate right away
-        // to avoid the complexity of handling two kinds of aggregates later
+        // to avoid the complexity of handling two kinds of aggregates later.
+        // Here is also a good point because all pools with more than one element have been removed.
+        // The tuple in the element can be:
+        //   0, p(args) for predicates
+        //   1, p(args) for negated predicates
+        //   2, p(args) for double negated predicates
+        //   n, vars    for all other literals
+        //            where vars are the variables in the lhs literal
+        // It might also be worth to make the literal unfailable to avoid processing arthimetics multiple times.
         if ((res_lhs.has_value() && res_lhs->value.has_value()) ||
             (res_rhs.has_value() && res_rhs->value.has_value()) || res_elems.has_value()) {
             auto lhs =
