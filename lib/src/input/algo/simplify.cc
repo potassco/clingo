@@ -1264,10 +1264,25 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
             }
             res_elems.update(std::move(res_elem));
         }
+        if ((res_lhs.has_value() && res_lhs->state == SimplifyState::fail) ||
+            (res_rhs.has_value() && res_rhs->state == SimplifyState::fail)) {
+            return {SimplifyState::top, SimpleHeadLiteral{LiteralBoolean{location(lit), Sign::none, true}}};
+        }
         if (constant) {
             throw std::logic_error("we can turn this into a relation literal by accumulating values");
         }
-        throw std::logic_error("construct the aggregate");
+        // TODO: think about transforming this into a general head aggregate right away
+        // to avoid the complexity of handling two kinds of aggregates later
+        if ((res_lhs.has_value() && res_lhs->value.has_value()) ||
+            (res_rhs.has_value() && res_rhs->value.has_value()) || res_elems.has_value()) {
+            auto lhs =
+                lit.lhs.and_then([&res_lhs](auto const &orig) { return std::move(res_lhs->value).value_or(orig); });
+            auto rhs =
+                lit.rhs.and_then([&res_rhs](auto const &orig) { return std::move(res_rhs->value).value_or(orig); });
+            return {SimplifyState::unknown,
+                    HeadSetAggregate{lit.loc, std::move(lhs), std::move(res_elems).value(), std::move(rhs)}};
+        }
+        return {SimplifyState::unknown};
     }
 
     auto operator()(HeadAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
