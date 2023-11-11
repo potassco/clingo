@@ -107,7 +107,6 @@ template <class T> struct SimplifyVec {
                 out_->emplace_back(SimpleBodyLiteral{std::move(lit)});
             }
         }
-        aux.clear();
     }
 
   private:
@@ -115,6 +114,22 @@ template <class T> struct SimplifyVec {
     std::optional<std::vector<T>> out_;
     std::vector<T>::const_iterator cur_ = in_.begin();
 };
+
+template <class T, class F>
+auto transform_res(SimplifyResult<T> const &a, F &&f) -> SimplifyResult<std::invoke_result_t<F, T const &>> {
+    if (a.value.has_value()) {
+        return {a.state, std::invoke(f, a.value.value())};
+    }
+    return {a.state, std::nullopt};
+}
+
+template <class T, class F>
+auto transform_res(SimplifyResult<T> &&a, F &&f) -> SimplifyResult<std::invoke_result_t<F, T &&>> {
+    if (a.value.has_value()) {
+        return {a.state, std::invoke(f, std::move(a.value).value())};
+    }
+    return {a.state, std::nullopt};
+}
 
 //! Ensure that the term only matches numbers.
 [[nodiscard]] auto as_linear_term(SymbolStore &store, Term term) -> Term {
@@ -1037,13 +1052,14 @@ struct SimplifyLiteral {
 //! Simplify head/body literals.
 struct SimplifyHBLiteral {
     //! Simplify a conjunction of literals.
+    //!
+    //! \note The automatic extension with the aux elements makes for a somewhat awkward interface.
     [[nodiscard]] auto simplify_litvec(LiteralVec const &lits, bool conjunctive = true) const
         -> SimplifyResult<LiteralVec> {
         auto state_fixed = conjunctive ? SimplifyState::bot : SimplifyState::top;
         auto state_empty = conjunctive ? SimplifyState::top : SimplifyState::bot;
         auto state_lits = state_empty;
         SimplifyVec res_lits{lits};
-        ctx.aux.clear();
         for (auto const &lit : lits) {
             auto [state, value] =
                 simplify(conjunctive ? SimplifyFlags::matchable : SimplifyFlags::disjunctive, ctx, lit);
@@ -1067,11 +1083,12 @@ struct SimplifyHBLiteral {
             }
         }
         if (state_lits == SimplifyState::fail) {
-            return {SimplifyState::fail};
+            res_lits.opt_value() = std::nullopt;
         }
         if (state_lits == SimplifyState::unknown) {
             res_lits.extend(ctx.aux, conjunctive);
         }
+        ctx.aux.clear();
         return {state_lits, std::move(res_lits).opt_value()};
     }
 
@@ -1180,6 +1197,28 @@ struct SimplifyHBLiteral {
         return {state, make_elem()};
     }
 
+    //! Simplify the left guard of an aggregate.
+    //!
+    //! \todo Add option to handle assignments.
+    [[nodiscard]] auto simplify_guard(LGuard const &guard) const -> std::optional<SimplifyResult<LGuard>> {
+        return guard.transform([this](auto const &guard) {
+            return transform_res(simplify(SimplifyFlags::none, ctx, guard.first), [&guard](auto term) -> LGuard {
+                return LGuard::value_type{std::move(term), guard.second};
+            });
+        });
+    }
+
+    //! Simplify the right guard of an aggregate.
+    //!
+    //! \todo Add option to handle assignments.
+    [[nodiscard]] auto simplify_guard(RGuard const &guard) const -> std::optional<SimplifyResult<RGuard>> {
+        return guard.transform([this](auto const &guard) {
+            return transform_res(simplify(SimplifyFlags::none, ctx, guard.second), [&guard](auto term) -> RGuard {
+                return RGuard::value_type{guard.first, std::move(term)};
+            });
+        });
+    }
+
     SimplifyContext ctx; //!< Context used during simplification.
 };
 
@@ -1208,8 +1247,27 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
     }
 
     auto operator()(HeadSetAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me");
+        auto res_lhs = simplify_guard(lit.lhs);
+        auto res_rhs = simplify_guard(lit.rhs);
+        AuxTermVec aux;
+        auto res_elems = SimplifyVec{lit.elems};
+        bool constant = true;
+        for (auto const &elem : lit.elems) {
+            auto sub = SimplifyHBLiteral{SimplifyContext{ctx.log, ctx.store, ctx.gen, aux}};
+            auto [state_elem, res_elem] = sub.simplify_element(elem);
+            if (state_elem == SimplifyState::fail || state_elem == SimplifyState::bot) {
+                res_elems.remove();
+                continue;
+            }
+            if (state_elem == SimplifyState::unknown) {
+                constant = false;
+            }
+            res_elems.update(std::move(res_elem));
+        }
+        if (constant) {
+            throw std::logic_error("we can turn this into a relation literal by accumulating values");
+        }
+        throw std::logic_error("construct the aggregate");
     }
 
     auto operator()(HeadAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
