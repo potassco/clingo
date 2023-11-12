@@ -1294,11 +1294,8 @@ struct SimplifyHBLiteral {
     }
 
     template <bool head> using HBAggregate = std::conditional_t<head, HeadAggregate, BodyAggregate>;
-
     template <bool head> using HBSetAggregate = std::conditional_t<head, HeadSetAggregate, BodySetAggregate>;
-
     template <bool head> using HBLiteral = std::conditional_t<head, HeadLiteral, BodyLiteral>;
-
     template <bool head> using SimpleHBLiteral = std::conditional_t<head, SimpleHeadLiteral, SimpleBodyLiteral>;
 
     template <bool head>
