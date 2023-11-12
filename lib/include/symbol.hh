@@ -49,6 +49,13 @@ class String {
     //! Equality compare a string view and a string.
     friend auto operator==(std::string_view a, String b) -> bool { return a == b.view(); }
 
+    //! Less than compare two strings.
+    friend auto operator<(String a, String b) -> bool { return a.view() < b.view(); }
+    //! Less than compare a string view and a string.
+    friend auto operator<(std::string_view a, String b) -> bool { return a < b.view(); }
+    //! Less than compare a string and a string view.
+    friend auto operator<(String a, std::string_view b) -> bool { return a.view() < b; }
+
     //! Convert a string to its representation.
     static auto to_rep(String str) noexcept -> uint64_t { return static_cast<uint64_t>(str.rep_); }
     //! Construct a string from its representation.

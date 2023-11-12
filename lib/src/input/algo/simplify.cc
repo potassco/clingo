@@ -1,11 +1,13 @@
 #include <util/algorithm.hh>
 #include <util/checked_math.hh>
 
+#include <algorithm>
 #include <ctime>
 
 #include <input/algo/evaluate.hh>
 #include <input/algo/print.hh>
 #include <input/algo/simplify.hh>
+#include <input/algo/visit_variables.hh>
 
 /*
 whole process as in gringo atm
@@ -872,8 +874,26 @@ struct MakeMatchableTerm {
 
     //! Make the given binary term matchable.
     auto operator()(TermBinary const &term, SimplifyFlags flags) const -> Result {
-        if (!test(flags, SimplifyFlags::unfailable) && is_linear(term)) {
-            return std::nullopt;
+        if (is_linear(term)) {
+            // The goal here is to avoid adding additional assignments for auxiliary variables
+            // that correspond to variables having a numeric value.
+            if (test(flags, SimplifyFlags::unfailable)) {
+                auto &n = std::get<TermSymbol>(*term.rhs);
+                auto &mx = std::get<TermBinary>(*term.lhs);
+                auto &m = std::get<TermSymbol>(*mx.lhs);
+                if (*n.value.num() == 0 && *m.value.num() == 1) {
+                    for (auto &[lhs, rhs] : ctx.aux) {
+                        if (*mx.rhs == lhs) {
+                            if (is_numeric(rhs)) {
+                                return *mx.rhs;
+                            }
+                            break;
+                        }
+                    }
+                }
+            } else {
+                return std::nullopt;
+            }
         }
         if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
             return std::nullopt;
@@ -1033,8 +1053,8 @@ struct SimplifyLiteral {
     //! (1) the literal is matchable if the corresponding flag has been set,
     //! (2) projection is accepted if the corresponding flag has been set.
     auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
-        auto sub_flags = flags & (SimplifyFlags::matchable | SimplifyFlags::projectable);
-        if (lit.sign != Sign::none) {
+        auto sub_flags = flags & (SimplifyFlags::matchable | SimplifyFlags::projectable | SimplifyFlags::unfailable);
+        if (lit.sign != Sign::none && !test(flags, SimplifyFlags::unfailable)) {
             sub_flags &= ~SimplifyFlags::matchable;
         }
         auto [state, res] = simplify(sub_flags, ctx, lit.term);
@@ -1170,8 +1190,10 @@ struct SimplifyHBLiteral {
     //!
     //! Status top and fail will be used if the element is statically true/false.
     //! In case the element is statically false, no updated aggregate element is provided.
-    [[nodiscard]] auto simplify_element(SetAggregateElement const &elem) const -> SimplifyResult<SetAggregateElement> {
-        auto [state_lit, res_lit] = simplify(SimplifyFlags::none, ctx, elem.lit);
+    [[nodiscard]] auto simplify_element(SetAggregateElement const &elem, bool head) const
+        -> SimplifyResult<SetAggregateElement> {
+        auto [state_lit, res_lit] =
+            simplify(head ? SimplifyFlags::matchable | SimplifyFlags::unfailable : SimplifyFlags::none, ctx, elem.lit);
         auto [state_cond, res_cond] = simplify_litvec(elem.cond);
         auto make_elem = [&]() -> std::optional<SetAggregateElement> {
             if (res_cond.has_value() || res_lit.has_value()) {
@@ -1226,6 +1248,55 @@ struct SimplifyHBLiteral {
     SimplifyContext ctx; //!< Context used during simplification.
 };
 
+struct LiteralToTuple {
+    auto operator()(Literal const &lit) -> TermVec { return std::visit(*this, lit); }
+
+    auto operator()(LiteralBoolean const &lit) -> TermVec {
+        ++n;
+        return Util::make_vec<Term>(TermSymbol{lit.loc, store.num(n)});
+    }
+
+    auto operator()(LiteralRelation const &lit) -> TermVec {
+        ++n;
+        auto var_set = select_variables(lit);
+        auto var_vec = std::vector(var_set.begin(), var_set.end());
+        std::sort(var_vec.begin(), var_vec.end());
+        TermVec res;
+        res.reserve(var_vec.size() + 1);
+        res.emplace_back(TermSymbol{lit.loc, store.num(n)});
+        for (auto const &var : var_vec) {
+            res.emplace_back(TermVariable{lit.loc, var});
+        }
+        return res;
+    }
+
+    auto operator()(LiteralSymbolic const &lit) -> TermVec {
+        TermVec res;
+        res.reserve(2);
+        int i = 0;
+        switch (lit.sign) {
+            case Sign::none: {
+                i = 0;
+                break;
+            }
+            case Sign::once: {
+                i = 1;
+                break;
+            }
+            case Sign::twice: {
+                i = 2;
+                break;
+            }
+        }
+        res.emplace_back(TermSymbol{lit.loc, store.num(i)});
+        res.emplace_back(lit.term);
+        return res;
+    }
+
+    SymbolStore &store;
+    int n = 2;
+};
+
 struct SimplifyHeadLiteral : SimplifyHBLiteral {
     using SimplifyHBLiteral::simplify_element;
 
@@ -1259,7 +1330,7 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
         auto value = Number{0};
         for (auto const &elem : lit.elems) {
             auto sub = SimplifyHBLiteral{SimplifyContext{ctx.log, ctx.store, ctx.gen, aux}};
-            auto [state_elem, res_elem] = sub.simplify_element(elem);
+            auto [state_elem, res_elem] = sub.simplify_element(elem, true);
             if (state_elem == SimplifyState::fail || state_elem == SimplifyState::bot) {
                 res_elems.remove();
                 continue;
@@ -1298,23 +1369,17 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
             auto [state_lit, res_lit] = simplify(ctx, rel_lit);
             return {state_lit, std::move(res_lit).value_or(std::move(rel_lit))};
         }
-        // TODO: think about transforming this into a general head aggregate right away
-        // to avoid the complexity of handling two kinds of aggregates later.
-        // Here is also a good point because all pools with more than one element have been removed.
-        // The tuple in the element can be:
-        //   0, p(args) for predicates
-        //   1, p(args) for negated predicates
-        //   2, p(args) for double negated predicates
-        //   n, vars    for all other literals
-        //            where vars are the variables in the lhs literal
-        // It might also be worth to make the literal unfailable to avoid processing arthimetics multiple times.
-        if (res_lhs.has_value() || res_rhs.has_value() || res_elems.has_value()) {
-            auto lhs = lit.lhs.transform([&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
-            auto rhs = lit.rhs.transform([&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
-            return {SimplifyState::unknown,
-                    HeadSetAggregate{lit.loc, std::move(lhs), std::move(res_elems).value(), std::move(rhs)}};
+        auto elems = HeadAggregate::ElementVec{};
+        elems.reserve(res_elems.value().size());
+        auto to_tuple = LiteralToTuple{ctx.store};
+        for (auto &elem : std::move(res_elems).value()) {
+            auto tuple = to_tuple(elem.lit);
+            elems.emplace_back(HeadAggregate::Element{std::move(tuple), std::move(elem.lit), std::move(elem.cond)});
         }
-        return {SimplifyState::unknown};
+        auto lhs = lit.lhs.transform([&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
+        auto rhs = lit.rhs.transform([&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
+        return {SimplifyState::unknown,
+                HeadAggregate{lit.loc, std::move(lhs), AggregateFunction::count, std::move(elems), std::move(rhs)}};
     }
 
     auto operator()(HeadAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
