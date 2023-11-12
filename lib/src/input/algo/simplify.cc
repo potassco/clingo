@@ -1068,6 +1068,54 @@ struct SimplifyLiteral {
 
     SimplifyContext ctx; //!< Context used during simplification.
 };
+struct LiteralToTuple {
+    auto operator()(Literal const &lit) -> TermVec { return std::visit(*this, lit); }
+
+    auto operator()(LiteralBoolean const &lit) -> TermVec {
+        ++n;
+        return Util::make_vec<Term>(TermSymbol{lit.loc, store.num(n)});
+    }
+
+    auto operator()(LiteralRelation const &lit) -> TermVec {
+        ++n;
+        auto var_set = select_variables(lit);
+        auto var_vec = std::vector(var_set.begin(), var_set.end());
+        std::sort(var_vec.begin(), var_vec.end());
+        TermVec res;
+        res.reserve(var_vec.size() + 1);
+        res.emplace_back(TermSymbol{lit.loc, store.num(n)});
+        for (auto const &var : var_vec) {
+            res.emplace_back(TermVariable{lit.loc, var});
+        }
+        return res;
+    }
+
+    auto operator()(LiteralSymbolic const &lit) -> TermVec {
+        TermVec res;
+        res.reserve(2);
+        int i = 0;
+        switch (lit.sign) {
+            case Sign::none: {
+                i = 0;
+                break;
+            }
+            case Sign::once: {
+                i = 1;
+                break;
+            }
+            case Sign::twice: {
+                i = 2;
+                break;
+            }
+        }
+        res.emplace_back(TermSymbol{lit.loc, store.num(i)});
+        res.emplace_back(lit.term);
+        return res;
+    }
+
+    SymbolStore &store;
+    int n = 2;
+};
 
 //! Simplify head/body literals.
 struct SimplifyHBLiteral {
@@ -1192,8 +1240,8 @@ struct SimplifyHBLiteral {
     //! In case the element is statically false, no updated aggregate element is provided.
     [[nodiscard]] auto simplify_element(SetAggregateElement const &elem, bool head) const
         -> SimplifyResult<SetAggregateElement> {
-        auto [state_lit, res_lit] =
-            simplify(head ? SimplifyFlags::matchable | SimplifyFlags::unfailable : SimplifyFlags::none, ctx, elem.lit);
+        auto [state_lit, res_lit] = simplify(
+            head ? SimplifyFlags::matchable | SimplifyFlags::unfailable : SimplifyFlags::matchable, ctx, elem.lit);
         auto [state_cond, res_cond] = simplify_litvec(elem.cond);
         auto make_elem = [&]() -> std::optional<SetAggregateElement> {
             if (res_cond.has_value() || res_lit.has_value()) {
@@ -1245,56 +1293,101 @@ struct SimplifyHBLiteral {
         return {SimplifyState::unknown};
     }
 
+    template <bool head> using HBAggregate = std::conditional_t<head, HeadAggregate, BodyAggregate>;
+
+    template <bool head> using HBSetAggregate = std::conditional_t<head, HeadSetAggregate, BodySetAggregate>;
+
+    template <bool head> using HBLiteral = std::conditional_t<head, HeadLiteral, BodyLiteral>;
+
+    template <bool head> using SimpleHBLiteral = std::conditional_t<head, SimpleHeadLiteral, SimpleBodyLiteral>;
+
+    template <bool head>
+    [[nodiscard]] auto simplify_set_aggregate(HBSetAggregate<head> const &lit) const
+        -> SimplifyResult<HBLiteral<head>> {
+        auto [state_lhs, res_lhs] = simplify_guard(lit.lhs);
+        auto [state_rhs, res_rhs] = simplify_guard(lit.rhs);
+        AuxTermVec aux;
+        auto res_elems = SimplifyVec{lit.elems};
+        bool constant = true;
+        auto value = Number{0};
+        for (auto const &elem : lit.elems) {
+            auto sub = SimplifyHBLiteral{SimplifyContext{ctx.log, ctx.store, ctx.gen, aux}};
+            auto [state_elem, res_elem] = sub.simplify_element(elem, head);
+            if (state_elem == SimplifyState::fail || state_elem == SimplifyState::bot) {
+                res_elems.remove();
+                continue;
+            }
+            if (state_elem == SimplifyState::unknown) {
+                constant = false;
+            } else {
+                // Note: does not apply to symbol literals (as they are always unknown or fail)
+                value += 1;
+            }
+            res_elems.update(std::move(res_elem));
+        }
+        if (state_lhs == SimplifyState::fail || state_rhs == SimplifyState::fail) {
+            // TODO: a failed literal in the body is false
+            return {SimplifyState::top, SimpleHBLiteral<head>{LiteralBoolean{location(lit), Sign::none, true}}};
+        }
+        // Note: value also gives a lower bound for the aggregate, which could be used to detect false aggregates
+        // (unlikely to be relevant in practice)
+        if constexpr (!head) {
+            if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
+                return {SimplifyState::top,
+                        SimpleHBLiteral<head>{LiteralBoolean{lit.loc, Sign::none, lit.sign != Sign::once}}};
+            }
+        }
+        if (constant) {
+            auto sign = Sign::none;
+            if constexpr (head) {
+                if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
+                    return {SimplifyState::top, SimpleHBLiteral<head>{LiteralBoolean{lit.loc, Sign::none, true}}};
+                }
+            } else {
+                sign = lit.sign;
+            }
+            auto lhs = Term{TermSymbol{lit.loc, ctx.store.num(value)}};
+            auto guards = GuardVec{};
+            if (lit.lhs.has_value()) {
+                guards.emplace_back(lit.lhs->second, std::move(lhs));
+                lhs = std::move(res_lhs.transform([](auto guard) {
+                          return std::move(guard).first;
+                      })).value_or(lit.lhs->first);
+            }
+            if (lit.rhs.has_value()) {
+                guards.emplace_back(lit.rhs->first, std::move(res_rhs.transform([](auto guard) {
+                                                        return std::move(guard).second;
+                                                    })).value_or(lit.rhs->second));
+            }
+            auto rel_lit = SimpleHBLiteral<head>{LiteralRelation{lit.loc, sign, std::move(lhs), std::move(guards)}};
+            auto [state_lit, res_lit] = simplify(ctx, rel_lit);
+            return {state_lit, std::move(res_lit).value_or(std::move(rel_lit))};
+        }
+        auto elems = typename HBAggregate<head>::ElementVec{};
+        elems.reserve(res_elems.value().size());
+        auto to_tuple = LiteralToTuple{ctx.store};
+        for (auto &elem : std::move(res_elems).value()) {
+            auto tuple = to_tuple(elem.lit);
+            if constexpr (head) {
+                elems.emplace_back(
+                    typename HBAggregate<head>::Element{std::move(tuple), std::move(elem.lit), std::move(elem.cond)});
+            } else {
+                elem.cond.emplace_back(std::move(elem.lit));
+                elems.emplace_back(typename HBAggregate<head>::Element{std::move(tuple), std::move(elem.cond)});
+            }
+        }
+        auto lhs = lit.lhs.transform([&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
+        auto rhs = lit.rhs.transform([&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
+        if constexpr (head) {
+            return {SimplifyState::unknown, HBAggregate<head>{lit.loc, std::move(lhs), AggregateFunction::count,
+                                                              std::move(elems), std::move(rhs)}};
+        } else {
+            return {SimplifyState::unknown,
+                    HBAggregate<head>{lit.loc, lit.sign, std::move(lhs), AggregateFunction::count, std::move(elems),
+                                      std::move(rhs)}};
+        }
+    }
     SimplifyContext ctx; //!< Context used during simplification.
-};
-
-struct LiteralToTuple {
-    auto operator()(Literal const &lit) -> TermVec { return std::visit(*this, lit); }
-
-    auto operator()(LiteralBoolean const &lit) -> TermVec {
-        ++n;
-        return Util::make_vec<Term>(TermSymbol{lit.loc, store.num(n)});
-    }
-
-    auto operator()(LiteralRelation const &lit) -> TermVec {
-        ++n;
-        auto var_set = select_variables(lit);
-        auto var_vec = std::vector(var_set.begin(), var_set.end());
-        std::sort(var_vec.begin(), var_vec.end());
-        TermVec res;
-        res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{lit.loc, store.num(n)});
-        for (auto const &var : var_vec) {
-            res.emplace_back(TermVariable{lit.loc, var});
-        }
-        return res;
-    }
-
-    auto operator()(LiteralSymbolic const &lit) -> TermVec {
-        TermVec res;
-        res.reserve(2);
-        int i = 0;
-        switch (lit.sign) {
-            case Sign::none: {
-                i = 0;
-                break;
-            }
-            case Sign::once: {
-                i = 1;
-                break;
-            }
-            case Sign::twice: {
-                i = 2;
-                break;
-            }
-        }
-        res.emplace_back(TermSymbol{lit.loc, store.num(i)});
-        res.emplace_back(lit.term);
-        return res;
-    }
-
-    SymbolStore &store;
-    int n = 2;
 };
 
 struct SimplifyHeadLiteral : SimplifyHBLiteral {
@@ -1322,64 +1415,7 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
     }
 
     auto operator()(HeadSetAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
-        auto [state_lhs, res_lhs] = simplify_guard(lit.lhs);
-        auto [state_rhs, res_rhs] = simplify_guard(lit.rhs);
-        AuxTermVec aux;
-        auto res_elems = SimplifyVec{lit.elems};
-        bool constant = true;
-        auto value = Number{0};
-        for (auto const &elem : lit.elems) {
-            auto sub = SimplifyHBLiteral{SimplifyContext{ctx.log, ctx.store, ctx.gen, aux}};
-            auto [state_elem, res_elem] = sub.simplify_element(elem, true);
-            if (state_elem == SimplifyState::fail || state_elem == SimplifyState::bot) {
-                res_elems.remove();
-                continue;
-            }
-            if (state_elem == SimplifyState::unknown) {
-                constant = false;
-            } else {
-                // Note: does not apply to symbol literals (as they are always unknown or fail)
-                value += 1;
-            }
-            res_elems.update(std::move(res_elem));
-        }
-        if (state_lhs == SimplifyState::fail || state_rhs == SimplifyState::fail) {
-            return {SimplifyState::top, SimpleHeadLiteral{LiteralBoolean{location(lit), Sign::none, true}}};
-        }
-        // Note: value also gives a lower bound for the aggregate, which could be used to detect false aggregates
-        // (unlikely to be relevant in practice)
-        if (constant) {
-            if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
-                return {SimplifyState::top, SimpleHeadLiteral{LiteralBoolean{lit.loc, Sign::none, true}}};
-            }
-            auto lhs = Term{TermSymbol{lit.loc, ctx.store.num(value)}};
-            auto guards = GuardVec{};
-            if (lit.lhs.has_value()) {
-                guards.emplace_back(lit.lhs->second, std::move(lhs));
-                lhs = std::move(res_lhs.transform([](auto guard) {
-                          return std::move(guard).first;
-                      })).value_or(lit.lhs->first);
-            }
-            if (lit.rhs.has_value()) {
-                guards.emplace_back(lit.rhs->first, std::move(res_rhs.transform([](auto guard) {
-                                                        return std::move(guard).second;
-                                                    })).value_or(lit.rhs->second));
-            }
-            auto rel_lit = SimpleHeadLiteral{LiteralRelation{lit.loc, Sign::none, std::move(lhs), std::move(guards)}};
-            auto [state_lit, res_lit] = simplify(ctx, rel_lit);
-            return {state_lit, std::move(res_lit).value_or(std::move(rel_lit))};
-        }
-        auto elems = HeadAggregate::ElementVec{};
-        elems.reserve(res_elems.value().size());
-        auto to_tuple = LiteralToTuple{ctx.store};
-        for (auto &elem : std::move(res_elems).value()) {
-            auto tuple = to_tuple(elem.lit);
-            elems.emplace_back(HeadAggregate::Element{std::move(tuple), std::move(elem.lit), std::move(elem.cond)});
-        }
-        auto lhs = lit.lhs.transform([&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
-        auto rhs = lit.rhs.transform([&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
-        return {SimplifyState::unknown,
-                HeadAggregate{lit.loc, std::move(lhs), AggregateFunction::count, std::move(elems), std::move(rhs)}};
+        return simplify_set_aggregate<true>(lit);
     }
 
     auto operator()(HeadAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
@@ -1418,8 +1454,7 @@ struct SimplifyBodyLiteral : SimplifyHBLiteral {
     }
 
     auto operator()(BodySetAggregate const &lit) const -> SimplifyResult<BodyLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me");
+        return simplify_set_aggregate<false>(lit);
     }
 
     auto operator()(BodyAggregate const &lit) const -> SimplifyResult<BodyLiteral> {

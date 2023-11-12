@@ -198,6 +198,14 @@ TEST_CASE("simplify_head_set_aggregate") {
     REQUIRE(simplify_str(parse_statement("1 <= {1!=2;2!=2;#true;#false} <= 1.")) == "#false., B");
 }
 
+TEST_CASE("simplify_body_set_aggregate") {
+    REQUIRE(simplify_str(parse_statement("x :- 1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
+            "x :- 1*__A_0+0 <= #count { "
+            "0,a(1*__A_2+0,1*__A_3+0): "
+            "b(1*__A_4+0), __A_2=3..4, __A_3=X+Y, __A_4=A+B, a(1*__A_2+0,1*__A_3+0) "
+            "} <= 1*__A_1+0; __A_0=1..2; __A_1=5..6., U");
+}
+
 TEST_CASE("simplify_rule") {
     REQUIRE(simplify_str(parse_statement("p(X+1) :- q(2*X,Y+Z).")) == "p(1*X+1) :- q(2*X+0,1*__A_0+0); __A_0=Y+Z., U");
     REQUIRE(simplify_str(parse_statement("p(X+1) | p(X+Y).")) == "p(1*X+1); p(X+Y)., U");
