@@ -188,6 +188,10 @@ TEST_CASE("simplify_literal") {
 }
 
 TEST_CASE("simplify_head_set_aggregate") {
+    REQUIRE(simplify_str(parse_statement("X+Y <= {a}.")) == "X+Y <= #count { 0,a: a }., U");
+    REQUIRE(simplify_str(parse_statement("@f(X) <= {a}.")) == "__A_0 <= #count { 0,a: a } :- __A_0=@f(X)., U");
+    REQUIRE(simplify_str(parse_statement("{a; not a; not not a; X+Y<Z: p(U)} <= 1.")) ==
+            "#count { 0,a: a; 1,a: not a; 2,a: not not a; 3,X,Y,Z: X+Y<Z: p(U) } <= 1., U");
     REQUIRE(simplify_str(parse_statement("1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
             "1*__A_0+0 <= #count { "
             "0,a(__A_2,__A_3): a(__A_2,__A_3): "
@@ -199,11 +203,18 @@ TEST_CASE("simplify_head_set_aggregate") {
 }
 
 TEST_CASE("simplify_body_set_aggregate") {
+    REQUIRE(simplify_str(parse_statement("x :- X+Y <= {a}.")) == "x :- X+Y <= #count { 0,a: a }., U");
+    REQUIRE(simplify_str(parse_statement("x :- @f(X) <= {a}.")) == "x :- __A_0 <= #count { 0,a: a }; __A_0=@f(X)., U");
+    REQUIRE(simplify_str(parse_statement("x :- {a; not a; not not a; X+Y<Z: p(U)} <= 1.")) ==
+            "x :- #count { 0,a: a; 1,a: not a; 2,a: not not a; 3,X,Y,Z: p(U), X+Y<Z } <= 1., U");
     REQUIRE(simplify_str(parse_statement("x :- 1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
             "x :- 1*__A_0+0 <= #count { "
             "0,a(1*__A_2+0,1*__A_3+0): "
             "b(1*__A_4+0), __A_2=3..4, __A_3=X+Y, __A_4=A+B, a(1*__A_2+0,1*__A_3+0) "
             "} <= 1*__A_1+0; __A_0=1..2; __A_1=5..6., U");
+    REQUIRE(simplify_str(parse_statement("x :- X <= {1!=2;2!=2;#true;#false} <= Y.")) == "x :- X<=2<=Y., U");
+    REQUIRE(simplify_str(parse_statement("x :- 1 <= {1!=2;2!=2;#true;#false} <= 2.")) == "x., U");
+    REQUIRE(simplify_str(parse_statement("x :- 1 <= {1!=2;2!=2;#true;#false} <= 1.")) == "#true., T");
 }
 
 TEST_CASE("simplify_rule") {
