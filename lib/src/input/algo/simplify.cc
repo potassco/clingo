@@ -1160,7 +1160,58 @@ struct SimplifyHBLiteral {
         return {state_lits, std::move(res_lits).opt_value()};
     }
 
+    //! Simplify a term vector.
+    //!
+    //! \note The automatic extension with the aux elements makes for a somewhat awkward interface.
+    [[nodiscard]] auto simplify_termvec(TermVec const &terms) const -> SimplifyResult<TermVec> {
+        auto state_terms = SimplifyState::unknown;
+        SimplifyVec res_terms{terms};
+        for (auto const &term : terms) {
+            auto [state_term, res_term] = simplify(SimplifyFlags::none, ctx, term);
+            if (state_term == SimplifyState::unknown) {
+                state_terms = state_term;
+            }
+            if (state_terms != SimplifyState::fail) {
+                res_terms.update(res_term);
+            }
+        }
+        if (state_terms == SimplifyState::fail) {
+            return {state_terms};
+        }
+        return {state_terms, std::move(res_terms).opt_value()};
+    }
+
     //! Simplify a conditional literal.
+    //!
+    //! Example for the head:
+    //! - p((X;A+B),Z): q(Z) :- r.
+    //!   - p(X,Z) & (p(Y,Z)|Y!=A+B): q(Z) :- r.
+    //!     - p(X,Z): q(Z) :- r.
+    //!     - p(Y,Z)|Y!=A+B: q(Z) :- r.
+    //!   - case: A+B is undefined
+    //!     - #true : q(Z) :- r.
+    //!     - this is the same as obtained from p(A+B,Z)
+    //!   - case: Y=A+B
+    //!     - p(A+B,Z): q(Z) :- r.
+    //!     - this corresponds to the original form
+    //!   - case: Y!=A+B
+    //!     - #true : q(Z) :- r.
+    //!     - this is fine because Y is a global variable
+    //!     - it gives rise to a weaker rule as compared to the previous one
+    //!       (the rule can be ignored)
+    //!     - only values of Y equal to A+B are relevant
+    //!       (noting  that Y is an auxiliary variable that does not appear anywhere else)
+    //!
+    //! Example for the body:
+    //! - p :- q((X;A+B),Z): r.
+    //!   - p :- (q(X,Z)|q(A+B,Z)): r(Z).
+    //!     - p :- (q(X,Z)|(q(Y,Z)&Y!=A+B)): r(Z).
+    //!       - p :- q(X,Z): r(Z).
+    //!       - p :- q(Y,Z) & Y=A+B: r(Z).
+    //!   - case: A+B is undefined
+    //!     - p :- #false: r(Z).
+    //!     - this is the same as obtained from q(A+B,Z)
+    //!   - cases Y=A+B and Y!=A+B analogous to head case
     [[nodiscard]] auto simplify_condlit(ConditionalLiteral const &lit, bool conjunctive) const
         -> SimplifyResult<ConditionalLiteral> {
         auto [state_lits, res_lits] = simplify_litvec(lit.lits, conjunctive);
@@ -1390,10 +1441,42 @@ struct SimplifyHBLiteral {
 struct SimplifyHeadLiteral : SimplifyHBLiteral {
     using SimplifyHBLiteral::simplify_element;
 
-    [[nodiscard]] static auto simplify_element(HeadAggregate::Element const &elem)
+    [[nodiscard]] auto simplify_element(HeadAggregate::Element const &elem) const
         -> SimplifyResult<HeadAggregate::Element> {
-        static_cast<void>(elem);
-        throw std::logic_error("implement me");
+        auto [state_tuple, res_tuple] = simplify_termvec(elem.tuple);
+        auto [state_lit, res_lit] = simplify(SimplifyFlags::none, ctx, elem.lit);
+        auto [state_cond, res_cond] = simplify_litvec(elem.cond);
+
+        if (state_tuple == SimplifyState::fail || state_lit == SimplifyState::fail ||
+            state_cond == SimplifyState::fail) {
+            state_cond = SimplifyState::bot;
+        }
+
+        auto state_elem = SimplifyState::unknown;
+        if (state_lit == SimplifyState::top && state_cond == SimplifyState::top) {
+            state_elem = SimplifyState::top;
+            if (!elem.cond.empty()) {
+                res_cond = LiteralVec{};
+            }
+        }
+        if (state_lit == SimplifyState::bot || state_cond == SimplifyState::bot) {
+            state_elem = SimplifyState::bot;
+            if (!elem.tuple.empty()) {
+                res_tuple = TermVec{};
+            }
+            if (!elem.cond.empty()) {
+                res_cond = LiteralVec{};
+            }
+            if (state_lit != SimplifyState::bot) {
+                res_lit = LiteralBoolean{location(elem.lit), Sign::none, false};
+            }
+        }
+        if (res_tuple.has_value() || res_lit.has_value() || res_cond.has_value()) {
+            return {state_elem, HeadAggregate::Element{std::move(res_tuple).value_or(elem.tuple),
+                                                       std::move(res_lit).value_or(elem.lit),
+                                                       std::move(res_cond).value_or(elem.cond)}};
+        }
+        return {state_elem};
     }
 
     auto operator()(auto const &lit) const -> SimplifyResult<HeadLiteral> = delete;

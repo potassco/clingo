@@ -217,6 +217,10 @@ TEST_CASE("simplify_body_set_aggregate") {
     REQUIRE(simplify_str(parse_statement("x :- 1 <= {1!=2;2!=2;#true;#false} <= 1.")) == "#true., T");
 }
 
+TEST_CASE("simplify_head_aggregate") {}
+
+TEST_CASE("simplify_body_aggregate") {}
+
 TEST_CASE("simplify_rule") {
     REQUIRE(simplify_str(parse_statement("p(X+1) :- q(2*X,Y+Z).")) == "p(1*X+1) :- q(2*X+0,1*__A_0+0); __A_0=Y+Z., U");
     REQUIRE(simplify_str(parse_statement("p(X+1) | p(X+Y).")) == "p(1*X+1); p(X+Y)., U");
