@@ -83,21 +83,23 @@ struct SimplifyContext {
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term>;
 
 //! Simplifies the given literal.
+//!
+//! The result can be fail, true, false, and unknown.
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal>;
 
 //! Simplifies the given head literal.
 //!
-//! The resulting state will be one of bot, top, unknown; it cannot fail.
+//! The resulting state will be one of bot, top, or unknown; it cannot fail.
 [[nodiscard]] auto simplify(SimplifyContext ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral>;
 
 //! Simplifies the given body literal.
 //!
-//! The resulting state will be one of bot, top, unknown; it cannot fail.
+//! The resulting state will be one of bot, top, or unknown; it cannot fail.
 [[nodiscard]] auto simplify(SimplifyContext ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral>;
 
 //! Simplifies the given statement.
 //!
-//! The resulting state will be one of bot, top, unknown; it cannot fail.
+//! The resulting state will be one of bot, top, or unknown; it cannot fail.
 [[nodiscard]] auto simplify(Logger &log, SymbolStore &store, Statement const &stm) -> SimplifyResult<Statement>;
 
 //! @}

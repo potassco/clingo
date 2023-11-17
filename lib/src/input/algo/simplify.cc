@@ -1121,6 +1121,10 @@ struct LiteralToTuple {
 struct SimplifyHBLiteral {
     //! Simplify a conjunction of literals.
     //!
+    //! There is no fail result the result will either be bot or top.
+    //! In the conjunctive case empty pools evaluate disjunctively, and the result is bot.
+    //! In the disjunctive case empty pools evaluate conjunctively, and the result is top.
+    //!
     //! \note The automatic extension with the aux elements makes for a somewhat awkward interface.
     [[nodiscard]] auto simplify_litvec(LiteralVec const &lits, bool conjunctive = true) const
         -> SimplifyResult<LiteralVec> {
@@ -1151,7 +1155,8 @@ struct SimplifyHBLiteral {
             }
         }
         if (state_lits == SimplifyState::fail) {
-            res_lits.opt_value() = std::nullopt;
+            res_lits.opt_value() = LiteralVec{};
+            state_lits = state_fixed;
         }
         if (state_lits == SimplifyState::unknown) {
             res_lits.extend(ctx.aux, conjunctive);
@@ -1162,7 +1167,7 @@ struct SimplifyHBLiteral {
 
     //! Simplify a term vector.
     //!
-    //! \note The automatic extension with the aux elements makes for a somewhat awkward interface.
+    //! The result will be either fail or unknown.
     [[nodiscard]] auto simplify_termvec(TermVec const &terms) const -> SimplifyResult<TermVec> {
         auto state_terms = SimplifyState::unknown;
         SimplifyVec res_terms{terms};
@@ -1182,6 +1187,9 @@ struct SimplifyHBLiteral {
     }
 
     //! Simplify a conditional literal.
+    //!
+    //! There is no failed result.
+    //! Depending on the type failure is mapped to bot or top.
     //!
     //! Example for the head:
     //! - p((X;A+B),Z): q(Z) :- r.
@@ -1217,10 +1225,6 @@ struct SimplifyHBLiteral {
         auto [state_lits, res_lits] = simplify_litvec(lit.lits, conjunctive);
         auto [state_cond, res_cond] = simplify_litvec(lit.cond);
 
-        if (state_lits == SimplifyState::fail || state_cond == SimplifyState::fail) {
-            return {SimplifyState::fail};
-        }
-
         auto state_fixed = conjunctive ? SimplifyState::top : SimplifyState::bot;
         auto state = SimplifyState::unknown;
 
@@ -1251,6 +1255,9 @@ struct SimplifyHBLiteral {
     }
 
     //! Simplify a conjunction/disjunction of conditional literals.
+    //!
+    //! There is no failed result.
+    //! Depending on the type failure is mapped to bot or top.
     template <bool Conjunctive>
     auto operator()(Junction<Conjunctive> const &lit) const
         -> SimplifyResult<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
@@ -1264,7 +1271,7 @@ struct SimplifyHBLiteral {
             if (state_elems == state_fixed) {
                 continue;
             }
-            if (state == SimplifyState::fail || state == state_empty) {
+            if (state == state_empty) {
                 res_elems.remove();
             } else if (state == SimplifyState::unknown) {
                 state_elems = SimplifyState::unknown;
@@ -1287,7 +1294,7 @@ struct SimplifyHBLiteral {
 
     //! Simplify a set aggregate element.
     //!
-    //! Status top and fail will be used if the element is statically true/false.
+    //! Stati top and bot are for statically true/false elements.
     //! In case the element is statically false, no updated aggregate element is provided.
     [[nodiscard]] auto simplify_element(SetAggregateElement const &elem, bool head) const
         -> SimplifyResult<SetAggregateElement> {
@@ -1302,8 +1309,7 @@ struct SimplifyHBLiteral {
             return std::nullopt;
         };
         // the literal or condition is false
-        if (state_lit == SimplifyState::fail || state_cond == SimplifyState::fail || state_lit == SimplifyState::bot ||
-            state_cond == SimplifyState::bot) {
+        if (state_lit == SimplifyState::fail || state_lit == SimplifyState::bot || state_cond == SimplifyState::bot) {
             return {SimplifyState::fail};
         }
         auto state = SimplifyState::unknown;
@@ -1374,8 +1380,8 @@ struct SimplifyHBLiteral {
             res_elems.update(std::move(res_elem));
         }
         if (state_lhs == SimplifyState::fail || state_rhs == SimplifyState::fail) {
-            // TODO: a failed literal in the body is false
-            return {SimplifyState::top, SimpleHBLiteral<head>{LiteralBoolean{location(lit), Sign::none, true}}};
+            return {head ? SimplifyState::top : SimplifyState::bot,
+                    SimpleHBLiteral<head>{LiteralBoolean{location(lit), Sign::none, head}}};
         }
         // Note: value also gives a lower bound for the aggregate, which could be used to detect false aggregates
         // (unlikely to be relevant in practice)

@@ -187,7 +187,23 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("not not p(X+Y,1*Y+1)"), flags) == "<unchanged>, U");
 }
 
+TEST_CASE("simplify_head_cond_lit") {
+    REQUIRE(simplify_str(parse_statement("X=Y+Z=Z: cond.")) == "#or { X=__A_0=Z, __A_0!=Y+Z: cond }., U");
+    REQUIRE(simplify_str(parse_statement("not not X=Y+Z=Z: cond.")) == "#or { X=__A_0=Z, __A_0!=Y+Z: cond }., U");
+    REQUIRE(simplify_str(parse_statement("not X=Y+Z=Z: cond.")) == "not X=Y+Z=Z: cond., U");
+    REQUIRE(simplify_str(parse_statement("not X=Y+Z=Z: cond(Z).")) == "<unchanged>, U");
+}
+
+TEST_CASE("simplify_body_cond_lit") {
+    REQUIRE(simplify_str(parse_statement("x :- X=Y+Z=Z: cond.")) == "x :- X=Y+Z=Z: cond., U");
+    REQUIRE(simplify_str(parse_statement("x(X) :- X=Y+Z=Z: cond(Z).")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_statement("x :- not not X=Y+Z=Z: cond.")) == "x :- X=Y+Z=Z: cond., U");
+    REQUIRE(simplify_str(parse_statement("x :- not X=Y+Z=Z: cond.")) ==
+            "x :- #and { not X=__A_0=Z, __A_0=Y+Z: cond }., U");
+}
+
 TEST_CASE("simplify_head_set_aggregate") {
+    REQUIRE(simplify_str(parse_statement("X+a <= {a} :- x.")) == "#true., T");
     REQUIRE(simplify_str(parse_statement("X+Y <= {a}.")) == "X+Y <= #count { 0,a: a }., U");
     REQUIRE(simplify_str(parse_statement("@f(X) <= {a}.")) == "__A_0 <= #count { 0,a: a } :- __A_0=@f(X)., U");
     REQUIRE(simplify_str(parse_statement("{a; not a; not not a; X+Y<Z: p(U)} <= 1.")) ==
@@ -203,6 +219,7 @@ TEST_CASE("simplify_head_set_aggregate") {
 }
 
 TEST_CASE("simplify_body_set_aggregate") {
+    REQUIRE(simplify_str(parse_statement("x :- X+a <= {a}.")) == "#true., T");
     REQUIRE(simplify_str(parse_statement("x :- X+Y <= {a}.")) == "x :- X+Y <= #count { 0,a: a }., U");
     REQUIRE(simplify_str(parse_statement("x :- @f(X) <= {a}.")) == "x :- __A_0 <= #count { 0,a: a }; __A_0=@f(X)., U");
     REQUIRE(simplify_str(parse_statement("x :- {a; not a; not not a; X+Y<Z: p(U)} <= 1.")) ==
