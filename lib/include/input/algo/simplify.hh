@@ -27,14 +27,21 @@ enum class SimplifyFlags : unsigned {
 
 GRINGO_ENUM_FLAGS(SimplifyFlags)
 
-enum class SimplifyState {
-    top,
-    bot,
-    unknown,
+//! Truth values for expressions.
+enum class TruthValue {
+    top,     //! Indicate a true expression.
+    bot,     //! Indicate a false expression.
+    unknown, //! Indicate an expression with an unknown truth value.
 };
 
-template <class T, class S = SimplifyState> struct SimplifyResult {
+//! The result of a simplification.
+//!
+//! The result consists of a state resulting from simplification
+//! together with an optional value in case the expression was changed.
+template <class T, class S = TruthValue> struct SimplifyResult {
+    //! A truth value or state.
     S state = S{};
+    //! An optional rewritten expression.
     std::optional<T> value = std::nullopt;
 };
 
@@ -77,32 +84,40 @@ struct SimplifyContext {
 
 //! Simplifies the given term.
 //!
-//! Note that the state can only be fail or unknown
-//! where the latter is used to indicate successful simplification of the term.
+//! The truth value of the result is false if the term failed to simplify,
+//! i.e., it evaluated to an empty pool.
 //!
-//! \todo: an optional as result would be best!!!
+//! Terms that are replaced during simplification by auxiliary variables are added to the given context.
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term, bool>;
 
 //! Simplifies the given literal.
 //!
-//! The result can be fail, true, false, and unknown.
+//! The result consists of a truth value and an optional literal in case of change.
+//! The literal is simplified to \#true/\#false for truth values true/false.
 //!
-//! \todo: a tribool result would be best!!
+//! Terms that are replaced during simplification by auxiliary variables are added to the given context.
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal>;
 
 //! Simplifies the given head literal.
 //!
-//! The resulting state will be one of bot, top, or unknown; it cannot fail.
+//! The result consists of a truth value and an optional literal in case of change.
+//! The literal is simplified to \#true/\#false for truth values true/false.
+//!
+//! Terms that are replaced during simplification by auxiliary variables are added to the given context.
 [[nodiscard]] auto simplify(SimplifyContext ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral>;
 
 //! Simplifies the given body literal.
 //!
-//! The resulting state will be one of bot, top, or unknown; it cannot fail.
+//! The result consists of a truth value and an optional literal in case of change.
+//! The literal is simplified to \#true/\#false for truth values true/false.
+//!
+//! Terms that are replaced during simplification by auxiliary variables are added to the given context.
 [[nodiscard]] auto simplify(SimplifyContext ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral>;
 
 //! Simplifies the given statement.
 //!
-//! The resulting state will be one of bot, top, or unknown; it cannot fail.
+//! The result consists of a truth value and an optional statement in case of change.
+//! The statement is simplified to \#true/\#false for truth values true/false.
 [[nodiscard]] auto simplify(Logger &log, SymbolStore &store, Statement const &stm) -> SimplifyResult<Statement>;
 
 //! @}

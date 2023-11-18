@@ -921,7 +921,7 @@ struct SimplifyLiteral {
     auto operator()(LiteralBoolean const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
         static_cast<void>(flags);
         auto value = (lit.sign != Sign::once) == lit.value;
-        auto state = value ? SimplifyState::top : SimplifyState::bot;
+        auto state = value ? TruthValue::top : TruthValue::bot;
 
         if (lit.sign != Sign::none) {
             return {state, make_constant(lit.loc, value)};
@@ -997,11 +997,11 @@ struct SimplifyLiteral {
         };
 
         // the truth value of the relation literal if all (signed) comparisions are true
-        auto state = lit.sign != Sign::once ? SimplifyState::top : SimplifyState::bot;
+        auto state = lit.sign != Sign::once ? TruthValue::top : TruthValue::bot;
         // the truth value of the literal fixed by one of the  comparisons
-        auto state_fixed = lit.sign != Sign::once ? SimplifyState::bot : SimplifyState::top;
+        auto state_fixed = lit.sign != Sign::once ? TruthValue::bot : TruthValue::top;
         // the truth value if evaluation of a term fails
-        auto state_fail = head ? SimplifyState::top : SimplifyState::bot;
+        auto state_fail = head ? TruthValue::top : TruthValue::bot;
 
         // simplify lhs
         auto match_flags = SimplifyFlags::none;
@@ -1033,7 +1033,7 @@ struct SimplifyLiteral {
                     state = state_fixed;
                 }
             } else {
-                state = SimplifyState::unknown;
+                state = TruthValue::unknown;
             }
 
             prev_symbol = cur_symbol;
@@ -1043,15 +1043,15 @@ struct SimplifyLiteral {
         if (!succeeded) {
             state = state_fail;
         }
-        if (state != SimplifyState::unknown) {
-            return {state, make_constant(lit.loc, state == SimplifyState::top)};
+        if (state != TruthValue::unknown) {
+            return {state, make_constant(lit.loc, state == TruthValue::top)};
         }
         if (res_lhs.has_value() || res_rhs.has_value() || lit.sign == Sign::twice) {
             auto sign = lit.sign == Sign::twice ? Sign::none : lit.sign;
-            return {SimplifyState::unknown,
+            return {TruthValue::unknown,
                     LiteralRelation{lit.loc, sign, std::move(res_lhs).value_or(lit.lhs), std::move(res_rhs).value()}};
         }
-        return {SimplifyState::unknown};
+        return {TruthValue::unknown};
     }
 
     //! Simplify symbolic literals.
@@ -1067,9 +1067,9 @@ struct SimplifyLiteral {
         }
         auto [state, res] = simplify(sub_flags, ctx, lit.term);
         if (!state) {
-            return {head ? SimplifyState::top : SimplifyState::bot, make_constant(lit.loc, head)};
+            return {head ? TruthValue::top : TruthValue::bot, make_constant(lit.loc, head)};
         }
-        return {SimplifyState::unknown, res.transform([&](auto term) {
+        return {TruthValue::unknown, res.transform([&](auto term) {
                     return LiteralSymbolic{lit.loc, lit.sign, std::move(term)};
                 })};
     }
@@ -1135,8 +1135,8 @@ struct SimplifyHBLiteral {
     //! \note The automatic extension with the aux elements makes for a somewhat awkward interface.
     [[nodiscard]] auto simplify_litvec(LiteralVec const &lits, bool conjunctive = true) const
         -> SimplifyResult<LiteralVec> {
-        auto state_fixed = conjunctive ? SimplifyState::bot : SimplifyState::top;
-        auto state_empty = conjunctive ? SimplifyState::top : SimplifyState::bot;
+        auto state_fixed = conjunctive ? TruthValue::bot : TruthValue::top;
+        auto state_empty = conjunctive ? TruthValue::top : TruthValue::bot;
         auto state_lits = state_empty;
         SimplifyVec res_lits{lits};
         for (auto const &lit : lits) {
@@ -1153,11 +1153,11 @@ struct SimplifyHBLiteral {
             } else if (state == state_empty) {
                 res_lits.remove();
             } else {
-                state_lits = SimplifyState::unknown;
+                state_lits = TruthValue::unknown;
                 res_lits.update(std::move(value));
             }
         }
-        if (state_lits == SimplifyState::unknown) {
+        if (state_lits == TruthValue::unknown) {
             res_lits.extend(ctx.aux, conjunctive);
         }
         ctx.aux.clear();
@@ -1220,8 +1220,8 @@ struct SimplifyHBLiteral {
         auto [state_lits, res_lits] = simplify_litvec(lit.lits, conjunctive);
         auto [state_cond, res_cond] = simplify_litvec(lit.cond);
 
-        auto state_fixed = conjunctive ? SimplifyState::top : SimplifyState::bot;
-        auto state = SimplifyState::unknown;
+        auto state_fixed = conjunctive ? TruthValue::top : TruthValue::bot;
+        auto state = TruthValue::unknown;
 
         // elements of *junctions can be removed if their conclusion is neutral
         if (state_lits == state_fixed) {
@@ -1232,13 +1232,13 @@ struct SimplifyHBLiteral {
             state = state_fixed;
         }
         // elements of *junctions can be removed if their condition is false
-        else if (state_cond == SimplifyState::bot) {
+        else if (state_cond == TruthValue::bot) {
             // ensure result: ":#false"
             if (!lit.lits.empty()) {
                 res_lits = LiteralVec{};
             }
             state = state_fixed;
-        } else if (state_cond == SimplifyState::top && state_lits != SimplifyState::unknown) {
+        } else if (state_cond == TruthValue::top && state_lits != TruthValue::unknown) {
             state = state_lits;
         }
 
@@ -1256,8 +1256,8 @@ struct SimplifyHBLiteral {
     template <bool Conjunctive>
     auto operator()(Junction<Conjunctive> const &lit) const
         -> SimplifyResult<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
-        auto state_fixed = Conjunctive ? SimplifyState::bot : SimplifyState::top;
-        auto state_empty = Conjunctive ? SimplifyState::top : SimplifyState::bot;
+        auto state_fixed = Conjunctive ? TruthValue::bot : TruthValue::top;
+        auto state_empty = Conjunctive ? TruthValue::top : TruthValue::bot;
         auto state_elems = state_empty;
 
         auto res_elems = SimplifyVec{lit.elems};
@@ -1268,8 +1268,8 @@ struct SimplifyHBLiteral {
             }
             if (state == state_empty) {
                 res_elems.remove();
-            } else if (state == SimplifyState::unknown) {
-                state_elems = SimplifyState::unknown;
+            } else if (state == TruthValue::unknown) {
+                state_elems = TruthValue::unknown;
                 res_elems.update(std::move(res_elem));
             } else if (state == state_fixed) {
                 if (lit.elems.size() != 1 || res_elem.has_value()) {
@@ -1278,9 +1278,9 @@ struct SimplifyHBLiteral {
                 state_elems = state_fixed;
             }
         }
-        if (state_elems != SimplifyState::unknown) {
+        if (state_elems != TruthValue::unknown) {
             using SimpleLiteral = std::conditional_t<Conjunctive, SimpleBodyLiteral, SimpleHeadLiteral>;
-            return {state_elems, SimpleLiteral{make_constant(lit.loc, state_elems == SimplifyState::top)}};
+            return {state_elems, SimpleLiteral{make_constant(lit.loc, state_elems == TruthValue::top)}};
         }
         return {state_elems, std::move(res_elems).opt_value().transform([&](auto value) {
                     return Junction<Conjunctive>{lit.loc, std::move(value)};
@@ -1303,24 +1303,24 @@ struct SimplifyHBLiteral {
             }
             return std::nullopt;
         };
-        auto state = SimplifyState::unknown;
+        auto state = TruthValue::unknown;
         // the literal or condition is false
-        if (state_lit == SimplifyState::bot || state_cond == SimplifyState::bot) {
-            if (state_lit != SimplifyState::bot) {
+        if (state_lit == TruthValue::bot || state_cond == TruthValue::bot) {
+            if (state_lit != TruthValue::bot) {
                 res_lit = make_constant(location(elem.lit), false);
             }
             if (!elem.cond.empty()) {
                 res_cond = LiteralVec{};
             }
-            state = SimplifyState::bot;
+            state = TruthValue::bot;
         }
         // each true literal can be subtracted from the bounds of the aggregate
-        if (state_lit == SimplifyState::top && state_cond == SimplifyState::top) {
+        if (state_lit == TruthValue::top && state_cond == TruthValue::top) {
             // result: "#true:"
             if (!elem.cond.empty()) {
                 res_cond = LiteralVec{};
             }
-            state = SimplifyState::top;
+            state = TruthValue::top;
         }
         return {state, make_elem()};
     }
@@ -1368,11 +1368,11 @@ struct SimplifyHBLiteral {
         for (auto const &elem : lit.elems) {
             auto sub = SimplifyHBLiteral{SimplifyContext{ctx.log, ctx.store, ctx.gen, aux}};
             auto [state_elem, res_elem] = sub.simplify_element(elem, head);
-            if (state_elem == SimplifyState::bot) {
+            if (state_elem == TruthValue::bot) {
                 res_elems.remove();
                 continue;
             }
-            if (state_elem == SimplifyState::unknown) {
+            if (state_elem == TruthValue::unknown) {
                 constant = false;
             } else {
                 // Note: does not apply to symbol literals (as they are always unknown or fail)
@@ -1381,21 +1381,21 @@ struct SimplifyHBLiteral {
             res_elems.update(std::move(res_elem));
         }
         if (!state_lhs) {
-            return {head ? SimplifyState::top : SimplifyState::bot,
+            return {head ? TruthValue::top : TruthValue::bot,
                     SimpleHBLiteral<head>{make_constant(location(lit), head)}};
         }
         // Note: value also gives a lower bound for the aggregate, which could be used to detect false aggregates
         // (unlikely to be relevant in practice)
         if constexpr (!head) {
             if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
-                return {SimplifyState::top, SimpleHBLiteral<head>{make_constant(lit.loc, lit.sign != Sign::once)}};
+                return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc, lit.sign != Sign::once)}};
             }
         }
         if (constant) {
             auto sign = Sign::none;
             if constexpr (head) {
                 if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
-                    return {SimplifyState::top, SimpleHBLiteral<head>{make_constant(lit.loc, true)}};
+                    return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc, true)}};
                 }
             } else {
                 sign = lit.sign;
@@ -1433,12 +1433,11 @@ struct SimplifyHBLiteral {
         auto lhs = lit.lhs.transform([&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
         auto rhs = lit.rhs.transform([&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
         if constexpr (head) {
-            return {SimplifyState::unknown, HBAggregate<head>{lit.loc, std::move(lhs), AggregateFunction::count,
-                                                              std::move(elems), std::move(rhs)}};
+            return {TruthValue::unknown, HBAggregate<head>{lit.loc, std::move(lhs), AggregateFunction::count,
+                                                           std::move(elems), std::move(rhs)}};
         } else {
-            return {SimplifyState::unknown,
-                    HBAggregate<head>{lit.loc, lit.sign, std::move(lhs), AggregateFunction::count, std::move(elems),
-                                      std::move(rhs)}};
+            return {TruthValue::unknown, HBAggregate<head>{lit.loc, lit.sign, std::move(lhs), AggregateFunction::count,
+                                                           std::move(elems), std::move(rhs)}};
         }
     }
     SimplifyContext ctx; //!< Context used during simplification.
@@ -1454,25 +1453,25 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
         auto [state_cond, res_cond] = simplify_litvec(elem.cond);
 
         if (!state_tuple) {
-            state_cond = SimplifyState::bot;
+            state_cond = TruthValue::bot;
         }
 
-        auto state_elem = SimplifyState::unknown;
-        if (state_lit == SimplifyState::top && state_cond == SimplifyState::top) {
-            state_elem = SimplifyState::top;
+        auto state_elem = TruthValue::unknown;
+        if (state_lit == TruthValue::top && state_cond == TruthValue::top) {
+            state_elem = TruthValue::top;
             if (!elem.cond.empty()) {
                 res_cond = LiteralVec{};
             }
         }
-        if (state_lit == SimplifyState::bot || state_cond == SimplifyState::bot) {
-            state_elem = SimplifyState::bot;
+        if (state_lit == TruthValue::bot || state_cond == TruthValue::bot) {
+            state_elem = TruthValue::bot;
             if (!elem.tuple.empty()) {
                 res_tuple = TermVec{};
             }
             if (!elem.cond.empty()) {
                 res_cond = LiteralVec{};
             }
-            if (state_lit != SimplifyState::bot) {
+            if (state_lit != TruthValue::bot) {
                 res_lit = LiteralBoolean{location(elem.lit), Sign::none, false};
             }
         }
@@ -1567,29 +1566,29 @@ struct SimplifyStatement {
 
     [[nodiscard]] auto simplify_body(BodyLiteralVec const &body) const -> SimplifyResult<BodyLiteralVec> {
         auto res_body = SimplifyVec{body};
-        auto state_body = SimplifyState::top;
+        auto state_body = TruthValue::top;
         for (auto const &lit : body) {
             auto [state_lit, res_lit] = simplify(ctx, lit);
             // ensure that all literals are processed to emit all messages
-            if (state_body == SimplifyState::bot) {
+            if (state_body == TruthValue::bot) {
                 continue;
             }
-            if (state_lit == SimplifyState::top) {
+            if (state_lit == TruthValue::top) {
                 res_body.remove();
             } else {
                 res_body.update(std::move(res_lit));
             }
-            if (state_lit == SimplifyState::bot) {
+            if (state_lit == TruthValue::bot) {
                 if (body.size() != 1) {
                     res_body.opt_value() = Util::make_vec<BodyLiteral>(
                         SimpleBodyLiteral{LiteralBoolean{location(lit), Sign::none, false}});
                 }
-                state_body = SimplifyState::bot;
-            } else if (state_lit == SimplifyState::unknown) {
-                state_body = SimplifyState::unknown;
+                state_body = TruthValue::bot;
+            } else if (state_lit == TruthValue::unknown) {
+                state_body = TruthValue::unknown;
             }
         }
-        if (state_body != SimplifyState::bot) {
+        if (state_body != TruthValue::bot) {
             res_body.extend(ctx.aux);
         }
         return {state_body, std::move(res_body).opt_value()};
@@ -1602,16 +1601,16 @@ struct SimplifyStatement {
     auto operator()(Rule const &stm) const -> SimplifyResult<Statement> {
         auto [state_head, res_head] = simplify(ctx, stm.head);
         auto [state_body, res_body] = simplify_body(stm.body);
-        auto state = SimplifyState::unknown;
-        if (state_head == SimplifyState::top || state_body == SimplifyState::bot) {
+        auto state = TruthValue::unknown;
+        if (state_head == TruthValue::top || state_body == TruthValue::bot) {
             if (!stm.body.empty()) {
                 res_head = SimpleHeadLiteral{LiteralBoolean{location(stm.head), Sign::none, true}};
                 res_body = BodyLiteralVec{};
             }
-            state = SimplifyState::top;
+            state = TruthValue::top;
         }
-        if (state_head == SimplifyState::bot && state_body == SimplifyState::top) {
-            state = SimplifyState::bot;
+        if (state_head == TruthValue::bot && state_body == TruthValue::top) {
+            state = TruthValue::bot;
         }
         if (res_head.has_value() || res_body.has_value()) {
             return {state,
@@ -1622,7 +1621,7 @@ struct SimplifyStatement {
 
     auto operator()(TheoryDefinition const &stm) const -> SimplifyResult<Statement> {
         static_cast<void>(stm);
-        return {SimplifyState::unknown};
+        return {TruthValue::unknown};
     }
 
     auto operator()(StatementOptimize const &stm) const -> SimplifyResult<Statement> {
@@ -1642,7 +1641,7 @@ struct SimplifyStatement {
 
     auto operator()(StatementShowSig const &stm) const -> SimplifyResult<Statement> {
         static_cast<void>(stm);
-        return {SimplifyState::unknown};
+        return {TruthValue::unknown};
     }
 
     auto operator()(StatementProject const &stm) const -> SimplifyResult<Statement> {
@@ -1652,12 +1651,12 @@ struct SimplifyStatement {
 
     auto operator()(StatementProjectSig const &stm) const -> SimplifyResult<Statement> {
         static_cast<void>(stm);
-        return {SimplifyState::unknown};
+        return {TruthValue::unknown};
     }
 
     auto operator()(StatementDefined const &stm) const -> SimplifyResult<Statement> {
         static_cast<void>(stm);
-        return {SimplifyState::unknown};
+        return {TruthValue::unknown};
     }
 
     auto operator()(StatementExternal const &stm) const -> SimplifyResult<Statement> {
@@ -1677,17 +1676,17 @@ struct SimplifyStatement {
 
     auto operator()(StatementScript const &stm) const -> SimplifyResult<Statement> {
         static_cast<void>(stm);
-        return {SimplifyState::unknown};
+        return {TruthValue::unknown};
     }
 
     auto operator()(StatementInclude const &stm) const -> SimplifyResult<Statement> {
         static_cast<void>(stm);
-        return {SimplifyState::unknown};
+        return {TruthValue::unknown};
     }
 
     auto operator()(StatementProgram const &stm) const -> SimplifyResult<Statement> {
         static_cast<void>(stm);
-        return {SimplifyState::unknown};
+        return {TruthValue::unknown};
     }
 
     auto operator()(StatementConst const &stm) const -> SimplifyResult<Statement> {
@@ -1697,7 +1696,7 @@ struct SimplifyStatement {
 
     auto operator()(Comment const &stm) const -> SimplifyResult<Statement> {
         static_cast<void>(stm);
-        return {SimplifyState::unknown};
+        return {TruthValue::unknown};
     }
 
     SimplifyContext ctx; //!< Context used during simplification.

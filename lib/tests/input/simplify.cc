@@ -39,15 +39,15 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
             oss << ", " << (state ? "U" : "F");
         } else {
             switch (state) {
-                case SimplifyState::top: {
+                case TruthValue::top: {
                     oss << ", T";
                     break;
                 }
-                case SimplifyState::bot: {
+                case TruthValue::bot: {
                     oss << ", B";
                     break;
                 }
-                case SimplifyState::unknown: {
+                case TruthValue::unknown: {
                     oss << ", U";
                     break;
                 }
