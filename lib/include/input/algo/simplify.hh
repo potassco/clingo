@@ -21,7 +21,7 @@ enum class SimplifyFlags : unsigned {
     matchable = 1,         //!< Ensure that expressions are matchable.
     projectable = 2,       //!< Permit projection.
     unfailable = 4,        //!< Ensure that there are no expressions that evaluate to empty pools.
-    disjunctive = 8,       //!< Indicate that the expression occurs in a disjunctive context.
+    head = 8,              //!< Indicate that the expression occurs in a rule head.
     nested_matchable = 16, //!< Do not make roots of terms matchable.
 };
 

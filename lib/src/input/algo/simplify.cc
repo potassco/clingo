@@ -968,7 +968,7 @@ struct SimplifyLiteral {
     //! Further, simplifications in cases (2) and (3) are delayed until the comparisons are unpooled.
     auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
         // whether pools are treated disjunctively or conjunctively
-        bool head = test(flags, SimplifyFlags::disjunctive);
+        bool head = test(flags, SimplifyFlags::head);
         // whether the elements of the relation are disjunctive or conjunctive
         // (after applying the sign)
         bool disjunctive = head != (lit.sign == Sign::once);
@@ -1060,7 +1060,7 @@ struct SimplifyLiteral {
     //! (1) the literal is matchable if the corresponding flag has been set,
     //! (2) projection is accepted if the corresponding flag has been set.
     auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
-        bool head = test(flags, SimplifyFlags::disjunctive);
+        bool head = test(flags, SimplifyFlags::head);
         auto sub_flags = flags & (SimplifyFlags::matchable | SimplifyFlags::projectable | SimplifyFlags::unfailable);
         if (lit.sign != Sign::none && !test(flags, SimplifyFlags::unfailable)) {
             sub_flags &= ~SimplifyFlags::matchable;
@@ -1140,8 +1140,7 @@ struct SimplifyHBLiteral {
         auto state_lits = state_empty;
         SimplifyVec res_lits{lits};
         for (auto const &lit : lits) {
-            auto [state, value] =
-                simplify(conjunctive ? SimplifyFlags::matchable : SimplifyFlags::disjunctive, ctx, lit);
+            auto [state, value] = simplify(conjunctive ? SimplifyFlags::matchable : SimplifyFlags::head, ctx, lit);
             if (state_lits == state_fixed) {
                 continue;
             }
@@ -1490,7 +1489,7 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
     auto operator()(HeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> { return std::visit(*this, lit); }
 
     auto operator()(SimpleHeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> {
-        auto [state, res] = simplify(SimplifyFlags::disjunctive, ctx, lit.lit);
+        auto [state, res] = simplify(SimplifyFlags::head, ctx, lit.lit);
         return {state, res.transform([](auto &&res) { return SimpleHeadLiteral{GRINGO_FWD(res)}; })};
     }
 
