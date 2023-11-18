@@ -28,14 +28,13 @@ enum class SimplifyFlags : unsigned {
 GRINGO_ENUM_FLAGS(SimplifyFlags)
 
 enum class SimplifyState {
-    fail,
     top,
     bot,
     unknown,
 };
 
-template <class T> struct SimplifyResult {
-    SimplifyState state = SimplifyState::fail;
+template <class T, class S = SimplifyState> struct SimplifyResult {
+    S state = S{};
     std::optional<T> value = std::nullopt;
 };
 
@@ -80,11 +79,15 @@ struct SimplifyContext {
 //!
 //! Note that the state can only be fail or unknown
 //! where the latter is used to indicate successful simplification of the term.
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term>;
+//!
+//! \todo: an optional as result would be best!!!
+[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term, bool>;
 
 //! Simplifies the given literal.
 //!
 //! The result can be fail, true, false, and unknown.
+//!
+//! \todo: a tribool result would be best!!
 [[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal>;
 
 //! Simplifies the given head literal.

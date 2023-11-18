@@ -35,22 +35,22 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
         for (auto const &[lhs, rhs] : aux) {
             oss << ", " << lhs << "=" << rhs;
         }
-        switch (state) {
-            case SimplifyState::top: {
-                oss << ", T";
-                break;
-            }
-            case SimplifyState::bot: {
-                oss << ", B";
-                break;
-            }
-            case SimplifyState::unknown: {
-                oss << ", U";
-                break;
-            }
-            case SimplifyState::fail: {
-                oss << ", F";
-                break;
+        if constexpr (std::is_same_v<decltype(state), bool>) {
+            oss << ", " << (state ? "U" : "F");
+        } else {
+            switch (state) {
+                case SimplifyState::top: {
+                    oss << ", T";
+                    break;
+                }
+                case SimplifyState::bot: {
+                    oss << ", B";
+                    break;
+                }
+                case SimplifyState::unknown: {
+                    oss << ", U";
+                    break;
+                }
             }
         }
         if (log.has_error()) {
@@ -165,8 +165,8 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("not X=Y+Z=Z"), flags) == "not X=__Aux_0=Z, __Aux_0=Y+Z, U");
     REQUIRE(simplify_str(parse_literal("X=f(Y+Z,Z+5)<f(Y+Z,Z+5)"), flags) ==
             "X=f(1*__Aux_0+0,1*Z+5)<f(Y+Z,1*Z+5), __Aux_0=Y+Z, U");
-    REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "<unchanged>, F, E");
-    REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "<unchanged>, F, E");
+    REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "#false, B, E");
+    REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "#false, B, E");
 
     REQUIRE(simplify_str(parse_literal("X=2<1"), flags) == "#false, B");
     REQUIRE(simplify_str(parse_literal("X=2>1"), flags) == "<unchanged>, U");
@@ -177,8 +177,8 @@ TEST_CASE("simplify_literal") {
 
     flags = SimplifyFlags::matchable | SimplifyFlags::projectable;
     REQUIRE(simplify_str(parse_literal("p(X,*)"), flags) == "<unchanged>, U");
-    REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "<unchanged>, F, E");
-    REQUIRE(simplify_str(parse_literal("not p(X,@f(*))"), flags) == "<unchanged>, F, E");
+    REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "#false, B, E");
+    REQUIRE(simplify_str(parse_literal("not p(X,@f(*))"), flags) == "#false, B, E");
     REQUIRE(simplify_str(parse_literal("p(X+Y,Y+1)"), flags) == "p(1*__Aux_0+0,1*Y+1), __Aux_0=X+Y, U");
     REQUIRE(simplify_str(parse_literal("not p(X+Y,Y+1)"), flags) == "not p(X+Y,1*Y+1), U");
     REQUIRE(simplify_str(parse_literal("not not p(X+Y,Y+1)"), flags) == "not not p(X+Y,1*Y+1), U");
