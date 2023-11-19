@@ -203,6 +203,8 @@ TEST_CASE("simplify_body_cond_lit") {
 }
 
 TEST_CASE("simplify_head_set_aggregate") {
+    // it looks like set aggregates have to be rewritten before unpooling!
+    // the rewriting can be applied before unpooling
     REQUIRE(simplify_str(parse_statement("{ not 2<1<X: p(X) }.")) == "#count { 3,X: #true: p(X) }., T");
     REQUIRE(simplify_str(parse_statement("X+a <= {a} :- x.")) == "#true., T");
     REQUIRE(simplify_str(parse_statement("X+Y <= {a}.")) == "X+Y <= #count { 0,a: a }., U");
