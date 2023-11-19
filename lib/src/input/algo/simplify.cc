@@ -260,6 +260,7 @@ struct SimplifyTerm {
         auto ret = linear_as_term(std::move(res), simplify);
         return ret != *term ? Util::construct_shared<Term>(std::move(ret)) : term;
     }
+
     //! Convert a result into a term.
     //!
     //! If the result does not indicate a change, the given term is used instead.
@@ -1182,10 +1183,7 @@ struct SimplifyHBLiteral {
 
     //! Simplify a conditional literal.
     //!
-    //! There is no failed result.
-    //! Depending on the type failure is mapped to bot or top.
-    //!
-    //! Example for the head:
+    //! Example for the head (not conjunctive):
     //! - p((X;A+B),Z): q(Z) :- r.
     //!   - p(X,Z) & (p(Y,Z)|Y!=A+B): q(Z) :- r.
     //!     - p(X,Z): q(Z) :- r.
@@ -1204,7 +1202,7 @@ struct SimplifyHBLiteral {
     //!     - only values of Y equal to A+B are relevant
     //!       (noting  that Y is an auxiliary variable that does not appear anywhere else)
     //!
-    //! Example for the body:
+    //! Example for the body (conjunctive):
     //! - p :- q((X;A+B),Z): r.
     //!   - p :- (q(X,Z)|q(A+B,Z)): r(Z).
     //!     - p :- (q(X,Z)|(q(Y,Z)&Y!=A+B)): r(Z).
@@ -1250,8 +1248,7 @@ struct SimplifyHBLiteral {
 
     //! Simplify a conjunction/disjunction of conditional literals.
     //!
-    //! There is no failed result.
-    //! Depending on the type failure is mapped to bot or top.
+    //!
     template <bool Conjunctive>
     auto operator()(Junction<Conjunctive> const &lit) const
         -> SimplifyResult<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
@@ -1287,9 +1284,6 @@ struct SimplifyHBLiteral {
     }
 
     //! Simplify a set aggregate element.
-    //!
-    //! Stati top and bot are for statically true/false elements.
-    //! In case the element is statically false, no updated aggregate element is provided.
     [[nodiscard]] auto simplify_element(SetAggregateElement const &elem, bool head) const
         -> SimplifyResult<SetAggregateElement> {
         auto [state_lit, res_lit] = simplify(
