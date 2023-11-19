@@ -203,6 +203,7 @@ TEST_CASE("simplify_body_cond_lit") {
 }
 
 TEST_CASE("simplify_head_set_aggregate") {
+    REQUIRE(simplify_str(parse_statement("{ not 2<1<X: p(X) }.")) == "#count { 3,X: #true: p(X) }., T");
     REQUIRE(simplify_str(parse_statement("X+a <= {a} :- x.")) == "#true., T");
     REQUIRE(simplify_str(parse_statement("X+Y <= {a}.")) == "X+Y <= #count { 0,a: a }., U");
     REQUIRE(simplify_str(parse_statement("@f(X) <= {a}.")) == "__A_0 <= #count { 0,a: a } :- __A_0=@f(X)., U");
