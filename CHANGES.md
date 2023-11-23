@@ -10,6 +10,7 @@
   * improve hash table performance (#441)
   * extend add_theory_atom method of backend (#461)
     (breaks backward compatibility of the API)
+  * add contribution guidelines (#465)
   * fix `add_theory_atom_with_guard` in Python API
   * fix AST bugs (#403)
   * fix parsing of hexadecimal numbers (#421)
