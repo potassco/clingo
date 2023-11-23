@@ -22,16 +22,21 @@
 
 // }}}
 
+#include <cmath>
+#include <cstddef>
+
+#include <math/wide_integer/uintwide_t.h>
+
 #include "gringo/term.hh"
 #include "gringo/base.hh"
 #include "gringo/logger.hh"
 #include "gringo/graph.hh"
-#include <cmath>
-#include <cstddef>
 
 // #define CLINGO_DEBUG_INEQUALITIES
 
 namespace Gringo {
+
+using slack_t = math::wide_integer::int128_t;
 
 // {{{ definition of Defines
 
@@ -156,6 +161,130 @@ void Defines::apply(Symbol x, Symbol &retVal, UTerm &retTerm, bool replace) {
 
 // {{{ definition of IESolver
 
+namespace {
+
+slack_t floordiv(slack_t n, slack_t m) {
+    auto a = n / m;
+    auto b = n % m;
+    if (((n < 0) != (m < 0)) && b != 0) {
+        --a;
+    }
+    return a;
+}
+
+slack_t ceildiv(slack_t n, slack_t m) {
+    auto a = n / m;
+    auto b = n % m;
+    if (((n < 0) != (m < 0)) && b != 0) {
+        ++a;
+    }
+    return a;
+}
+
+template<typename I>
+I div(bool positive, I a, I b) {
+    return positive ? floordiv(a, b) : ceildiv(a, b);
+}
+
+template<typename I>
+int clamp(I a) {
+    if (a > std::numeric_limits<int>::max()) {
+        return std::numeric_limits<int>::max();
+    }
+    if (a < std::numeric_limits<int>::min()) {
+        return std::numeric_limits<int>::min();
+    }
+    return static_cast<int>(a);
+
+}
+
+int clamp_div(bool positive, slack_t a, int64_t b) {
+    if (a == std::numeric_limits<slack_t>::min() && b == -1) {
+        return std::numeric_limits<int>::max();
+    }
+    return clamp(div<slack_t>(positive, a, b));
+}
+
+template<class It, class Merge>
+It merge_adjancent(It first, It last, Merge m) {
+    if (first == last) {
+        return last;
+    }
+
+    auto result = first;
+    while (++first != last) {
+        if (!m(*result, *first) && ++result != first) {
+            *result = std::move(*first);
+        }
+    }
+    return ++result;
+}
+
+bool update_bound(IEBoundMap &bounds, IETerm const &term, slack_t slack, int num_unbounded) {
+    bool positive = term.coefficient > 0;
+    auto type = positive ? IEBound::Upper : IEBound::Lower;
+    if (num_unbounded == 0) {
+        slack += static_cast<slack_t>(term.coefficient) * bounds[term.variable].get(type);
+    }
+    else if (num_unbounded > 1 || bounds[term.variable].isSet(type)) {
+        return false;
+    }
+
+    auto value = clamp_div(positive, slack, term.coefficient);
+    return bounds[term.variable].refine(positive ? IEBound::Lower : IEBound::Upper, value);
+}
+
+void update_slack(IEBoundMap &bounds, IETerm const &term, slack_t &slack, int &num_unbounded) {
+    auto type = term.coefficient > 0 ? IEBound::Upper : IEBound::Lower;
+    if (bounds[term.variable].isSet(type)) {
+        slack -= static_cast<slack_t>(term.coefficient) * bounds[term.variable].get(type);
+    }
+    else {
+        ++num_unbounded;
+    }
+}
+
+#ifdef CLINGO_DEBUG_INEQUALITIES
+
+std::ostream &operator<<(std::ostream &out, IEBound const &bound) {
+    out << "[";
+    if (bound.isSet(IEBound::Lower)) {
+        out << bound.get(IEBound::Lower);
+    }
+    else {
+        out << "-inf";
+    }
+    out << ",";
+    if (bound.isSet(IEBound::Upper)) {
+        out << bound.get(IEBound::Upper);
+    }
+    else {
+        out << "+inf";
+    }
+    out << "]";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, IE const &ie) {
+    bool comma = false;
+    if (ie.terms.empty()) {
+        out << "0";
+    }
+    for (auto const &term : ie.terms) {
+        if (comma) {
+            out << " + ";
+        }
+        comma = true;
+        out << term.coefficient << "*" << term.variable->name;
+    }
+    out << " >= " << ie.bound;
+    return out;
+}
+
+#endif
+
+} // namespace
+
 bool IEBound::isSet(Type type) const {
     return type == Lower ? hasLower_ : hasUpper_;
 }
@@ -225,25 +354,6 @@ bool IESolver::isImproving(VarTerm const *var, IEBound const &bound) const {
     return bound.isImproving(it->second);
 }
 
-namespace {
-
-template<class It, class Merge>
-It merge_adjancent(It first, It last, Merge m) {
-    if (first == last) {
-        return last;
-    }
-
-    auto result = first;
-    while (++first != last) {
-        if (!m(*result, *first) && ++result != first) {
-            *result = std::move(*first);
-        }
-    }
-    return ++result;
-}
-
-} // namespace
-
 void IESolver::add(IE ie, bool ignoreIfFixed) {
     auto &terms = ie.terms;
 
@@ -280,56 +390,13 @@ void IESolver::add(IE ie, bool ignoreIfFixed) {
     if (ies_.back().terms.size() == 1 && ignoreIfFixed) {
         auto term = ies_.back().terms.back();
         if (term.coefficient == 1) {
-            fixed_[term.variable].refine(IEBound::Lower, ies_.back().bound);
+            fixed_[term.variable].refine(IEBound::Lower, clamp(ies_.back().bound));
         }
         else if (term.coefficient == -1) {
-            fixed_[term.variable].refine(IEBound::Upper, -ies_.back().bound);
+            fixed_[term.variable].refine(IEBound::Upper, clamp(-ies_.back().bound));
         }
     }
 }
-
-#ifdef CLINGO_DEBUG_INEQUALITIES
-
-namespace {
-
-std::ostream &operator<<(std::ostream &out, IEBound const &bound) {
-    out << "[";
-    if (bound.isSet(IEBound::Lower)) {
-        out << bound.get(IEBound::Lower);
-    }
-    else {
-        out << "-inf";
-    }
-    out << ",";
-    if (bound.isSet(IEBound::Upper)) {
-        out << bound.get(IEBound::Upper);
-    }
-    else {
-        out << "+inf";
-    }
-    out << "]";
-    return out;
-}
-
-std::ostream &operator<<(std::ostream &out, IE const &ie) {
-    bool comma = false;
-    if (ie.terms.empty()) {
-        out << "0";
-    }
-    for (auto const &term : ie.terms) {
-        if (comma) {
-            out << " + ";
-        }
-        comma = true;
-        out << term.coefficient << "*" << term.variable->name;
-    }
-    out << " >= " << ie.bound;
-    return out;
-}
-
-} // namespace
-
-#endif
 
 void IESolver::compute() {
 #ifdef CLINGO_DEBUG_INEQUALITIES
@@ -352,16 +419,11 @@ void IESolver::compute() {
     while (changed) {
         changed = false;
         for (auto const &ie : ies_) {
-            int64_t slack = ie.bound;
+            slack_t slack = ie.bound;
             int num_unbounded = 0;
             for (auto const &term : ie.terms) {
                 // In case the slack cannot be updated due to an overflow, no bounds are calculated.
-                if (!update_slack_(term, slack, num_unbounded)) {
-#ifdef CLINGO_DEBUG_INEQUALITIES
-                    std::cerr << "  overflow updating slack of " << ie << std::endl;
-#endif
-                    return;
-                }
+                update_slack(bounds_, term, slack, num_unbounded);
             }
             if (num_unbounded == 0 && slack > 0) {
                 // we simply set all bounds to empty intervals
@@ -376,19 +438,12 @@ void IESolver::compute() {
             }
             if (num_unbounded <= 1) {
                 for (auto const &term : ie.terms) {
-                    auto res = update_bound_(term, slack, num_unbounded);
-                    if (res == UpdateResult::changed) {
+                    if (update_bound(bounds_, term, slack, num_unbounded)) {
 #ifdef CLINGO_DEBUG_INEQUALITIES
                         std::cerr << "  update bound using " << ie << std::endl;
                         std::cerr << "    the new bound for " << *term.variable << " is "<< bounds_[term.variable] << std::endl;
 #endif
                         changed = true;
-                    }
-                    if (res == UpdateResult::overflow) {
-#ifdef CLINGO_DEBUG_INEQUALITIES
-                        std::cerr << "  overflow updating bound of " << *term.variable << std::endl;
-#endif
-                        return;
                     }
                 }
             }
@@ -408,154 +463,6 @@ void IESolver::compute() {
 
 void IESolver::add(IEContext &context) {
     subSolvers_.emplace_front(context, this);
-}
-
-namespace {
-
-template<typename I>
-I floordiv(I n, I m) {
-    using std::div;
-    auto a = div(n, m);
-    if (((n < 0) ^ (m < 0)) && a.rem != 0) {
-        a.quot--;
-    }
-    return a.quot;
-}
-
-template<typename I>
-I ceildiv(I n, I m) {
-    using std::div;
-    auto a = div(n, m);
-    if (((n < 0) ^ (m < 0)) && a.rem != 0) {
-        a.quot++;
-    }
-    return a.quot;
-}
-
-template<typename I>
-I div(bool positive, I a, I b) {
-    return positive ? floordiv(a, b) : ceildiv(a, b);
-}
-
-int clamp_div(bool positive, int64_t a, int64_t b) {
-    if (a == std::numeric_limits<int64_t>::min() && b == -1) {
-        return std::numeric_limits<int>::max();
-    }
-    auto c = div<int64_t>(positive, a, b);
-    if (c > std::numeric_limits<int>::max()) {
-        return std::numeric_limits<int>::max();
-    }
-    if (c < std::numeric_limits<int>::min()) {
-        return std::numeric_limits<int>::min();
-    }
-    return static_cast<int>(c);
-}
-
-template <class T, class S>
-inline bool check_cast(S in, T &out) {
-    if (sizeof(T) < sizeof(S) && (in < std::numeric_limits<T>::min() || in > std::numeric_limits<T>::max())) {
-        return  false;
-    }
-    out = static_cast<T>(in);
-    return  true;
-}
-
-#ifdef __GNUC__
-
-template <class S> inline bool check_add(S a, S b, S &c) {
-    return !__builtin_add_overflow(a, b, &c);
-}
-
-template <class S> inline bool check_sub(S a, S b, S &c) {
-    return !__builtin_sub_overflow(a, b, &c);
-}
-
-template <class S> inline bool check_mul(S a, S b, S &c) {
-    return !__builtin_mul_overflow(a, b, &c);
-}
-
-#else
-
-inline bool check_add(int32_t a, int32_t b, int32_t &c) {
-    return check_cast<int32_t>(static_cast<int64_t>(a) + b, c);
-}
-
-template <class S> inline bool check_add(S a, S b, S &c) {
-    using U = std::make_unsigned_t<S>;
-    c = static_cast<S>(static_cast<U>(a) + static_cast<U>(b));
-    return (a < 0 || b < 0 || c >= a) && (a >= 0 || b >= 0 || c <= a);
-}
-
-inline bool check_sub(int32_t a, int32_t b, int32_t &c) {
-    return check_cast<int32_t>(static_cast<int64_t>(a) - b, c);
-}
-
-template <class S> inline bool check_sub(S a, S b, S &c) {
-    using U = std::make_unsigned_t<S>;
-    c = static_cast<S>(static_cast<U>(a) - static_cast<U>(b));
-    return (a < 0 || b >= 0 || c >= a) && (b < 0 || c <= a);
-}
-
-template <class S> inline bool check_mul(S a, S b, S &c) {
-    if (a > 0 && b > 0 && a > std::numeric_limits<S>::max() / b) {
-        return false;
-    }
-    if (a < 0 && b < 0 && b < std::numeric_limits<S>::max() / a) {
-        return false;
-    }
-    if (a > 0 && b < 0 && b < std::numeric_limits<S>::min() / a) {
-        return false;
-    }
-    if (a < 0 && b > 0 && a < std::numeric_limits<S>::min() / b) {
-        return false;
-    }
-    c = a * b;
-    return true;
-}
-
-#endif
-
-} // namespace
-
-IESolver::UpdateResult IESolver::update_bound_(IETerm const &term, int64_t slack, int num_unbounded) {
-    bool positive = term.coefficient > 0;
-    auto type = positive ? IEBound::Upper : IEBound::Lower;
-    if (num_unbounded == 0) {
-        int64_t val = 0;
-        if (!check_mul<int64_t>(term.coefficient, bounds_[term.variable].get(type), val)) {
-            return UpdateResult::overflow;
-        }
-        if (!check_add(slack, val, slack)) {
-            return UpdateResult::overflow;
-        }
-    }
-    else if (num_unbounded > 1 || bounds_[term.variable].isSet(type)) {
-        return UpdateResult::unchanged;
-    }
-
-
-    auto value = clamp_div(positive, slack, term.coefficient);
-    if (bounds_[term.variable].refine(positive ? IEBound::Lower : IEBound::Upper, value)) {
-        return UpdateResult::changed;
-    }
-    return UpdateResult::unchanged;
-}
-
-bool IESolver::update_slack_(IETerm const &term, int64_t &slack, int &num_unbounded) {
-    auto type = term.coefficient > 0 ? IEBound::Upper : IEBound::Lower;
-    if (bounds_[term.variable].isSet(type)) {
-        int64_t val = 0;
-        if (!check_mul<int64_t>(term.coefficient, bounds_[term.variable].get(type), val)) {
-            return false;
-        }
-        if (!check_sub(slack, val, slack)) {
-            return false;
-        }
-    }
-    else {
-        ++num_unbounded;
-    }
-    return true;
 }
 
 // }}}
@@ -971,7 +878,7 @@ inline int ipow(int a, int b) {
     return r;
 }
 
-void add_(IETermVec &terms, int coefficient, VarTerm const *var = nullptr) {
+void add_(IETermVec &terms, int64_t coefficient, VarTerm const *var = nullptr) {
     // NOTE: could use sorting and maybe use inequalities right away
     for (auto &term : terms) {
         if (var == term.variable || (term.variable != nullptr && var != nullptr && term.variable->name == var->name)) {
@@ -982,7 +889,7 @@ void add_(IETermVec &terms, int coefficient, VarTerm const *var = nullptr) {
     terms.emplace_back(IETerm{coefficient, var});
 }
 
-bool toNum_(IETermVec const &terms, int &res) {
+bool toNum_(IETermVec const &terms, int64_t &res) {
     res = 0;
     for (auto const &term : terms) {
         if (term.variable == nullptr) {
@@ -1117,7 +1024,8 @@ bool Term::bind(VarSet &bound) const {
     collect(occs, false);
     bool ret = false;
     for (auto &x : occs) {
-        if ((x.first->bindRef = bound.insert(x.first->name).second)) {
+        x.first->bindRef = bound.insert(x.first->name).second;
+        if (x.first->bindRef) {
             ret = true;
         }
     }
@@ -2014,7 +1922,8 @@ bool UnOpTerm::addToLinearTerm(IETermVec &terms) const {
             add_(terms, -term.coefficient, term.variable);
         }
         else {
-            add_(terms, Gringo::eval(UnOp::NEG, term.coefficient));
+            // cannot happen because simplify is be called before bound extraction
+            return false;
         }
     }
     return true;
@@ -2261,7 +2170,7 @@ bool BinOpTerm::addToLinearTerm(IETermVec &terms) const {
             return true;
         }
         case BinOp::MUL: {
-            int num = 0;
+            int64_t num = 0;
             if (toNum_(left, num)) {
                 for (auto &term : right) {
                     add_(terms, num * term.coefficient, term.variable);
@@ -2282,12 +2191,7 @@ bool BinOpTerm::addToLinearTerm(IETermVec &terms) const {
         case BinOp::MOD:
         case BinOp::POW:
         case BinOp::XOR: {
-            int numL = 0;
-            int numR = 0;
-            if (toNum_(left, numL) && toNum_(right, numR)) {
-                add_(terms, Gringo::eval(op_, numL, numR));
-                return true;
-            }
+            // cannot happen because simplify must be called before bound extraction
             break;
         }
     }
