@@ -1,8 +1,6 @@
 #pragma once
 
-#include <unordered_map>
-
-#include <input/statement.hh>
+#include <input/algo/rewrite.hh>
 
 namespace Gringo::Input {
 
@@ -12,15 +10,6 @@ namespace Gringo::Input {
 //! Functions to project variables in expressions.
 //!
 //! @{
-
-//! Enumeration to select variables to project.
-//!
-//! @see Projection
-enum class ProjectionMode {
-    disabled = 0,  //!< Disable projection.
-    anonymous = 1, //!< Only project anonymous variables.
-    pure = 2,      //!< Project pure variables.
-};
 
 //! Helper to gather projection related arguments.
 class Projection {

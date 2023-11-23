@@ -1,7 +1,8 @@
 #pragma once
 
-#include <input/algo/project.hh>
 #include <logger.hh>
+
+#include <input/statement.hh>
 
 namespace Gringo::Input {
 
@@ -11,6 +12,15 @@ namespace Gringo::Input {
 //! Functions to rewrite statements
 //!
 //! @{
+
+//! Enumeration to select variables to project.
+//!
+//! @see Projection
+enum class ProjectionMode {
+    disabled = 0,  //!< Disable projection.
+    anonymous = 1, //!< Only project anonymous variables.
+    pure = 2,      //!< Project pure variables.
+};
 
 //! Enumeration of available rewrite levels.
 enum class RewriteLevel {
@@ -28,6 +38,18 @@ struct RewriteOptions {
     ProjectionMode project_mode = ProjectionMode::pure;
     //! Whether to project anonymous variables in negative literals.
     bool project_anonymous = false;
+};
+
+// TODO: a map might also be an idea here to avoid duplicates for the same variable
+//! A vector of term pairs where the second has been substituted by the first in some other term.
+using AuxTermVec = std::vector<std::pair<Term, Term>>;
+
+//! Helper to pass arguments to rewrite functions.
+struct RewriteContext {
+    Logger &log;        //!< Logger to report messages.
+    SymbolStore &store; //!< Symbol store to create fresh symbols.
+    NameGen &gen;       //!< Generator to create fresh variable names.
+    AuxTermVec &aux;    //!< Vector of variable term pairs.
 };
 
 //! Rewrite the given statement.

@@ -4,7 +4,7 @@
 
 #include <util/enum.hh>
 
-#include <input/statement.hh>
+#include <input/algo/rewrite.hh>
 
 namespace Gringo::Input {
 
@@ -45,18 +45,6 @@ template <class T, class S = TruthValue> struct SimplifyResult {
     std::optional<T> value = std::nullopt;
 };
 
-// TODO: a map might also be an idea here to avoid duplicates for the same variable
-//! A vector of term pairs where the second has been substituted by the first in some other term.
-using AuxTermVec = std::vector<std::pair<Term, Term>>;
-
-//! Helper to pass arguments to simplify.
-struct SimplifyContext {
-    Logger &log;        //!< Logger to report messages.
-    SymbolStore &store; //!< Symbol store to create fresh symbols.
-    NameGen &gen;       //!< Genartor to create fresh variable names.
-    AuxTermVec &aux;    //!< Vector of variable term pairs.
-};
-
 //! Check if the given term is a linear term.
 //!
 //! Returns true if the term has form m*X+n where m is a non-zero number, X a
@@ -88,7 +76,7 @@ struct SimplifyContext {
 //! i.e., it evaluated to an empty pool.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term, bool>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext ctx, Term const &term) -> SimplifyResult<Term, bool>;
 
 //! Simplifies the given literal.
 //!
@@ -96,7 +84,7 @@ struct SimplifyContext {
 //! The literal is simplified to \#true/\#false for truth values true/false.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext ctx, Literal const &lit) -> SimplifyResult<Literal>;
 
 //! Simplifies the given head literal.
 //!
@@ -104,7 +92,7 @@ struct SimplifyContext {
 //! The literal is simplified to \#true/\#false for truth values true/false.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(SimplifyContext ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral>;
+[[nodiscard]] auto simplify(RewriteContext ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral>;
 
 //! Simplifies the given body literal.
 //!
@@ -112,7 +100,7 @@ struct SimplifyContext {
 //! The literal is simplified to \#true/\#false for truth values true/false.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(SimplifyContext ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral>;
+[[nodiscard]] auto simplify(RewriteContext ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral>;
 
 //! Simplifies the given statement.
 //!

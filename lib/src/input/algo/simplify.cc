@@ -142,7 +142,7 @@ auto transform_res(SimplifyResult<T> &&a, F &&f) -> SimplifyResult<std::invoke_r
     return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, store.num(0)});
 }
 
-[[nodiscard]] auto map_term(SimplifyContext const &ctx, Term term, bool linear = false) -> Term {
+[[nodiscard]] auto map_term(RewriteContext const &ctx, Term term, bool linear = false) -> Term {
     auto loc = location(term);
     ctx.aux.emplace_back(TermVariable{std::move(loc), ctx.gen.new_name()}, std::move(term));
     return linear ? as_linear_term(ctx.store, ctx.aux.back().first) : ctx.aux.back().first;
@@ -769,7 +769,7 @@ struct SimplifyTerm {
                           std::visit(var_to_linear{*term.rhs}, operator()(*term.rhs, flags)));
     }
 
-    SimplifyContext ctx; //!< Context used during simplification.
+    RewriteContext ctx; //!< Context used during simplification.
 };
 
 //! Make a term matchable by removing terms that cannot be matched.
@@ -904,7 +904,7 @@ struct MakeMatchableTerm {
         return map_term(ctx, term, !test(flags, SimplifyFlags::unfailable));
     }
 
-    SimplifyContext ctx; //!< Context used during simplification.
+    RewriteContext ctx; //!< Context used during simplification.
 };
 
 //! Simplify literals.
@@ -1075,7 +1075,7 @@ struct SimplifyLiteral {
                 })};
     }
 
-    SimplifyContext ctx; //!< Context used during simplification.
+    RewriteContext ctx; //!< Context used during simplification.
 };
 struct LiteralToTuple {
     auto operator()(Literal const &lit) -> TermVec { return std::visit(*this, lit); }
@@ -1359,7 +1359,7 @@ struct SimplifyHBLiteral {
         bool constant = true;
         auto value = Number{0};
         for (auto const &elem : lit.elems) {
-            auto sub = SimplifyHBLiteral{SimplifyContext{ctx.log, ctx.store, ctx.gen, aux}};
+            auto sub = SimplifyHBLiteral{RewriteContext{ctx.log, ctx.store, ctx.gen, aux}};
             auto [state_elem, res_elem] = sub.simplify_element(elem, head);
             if (state_elem == TruthValue::bot) {
                 res_elems.remove();
@@ -1433,7 +1433,7 @@ struct SimplifyHBLiteral {
                                                            std::move(elems), std::move(rhs)}};
         }
     }
-    SimplifyContext ctx; //!< Context used during simplification.
+    RewriteContext ctx; //!< Context used during simplification.
 };
 
 struct SimplifyHeadLiteral : SimplifyHBLiteral {
@@ -1692,7 +1692,7 @@ struct SimplifyStatement {
         return {TruthValue::unknown};
     }
 
-    SimplifyContext ctx; //!< Context used during simplification.
+    RewriteContext ctx; //!< Context used during simplification.
 };
 
 [[nodiscard]] auto is_linear(TermBinary const &term) -> bool {
@@ -1721,7 +1721,7 @@ struct SimplifyStatement {
 
 [[nodiscard]] auto is_numeric(Term const &term) -> bool { return IsNumeric{}(term); }
 
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Term const &term) -> SimplifyResult<Term, bool> {
+[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext ctx, Term const &term) -> SimplifyResult<Term, bool> {
     auto make_matchable = [&](auto &&target, bool self = true) -> SimplifyResult<Term, bool> {
         if (test(flags, SimplifyFlags::matchable)) {
             if (auto ret = MakeMatchableTerm{ctx}(target, flags); ret.has_value()) {
@@ -1753,22 +1753,22 @@ struct SimplifyStatement {
         simp(term, flags));
 }
 
-[[nodiscard]] auto simplify(SimplifyFlags flags, SimplifyContext ctx, Literal const &lit) -> SimplifyResult<Literal> {
+[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext ctx, Literal const &lit) -> SimplifyResult<Literal> {
     return SimplifyLiteral{ctx}(lit, flags);
 }
 
-[[nodiscard]] auto simplify(SimplifyContext ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral> {
+[[nodiscard]] auto simplify(RewriteContext ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral> {
     return SimplifyHeadLiteral{ctx}(lit);
 }
 
-[[nodiscard]] auto simplify(SimplifyContext ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral> {
+[[nodiscard]] auto simplify(RewriteContext ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral> {
     return SimplifyBodyLiteral{ctx}(lit);
 }
 
 [[nodiscard]] auto simplify(Logger &log, SymbolStore &store, Statement const &stm) -> SimplifyResult<Statement> {
     AuxTermVec aux;
     NameGen gen{store, {}, "__A_"};
-    return SimplifyStatement{SimplifyContext{log, store, gen, aux}}(stm);
+    return SimplifyStatement{RewriteContext{log, store, gen, aux}}(stm);
 }
 
 } // namespace Gringo::Input

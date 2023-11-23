@@ -5,15 +5,15 @@
 namespace Gringo::Input::Test {
 
 template <typename T>
-auto call_simplify(SimplifyFlags flags, SimplifyContext ctx, T const &x) -> decltype(simplify(flags, ctx, x)) {
+auto call_simplify(SimplifyFlags flags, RewriteContext ctx, T const &x) -> decltype(simplify(flags, ctx, x)) {
     return simplify(flags, ctx, x);
 }
 template <typename T>
-auto call_simplify(SimplifyFlags flags, SimplifyContext ctx, T const &x) -> decltype(simplify(ctx, x)) {
+auto call_simplify(SimplifyFlags flags, RewriteContext ctx, T const &x) -> decltype(simplify(ctx, x)) {
     static_cast<void>(flags);
     return simplify(ctx, x);
 }
-auto call_simplify(SimplifyFlags flags, SimplifyContext ctx, Statement const &x) -> SimplifyResult<Statement> {
+auto call_simplify(SimplifyFlags flags, RewriteContext ctx, Statement const &x) -> SimplifyResult<Statement> {
     static_cast<void>(flags);
     return simplify(ctx.log, ctx.store, x);
 }
