@@ -1,16 +1,10 @@
 #pragma once
 
-#include <logger.hh>
-
-#include <input/statement.hh>
+#include <input/algo/rewrite.hh>
 
 namespace Gringo::Input {
 
-//! @defgroup input_unpool Unpool
-//! @ingroup input_algo
-//!
-//! Functions to unpool expressions.
-//!
+//! @addtogroup input_rewrite
 //! @{
 
 //! Remove all pooled arguments from the term.

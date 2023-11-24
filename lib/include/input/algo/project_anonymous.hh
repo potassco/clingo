@@ -1,14 +1,10 @@
 #pragma once
 
-#include <input/statement.hh>
+#include <input/algo/rewrite_base.hh>
 
 namespace Gringo::Input {
 
-//! @defgroup input_project_anonymous Project Anonymous
-//! @ingroup input_algo
-//!
-//! Functions to project anonymous variables (deprecated)
-//!
+//! @addtogroup input_rewrite
 //! @{
 
 //! Project positional anonymous variables in the term.

@@ -1,18 +1,12 @@
 #pragma once
 
-#include <logger.hh>
-
 #include <util/enum.hh>
 
-#include <input/algo/rewrite.hh>
+#include <input/algo/rewrite_base.hh>
 
 namespace Gringo::Input {
 
-//! @defgroup input_simplify Simplify Arithmetic
-//! @ingroup input_algo
-//!
-//! Functions to simplify arithmetic terms in expressions.
-//!
+//! @addtogroup input_rewrite
 //! @{
 
 //! Flags controlling simplification.

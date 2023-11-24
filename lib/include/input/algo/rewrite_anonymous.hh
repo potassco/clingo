@@ -1,14 +1,10 @@
 #pragma once
 
-#include <input/statement.hh>
+#include <input/algo/rewrite_base.hh>
 
 namespace Gringo::Input {
 
-//! @defgroup input_rewrite_anonymous Rewrite Anonymous
 //! @ingroup input_algo
-//!
-//! Functions to give anonymous variables in expressions a unique name.
-//!
 //! @{
 
 //! Give anonymous variables a unique name.

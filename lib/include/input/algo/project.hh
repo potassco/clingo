@@ -1,14 +1,10 @@
 #pragma once
 
-#include <input/algo/rewrite.hh>
+#include <input/algo/rewrite_base.hh>
 
 namespace Gringo::Input {
 
-//! @defgroup input_project Project
-//! @ingroup input_algo
-//!
-//! Functions to project variables in expressions.
-//!
+//! @addtogroup input_rewrite
 //! @{
 
 //! Helper to gather projection related arguments.
