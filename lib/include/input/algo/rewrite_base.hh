@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cassert>
+#include <stack>
+
 #include <logger.hh>
 
 #include <input/statement.hh>
@@ -35,13 +38,49 @@ enum class RewriteLevel {
 using AuxTermVec = std::vector<std::pair<Term, Term>>;
 
 //! Helper to pass arguments to rewrite functions.
-struct RewriteContext {
-    Logger &log;        //!< Logger to report messages.
-    SymbolStore &store; //!< Symbol store to create fresh symbols.
-    // TODO: could be made a pointer to optionally set it if required
-    NameGen &gen; //!< Generator to create fresh variable names.
-    // TODO: could be made a pointer to optionally set it if required
-    AuxTermVec &aux; //!< Vector of variable term pairs.
+class RewriteContext {
+  public:
+    //! Helper to pop auxiliary variable assignments.
+    struct _pop {
+        //! Pop the last variable term map pushed.
+        void operator()(RewriteContext *ctx) const {
+            if (ctx != nullptr) {
+                ctx->pop();
+                ctx = nullptr;
+            }
+        }
+    };
+    //! Helper to pop auxiliary variable assignments.
+    using Guard = std::unique_ptr<RewriteContext, _pop>;
+    //! Construct a rewrite context.
+    RewriteContext(Logger &log, SymbolStore &store, StringSet names, char const *prefix)
+        : log_{log}, gen_{store, names, prefix} {}
+    //! Get the logger.
+    [[nodiscard]] auto logger() const -> Logger & { return log_; }
+    //! Get the symbol store.
+    [[nodiscard]] auto store() const -> SymbolStore & { return gen_.store(); }
+    //! Get the name generator.
+    [[nodiscard]] auto gen() -> NameGen & { return gen_; }
+    //! Get the variable term map.
+    [[nodiscard]] auto aux() -> AuxTermVec & {
+        assert(!aux_.empty());
+        return aux_.top();
+    }
+    //! Pop the last variable term map pushed.
+    void pop() {
+        assert(!aux_.empty());
+        aux_.pop();
+    }
+    //! Push a fresh variable term map.
+    [[nodiscard]] auto push() -> Guard {
+        aux_.emplace();
+        return Guard{this};
+    }
+
+  private:
+    Logger &log_;                //!< Logger to report messages.
+    NameGen gen_;                //!< Generator to create fresh variable names.
+    std::stack<AuxTermVec> aux_; //!< Vector of variable term pairs.
 };
 
 //! @}

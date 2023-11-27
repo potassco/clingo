@@ -251,16 +251,9 @@ struct Unpool {
             // - simplify the literals
             // - turn them into tuple aggregate elemnts
             return unpool_crossproducts(
-                [](auto lit, auto cond) {
-                    // simplify the literal here and then return the respective element!
-                    // TODO: needs logger etc. from the outside
-                    Logger log;
-                    SymbolStore &store = default_symbol_store();
-                    NameGen gen{store, {}, ""};
-                    AuxTermVec aux;
-                    RewriteContext ctx{log, store, gen, aux};
+                [this](auto lit, auto cond) {
                     // TODO: do something with the result
-                    auto res = simplify(SimplifyFlags::none, ctx, lit);
+                    auto res = simplify(SimplifyFlags::none, self->ctx, lit);
                     static_cast<void>(res);
                     if constexpr (HasSign) {
                         return SetAggregateElement{std::move(lit), std::move(cond)};
@@ -557,17 +550,19 @@ struct Unpool {
         static_cast<void>(stm);
         return std::nullopt;
     }
+
+    RewriteContext &ctx;
 };
 
 } // namespace
 
-auto unpool(Term const &term) -> std::optional<TermVec> { return Unpool{}(term); }
+auto unpool(RewriteContext &ctx, Term const &term) -> std::optional<TermVec> { return Unpool{ctx}(term); }
 
-auto unpool(Literal const &lit) -> std::optional<LiteralVec> { return Unpool{}(lit); }
+auto unpool(RewriteContext &ctx, Literal const &lit) -> std::optional<LiteralVec> { return Unpool{ctx}(lit); }
 
-auto unpool(HeadLiteral const &lit) -> std::optional<HeadLiteralVec> { return Unpool{}(lit); }
+auto unpool(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteralVec> { return Unpool{ctx}(lit); }
 
-auto unpool(BodyLiteral const &lit) -> std::optional<BodyLiteralVec> { return Unpool{}(lit); }
+auto unpool(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<BodyLiteralVec> { return Unpool{ctx}(lit); }
 
 template <class F> struct print {
     print(F const &f) : f{f} {}
@@ -578,8 +573,8 @@ template <class F> struct print {
     F const &f;
 };
 
-auto unpool(Logger &log, Statement const &stm) -> std::optional<StatementVec> {
-    auto stms = Unpool{}(stm);
+auto unpool(RewriteContext &ctx, Statement const &stm) -> std::optional<StatementVec> {
+    auto stms = Unpool{ctx}(stm);
     if (stms.has_value()) {
         VariableSet old_global = select_variables(stm, VariableContext::global);
         for (auto &unpooled : stms.value()) {
@@ -594,7 +589,7 @@ auto unpool(Logger &log, Statement const &stm) -> std::optional<StatementVec> {
                 },
                 VariableContext::all);
             if (!unsafe.empty()) {
-                GRINGO_REPORT_LOC(log, error, location(stm))
+                GRINGO_REPORT_LOC(ctx.logger(), error, location(stm))
                     << "unsafe variables in:\n"
                     << "  " << stm << "\n"
                     << print{[&unsafe](std::ostream &out) {

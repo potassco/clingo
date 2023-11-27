@@ -47,7 +47,7 @@ void visit_variables(StatementOptimize::Element const &elem, VarVisitFun fun);
 void visit_variables(Statement const &stm, VarVisitFun fun, VariableContext ctx);
 
 //! Get all variables in an expression.
-template <class T> inline auto select_variables(T const &x, size_t size_hint = 0) -> VariableSet {
+template <class T> [[nodiscard]] inline auto select_variables(T const &x, size_t size_hint = 0) -> VariableSet {
     VariableSet vars;
     if (size_hint > 0) {
         vars.reserve(size_hint);
@@ -61,7 +61,7 @@ template <class T> inline auto select_variables(T const &x, size_t size_hint = 0
 
 //! Get all variables in an expression in the given context.
 template <class T>
-inline auto select_variables(T const &x, VariableContext context, size_t size_hint = 0) -> VariableSet {
+[[nodiscard]] inline auto select_variables(T const &x, VariableContext context, size_t size_hint = 0) -> VariableSet {
     VariableSet vars;
     if (size_hint > 0) {
         vars.reserve(size_hint);

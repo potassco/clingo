@@ -70,7 +70,7 @@ template <class T, class S = TruthValue> struct SimplifyResult {
 //! i.e., it evaluated to an empty pool.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext ctx, Term const &term) -> SimplifyResult<Term, bool>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext &ctx, Term const &term) -> SimplifyResult<Term, bool>;
 
 //! Simplifies the given literal.
 //!
@@ -78,7 +78,7 @@ template <class T, class S = TruthValue> struct SimplifyResult {
 //! The literal is simplified to \#true/\#false for truth values true/false.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext ctx, Literal const &lit) -> SimplifyResult<Literal>;
+[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext &ctx, Literal const &lit) -> SimplifyResult<Literal>;
 
 //! Simplifies the given head literal.
 //!
@@ -86,7 +86,7 @@ template <class T, class S = TruthValue> struct SimplifyResult {
 //! The literal is simplified to \#true/\#false for truth values true/false.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(RewriteContext ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral>;
+[[nodiscard]] auto simplify(RewriteContext &ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral>;
 
 //! Simplifies the given body literal.
 //!
@@ -94,13 +94,13 @@ template <class T, class S = TruthValue> struct SimplifyResult {
 //! The literal is simplified to \#true/\#false for truth values true/false.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(RewriteContext ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral>;
+[[nodiscard]] auto simplify(RewriteContext &ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral>;
 
 //! Simplifies the given statement.
 //!
 //! The result consists of a truth value and an optional statement in case of change.
 //! The statement is simplified to \#true/\#false for truth values true/false.
-[[nodiscard]] auto simplify(Logger &log, SymbolStore &store, Statement const &stm) -> SimplifyResult<Statement>;
+[[nodiscard]] auto simplify(RewriteContext &ctx, Statement const &stm) -> SimplifyResult<Statement>;
 
 //! @}
 

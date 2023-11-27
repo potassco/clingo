@@ -7,10 +7,12 @@
 #include <input/algo/rewrite.hh>
 #include <input/algo/rewrite_anonymous.hh>
 #include <input/algo/unpool.hh>
+#include <input/algo/visit_variables.hh>
 
 namespace Gringo::Input {
 
 void rewrite(Logger &log, SymbolStore &store, Statement const &stm, RewriteOptions opts, StatementVec &stms) {
+    RewriteContext ctx{log, store, select_variables(stm, VariableContext::all), "__A_"};
     GRINGO_REPORT(log, trace) << "rewrite: " << stm;
     if (opts.level < RewriteLevel::rewrite_anonymous) {
         stms.emplace_back(std::move(stm));
@@ -38,7 +40,7 @@ void rewrite(Logger &log, SymbolStore &store, Statement const &stm, RewriteOptio
         stm = std::move(opt).value_or(stm);
         stms.emplace_back(std::move(stm));
     };
-    auto unpooled = unpool(log, res);
+    auto unpooled = unpool(ctx, res);
     if (unpooled.has_value()) {
         for (auto &stm : unpooled.value()) {
             GRINGO_REPORT(log, trace) << "unpool: " << stm;

@@ -5,17 +5,13 @@
 namespace Gringo::Input::Test {
 
 template <typename T>
-auto call_simplify(SimplifyFlags flags, RewriteContext ctx, T const &x) -> decltype(simplify(flags, ctx, x)) {
+auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decltype(simplify(flags, ctx, x)) {
     return simplify(flags, ctx, x);
 }
 template <typename T>
-auto call_simplify(SimplifyFlags flags, RewriteContext ctx, T const &x) -> decltype(simplify(ctx, x)) {
+auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decltype(simplify(ctx, x)) {
     static_cast<void>(flags);
     return simplify(ctx, x);
-}
-auto call_simplify(SimplifyFlags flags, RewriteContext ctx, Statement const &x) -> SimplifyResult<Statement> {
-    static_cast<void>(flags);
-    return simplify(ctx.log, ctx.store, x);
 }
 
 template <class T>
@@ -23,17 +19,19 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
     if (value) {
         Logger log;
         auto store = make_symbol_store(true, true);
-        NameGen gen{*store, {}, "__Aux_"};
-        AuxTermVec aux;
+        auto ctx = RewriteContext{log, *store, {}, "__A_"};
+        auto guard = std::is_same_v<T, Statement> ? nullptr : ctx.push();
+        auto [state, res] = call_simplify(flags, ctx, value.value());
         std::ostringstream oss;
-        auto [state, res] = call_simplify(flags, {log, *store, gen, aux}, value.value());
         if (res.has_value()) {
             oss << res.value();
         } else {
             oss << "<unchanged>";
         }
-        for (auto const &[lhs, rhs] : aux) {
-            oss << ", " << lhs << "=" << rhs;
+        if (guard != nullptr) {
+            for (auto const &[lhs, rhs] : ctx.aux()) {
+                oss << ", " << lhs << "=" << rhs;
+            }
         }
         if constexpr (std::is_same_v<decltype(state), bool>) {
             oss << ", " << (state ? "U" : "F");
@@ -130,10 +128,10 @@ TEST_CASE("simplify_symbolic") {
 }
 
 TEST_CASE("simplify_aux") {
-    REQUIRE(simplify_str(parse_term("1..2")) == "1*__Aux_0+0, __Aux_0=1..2, U");
-    REQUIRE(simplify_str(parse_term("f(1..2)")) == "f(1*__Aux_0+0), __Aux_0=1..2, U");
-    REQUIRE(simplify_str(parse_term("@f")) == "__Aux_0, __Aux_0=@f, U");
-    REQUIRE(simplify_str(parse_term("@f(@g(1+2))")) == "__Aux_1, __Aux_0=@g(3), __Aux_1=@f(__Aux_0), U");
+    REQUIRE(simplify_str(parse_term("1..2")) == "1*__A_0+0, __A_0=1..2, U");
+    REQUIRE(simplify_str(parse_term("f(1..2)")) == "f(1*__A_0+0), __A_0=1..2, U");
+    REQUIRE(simplify_str(parse_term("@f")) == "__A_0, __A_0=@f, U");
+    REQUIRE(simplify_str(parse_term("@f(@g(1+2))")) == "__A_1, __A_0=@g(3), __A_1=@f(__A_0), U");
 }
 
 TEST_CASE("simplify_project") {
@@ -144,15 +142,14 @@ TEST_CASE("simplify_project") {
 
 TEST_CASE("simplify_matchable") {
     auto flags = SimplifyFlags::matchable | SimplifyFlags::unfailable;
-    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__Aux_0), __Aux_0=X+Y, U");
-    REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,__Aux_0), __Aux_0=2*X+0, U");
-    REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) ==
-            "p(__Aux_1,__Aux_0), __Aux_0=@f(g(X*X)), __Aux_1=1*X+5, U");
+    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__A_0), __A_0=X+Y, U");
+    REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,__A_0), __A_0=2*X+0, U");
+    REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) == "p(__A_1,__A_0), __A_0=@f(g(X*X)), __A_1=1*X+5, U");
 
     flags &= ~SimplifyFlags::unfailable;
-    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,1*__Aux_0+0), __Aux_0=X+Y, U");
+    REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,1*__A_0+0), __A_0=X+Y, U");
     REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,2*X+0), U");
-    REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) == "p(1*X+5,__Aux_0), __Aux_0=@f(g(X*X)), U");
+    REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) == "p(1*X+5,__A_0), __A_0=@f(g(X*X)), U");
 }
 
 TEST_CASE("simplify_literal") {
@@ -162,9 +159,9 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("X=Y+Z"), flags) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_literal("X=Y+Z=Z"), flags) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_literal("not not X=Y+Z=Z"), flags) == "X=Y+Z=Z, U");
-    REQUIRE(simplify_str(parse_literal("not X=Y+Z=Z"), flags) == "not X=__Aux_0=Z, __Aux_0=Y+Z, U");
+    REQUIRE(simplify_str(parse_literal("not X=Y+Z=Z"), flags) == "not X=__A_0=Z, __A_0=Y+Z, U");
     REQUIRE(simplify_str(parse_literal("X=f(Y+Z,Z+5)<f(Y+Z,Z+5)"), flags) ==
-            "X=f(1*__Aux_0+0,1*Z+5)<f(Y+Z,1*Z+5), __Aux_0=Y+Z, U");
+            "X=f(1*__A_0+0,1*Z+5)<f(Y+Z,1*Z+5), __A_0=Y+Z, U");
     REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "#false, B, E");
     REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "#false, B, E");
 
@@ -179,12 +176,16 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("p(X,*)"), flags) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "#false, B, E");
     REQUIRE(simplify_str(parse_literal("not p(X,@f(*))"), flags) == "#false, B, E");
-    REQUIRE(simplify_str(parse_literal("p(X+Y,Y+1)"), flags) == "p(1*__Aux_0+0,1*Y+1), __Aux_0=X+Y, U");
+    REQUIRE(simplify_str(parse_literal("p(X+Y,Y+1)"), flags) == "p(1*__A_0+0,1*Y+1), __A_0=X+Y, U");
     REQUIRE(simplify_str(parse_literal("not p(X+Y,Y+1)"), flags) == "not p(X+Y,1*Y+1), U");
     REQUIRE(simplify_str(parse_literal("not not p(X+Y,Y+1)"), flags) == "not not p(X+Y,1*Y+1), U");
     REQUIRE(simplify_str(parse_literal("p(X,1*Y+1)"), flags) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_literal("not p(X+Y,1*Y+1)"), flags) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_literal("not not p(X+Y,1*Y+1)"), flags) == "<unchanged>, U");
+}
+
+TEST_CASE("simplify_bug") {
+    REQUIRE(simplify_str(parse_statement("X=Y+Z=Z: cond.")) == "#or { X=__A_0=Z, __A_0!=Y+Z: cond }., U");
 }
 
 TEST_CASE("simplify_head_cond_lit") {

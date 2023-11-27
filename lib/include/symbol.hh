@@ -242,6 +242,8 @@ class NameGen {
         : store_{store}, names_{std::move(names)}, prefix_{prefix} {}
     //! Generate a unique variable name.
     [[nodiscard]] auto new_name() -> String;
+    //! Return the associated symbol store.
+    [[nodiscard]] auto store() const -> SymbolStore & { return store_; }
 
   private:
     //! Symbol store to store strings.
