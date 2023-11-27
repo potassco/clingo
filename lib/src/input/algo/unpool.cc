@@ -238,58 +238,67 @@ struct Unpool {
         });
     }
 
-    template <bool HasSign> struct HeadBodyDispatch {
-        auto operator()(SetAggregateElement const &elem) const -> std::optional<std::vector<SetAggregateElement>> {
-            // Note: this is not correct
-            // Example:
-            //   p(S) :- S = { X<(Y;Y): q(X,Y) }
-            // will be unpooled to
-            //   p(S) :- S = { X<Y: q(X,Y); X<Y: q(X,Y) }
-            // counting X<Y twice.
-            // Solution:
-            // - unpool the literal in the head position
-            // - simplify the literals
-            // - turn them into tuple aggregate elemnts
-            return unpool_crossproducts(
-                [this](auto lit, auto cond) {
-                    // TODO: do something with the result
-                    auto res = simplify(SimplifyFlags::none, self->ctx, lit);
-                    static_cast<void>(res);
-                    if constexpr (HasSign) {
-                        return SetAggregateElement{std::move(lit), std::move(cond)};
-                    } else {
-                        return SetAggregateElement{std::move(lit), std::move(cond)};
-                    }
-                },
-                *this, elem.lit, elem.cond);
+    template <bool HasSign>
+    void
+    unpool_elem(SetAggregateElement const &elem,
+                std::vector<typename std::conditional_t<HasSign, BodyAggregate, HeadAggregate>::Element> &elems) const {
+        // Note: this is not correct
+        // Example:
+        //   p(S) :- S = { X<(Y;Y): q(X,Y) }
+        // will be unpooled to
+        //   p(S) :- S = { X<Y: q(X,Y); X<Y: q(X,Y) }
+        // counting X<Y twice.
+        // Solution:
+        // - unpool the literal in the head position
+        // - simplify the literals
+        // - turn them into tuple aggregate elemnts
+        auto set_elems = unpool_crossproducts(
+            [](auto lit, auto cond) {
+                return SetAggregateElement{std::move(lit), std::move(cond)};
+            },
+            *this, elem.lit, elem.cond);
+        if (set_elems.has_value()) {
+            for (auto &elem : set_elems.value()) {
+                auto guard = ctx.push();
+                auto res =
+                    simplify(HasSign ? SimplifyFlags::matchable : SimplifyFlags::matchable | SimplifyFlags::unfailable,
+                             ctx, elem.lit);
+                // TODO: res is false == empty pool
+                auto lit = res.value.value_or(std::move(elem.lit));
+                // TODO: extend condition with aux elems!!!
+                // TODO: create tuple from lit (code available in simplify)!
+                auto tuple = TermVec{};
+                if constexpr (HasSign) {
+                    elem.cond.emplace_back(std::move(lit));
+                    elems.emplace_back(std::move(tuple), std::move(elem.cond));
+                } else {
+                    elems.emplace_back(std::move(tuple), std::move(lit), std::move(elem.cond));
+                }
+                throw std::logic_error("more rewriting!!!");
+            }
+        } else {
+            throw std::logic_error("we still have to rewrite!!!");
         }
-
-        auto operator()(SetAggregateElementVec const &elems) const
-            -> std::optional<std::vector<SetAggregateElementVec>> {
-            return Util::map_opt(unpool_union(elems, *this),
-                                 [](auto elems) { return Util::make_vec<SetAggregateElementVec>(std::move(elems)); });
-        }
-
-        template <class T> auto operator()(T const &x) const { return self->operator()(x); }
-
-        Unpool const *self;
-    };
+    }
 
     template <bool HasSign>
     auto operator()(SetAggregate<HasSign> const &aggr) const
         -> std::optional<std::vector<std::conditional_t<HasSign, BodyLiteral, HeadLiteral>>> {
-        HeadBodyDispatch<HasSign> hb{this};
         return unpool_crossproducts(
-            [&aggr](auto lhs, auto elems, auto rhs) {
+            [this, &aggr](auto lhs, auto rhs) {
+                std::vector<typename std::conditional_t<HasSign, BodyAggregate, HeadAggregate>::Element> elems;
+                for (auto &elem : aggr.elems) {
+                    unpool_elem<HasSign>(elem, elems);
+                }
                 if constexpr (HasSign) {
-                    return BodyLiteral{
-                        SetAggregate<HasSign>{aggr.loc, aggr.sign, std::move(lhs), std::move(elems), std::move(rhs)}};
+                    return BodyLiteral{BodyAggregate{aggr.loc, aggr.sign, std::move(lhs), AggregateFunction::count,
+                                                     std::move(elems), std::move(rhs)}};
                 } else {
-                    return HeadLiteral{
-                        SetAggregate<HasSign>{aggr.loc, std::move(lhs), std::move(elems), std::move(rhs)}};
+                    return HeadLiteral{HeadAggregate{aggr.loc, std::move(lhs), AggregateFunction::count,
+                                                     std::move(elems), std::move(rhs)}};
                 }
             },
-            hb, aggr.lhs, aggr.elems, aggr.rhs);
+            *this, aggr.lhs, aggr.rhs);
     }
 
     // theory
