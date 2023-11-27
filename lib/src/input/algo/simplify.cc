@@ -971,6 +971,11 @@ struct SimplifyLiteral {
     //! Note that cases (1) and (2) should be fine regarding safety.
     //! Further, simplifications in cases (2) and (3) are delayed until the comparisons are unpooled.
     auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
+        // TODO: handle binary assignments more cleverly:
+        // Y = f(X) -> stays the same
+        // t = Y    -> Y = simplify(t) (where t is not a variable)
+        // Y = t..u -> Y = simplify(t)..simplify(u)
+
         // whether pools are treated disjunctively or conjunctively
         bool head = test(flags, SimplifyFlags::head);
         // whether the elements of the relation are disjunctive or conjunctive
