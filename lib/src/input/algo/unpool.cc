@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include <input/algo/print.hh>
 #include <input/algo/simplify.hh>
 #include <input/algo/unpool.hh>
@@ -8,6 +10,55 @@
 namespace Gringo::Input {
 
 namespace {
+
+struct LiteralToTuple {
+    auto operator()(Literal const &lit) -> TermVec { return std::visit(*this, lit); }
+
+    auto operator()(LiteralBoolean const &lit) -> TermVec {
+        return Util::make_vec<Term>(TermSymbol{lit.loc, store.num(n)});
+    }
+
+    auto operator()(LiteralRelation const &lit) -> TermVec {
+        auto var_set = select_variables(lit);
+        auto var_vec = std::vector(var_set.begin(), var_set.end());
+        std::sort(var_vec.begin(), var_vec.end());
+        TermVec res;
+        res.reserve(var_vec.size() + 1);
+        res.emplace_back(TermSymbol{lit.loc, store.num(n)});
+        for (auto const &var : var_vec) {
+            res.emplace_back(TermVariable{lit.loc, var});
+        }
+        return res;
+    }
+
+    auto operator()(LiteralSymbolic const &lit) -> TermVec {
+        TermVec res;
+        res.reserve(2);
+        int i = 0;
+        switch (lit.sign) {
+            case Sign::none: {
+                i = 0;
+                break;
+            }
+            case Sign::once: {
+                i = 1;
+                break;
+            }
+            case Sign::twice: {
+                i = 2;
+                break;
+            }
+        }
+        res.emplace_back(TermSymbol{lit.loc, store.num(i)});
+        res.emplace_back(lit.term);
+        return res;
+    }
+
+    void next() { ++n; }
+
+    SymbolStore &store;
+    int n = 2;
+};
 
 struct Unpool {
 
@@ -240,7 +291,8 @@ struct Unpool {
 
     template <bool HasSign>
     void
-    unpool_elem(SetAggregateElement const &elem,
+
+    unpool_elem(LiteralToTuple &to_tuple, SetAggregateElement const &elem,
                 std::vector<typename std::conditional_t<HasSign, BodyAggregate, HeadAggregate>::Element> &elems) const {
         // Note: this is not correct
         // Example:
@@ -257,27 +309,33 @@ struct Unpool {
                 return SetAggregateElement{std::move(lit), std::move(cond)};
             },
             *this, elem.lit, elem.cond);
+        to_tuple.next();
+        auto simplify_lit = [this, &to_tuple, &elems](SetAggregateElement elem) {
+            auto guard = ctx.push();
+            auto res =
+                simplify(HasSign ? SimplifyFlags::matchable : SimplifyFlags::matchable | SimplifyFlags::unfailable, ctx,
+                         elem.lit);
+            auto lit = res.value.value_or(std::move(elem.lit));
+            for (auto &[lhs, rhs] : ctx.aux()) {
+                auto loc = location(lhs);
+                auto lit = LiteralRelation{loc, Sign::none, std::move(lhs),
+                                           Util::make_vec<Guard>(Guard{Relation::equal, std::move(rhs)})};
+                elem.cond.emplace_back(std::move(lit));
+            }
+            auto tuple = to_tuple(lit);
+            if constexpr (HasSign) {
+                elem.cond.emplace_back(std::move(lit));
+                elems.emplace_back(std::move(tuple), std::move(elem.cond));
+            } else {
+                elems.emplace_back(std::move(tuple), std::move(lit), std::move(elem.cond));
+            }
+        };
         if (set_elems.has_value()) {
             for (auto &elem : set_elems.value()) {
-                auto guard = ctx.push();
-                auto res =
-                    simplify(HasSign ? SimplifyFlags::matchable : SimplifyFlags::matchable | SimplifyFlags::unfailable,
-                             ctx, elem.lit);
-                // TODO: res is false == empty pool
-                auto lit = res.value.value_or(std::move(elem.lit));
-                // TODO: extend condition with aux elems!!!
-                // TODO: create tuple from lit (code available in simplify)!
-                auto tuple = TermVec{};
-                if constexpr (HasSign) {
-                    elem.cond.emplace_back(std::move(lit));
-                    elems.emplace_back(std::move(tuple), std::move(elem.cond));
-                } else {
-                    elems.emplace_back(std::move(tuple), std::move(lit), std::move(elem.cond));
-                }
-                throw std::logic_error("more rewriting!!!");
+                simplify_lit(std::move(elem));
             }
         } else {
-            throw std::logic_error("we still have to rewrite!!!");
+            simplify_lit(std::move(elem));
         }
     }
 
@@ -287,8 +345,10 @@ struct Unpool {
         return unpool_crossproducts(
             [this, &aggr](auto lhs, auto rhs) {
                 std::vector<typename std::conditional_t<HasSign, BodyAggregate, HeadAggregate>::Element> elems;
+                LiteralToTuple to_tuple{ctx.store()};
                 for (auto &elem : aggr.elems) {
-                    unpool_elem<HasSign>(elem, elems);
+                    to_tuple.next();
+                    unpool_elem<HasSign>(to_tuple, elem, elems);
                 }
                 if constexpr (HasSign) {
                     return BodyLiteral{BodyAggregate{aggr.loc, aggr.sign, std::move(lhs), AggregateFunction::count,
