@@ -65,13 +65,29 @@ TEST_CASE("unpool_head_literal") {
     REQUIRE(unpool_str(parse_head_literal("(1;2) #count {(3;4):a}"), ". ") ==
             "[1 <= #count { 3: a; 4: a }. 2 <= #count { 3: a; 4: a }]");
     REQUIRE(unpool_str(parse_head_literal("(1;2) {} (3;4)"), ". ") ==
-            "[1 <= { } <= 3. 1 <= { } <= 4. 2 <= { } <= 3. 2 <= { } <= 4]");
+            "[1 <= #count { } <= 3. 1 <= #count { } <= 4. 2 <= #count { } <= 3. 2 <= #count { } <= 4]");
     REQUIRE(unpool_str(parse_head_literal("#count { a(1;2): b(3;4) }"), ". ") ==
             "[#count { a(1): b(3); a(1): b(4); a(2): b(3); a(2): b(4) }]");
     REQUIRE(unpool_str(parse_head_literal("&p(1;2)"), ". ") == "[&p(1). &p(2)]");
     REQUIRE(unpool_str(parse_head_literal("&p { : a(1;2) }"), ". ") == "[&p { : a(1); : a(2) }]");
     REQUIRE(unpool_str(parse_head_literal("&p(1;2) { : a(1;2) }"), ". ") ==
             "[&p(1) { : a(1); : a(2) }. &p(2) { : a(1); : a(2) }]");
+    REQUIRE(unpool_str(parse_head_literal("S = { X<(Y;X): q(X,Y); X<Y: q(X,Y); p(X;Y); not p(X;Y); not not p(X;Y) }"),
+                       "; ") == "[S = #count { 3,X,Y: X<Y: q(X,Y); 3,X,Y: X<X: q(X,Y)"
+                                "; 4,X,Y: X<Y: q(X,Y)"
+                                "; 0,p(X): p(X); 0,p(Y): p(Y)"
+                                "; 1,p(X): not p(X); 1,p(Y): not p(Y)"
+                                "; 2,p(X): not not p(X); 2,p(Y): not not p(Y) }]");
+    REQUIRE(unpool_str(parse_head_literal("S = { X<(Y;Z): q(X,Y,Z) }"), "; ") ==
+            "[S = #count { 3,X,Y,Z: X<Y: q(X,Y,Z); 3,X,Y,Z: X<Z: q(X,Y,Z) }]");
+    REQUIRE(unpool_str(parse_head_literal("S = { X+Y<(Y;X+1): q(X,Y) }"), "; ") ==
+            "[S = #count { 3,X,Y: X+Y<Y: q(X,Y); 3,X,Y: X+Y<1*X+1: q(X,Y) }]");
+    REQUIRE(unpool_str(parse_head_literal("S = { X=1..Y: q(X,Y) }"), "; ") ==
+            "[S = #count { 3,X,Y: X=1*__A_0+0: q(X,Y), __A_0=1..Y }]");
+    REQUIRE(unpool_str(parse_head_literal("S = { X=1..Y=Z: q(X,Y,Z) }"), "; ") ==
+            "[S = #count { 3,X,Y,Z: X=1*__A_0+0=Z: q(X,Y,Z), __A_0=1..Y }]");
+    REQUIRE(unpool_str(parse_head_literal("S = { not X=1..Y=Z: q(X,Y,Z) }"), "; ") ==
+            "[S = #count { 3,X,Y,Z: not X=__A_0=Z: q(X,Y,Z), __A_0=1..Y }]");
 }
 
 TEST_CASE("unpool_body_literal") {
@@ -91,7 +107,7 @@ TEST_CASE("unpool_body_literal") {
     REQUIRE(unpool_str(parse_body_literal("(1;2) #count {(3;4):a}"), ". ") ==
             "[1 <= #count { 3: a; 4: a }. 2 <= #count { 3: a; 4: a }]");
     REQUIRE(unpool_str(parse_body_literal("(1;2) {} (3;4)"), ". ") ==
-            "[1 <= { } <= 3. 1 <= { } <= 4. 2 <= { } <= 3. 2 <= { } <= 4]");
+            "[1 <= #count { } <= 3. 1 <= #count { } <= 4. 2 <= #count { } <= 3. 2 <= #count { } <= 4]");
     REQUIRE(unpool_str(parse_body_literal("#count { a(1;2): b(3;4) }"), ". ") ==
             "[#count { a(1): b(3); a(1): b(4); a(2): b(3); a(2): b(4) }]");
     REQUIRE(unpool_str(parse_body_literal("&p(1;2)"), ". ") == "[&p(1). &p(2)]");
@@ -100,6 +116,20 @@ TEST_CASE("unpool_body_literal") {
             "[&p(1) { : a(1); : a(2) }. &p(2) { : a(1); : a(2) }]");
     REQUIRE(unpool_str(parse_body_literal("p(X): q(X;Y)")) == "[p(X): q(X); p(X): q(Y)]");
     REQUIRE(unpool_str(parse_body_literal("#and { p(X;Y,B) : p(A) }"), "; ") == "[p(X): p(A); p(Y,B): p(A)]");
+    REQUIRE(unpool_str(parse_body_literal("S = { X<(Y;X): q(X,Y); X<Y: q(X,Y); p(X;Y); not p(X;Y); not not p(X;Y) }"),
+                       "; ") == "[S = #count { 3,X,Y: q(X,Y), X<Y; 3,X,Y: q(X,Y), X<X"
+                                "; 4,X,Y: q(X,Y), X<Y"
+                                "; 0,p(X): p(X); 0,p(Y): p(Y)"
+                                "; 1,p(X): not p(X); 1,p(Y): not p(Y)"
+                                "; 2,p(X): not not p(X); 2,p(Y): not not p(Y) }]");
+    REQUIRE(unpool_str(parse_body_literal("S = { X+Y<(Y;X+1): q(X,Y) }"), "; ") ==
+            "[S = #count { 3,X,Y: q(X,Y), X+Y<Y; 3,X,Y: q(X,Y), X+Y<1*X+1 }]");
+    REQUIRE(unpool_str(parse_body_literal("S = { X=1..Y: q(X,Y) }"), "; ") ==
+            "[S = #count { 3,X,Y: q(X,Y), __A_0=1..Y, X=1*__A_0+0 }]");
+    REQUIRE(unpool_str(parse_body_literal("S = { X=1..Y=Z: q(X,Y,Z) }"), "; ") ==
+            "[S = #count { 3,X,Y,Z: q(X,Y,Z), __A_0=1..Y, X=1*__A_0+0=Z }]");
+    REQUIRE(unpool_str(parse_body_literal("S = { not X=1..Y=Z: q(X,Y,Z) }"), "; ") ==
+            "[S = #count { 3,X,Y,Z: q(X,Y,Z), __A_0=1..Y, not X=__A_0=Z }]");
 }
 
 TEST_CASE("unpool_statement") {

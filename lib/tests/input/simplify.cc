@@ -1,4 +1,5 @@
 #include <input/algo/simplify.hh>
+#include <input/algo/unpool.hh>
 
 #include "input/test.hh"
 
@@ -6,12 +7,20 @@ namespace Gringo::Input::Test {
 
 template <typename T>
 auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decltype(simplify(flags, ctx, x)) {
-    return simplify(flags, ctx, x);
+    auto res = unpool(ctx, x);
+    if (!res.has_value()) {
+        res = Util::make_vec<T>(x);
+    }
+    return simplify(flags, ctx, res->at(0));
 }
 template <typename T>
 auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decltype(simplify(ctx, x)) {
     static_cast<void>(flags);
-    return simplify(ctx, x);
+    auto res = unpool(ctx, x);
+    if (!res.has_value()) {
+        res = Util::make_vec<T>(x);
+    }
+    return simplify(ctx, res->at(0));
 }
 
 template <class T>

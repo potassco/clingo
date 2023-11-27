@@ -1285,6 +1285,7 @@ struct SimplifyHBLiteral {
                 })};
     }
 
+    /*
     //! Simplify a set aggregate element.
     [[nodiscard]] auto simplify_element(SetAggregateElement const &elem, bool head) const
         -> SimplifyResult<SetAggregateElement> {
@@ -1320,6 +1321,7 @@ struct SimplifyHBLiteral {
         }
         return {state, make_elem()};
     }
+    */
 
     //! Simplify the left guard of an aggregate.
     //!
@@ -1355,6 +1357,9 @@ struct SimplifyHBLiteral {
     template <bool head>
     [[nodiscard]] auto simplify_set_aggregate(HBSetAggregate<head> const &lit) const
         -> SimplifyResult<HBLiteral<head>> {
+        static_cast<void>(lit);
+        throw std::runtime_error("set aggregates must be unpooled before simplifying");
+        /*
         auto [state_lhs, res_lhs] = simplify_guard(lit.lhs);
         auto [state_rhs, res_rhs] = simplify_guard(lit.rhs);
         AuxTermVec aux;
@@ -1434,13 +1439,12 @@ struct SimplifyHBLiteral {
             return {TruthValue::unknown, HBAggregate<head>{lit.loc, lit.sign, std::move(lhs), AggregateFunction::count,
                                                            std::move(elems), std::move(rhs)}};
         }
+        */
     }
     RewriteContext &ctx; //!< Context used during simplification.
 };
 
 struct SimplifyHeadLiteral : SimplifyHBLiteral {
-    using SimplifyHBLiteral::simplify_element;
-
     [[nodiscard]] auto simplify_element(HeadAggregate::Element const &elem) const
         -> SimplifyResult<HeadAggregate::Element> {
         auto [state_tuple, res_tuple] = simplify_termvec(elem.tuple);
@@ -1505,8 +1509,6 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
 };
 
 struct SimplifyBodyLiteral : SimplifyHBLiteral {
-    using SimplifyHBLiteral::simplify_element;
-
     [[nodiscard]] static auto simplify_element(BodyAggregate::Element const &elem)
         -> SimplifyResult<BodyAggregate::Element> {
         static_cast<void>(elem);
