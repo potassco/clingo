@@ -7,6 +7,7 @@
 
 #include "unpool.hh"
 
+#include <iostream>
 namespace Gringo::Input {
 
 namespace {
@@ -16,22 +17,27 @@ struct LiteralToTuple {
         return std::visit(*this, std::variant<std::reference_wrapper<Literal const>>{orig}, lit);
     }
 
-    auto operator()(Literal const &orig, LiteralBoolean const &lit) -> TermVec {
-        static_cast<void>(orig);
-        return Util::make_vec<Term>(TermSymbol{lit.loc, store.num(n)});
-    }
-
-    auto operator()(Literal const &orig, LiteralRelation const &lit) -> TermVec {
+    auto tuple_from_vars(Literal const &orig) -> TermVec {
         auto var_set = select_variables(orig);
         auto var_vec = std::vector(var_set.begin(), var_set.end());
         std::sort(var_vec.begin(), var_vec.end());
         TermVec res;
         res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{lit.loc, store.num(n)});
+        res.emplace_back(TermSymbol{location(orig), store.num(n)});
         for (auto const &var : var_vec) {
-            res.emplace_back(TermVariable{lit.loc, var});
+            res.emplace_back(TermVariable{location(orig), var});
         }
         return res;
+    }
+
+    auto operator()(Literal const &orig, LiteralBoolean const &lit) -> TermVec {
+        static_cast<void>(lit);
+        return tuple_from_vars(orig);
+    }
+
+    auto operator()(Literal const &orig, LiteralRelation const &lit) -> TermVec {
+        static_cast<void>(lit);
+        return tuple_from_vars(orig);
     }
 
     auto operator()(Literal const &orig, LiteralSymbolic const &lit) -> TermVec {
@@ -344,6 +350,7 @@ struct Unpool {
             LiteralToTuple to_tuple{ctx.store()};
             for (auto &elem : aggr.elems) {
                 to_tuple.next();
+                std::cerr << "unpool elem with lit: " << elem.lit << std::endl;
                 unpool_elem<HasSign>(to_tuple, elem, elems);
             }
             if constexpr (HasSign) {

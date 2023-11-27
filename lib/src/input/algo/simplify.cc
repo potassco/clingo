@@ -52,6 +52,9 @@ whole process as in gringo atm
   5. assignment aggregates
 */
 
+// TODO: remove!!!
+#include <iostream>
+
 namespace Gringo::Input {
 
 namespace {
@@ -1447,6 +1450,7 @@ struct SimplifyHBLiteral {
 struct SimplifyHeadLiteral : SimplifyHBLiteral {
     [[nodiscard]] auto simplify_element(HeadAggregate::Element const &elem) const
         -> SimplifyResult<HeadAggregate::Element> {
+        auto guard = ctx.push();
         auto [state_tuple, res_tuple] = simplify_termvec(elem.tuple);
         auto [state_lit, res_lit] = simplify(SimplifyFlags::none, ctx, elem.lit);
         auto [state_cond, res_cond] = simplify_litvec(elem.cond);
@@ -1498,8 +1502,59 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
     }
 
     auto operator()(HeadAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me");
+        auto [state_lhs, res_lhs] = simplify_guard(lit.lhs);
+        auto [state_rhs, res_rhs] = simplify_guard(lit.rhs);
+        AuxTermVec aux;
+        auto res_elems = SimplifyVec{lit.elems};
+        bool constant = true;
+        auto value = Number{0};
+        for (auto const &elem : lit.elems) {
+            auto [state_elem, res_elem] = simplify_element(elem);
+            if (state_elem == TruthValue::bot) {
+                res_elems.remove();
+                continue;
+            }
+            if (state_elem == TruthValue::unknown) {
+                constant = false;
+            } else {
+                // Note: does not apply to symbol literals (as they are always unknown or fail)
+                // TODO: apply the aggregate function!!!
+                value += 1;
+            }
+            res_elems.update(std::move(res_elem));
+        }
+        if (!state_lhs) {
+            return {TruthValue::top, SimpleHeadLiteral{make_constant(location(lit), true)}};
+        }
+        // Note: value also gives a lower bound for the aggregate, which could be used to detect false aggregates
+        // (unlikely to be relevant in practice)
+        if (constant) {
+            auto sign = Sign::none;
+            if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
+                return {TruthValue::top, SimpleHeadLiteral{make_constant(lit.loc, true)}};
+            }
+            auto lhs = Term{TermSymbol{lit.loc, ctx.store().num(value)}};
+            auto guards = GuardVec{};
+            if (lit.lhs.has_value()) {
+                guards.emplace_back(lit.lhs->second, std::move(lhs));
+                lhs = std::move(res_lhs.transform([](auto guard) {
+                          return std::move(guard).first;
+                      })).value_or(lit.lhs->first);
+            }
+            if (lit.rhs.has_value()) {
+                guards.emplace_back(lit.rhs->first, std::move(res_rhs.transform([](auto guard) {
+                                                        return std::move(guard).second;
+                                                    })).value_or(lit.rhs->second));
+            }
+            auto rel_lit = SimpleHeadLiteral{LiteralRelation{lit.loc, sign, std::move(lhs), std::move(guards)}};
+            auto [state_lit, res_lit] = simplify(ctx, rel_lit);
+            return {state_lit, std::move(res_lit).value_or(std::move(rel_lit))};
+        }
+        // TODO: handle the case that the aggregate did not change!
+        auto lhs = lit.lhs.transform([&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
+        auto rhs = lit.rhs.transform([&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
+        return {TruthValue::unknown, HeadAggregate{lit.loc, std::move(lhs), AggregateFunction::count,
+                                                   std::move(res_elems).value(), std::move(rhs)}};
     }
 
     auto operator()(HeadTheoryAtom const &lit) const -> SimplifyResult<HeadLiteral> {
