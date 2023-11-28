@@ -2,7 +2,7 @@
 
 #include <input/literal.hh>
 
-#include <input/algo/check_type.hh>
+#include <input/algo/analyze.hh>
 
 #include "../add_sign.hh"
 #include "term.hh"

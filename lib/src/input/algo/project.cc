@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <unordered_map>
 
-#include <input/algo/check_type.hh>
+#include <input/algo/analyze.hh>
 #include <input/algo/project.hh>
 #include <input/algo/project_anonymous.hh>
 #include <input/algo/visit_variables.hh>

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <ctime>
 
+#include <input/algo/analyze.hh>
 #include <input/algo/evaluate.hh>
 #include <input/algo/print.hh>
 #include <input/algo/simplify.hh>
@@ -147,44 +148,6 @@ auto transform_res(SimplifyResult<T> &&a, F &&f) -> SimplifyResult<std::invoke_r
     ctx.aux().emplace_back(TermVariable{std::move(loc), ctx.gen().new_name()}, std::move(term));
     return linear ? as_linear_term(ctx.store(), ctx.aux().back().first) : ctx.aux().back().first;
 }
-
-struct IsNumeric {
-    auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
-
-    auto operator()(auto const &term) const -> bool = delete;
-
-    auto operator()(TermSymbol const &term) const -> bool { return term.value.type() == SymbolType::number; }
-
-    auto operator()(TermVariable const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
-    }
-
-    auto operator()(TermFunction const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
-    }
-
-    auto operator()(TermTuple const &term) const -> bool {
-        assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
-        static_cast<void>(term);
-        return false;
-    }
-
-    auto operator()(TermAbs const &term) const -> bool {
-        static_cast<void>(term);
-        return true;
-    }
-
-    auto operator()(TermUnary const &term) const -> bool {
-        return term.op == UnaryOperator::invert || std::visit(*this, *term.rhs);
-    }
-
-    auto operator()(TermBinary const &term) const -> bool {
-        static_cast<void>(term);
-        return true;
-    }
-};
 
 //! Simplify terms.
 //!
@@ -1672,8 +1635,6 @@ struct SimplifyBodyLiteral : SimplifyHBLiteral {
     }
 };
 
-} // namespace
-
 struct SimplifyStatement {
     [[nodiscard]] static auto simplify_tuple(StatementOptimize::Tuple const &elem)
         -> SimplifyResult<StatementOptimize::Tuple> {
@@ -1830,38 +1791,7 @@ struct SimplifyStatement {
     RewriteContext &ctx; //!< Context used during simplification.
 };
 
-[[nodiscard]] auto is_linear(TermBinary const &term) -> bool {
-    if (term.op != BinaryOperator::plus) {
-        return false;
-    }
-    auto const *mul = std::get_if<TermBinary>(term.lhs.get());
-    if (mul == nullptr || mul->op != BinaryOperator::times) {
-        return false;
-    }
-    auto const *n = std::get_if<TermSymbol>(term.rhs.get());
-    if (n == nullptr || n->value.type() != SymbolType::number) {
-        return false;
-    }
-    auto const *m = std::get_if<TermSymbol>(mul->lhs.get());
-    if (m == nullptr || m->value.type() != SymbolType::number || *m->value.num() == 0) {
-        return false;
-    }
-    return std::holds_alternative<TermVariable>(*mul->rhs);
-}
-
-[[nodiscard]] auto is_linear(Term const &term) -> bool {
-    auto const *plus = std::get_if<TermBinary>(&term);
-    return plus != nullptr && is_linear(*plus);
-}
-
-[[nodiscard]] auto is_interval(Term const &term) -> bool {
-    auto const *bin = std::get_if<TermBinary>(&term);
-    return bin != nullptr && is_interval(*bin);
-}
-
-[[nodiscard]] auto is_interval(TermBinary const &term) -> bool { return term.op == BinaryOperator::dots; }
-
-[[nodiscard]] auto is_numeric(Term const &term) -> bool { return IsNumeric{}(term); }
+} // namespace
 
 [[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext &ctx, Term const &term) -> SimplifyResult<Term, bool> {
     auto make_matchable = [&](auto &&target, bool self = true) -> SimplifyResult<Term, bool> {

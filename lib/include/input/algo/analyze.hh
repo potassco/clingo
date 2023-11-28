@@ -9,7 +9,7 @@ namespace Gringo::Input {
 //!
 //! Algorithms for the input language.
 
-//! @defgroup input_check_type Check Type
+//! @defgroup input_analyze Analyze
 //! @ingroup input_algo
 //!
 //! Functions to analyze expressions.
@@ -39,6 +39,40 @@ struct CheckTypeResult {
 
 //! Query information about the structure of the given term.
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nullptr) -> bool;
+
+//! Check if the given term is a linear term.
+//!
+//! Returns true if the term has form m*X+n where m is a non-zero number, X a
+//! variable, and n a number.
+[[nodiscard]] auto is_linear(Term const &term) -> bool;
+
+//! See is_linear().
+[[nodiscard]] auto is_linear(TermBinary const &term) -> bool;
+
+//! Returns true if the term has form t..u.
+[[nodiscard]] auto is_interval(Term const &term) -> bool;
+
+//! See is_interval().
+[[nodiscard]] auto is_interval(TermBinary const &term) -> bool;
+
+//! Check if the term always evaluates to a number.
+//!
+//! For examble, X+Y but not X because it can also evaluate to other symbols.
+[[nodiscard]] auto is_numeric(Term const &term) -> bool;
+
+//! Check if the term is constant.
+[[nodiscard]] inline auto is_symbol(Term const &term) -> bool { return std::holds_alternative<TermSymbol>(term); }
+
+//! Check if the term is a variable.
+[[nodiscard]] inline auto is_variable(Term const &term) -> bool { return std::holds_alternative<TermVariable>(term); }
+
+//! Get the truth value of a literal, in case it is a Boolean constant.
+[[nodiscard]] inline auto is_fixed(Literal const &lit) -> std::optional<bool> {
+    if (auto const *blit = std::get_if<LiteralBoolean>(&lit); blit != nullptr) {
+        return blit->value == (blit->sign != Sign::once);
+    }
+    return std::nullopt;
+}
 
 //! Check whether the literal is an atoms.
 //!

@@ -1,4 +1,4 @@
-#include <input/algo/check_type.hh>
+#include <input/algo/analyze.hh>
 #include <input/algo/project_anonymous.hh>
 
 #include "transform.hh"

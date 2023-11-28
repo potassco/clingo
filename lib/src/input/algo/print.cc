@@ -4,7 +4,7 @@
 #include <util/algorithm.hh>
 #include <util/print.hh>
 
-#include <input/algo/check_type.hh>
+#include <input/algo/analyze.hh>
 #include <input/algo/print.hh>
 
 namespace Gringo::Input {
