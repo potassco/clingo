@@ -3,9 +3,6 @@
 
 #include "input/test.hh"
 
-// TODO: remove!!!
-#include <iostream>
-
 namespace Gringo::Input::Test {
 
 template <typename T>
@@ -14,7 +11,6 @@ auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decl
     if (!res.has_value()) {
         res = Util::make_vec<T>(x);
     }
-    std::cerr << "simplify: " << res->at(0) << std::endl;
     return simplify(flags, ctx, res->at(0));
 }
 template <typename T>
@@ -24,7 +20,6 @@ auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decl
     if (!res.has_value()) {
         res = Util::make_vec<T>(x);
     }
-    std::cerr << "simplify: " << res->at(0) << std::endl;
     return simplify(ctx, res->at(0));
 }
 
@@ -213,16 +208,6 @@ TEST_CASE("simplify_body_cond_lit") {
             "x :- #and { not X=__A_0=Z, __A_0=Y+Z: cond }., U");
 }
 
-TEST_CASE("simplify_bug") {
-    // TODO: this introduces an unnecessary assignemnt for terms of form X=1..3
-    // terms of form X=A..B or A..B=X should be recognized and preprocessed differently!
-    REQUIRE(simplify_str(parse_statement("1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
-            "1*__A_0+0 <= #count { "
-            "0,a(__A_2,__A_3): a(__A_2,__A_3): "
-            "b(1*__A_4+0), __A_2=3..4, __A_3=X+Y, __A_4=A+B "
-            "} <= 1*__A_1+0 :- __A_0=1..2; __A_1=5..6., U");
-}
-
 TEST_CASE("simplify_head_set_aggregate") {
     // it looks like set aggregates have to be rewritten before unpooling!
     // the rewriting can be applied before unpooling
@@ -233,10 +218,10 @@ TEST_CASE("simplify_head_set_aggregate") {
     REQUIRE(simplify_str(parse_statement("{a; not a; not not a; X+Y<Z: p(U)} <= 1.")) ==
             "#count { 0,a: a; 1,a: not a; 2,a: not not a; 6,X,Y,Z: X+Y<Z: p(U) } <= 1., U");
     REQUIRE(simplify_str(parse_statement("1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
-            "1*__A_0+0 <= #count { "
-            "0,a(__A_2,__A_3): a(__A_2,__A_3): "
-            "b(1*__A_4+0), __A_2=3..4, __A_3=X+Y, __A_4=A+B "
-            "} <= 1*__A_1+0 :- __A_0=1..2; __A_1=5..6., U");
+            "1*__A_2+0 <= #count { "
+            "0,a(__A_0,__A_1): a(__A_0,__A_1): "
+            "b(1*__A_4+0), __A_0=3..4, __A_1=X+Y, __A_4=A+B "
+            "} <= 1*__A_3+0 :- __A_2=1..2; __A_3=5..6., U");
 
     REQUIRE(simplify_str(parse_statement("X <= {1!=2;2!=2;#true;#false} <= Y.")) == "X<=2<=Y., U");
     REQUIRE(simplify_str(parse_statement("1 <= {1!=2;2!=2;#true;#false} <= 2.")) == "#true., T");

@@ -7,7 +7,6 @@
 
 #include "unpool.hh"
 
-#include <iostream>
 namespace Gringo::Input {
 
 namespace {
@@ -350,7 +349,6 @@ struct Unpool {
             LiteralToTuple to_tuple{ctx.store()};
             for (auto &elem : aggr.elems) {
                 to_tuple.next();
-                std::cerr << "unpool elem with lit: " << elem.lit << std::endl;
                 unpool_elem<HasSign>(to_tuple, elem, elems);
             }
             if constexpr (HasSign) {

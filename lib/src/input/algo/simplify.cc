@@ -52,9 +52,6 @@ whole process as in gringo atm
   5. assignment aggregates
 */
 
-// TODO: remove!!!
-#include <iostream>
-
 namespace Gringo::Input {
 
 namespace {
@@ -439,6 +436,8 @@ struct SimplifyTerm {
     auto operator()(TermFunction const &term, SimplifyFlags flags) const -> Result {
         assert(term.pool.size() == 1);
 
+        flags &= ~SimplifyFlags::preserve_toplevel_dots;
+
         if (term.external) {
             flags &= ~SimplifyFlags::projectable;
         }
@@ -482,6 +481,8 @@ struct SimplifyTerm {
     auto operator()(TermTuple const &term, SimplifyFlags flags) const -> Result {
         assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
 
+        flags &= ~SimplifyFlags::preserve_toplevel_dots;
+
         bool constant = true;
         auto type = Type::tuple;
         auto const &tuple = std::get<TupleVec>(term.pool.front());
@@ -518,7 +519,7 @@ struct SimplifyTerm {
         assert(term.pool.size() == 1);
 
         // the term and nested terms are not projectable
-        flags &= ~SimplifyFlags::projectable;
+        flags &= ~(SimplifyFlags::projectable | SimplifyFlags::preserve_toplevel_dots);
 
         auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
@@ -567,7 +568,7 @@ struct SimplifyTerm {
     //! Simplify the given unary term.
     auto operator()(TermUnary const &term, SimplifyFlags flags) const -> Result {
         // the term and nested terms are not projectable
-        flags &= ~SimplifyFlags::projectable;
+        flags &= ~(SimplifyFlags::projectable | SimplifyFlags::preserve_toplevel_dots);
 
         auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
@@ -672,6 +673,11 @@ struct SimplifyTerm {
                                                                                         << "  " << term << "\n";
                     return {};
                 }
+                if (test(flags, SimplifyFlags::preserve_toplevel_dots)) {
+                    return check_change(Type::numeric, term,
+                                        TermBinary{term.loc, result_as_term(term.lhs, std::move(res_lhs)),
+                                                   BinaryOperator::dots, result_as_term(term.rhs, std::move(res_rhs))});
+                }
                 return ResultLinear{
                     map_term(ctx, TermBinary{term.loc, result_as_term(term.lhs, std::move(res_lhs)),
                                              BinaryOperator::dots, result_as_term(term.rhs, std::move(res_rhs))}),
@@ -679,6 +685,8 @@ struct SimplifyTerm {
             };
             return std::visit(simplify, operator()(*term.lhs, flags), operator()(*term.rhs, flags));
         }
+        flags &= ~SimplifyFlags::preserve_toplevel_dots;
+
         auto simplify = [&, this](auto &&res_lhs, auto &&res_rhs) -> Result {
             // check arguments
             if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
@@ -970,12 +978,12 @@ struct SimplifyLiteral {
     //!
     //! Note that cases (1) and (2) should be fine regarding safety.
     //! Further, simplifications in cases (2) and (3) are delayed until the comparisons are unpooled.
+    //!
+    //! Terms of form t..u are preserved if preserve_toplevel_dots is set.
+    //! (This does not apply to nested terms.)
+    //!
+    //! Assignments of form t=X are replaced by X=t if t is not a variable.
     auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
-        // TODO: handle binary assignments more cleverly:
-        // Y = f(X) -> stays the same
-        // t = Y    -> Y = simplify(t) (where t is not a variable)
-        // Y = t..u -> Y = simplify(t)..simplify(u)
-
         // whether pools are treated disjunctively or conjunctively
         bool head = test(flags, SimplifyFlags::head);
         // whether the elements of the relation are disjunctive or conjunctive
@@ -1017,6 +1025,25 @@ struct SimplifyLiteral {
         if (lit.rhs.front().first == assign) {
             match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
         }
+
+        // binary assignment
+        if (lit.rhs.size() == 1 && lit.rhs.front().first == assign) {
+            if (!is_variable(lit.lhs) && is_variable(lit.rhs.front().second)) {
+                auto inv = LiteralRelation{lit.loc, lit.sign, lit.rhs.front().second,
+                                           Util::make_vec<Guard>(Guard{assign, lit.lhs})};
+                auto res = operator()(inv, flags);
+                if (!res.value.has_value()) {
+                    res.value = std::move(inv);
+                }
+                return res;
+            }
+
+            if (lit.rhs.size() == 1 && lit.rhs.front().first == assign && is_variable(lit.lhs) &&
+                is_interval(lit.rhs.front().second)) {
+                fixed_flags |= SimplifyFlags::preserve_toplevel_dots;
+            }
+        }
+
         auto [succeeded, res_lhs] = simplify(fixed_flags | match_flags, ctx, lit.lhs);
 
         // simplify rhs
@@ -1782,6 +1809,13 @@ struct SimplifyStatement {
     auto const *plus = std::get_if<TermBinary>(&term);
     return plus != nullptr && is_linear(*plus);
 }
+
+[[nodiscard]] auto is_interval(Term const &term) -> bool {
+    auto const *bin = std::get_if<TermBinary>(&term);
+    return bin != nullptr && is_interval(*bin);
+}
+
+[[nodiscard]] auto is_interval(TermBinary const &term) -> bool { return term.op == BinaryOperator::dots; }
 
 [[nodiscard]] auto is_numeric(Term const &term) -> bool { return IsNumeric{}(term); }
 
