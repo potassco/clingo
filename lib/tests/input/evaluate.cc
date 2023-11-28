@@ -1,5 +1,4 @@
 #include <cmath>
-#include <iostream>
 
 #include <input/algo/evaluate.hh>
 

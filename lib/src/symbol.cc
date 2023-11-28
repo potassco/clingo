@@ -1,13 +1,12 @@
 #include <cstring>
 #include <mutex>
+#include <ostream>
 
 #include <tsl/hopscotch_set.h>
 
 #include <util/print.hh>
 
 #include <symbol.hh>
-
-#include <iostream>
 
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays)
 

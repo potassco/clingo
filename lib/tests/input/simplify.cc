@@ -7,20 +7,30 @@ namespace Gringo::Input::Test {
 
 template <typename T>
 auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decltype(simplify(flags, ctx, x)) {
-    auto res = unpool(ctx, x);
-    if (!res.has_value()) {
-        res = Util::make_vec<T>(x);
+    auto ures = unpool(ctx, x);
+    bool changed = ures.has_value();
+    if (!changed) {
+        ures = Util::make_vec<T>(x);
     }
-    return simplify(flags, ctx, res->at(0));
+    auto sres = simplify(flags, ctx, ures->at(0));
+    if (changed && !sres.value) {
+        sres.value = ures->at(0);
+    }
+    return sres;
 }
 template <typename T>
 auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decltype(simplify(ctx, x)) {
     static_cast<void>(flags);
-    auto res = unpool(ctx, x);
-    if (!res.has_value()) {
-        res = Util::make_vec<T>(x);
+    auto ures = unpool(ctx, x);
+    bool changed = ures.has_value();
+    if (!changed) {
+        ures = Util::make_vec<T>(x);
     }
-    return simplify(ctx, res->at(0));
+    auto sres = simplify(ctx, ures->at(0));
+    if (changed && !sres.value) {
+        sres.value = ures->at(0);
+    }
+    return sres;
 }
 
 template <class T>
@@ -163,6 +173,7 @@ TEST_CASE("simplify_matchable") {
 
 TEST_CASE("simplify_literal") {
     auto flags = SimplifyFlags::matchable;
+    REQUIRE(simplify_str(parse_literal("1>=2"), flags) == "#false, B");
     REQUIRE(simplify_str(parse_literal("1<2"), flags) == "#true, T");
     REQUIRE(simplify_str(parse_literal("2<1"), flags) == "#false, B");
     REQUIRE(simplify_str(parse_literal("X=Y+Z"), flags) == "<unchanged>, U");
@@ -209,8 +220,6 @@ TEST_CASE("simplify_body_cond_lit") {
 }
 
 TEST_CASE("simplify_head_set_aggregate") {
-    // it looks like set aggregates have to be rewritten before unpooling!
-    // the rewriting can be applied before unpooling
     REQUIRE(simplify_str(parse_statement("{ not 2<1<X: p(X) }.")) == "#count { 3,X: #true: p(X) }., U");
     REQUIRE(simplify_str(parse_statement("X+a <= {a} :- x.")) == "#true., T");
     REQUIRE(simplify_str(parse_statement("X+Y <= {a}.")) == "X+Y <= #count { 0,a: a }., U");
@@ -233,20 +242,35 @@ TEST_CASE("simplify_body_set_aggregate") {
     REQUIRE(simplify_str(parse_statement("x :- X+Y <= {a}.")) == "x :- X+Y <= #count { 0,a: a }., U");
     REQUIRE(simplify_str(parse_statement("x :- @f(X) <= {a}.")) == "x :- __A_0 <= #count { 0,a: a }; __A_0=@f(X)., U");
     REQUIRE(simplify_str(parse_statement("x :- {a; not a; not not a; X+Y<Z: p(U)} <= 1.")) ==
-            "x :- #count { 0,a: a; 1,a: not a; 2,a: not not a; 3,X,Y,Z: p(U), X+Y<Z } <= 1., U");
+            "x :- #count { 0,a: a; 1,a: not a; 2,a: not not a; 6,X,Y,Z: p(U), X+Y<Z } <= 1., U");
+    // TODO: consider removing the linear terms from the tuple...
     REQUIRE(simplify_str(parse_statement("x :- 1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
-            "x :- 1*__A_0+0 <= #count { "
-            "0,a(1*__A_2+0,1*__A_3+0): "
-            "b(1*__A_4+0), __A_2=3..4, __A_3=X+Y, __A_4=A+B, a(1*__A_2+0,1*__A_3+0) "
-            "} <= 1*__A_1+0; __A_0=1..2; __A_1=5..6., U");
+            "x :- 1*__A_2+0 <= #count { "
+            "0,a(1*__A_0+0,1*__A_1+0): "
+            "b(1*__A_4+0), __A_0=3..4, __A_1=X+Y, a(1*__A_0+0,1*__A_1+0), __A_4=A+B "
+            "} <= 1*__A_3+0; __A_2=1..2; __A_3=5..6., U");
     REQUIRE(simplify_str(parse_statement("x :- X <= {1!=2;2!=2;#true;#false} <= Y.")) == "x :- X<=2<=Y., U");
     REQUIRE(simplify_str(parse_statement("x :- 1 <= {1!=2;2!=2;#true;#false} <= 2.")) == "x., U");
     REQUIRE(simplify_str(parse_statement("x :- 1 <= {1!=2;2!=2;#true;#false} <= 1.")) == "#true., T");
 }
 
-TEST_CASE("simplify_head_aggregate") {}
+TEST_CASE("simplify_head_aggregate") {
+    REQUIRE(simplify_str(parse_statement("#count { X: #true } >= 1 :- p(X).")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_statement("#count { 1: #true } >= 1 :- p(X).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#count { 1: #true } >= 2 :- p(X).")) == "#false :- p(X)., U");
+    // TODO: we can skip some tuples:
+    // - min/max: empty tuples
+    // - sum: weights of zero/non-integer values
+    // - sump: weights less than or equal to zero/non-integer values
+    // TODO: more
+}
 
-TEST_CASE("simplify_body_aggregate") {}
+TEST_CASE("simplify_body_aggregate") {
+    REQUIRE(simplify_str(parse_statement("p(X) :- #count { X } >= 1.")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #count { 1 } >= 1.")) == "p(X)., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #count { 1 } >= 2.")) == "#true., T");
+    // TODO: more
+}
 
 TEST_CASE("simplify_rule") {
     REQUIRE(simplify_str(parse_statement("p(X+1) :- q(2*X,Y+Z).")) == "p(1*X+1) :- q(2*X+0,1*__A_0+0); __A_0=Y+Z., U");

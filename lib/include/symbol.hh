@@ -137,7 +137,7 @@ class Symbol {
     //! Greater than compare two symbols.
     friend auto operator>(Symbol a, Symbol b) -> bool { return compare(a, b) > 0; }
     //! Greater equal compare two symbols.
-    friend auto operator>=(Symbol a, Symbol b) -> bool { return compare(a, b) <= 0; }
+    friend auto operator>=(Symbol a, Symbol b) -> bool { return compare(a, b) >= 0; }
 
     //! Get the representation of the symbol.
     static auto to_rep(Symbol sym) noexcept -> uint64_t { return sym.rep_; }

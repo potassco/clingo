@@ -1215,6 +1215,10 @@ struct SimplifyHBLiteral {
         return {true, std::move(res_terms).opt_value()};
     }
 
+    [[nodiscard]] static auto all_symbol(TermVec const &terms) -> bool {
+        return std::all_of(terms.begin(), terms.end(), is_symbol);
+    }
+
     //! Simplify a conditional literal.
     //!
     //! Example for the head (not conjunctive):
@@ -1320,44 +1324,6 @@ struct SimplifyHBLiteral {
                 })};
     }
 
-    /*
-    //! Simplify a set aggregate element.
-    [[nodiscard]] auto simplify_element(SetAggregateElement const &elem, bool head) const
-        -> SimplifyResult<SetAggregateElement> {
-        auto guard = ctx.push();
-        auto [state_lit, res_lit] = simplify(
-            head ? SimplifyFlags::matchable | SimplifyFlags::unfailable : SimplifyFlags::matchable, ctx, elem.lit);
-        auto [state_cond, res_cond] = simplify_litvec(elem.cond);
-        auto make_elem = [&]() -> std::optional<SetAggregateElement> {
-            if (res_cond.has_value() || res_lit.has_value()) {
-                return SetAggregateElement{std::move(res_lit).value_or(elem.lit),
-                                           std::move(res_cond).value_or(elem.cond)};
-            }
-            return std::nullopt;
-        };
-        auto state = TruthValue::unknown;
-        // the literal or condition is false
-        if (state_lit == TruthValue::bot || state_cond == TruthValue::bot) {
-            if (state_lit != TruthValue::bot) {
-                res_lit = make_constant(location(elem.lit), false);
-            }
-            if (!elem.cond.empty()) {
-                res_cond = LiteralVec{};
-            }
-            state = TruthValue::bot;
-        }
-        // each true literal can be subtracted from the bounds of the aggregate
-        if (state_lit == TruthValue::top && state_cond == TruthValue::top) {
-            // result: "#true:"
-            if (!elem.cond.empty()) {
-                res_cond = LiteralVec{};
-            }
-            state = TruthValue::top;
-        }
-        return {state, make_elem()};
-    }
-    */
-
     //! Simplify the left guard of an aggregate.
     //!
     //! \todo Add option to handle assignments.
@@ -1384,102 +1350,7 @@ struct SimplifyHBLiteral {
         return {true};
     }
 
-    template <bool head> using HBAggregate = std::conditional_t<head, HeadAggregate, BodyAggregate>;
-    template <bool head> using HBSetAggregate = std::conditional_t<head, HeadSetAggregate, BodySetAggregate>;
-    template <bool head> using HBLiteral = std::conditional_t<head, HeadLiteral, BodyLiteral>;
-    template <bool head> using SimpleHBLiteral = std::conditional_t<head, SimpleHeadLiteral, SimpleBodyLiteral>;
-
-    template <bool head>
-    [[nodiscard]] auto simplify_set_aggregate(HBSetAggregate<head> const &lit) const
-        -> SimplifyResult<HBLiteral<head>> {
-        static_cast<void>(lit);
-        throw std::runtime_error("set aggregates must be unpooled before simplifying");
-        /*
-        auto [state_lhs, res_lhs] = simplify_guard(lit.lhs);
-        auto [state_rhs, res_rhs] = simplify_guard(lit.rhs);
-        AuxTermVec aux;
-        auto res_elems = SimplifyVec{lit.elems};
-        bool constant = true;
-        auto value = Number{0};
-        for (auto const &elem : lit.elems) {
-            auto [state_elem, res_elem] = simplify_element(elem, head);
-            if (state_elem == TruthValue::bot) {
-                res_elems.remove();
-                continue;
-            }
-            if (state_elem == TruthValue::unknown) {
-                constant = false;
-            } else {
-                // Note: does not apply to symbol literals (as they are always unknown or fail)
-                value += 1;
-            }
-            res_elems.update(std::move(res_elem));
-        }
-        if (!state_lhs) {
-            return {head ? TruthValue::top : TruthValue::bot,
-                    SimpleHBLiteral<head>{make_constant(location(lit), head)}};
-        }
-        // Note: value also gives a lower bound for the aggregate, which could be used to detect false aggregates
-        // (unlikely to be relevant in practice)
-        if constexpr (!head) {
-            if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
-                return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc, lit.sign != Sign::once)}};
-            }
-        }
-        if (constant) {
-            auto sign = Sign::none;
-            if constexpr (head) {
-                if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
-                    return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc, true)}};
-                }
-            } else {
-                sign = lit.sign;
-            }
-            auto lhs = Term{TermSymbol{lit.loc, ctx.store().num(value)}};
-            auto guards = GuardVec{};
-            if (lit.lhs.has_value()) {
-                guards.emplace_back(lit.lhs->second, std::move(lhs));
-                lhs = std::move(res_lhs.transform([](auto guard) {
-                          return std::move(guard).first;
-                      })).value_or(lit.lhs->first);
-            }
-            if (lit.rhs.has_value()) {
-                guards.emplace_back(lit.rhs->first, std::move(res_rhs.transform([](auto guard) {
-                                                        return std::move(guard).second;
-                                                    })).value_or(lit.rhs->second));
-            }
-            auto rel_lit = SimpleHBLiteral<head>{LiteralRelation{lit.loc, sign, std::move(lhs), std::move(guards)}};
-            auto [state_lit, res_lit] = simplify(ctx, rel_lit);
-            return {state_lit, std::move(res_lit).value_or(std::move(rel_lit))};
-        }
-        auto elems = typename HBAggregate<head>::ElementVec{};
-        elems.reserve(res_elems.value().size());
-        auto to_tuple = LiteralToTuple{ctx.store()};
-        for (auto &elem : std::move(res_elems).value()) {
-            auto tuple = to_tuple(elem.lit);
-            if constexpr (head) {
-                elems.emplace_back(
-                    typename HBAggregate<head>::Element{std::move(tuple), std::move(elem.lit), std::move(elem.cond)});
-            } else {
-                elem.cond.emplace_back(std::move(elem.lit));
-                elems.emplace_back(typename HBAggregate<head>::Element{std::move(tuple), std::move(elem.cond)});
-            }
-        }
-        auto lhs = lit.lhs.transform([&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
-        auto rhs = lit.rhs.transform([&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
-        if constexpr (head) {
-            return {TruthValue::unknown, HBAggregate<head>{lit.loc, std::move(lhs), AggregateFunction::count,
-                                                           std::move(elems), std::move(rhs)}};
-        } else {
-            return {TruthValue::unknown, HBAggregate<head>{lit.loc, lit.sign, std::move(lhs), AggregateFunction::count,
-                                                           std::move(elems), std::move(rhs)}};
-        }
-        */
-    }
-    RewriteContext &ctx; //!< Context used during simplification.
-};
-
-struct SimplifyHeadLiteral : SimplifyHBLiteral {
+    //! Simplify a head aggregate element.
     [[nodiscard]] auto simplify_element(HeadAggregate::Element const &elem) const
         -> SimplifyResult<HeadAggregate::Element> {
         auto guard = ctx.push();
@@ -1493,7 +1364,8 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
 
         auto state_elem = TruthValue::unknown;
         if (state_lit == TruthValue::top && state_cond == TruthValue::top) {
-            state_elem = TruthValue::top;
+            auto const &tuple = res_tuple ? *res_tuple : elem.tuple;
+            state_elem = all_symbol(tuple) ? TruthValue::top : TruthValue::unknown;
             if (!elem.cond.empty()) {
                 res_cond = LiteralVec{};
             }
@@ -1518,28 +1390,124 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
         return {state_elem};
     }
 
-    auto operator()(auto const &lit) const -> SimplifyResult<HeadLiteral> = delete;
+    //! Simplify a body aggregate element.
+    [[nodiscard]] auto simplify_element(BodyAggregate::Element const &elem) const
+        -> SimplifyResult<BodyAggregate::Element> {
+        auto guard = ctx.push();
+        auto [state_tuple, res_tuple] = simplify_termvec(elem.tuple);
+        auto [state_cond, res_cond] = simplify_litvec(elem.cond);
 
-    using SimplifyHBLiteral::operator();
+        if (!state_tuple) {
+            state_cond = TruthValue::bot;
+        }
 
-    auto operator()(HeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> { return std::visit(*this, lit); }
-
-    auto operator()(SimpleHeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> {
-        auto [state, res] = simplify(SimplifyFlags::head, ctx, lit.lit);
-        return {state, res.transform([](auto &&res) { return SimpleHeadLiteral{GRINGO_FWD(res)}; })};
+        auto state_elem = TruthValue::unknown;
+        if (state_cond == TruthValue::top) {
+            auto const &tuple = res_tuple ? *res_tuple : elem.tuple;
+            state_elem = all_symbol(tuple) ? TruthValue::top : TruthValue::unknown;
+            if (!elem.cond.empty()) {
+                res_cond = LiteralVec{};
+            }
+        }
+        if (state_cond == TruthValue::bot) {
+            state_elem = TruthValue::bot;
+            if (!elem.tuple.empty()) {
+                res_tuple = TermVec{};
+            }
+        }
+        if (res_tuple.has_value() || res_cond.has_value()) {
+            return {state_elem, BodyAggregate::Element{std::move(res_tuple).value_or(elem.tuple),
+                                                       std::move(res_cond).value_or(elem.cond)}};
+        }
+        return {state_elem};
     }
 
-    auto operator()(HeadSetAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
-        return simplify_set_aggregate<true>(lit);
+    template <bool head> using HBAggregate = std::conditional_t<head, HeadAggregate, BodyAggregate>;
+    template <bool head> using HBLiteral = std::conditional_t<head, HeadLiteral, BodyLiteral>;
+    template <bool head> using SimpleHBLiteral = std::conditional_t<head, SimpleHeadLiteral, SimpleBodyLiteral>;
+
+    //! Get the neutral value of the given aggregate.
+    //!
+    //! This correponds to the aggregate function applied to the empty set.
+    static auto neutral_value(AggregateFunction fun) -> std::variant<Number, Symbol> {
+        switch (fun) {
+            case AggregateFunction::sum:
+            case AggregateFunction::sump:
+            case AggregateFunction::count: {
+                return Number{0};
+            }
+            case AggregateFunction::min: {
+                return SymbolStore::sup();
+            }
+            case AggregateFunction::max: {
+                break;
+            }
+        }
+        return SymbolStore::inf();
     }
 
-    auto operator()(HeadAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
+    static auto value(TermVec const &tuple) -> std::optional<Symbol> {
+        if (!tuple.empty()) {
+            return std::get<TermSymbol>(tuple.front()).value;
+        }
+        return std::nullopt;
+    }
+
+    static auto weight(TermVec const &tuple) -> NumberRef {
+        if (!tuple.empty()) {
+            auto const &sym = std::get<TermSymbol>(tuple.front());
+            if (sym.value.type() == SymbolType::number) {
+                return sym.value.num();
+            }
+        }
+        return NumberRef{Number{0}};
+    }
+
+    //! Accumulate the given symbol to res.
+    //!
+    //! For count aggregates this should simply be one.
+    static void accumulate(AggregateFunction fun, TermVec const &tuple, std::variant<Number, Symbol> &res) {
+        switch (fun) {
+            case AggregateFunction::sum: {
+                std::get<Number>(res) += weight(tuple);
+            }
+            case AggregateFunction::sump: {
+                auto val = weight(tuple);
+                if (*val >= 0) {
+                    std::get<Number>(res) += val;
+                }
+            }
+            case AggregateFunction::count: {
+                std::get<Number>(res) += Number(1);
+                break;
+            }
+            case AggregateFunction::min: {
+                auto val = value(tuple);
+                if (val.has_value() && *val < std::get<Symbol>(res)) {
+                    res = *val;
+                }
+                break;
+            }
+            case AggregateFunction::max: {
+                auto val = value(tuple);
+                if (val.has_value() && *val > std::get<Symbol>(res)) {
+                    res = *val;
+                }
+                break;
+            }
+        }
+    }
+
+    //! Simplify a head or body aggregate.
+    template <bool head>
+    [[nodiscard]] auto simplify_aggregate(HBAggregate<head> const &lit) const -> SimplifyResult<HBLiteral<head>> {
         auto [state_lhs, res_lhs] = simplify_guard(lit.lhs);
         auto [state_rhs, res_rhs] = simplify_guard(lit.rhs);
         AuxTermVec aux;
         auto res_elems = SimplifyVec{lit.elems};
         bool constant = true;
-        auto value = Number{0};
+        auto value = neutral_value(lit.fun);
+        auto tuples = std::unordered_set<TermVec, Util::value_hasher<TermVec>>{};
         for (auto const &elem : lit.elems) {
             auto [state_elem, res_elem] = simplify_element(elem);
             if (state_elem == TruthValue::bot) {
@@ -1547,25 +1515,44 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
                 continue;
             }
             if (state_elem == TruthValue::unknown) {
+                // TODO: we can skip tuples with non-integer weights for some forms of aggregates
                 constant = false;
             } else {
-                // Note: does not apply to symbol literals (as they are always unknown or fail)
-                // TODO: apply the aggregate function!!!
-                value += 1;
+                auto const &tuple = (res_elem ? *res_elem : elem).tuple;
+                if (tuples.emplace(tuple).second) {
+                    accumulate(lit.fun, tuple, value);
+                }
             }
             res_elems.update(std::move(res_elem));
         }
         if (!state_lhs) {
-            return {TruthValue::top, SimpleHeadLiteral{make_constant(location(lit), true)}};
+            return {head ? TruthValue::top : TruthValue::bot,
+                    SimpleHBLiteral<head>{make_constant(location(lit), head)}};
         }
         // Note: value also gives a lower bound for the aggregate, which could be used to detect false aggregates
         // (unlikely to be relevant in practice)
+        if constexpr (!head) {
+            if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
+                return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc, lit.sign != Sign::once)}};
+            }
+        }
         if (constant) {
             auto sign = Sign::none;
-            if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
-                return {TruthValue::top, SimpleHeadLiteral{make_constant(lit.loc, true)}};
+            if constexpr (head) {
+                if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
+                    return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc, true)}};
+                }
+            } else {
+                sign = lit.sign;
             }
-            auto lhs = Term{TermSymbol{lit.loc, ctx.store().num(value)}};
+            auto lhs = Term{TermSymbol{lit.loc, std::visit(
+                                                    [this](auto &&value) {
+                                                        GRINGO_MATCH(value, Number) {
+                                                            return ctx.store().num(GRINGO_FWD(value));
+                                                        }
+                                                        GRINGO_MATCH(value, Symbol) { return value; }
+                                                    },
+                                                    value)}};
             auto guards = GuardVec{};
             if (lit.lhs.has_value()) {
                 guards.emplace_back(lit.lhs->second, std::move(lhs));
@@ -1578,15 +1565,45 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
                                                         return std::move(guard).second;
                                                     })).value_or(lit.rhs->second));
             }
-            auto rel_lit = SimpleHeadLiteral{LiteralRelation{lit.loc, sign, std::move(lhs), std::move(guards)}};
+            auto rel_lit = SimpleHBLiteral<head>{LiteralRelation{lit.loc, sign, std::move(lhs), std::move(guards)}};
             auto [state_lit, res_lit] = simplify(ctx, rel_lit);
             return {state_lit, std::move(res_lit).value_or(std::move(rel_lit))};
         }
-        // TODO: handle the case that the aggregate did not change!
-        auto lhs = lit.lhs.transform([&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
-        auto rhs = lit.rhs.transform([&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
-        return {TruthValue::unknown, HeadAggregate{lit.loc, std::move(lhs), AggregateFunction::count,
-                                                   std::move(res_elems).value(), std::move(rhs)}};
+        if (res_lhs.has_value() || res_rhs.has_value() || res_elems.has_value()) {
+            auto lhs = lit.lhs.transform([&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
+            auto rhs = lit.rhs.transform([&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
+            if constexpr (head) {
+                return {TruthValue::unknown,
+                        HeadAggregate{lit.loc, std::move(lhs), lit.fun, std::move(res_elems).value(), std::move(rhs)}};
+            } else {
+                return {TruthValue::unknown, BodyAggregate{lit.loc, lit.sign, std::move(lhs), lit.fun,
+                                                           std::move(res_elems).value(), std::move(rhs)}};
+            }
+        }
+        return {TruthValue::unknown};
+    }
+    RewriteContext &ctx; //!< Context used during simplification.
+};
+
+struct SimplifyHeadLiteral : SimplifyHBLiteral {
+    auto operator()(auto const &lit) const -> SimplifyResult<HeadLiteral> = delete;
+
+    using SimplifyHBLiteral::operator();
+
+    auto operator()(HeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(SimpleHeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> {
+        auto [state, res] = simplify(SimplifyFlags::head, ctx, lit.lit);
+        return {state, res.transform([](auto &&res) { return SimpleHeadLiteral{GRINGO_FWD(res)}; })};
+    }
+
+    auto operator()(HeadSetAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
+        static_cast<void>(lit);
+        throw std::runtime_error("set aggregates must be unpooled before simplifying");
+    }
+
+    auto operator()(HeadAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
+        return simplify_aggregate<true>(lit);
     }
 
     auto operator()(HeadTheoryAtom const &lit) const -> SimplifyResult<HeadLiteral> {
@@ -1596,12 +1613,6 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
 };
 
 struct SimplifyBodyLiteral : SimplifyHBLiteral {
-    [[nodiscard]] static auto simplify_element(BodyAggregate::Element const &elem)
-        -> SimplifyResult<BodyAggregate::Element> {
-        static_cast<void>(elem);
-        throw std::logic_error("implement me");
-    }
-
     auto operator()(auto const &lit) const -> SimplifyResult<BodyLiteral> = delete;
 
     using SimplifyHBLiteral::operator();
@@ -1614,12 +1625,12 @@ struct SimplifyBodyLiteral : SimplifyHBLiteral {
     }
 
     auto operator()(BodySetAggregate const &lit) const -> SimplifyResult<BodyLiteral> {
-        return simplify_set_aggregate<false>(lit);
+        static_cast<void>(lit);
+        throw std::runtime_error("set aggregates must be unpooled before simplifying");
     }
 
     auto operator()(BodyAggregate const &lit) const -> SimplifyResult<BodyLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me");
+        return simplify_aggregate<false>(lit);
     }
 
     auto operator()(BodyTheoryAtom const &lit) const -> SimplifyResult<BodyLiteral> {
