@@ -133,7 +133,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // aggregate
 
     auto operator()(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
-        return transform_construct<SetAggregateElement>(tr(elem.lit), tr(elem.cond));
+        return transform_construct<SetAggregateElement>(elem.loc, tr(elem.lit), tr(elem.cond));
     }
 
     // head literal
@@ -142,8 +142,8 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteral> { return operator()(lit.lit); }
 
-    auto operator()(HeadAggregate::Element const &lit) const -> std::optional<HeadAggregate::Element> {
-        return transform_construct<HeadAggregate::Element>(lit.tuple, tr(lit.lit), tr(lit.cond));
+    auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
+        return transform_construct<HeadAggregate::Element>(elem.loc, elem.tuple, tr(elem.lit), tr(elem.cond));
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
@@ -165,7 +165,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteral> { return operator()(lit.lit); }
 
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
-        return transform_construct<BodyAggregate::Element>(elem.tuple, tr(elem.cond));
+        return transform_construct<BodyAggregate::Element>(elem.loc, elem.tuple, tr(elem.cond));
     }
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {

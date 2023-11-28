@@ -32,8 +32,14 @@ auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream &;
 //! Output the literal to the given stream.
 auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream &;
 
+//! Output the head aggregate element to the given stream.
+auto operator<<(std::ostream &out, HeadAggregate::Element const &elem) -> std::ostream &;
+
 //! Output the head literal to the given stream.
 auto operator<<(std::ostream &out, HeadLiteral const &lit) -> std::ostream &;
+
+//! Output the head aggregate element to the given stream.
+auto operator<<(std::ostream &out, BodyAggregate::Element const &elem) -> std::ostream &;
 
 //! Output the body literal to the given stream.
 auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream &;

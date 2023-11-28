@@ -127,7 +127,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     // set aggregate
 
     auto operator()(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
-        return transform_construct<SetAggregateElement>(tr(elem.lit), tr(elem.cond));
+        return transform_construct<SetAggregateElement>(elem.loc, tr(elem.lit), tr(elem.cond));
     }
 
     // head literal
@@ -141,7 +141,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
-        return transform_construct<HeadAggregate::Element>(tr(elem.tuple), tr(elem.lit), tr(elem.cond));
+        return transform_construct<HeadAggregate::Element>(elem.loc, tr(elem.tuple), tr(elem.lit), tr(elem.cond));
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
@@ -163,7 +163,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     }
 
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
-        return transform_construct<BodyAggregate::Element>(tr(elem.tuple), tr(elem.cond));
+        return transform_construct<BodyAggregate::Element>(elem.loc, tr(elem.tuple), tr(elem.cond));
     }
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {

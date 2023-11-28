@@ -179,7 +179,7 @@ struct Project : Transformer<Project> {
         auto sub_project = Project{Projection{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<SetAggregateElement>(elem.lit, tr(elem.cond));
+        return sub_project.transform_construct<SetAggregateElement>(elem.loc, elem.lit, tr(elem.cond));
     }
 
     // head literal
@@ -202,7 +202,7 @@ struct Project : Transformer<Project> {
         auto sub_project = Project{Projection{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<HeadAggregate::Element>(elem.tuple, elem.lit, tr(elem.cond));
+        return sub_project.transform_construct<HeadAggregate::Element>(elem.loc, elem.tuple, elem.lit, tr(elem.cond));
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
@@ -228,7 +228,7 @@ struct Project : Transformer<Project> {
         auto sub_project = Project{Projection{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<BodyAggregate::Element>(elem.tuple, tr(elem.cond));
+        return sub_project.transform_construct<BodyAggregate::Element>(elem.loc, elem.tuple, tr(elem.cond));
     }
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {

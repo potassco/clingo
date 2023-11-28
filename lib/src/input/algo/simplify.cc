@@ -1383,7 +1383,7 @@ struct SimplifyHBLiteral {
             }
         }
         if (res_tuple.has_value() || res_lit.has_value() || res_cond.has_value()) {
-            return {state_elem, HeadAggregate::Element{std::move(res_tuple).value_or(elem.tuple),
+            return {state_elem, HeadAggregate::Element{elem.loc, std::move(res_tuple).value_or(elem.tuple),
                                                        std::move(res_lit).value_or(elem.lit),
                                                        std::move(res_cond).value_or(elem.cond)}};
         }
@@ -1416,7 +1416,7 @@ struct SimplifyHBLiteral {
             }
         }
         if (res_tuple.has_value() || res_cond.has_value()) {
-            return {state_elem, BodyAggregate::Element{std::move(res_tuple).value_or(elem.tuple),
+            return {state_elem, BodyAggregate::Element{elem.loc, std::move(res_tuple).value_or(elem.tuple),
                                                        std::move(res_cond).value_or(elem.cond)}};
         }
         return {state_elem};
@@ -1498,6 +1498,37 @@ struct SimplifyHBLiteral {
         }
     }
 
+    [[nodiscard]] static auto check_tuple(AggregateFunction fun, TermVec const &tuple) -> bool {
+        if (fun == AggregateFunction::count) {
+            return true;
+        }
+        if (tuple.empty()) {
+            return false;
+        }
+        auto const *sym = std::get_if<TermSymbol>(&tuple.front());
+        if (sym == nullptr) {
+            return true;
+        }
+        switch (fun) {
+            case AggregateFunction::count: {
+                break;
+            }
+            case AggregateFunction::sum: {
+                return sym->value.type() == SymbolType::number && *sym->value.num() != 0;
+            }
+            case AggregateFunction::sump: {
+                return sym->value.type() == SymbolType::number && *sym->value.num() > 0;
+            }
+            case AggregateFunction::min: {
+                return sym->value.type() != SymbolType::sup;
+            }
+            case AggregateFunction::max: {
+                return sym->value.type() != SymbolType::inf;
+            }
+        }
+        return true;
+    }
+
     //! Simplify a head or body aggregate.
     template <bool head>
     [[nodiscard]] auto simplify_aggregate(HBAggregate<head> const &lit) const -> SimplifyResult<HBLiteral<head>> {
@@ -1510,18 +1541,20 @@ struct SimplifyHBLiteral {
         auto tuples = std::unordered_set<TermVec, Util::value_hasher<TermVec>>{};
         for (auto const &elem : lit.elems) {
             auto [state_elem, res_elem] = simplify_element(elem);
-            if (state_elem == TruthValue::bot) {
+            auto const &tuple = (res_elem ? *res_elem : elem).tuple;
+            if (state_elem == TruthValue::bot || !check_tuple(lit.fun, tuple)) {
+                if (state_elem != TruthValue::bot) {
+                    GRINGO_REPORT_LOC(ctx.logger(), info_operation_undefined, elem.loc)
+                        << "aggregate function undefined for tuple:\n"
+                        << "  " << elem << "\n";
+                }
                 res_elems.remove();
                 continue;
             }
             if (state_elem == TruthValue::unknown) {
-                // TODO: we can skip tuples with non-integer weights for some forms of aggregates
                 constant = false;
-            } else {
-                auto const &tuple = (res_elem ? *res_elem : elem).tuple;
-                if (tuples.emplace(tuple).second) {
-                    accumulate(lit.fun, tuple, value);
-                }
+            } else if (tuples.emplace(tuple).second) {
+                accumulate(lit.fun, tuple, value);
             }
             res_elems.update(std::move(res_elem));
         }

@@ -308,8 +308,8 @@ struct Unpool {
     unpool_elem(LiteralToTuple &to_tuple, SetAggregateElement const &elem,
                 std::vector<typename std::conditional_t<HasSign, BodyAggregate, HeadAggregate>::Element> &elems) const {
         auto set_elems = unpool_crossproducts(
-            [](auto lit, auto cond) {
-                return SetAggregateElement{std::move(lit), std::move(cond)};
+            [&elem](auto lit, auto cond) {
+                return SetAggregateElement{elem.loc, std::move(lit), std::move(cond)};
             },
             *this, elem.lit, elem.cond);
         auto simplify_lit = [this, &to_tuple, &elem, &elems](SetAggregateElement unpooled) {
@@ -327,9 +327,9 @@ struct Unpool {
             auto tuple = to_tuple(elem.lit, lit);
             if constexpr (HasSign) {
                 unpooled.cond.emplace_back(std::move(lit));
-                elems.emplace_back(std::move(tuple), std::move(unpooled.cond));
+                elems.emplace_back(elem.loc, std::move(tuple), std::move(unpooled.cond));
             } else {
-                elems.emplace_back(std::move(tuple), std::move(lit), std::move(unpooled.cond));
+                elems.emplace_back(elem.loc, std::move(tuple), std::move(lit), std::move(unpooled.cond));
             }
         };
         if (set_elems.has_value()) {
@@ -417,8 +417,8 @@ struct Unpool {
 
     auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::ElementVec> {
         return unpool_crossproducts(
-            [](auto tuple, auto lit, auto cond) {
-                return HeadAggregate::Element{std::move(tuple), std::move(lit), std::move(cond)};
+            [&elem](auto tuple, auto lit, auto cond) {
+                return HeadAggregate::Element{elem.loc, std::move(tuple), std::move(lit), std::move(cond)};
             },
             *this, elem.tuple, elem.lit, elem.cond);
     }
@@ -452,8 +452,8 @@ struct Unpool {
 
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::ElementVec> {
         return unpool_crossproducts(
-            [](auto tuple, auto cond) {
-                return BodyAggregate::Element{std::move(tuple), std::move(cond)};
+            [&elem](auto tuple, auto cond) {
+                return BodyAggregate::Element{elem.loc, std::move(tuple), std::move(cond)};
             },
             *this, elem.tuple, elem.cond);
     }

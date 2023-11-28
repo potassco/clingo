@@ -32,6 +32,8 @@ using Conjunction = Junction<true>;
 struct BodyAggregate {
     //! An aggregate element.
     struct Element {
+        //! The location of the element.
+        Location loc;
         //! The tuple of the element.
         TermVec tuple;
         //! The condition of the element.

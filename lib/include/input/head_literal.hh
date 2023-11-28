@@ -32,6 +32,8 @@ using Disjunction = Junction<false>;
 struct HeadAggregate {
     //! An element of a head aggregate.
     struct Element {
+        //! The location of the element.
+        Location loc;
         //! The tuple of the element.
         TermVec tuple;
         //! The distinguished head literal of the element.

@@ -58,14 +58,14 @@ struct head_aggregate_element {
     static constexpr char const *name = "head aggregate element";
     static constexpr auto rule = []() {
         auto tuple = dsl::if_(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_list>);
-        return tuple + LEXY_LIT(":") + dsl::p<literal> + dsl::p<opt_condition>;
+        return Detail::location(tuple + LEXY_LIT(":") + dsl::p<literal> + dsl::p<opt_condition>);
     }();
     static constexpr auto value = lexy::callback<HeadAggregate::Element>(
-        [](Literal lit, LiteralVec cond) {
-            return HeadAggregate::Element{TermVec{}, std::move(lit), std::move(cond)};
+        [](Location loc, Literal lit, LiteralVec cond) {
+            return HeadAggregate::Element{std::move(loc), TermVec{}, std::move(lit), std::move(cond)};
         },
-        [](TermVec tuple, Literal lit, LiteralVec cond) {
-            return HeadAggregate::Element{std::move(tuple), std::move(lit), std::move(cond)};
+        [](Location loc, TermVec tuple, Literal lit, LiteralVec cond) {
+            return HeadAggregate::Element{std::move(loc), std::move(tuple), std::move(lit), std::move(cond)};
         });
 };
 

@@ -58,9 +58,9 @@ struct conditional_literal {
 
 struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
-    static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition>;
-    static constexpr auto value = lexy::callback<SetAggregateElement>([](Literal lit, LiteralVec cond) {
-        return SetAggregateElement{std::move(lit), std::move(cond)};
+    static constexpr auto rule = Detail::location(dsl::p<literal> + dsl::p<opt_condition>);
+    static constexpr auto value = lexy::callback<SetAggregateElement>([](Location loc, Literal lit, LiteralVec cond) {
+        return SetAggregateElement{std::move(loc), std::move(lit), std::move(cond)};
     });
 };
 

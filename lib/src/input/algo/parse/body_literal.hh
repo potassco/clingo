@@ -38,14 +38,14 @@ struct body_aggregate_element {
     static constexpr char const *name = "body aggregate element";
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(LEXY_LIT(":"));
-        return dsl::if_(peek >> dsl::p<term_list>) + dsl::p<opt_condition>;
+        return Detail::location(dsl::if_(peek >> dsl::p<term_list>) + dsl::p<opt_condition>);
     }();
     static constexpr auto value = lexy::callback<BodyAggregate::Element>(
-        [](LiteralVec cond) {
-            return BodyAggregate::Element{TermVec{}, std::move(cond)};
+        [](Location loc, LiteralVec cond) {
+            return BodyAggregate::Element{std::move(loc), TermVec{}, std::move(cond)};
         },
-        [](TermVec tuple, LiteralVec cond) {
-            return BodyAggregate::Element{std::move(tuple), std::move(cond)};
+        [](Location loc, TermVec tuple, LiteralVec cond) {
+            return BodyAggregate::Element{std::move(loc), std::move(tuple), std::move(cond)};
         });
 };
 

@@ -503,6 +503,16 @@ struct Print {
 
     void operator()(SimpleHeadLiteral const &lit) const { operator()(lit.lit); }
 
+    void operator()(HeadAggregate::Element const &elem) const {
+        visit_range(elem.tuple);
+        out << ": ";
+        operator()(elem.lit);
+        if (!elem.cond.empty()) {
+            out << ": ";
+            visit_range(elem.cond, ", ");
+        }
+    }
+
     void operator()(HeadAggregate const &lit) const {
         auto const &lhs = lit.lhs;
         auto const &rhs = lit.rhs;
@@ -510,15 +520,7 @@ struct Print {
             out << lhs->first << " " << lhs->second << " ";
         }
         out << lit.fun << " { ";
-        apply_to_range_with(lit.elems, "; ", [this](auto const &elem) {
-            visit_range(elem.tuple);
-            out << ": ";
-            operator()(elem.lit);
-            if (!elem.cond.empty()) {
-                out << ": ";
-                visit_range(elem.cond, ", ");
-            }
-        });
+        apply_to_range_with(lit.elems, "; ", *this);
         out << (lit.elems.empty() ? "}" : " }");
         if (rhs.has_value()) {
             out << " " << rhs->first << " " << rhs->second;
@@ -531,19 +533,21 @@ struct Print {
 
     void operator()(SimpleBodyLiteral const &lit) const { operator()(lit.lit); }
 
+    void operator()(BodyAggregate::Element const &elem) const {
+        visit_range(elem.tuple);
+        if (!elem.cond.empty()) {
+            out << ": ";
+            visit_range(elem.cond, ", ");
+        }
+    }
+
     void operator()(BodyAggregate const &lit) const {
         out << lit.sign;
         if (lit.lhs.has_value()) {
             out << lit.lhs->first << " " << lit.lhs->second << " ";
         }
         out << lit.fun << " { ";
-        apply_to_range_with(lit.elems, "; ", [this](auto const &elem) {
-            visit_range(elem.tuple);
-            if (!elem.cond.empty()) {
-                out << ": ";
-                visit_range(elem.cond, ", ");
-            }
-        });
+        apply_to_range_with(lit.elems, "; ", *this);
         out << (lit.elems.empty() ? "}" : " }");
         if (lit.rhs.has_value()) {
             out << " " << lit.rhs->first << " " << lit.rhs->second;
@@ -845,8 +849,18 @@ auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream & {
     return out;
 }
 
+auto operator<<(std::ostream &out, HeadAggregate::Element const &elem) -> std::ostream & {
+    Print{out}(elem);
+    return out;
+}
+
 auto operator<<(std::ostream &out, HeadLiteral const &lit) -> std::ostream & {
     Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, BodyAggregate::Element const &elem) -> std::ostream & {
+    Print{out}(elem);
     return out;
 }
 
