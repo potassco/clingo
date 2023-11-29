@@ -846,7 +846,7 @@ struct MakeMatchableTerm {
         if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
             return std::nullopt;
         }
-        return map_term(ctx, term, !test(flags, SimplifyFlags::unfailable) && is_numeric(term));
+        return map_term(ctx, term, !test(flags, SimplifyFlags::unfailable) && always_numeric(term));
     }
 
     //! Make the given binary term matchable.
@@ -861,7 +861,7 @@ struct MakeMatchableTerm {
                 if (*n.value.num() == 0 && *m.value.num() == 1) {
                     for (auto &[lhs, rhs] : ctx.aux()) {
                         if (*mx.rhs == lhs) {
-                            if (is_numeric(rhs)) {
+                            if (always_numeric(rhs)) {
                                 return *mx.rhs;
                             }
                             break;
@@ -1155,7 +1155,7 @@ struct SimplifyHBLiteral {
                 res_lits.update(std::move(value));
             }
         }
-        if (state_lits == TruthValue::unknown) {
+        if (state_lits != state_fixed) {
             res_lits.extend(ctx.aux(), conjunctive);
         }
         return {state_lits, std::move(res_lits).opt_value()};
@@ -1345,6 +1345,14 @@ struct SimplifyHBLiteral {
                 res_lit = LiteralBoolean{location(elem.lit), Sign::none, false};
             }
         }
+        auto const *rel_lit = std::get_if<LiteralRelation>(res_lit ? &*res_lit : &elem.lit);
+        if (rel_lit != nullptr) {
+            if (!res_cond.has_value()) {
+                res_cond = elem.cond;
+            }
+            res_cond->emplace_back(std::move(res_lit).value_or(elem.lit));
+            res_lit = make_constant(location(elem.lit), true);
+        }
         if (res_tuple.has_value() || res_lit.has_value() || res_cond.has_value()) {
             return {state_elem, HeadAggregate::Element{elem.loc, std::move(res_tuple).value_or(elem.tuple),
                                                        std::move(res_lit).value_or(elem.lit),
@@ -1433,12 +1441,14 @@ struct SimplifyHBLiteral {
         switch (fun) {
             case AggregateFunction::sum: {
                 std::get<Number>(res) += weight(tuple);
+                break;
             }
             case AggregateFunction::sump: {
                 auto val = weight(tuple);
                 if (*val >= 0) {
                     std::get<Number>(res) += val;
                 }
+                break;
             }
             case AggregateFunction::count: {
                 std::get<Number>(res) += Number(1);
@@ -1467,6 +1477,20 @@ struct SimplifyHBLiteral {
         }
         if (tuple.empty()) {
             return false;
+        }
+        switch (fun) {
+            case AggregateFunction::sum:
+            case AggregateFunction::sump: {
+                if (never_numeric(tuple.front())) {
+                    return false;
+                }
+                break;
+            }
+            case AggregateFunction::count:
+            case AggregateFunction::min:
+            case AggregateFunction::max: {
+                break;
+            }
         }
         auto const *sym = std::get_if<TermSymbol>(&tuple.front());
         if (sym == nullptr) {
@@ -1517,6 +1541,8 @@ struct SimplifyHBLiteral {
             if (state_elem == TruthValue::unknown) {
                 constant = false;
             } else if (tuples.emplace(tuple).second) {
+                if (!tuple.empty()) {
+                }
                 accumulate(lit.fun, tuple, value);
             }
             res_elems.update(std::move(res_elem));

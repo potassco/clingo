@@ -58,7 +58,12 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nul
 //! Check if the term always evaluates to a number.
 //!
 //! For examble, X+Y but not X because it can also evaluate to other symbols.
-[[nodiscard]] auto is_numeric(Term const &term) -> bool;
+[[nodiscard]] auto always_numeric(Term const &term) -> bool;
+
+//! Check if the term never evaluates to a number.
+//!
+//! This is true for tuples, function, \#sup, \#inf.
+[[nodiscard]] auto never_numeric(Term const &term) -> bool;
 
 //! Check if the term is constant.
 [[nodiscard]] inline auto is_symbol(Term const &term) -> bool { return std::holds_alternative<TermSymbol>(term); }

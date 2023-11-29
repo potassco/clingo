@@ -7,30 +7,12 @@ namespace Gringo::Input::Test {
 
 template <typename T>
 auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decltype(simplify(flags, ctx, x)) {
-    auto ures = unpool(ctx, x);
-    bool changed = ures.has_value();
-    if (!changed) {
-        ures = Util::make_vec<T>(x);
-    }
-    auto sres = simplify(flags, ctx, ures->at(0));
-    if (changed && !sres.value) {
-        sres.value = ures->at(0);
-    }
-    return sres;
+    return simplify(flags, ctx, x);
 }
 template <typename T>
 auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decltype(simplify(ctx, x)) {
     static_cast<void>(flags);
-    auto ures = unpool(ctx, x);
-    bool changed = ures.has_value();
-    if (!changed) {
-        ures = Util::make_vec<T>(x);
-    }
-    auto sres = simplify(ctx, ures->at(0));
-    if (changed && !sres.value) {
-        sres.value = ures->at(0);
-    }
-    return sres;
+    return simplify(ctx, x);
 }
 
 template <class T>
@@ -40,7 +22,15 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
         auto store = make_symbol_store(true, true);
         auto ctx = RewriteContext{log, *store, {}, "__A_"};
         auto guard = std::is_same_v<T, Statement> ? nullptr : ctx.push();
-        auto [state, res] = call_simplify(flags, ctx, value.value());
+        auto ures = unpool(ctx, value.value());
+        bool changed = ures.has_value();
+        if (!changed) {
+            ures = Util::make_vec<T>(value.value());
+        }
+        auto [state, res] = call_simplify(flags, ctx, ures->at(0));
+        if (changed && !res) {
+            res = ures->at(0);
+        }
         std::ostringstream oss;
         if (res.has_value()) {
             oss << res.value();
@@ -173,6 +163,7 @@ TEST_CASE("simplify_matchable") {
 
 TEST_CASE("simplify_literal") {
     auto flags = SimplifyFlags::matchable;
+    REQUIRE(simplify_str(parse_literal("#sup<=1"), flags) == "#false, B");
     REQUIRE(simplify_str(parse_literal("1>=2"), flags) == "#false, B");
     REQUIRE(simplify_str(parse_literal("1<2"), flags) == "#true, T");
     REQUIRE(simplify_str(parse_literal("2<1"), flags) == "#false, B");
@@ -257,12 +248,27 @@ TEST_CASE("simplify_body_set_aggregate") {
 TEST_CASE("simplify_head_aggregate") {
     REQUIRE(simplify_str(parse_statement("#count { X: #true } >= 1 :- p(X).")) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_statement("#count { 1: #true } >= 1 :- p(X).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#count { : #true } >= 1 :- p(X).")) == "#true., T");
     REQUIRE(simplify_str(parse_statement("#count { 1: #true } >= 2 :- p(X).")) == "#false :- p(X)., U");
-    // TODO: we can skip some tuples:
-    // - min/max: empty tuples
-    // - sum: weights of zero/non-integer values
-    // - sump: weights less than or equal to zero/non-integer values
-    // TODO: more
+    REQUIRE(simplify_str(parse_statement("#min { : #true } <= 1 :- p(X).")) == "#false :- p(X)., U");
+    REQUIRE(simplify_str(parse_statement("#max { : #true } >= 1 :- p(X).")) == "#false :- p(X)., U");
+    REQUIRE(simplify_str(parse_statement("#min { : #true } >= 1 :- p(X).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#max { : #true } <= 1 :- p(X).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#min { 1 : #true } >= 1 :- p(X).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#max { 1 : #true } >= 1 :- p(X).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#sum { 1 : #true; -1: #true; -1: #true } >= 1 :- p(X).")) ==
+            "#false :- p(X)., U");
+    REQUIRE(simplify_str(parse_statement("#sum { 1 : #true; -1: #true; -1: #true } >= 0 :- p(X).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#sum+ { 1 : #true; -1: #true; -1: #true } >= 2 :- p(X).")) ==
+            "#false :- p(X)., U");
+    REQUIRE(simplify_str(parse_statement("#sum+ { 1 : #true; -1: #true; -1: #true } >= 1 :- p(X).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#sum+ { f(X) : #true; X: #true } >= 1 :- p(X).")) ==
+            "#sum+ { X: #true } >= 1 :- p(X)., U");
+    REQUIRE(simplify_str(parse_statement("#sum { 1 : X < Y+1 < Z } >= 1 :- p(X).")) ==
+            "#sum { 1: #true: X<1*Y+1<Z } >= 1 :- p(X)., U");
+    REQUIRE(simplify_str(parse_statement("#sum { 1 : not X < Y+1 < Z } >= 1 :- p(X).")) ==
+            "#sum { 1: #true: __A_0=1*Y+1, not X<__A_0<Z } >= 1 :- p(X)., U");
+    // TODO: move relations into the condition
 }
 
 TEST_CASE("simplify_body_aggregate") {

@@ -763,7 +763,7 @@ auto compare(Symbol a, Symbol b) -> int {
     auto type_a = a.type();
     auto type_b = b.type();
     if (type_a != type_b) {
-        return type_prio(type_b) - type_prio(type_a);
+        return type_prio(type_a) - type_prio(type_b);
     }
     switch (type_a) {
         case SymbolType::number: {

@@ -104,7 +104,7 @@ struct CheckType {
     CheckTypeResult *res;
 };
 
-struct IsNumeric {
+struct AlwaysNumeric {
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
     auto operator()(auto const &term) const -> bool = delete;
@@ -122,9 +122,7 @@ struct IsNumeric {
     }
 
     auto operator()(TermTuple const &term) const -> bool {
-        assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
-        static_cast<void>(term);
-        return false;
+        return term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front());
     }
 
     auto operator()(TermAbs const &term) const -> bool {
@@ -139,6 +137,42 @@ struct IsNumeric {
     auto operator()(TermBinary const &term) const -> bool {
         static_cast<void>(term);
         return true;
+    }
+};
+
+struct NeverNumeric {
+    auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
+
+    auto operator()(auto const &term) const -> bool = delete;
+
+    auto operator()(TermSymbol const &term) const -> bool { return term.value.type() != SymbolType::number; }
+
+    auto operator()(TermVariable const &term) const -> bool {
+        static_cast<void>(term);
+        return false;
+    }
+
+    auto operator()(TermFunction const &term) const -> bool {
+        static_cast<void>(term);
+        return true;
+    }
+
+    auto operator()(TermTuple const &term) const -> bool {
+        return term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front());
+    }
+
+    auto operator()(TermAbs const &term) const -> bool {
+        static_cast<void>(term);
+        return false;
+    }
+
+    auto operator()(TermUnary const &term) const -> bool {
+        return term.op == UnaryOperator::negate && std::visit(*this, *term.rhs);
+    }
+
+    auto operator()(TermBinary const &term) const -> bool {
+        static_cast<void>(term);
+        return false;
     }
 };
 
@@ -367,7 +401,9 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> b
 
 [[nodiscard]] auto is_interval(TermBinary const &term) -> bool { return term.op == BinaryOperator::dots; }
 
-[[nodiscard]] auto is_numeric(Term const &term) -> bool { return IsNumeric{}(term); }
+[[nodiscard]] auto always_numeric(Term const &term) -> bool { return AlwaysNumeric{}(term); }
+
+[[nodiscard]] auto never_numeric(Term const &term) -> bool { return NeverNumeric{}(term); }
 
 auto is_atom(Literal const &lit) -> bool { return IsAtom{}(lit); }
 
