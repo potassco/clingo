@@ -1347,6 +1347,7 @@ struct SimplifyHBLiteral {
         }
         auto const *rel_lit = std::get_if<LiteralRelation>(res_lit ? &*res_lit : &elem.lit);
         if (rel_lit != nullptr) {
+            assert(state_cond != TruthValue::bot);
             if (!res_cond.has_value()) {
                 res_cond = elem.cond;
             }

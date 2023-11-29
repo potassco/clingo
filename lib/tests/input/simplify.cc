@@ -216,7 +216,7 @@ TEST_CASE("simplify_head_set_aggregate") {
     REQUIRE(simplify_str(parse_statement("X+Y <= {a}.")) == "X+Y <= #count { 0,a: a }., U");
     REQUIRE(simplify_str(parse_statement("@f(X) <= {a}.")) == "__A_0 <= #count { 0,a: a } :- __A_0=@f(X)., U");
     REQUIRE(simplify_str(parse_statement("{a; not a; not not a; X+Y<Z: p(U)} <= 1.")) ==
-            "#count { 0,a: a; 1,a: not a; 2,a: not not a; 6,X,Y,Z: X+Y<Z: p(U) } <= 1., U");
+            "#count { 0,a: a; 1,a: not a; 2,a: not not a; 6,X,Y,Z: #true: p(U), X+Y<Z } <= 1., U");
     REQUIRE(simplify_str(parse_statement("1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
             "1*__A_2+0 <= #count { "
             "0,a(__A_0,__A_1): a(__A_0,__A_1): "
@@ -268,14 +268,29 @@ TEST_CASE("simplify_head_aggregate") {
             "#sum { 1: #true: X<1*Y+1<Z } >= 1 :- p(X)., U");
     REQUIRE(simplify_str(parse_statement("#sum { 1 : not X < Y+1 < Z } >= 1 :- p(X).")) ==
             "#sum { 1: #true: __A_0=1*Y+1, not X<__A_0<Z } >= 1 :- p(X)., U");
-    // TODO: move relations into the condition
 }
 
 TEST_CASE("simplify_body_aggregate") {
     REQUIRE(simplify_str(parse_statement("p(X) :- #count { X } >= 1.")) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_statement("p(X) :- #count { 1 } >= 1.")) == "p(X)., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #count { : #true } >= 1.")) == "p(X)., U");
     REQUIRE(simplify_str(parse_statement("p(X) :- #count { 1 } >= 2.")) == "#true., T");
-    // TODO: more
+    REQUIRE(simplify_str(parse_statement("p(X) :- #min { : #true } <= 1.")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #max { : #true } >= 1.")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #min { : #true } >= 1.")) == "p(X)., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #max { : #true } <= 1.")) == "p(X)., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #min { 1 : #true } >= 1.")) == "p(X)., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #max { 1 : #true } >= 1.")) == "p(X)., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #sum { 1 : #true; -1: #true; -1: #true } >= 1.")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #sum { 1 : #true; -1: #true; -1: #true } >= 0.")) == "p(X)., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #sum+ { 1 : #true; -1: #true; -1: #true } >= 2.")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #sum+ { 1 : #true; -1: #true; -1: #true } >= 1.")) == "p(X)., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #sum+ { f(X) : #true; X: #true } >= 1.")) ==
+            "p(X) :- #sum+ { X } >= 1., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #sum { 1 : X < Y+1 < Z } >= 1.")) ==
+            "p(X) :- #sum { 1: X<1*Y+1<Z } >= 1., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- #sum { 1 : not X < Y+1 < Z } >= 1.")) ==
+            "p(X) :- #sum { 1: not X<__A_0<Z, __A_0=1*Y+1 } >= 1., U");
 }
 
 TEST_CASE("simplify_rule") {
