@@ -397,7 +397,9 @@ struct SimplifyTerm {
 
     //! Simplify the given function term.
     auto operator()(TermFunction const &term, SimplifyFlags flags) const -> Result {
-        assert(term.pool.size() == 1);
+        if (term.pool.size() != 1) {
+            throw std::runtime_error("functions must be unpooled before simplifying");
+        }
 
         flags &= ~SimplifyFlags::preserve_toplevel_dots;
 
@@ -442,7 +444,9 @@ struct SimplifyTerm {
 
     //! Simplify the given term tuple.
     auto operator()(TermTuple const &term, SimplifyFlags flags) const -> Result {
-        assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
+        if (term.pool.size() != 1 || !std::holds_alternative<TupleVec>(term.pool.front())) {
+            throw std::runtime_error("tuples must be unpooled before simplifying");
+        }
 
         flags &= ~SimplifyFlags::preserve_toplevel_dots;
 
@@ -479,7 +483,9 @@ struct SimplifyTerm {
 
     //! Simplify the given absolute term.
     auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
-        assert(term.pool.size() == 1);
+        if (term.pool.size() != 1) {
+            throw std::runtime_error("absolute terms must be unpooled before simplifying");
+        }
 
         // the term and nested terms are not projectable
         flags &= ~(SimplifyFlags::projectable | SimplifyFlags::preserve_toplevel_dots);
@@ -1522,7 +1528,6 @@ struct SimplifyHBLiteral {
     [[nodiscard]] auto simplify_aggregate(HBAggregate<head> const &lit) const -> SimplifyResult<HBLiteral<head>> {
         auto [state_lhs, res_lhs] = simplify_guard(lit.lhs);
         auto [state_rhs, res_rhs] = simplify_guard(lit.rhs);
-        AuxTermVec aux;
         auto res_elems = SimplifyVec{lit.elems};
         bool constant = true;
         auto value = neutral_value(lit.fun);
@@ -1605,6 +1610,62 @@ struct SimplifyHBLiteral {
         }
         return {TruthValue::unknown};
     }
+
+    //! Simplify a theory atom element.
+    [[nodiscard]] auto simplify_element(TheoryElement const &elem) const -> SimplifyResult<TheoryElement> {
+        auto guard = ctx.push();
+        auto res_tuple = std::optional<TheoryTermVec>{};
+        auto [state_cond, res_cond] = simplify_litvec(elem.second);
+
+        auto state_elem = TruthValue::unknown;
+        if (state_cond == TruthValue::top) {
+            state_elem = TruthValue::unknown;
+            if (!elem.second.empty()) {
+                res_cond = LiteralVec{};
+            }
+        }
+        if (state_cond == TruthValue::bot) {
+            state_elem = TruthValue::bot;
+            if (!elem.first.empty()) {
+                res_tuple = TheoryTermVec{};
+            }
+        }
+        if (res_tuple.has_value() || res_cond.has_value()) {
+            return {state_elem, TheoryElement{std::move(res_tuple).value_or(elem.first),
+                                              std::move(res_cond).value_or(elem.second)}};
+        }
+        return {state_elem};
+    }
+
+    template <bool HasSign>
+    auto operator()(TheoryAtom<HasSign> const &lit) const -> SimplifyResult<HBLiteral<!HasSign>> {
+        constexpr auto head = !HasSign;
+        auto [state_name, res_name] = simplify(SimplifyFlags::none, ctx, lit.name);
+        auto res_elems = SimplifyVec{lit.elems};
+        for (auto const &elem : lit.elems) {
+            auto [state_elem, res_elem] = simplify_element(elem);
+            if (state_elem == TruthValue::bot) {
+                res_elems.remove();
+                continue;
+            }
+            res_elems.update(std::move(res_elem));
+        }
+        if (!state_name) {
+            return {head ? TruthValue::top : TruthValue::bot,
+                    SimpleHBLiteral<head>{make_constant(location(lit), head)}};
+        }
+        auto value = std::optional<TheoryAtom<HasSign>>{};
+        if (res_name.has_value() || res_elems.has_value()) {
+            auto name = std::move(res_name).value_or(lit.name);
+            if constexpr (head) {
+                value = HeadTheoryAtom{lit.loc, std::move(name), std::move(res_elems).value(), lit.rhs};
+            } else {
+                value = BodyTheoryAtom{lit.loc, lit.sign, std::move(name), std::move(res_elems).value(), lit.rhs};
+            }
+        }
+        return {TruthValue::unknown, std::move(value)};
+    }
+
     RewriteContext &ctx; //!< Context used during simplification.
 };
 
@@ -1628,11 +1689,6 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
     auto operator()(HeadAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
         return simplify_aggregate<true>(lit);
     }
-
-    auto operator()(HeadTheoryAtom const &lit) const -> SimplifyResult<HeadLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me");
-    }
 };
 
 struct SimplifyBodyLiteral : SimplifyHBLiteral {
@@ -1654,11 +1710,6 @@ struct SimplifyBodyLiteral : SimplifyHBLiteral {
 
     auto operator()(BodyAggregate const &lit) const -> SimplifyResult<BodyLiteral> {
         return simplify_aggregate<false>(lit);
-    }
-
-    auto operator()(BodyTheoryAtom const &lit) const -> SimplifyResult<BodyLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me");
     }
 };
 

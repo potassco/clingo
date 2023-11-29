@@ -234,7 +234,10 @@ TEST_CASE("simplify_body_set_aggregate") {
     REQUIRE(simplify_str(parse_statement("x :- @f(X) <= {a}.")) == "x :- __A_0 <= #count { 0,a: a }; __A_0=@f(X)., U");
     REQUIRE(simplify_str(parse_statement("x :- {a; not a; not not a; X+Y<Z: p(U)} <= 1.")) ==
             "x :- #count { 0,a: a; 1,a: not a; 2,a: not not a; 6,X,Y,Z: p(U), X+Y<Z } <= 1., U");
-    // TODO: consider removing the linear terms from the tuple...
+    // TODO:
+    // Consider removing the linear terms from the tuple...
+    // It should be possible to avoid such linear terms in all non-matchable contexts
+    // whenever substituting a numeric variable.
     REQUIRE(simplify_str(parse_statement("x :- 1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
             "x :- 1*__A_2+0 <= #count { "
             "0,a(1*__A_0+0,1*__A_1+0): "
@@ -291,6 +294,18 @@ TEST_CASE("simplify_body_aggregate") {
             "p(X) :- #sum { 1: X<1*Y+1<Z } >= 1., U");
     REQUIRE(simplify_str(parse_statement("p(X) :- #sum { 1 : not X < Y+1 < Z } >= 1.")) ==
             "p(X) :- #sum { 1: not X<__A_0<Z, __A_0=1*Y+1 } >= 1., U");
+}
+
+TEST_CASE("simplify_head_theory") {
+    REQUIRE(simplify_str(parse_statement("&t(X+1..Y) { 1..X: X+1..Y>Z } >= f(1..X).")) ==
+            "&t(1*__A_0+0) { (1 .. X): 1*__A_1+0>Z, __A_1=X+1..Y } >= f((1 .. X)) :- __A_0=X+1..Y., U");
+    REQUIRE(simplify_str(parse_statement("&t { 1: #true; 2: #false }.")) == "&t { 1 }., U");
+}
+
+TEST_CASE("simplify_body_theory") {
+    REQUIRE(simplify_str(parse_statement("p(X) :- &t(X+1..Y) { 1..X: X+1..Y>Z } >= f(1..X).")) ==
+            "p(X) :- &t(1*__A_0+0) { (1 .. X): 1*__A_1+0>Z, __A_1=X+1..Y } >= f((1 .. X)); __A_0=X+1..Y., U");
+    REQUIRE(simplify_str(parse_statement("p(X) :- &t { 1: #true; 2: #false }.")) == "p(X) :- &t { 1 }., U");
 }
 
 TEST_CASE("simplify_rule") {

@@ -10,6 +10,8 @@ namespace Gringo::Input {
 //! @{
 
 //! Flags controlling simplification.
+//!
+//! @todo: It might be possible to split this into flags for terms and literals.
 enum class SimplifyFlags : unsigned {
     none = 0,                    //!< No flags are set.
     matchable = 1,               //!< Ensure that expressions are matchable.
