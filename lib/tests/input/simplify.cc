@@ -137,8 +137,8 @@ TEST_CASE("simplify_symbolic") {
 }
 
 TEST_CASE("simplify_aux") {
-    REQUIRE(simplify_str(parse_term("1..2")) == "1*__A_0+0, __A_0=1..2, U");
-    REQUIRE(simplify_str(parse_term("f(1..2)")) == "f(1*__A_0+0), __A_0=1..2, U");
+    REQUIRE(simplify_str(parse_term("1..2")) == "__A_0, __A_0=1..2, U");
+    REQUIRE(simplify_str(parse_term("f(1..2)")) == "f(__A_0), __A_0=1..2, U");
     REQUIRE(simplify_str(parse_term("@f")) == "__A_0, __A_0=@f, U");
     REQUIRE(simplify_str(parse_term("@f(@g(1+2))")) == "__A_1, __A_0=@g(3), __A_1=@f(__A_0), U");
 }
@@ -218,10 +218,10 @@ TEST_CASE("simplify_head_set_aggregate") {
     REQUIRE(simplify_str(parse_statement("{a; not a; not not a; X+Y<Z: p(U)} <= 1.")) ==
             "#count { 0,a: a; 1,a: not a; 2,a: not not a; 6,X,Y,Z: #true: p(U), X+Y<Z } <= 1., U");
     REQUIRE(simplify_str(parse_statement("1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
-            "1*__A_2+0 <= #count { "
+            "__A_2 <= #count { "
             "0,a(__A_0,__A_1): a(__A_0,__A_1): "
             "b(1*__A_4+0), __A_0=3..4, __A_1=X+Y, __A_4=A+B "
-            "} <= 1*__A_3+0 :- __A_2=1..2; __A_3=5..6., U");
+            "} <= __A_3 :- __A_2=1..2; __A_3=5..6., U");
 
     REQUIRE(simplify_str(parse_statement("X <= {1!=2;2!=2;#true;#false} <= Y.")) == "X<=2<=Y., U");
     REQUIRE(simplify_str(parse_statement("1 <= {1!=2;2!=2;#true;#false} <= 2.")) == "#true., T");
@@ -234,15 +234,11 @@ TEST_CASE("simplify_body_set_aggregate") {
     REQUIRE(simplify_str(parse_statement("x :- @f(X) <= {a}.")) == "x :- __A_0 <= #count { 0,a: a }; __A_0=@f(X)., U");
     REQUIRE(simplify_str(parse_statement("x :- {a; not a; not not a; X+Y<Z: p(U)} <= 1.")) ==
             "x :- #count { 0,a: a; 1,a: not a; 2,a: not not a; 6,X,Y,Z: p(U), X+Y<Z } <= 1., U");
-    // TODO:
-    // Consider removing the linear terms from the tuple...
-    // It should be possible to avoid such linear terms in all non-matchable contexts
-    // whenever substituting a numeric variable.
     REQUIRE(simplify_str(parse_statement("x :- 1..2 <= {a(3..4,X+Y): b(A+B)} <= 5..6.")) ==
-            "x :- 1*__A_2+0 <= #count { "
+            "x :- __A_2 <= #count { "
             "0,a(1*__A_0+0,1*__A_1+0): "
             "b(1*__A_4+0), __A_0=3..4, __A_1=X+Y, a(1*__A_0+0,1*__A_1+0), __A_4=A+B "
-            "} <= 1*__A_3+0; __A_2=1..2; __A_3=5..6., U");
+            "} <= __A_3; __A_2=1..2; __A_3=5..6., U");
     REQUIRE(simplify_str(parse_statement("x :- X <= {1!=2;2!=2;#true;#false} <= Y.")) == "x :- X<=2<=Y., U");
     REQUIRE(simplify_str(parse_statement("x :- 1 <= {1!=2;2!=2;#true;#false} <= 2.")) == "x., U");
     REQUIRE(simplify_str(parse_statement("x :- 1 <= {1!=2;2!=2;#true;#false} <= 1.")) == "#true., T");
@@ -274,6 +270,8 @@ TEST_CASE("simplify_head_aggregate") {
 }
 
 TEST_CASE("simplify_body_aggregate") {
+    REQUIRE(simplify_str(parse_statement("p(X) :- X+Y = #count { X } >= X+Y.")) ==
+            "p(X) :- 1*__A_0+0 = #count { X } >= X+Y; __A_0=X+Y., U");
     REQUIRE(simplify_str(parse_statement("p(X) :- #count { X } >= 1.")) == "<unchanged>, U");
     REQUIRE(simplify_str(parse_statement("p(X) :- #count { 1 } >= 1.")) == "p(X)., U");
     REQUIRE(simplify_str(parse_statement("p(X) :- #count { : #true } >= 1.")) == "p(X)., U");
@@ -298,13 +296,13 @@ TEST_CASE("simplify_body_aggregate") {
 
 TEST_CASE("simplify_head_theory") {
     REQUIRE(simplify_str(parse_statement("&t(X+1..Y) { 1..X: X+1..Y>Z } >= f(1..X).")) ==
-            "&t(1*__A_0+0) { (1 .. X): 1*__A_1+0>Z, __A_1=X+1..Y } >= f((1 .. X)) :- __A_0=X+1..Y., U");
+            "&t(__A_0) { (1 .. X): __A_1>Z, __A_1=X+1..Y } >= f((1 .. X)) :- __A_0=X+1..Y., U");
     REQUIRE(simplify_str(parse_statement("&t { 1: #true; 2: #false }.")) == "&t { 1 }., U");
 }
 
 TEST_CASE("simplify_body_theory") {
     REQUIRE(simplify_str(parse_statement("p(X) :- &t(X+1..Y) { 1..X: X+1..Y>Z } >= f(1..X).")) ==
-            "p(X) :- &t(1*__A_0+0) { (1 .. X): 1*__A_1+0>Z, __A_1=X+1..Y } >= f((1 .. X)); __A_0=X+1..Y., U");
+            "p(X) :- &t(__A_0) { (1 .. X): __A_1>Z, __A_1=X+1..Y } >= f((1 .. X)); __A_0=X+1..Y., U");
     REQUIRE(simplify_str(parse_statement("p(X) :- &t { 1: #true; 2: #false }.")) == "p(X) :- &t { 1 }., U");
 }
 

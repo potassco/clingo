@@ -647,10 +647,15 @@ struct SimplifyTerm {
                                         TermBinary{term.loc, result_as_term(term.lhs, std::move(res_lhs)),
                                                    BinaryOperator::dots, result_as_term(term.rhs, std::move(res_rhs))});
                 }
-                return ResultLinear{
+                // Note: If the surrounding term does not have to be matchable,
+                // then the variable can be returned as is.
+                auto var =
                     map_term(ctx, TermBinary{term.loc, result_as_term(term.lhs, std::move(res_lhs)),
-                                             BinaryOperator::dots, result_as_term(term.rhs, std::move(res_rhs))}),
-                    Number{1}, Number{0}};
+                                             BinaryOperator::dots, result_as_term(term.rhs, std::move(res_rhs))});
+                if (test(flags, SimplifyFlags::matchable)) {
+                    return ResultLinear{std::move(var), Number{1}, Number{0}};
+                }
+                return ResultChanged{Type::numeric, std::move(var)};
             };
             return std::visit(simplify, operator()(*term.lhs, flags), operator()(*term.rhs, flags));
         }
@@ -1296,9 +1301,10 @@ struct SimplifyHBLiteral {
     //! Simplify the left guard of an aggregate.
     //!
     //! \todo Add option to handle assignments.
-    [[nodiscard]] auto simplify_guard(LGuard const &guard) const -> SimplifyResult<LGuard::value_type, bool> {
+    [[nodiscard]] auto simplify_guard(LGuard const &guard, bool matchable) const
+        -> SimplifyResult<LGuard::value_type, bool> {
         if (guard.has_value()) {
-            auto [state, res] = simplify(SimplifyFlags::none, ctx, guard->first);
+            auto [state, res] = simplify(matchable ? SimplifyFlags::matchable : SimplifyFlags::none, ctx, guard->first);
             return {state, std::move(res).transform([&guard](auto &&term) {
                         return LGuard::value_type{std::move(term), guard->second};
                     })};
@@ -1309,9 +1315,11 @@ struct SimplifyHBLiteral {
     //! Simplify the right guard of an aggregate.
     //!
     //! \todo Add option to handle assignments.
-    [[nodiscard]] auto simplify_guard(RGuard const &guard) const -> SimplifyResult<RGuard::value_type, bool> {
+    [[nodiscard]] auto simplify_guard(RGuard const &guard, bool matchable) const
+        -> SimplifyResult<RGuard::value_type, bool> {
         if (guard.has_value()) {
-            auto [state, res] = simplify(SimplifyFlags::none, ctx, guard->second);
+            auto [state, res] =
+                simplify(matchable ? SimplifyFlags::matchable : SimplifyFlags::none, ctx, guard->second);
             return {state, std::move(res).transform([&guard](auto &&term) {
                         return RGuard::value_type{guard->first, std::move(term)};
                     })};
@@ -1523,11 +1531,21 @@ struct SimplifyHBLiteral {
         return true;
     }
 
+    //! Check if the given relation forms an assignment together with the aggregate.
+    template <bool head> [[nodiscard]] auto is_assignment(HBAggregate<head> const &lit, Relation rel) const -> bool {
+        if constexpr (!head) {
+            return lit.sign == Sign::once ? rel == Relation::inequal : rel == Relation::equal;
+        }
+        return false;
+    }
+
     //! Simplify a head or body aggregate.
     template <bool head>
     [[nodiscard]] auto simplify_aggregate(HBAggregate<head> const &lit) const -> SimplifyResult<HBLiteral<head>> {
-        auto [state_lhs, res_lhs] = simplify_guard(lit.lhs);
-        auto [state_rhs, res_rhs] = simplify_guard(lit.rhs);
+        auto [state_lhs, res_lhs] =
+            simplify_guard(lit.lhs, lit.lhs.has_value() && is_assignment<head>(lit, lit.lhs->second));
+        auto [state_rhs, res_rhs] =
+            simplify_guard(lit.rhs, lit.rhs.has_value() && is_assignment<head>(lit, lit.rhs->first));
         auto res_elems = SimplifyVec{lit.elems};
         bool constant = true;
         auto value = neutral_value(lit.fun);
