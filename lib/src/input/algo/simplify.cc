@@ -1865,8 +1865,22 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementExternal const &stm) const -> SimplifyResult<Statement> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        auto [state_term, res_term] = simplify(SimplifyFlags::matchable, ctx, stm.term);
+        auto [state_type, res_type] =
+            stm.type ? simplify(SimplifyFlags::matchable, ctx, *stm.type) : SimplifyResult<Term, bool>{true};
+        auto [state_body, res_body] = simplify_body(stm.body);
+        if (!state_term || !state_type || state_body == TruthValue::bot) {
+            return {TruthValue::top, Rule{stm.loc, make_constant(location(stm.term), true), {}}};
+        }
+        auto state = TruthValue::unknown;
+        if (res_term.has_value() || res_type.has_value() || res_body.has_value()) {
+            if (stm.type && !res_type) {
+                res_type = stm.type;
+            }
+            return {state, StatementExternal{stm.loc, std::move(res_term).value_or(stm.term),
+                                             std::move(res_body).value_or(stm.body), std::move(res_type)}};
+        }
+        return {state};
     }
 
     auto operator()(StatementEdge const &stm) const -> SimplifyResult<Statement> {

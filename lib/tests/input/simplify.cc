@@ -345,4 +345,11 @@ TEST_CASE("simplify_project") {
             "#project p(1*__A_0+0): p(1*__A_1+0); __A_0=1..2; __A_1=3..4., U");
 }
 
+TEST_CASE("simplify_external") {
+    REQUIRE(simplify_str(parse_statement("#external p(X) : #false.")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#external p(X+a).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#external p(1..2) : p(3..4). [@x]")) ==
+            "#external p(1*__A_0+0): p(1*__A_2+0); __A_0=1..2; __A_1=@x; __A_2=3..4. [__A_1], U");
+}
+
 } // namespace Gringo::Input::Test
