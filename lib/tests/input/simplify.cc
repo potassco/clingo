@@ -143,7 +143,7 @@ TEST_CASE("simplify_aux") {
     REQUIRE(simplify_str(parse_term("@f(@g(1+2))")) == "__A_1, __A_0=@g(3), __A_1=@f(__A_0), U");
 }
 
-TEST_CASE("simplify_project") {
+TEST_CASE("simplify_projection") {
     REQUIRE(simplify_str(parse_term("f(*,(*,b))")) == "f(*,(*,b)), U");
     REQUIRE(simplify_str(parse_term("@f(g(*))")) == "<unchanged>, F, E");
     REQUIRE(simplify_str(parse_term("f(*)"), SimplifyFlags::none) == "<unchanged>, F, E");
@@ -326,6 +326,23 @@ TEST_CASE("simplify_rule") {
     REQUIRE(simplify_str(parse_statement("x :- #and { #false; p(X+Y): q(X+Y) }.")) == "#true., T");
     REQUIRE(simplify_str(parse_statement("#false.")) == "<unchanged>, B");
     REQUIRE(simplify_str(parse_statement("#false :- #true.")) == "#false., B");
+
+    REQUIRE(simplify_str(parse_statement("p(X) :- q(*).")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_statement("p(*) :- q(X).")) == "#true., T, E");
+}
+
+TEST_CASE("simplify_show") {
+    REQUIRE(simplify_str(parse_statement("#show p(X) : #false.")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#show p(X+a).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#show p(1..2) : p(3..4).")) ==
+            "#show p(__A_0): p(1*__A_1+0); __A_0=1..2; __A_1=3..4., U");
+}
+
+TEST_CASE("simplify_project") {
+    REQUIRE(simplify_str(parse_statement("#project p(X) : #false.")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#project p(X+a).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#project p(1..2) : p(3..4).")) ==
+            "#project p(1*__A_0+0): p(1*__A_1+0); __A_0=1..2; __A_1=3..4., U");
 }
 
 } // namespace Gringo::Input::Test

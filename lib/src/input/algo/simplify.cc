@@ -1071,8 +1071,11 @@ struct SimplifyLiteral {
     //! (2) projection is accepted if the corresponding flag has been set.
     auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
         bool head = test(flags, SimplifyFlags::head);
-        auto sub_flags = flags & (SimplifyFlags::matchable | SimplifyFlags::projectable | SimplifyFlags::unfailable);
-        if (lit.sign != Sign::none && !test(flags, SimplifyFlags::unfailable)) {
+        auto sub_flags = flags & (SimplifyFlags::matchable | SimplifyFlags::unfailable);
+        if (!head || lit.sign != Sign::none) {
+            sub_flags |= SimplifyFlags::projectable;
+        }
+        if ((head || lit.sign != Sign::none) && !test(flags, SimplifyFlags::unfailable)) {
             sub_flags &= ~SimplifyFlags::matchable;
         }
         auto [state, res] = simplify(sub_flags, ctx, lit.term);
@@ -1086,6 +1089,7 @@ struct SimplifyLiteral {
 
     RewriteContext &ctx; //!< Context used during simplification.
 };
+
 struct LiteralToTuple {
     auto operator()(Literal const &lit) -> TermVec { return std::visit(*this, lit); }
 
@@ -1262,8 +1266,6 @@ struct SimplifyHBLiteral {
     }
 
     //! Simplify a conjunction/disjunction of conditional literals.
-    //!
-    //!
     template <bool Conjunctive>
     auto operator()(Junction<Conjunctive> const &lit) const
         -> SimplifyResult<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
@@ -1575,7 +1577,7 @@ struct SimplifyHBLiteral {
             return {head ? TruthValue::top : TruthValue::bot,
                     SimpleHBLiteral<head>{make_constant(location(lit), head)}};
         }
-        // Note: value also gives a lower bound for the aggregate, which could be used to detect false aggregates
+        // Note: value also gives a lower bound for the aggregate, which could be used to detect true/false aggregates
         // (unlikely to be relevant in practice)
         if constexpr (!head) {
             if (!lit.lhs.has_value() && !lit.rhs.has_value()) {
@@ -1789,7 +1791,7 @@ struct SimplifyStatement {
         auto state = TruthValue::unknown;
         if (state_head == TruthValue::top || state_body == TruthValue::bot) {
             if (!stm.body.empty()) {
-                res_head = SimpleHeadLiteral{LiteralBoolean{location(stm.head), Sign::none, true}};
+                res_head = make_constant(location(stm.head), true);
                 res_body = BodyLiteralVec{};
             }
             state = TruthValue::top;
@@ -1820,8 +1822,17 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementShow const &stm) const -> SimplifyResult<Statement> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        auto [state_term, res_term] = simplify(SimplifyFlags::none, ctx, stm.term);
+        auto [state_body, res_body] = simplify_body(stm.body);
+        if (!state_term || state_body == TruthValue::bot) {
+            return {TruthValue::top, Rule{stm.loc, make_constant(location(stm.term), true), {}}};
+        }
+        auto state = TruthValue::unknown;
+        if (res_term.has_value() || res_body.has_value()) {
+            return {state, StatementShow{stm.loc, std::move(res_term).value_or(stm.term),
+                                         std::move(res_body).value_or(stm.body)}};
+        }
+        return {state};
     }
 
     auto operator()(StatementShowSig const &stm) const -> SimplifyResult<Statement> {
@@ -1830,8 +1841,17 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementProject const &stm) const -> SimplifyResult<Statement> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        auto [state_term, res_term] = simplify(SimplifyFlags::matchable, ctx, stm.term);
+        auto [state_body, res_body] = simplify_body(stm.body);
+        if (!state_term || state_body == TruthValue::bot) {
+            return {TruthValue::top, Rule{stm.loc, make_constant(location(stm.term), true), {}}};
+        }
+        auto state = TruthValue::unknown;
+        if (res_term.has_value() || res_body.has_value()) {
+            return {state, StatementProject{stm.loc, std::move(res_term).value_or(stm.term),
+                                            std::move(res_body).value_or(stm.body)}};
+        }
+        return {state};
     }
 
     auto operator()(StatementProjectSig const &stm) const -> SimplifyResult<Statement> {
