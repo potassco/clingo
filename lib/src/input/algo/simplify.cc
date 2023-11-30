@@ -392,7 +392,9 @@ struct SimplifyTerm {
             throw std::runtime_error("functions must be unpooled before simplifying");
         }
 
-        flags &= ~SimplifyTermFlags::preserve_toplevel_dots;
+        bool preserve = test(flags, SimplifyTermFlags::preserve_toplevel);
+
+        flags &= ~SimplifyTermFlags::preserve_toplevel;
 
         bool constant = !term.external;
         auto type = term.external ? Type::any : Type::symbolic;
@@ -403,7 +405,7 @@ struct SimplifyTerm {
             [&, this](auto &&res) -> Result {
                 GRINGO_MATCH(res, ResultTupleFail) { return ResultFail{}; }
                 GRINGO_MATCH(res, ResultTupleUnchanged) {
-                    if (term.external) {
+                    if (term.external && !preserve) {
                         return ResultChanged{type, map_term(ctx, term)};
                     }
                     if (!constant) {
@@ -416,7 +418,7 @@ struct SimplifyTerm {
                         auto fun =
                             TermFunction{term.loc, term.name,
                                          Util::make_vec<TupleVec>(args_term(tuple, std::move(res))), term.external};
-                        if (term.external) {
+                        if (term.external && !preserve) {
                             return ResultChanged{type, map_term(ctx, std::move(fun))};
                         }
                         // Note: this is somewhat inefficient because the
@@ -435,7 +437,7 @@ struct SimplifyTerm {
             throw std::runtime_error("tuples must be unpooled before simplifying");
         }
 
-        flags &= ~SimplifyTermFlags::preserve_toplevel_dots;
+        flags &= ~SimplifyTermFlags::preserve_toplevel;
 
         bool constant = true;
         auto type = Type::tuple;
@@ -474,7 +476,7 @@ struct SimplifyTerm {
             throw std::runtime_error("absolute terms must be unpooled before simplifying");
         }
 
-        flags &= ~SimplifyTermFlags::preserve_toplevel_dots;
+        flags &= ~SimplifyTermFlags::preserve_toplevel;
 
         auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
@@ -522,7 +524,7 @@ struct SimplifyTerm {
 
     //! Simplify the given unary term.
     auto operator()(TermUnary const &term, SimplifyTermFlags flags) const -> Result {
-        flags &= ~SimplifyTermFlags::preserve_toplevel_dots;
+        flags &= ~SimplifyTermFlags::preserve_toplevel;
 
         auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
@@ -624,7 +626,7 @@ struct SimplifyTerm {
                                                                                         << "  " << term << "\n";
                     return {};
                 }
-                if (test(flags, SimplifyTermFlags::preserve_toplevel_dots)) {
+                if (test(flags, SimplifyTermFlags::preserve_toplevel)) {
                     return check_change(Type::numeric, term,
                                         TermBinary{term.loc, result_as_term(term.lhs, std::move(res_lhs)),
                                                    BinaryOperator::dots, result_as_term(term.rhs, std::move(res_rhs))});
@@ -641,7 +643,7 @@ struct SimplifyTerm {
             };
             return std::visit(simplify, operator()(*term.lhs, flags), operator()(*term.rhs, flags));
         }
-        flags &= ~SimplifyTermFlags::preserve_toplevel_dots;
+        flags &= ~SimplifyTermFlags::preserve_toplevel;
 
         auto simplify = [&, this](auto &&res_lhs, auto &&res_rhs) -> Result {
             // check arguments
@@ -983,6 +985,8 @@ struct SimplifyLiteral {
 
         // binary assignment
         if (lit.rhs.size() == 1 && lit.rhs.front().first == assign) {
+            // Note: in theory the left hand side could even be a more complex term that
+            // is made machable (but not nested matchable).
             if (!is_variable(lit.lhs) && is_variable(lit.rhs.front().second)) {
                 auto inv = LiteralRelation{lit.loc, lit.sign, lit.rhs.front().second,
                                            Util::make_vec<Guard>(Guard{assign, lit.lhs})};
@@ -993,9 +997,8 @@ struct SimplifyLiteral {
                 return res;
             }
 
-            if (lit.rhs.size() == 1 && lit.rhs.front().first == assign && is_variable(lit.lhs) &&
-                is_interval(lit.rhs.front().second)) {
-                fixed_flags |= SimplifyTermFlags::preserve_toplevel_dots;
+            if (lit.rhs.size() == 1 && lit.rhs.front().first == assign && is_variable(lit.lhs)) {
+                fixed_flags |= SimplifyTermFlags::preserve_toplevel;
             }
         }
 

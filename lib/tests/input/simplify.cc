@@ -328,6 +328,7 @@ TEST_CASE("simplify_rule") {
     REQUIRE(simplify_str(parse_statement("#false.")) == "<unchanged>, B");
     REQUIRE(simplify_str(parse_statement("#false :- #true.")) == "#false., B");
     REQUIRE(simplify_str(parse_statement("p(X) :- q(*).")) == "<unchanged>, U");
+    REQUIRE(simplify_str(parse_statement("h(Y) :- X=1..2, Y=@x(X).")) == "<unchanged>, U");
 }
 
 TEST_CASE("simplify_show") {

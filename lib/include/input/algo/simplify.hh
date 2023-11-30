@@ -14,11 +14,11 @@ namespace Gringo::Input {
 //! @todo: Since only a small number of flags applies to literals,
 //! the flags could be split.
 enum class SimplifyTermFlags : unsigned {
-    none = 0,                    //!< No flags are set.
-    matchable = 1,               //!< Ensure that terms are matchable.
-    unfailable = 4,              //!< Ensure that terms do not evaluate to empty pools.
-    nested_matchable = 8,        //!< Do not make roots of terms matchable.
-    preserve_toplevel_dots = 16, //!< Preserve the dots in terms like u..t.
+    none = 0,       //!< No flags are set.
+    matchable = 1,  //!< Ensure that terms are matchable.
+    unfailable = 2, //!< Ensure that terms do not evaluate to empty pools (should be used together with matchable).
+    nested_matchable = 4,  //!< Do not make roots of terms matchable (should be used together with matchable).
+    preserve_toplevel = 8, //!< Preserve toplevel terms terms like u..t or @f.
 };
 
 GRINGO_ENUM_FLAGS(SimplifyTermFlags)
@@ -27,8 +27,8 @@ GRINGO_ENUM_FLAGS(SimplifyTermFlags)
 enum class SimplifyLiteralFlags : unsigned {
     none = 0,       //!< No flags are set.
     matchable = 1,  //!< Ensure that literals are matchable.
-    unfailable = 4, //!< Ensure that terms in literals do not evaluate to empty pools.
-    head = 32,      //!< Indicate literals occurring in rule heads.
+    unfailable = 2, //!< Ensure that terms in literals do not evaluate to empty pools.
+    head = 4,       //!< Indicate literals occurring in rule heads.
 };
 
 GRINGO_ENUM_FLAGS(SimplifyLiteralFlags)
