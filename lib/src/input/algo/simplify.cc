@@ -150,9 +150,6 @@ auto transform_res(SimplifyResult<T> &&a, F &&f) -> SimplifyResult<std::invoke_r
 }
 
 //! Simplify terms.
-//!
-//! \todo Checking projectable terms could be done right away in the parser.
-//! This would make any error reporting at this point unnecessary.
 struct SimplifyTerm {
     //! The detected type of a term.
     enum class Type {
@@ -245,8 +242,7 @@ struct SimplifyTerm {
     //! Otherwise, each element is either a monostate in case of projection, a
     //! symbol if it could evaluated right away, or a term in case of some
     //! other simplification.
-    auto simplify_tuple(SimplifyFlags flags, auto const &term, TupleVec const &tuple, bool &constant) const
-        -> ResultTuple {
+    auto simplify_tuple(SimplifyTermFlags flags, TupleVec const &tuple, bool &constant) const -> ResultTuple {
         size_t n = 0;
 
         ResultTuple res_tuple = ResultTupleUnchanged{};
@@ -267,11 +263,6 @@ struct SimplifyTerm {
         auto simplify = [&, this](auto &&arg) -> bool {
             // projected argument
             GRINGO_MATCH(arg, Projected) {
-                if (!test(flags, SimplifyFlags::projectable)) {
-                    GRINGO_REPORT_LOC(ctx.logger(), error, term.loc) << "projection not permitted in this context:\n"
-                                                                     << "  " << term << "\n";
-                    return false;
-                }
                 constant = false;
                 init().emplace_back();
                 return true;
@@ -374,21 +365,21 @@ struct SimplifyTerm {
     };
 
     //! Simplify the given term.
-    auto operator()(Term const &term, SimplifyFlags flags) const -> Result {
-        return std::visit(*this, term, std::variant<SimplifyFlags>{flags});
+    auto operator()(Term const &term, SimplifyTermFlags flags) const -> Result {
+        return std::visit(*this, term, std::variant<SimplifyTermFlags>{flags});
     }
 
     //! Protect from calling unindented overloads.
-    auto operator()(auto const &term, SimplifyFlags flags) const -> Result = delete;
+    auto operator()(auto const &term, SimplifyTermFlags flags) const -> Result = delete;
 
     //! Simplify the given symbolic term.
-    auto operator()(TermSymbol const &term, SimplifyFlags flags) const -> Result {
+    auto operator()(TermSymbol const &term, SimplifyTermFlags flags) const -> Result {
         static_cast<void>(flags);
         return term.value;
     }
 
     //! Simplify the given variable.
-    auto operator()(TermVariable const &term, SimplifyFlags flags) const -> Result {
+    auto operator()(TermVariable const &term, SimplifyTermFlags flags) const -> Result {
         static_cast<void>(term);
         static_cast<void>(flags);
         // a variable can represent any term
@@ -396,16 +387,12 @@ struct SimplifyTerm {
     }
 
     //! Simplify the given function term.
-    auto operator()(TermFunction const &term, SimplifyFlags flags) const -> Result {
+    auto operator()(TermFunction const &term, SimplifyTermFlags flags) const -> Result {
         if (term.pool.size() != 1) {
             throw std::runtime_error("functions must be unpooled before simplifying");
         }
 
-        flags &= ~SimplifyFlags::preserve_toplevel_dots;
-
-        if (term.external) {
-            flags &= ~SimplifyFlags::projectable;
-        }
+        flags &= ~SimplifyTermFlags::preserve_toplevel_dots;
 
         bool constant = !term.external;
         auto type = term.external ? Type::any : Type::symbolic;
@@ -439,16 +426,16 @@ struct SimplifyTerm {
                     return ctx.store().fun(term.name, args_symbol(std::move(res)), false);
                 }
             },
-            simplify_tuple(flags, term, tuple, constant));
+            simplify_tuple(flags, tuple, constant));
     }
 
     //! Simplify the given term tuple.
-    auto operator()(TermTuple const &term, SimplifyFlags flags) const -> Result {
+    auto operator()(TermTuple const &term, SimplifyTermFlags flags) const -> Result {
         if (term.pool.size() != 1 || !std::holds_alternative<TupleVec>(term.pool.front())) {
             throw std::runtime_error("tuples must be unpooled before simplifying");
         }
 
-        flags &= ~SimplifyFlags::preserve_toplevel_dots;
+        flags &= ~SimplifyTermFlags::preserve_toplevel_dots;
 
         bool constant = true;
         auto type = Type::tuple;
@@ -478,17 +465,16 @@ struct SimplifyTerm {
                 }
                 // the term evaluated to a symbol
             },
-            simplify_tuple(flags, term, tuple, constant));
+            simplify_tuple(flags, tuple, constant));
     }
 
     //! Simplify the given absolute term.
-    auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
+    auto operator()(TermAbs const &term, SimplifyTermFlags flags) const -> Result {
         if (term.pool.size() != 1) {
             throw std::runtime_error("absolute terms must be unpooled before simplifying");
         }
 
-        // the term and nested terms are not projectable
-        flags &= ~(SimplifyFlags::projectable | SimplifyFlags::preserve_toplevel_dots);
+        flags &= ~SimplifyTermFlags::preserve_toplevel_dots;
 
         auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
@@ -535,9 +521,8 @@ struct SimplifyTerm {
     }
 
     //! Simplify the given unary term.
-    auto operator()(TermUnary const &term, SimplifyFlags flags) const -> Result {
-        // the term and nested terms are not projectable
-        flags &= ~(SimplifyFlags::projectable | SimplifyFlags::preserve_toplevel_dots);
+    auto operator()(TermUnary const &term, SimplifyTermFlags flags) const -> Result {
+        flags &= ~SimplifyTermFlags::preserve_toplevel_dots;
 
         auto simplify = [&term, this](auto &&res) -> Result {
             // evaluation of argument failed
@@ -621,10 +606,7 @@ struct SimplifyTerm {
     }
 
     //! Simplify the given binary term.
-    auto operator()(TermBinary const &term, SimplifyFlags flags) const -> Result {
-        // the term and nested terms are not projectable
-        flags &= ~SimplifyFlags::projectable;
-
+    auto operator()(TermBinary const &term, SimplifyTermFlags flags) const -> Result {
         // check if the result can evaluate to a number
         auto is_numeric = [](auto const &res) -> bool {
             GRINGO_MATCH(res, ResultFail) { return false; }
@@ -642,7 +624,7 @@ struct SimplifyTerm {
                                                                                         << "  " << term << "\n";
                     return {};
                 }
-                if (test(flags, SimplifyFlags::preserve_toplevel_dots)) {
+                if (test(flags, SimplifyTermFlags::preserve_toplevel_dots)) {
                     return check_change(Type::numeric, term,
                                         TermBinary{term.loc, result_as_term(term.lhs, std::move(res_lhs)),
                                                    BinaryOperator::dots, result_as_term(term.rhs, std::move(res_rhs))});
@@ -652,14 +634,14 @@ struct SimplifyTerm {
                 auto var =
                     map_term(ctx, TermBinary{term.loc, result_as_term(term.lhs, std::move(res_lhs)),
                                              BinaryOperator::dots, result_as_term(term.rhs, std::move(res_rhs))});
-                if (test(flags, SimplifyFlags::matchable)) {
+                if (test(flags, SimplifyTermFlags::matchable)) {
                     return ResultLinear{std::move(var), Number{1}, Number{0}};
                 }
                 return ResultChanged{Type::numeric, std::move(var)};
             };
             return std::visit(simplify, operator()(*term.lhs, flags), operator()(*term.rhs, flags));
         }
-        flags &= ~SimplifyFlags::preserve_toplevel_dots;
+        flags &= ~SimplifyTermFlags::preserve_toplevel_dots;
 
         auto simplify = [&, this](auto &&res_lhs, auto &&res_rhs) -> Result {
             // check arguments
@@ -767,7 +749,7 @@ struct MakeMatchableTerm {
     using ResultTuple = std::optional<TupleVec>;
 
     //! Make the arguments of the given tuple matchable.
-    [[nodiscard]] auto handle_tuple(SimplifyFlags flags, TupleVec const &tuple) const -> ResultTuple {
+    [[nodiscard]] auto handle_tuple(SimplifyTermFlags flags, TupleVec const &tuple) const -> ResultTuple {
         size_t n = 0;
 
         ResultTuple res_tuple;
@@ -789,7 +771,7 @@ struct MakeMatchableTerm {
             }
             // term argument
             GRINGO_MATCH(arg, Term) {
-                if (auto res_arg = operator()(arg, flags & ~SimplifyFlags::nested_matchable);
+                if (auto res_arg = operator()(arg, flags & ~SimplifyTermFlags::nested_matchable);
                     res_arg.has_value() || res_tuple.has_value()) {
                     init().emplace_back(std::move(res_arg).value_or(arg));
                 }
@@ -805,26 +787,26 @@ struct MakeMatchableTerm {
     }
 
     //! Make the given term matchable.
-    auto operator()(Term const &term, SimplifyFlags flags) const -> Result {
-        return std::visit(*this, term, std::variant<SimplifyFlags>{flags});
+    auto operator()(Term const &term, SimplifyTermFlags flags) const -> Result {
+        return std::visit(*this, term, std::variant<SimplifyTermFlags>{flags});
     }
 
     //! Make the given symbolic term matchable.
-    auto operator()(TermSymbol const &term, SimplifyFlags flags) const -> Result {
+    auto operator()(TermSymbol const &term, SimplifyTermFlags flags) const -> Result {
         static_cast<void>(term);
         static_cast<void>(flags);
         return std::nullopt;
     }
 
     //! Make the given variable term matchable.
-    auto operator()(TermVariable const &term, SimplifyFlags flags) const -> Result {
+    auto operator()(TermVariable const &term, SimplifyTermFlags flags) const -> Result {
         static_cast<void>(term);
         static_cast<void>(flags);
         return std::nullopt;
     }
 
     //! Make the given function term matchable.
-    auto operator()(TermFunction const &term, SimplifyFlags flags) const -> Result {
+    auto operator()(TermFunction const &term, SimplifyTermFlags flags) const -> Result {
         assert(term.pool.size() == 1);
         return handle_tuple(flags, term.pool.front()).transform([&term](auto &&args) {
             return TermFunction{term.loc, term.name, Util::make_vec<TupleVec>(std::move(args)), term.external};
@@ -832,7 +814,7 @@ struct MakeMatchableTerm {
     }
 
     //! Make the given tuple term matchable.
-    auto operator()(TermTuple const &term, SimplifyFlags flags) const -> Result {
+    auto operator()(TermTuple const &term, SimplifyTermFlags flags) const -> Result {
         assert(term.pool.size() == 1 && std::holds_alternative<TupleVec>(term.pool.front()));
         return handle_tuple(flags, std::get<TupleVec>(term.pool.front())).transform([&term](auto &&args) {
             return TermTuple{term.loc, Util::make_vec<TermTuple::Element>(std::move(args))};
@@ -840,32 +822,32 @@ struct MakeMatchableTerm {
     }
 
     //! Make the given absolute term matchable.
-    auto operator()(TermAbs const &term, SimplifyFlags flags) const -> Result {
-        if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
+    auto operator()(TermAbs const &term, SimplifyTermFlags flags) const -> Result {
+        if (!test(flags, SimplifyTermFlags::unfailable) && test(flags, SimplifyTermFlags::nested_matchable)) {
             return std::nullopt;
         }
-        return map_term(ctx, term, !test(flags, SimplifyFlags::unfailable));
+        return map_term(ctx, term, !test(flags, SimplifyTermFlags::unfailable));
     }
 
     //! Make the given unary term matchable.
-    auto operator()(TermUnary const &term, SimplifyFlags flags) const -> Result {
-        if (!test(flags, SimplifyFlags::unfailable) && term.op == UnaryOperator::negate) {
+    auto operator()(TermUnary const &term, SimplifyTermFlags flags) const -> Result {
+        if (!test(flags, SimplifyTermFlags::unfailable) && term.op == UnaryOperator::negate) {
             return operator()(*term.rhs, flags).transform([&term](auto &&arg) -> Term {
                 return TermUnary{term.loc, term.op, Util::construct_shared<Term>(std::forward<decltype(arg)>(arg))};
             });
         }
-        if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
+        if (!test(flags, SimplifyTermFlags::unfailable) && test(flags, SimplifyTermFlags::nested_matchable)) {
             return std::nullopt;
         }
-        return map_term(ctx, term, !test(flags, SimplifyFlags::unfailable) && always_numeric(term));
+        return map_term(ctx, term, !test(flags, SimplifyTermFlags::unfailable) && always_numeric(term));
     }
 
     //! Make the given binary term matchable.
-    auto operator()(TermBinary const &term, SimplifyFlags flags) const -> Result {
+    auto operator()(TermBinary const &term, SimplifyTermFlags flags) const -> Result {
         if (is_linear(term)) {
             // The goal here is to avoid adding additional assignments for auxiliary variables
             // that correspond to variables having a numeric value.
-            if (test(flags, SimplifyFlags::unfailable)) {
+            if (test(flags, SimplifyTermFlags::unfailable)) {
                 auto &n = std::get<TermSymbol>(*term.rhs);
                 auto &mx = std::get<TermBinary>(*term.lhs);
                 auto &m = std::get<TermSymbol>(*mx.lhs);
@@ -883,10 +865,10 @@ struct MakeMatchableTerm {
                 return std::nullopt;
             }
         }
-        if (!test(flags, SimplifyFlags::unfailable) && test(flags, SimplifyFlags::nested_matchable)) {
+        if (!test(flags, SimplifyTermFlags::unfailable) && test(flags, SimplifyTermFlags::nested_matchable)) {
             return std::nullopt;
         }
-        return map_term(ctx, term, !test(flags, SimplifyFlags::unfailable));
+        return map_term(ctx, term, !test(flags, SimplifyTermFlags::unfailable));
     }
 
     RewriteContext &ctx; //!< Context used during simplification.
@@ -897,14 +879,14 @@ struct MakeMatchableTerm {
 //! Does not return a value if the literal did not change.
 struct SimplifyLiteral {
     //! Simplify literals dispatching based on type stored in variant.
-    auto operator()(Literal const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
-        return std::visit(*this, lit, std::variant<SimplifyFlags>{flags});
+    auto operator()(Literal const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Literal> {
+        return std::visit(*this, lit, std::variant<SimplifyLiteralFlags>{flags});
     }
 
     //! Simplify Boolean literals.
     //!
     //! Ensures that the literal is either true or false.
-    auto operator()(LiteralBoolean const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
+    auto operator()(LiteralBoolean const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Literal> {
         static_cast<void>(flags);
         auto value = (lit.sign != Sign::once) == lit.value;
         auto state = value ? TruthValue::top : TruthValue::bot;
@@ -957,18 +939,17 @@ struct SimplifyLiteral {
     //! (This does not apply to nested terms.)
     //!
     //! Assignments of form t=X are replaced by X=t if t is not a variable.
-    auto operator()(LiteralRelation const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
+    auto operator()(LiteralRelation const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Literal> {
         // whether pools are treated disjunctively or conjunctively
-        bool head = test(flags, SimplifyFlags::head);
+        bool head = test(flags, SimplifyLiteralFlags::head);
         // whether the elements of the relation are disjunctive or conjunctive
         // (after applying the sign)
         bool disjunctive = head != (lit.sign == Sign::once);
 
-        flags &= ~SimplifyFlags::matchable;
-        auto fixed_flags = SimplifyFlags::none;
+        auto fixed_flags = SimplifyTermFlags::none;
         if (lit.rhs.size() > 1 && disjunctive) {
             // ensure that unpooling preserves terms that can fail
-            fixed_flags = SimplifyFlags::matchable | SimplifyFlags::unfailable;
+            fixed_flags = SimplifyTermFlags::matchable | SimplifyTermFlags::unfailable;
         }
         // the relation symbol that corresponds to assignment
         // (in the head it is inequality)
@@ -995,9 +976,9 @@ struct SimplifyLiteral {
         auto state_fail = head ? TruthValue::top : TruthValue::bot;
 
         // simplify lhs
-        auto match_flags = SimplifyFlags::none;
+        auto match_flags = SimplifyTermFlags::none;
         if (lit.rhs.front().first == assign) {
-            match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
+            match_flags = SimplifyTermFlags::matchable | SimplifyTermFlags::nested_matchable;
         }
 
         // binary assignment
@@ -1014,7 +995,7 @@ struct SimplifyLiteral {
 
             if (lit.rhs.size() == 1 && lit.rhs.front().first == assign && is_variable(lit.lhs) &&
                 is_interval(lit.rhs.front().second)) {
-                fixed_flags |= SimplifyFlags::preserve_toplevel_dots;
+                fixed_flags |= SimplifyTermFlags::preserve_toplevel_dots;
             }
         }
 
@@ -1026,9 +1007,9 @@ struct SimplifyLiteral {
         size_t n = 0;
         for (auto const &[rel, term] : lit.rhs) {
             ++n;
-            match_flags = SimplifyFlags::none;
+            match_flags = SimplifyTermFlags::none;
             if (rel == assign || (n < lit.rhs.size() && lit.rhs[n].first == assign)) {
-                match_flags = SimplifyFlags::matchable | SimplifyFlags::nested_matchable;
+                match_flags = SimplifyTermFlags::matchable | SimplifyTermFlags::nested_matchable;
             }
             auto [state_term, res_term] = simplify(fixed_flags | match_flags, ctx, term);
             succeeded = succeeded && state_term;
@@ -1069,14 +1050,14 @@ struct SimplifyLiteral {
     //! The function ensures the following properties:
     //! (1) the literal is matchable if the corresponding flag has been set,
     //! (2) projection is accepted if the corresponding flag has been set.
-    auto operator()(LiteralSymbolic const &lit, SimplifyFlags flags) const -> SimplifyResult<Literal> {
-        bool head = test(flags, SimplifyFlags::head);
-        auto sub_flags = flags & (SimplifyFlags::matchable | SimplifyFlags::unfailable);
-        if (!head || lit.sign != Sign::none) {
-            sub_flags |= SimplifyFlags::projectable;
-        }
-        if ((head || lit.sign != Sign::none) && !test(flags, SimplifyFlags::unfailable)) {
-            sub_flags &= ~SimplifyFlags::matchable;
+    auto operator()(LiteralSymbolic const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Literal> {
+        bool head = test(flags, SimplifyLiteralFlags::head);
+        auto sub_flags = SimplifyTermFlags::none;
+
+        if (test(flags, SimplifyLiteralFlags::unfailable)) {
+            sub_flags |= SimplifyTermFlags::matchable | SimplifyTermFlags::unfailable;
+        } else if (test(flags, SimplifyLiteralFlags::matchable) && (!head && lit.sign == Sign::none)) {
+            sub_flags |= SimplifyTermFlags::matchable;
         }
         auto [state, res] = simplify(sub_flags, ctx, lit.term);
         if (!state) {
@@ -1154,7 +1135,8 @@ struct SimplifyHBLiteral {
         auto state_lits = state_empty;
         SimplifyVec res_lits{lits};
         for (auto const &lit : lits) {
-            auto [state, value] = simplify(conjunctive ? SimplifyFlags::matchable : SimplifyFlags::head, ctx, lit);
+            auto [state, value] =
+                simplify(conjunctive ? SimplifyLiteralFlags::matchable : SimplifyLiteralFlags::head, ctx, lit);
             if (state_lits == state_fixed) {
                 continue;
             }
@@ -1181,7 +1163,7 @@ struct SimplifyHBLiteral {
         auto state_terms = true;
         SimplifyVec res_terms{terms};
         for (auto const &term : terms) {
-            auto [state_term, res_term] = simplify(SimplifyFlags::none, ctx, term);
+            auto [state_term, res_term] = simplify(SimplifyTermFlags::none, ctx, term);
             state_terms = state_terms && state_term;
             if (state_terms) {
                 res_terms.update(res_term);
@@ -1306,7 +1288,8 @@ struct SimplifyHBLiteral {
     [[nodiscard]] auto simplify_guard(LGuard const &guard, bool matchable) const
         -> SimplifyResult<LGuard::value_type, bool> {
         if (guard.has_value()) {
-            auto [state, res] = simplify(matchable ? SimplifyFlags::matchable : SimplifyFlags::none, ctx, guard->first);
+            auto [state, res] =
+                simplify(matchable ? SimplifyTermFlags::matchable : SimplifyTermFlags::none, ctx, guard->first);
             return {state, std::move(res).transform([&guard](auto &&term) {
                         return LGuard::value_type{std::move(term), guard->second};
                     })};
@@ -1321,7 +1304,7 @@ struct SimplifyHBLiteral {
         -> SimplifyResult<RGuard::value_type, bool> {
         if (guard.has_value()) {
             auto [state, res] =
-                simplify(matchable ? SimplifyFlags::matchable : SimplifyFlags::none, ctx, guard->second);
+                simplify(matchable ? SimplifyTermFlags::matchable : SimplifyTermFlags::none, ctx, guard->second);
             return {state, std::move(res).transform([&guard](auto &&term) {
                         return RGuard::value_type{guard->first, std::move(term)};
                     })};
@@ -1334,7 +1317,7 @@ struct SimplifyHBLiteral {
         -> SimplifyResult<HeadAggregate::Element> {
         auto guard = ctx.push();
         auto [state_tuple, res_tuple] = simplify_termvec(elem.tuple);
-        auto [state_lit, res_lit] = simplify(SimplifyFlags::none, ctx, elem.lit);
+        auto [state_lit, res_lit] = simplify(SimplifyLiteralFlags::none, ctx, elem.lit);
         auto [state_cond, res_cond] = simplify_litvec(elem.cond);
 
         if (!state_tuple) {
@@ -1660,7 +1643,7 @@ struct SimplifyHBLiteral {
     template <bool HasSign>
     auto operator()(TheoryAtom<HasSign> const &lit) const -> SimplifyResult<HBLiteral<!HasSign>> {
         constexpr auto head = !HasSign;
-        auto [state_name, res_name] = simplify(SimplifyFlags::none, ctx, lit.name);
+        auto [state_name, res_name] = simplify(SimplifyTermFlags::none, ctx, lit.name);
         auto res_elems = SimplifyVec{lit.elems};
         for (auto const &elem : lit.elems) {
             auto [state_elem, res_elem] = simplify_element(elem);
@@ -1697,7 +1680,7 @@ struct SimplifyHeadLiteral : SimplifyHBLiteral {
     auto operator()(HeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> { return std::visit(*this, lit); }
 
     auto operator()(SimpleHeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> {
-        auto [state, res] = simplify(SimplifyFlags::head, ctx, lit.lit);
+        auto [state, res] = simplify(SimplifyLiteralFlags::head, ctx, lit.lit);
         return {state, res.transform([](auto &&res) { return SimpleHeadLiteral{GRINGO_FWD(res)}; })};
     }
 
@@ -1719,7 +1702,7 @@ struct SimplifyBodyLiteral : SimplifyHBLiteral {
     auto operator()(BodyLiteral const &lit) const -> SimplifyResult<BodyLiteral> { return std::visit(*this, lit); }
 
     auto operator()(SimpleBodyLiteral const &lit) const -> SimplifyResult<BodyLiteral> {
-        auto [state, res] = simplify(SimplifyFlags::matchable, ctx, lit.lit);
+        auto [state, res] = simplify(SimplifyLiteralFlags::matchable, ctx, lit.lit);
         return {state, res.transform([](auto &&res) { return SimpleBodyLiteral{GRINGO_FWD(res)}; })};
     }
 
@@ -1822,7 +1805,7 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementShow const &stm) const -> SimplifyResult<Statement> {
-        auto [state_term, res_term] = simplify(SimplifyFlags::none, ctx, stm.term);
+        auto [state_term, res_term] = simplify(SimplifyTermFlags::none, ctx, stm.term);
         auto [state_body, res_body] = simplify_body(stm.body);
         if (!state_term || state_body == TruthValue::bot) {
             return {TruthValue::top, Rule{stm.loc, make_constant(location(stm.term), true), {}}};
@@ -1841,7 +1824,7 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementProject const &stm) const -> SimplifyResult<Statement> {
-        auto [state_term, res_term] = simplify(SimplifyFlags::matchable, ctx, stm.term);
+        auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term);
         auto [state_body, res_body] = simplify_body(stm.body);
         if (!state_term || state_body == TruthValue::bot) {
             return {TruthValue::top, Rule{stm.loc, make_constant(location(stm.term), true), {}}};
@@ -1865,9 +1848,9 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementExternal const &stm) const -> SimplifyResult<Statement> {
-        auto [state_term, res_term] = simplify(SimplifyFlags::matchable, ctx, stm.term);
+        auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term);
         auto [state_type, res_type] =
-            stm.type ? simplify(SimplifyFlags::matchable, ctx, *stm.type) : SimplifyResult<Term, bool>{true};
+            stm.type ? simplify(SimplifyTermFlags::matchable, ctx, *stm.type) : SimplifyResult<Term, bool>{true};
         auto [state_body, res_body] = simplify_body(stm.body);
         if (!state_term || !state_type || state_body == TruthValue::bot) {
             return {TruthValue::top, Rule{stm.loc, make_constant(location(stm.term), true), {}}};
@@ -1923,9 +1906,10 @@ struct SimplifyStatement {
 
 } // namespace
 
-[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext &ctx, Term const &term) -> SimplifyResult<Term, bool> {
+[[nodiscard]] auto simplify(SimplifyTermFlags flags, RewriteContext &ctx, Term const &term)
+    -> SimplifyResult<Term, bool> {
     auto make_matchable = [&](auto &&target, bool self = true) -> SimplifyResult<Term, bool> {
-        if (test(flags, SimplifyFlags::matchable)) {
+        if (test(flags, SimplifyTermFlags::matchable)) {
             if (auto ret = MakeMatchableTerm{ctx}(target, flags); ret.has_value()) {
                 return {true, std::move(ret).value()};
             }
@@ -1955,7 +1939,8 @@ struct SimplifyStatement {
         simp(term, flags));
 }
 
-[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext &ctx, Literal const &lit) -> SimplifyResult<Literal> {
+[[nodiscard]] auto simplify(SimplifyLiteralFlags flags, RewriteContext &ctx, Literal const &lit)
+    -> SimplifyResult<Literal> {
     return SimplifyLiteral{ctx}(lit, flags);
 }
 

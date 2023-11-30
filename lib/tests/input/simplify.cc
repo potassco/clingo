@@ -5,18 +5,17 @@
 
 namespace Gringo::Input::Test {
 
-template <typename T>
-auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decltype(simplify(flags, ctx, x)) {
+template <typename F, typename T>
+auto call_simplify(F flags, RewriteContext &ctx, T const &x) -> decltype(simplify(flags, ctx, x)) {
     return simplify(flags, ctx, x);
 }
-template <typename T>
-auto call_simplify(SimplifyFlags flags, RewriteContext &ctx, T const &x) -> decltype(simplify(ctx, x)) {
+template <typename F, typename T>
+auto call_simplify(F flags, RewriteContext &ctx, T const &x) -> decltype(simplify(ctx, x)) {
     static_cast<void>(flags);
     return simplify(ctx, x);
 }
 
-template <class T>
-auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::projectable) -> std::string {
+template <class F, class T> auto simplify_str_(std::optional<T> value, F flags) -> std::string {
     if (value) {
         Logger log;
         auto store = make_symbol_store(true, true);
@@ -67,6 +66,17 @@ auto simplify_str(std::optional<T> value, SimplifyFlags flags = SimplifyFlags::p
     }
     return "<failed>";
 }
+
+auto simplify_str(std::optional<Term> value, SimplifyTermFlags flags = SimplifyTermFlags::none) -> std::string {
+    return simplify_str_(value, flags);
+}
+
+auto simplify_str(std::optional<Literal> value, SimplifyLiteralFlags flags = SimplifyLiteralFlags::none)
+    -> std::string {
+    return simplify_str_(value, flags);
+}
+
+template <class T> auto simplify_str(std::optional<T> value) -> std::string { return simplify_str_(value, 0); }
 
 TEST_CASE("simplify_unary") {
     // numeric
@@ -134,6 +144,8 @@ TEST_CASE("simplify_symbolic") {
     REQUIRE(simplify_str(parse_term("(1+2+X,-X)")) == "(1*X+3,-X), U");
     REQUIRE(simplify_str(parse_term("f(1+a)")) == "<unchanged>, F");
     REQUIRE(simplify_str(parse_term("f(X+a)")) == "<unchanged>, F");
+    REQUIRE(simplify_str(parse_term("f(*,(*,b))")) == "f(*,(*,b)), U");
+    REQUIRE(simplify_str(parse_term("f(*)")) == "<unchanged>, U");
 }
 
 TEST_CASE("simplify_aux") {
@@ -143,26 +155,20 @@ TEST_CASE("simplify_aux") {
     REQUIRE(simplify_str(parse_term("@f(@g(1+2))")) == "__A_1, __A_0=@g(3), __A_1=@f(__A_0), U");
 }
 
-TEST_CASE("simplify_projection") {
-    REQUIRE(simplify_str(parse_term("f(*,(*,b))")) == "f(*,(*,b)), U");
-    REQUIRE(simplify_str(parse_term("@f(g(*))")) == "<unchanged>, F, E");
-    REQUIRE(simplify_str(parse_term("f(*)"), SimplifyFlags::none) == "<unchanged>, F, E");
-}
-
 TEST_CASE("simplify_matchable") {
-    auto flags = SimplifyFlags::matchable | SimplifyFlags::unfailable;
+    auto flags = SimplifyTermFlags::matchable | SimplifyTermFlags::unfailable;
     REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,__A_0), __A_0=X+Y, U");
     REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,__A_0), __A_0=2*X+0, U");
     REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) == "p(__A_1,__A_0), __A_0=@f(g(X*X)), __A_1=1*X+5, U");
 
-    flags &= ~SimplifyFlags::unfailable;
+    flags &= ~SimplifyTermFlags::unfailable;
     REQUIRE(simplify_str(parse_term("f(1,X+Y)"), flags) == "f(1,1*__A_0+0), __A_0=X+Y, U");
     REQUIRE(simplify_str(parse_term("f(1,2*X)"), flags) == "f(1,2*X+0), U");
     REQUIRE(simplify_str(parse_term("p(X+5,@f(g(X*X)))"), flags) == "p(1*X+5,__A_0), __A_0=@f(g(X*X)), U");
 }
 
 TEST_CASE("simplify_literal") {
-    auto flags = SimplifyFlags::matchable;
+    auto flags = SimplifyLiteralFlags::matchable;
     REQUIRE(simplify_str(parse_literal("#sup<=1"), flags) == "#false, B");
     REQUIRE(simplify_str(parse_literal("1>=2"), flags) == "#false, B");
     REQUIRE(simplify_str(parse_literal("1<2"), flags) == "#true, T");
@@ -173,8 +179,6 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("not X=Y+Z=Z"), flags) == "not X=__A_0=Z, __A_0=Y+Z, U");
     REQUIRE(simplify_str(parse_literal("X=f(Y+Z,Z+5)<f(Y+Z,Z+5)"), flags) ==
             "X=f(1*__A_0+0,1*Z+5)<f(Y+Z,1*Z+5), __A_0=Y+Z, U");
-    REQUIRE(simplify_str(parse_literal("f(X,*)<f(Y)"), flags) == "#false, B, E");
-    REQUIRE(simplify_str(parse_literal("not f(X,*)<f(Y)"), flags) == "#false, B, E");
 
     REQUIRE(simplify_str(parse_literal("X=2<1"), flags) == "#false, B");
     REQUIRE(simplify_str(parse_literal("X=2>1"), flags) == "<unchanged>, U");
@@ -183,10 +187,7 @@ TEST_CASE("simplify_literal") {
     REQUIRE(simplify_str(parse_literal("1<2<3<4"), flags) == "#true, T");
     REQUIRE(simplify_str(parse_literal("not 1<2<3<4"), flags) == "#false, B");
 
-    flags = SimplifyFlags::matchable | SimplifyFlags::projectable;
     REQUIRE(simplify_str(parse_literal("p(X,*)"), flags) == "<unchanged>, U");
-    REQUIRE(simplify_str(parse_literal("p(X,@f(*))"), flags) == "#false, B, E");
-    REQUIRE(simplify_str(parse_literal("not p(X,@f(*))"), flags) == "#false, B, E");
     REQUIRE(simplify_str(parse_literal("p(X+Y,Y+1)"), flags) == "p(1*__A_0+0,1*Y+1), __A_0=X+Y, U");
     REQUIRE(simplify_str(parse_literal("not p(X+Y,Y+1)"), flags) == "not p(X+Y,1*Y+1), U");
     REQUIRE(simplify_str(parse_literal("not not p(X+Y,Y+1)"), flags) == "not not p(X+Y,1*Y+1), U");
@@ -326,9 +327,7 @@ TEST_CASE("simplify_rule") {
     REQUIRE(simplify_str(parse_statement("x :- #and { #false; p(X+Y): q(X+Y) }.")) == "#true., T");
     REQUIRE(simplify_str(parse_statement("#false.")) == "<unchanged>, B");
     REQUIRE(simplify_str(parse_statement("#false :- #true.")) == "#false., B");
-
     REQUIRE(simplify_str(parse_statement("p(X) :- q(*).")) == "<unchanged>, U");
-    REQUIRE(simplify_str(parse_statement("p(*) :- q(X).")) == "#true., T, E");
 }
 
 TEST_CASE("simplify_show") {

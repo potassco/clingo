@@ -11,18 +11,27 @@ namespace Gringo::Input {
 
 //! Flags controlling simplification.
 //!
-//! @todo: It might be possible to split this into flags for terms and literals.
-enum class SimplifyFlags : unsigned {
+//! @todo: Since only a small number of flags applies to literals,
+//! the flags could be split.
+enum class SimplifyTermFlags : unsigned {
     none = 0,                    //!< No flags are set.
-    matchable = 1,               //!< Ensure that expressions are matchable.
-    projectable = 2,             //!< Permit projection.
-    unfailable = 4,              //!< Ensure that there are no expressions that evaluate to empty pools.
-    head = 8,                    //!< Indicate that the expression occurs in a rule head.
-    nested_matchable = 16,       //!< Do not make roots of terms matchable.
-    preserve_toplevel_dots = 32, //!< Preserve the dots in terms like u..t.
+    matchable = 1,               //!< Ensure that terms are matchable.
+    unfailable = 4,              //!< Ensure that terms do not evaluate to empty pools.
+    nested_matchable = 8,        //!< Do not make roots of terms matchable.
+    preserve_toplevel_dots = 16, //!< Preserve the dots in terms like u..t.
 };
 
-GRINGO_ENUM_FLAGS(SimplifyFlags)
+GRINGO_ENUM_FLAGS(SimplifyTermFlags)
+
+//! Flags controlling simplification of literals.
+enum class SimplifyLiteralFlags : unsigned {
+    none = 0,       //!< No flags are set.
+    matchable = 1,  //!< Ensure that literals are matchable.
+    unfailable = 4, //!< Ensure that terms in literals do not evaluate to empty pools.
+    head = 32,      //!< Indicate literals occurring in rule heads.
+};
+
+GRINGO_ENUM_FLAGS(SimplifyLiteralFlags)
 
 //! Truth values for expressions.
 enum class TruthValue {
@@ -48,7 +57,10 @@ template <class T, class S = TruthValue> struct SimplifyResult {
 //! i.e., it evaluated to an empty pool.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext &ctx, Term const &term) -> SimplifyResult<Term, bool>;
+//!
+//! All but flags but the head flag apply to terms.
+[[nodiscard]] auto simplify(SimplifyTermFlags flags, RewriteContext &ctx, Term const &term)
+    -> SimplifyResult<Term, bool>;
 
 //! Simplifies the given literal.
 //!
@@ -56,7 +68,11 @@ template <class T, class S = TruthValue> struct SimplifyResult {
 //! The literal is simplified to \#true/\#false for truth values true/false.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(SimplifyFlags flags, RewriteContext &ctx, Literal const &lit) -> SimplifyResult<Literal>;
+//!
+//! Only the matchable and head flags apply to literals.
+//! The remaining ones are simply cleared.
+[[nodiscard]] auto simplify(SimplifyLiteralFlags flags, RewriteContext &ctx, Literal const &lit)
+    -> SimplifyResult<Literal>;
 
 //! Simplifies the given head literal.
 //!
