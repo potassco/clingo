@@ -1843,8 +1843,28 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementHeuristic const &stm) const -> SimplifyResult<Statement> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        auto [state_atom, res_atom] = simplify(SimplifyTermFlags::matchable, ctx, stm.atom);
+        auto [state_mod, res_mod] = simplify(SimplifyTermFlags::none, ctx, stm.mod);
+        auto [state_type, res_type] = simplify(SimplifyTermFlags::none, ctx, stm.type);
+        auto [state_prio, res_prio] =
+            stm.prio ? simplify(SimplifyTermFlags::none, ctx, *stm.prio) : SimplifyResult<Term, bool>{true};
+        auto [state_body, res_body] = simplify_body(stm.body);
+
+        if (!state_atom || !state_mod || !state_type || !state_prio || state_body == TruthValue::bot) {
+            return {TruthValue::top, Rule{stm.loc, make_constant(stm.loc, true), {}}};
+        }
+        auto state = TruthValue::unknown;
+        if (res_atom.has_value() || res_mod.has_value() || res_type.has_value() || res_prio.has_value() ||
+            res_body.has_value()) {
+            if (!res_prio && stm.prio) {
+                res_prio = stm.prio;
+            }
+            return {state,
+                    StatementHeuristic{stm.loc, std::move(res_atom).value_or(stm.atom),
+                                       std::move(res_body).value_or(stm.body), std::move(res_type).value_or(stm.type),
+                                       std::move(res_prio), std::move(res_mod).value_or(stm.mod)}};
+        }
+        return {state};
     }
 
     auto operator()(StatementScript const &stm) const -> SimplifyResult<Statement> {

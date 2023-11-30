@@ -6,6 +6,9 @@ all: configure
 doc:
 	cd doc && doxygen
 
+test_doc: doc
+	python -m http.server --directory=doc/html
+
 test: all
 	$(MAKE) CTEST_OUTPUT_ON_FAILURE=1 -C build $@
 

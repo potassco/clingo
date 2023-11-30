@@ -9,16 +9,13 @@ namespace Gringo::Input {
 //! @addtogroup input_rewrite
 //! @{
 
-//! Flags controlling simplification.
-//!
-//! @todo: Since only a small number of flags applies to literals,
-//! the flags could be split.
+//! Flags controlling simplification of terms.
 enum class SimplifyTermFlags : unsigned {
     none = 0,       //!< No flags are set.
     matchable = 1,  //!< Ensure that terms are matchable.
     unfailable = 2, //!< Ensure that terms do not evaluate to empty pools (should be used together with matchable).
     nested_matchable = 4,  //!< Do not make roots of terms matchable (should be used together with matchable).
-    preserve_toplevel = 8, //!< Preserve toplevel terms terms like u..t or @f.
+    preserve_toplevel = 8, //!< Preserve toplevel terms terms like u..t or \@f.
 };
 
 GRINGO_ENUM_FLAGS(SimplifyTermFlags)
