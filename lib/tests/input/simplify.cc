@@ -352,4 +352,11 @@ TEST_CASE("simplify_external") {
             "#external p(1*__A_0+0): p(1*__A_2+0); __A_0=1..2; __A_1=@x; __A_2=3..4. [__A_1], U");
 }
 
+TEST_CASE("simplify_edge") {
+    REQUIRE(simplify_str(parse_statement("#edge (X,Y) : #false.")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#edge (X+a,Y).")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement("#edge (1..2,3..4) : p(5..6).")) ==
+            "#edge (__A_0,__A_1): p(1*__A_2+0); __A_0=1..2; __A_1=3..4; __A_2=5..6., U");
+}
+
 } // namespace Gringo::Input::Test

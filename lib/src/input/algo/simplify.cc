@@ -1689,11 +1689,6 @@ struct SimplifyStatement {
         throw std::logic_error("implement me!!!");
     }
 
-    [[nodiscard]] static auto simplify_edge(StatementEdge::Edge const &edge) -> SimplifyResult<StatementEdge::Edge> {
-        static_cast<void>(edge);
-        throw std::logic_error("implement me!!!");
-    }
-
     [[nodiscard]] auto simplify_body(BodyLiteralVec const &body) const -> SimplifyResult<BodyLiteralVec> {
         auto res_body = SimplifyVec{body};
         auto state_body = TruthValue::top;
@@ -1827,8 +1822,24 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementEdge const &stm) const -> SimplifyResult<Statement> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        if (stm.edges.size() != 1) {
+            throw std::runtime_error("edge directives must be unpooled before simplifying");
+        }
+        auto edge = stm.edges.front();
+        auto [state_u, res_u] = simplify(SimplifyTermFlags::none, ctx, edge.u);
+        auto [state_v, res_v] = simplify(SimplifyTermFlags::none, ctx, edge.v);
+        auto [state_body, res_body] = simplify_body(stm.body);
+        if (!state_u || !state_v || state_body == TruthValue::bot) {
+            return {TruthValue::top, Rule{stm.loc, make_constant(stm.loc, true), {}}};
+        }
+        auto state = TruthValue::unknown;
+        if (res_u.has_value() || res_v.has_value() || res_body.has_value()) {
+            return {state, StatementEdge{stm.loc,
+                                         Util::make_vec<StatementEdge::Edge>(StatementEdge::Edge{
+                                             std::move(res_u).value_or(edge.u), std::move(res_v).value_or(edge.v)}),
+                                         std::move(res_body).value_or(stm.body)}};
+        }
+        return {state};
     }
 
     auto operator()(StatementHeuristic const &stm) const -> SimplifyResult<Statement> {
