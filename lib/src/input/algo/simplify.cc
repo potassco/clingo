@@ -10,49 +10,6 @@
 #include <input/algo/simplify.hh>
 #include <input/algo/visit_variables.hh>
 
-/*
-whole process as in gringo atm
-1. apply #const statements (partially done)
-2. unpool (done)
-3. init theory
-4. simplify (done for terms, literals)
-  0. evaluate (done)
-  1. extract atoms to project (done)
-     - add option to forbid completely
-     - only check in simplify
-  2. dots/script (done)
-     - simply remove them all starting from nested contexts
-     - they should be ignored in specific settings to make the simplify function idempotent
-       this has to be handled by the surrounding literal class
-     (done for terms)
-  4. terms that can fail (done)
-     - needs option to avoid if unnecessary
-     - applies to unary, binary, abs, and external in n-ary comparison literals with n > 2
-       (probably the only context)
-     - 1+a < 5 < 10
-     - X < 5 < 10, X=1+a
-  5. make matchable (done)
-    - can be part of simplify (per option to avoid if unnecessary for example in negated literals)
-    - probably best solved using a separate traversal
-    - p(X+5,X*X)
-      -> p(X+5,Aux), Aux=X*X
-    -> p(X+5,@f(g(X*X))),
-      -> p(X+5,Aux), Aux=@f(g(X*X)))
-      - no traversal into external functions/intervals
-6. unpool comparison
-   the comparison
-     not 1+a < 5 < 10
-   is equivalent to
-     X=1+a, not X < 5 < 10
-   so any term that can fail to evaluate should be stripped during simplification
-   this also includes intervals and scripts!
-7. rewrite
-  1. aggregates
-  2. arithmetics
-  4. comparisons to intervals
-  5. assignment aggregates
-*/
-
 namespace Gringo::Input {
 
 namespace {
@@ -1896,7 +1853,7 @@ struct SimplifyStatement {
 
     auto operator()(StatementConst const &stm) const -> SimplifyResult<Statement> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        throw std::runtime_error("const statementments must be extracted first");
     }
 
     auto operator()(Comment const &stm) const -> SimplifyResult<Statement> {
