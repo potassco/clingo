@@ -370,4 +370,14 @@ TEST_CASE("simplify_heuristic") {
             ". [__A_2@__A_3,__A_1], U");
 }
 
+TEST_CASE("simplify_weak") {
+    REQUIRE(simplify_str(parse_statement(":~ p(X+a). [X@Y,Z]")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement(":~ p(X). [X+a@Y,Z]")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement(":~ p(X). [X@Y+a,Z]")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement(":~ p(X). [X@Y,Z+a]")) == "#true., T");
+    REQUIRE(simplify_str(parse_statement(":~ p(1..2). [3..4@5..6,7..8]")) ==
+            " :~ p(1*__A_3+0); __A_0=3..4; __A_1=5..6; __A_2=7..8; __A_3=1..2"
+            ". [__A_0@__A_1,__A_2], U");
+}
+
 } // namespace Gringo::Input::Test
