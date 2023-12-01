@@ -517,10 +517,23 @@ struct Unpool {
     }
 
     auto operator()(StatementOptimize const &stm) const -> std::optional<StatementVec> {
-        // TODO: consider turning into weak constraint
-        return Util::map_opt(unpool_union(stm.elems, *this), [&stm](auto elems) {
-            return Util::make_vec<Statement>(StatementOptimize{stm.loc, stm.type, std::move(elems)});
-        });
+        StatementVec stms;
+        stms.reserve(stm.elems.size());
+        for (auto const &elem : stm.elems) {
+            auto body = BodyLiteralVec{};
+            body.reserve(elem.second.size());
+            for (auto const &lit : elem.second) {
+                body.emplace_back(SimpleBodyLiteral{lit});
+            }
+            auto cons = StatementWeakConstraint{stm.loc, std::move(body), elem.first};
+            if (auto opt_stms = operator()(cons); opt_stms.has_value()) {
+                stms.insert(stms.end(), std::make_move_iterator(opt_stms->begin()),
+                            std::make_move_iterator(opt_stms->end()));
+            } else {
+                stms.emplace_back(std::move(cons));
+            }
+        }
+        return stms;
     }
 
     auto operator()(StatementWeakConstraint const &stm) const -> std::optional<StatementVec> {

@@ -1786,7 +1786,6 @@ struct SimplifyStatement {
 
     auto operator()(StatementOptimize const &stm) const -> SimplifyResult<Statement> {
         static_cast<void>(stm);
-        // TODO: simply turn into weak constraints
         throw std::runtime_error("optimize statements must be unpooled first");
     }
 
