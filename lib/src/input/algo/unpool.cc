@@ -499,21 +499,13 @@ struct Unpool {
         return std::nullopt;
     }
 
-    auto operator()(StatementOptimize::Tuple const &tuple) const
+    auto operator()(StatementWeakConstraint::Tuple const &tuple) const
         -> std::optional<std::vector<StatementOptimize::Tuple>> {
         return unpool_crossproducts(
             [](auto weight, auto prio, auto terms) {
                 return StatementOptimize::Tuple{std::move(weight), std::move(prio), std::move(terms)};
             },
             *this, tuple.weight, tuple.priority, tuple.terms);
-    }
-
-    auto operator()(StatementOptimize::Element const &elem) const -> std::optional<StatementOptimize::ElementVec> {
-        return unpool_crossproducts(
-            [](auto tuple, auto cond) {
-                return StatementOptimize::Element{std::move(tuple), std::move(cond)};
-            },
-            *this, std::get<0>(elem), std::get<1>(elem));
     }
 
     auto operator()(StatementOptimize const &stm) const -> std::optional<StatementVec> {
@@ -525,7 +517,11 @@ struct Unpool {
             for (auto const &lit : elem.second) {
                 body.emplace_back(SimpleBodyLiteral{lit});
             }
-            auto cons = StatementWeakConstraint{stm.loc, std::move(body), elem.first};
+            auto tuple = elem.first;
+            if (stm.type == OptimizeType::maximize) {
+                tuple.weight = TermUnary{location(tuple.weight), UnaryOperator::negate, std::move(tuple.weight)};
+            }
+            auto cons = StatementWeakConstraint{stm.loc, std::move(body), std::move(tuple)};
             if (auto opt_stms = operator()(cons); opt_stms.has_value()) {
                 stms.insert(stms.end(), std::make_move_iterator(opt_stms->begin()),
                             std::make_move_iterator(opt_stms->end()));
