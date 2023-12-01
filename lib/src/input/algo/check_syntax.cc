@@ -1,44 +1,117 @@
 #include <input/statement.hh>
+#include <util/algorithm.hh>
+
+#include <type_traits>
 
 #include "visit.hh"
 
 namespace Gringo::Input {
 
 namespace {
-/*
-struct VisitVariables : Visitor<VisitVariables> {
-    VisitVariables(VarVisitFun fun, VariableContext ctx = VariableContext::all) : fun{std::move(fun)}, ctx{ctx} {}
 
+enum ProjectionCheck {
+    nerver = 0,
+    function = 1,
+    always = 2,
+};
+
+struct CheckSyntax {
     // protect ourselves -> no unintended overloads
 
-    template <class T> auto operator()(T const &) const -> std::optional<T> = delete;
-
-    // ignore
-
-    void operator()(std::monostate x) const { static_cast<void>(x); }
-
-    void operator()(String const &x) const { static_cast<void>(x); }
-
-    void operator()(Relation const &x) const { static_cast<void>(x); }
+    template <class T> auto operator()(T const &, ProjectionCheck check) const -> bool = delete;
 
     // terms
 
-    void operator()(Term const &term) const { std::visit(*this, term); }
+    auto operator()(Term const &term, ProjectionCheck check) const -> bool {
+        return std::visit(*this, term, std::variant<ProjectionCheck>{check});
+    }
 
-    void operator()(TermSymbol const &term) const { static_cast<void>(term); }
+    auto operator()(TermSymbol const &term, ProjectionCheck check) const -> bool {
+        static_cast<void>(term);
+        static_cast<void>(check);
+        return true;
+    }
 
-    void operator()(TermVariable const &term) const { fun(term.loc, term.name); }
+    auto operator()(TermVariable const &term, ProjectionCheck check) const -> bool {
+        static_cast<void>(term);
+        static_cast<void>(check);
+        return true;
+    }
 
-    void operator()(TermTuple const &term) const { visit(term.pool); }
+    auto operator()(std::monostate /*unused*/, ProjectionCheck check) const -> bool {
+        return check != ProjectionCheck::nerver;
+    }
 
-    void operator()(TermFunction const &term) const { visit(term.pool); }
+    auto operator()(TupleElem const &elem, ProjectionCheck check) const -> bool {
+        return std::visit(*this, elem, std::variant<ProjectionCheck>{check});
+    }
 
-    void operator()(TermAbs const &term) const { visit(term.pool); }
+    auto operator()(TupleVec const &tuple, ProjectionCheck check) const -> bool {
+        for (auto const &project_or_term : tuple) {
+            if (!operator()(project_or_term, check)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-    void operator()(TermUnary const &term) const { visit(term.rhs); }
+    auto operator()(TermTuple::Element const &elem, ProjectionCheck check) const -> bool {
+        if (check < ProjectionCheck::always) {
+            check = ProjectionCheck::nerver;
+        }
+        return std::visit(*this, elem, std::variant<ProjectionCheck>{check});
+    }
 
-    void operator()(TermBinary const &term) const { visit(term.lhs, term.rhs); }
+    auto operator()(TermTuple const &term, ProjectionCheck check) const -> bool {
+        for (auto const &tuple_or_term : term.pool) {
+            if (!operator()(tuple_or_term, check)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
+    auto operator()(TermFunction const &term, ProjectionCheck check) const -> bool {
+        for (auto const &tuple : term.pool) {
+            if (!operator()(tuple, check)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    auto operator()(TermAbs const &term, ProjectionCheck check) const -> bool {
+        static_cast<void>(check);
+        for (auto const &term : term.pool) {
+            if (!operator()(term, ProjectionCheck::nerver)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    auto operator()(TermUnary const &term, ProjectionCheck check) const -> bool {
+        switch (term.op) {
+            case UnaryOperator::invert: {
+                if (check > ProjectionCheck::function) {
+                    check = ProjectionCheck::function;
+                }
+                break;
+            }
+            case UnaryOperator::negate: {
+                check = ProjectionCheck::nerver;
+                break;
+            }
+        }
+        return operator()(*term.rhs, check);
+    }
+
+    auto operator()(TermBinary const &term, ProjectionCheck check) const -> bool {
+        static_cast<void>(check);
+        return operator()(*term.lhs, ProjectionCheck::nerver) && operator()(*term.rhs, ProjectionCheck::nerver);
+    }
+
+    /*
     // theory terms
 
     void operator()(TheoryTerm const &term) const { std::visit(*this, term); }
@@ -169,12 +242,8 @@ struct VisitVariables : Visitor<VisitVariables> {
     void operator()(StatementConst const &stm) const { static_cast<void>(stm); }
 
     void operator()(Comment const &stm) const { static_cast<void>(stm); }
-
-    VarVisitFun fun;
-    VariableContext ctx;
+    */
 };
-
-*/
 
 } // namespace
 
