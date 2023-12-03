@@ -1,7 +1,9 @@
-#include <input/statement.hh>
+#include <algorithm>
+#include <type_traits>
+
 #include <util/algorithm.hh>
 
-#include <type_traits>
+#include <input/statement.hh>
 
 #include "visit.hh"
 
@@ -38,7 +40,8 @@ struct CheckSyntax {
         return true;
     }
 
-    auto operator()(std::monostate /*unused*/, ProjectionCheck check) const -> bool {
+    auto operator()(std::monostate projected, ProjectionCheck check) const -> bool {
+        static_cast<void>(projected);
         return check != ProjectionCheck::nerver;
     }
 
@@ -47,12 +50,8 @@ struct CheckSyntax {
     }
 
     auto operator()(TupleVec const &tuple, ProjectionCheck check) const -> bool {
-        for (auto const &project_or_term : tuple) {
-            if (!operator()(project_or_term, check)) {
-                return false;
-            }
-        }
-        return true;
+        return std::all_of(tuple.begin(), tuple.end(),
+                           [this, check](auto const &project_or_term) { return operator()(project_or_term, check); });
     }
 
     auto operator()(TermTuple::Element const &elem, ProjectionCheck check) const -> bool {
@@ -63,31 +62,19 @@ struct CheckSyntax {
     }
 
     auto operator()(TermTuple const &term, ProjectionCheck check) const -> bool {
-        for (auto const &tuple_or_term : term.pool) {
-            if (!operator()(tuple_or_term, check)) {
-                return false;
-            }
-        }
-        return true;
+        return std::all_of(term.pool.begin(), term.pool.end(),
+                           [this, check](auto const &tuple_or_term) { return operator()(tuple_or_term, check); });
     }
 
     auto operator()(TermFunction const &term, ProjectionCheck check) const -> bool {
-        for (auto const &tuple : term.pool) {
-            if (!operator()(tuple, check)) {
-                return false;
-            }
-        }
-        return true;
+        return std::all_of(term.pool.begin(), term.pool.end(),
+                           [this, check](auto const &tuple) { return operator()(tuple, check); });
     }
 
     auto operator()(TermAbs const &term, ProjectionCheck check) const -> bool {
         static_cast<void>(check);
-        for (auto const &term : term.pool) {
-            if (!operator()(term, ProjectionCheck::nerver)) {
-                return false;
-            }
-        }
-        return true;
+        return std::all_of(term.pool.begin(), term.pool.end(),
+                           [this](auto const &term) { return operator()(term, ProjectionCheck::nerver); });
     }
 
     auto operator()(TermUnary const &term, ProjectionCheck check) const -> bool {
@@ -111,92 +98,143 @@ struct CheckSyntax {
         return operator()(*term.lhs, ProjectionCheck::nerver) && operator()(*term.rhs, ProjectionCheck::nerver);
     }
 
-    /*
     // theory terms
 
-    void operator()(TheoryTerm const &term) const { std::visit(*this, term); }
+    auto operator()(TheoryTerm const &term, ProjectionCheck check) const -> bool {
+        static_cast<void>(term);
+        static_cast<void>(check);
+        return true;
+    }
 
-    void operator()(TheoryTermSymbol const &term) const { static_cast<void>(term); }
+    auto operator()(TheoryTermSymbol const &term, ProjectionCheck check) const -> bool {
+        static_cast<void>(term);
+        static_cast<void>(check);
+        return true;
+    }
 
-    void operator()(TheoryTermVariable const &term) const { fun(term.loc, term.name); }
+    auto operator()(TheoryTermVariable const &term, ProjectionCheck check) const -> bool {
+        static_cast<void>(term);
+        static_cast<void>(check);
+        return true;
+    }
 
-    void operator()(TheoryTermTuple const &term) const { visit(term.elems); }
+    auto operator()(TheoryTermTuple const &term, ProjectionCheck check) const -> bool {
+        static_cast<void>(term);
+        static_cast<void>(check);
+        return true;
+    }
 
-    void operator()(TheoryTermFunction const &term) const { visit(term.args); }
+    auto operator()(TheoryTermFunction const &term, ProjectionCheck check) const -> bool {
+        static_cast<void>(term);
+        static_cast<void>(check);
+        return true;
+    }
 
-    void operator()(TheoryTermUnparsed const &term) const { visit(term.elems); }
+    auto operator()(TheoryTermUnparsed const &term, ProjectionCheck check) const -> bool {
+        static_cast<void>(term);
+        static_cast<void>(check);
+        return true;
+    }
 
     // literals
 
-    void operator()(Literal const &lit) const { std::visit(*this, lit); }
+    auto operator()(Literal const &lit, ProjectionCheck check) const -> bool {
+        return std::visit(*this, lit, std::variant<ProjectionCheck>{check});
+    }
 
-    void operator()(LiteralBoolean const &lit) const { static_cast<void>(lit); }
+    auto operator()(LiteralBoolean const &lit, ProjectionCheck check) const -> bool {
+        static_cast<void>(lit);
+        static_cast<void>(check);
+        return true;
+    }
 
-    void operator()(LiteralRelation const &lit) const { visit(lit.lhs, lit.rhs); }
+    auto operator()(LiteralRelation const &lit, ProjectionCheck check) const -> bool {
+        static_cast<void>(check);
+        return operator()(lit.lhs, ProjectionCheck::nerver) &&
+               std::all_of(lit.rhs.begin(), lit.rhs.end(),
+                           [this](auto &guard) { return operator()(guard.second, ProjectionCheck::nerver); });
+    }
 
-    void operator()(LiteralSymbolic const &lit) const { visit(lit.term); }
+    auto operator()(LiteralSymbolic const &lit, ProjectionCheck check) const -> bool {
+        static_cast<void>(lit);
+        static_cast<void>(check);
+        return true;
+    }
 
     // conditional literal
 
-    void operator()(ConditionalLiteral const &cond_lit) const {
-        if (ctx == VariableContext::all) {
-            visit(cond_lit.cond);
-        }
-        visit(cond_lit.lits);
+    auto operator()(LiteralVec const &lits, ProjectionCheck check = ProjectionCheck::always) const -> bool {
+        return std::all_of(lits.begin(), lits.end(), [this, check](auto const &lit) { return operator()(lit, check); });
     }
 
-    template <bool Conjunctive> void operator()(Junction<Conjunctive> const &lit) const { visit(lit.elems); }
+    template <bool Conjunctive> auto operator()(Junction<Conjunctive> const &lit) const -> bool {
+        return std::all_of(lit.elems.begin(), lit.elems.end(), [this](auto const &elem) {
+            return this->operator()(elem.lits, Conjunctive ? ProjectionCheck::always : ProjectionCheck::nerver) &&
+                   operator()(elem.cond);
+        });
+    }
 
     // aggregate
 
-    void operator()(SetAggregateElement const &elem) const { visit(elem.lit, elem.cond); }
+    auto operator()(LGuard guard) const -> bool {
+        return !guard.has_value() || operator()(guard->first, ProjectionCheck::nerver);
+    }
 
-    template <bool HasSign> void operator()(SetAggregate<HasSign> const &lit) const {
-        if (ctx == VariableContext::all) {
-            visit(lit.elems);
-        }
-        visit(lit.lhs, lit.rhs);
+    auto operator()(RGuard guard) const -> bool {
+        return !guard.has_value() || operator()(guard->second, ProjectionCheck::nerver);
+    }
+
+    auto operator()(TermVec const &terms) const -> bool {
+        return std::all_of(terms.begin(), terms.end(),
+                           [this](auto const &term) { return operator()(term, ProjectionCheck::nerver); });
+    }
+
+    template <bool HasSign> auto operator()(SetAggregate<HasSign> const &lit) const -> bool {
+        return std::all_of(lit.elems.begin(), lit.elems.end(),
+                           [this](auto const &elem) {
+                               return this->operator()(elem.lit,
+                                                       HasSign ? ProjectionCheck::always : ProjectionCheck::nerver) &&
+                                      operator()(elem.cond);
+                           }) &&
+               operator()(lit.lhs) && operator()(lit.rhs);
     }
 
     // theory
 
-    template <bool HasSign> void operator()(TheoryAtom<HasSign> const &atom) const {
-        if (ctx == VariableContext::all) {
-            visit(atom.elems);
-        }
-        visit(atom.name);
+    template <bool HasSign> auto operator()(TheoryAtom<HasSign> const &atom) const -> bool {
+        return operator()(atom.name, ProjectionCheck::nerver) &&
+               std::all_of(atom.elems.begin(), atom.elems.end(),
+                           [this](auto const &elem) { return this->operator()(elem.second); });
     }
 
     // head literal
 
-    void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
+    auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
-    void operator()(SimpleHeadLiteral const &lit) const { operator()(lit.lit); }
+    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit, ProjectionCheck::nerver); }
 
-    void operator()(HeadAggregate::Element const &elem) const { visit(elem.tuple, elem.lit, elem.cond); }
-
-    void operator()(HeadAggregate const &lit) const {
-        if (ctx == VariableContext::all) {
-            visit(lit.elems);
-        }
-        visit(lit.lhs, lit.rhs);
+    auto operator()(HeadAggregate const &lit) const -> bool {
+        return std::all_of(lit.elems.begin(), lit.elems.end(),
+                           [this](auto const &elem) {
+                               return operator()(elem.tuple) && operator()(elem.lit, ProjectionCheck::nerver) &&
+                                                                operator()(elem.cond);
+                           }) &&
+               operator()(lit.lhs) && operator()(lit.rhs);
     }
 
     // body literal
 
-    void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
+    auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
-    void operator()(SimpleBodyLiteral const &lit) const { operator()(lit.lit); }
+    auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit, ProjectionCheck::always); }
 
-    void operator()(BodyAggregate::Element const &elem) const { visit(elem.tuple, elem.cond); }
-
-    void operator()(BodyAggregate const &lit) const {
-        if (ctx == VariableContext::all) {
-            visit(lit.elems);
-        }
-        visit(lit.lhs, lit.rhs);
+    auto operator()(BodyAggregate const &lit) const -> bool {
+        return std::all_of(lit.elems.begin(), lit.elems.end(),
+                           [this](auto const &elem) { return operator()(elem.tuple) && operator()(elem.cond); }) &&
+               operator()(lit.lhs) && operator()(lit.rhs);
     }
 
+    /*
     // statement
 
     void operator()(Statement const &stm) const { return std::visit(*this, stm); }
