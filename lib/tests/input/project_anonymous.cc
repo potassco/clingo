@@ -17,23 +17,24 @@ template <class T> auto project_anonymous_str(std::optional<T> value) -> std::st
 
 TEST_CASE("project_anonymous_head") {
     // disjunctions
-    REQUIRE(project_anonymous_str(parse_statement("p(X,_,*): q(X,_,*).")) == "p(X,_,*): q(X,_,*).");
+    // Note: in the head it should be okay to automatically project in conditions
+    REQUIRE(project_anonymous_str(parse_statement("p(X,_): q(X,_,*).")) == "p(X,_): q(X,_,*).");
     REQUIRE(project_anonymous_str(parse_statement("not p(X,_,*): not r(X,_,*).")) == "not p(X,*,*): not r(X,*,*).");
-    REQUIRE(project_anonymous_str(parse_statement("f(X,_,*)<g(X,_,*).")) == "f(X,_,*)<g(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement("f(X,_)<g(X,_).")) == "f(X,_)<g(X,_).");
     REQUIRE(project_anonymous_str(parse_statement("#false:#true.")) == "#false: #true.");
     // set aggregates
-    REQUIRE(project_anonymous_str(parse_statement("{ p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
-            "{ p(X,_,*): q(X,_,*) } != f(X,_,*).");
-    REQUIRE(project_anonymous_str(parse_statement("{ not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            "{ not p(X,*,*): not q(X,*,*) } != f(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement("{ p(X,_) : q(X,_) } != f(X,_).")) ==
+            "{ p(X,_): q(X,_) } != f(X,_).");
+    REQUIRE(project_anonymous_str(parse_statement("{ not p(X,_,*) : not q(X,_,*) } != f(X,_).")) ==
+            "{ not p(X,*,*): not q(X,*,*) } != f(X,_).");
     // aggregates
-    REQUIRE(project_anonymous_str(parse_statement("#count { f(X,_,*): p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
-            "#count { f(X,_,*): p(X,_,*): q(X,_,*) } != f(X,_,*).");
-    REQUIRE(project_anonymous_str(parse_statement("#count { f(X,_,*): not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            "#count { f(X,_,*): not p(X,*,*): not q(X,*,*) } != f(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement("#count { f(X,_): p(X,_) : q(X,_,*) } != f(X,_).")) ==
+            "#count { f(X,_): p(X,_): q(X,_,*) } != f(X,_).");
+    REQUIRE(project_anonymous_str(parse_statement("#count { f(X,_): not p(X,_,*) : not q(X,_,*) } != f(X,_).")) ==
+            "#count { f(X,_): not p(X,*,*): not q(X,*,*) } != f(X,_).");
     // theory
-    REQUIRE(project_anonymous_str(parse_statement("&p(X,_,*) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
-            "&p(X,_,*) { f(X,_): p(X,_,*), not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_anonymous_str(parse_statement("&p(X,_) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
+            "&p(X,_) { f(X,_): p(X,_,*), not q(X,*,*) } != f(X,_).");
 }
 
 TEST_CASE("project_anonymous_body") {
@@ -41,27 +42,27 @@ TEST_CASE("project_anonymous_body") {
     REQUIRE(project_anonymous_str(parse_statement(":- p(X,_,*): q(X,_,*).")) == " :- p(X,_,*): q(X,_,*).");
     REQUIRE(project_anonymous_str(parse_statement(":- not p(X,_,*): not r(X,_,*).")) ==
             " :- not p(X,*,*): not r(X,*,*).");
-    REQUIRE(project_anonymous_str(parse_statement(":- f(X,_,*)<g(X,_,*).")) == " :- f(X,_,*)<g(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement(":- f(X,_)<g(X,_).")) == " :- f(X,_)<g(X,_).");
     REQUIRE(project_anonymous_str(parse_statement(":- #false:#true.")) == " :- #false: #true.");
     // set aggregates
-    REQUIRE(project_anonymous_str(parse_statement(":- { p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
-            " :- { p(X,_,*): q(X,_,*) } != f(X,_,*).");
-    REQUIRE(project_anonymous_str(parse_statement(":- { not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            " :- { not p(X,*,*): not q(X,*,*) } != f(X,_,*).");
-    REQUIRE(project_anonymous_str(parse_statement(":- not { not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            " :- not { not p(X,*,*): not q(X,*,*) } != f(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement(":- { p(X,_,*) : q(X,_,*) } != f(X,_).")) ==
+            " :- { p(X,_,*): q(X,_,*) } != f(X,_).");
+    REQUIRE(project_anonymous_str(parse_statement(":- { not p(X,_,*) : not q(X,_,*) } != f(X,_).")) ==
+            " :- { not p(X,*,*): not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_anonymous_str(parse_statement(":- not { not p(X,_,*) : not q(X,_,*) } != f(X,_).")) ==
+            " :- not { not p(X,*,*): not q(X,*,*) } != f(X,_).");
     // aggregates
-    REQUIRE(project_anonymous_str(parse_statement(":- #count { f(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
-            " :- #count { f(X,_,*): q(X,_,*) } != f(X,_,*).");
-    REQUIRE(project_anonymous_str(parse_statement(":- #count { f(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            " :- #count { f(X,_,*): not q(X,*,*) } != f(X,_,*).");
-    REQUIRE(project_anonymous_str(parse_statement(":- not #count { f(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            " :- not #count { f(X,_,*): not q(X,*,*) } != f(X,_,*).");
+    REQUIRE(project_anonymous_str(parse_statement(":- #count { f(X,_) : q(X,_,*) } != f(X,_).")) ==
+            " :- #count { f(X,_): q(X,_,*) } != f(X,_).");
+    REQUIRE(project_anonymous_str(parse_statement(":- #count { f(X,_) : not q(X,_,*) } != f(X,_).")) ==
+            " :- #count { f(X,_): not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_anonymous_str(parse_statement(":- not #count { f(X,_) : not q(X,_,*) } != f(X,_).")) ==
+            " :- not #count { f(X,_): not q(X,*,*) } != f(X,_).");
     // theory
-    REQUIRE(project_anonymous_str(parse_statement(" :- &p(X,_,*) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
-            " :- &p(X,_,*) { f(X,_): p(X,_,*), not q(X,*,*) } != f(X,_).");
-    REQUIRE(project_anonymous_str(parse_statement(" :- not &p(X,_,*) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
-            " :- not &p(X,_,*) { f(X,_): p(X,_,*), not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_anonymous_str(parse_statement(" :- &p(X,_) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
+            " :- &p(X,_) { f(X,_): p(X,_,*), not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_anonymous_str(parse_statement(" :- not &p(X,_) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
+            " :- not &p(X,_) { f(X,_): p(X,_,*), not q(X,*,*) } != f(X,_).");
 }
 
 TEST_CASE("project_anonymous_statement") {

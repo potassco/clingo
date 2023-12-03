@@ -144,8 +144,6 @@ TEST_CASE("simplify_symbolic") {
     REQUIRE(simplify_str(parse_term("(1+2+X,-X)")) == "(1*X+3,-X), U");
     REQUIRE(simplify_str(parse_term("f(1+a)")) == "<unchanged>, F");
     REQUIRE(simplify_str(parse_term("f(X+a)")) == "<unchanged>, F");
-    REQUIRE(simplify_str(parse_term("f(*,(*,b))")) == "f(*,(*,b)), U");
-    REQUIRE(simplify_str(parse_term("f(*)")) == "<unchanged>, U");
 }
 
 TEST_CASE("simplify_aux") {

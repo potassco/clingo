@@ -5,6 +5,7 @@
 #include <lexy/input/file.hpp>
 #include <lexy/input/string_input.hpp>
 
+#include <input/algo/check_syntax.hh>
 #include <input/algo/parse.hh>
 #include <input/algo/rewrite.hh>
 
@@ -216,6 +217,13 @@ void discard(StreamInput<Encoding, Counting> &input, Scanner &scanner) {
     input.discard_before(scanner.position());
 }
 
+template <class T, class F> auto check(std::optional<T> expr, F &&fun) -> std::optional<T> {
+    if (expr && std::invoke(std::forward<F>(fun), *expr)) {
+        return expr;
+    }
+    return std::nullopt;
+}
+
 } // namespace
 
 class ScannerImpl {
@@ -270,7 +278,7 @@ Scanner::Scanner(std::unique_ptr<ScannerImpl> impl) : impl_{std::move(impl)} {}
 
 Scanner::~Scanner() noexcept = default;
 
-auto Scanner::scan() -> std::optional<Statement> { return impl_->scan(); }
+auto Scanner::scan() -> std::optional<Statement> { return check(impl_->scan(), check_statement); }
 
 class StreamScanner : public ScannerImpl {
   public:
@@ -363,23 +371,23 @@ auto scan_string(SymbolStore &store, std::string_view content) -> Scanner {
 }
 
 auto parse_term(SymbolStore &store, std::string_view str) -> std::optional<Term> {
-    return parse<Grammar::term>(store, str);
+    return check(parse<Grammar::term>(store, str), check_term);
 }
 
 auto parse_literal(SymbolStore &store, std::string_view str) -> std::optional<Literal> {
-    return parse<Grammar::literal>(store, str);
+    return check(parse<Grammar::literal>(store, str), check_literal);
 }
 
 auto parse_head_literal(SymbolStore &store, std::string_view str) -> std::optional<HeadLiteral> {
-    return parse<Grammar::head_literal>(store, str);
+    return check(parse<Grammar::head_literal>(store, str), check_head_literal);
 }
 
 auto parse_body_literal(SymbolStore &store, std::string_view str) -> std::optional<BodyLiteral> {
-    return parse<Grammar::body_literal>(store, str);
+    return check(parse<Grammar::body_literal>(store, str), check_body_literal);
 }
 
 auto parse_statement(SymbolStore &store, std::string_view str) -> std::optional<Statement> {
-    return parse<Grammar::statement>(store, str);
+    return check(parse<Grammar::statement>(store, str), check_statement);
 }
 
 } // namespace Gringo::Input

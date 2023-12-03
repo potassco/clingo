@@ -63,7 +63,7 @@ TEST_CASE("project_statement_head") {
     // disjunctions
     REQUIRE(project_str(parse_statement("p(X,Y): q(X).")) == "p(X,Y): q(X).");
     REQUIRE(project_str(parse_statement("p(X,_): q(X).")) == "p(X,_): q(X).");
-    REQUIRE(project_str(parse_statement("p(X,*): q(X).")) == "p(X,*): q(X).");
+    REQUIRE(project_str(parse_statement(" :- p(X,*): q(X).")) == " :- p(X,*): q(X).");
     REQUIRE(project_str(parse_statement("p(X): q(X,Y).")) == "p(X): q(X,*).");
     REQUIRE(project_str(parse_statement("p(X): q(X,_).")) == "p(X): q(X,*).");
     REQUIRE(project_str(parse_statement("p(X): q(X,*).")) == "p(X): q(X,*).");

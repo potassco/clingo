@@ -17,27 +17,24 @@ template <class T> auto rewrite_anonymous_str(std::optional<T> value) -> std::st
 
 TEST_CASE("rewrite_anonymous_head") {
     // disjunctions
-    REQUIRE(rewrite_anonymous_str(parse_statement("p(X,_,*): q(X,_,*).")) ==
-            "p(X,__Projected_0,*): q(X,__Projected_1,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("p(X,_): q(X,_,*).")) == "p(X,__Projected_0): q(X,__Projected_1,*).");
     REQUIRE(rewrite_anonymous_str(parse_statement("not p(X,_,*): not r(X,_,*).")) ==
             "not p(X,__Projected_0,*): not r(X,__Projected_1,*).");
-    REQUIRE(rewrite_anonymous_str(parse_statement("f(X,_,*)<g(X,_,*).")) ==
-            "f(X,__Projected_0,*)<g(X,__Projected_1,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("f(X,_)<g(X,_).")) == "f(X,__Projected_0)<g(X,__Projected_1).");
     REQUIRE(rewrite_anonymous_str(parse_statement("#false:#true.")) == "#false: #true.");
     // set aggregates
-    REQUIRE(rewrite_anonymous_str(parse_statement("{ p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
-            "{ p(X,__Projected_0,*): q(X,__Projected_1,*) } != f(X,__Projected_2,*).");
-    REQUIRE(rewrite_anonymous_str(parse_statement("{ not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            "{ not p(X,__Projected_0,*): not q(X,__Projected_1,*) } != f(X,__Projected_2,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("{ p(X,_) : q(X,_) } != f(X,_).")) ==
+            "{ p(X,__Projected_0): q(X,__Projected_1) } != f(X,__Projected_2).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("{ not p(X,_,*) : not q(X,_) } != f(X,_).")) ==
+            "{ not p(X,__Projected_0,*): not q(X,__Projected_1) } != f(X,__Projected_2).");
     // aggregates
-    REQUIRE(rewrite_anonymous_str(parse_statement("#count { f(X,_,*): p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
-            "#count { f(X,__Projected_0,*): p(X,__Projected_1,*): q(X,__Projected_2,*) } != f(X,__Projected_3,*).");
-    REQUIRE(
-        rewrite_anonymous_str(parse_statement("#count { f(X,_,*): not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-        "#count { f(X,__Projected_0,*): not p(X,__Projected_1,*): not q(X,__Projected_2,*) } != f(X,__Projected_3,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#count { f(X,_): p(X,_) : q(X,_) } != f(X,_).")) ==
+            "#count { f(X,__Projected_0): p(X,__Projected_1): q(X,__Projected_2) } != f(X,__Projected_3).");
+    REQUIRE(rewrite_anonymous_str(parse_statement("#count { f(X,_): not p(X,_) : not q(X,_) } != f(X,_).")) ==
+            "#count { f(X,__Projected_0): not p(X,__Projected_1): not q(X,__Projected_2) } != f(X,__Projected_3).");
     // theory
-    REQUIRE(rewrite_anonymous_str(parse_statement("&p(X,_,*) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
-            "&p(X,__Projected_0,*) { f(X,__Projected_1): p(X,__Projected_2,*), not q(X,__Projected_3,*) } != "
+    REQUIRE(rewrite_anonymous_str(parse_statement("&p(X,_) { f(X,_): p(X,_,*), not q(X,_) } != f(X,_).")) ==
+            "&p(X,__Projected_0) { f(X,__Projected_1): p(X,__Projected_2,*), not q(X,__Projected_3) } != "
             "f(X,__Projected_4).");
 }
 
@@ -47,29 +44,29 @@ TEST_CASE("rewrite_anonymous_body") {
             " :- p(X,__Projected_0,*): q(X,__Projected_1,*).");
     REQUIRE(rewrite_anonymous_str(parse_statement(":- not p(X,_,*): not r(X,_,*).")) ==
             " :- not p(X,__Projected_0,*): not r(X,__Projected_1,*).");
-    REQUIRE(rewrite_anonymous_str(parse_statement(":- f(X,_,*)<g(X,_,*).")) ==
-            " :- f(X,__Projected_0,*)<g(X,__Projected_1,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement(":- f(X,_)<g(X,_).")) ==
+            " :- f(X,__Projected_0)<g(X,__Projected_1).");
     REQUIRE(rewrite_anonymous_str(parse_statement(":- #false:#true.")) == " :- #false: #true.");
     // set aggregates
-    REQUIRE(rewrite_anonymous_str(parse_statement(":- { p(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
-            " :- { p(X,__Projected_0,*): q(X,__Projected_1,*) } != f(X,__Projected_2,*).");
-    REQUIRE(rewrite_anonymous_str(parse_statement(":- { not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            " :- { not p(X,__Projected_0,*): not q(X,__Projected_1,*) } != f(X,__Projected_2,*).");
-    REQUIRE(rewrite_anonymous_str(parse_statement(":- not { not p(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            " :- not { not p(X,__Projected_0,*): not q(X,__Projected_1,*) } != f(X,__Projected_2,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement(":- { p(X,_,*) : q(X,_) } != f(X,_).")) ==
+            " :- { p(X,__Projected_0,*): q(X,__Projected_1) } != f(X,__Projected_2).");
+    REQUIRE(rewrite_anonymous_str(parse_statement(":- { not p(X,_,*) : not q(X,_) } != f(X,_).")) ==
+            " :- { not p(X,__Projected_0,*): not q(X,__Projected_1) } != f(X,__Projected_2).");
+    REQUIRE(rewrite_anonymous_str(parse_statement(":- not { not p(X,_,*) : not q(X,_) } != f(X,_).")) ==
+            " :- not { not p(X,__Projected_0,*): not q(X,__Projected_1) } != f(X,__Projected_2).");
     // aggregates
-    REQUIRE(rewrite_anonymous_str(parse_statement(":- #count { f(X,_,*) : q(X,_,*) } != f(X,_,*).")) ==
-            " :- #count { f(X,__Projected_0,*): q(X,__Projected_1,*) } != f(X,__Projected_2,*).");
-    REQUIRE(rewrite_anonymous_str(parse_statement(":- #count { f(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            " :- #count { f(X,__Projected_0,*): not q(X,__Projected_1,*) } != f(X,__Projected_2,*).");
-    REQUIRE(rewrite_anonymous_str(parse_statement(":- not #count { f(X,_,*) : not q(X,_,*) } != f(X,_,*).")) ==
-            " :- not #count { f(X,__Projected_0,*): not q(X,__Projected_1,*) } != f(X,__Projected_2,*).");
+    REQUIRE(rewrite_anonymous_str(parse_statement(":- #count { f(X,_) : q(X,_) } != f(X,_).")) ==
+            " :- #count { f(X,__Projected_0): q(X,__Projected_1) } != f(X,__Projected_2).");
+    REQUIRE(rewrite_anonymous_str(parse_statement(":- #count { f(X,_) : not q(X,_) } != f(X,_).")) ==
+            " :- #count { f(X,__Projected_0): not q(X,__Projected_1) } != f(X,__Projected_2).");
+    REQUIRE(rewrite_anonymous_str(parse_statement(":- not #count { f(X,_) : not q(X,_) } != f(X,_).")) ==
+            " :- not #count { f(X,__Projected_0): not q(X,__Projected_1) } != f(X,__Projected_2).");
     // theory
-    REQUIRE(rewrite_anonymous_str(parse_statement(" :- &p(X,_,*) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
-            " :- &p(X,__Projected_0,*) { f(X,__Projected_1): p(X,__Projected_2,*), not q(X,__Projected_3,*) } != "
+    REQUIRE(rewrite_anonymous_str(parse_statement(" :- &p(X,_) { f(X,_): p(X,_,*), not q(X,_) } != f(X,_).")) ==
+            " :- &p(X,__Projected_0) { f(X,__Projected_1): p(X,__Projected_2,*), not q(X,__Projected_3) } != "
             "f(X,__Projected_4).");
-    REQUIRE(rewrite_anonymous_str(parse_statement(" :- not &p(X,_,*) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).")) ==
-            " :- not &p(X,__Projected_0,*) { f(X,__Projected_1): p(X,__Projected_2,*), not q(X,__Projected_3,*) } != "
+    REQUIRE(rewrite_anonymous_str(parse_statement(" :- not &p(X,_) { f(X,_): p(X,_,*), not q(X,_) } != f(X,_).")) ==
+            " :- not &p(X,__Projected_0) { f(X,__Projected_1): p(X,__Projected_2,*), not q(X,__Projected_3) } != "
             "f(X,__Projected_4).");
 }
 

@@ -12,7 +12,7 @@ namespace Gringo::Input {
 namespace {
 
 enum ProjectionCheck {
-    nerver = 0,
+    never = 0,
     function = 1,
     always = 2,
 };
@@ -21,10 +21,11 @@ struct CheckSyntax {
     // protect ourselves -> no unintended overloads
 
     template <class T> auto operator()(T const &, ProjectionCheck check) const -> bool = delete;
+    template <class T> auto operator()(T const &) const -> bool = delete;
 
     // terms
 
-    auto operator()(Term const &term, ProjectionCheck check) const -> bool {
+    auto operator()(Term const &term, ProjectionCheck check = ProjectionCheck::never) const -> bool {
         return std::visit(*this, term, std::variant<ProjectionCheck>{check});
     }
 
@@ -41,8 +42,9 @@ struct CheckSyntax {
     }
 
     auto operator()(std::monostate projected, ProjectionCheck check) const -> bool {
+        // TODO: error reporting would be nice!!!
         static_cast<void>(projected);
-        return check != ProjectionCheck::nerver;
+        return check != ProjectionCheck::never;
     }
 
     auto operator()(TupleElem const &elem, ProjectionCheck check) const -> bool {
@@ -56,7 +58,7 @@ struct CheckSyntax {
 
     auto operator()(TermTuple::Element const &elem, ProjectionCheck check) const -> bool {
         if (check < ProjectionCheck::always) {
-            check = ProjectionCheck::nerver;
+            check = ProjectionCheck::never;
         }
         return std::visit(*this, elem, std::variant<ProjectionCheck>{check});
     }
@@ -73,8 +75,7 @@ struct CheckSyntax {
 
     auto operator()(TermAbs const &term, ProjectionCheck check) const -> bool {
         static_cast<void>(check);
-        return std::all_of(term.pool.begin(), term.pool.end(),
-                           [this](auto const &term) { return operator()(term, ProjectionCheck::nerver); });
+        return std::all_of(term.pool.begin(), term.pool.end(), [this](auto const &term) { return operator()(term); });
     }
 
     auto operator()(TermUnary const &term, ProjectionCheck check) const -> bool {
@@ -86,7 +87,7 @@ struct CheckSyntax {
                 break;
             }
             case UnaryOperator::negate: {
-                check = ProjectionCheck::nerver;
+                check = ProjectionCheck::never;
                 break;
             }
         }
@@ -95,7 +96,7 @@ struct CheckSyntax {
 
     auto operator()(TermBinary const &term, ProjectionCheck check) const -> bool {
         static_cast<void>(check);
-        return operator()(*term.lhs, ProjectionCheck::nerver) && operator()(*term.rhs, ProjectionCheck::nerver);
+        return operator()(*term.lhs) && operator()(*term.rhs);
     }
 
     // theory terms
@@ -150,15 +151,15 @@ struct CheckSyntax {
 
     auto operator()(LiteralRelation const &lit, ProjectionCheck check) const -> bool {
         static_cast<void>(check);
-        return operator()(lit.lhs, ProjectionCheck::nerver) &&
-               std::all_of(lit.rhs.begin(), lit.rhs.end(),
-                           [this](auto &guard) { return operator()(guard.second, ProjectionCheck::nerver); });
+        return operator()(lit.lhs) &&
+               std::all_of(lit.rhs.begin(), lit.rhs.end(), [this](auto &guard) { return operator()(guard.second); });
     }
 
     auto operator()(LiteralSymbolic const &lit, ProjectionCheck check) const -> bool {
-        static_cast<void>(lit);
-        static_cast<void>(check);
-        return true;
+        if (lit.sign != Sign::none) {
+            check = ProjectionCheck::always;
+        }
+        return operator()(lit.term, check);
     }
 
     // conditional literal
@@ -169,31 +170,26 @@ struct CheckSyntax {
 
     template <bool Conjunctive> auto operator()(Junction<Conjunctive> const &lit) const -> bool {
         return std::all_of(lit.elems.begin(), lit.elems.end(), [this](auto const &elem) {
-            return this->operator()(elem.lits, Conjunctive ? ProjectionCheck::always : ProjectionCheck::nerver) &&
+            return this->operator()(elem.lits, Conjunctive ? ProjectionCheck::always : ProjectionCheck::never) &&
                    operator()(elem.cond);
         });
     }
 
     // aggregate
 
-    auto operator()(LGuard guard) const -> bool {
-        return !guard.has_value() || operator()(guard->first, ProjectionCheck::nerver);
-    }
+    auto operator()(LGuard guard) const -> bool { return !guard.has_value() || operator()(guard->first); }
 
-    auto operator()(RGuard guard) const -> bool {
-        return !guard.has_value() || operator()(guard->second, ProjectionCheck::nerver);
-    }
+    auto operator()(RGuard guard) const -> bool { return !guard.has_value() || operator()(guard->second); }
 
     auto operator()(TermVec const &terms) const -> bool {
-        return std::all_of(terms.begin(), terms.end(),
-                           [this](auto const &term) { return operator()(term, ProjectionCheck::nerver); });
+        return std::all_of(terms.begin(), terms.end(), [this](auto const &term) { return operator()(term); });
     }
 
     template <bool HasSign> auto operator()(SetAggregate<HasSign> const &lit) const -> bool {
         return std::all_of(lit.elems.begin(), lit.elems.end(),
                            [this](auto const &elem) {
                                return this->operator()(elem.lit,
-                                                       HasSign ? ProjectionCheck::always : ProjectionCheck::nerver) &&
+                                                       HasSign ? ProjectionCheck::always : ProjectionCheck::never) &&
                                       operator()(elem.cond);
                            }) &&
                operator()(lit.lhs) && operator()(lit.rhs);
@@ -202,21 +198,20 @@ struct CheckSyntax {
     // theory
 
     template <bool HasSign> auto operator()(TheoryAtom<HasSign> const &atom) const -> bool {
-        return operator()(atom.name, ProjectionCheck::nerver) &&
-               std::all_of(atom.elems.begin(), atom.elems.end(),
-                           [this](auto const &elem) { return this->operator()(elem.second); });
+        return operator()(atom.name) && std::all_of(atom.elems.begin(), atom.elems.end(),
+                                                    [this](auto const &elem) { return this->operator()(elem.second); });
     }
 
     // head literal
 
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit, ProjectionCheck::nerver); }
+    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit, ProjectionCheck::never); }
 
     auto operator()(HeadAggregate const &lit) const -> bool {
         return std::all_of(lit.elems.begin(), lit.elems.end(),
                            [this](auto const &elem) {
-                               return operator()(elem.tuple) && operator()(elem.lit, ProjectionCheck::nerver) &&
+                               return operator()(elem.tuple) && operator()(elem.lit, ProjectionCheck::never) &&
                                                                 operator()(elem.cond);
                            }) &&
                operator()(lit.lhs) && operator()(lit.rhs);
@@ -234,55 +229,103 @@ struct CheckSyntax {
                operator()(lit.lhs) && operator()(lit.rhs);
     }
 
-    /*
     // statement
 
-    void operator()(Statement const &stm) const { return std::visit(*this, stm); }
+    auto operator()(std::optional<Term> const &term) const -> bool { return (!term || operator()(*term)); }
 
-    void operator()(Rule const &stm) const { visit(stm.head, stm.body); }
+    auto operator()(BodyLiteralVec const &lits) const -> bool { return std::all_of(lits.begin(), lits.end(), *this); }
 
-    void operator()(TheoryDefinition const &stm) const { static_cast<void>(stm); }
+    auto operator()(Statement const &stm) const -> bool { return std::visit(*this, stm); }
 
-    void operator()(StatementOptimize::Tuple const &tuple) const { visit(tuple.weight, tuple.priority, tuple.terms); }
-
-    void operator()(StatementOptimize const &stm) const {
-        if (ctx == VariableContext::all) {
-            visit(stm.elems);
-        }
+    auto operator()(Rule const &stm) const -> bool {
+        return operator()(stm.head) && std::all_of(stm.body.begin(), stm.body.end(), *this);
     }
 
-    void operator()(StatementWeakConstraint const &stm) const { visit(stm.body, stm.tuple); }
+    auto operator()(TheoryDefinition const &stm) const -> bool {
+        static_cast<void>(stm);
+        return true;
+    }
 
-    void operator()(StatementShow const &stm) const { visit(stm.term, stm.body); }
+    auto operator()(StatementOptimize::Tuple const &tuple) const -> bool {
+        return operator()(tuple.weight) && operator()(tuple.terms) && operator()(tuple.priority);
+    }
 
-    void operator()(StatementShowSig const &stm) const { static_cast<void>(stm); }
+    auto operator()(StatementOptimize const &stm) const -> bool {
+        return std::all_of(stm.elems.begin(), stm.elems.end(),
+                           [this](auto const &elem) { return operator()(elem.first) && operator()(elem.second); });
+    }
 
-    void operator()(StatementProject const &stm) const { visit(stm.term, stm.body); }
+    auto operator()(StatementWeakConstraint const &stm) const -> bool {
+        return std::all_of(stm.body.begin(), stm.body.end(), *this) && operator()(stm.tuple);
+    }
 
-    void operator()(StatementProjectSig const &stm) const { static_cast<void>(stm); }
+    auto operator()(StatementShow const &stm) const -> bool { return operator()(stm.term) && operator()(stm.body); }
 
-    void operator()(StatementDefined const &stm) const { static_cast<void>(stm); }
+    auto operator()(StatementShowSig const &stm) const -> bool {
+        static_cast<void>(stm);
+        return true;
+    }
 
-    void operator()(StatementExternal const &stm) const { visit(stm.term, stm.body, stm.type); }
+    auto operator()(StatementProject const &stm) const -> bool { return operator()(stm.term) && operator()(stm.body); }
 
-    void operator()(StatementEdge::Edge const &edge) const { visit(edge.u, edge.v); }
+    auto operator()(StatementProjectSig const &stm) const -> bool {
+        static_cast<void>(stm);
+        return true;
+    }
 
-    void operator()(StatementEdge const &stm) const { visit(stm.edges, stm.body); }
+    auto operator()(StatementDefined const &stm) const -> bool {
+        static_cast<void>(stm);
+        return true;
+    }
 
-    void operator()(StatementHeuristic const &stm) const { visit(stm.atom, stm.body, stm.type, stm.prio, stm.mod); }
+    auto operator()(StatementExternal const &stm) const -> bool {
+        return operator()(stm.term) && operator()(stm.body) && operator()(stm.type);
+    }
 
-    void operator()(StatementScript const &stm) const { static_cast<void>(stm); }
+    auto operator()(StatementEdge::Edge const &edge) const -> bool { return operator()(edge.u) && operator()(edge.v); }
 
-    void operator()(StatementInclude const &stm) const { static_cast<void>(stm); }
+    auto operator()(StatementEdge const &stm) const -> bool {
+        return std::all_of(stm.edges.begin(), stm.edges.end(), *this) && operator()(stm.body);
+    }
 
-    void operator()(StatementProgram const &stm) const { static_cast<void>(stm); }
+    auto operator()(StatementHeuristic const &stm) const -> bool {
+        return operator()(stm.atom) && operator()(stm.body) && operator()(stm.mod) && operator()(stm.prio) &&
+                                                                                      operator()(stm.type);
+    }
 
-    void operator()(StatementConst const &stm) const { static_cast<void>(stm); }
+    auto operator()(StatementScript const &stm) const -> bool {
+        static_cast<void>(stm);
+        return true;
+    }
 
-    void operator()(Comment const &stm) const { static_cast<void>(stm); }
-    */
+    auto operator()(StatementInclude const &stm) const -> bool {
+        static_cast<void>(stm);
+        return true;
+    }
+
+    auto operator()(StatementProgram const &stm) const -> bool {
+        static_cast<void>(stm);
+        return true;
+    }
+
+    auto operator()(StatementConst const &stm) const -> bool { return operator()(stm.value); }
+
+    auto operator()(Comment const &stm) const -> bool {
+        static_cast<void>(stm);
+        return true;
+    }
 };
 
 } // namespace
+
+auto check_term(Term const &term) -> bool { return CheckSyntax{}(term); }
+
+auto check_literal(Literal const &lit) -> bool { return CheckSyntax{}(lit, ProjectionCheck::always); }
+
+auto check_head_literal(HeadLiteral const &lit) -> bool { return CheckSyntax{}(lit); }
+
+auto check_body_literal(BodyLiteral const &lit) -> bool { return CheckSyntax{}(lit); }
+
+auto check_statement(Statement const &stm) -> bool { return CheckSyntax{}(stm); }
 
 } // namespace Gringo::Input
