@@ -17,30 +17,58 @@ inline auto default_store() -> SymbolStore & {
     return *store;
 }
 
-inline auto parse_term(std::string_view str) -> std::optional<Term> {
-    Logger log;
-    return Gringo::Input::parse_term(log, default_store(), str);
-}
+class ParseHelper {
+  public:
+    ParseHelper()
+        : log_{[this](MessageCode code, std::string str) { push_(code, std::move(str)); }}, store_{default_store()} {}
 
-inline auto parse_literal(std::string_view str) -> std::optional<Literal> {
-    Logger log;
-    return Gringo::Input::parse_literal(log, default_store(), str);
-}
+    auto term(std::string_view str) -> std::optional<Term> {
+        reset();
+        return Gringo::Input::parse_term(log_, default_store(), str);
+    }
 
-inline auto parse_head_literal(std::string_view str) -> std::optional<HeadLiteral> {
-    Logger log;
-    return Gringo::Input::parse_head_literal(log, default_store(), str);
-}
+    auto literal(std::string_view str) -> std::optional<Literal> {
+        reset();
+        return Gringo::Input::parse_literal(log_, default_store(), str);
+    }
 
-inline auto parse_body_literal(std::string_view str) -> std::optional<BodyLiteral> {
-    Logger log;
-    return Gringo::Input::parse_body_literal(log, default_store(), str);
-}
+    auto head_literal(std::string_view str) -> std::optional<HeadLiteral> {
+        reset();
+        return Gringo::Input::parse_head_literal(log_, default_store(), str);
+    }
 
-inline auto parse_statement(std::string_view str) -> std::optional<Statement> {
-    Logger log;
-    return Gringo::Input::parse_statement(log, default_store(), str);
-}
+    auto body_literal(std::string_view str) -> std::optional<BodyLiteral> {
+        reset();
+        return Gringo::Input::parse_body_literal(log_, default_store(), str);
+    }
+
+    auto statement(std::string_view str) -> std::optional<Statement> {
+        reset();
+        return Gringo::Input::parse_statement(log_, default_store(), str);
+    }
+
+    auto logger() -> Logger & { return *this; }
+
+    auto store() -> SymbolStore & { return *this; }
+
+    operator Logger &() { return log_; }
+
+    operator SymbolStore &() { return store_; }
+
+    auto messages() -> std::span<std::pair<MessageCode, std::string>> { return messages_; }
+
+    void reset() {
+        log_.reset();
+        messages_.clear();
+    }
+
+  private:
+    void push_(MessageCode code, std::string str) { messages_.emplace_back(code, std::move(str)); }
+
+    Logger log_;
+    SymbolStore &store_;
+    std::vector<std::pair<MessageCode, std::string>> messages_;
+};
 
 template <class T> auto to_str(T const &value) -> std::string { return to_string(value); }
 

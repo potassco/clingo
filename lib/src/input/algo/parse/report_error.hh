@@ -142,12 +142,7 @@ class report_error {
             ++_count;
         }
 
-        [[nodiscard]] auto finish() const && -> std::size_t {
-            if (_count != 0) {
-                std::fputs("\n", stderr);
-            }
-            return _count;
-        }
+        [[nodiscard]] auto finish() const && -> std::size_t { return _count; }
     };
 };
 

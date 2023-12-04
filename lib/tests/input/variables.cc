@@ -26,11 +26,16 @@ template <class T> auto variables_str(std::optional<T> const &value) -> std::str
     return "<failed>";
 }
 
+auto variables_term(std::string const &str) -> std::string {
+    ParseHelper ph;
+    return variables_str(ph.term(str));
+}
+
 } // namespace
 
 TEST_CASE("variables_term") {
-    REQUIRE(variables_str(parse_term("f(X;Y)")) == "[X, Y]");
-    REQUIRE(variables_str(parse_term("f(X,Z;X,Y,Z;X,Y)")) == "[X, Y, Z]");
+    REQUIRE(variables_term("f(X;Y)") == "[X, Y]");
+    REQUIRE(variables_term("f(X,Z;X,Y,Z;X,Y)") == "[X, Y, Z]");
 }
 
 } // namespace Gringo::Input::Test

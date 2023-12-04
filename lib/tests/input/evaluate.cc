@@ -12,14 +12,17 @@ namespace {
 
 using SL = std::initializer_list<Symbol>;
 
-auto parse_const(SymbolStore &store, std::string_view str) -> StatementConst {
-    Logger log;
-    using Gringo::Input::parse_statement;
-    auto stm = parse_statement(log, store, str);
-    REQUIRE(stm.has_value());
-    REQUIRE(std::holds_alternative<StatementConst>(*stm));
-    return std::move(std::get<StatementConst>(*stm));
-}
+class ConstHelper : public ParseHelper {
+  public:
+    auto const_def(std::string_view str) -> StatementConst {
+        reset();
+        using Gringo::Input::parse_statement;
+        auto stm = parse_statement(*this, *this, str);
+        REQUIRE(stm.has_value());
+        REQUIRE(std::holds_alternative<StatementConst>(*stm));
+        return std::move(std::get<StatementConst>(*stm));
+    }
+};
 
 }; // namespace
 
@@ -96,44 +99,39 @@ TEST_CASE("evaluate_binary") {
 }
 
 TEST_CASE("evaluate_const") {
-    Logger log{[](MessageCode code, char const *msg) {
-        // TODO: maybe put some requirements on messages
-        static_cast<void>(code);
-        static_cast<void>(msg);
-    }};
-    log.set_level(LogLevel::trace);
-    auto store = make_symbol_store(true, true);
+    ConstHelper ch;
+    ch.logger().set_level(LogLevel::trace);
     auto stms = std::vector<StatementConst>{};
 
     SECTION("cycle") {
-        stms.emplace_back(parse_const(*store, "#const a = b."));
-        stms.emplace_back(parse_const(*store, "#const b = a."));
-        evaluate_const(log, *store, stms);
-        REQUIRE(log.has_error());
+        stms.emplace_back(ch.const_def("#const a = b."));
+        stms.emplace_back(ch.const_def("#const b = a."));
+        evaluate_const(ch, ch, stms);
+        REQUIRE(ch.logger().has_error());
     }
 
     SECTION("redefinition") {
-        stms.emplace_back(parse_const(*store, "#const a = x."));
-        stms.emplace_back(parse_const(*store, "#const a = y."));
-        evaluate_const(log, *store, stms);
-        REQUIRE(log.has_error());
+        stms.emplace_back(ch.const_def("#const a = x."));
+        stms.emplace_back(ch.const_def("#const a = y."));
+        evaluate_const(ch, ch, stms);
+        REQUIRE(ch.logger().has_error());
     }
 
     SECTION("depend") {
-        auto fg = store->fun(store->string("g"), SL{store->num(Number(-18))}, true);
-        auto ff = store->fun(store->string("f"), SL{store->num(Number(6)), fg}, false);
-        stms.emplace_back(parse_const(*store, "#const a = 1+2."));
-        stms.emplace_back(parse_const(*store, "#const b = 2*a."));
-        stms.emplace_back(parse_const(*store, "#const c = f(b,-g(-a*b))."));
-        auto map = evaluate_const(log, *store, stms);
-        REQUIRE(!log.has_error());
+        auto fg = ch.store().fun(ch.store().string("g"), SL{ch.store().num(Number(-18))}, true);
+        auto ff = ch.store().fun(ch.store().string("f"), SL{ch.store().num(Number(6)), fg}, false);
+        stms.emplace_back(ch.const_def("#const a = 1+2."));
+        stms.emplace_back(ch.const_def("#const b = 2*a."));
+        stms.emplace_back(ch.const_def("#const c = f(b,-g(-a*b))."));
+        auto map = evaluate_const(ch, ch, stms);
+        REQUIRE(!ch.logger().has_error());
         REQUIRE(map.size() == 3);
-        REQUIRE(map.contains(store->string("a")));
-        REQUIRE(map.contains(store->string("b")));
-        REQUIRE(map.contains(store->string("c")));
-        REQUIRE(map[store->string("a")] == store->num(Number(3)));
-        REQUIRE(map[store->string("b")] == store->num(Number(6)));
-        REQUIRE(map[store->string("c")] == ff);
+        REQUIRE(map.contains(ch.store().string("a")));
+        REQUIRE(map.contains(ch.store().string("b")));
+        REQUIRE(map.contains(ch.store().string("c")));
+        REQUIRE(map[ch.store().string("a")] == ch.store().num(Number(3)));
+        REQUIRE(map[ch.store().string("b")] == ch.store().num(Number(6)));
+        REQUIRE(map[ch.store().string("c")] == ff);
     }
 }
 
