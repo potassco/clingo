@@ -287,7 +287,7 @@ struct Print {
 
     void operator()(TermVariable const &term) const { out << term.name; }
 
-    void operator()(std::monostate const &x) const {
+    void operator()(Projection const &x) const {
         static_cast<void>(x);
         out << "*";
     }

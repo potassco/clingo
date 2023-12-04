@@ -1,14 +1,9 @@
 #pragma once
 
 #include <functional>
-#include <optional>
-#include <string>
-#include <tuple>
 #include <unordered_map>
-#include <variant>
-#include <vector>
 
-#include <util/shared_ptr.hh>
+#include <input/statement.hh>
 
 namespace Gringo::Input {
 
@@ -31,7 +26,7 @@ template <class P> class VarVisitHelper : public P {
 
     void add(std::string const &x) { static_cast<void>(x); }
 
-    void add(std::monostate const &x) { static_cast<void>(x); }
+    void add(Projection const &x) { static_cast<void>(x); }
 
     template <class T> void add(Util::shared_ptr<T> const &ptr) { add(*ptr); }
 

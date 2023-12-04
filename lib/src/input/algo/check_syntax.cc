@@ -1,11 +1,9 @@
 #include <algorithm>
-#include <type_traits>
 
 #include <util/algorithm.hh>
 
 #include <input/algo/check_syntax.hh>
-
-#include "visit.hh"
+#include <input/algo/print.hh>
 
 namespace Gringo::Input {
 
@@ -41,10 +39,12 @@ struct CheckSyntax {
         return true;
     }
 
-    auto operator()(std::monostate projected, ProjectionCheck check) const -> bool {
-        // TODO: error reporting would be nice!!!
-        static_cast<void>(projected);
-        return check != ProjectionCheck::never;
+    auto operator()(Projection pro, ProjectionCheck check) const -> bool {
+        if (check == ProjectionCheck::never) {
+            GRINGO_REPORT_LOC(log, error, pro.loc) << "projection not permitted in this context";
+            return false;
+        }
+        return true;
     }
 
     auto operator()(TupleElem const &elem, ProjectionCheck check) const -> bool {

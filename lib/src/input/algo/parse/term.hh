@@ -45,8 +45,8 @@ auto empty_args(std::optional<PoolVec> value) { return std::move(value).value_or
 
 class tuple_trail {
   public:
-    void push_back(std::monostate p) { vec_.emplace_back(p); }
-    void push_front(std::monostate p) { vec_.emplace(vec_.begin(), p); }
+    void push_back(Projection p) { vec_.emplace_back(std::move(p)); }
+    void push_front(Projection p) { vec_.emplace(vec_.begin(), std::move(p)); }
     void push_back(Term term) { vec_.emplace_back(std::move(term)); }
     template <typename Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail_ = true; }
     auto to_tuple() -> TermTuple::Element {
@@ -91,8 +91,11 @@ struct store_string_ {
 static constexpr auto as_stored_string = lexy::bind_sink(store_string_{}, lexy::parse_state) >>
                                          lexy::bind(store_string_{}, lexy::parse_state, lexy::values);
 
-static constexpr auto projection_symbol = lexy::symbol_table<std::monostate> //
-                                              .map<'*'>(std::monostate{});
+struct projection : lexy::token_production {
+    static constexpr auto rule = Detail::location(LEXY_LIT("*"));
+    static constexpr auto value = lexy::construct<Projection>;
+};
+
 static constexpr auto identifier_base = []() {
     auto head = dsl::ascii::lower;
     auto tail = dsl::ascii::alpha_digit_underscore / LEXY_LIT("'");
@@ -201,8 +204,7 @@ struct term_list {
 
 struct term_function_tuple {
     static constexpr char const *name = "list of terms";
-    static constexpr auto rule =
-        dsl::list(dsl::symbol<projection_symbol> | dsl::else_ >> dsl::p<term>, dsl::sep(dsl::comma));
+    static constexpr auto rule = dsl::list(dsl::p<projection> | dsl::else_ >> dsl::p<term>, dsl::sep(dsl::comma));
     static constexpr auto value = lexy::as_list<TupleVec>;
 };
 
@@ -236,19 +238,18 @@ struct term_tuple_element {
     static constexpr auto rule = []() {
         auto peek = dsl::peek_not(dsl::semicolon / LEXY_LIT(")") / dsl::comma);
         auto sep = dsl::trailing_sep(dsl::capture(LEXY_LIT(",")));
-        auto ps = dsl::symbol<projection_symbol>;
-        return dsl::if_(ps >> dsl::comma) + dsl::if_(dsl::list(ps | peek >> dsl::p<term>, sep));
+        return dsl::if_(dsl::p<projection> >> dsl::comma) +
+               dsl::if_(dsl::list(dsl::p<projection> | peek >> dsl::p<term>, sep));
     }();
-    static constexpr auto value = lexy::as_list<Detail::tuple_trail> >>
-                                  lexy::callback<TermTuple::Element>([]() -> TupleVec { return {}; },
-                                                                     [](std::monostate p) -> TupleVec { return {p}; },
-                                                                     [](std::monostate p, Detail::tuple_trail elem) {
-                                                                         elem.push_front(p);
-                                                                         return elem.to_tuple();
-                                                                     },
-                                                                     [](Detail::tuple_trail elem) {
-                                                                         return elem.to_tuple();
-                                                                     });
+    static constexpr auto
+        value = lexy::as_list<Detail::tuple_trail> >>
+                lexy::callback<TermTuple::Element>([]() -> TupleVec { return {}; },
+                                                   [](Projection p) -> TupleVec { return {std::move(p)}; },
+                                                   [](Projection p, Detail::tuple_trail elem) {
+                                                       elem.push_front(std::move(p));
+                                                       return elem.to_tuple();
+                                                   },
+                                                   [](Detail::tuple_trail elem) { return elem.to_tuple(); });
 };
 
 struct term_tuple {

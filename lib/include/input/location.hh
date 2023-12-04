@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <optional>
-#include <string>
 #include <variant>
 
 #include <symbol.hh>

@@ -105,7 +105,7 @@ struct Unpool {
                 GRINGO_MATCH(x, Term) {
                     return Util::map_opt_vec(operator()(x), [](auto term) { return TupleElem{std::move(term)}; });
                 }
-                GRINGO_MATCH(x, std::monostate) { return std::nullopt; }
+                GRINGO_MATCH(x, Projection) { return std::nullopt; }
             },
             elem);
     }

@@ -15,7 +15,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // ignore
 
-    void operator()(std::monostate x) const { static_cast<void>(x); }
+    void operator()(Projection const &x) const { static_cast<void>(x); }
 
     void operator()(String const &x) const { static_cast<void>(x); }
 

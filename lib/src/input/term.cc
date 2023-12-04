@@ -20,6 +20,12 @@ auto operator==(TermBinary const &a, TermBinary const &b) -> bool {
     return Util::value_equal(a.op, b.op, a.lhs, b.lhs, a.rhs, b.rhs);
 };
 
+auto operator==(Projection const &a, Projection const &b) -> bool {
+    static_cast<void>(a);
+    static_cast<void>(b);
+    return true;
+};
+
 } // namespace Gringo::Input
 
 namespace Gringo::Util {
@@ -50,6 +56,11 @@ auto value_hasher<Gringo::Input::TermUnary>::operator()(Gringo::Input::TermUnary
 
 auto value_hasher<Gringo::Input::TermBinary>::operator()(Gringo::Input::TermBinary const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermBinary), x.op, x.lhs, x.rhs);
+}
+
+auto value_hasher<Gringo::Input::Projection>::operator()(Gringo::Input::Projection const &x) const -> size_t {
+    static_cast<void>(x);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::Projection));
 }
 
 } // namespace Gringo::Util

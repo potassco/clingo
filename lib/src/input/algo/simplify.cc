@@ -257,10 +257,8 @@ struct VarToLinear {
     Term const &term;
 };
 
-//! Struct indicating a projected position.
-using ProjectedTerm = std::monostate;
 //! Result indicating a changed tuple.
-using TupleResultChanged = std::vector<std::variant<ProjectedTerm, Symbol, Term>>;
+using TupleResultChanged = std::vector<std::variant<Projection, Symbol, Term>>;
 //! Result indicating an changed tuple.
 struct TupleResultUnhanged {};
 //! Result indicating a tuples that failed to simplify.
@@ -304,9 +302,8 @@ struct SimplifyTerm {
     //! Helper to simplify the arguments of the tuple.
     //!
     //! The resulting vector is nullopt if there were no simplifications.
-    //! Otherwise, each element is either a monostate in case of projection, a
-    //! symbol if it could evaluated right away, or a term in case of some
-    //! other simplification.
+    //! Otherwise, each element is either a projection, a symbol if it could
+    //! evaluated right away, or a term in case of some other simplification.
     auto handle_tuple(SimplifyTermFlags flags, TupleVec const &tuple, bool &constant) const -> TupleResult {
         size_t n = 0;
 
@@ -327,7 +324,7 @@ struct SimplifyTerm {
 
         auto simplify = [&, this](auto &&arg) -> bool {
             // projected argument
-            GRINGO_MATCH(arg, ProjectedTerm) {
+            GRINGO_MATCH(arg, Projection) {
                 constant = false;
                 init().emplace_back();
                 return true;
@@ -778,9 +775,9 @@ struct MakeMatchableTerm {
 
         auto handle_argument = [&, this](auto &&arg) -> void {
             // projected argument
-            GRINGO_MATCH(arg, std::monostate) {
+            GRINGO_MATCH(arg, Projection) {
                 if (res_tuple.has_value()) {
-                    init().emplace_back();
+                    init().emplace_back(arg);
                 }
             }
             // term argument

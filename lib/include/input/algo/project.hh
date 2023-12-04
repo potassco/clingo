@@ -8,10 +8,10 @@ namespace Gringo::Input {
 //! @{
 
 //! Helper to gather projection related arguments.
-class Projection {
+class ProjectionMap {
   public:
     //! Constructor taking the mode which variables to project and a map with counts of variables.
-    explicit Projection(ProjectionMode mode, std::unordered_map<String, size_t> const &counts)
+    explicit ProjectionMap(ProjectionMode mode, std::unordered_map<String, size_t> const &counts)
         : counts_{counts}, mode_{mode} {};
     //! Return whether a the given variable should be projected.
     //!
@@ -30,19 +30,19 @@ class Projection {
 };
 
 //! Project variables according to given projection mode.
-[[nodiscard]] auto project(Term const &term, Projection project) -> std::optional<Term>;
+[[nodiscard]] auto project(Term const &term, ProjectionMap project) -> std::optional<Term>;
 
 //! Project variables according to given projection mode.
-[[nodiscard]] auto project(Literal const &lit, Projection project) -> std::optional<Literal>;
+[[nodiscard]] auto project(Literal const &lit, ProjectionMap project) -> std::optional<Literal>;
 
 //! Project variables according to given projection mode.
-[[nodiscard]] auto project(HeadLiteral const &lit, Projection project) -> std::optional<HeadLiteral>;
+[[nodiscard]] auto project(HeadLiteral const &lit, ProjectionMap project) -> std::optional<HeadLiteral>;
 
 //! Project variables according to given projection mode and scope.
 //!
 //! Some literal occurrences cannot be projected preserving equivalence.
 //! For example, variables in nonmonotone aggregates are only projected in classical scope.
-[[nodiscard]] auto project(BodyLiteral const &lit, Projection project, bool in_classical_scope)
+[[nodiscard]] auto project(BodyLiteral const &lit, ProjectionMap project, bool in_classical_scope)
     -> std::optional<BodyLiteral>;
 
 //! Project variables according to given projection mode.

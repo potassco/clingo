@@ -35,7 +35,7 @@ struct BuildDep {
 
     void operator()(Term const &term) const { std::visit(*this, term); }
 
-    void operator()(std::monostate const &x) const { static_cast<void>(x); }
+    void operator()(Projection const &pro) const { static_cast<void>(pro); }
 
     void operator()(TupleElem const &elem) const { std::visit(*this, elem); };
 
@@ -179,8 +179,8 @@ struct Evaluate {
 
     auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
 
-    auto operator()(std::monostate const &x) const -> std::optional<Symbol> {
-        static_cast<void>(x);
+    auto operator()(Projection const &pro) const -> std::optional<Symbol> {
+        static_cast<void>(pro);
         GRINGO_REPORT_LOC(log, error, location(root)) << "projection is not permitted here\n";
         return std::nullopt;
     }

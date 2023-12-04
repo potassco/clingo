@@ -37,14 +37,14 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
 
-    auto operator()(std::monostate x) const -> std::optional<Term> {
+    auto operator()(Projection const &x) const -> std::optional<Term> {
         static_cast<void>(x);
         return std::nullopt;
     }
 
     auto operator()(TupleElem const &elem) const -> std::optional<TupleElem> {
-        if (is_anonymous(std::get_if<Term>(&elem))) {
-            return {std::monostate{}};
+        if (auto const *term = std::get_if<Term>(&elem); is_anonymous(term)) {
+            return {Projection{location(*term)}};
         }
         // Note: a tiny bit lazy. Because monostate always maps to nullopt, we
         // can safely convert the resulting optional term back into a tuple

@@ -50,8 +50,18 @@ using TermVec = std::vector<Term>;
 //! A vector of vectors of terms.
 using TermVecVec = std::vector<TermVec>;
 
+//! Indicate a projected position.
+struct Projection {
+    Location loc;
+};
+
+//! Compare two projected positions.
+//!
+//! @related Projection
+auto operator==(Projection const &a, Projection const &b) -> bool;
+
 //! A variant capturing either a term or a position that is to be projected.
-using TupleElem = std::variant<std::monostate, Term>;
+using TupleElem = std::variant<Projection, Term>;
 //! A tuple of terms or positions to project.
 using TupleVec = std::vector<TupleElem>;
 //! A vector of tuples used as function or predicate arguments.
@@ -260,5 +270,6 @@ GRINGO_HASH_PROTO(Gringo::Input::TermTuple);
 GRINGO_HASH_PROTO(Gringo::Input::TermAbs);
 GRINGO_HASH_PROTO(Gringo::Input::TermUnary);
 GRINGO_HASH_PROTO(Gringo::Input::TermBinary);
+GRINGO_HASH_PROTO(Gringo::Input::Projection);
 
 #endif

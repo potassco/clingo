@@ -12,7 +12,7 @@ namespace Gringo::Input {
 
 namespace {
 
-auto projectable(Projection project, Term const *term) -> bool {
+auto projectable(ProjectionMap project, Term const *term) -> bool {
     if (term == nullptr) {
         return false;
     }
@@ -20,7 +20,7 @@ auto projectable(Projection project, Term const *term) -> bool {
     return var != nullptr && project.projectable(var->name, var->is_anonymous);
 }
 
-auto get_counts(Projection project, auto const &elem) {
+auto get_counts(ProjectionMap project, auto const &elem) {
     std::unordered_map<String, size_t> counts;
     visit_variables(elem, [&project, &counts](Location const &loc, String var) {
         static_cast<void>(loc);
@@ -33,7 +33,7 @@ auto get_counts(Projection project, auto const &elem) {
 
 struct Project : Transformer<Project> {
 
-    Project(Projection project, bool in_classical_scope = true, bool project_lits = true)
+    Project(ProjectionMap project, bool in_classical_scope = true, bool project_lits = true)
         : project{std::move(project)}, in_classical_scope{in_classical_scope}, project_lits{project_lits} {}
 
     // protect ourselves -> no unintended overloads
@@ -56,16 +56,16 @@ struct Project : Transformer<Project> {
 
     auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
 
-    auto operator()(std::monostate const &x) const -> std::optional<Term> {
+    auto operator()(Projection const &x) const -> std::optional<Term> {
         static_cast<void>(x);
         return std::nullopt;
     }
 
     auto operator()(TupleElem const &elem) const -> std::optional<TupleElem> {
-        if (projectable(project, std::get_if<Term>(&elem))) {
-            return {std::monostate{}};
+        if (auto const *term = std::get_if<Term>(&elem); projectable(project, term)) {
+            return {Projection{location(*term)}};
         }
-        // Note: a tiny bit lazy. Because monostate always maps to nullopt, we
+        // Note: a tiny bit lazy. Because projections always map to nullopt, we
         // can safely convert the resulting optional term back into a tuple
         // elem.
         return std::visit(*this, elem);
@@ -145,7 +145,7 @@ struct Project : Transformer<Project> {
         if (project_cond) {
             // add counts of local variables
             auto counts = get_counts(project, elem);
-            auto sub_project = Project{Projection{project.mode(), counts}};
+            auto sub_project = Project{ProjectionMap{project.mode(), counts}};
 
             // Note that there can be no global variables with just one
             // occurrence in a condition. However, we can project local
@@ -176,7 +176,7 @@ struct Project : Transformer<Project> {
     auto operator()(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
         // add counts of local variables
         auto counts = get_counts(project, elem);
-        auto sub_project = Project{Projection{project.mode(), counts}};
+        auto sub_project = Project{ProjectionMap{project.mode(), counts}};
 
         // project literals in condition
         return sub_project.transform_construct<SetAggregateElement>(elem.loc, elem.lit, tr(elem.cond));
@@ -199,7 +199,7 @@ struct Project : Transformer<Project> {
     auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
         // counts of local variables
         auto counts = get_counts(project, elem);
-        auto sub_project = Project{Projection{project.mode(), counts}};
+        auto sub_project = Project{ProjectionMap{project.mode(), counts}};
 
         // project literals in condition
         return sub_project.transform_construct<HeadAggregate::Element>(elem.loc, elem.tuple, elem.lit, tr(elem.cond));
@@ -225,7 +225,7 @@ struct Project : Transformer<Project> {
     auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
         // counts of local variables
         auto counts = get_counts(project, elem);
-        auto sub_project = Project{Projection{project.mode(), counts}};
+        auto sub_project = Project{ProjectionMap{project.mode(), counts}};
 
         // project literals in condition
         return sub_project.transform_construct<BodyAggregate::Element>(elem.loc, elem.tuple, tr(elem.cond));
@@ -281,7 +281,7 @@ struct Project : Transformer<Project> {
 
     auto operator()(StatementOptimize::Element const &elem) const -> std::optional<StatementOptimize::Element> {
         auto counts = get_counts(project, elem);
-        auto sub_project = Project{Projection{project.mode(), counts}};
+        auto sub_project = Project{ProjectionMap{project.mode(), counts}};
         return sub_project.transform_construct<StatementOptimize::Element>(elem.first, tr(elem.second));
     }
 
@@ -353,14 +353,14 @@ struct Project : Transformer<Project> {
         return std::nullopt;
     }
 
-    Projection project;
+    ProjectionMap project;
     bool in_classical_scope;
     bool project_lits;
 };
 
 } // namespace
 
-auto Projection::projectable(String const &var, bool anonymous) const -> bool {
+auto ProjectionMap::projectable(String const &var, bool anonymous) const -> bool {
     if (mode_ == ProjectionMode::disabled) {
         return false;
     }
@@ -371,17 +371,19 @@ auto Projection::projectable(String const &var, bool anonymous) const -> bool {
     return it != counts_.end() && it->second == 1;
 }
 
-auto Projection::counts() const -> std::unordered_map<String, size_t> const & { return counts_; }
+auto ProjectionMap::counts() const -> std::unordered_map<String, size_t> const & { return counts_; }
 
-auto Projection::mode() const -> ProjectionMode { return mode_; }
+auto ProjectionMap::mode() const -> ProjectionMode { return mode_; }
 
-auto project(Term const &term, Projection project) -> std::optional<Term> { return Project{project}(term); }
+auto project(Term const &term, ProjectionMap project) -> std::optional<Term> { return Project{project}(term); }
 
-auto project(Literal const &lit, Projection project) -> std::optional<Literal> { return Project{project}(lit); }
+auto project(Literal const &lit, ProjectionMap project) -> std::optional<Literal> { return Project{project}(lit); }
 
-auto project(HeadLiteral const &lit, Projection project) -> std::optional<HeadLiteral> { return Project{project}(lit); }
+auto project(HeadLiteral const &lit, ProjectionMap project) -> std::optional<HeadLiteral> {
+    return Project{project}(lit);
+}
 
-auto project(BodyLiteral const &lit, Projection project, bool in_classical_scope) -> std::optional<BodyLiteral> {
+auto project(BodyLiteral const &lit, ProjectionMap project, bool in_classical_scope) -> std::optional<BodyLiteral> {
     return Project{project, in_classical_scope}(lit);
 }
 
@@ -401,7 +403,7 @@ auto project(Statement const &stm, ProjectionMode mode, bool project_anonymous) 
             },
             VariableContext::all);
 
-        res = Project{Projection{mode, counts}}(stm);
+        res = Project{ProjectionMap{mode, counts}}(stm);
     }
     if (project_anonymous) {
         if (res.has_value()) {

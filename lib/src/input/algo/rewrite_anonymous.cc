@@ -16,7 +16,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 
     // ignore
 
-    auto operator()(std::monostate const &x) const -> std::optional<std::monostate> {
+    auto operator()(Projection const &x) const -> std::optional<Projection> {
         static_cast<void>(x);
         return std::nullopt;
     }
