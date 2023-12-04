@@ -3,7 +3,7 @@
 
 #include <util/algorithm.hh>
 
-#include <input/statement.hh>
+#include <input/algo/check_syntax.hh>
 
 #include "visit.hh"
 
@@ -314,18 +314,20 @@ struct CheckSyntax {
         static_cast<void>(stm);
         return true;
     }
+
+    Logger &log;
 };
 
 } // namespace
 
-auto check_term(Term const &term) -> bool { return CheckSyntax{}(term); }
+auto check_term(Logger &log, Term const &term) -> bool { return CheckSyntax{log}(term); }
 
-auto check_literal(Literal const &lit) -> bool { return CheckSyntax{}(lit, ProjectionCheck::always); }
+auto check_literal(Logger &log, Literal const &lit) -> bool { return CheckSyntax{log}(lit, ProjectionCheck::always); }
 
-auto check_head_literal(HeadLiteral const &lit) -> bool { return CheckSyntax{}(lit); }
+auto check_head_literal(Logger &log, HeadLiteral const &lit) -> bool { return CheckSyntax{log}(lit); }
 
-auto check_body_literal(BodyLiteral const &lit) -> bool { return CheckSyntax{}(lit); }
+auto check_body_literal(Logger &log, BodyLiteral const &lit) -> bool { return CheckSyntax{log}(lit); }
 
-auto check_statement(Statement const &stm) -> bool { return CheckSyntax{}(stm); }
+auto check_statement(Logger &log, Statement const &stm) -> bool { return CheckSyntax{log}(stm); }
 
 } // namespace Gringo::Input

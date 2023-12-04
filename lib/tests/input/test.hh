@@ -18,23 +18,28 @@ inline auto default_store() -> SymbolStore & {
 }
 
 inline auto parse_term(std::string_view str) -> std::optional<Term> {
-    return Gringo::Input::parse_term(default_store(), str);
+    Logger log;
+    return Gringo::Input::parse_term(log, default_store(), str);
 }
 
 inline auto parse_literal(std::string_view str) -> std::optional<Literal> {
-    return Gringo::Input::parse_literal(default_store(), str);
+    Logger log;
+    return Gringo::Input::parse_literal(log, default_store(), str);
 }
 
 inline auto parse_head_literal(std::string_view str) -> std::optional<HeadLiteral> {
-    return Gringo::Input::parse_head_literal(default_store(), str);
+    Logger log;
+    return Gringo::Input::parse_head_literal(log, default_store(), str);
 }
 
 inline auto parse_body_literal(std::string_view str) -> std::optional<BodyLiteral> {
-    return Gringo::Input::parse_body_literal(default_store(), str);
+    Logger log;
+    return Gringo::Input::parse_body_literal(log, default_store(), str);
 }
 
 inline auto parse_statement(std::string_view str) -> std::optional<Statement> {
-    return Gringo::Input::parse_statement(default_store(), str);
+    Logger log;
+    return Gringo::Input::parse_statement(log, default_store(), str);
 }
 
 template <class T> auto to_str(T const &value) -> std::string { return to_string(value); }

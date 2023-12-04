@@ -13,8 +13,9 @@ namespace {
 using SL = std::initializer_list<Symbol>;
 
 auto parse_const(SymbolStore &store, std::string_view str) -> StatementConst {
+    Logger log;
     using Gringo::Input::parse_statement;
-    auto stm = parse_statement(store, str);
+    auto stm = parse_statement(log, store, str);
     REQUIRE(stm.has_value());
     REQUIRE(std::holds_alternative<StatementConst>(*stm));
     return std::move(std::get<StatementConst>(*stm));

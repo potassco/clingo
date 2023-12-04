@@ -286,9 +286,10 @@ TEST_CASE("parse_statement") {
 }
 
 TEST_CASE("parse_program") {
+    Logger log;
     std::istringstream in{"%p\na.%a\nb%b\n.%c\nc%d\n"};
     auto store = make_symbol_store(true, true);
-    auto scanner = scan_stream(*store, in);
+    auto scanner = scan_stream(log, *store, in);
     REQUIRE(to_str(scanner.scan()) == "%p");
     REQUIRE(to_str(scanner.scan()) == "a.");
     REQUIRE(to_str(scanner.scan()) == "%a");

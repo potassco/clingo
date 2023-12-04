@@ -1,5 +1,7 @@
 #pragma once
 
+#include <logger.hh>
+
 #include <input/statement.hh>
 
 namespace Gringo::Input {
@@ -12,15 +14,15 @@ namespace Gringo::Input {
 //! @{
 
 //! Check a term.
-auto check_term(Term const &term) -> bool;
+auto check_term(Logger &log, Term const &term) -> bool;
 //! Check a literal.
-auto check_literal(Literal const &lit) -> bool;
+auto check_literal(Logger &log, Literal const &lit) -> bool;
 //! Check a head literal.
-auto check_head_literal(HeadLiteral const &lit) -> bool;
+auto check_head_literal(Logger &log, HeadLiteral const &lit) -> bool;
 //! Check a body literal.
-auto check_body_literal(BodyLiteral const &lit) -> bool;
+auto check_body_literal(Logger &log, BodyLiteral const &lit) -> bool;
 //! Check a statement.
-auto check_statement(Statement const &stm) -> bool;
+auto check_statement(Logger &log, Statement const &stm) -> bool;
 
 //! @}
 

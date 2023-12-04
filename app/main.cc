@@ -84,10 +84,10 @@ auto main() -> int {
     log.set_level(log_level);
     GRINGO_REPORT(log, debug) << "starting up";
     if (files.empty()) {
-        process(log, *store, opts, scan_stream(*store, std::cin), std::cout);
+        process(log, *store, opts, scan_stream(log, *store, std::cin), std::cout);
     } else {
         for (auto const &file : files) {
-            process(log, *store, opts, scan_file(*store, file.c_str()), std::cout);
+            process(log, *store, opts, scan_file(log, *store, file.c_str()), std::cout);
         }
     }
 }
