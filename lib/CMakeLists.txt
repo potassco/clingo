@@ -18,7 +18,7 @@ add_library(parsertest
     "src/symbol.cc"
     )
 
-target_link_libraries(parsertest PUBLIC hopscotch_map PRIVATE foonathan::lexy::core foonathan::lexy::file imath::imath)
+target_link_libraries(parsertest PUBLIC tsl::hopscotch_map tsl::ordered_map PRIVATE foonathan::lexy::core foonathan::lexy::file imath::imath)
 target_include_directories(parsertest PUBLIC "include")
 # for lexy using >> and + in combination
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

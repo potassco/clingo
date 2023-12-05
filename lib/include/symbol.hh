@@ -2,7 +2,6 @@
 
 #include <ostream>
 #include <span>
-#include <string>
 #include <unordered_set>
 
 #include <util/hash.hh>
@@ -84,6 +83,8 @@ namespace Gringo {
 
 //! A set of strings.
 using StringSet = std::unordered_set<String>;
+//! A vector of strings.
+using StringVec = std::vector<String>;
 
 //! Output the given string (as is).
 auto operator<<(std::ostream &out, String const &str) -> std::ostream &;
@@ -148,6 +149,9 @@ class Symbol {
     Symbol(uint64_t repr) noexcept : rep_{repr} {}
     uint64_t rep_;
 };
+
+//! A vector of symbols.
+using SymbolVec = std::vector<Symbol>;
 
 } // namespace Gringo
 

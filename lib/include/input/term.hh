@@ -1,6 +1,5 @@
 #pragma once
 
-#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -52,6 +51,7 @@ using TermVecVec = std::vector<TermVec>;
 
 //! Indicate a projected position.
 struct Projection {
+    //! The location of the projected position.
     Location loc;
 };
 

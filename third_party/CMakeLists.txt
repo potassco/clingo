@@ -4,6 +4,10 @@ add_library(hopscotch_map INTERFACE)
 target_include_directories(hopscotch_map INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/hopscotch-map/include>)
 add_library(tsl::hopscotch_map ALIAS hopscotch_map)
 
+add_library(ordered_map INTERFACE)
+target_include_directories(ordered_map INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ordered-map/include>)
+add_library(tsl::ordered_map ALIAS ordered_map)
+
 add_library(imath INTERFACE)
 target_sources(imath INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/imath/imath.c

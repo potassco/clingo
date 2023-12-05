@@ -13,3 +13,6 @@
 [submodule "third_party/imath"]
 	path = third_party/imath
 	url = ../../creachadair/imath.git
+[submodule "third_party/ordered-map"]
+	path = third_party/ordered-map
+	url = ../../Tessil/ordered-map.git
