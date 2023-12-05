@@ -2,9 +2,9 @@
 
 #include <ostream>
 #include <tcb/span.hpp>
-#include <unordered_set>
 
 #include <util/hash.hh>
+#include <util/unordered_set.hh>
 
 #include <number.hh>
 
@@ -82,7 +82,7 @@ template <> struct hash<Gringo::String> {
 namespace Gringo {
 
 //! A set of strings.
-using StringSet = std::unordered_set<String>;
+using StringSet = Util::unordered_set<String>;
 //! A vector of strings.
 using StringVec = std::vector<String>;
 

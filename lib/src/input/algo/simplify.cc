@@ -1097,7 +1097,7 @@ struct LiteralToTuple {
     auto operator()(LiteralRelation const &lit) -> TermVec {
         ++n;
         auto var_set = select_variables(lit);
-        auto var_vec = std::vector(var_set.begin(), var_set.end());
+        auto var_vec = VariableVec(var_set.begin(), var_set.end());
         std::sort(var_vec.begin(), var_vec.end());
         TermVec res;
         res.reserve(var_vec.size() + 1);
@@ -1529,7 +1529,7 @@ template <bool head>
     auto res_elems = SimplifyVec{lit.elems};
     bool constant = true;
     auto value = neutral_value(lit.fun);
-    auto tuples = std::unordered_set<TermVec, Util::value_hasher<TermVec>>{};
+    auto tuples = Util::unordered_set<TermVec, Util::value_hasher<TermVec>>{};
     for (auto const &elem : lit.elems) {
         auto [state_elem, res_elem] = simplify_element(ctx, elem);
         auto const &tuple = (res_elem ? *res_elem : elem).tuple;

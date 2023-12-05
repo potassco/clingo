@@ -20,7 +20,7 @@ struct LiteralToTuple {
 
     auto tuple_from_vars(Literal const &orig) -> TermVec {
         auto var_set = select_variables(orig);
-        auto var_vec = std::vector(var_set.begin(), var_set.end());
+        auto var_vec = VariableVec(var_set.begin(), var_set.end());
         std::sort(var_vec.begin(), var_vec.end());
         TermVec res;
         res.reserve(var_vec.size() + 1);

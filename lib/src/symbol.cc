@@ -2,19 +2,14 @@
 #include <mutex>
 #include <ostream>
 
-#include <tsl/hopscotch_set.h>
-
 #include <util/print.hh>
+#include <util/unordered_set.hh>
 
 #include <symbol.hh>
 
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays)
 
 namespace Gringo {
-
-template <class Key, class Hash = Util::value_hasher<Key>, class KeyEqual = std::equal_to<>,
-          class Allocator = std::allocator<Key>, unsigned int NeighborhoodSize = 62, bool StoreHash = false> // NOLINT
-using hash_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, NeighborhoodSize, StoreHash>;
 
 // Note: The old system implemented symbol storage using 32bit indices. In
 // principle, we can do something like this here, too, by adding further
@@ -410,9 +405,9 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     ~DefaultSymbolStore() noexcept override { clear(); }
 
   private:
-    using NumberSet = hash_set<Number>;
-    using StringSet = hash_set<CharArray, CharArrayHash, CharArrayEqual>;
-    using TupleSet = hash_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
+    using NumberSet = Util::unordered_set<Number, Util::value_hasher<Number>>;
+    using StringSet = Util::unordered_set<CharArray, CharArrayHash, CharArrayEqual>;
+    using TupleSet = Util::unordered_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
 
     template <class T, class... Args> auto insert_(T &table, Args &&...args) -> typename T::iterator {
         typename T::value_type arr;
