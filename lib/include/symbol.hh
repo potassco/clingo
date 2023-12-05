@@ -1,7 +1,7 @@
 #pragma once
 
 #include <ostream>
-#include <span>
+#include <tcb/span.hpp>
 #include <unordered_set>
 
 #include <util/hash.hh>
@@ -96,7 +96,7 @@ enum class SymbolType { number, sup, inf, string, tuple, function };
 
 class Symbol;
 //! A span of symbols.
-using SymbolSpan = std::span<Symbol const>;
+using SymbolSpan = tcb::span<Symbol const>;
 
 //! Variant-like class to store symbols.
 class Symbol {

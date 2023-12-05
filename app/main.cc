@@ -10,7 +10,8 @@
 
 using namespace Gringo::Input;
 
-void process(Gringo::Logger &log, Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, auto &&output) {
+template <class Scanner, class Output>
+void process(Gringo::Logger &log, Gringo::SymbolStore &store, RewriteOptions opts, Scanner &&scanner, Output &&output) {
     for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
         StatementVec stms;
         rewrite(log, store, std::move(stm).value(), opts, stms);
@@ -31,12 +32,10 @@ auto main() -> int {
     // later...
     // ->check(CLI::ExistingFile);
     app.add_option("--log-level", "{error,warn,info,debug,trace}")->check([&log_level](std::string const &value) {
-        std::array levels =
-            std::to_array<std::pair<char const *, Gringo::LogLevel>>({{"trace", Gringo::LogLevel::trace},
-                                                                      {"debug", Gringo::LogLevel::debug},
-                                                                      {"info", Gringo::LogLevel::info},
-                                                                      {"warn", Gringo::LogLevel::warn},
-                                                                      {"error", Gringo::LogLevel::error}});
+        using P = std::pair<char const *, Gringo::LogLevel>;
+        auto levels = std::array{P{"trace", Gringo::LogLevel::trace}, P{"debug", Gringo::LogLevel::debug},
+                                 P{"info", Gringo::LogLevel::info}, P{"warn", Gringo::LogLevel::warn},
+                                 P{"error", Gringo::LogLevel::error}};
         for (auto &[name, level] : levels) {
             if (value == name) {
                 log_level = level;
@@ -46,11 +45,11 @@ auto main() -> int {
         return std::string{"unexpected value"};
     });
     app.add_option("--rewrite-level", "{off,anonymous,unpool,project}")->check([&opts](std::string const &value) {
-        std::array levels = std::to_array<std::pair<char const *, Gringo::Input::RewriteLevel>>(
-            {{"off", Gringo::Input::RewriteLevel::disabled},
-             {"anonymous", Gringo::Input::RewriteLevel::rewrite_anonymous},
-             {"unpool", Gringo::Input::RewriteLevel::unpool},
-             {"project", Gringo::Input::RewriteLevel::project}});
+        using P = std::pair<char const *, Gringo::Input::RewriteLevel>;
+        auto levels = std::array{P{"off", Gringo::Input::RewriteLevel::disabled},
+                                 P{"anonymous", Gringo::Input::RewriteLevel::rewrite_anonymous},
+                                 P{"unpool", Gringo::Input::RewriteLevel::unpool},
+                                 P{"project", Gringo::Input::RewriteLevel::project}};
         for (auto &[name, level] : levels) {
             if (value == name) {
                 opts.level = level;
@@ -60,10 +59,10 @@ auto main() -> int {
         return std::string{"unexpected value"};
     });
     app.add_option("--projection-mode", "{off,anonymous,pure}")->check([&opts](std::string const &value) {
-        std::array levels = std::to_array<std::pair<char const *, Gringo::Input::ProjectionMode>>(
-            {{"off", Gringo::Input::ProjectionMode::disabled},
-             {"anonymous", Gringo::Input::ProjectionMode::anonymous},
-             {"unpool", Gringo::Input::ProjectionMode::pure}});
+        using P = std::pair<char const *, Gringo::Input::ProjectionMode>;
+        auto levels = std::array{P{"off", Gringo::Input::ProjectionMode::disabled},
+                                 P{"anonymous", Gringo::Input::ProjectionMode::anonymous},
+                                 P{"unpool", Gringo::Input::ProjectionMode::pure}};
         for (auto &[name, mode] : levels) {
             if (value == name) {
                 opts.project_mode = mode;

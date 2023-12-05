@@ -2,6 +2,8 @@
 
 #include <sstream>
 
+#include <tcb/span.hpp>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <input/algo/parse.hh>
@@ -55,7 +57,7 @@ class ParseHelper {
 
     operator SymbolStore &() { return store_; }
 
-    auto messages() -> std::span<std::pair<MessageCode, std::string>> { return messages_; }
+    auto messages() -> tcb::span<std::pair<MessageCode, std::string>> { return messages_; }
 
     void reset() {
         log_.reset();

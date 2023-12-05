@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <util/algorithm.hh>
+#include <util/optional.hh>
 #include <util/shared_ptr.hh>
 
 namespace Gringo::Input {
@@ -73,7 +74,7 @@ template <class T> class Transformer {
     }
 
     template <class U> auto transform_(Util::shared_ptr<U> const &ptr) const -> std::optional<Util::shared_ptr<U>> {
-        return Util::map_opt(transform(*ptr), [](U val) { return Util::construct_shared<U>(std::move(val)); });
+        return Util::transform(transform(*ptr), [](U val) { return Util::construct_shared<U>(std::move(val)); });
     }
 
     template <class U, class V> auto transform_(std::pair<U, V> const &pair) const -> std::optional<std::pair<U, V>> {

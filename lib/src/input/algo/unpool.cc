@@ -1,5 +1,7 @@
 #include <algorithm>
 
+#include <util/optional.hh>
+
 #include <input/algo/print.hh>
 #include <input/algo/simplify.hh>
 #include <input/algo/unpool.hh>
@@ -80,8 +82,8 @@ struct Unpool {
     auto operator()(Term const &term) const -> std::optional<TermVec> { return std::visit(*this, term); }
 
     auto operator()(std::optional<Term> const &term) const -> std::optional<std::vector<std::optional<Term>>> {
-        return Util::and_then_opt(term, [this](Term const &term) {
-            return Util::map_opt_vec(operator()(term), [](Term term) { return std::make_optional(std::move(term)); });
+        return Util::and_then(term, [this](Term const &term) {
+            return Util::transform_vec(operator()(term), [](Term term) { return std::make_optional(std::move(term)); });
         });
     }
 
@@ -103,7 +105,7 @@ struct Unpool {
         return std::visit(
             [this](auto const &x) -> std::optional<TupleVec> {
                 GRINGO_MATCH(x, Term) {
-                    return Util::map_opt_vec(operator()(x), [](auto term) { return TupleElem{std::move(term)}; });
+                    return Util::transform_vec(operator()(x), [](auto term) { return TupleElem{std::move(term)}; });
                 }
                 GRINGO_MATCH(x, Projection) { return std::nullopt; }
             },
@@ -114,12 +116,12 @@ struct Unpool {
         return std::visit(
             [this](auto const &x) -> std::optional<TermTuple::ElementVec> {
                 GRINGO_MATCH(x, Term) {
-                    return Util::map_opt_vec(operator()(x),
-                                             [](auto term) { return TermTuple::Element{std::move(term)}; });
+                    return Util::transform_vec(operator()(x),
+                                               [](auto term) { return TermTuple::Element{std::move(term)}; });
                 }
                 GRINGO_MATCH(x, TupleVec) {
-                    return Util::map_opt_vec(unpool_crossproduct(x, *this),
-                                             [](auto tuple) { return TermTuple::Element{std::move(tuple)}; });
+                    return Util::transform_vec(unpool_crossproduct(x, *this),
+                                               [](auto tuple) { return TermTuple::Element{std::move(tuple)}; });
                 }
             },
             tuple_or_term);
@@ -133,7 +135,7 @@ struct Unpool {
         if (!elems.has_value() && (term.pool.size() != 1 || std::holds_alternative<Term>(term.pool.front()))) {
             elems = term.pool;
         }
-        return Util::map_opt_vec(std::move(elems), [&term](auto elem) -> Term {
+        return Util::transform_vec(std::move(elems), [&term](auto elem) -> Term {
             return std::visit(
                 [&term](auto x) -> Term {
                     GRINGO_MATCH(x, Term) { return x; }
@@ -153,7 +155,7 @@ struct Unpool {
             elems = term.pool;
         }
 
-        return Util::map_opt_vec(std::move(elems), [&term](auto elem) -> Term {
+        return Util::transform_vec(std::move(elems), [&term](auto elem) -> Term {
             // turn individual elements into function terms
             return TermFunction{term.loc, term.name, PoolVec{std::move(elem)}, term.external};
         });
@@ -164,13 +166,13 @@ struct Unpool {
         if (!unpooled.has_value() && term.pool.size() != 1) {
             unpooled = term.pool;
         }
-        return Util::map_opt_vec(std::move(unpooled), [&term](auto arg) -> Term {
+        return Util::transform_vec(std::move(unpooled), [&term](auto arg) -> Term {
             return TermAbs{term.loc, TermVec{std::move(arg)}};
         });
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<TermVec> {
-        return Util::map_opt_vec(operator()(*term.rhs), [&term](auto rhs) -> Term {
+        return Util::transform_vec(operator()(*term.rhs), [&term](auto rhs) -> Term {
             return TermUnary{term.loc, term.op, std::move(rhs)};
         });
     }
@@ -185,7 +187,7 @@ struct Unpool {
 
     auto operator()(GuardVec const &guards) const -> std::optional<std::vector<GuardVec>> {
         return unpool_crossproduct(guards, [this](Guard const &guard) {
-            return Util::map_opt_vec(operator()(guard.second), [&guard](auto term) {
+            return Util::transform_vec(operator()(guard.second), [&guard](auto term) {
                 return Guard{guard.first, std::move(term)};
             });
         });
@@ -213,7 +215,7 @@ struct Unpool {
     }
 
     auto operator()(LiteralSymbolic const &lit) const -> std::optional<LiteralVec> {
-        return Util::map_opt_vec(operator()(lit.term), [&lit](auto term) -> Literal {
+        return Util::transform_vec(operator()(lit.term), [&lit](auto term) -> Literal {
             return LiteralSymbolic{lit.loc, lit.sign, std::move(term)};
         });
     }
@@ -242,7 +244,7 @@ struct Unpool {
 
         // unpool literals
         auto elem_lits = unpool_crossproduct(elems, [this](auto const &elem) {
-            return Util::map_opt_vec(unpool_crossproduct(elem.lits, *this), [&elem](auto lits) {
+            return Util::transform_vec(unpool_crossproduct(elem.lits, *this), [&elem](auto lits) {
                 return ConditionalLiteral{elem.loc, std::move(lits), {}};
             });
         });
@@ -257,7 +259,7 @@ struct Unpool {
         }
 
         // set conditions of unpooled literals and build disjunctions
-        return Util::map_opt_vec(std::move(elem_lits), [&elem_conds, &elems](ConditionalLiteralVec elem_lits) {
+        return Util::transform_vec(std::move(elem_lits), [&elem_conds, &elems](ConditionalLiteralVec elem_lits) {
             if (!elem_conds.has_value()) {
                 size_t i = 0;
                 for (auto &elem : elem_lits) {
@@ -283,16 +285,16 @@ struct Unpool {
     // set aggregate
 
     auto operator()(LGuard const &lhs) const -> std::optional<std::vector<LGuard>> {
-        return Util::and_then_opt(lhs, [this](auto const &lhs) {
-            return Util::map_opt_vec(operator()(lhs.first), [&lhs](auto term) {
+        return Util::and_then(lhs, [this](auto const &lhs) {
+            return Util::transform_vec(operator()(lhs.first), [&lhs](auto term) {
                 return std::make_optional<LGuard::value_type>(std::move(term), lhs.second);
             });
         });
     }
 
     auto operator()(RGuard const &rhs) const -> std::optional<std::vector<RGuard>> {
-        return Util::and_then_opt(rhs, [this](auto const &rhs) {
-            return Util::map_opt_vec(operator()(rhs.second), [&rhs](auto term) {
+        return Util::and_then(rhs, [this](auto const &rhs) {
+            return Util::transform_vec(operator()(rhs.second), [&rhs](auto term) {
                 return std::make_optional<RGuard::value_type>(rhs.first, std::move(term));
             });
         });
@@ -378,8 +380,8 @@ struct Unpool {
     }
 
     auto operator()(TheoryElementVec const &elems) const -> std::optional<std::vector<TheoryElementVec>> {
-        return Util::map_opt(unpool_union(elems, *this),
-                             [](auto elems) { return Util::make_vec<TheoryElementVec>(std::move(elems)); });
+        return Util::transform(unpool_union(elems, *this),
+                               [](auto elems) { return Util::make_vec<TheoryElementVec>(std::move(elems)); });
     }
 
     template <bool HasSign>
@@ -400,10 +402,10 @@ struct Unpool {
     template <bool Conjunctive>
     auto operator()(Junction<Conjunctive> const &lit) const
         -> std::optional<std::conditional_t<Conjunctive, BodyLiteralVec, HeadLiteralVec>> {
-        return Util::map_opt_vec(operator()(lit.elems),
-                                 [&lit](auto elem) -> std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral> {
-                                     return Junction<Conjunctive>{lit.loc, std::move(elem)};
-                                 });
+        return Util::transform_vec(operator()(lit.elems),
+                                   [&lit](auto elem) -> std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral> {
+                                       return Junction<Conjunctive>{lit.loc, std::move(elem)};
+                                   });
     }
 
     // head literal
@@ -411,8 +413,8 @@ struct Unpool {
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteralVec> { return std::visit(*this, lit); }
 
     auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.lit),
-                                 [](auto lit) -> HeadLiteral { return SimpleHeadLiteral{std::move(lit)}; });
+        return Util::transform_vec(operator()(lit.lit),
+                                   [](auto lit) -> HeadLiteral { return SimpleHeadLiteral{std::move(lit)}; });
     }
 
     auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::ElementVec> {
@@ -425,8 +427,8 @@ struct Unpool {
 
     auto operator()(HeadAggregate::ElementVec const &elems) const
         -> std::optional<std::vector<HeadAggregate::ElementVec>> {
-        return Util::map_opt(unpool_union(elems, *this),
-                             [](auto elems) { return Util::make_vec<HeadAggregate::ElementVec>(std::move(elems)); });
+        return Util::transform(unpool_union(elems, *this),
+                               [](auto elems) { return Util::make_vec<HeadAggregate::ElementVec>(std::move(elems)); });
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteralVec> {
@@ -442,8 +444,8 @@ struct Unpool {
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteralVec> { return std::visit(*this, lit); }
 
     auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteralVec> {
-        return Util::map_opt_vec(operator()(lit.lit),
-                                 [](auto lit) -> BodyLiteral { return SimpleBodyLiteral{std::move(lit)}; });
+        return Util::transform_vec(operator()(lit.lit),
+                                   [](auto lit) -> BodyLiteral { return SimpleBodyLiteral{std::move(lit)}; });
     }
 
     auto operator()(BodyLiteralVec const &lits) const -> std::optional<std::vector<BodyLiteralVec>> {
@@ -460,8 +462,8 @@ struct Unpool {
 
     auto operator()(BodyAggregate::ElementVec const &elems) const
         -> std::optional<std::vector<BodyAggregate::ElementVec>> {
-        return Util::map_opt(unpool_union(elems, *this),
-                             [](auto elems) { return Util::make_vec<BodyAggregate::ElementVec>(std::move(elems)); });
+        return Util::transform(unpool_union(elems, *this),
+                               [](auto elems) { return Util::make_vec<BodyAggregate::ElementVec>(std::move(elems)); });
     }
 
     auto operator()(BodyAggregate const &aggr) const -> std::optional<BodyLiteralVec> {
