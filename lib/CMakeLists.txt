@@ -13,6 +13,7 @@ add_library(parsertest
     "src/input/algo/unpool.cc"
     "src/input/algo/visit_variables.cc"
     "src/input/literal.cc"
+    "src/input/program.cc"
     "src/input/term.cc"
     "src/number.cc"
     "src/symbol.cc"

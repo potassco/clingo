@@ -4,8 +4,9 @@
 #include <stack>
 
 #include <logger.hh>
+#include <symbol.hh>
 
-#include <input/program.hh>
+#include <input/statement.hh>
 
 namespace Gringo::Input {
 
@@ -23,6 +24,14 @@ enum class ProjectionMode {
     disabled = 0,  //!< Disable projection.
     anonymous = 1, //!< Only project anonymous variables.
     pure = 2,      //!< Project pure variables.
+};
+
+//! Enumeration of available rewrite levels.
+enum class RewriteLevel {
+    disabled = 0,          //!< Disable rewriting.
+    rewrite_anonymous = 1, //!< Give names to anonymous variables.
+    unpool = 2,            //!< Remove argument pools.
+    project = 3,           //!< Project variables.
 };
 
 // TODO: a map might also be an idea here to avoid duplicates for the same variable

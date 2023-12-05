@@ -32,6 +32,9 @@ template <class T, class... Ts> auto make_vec(Ts &&...args) {
 }
 
 //! Helper template to ease using std::visit.
+#define GRINGO_IS_INSTANCE(x, T) std::is_same_v<std::decay_t<decltype(x)>, T>
+
+//! Helper template to ease using std::visit.
 #define GRINGO_MATCH(x, T) if constexpr (std::is_same_v<std::decay_t<decltype(x)>, T>)
 
 //! Helper template to ease using std::visit.
