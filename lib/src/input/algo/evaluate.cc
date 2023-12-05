@@ -1,5 +1,3 @@
-#include <unordered_map>
-
 #include <util/algorithm.hh>
 #include <util/checked_math.hh>
 
@@ -89,7 +87,7 @@ struct BuildDep {
     }
 
     //! A map from constant names to indices of const statements.
-    std::unordered_map<String, size_t> &map;
+    Util::unordered_map<String, size_t> &map;
     //! The dependency graph to build.
     Graph &dep;
     //! The id of the const statement at hand.
@@ -312,7 +310,7 @@ struct Evaluate {
 
     Logger &log;
     SymbolStore &store;
-    std::unordered_map<String, std::optional<Symbol>> const &map;
+    Util::unordered_map<String, std::optional<Symbol>> const &map;
     Term const &root;
 };
 
@@ -403,22 +401,22 @@ auto evaluate(SymbolStore &store, Symbol lhs, BinaryOperator op, Symbol rhs) -> 
     throw std::runtime_error("cannot evaluate intervals");
 }
 
-auto evaluate(Logger &log, SymbolStore &store, std::unordered_map<String, std::optional<Symbol>> const &map,
+auto evaluate(Logger &log, SymbolStore &store, Util::unordered_map<String, std::optional<Symbol>> const &map,
               Term const &term) -> std::optional<Symbol> {
     return std::visit(Evaluate{log, store, map, term}, term);
 }
 
 auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst> const &stms)
-    -> std::unordered_map<String, std::optional<Symbol>> {
+    -> Util::unordered_map<String, std::optional<Symbol>> {
     // build map
-    std::unordered_map<String, size_t> map;
+    Util::unordered_map<String, size_t> map;
     size_t id_stm = 0;
     for (auto const &stm_a : stms) {
         auto res = map.try_emplace(stm_a.name, id_stm);
         if (!res.second) {
             auto const &stm_b = stms[res.first->second];
             if (stm_b.type < stm_a.type) {
-                res.first->second = id_stm;
+                res.first.value() = id_stm;
             } else {
                 GRINGO_REPORT_LOC(log, error, location(stm_a))
                     << "redefinition of constant:\n"
@@ -432,11 +430,11 @@ auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
     // build dependency graph
     Graph dep;
     dep.ensure_size(id_stm);
-    for (auto &[name, id_stm] : map) {
+    for (const auto &[name, id_stm] : map) {
         BuildDep{map, dep, id_stm}(stms[id_stm].value);
     }
     // evaluate const statements
-    std::unordered_map<String, std::optional<Symbol>> res;
+    Util::unordered_map<String, std::optional<Symbol>> res;
     dep.tarjan([&log, &store, &stms, &map, &res](auto const &scc) {
         if (scc.size() == 1) {
             auto const &stm = stms[scc.front()];

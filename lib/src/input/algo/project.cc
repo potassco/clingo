@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <unordered_map>
 
 #include <input/algo/analyze.hh>
 #include <input/algo/project.hh>
@@ -21,7 +20,7 @@ auto projectable(ProjectionMap project, Term const *term) -> bool {
 }
 
 auto get_counts(ProjectionMap project, auto const &elem) {
-    std::unordered_map<String, size_t> counts;
+    Util::unordered_map<String, size_t> counts;
     visit_variables(elem, [&project, &counts](Location const &loc, String var) {
         static_cast<void>(loc);
         if (!project.counts().contains(var)) {
@@ -371,7 +370,7 @@ auto ProjectionMap::projectable(String const &var, bool anonymous) const -> bool
     return it != counts_.end() && it->second == 1;
 }
 
-auto ProjectionMap::counts() const -> std::unordered_map<String, size_t> const & { return counts_; }
+auto ProjectionMap::counts() const -> Util::unordered_map<String, size_t> const & { return counts_; }
 
 auto ProjectionMap::mode() const -> ProjectionMode { return mode_; }
 
@@ -391,7 +390,7 @@ auto project(Statement const &stm, ProjectionMode mode, bool project_anonymous) 
     std::optional<Statement> res;
     if (mode != ProjectionMode::disabled) {
         VariableSet vars = select_variables(stm, VariableContext::global);
-        std::unordered_map<String, size_t> counts;
+        Util::unordered_map<String, size_t> counts;
         counts.reserve(vars.size());
         visit_variables(
             stm,

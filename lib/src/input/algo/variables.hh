@@ -1,7 +1,8 @@
 #pragma once
 
 #include <functional>
-#include <unordered_map>
+
+#include <util/unordered_map.hh>
 
 #include <input/statement.hh>
 
@@ -9,7 +10,7 @@ namespace Gringo::Input {
 
 namespace Detail {
 
-using VarOccCounts = std::unordered_map<std::string, size_t>;
+using VarOccCounts = Util::unordered_map<std::string, size_t>;
 using VarVisitFun = std::function<void(std::string const &var)>;
 
 template <class P> class VarVisitHelper : public P {
