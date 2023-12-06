@@ -3,10 +3,12 @@
 #include <input/program.hh>
 
 #include <input/algo/evaluate.hh>
+#include <input/algo/rewrite.hh>
 
 #define ISINST GRINGO_IS_INSTANCE
 
 // TODO: remove
+#include <input/algo/print.hh>
 #include <iostream>
 
 namespace Gringo::Input {
@@ -37,13 +39,38 @@ void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
         stm);
 }
 
-auto Program::update(Logger &log, SymbolStore &store, UnprocessedProgram prg) -> bool {
-    static_cast<void>(level_);
-    // TODO: add parts and apply constants
+void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
+    // TODO: merge with previous const directives
     auto map = evaluate_const(log, store, prg.const_stms_);
-    std::cerr << "size: " << map.size() << std::endl;
 
-    return true;
+    for (auto &[program_stm, stms, facts] : prg.parts_) {
+        auto part = parts_.try_emplace(Signature{program_stm.name, program_stm.args.size()});
+        for (auto &stm : stms) {
+            // TODO: protect parameters
+            // TODO: apply constants
+            // TODO: statement might become fact after simplification
+            rewrite(log, store, stm, opts_, part.first.value().stms_);
+        }
+        // TODO: same for facts
+        // TODO: tedious conversion between facts and rules could be avoided
+        //       by replacing bound parameters right away
+    }
+
+    // TODO: for debugging
+    for (auto const &[id, sym] : map) {
+        if (sym.has_value()) {
+            std::cerr << "#const " << id << "=" << *sym << "." << std::endl;
+        }
+    }
+    for (auto const &stm : meta_stms_) {
+        std::cerr << stm << std::endl;
+    }
+    for (auto const &[sig, part] : parts_) {
+        std::cerr << "#program " << sig.first << "/" << sig.second << "." << std::endl;
+        for (auto const &stm : part.stms_) {
+            std::cerr << stm << std::endl;
+        }
+    }
 }
 
 #undef ISINST

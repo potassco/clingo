@@ -35,6 +35,16 @@ enum class RewriteLevel {
     simplify = 4,          //!< Enable simplifications.
 };
 
+//! Options to configure rewriting.
+struct RewriteOptions {
+    //! The rewrite level.
+    RewriteLevel level = RewriteLevel::simplify;
+    //! The projection mode.
+    ProjectionMode project_mode = ProjectionMode::pure;
+    //! Whether to project anonymous variables in negative literals.
+    bool project_anonymous = false;
+};
+
 // TODO: a map might also be an idea here to avoid duplicates for the same variable
 //! A vector of term pairs where the second has been substituted by the first in some other term.
 using AuxTermVec = std::vector<std::pair<Term, Term>>;

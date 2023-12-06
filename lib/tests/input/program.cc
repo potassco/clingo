@@ -13,8 +13,8 @@ TEST_CASE("program") {
     upr.add(ph, *ph.statement("a(k,n)."));
     upr.add(ph, *ph.statement("b(k,m,X) :- a(k,X)."));
 
-    Program prg{RewriteLevel::simplify};
-    prg.update(ph, ph, std::move(upr));
+    Program prg{RewriteOptions{}};
+    prg.join(ph, ph, std::move(upr));
 }
 
 } // namespace Gringo::Input::Test
