@@ -106,14 +106,16 @@ TEST_CASE("evaluate_const") {
     SECTION("cycle") {
         stms.emplace_back(ch.const_def("#const a = b."));
         stms.emplace_back(ch.const_def("#const b = a."));
-        evaluate_const(ch, ch, stms);
+        ConstMap map;
+        evaluate_const(ch, ch, stms, map);
         REQUIRE(ch.logger().has_error());
     }
 
     SECTION("redefinition") {
         stms.emplace_back(ch.const_def("#const a = x."));
         stms.emplace_back(ch.const_def("#const a = y."));
-        evaluate_const(ch, ch, stms);
+        ConstMap map;
+        evaluate_const(ch, ch, stms, map);
         REQUIRE(ch.logger().has_error());
     }
 
@@ -123,15 +125,16 @@ TEST_CASE("evaluate_const") {
         stms.emplace_back(ch.const_def("#const a = 1+2."));
         stms.emplace_back(ch.const_def("#const b = 2*a."));
         stms.emplace_back(ch.const_def("#const c = f(b,-g(-a*b))."));
-        auto map = evaluate_const(ch, ch, stms);
+        ConstMap map;
+        evaluate_const(ch, ch, stms, map);
         REQUIRE(!ch.logger().has_error());
         REQUIRE(map.size() == 3);
         REQUIRE(map.contains(ch.store().string("a")));
         REQUIRE(map.contains(ch.store().string("b")));
         REQUIRE(map.contains(ch.store().string("c")));
-        REQUIRE(map[ch.store().string("a")] == ch.store().num(Number(3)));
-        REQUIRE(map[ch.store().string("b")] == ch.store().num(Number(6)));
-        REQUIRE(map[ch.store().string("c")] == ff);
+        REQUIRE(map.at(ch.store().string("a")).second == ch.store().num(Number(3)));
+        REQUIRE(map.at(ch.store().string("b")).second == ch.store().num(Number(6)));
+        REQUIRE(map.at(ch.store().string("c")).second == ff);
     }
 }
 

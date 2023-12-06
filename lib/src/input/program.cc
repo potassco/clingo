@@ -41,7 +41,7 @@ void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
 
 void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     // TODO: merge with previous const directives
-    auto map = evaluate_const(log, store, prg.const_stms_);
+    evaluate_const(log, store, prg.const_stms_, const_defs_);
 
     for (auto &[program_stm, stms, facts] : prg.parts_) {
         auto part = parts_.try_emplace(Signature{program_stm.name, program_stm.args.size()});
@@ -49,7 +49,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
             // TODO: protect parameters
             // TODO: apply constants
             // TODO: statement might become fact after simplification
-            rewrite(log, store, stm, opts_, part.first.value().stms_);
+            rewrite(log, store, stm, opts_, part.first.value().stms);
         }
         // TODO: same for facts
         // TODO: tedious conversion between facts and rules could be avoided
@@ -57,20 +57,19 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     }
 
     // TODO: for debugging
-    for (auto const &[id, sym] : map) {
-        if (sym.has_value()) {
-            std::cerr << "#const " << id << "=" << *sym << "." << std::endl;
-        }
+    for (auto const &[id, sym] : const_defs_) {
+        std::cerr << "#const " << id << "=" << sym.second << "." << std::endl;
     }
     for (auto const &stm : meta_stms_) {
         std::cerr << stm << std::endl;
     }
     for (auto const &[sig, part] : parts_) {
         std::cerr << "#program " << sig.first << "/" << sig.second << "." << std::endl;
-        for (auto const &stm : part.stms_) {
+        for (auto const &stm : part.stms) {
             std::cerr << stm << std::endl;
         }
     }
+    std::cerr << "status: " << (log.has_error() ? "error" : "success") << std::endl;
 }
 
 #undef ISINST

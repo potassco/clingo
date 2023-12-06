@@ -138,9 +138,9 @@ struct Evaluate {
                     if (it == map.end()) {
                         return sym;
                     }
-                    auto rep = it->second;
-                    if (rep.has_value() && sym.has_sign()) {
-                        return evaluate(store, UnaryOperator::negate, rep.value());
+                    auto [type, rep] = it->second;
+                    if (sym.has_sign()) {
+                        return evaluate(store, UnaryOperator::negate, rep);
                     }
                     return rep;
                 }
@@ -179,7 +179,6 @@ struct Evaluate {
 
     auto operator()(Projection const &pro) const -> std::optional<Symbol> {
         static_cast<void>(pro);
-        GRINGO_REPORT_LOC(log, error, location(root)) << "projection is not permitted here\n";
         return std::nullopt;
     }
 
@@ -221,17 +220,12 @@ struct Evaluate {
     }
 
     auto operator()(TermFunction const &term) const -> std::optional<Symbol> {
-        if (term.pool.size() != 1) {
-            GRINGO_REPORT_LOC(log, error, location(term)) << "pools are not permitted here\n";
-            return std::nullopt;
-        }
-        if (term.external) {
-            GRINGO_REPORT_LOC(log, error, location(term)) << "external functions are not permitted here\n";
+        if (term.pool.size() != 1 || term.external) {
             return std::nullopt;
         }
         if (term.pool.front().empty()) {
             if (auto it = map.find(term.name); it != map.end()) {
-                return it->second;
+                return it->second.second;
             }
         }
         auto args = eval_(term.pool.front());
@@ -243,7 +237,6 @@ struct Evaluate {
 
     auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
         if (term.pool.size() != 1) {
-            GRINGO_REPORT_LOC(log, error, location(term)) << "pools are not permitted here\n";
             return std::nullopt;
         }
         auto val = operator()(term.pool.front());
@@ -256,8 +249,10 @@ struct Evaluate {
             val = std::nullopt;
         }
         if (!val.has_value()) {
-            GRINGO_REPORT_LOC(log, info_operation_undefined, location(term)) << "operation undefined:\n"
-                                                                             << "  |" << val.value() << "|\n";
+            GRINGO_REPORT_LOC(log, error, location(term)) << "operation undefined:\n"
+                                                          << "  |" << val.value() << "|\n"
+                                                          << location(root) << ": note: operation appears in:\n"
+                                                          << "  " << root << "\n";
             return std::nullopt;
         }
         return val;
@@ -276,9 +271,10 @@ struct Evaluate {
                 lp = "(";
                 rp = ")";
             }
-            GRINGO_REPORT_LOC(log, info_operation_undefined, location(term))
-                << "operation undefined:\n"
-                << "  " << term.op << lp << rhs.value() << rp << "\n";
+            GRINGO_REPORT_LOC(log, error, location(term)) << "operation undefined:\n"
+                                                          << "  " << term.op << lp << rhs.value() << rp << "\n"
+                                                          << location(root) << ": note: operation appears in:\n"
+                                                          << "  " << root << "\n";
         }
         return res;
     }
@@ -286,11 +282,7 @@ struct Evaluate {
     auto operator()(TermBinary const &term) const -> std::optional<Symbol> {
         auto lhs = operator()(*term.lhs);
         auto rhs = operator()(*term.rhs);
-        if (term.op == BinaryOperator::dots) {
-            GRINGO_REPORT_LOC(log, error, location(term)) << "intervals are not permitted here\n";
-            return std::nullopt;
-        }
-        if (!lhs.has_value() || !rhs.has_value()) {
+        if (term.op == BinaryOperator::dots || !lhs.has_value() || !rhs.has_value()) {
             return std::nullopt;
         }
         auto res = evaluate(store, lhs.value(), term.op, rhs.value());
@@ -301,18 +293,25 @@ struct Evaluate {
                 lp = "(";
                 rp = ")";
             }
-            GRINGO_REPORT_LOC(log, info_operation_undefined, location(term))
+            GRINGO_REPORT_LOC(log, error, location(term))
                 << "operation undefined:\n"
-                << "  " << lhs.value() << term.op << lp << rhs.value() << rp << "\n";
+                << "  " << lhs.value() << term.op << lp << rhs.value() << rp << "\n"
+                << location(root) << ": note: operation appears in:\n"
+                << "  " << root << "\n";
         }
         return res;
     }
 
     Logger &log;
     SymbolStore &store;
-    Util::unordered_map<String, std::optional<Symbol>> const &map;
-    Term const &root;
+    ConstMap const &map;
+    StatementConst const &root;
 };
+
+auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StatementConst const &stm)
+    -> std::optional<Symbol> {
+    return std::visit(Evaluate{log, store, map, stm}, stm.value);
+}
 
 } // namespace
 
@@ -401,13 +400,7 @@ auto evaluate(SymbolStore &store, Symbol lhs, BinaryOperator op, Symbol rhs) -> 
     throw std::runtime_error("cannot evaluate intervals");
 }
 
-auto evaluate(Logger &log, SymbolStore &store, Util::unordered_map<String, std::optional<Symbol>> const &map,
-              Term const &term) -> std::optional<Symbol> {
-    return std::visit(Evaluate{log, store, map, term}, term);
-}
-
-auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst> const &stms)
-    -> Util::unordered_map<String, std::optional<Symbol>> {
+void evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst> const &stms, ConstMap &res) {
     // build map
     Util::unordered_map<String, size_t> map;
     size_t id_stm = 0;
@@ -417,7 +410,7 @@ auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
             auto const &stm_b = stms[res.first->second];
             if (stm_b.type < stm_a.type) {
                 res.first.value() = id_stm;
-            } else {
+            } else if (stm_b.type == stm_a.type) {
                 GRINGO_REPORT_LOC(log, error, location(stm_a))
                     << "redefinition of constant:\n"
                     << "  " << stm_a << "\n"
@@ -434,12 +427,24 @@ auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
         BuildDep{map, dep, id_stm}(stms[id_stm].value);
     }
     // evaluate const statements
-    Util::unordered_map<String, std::optional<Symbol>> res;
     dep.tarjan([&log, &store, &stms, &map, &res](auto const &scc) {
         if (scc.size() == 1) {
             auto const &stm = stms[scc.front()];
             if (map[stm.name] == scc.front()) {
-                res.emplace(stm.name, evaluate(log, store, res, stm.value));
+                if (auto value = evaluate(log, store, res, stm); value) {
+                    auto [it, ins] = res.try_emplace(stm.name, stm, *value);
+                    if (!ins) {
+                        if (it->second.first.type < stm.type) {
+                            it.value() = std::make_pair(stm, *value);
+                        } else if (it->second.first.type == stm.type) {
+                            GRINGO_REPORT_LOC(log, error, location(stm))
+                                << "redefinition of constant:\n"
+                                << "  " << stm << "\n"
+                                << location(it->second.first) << ": note: redefinition of constant:\n"
+                                << "  " << it->second.first << "\n";
+                        }
+                    }
+                }
             }
         } else {
             bool first = true;
@@ -454,14 +459,10 @@ auto evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
                     oss << ": note: cyclic constant definition:\n";
                 }
                 oss << "  " << stms[id_stm] << "\n";
-                if (map[stm.name] == scc.front()) {
-                    res.emplace(stm.name, std::nullopt);
-                }
             }
             GRINGO_REPORT_STR(log, error, oss.str());
         }
     });
-    return res;
 }
 
 } // namespace Gringo::Input

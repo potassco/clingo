@@ -16,19 +16,15 @@ namespace Gringo::Input {
 //!
 //! @{
 
-class Program;
-
 //! A program part.
-class ProgramPart {
-    // TODO: ugly!
-    friend class Program;
-
-  private:
+struct ProgramPart {
     //! The facts in the program part.
-    SymbolVec facts_;
+    SymbolVec facts;
     //! The statements in the program part.
-    StatementVec stms_;
+    StatementVec stms;
 };
+
+class Program;
 
 //! Program gathering statements.
 class UnprocessedProgram {
@@ -51,6 +47,9 @@ class UnprocessedProgram {
     std::vector<Statement> meta_stms_;
 };
 
+//! Map from identifiers to constants.
+using ConstMap = Util::unordered_map<String, std::pair<StatementConst, Symbol>>;
+
 //! A program consisting of parts.
 class Program {
   public:
@@ -68,8 +67,6 @@ class Program {
     using Signature = std::pair<String, size_t>;
     //! Map from signatures to actual program parts.
     using PartMap = Util::ordered_map<Signature, ProgramPart, Util::value_hasher<Signature>>;
-    //! Map from const parameters to their values.
-    using ConstMap = Util::unordered_map<String, std::optional<Symbol>>;
 
     //! The rewrite level of the program.
     RewriteOptions opts_;
