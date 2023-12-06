@@ -1,6 +1,6 @@
 #pragma once
 
-#include <input/algo/rewrite_base.hh>
+#include <input/program.hh>
 
 namespace Gringo::Input {
 

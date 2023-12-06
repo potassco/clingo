@@ -2,7 +2,7 @@
 
 #include <util/enum.hh>
 
-#include <input/algo/rewrite_base.hh>
+#include <input/program.hh>
 
 namespace Gringo::Input {
 

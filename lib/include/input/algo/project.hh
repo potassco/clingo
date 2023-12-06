@@ -2,7 +2,7 @@
 
 #include <util/unordered_map.hh>
 
-#include <input/algo/rewrite_base.hh>
+#include <input/program.hh>
 
 namespace Gringo::Input {
 
