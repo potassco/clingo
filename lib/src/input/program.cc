@@ -6,6 +6,9 @@
 
 #define ISINST GRINGO_IS_INSTANCE
 
+// TODO: remove
+#include <iostream>
+
 namespace Gringo::Input {
 
 void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
@@ -25,6 +28,9 @@ void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
                     parts_.emplace_back(StatementProgram{location(stm), store.string("base"), {}}, StatementVec{},
                                         SymbolVec{});
                 }
+                if constexpr (ISINST(stm, Rule)) {
+                    // TODO: handle facts
+                }
                 std::get<1>(parts_.back()).emplace_back(std::move(stm));
             }
         },
@@ -33,7 +39,9 @@ void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
 
 auto Program::update(Logger &log, SymbolStore &store, UnprocessedProgram prg) -> bool {
     static_cast<void>(level_);
+    // TODO: add parts and apply constants
     auto map = evaluate_const(log, store, prg.const_stms_);
+    std::cerr << "size: " << map.size() << std::endl;
 
     return true;
 }

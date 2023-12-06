@@ -49,7 +49,8 @@ auto main() -> int {
         auto levels = std::array{P{"off", Gringo::Input::RewriteLevel::disabled},
                                  P{"anonymous", Gringo::Input::RewriteLevel::rewrite_anonymous},
                                  P{"unpool", Gringo::Input::RewriteLevel::unpool},
-                                 P{"project", Gringo::Input::RewriteLevel::project}};
+                                 P{"project", Gringo::Input::RewriteLevel::project},
+                                 P{"simplify", Gringo::Input::RewriteLevel::simplify}};
         for (auto &[name, level] : levels) {
             if (value == name) {
                 opts.level = level;

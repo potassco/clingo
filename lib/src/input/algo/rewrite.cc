@@ -6,6 +6,7 @@
 #include <input/algo/project.hh>
 #include <input/algo/rewrite.hh>
 #include <input/algo/rewrite_anonymous.hh>
+#include <input/algo/simplify.hh>
 #include <input/algo/unpool.hh>
 #include <input/algo/visit_variables.hh>
 
@@ -71,17 +72,26 @@ void rewrite(Logger &log, SymbolStore &store, Statement const &stm, RewriteOptio
         return;
     }
 
-    auto rewrite_unpooled = [&opts, &stms, &log](Statement stm) {
+    auto rewrite_unpooled = [&opts, &stms, &ctx](Statement stm) {
         if (opts.level < RewriteLevel::project) {
             stms.emplace_back(std::move(stm));
             return;
         }
         auto opt = project(stm, opts.project_mode, opts.project_anonymous);
         if (opt.has_value()) {
-            GRINGO_REPORT(log, trace) << "project anonymous: " << *opt;
+            GRINGO_REPORT(ctx.logger(), trace) << "project anonymous: " << *opt;
         }
-        stm = std::move(opt).value_or(stm);
-        stms.emplace_back(std::move(stm));
+        stm = std::move(opt).value_or(std::move(stm));
+        if (opts.level < RewriteLevel::simplify) {
+            stms.emplace_back(std::move(stm));
+            return;
+        }
+        auto [state_stm, res_stm] = simplify(ctx, stm);
+        stm = std::move(res_stm).value_or(std::move(stm));
+        if (state_stm != TruthValue::top) {
+            stms.emplace_back(std::move(stm));
+        }
+        return;
     };
     auto unpooled = unpool(ctx, res);
     if (unpooled.has_value()) {
@@ -89,9 +99,9 @@ void rewrite(Logger &log, SymbolStore &store, Statement const &stm, RewriteOptio
             GRINGO_REPORT(log, trace) << "unpool: " << stm;
             rewrite_unpooled(std::move(stm));
         }
-    } else {
-        rewrite_unpooled(std::move(res));
+        return;
     }
+    return rewrite_unpooled(std::move(res));
 }
 
 } // namespace Gringo::Input

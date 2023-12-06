@@ -10,7 +10,7 @@ namespace Gringo::Input {
 //! Options to configure rewriting.
 struct RewriteOptions {
     //! The rewrite level.
-    RewriteLevel level = RewriteLevel::project;
+    RewriteLevel level = RewriteLevel::simplify;
     //! The projection mode.
     ProjectionMode project_mode = ProjectionMode::pure;
     //! Whether to project anonymous variables in negative literals.

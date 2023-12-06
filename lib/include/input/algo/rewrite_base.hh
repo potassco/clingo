@@ -32,6 +32,7 @@ enum class RewriteLevel {
     rewrite_anonymous = 1, //!< Give names to anonymous variables.
     unpool = 2,            //!< Remove argument pools.
     project = 3,           //!< Project variables.
+    simplify = 4,          //!< Enable simplifications.
 };
 
 // TODO: a map might also be an idea here to avoid duplicates for the same variable

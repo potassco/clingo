@@ -7,6 +7,7 @@ add_executable(tests
     "input/simplify.cc"
     "input/unpool.cc"
     "input/evaluate.cc"
+    "input/program.cc"
     "input/project.cc"
     "input/project_anonymous.cc")
 target_link_libraries(tests PRIVATE parsertest foonathan::lexy::core Catch2::Catch2WithMain)

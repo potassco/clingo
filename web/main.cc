@@ -14,7 +14,8 @@
 
 using namespace Gringo::Input;
 
-void process(Gringo::Logger &log, Gringo::SymbolStore &store, RewriteOptions opts, auto &&scanner, auto &&output) {
+template <class Scanner, class Output>
+void process(Gringo::Logger &log, Gringo::SymbolStore &store, RewriteOptions opts, Scanner &&scanner, Output &&output) {
     for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
         StatementVec stms;
         rewrite(log, store, std::move(stm).value(), opts, stms);
@@ -28,7 +29,7 @@ EMSCRIPTEN_KEEPALIVE
 extern "C" void run(char const *program, int level, int project_mode, bool project_anonymous) {
     auto log = Gringo::Logger{};
     try {
-        if (level < 0 || level > 3) {
+        if (level < 0 || level > 4) {
             GRINGO_REPORT(log, error) << "invalid rewrite level";
             return;
         }
