@@ -13,40 +13,40 @@
 //! Helper to create a bitset from an enum class.
 #define GRINGO_ENUM_FLAGS(TYPE)                                                                                        \
                                                                                                                        \
-    [[nodiscard]] inline auto operator|(TYPE a, TYPE b) -> TYPE {                                                      \
+    [[nodiscard, maybe_unused]] inline auto operator|(TYPE a, TYPE b) -> TYPE {                                        \
         return static_cast<TYPE>(static_cast<std::underlying_type_t<TYPE>>(a) |                                        \
                                  static_cast<std::underlying_type_t<TYPE>>(b));                                        \
     }                                                                                                                  \
                                                                                                                        \
-    [[nodiscard]] inline auto operator&(TYPE a, TYPE b) -> TYPE {                                                      \
+    [[nodiscard, maybe_unused]] inline auto operator&(TYPE a, TYPE b) -> TYPE {                                        \
         return static_cast<TYPE>(static_cast<std::underlying_type_t<TYPE>>(a) &                                        \
                                  static_cast<std::underlying_type_t<TYPE>>(b));                                        \
     }                                                                                                                  \
                                                                                                                        \
-    [[nodiscard]] inline auto operator^(TYPE a, TYPE b) -> TYPE {                                                      \
+    [[nodiscard, maybe_unused]] inline auto operator^(TYPE a, TYPE b) -> TYPE {                                        \
         return static_cast<TYPE>(static_cast<std::underlying_type_t<TYPE>>(a) ^                                        \
                                  static_cast<std::underlying_type_t<TYPE>>(b));                                        \
     }                                                                                                                  \
                                                                                                                        \
-    [[nodiscard]] inline auto operator~(TYPE a) -> TYPE {                                                              \
+    [[nodiscard, maybe_unused]] inline auto operator~(TYPE a) -> TYPE {                                                \
         return static_cast<TYPE>(~static_cast<std::underlying_type_t<TYPE>>(a));                                       \
     }                                                                                                                  \
                                                                                                                        \
-    inline auto operator|=(TYPE &a, TYPE b) -> TYPE & {                                                                \
+    [[maybe_unused]] inline auto operator|=(TYPE &a, TYPE b) -> TYPE & {                                               \
         a = a | b;                                                                                                     \
         return a;                                                                                                      \
     }                                                                                                                  \
                                                                                                                        \
-    inline auto operator&=(TYPE &a, TYPE b) -> TYPE & {                                                                \
+    [[maybe_unused]] inline auto operator&=(TYPE &a, TYPE b) -> TYPE & {                                               \
         a = a & b;                                                                                                     \
         return a;                                                                                                      \
     }                                                                                                                  \
                                                                                                                        \
-    inline auto operator^=(TYPE &a, TYPE b) -> TYPE & {                                                                \
+    [[maybe_unused]] inline auto operator^=(TYPE &a, TYPE b) -> TYPE & {                                               \
         a = a ^ b;                                                                                                     \
         return a;                                                                                                      \
     }                                                                                                                  \
                                                                                                                        \
-    [[nodiscard]] inline auto test(TYPE a, TYPE b) -> bool { return (a & b) == b; }
+    [[nodiscard, maybe_unused]] inline auto test(TYPE a, TYPE b) -> bool { return (a & b) == b; }
 
 //! @}

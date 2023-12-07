@@ -17,7 +17,7 @@ enum SyntaxCheck : unsigned {
     is_const = 4,
 };
 
-GRINGO_ENUM_FLAGS(SyntaxCheck); // NOLINT(clang-diagnostic-unused-function)
+GRINGO_ENUM_FLAGS(SyntaxCheck);
 
 struct CheckSyntax {
     // protect ourselves -> no unintended overloads
