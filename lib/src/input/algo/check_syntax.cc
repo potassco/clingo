@@ -10,7 +10,7 @@ namespace Gringo::Input {
 
 namespace {
 
-enum SyntaxCheck {
+enum SyntaxCheck : unsigned {
     none = 0,
     project = 1,
     project_tuple = 2,
