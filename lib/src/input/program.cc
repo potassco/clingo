@@ -73,7 +73,20 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         std::cerr << stm << std::endl;
     }
     for (auto const &[sig, part] : parts_) {
-        std::cerr << "#program " << sig.first << "/" << sig.second << "." << std::endl;
+        std::cerr << "#program " << sig.first;
+        if (sig.second > 0) {
+            std::cerr << "(";
+        }
+        for (size_t i = 0; i < sig.second; ++i) {
+            if (i > 0) {
+                std::cerr << ",";
+            }
+            std::cerr << "$" << i;
+        }
+        if (sig.second > 0) {
+            std::cerr << ")";
+        }
+        std::cerr << "." << std::endl;
         for (auto const &stm : part.stms) {
             std::cerr << stm << std::endl;
         }

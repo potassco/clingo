@@ -62,24 +62,24 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
     GRINGO_REPORT(log, trace) << "rewrite: " << stm;
     auto opt = rewrite_anonymous(store, stm);
     if (opt.has_value()) {
-        GRINGO_REPORT(log, trace) << "anonymous: " << *opt;
+        GRINGO_REPORT(log, trace) << "  anonymous: " << *opt;
     }
     auto res = std::move(opt).value_or(stm);
 
     auto rewrite_unpooled = [&opts, &stms, &ctx](Statement stm) {
         auto res_project = project(stm, opts.project_mode, opts.project_anonymous);
         if (res_project.has_value()) {
-            GRINGO_REPORT(ctx.logger(), trace) << "project: " << *res_project;
+            GRINGO_REPORT(ctx.logger(), trace) << "    project: " << *res_project;
         }
         stm = std::move(res_project).value_or(std::move(stm));
         auto res_subst = substitute(ctx, stm);
         if (res_subst.has_value()) {
-            GRINGO_REPORT(ctx.logger(), trace) << "substitute: " << *res_subst;
+            GRINGO_REPORT(ctx.logger(), trace) << "    substitute: " << *res_subst;
         }
         stm = std::move(res_subst).value_or(std::move(stm));
         auto [state_stm, res_stm] = simplify(ctx, stm);
         if (res_stm.has_value()) {
-            GRINGO_REPORT(ctx.logger(), trace) << "simplify: " << *res_stm;
+            GRINGO_REPORT(ctx.logger(), trace) << "    simplify: " << *res_stm;
         }
         stm = std::move(res_stm).value_or(std::move(stm));
         if (state_stm != TruthValue::top) {
@@ -90,7 +90,7 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
     auto unpooled = unpool(ctx, res);
     if (unpooled.has_value()) {
         for (auto &stm : unpooled.value()) {
-            GRINGO_REPORT(log, trace) << "unpool: " << stm;
+            GRINGO_REPORT(log, trace) << "  unpool: " << stm;
             rewrite_unpooled(std::move(stm));
         }
         return;
