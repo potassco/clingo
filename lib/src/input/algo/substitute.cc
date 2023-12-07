@@ -62,6 +62,7 @@ struct Substitute : Transformer<Substitute> {
                         return value;
                     }
                 }
+                break;
             }
             case SymbolType::tuple: {
                 throw std::logic_error("implement me!!!");
