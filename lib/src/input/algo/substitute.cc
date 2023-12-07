@@ -78,7 +78,6 @@ struct Substitute : Transformer<Substitute> {
     }
 
     auto operator()(TermSymbol const &term) const -> std::optional<Term> {
-        GRINGO_REPORT(ctx.logger(), trace) << "  substitute symbol: " << Term{term};
         auto sym = operator()(term.value);
         if (sym.has_value()) {
             return TermSymbol{term.loc, sym.value()};
@@ -92,18 +91,15 @@ struct Substitute : Transformer<Substitute> {
     }
 
     auto operator()(TermFunction const &term) const -> std::optional<Term> {
-        GRINGO_REPORT(ctx.logger(), trace) << "  substitute function: " << Term{term};
         if (term.pool.size() != 1) {
             throw std::runtime_error("unpool has to be called before substituting parameters");
         }
         if (!term.pool.front().empty() || term.external) {
             return transform_construct<TermFunction>(term.loc, term.name, tr(term.pool), term.external);
         }
-        GRINGO_REPORT(ctx.logger(), trace) << "  check param: " << Term{term};
         if (auto param = ctx.is_param(term.name); param) {
             return TermVariable{term.loc, ctx.store().string("$" + std::to_string(param.value()))};
         }
-        GRINGO_REPORT(ctx.logger(), trace) << "  check constant: " << Term{term};
         if (auto value = ctx.is_const(term.name); value) {
             return TermSymbol{term.loc, value.value()};
         }
@@ -147,9 +143,7 @@ struct Substitute : Transformer<Substitute> {
     }
 
     auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
-        GRINGO_REPORT(ctx.logger(), trace) << "in substitute symbolic: " << Literal{lit};
         if (!is_identifier(lit.term)) {
-            GRINGO_REPORT(ctx.logger(), trace) << "  passed";
             return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
         }
         return std::nullopt;
@@ -222,7 +216,6 @@ struct Substitute : Transformer<Substitute> {
     auto operator()(Statement const &stm) const -> std::optional<Statement> { return std::visit(*this, stm); }
 
     auto operator()(Rule const &stm) const -> std::optional<Statement> {
-        GRINGO_REPORT(ctx.logger(), trace) << "in substitute: " << Statement{stm};
         return transform_construct<Rule>(stm.loc, tr(stm.head), tr(stm.body));
     }
 

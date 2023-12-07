@@ -86,10 +86,7 @@ class RewriteContext {
     //!
     //! If it is a parameter, return its index.
     [[nodiscard]] auto is_param(String name) const -> std::optional<int> {
-        GRINGO_REPORT(log_, trace) << "  is param: " << name;
-        GRINGO_REPORT(log_, trace) << "  is param size: " << param_map_.size();
         if (auto it = param_map_.find(name); it != param_map_.end()) {
-            GRINGO_REPORT(log_, trace) << "  is param num: " << std::distance(param_map_.begin(), it);
             return std::distance(param_map_.begin(), it);
         }
         return std::nullopt;
