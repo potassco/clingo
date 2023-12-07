@@ -9,6 +9,7 @@ add_library(parsertest
     "src/input/algo/project.cc"
     "src/input/algo/rewrite_anonymous.cc"
     "src/input/algo/simplify.cc"
+    "src/input/algo/substitute.cc"
     "src/input/algo/rewrite.cc"
     "src/input/algo/unpool.cc"
     "src/input/algo/visit_variables.cc"

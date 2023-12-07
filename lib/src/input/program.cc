@@ -40,16 +40,25 @@ void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
 }
 
 void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
-    // TODO: merge with previous const directives
-    evaluate_const(log, store, prg.const_stms_, const_defs_);
+    evaluate_const(log, store, prg.const_stms_, const_map_);
 
     for (auto &[program_stm, stms, facts] : prg.parts_) {
         auto part = parts_.try_emplace(Signature{program_stm.name, program_stm.args.size()});
+        ParamMap param_map;
+        param_map.insert(program_stm.args.begin(), program_stm.args.end());
         for (auto &stm : stms) {
             // TODO: protect parameters
+            //   a transformer should be able to do the job!
             // TODO: apply constants
+            //   a transformer should be able to do the job!
+            // NOTE: the two above steps can share the same transformer
+            //   the transformer needs a function in charge of the substitution
+            //   the function has to be provided
+            //   transforming literals or terms representing atoms has to be done with care
+            //   because function symbols representing atoms must not be transformed
+            //   this should be pleasantly straightforward to implement!
             // TODO: statement might become fact after simplification
-            rewrite(log, store, stm, opts_, part.first.value().stms);
+            rewrite(log, store, param_map, const_map_, stm, opts_, part.first.value().stms);
         }
         // TODO: same for facts
         // TODO: tedious conversion between facts and rules could be avoided
@@ -57,7 +66,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     }
 
     // TODO: for debugging
-    for (auto const &[id, sym] : const_defs_) {
+    for (auto const &[id, sym] : const_map_) {
         std::cerr << "#const " << id << "=" << sym.second << "." << std::endl;
     }
     for (auto const &stm : meta_stms_) {

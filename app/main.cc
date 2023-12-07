@@ -10,14 +10,9 @@
 
 using namespace Gringo::Input;
 
-template <class Scanner, class Output>
-void process(Gringo::Logger &log, Gringo::SymbolStore &store, RewriteOptions opts, Scanner &&scanner, Output &&output) {
+template <class Scanner> void process(Gringo::SymbolStore &store, Scanner &&scanner, UnprocessedProgram &prg) {
     for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
-        StatementVec stms;
-        rewrite(log, store, std::move(stm).value(), opts, stms);
-        for (auto const &stm : stms) {
-            output << stm << "\n";
-        }
+        prg.add(store, std::move(stm).value());
     }
 }
 
@@ -79,15 +74,18 @@ auto main() -> int {
         return app.exit(e);
     }
 
+    UnprocessedProgram uprg;
     auto log = Gringo::Logger{};
     auto store = Gringo::make_symbol_store(true, false);
     log.set_level(log_level);
     GRINGO_REPORT(log, debug) << "starting up";
     if (files.empty()) {
-        process(log, *store, opts, scan_stream(log, *store, std::cin), std::cout);
+        process(*store, scan_stream(log, *store, std::cin), uprg);
     } else {
         for (auto const &file : files) {
-            process(log, *store, opts, scan_file(log, *store, file.c_str()), std::cout);
+            process(*store, scan_file(log, *store, file.c_str()), uprg);
         }
     }
+    Program prg{opts};
+    prg.join(log, *store, std::move(uprg));
 }

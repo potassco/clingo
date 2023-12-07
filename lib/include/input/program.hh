@@ -5,6 +5,7 @@
 #include <logger.hh>
 
 #include <util/ordered_map.hh>
+#include <util/ordered_set.hh>
 #include <util/unordered_map.hh>
 
 #include <input/statement.hh>
@@ -50,6 +51,12 @@ struct RewriteOptions {
 //! A vector of term pairs where the second has been substituted by the first in some other term.
 using AuxTermVec = std::vector<std::pair<Term, Term>>;
 
+//! Map from identifiers to constants.
+using ConstMap = Util::unordered_map<String, std::pair<StatementConst, Symbol>>;
+
+//! Map from identifiers to constants.
+using ParamMap = Util::ordered_set<String>;
+
 //! Helper to pass arguments to rewrite functions.
 class RewriteContext {
   public:
@@ -66,14 +73,39 @@ class RewriteContext {
     //! Helper to pop auxiliary variable assignments.
     using Guard = std::unique_ptr<RewriteContext, _pop>;
     //! Construct a rewrite context.
-    RewriteContext(Logger &log, SymbolStore &store, StringSet names, char const *prefix)
-        : log_{log}, gen_{store, names, prefix} {}
+    RewriteContext(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, StringSet names,
+                   char const *prefix)
+        : log_{log}, const_map_{const_map}, param_map_{param_map}, gen_{store, names, prefix} {}
     //! Get the logger.
     [[nodiscard]] auto logger() const -> Logger & { return log_; }
     //! Get the symbol store.
     [[nodiscard]] auto store() const -> SymbolStore & { return gen_.store(); }
     //! Get the name generator.
     [[nodiscard]] auto gen() -> NameGen & { return gen_; }
+    //! Check if the given identifier is a parameter defined by a program directive.
+    //!
+    //! If it is a parameter, return its index.
+    [[nodiscard]] auto is_param(String name) const -> std::optional<int> {
+        GRINGO_REPORT(log_, trace) << "  is param: " << name;
+        GRINGO_REPORT(log_, trace) << "  is param size: " << param_map_.size();
+        if (auto it = param_map_.find(name); it != param_map_.end()) {
+            GRINGO_REPORT(log_, trace) << "  is param num: " << std::distance(param_map_.begin(), it);
+            return std::distance(param_map_.begin(), it);
+        }
+        return std::nullopt;
+    }
+    //! Check if the given identifier is a parameter defined by a constant.
+    //!
+    //! If it is a parameter, return its value.
+    [[nodiscard]] auto is_const(String name) const -> std::optional<Symbol> {
+        if (auto it = const_map_.find(name); it != const_map_.end()) {
+            assert(!is_param(name));
+            return it->second.second;
+        }
+        return std::nullopt;
+    }
+    //! Check if there is at least one parameter (from a program or const statement).
+    [[nodiscard]] auto has_params() const -> bool { return !const_map_.empty() || !param_map_.empty(); }
     //! Get the variable term map.
     [[nodiscard]] auto aux() -> AuxTermVec & {
         assert(!aux_.empty());
@@ -92,6 +124,8 @@ class RewriteContext {
 
   private:
     Logger &log_;                //!< Logger to report messages.
+    ConstMap &const_map_;        //!< Constant definitions.
+    ParamMap &param_map_;        //!< Map of Parameters.
     NameGen gen_;                //!< Generator to create fresh variable names.
     std::stack<AuxTermVec> aux_; //!< Vector of variable term pairs.
 };
@@ -127,9 +161,6 @@ class UnprocessedProgram {
     std::vector<Statement> meta_stms_;
 };
 
-//! Map from identifiers to constants.
-using ConstMap = Util::unordered_map<String, std::pair<StatementConst, Symbol>>;
-
 //! A program consisting of parts.
 class Program {
   public:
@@ -152,10 +183,10 @@ class Program {
     RewriteOptions opts_;
     //! The meta statements in the program.
     StatementVec meta_stms_;
-    //! The constants and their values.
-    ConstMap const_defs_;
     //! The map of program parts.
     PartMap parts_;
+    //! The constants and their values.
+    ConstMap const_map_;
 };
 
 //! @}

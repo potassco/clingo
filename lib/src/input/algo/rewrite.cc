@@ -7,6 +7,7 @@
 #include <input/algo/rewrite.hh>
 #include <input/algo/rewrite_anonymous.hh>
 #include <input/algo/simplify.hh>
+#include <input/algo/substitute.hh>
 #include <input/algo/unpool.hh>
 #include <input/algo/visit_variables.hh>
 
@@ -55,8 +56,9 @@ whole process as in gringo atm
   5. assignment aggregates
 */
 
-void rewrite(Logger &log, SymbolStore &store, Statement const &stm, RewriteOptions opts, StatementVec &stms) {
-    RewriteContext ctx{log, store, select_variables(stm, VariableContext::all), "__A_"};
+void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, Statement const &stm,
+             RewriteOptions opts, StatementVec &stms) {
+    RewriteContext ctx{log, store, param_map, const_map, select_variables(stm, VariableContext::all), "__A_"};
     GRINGO_REPORT(log, trace) << "rewrite: " << stm;
     if (opts.level < RewriteLevel::rewrite_anonymous) {
         stms.emplace_back(std::move(stm));
@@ -77,16 +79,25 @@ void rewrite(Logger &log, SymbolStore &store, Statement const &stm, RewriteOptio
             stms.emplace_back(std::move(stm));
             return;
         }
-        auto opt = project(stm, opts.project_mode, opts.project_anonymous);
-        if (opt.has_value()) {
-            GRINGO_REPORT(ctx.logger(), trace) << "project anonymous: " << *opt;
+        auto res_project = project(stm, opts.project_mode, opts.project_anonymous);
+        if (res_project.has_value()) {
+            GRINGO_REPORT(ctx.logger(), trace) << "project anonymous: " << *res_project;
         }
-        stm = std::move(opt).value_or(std::move(stm));
+        stm = std::move(res_project).value_or(std::move(stm));
         if (opts.level < RewriteLevel::simplify) {
             stms.emplace_back(std::move(stm));
             return;
         }
+        GRINGO_REPORT(ctx.logger(), trace) << "has params: " << ctx.has_params();
+        auto res_subst = substitute(ctx, stm);
+        if (res_subst.has_value()) {
+            GRINGO_REPORT(ctx.logger(), trace) << "substitute params: " << *res_subst;
+        }
+        stm = std::move(res_subst).value_or(std::move(stm));
         auto [state_stm, res_stm] = simplify(ctx, stm);
+        if (res_stm.has_value()) {
+            GRINGO_REPORT(ctx.logger(), trace) << "simplify: " << *res_stm;
+        }
         stm = std::move(res_stm).value_or(std::move(stm));
         if (state_stm != TruthValue::top) {
             stms.emplace_back(std::move(stm));

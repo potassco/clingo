@@ -4,6 +4,7 @@
 
 #include <input/algo/print.hh>
 #include <input/algo/simplify.hh>
+#include <input/algo/substitute.hh>
 #include <input/algo/unpool.hh>
 #include <input/algo/visit_variables.hh>
 
@@ -316,10 +317,12 @@ struct Unpool {
             *this, elem.lit, elem.cond);
         auto simplify_lit = [this, &to_tuple, &elem, &elems](SetAggregateElement unpooled) {
             auto guard = ctx.push();
-            auto res = simplify(HasSign ? SimplifyLiteralFlags::matchable
-                                        : (SimplifyLiteralFlags::matchable | SimplifyLiteralFlags::unfailable),
-                                ctx, unpooled.lit);
-            auto lit = res.value.value_or(std::move(unpooled.lit));
+            auto res_subst = substitute(ctx, unpooled.lit);
+            auto lit = std::move(res_subst).value_or(std::move(unpooled.lit));
+            auto res_simp = simplify(HasSign ? SimplifyLiteralFlags::matchable
+                                             : (SimplifyLiteralFlags::matchable | SimplifyLiteralFlags::unfailable),
+                                     ctx, lit);
+            lit = res_simp.value.value_or(std::move(lit));
             for (auto &[lhs, rhs] : ctx.aux()) {
                 auto loc = location(lhs);
                 auto rel = LiteralRelation{loc, Sign::none, std::move(lhs),
