@@ -60,34 +60,18 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
              RewriteOptions opts, StatementVec &stms) {
     RewriteContext ctx{log, store, param_map, const_map, select_variables(stm, VariableContext::all), "__A_"};
     GRINGO_REPORT(log, trace) << "rewrite: " << stm;
-    if (opts.level < RewriteLevel::rewrite_anonymous) {
-        stms.emplace_back(std::move(stm));
-        return;
-    }
     auto opt = rewrite_anonymous(store, stm);
     if (opt.has_value()) {
         GRINGO_REPORT(log, trace) << "anonymous: " << *opt;
     }
     auto res = std::move(opt).value_or(stm);
-    if (opts.level < RewriteLevel::unpool) {
-        stms.emplace_back(std::move(res));
-        return;
-    }
 
     auto rewrite_unpooled = [&opts, &stms, &ctx](Statement stm) {
-        if (opts.level < RewriteLevel::project) {
-            stms.emplace_back(std::move(stm));
-            return;
-        }
         auto res_project = project(stm, opts.project_mode, opts.project_anonymous);
         if (res_project.has_value()) {
             GRINGO_REPORT(ctx.logger(), trace) << "project: " << *res_project;
         }
         stm = std::move(res_project).value_or(std::move(stm));
-        if (opts.level < RewriteLevel::simplify) {
-            stms.emplace_back(std::move(stm));
-            return;
-        }
         auto res_subst = substitute(ctx, stm);
         if (res_subst.has_value()) {
             GRINGO_REPORT(ctx.logger(), trace) << "substitute: " << *res_subst;

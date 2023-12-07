@@ -28,19 +28,8 @@ enum class ProjectionMode {
     pure = 2,      //!< Project pure variables.
 };
 
-//! Enumeration of available rewrite levels.
-enum class RewriteLevel {
-    disabled = 0,          //!< Disable rewriting.
-    rewrite_anonymous = 1, //!< Give names to anonymous variables.
-    unpool = 2,            //!< Remove argument pools.
-    project = 3,           //!< Project variables.
-    simplify = 4,          //!< Enable simplifications.
-};
-
 //! Options to configure rewriting.
 struct RewriteOptions {
-    //! The rewrite level.
-    RewriteLevel level = RewriteLevel::simplify;
     //! The projection mode.
     ProjectionMode project_mode = ProjectionMode::pure;
     //! Whether to project anonymous variables in negative literals.

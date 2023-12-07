@@ -39,21 +39,6 @@ auto main() -> int {
         }
         return std::string{"unexpected value"};
     });
-    app.add_option("--rewrite-level", "{off,anonymous,unpool,project}")->check([&opts](std::string const &value) {
-        using P = std::pair<char const *, Gringo::Input::RewriteLevel>;
-        auto levels = std::array{P{"off", Gringo::Input::RewriteLevel::disabled},
-                                 P{"anonymous", Gringo::Input::RewriteLevel::rewrite_anonymous},
-                                 P{"unpool", Gringo::Input::RewriteLevel::unpool},
-                                 P{"project", Gringo::Input::RewriteLevel::project},
-                                 P{"simplify", Gringo::Input::RewriteLevel::simplify}};
-        for (auto &[name, level] : levels) {
-            if (value == name) {
-                opts.level = level;
-                return std::string{};
-            }
-        }
-        return std::string{"unexpected value"};
-    });
     app.add_option("--projection-mode", "{off,anonymous,pure}")->check([&opts](std::string const &value) {
         using P = std::pair<char const *, Gringo::Input::ProjectionMode>;
         auto levels = std::array{P{"off", Gringo::Input::ProjectionMode::disabled},
