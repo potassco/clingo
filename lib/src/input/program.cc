@@ -11,30 +11,30 @@ namespace Gringo::Input {
 
 #define ISINST GRINGO_IS_INSTANCE
 
-void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
+void add(SymbolStore &store, Statement stm, UnprocessedProgram &prg) {
     std::visit(
         [&](auto &&stm) {
             if constexpr (ISINST(stm, StatementShowSig) || ISINST(stm, StatementProjectSig) ||
                           ISINST(stm, StatementScript) || ISINST(stm, StatementDefined)) {
-                meta_stms_.emplace_back(std::move(stm));
+                prg.meta_stms.emplace_back(std::move(stm));
             } else if constexpr (ISINST(stm, StatementInclude) || ISINST(stm, Comment)) {
                 // ignore
             } else if constexpr (ISINST(stm, StatementConst)) {
-                const_stms_.emplace_back(std::move(stm));
+                prg.const_stms.emplace_back(std::move(stm));
             } else if constexpr (ISINST(stm, StatementProgram)) {
-                parts_.emplace_back(stm, StatementVec{}, SymbolVec{});
+                prg.parts.emplace_back(stm, StatementVec{}, SymbolVec{});
             } else {
-                if (parts_.empty()) {
-                    parts_.emplace_back(StatementProgram{location(stm), store.string("base"), {}}, StatementVec{},
-                                        SymbolVec{});
+                if (prg.parts.empty()) {
+                    prg.parts.emplace_back(StatementProgram{location(stm), store.string("base"), {}}, StatementVec{},
+                                           SymbolVec{});
                 }
                 if constexpr (ISINST(stm, Rule)) {
                     if (auto fact = is_fact(store, stm); fact) {
-                        std::get<2>(parts_.back()).emplace_back(std::move(fact).value());
+                        std::get<2>(prg.parts.back()).emplace_back(std::move(fact).value());
                         return;
                     }
                 }
-                std::get<1>(parts_.back()).emplace_back(std::move(stm));
+                std::get<1>(prg.parts.back()).emplace_back(std::move(stm));
             }
         },
         stm);
@@ -43,9 +43,17 @@ void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
 #undef ISINST
 
 void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
-    evaluate_const(log, store, prg.const_stms_, const_map_);
+    // process meta statements
+    evaluate_const(log, store, prg.const_stms, const_map_);
+    {
+        ParamMap empty_pm;
+        auto ctx = RewriteContext{log, store, empty_pm, const_map_, {}, ""};
+        for (auto &stm : prg.meta_stms) {
+            rewrite(log, store, empty_pm, const_map_, stm, opts_, meta_stms_);
+        }
+    }
 
-    for (auto &[program_stm, stms, facts] : prg.parts_) {
+    for (auto &[program_stm, stms, facts] : prg.parts) {
         auto part = parts_.try_emplace(Signature{program_stm.name, program_stm.args.size()}, program_stm);
         ParamMap param_map;
         param_map.insert(program_stm.args.begin(), program_stm.args.end());

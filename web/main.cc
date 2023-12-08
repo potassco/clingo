@@ -28,7 +28,7 @@ extern "C" auto run(char const *program, int project_mode, bool project_anonymou
         auto store = Gringo::make_symbol_store(false, false);
         auto scanner = scan_string(log, *store, program);
         for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
-            uprg.add(*store, std::move(stm).value());
+            add(*store, std::move(stm).value(), uprg);
         }
         Program prg{opts};
         prg.join(log, *store, std::move(uprg));

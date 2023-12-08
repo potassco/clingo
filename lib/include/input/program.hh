@@ -126,28 +126,21 @@ struct ProgramPart {
     StatementVec stms;
 };
 
-class Program;
-
-//! Program gathering statements.
-class UnprocessedProgram {
-    // TODO: ugly!
-    friend class Program;
-
-  public:
-    //! Add a statement.
-    void add(SymbolStore &store, Statement stm);
-
-  private:
+//! Program grouping unprocessed statements.
+struct UnprocessedProgram {
     //! Statements as input grouped by parts.
     using PartVec = std::vector<std::tuple<StatementProgram, StatementVec, SymbolVec>>;
 
     //! Unprocessed statemtents.
-    PartVec parts_;
+    PartVec parts;
     //! Unprocessed const statements.
-    std::vector<StatementConst> const_stms_;
+    std::vector<StatementConst> const_stms;
     //! Meta statements.
-    std::vector<Statement> meta_stms_;
+    std::vector<Statement> meta_stms;
 };
+
+//! Add a statement.
+void add(SymbolStore &store, Statement stm, UnprocessedProgram &prg);
 
 //! A program consisting of parts.
 class Program {
@@ -170,6 +163,10 @@ class Program {
         for (auto const &[sig, part] : parts_) {
             auto pum = param_map_(store, part.part);
             auto loc = part.part.loc;
+            StringVec ids;
+            ids.reserve(sig.second);
+            std::transform(pum.begin(), pum.end(), std::back_inserter(ids), [](auto x) { return x.second; });
+            fun(StatementProgram{loc, sig.first, std::move(ids)});
             for (auto const &fact : part.facts) {
                 fun(Statement{Rule{loc, SimpleHeadLiteral{LiteralSymbolic{loc, Sign::none, TermSymbol{loc, fact}}},
                                    BodyLiteralVec{}}});

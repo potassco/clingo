@@ -9,12 +9,12 @@ namespace Gringo::Input::Test {
 TEST_CASE("program") {
     ParseHelper ph;
     UnprocessedProgram upr;
-    upr.add(ph, *ph.statement("#const n = 1."));
-    upr.add(ph, *ph.statement("#const m = n."));
-    upr.add(ph, *ph.statement("#const o = n+k."));
-    upr.add(ph, *ph.statement("#program part(k,n)."));
-    upr.add(ph, *ph.statement("a(k,n)."));
-    upr.add(ph, *ph.statement("b(k,m,X) :- a(k,X)."));
+    add(ph, *ph.statement("#const n = 1."), upr);
+    add(ph, *ph.statement("#const m = n."), upr);
+    add(ph, *ph.statement("#const o = n+k."), upr);
+    add(ph, *ph.statement("#program part(k,n)."), upr);
+    add(ph, *ph.statement("a(k,n)."), upr);
+    add(ph, *ph.statement("b(k,m,X) :- a(k,X)."), upr);
 
     Program prg{RewriteOptions{}};
     prg.join(ph, ph, std::move(upr));

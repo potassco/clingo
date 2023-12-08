@@ -11,7 +11,7 @@ using namespace Gringo::Input;
 
 template <class Scanner> void process(Gringo::SymbolStore &store, Scanner &&scanner, UnprocessedProgram &prg) {
     for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
-        prg.add(store, std::move(stm).value());
+        add(store, std::move(stm).value(), prg);
     }
 }
 
