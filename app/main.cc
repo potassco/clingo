@@ -2,11 +2,10 @@
 
 #include <CLI/CLI.hpp>
 
-#include <logger.hh>
+#include <input/program.hh>
 
 #include <input/algo/parse.hh>
 #include <input/algo/print.hh>
-#include <input/algo/rewrite.hh>
 
 using namespace Gringo::Input;
 
@@ -55,22 +54,30 @@ auto main() -> int {
     app.add_flag("--project-anonymous", opts.project_anonymous, "project anoymous variables in negated literals");
     try {
         app.parse();
-    } catch (const CLI::ParseError &e) {
+    } catch (CLI::ParseError const &e) {
         return app.exit(e);
     }
 
-    UnprocessedProgram uprg;
     auto log = Gringo::Logger{};
-    auto store = Gringo::make_symbol_store(true, false);
-    log.set_level(log_level);
-    GRINGO_REPORT(log, debug) << "starting up";
-    if (files.empty()) {
-        process(*store, scan_stream(log, *store, std::cin), uprg);
-    } else {
-        for (auto const &file : files) {
-            process(*store, scan_file(log, *store, file.c_str()), uprg);
+    try {
+        UnprocessedProgram uprg;
+        auto store = Gringo::make_symbol_store(true, false);
+        log.set_level(log_level);
+        GRINGO_REPORT(log, debug) << "starting up";
+        if (files.empty()) {
+            process(*store, scan_stream(log, *store, std::cin), uprg);
+        } else {
+            for (auto const &file : files) {
+                process(*store, scan_file(log, *store, file.c_str()), uprg);
+            }
         }
+        Program prg{opts};
+        prg.join(log, *store, std::move(uprg));
+        prg.visit_stms(*store, [](auto const &stm) { std::cout << stm << "\n"; });
+    } catch (std::exception const &e) {
+        fprintf(stderr, "%s: %s\n", log.message_prefix(Gringo::MessageCode::error), e.what());
+        fflush(stderr);
+        return 1;
     }
-    Program prg{opts};
-    prg.join(log, *store, std::move(uprg));
+    return log.has_error() ? 1 : 0;
 }

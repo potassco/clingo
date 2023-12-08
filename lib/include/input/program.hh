@@ -118,6 +118,8 @@ class RewriteContext {
 
 //! A program part.
 struct ProgramPart {
+    //! The (first) program part statement that introduced the part.
+    StatementProgram part;
     //! The facts in the program part.
     SymbolVec facts;
     //! The statements in the program part.
@@ -139,8 +141,6 @@ class UnprocessedProgram {
     //! Statements as input grouped by parts.
     using PartVec = std::vector<std::tuple<StatementProgram, StatementVec, SymbolVec>>;
 
-    //! The location of the first fact in the program.
-    std::optional<Location> first_fact_;
     //! Unprocessed statemtents.
     PartVec parts_;
     //! Unprocessed const statements.
@@ -158,6 +158,31 @@ class Program {
     Program(RewriteOptions opts) : opts_{std::move(opts)} {}
     //! Join with the given unprocessed program.
     void join(Logger &log, SymbolStore &store, UnprocessedProgram prg);
+    //! Visit all the statements in the program.
+    template <class F> void visit_stms(SymbolStore &store, F fun) const {
+        for (auto const &[id, sym] : const_map_) {
+            fun(Statement{StatementConst{sym.first.loc, sym.first.type, sym.first.name,
+                                         TermSymbol{location(sym.first.value), sym.second}}});
+        }
+        for (auto const &stm : meta_stms_) {
+            fun(stm);
+        }
+        for (auto const &[sig, part] : parts_) {
+            auto pum = param_map_(store, part.part);
+            auto loc = part.part.loc;
+            for (auto const &fact : part.facts) {
+                fun(Statement{Rule{loc, SimpleHeadLiteral{LiteralSymbolic{loc, Sign::none, TermSymbol{loc, fact}}},
+                                   BodyLiteralVec{}}});
+            }
+            for (auto const &stm : part.stms) {
+                if (auto unmapped = unmap_(pum, stm); unmapped) {
+                    fun(std::move(unmapped).value());
+                } else {
+                    fun(stm);
+                }
+            }
+        }
+    }
 
   private:
     //! The signature of a program part.
@@ -166,6 +191,14 @@ class Program {
     using Signature = std::pair<String, size_t>;
     //! Map from signatures to actual program parts.
     using PartMap = Util::ordered_map<Signature, ProgramPart, Util::value_hasher<Signature>>;
+    //! Map from parameters to their replacements.
+    using ParamUnmap = Util::ordered_map<String, String>;
+
+    //! Gather all identifiers appearing in a program part.
+    [[nodiscard]] static auto param_map_(SymbolStore &store, StatementProgram const &part)
+        -> Util::ordered_map<String, String>;
+    //! Replace all bound paramets in a statement by parsable ids.
+    [[nodiscard]] static auto unmap_(ParamUnmap const &pum, Statement const &stm) -> std::optional<Statement>;
 
     //! The rewrite level of the program.
     RewriteOptions opts_;

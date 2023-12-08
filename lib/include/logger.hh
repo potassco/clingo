@@ -183,7 +183,7 @@ inline void Logger::print(MessageCode code, char const *msg) {
     if (p_ != nullptr) {
         p_(code, msg);
     } else {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,modernize-use-std-print)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
         fprintf(stderr, "%s\n", msg);
         fflush(stderr);
     }

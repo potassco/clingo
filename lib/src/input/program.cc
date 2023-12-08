@@ -7,10 +7,6 @@
 #include <input/algo/rewrite.hh>
 #include <input/algo/substitute.hh>
 
-// TODO: remove
-#include <input/algo/print.hh>
-#include <iostream>
-
 namespace Gringo::Input {
 
 #define ISINST GRINGO_IS_INSTANCE
@@ -34,9 +30,6 @@ void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
                 }
                 if constexpr (ISINST(stm, Rule)) {
                     if (auto fact = is_fact(store, stm); fact) {
-                        if (!first_fact_) {
-                            first_fact_ = location(stm);
-                        }
                         std::get<2>(parts_.back()).emplace_back(std::move(fact).value());
                         return;
                     }
@@ -53,7 +46,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     evaluate_const(log, store, prg.const_stms_, const_map_);
 
     for (auto &[program_stm, stms, facts] : prg.parts_) {
-        auto part = parts_.try_emplace(Signature{program_stm.name, program_stm.args.size()});
+        auto part = parts_.try_emplace(Signature{program_stm.name, program_stm.args.size()}, program_stm);
         ParamMap param_map;
         param_map.insert(program_stm.args.begin(), program_stm.args.end());
         auto &res_part = part.first.value();
@@ -66,7 +59,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
                     GRINGO_MATCH(x, Symbol) { part.first.value().facts.emplace_back(x); }
                     GRINGO_MATCH(x, Statement) { part.first.value().stms.emplace_back(std::move(x)); }
                 },
-                substitute(ctx, prg.first_fact_.value(), fact));
+                substitute(ctx, res_part.part.loc, fact));
         }
 
         // process rules
@@ -87,43 +80,23 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
             res_part.stms.erase(jt, res_part.stms.end());
         }
     }
+}
 
-    // TODO: for debugging
-    for (auto const &[id, sym] : const_map_) {
-        std::cerr << "#const " << id << "=" << sym.second << "." << std::endl;
+[[nodiscard]] auto Program::param_map_(SymbolStore &store, StatementProgram const &part)
+    -> Util::ordered_map<String, String> {
+    if (!part.args.empty()) {
+        static_cast<void>(store);
+        throw std::logic_error("implement me!!!");
     }
-    for (auto const &stm : meta_stms_) {
-        std::cerr << stm << std::endl;
+    return {};
+}
+
+[[nodiscard]] auto Program::unmap_(ParamUnmap const &pum, Statement const &stm) -> std::optional<Statement> {
+    if (!pum.empty()) {
+        static_cast<void>(stm);
+        throw std::logic_error("implement me!!!");
     }
-    for (auto const &[sig, part] : parts_) {
-        std::cerr << "#program " << sig.first;
-        if (sig.second > 0) {
-            std::cerr << "(";
-        }
-        for (size_t i = 0; i < sig.second; ++i) {
-            if (i > 0) {
-                std::cerr << ",";
-            }
-            std::cerr << "$" << i;
-        }
-        if (sig.second > 0) {
-            std::cerr << ")";
-        }
-        std::cerr << "." << std::endl;
-        if (!part.facts.empty()) {
-            std::cerr << "% facts" << std::endl;
-        }
-        for (auto const &fact : part.facts) {
-            std::cerr << fact << "." << std::endl;
-        }
-        if (!part.stms.empty()) {
-            std::cerr << "% rules" << std::endl;
-        }
-        for (auto const &stm : part.stms) {
-            std::cerr << stm << std::endl;
-        }
-    }
-    std::cerr << "status: " << (log.has_error() ? "error" : "success") << std::endl;
+    return std::nullopt;
 }
 
 } // namespace Gringo::Input
