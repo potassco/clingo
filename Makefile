@@ -97,8 +97,7 @@ release_clang:
 		-DCMAKE_CXX_COMPILER="clang++" \
 		-DCMAKE_C_COMPILER="clang" \
 		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -L${CONDA_PREFIX}/lib" \
-		-DCMAKE_CXX_FLAGS="-stdlib=libc++" \
-		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
+		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -Wall -Wextra -pedantic" \
 		"$${current}"
 	$(MAKE) -C build_release_clang
 	$(MAKE) -C build_release_clang test
