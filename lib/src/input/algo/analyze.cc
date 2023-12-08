@@ -3,6 +3,7 @@
 #include <util/algorithm.hh>
 
 #include <input/algo/analyze.hh>
+#include <input/algo/evaluate.hh>
 
 namespace Gringo::Input {
 
@@ -364,6 +365,94 @@ struct IsClassical {
     }
 };
 
+struct IsFact {
+    IsFact(SymbolStore &store) : store{store} {}
+
+    template <class T> auto operator()(T const &x) const -> bool = delete;
+
+    auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
+
+    auto operator()(TermVariable const &term) const -> std::optional<Symbol> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+
+    auto operator()(TermSymbol const &term) const -> std::optional<Symbol> { return term.value; }
+
+    auto operator()(TupleVec const &tuple) const -> std::optional<SymbolVec> {
+        SymbolVec res;
+        for (auto const &x : tuple) {
+            auto const *term = std::get_if<Term>(&x);
+            if (term == nullptr) {
+                return std::nullopt;
+            }
+            auto res_term = operator()(*term);
+            if (!res_term) {
+                return std::nullopt;
+            }
+            res.emplace_back(std::move(res_term).value());
+        }
+        return res;
+    }
+
+    auto operator()(TermFunction const &term) const -> std::optional<Symbol> {
+        static_cast<void>(term);
+        if (term.pool.size() != 1 || term.external) {
+            return std::nullopt;
+        }
+        if (auto res_args = operator()(term.pool.front()); res_args) {
+            return store.fun(term.name, res_args.value(), false);
+        }
+        return std::nullopt;
+    }
+
+    auto operator()(TermTuple const &term) const -> std::optional<Symbol> {
+        if (term.pool.size() != 1) {
+            return std::nullopt;
+        }
+        return std::visit(
+            [this](auto &&x) -> std::optional<Symbol> {
+                GRINGO_MATCH(x, Term) { return operator()(x); }
+                GRINGO_MATCH(x, TupleVec) {
+                    if (auto tuple = operator()(x); tuple) {
+                        return store.tup(*tuple);
+                    }
+                    return std::nullopt;
+                }
+            },
+            term.pool.front());
+    }
+
+    auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
+        if (term.pool.size() != 1) {
+            return std::nullopt;
+        }
+        if (auto arg = operator()(term.pool.front()); arg && arg->type() == SymbolType::number) {
+            return store.num(abs(*arg->num()));
+        }
+        return std::nullopt;
+    }
+
+    auto operator()(TermUnary const &term) const -> std::optional<Symbol> {
+        if (auto rhs = operator()(*term.rhs); rhs) {
+            return evaluate(store, term.op, rhs.value());
+        }
+        return std::nullopt;
+    }
+
+    auto operator()(TermBinary const &term) const -> std::optional<Symbol> {
+        if (term.op == BinaryOperator::dots) {
+            return std::nullopt;
+        }
+        if (auto lhs = operator()(*term.lhs), rhs = operator()(*term.rhs); lhs && rhs) {
+            return evaluate(store, *lhs, term.op, *rhs);
+        }
+        return std::nullopt;
+    }
+
+    SymbolStore &store;
+};
+
 } // namespace
 
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> bool {
@@ -418,5 +507,21 @@ auto is_test(HeadLiteral const &lit) -> bool { return IsTest{}(lit); }
 auto is_test(BodyLiteral const &lit) -> bool { return IsTest{}(lit); }
 
 auto is_classical(HeadLiteral const &lit) -> bool { return IsClassical{}(lit); }
+
+auto is_fact(SymbolStore &store, Rule const &rule) -> std::optional<Symbol> {
+    if (auto const *head = std::get_if<SimpleHeadLiteral>(&rule.head); head != nullptr && rule.body.empty()) {
+        if (auto const *lit = std::get_if<LiteralSymbolic>(&head->lit); lit != nullptr && lit->sign == Sign::none) {
+            return IsFact{store}(lit->term);
+        }
+    }
+    return std::nullopt;
+}
+
+auto is_fact(SymbolStore &store, Statement const &stm) -> std::optional<Symbol> {
+    if (auto const *rule = std::get_if<Rule>(&stm); rule != nullptr) {
+        return is_fact(store, *rule);
+    }
+    return std::nullopt;
+}
 
 } // namespace Gringo::Input

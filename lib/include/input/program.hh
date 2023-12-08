@@ -139,6 +139,8 @@ class UnprocessedProgram {
     //! Statements as input grouped by parts.
     using PartVec = std::vector<std::tuple<StatementProgram, StatementVec, SymbolVec>>;
 
+    //! The location of the first fact in the program.
+    std::optional<Location> first_fact_;
     //! Unprocessed statemtents.
     PartVec parts_;
     //! Unprocessed const statements.

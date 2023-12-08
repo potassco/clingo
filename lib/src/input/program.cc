@@ -2,8 +2,10 @@
 
 #include <input/program.hh>
 
+#include <input/algo/analyze.hh>
 #include <input/algo/evaluate.hh>
 #include <input/algo/rewrite.hh>
+#include <input/algo/substitute.hh>
 
 #define ISINST GRINGO_IS_INSTANCE
 
@@ -31,7 +33,13 @@ void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
                                         SymbolVec{});
                 }
                 if constexpr (ISINST(stm, Rule)) {
-                    // TODO: handle facts
+                    if (auto fact = is_fact(store, stm); fact) {
+                        if (!first_fact_) {
+                            first_fact_ = location(stm);
+                        }
+                        std::get<2>(parts_.back()).emplace_back(std::move(fact).value());
+                        return;
+                    }
                 }
                 std::get<1>(parts_.back()).emplace_back(std::move(stm));
             }
@@ -46,23 +54,36 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         auto part = parts_.try_emplace(Signature{program_stm.name, program_stm.args.size()});
         ParamMap param_map;
         param_map.insert(program_stm.args.begin(), program_stm.args.end());
-        for (auto &stm : stms) {
-            // TODO: protect parameters
-            //   a transformer should be able to do the job!
-            // TODO: apply constants
-            //   a transformer should be able to do the job!
-            // NOTE: the two above steps can share the same transformer
-            //   the transformer needs a function in charge of the substitution
-            //   the function has to be provided
-            //   transforming literals or terms representing atoms has to be done with care
-            //   because function symbols representing atoms must not be transformed
-            //   this should be pleasantly straightforward to implement!
-            // TODO: statement might become fact after simplification
-            rewrite(log, store, param_map, const_map_, stm, opts_, part.first.value().stms);
+        auto &res_part = part.first.value();
+
+        // process facts
+        auto ctx = RewriteContext{log, store, param_map, const_map_, {}, ""};
+        for (auto &fact : facts) {
+            std::visit(
+                [&part](auto &&x) {
+                    GRINGO_MATCH(x, Symbol) { part.first.value().facts.emplace_back(x); }
+                    GRINGO_MATCH(x, Statement) { part.first.value().stms.emplace_back(std::move(x)); }
+                },
+                substitute(ctx, prg.first_fact_.value(), fact));
         }
-        // TODO: same for facts
-        // TODO: tedious conversion between facts and rules could be avoided
-        //       by replacing bound parameters right away
+
+        // process rules
+        for (auto &stm : stms) {
+            size_t n = res_part.stms.size();
+            rewrite(log, store, param_map, const_map_, stm, opts_, res_part.stms);
+            auto jt = res_part.stms.begin() + n;
+            for (auto it = jt, ie = res_part.stms.end(); it != ie; ++it) {
+                if (auto fact = is_fact(store, *it); fact) {
+                    res_part.facts.emplace_back(fact.value());
+                } else {
+                    if (it != jt) {
+                        *jt = std::move(*it);
+                    }
+                    ++jt;
+                }
+            }
+            res_part.stms.erase(jt, res_part.stms.end());
+        }
     }
 
     // TODO: for debugging
@@ -87,6 +108,15 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
             std::cerr << ")";
         }
         std::cerr << "." << std::endl;
+        if (!part.facts.empty()) {
+            std::cerr << "% facts" << std::endl;
+        }
+        for (auto const &fact : part.facts) {
+            std::cerr << fact << "." << std::endl;
+        }
+        if (!part.stms.empty()) {
+            std::cerr << "% rules" << std::endl;
+        }
         for (auto const &stm : part.stms) {
             std::cerr << stm << std::endl;
         }

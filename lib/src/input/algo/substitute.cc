@@ -449,4 +449,23 @@ struct Substitute : Transformer<Substitute> {
     return std::nullopt;
 }
 
+[[nodiscard]] auto substitute(RewriteContext &ctx, Location const &loc, Symbol const &sym)
+    -> std::variant<Symbol, Statement> {
+    if (!ctx.has_params() || (sym.type() == SymbolType::function && sym.args().empty())) {
+        return sym;
+    }
+    if (auto res_sym = Substitute{ctx}(loc, sym); res_sym) {
+        return std::visit(
+            [&loc](auto &&x) -> std::variant<Symbol, Statement> {
+                GRINGO_MATCH(x, Symbol) { return x; }
+                GRINGO_MATCH(x, Term) {
+                    return Rule{loc, SimpleHeadLiteral{LiteralSymbolic{loc, Sign::none, std::move(x)}},
+                                Util::make_vec<BodyLiteral>()};
+                }
+            },
+            std::move(res_sym).value());
+    }
+    return sym;
+}
+
 } // namespace Gringo::Input

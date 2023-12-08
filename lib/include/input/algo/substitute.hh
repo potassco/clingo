@@ -7,6 +7,10 @@ namespace Gringo::Input {
 //! @addtogroup input_rewrite
 //! @{
 
+//! Replace all parameters in the given fact.
+[[nodiscard]] auto substitute(RewriteContext &ctx, Location const &loc, Symbol const &sym)
+    -> std::variant<Symbol, Statement>;
+
 //! Replace all parameters in the given term.
 [[nodiscard]] auto substitute(RewriteContext &ctx, Term const &term) -> std::optional<Term>;
 

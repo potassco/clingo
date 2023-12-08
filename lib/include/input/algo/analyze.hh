@@ -107,6 +107,16 @@ auto is_test(BodyLiteral const &lit) -> bool;
 //! Check if the literal is classical.
 auto is_classical(HeadLiteral const &lit) -> bool;
 
+//! Check if a rule is a fact.
+//!
+//! Returns the symbol representing the fact.
+auto is_fact(SymbolStore &store, Rule const &rule) -> std::optional<Symbol>;
+
+//! Check if a statement is a fact.
+//!
+//! Returns the symbol representing the fact.
+auto is_fact(SymbolStore &store, Statement const &stm) -> std::optional<Symbol>;
+
 //! @}
 
 } // namespace Gringo::Input
