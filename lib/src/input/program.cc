@@ -7,13 +7,13 @@
 #include <input/algo/rewrite.hh>
 #include <input/algo/substitute.hh>
 
-#define ISINST GRINGO_IS_INSTANCE
-
 // TODO: remove
 #include <input/algo/print.hh>
 #include <iostream>
 
 namespace Gringo::Input {
+
+#define ISINST GRINGO_IS_INSTANCE
 
 void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
     std::visit(
@@ -46,6 +46,8 @@ void UnprocessedProgram::add(SymbolStore &store, Statement stm) {
         },
         stm);
 }
+
+#undef ISINST
 
 void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     evaluate_const(log, store, prg.const_stms_, const_map_);
@@ -123,7 +125,5 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     }
     std::cerr << "status: " << (log.has_error() ? "error" : "success") << std::endl;
 }
-
-#undef ISINST
 
 } // namespace Gringo::Input
