@@ -2,9 +2,6 @@
 
 #include <input/program.hh>
 
-// TODO: remove
-#include <input/algo/print.hh>
-
 namespace Gringo::Input {
 
 namespace {
@@ -17,6 +14,10 @@ namespace {
         return sym->value.type() == SymbolType::function && sym->value.args().empty();
     }
     return false;
+}
+
+[[nodiscard]] auto variable_for_param(RewriteContext &ctx, Location const &loc, size_t param) {
+    return TermVariable{loc, ctx.store().string("$" + std::to_string(param))};
 }
 
 struct Substitute : Transformer<Substitute> {
@@ -48,24 +49,112 @@ struct Substitute : Transformer<Substitute> {
 
     auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
 
-    auto operator()(Symbol const &sym) const -> std::optional<Symbol> {
+    auto operator()(Location const &loc, SymbolSpan args) const -> std::optional<std::variant<SymbolVec, TupleVec>> {
+        std::optional<std::vector<std::variant<Term, Symbol>>> res_args;
+        bool constant = true;
+        {
+            size_t i = 0;
+            for (auto arg : args) {
+                auto res_arg = operator()(loc, arg);
+                if (res_arg.has_value() || res_args.has_value()) {
+                    if (!res_args.has_value()) {
+                        res_args.emplace();
+                        res_args->reserve(args.size());
+                        res_args->insert(res_args->end(), args.begin(), args.begin() + i);
+                    }
+                    res_args->emplace_back(std::move(res_arg).value_or(arg));
+                    if (constant && std::holds_alternative<Term>(res_args->back())) {
+                        constant = false;
+                    }
+                }
+                ++i;
+            }
+        }
+        if (!res_args) {
+            return std::nullopt;
+        }
+        if (constant) {
+            auto tuple = SymbolVec{};
+            tuple.reserve(res_args->size());
+            for (auto &&arg : *res_args) {
+                tuple.emplace_back(std::get<Symbol>(arg));
+            }
+            return tuple;
+        }
+        auto tuple = TupleVec{};
+        tuple.reserve(res_args->size());
+        for (auto &&arg : *res_args) {
+            tuple.emplace_back(std::visit(
+                [&loc](auto &&x) -> Term {
+                    GRINGO_MATCH(x, Symbol) { return TermSymbol{loc, x}; }
+                    GRINGO_MATCH(x, Term) { return x; }
+                },
+                std::move(arg)));
+        }
+        return tuple;
+    }
+
+    auto operator()(Location const &loc, Symbol const &sym) const -> std::optional<std::variant<Term, Symbol>> {
         switch (sym.type()) {
             case SymbolType::function: {
                 if (sym.args().empty()) {
-                    if (sym.has_classical_sign()) {
-                        throw std::logic_error("implement me!!!");
-                    }
                     if (auto param = ctx.is_param(sym.name()); param) {
-                        throw std::logic_error("implement me!!!");
+                        return variable_for_param(ctx, loc, param.value());
                     }
                     if (auto value = ctx.is_const(sym.name()); value) {
+                        if (sym.has_sign()) {
+                            switch (sym.type()) {
+                                case SymbolType::function: {
+                                    return value->flip_classical_sign();
+                                }
+                                case SymbolType::number: {
+                                    return ctx.store().num(-*value->num());
+                                }
+                                case SymbolType::inf:
+                                case SymbolType::sup:
+                                case SymbolType::string:
+                                case SymbolType::tuple: {
+                                    break;
+                                }
+                            }
+                            // Note: this will evaluated as empty pool later
+                            return TermUnary{loc, UnaryOperator::negate, TermSymbol{loc, *value}};
+                        }
                         return value;
                     }
+                    break;
+                }
+                if (auto res_args = operator()(loc, sym.args()); res_args) {
+                    return std::visit(
+                        [this, &loc, &sym](auto &&tuple) -> std::variant<Term, Symbol> {
+                            GRINGO_MATCH(tuple, SymbolVec) {
+                                return ctx.store().fun(sym.name(), std::move(tuple), sym.has_sign());
+                            }
+                            GRINGO_MATCH(tuple, TupleVec) {
+                                auto ret = Term{
+                                    TermFunction{loc, sym.name(), Util::make_vec<TupleVec>(std::move(tuple)), false}};
+                                if (sym.has_sign()) {
+                                    ret = TermUnary{loc, UnaryOperator::negate, std::move(ret)};
+                                }
+                                return ret;
+                            }
+                        },
+                        std::move(res_args).value());
                 }
                 break;
             }
             case SymbolType::tuple: {
-                throw std::logic_error("implement me!!!");
+                if (auto res_args = operator()(loc, sym.args()); res_args) {
+                    return std::visit(
+                        [this, &loc](auto &&tuple) -> std::variant<Term, Symbol> {
+                            GRINGO_MATCH(tuple, SymbolVec) { return ctx.store().tup(std::move(tuple)); }
+                            GRINGO_MATCH(tuple, TupleVec) {
+                                return TermTuple{loc, Util::make_vec<TermTuple::Element>(std::move(tuple))};
+                            }
+                        },
+                        std::move(res_args).value());
+                }
+                break;
             }
             case SymbolType::inf:
             case SymbolType::sup:
@@ -78,9 +167,14 @@ struct Substitute : Transformer<Substitute> {
     }
 
     auto operator()(TermSymbol const &term) const -> std::optional<Term> {
-        auto sym = operator()(term.value);
+        auto sym = operator()(term.loc, term.value);
         if (sym.has_value()) {
-            return TermSymbol{term.loc, sym.value()};
+            return std::visit(
+                [&term](auto &&x) -> Term {
+                    GRINGO_MATCH(x, Symbol) { return TermSymbol{term.loc, x}; }
+                    GRINGO_MATCH(x, Term) { return x; }
+                },
+                sym.value());
         }
         return std::nullopt;
     }
