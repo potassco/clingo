@@ -161,7 +161,7 @@ class Program {
             fun(stm);
         }
         for (auto const &[sig, part] : parts_) {
-            auto pum = param_map_(store, part.part);
+            auto pum = param_map_(store, part);
             auto loc = part.part.loc;
             StringVec ids;
             ids.reserve(sig.second);
@@ -172,7 +172,7 @@ class Program {
                                    BodyLiteralVec{}}});
             }
             for (auto const &stm : part.stms) {
-                if (auto unmapped = unmap_(pum, stm); unmapped) {
+                if (auto unmapped = unmap_(store, pum, stm); unmapped) {
                     fun(std::move(unmapped).value());
                 } else {
                     fun(stm);
@@ -192,10 +192,11 @@ class Program {
     using ParamUnmap = Util::ordered_map<String, String>;
 
     //! Gather all identifiers appearing in a program part.
-    [[nodiscard]] static auto param_map_(SymbolStore &store, StatementProgram const &part)
+    [[nodiscard]] static auto param_map_(SymbolStore &store, ProgramPart const &part)
         -> Util::ordered_map<String, String>;
     //! Replace all bound paramets in a statement by parsable ids.
-    [[nodiscard]] static auto unmap_(ParamUnmap const &pum, Statement const &stm) -> std::optional<Statement>;
+    [[nodiscard]] static auto unmap_(SymbolStore &store, ParamUnmap const &pum, Statement const &stm)
+        -> std::optional<Statement>;
 
     //! The rewrite level of the program.
     RewriteOptions opts_;

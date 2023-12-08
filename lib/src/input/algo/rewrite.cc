@@ -72,7 +72,7 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
             GRINGO_REPORT(ctx.logger(), trace) << "    project: " << *res_project;
         }
         stm = std::move(res_project).value_or(std::move(stm));
-        auto res_subst = substitute(ctx, stm);
+        auto res_subst = map_params(ctx, stm);
         if (res_subst.has_value()) {
             GRINGO_REPORT(ctx.logger(), trace) << "    substitute: " << *res_subst;
         }

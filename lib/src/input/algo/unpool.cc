@@ -317,7 +317,7 @@ struct Unpool {
             *this, elem.lit, elem.cond);
         auto simplify_lit = [this, &to_tuple, &elem, &elems](SetAggregateElement unpooled) {
             auto guard = ctx.push();
-            auto res_subst = substitute(ctx, unpooled.lit);
+            auto res_subst = map_params(ctx, unpooled.lit);
             auto lit = std::move(res_subst).value_or(std::move(unpooled.lit));
             auto res_simp = simplify(HasSign ? SimplifyLiteralFlags::matchable
                                              : (SimplifyLiteralFlags::matchable | SimplifyLiteralFlags::unfailable),

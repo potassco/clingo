@@ -1,4 +1,5 @@
 #include "transform.hh"
+#include "visit.hh"
 
 #include <input/program.hh>
 
@@ -20,9 +21,9 @@ namespace {
     return TermVariable{loc, ctx.store().string("$" + std::to_string(param))};
 }
 
-struct Substitute : Transformer<Substitute> {
+struct MapParams : Transformer<MapParams> {
 
-    Substitute(RewriteContext &ctx) : ctx{ctx} {}
+    MapParams(RewriteContext &ctx) : ctx{ctx} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -412,49 +413,480 @@ struct Substitute : Transformer<Substitute> {
     RewriteContext &ctx;
 };
 
+struct UnmapParams : Transformer<UnmapParams> {
+
+    UnmapParams(SymbolStore &store, Util::ordered_map<String, String> const &map) : store{store}, map{map} {}
+
+    // protect ourselves -> no unintended overloads
+
+    template <class T> auto operator()(T const &x) const -> std::optional<T> = delete;
+
+    // ignore
+
+    auto operator()(Projection const &x) const -> std::optional<Projection> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
+    auto operator()(String const &x) const -> std::optional<String> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
+    auto operator()(Relation const &x) const -> std::optional<Relation> {
+        static_cast<void>(x);
+        return std::nullopt;
+    }
+
+    // term
+
+    auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
+
+    auto operator()(TermSymbol const &term) const -> std::optional<Term> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+
+    auto operator()(TermVariable const &term) const -> std::optional<Term> {
+        if (auto it = map.find(term.name); it != map.end()) {
+            return TermSymbol{term.loc, store.fun(it.value(), {}, false)};
+        }
+        return std::nullopt;
+    }
+
+    auto operator()(TermFunction const &term) const -> std::optional<Term> {
+        return transform_construct<TermFunction>(term.loc, term.name, tr(term.pool), term.external);
+    }
+
+    auto operator()(TermTuple const &term) const -> std::optional<Term> {
+        return transform_construct<TermTuple>(term.loc, tr(term.pool));
+    }
+
+    auto operator()(TermAbs const &term) const -> std::optional<Term> {
+        return transform_construct<TermAbs>(term.loc, tr(term.pool));
+    }
+
+    auto operator()(TermUnary const &term) const -> std::optional<Term> {
+        return transform_construct<TermUnary>(term.loc, term.op, tr(term.rhs));
+    }
+
+    auto operator()(TermBinary const &term) const -> std::optional<Term> {
+        return transform_construct<TermBinary>(term.loc, tr(term.lhs), term.op, tr(term.rhs));
+    }
+
+    // theory
+
+    auto operator()(TheoryTerm const &term) const -> std::optional<TheoryTerm> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+
+    // literal
+
+    auto operator()(Literal const &lit) const { return std::visit(*this, lit); }
+
+    auto operator()(LiteralBoolean const &lit) const -> std::optional<Literal> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
+    auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
+        return transform_construct<LiteralRelation>(lit.loc, lit.sign, tr(lit.lhs), tr(lit.rhs));
+    }
+
+    auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
+        return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
+    }
+
+    // conditional literal
+
+    auto operator()(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
+        return transform_construct<ConditionalLiteral>(lit.loc, tr(lit.lits), tr(lit.cond));
+    }
+
+    template <bool Conjunctive>
+    auto operator()(Junction<Conjunctive> const &lit) const
+        -> std::optional<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
+        return transform_construct<Junction<Conjunctive>>(lit.loc, tr(lit.elems));
+    }
+
+    // set aggregate
+
+    auto operator()(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
+        return transform_construct<SetAggregateElement>(elem.loc, tr(elem.lit), tr(elem.cond));
+    }
+
+    // head literal
+
+    auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteral> { return operator()(lit.lit); }
+
+    auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadSetAggregate>(lit.loc, tr(lit.lhs), tr(lit.elems), tr(lit.rhs));
+    }
+
+    auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
+        return transform_construct<HeadAggregate::Element>(elem.loc, tr(elem.tuple), tr(elem.lit), tr(elem.cond));
+    }
+
+    auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadAggregate>(lit.loc, tr(lit.lhs), lit.fun, tr(lit.elems), tr(lit.rhs));
+    }
+
+    auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<HeadTheoryAtom>(lit.loc, tr(lit.name), tr(lit.elems), tr(lit.rhs));
+    }
+
+    // body literal
+
+    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteral> { return operator()(lit.lit); }
+
+    auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodySetAggregate>(lit.loc, lit.sign, tr(lit.lhs), tr(lit.elems), tr(lit.rhs));
+    }
+
+    auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
+        return transform_construct<BodyAggregate::Element>(elem.loc, tr(elem.tuple), tr(elem.cond));
+    }
+
+    auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodyAggregate>(lit.loc, lit.sign, tr(lit.lhs), lit.fun, tr(lit.elems), tr(lit.rhs));
+    }
+
+    auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<BodyTheoryAtom>(lit.loc, lit.sign, tr(lit.name), tr(lit.elems), tr(lit.rhs));
+    }
+
+    // statement
+
+    auto operator()(Statement const &stm) const -> std::optional<Statement> { return std::visit(*this, stm); }
+
+    auto operator()(Rule const &stm) const -> std::optional<Statement> {
+        return transform_construct<Rule>(stm.loc, tr(stm.head), tr(stm.body));
+    }
+
+    auto operator()(TheoryDefinition const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementOptimize::Tuple const &elem) const -> std::optional<StatementOptimize::Tuple> {
+        return transform_construct<StatementOptimize::Tuple>(tr(elem.weight), tr(elem.priority), tr(elem.terms));
+    }
+
+    auto operator()(StatementOptimize::Element const &elem) const -> std::optional<StatementOptimize::Element> {
+        return transform_construct<StatementOptimize::Element>(tr(elem.first), tr(elem.second));
+    }
+
+    auto operator()(StatementOptimize const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementOptimize>(stm.loc, stm.type, tr(stm.elems));
+    }
+
+    auto operator()(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementWeakConstraint>(stm.loc, tr(stm.body), tr(stm.tuple));
+    }
+
+    auto operator()(StatementShow const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementShow>(stm.loc, tr(stm.term), tr(stm.body));
+    }
+
+    auto operator()(StatementShowSig const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementProject const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementProject>(stm.loc, tr(stm.term), tr(stm.body));
+    }
+
+    auto operator()(StatementProjectSig const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementDefined const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementExternal const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementExternal>(stm.loc, tr(stm.term), tr(stm.body), tr(stm.type));
+    }
+
+    auto operator()(StatementEdge::Edge const &edge) const -> std::optional<StatementEdge::Edge> {
+        return transform_construct<StatementEdge::Edge>(tr(edge.u), tr(edge.v));
+    }
+
+    auto operator()(StatementEdge const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementEdge>(stm.loc, tr(stm.edges), tr(stm.body));
+    }
+
+    auto operator()(StatementHeuristic const &stm) const -> std::optional<Statement> {
+        return transform_construct<StatementHeuristic>(stm.loc, tr(stm.atom), tr(stm.body), tr(stm.type), tr(stm.prio),
+                                                       tr(stm.mod));
+    }
+
+    auto operator()(StatementScript const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementInclude const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementProgram const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(StatementConst const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    auto operator()(Comment const &stm) const -> std::optional<Statement> {
+        static_cast<void>(stm);
+        return std::nullopt;
+    }
+
+    SymbolStore &store;
+    Util::ordered_map<String, String> const &map;
+};
+
+struct Collect : Visitor<Collect> {
+
+    Collect(StringSet &ids) : ids{ids} {}
+
+    // protect ourselves -> no unintended overloads
+
+    template <class T> void operator()(T const &x) const = delete;
+
+    // ignore
+
+    void operator()(Projection const &x) const { static_cast<void>(x); }
+
+    void operator()(String const &x) const { static_cast<void>(x); }
+
+    void operator()(Relation const &x) const { static_cast<void>(x); }
+
+    // term
+
+    void operator()(Term const &term) const { std::visit(*this, term); }
+
+    void operator()(Symbol const &sym) const {
+        switch (sym.type()) {
+            case SymbolType::function: {
+                if (sym.args().empty()) {
+                    ids.emplace(sym.name());
+                } else {
+                    std::for_each(sym.args().begin(), sym.args().end(), *this);
+                }
+                break;
+            }
+            case SymbolType::tuple: {
+                std::for_each(sym.args().begin(), sym.args().end(), *this);
+                break;
+            }
+            case SymbolType::inf:
+            case SymbolType::sup:
+            case SymbolType::number:
+            case SymbolType::string: {
+                break;
+            }
+        }
+    }
+
+    void operator()(TermSymbol const &term) const { visit(term.value); }
+
+    void operator()(TermVariable const &term) const { static_cast<void>(term); }
+
+    void operator()(TermFunction const &term) const {
+        if (term.pool.size() != 1) {
+            throw std::runtime_error("unpool has to be called before substituting parameters");
+        }
+        if (term.pool.front().empty() && !term.external) {
+            ids.emplace(term.name);
+        } else {
+            visit(term.pool);
+        }
+    }
+
+    void operator()(TermTuple const &term) const { visit(term.pool); }
+
+    void operator()(TermAbs const &term) const { visit(term.pool); }
+
+    void operator()(TermUnary const &term) const { visit(term.rhs); }
+
+    void operator()(TermBinary const &term) const { visit(term.lhs, term.rhs); }
+
+    // theory
+
+    void operator()(TheoryTerm const &term) const { static_cast<void>(term); }
+
+    // literal
+
+    void operator()(Literal const &lit) const { std::visit(*this, lit); }
+
+    void operator()(LiteralBoolean const &lit) const { static_cast<void>(lit); }
+
+    void operator()(LiteralRelation const &lit) const {
+        visit(lit.lhs);
+        visit(lit.rhs);
+    }
+
+    void operator()(LiteralSymbolic const &lit) const { visit(lit.term); }
+
+    // conditional literal
+
+    void operator()(ConditionalLiteral const &lit) const {
+        visit(lit.lits);
+        visit(lit.cond);
+    }
+
+    template <bool Conjunctive> void operator()(Junction<Conjunctive> const &lit) const { visit(lit.elems); }
+
+    // set aggregate
+
+    void operator()(SetAggregateElement const &elem) const { visit(elem.lit, elem.cond); }
+
+    // head literal
+
+    void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
+
+    void operator()(SimpleHeadLiteral const &lit) const { visit(lit.lit); }
+
+    void operator()(HeadSetAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
+
+    void operator()(HeadAggregate::Element const &elem) const { visit(elem.tuple, elem.lit, elem.cond); }
+
+    void operator()(HeadAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
+
+    void operator()(HeadTheoryAtom const &lit) const { visit(lit.name, lit.elems, lit.rhs); }
+
+    // body literal
+
+    void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
+
+    void operator()(SimpleBodyLiteral const &lit) const { visit(lit.lit); }
+
+    void operator()(BodySetAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
+
+    void operator()(BodyAggregate::Element const &elem) const { visit(elem.tuple, elem.cond); }
+
+    void operator()(BodyAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
+
+    void operator()(BodyTheoryAtom const &lit) const { visit(lit.name, lit.elems, lit.rhs); }
+
+    // statement
+
+    void operator()(Statement const &stm) const { std::visit(*this, stm); }
+
+    void operator()(Rule const &stm) const { visit(stm.head, stm.body); }
+
+    void operator()(TheoryDefinition const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementOptimize::Tuple const &elem) const { visit(elem.weight, elem.priority, elem.terms); }
+
+    void operator()(StatementOptimize::Element const &elem) const { visit(elem.first, elem.second); }
+
+    void operator()(StatementOptimize const &stm) const { visit(stm.elems); }
+
+    void operator()(StatementWeakConstraint const &stm) const { visit(stm.body, stm.tuple); }
+
+    void operator()(StatementShow const &stm) const { visit(stm.term, stm.body); }
+
+    void operator()(StatementShowSig const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementProject const &stm) const {
+        if (!is_identifier(stm.term)) {
+            visit(stm.term);
+        }
+        visit(stm.body);
+    }
+
+    void operator()(StatementProjectSig const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementDefined const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementExternal const &stm) const {
+        if (!is_identifier(stm.term)) {
+            visit(stm.term);
+        }
+        visit(stm.body, stm.type);
+    }
+
+    void operator()(StatementEdge::Edge const &edge) const { visit(edge.u, edge.v); }
+
+    void operator()(StatementEdge const &stm) const { visit(stm.edges, stm.body); }
+
+    void operator()(StatementHeuristic const &stm) const {
+        if (!is_identifier(stm.atom)) {
+            visit(stm.atom);
+        }
+        visit(stm.body, stm.type, stm.prio, stm.mod);
+    }
+
+    void operator()(StatementScript const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementInclude const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementProgram const &stm) const { static_cast<void>(stm); }
+
+    void operator()(StatementConst const &stm) const { static_cast<void>(stm); }
+
+    void operator()(Comment const &stm) const { static_cast<void>(stm); }
+
+    StringSet &ids;
+};
+
 } // namespace
 
-[[nodiscard]] auto substitute(RewriteContext &ctx, Term const &term) -> std::optional<Term> {
+[[nodiscard]] auto map_params(RewriteContext &ctx, Term const &term) -> std::optional<Term> {
     if (ctx.has_params()) {
-        return Substitute{ctx}(term);
+        return MapParams{ctx}(term);
     }
     return std::nullopt;
 }
 
-[[nodiscard]] auto substitute(RewriteContext &ctx, Literal const &lit) -> std::optional<Literal> {
+[[nodiscard]] auto map_params(RewriteContext &ctx, Literal const &lit) -> std::optional<Literal> {
     if (ctx.has_params()) {
-        return Substitute{ctx}(lit);
+        return MapParams{ctx}(lit);
     }
     return std::nullopt;
 }
 
-[[nodiscard]] auto substitute(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteral> {
+[[nodiscard]] auto map_params(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteral> {
     if (ctx.has_params()) {
-        return Substitute{ctx}(lit);
+        return MapParams{ctx}(lit);
     }
     return std::nullopt;
 }
 
-[[nodiscard]] auto substitute(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<BodyLiteral> {
+[[nodiscard]] auto map_params(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<BodyLiteral> {
     if (ctx.has_params()) {
-        return Substitute{ctx}(lit);
+        return MapParams{ctx}(lit);
     }
     return std::nullopt;
 }
 
-[[nodiscard]] auto substitute(RewriteContext &ctx, Statement const &stm) -> std::optional<Statement> {
+[[nodiscard]] auto map_params(RewriteContext &ctx, Statement const &stm) -> std::optional<Statement> {
     if (ctx.has_params()) {
-        return Substitute{ctx}(stm);
+        return MapParams{ctx}(stm);
     }
     return std::nullopt;
 }
 
-[[nodiscard]] auto substitute(RewriteContext &ctx, Location const &loc, Symbol const &sym)
+[[nodiscard]] auto map_params(RewriteContext &ctx, Location const &loc, Symbol const &sym)
     -> std::variant<Symbol, Statement> {
     if (!ctx.has_params() || (sym.type() == SymbolType::function && sym.args().empty())) {
         return sym;
     }
-    if (auto res_sym = Substitute{ctx}(loc, sym); res_sym) {
+    if (auto res_sym = MapParams{ctx}(loc, sym); res_sym) {
         return std::visit(
             [&loc](auto &&x) -> std::variant<Symbol, Statement> {
                 GRINGO_MATCH(x, Symbol) { return x; }
@@ -467,5 +899,21 @@ struct Substitute : Transformer<Substitute> {
     }
     return sym;
 }
+
+[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<String, String> const &map, Statement const &stm)
+    -> std::optional<Statement> {
+    if (!map.empty()) {
+        return UnmapParams{store, map}(stm);
+    }
+    return std::nullopt;
+}
+
+void collect_ids(Symbol const &sym, StringSet &ids) {
+    if (sym.type() != SymbolType::function || !sym.args().empty()) {
+        Collect{ids}(sym);
+    }
+}
+
+void collect_ids(Statement const &stm, StringSet &ids) { Collect{ids}(stm); }
 
 } // namespace Gringo::Input

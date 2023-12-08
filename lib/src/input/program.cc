@@ -67,7 +67,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
                     GRINGO_MATCH(x, Symbol) { part.first.value().facts.emplace_back(x); }
                     GRINGO_MATCH(x, Statement) { part.first.value().stms.emplace_back(std::move(x)); }
                 },
-                substitute(ctx, res_part.part.loc, fact));
+                map_params(ctx, res_part.part.loc, fact));
         }
 
         // process rules
@@ -90,19 +90,32 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     }
 }
 
-[[nodiscard]] auto Program::param_map_(SymbolStore &store, StatementProgram const &part)
+[[nodiscard]] auto Program::param_map_(SymbolStore &store, ProgramPart const &part)
     -> Util::ordered_map<String, String> {
-    if (!part.args.empty()) {
-        static_cast<void>(store);
-        throw std::logic_error("implement me!!!");
+    Util::ordered_map<String, String> res;
+    if (!part.part.args.empty()) {
+        StringSet ids;
+        for (auto const &facts : part.facts) {
+            collect_ids(facts, ids);
+        }
+        for (auto const &stm : part.stms) {
+            collect_ids(stm, ids);
+        }
+        auto gen = NameGen{store, std::move(ids), "__p_"};
+        size_t i = 0;
+        for (auto const &id : part.part.args) {
+            auto var = store.string("$" + std::to_string(i));
+            res.emplace(var, gen.add_name(id) ? id : gen.new_name());
+            ++i;
+        }
     }
-    return {};
+    return res;
 }
 
-[[nodiscard]] auto Program::unmap_(ParamUnmap const &pum, Statement const &stm) -> std::optional<Statement> {
+[[nodiscard]] auto Program::unmap_(SymbolStore &store, ParamUnmap const &pum, Statement const &stm)
+    -> std::optional<Statement> {
     if (!pum.empty()) {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        return unmap_params(store, pum, stm);
     }
     return std::nullopt;
 }
