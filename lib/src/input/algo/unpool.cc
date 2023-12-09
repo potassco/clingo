@@ -664,16 +664,20 @@ template <class F> struct print {
 
 auto unpool(RewriteContext &ctx, Statement const &stm) -> std::optional<StatementVec> {
     auto stms = Unpool{ctx}(stm);
-    if (stms.has_value()) {
+    // Note: minimize statements are rewritten into weak constraints here. This
+    // makes all their (local) variables global. Hence, the test below will
+    // fail and we must skip it. Another alternative implemenation could
+    // perform the rewriting in a follow up step.
+    if (stms.has_value() && !std::holds_alternative<StatementOptimize>(stm)) {
         VariableSet old_global = select_variables(stm, VariableContext::global);
         for (auto &unpooled : stms.value()) {
             VariableSet new_global = select_variables(unpooled, VariableContext::global, old_global.size());
-            std::vector<std::pair<Location, String>> unsafe;
+            Util::ordered_map<String, Location> unsafe;
             visit_variables(
                 unpooled,
                 [&](Location const &loc, String var) {
                     if (old_global.contains(var) != new_global.contains(var)) {
-                        unsafe.emplace_back(loc, var);
+                        unsafe.try_emplace(var, loc);
                     }
                 },
                 VariableContext::all);
@@ -683,7 +687,7 @@ auto unpool(RewriteContext &ctx, Statement const &stm) -> std::optional<Statemen
                     << "  " << stm << "\n"
                     << print{[&unsafe](std::ostream &out) {
                            for (auto const &[loc, var] : unsafe) {
-                               out << loc << ": note: '" << var << "' is unsafe";
+                               out << loc << ": note: '" << var << "' is unsafe\n";
                            }
                        }};
             }
