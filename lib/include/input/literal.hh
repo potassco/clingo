@@ -119,8 +119,11 @@ auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
 //! Variant holding the different literal types.
 using Literal = std::variant<LiteralBoolean, LiteralRelation, LiteralSymbolic>;
 
-//! A vector of shared pointers to literals.
+//! A vector of literals.
 using LiteralVec = std::vector<Literal>;
+
+//! A vector of literal vectors.
+using LiteralVecVec = std::vector<LiteralVec>;
 
 //! A conditional literal.
 struct ConditionalLiteral {

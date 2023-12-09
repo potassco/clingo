@@ -71,6 +71,8 @@ using BodyTheoryAtom = TheoryAtom<true>;
 using BodyLiteral = std::variant<SimpleBodyLiteral, Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;
 //! A vector of body literals.
 using BodyLiteralVec = std::vector<BodyLiteral>;
+//! A vector of body literal vectors.
+using BodyLiteralVecVec = std::vector<BodyLiteralVec>;
 
 //! @}
 

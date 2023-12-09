@@ -76,6 +76,8 @@ using HeadTheoryAtom = TheoryAtom<false>;
 using HeadLiteral = std::variant<SimpleHeadLiteral, Disjunction, HeadAggregate, HeadSetAggregate, HeadTheoryAtom>;
 //! A vector of head literals.
 using HeadLiteralVec = std::vector<HeadLiteral>;
+//! A vector of head literal vectors.
+using HeadLiteralVecVec = std::vector<HeadLiteralVec>;
 
 //! @}
 
