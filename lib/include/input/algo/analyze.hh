@@ -57,15 +57,15 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nul
 
 //! Check if the term always evaluates to a number.
 //!
-//! For examble, X+Y but not X because it can also evaluate to other symbols.
+//! For example, X+Y but not X because it can also evaluate to other symbols.
 [[nodiscard]] auto always_numeric(Term const &term) -> bool;
 
 //! Check if the term never evaluates to a number.
 //!
-//! This is true for tuples, function, \#sup, \#inf.
+//! This is true for tuples, functions, \#sup, and \#inf.
 [[nodiscard]] auto never_numeric(Term const &term) -> bool;
 
-//! Check if the term is constant.
+//! Check if the term is a symbol.
 [[nodiscard]] inline auto is_symbol(Term const &term) -> bool { return std::holds_alternative<TermSymbol>(term); }
 
 //! Check if the term is a variable.
@@ -82,39 +82,48 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nul
 //! Check whether the literal is an atoms.
 //!
 //! A literal is an atom if it is a symbolic literal without a sign.
-//! This corresponds for example to a conjunction with one element equal to a such an atom.
 auto is_atom(Literal const &lit) -> bool;
 
 //! Check if the literal is a symbolic atom.
+//!
+//! This extends the test to disjunctions with exactly one element corresponding to an atom.
 auto is_atom(HeadLiteral const &lit) -> bool;
 
 //! Check if the literal is a symbolic atom.
+//!
+//! This extends the test to conjunctions with exactly one element corresponding to an atom.
 auto is_atom(BodyLiteral const &lit) -> bool;
 
 //! Check whether the literal is a test.
 //!
 //! A test is a negated or not a symbolic literal.
-//! This corresponds to conjunctions where the right-hand-side of elements is empty
-//! and the left-hand-side is composed of tests.
 auto is_test(Literal const &lit) -> bool;
 
 //! Check if the literal is a test.
+//!
+//! This extends the test to disjunctions with empty conditions where all literals are tests.
 auto is_test(HeadLiteral const &lit) -> bool;
 
 //! Check if the literal is a test.
+//!
+//! This extends the test to conjunctions with empty conditions where all literals are tests.
 auto is_test(BodyLiteral const &lit) -> bool;
 
 //! Check if the literal is classical.
+//!
+//! A head is classical if it is neither an atom (see is_atom()) nor an aggregate or theory atom.
 auto is_classical(HeadLiteral const &lit) -> bool;
 
 //! Check if a rule is a fact.
 //!
 //! Returns the symbol representing the fact.
+//! This function evaluates arithmetic expressions as long as they evaluate to one-elementary pools.
 auto is_fact(SymbolStore &store, Rule const &rule) -> std::optional<Symbol>;
 
 //! Check if a statement is a fact.
 //!
 //! Returns the symbol representing the fact.
+//! This function evaluates arithmetic expressions as long as they evaluate to one-elementary pools.
 auto is_fact(SymbolStore &store, Statement const &stm) -> std::optional<Symbol>;
 
 //! @}
