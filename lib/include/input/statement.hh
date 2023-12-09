@@ -5,61 +5,6 @@
 
 namespace Gringo::Input {
 
-// TODO: rewrite arithmetic
-// - p(1..X) -> Aux=1..X
-// - p(X+Y)  -> Aux=X+Y
-// - p(X-1)  -> fine!
-// - X < Y < Z+B -> fine if conjunctive
-// - not X < Y < Z+B -> Aux=Z+B if disjunctive
-// - p(X), f(Y)=X, not q(Y)
-//   - no need to add X=f(Y) because Y cannot be bound
-//   - could be done by pruning equations
-
-// TODO 1:
-// - comparison literals should be normalized
-//   - can expand disjunctively and conjunctively
-//   - they can appear in bodies as well as nested elements
-//   - intervals have to be removed from them
-//     because unpooling duplicates terms
-//   - unpooling non-binary relation literals requires removing non-singular pools
-//     - for example `not (3 < 2 < 1+a)` should be false but gringo makes it true atm
-// - aggregates have to be rewritten befor unpooling relation literals!
-//   - set aggregates become head/body aggregates
-//   - symbolic:
-//     - {     p(X): C } -> #count { 0,p(X):         p(X), C }
-//     - { not p(X): C } -> #count { 1,p(X):     not p(X), C }
-//     - {        L: C } -> #count { #i+2,vars(L):        E, C }
-// - shift/rewriting of literals
-//   - to correctly handle pools, we can in general not shift in conditional literals
-//     - it's probably easiest to just handle the general case
-//   - we can shift into the rule body if literals do not have conditions
-//   - example that can no longer be represented in standard format
-//     - head :- p(G..L) : q(L); r(G).
-//       - the current approach is to extend the syntax
-//       - head :- #and{ p(Aux), Aux=G..L : q(L) }; r(G).
-//     - head :- p(G+L) : q(L); r(G).
-//       - head :- #and{ p(Aux), Aux=G+L : q(L) }; r(G).
-//
-// normalize_literal:
-// - rewrite aggregates
-//   - a single aggregate is rewritten
-// - unpool_literals
-//   - comparison literals can become conjunctions:
-//     - a < b < c
-//     - a < b && b < c
-//   - comparison literals can become disjunctions:
-//     - not a < b < c
-//     - not a < b || not b < c
-//   - unpool for literals can get context argument
-//     - head, body, pool
-
-// TODO 2:
-// - terms should be normalized
-// - all pools should have form: X = 1..Y
-// - assignments should have form: unifiable = expression
-// - assignments should be sets to avoid introducing duplicates
-// - provisional name: normalize_terms (maybe cannot all be done in one function)
-
 //! @defgroup input_statement Statements
 //! @ingroup input_language
 //!

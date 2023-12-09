@@ -15,34 +15,11 @@ namespace Gringo::Input {
 
 /*
 whole process as in gringo atm
-1. apply #const statements (partially done)
+1. apply #const statements (done)
 2. unpool (done)
-3. init theory
-4. simplify (done for terms, literals)
-  0. evaluate (done)
-  1. extract atoms to project (done)
-     - add option to forbid completely
-     - only check in simplify
-  2. dots/script (done)
-     - simply remove them all starting from nested contexts
-     - they should be ignored in specific settings to make the simplify function idempotent
-       this has to be handled by the surrounding literal class
-     (done for terms)
-  4. terms that can fail (done)
-     - needs option to avoid if unnecessary
-     - applies to unary, binary, abs, and external in n-ary comparison literals with n > 2
-       (probably the only context)
-     - 1+a < 5 < 10
-     - X < 5 < 10, X=1+a
-  5. make matchable (done)
-    - can be part of simplify (per option to avoid if unnecessary for example in negated literals)
-    - probably best solved using a separate traversal
-    - p(X+5,X*X)
-      -> p(X+5,Aux), Aux=X*X
-    -> p(X+5,@f(g(X*X))),
-      -> p(X+5,Aux), Aux=@f(g(X*X)))
-      - no traversal into external functions/intervals
-6. unpool comparison
+3. init theory (todo)
+4. simplify (done)
+6. unpool comparison (todo)
    the comparison
      not 1+a < 5 < 10
    is equivalent to
@@ -50,10 +27,10 @@ whole process as in gringo atm
    so any term that can fail to evaluate should be stripped during simplification
    this also includes intervals and scripts!
 7. rewrite
-  1. aggregates
-  2. arithmetics
-  4. comparisons to intervals
-  5. assignment aggregates
+  1. aggregates (done)
+  2. arithmetics (done)
+  4. comparisons to intervals (todo)
+  5. assignment aggregates (todo)
 */
 
 void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, Statement const &stm,
