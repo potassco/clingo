@@ -65,6 +65,35 @@ struct UnpoolRelations {
 }
 
 [[nodiscard]] auto unpool(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteralVecVec> {
+    // 0 < x < 9 :- B.
+    // corresponds to:
+    // 0 < x :- B.
+    // x < 9 :- B.
+    // corresponds to:
+    // :- B, not 0 < x.
+    // :- B, not x < 9.
+    // corresponds to:
+    // :- B, 0 >= x.
+    // :- B, x >= 9.
+    //
+    // not 0 < x < 9 :- B.
+    // corresponds to:
+    // not 0 < x | not x < 9 :- B.
+    // corresponds to:
+    // :- B, 0 < x, x < 9.
+    //
+    // 0 < x < 9: C :- B.
+    // corresponds to:
+    // 0 < x: C :- B.
+    // x < 9: C :- B.
+    // looks like it is not possible to do more
+    //
+    // not 0 < x < 9: C :- B.
+    // corresponds to:
+    // (not 0 < x | not x < 9): C :- B.
+    // corresponds to:
+    // (0 >= x | x >= 9): C :- B.
+    // looks like it is not possible to do more
     return UnpoolRelations{ctx}(lit);
 }
 
