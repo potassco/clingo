@@ -15,7 +15,7 @@ template <class Scanner> void process(Gringo::SymbolStore &store, Scanner &&scan
     }
 }
 
-auto main() -> int {
+auto main(int argc, char *argv[]) -> int {
     auto opts = RewriteOptions{};
     std::vector<std::string> files;
     auto log_level = Gringo::LogLevel::info;
@@ -53,7 +53,7 @@ auto main() -> int {
     });
     app.add_flag("--project-anonymous", opts.project_anonymous, "project anoymous variables in negated literals");
     try {
-        app.parse();
+        app.parse(argc, argv);
     } catch (CLI::ParseError const &e) {
         return app.exit(e);
     }
