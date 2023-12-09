@@ -150,8 +150,13 @@ class Program {
     //! (The highest rewrite level has to be used for grounding.)
     Program(RewriteOptions opts) : opts_{std::move(opts)} {}
     //! Join with the given unprocessed program.
+    //!
+    //! If fresh const statements are added, they will be merged with the previous ones.
+    //! However, they are only applied once to newly added statements.
     void join(Logger &log, SymbolStore &store, UnprocessedProgram prg);
     //! Visit all the statements in the program.
+    //!
+    //! See the notes regarding const statements above.
     template <class F> void visit_stms(SymbolStore &store, F fun) const {
         for (auto const &[id, sym] : const_map_) {
             fun(Statement{StatementConst{sym.first.loc, sym.first.type, sym.first.name,

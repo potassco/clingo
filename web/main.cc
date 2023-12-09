@@ -18,6 +18,7 @@ using namespace Gringo::Input;
 EMSCRIPTEN_KEEPALIVE
 extern "C" auto run(char const *program, int project_mode, bool project_anonymous) -> bool {
     auto log = Gringo::Logger{};
+    log.enable_color(false);
     try {
         if (project_mode < 0 || project_mode > 2) {
             GRINGO_REPORT(log, error) << "invalid projection mode";

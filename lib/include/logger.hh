@@ -81,7 +81,7 @@ class Logger {
     Logger(size_t limit = default_message_limit) : Logger{nullptr, limit} {}
     //! Contruct a logger reporting messages via the given callback.
     Logger(Printer p, size_t limit = default_message_limit)
-        : p_(std::move(p)), limit_{limit}, cur_limit_(limit), color_{isatty(fileno(stderr)) == 1} {}
+        : p_(std::move(p)), limit_{limit}, cur_limit_(limit), color_{p_ == nullptr && isatty(fileno(stderr)) == 1} {}
 
     //! Check if a message with the given code should be reported.
     [[nodiscard]] auto check(MessageCode code) -> bool;
@@ -105,6 +105,8 @@ class Logger {
     //!
     //! This keeps all settings but resets the error flag and message limit.
     void reset();
+    //! Explicitely enable or disable coloring.
+    void enable_color(bool color) { color_ = color; };
 
   private:
     Printer p_;
