@@ -87,7 +87,7 @@ struct BuildDep {
     }
 
     //! A map from constant names to indices of const statements.
-    Util::unordered_map<String, size_t> &map;
+    Util::ordered_map<String, size_t> &map;
     //! The dependency graph to build.
     Graph &dep;
     //! The id of the const statement at hand.
@@ -402,7 +402,7 @@ auto evaluate(SymbolStore &store, Symbol lhs, BinaryOperator op, Symbol rhs) -> 
 
 void evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst> const &stms, ConstMap &res) {
     // build map
-    Util::unordered_map<String, size_t> map;
+    Util::ordered_map<String, size_t> map;
     size_t id_stm = 0;
     for (auto const &stm_a : stms) {
         auto res = map.try_emplace(stm_a.name, id_stm);

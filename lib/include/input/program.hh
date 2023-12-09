@@ -41,7 +41,7 @@ struct RewriteOptions {
 using AuxTermVec = std::vector<std::pair<Term, Term>>;
 
 //! Map from identifiers to constants.
-using ConstMap = Util::unordered_map<String, std::pair<StatementConst, Symbol>>;
+using ConstMap = Util::ordered_map<String, std::pair<StatementConst, Symbol>>;
 
 //! Map from identifiers to constants.
 using ParamMap = Util::ordered_set<String>;
