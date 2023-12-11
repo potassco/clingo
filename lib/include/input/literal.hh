@@ -49,6 +49,9 @@ using Guard = std::pair<Relation, Term>;
 //! A vector of guards.
 using GuardVec = std::vector<Guard>;
 
+[[nodiscard]] auto flip(Relation rel) -> Relation;
+[[nodiscard]] auto complement(Relation rel) -> Relation;
+
 //! Literal representing a Boolean constant.
 //!
 //! For example <tt>\#true</tt>.

@@ -6,6 +6,7 @@ add_executable(tests
     "input/rewrite_anonymous.cc"
     "input/simplify.cc"
     "input/unpool.cc"
+    "input/unpool_relations.cc"
     "input/evaluate.cc"
     "input/program.cc"
     "input/project.cc"

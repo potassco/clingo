@@ -39,6 +39,52 @@ auto operator+=(Sign &a, Sign b) -> Sign & {
     return a;
 }
 
+auto flip(Relation rel) -> Relation {
+    switch (rel) {
+        case Relation::equal:
+        case Relation::inequal: {
+            break;
+        }
+        case Relation::greater: {
+            return Relation::less;
+        }
+        case Relation::greater_equal: {
+            return Relation::less_equal;
+        }
+        case Relation::less: {
+            return Relation::greater;
+        }
+        case Relation::less_equal: {
+            return Relation::greater_equal;
+        }
+    }
+    return rel;
+}
+
+auto complement(Relation rel) -> Relation {
+    switch (rel) {
+        case Relation::equal: {
+            return Relation::inequal;
+        }
+        case Relation::inequal: {
+            return Relation::equal;
+        }
+        case Relation::greater: {
+            return Relation::less_equal;
+        }
+        case Relation::greater_equal: {
+            return Relation::less;
+        }
+        case Relation::less: {
+            return Relation::greater_equal;
+        }
+        case Relation::less_equal: {
+            break;
+        }
+    }
+    return Relation::greater;
+}
+
 auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
     return Util::value_equal(a.sign, b.sign, a.value, b.value);
 }
