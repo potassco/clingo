@@ -294,7 +294,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 }
 
 [[nodiscard]] auto rewrite_anonymous(SymbolStore &store, Statement const &stm) -> std::optional<Statement> {
-    auto gen = NameGen{store, select_variables(stm, VariableContext::all), "__Projected_"};
+    auto gen = NameGen{store, select_variables(stm, VariableContext::all), "__A_"};
     return RewriteAnonymous{gen}(stm);
 }
 
