@@ -104,7 +104,7 @@ inline auto is_boolean(Literal const &lit) -> std::optional<bool> {
     if (auto const *lb = std::get_if<LiteralBoolean>(&lit); lb != nullptr) {
         return lb->value == (lb->sign != Sign::once);
     }
-    return false;
+    return std::nullopt;
 }
 
 //! Check if the literal is a test.
@@ -119,7 +119,8 @@ auto is_test(BodyLiteral const &lit) -> bool;
 
 //! Check if the literal is classical.
 //!
-//! A head is classical if it is neither an atom (see is_atom()) nor an aggregate or theory atom.
+//! The head of a rule is classical if it is neither an aggregate nor a theory atom nor contains a strictly positive
+//! atom.
 auto is_classical(HeadLiteral const &lit) -> bool;
 
 //! Check if a rule is a fact.

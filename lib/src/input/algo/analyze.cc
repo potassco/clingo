@@ -354,14 +354,9 @@ struct IsClassical {
     }
 
     auto operator()(Disjunction const &lit) const -> bool {
-        for (auto const &elem : lit.elems) {
-            for (auto const &lit : elem.lits) {
-                if (is_atom(lit)) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        return std::all_of(lit.elems.begin(), lit.elems.end(), [](auto const &elem) {
+            return !std::any_of(elem.lits.begin(), elem.lits.end(), static_cast<bool (&)(Literal const &)>(is_atom));
+        });
     }
 };
 

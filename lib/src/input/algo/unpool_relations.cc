@@ -90,7 +90,7 @@ auto rewrite_head(HeadLiteral const &head, ResultVec<BodyLiteral> &body) -> std:
     std::optional<HeadLiteral> res_head;
     auto res = std::optional<std::pair<HeadLiteral, BodyLiteralVec>>{};
     if (auto const *lit = std::get_if<SimpleHeadLiteral>(&head); lit != nullptr) {
-        if (is_test(lit->lit) && !is_boolean(lit->lit)) {
+        if (!is_atom(lit->lit) && !is_boolean(lit->lit)) {
             body.append(NegateLiteral{}(lit->lit));
             res_head = SimpleHeadLiteral{LiteralBoolean{location(lit->lit), Sign::none, false}};
         }
@@ -105,7 +105,7 @@ auto rewrite_head(HeadLiteral const &head, ResultVec<BodyLiteral> &body) -> std:
                     // set of literals and true literals with an
                     // empty conditions would make the whole
                     // disjunction true.
-                    if (is_test(lit)) {
+                    if (!is_atom(lit)) {
                         res_lits.remove();
                         body.append(NegateLiteral{}(lit));
                     } else {
