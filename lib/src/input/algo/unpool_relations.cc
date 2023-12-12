@@ -5,27 +5,23 @@
 
 #include "unpool.hh"
 
-// TODO: remove
-#include <iostream>
-
 namespace Gringo::Input {
 
 namespace {
 
 struct NegateLiteral {
-    template <class... T> auto operator()(Literal const &lit) const -> Literal { return std::visit(*this, lit); }
-
-    auto operator()(LiteralBoolean const &lit) -> Literal { return LiteralBoolean{lit.loc, lit.sign, !lit.value}; }
-    auto operator()(LiteralRelation const &lit) -> Literal {
+    auto operator()(Literal const &lit) const -> Literal { return std::visit(*this, lit); }
+    auto operator()(LiteralBoolean const &lit) const -> Literal {
+        return LiteralBoolean{lit.loc, lit.sign, !lit.value};
+    }
+    auto operator()(LiteralRelation const &lit) const -> Literal {
         assert(lit.rhs.size() == 1);
         auto const &[rel, rhs] = lit.rhs.front();
         return LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::make_vec<Guard>(Guard{complement(rel), rhs})};
     }
-    auto operator()(LiteralSymbolic const &lit) -> Literal {
+    auto operator()(LiteralSymbolic const &lit) const -> Literal {
         return LiteralSymbolic{lit.loc, lit.sign + Sign::once, lit.term};
     }
-
-    Sign sign;
 };
 
 struct UnpoolRelations {
@@ -176,14 +172,49 @@ struct UnpoolRelations {
     auto operator()(Rule const &stm) const -> std::optional<StatementVec> {
         return unpool_crossproducts(
             [&stm](auto head, auto body) -> Statement {
-                if (auto *lit = std::get_if<Disjunction>(&head); lit != nullptr) {
-                    for (auto &elem : lit->elems) {
+                // TODO: shift simple literals
+                // TODO: unpack conjunctions
+                // shift disjunctions
+                if (auto const *disj = std::get_if<Disjunction>(&head); disj != nullptr) {
+                    std::optional<ConditionalLiteralVec> elems;
+                    size_t n = 0;
+                    for (auto const &elem : disj->elems) {
                         if (elem.cond.empty()) {
-                            for (auto &lit : elem.lits) {
-                                if (is_test(lit)) {
-                                    body.emplace_back(NegateLiteral{}(lit));
-                                }
+                            if (elems) {
+                                elems->emplace_back(ConditionalLiteral{elem.loc, {}, {}});
                             }
+                            size_t m = 0;
+                            for (auto const &lit : elem.lits) {
+                                // Note: we should never get a boolean literal
+                                // here. False literals are removed from the
+                                // set of literals and true literals with an
+                                // empty conditions would make the whole
+                                // disjunction true.
+                                if (is_test(lit)) {
+                                    if (!elems) {
+                                        elems = Util::copy_n(disj->elems, n);
+                                        elems->emplace_back(ConditionalLiteral{elem.loc, {}, {}});
+                                        elems->back().lits = Util::copy_n(elem.lits, m);
+                                    }
+                                    body.emplace_back(NegateLiteral{}(lit));
+                                } else if (elems) {
+                                    elems->back().lits.emplace_back(lit);
+                                }
+                                ++m;
+                            }
+                            if (elems && elems->back().lits.empty()) {
+                                elems->pop_back();
+                            }
+                        } else if (elems) {
+                            elems->emplace_back(elem);
+                        }
+                        ++n;
+                    }
+                    if (elems) {
+                        if (elems->empty()) {
+                            head = SimpleHeadLiteral{LiteralBoolean{disj->loc, Sign::none, false}};
+                        } else {
+                            head = Disjunction{disj->loc, std::move(elems).value()};
                         }
                     }
                 }

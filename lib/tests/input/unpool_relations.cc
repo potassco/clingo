@@ -32,7 +32,7 @@ auto unpool_statement(std::string const &str) -> std::string {
 
 TEST_CASE("unpool_relations_head") {
     REQUIRE(unpool_statement("1<=X<=Y.") == "[1<=X. X<=Y.]");
-    REQUIRE(unpool_statement("not 1<=X<=Y.") == "[:- 1<=X; X<=Y.]");
+    REQUIRE(unpool_statement("not 1<=X<=Y.") == "[#false :- 1<=X; X<=Y.]");
 }
 
 } // namespace Gringo::Input::Test
