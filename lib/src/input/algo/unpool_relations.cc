@@ -1,4 +1,5 @@
 #include <util/algorithm.hh>
+#include <util/optional.hh>
 
 #include <input/algo/analyze.hh>
 #include <input/algo/unpool_relations.hh>
@@ -24,69 +25,7 @@ struct NegateLiteral {
     }
 };
 
-//! Helper to update a vector of elements.
-//!
-//! @todo: this is rather generic and a candidate for Util.
-template <class T> class ResultVec {
-  public:
-    ResultVec(std::vector<T> const &source) : source_{source}, current_{source.begin()} {}
-
-    //! Keep the current element.
-    void keep() {
-        if (result_) {
-            result_->emplace_back(*current_);
-        }
-        ++current_;
-    }
-    //! Remove the current element.
-    void remove() {
-        if (!result_) {
-            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
-        }
-        ++current_;
-    }
-    //! Replace the current element.
-    template <class... Args> void replace(Args &&...args) {
-        if (!result_) {
-            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
-        }
-        result_->emplace_back(std::forward<Args>(args)...);
-        ++current_;
-    }
-    //! Append fresh elements.
-    template <class... Args> void append(Args &&...args) {
-        if (!result_) {
-            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
-        }
-        result_->emplace_back(std::forward<Args>(args)...);
-    }
-    //! Get a const reference to the current vector.
-    //!
-    //! This returns a reference to the old vector if it does not have a new one.
-    [[nodiscard]] auto value() const & -> std::vector<T> const & { return result_ ? result_.value() : source_; }
-    //! Move out the new vector or return a copy of the old one.
-    [[nodiscard]] auto value() && -> std::vector<T> { return std::move(result_).value_or(source_); }
-    //! Check if the old vector has been updated.
-    [[nodiscard]] auto has_value() const -> bool { return result_.has_value(); }
-
-    //! Get a const reference to the current vector.
-    //!
-    //! This returns a reference to the old vector if it does not have a new one.
-    [[nodiscard]] auto operator*() const & -> std::vector<T> const & { value(); }
-    //! Move out the new vector or return a copy of the old one.
-    [[nodiscard]] auto operator*() && -> std::vector<T> { return value(); }
-    //! Arrow operator based on (const ref) value.
-    auto operator->() const -> std::vector<T> const * { return result_ ? &result_.value() : &source_; }
-    //! Check if the old vector has been updated.
-    explicit operator bool() const { return has_value(); }
-
-  private:
-    std::vector<T> const &source_;
-    std::optional<std::vector<T>> result_;
-    std::vector<T>::const_iterator current_;
-};
-
-auto rewrite_head(HeadLiteral const &head, ResultVec<BodyLiteral> &body) -> std::optional<HeadLiteral> {
+auto rewrite_head(HeadLiteral const &head, Util::ResultVec<BodyLiteral> &body) -> std::optional<HeadLiteral> {
     std::optional<HeadLiteral> res_head;
     auto res = std::optional<std::pair<HeadLiteral, BodyLiteralVec>>{};
     if (auto const *lit = std::get_if<SimpleHeadLiteral>(&head); lit != nullptr) {
@@ -95,10 +34,10 @@ auto rewrite_head(HeadLiteral const &head, ResultVec<BodyLiteral> &body) -> std:
             res_head = SimpleHeadLiteral{LiteralBoolean{location(lit->lit), Sign::none, false}};
         }
     } else if (auto const *disj = std::get_if<Disjunction>(&head); disj != nullptr) {
-        auto res_elems = ResultVec{disj->elems};
+        auto res_elems = Util::ResultVec{disj->elems};
         for (auto const &elem : disj->elems) {
             if (elem.cond.empty()) {
-                auto res_lits = ResultVec{elem.lits};
+                auto res_lits = Util::ResultVec{elem.lits};
                 for (auto const &lit : elem.lits) {
                     // Note: we should never get a boolean literal
                     // here. False literals are removed from the
@@ -134,11 +73,11 @@ auto rewrite_head(HeadLiteral const &head, ResultVec<BodyLiteral> &body) -> std:
     return res_head;
 }
 
-auto rewrite_body(BodyLiteralVec const &body) -> ResultVec<BodyLiteral> {
-    auto res_body = ResultVec{body};
+auto rewrite_body(BodyLiteralVec const &body) -> Util::ResultVec<BodyLiteral> {
+    auto res_body = Util::ResultVec{body};
     for (auto const &blit : body) {
         if (auto const *conj = std::get_if<Conjunction>(&blit)) {
-            auto res_elems = ResultVec{conj->elems};
+            auto res_elems = Util::ResultVec{conj->elems};
             for (auto const &elem : conj->elems) {
                 if (elem.cond.empty()) {
                     res_elems.remove();

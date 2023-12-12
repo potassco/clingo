@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <optional>
+#include <util/algorithm.hh>
 #include <vector>
 
 namespace Gringo::Util {
@@ -112,5 +113,79 @@ auto transform_vec(std::optional<std::vector<T>> &&vec, F const &f) -> Detail::t
         return ret;
     });
 }
+
+//! Helper to update a vector of elements.
+//!
+//! @todo: this is rather generic and a candidate for Util.
+template <class T> class ResultVec {
+  public:
+    ResultVec(std::vector<T> const &source) : source_{source}, current_{source.begin()} {}
+
+    //! Keep the current element.
+    void keep() {
+        if (result_) {
+            result_->emplace_back(*current_);
+        }
+        ++current_;
+    }
+    //! Remove the current element.
+    void remove() {
+        if (!result_) {
+            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+        }
+        ++current_;
+    }
+    //! Replace the current element.
+    template <class... Args> void replace(Args &&...args) {
+        if (!result_) {
+            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+        }
+        result_->emplace_back(std::forward<Args>(args)...);
+        ++current_;
+    }
+    //! Update the current alement given the optional value.
+    void update(std::optional<T> value) {
+        if (!value.has_value()) {
+            keep();
+        } else {
+            replace(*std::move(value));
+        }
+    }
+    //! Append fresh elements.
+    template <class... Args> void append(Args &&...args) {
+        if (!result_) {
+            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+        }
+        result_->emplace_back(std::forward<Args>(args)...);
+    }
+    //! Get a const reference to the current vector.
+    //!
+    //! This returns a reference to the old vector if it does not have a new one.
+    [[nodiscard]] auto value() const & -> std::vector<T> const & { return result_ ? result_.value() : source_; }
+    //! Move out the new vector or return a copy of the old one.
+    [[nodiscard]] auto value() && -> std::vector<T> { return std::move(result_).value_or(source_); }
+    //! Check if the old vector has been updated.
+    [[nodiscard]] auto has_value() const -> bool { return result_.has_value(); }
+    //! Return a reference to the updated vector if there was a change.
+    [[nodiscard]] auto as_optional() & -> std::optional<std::vector<T>> & { return result_; }
+    //! Move out the updated vector.
+    [[nodiscard]] auto as_optional() && -> std::optional<std::vector<T>> { return std::move(result_); }
+
+    //! Get a const reference to the current vector.
+    //!
+    //! This returns a reference to the old vector if it does not have a new one.
+    [[nodiscard]] auto operator*() const & -> std::vector<T> const & { value(); }
+    //! Move out the new vector or return a copy of the old one.
+    [[nodiscard]] auto operator*() && -> std::vector<T> { return value(); }
+    //! Arrow operator based on (const ref) value.
+    auto operator->() const -> std::vector<T> const * { return result_ ? &result_.value() : &source_; }
+    //! Check if the old vector has been updated.
+    explicit operator bool() const { return has_value(); }
+
+  private:
+    std::vector<T> const &source_;
+    std::optional<std::vector<T>> result_;
+    std::vector<T>::const_iterator current_;
+};
 
 } // namespace Gringo::Util

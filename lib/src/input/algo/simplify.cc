@@ -15,88 +15,19 @@ namespace Gringo::Input {
 
 namespace {
 
-//! Helper class to simplify a vector of expressions.
-template <class T> struct SimplifyVec {
-    //! Construct helper with the vector of expressions to simplify.
-    SimplifyVec(std::vector<T> const &in) : in_{in} {}
-
-    //! Keep the current element as is.
-    void keep() {
-        if (out_.has_value()) {
-            out_->emplace_back(*cur_);
-        }
-        ++cur_;
-    }
-
-    //! Remove the current element.
-    void remove() {
-        if (!out_.has_value()) {
-            out_ = Util::copy_n(in_, std::distance(in_.begin(), cur_));
-        }
-        ++cur_;
-    }
-
-    //! Update the current alement given the optional value.
-    void update(std::optional<T> value) {
-        if (!value.has_value()) {
-            keep();
+//! Extend the contained vector with the given assignements.
+template <class T> void extend(Util::ResultVec<T> &res, AuxTermVec &aux, bool conjunctive = true) {
+    for (auto &[lhs, rhs] : aux) {
+        auto loc = location(lhs);
+        auto rel = conjunctive ? Relation::equal : Relation::inequal;
+        auto lit = LiteralRelation{loc, Sign::none, std::move(lhs), Util::make_vec<Guard>(Guard{rel, std::move(rhs)})};
+        if constexpr (std::is_same_v<T, Literal>) {
+            res.append(std::move(lit));
         } else {
-            if (!out_.has_value()) {
-                out_ = Util::copy_n(in_, std::distance(in_.begin(), cur_));
-            }
-            out_->emplace_back(std::move(value).value());
-            ++cur_;
+            res.append(SimpleBodyLiteral{std::move(lit)});
         }
     }
-
-    //! Returns true if one of the expressions in the vector has changed.
-    //!
-    //! An expression has changed if it has been updated or removed.
-    [[nodiscard]] auto has_value() -> bool { return out_.has_value(); }
-
-    //! Return a reference to the updated vector if there was a change.
-    [[nodiscard]] auto opt_value() & -> std::optional<std::vector<T>> & { return out_; }
-    //! Move out the updated vector.
-    [[nodiscard]] auto opt_value() && -> std::optional<std::vector<T>> { return out_; }
-    //! Return a reference to the updated vector if it exists or the original vector, otherwise.
-    [[nodiscard]] auto value() const & -> std::vector<T> const & { return out_.has_value() ? out_.value() : in_; }
-    //! Move out the updated vector if it exists or a copy of the original vector, otherwise.
-    [[nodiscard]] auto value() && -> std::vector<T> {
-        if (out_.has_value()) {
-            return std::move(out_).value();
-        }
-        return in_;
-    }
-
-    //! Extend the contained vector with the given assignements.
-    void extend(AuxTermVec &aux, bool conjunctive = true) {
-        if (aux.empty()) {
-            return;
-        }
-        if (!out_.has_value()) {
-            out_ = in_;
-        }
-        for (auto &[lhs, rhs] : aux) {
-            auto loc = location(lhs);
-            auto rel = conjunctive ? Relation::equal : Relation::inequal;
-            auto lit =
-                LiteralRelation{loc, Sign::none, std::move(lhs), Util::make_vec<Guard>(Guard{rel, std::move(rhs)})};
-            if constexpr (std::is_same_v<T, Literal>) {
-                out_->emplace_back(std::move(lit));
-            } else {
-                out_->emplace_back(SimpleBodyLiteral{std::move(lit)});
-            }
-        }
-    }
-
-  private:
-    //! The vector with the original expressions.
-    std::vector<T> const &in_;
-    //! The vector with the simplified expressions.
-    std::optional<std::vector<T>> out_;
-    //! The current expression.
-    std::vector<T>::const_iterator cur_ = in_.begin();
-};
+}
 
 //! Return a Boolean literal with the given location and truth value.
 [[nodiscard]] auto make_constant(Location loc, bool truth) -> Literal { return LiteralBoolean{loc, Sign::none, truth}; }
@@ -121,7 +52,7 @@ template <class T> struct SimplifyVec {
 //! Simplify a term vector.
 [[nodiscard]] auto simplify_termvec(RewriteContext &ctx, TermVec const &terms) -> SimplifyResult<TermVec, bool> {
     auto state_terms = true;
-    SimplifyVec res_terms{terms};
+    auto res_terms = Util::ResultVec{terms};
     for (auto const &term : terms) {
         auto [state_term, res_term] = simplify(SimplifyTermFlags::none, ctx, term);
         state_terms = state_terms && state_term;
@@ -132,7 +63,7 @@ template <class T> struct SimplifyVec {
     if (!state_terms) {
         return {false};
     }
-    return {true, std::move(res_terms).opt_value()};
+    return {true, std::move(res_terms).as_optional()};
 }
 
 [[nodiscard]] auto all_symbol(TermVec const &terms) -> bool {
@@ -1015,7 +946,7 @@ struct SimplifyLiteral {
         auto [succeeded, res_lhs] = simplify(fixed_flags | match_flags, ctx, lit.lhs);
 
         // simplify rhs
-        auto res_rhs = SimplifyVec{lit.rhs};
+        auto res_rhs = Util::ResultVec{lit.rhs};
         auto prev_symbol = get_constant(lit.lhs, res_lhs);
         size_t n = 0;
         for (auto const &[rel, term] : lit.rhs) {
@@ -1146,7 +1077,7 @@ struct LiteralToTuple {
     auto state_fixed = conjunctive ? TruthValue::bot : TruthValue::top;
     auto state_empty = conjunctive ? TruthValue::top : TruthValue::bot;
     auto state_lits = state_empty;
-    SimplifyVec res_lits{lits};
+    auto res_lits = Util::ResultVec{lits};
     for (auto const &lit : lits) {
         auto [state, value] =
             simplify(conjunctive ? SimplifyLiteralFlags::matchable : SimplifyLiteralFlags::head, ctx, lit);
@@ -1155,7 +1086,7 @@ struct LiteralToTuple {
         }
         if (state == state_fixed) {
             if (lits.size() != 1 || value.has_value()) {
-                res_lits.opt_value() = Util::make_vec<Literal>(std::move(value).value_or(lit));
+                res_lits.as_optional() = Util::make_vec<Literal>(std::move(value).value_or(lit));
             }
             state_lits = state_fixed;
         } else if (state == state_empty) {
@@ -1166,9 +1097,9 @@ struct LiteralToTuple {
         }
     }
     if (state_lits != state_fixed) {
-        res_lits.extend(ctx.aux(), conjunctive);
+        extend(res_lits, ctx.aux(), conjunctive);
     }
-    return {state_lits, std::move(res_lits).opt_value()};
+    return {state_lits, std::move(res_lits).as_optional()};
 }
 
 //! Simplify a conditional literal.
@@ -1247,7 +1178,7 @@ template <bool Conjunctive>
     auto state_empty = Conjunctive ? TruthValue::top : TruthValue::bot;
     auto state_elems = state_empty;
 
-    auto res_elems = SimplifyVec{lit.elems};
+    auto res_elems = Util::ResultVec{lit.elems};
     for (auto const &cond_lit : lit.elems) {
         auto [state, res_elem] = simplify_condlit(ctx, cond_lit, Conjunctive);
         if (state_elems == state_fixed) {
@@ -1260,7 +1191,7 @@ template <bool Conjunctive>
             res_elems.update(std::move(res_elem));
         } else if (state == state_fixed) {
             if (lit.elems.size() != 1 || res_elem.has_value()) {
-                res_elems.opt_value() = Util::make_vec<ConditionalLiteral>(std::move(res_elem).value_or(cond_lit));
+                res_elems.as_optional() = Util::make_vec<ConditionalLiteral>(std::move(res_elem).value_or(cond_lit));
             }
             state_elems = state_fixed;
         }
@@ -1269,7 +1200,7 @@ template <bool Conjunctive>
         using SimpleLiteral = std::conditional_t<Conjunctive, SimpleBodyLiteral, SimpleHeadLiteral>;
         return {state_elems, SimpleLiteral{make_constant(lit.loc, state_elems == TruthValue::top)}};
     }
-    return {state_elems, Util::transform(std::move(res_elems).opt_value(), [&](auto value) {
+    return {state_elems, Util::transform(std::move(res_elems).as_optional(), [&](auto value) {
                 return Junction<Conjunctive>{lit.loc, std::move(value)};
             })};
 }
@@ -1526,7 +1457,7 @@ template <bool head>
         simplify_guard(ctx, lit.lhs, lit.lhs.has_value() && is_assignment<head>(lit, lit.lhs->second));
     auto [state_rhs, res_rhs] =
         simplify_guard(ctx, lit.rhs, lit.rhs.has_value() && is_assignment<head>(lit, lit.rhs->first));
-    auto res_elems = SimplifyVec{lit.elems};
+    auto res_elems = Util::ResultVec{lit.elems};
     bool constant = true;
     auto value = neutral_value(lit.fun);
     auto tuples = Util::unordered_set<TermVec, Util::value_hasher<TermVec>>{};
@@ -1639,7 +1570,7 @@ template <bool HasSign>
 auto simplify_theory_atom(RewriteContext &ctx, TheoryAtom<HasSign> const &lit) -> SimplifyResult<HBLiteral<!HasSign>> {
     constexpr auto head = !HasSign;
     auto [state_name, res_name] = simplify(SimplifyTermFlags::none, ctx, lit.name);
-    auto res_elems = SimplifyVec{lit.elems};
+    auto res_elems = Util::ResultVec{lit.elems};
     for (auto const &elem : lit.elems) {
         auto [state_elem, res_elem] = simplify_element(ctx, elem);
         if (state_elem == TruthValue::bot) {
@@ -1723,7 +1654,7 @@ struct SimplifyBodyLiteral {
 
 //! Simplify a vector of body literals.
 [[nodiscard]] auto simplify_body(RewriteContext &ctx, BodyLiteralVec const &body) -> SimplifyResult<BodyLiteralVec> {
-    auto res_body = SimplifyVec{body};
+    auto res_body = Util::ResultVec{body};
     auto state_body = TruthValue::top;
     for (auto const &lit : body) {
         auto [state_lit, res_lit] = simplify(ctx, lit);
@@ -1738,7 +1669,7 @@ struct SimplifyBodyLiteral {
         }
         if (state_lit == TruthValue::bot) {
             if (body.size() != 1) {
-                res_body.opt_value() =
+                res_body.as_optional() =
                     Util::make_vec<BodyLiteral>(SimpleBodyLiteral{LiteralBoolean{location(lit), Sign::none, false}});
             }
             state_body = TruthValue::bot;
@@ -1747,9 +1678,9 @@ struct SimplifyBodyLiteral {
         }
     }
     if (state_body != TruthValue::bot) {
-        res_body.extend(ctx.aux());
+        extend(res_body, ctx.aux());
     }
-    return {state_body, std::move(res_body).opt_value()};
+    return {state_body, std::move(res_body).as_optional()};
 }
 
 //! Simplify statements.
