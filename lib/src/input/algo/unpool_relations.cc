@@ -24,6 +24,169 @@ struct NegateLiteral {
     }
 };
 
+//! Helper to update a vector of elements.
+//!
+//! @todo: this is rather generic and a candidate for Util.
+template <class T> class ResultVec {
+  public:
+    ResultVec(std::vector<T> const &source) : source_{source}, current_{source.begin()} {}
+
+    //! Keep the current element.
+    void keep() {
+        if (result_) {
+            result_->emplace_back(*current_);
+        }
+        ++current_;
+    }
+    //! Remove the current element.
+    void remove() {
+        if (!result_) {
+            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+        }
+        ++current_;
+    }
+    //! Replace the current element.
+    template <class... Args> void replace(Args &&...args) {
+        if (!result_) {
+            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+        }
+        result_->emplace_back(std::forward<Args>(args)...);
+        ++current_;
+    }
+    //! Append fresh elements.
+    template <class... Args> void append(Args &&...args) {
+        if (!result_) {
+            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+        }
+        result_->emplace_back(std::forward<Args>(args)...);
+    }
+    //! Get a const reference to the current vector.
+    //!
+    //! This returns a reference to the old vector if it does not have a new one.
+    [[nodiscard]] auto value() const & -> std::vector<T> const & { return result_ ? result_.value() : source_; }
+    //! Move out the new vector or return a copy of the old one.
+    [[nodiscard]] auto value() && -> std::vector<T> { return std::move(result_).value_or(source_); }
+    //! Check if the old vector has been updated.
+    [[nodiscard]] auto has_value() const -> bool { return result_.has_value(); }
+
+    //! Get a const reference to the current vector.
+    //!
+    //! This returns a reference to the old vector if it does not have a new one.
+    [[nodiscard]] auto operator*() const & -> std::vector<T> const & { value(); }
+    //! Move out the new vector or return a copy of the old one.
+    [[nodiscard]] auto operator*() && -> std::vector<T> { return value(); }
+    //! Arrow operator based on (const ref) value.
+    auto operator->() const -> std::vector<T> const * { return result_ ? &result_.value() : &source_; }
+    //! Check if the old vector has been updated.
+    explicit operator bool() const { return has_value(); }
+
+  private:
+    std::vector<T> const &source_;
+    std::optional<std::vector<T>> result_;
+    std::vector<T>::const_iterator current_;
+};
+
+auto rewrite_head(HeadLiteral const &head, ResultVec<BodyLiteral> &body) -> std::optional<HeadLiteral> {
+    std::optional<HeadLiteral> res_head;
+    auto res = std::optional<std::pair<HeadLiteral, BodyLiteralVec>>{};
+    if (auto const *lit = std::get_if<SimpleHeadLiteral>(&head); lit != nullptr) {
+        if (is_test(lit->lit) && !is_boolean(lit->lit)) {
+            body.append(NegateLiteral{}(lit->lit));
+            res_head = SimpleHeadLiteral{LiteralBoolean{location(lit->lit), Sign::none, false}};
+        }
+    } else if (auto const *disj = std::get_if<Disjunction>(&head); disj != nullptr) {
+        auto res_elems = ResultVec{disj->elems};
+        for (auto const &elem : disj->elems) {
+            if (elem.cond.empty()) {
+                auto res_lits = ResultVec{elem.lits};
+                for (auto const &lit : elem.lits) {
+                    // Note: we should never get a boolean literal
+                    // here. False literals are removed from the
+                    // set of literals and true literals with an
+                    // empty conditions would make the whole
+                    // disjunction true.
+                    if (is_test(lit)) {
+                        res_lits.remove();
+                        body.append(NegateLiteral{}(lit));
+                    } else {
+                        res_lits.keep();
+                    }
+                }
+                if (res_lits->empty()) {
+                    res_elems.remove();
+                } else if (res_lits) {
+                    res_elems.replace(ConditionalLiteral{elem.loc, *std::move(res_lits), {}});
+                } else {
+                    res_elems.keep();
+                }
+            } else {
+                res_elems.keep();
+            }
+        }
+        if (res_elems) {
+            if (res_elems->empty()) {
+                res_head = SimpleHeadLiteral{LiteralBoolean{disj->loc, Sign::none, false}};
+            } else {
+                res_head = Disjunction{disj->loc, *std::move(res_elems)};
+            }
+        }
+    }
+    return res_head;
+}
+
+auto rewrite_body(BodyLiteralVec const &body) -> ResultVec<BodyLiteral> {
+    auto res_body = ResultVec{body};
+    for (auto const &blit : body) {
+        if (auto const *conj = std::get_if<Conjunction>(&blit)) {
+            auto res_elems = ResultVec{conj->elems};
+            for (auto const &elem : conj->elems) {
+                if (elem.cond.empty()) {
+                    res_elems.remove();
+                    for (auto const &lit : elem.lits) {
+                        res_body.append(SimpleBodyLiteral{lit});
+                    }
+                } else {
+                    res_elems.keep();
+                }
+            }
+            // construct conjunctions from the modified elements
+            if (res_elems) {
+                res_body.remove();
+                for (auto &elem : *std::move(res_elems)) {
+                    res_body.append(Conjunction{conj->loc, Util::make_vec<ConditionalLiteral>(std::move(elem))});
+                }
+            }
+            // construct conjunctions from the existing elements
+            else if (conj->elems.size() != 1) {
+                res_body.remove();
+                for (auto const &elem : conj->elems) {
+                    res_body.append(Conjunction{conj->loc, Util::make_vec<ConditionalLiteral>(elem)});
+                }
+            }
+            // keep existing literal
+            else {
+                res_body.keep();
+            }
+        }
+        // keep existing literal
+        else {
+            res_body.keep();
+        }
+    }
+    return res_body;
+}
+
+template <class F, class... Args>
+auto rewrite_statement(std::optional<StatementVec> res, F &&fun, Args &&...args) -> std::optional<StatementVec> {
+    if (!res) {
+        auto res_stm = std::invoke(std::forward<F>(fun), std::forward<Args>(args)...);
+        if (res_stm) {
+            return Util::make_vec<Statement>(*std::move(res_stm));
+        }
+    }
+    return res;
+}
+
 struct UnpoolRelations {
 
     // protect ourselves -> no unintended overloads
@@ -170,57 +333,20 @@ struct UnpoolRelations {
     }
 
     auto operator()(Rule const &stm) const -> std::optional<StatementVec> {
-        return unpool_crossproducts(
-            [&stm](auto head, auto body) -> Statement {
-                // TODO: shift simple literals
-                // TODO: unpack conjunctions
-                // shift disjunctions
-                if (auto const *disj = std::get_if<Disjunction>(&head); disj != nullptr) {
-                    std::optional<ConditionalLiteralVec> elems;
-                    size_t n = 0;
-                    for (auto const &elem : disj->elems) {
-                        if (elem.cond.empty()) {
-                            if (elems) {
-                                elems->emplace_back(ConditionalLiteral{elem.loc, {}, {}});
-                            }
-                            size_t m = 0;
-                            for (auto const &lit : elem.lits) {
-                                // Note: we should never get a boolean literal
-                                // here. False literals are removed from the
-                                // set of literals and true literals with an
-                                // empty conditions would make the whole
-                                // disjunction true.
-                                if (is_test(lit)) {
-                                    if (!elems) {
-                                        elems = Util::copy_n(disj->elems, n);
-                                        elems->emplace_back(ConditionalLiteral{elem.loc, {}, {}});
-                                        elems->back().lits = Util::copy_n(elem.lits, m);
-                                    }
-                                    body.emplace_back(NegateLiteral{}(lit));
-                                } else if (elems) {
-                                    elems->back().lits.emplace_back(lit);
-                                }
-                                ++m;
-                            }
-                            if (elems && elems->back().lits.empty()) {
-                                elems->pop_back();
-                            }
-                        } else if (elems) {
-                            elems->emplace_back(elem);
-                        }
-                        ++n;
-                    }
-                    if (elems) {
-                        if (elems->empty()) {
-                            head = SimpleHeadLiteral{LiteralBoolean{disj->loc, Sign::none, false}};
-                        } else {
-                            head = Disjunction{disj->loc, std::move(elems).value()};
-                        }
-                    }
-                }
-                return Rule{stm.loc, std::move(head), std::move(body)};
-            },
-            *this, stm.head, stm.body);
+        auto rewrite_rule = [&](auto const &rule, bool not_null) -> std::optional<Statement> {
+            auto body = rewrite_body(rule.body);
+            auto head = rewrite_head(rule.head, body);
+            if (head || body || not_null) {
+                return Rule{stm.loc, std::move(head).value_or(rule.head), *std::move(body)};
+            }
+            return std::nullopt;
+        };
+        return rewrite_statement(unpool_crossproducts(
+                                     [&](auto head, auto body) -> Statement {
+                                         return *rewrite_rule(Rule{stm.loc, std::move(head), std::move(body)}, true);
+                                     },
+                                     *this, stm.head, stm.body),
+                                 rewrite_rule, stm, false);
     }
 
     auto operator()(TheoryDefinition const &stm) const -> std::optional<StatementVec> {

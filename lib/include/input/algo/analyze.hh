@@ -99,6 +99,14 @@ auto is_atom(BodyLiteral const &lit) -> bool;
 //! A test is a negated or not a symbolic literal.
 auto is_test(Literal const &lit) -> bool;
 
+//! Check if a literal is a boolean constant.
+inline auto is_boolean(Literal const &lit) -> std::optional<bool> {
+    if (auto const *lb = std::get_if<LiteralBoolean>(&lit); lb != nullptr) {
+        return lb->value == (lb->sign != Sign::once);
+    }
+    return false;
+}
+
 //! Check if the literal is a test.
 //!
 //! This extends the test to disjunctions with empty conditions where all literals are tests.
