@@ -56,8 +56,9 @@ struct Unpooler {
     }
 };
 
-template <typename T, typename U = Unpooler>
-auto unpool_crossproduct(std::vector<T> const &elems, U &&unpool = U{}) -> std::optional<std::vector<std::vector<T>>> {
+template <typename T>
+auto unpool_crossproduct(std::vector<T> const &elems, auto &&unpool = Unpooler{})
+    -> std::optional<std::vector<std::vector<T>>> {
     // setup values to unpool + offsets
     std::vector<std::tuple<size_t, size_t, size_t>> offsets;
     std::vector<T> pool;
@@ -113,8 +114,8 @@ auto unpool_crossproduct(std::vector<T> const &elems, U &&unpool = U{}) -> std::
     return ret;
 }
 
-template <typename T, typename U = Unpooler>
-auto unpool_union(std::vector<T> const &elems, U &&unpool = U{}) -> std::optional<std::vector<T>> {
+template <typename T>
+auto unpool_union(std::vector<T> const &elems, auto &&unpool = Unpooler{}) -> std::optional<std::vector<T>> {
     size_t n = 0;
     std::optional<std::vector<T>> ret;
     for (auto const &elem : elems) {

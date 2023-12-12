@@ -130,6 +130,7 @@ struct UnpoolRelations {
 
     // protect ourselves -> no unintended overloads
 
+    template <class T> auto operator()(T const &x) const -> std::optional<std::vector<T>> = delete;
     template <class T> auto operator()(T const &x, bool conjunctive) const -> std::optional<std::vector<T>> = delete;
 
     // literal
