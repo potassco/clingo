@@ -130,37 +130,28 @@ struct UnpoolRelations {
 
     // protect ourselves -> no unintended overloads
 
-    template <class T>
-    auto operator()(T const &x, bool head) const -> std::optional<std::vector<std::vector<T>>> = delete;
+    template <class T> auto operator()(T const &x, bool conjunctive) const -> std::optional<std::vector<T>> = delete;
 
     // literal
 
-    auto operator()(Literal const &lit, bool head) const -> std::optional<LiteralVecVec> {
-        return std::visit(*this, lit, std::variant<bool>{head});
+    auto operator()(Literal const &lit, bool conjunctive) const -> std::optional<LiteralVec> {
+        return std::visit(*this, lit, std::variant<bool>{conjunctive});
     }
 
-    auto operator()(LiteralBoolean const &lit, bool head) const -> std::optional<LiteralVecVec> {
-        static_cast<void>(head);
+    auto operator()(LiteralBoolean const &lit, bool conjunctive) const -> std::optional<LiteralVec> {
+        static_cast<void>(conjunctive);
         static_cast<void>(lit);
         return std::nullopt;
     }
 
-    auto operator()(LiteralRelation const &lit, bool head) const -> std::optional<LiteralVecVec> {
+    auto operator()(LiteralRelation const &lit, bool conjunctive) const -> std::optional<LiteralVec> {
         // TODO: the literal still has to be simplified
-        if (lit.rhs.size() > 1) {
-            auto conjunctive = head == (lit.sign == Sign::once);
+        if (lit.rhs.size() > 1 && conjunctive == (lit.sign != Sign::once)) {
             auto const *lhs = &lit.lhs;
-            LiteralVecVec res;
-            if (conjunctive) {
-                res.emplace_back();
-                res.back().reserve(lit.rhs.size());
-            }
+            LiteralVec res;
             for (auto const &rhs : lit.rhs) {
-                if (!conjunctive) {
-                    res.emplace_back();
-                }
                 auto rel = lit.sign == Sign::none ? rhs.first : complement(rhs.first);
-                res.back().emplace_back(
+                res.emplace_back(
                     LiteralRelation{lit.loc, Sign::none, *lhs, Util::make_vec<Guard>(Guard{rel, rhs.second})});
                 lhs = &rhs.second;
             }
@@ -169,8 +160,8 @@ struct UnpoolRelations {
         return std::nullopt;
     }
 
-    auto operator()(LiteralSymbolic const &lit, bool head) const -> std::optional<LiteralVecVec> {
-        static_cast<void>(head);
+    auto operator()(LiteralSymbolic const &lit, bool conjunctive) const -> std::optional<LiteralVec> {
+        static_cast<void>(conjunctive);
         static_cast<void>(lit);
         return std::nullopt;
     }
@@ -180,8 +171,58 @@ struct UnpoolRelations {
 
     template <bool Conjunctive>
     auto operator()(Junction<Conjunctive> const &lit) const -> std::optional<HBLitVecVec<!Conjunctive>> {
-        static_cast<void>(lit);
-        throw std::runtime_error("implement me!!!");
+        auto unpool_elem = [this](ConditionalLiteral const &lit) {
+            auto unpool = [&](auto const &lits) {
+                // the hack would be avoidable by tagging
+                bool conjunctive = &lits == &lit.lits ? !Conjunctive : false;
+                return unpool_crossproduct(
+                    lits, [this, conjunctive](auto const &lit) { return this->operator()(lit, conjunctive); });
+            };
+            auto build = [&lit](auto lits, auto cond) {
+                return ConditionalLiteral{lit.loc, std::move(lits), std::move(cond)};
+            };
+            return unpool_crossproducts(build, unpool, lit.lits, lit.cond);
+        };
+        auto unpool_lits = [&](auto const &lits, bool conjunctive) {
+            auto res_lits = Util::ResultVec{lits};
+            for (auto &lit : lits) {
+                if (auto res_lit = operator()(lit, conjunctive); res_lit) {
+                    res_lits.remove();
+                    for (auto &unpooled : *res_lit) {
+                        res_lits.append(std::move(unpooled));
+                    }
+                } else {
+                    res_lits.keep();
+                }
+            }
+            return res_lits;
+        };
+        // expand horizontally
+        auto res_elems = Util::ResultVec{lit.elems};
+        for (auto &elem : lit.elems) {
+            auto res_lits = unpool_lits(elem.lits, Conjunctive);
+            auto res_cond = unpool_lits(elem.cond, true);
+            if (res_lits || res_cond) {
+                res_elems.update(ConditionalLiteral{elem.loc, *std::move(res_lits), *std::move(res_cond)});
+            } else {
+                res_elems.keep();
+            }
+        }
+        // expand horizontally
+        auto unpooled = unpool_crossproduct(res_elems.value(), unpool_elem);
+        if (res_elems || unpooled) {
+            HBLitVecVec<!Conjunctive> res;
+            if (!unpooled) {
+                res.emplace_back(Junction<Conjunctive>{lit.loc, *std::move(res_elems)});
+            } else {
+                res.reserve(unpooled->size());
+                for (auto &elems : *unpooled) {
+                    res.emplace_back(Junction<Conjunctive>{lit.loc, std::move(elems)});
+                }
+            }
+            return res;
+        }
+        return std::nullopt;
     }
 
     // aggregate
@@ -205,21 +246,19 @@ struct UnpoolRelations {
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteralVec> { return std::visit(*this, lit); }
 
     auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteralVec> {
+        if (auto res_lits = operator()(lit.lit, false); res_lits) {
+            ConditionalLiteralVec elems;
+            elems.reserve(res_lits->size());
+            for (auto &lit : *res_lits) {
+                elems.emplace_back(location(lit), Util::make_vec<Literal>(std::move(lit)), LiteralVec{});
+            }
+            return Util::make_vec<HeadLiteral>(Disjunction{location(lit.lit), std::move(elems)});
+        }
         if (auto res_lits = operator()(lit.lit, true); res_lits) {
             HeadLiteralVec head_lits;
             head_lits.reserve(res_lits->size());
-            for (auto &lits : *res_lits) {
-                assert(!lits.empty());
-                if (lits.size() == 1) {
-                    head_lits.emplace_back(SimpleHeadLiteral{std::move(lits.back())});
-                } else {
-                    ConditionalLiteralVec elems;
-                    elems.reserve(lits.size());
-                    for (auto &lit : lits) {
-                        elems.emplace_back(location(lit), Util::make_vec<Literal>(std::move(lit)), LiteralVec{});
-                    }
-                    head_lits.emplace_back(Disjunction{location(lit.lit), std::move(elems)});
-                }
+            for (auto &lit : *res_lits) {
+                head_lits.emplace_back(SimpleHeadLiteral{std::move(lit)});
             }
             return head_lits;
         }
@@ -236,21 +275,19 @@ struct UnpoolRelations {
     auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteralVec> { return std::visit(*this, lit); }
 
     auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteralVec> {
+        if (auto res_lits = operator()(lit.lit, true); res_lits) {
+            ConditionalLiteralVec elems;
+            elems.reserve(res_lits->size());
+            for (auto &lit : *res_lits) {
+                elems.emplace_back(location(lit), Util::make_vec<Literal>(std::move(lit)), LiteralVec{});
+            }
+            return Util::make_vec<BodyLiteral>(Conjunction{location(lit.lit), std::move(elems)});
+        }
         if (auto res_lits = operator()(lit.lit, false); res_lits) {
             BodyLiteralVec body_lits;
             body_lits.reserve(res_lits->size());
-            for (auto &lits : *res_lits) {
-                assert(!lits.empty());
-                if (lits.size() == 1) {
-                    body_lits.emplace_back(SimpleBodyLiteral{std::move(lits.back())});
-                } else {
-                    ConditionalLiteralVec elems;
-                    elems.reserve(lits.size());
-                    for (auto &lit : lits) {
-                        elems.emplace_back(location(lit), Util::make_vec<Literal>(std::move(lit)), LiteralVec{});
-                    }
-                    body_lits.emplace_back(Conjunction{location(lit.lit), std::move(elems)});
-                }
+            for (auto &lit : *res_lits) {
+                body_lits.emplace_back(SimpleBodyLiteral{std::move(lit)});
             }
             return body_lits;
         }
@@ -373,9 +410,9 @@ struct UnpoolRelations {
 
 } // namespace
 
-[[nodiscard]] auto unpool_relations(RewriteContext &ctx, Literal const &lit, bool head)
-    -> std::optional<LiteralVecVec> {
-    return UnpoolRelations{ctx}(lit, head);
+[[nodiscard]] auto unpool_relations(RewriteContext &ctx, Literal const &lit, bool conjunctive)
+    -> std::optional<LiteralVec> {
+    return UnpoolRelations{ctx}(lit, conjunctive);
 }
 
 [[nodiscard]] auto unpool_relations(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteralVec> {
