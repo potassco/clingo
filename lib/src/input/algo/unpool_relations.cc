@@ -16,9 +16,11 @@ struct NegateLiteral {
         return LiteralBoolean{lit.loc, lit.sign, !lit.value};
     }
     auto operator()(LiteralRelation const &lit) const -> Literal {
-        assert(lit.rhs.size() == 1);
-        auto const &[rel, rhs] = lit.rhs.front();
-        return LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::make_vec<Guard>(Guard{complement(rel), rhs})};
+        if (lit.rhs.size() == 1) {
+            auto const &[rel, rhs] = lit.rhs.front();
+            return LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::make_vec<Guard>(Guard{complement(rel), rhs})};
+        }
+        return LiteralRelation{lit.loc, lit.sign + Sign::once, lit.lhs, lit.rhs};
     }
     auto operator()(LiteralSymbolic const &lit) const -> Literal {
         return LiteralSymbolic{lit.loc, lit.sign + Sign::once, lit.term};
@@ -298,8 +300,49 @@ struct UnpoolRelations {
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteralVec> {
-        static_cast<void>(lit);
-        throw std::runtime_error("implement me!!!");
+        auto res_elems = Util::ResultVec{lit.elems};
+        auto unpool_lit = [this](auto const &lit) { return this->operator()(lit, true); };
+        for (auto const &elem : lit.elems) {
+            auto res_elem = std::optional<HeadAggregate::Element>{};
+            if (!is_atom(elem.lit) && !is_boolean(elem.lit)) {
+                auto bool_lit = LiteralBoolean{elem.loc, Sign::none, true};
+                auto cond = elem.cond;
+                cond.emplace_back(elem.lit);
+                res_elem.emplace(elem.loc, elem.tuple, std::move(bool_lit), std::move(cond));
+            }
+            auto const &elem_lit = res_elem.has_value() ? res_elem->lit : elem.lit;
+            auto const &elem_cond = res_elem.has_value() ? res_elem->cond : elem.cond;
+            auto extend = [&, this](auto const &lits) {
+                auto unpool = [this](auto const &lits) {
+                    return unpool_crossproduct(lits, [this](auto const &lit) { return this->operator()(lit, false); });
+                };
+                auto build = [&](auto lits) {
+                    return HeadAggregate::Element{elem.loc, elem.tuple, elem_lit, std::move(lits)};
+                };
+                if (auto res_elem = unpool_crossproducts(build, unpool, lits)) {
+                    res_elems.extend(std::make_move_iterator(res_elem->begin()),
+                                     std::make_move_iterator(res_elem->end()));
+                    return true;
+                }
+                return false;
+            };
+            if (auto res_lits = unpool_union(elem_cond, unpool_lit); res_lits) {
+                if (!extend(*res_lits)) {
+                    res_elems.replace(elem.loc, elem.tuple, elem_lit, *std::move(res_lits));
+                }
+            } else if (!extend(elem_cond)) {
+                if (res_elem) {
+                    res_elems.replace(*std::move(res_elem));
+                } else {
+                    res_elems.keep();
+                }
+            }
+        }
+        if (res_elems) {
+            return Util::make_vec<HeadLiteral>(
+                HeadAggregate{lit.loc, lit.lhs, lit.fun, *std::move(res_elems), lit.rhs});
+        }
+        return std::nullopt;
     }
 
     // body literal
@@ -327,9 +370,36 @@ struct UnpoolRelations {
     }
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteralVec> {
-        // we now need the crossproduct here!!!
-        static_cast<void>(lit);
-        throw std::runtime_error("implement me!!!");
+        auto res_elems = Util::ResultVec{lit.elems};
+        auto unpool_lit = [this](auto const &lit) { return this->operator()(lit, true); };
+        for (auto const &elem : lit.elems) {
+            auto extend = [&elem, &res_elems, this](auto const &lits) {
+                auto unpool = [this](auto const &lits) {
+                    return unpool_crossproduct(lits, [this](auto const &lit) { return this->operator()(lit, false); });
+                };
+                auto build = [&elem](auto lits) {
+                    return BodyAggregate::Element{elem.loc, elem.tuple, std::move(lits)};
+                };
+                if (auto res_elem = unpool_crossproducts(build, unpool, lits)) {
+                    res_elems.extend(std::make_move_iterator(res_elem->begin()),
+                                     std::make_move_iterator(res_elem->end()));
+                    return true;
+                }
+                return false;
+            };
+            if (auto res_lits = unpool_union(elem.cond, unpool_lit); res_lits) {
+                if (!extend(*res_lits)) {
+                    res_elems.replace(elem.loc, elem.tuple, *std::move(res_lits));
+                }
+            } else if (!extend(elem.cond)) {
+                res_elems.keep();
+            }
+        }
+        if (res_elems) {
+            return Util::make_vec<BodyLiteral>(
+                BodyAggregate{lit.loc, lit.sign, lit.lhs, lit.fun, *std::move(res_elems), lit.rhs});
+        }
+        return std::nullopt;
     }
 
     // statement

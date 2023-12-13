@@ -44,6 +44,17 @@ TEST_CASE("unpool_relations_head") {
     REQUIRE(unpool_statement("&f{ a,b,c : not 1<=X<=Y }.") == "[&f { a,b,c: 1>X; a,b,c: X>Y }.]");
     REQUIRE(unpool_statement("&f{ a,b,c : not 1<=X<=Y, 2<=A<=B }.") ==
             "[&f { a,b,c: 1>X, 2<=A, A<=B; a,b,c: X>Y, 2<=A, A<=B }.]");
+    REQUIRE(unpool_statement("#sum { 1,X: 1<=X<=Y } >= 2.") == "[#sum { 1,X: #true: 1<=X, X<=Y } >= 2.]");
+    REQUIRE(unpool_statement("#sum { 1,X: not 1<=X<=Y } >= 2.") == "[#sum { 1,X: #true: 1>X; 1,X: #true: X>Y } >= 2.]");
+    REQUIRE(unpool_statement("#sum { 1,X: x: 1<=X<=Y } >= 2.") == "[#sum { 1,X: x: 1<=X, X<=Y } >= 2.]");
+    REQUIRE(unpool_statement("#sum { 1,X: x: not 1<=X<=Y } >= 2.") == "[#sum { 1,X: x: 1>X; 1,X: x: X>Y } >= 2.]");
+    REQUIRE(unpool_statement("#sum { 1,X: #true: 1<=X<=Y } >= 2.") == "[#sum { 1,X: #true: 1<=X, X<=Y } >= 2.]");
+    REQUIRE(unpool_statement("#sum { 1,X: #true: not 1<=X<=Y } >= 2.") ==
+            "[#sum { 1,X: #true: 1>X; 1,X: #true: X>Y } >= 2.]");
+    REQUIRE(unpool_statement("#sum { 1,X: 1<=X<=Y: not 1<=A<=B } >= 2.") ==
+            "[#sum { 1,X: #true: 1>A, 1<=X, X<=Y; 1,X: #true: A>B, 1<=X, X<=Y } >= 2.]");
+    REQUIRE(unpool_statement("#sum { 1,X: not 1<=X<=Y: 1<=A<=B } >= 2.") ==
+            "[#sum { 1,X: #true: 1<=A, A<=B, 1>X; 1,X: #true: 1<=A, A<=B, X>Y } >= 2.]");
 }
 
 TEST_CASE("unpool_relations_body") {
@@ -62,6 +73,10 @@ TEST_CASE("unpool_relations_body") {
     REQUIRE(unpool_statement("h :- &f{ a,b,c : not 1<=X<=Y }.") == "[h :- &f { a,b,c: 1>X; a,b,c: X>Y }.]");
     REQUIRE(unpool_statement("h :- &f{ a,b,c : not 1<=X<=Y, 2<=A<=B }.") ==
             "[h :- &f { a,b,c: 1>X, 2<=A, A<=B; a,b,c: X>Y, 2<=A, A<=B }.]");
+    REQUIRE(unpool_statement("h :- #sum { 1,X: 1<=X<=Y } >= 2.") == "[h :- #sum { 1,X: 1<=X, X<=Y } >= 2.]");
+    REQUIRE(unpool_statement("h :- #sum { 1,X: not 1<=X<=Y } >= 2.") == "[h :- #sum { 1,X: 1>X; 1,X: X>Y } >= 2.]");
+    REQUIRE(unpool_statement("h :- #sum { 1,X: 1<=X<=Y, not 1<=A<=B } >= 2.") ==
+            "[h :- #sum { 1,X: 1<=X, X<=Y, 1>A; 1,X: 1<=X, X<=Y, A>B } >= 2.]");
 }
 
 } // namespace Gringo::Input::Test
