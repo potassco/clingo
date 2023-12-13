@@ -1,5 +1,3 @@
-#include <algorithm>
-
 #include <logger.hh>
 
 #include <input/algo/print.hh>
@@ -9,6 +7,7 @@
 #include <input/algo/simplify.hh>
 #include <input/algo/substitute.hh>
 #include <input/algo/unpool.hh>
+#include <input/algo/unpool_relations.hh>
 #include <input/algo/visit_variables.hh>
 
 namespace Gringo::Input {
@@ -38,41 +37,48 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
     RewriteContext ctx{log, store, param_map, const_map, select_variables(stm, VariableContext::all), "__A_"};
     GRINGO_REPORT(log, trace) << "rewrite: " << stm;
     auto opt = rewrite_anonymous(store, stm);
-    if (opt.has_value()) {
+    if (opt) {
         GRINGO_REPORT(log, trace) << "  anonymous: " << *opt;
     }
     auto res = std::move(opt).value_or(stm);
 
-    auto rewrite_unpooled = [&opts, &stms, &ctx](Statement stm) {
+    auto rewrite_unpooled = [&opts, &stms, &ctx](Statement stm, char const *indent) {
         auto res_project = project(stm, opts.project_mode, opts.project_anonymous);
-        if (res_project.has_value()) {
-            GRINGO_REPORT(ctx.logger(), trace) << "    project: " << *res_project;
+        if (res_project) {
+            GRINGO_REPORT(ctx.logger(), trace) << indent << "project: " << *res_project;
         }
         stm = std::move(res_project).value_or(std::move(stm));
         auto res_subst = map_params(ctx, stm);
-        if (res_subst.has_value()) {
-            GRINGO_REPORT(ctx.logger(), trace) << "    substitute: " << *res_subst;
+        if (res_subst) {
+            GRINGO_REPORT(ctx.logger(), trace) << indent << "substitute: " << *res_subst;
         }
         stm = std::move(res_subst).value_or(std::move(stm));
         auto [state_stm, res_stm] = simplify(ctx, stm);
-        if (res_stm.has_value()) {
-            GRINGO_REPORT(ctx.logger(), trace) << "    simplify: " << *res_stm;
+        if (res_stm) {
+            GRINGO_REPORT(ctx.logger(), trace) << indent << "simplify: " << *res_stm;
         }
         stm = std::move(res_stm).value_or(std::move(stm));
         if (state_stm != TruthValue::top) {
-            stms.emplace_back(std::move(stm));
+            if (auto res_stms = unpool_relations(ctx, stm); res_stms) {
+                for (auto &stm : *res_stms) {
+                    GRINGO_REPORT(ctx.logger(), trace) << indent << "unpool relations: " << stm;
+                    stms.emplace_back(std::move(stm));
+                }
+            } else {
+                stms.emplace_back(std::move(stm));
+            }
         }
         return;
     };
-    auto unpooled = unpool(ctx, res);
-    if (unpooled.has_value()) {
-        for (auto &stm : unpooled.value()) {
+
+    if (auto unpooled = unpool(ctx, res); unpooled) {
+        for (auto &stm : *unpooled) {
             GRINGO_REPORT(log, trace) << "  unpool: " << stm;
-            rewrite_unpooled(std::move(stm));
+            rewrite_unpooled(std::move(stm), "    ");
         }
         return;
     }
-    return rewrite_unpooled(std::move(res));
+    return rewrite_unpooled(std::move(res), "  ");
 }
 
 } // namespace Gringo::Input
