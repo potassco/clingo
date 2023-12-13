@@ -68,7 +68,6 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
                 stms.emplace_back(std::move(stm));
             }
         }
-        return;
     };
 
     if (auto unpooled = unpool(ctx, res); unpooled) {
@@ -76,9 +75,9 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
             GRINGO_REPORT(log, trace) << "  unpool: " << stm;
             rewrite_unpooled(std::move(stm), "    ");
         }
-        return;
+    } else {
+        return rewrite_unpooled(std::move(res), "  ");
     }
-    return rewrite_unpooled(std::move(res), "  ");
 }
 
 } // namespace Gringo::Input
