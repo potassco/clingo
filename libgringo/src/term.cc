@@ -372,7 +372,7 @@ void IESolver::add(IE ie, bool ignoreIfFixed) {
     std::sort(
         terms.begin(), terms.end(),
         [](auto const &a, auto const &b) {
-            return a.variable->name == b.variable->name;
+            return a.variable->name < b.variable->name;
         });
 
     // combine adjacent terms referring to the same variable
