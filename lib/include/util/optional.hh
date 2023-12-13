@@ -158,6 +158,13 @@ template <class T> class ResultVec {
         }
         result_->emplace_back(std::forward<Args>(args)...);
     }
+    //! Append fresh elements.
+    template <class It> void extend(It begin, It end) {
+        if (!result_) {
+            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+        }
+        result_->insert(result_->end(), begin, end);
+    }
     //! Get a const reference to the current vector.
     //!
     //! This returns a reference to the old vector if it does not have a new one.

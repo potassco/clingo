@@ -40,6 +40,10 @@ TEST_CASE("unpool_relations_head") {
                                                                        " #or { 1<2: 5>=6; a>=b, b>=c: d<e, e<f }."
                                                                        " #or { 2<3: 4>=5; a>=b, b>=c: d<e, e<f }."
                                                                        " #or { 2<3: 5>=6; a>=b, b>=c: d<e, e<f }.]");
+    REQUIRE(unpool_statement("&f{ : 1<=X<=Y }.") == "[&f { : 1<=X, X<=Y }.]");
+    REQUIRE(unpool_statement("&f{ a,b,c : not 1<=X<=Y }.") == "[&f { a,b,c: 1>X; a,b,c: X>Y }.]");
+    REQUIRE(unpool_statement("&f{ a,b,c : not 1<=X<=Y, 2<=A<=B }.") ==
+            "[&f { a,b,c: 1>X, 2<=A, A<=B; a,b,c: X>Y, 2<=A, A<=B }.]");
 }
 
 TEST_CASE("unpool_relations_body") {
@@ -54,6 +58,10 @@ TEST_CASE("unpool_relations_body") {
             " h :- #and { 1<2, 2<3: 5>=6 }; a>=b: d<e, e<f."
             " h :- #and { 1<2, 2<3: 4>=5 }; b>=c: d<e, e<f."
             " h :- #and { 1<2, 2<3: 5>=6 }; b>=c: d<e, e<f.]");
+    REQUIRE(unpool_statement("h :- &f{ : 1<=X<=Y }.") == "[h :- &f { : 1<=X, X<=Y }.]");
+    REQUIRE(unpool_statement("h :- &f{ a,b,c : not 1<=X<=Y }.") == "[h :- &f { a,b,c: 1>X; a,b,c: X>Y }.]");
+    REQUIRE(unpool_statement("h :- &f{ a,b,c : not 1<=X<=Y, 2<=A<=B }.") ==
+            "[h :- &f { a,b,c: 1>X, 2<=A, A<=B; a,b,c: X>Y, 2<=A, A<=B }.]");
 }
 
 } // namespace Gringo::Input::Test

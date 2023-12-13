@@ -231,15 +231,46 @@ struct UnpoolRelations {
     template <bool HasSign>
     auto operator()(SetAggregate<HasSign> const &lit) const -> std::optional<HBLitVecVec<!HasSign>> {
         static_cast<void>(lit);
-        throw std::runtime_error("implement me!!!");
+        throw std::runtime_error("simplify must be called before unpooling of relations");
     }
 
     // theory
 
     template <bool HasSign>
     auto operator()(TheoryAtom<HasSign> const &atom) const -> std::optional<HBLitVecVec<!HasSign>> {
-        static_cast<void>(atom);
-        throw std::runtime_error("implement me!!!");
+        auto res_elems = Util::ResultVec{atom.elems};
+        auto unpool_lit = [this](auto const &lit) { return this->operator()(lit, true); };
+        for (auto const &elem : atom.elems) {
+            auto extend = [&elem, &res_elems, this](auto const &lits) {
+                auto unpool = [this](auto const &lits) {
+                    return unpool_crossproduct(lits, [this](auto const &lit) { return this->operator()(lit, false); });
+                };
+                auto build = [&elem](auto lits) { return TheoryElement{elem.first, std::move(lits)}; };
+                if (auto res_elem = unpool_crossproducts(build, unpool, lits)) {
+                    res_elems.extend(std::make_move_iterator(res_elem->begin()),
+                                     std::make_move_iterator(res_elem->end()));
+                    return true;
+                }
+                return false;
+            };
+            if (auto res_lits = unpool_union(elem.second, unpool_lit); res_lits) {
+                if (!extend(*res_lits)) {
+                    res_elems.replace(elem.first, *std::move(res_lits));
+                }
+            } else if (!extend(elem.second)) {
+                res_elems.keep();
+            }
+        }
+        if (res_elems) {
+            if constexpr (HasSign) {
+                return Util::make_vec<BodyLiteral>(
+                    TheoryAtom<HasSign>{atom.loc, atom.sign, atom.name, *std::move(res_elems), atom.rhs});
+            } else {
+                return Util::make_vec<HeadLiteral>(
+                    TheoryAtom<HasSign>{atom.loc, atom.name, *std::move(res_elems), atom.rhs});
+            }
+        }
+        return std::nullopt;
     }
 
     // head literal
