@@ -664,21 +664,11 @@ struct Collect : Visitor<Collect> {
 
     // protect ourselves -> no unintended overloads
 
-    template <class T> void operator()(T const &x) const = delete;
-
-    // ignore
-
-    void operator()(Projection const &x) const { static_cast<void>(x); }
-
-    void operator()(String const &x) const { static_cast<void>(x); }
-
-    void operator()(Relation const &x) const { static_cast<void>(x); }
+    template <class T> void accept(T const &x) const = delete;
 
     // term
 
-    void operator()(Term const &term) const { std::visit(*this, term); }
-
-    void operator()(Symbol const &sym) const {
+    void accept(Symbol const &sym) const {
         switch (sym.type()) {
             case SymbolType::function: {
                 if (sym.args().empty()) {
@@ -701,11 +691,9 @@ struct Collect : Visitor<Collect> {
         }
     }
 
-    void operator()(TermSymbol const &term) const { visit(term.value); }
+    void accept(TermSymbol const &term) const { visit(term.value); }
 
-    void operator()(TermVariable const &term) const { static_cast<void>(term); }
-
-    void operator()(TermFunction const &term) const {
+    void accept(TermFunction const &term) const {
         if (term.pool.size() != 1) {
             throw std::runtime_error("unpool has to be called before substituting parameters");
         }
@@ -716,130 +704,40 @@ struct Collect : Visitor<Collect> {
         }
     }
 
-    void operator()(TermTuple const &term) const { visit(term.pool); }
-
-    void operator()(TermAbs const &term) const { visit(term.pool); }
-
-    void operator()(TermUnary const &term) const { visit(term.rhs); }
-
-    void operator()(TermBinary const &term) const { visit(term.lhs, term.rhs); }
-
     // theory
 
-    void operator()(TheoryTerm const &term) const { static_cast<void>(term); }
+    static void accept(TheoryTerm const &term) { static_cast<void>(term); }
 
     // literal
 
-    void operator()(Literal const &lit) const { std::visit(*this, lit); }
-
-    void operator()(LiteralBoolean const &lit) const { static_cast<void>(lit); }
-
-    void operator()(LiteralRelation const &lit) const {
-        visit(lit.lhs);
-        visit(lit.rhs);
+    void accept(LiteralSymbolic const &lit) const {
+        if (!is_identifier(lit.term)) {
+            visit(lit.term);
+        }
     }
-
-    void operator()(LiteralSymbolic const &lit) const { visit(lit.term); }
-
-    // conditional literal
-
-    void operator()(ConditionalLiteral const &lit) const {
-        visit(lit.lits);
-        visit(lit.cond);
-    }
-
-    template <bool Conjunctive> void operator()(Junction<Conjunctive> const &lit) const { visit(lit.elems); }
-
-    // set aggregate
-
-    void operator()(SetAggregateElement const &elem) const { visit(elem.lit, elem.cond); }
-
-    // head literal
-
-    void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
-
-    void operator()(SimpleHeadLiteral const &lit) const { visit(lit.lit); }
-
-    void operator()(HeadSetAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
-
-    void operator()(HeadAggregate::Element const &elem) const { visit(elem.tuple, elem.lit, elem.cond); }
-
-    void operator()(HeadAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
-
-    void operator()(HeadTheoryAtom const &lit) const { visit(lit.name, lit.elems, lit.rhs); }
-
-    // body literal
-
-    void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
-
-    void operator()(SimpleBodyLiteral const &lit) const { visit(lit.lit); }
-
-    void operator()(BodySetAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
-
-    void operator()(BodyAggregate::Element const &elem) const { visit(elem.tuple, elem.cond); }
-
-    void operator()(BodyAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
-
-    void operator()(BodyTheoryAtom const &lit) const { visit(lit.name, lit.elems, lit.rhs); }
 
     // statement
 
-    void operator()(Statement const &stm) const { std::visit(*this, stm); }
-
-    void operator()(Rule const &stm) const { visit(stm.head, stm.body); }
-
-    void operator()(TheoryDefinition const &stm) const { static_cast<void>(stm); }
-
-    void operator()(StatementOptimize::Tuple const &elem) const { visit(elem.weight, elem.priority, elem.terms); }
-
-    void operator()(StatementOptimize::Element const &elem) const { visit(elem.first, elem.second); }
-
-    void operator()(StatementOptimize const &stm) const { visit(stm.elems); }
-
-    void operator()(StatementWeakConstraint const &stm) const { visit(stm.body, stm.tuple); }
-
-    void operator()(StatementShow const &stm) const { visit(stm.term, stm.body); }
-
-    void operator()(StatementShowSig const &stm) const { static_cast<void>(stm); }
-
-    void operator()(StatementProject const &stm) const {
+    void accept(StatementProject const &stm) const {
         if (!is_identifier(stm.term)) {
             visit(stm.term);
         }
         visit(stm.body);
     }
 
-    void operator()(StatementProjectSig const &stm) const { static_cast<void>(stm); }
-
-    void operator()(StatementDefined const &stm) const { static_cast<void>(stm); }
-
-    void operator()(StatementExternal const &stm) const {
+    void accept(StatementExternal const &stm) const {
         if (!is_identifier(stm.term)) {
             visit(stm.term);
         }
         visit(stm.body, stm.type);
     }
 
-    void operator()(StatementEdge::Edge const &edge) const { visit(edge.u, edge.v); }
-
-    void operator()(StatementEdge const &stm) const { visit(stm.edges, stm.body); }
-
-    void operator()(StatementHeuristic const &stm) const {
+    void accept(StatementHeuristic const &stm) const {
         if (!is_identifier(stm.atom)) {
             visit(stm.atom);
         }
         visit(stm.body, stm.type, stm.prio, stm.mod);
     }
-
-    void operator()(StatementScript const &stm) const { static_cast<void>(stm); }
-
-    void operator()(StatementInclude const &stm) const { static_cast<void>(stm); }
-
-    void operator()(StatementProgram const &stm) const { static_cast<void>(stm); }
-
-    void operator()(StatementConst const &stm) const { static_cast<void>(stm); }
-
-    void operator()(Comment const &stm) const { static_cast<void>(stm); }
 
     StringSet &ids;
 };
