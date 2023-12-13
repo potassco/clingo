@@ -79,4 +79,19 @@ TEST_CASE("unpool_relations_body") {
             "[h :- #sum { 1,X: 1<=X, X<=Y, 1>A; 1,X: 1<=X, X<=Y, A>B } >= 2.]");
 }
 
+TEST_CASE("unpool_relations_stms") {
+    REQUIRE(unpool_statement(":~ 1<=X<=Y; not 1<=A<=B. [1@2,3]") ==
+            "[ :~ 1<=X; X<=Y; 1>A. [1@2,3]  :~ 1<=X; X<=Y; A>B. [1@2,3]]");
+    REQUIRE(unpool_statement("#show X: 1<=X<=Y; not 1<=A<=B.") ==
+            "[#show X: 1<=X; X<=Y; 1>A. #show X: 1<=X; X<=Y; A>B.]");
+    REQUIRE(unpool_statement("#project p(X): 1<=X<=Y; not 1<=A<=B.") ==
+            "[#project p(X): 1<=X; X<=Y; 1>A. #project p(X): 1<=X; X<=Y; A>B.]");
+    REQUIRE(unpool_statement("#external p(X): 1<=X<=Y; not 1<=A<=B.") ==
+            "[#external p(X): 1<=X; X<=Y; 1>A. #external p(X): 1<=X; X<=Y; A>B.]");
+    REQUIRE(unpool_statement("#edge (X,Y): 1<=X<=Y; not 1<=A<=B.") ==
+            "[#edge (X,Y): 1<=X; X<=Y; 1>A. #edge (X,Y): 1<=X; X<=Y; A>B.]");
+    REQUIRE(unpool_statement("#heuristic p(X): 1<=X<=Y; not 1<=A<=B. [1@2,3]") ==
+            "[#heuristic p(X): 1<=X; X<=Y; 1>A. [1@2,3] #heuristic p(X): 1<=X; X<=Y; A>B. [1@2,3]]");
+}
+
 } // namespace Gringo::Input::Test

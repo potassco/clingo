@@ -16,11 +16,9 @@ struct NegateLiteral {
         return LiteralBoolean{lit.loc, lit.sign, !lit.value};
     }
     auto operator()(LiteralRelation const &lit) const -> Literal {
-        if (lit.rhs.size() == 1) {
-            auto const &[rel, rhs] = lit.rhs.front();
-            return LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::make_vec<Guard>(Guard{complement(rel), rhs})};
-        }
-        return LiteralRelation{lit.loc, lit.sign + Sign::once, lit.lhs, lit.rhs};
+        assert(lit.rhs.size() == 1);
+        auto const &[rel, rhs] = lit.rhs.front();
+        return LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::make_vec<Guard>(Guard{complement(rel), rhs})};
     }
     auto operator()(LiteralSymbolic const &lit) const -> Literal {
         return LiteralSymbolic{lit.loc, lit.sign + Sign::once, lit.term};
@@ -128,6 +126,19 @@ auto rewrite_statement(std::optional<StatementVec> res, F &&fun, Args &&...args)
     return res;
 }
 
+template <class F, class U, class... Args>
+auto rewrite_with_body(F &&build, U &&unpool, BodyLiteralVec const &body) -> std::optional<StatementVec> {
+    auto rewrite = [&](auto const &body, bool not_null) -> std::optional<Statement> {
+        if (auto res_body = rewrite_body(body); res_body || not_null) {
+            return build(*std::move(res_body));
+        }
+        return std::nullopt;
+    };
+    return rewrite_statement(
+        unpool_crossproducts([&](auto body) -> Statement { return *rewrite(std::move(body), true); }, unpool, body),
+        rewrite, body, false);
+}
+
 struct UnpoolRelations {
 
     // protect ourselves -> no unintended overloads
@@ -148,7 +159,6 @@ struct UnpoolRelations {
     }
 
     auto operator()(LiteralRelation const &lit, bool conjunctive) const -> std::optional<LiteralVec> {
-        // TODO: the literal still has to be simplified
         if (lit.rhs.size() > 1 && conjunctive == (lit.sign != Sign::once)) {
             auto const *lhs = &lit.lhs;
             LiteralVec res;
@@ -429,82 +439,88 @@ struct UnpoolRelations {
 
     auto operator()(TheoryDefinition const &stm) const -> std::optional<StatementVec> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        return std::nullopt;
     }
 
     auto operator()(StatementOptimize const &stm) const -> std::optional<StatementVec> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        throw std::runtime_error("unpool must be called before unpooling relations");
     }
 
     auto operator()(StatementWeakConstraint const &stm) const -> std::optional<StatementVec> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        auto build = [&stm](auto body) -> Statement {
+            return StatementWeakConstraint{stm.loc, std::move(body), stm.tuple};
+        };
+        return rewrite_with_body(build, *this, stm.body);
     }
 
     auto operator()(StatementShow const &stm) const -> std::optional<StatementVec> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        auto build = [&stm](auto body) -> Statement { return StatementShow{stm.loc, stm.term, std::move(body)}; };
+        return rewrite_with_body(build, *this, stm.body);
     }
 
     auto operator()(StatementShowSig const &stm) const -> std::optional<StatementVec> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        return std::nullopt;
     }
 
     auto operator()(StatementProject const &stm) const -> std::optional<StatementVec> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        auto build = [&stm](auto body) -> Statement { return StatementProject{stm.loc, stm.term, std::move(body)}; };
+        return rewrite_with_body(build, *this, stm.body);
     }
 
     auto operator()(StatementProjectSig const &stm) const -> std::optional<StatementVec> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        return std::nullopt;
     }
 
     auto operator()(StatementDefined const &stm) const -> std::optional<StatementVec> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        return std::nullopt;
     }
 
     auto operator()(StatementExternal const &stm) const -> std::optional<StatementVec> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        auto build = [&stm](auto body) -> Statement {
+            return StatementExternal{stm.loc, stm.term, std::move(body), stm.type};
+        };
+        return rewrite_with_body(build, *this, stm.body);
     }
 
     auto operator()(StatementEdge const &stm) const -> std::optional<StatementVec> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        auto build = [&stm](auto body) -> Statement { return StatementEdge{stm.loc, stm.edges, std::move(body)}; };
+        return rewrite_with_body(build, *this, stm.body);
     }
 
     auto operator()(StatementHeuristic const &stm) const -> std::optional<StatementVec> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        auto build = [&stm](auto body) -> Statement {
+            return StatementHeuristic{stm.loc, stm.atom, std::move(body), stm.type, stm.prio, stm.mod};
+        };
+        return rewrite_with_body(build, *this, stm.body);
     }
 
     auto operator()(StatementScript const &stm) const -> std::optional<StatementVec> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        return std::nullopt;
     }
 
     auto operator()(StatementInclude const &stm) const -> std::optional<StatementVec> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        return std::nullopt;
     }
 
     auto operator()(StatementProgram const &stm) const -> std::optional<StatementVec> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        return std::nullopt;
     }
 
     auto operator()(StatementConst const &stm) const -> std::optional<StatementVec> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        return std::nullopt;
     }
 
     auto operator()(Comment const &stm) const -> std::optional<StatementVec> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        return std::nullopt;
     }
 
     RewriteContext const &ctx;
@@ -518,35 +534,6 @@ struct UnpoolRelations {
 }
 
 [[nodiscard]] auto unpool_relations(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteralVec> {
-    // 0 < x < 9 :- B.
-    // corresponds to:
-    // 0 < x :- B.
-    // x < 9 :- B.
-    // corresponds to:
-    // :- B, not 0 < x.
-    // :- B, not x < 9.
-    // corresponds to:
-    // :- B, 0 >= x.
-    // :- B, x >= 9.
-    //
-    // not 0 < x < 9 :- B.
-    // corresponds to:
-    // not 0 < x | not x < 9 :- B.
-    // corresponds to:
-    // :- B, 0 < x, x < 9.
-    //
-    // 0 < x < 9: C :- B.
-    // corresponds to:
-    // 0 < x: C :- B.
-    // x < 9: C :- B.
-    // looks like it is not possible to do more
-    //
-    // not 0 < x < 9: C :- B.
-    // corresponds to:
-    // (not 0 < x | not x < 9): C :- B.
-    // corresponds to:
-    // (0 >= x | x >= 9): C :- B.
-    // looks like it is not possible to do more
     return UnpoolRelations{ctx}(lit);
 }
 
