@@ -18,7 +18,7 @@ whole process as in gringo atm
 2. unpool (done)
 3. init theory (todo)
 4. simplify (done)
-6. unpool comparison (todo)
+6. unpool comparison (done)
    the comparison
      not 1+a < 5 < 10
    is equivalent to
@@ -29,7 +29,7 @@ whole process as in gringo atm
   1. aggregates (done)
   2. arithmetics (done)
   4. comparisons to intervals (todo)
-  5. assignment aggregates (todo)
+  5. assignment aggregates (todo; let's see)
 */
 
 void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, Statement const &stm,
