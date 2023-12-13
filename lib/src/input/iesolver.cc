@@ -5,17 +5,17 @@
 namespace Gringo::Input {
 
 struct IETerm {
-    int coefficient{0};
+    Number coefficient;
     String variable;
 };
 using IETermVec = std::vector<IETerm>;
 
-void addIETerm(IETermVec &terms, IETerm const &term);
-void subIETerm(IETermVec &terms, IETerm const &term);
+void add_term(IETermVec &terms, IETerm const &term);
+void sub_term(IETermVec &terms, IETerm const &term);
 
 struct IE {
     IETermVec terms;
-    int bound;
+    Number bound;
 };
 using IEVec = std::vector<IE>;
 
@@ -23,20 +23,18 @@ class IEBound {
   public:
     enum Type { Lower, Upper };
 
-    [[nodiscard]] auto isSet(Type type) const -> bool;
-    [[nodiscard]] auto get(Type type) const -> int;
-    void set(Type type, int bound);
-    auto refine(Type type, int bound) -> bool;
+    [[nodiscard]] auto has_value(Type type) const -> bool;
+    [[nodiscard]] auto value(Type type) const -> Number const &;
+    void set_value(Type type, Number bound);
+    auto refine(Type type, Number const &bound) -> bool;
     auto refine(IEBound const &bound) -> bool;
-    [[nodiscard]] auto isBounded() const -> bool;
-    [[nodiscard]] auto isImproving(IEBound const &other) const -> bool;
+    [[nodiscard]] auto is_bounded() const -> bool;
+    [[nodiscard]] auto is_improving(IEBound const &other) const -> bool;
     friend auto operator<(IEBound const &a, IEBound const &b) -> bool;
 
   private:
-    int lower_{0};
-    int upper_{0};
-    bool hasLower_{false};
-    bool hasUpper_{false};
+    std::optional<Number> lower_{0};
+    std::optional<Number> upper_{0};
 };
 
 using IEBoundMap = Util::ordered_map<String, IEBound>;
@@ -45,56 +43,48 @@ class IESolver;
 
 class IEContext {
   public:
-    IEContext() = default;
-    IEContext(IEContext const &other) = default;
-    IEContext(IEContext &&other) noexcept = default;
-    auto operator=(IEContext const &other) -> IEContext & = default;
-    auto operator=(IEContext &&other) noexcept -> IEContext & = default;
     virtual ~IEContext() noexcept = default;
 
-    virtual void gatherIEs(IESolver &solver) const = 0;
-    virtual void addIEBound(String const &var, IEBound const &bound) = 0;
+    virtual void gather(IESolver &solver) const = 0;
+    virtual void add_bound(String const &var, IEBound const &bound) = 0;
 };
 
 class IESolver {
   public:
     IESolver(IEContext &ctx, IESolver *parent = nullptr) : parent_{parent}, ctx_{ctx} {}
-    void add(IE ie, bool ignoreIfFixed);
+    void add(IE ie, bool ignore_if_fixed);
     void add(IEContext &context);
-    [[nodiscard]] auto isImproving(String var, IEBound const &bound) const -> bool;
+    [[nodiscard]] auto is_improving(String var, IEBound const &bound) const -> bool;
     void compute();
 
   private:
-    enum class UpdateResult { changed, unchanged, overflow };
     using SubSolvers = std::forward_list<IESolver>;
-    auto update_bound_(IETerm const &term, int64_t slack, int num_unbounded) -> UpdateResult;
-    auto update_slack_(IETerm const &term, int64_t &slack, int &num_unbounded) -> bool;
+    auto update_bound_(IETerm const &term, Number slack, size_t num_unbounded) -> bool;
+    auto update_slack_(IETerm const &term, Number &slack) -> bool;
 
     IESolver *parent_;
     IEContext &ctx_;
-    SubSolvers subSolvers_;
+    SubSolvers sub_solvers_;
     IEBoundMap bounds_;
     IEBoundMap fixed_;
     IEVec ies_;
 };
 
-auto IEBound::isSet(Type type) const -> bool { return type == Lower ? hasLower_ : hasUpper_; }
+auto IEBound::has_value(Type type) const -> bool { return type == Lower ? lower_.has_value() : upper_.has_value(); }
 
-auto IEBound::get(Type type) const -> int { return type == Lower ? lower_ : upper_; }
+auto IEBound::value(Type type) const -> Number const & { return type == Lower ? *lower_ : *upper_; }
 
-void IEBound::set(Type type, int bound) {
+void IEBound::set_value(Type type, Number bound) {
     if (type == Lower) {
-        hasLower_ = true;
-        lower_ = bound;
+        lower_ = std::move(bound);
     } else {
-        hasUpper_ = true;
-        upper_ = bound;
+        upper_ = std::move(bound);
     }
 }
 
-auto IEBound::refine(Type type, int bound) -> bool {
-    if (!isSet(type)) {
-        set(type, bound);
+auto IEBound::refine(Type type, Number const &bound) -> bool {
+    if (!has_value(type)) {
+        set_value(type, bound);
         return true;
     }
     if (type == Lower && bound > lower_) {
@@ -110,30 +100,30 @@ auto IEBound::refine(Type type, int bound) -> bool {
 
 auto IEBound::refine(IEBound const &bound) -> bool {
     bool ret = false;
-    if (bound.isSet(Lower)) {
-        ret = refine(Lower, bound.get(Lower)) || ret;
+    if (bound.has_value(Lower)) {
+        ret = refine(Lower, bound.value(Lower)) || ret;
     }
-    if (bound.isSet(Upper)) {
-        ret = refine(Upper, bound.get(Upper)) || ret;
+    if (bound.has_value(Upper)) {
+        ret = refine(Upper, bound.value(Upper)) || ret;
     }
     return ret;
 }
 
-auto IEBound::isBounded() const -> bool { return hasLower_ && hasUpper_; }
+auto IEBound::is_bounded() const -> bool { return lower_ && upper_; }
 
-auto IEBound::isImproving(IEBound const &other) const -> bool {
-    if (!other.isBounded() || !isBounded()) {
+auto IEBound::is_improving(IEBound const &other) const -> bool {
+    if (!other.is_bounded() || !is_bounded()) {
         return false;
     }
     return other.lower_ < lower_ || upper_ < other.upper_;
 }
 
-auto IESolver::isImproving(String var, IEBound const &bound) const -> bool {
+auto IESolver::is_improving(String var, IEBound const &bound) const -> bool {
     auto it = fixed_.find(var);
     if (it == fixed_.end()) {
-        return bound.isBounded();
+        return bound.is_bounded();
     }
-    return bound.isImproving(it->second);
+    return bound.is_improving(it->second);
 }
 
 namespace {
@@ -154,7 +144,7 @@ template <class It, class Merge> auto merge_adjancent(It first, It last, Merge m
 
 } // namespace
 
-void IESolver::add(IE ie, bool ignoreIfFixed) {
+void IESolver::add(IE ie, bool ignore_if_fixed) {
     auto &terms = ie.terms;
 
     // remove terms not associated with a variable
@@ -180,7 +170,7 @@ void IESolver::add(IE ie, bool ignoreIfFixed) {
                 terms.end());
     ies_.emplace_back(std::move(ie));
 
-    if (ies_.back().terms.size() == 1 && ignoreIfFixed) {
+    if (ies_.back().terms.size() == 1 && ignore_if_fixed) {
         auto term = ies_.back().terms.back();
         if (term.coefficient == 1) {
             fixed_[term.variable].refine(IEBound::Lower, ies_.back().bound);
@@ -239,7 +229,7 @@ void IESolver::compute() {
 #endif
     // initialize bound computation and incorporate bounds from parent
     bounds_.clear();
-    ctx_.gatherIEs(*this);
+    ctx_.gather(*this);
     if (parent_ != nullptr) {
         for (const auto &bound : parent_->bounds_) {
             fixed_[bound.first].refine(bound.second);
@@ -252,20 +242,19 @@ void IESolver::compute() {
     while (changed) {
         changed = false;
         for (auto const &ie : ies_) {
-            int64_t slack = ie.bound;
-            int num_unbounded = 0;
+            Number slack = ie.bound;
+            size_t num_unbounded = 0;
             for (auto const &term : ie.terms) {
-                // In case the slack cannot be updated due to an overflow, no bounds are calculated.
-                if (!update_slack_(term, slack, num_unbounded)) {
-                    return;
+                if (!update_slack_(term, slack)) {
+                    ++num_unbounded;
                 }
             }
             if (num_unbounded == 0 && slack > 0) {
                 // we simply set all bounds to empty intervals
                 for (auto const &ie : ies_) {
                     for (auto const &term : ie.terms) {
-                        bounds_[term.variable].set(IEBound::Lower, 1);
-                        bounds_[term.variable].set(IEBound::Upper, 0);
+                        bounds_[term.variable].set_value(IEBound::Lower, 1);
+                        bounds_[term.variable].set_value(IEBound::Upper, 0);
                     }
                 }
                 changed = false;
@@ -273,17 +262,13 @@ void IESolver::compute() {
             }
             if (num_unbounded <= 1) {
                 for (auto const &term : ie.terms) {
-                    auto res = update_bound_(term, slack, num_unbounded);
-                    if (res == UpdateResult::changed) {
+                    if (update_bound_(term, slack, num_unbounded)) {
 #ifdef CLINGO_DEBUG_INEQUALITIES
                         std::cerr << "  update bound using " << ie << std::endl;
                         std::cerr << "    the new bound for " << *term.variable << " is " << bounds_[term.variable]
                                   << std::endl;
 #endif
                         changed = true;
-                    }
-                    if (res == UpdateResult::overflow) {
-                        return;
                     }
                 }
             }
@@ -292,132 +277,46 @@ void IESolver::compute() {
 
     // add computed bounds and then compute bounds for nested scopes
     for (auto const &bound : bounds_) {
-        if (isImproving(bound.first, bound.second)) {
-            ctx_.addIEBound(bound.first, bound.second);
+        if (is_improving(bound.first, bound.second)) {
+            ctx_.add_bound(bound.first, bound.second);
         }
     }
-    for (auto &solver : subSolvers_) {
+    for (auto &solver : sub_solvers_) {
         solver.compute();
     }
 }
 
-void IESolver::add(IEContext &context) { subSolvers_.emplace_front(context, this); }
+void IESolver::add(IEContext &context) { sub_solvers_.emplace_front(context, this); }
 
-namespace {
-
-template <typename I> auto floordiv(I n, I m) -> I {
-    using std::div;
-    auto a = div(n, m);
-    if (((n < 0) ^ (m < 0)) && a.rem != 0) {
-        a.quot--;
-    }
-    return a.quot;
-}
-
-template <typename I> auto ceildiv(I n, I m) -> I {
-    using std::div;
-    auto a = div(n, m);
-    if (((n < 0) ^ (m < 0)) && a.rem != 0) {
-        a.quot++;
-    }
-    return a.quot;
-}
-
-template <typename I> auto div(bool positive, I a, I b) -> I { return positive ? floordiv(a, b) : ceildiv(a, b); }
-
-auto clamp_div(bool positive, int64_t a, int64_t b) -> int {
-    if (a == std::numeric_limits<int64_t>::min() && b == -1) {
-        return std::numeric_limits<int>::max();
-    }
-    auto c = div<int64_t>(positive, a, b);
-    if (c > std::numeric_limits<int>::max()) {
-        return std::numeric_limits<int>::max();
-    }
-    if (c < std::numeric_limits<int>::min()) {
-        return std::numeric_limits<int>::min();
-    }
-    return static_cast<int>(c);
-}
-
-template <class T, class S> inline auto check_cast(S in, T &out) -> bool {
-    if (sizeof(T) < sizeof(S) && (in < std::numeric_limits<T>::min() || in > std::numeric_limits<T>::max())) {
-        return false;
-    }
-    out = static_cast<T>(in);
-    return true;
-}
-
-template <class S> inline auto check_add(S a, S b, S &c) -> bool {
-    using U = std::make_unsigned_t<S>;
-    c = static_cast<S>(static_cast<U>(a) + static_cast<U>(b));
-    return (a < 0 || b < 0 || c >= a) && (a >= 0 || b >= 0 || c <= a);
-}
-
-template <class S> inline auto check_sub(S a, S b, S &c) -> bool {
-    using U = std::make_unsigned_t<S>;
-    c = static_cast<S>(static_cast<U>(a) - static_cast<U>(b));
-    return (a < 0 || b >= 0 || c >= a) && (b < 0 || c <= a);
-}
-
-template <class S> inline auto check_mul(S a, S b, S &c) -> bool {
-#ifdef __GNUC__
-    return !__builtin_mul_overflow(a, b, &c);
-#else
-    if (a > 0 && b > 0 && a > std::numeric_limits<S>::max() / b) {
-        return false;
-    }
-    if (a < 0 && b < 0 && b < std::numeric_limits<S>::max() / a) {
-        return false;
-    }
-    if (a > 0 && b < 0 && b < std::numeric_limits<S>::min() / a) {
-        return false;
-    }
-    if (a < 0 && b > 0 && a < std::numeric_limits<S>::min() / b) {
-        return false;
-    }
-    c = a * b;
-    return true;
-#endif
-}
-
-} // namespace
-
-auto IESolver::update_bound_(IETerm const &term, int64_t slack, int num_unbounded) -> IESolver::UpdateResult {
+auto IESolver::update_bound_(IETerm const &term, Number slack, size_t num_unbounded) -> bool {
     bool positive = term.coefficient > 0;
     auto type = positive ? IEBound::Upper : IEBound::Lower;
     if (num_unbounded == 0) {
-        int64_t val = 0;
-        if (!check_mul<int64_t>(term.coefficient, bounds_[term.variable].get(type), val)) {
-            return UpdateResult::overflow;
-        }
-        if (!check_add(slack, val, slack)) {
-            return UpdateResult::overflow;
-        }
-    } else if (num_unbounded > 1 || bounds_[term.variable].isSet(type)) {
-        return UpdateResult::unchanged;
+        slack += term.coefficient * bounds_[term.variable].value(type);
+    } else if (num_unbounded > 1 || bounds_[term.variable].has_value(type)) {
+        return false;
     }
 
-    auto value = clamp_div(positive, slack, term.coefficient);
-    if (bounds_[term.variable].refine(positive ? IEBound::Lower : IEBound::Upper, value)) {
-        return UpdateResult::changed;
+    if (positive) {
+        // floordiv
+        slack /= term.coefficient;
+    } else {
+        // ceildiv
+        slack *= -1;
+        slack /= term.coefficient;
+        slack *= -1;
     }
-    return UpdateResult::unchanged;
+    return bounds_[term.variable].refine(positive ? IEBound::Lower : IEBound::Upper, std::move(slack));
 }
 
-auto IESolver::update_slack_(IETerm const &term, int64_t &slack, int &num_unbounded) -> bool {
+auto IESolver::update_slack_(IETerm const &term, Number &slack) -> bool {
     auto type = term.coefficient > 0 ? IEBound::Upper : IEBound::Lower;
-    if (bounds_[term.variable].isSet(type)) {
-        int64_t val = 0;
-        if (!check_mul<int64_t>(term.coefficient, bounds_[term.variable].get(type), val)) {
-            return false;
-        }
-        if (!check_sub(slack, val, slack)) {
-            return false;
-        }
-    } else {
-        ++num_unbounded;
+    if (bounds_[term.variable].has_value(type)) {
+        slack *= -1;
+        slack += term.coefficient * bounds_[term.variable].value(type);
+        return true;
     }
-    return true;
+    return false;
 }
 
 } // namespace Gringo::Input
