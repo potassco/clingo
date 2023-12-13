@@ -14,11 +14,11 @@ namespace Gringo::Input {
 
 namespace Detail {
 
-template <class T, class U, class V = void> struct has_accept : std::false_type {};
+template <class T, class U, class V = void> struct visitor_has_accept : std::false_type {};
 
 template <class T, class U>
-struct has_accept<T, U, std::void_t<decltype(std::declval<T const *>()->accept(std::declval<U>()))>> : std::true_type {
-};
+struct visitor_has_accept<T, U, std::void_t<decltype(std::declval<T const *>()->accept(std::declval<U>()))>>
+    : std::true_type {};
 
 } // namespace Detail
 
@@ -31,7 +31,7 @@ template <class T> class Visitor {
   public:
     //! Recursively visit the given type.
     template <class U> void visit(U const &x) const {
-        if constexpr (Detail::has_accept<T, U>::value) {
+        if constexpr (Detail::visitor_has_accept<T, U>::value) {
             static_cast<T const *>(this)->accept(x);
         } else {
             accept_(x);

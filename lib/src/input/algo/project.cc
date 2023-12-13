@@ -37,92 +37,53 @@ struct Project : Transformer<Project> {
 
     // protect ourselves -> no unintended overloads
 
-    template <class T> auto operator()(T const &x) const -> std::optional<T> = delete;
-
-    // ignore
-
-    auto operator()(String const &x) const -> std::optional<String> {
-        static_cast<void>(x);
-        return std::nullopt;
-    }
-
-    template <class T> auto operator()(T const &x) const -> std::enable_if_t<std::is_enum_v<T>, std::optional<T>> {
-        static_cast<void>(x);
-        return std::nullopt;
-    }
+    template <class T> [[nodiscard]] auto accept(T const &x) const -> std::optional<T> = delete;
 
     // term
 
-    auto operator()(Term const &term) const -> std::optional<Term> { return std::visit(*this, term); }
-
-    auto operator()(Projection const &x) const -> std::optional<Term> {
-        static_cast<void>(x);
-        return std::nullopt;
-    }
-
-    auto operator()(TupleElem const &elem) const -> std::optional<TupleElem> {
+    [[nodiscard]] auto accept(TupleElem const &elem) const -> std::optional<TupleElem> {
         if (auto const *term = std::get_if<Term>(&elem); projectable(project, term)) {
             return {Projection{location(*term)}};
         }
-        // Note: a tiny bit lazy. Because projections always map to nullopt, we
-        // can safely convert the resulting optional term back into a tuple
-        // elem.
-        return std::visit(*this, elem);
+        return std::visit(
+            [this](auto const &x) -> std::optional<TupleElem> {
+                return Util::transform(transform(x), [](auto &&y) -> TupleElem { return {GRINGO_FWD(y)}; });
+            },
+            elem);
     };
 
-    auto operator()(TermVariable const &term) const -> std::optional<Term> {
-        static_cast<void>(term);
-        return std::nullopt;
-    }
-
-    auto operator()(TermSymbol const &term) const -> std::optional<Term> {
-        static_cast<void>(term);
-        return std::nullopt;
-    }
-
-    auto operator()(TermTuple const &term) const -> std::optional<Term> {
-        return transform_construct<TermTuple>(term.loc, tr(term.pool));
-    }
-
-    auto operator()(TermFunction const &term) const -> std::optional<Term> {
+    [[nodiscard]] auto accept(TermFunction const &term) const -> std::optional<Term> {
         if (term.external) {
             return std::nullopt;
         }
         return transform_construct<TermFunction>(term.loc, term.name, tr(term.pool), term.external);
     }
 
-    auto operator()(TermAbs const &term) const -> std::optional<Term> {
+    [[nodiscard]] static auto accept(TermAbs const &term) -> std::optional<Term> {
         static_cast<void>(term);
         return std::nullopt;
     }
 
-    auto operator()(TermUnary const &term) const -> std::optional<Term> {
+    [[nodiscard]] auto accept(TermUnary const &term) const -> std::optional<Term> {
         if (check_type(term, TermCheckType::atom, nullptr)) {
             return transform_construct<TermUnary>(term.loc, term.op, tr(term.rhs));
         }
         return std::nullopt;
     }
 
-    auto operator()(TermBinary const &term) const -> std::optional<Term> {
+    [[nodiscard]] static auto accept(TermBinary const &term) -> std::optional<Term> {
         static_cast<void>(term);
         return std::nullopt;
     }
 
     // literal
 
-    auto operator()(Literal const &lit) const -> std::optional<Literal> { return std::visit(*this, lit); }
-
-    auto operator()(LiteralRelation const &lit) const -> std::optional<Literal> {
+    [[nodiscard]] static auto accept(LiteralRelation const &lit) -> std::optional<Literal> {
         static_cast<void>(lit);
         return std::nullopt;
     }
 
-    auto operator()(LiteralBoolean const &lit) const -> std::optional<Literal> {
-        static_cast<void>(lit);
-        return std::nullopt;
-    }
-
-    auto operator()(LiteralSymbolic const &lit) const -> std::optional<Literal> {
+    [[nodiscard]] auto accept(LiteralSymbolic const &lit) const -> std::optional<Literal> {
         if (lit.sign == Sign::none) {
             return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
         }
@@ -131,7 +92,7 @@ struct Project : Transformer<Project> {
 
     // conditional literal
 
-    auto operator()(ConditionalLiteral const &elem) const -> std::optional<ConditionalLiteral> {
+    [[nodiscard]] auto accept(ConditionalLiteral const &elem) const -> std::optional<ConditionalLiteral> {
         bool project_cond = in_classical_scope || std::all_of(elem.lits.begin(), elem.lits.end(),
                                                               [](auto const &lit) { return !is_atom(lit); });
         // project conclusion
@@ -159,7 +120,7 @@ struct Project : Transformer<Project> {
     }
 
     template <bool Conjunctive>
-    auto operator()(Junction<Conjunctive> const &lit) const
+    [[nodiscard]] auto accept(Junction<Conjunctive> const &lit) const
         -> std::optional<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
         // Projection in disjunctions:
         // - variables in premise (almost body literals)
@@ -172,7 +133,7 @@ struct Project : Transformer<Project> {
 
     // aggregate
 
-    auto operator()(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
+    [[nodiscard]] auto accept(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
         // add counts of local variables
         auto counts = get_counts(project, elem);
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
@@ -183,19 +144,17 @@ struct Project : Transformer<Project> {
 
     // head literal
 
-    auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
-
-    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteral> {
+    [[nodiscard]] static auto accept(SimpleHeadLiteral const &lit) -> std::optional<HeadLiteral> {
         static_cast<void>(lit);
         return std::nullopt;
     }
 
-    auto operator()(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
+    [[nodiscard]] static auto accept(HeadTheoryAtom const &lit) -> std::optional<HeadLiteral> {
         static_cast<void>(lit);
         return std::nullopt;
     }
 
-    auto operator()(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
+    [[nodiscard]] auto accept(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
         // counts of local variables
         auto counts = get_counts(project, elem);
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
@@ -204,11 +163,11 @@ struct Project : Transformer<Project> {
         return sub_project.transform_construct<HeadAggregate::Element>(elem.loc, elem.tuple, elem.lit, tr(elem.cond));
     }
 
-    auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
+    [[nodiscard]] auto accept(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
         return transform_construct<HeadAggregate>(lit.loc, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
     }
 
-    auto operator()(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
+    [[nodiscard]] auto accept(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
         // Note that we can always project in conditions. Semantic-wise a head
         // aggregate is a shortcut for a choice rule + a body aggregate in an
         // integrity constraint.
@@ -217,11 +176,7 @@ struct Project : Transformer<Project> {
 
     // body literal
 
-    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteral> { return std::visit(*this, lit); }
-
-    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteral> { return operator()(lit.lit); }
-
-    auto operator()(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
+    [[nodiscard]] auto accept(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
         // counts of local variables
         auto counts = get_counts(project, elem);
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
@@ -230,14 +185,14 @@ struct Project : Transformer<Project> {
         return sub_project.transform_construct<BodyAggregate::Element>(elem.loc, elem.tuple, tr(elem.cond));
     }
 
-    auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
+    [[nodiscard]] auto accept(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
         if (lit.sign != Sign::none || in_classical_scope || !reduct_is_nonmonotone(lit.lhs, lit.fun, lit.rhs)) {
             return transform_construct<BodyAggregate>(lit.loc, lit.sign, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
         }
         return std::nullopt;
     }
 
-    auto operator()(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
+    [[nodiscard]] auto accept(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
         if (lit.sign == Sign::none && !in_classical_scope &&
             reduct_is_nonmonotone(lit.lhs, AggregateFunction::count, lit.rhs)) {
             return std::nullopt;
@@ -245,16 +200,14 @@ struct Project : Transformer<Project> {
         return transform_construct<BodySetAggregate>(lit.loc, lit.sign, lit.lhs, tr(lit.elems), lit.rhs);
     }
 
-    auto operator()(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
+    [[nodiscard]] static auto accept(BodyTheoryAtom const &lit) -> std::optional<BodyLiteral> {
         static_cast<void>(lit);
         return std::nullopt;
     }
 
     // statement
 
-    auto operator()(Statement const &stm) const -> std::optional<Statement> { return std::visit(*this, stm); }
-
-    auto operator()(Rule const &stm) const -> std::optional<Statement> {
+    [[nodiscard]] auto accept(Rule const &stm) const -> std::optional<Statement> {
         // do not project projection-like rules
         if (is_atom(stm.head)) {
             auto has_atom = std::any_of(stm.body.begin(), stm.body.end(), [](auto const &lit) { return is_atom(lit); });
@@ -273,83 +226,35 @@ struct Project : Transformer<Project> {
         return sub_project.transform_construct<Rule>(stm.loc, tr(stm.head), tr(stm.body));
     }
 
-    auto operator()(TheoryDefinition const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementOptimize::Element const &elem) const -> std::optional<StatementOptimize::Element> {
+    [[nodiscard]] auto accept(StatementOptimize::Element const &elem) const
+        -> std::optional<StatementOptimize::Element> {
         auto counts = get_counts(project, elem);
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
         return sub_project.transform_construct<StatementOptimize::Element>(elem.first, tr(elem.second));
     }
 
-    auto operator()(StatementOptimize const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementOptimize>(stm.loc, stm.type, tr(stm.elems));
-    }
-
-    auto operator()(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
+    [[nodiscard]] auto accept(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
         return transform_construct<StatementWeakConstraint>(stm.loc, tr(stm.body), stm.tuple);
     }
 
-    auto operator()(StatementShow const &stm) const -> std::optional<Statement> {
+    [[nodiscard]] auto accept(StatementShow const &stm) const -> std::optional<Statement> {
         return transform_construct<StatementShow>(stm.loc, stm.term, tr(stm.body));
     }
 
-    auto operator()(StatementShowSig const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementProject const &stm) const -> std::optional<Statement> {
+    [[nodiscard]] auto accept(StatementProject const &stm) const -> std::optional<Statement> {
         return transform_construct<StatementProject>(stm.loc, stm.term, tr(stm.body));
     }
 
-    auto operator()(StatementProjectSig const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementDefined const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementExternal const &stm) const -> std::optional<Statement> {
+    [[nodiscard]] auto accept(StatementExternal const &stm) const -> std::optional<Statement> {
         return transform_construct<StatementExternal>(stm.loc, stm.term, tr(stm.body), stm.type);
     }
 
-    auto operator()(StatementEdge const &stm) const -> std::optional<Statement> {
+    [[nodiscard]] auto accept(StatementEdge const &stm) const -> std::optional<Statement> {
         return transform_construct<StatementEdge>(stm.loc, stm.edges, tr(stm.body));
     }
 
-    auto operator()(StatementHeuristic const &stm) const -> std::optional<Statement> {
+    [[nodiscard]] auto accept(StatementHeuristic const &stm) const -> std::optional<Statement> {
         return transform_construct<StatementHeuristic>(stm.loc, stm.atom, tr(stm.body), stm.type, stm.prio, stm.mod);
-    }
-
-    auto operator()(StatementScript const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementInclude const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementProgram const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StatementConst const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(Comment const &stm) const -> std::optional<Statement> {
-        static_cast<void>(stm);
-        return std::nullopt;
     }
 
     ProjectionMap project;
@@ -374,16 +279,20 @@ auto ProjectionMap::counts() const -> Util::unordered_map<String, size_t> const 
 
 auto ProjectionMap::mode() const -> ProjectionMode { return mode_; }
 
-auto project(Term const &term, ProjectionMap project) -> std::optional<Term> { return Project{project}(term); }
+auto project(Term const &term, ProjectionMap project) -> std::optional<Term> {
+    return Project{project}.transform(term);
+}
 
-auto project(Literal const &lit, ProjectionMap project) -> std::optional<Literal> { return Project{project}(lit); }
+auto project(Literal const &lit, ProjectionMap project) -> std::optional<Literal> {
+    return Project{project}.transform(lit);
+}
 
 auto project(HeadLiteral const &lit, ProjectionMap project) -> std::optional<HeadLiteral> {
-    return Project{project}(lit);
+    return Project{project}.transform(lit);
 }
 
 auto project(BodyLiteral const &lit, ProjectionMap project, bool in_classical_scope) -> std::optional<BodyLiteral> {
-    return Project{project, in_classical_scope}(lit);
+    return Project{project, in_classical_scope}.transform(lit);
 }
 
 auto project(Statement const &stm, ProjectionMode mode, bool project_anonymous) -> std::optional<Statement> {
@@ -402,7 +311,7 @@ auto project(Statement const &stm, ProjectionMode mode, bool project_anonymous) 
             },
             VariableContext::all);
 
-        res = Project{ProjectionMap{mode, counts}}(stm);
+        res = Project{ProjectionMap{mode, counts}}.transform(stm);
     }
     if (project_anonymous) {
         if (res.has_value()) {
