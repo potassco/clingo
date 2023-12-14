@@ -88,7 +88,6 @@ class mp_int_ptr {
 }
 
 [[nodiscard]] auto mp_int_floordiv(mp_int a, mp_int b, mp_int c) -> mp_result {
-    // TODO: it should be posible to avoid the remainder inspecting the signs
     auto zb = mp_int_compare_zero(b);
     if (zb == 0) {
         return MP_RANGE;
