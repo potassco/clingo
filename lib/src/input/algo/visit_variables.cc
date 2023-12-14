@@ -6,6 +6,16 @@ namespace Gringo::Input {
 
 namespace {
 
+struct CollectVariables : Visitor<CollectVariables> {
+    CollectVariables(VariableSet &vars) : vars{vars} {}
+    ~CollectVariables() { vars.clear(); }
+
+    template <class T> void accept(T const &x) const = delete;
+    void accept(TermVariable const &term) const { vars.emplace(term.name); }
+
+    VariableSet &vars;
+};
+
 struct VisitVariables : Visitor<VisitVariables> {
     VisitVariables(VarVisitFun fun, VariableContext ctx = VariableContext::all) : fun{std::move(fun)}, ctx{ctx} {}
 
@@ -15,7 +25,11 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // terms
 
-    void accept(TermVariable const &term) const { fun(term.loc, term.name); }
+    void accept(TermVariable const &term) const {
+        if (!blocked.contains(term.name)) {
+            fun(term.loc, term.name);
+        }
+    }
 
     // theory terms
 
@@ -25,9 +39,12 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     void accept(ConditionalLiteral const &cond_lit) const {
         if (ctx == VariableContext::all) {
-            visit(cond_lit.cond);
+            visit(cond_lit.cond, cond_lit.lits);
+        } else {
+            CollectVariables cv{blocked};
+            cv.visit(cond_lit.cond);
+            visit(cond_lit.lits);
         }
-        visit(cond_lit.lits);
     }
 
     // aggregate
@@ -80,6 +97,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     VarVisitFun fun;
     VariableContext ctx;
+    mutable VariableSet blocked;
 };
 
 } // namespace

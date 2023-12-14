@@ -202,8 +202,8 @@ TEST_CASE("unpool_statement") {
     REQUIRE(unpool_statement("#const x=(1).") == "[#const x=1. [default]]");
 
     // local <-> global
-    REQUIRE(unpool_statement(":- p(X): q(X;Y).") == "[ :- p(X): q(X); p(X): q(Y).]");
-    REQUIRE_THROWS(unpool_statement(":- p(X;Y): q(X)."));
+    REQUIRE(unpool_statement(":- p(X;Y): q(X).") == "[ :- p(X): q(X).  :- p(Y): q(X).]");
+    REQUIRE_THROWS(unpool_statement(":- p(X): q(X;Y)."));
     REQUIRE_THROWS(unpool_statement(":- p(X;Y): q(X;Y)."));
     REQUIRE_THROWS(unpool_statement(":- p(X): q(Y); r(X;Y)."));
 }
