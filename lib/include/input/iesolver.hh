@@ -8,6 +8,8 @@ namespace Gringo::Input {
 struct IETerm {
     //! Operator to print terms.
     friend auto operator<<(std::ostream &out, IETerm const &term) -> std::ostream &;
+    //! Less than compare to terms.
+    friend auto operator<(IETerm const &a, IETerm const &b) -> bool;
 
     //! The integer coefficient of the term.
     Number coefficient;
@@ -40,6 +42,11 @@ class IEInterval {
   public:
     //! Enum to indicate the lower and upper bound of the interval.
     enum Type { Lower, Upper };
+    //! Create an unbounded interval.
+    IEInterval() = default;
+    //! Create an interval with the given bounds.
+    IEInterval(std::optional<Number> lower, std::optional<Number> upper)
+        : lower_{std::move(lower)}, upper_{std::move(upper)} {}
 
     //! Whether the given bound has a value.
     [[nodiscard]] auto has_value(Type type) const -> bool;
@@ -61,6 +68,10 @@ class IEInterval {
 
     //! Operator to print intervals.
     friend auto operator<<(std::ostream &out, IE const &ie) -> std::ostream &;
+    //! Equality compare two terms.
+    friend auto operator==(IEInterval const &a, IEInterval const &b) -> bool;
+    //! Inequality compare two terms.
+    friend auto operator!=(IEInterval const &a, IEInterval const &b) -> bool;
 
   private:
     //! The lower bound of the interval.
@@ -88,7 +99,8 @@ class IESolver {
     //! for variables X, constants u and t, and relations R among <, <=, =, >, >=
     //! should be subject to refinement given the computed bounds.
     void add(IE ie);
-    auto compute(Logger &log) -> bool;
+    [[nodiscard]] auto compute(Logger &log) -> bool;
+    [[nodiscard]] auto domain() const -> IEDomain const & { return domain_; }
 
   private:
     //! Update the bound of the given term's variable.

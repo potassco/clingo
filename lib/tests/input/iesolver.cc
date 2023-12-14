@@ -6,16 +6,44 @@ namespace Gringo::Input::Test {
 
 namespace {}
 
+// NOLINTBEGIN(readability-magic-numbers)
+
 TEST_CASE("iesolver") {
     auto log = Logger{};
     log.set_level(LogLevel::trace);
     auto &store = default_store();
+    auto x = store.string("x");
+    auto y = store.string("y");
     auto solver = IESolver{};
-    auto a = IE{{{Number{3}, store.string("x")}}, Number{5}};
-    auto b = IE{{{Number{-5}, store.string("x")}}, Number{-17}};
-    solver.add(std::move(a));
-    solver.add(std::move(b));
-    solver.compute(log);
+
+    SECTION("sat") {
+        solver.add(IE{{{{3}, x}}, {5}});
+        solver.add(IE{{{{-5}, x}}, {-17}});
+        REQUIRE(solver.compute(log));
+        REQUIRE(solver.domain().size() == 1);
+        REQUIRE(solver.domain().front() == std::make_pair(x, IEInterval{Number{2}, Number{3}}));
+    }
+    SECTION("unsat") {
+        auto solver = IESolver{};
+        solver.add(IE{{{{3}, x}}, {5}});
+        solver.add(IE{{{{-5}, x}}, {-9}});
+        REQUIRE(!solver.compute(log));
+        REQUIRE(solver.domain().empty());
+    }
+    SECTION("complex") {
+        auto solver = IESolver{};
+        solver.add(IE{{{{1}, x}}, {0}});
+        solver.add(IE{{{{1}, x}, {{1}, y}}, {6}});
+        solver.add(IE{{{{-1}, x}, {{-1}, y}}, {-6}});
+        solver.add(IE{{{{-3}, x}, {{1}, y}}, {2}});
+        solver.add(IE{{{{3}, x}, {{-1}, y}}, {-2}});
+        REQUIRE(solver.compute(log));
+        REQUIRE(solver.domain().size() == 2);
+        REQUIRE(solver.domain().at(x) == IEInterval{Number{1}, Number{1}});
+        REQUIRE(solver.domain().at(y) == IEInterval{Number{5}, Number{5}});
+    }
 };
+
+// NOLINTEND(readability-magic-numbers)
 
 } // namespace Gringo::Input::Test
