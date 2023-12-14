@@ -91,6 +91,8 @@ class Logger {
     //!
     //! Note that errors cannot be disabled and are always reported.
     void enable(MessageCode code, bool enable);
+    //! Check if the given message code is enabled.
+    [[nodiscard]] auto enabled(MessageCode code) const -> bool;
     //! Unconditonally output a message with a given code.
     void print(MessageCode code, char const *msg);
     //! Unconditonally output a message with a given code.
@@ -171,6 +173,16 @@ inline auto Logger::check(MessageCode code) -> bool {
     }
     // ignore the message due to limit
     return false;
+}
+
+inline auto Logger::enabled(MessageCode code) const -> bool {
+    if (code >= MessageCode::error) {
+        return true;
+    }
+    if (code < static_cast<MessageCode>(level_) || disabled_[static_cast<int>(code)]) {
+        return false;
+    }
+    return code < MessageCode::info || cur_limit_ > 0;
 }
 
 inline auto Logger::has_error() const -> bool { return error_; }

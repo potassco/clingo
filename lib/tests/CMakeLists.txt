@@ -8,6 +8,7 @@ add_executable(tests
     "input/unpool.cc"
     "input/unpool_relations.cc"
     "input/evaluate.cc"
+    "input/iesolver.cc"
     "input/program.cc"
     "input/project.cc"
     "input/project_anonymous.cc")

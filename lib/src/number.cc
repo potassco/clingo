@@ -88,6 +88,7 @@ class mp_int_ptr {
 }
 
 [[nodiscard]] auto mp_int_floordiv(mp_int a, mp_int b, mp_int c) -> mp_result {
+    // TODO: it should be posible to avoid the remainder inspecting the signs
     auto zb = mp_int_compare_zero(b);
     if (zb == 0) {
         return MP_RANGE;
@@ -251,6 +252,8 @@ class mp_int_ptr {
 }
 
 // NOLINTBEGIN(modernize-avoid-c-arrays,readability-magic-numbers)
+
+// TODO: make a pull request and implement this directly on the representation of the number
 
 auto to_binary(mp_int z, int len, int limit) -> std::unique_ptr<unsigned char[]> {
     auto msb = limit - len;
