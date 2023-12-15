@@ -1,6 +1,7 @@
 #pragma once
 
 #include <util/enum.hh>
+#include <util/optional.hh>
 
 #include <input/program.hh>
 
@@ -38,15 +39,10 @@ enum class TruthValue {
 };
 
 //! The result of a simplification.
-//!
-//! The result consists of a state resulting from simplification
-//! together with an optional value in case the expression was changed.
-template <class T, class S = TruthValue> struct SimplifyResult {
-    //! A truth value or state.
-    S state = S{};
-    //! An optional rewritten expression.
-    std::optional<T> value = std::nullopt;
-};
+template <class E> using SimplifyResult = Util::ResultState<E, TruthValue>;
+
+//! The result of a simplification.
+using SimplifyTermResult = Util::ResultState<Term, bool>;
 
 //! Simplifies the given term.
 //!
@@ -56,8 +52,7 @@ template <class T, class S = TruthValue> struct SimplifyResult {
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
 //!
 //! All but flags but the head flag apply to terms.
-[[nodiscard]] auto simplify(SimplifyTermFlags flags, RewriteContext &ctx, Term const &term)
-    -> SimplifyResult<Term, bool>;
+[[nodiscard]] auto simplify(SimplifyTermFlags flags, RewriteContext &ctx, Term const &term) -> SimplifyTermResult;
 
 //! Simplifies the given literal.
 //!

@@ -2,6 +2,7 @@ add_library(parsertest
     "src/input/algo/add_sign.cc"
     "src/input/algo/analyze.cc"
     "src/input/algo/check_syntax.cc"
+    "src/input/algo/compute_bounds.cc"
     "src/input/algo/evaluate.cc"
     "src/input/algo/parse.cc"
     "src/input/algo/print.cc"

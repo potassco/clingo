@@ -114,6 +114,17 @@ auto transform_vec(std::optional<std::vector<T>> &&vec, F const &f) -> Detail::t
     });
 }
 
+//! The result of a simplification.
+//!
+//! The result consists of a state resulting from simplification
+//! together with an optional value in case the expression has changed.
+template <class E, class S = bool> struct ResultState {
+    //! A truth value or state.
+    S state = S{};
+    //! An optional rewritten expression.
+    std::optional<E> value = std::nullopt;
+};
+
 //! Helper to update a vector of elements.
 //!
 //! @todo: this is rather generic and a candidate for Util.

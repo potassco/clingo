@@ -50,7 +50,7 @@ template <class T> void extend(Util::ResultVec<T> &res, AuxTermVec &aux, bool co
 }
 
 //! Simplify a term vector.
-[[nodiscard]] auto simplify_termvec(RewriteContext &ctx, TermVec const &terms) -> SimplifyResult<TermVec, bool> {
+[[nodiscard]] auto simplify_termvec(RewriteContext &ctx, TermVec const &terms) -> Util::ResultState<TermVec> {
     auto state_terms = true;
     auto res_terms = Util::ResultVec{terms};
     for (auto const &term : terms) {
@@ -1207,7 +1207,7 @@ template <bool Conjunctive>
 
 //! Simplify the left guard of an aggregate.
 [[nodiscard]] auto simplify_guard(RewriteContext &ctx, LGuard const &guard, bool matchable)
-    -> SimplifyResult<LGuard::value_type, bool> {
+    -> Util::ResultState<LGuard::value_type> {
     if (guard.has_value()) {
         auto [state, res] =
             simplify(matchable ? SimplifyTermFlags::matchable : SimplifyTermFlags::none, ctx, guard->first);
@@ -1220,7 +1220,7 @@ template <bool Conjunctive>
 
 //! Simplify the right guard of an aggregate.
 [[nodiscard]] auto simplify_guard(RewriteContext &ctx, RGuard const &guard, bool matchable)
-    -> SimplifyResult<RGuard::value_type, bool> {
+    -> Util::ResultState<RGuard::value_type> {
     if (guard.has_value()) {
         auto [state, res] =
             simplify(matchable ? SimplifyTermFlags::matchable : SimplifyTermFlags::none, ctx, guard->second);
@@ -1722,8 +1722,8 @@ struct SimplifyStatement {
 
     auto operator()(StatementWeakConstraint const &stm) const -> SimplifyResult<Statement> {
         auto [state_weight, res_weight] = simplify(SimplifyTermFlags::none, ctx, stm.tuple.weight);
-        auto [state_prio, res_prio] = stm.tuple.priority ? simplify(SimplifyTermFlags::none, ctx, *stm.tuple.priority)
-                                                         : SimplifyResult<Term, bool>{true};
+        auto [state_prio, res_prio] =
+            stm.tuple.priority ? simplify(SimplifyTermFlags::none, ctx, *stm.tuple.priority) : SimplifyTermResult{true};
         auto [state_terms, res_terms] = simplify_termvec(ctx, stm.tuple.terms);
         auto [state_body, res_body] = simplify_body(ctx, stm.body);
 
@@ -1792,7 +1792,7 @@ struct SimplifyStatement {
     auto operator()(StatementExternal const &stm) const -> SimplifyResult<Statement> {
         auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term);
         auto [state_type, res_type] =
-            stm.type ? simplify(SimplifyTermFlags::matchable, ctx, *stm.type) : SimplifyResult<Term, bool>{true};
+            stm.type ? simplify(SimplifyTermFlags::matchable, ctx, *stm.type) : SimplifyTermResult{true};
         auto [state_body, res_body] = simplify_body(ctx, stm.body);
         if (!state_term || !state_type || state_body == TruthValue::bot) {
             return {TruthValue::top, Rule{stm.loc, make_constant(location(stm.term), true), {}}};
@@ -1834,7 +1834,7 @@ struct SimplifyStatement {
         auto [state_mod, res_mod] = simplify(SimplifyTermFlags::none, ctx, stm.mod);
         auto [state_type, res_type] = simplify(SimplifyTermFlags::none, ctx, stm.type);
         auto [state_prio, res_prio] =
-            stm.prio ? simplify(SimplifyTermFlags::none, ctx, *stm.prio) : SimplifyResult<Term, bool>{true};
+            stm.prio ? simplify(SimplifyTermFlags::none, ctx, *stm.prio) : SimplifyTermResult{true};
         auto [state_body, res_body] = simplify_body(ctx, stm.body);
 
         if (!state_atom || !state_mod || !state_type || !state_prio || state_body == TruthValue::bot) {
@@ -1884,9 +1884,8 @@ struct SimplifyStatement {
 
 } // namespace
 
-[[nodiscard]] auto simplify(SimplifyTermFlags flags, RewriteContext &ctx, Term const &term)
-    -> SimplifyResult<Term, bool> {
-    auto make_matchable = [&](auto &&target, bool self = true) -> SimplifyResult<Term, bool> {
+[[nodiscard]] auto simplify(SimplifyTermFlags flags, RewriteContext &ctx, Term const &term) -> SimplifyTermResult {
+    auto make_matchable = [&](auto &&target, bool self = true) -> SimplifyTermResult {
         if (test(flags, SimplifyTermFlags::matchable)) {
             if (auto ret = MakeMatchableTerm{ctx}(target, flags); ret.has_value()) {
                 return {true, std::move(ret).value()};
@@ -1898,7 +1897,7 @@ struct SimplifyStatement {
         return {true};
     };
     return std::visit(
-        [&](auto &&res) -> SimplifyResult<Term, bool> {
+        [&](auto &&res) -> SimplifyTermResult {
             GRINGO_MATCH(res, TermResultFail) { return {false}; }
             GRINGO_MATCH(res, TermResultUnchanged) { return make_matchable(term, false); }
             GRINGO_MATCH(res, TermResultSymbol) {
