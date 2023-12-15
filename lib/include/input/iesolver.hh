@@ -20,9 +20,11 @@ struct IETerm {
 using IETermVec = std::vector<IETerm>;
 
 //! Add a term to a sum of terms.
-void add_term(IETermVec &terms, IETerm const &term);
-//! Subtract a term from a sum of terms.
-void sub_term(IETermVec &terms, IETerm const &term);
+void add_term(IETermVec &terms, IETerm term);
+//! Simplify the given sum of terms.
+//!
+//! Returns the sum constants and removes them from the sum.
+auto simplify(IETermVec &terms) -> Number;
 
 //! An inequality of form terms >= bound.
 struct IE {

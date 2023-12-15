@@ -1,3 +1,4 @@
+#include <input/algo/compute_bounds.hh>
 #include <input/iesolver.hh>
 
 #include "input/test.hh"
@@ -43,6 +44,18 @@ TEST_CASE("iesolver") {
         REQUIRE(solver.domain().at(y) == IEInterval{Number{5}, Number{5}});
     }
 };
+
+TEST_CASE("compute_bounds") {
+    // TODO: move into separate file
+    ParseHelper ph;
+    ph.logger() = Logger{};
+    ph.logger().set_level(LogLevel::debug);
+    ConstMap const_map;
+    ParamMap param_map;
+    RewriteContext ctx{ph, ph, param_map, const_map, {}, "__A_"};
+
+    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=1; X<= 5.")).state);
+}
 
 // NOLINTEND(readability-magic-numbers)
 

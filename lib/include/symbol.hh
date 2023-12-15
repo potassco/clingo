@@ -36,6 +36,8 @@ class String {
     [[nodiscard]] auto view() const -> std::string_view;
     //! Test if the string is empty.
     [[nodiscard]] auto empty() const -> bool;
+    //! Test if the string is null.
+    [[nodiscard]] auto null() const -> bool;
     //! Get the length of the string.
     [[nodiscard]] auto size() const -> size_t;
     //! Check if the string starts with the given string.

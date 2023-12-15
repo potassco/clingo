@@ -48,6 +48,9 @@ class Number {
     //! Convert the number into a string.
     [[nodiscard]] auto as_string() const -> std::string;
 
+    //! Swap two numbers.
+    void swap(Number &other);
+
     // comparison
 
     //! Compare to numbers returning a comparator.

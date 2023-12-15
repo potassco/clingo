@@ -587,6 +587,8 @@ Number::~Number() noexcept {
     return ret;
 }
 
+void Number::swap(Number &other) { std::swap(repr_, other.repr_); }
+
 auto compare(Number const &a, Number const &b) -> int { return Number::Impl::cmp(a, b); }
 
 auto operator==(Number const &a, int32_t b) -> bool { return Number::Impl::cmp(a, b) == 0; }

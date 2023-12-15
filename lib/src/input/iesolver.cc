@@ -23,11 +23,39 @@ template <class It, class Merge> auto merge_adjancent(It first, It last, Merge m
 
 } // namespace
 
+void add_term(IETermVec &terms, IETerm term) { terms.emplace_back(std::move(term)); }
+
+auto simplify(IETermVec &terms) -> Number {
+    auto bound = Number{0};
+    // remove terms not associated with a variable
+    auto last = std::partition(terms.begin(), terms.end(),
+                               [](auto &term) { return !term.variable.null() && term.coefficient != 0; });
+    for (auto end = terms.end(), current = last; current != end; ++current) {
+        bound += current->coefficient;
+    }
+    terms.erase(last, terms.end());
+
+    // sort according to variables
+    std::sort(terms.begin(), terms.end());
+
+    // combine adjacent terms referring to the same variable
+    terms.erase(merge_adjancent(terms.begin(), terms.end(),
+                                [](auto &a, auto &b) {
+                                    if (a.variable == b.variable) {
+                                        a.coefficient += b.coefficient;
+                                        return true;
+                                    }
+                                    return false;
+                                }),
+                terms.end());
+    return bound;
+}
+
 auto operator<<(std::ostream &out, IETerm const &term) -> std::ostream & {
-    if (term.coefficient != 1 || term.variable.empty()) {
+    if (term.coefficient != 1 || term.variable.null()) {
         out << term.coefficient;
     }
-    if (term.coefficient != 0 && !term.variable.empty()) {
+    if (term.coefficient != 0 && !term.variable.null()) {
         out << "*" << term.variable;
     }
     return out;
@@ -123,7 +151,7 @@ void IESolver::add(IE ie) {
 
     // remove terms not associated with a variable
     auto last = std::partition(terms.begin(), terms.end(),
-                               [](auto &term) { return !term.variable.empty() && term.coefficient != 0; });
+                               [](auto &term) { return !term.variable.null() && term.coefficient != 0; });
     for (auto end = terms.end(), current = last; current != end; ++current) {
         ie.bound -= current->coefficient;
     }

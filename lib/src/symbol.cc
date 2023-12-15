@@ -486,7 +486,9 @@ auto String::view() const -> std::string_view { return {c_str(), size()}; }
 
 auto String::empty() const -> bool { return *c_str() == '\0'; }
 
-auto String::size() const -> size_t { return alloc_size(reinterpret_cast<void *>(rep_)) - 1; }
+auto String::null() const -> bool { return rep_ == 0; }
+
+auto String::size() const -> size_t { return rep_ != 0 ? alloc_size(reinterpret_cast<void *>(rep_)) - 1 : 0; }
 
 auto String::starts_with(std::string_view prefix) const -> bool { return view().starts_with(prefix); }
 
