@@ -176,6 +176,67 @@ struct ExtractBounds {
     IESolver &slv;
 };
 
+struct ApplyBounds {
+    void operator()(Literal const &lit) const { std::visit(*this, lit); }
+
+    void operator()(auto const &lit) const { static_cast<void>(lit); }
+
+    void operator()(LiteralRelation const &lit) const {
+        assert(lit.sign == Sign::none);
+        auto const &rhs = lit.rhs.front();
+        if (is_variable(lit.lhs) && is_interval(rhs.second)) {
+            auto const &u = *std::get<TermBinary>(rhs.second).lhs;
+            auto const &t = *std::get<TermBinary>(rhs.second).rhs;
+            static_cast<void>(t);
+            static_cast<void>(u);
+            throw std::logic_error("implement me!!!");
+            // if is const u and u < dom[var].lower:
+            //   u = dom[var].lower
+            // if is const t and t >= dom[var].upper:
+            //   t = dom[var].upper
+            // mark interval as covered if both const
+            // if t == u:
+            //   replace rhs by t
+            //   (maybe add 0 if not const)
+            return;
+        }
+        // handle linear terms
+        //   X >= Y -> X - Y >=  0
+        //   X >  Y -> X - Y >= -1
+        //   X <= Y -> Y - X >=  0
+        //   X <  Y -> Y - X >=  1
+        //   X =  Y -> X - Y >=  0
+        //             Y - X >=  0
+        //   X != Y -> cannot handle
+        switch (rhs.first) {
+            case Relation::greater: {
+                // if is var lhs and is const rhs
+                //   mark bound as covered
+                //   drop if covered
+                //   adjust or keep, otherwise
+                break;
+            }
+            case Relation::greater_equal: {
+                break;
+            }
+            case Relation::less: {
+                break;
+            }
+            case Relation::less_equal: {
+                break;
+            }
+            case Relation::equal: {
+                break;
+            }
+            case Relation::inequal: {
+                break;
+            }
+        }
+    }
+
+    IEDomain const &dom;
+};
+
 struct ComputeBounds {
 
     auto operator()(Statement const &stm) const -> Util::ResultState<Statement> { return std::visit(*this, stm); }
@@ -201,6 +262,11 @@ struct ComputeBounds {
         std::cerr << "Refine bounds:" << std::endl;
         for (auto const &bound : slv.domain()) {
             std::cerr << "  " << bound.first << ": " << bound.second << std::endl;
+        }
+        for (auto const &lit : stm.body) {
+            if (auto const *slit = std::get_if<SimpleBodyLiteral>(&lit); slit != nullptr) {
+                ApplyBounds{dom}(slit->lit);
+            }
         }
         // TODO: add pool/and refine bounds
         throw std::logic_error("implement me!!!");
