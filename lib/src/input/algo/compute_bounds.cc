@@ -200,6 +200,52 @@ struct ApplyBounds {
             //   (maybe add 0 if not const)
             return;
         }
+        auto update_bound = [this](auto &lhs, Relation rel, auto &rhs) {
+            auto const *var = std::get_if<TermVariable>(&lhs);
+            auto const *sym = std::get_if<TermSymbol>(&rhs);
+            if (var == nullptr || sym == nullptr || sym->value.type() != SymbolType::number) {
+                return false;
+            }
+            auto it = dom.find(var->name);
+            if (it == dom.end()) {
+                return false;
+            }
+            auto const &num = *sym->value.num();
+            switch (rel) {
+                case Relation::greater: {
+                    // var >= num
+                    if (!it->second.has_value(IEInterval::Lower)) {
+                        return false;
+                    }
+                    // drop if already covered!!!
+                    // TODO
+                    // mark as covered
+                    // TODO
+                    // update if changed
+                    if (it->second.value(IEInterval::Lower) < num) {
+                        // the interval changed
+                        return true;
+                    }
+                    break;
+                }
+                case Relation::greater_equal: {
+                    break;
+                }
+                case Relation::less: {
+                    break;
+                }
+                case Relation::less_equal: {
+                    break;
+                }
+                case Relation::equal: {
+                    break;
+                }
+                case Relation::inequal: {
+                    break;
+                }
+            }
+            return false;
+        };
         // handle linear terms
         //   X >= Y -> X - Y >=  0
         //   X >  Y -> X - Y >= -1
@@ -208,30 +254,8 @@ struct ApplyBounds {
         //   X =  Y -> X - Y >=  0
         //             Y - X >=  0
         //   X != Y -> cannot handle
-        switch (rhs.first) {
-            case Relation::greater: {
-                // if is var lhs and is const rhs
-                //   mark bound as covered
-                //   drop if covered
-                //   adjust or keep, otherwise
-                break;
-            }
-            case Relation::greater_equal: {
-                break;
-            }
-            case Relation::less: {
-                break;
-            }
-            case Relation::less_equal: {
-                break;
-            }
-            case Relation::equal: {
-                break;
-            }
-            case Relation::inequal: {
-                break;
-            }
-        }
+        update_bound(lit.lhs, rhs.first, rhs.second);
+        update_bound(rhs.second, flip(rhs.first), lit.lhs);
     }
 
     IEDomain const &dom;
