@@ -69,7 +69,7 @@ class IEInterval {
     auto refine(IEInterval const &bound) -> bool;
 
     //! Operator to print intervals.
-    friend auto operator<<(std::ostream &out, IE const &ie) -> std::ostream &;
+    friend auto operator<<(std::ostream &out, IEInterval const &bound) -> std::ostream &;
     //! Equality compare two terms.
     friend auto operator==(IEInterval const &a, IEInterval const &b) -> bool;
     //! Inequality compare two terms.

@@ -3,6 +3,9 @@
 
 #include <input/iesolver.hh>
 
+// TODO: remove
+#include <iostream>
+
 namespace Gringo::Input {
 
 namespace {
@@ -111,19 +114,31 @@ struct ExtractBounds {
     void operator()(auto const &lit) const { static_cast<void>(lit); }
 
     void operator()(LiteralRelation const &lit) const {
+        assert(lit.sign == Sign::none);
         auto const &rhs = lit.rhs.front();
-        // handle intervals
-        if (is_variable(lit.lhs) && is_interval(rhs.second)) {
-            throw std::logic_error("implement me!!!");
-        }
-        // X >= Y -> X - Y >=  0
-        // X >  Y -> X - Y >= -1
-        // X <= Y -> Y - X >=  0
-        // X <  Y -> Y - X >=  1
-        // X =  Y -> X - Y >=  0
-        //           Y - X >=  0
-        // X != Y -> cannot handle
         int bound = 0;
+        // handle intervals
+        //   X = u..t -> X - u >= 0
+        //               t - X >= 0
+        if (is_variable(lit.lhs) && is_interval(rhs.second)) {
+            auto const &u = *std::get<TermBinary>(rhs.second).lhs;
+            auto const &t = *std::get<TermBinary>(rhs.second).rhs;
+            if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs) && ExtractTerms{terms, false}(u)) {
+                slv.add(IE{std::move(terms), bound});
+            }
+            if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs) && ExtractTerms{terms, true}(t)) {
+                slv.add(IE{std::move(terms), bound});
+            }
+            return;
+        }
+        // handle linear terms
+        //   X >= Y -> X - Y >=  0
+        //   X >  Y -> X - Y >= -1
+        //   X <= Y -> Y - X >=  0
+        //   X <  Y -> Y - X >=  1
+        //   X =  Y -> X - Y >=  0
+        //             Y - X >=  0
+        //   X != Y -> cannot handle
         switch (rhs.first) {
             case Relation::greater: {
                 bound = -1;
@@ -179,9 +194,16 @@ struct ComputeBounds {
         if (!slv.compute(ctx.logger())) {
             return {false};
         }
+        auto const &dom = slv.domain();
+        if (dom.empty()) {
+            return {true};
+        }
+        std::cerr << "Refine bounds:" << std::endl;
+        for (auto const &bound : slv.domain()) {
+            std::cerr << "  " << bound.first << ": " << bound.second << std::endl;
+        }
         // TODO: add pool/and refine bounds
         throw std::logic_error("implement me!!!");
-        return {true};
     }
 
     RewriteContext &ctx;
