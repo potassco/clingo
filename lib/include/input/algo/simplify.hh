@@ -31,12 +31,7 @@ enum class SimplifyLiteralFlags : unsigned {
 
 GRINGO_ENUM_FLAGS(SimplifyLiteralFlags)
 
-//! Truth values for expressions.
-enum class TruthValue {
-    top,     //!< Indicate a true expression.
-    bot,     //!< Indicate a false expression.
-    unknown, //!< Indicate an expression with an unknown truth value.
-};
+using Util::TruthValue;
 
 //! The result of a simplification.
 template <class E> using SimplifyResult = Util::ResultState<E, TruthValue>;

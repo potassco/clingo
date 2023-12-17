@@ -8,6 +8,8 @@
 
 namespace Gringo::Input {
 
+using Util::TruthValue;
+
 namespace {
 
 struct ExtractTerms {
@@ -207,15 +209,18 @@ struct ApplyBounds {
             //   (maybe add 0 if not const)
             return;
         }
-        auto update_bound = [this](auto &lhs, Relation rel, auto &rhs) {
+        // Result=true  => keep
+        // Result=false => drop
+        // has value    => replace
+        auto update_bound = [this, &lit](auto &lhs, Relation rel, auto &rhs) -> Util::ResultState<Literal> {
             auto const *var = std::get_if<TermVariable>(&lhs);
             auto const *sym = std::get_if<TermSymbol>(&rhs);
             if (var == nullptr || sym == nullptr || sym->value.type() != SymbolType::number) {
-                return false;
+                return {true};
             }
             auto it = dom.find(var->name);
             if (it == dom.end()) {
-                return false;
+                return {true};
             }
             auto &state = states[std::distance(dom.begin(), it)];
             auto const &num = *sym->value.num();
@@ -224,18 +229,21 @@ struct ApplyBounds {
                     // drop if covered
                     if (state.lower == 1) {
                         // TODO: indicated removal
-                        return true;
+                        return {false};
                     }
                     // var >= num
                     if (!it->second.has_value(IEInterval::Lower)) {
-                        return false;
+                        return {true};
                     }
                     // mark as covered
                     state.lower = 1;
                     // update if changed
                     if (it->second.value(IEInterval::Lower) < num) {
-                        // TODO: indicated update
-                        return true;
+                        return {true,
+                                LiteralRelation{lit.loc, lit.sign, lhs,
+                                                Util::make_vec<Guard>(Guard{
+                                                    rel, TermSymbol{location(rhs),
+                                                                    store.num(it->second.value(IEInterval::Lower))}})}};
                     }
                     break;
                 }
@@ -255,7 +263,7 @@ struct ApplyBounds {
                     break;
                 }
             }
-            return false;
+            return {true};
         };
         // handle linear terms
         //   X >= Y -> X - Y >=  0
@@ -265,12 +273,14 @@ struct ApplyBounds {
         //   X =  Y -> X - Y >=  0
         //             Y - X >=  0
         //   X != Y -> cannot handle
+        // TODO: handle result
         update_bound(lit.lhs, rhs.first, rhs.second);
         update_bound(rhs.second, flip(rhs.first), lit.lhs);
     }
 
     IEDomain const &dom;
     BoundStateMap &states;
+    SymbolStore &store;
 };
 
 struct ComputeBounds {
@@ -304,7 +314,7 @@ struct ComputeBounds {
         states.reserve(dom.size());
         for (auto const &lit : stm.body) {
             if (auto const *slit = std::get_if<SimpleBodyLiteral>(&lit); slit != nullptr) {
-                ApplyBounds{dom, states}(slit->lit);
+                ApplyBounds{dom, states, ctx.store()}(slit->lit);
             }
         }
         // TODO: add pool/and refine bounds
