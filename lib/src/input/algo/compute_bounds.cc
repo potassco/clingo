@@ -176,6 +176,13 @@ struct ExtractBounds {
     IESolver &slv;
 };
 
+struct BoundState {
+    uint8_t lower : 1 = 0;
+    uint8_t upper : 1 = 0;
+    uint8_t both : 1 = 0;
+};
+using BoundStateMap = std::vector<BoundState>;
+
 struct ApplyBounds {
     void operator()(Literal const &lit) const { std::visit(*this, lit); }
 
@@ -210,20 +217,24 @@ struct ApplyBounds {
             if (it == dom.end()) {
                 return false;
             }
+            auto &state = states[std::distance(dom.begin(), it)];
             auto const &num = *sym->value.num();
             switch (rel) {
                 case Relation::greater: {
+                    // drop if covered
+                    if (state.lower == 1) {
+                        // TODO: indicated removal
+                        return true;
+                    }
                     // var >= num
                     if (!it->second.has_value(IEInterval::Lower)) {
                         return false;
                     }
-                    // drop if already covered!!!
-                    // TODO
                     // mark as covered
-                    // TODO
+                    state.lower = 1;
                     // update if changed
                     if (it->second.value(IEInterval::Lower) < num) {
-                        // the interval changed
+                        // TODO: indicated update
                         return true;
                     }
                     break;
@@ -259,6 +270,7 @@ struct ApplyBounds {
     }
 
     IEDomain const &dom;
+    BoundStateMap &states;
 };
 
 struct ComputeBounds {
@@ -287,9 +299,12 @@ struct ComputeBounds {
         for (auto const &bound : slv.domain()) {
             std::cerr << "  " << bound.first << ": " << bound.second << std::endl;
         }
+        BoundStateMap states;
+        states.resize(dom.size());
+        states.reserve(dom.size());
         for (auto const &lit : stm.body) {
             if (auto const *slit = std::get_if<SimpleBodyLiteral>(&lit); slit != nullptr) {
-                ApplyBounds{dom}(slit->lit);
+                ApplyBounds{dom, states}(slit->lit);
             }
         }
         // TODO: add pool/and refine bounds
