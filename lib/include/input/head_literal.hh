@@ -1,7 +1,5 @@
 #pragma once
 
-#include <tuple>
-
 #include <input/aggregate.hh>
 #include <input/literal.hh>
 #include <input/theory.hh>

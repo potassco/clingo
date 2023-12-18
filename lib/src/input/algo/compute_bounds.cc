@@ -4,6 +4,7 @@
 #include <input/iesolver.hh>
 
 // TODO: remove
+#include <input/algo/print.hh>
 #include <iostream>
 
 namespace Gringo::Input {
@@ -186,35 +187,76 @@ struct BoundState {
 using BoundStateMap = std::vector<BoundState>;
 
 struct ApplyBounds {
-    void operator()(Literal const &lit) const { std::visit(*this, lit); }
+    auto operator()(Literal const &lit) const -> Util::ResultState<Literal> { return std::visit(*this, lit); }
 
-    void operator()(auto const &lit) const { static_cast<void>(lit); }
+    auto operator()(auto const &lit) const -> Util::ResultState<Literal> {
+        static_cast<void>(lit);
+        return {true};
+    }
 
-    void operator()(LiteralRelation const &lit) const {
+    auto operator()(LiteralRelation const &lit) const -> Util::ResultState<Literal> {
         assert(lit.sign == Sign::none);
         auto const &rhs = lit.rhs.front();
+        auto make_symbol = [this](TermSymbol const &sym, auto &&bound) {
+            if (sym.value.num() == bound) {
+                return sym;
+            }
+            return TermSymbol{sym.loc, store.num(GRINGO_FWD(bound))};
+        };
+        auto make_relation = [this, &lit](auto const &lhs, Relation rel, Location loc, auto const &bound) {
+            return LiteralRelation{lit.loc, lit.sign, lhs,
+                                   Util::make_vec<Guard>(Guard{rel, TermSymbol{std::move(loc), store.num(bound)}})};
+        };
+        auto make_interval = [&lit](auto var, auto loc, auto u, auto v) -> Util::ResultState<Literal> {
+            if (u.value == v.value) {
+                return {true,
+                        LiteralRelation{lit.loc, lit.sign, var, Util::make_vec<Guard>(Guard{Relation::equal, u})}};
+            }
+            return {true, LiteralRelation{lit.loc, lit.sign, std::move(var),
+                                          Util::make_vec<Guard>(
+                                              Guard{Relation::equal, TermBinary{std::move(loc), std::move(u),
+                                                                                BinaryOperator::dots, std::move(v)}})}};
+        };
         if (is_variable(lit.lhs) && is_interval(rhs.second)) {
-            auto const &u = *std::get<TermBinary>(rhs.second).lhs;
-            auto const &t = *std::get<TermBinary>(rhs.second).rhs;
-            static_cast<void>(t);
-            static_cast<void>(u);
-            throw std::logic_error("implement me!!!");
-            // if is const u and u < dom[var].lower:
-            //   u = dom[var].lower
-            // if is const t and t >= dom[var].upper:
-            //   t = dom[var].upper
-            // mark interval as covered if both const
-            // if t == u:
-            //   replace rhs by t
-            //   (maybe add 0 if not const)
-            return;
+            auto const *var = std::get_if<TermVariable>(&lit.lhs);
+            auto it = dom.find(var->name);
+            if (it == dom.end()) {
+                return {true};
+            }
+            auto const *u = std::get_if<TermSymbol>(std::get<TermBinary>(rhs.second).lhs.get());
+            auto const *t = std::get_if<TermSymbol>(std::get<TermBinary>(rhs.second).rhs.get());
+            // Note: in theory the lower/upper bounds could be refined even if only one of them is a number
+            if (u == nullptr || t == nullptr || u->value.type() != SymbolType::number ||
+                t->value.type() != SymbolType::number) {
+                return {true};
+            }
+            auto &state = states[std::distance(dom.begin(), it)];
+            if (state.both == 1) {
+                return {false};
+            }
+            state.both = 1;
+            auto res_u = std::optional<TermSymbol>{};
+            if (*u->value.num() < it->second.value(IEInterval::Lower)) {
+                res_u = make_symbol(*u, it->second.value(IEInterval::Lower));
+            }
+            auto res_t = std::optional<TermSymbol>{};
+            if (*t->value.num() > it->second.value(IEInterval::Upper)) {
+                res_t = make_symbol(*t, it->second.value(IEInterval::Upper));
+            }
+            if (res_u || res_t) {
+                return make_interval(lit.lhs, location(rhs.second), std::move(res_u).value_or(*u),
+                                     std::move(res_t).value_or(*t));
+            }
+            return {true};
         }
         // Result=true  => keep
         // Result=false => drop
         // has value    => replace
-        auto update_bound = [this, &lit](auto &lhs, Relation rel, auto &rhs) -> Util::ResultState<Literal> {
+        auto update_bound = [this, &make_symbol, &make_relation,
+                             &make_interval](auto &lhs, Relation rel, auto &rhs) -> Util::ResultState<Literal> {
             auto const *var = std::get_if<TermVariable>(&lhs);
             auto const *sym = std::get_if<TermSymbol>(&rhs);
+            // Note: non-integer bounds could also be handled
             if (var == nullptr || sym == nullptr || sym->value.type() != SymbolType::number) {
                 return {true};
             }
@@ -225,38 +267,61 @@ struct ApplyBounds {
             auto &state = states[std::distance(dom.begin(), it)];
             auto const &num = *sym->value.num();
             switch (rel) {
-                case Relation::greater: {
+                case Relation::greater:
+                case Relation::greater_equal: {
                     // drop if covered
-                    if (state.lower == 1) {
-                        // TODO: indicated removal
+                    if (state.lower == 1 || state.both == 1) {
                         return {false};
                     }
                     // var >= num
                     if (!it->second.has_value(IEInterval::Lower)) {
                         return {true};
                     }
+                    auto bound = it->second.value(IEInterval::Lower);
+                    if (it->second.has_value(IEInterval::Upper)) {
+                        state.both = 1;
+                        return make_interval(*var, location(rhs),
+                                             make_symbol(*sym, it->second.value(IEInterval::Lower)),
+                                             make_symbol(*sym, it->second.value(IEInterval::Upper)));
+                    }
                     // mark as covered
                     state.lower = 1;
                     // update if changed
-                    if (it->second.value(IEInterval::Lower) < num) {
-                        return {true,
-                                LiteralRelation{lit.loc, lit.sign, lhs,
-                                                Util::make_vec<Guard>(Guard{
-                                                    rel, TermSymbol{location(rhs),
-                                                                    store.num(it->second.value(IEInterval::Lower))}})}};
+                    if (rel == Relation::greater_equal ? bound > num : bound >= num) {
+                        return {true, make_relation(lhs, Relation::greater_equal, location(rhs), bound)};
                     }
                     break;
                 }
-                case Relation::greater_equal: {
-                    break;
-                }
-                case Relation::less: {
-                    break;
-                }
+                case Relation::less:
                 case Relation::less_equal: {
+                    // drop if covered
+                    if (state.upper == 1 || state.both == 1) {
+                        return {false};
+                    }
+                    // var >= num
+                    if (!it->second.has_value(IEInterval::Upper)) {
+                        return {true};
+                    }
+                    // mark as covered
+                    auto bound = it->second.value(IEInterval::Upper);
+                    if (it->second.has_value(IEInterval::Lower)) {
+                        state.both = 1;
+                        return make_interval(*var, location(rhs),
+                                             make_symbol(*sym, it->second.value(IEInterval::Lower)),
+                                             make_symbol(*sym, it->second.value(IEInterval::Upper)));
+                    }
+                    state.upper = 1;
+                    // update if changed
+                    if (rel == Relation::less_equal ? bound < num : bound <= num) {
+                        return {true, make_relation(lhs, Relation::less_equal, location(rhs), bound)};
+                    }
                     break;
                 }
                 case Relation::equal: {
+                    if (state.both == 1) {
+                        return {false};
+                    }
+                    state.both = 1;
                     break;
                 }
                 case Relation::inequal: {
@@ -265,17 +330,10 @@ struct ApplyBounds {
             }
             return {true};
         };
-        // handle linear terms
-        //   X >= Y -> X - Y >=  0
-        //   X >  Y -> X - Y >= -1
-        //   X <= Y -> Y - X >=  0
-        //   X <  Y -> Y - X >=  1
-        //   X =  Y -> X - Y >=  0
-        //             Y - X >=  0
-        //   X != Y -> cannot handle
-        // TODO: handle result
-        update_bound(lit.lhs, rhs.first, rhs.second);
-        update_bound(rhs.second, flip(rhs.first), lit.lhs);
+        if (auto res = update_bound(lit.lhs, rhs.first, rhs.second); !res.state || res.value) {
+            return res;
+        }
+        return update_bound(rhs.second, flip(rhs.first), lit.lhs);
     }
 
     IEDomain const &dom;
@@ -289,7 +347,7 @@ struct ComputeBounds {
 
     auto operator()(auto const &stm) const -> Util::ResultState<Statement> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        throw std::logic_error("implement me: computer bounds other statements");
     }
     auto operator()(Rule const &stm) const -> Util::ResultState<Statement> {
         IESolver slv;
@@ -312,13 +370,24 @@ struct ComputeBounds {
         BoundStateMap states;
         states.resize(dom.size());
         states.reserve(dom.size());
+        auto res_body = Util::ResultVec{stm.body};
         for (auto const &lit : stm.body) {
             if (auto const *slit = std::get_if<SimpleBodyLiteral>(&lit); slit != nullptr) {
-                ApplyBounds{dom, states, ctx.store()}(slit->lit);
+                auto res = ApplyBounds{dom, states, ctx.store()}(slit->lit);
+                if (!res.state) {
+                    res_body.remove();
+                } else {
+                    res_body.update(std::move(res.value));
+                }
+            } else {
+                res_body.keep();
             }
         }
-        // TODO: add pool/and refine bounds
-        throw std::logic_error("implement me!!!");
+        if (res_body) {
+            std::cerr << Statement{Rule{stm.loc, stm.head, res_body.value()}} << std::endl;
+            return {true, Rule{stm.loc, stm.head, std::move(res_body).value()}};
+        }
+        return {true};
     }
 
     RewriteContext &ctx;
