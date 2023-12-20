@@ -23,9 +23,6 @@ struct SimpleBodyLiteral {
     Literal lit;
 };
 
-//! A conjunction of conditional literals.
-using Conjunction = Junction<true>;
-
 //! A body aggregate.
 //!
 //! For example: <tt>\#count { X: q(X) } = 1</tt>
@@ -68,7 +65,8 @@ using BodySetAggregate = SetAggregate<true>;
 using BodyTheoryAtom = TheoryAtom<true>;
 
 //! A body literal.
-using BodyLiteral = std::variant<SimpleBodyLiteral, Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;
+using BodyLiteral =
+    std::variant<SimpleBodyLiteral, ConditionalLiteral, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;
 //! A vector of body literals.
 using BodyLiteralVec = std::vector<BodyLiteral>;
 //! A vector of body literal vectors.

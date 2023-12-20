@@ -5,20 +5,35 @@ namespace Gringo::Input {
 namespace {
 
 struct AddSign {
-    template <class... T> void operator()(std::variant<T...> &lit) const { std::visit(*this, lit); }
+    auto operator()(Literal const &lit) const -> Literal { return std::visit(*this, lit); }
 
-    template <class T> void operator()(T &lit) const {
-        lit.sign += sign;
-        location(lit) += std::move(pos);
+    auto operator()(LiteralBoolean const &lit) const -> Literal {
+        return LiteralBoolean{lit.loc + pos, lit.sign + sign, lit.value};
+    }
+    auto operator()(LiteralRelation const &lit) const -> Literal {
+        return LiteralRelation{lit.loc + pos, lit.sign + sign, lit.lhs, lit.rhs};
+    }
+    auto operator()(LiteralSymbolic const &lit) const -> Literal {
+        return LiteralSymbolic{lit.loc + pos, lit.sign + sign, lit.term};
     }
 
-    void operator()(SimpleBodyLiteral &lit) const { operator()(lit.lit); }
+    auto operator()(BodyLiteral const &lit) const -> BodyLiteral { return std::visit(*this, lit); }
 
-    void operator()(Conjunction &lit) const {
-        if (lit.elems.size() != 1 || lit.elems.front().lits.size() != 1) {
-            throw std::logic_error("there must be exactly one element");
-        }
-        operator()(lit.elems.front().lits.front());
+    auto operator()(SimpleBodyLiteral const &lit) const -> BodyLiteral {
+        return SimpleBodyLiteral{operator()(lit.lit)};
+    }
+
+    auto operator()(ConditionalLiteral const &lit) const -> BodyLiteral {
+        return ConditionalLiteral{lit.loc + pos, operator()(lit.lit), lit.cond};
+    }
+    auto operator()(BodyAggregate const &lit) const -> BodyLiteral {
+        return BodyAggregate{lit.loc + pos, lit.sign + sign, lit.lhs, lit.fun, lit.elems, lit.rhs};
+    }
+    auto operator()(BodySetAggregate const &lit) const -> BodyLiteral {
+        return BodySetAggregate{lit.loc + pos, lit.sign + sign, lit.lhs, lit.elems, lit.rhs};
+    }
+    auto operator()(BodyTheoryAtom const &lit) const -> BodyLiteral {
+        return BodyTheoryAtom{lit.loc + pos, lit.sign + sign, lit.name, lit.elems, lit.rhs};
     }
 
     Sign sign;
@@ -27,16 +42,18 @@ struct AddSign {
 
 } // namespace
 
-void add_sign(Literal &lit, Sign sign, std::optional<Position> pos) {
+auto add_sign(Literal const &lit, Sign sign, std::optional<Position> pos) -> std::optional<Literal> {
     if (sign != Sign::none) {
-        AddSign{sign, std::move(pos)}(lit);
+        return AddSign{sign, std::move(pos)}(lit);
     }
+    return std::nullopt;
 }
 
-void add_sign(BodyLiteral &lit, Sign sign, std::optional<Position> pos) {
+auto add_sign(BodyLiteral const &lit, Sign sign, std::optional<Position> pos) -> std::optional<BodyLiteral> {
     if (sign != Sign::none) {
-        AddSign{sign, std::move(pos)}(lit);
+        return AddSign{sign, std::move(pos)}(lit);
     }
+    return std::nullopt;
 }
 
 } // namespace Gringo::Input

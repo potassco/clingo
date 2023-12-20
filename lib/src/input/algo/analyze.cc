@@ -201,47 +201,21 @@ struct IsTest {
         return false;
     }
 
-    // conditional literals
-
-    auto operator()(ConditionalLiteralVec const &elems) const -> bool {
-        return std::all_of(elems.begin(), elems.end(), [this](auto const &elem) {
-            return elem.cond.empty() && std::all_of(elem.lits.begin(), elem.lits.end(),
-                                                    [this](auto const &lit) { return this->operator()(lit); });
-        });
-    }
-
-    template <bool Conjunctive> auto operator()(Junction<Conjunctive> const &lit) const -> bool {
-        return operator()(lit.elems);
-    }
-
-    // aggregates
-
-    template <bool HasSign> auto operator()(SetAggregate<HasSign> const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    // head literal
-
-    auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
-
-    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit); }
-
-    auto operator()(HeadAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(HeadTheoryAtom const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
     // body literal
 
     auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
     auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit); }
+
+    auto operator()(ConditionalLiteral const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
+
+    auto operator()(BodySetAggregate const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
 
     auto operator()(BodyAggregate const &lit) const -> bool {
         static_cast<void>(lit);
@@ -277,18 +251,6 @@ struct IsAtom {
 
     // conditional literals
 
-    auto operator()(ConditionalLiteralVec const &elems) const -> bool {
-        if (elems.size() != 1) {
-            return false;
-        }
-        auto const &elem = elems.front();
-        return elem.cond.empty() && elem.lits.size() == 1 && operator()(elem.lits.front());
-    }
-
-    template <bool Conjunctive> auto operator()(Junction<Conjunctive> const &lit) const -> bool {
-        return operator()(lit.elems);
-    }
-
     template <bool HasSign> auto operator()(SetAggregate<HasSign> const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
@@ -299,6 +261,14 @@ struct IsAtom {
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
     auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit); }
+
+    auto operator()(Disjunction const &lit) const -> bool {
+        if (lit.elems.size() != 1) {
+            return false;
+        }
+        auto const *front = std::get_if<Literal>(&lit.elems.front());
+        return front != nullptr && operator()(*front);
+    }
 
     auto operator()(HeadAggregate const &lit) const -> bool {
         static_cast<void>(lit);
@@ -315,6 +285,11 @@ struct IsAtom {
     auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
     auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit); }
+
+    auto operator()(ConditionalLiteral const &lit) const -> bool {
+        static_cast<void>(lit);
+        return false;
+    }
 
     auto operator()(BodyAggregate const &lit) const -> bool {
         static_cast<void>(lit);
@@ -355,7 +330,12 @@ struct IsClassical {
 
     auto operator()(Disjunction const &lit) const -> bool {
         return std::all_of(lit.elems.begin(), lit.elems.end(), [](auto const &elem) {
-            return !std::any_of(elem.lits.begin(), elem.lits.end(), static_cast<bool (&)(Literal const &)>(is_atom));
+            return std::visit(
+                [](auto const &lit) {
+                    GRINGO_MATCH(lit, Literal) { return !is_atom(lit); }
+                    GRINGO_MATCH(lit, ConditionalLiteral) { return !is_atom(lit.lit); }
+                },
+                elem);
         });
     }
 };
@@ -497,7 +477,7 @@ auto is_atom(BodyLiteral const &lit) -> bool { return IsAtom{}(lit); }
 
 auto is_test(Literal const &lit) -> bool { return IsTest{}(lit); }
 
-auto is_test(HeadLiteral const &lit) -> bool { return IsTest{}(lit); }
+// auto is_test(HeadLiteral const &lit) -> bool { return IsTest{}(lit); }
 
 auto is_test(BodyLiteral const &lit) -> bool { return IsTest{}(lit); }
 

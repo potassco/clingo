@@ -232,18 +232,6 @@ template <class T> class Transformer {
         return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
     }
 
-    // conditional literal
-
-    [[nodiscard]] auto accept_(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
-        return transform_construct<ConditionalLiteral>(lit.loc, tr(lit.lits), tr(lit.cond));
-    }
-
-    template <bool Conjunctive>
-    [[nodiscard]] auto accept_(Junction<Conjunctive> const &lit) const
-        -> std::optional<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
-        return transform_construct<Junction<Conjunctive>>(lit.loc, tr(lit.elems));
-    }
-
     // set aggregate
 
     [[nodiscard]] auto accept_(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
@@ -254,6 +242,22 @@ template <class T> class Transformer {
 
     [[nodiscard]] auto accept_(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteral> {
         return transform(lit.lit);
+    }
+
+    [[nodiscard]] auto accept_(Disjunction::Element const &elem) const -> std::optional<Disjunction::Element> {
+        return std::visit(
+            [this](auto const &elem) -> std::optional<Disjunction::Element> {
+                static_cast<void>(this);
+                GRINGO_MATCH(elem, Literal) { return transform(elem); }
+                GRINGO_MATCH(elem, ConditionalLiteral) {
+                    return transform_construct<ConditionalLiteral>(elem.loc, tr(elem.lit), tr(elem.cond));
+                }
+            },
+            elem);
+    }
+
+    [[nodiscard]] auto accept_(Disjunction const &lit) const -> std::optional<HeadLiteral> {
+        return transform_construct<Disjunction>(lit.loc, tr(lit.elems));
     }
 
     [[nodiscard]] auto accept_(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
@@ -276,6 +280,10 @@ template <class T> class Transformer {
 
     [[nodiscard]] auto accept_(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteral> {
         return accept_(lit.lit);
+    }
+
+    [[nodiscard]] auto accept_(ConditionalLiteral const &lit) const -> std::optional<BodyLiteral> {
+        return transform_construct<ConditionalLiteral>(lit.loc, tr(lit.lit), tr(lit.cond));
     }
 
     [[nodiscard]] auto accept_(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {

@@ -164,7 +164,7 @@ struct statement_optimize_tuple {
 
 struct statement_optimize_element {
     static constexpr char const *name = "optimize element";
-    static constexpr auto rule = dsl::p<statement_optimize_tuple> + dsl::p<opt_condition>;
+    static constexpr auto rule = dsl::p<statement_optimize_tuple> + dsl::p<if_condition>;
     static constexpr auto value =
         lexy::callback<StatementOptimize::Element>([](StatementOptimize::Tuple tuple, LiteralVec cond) {
             return StatementOptimize::Element{std::move(tuple), std::move(cond)};
@@ -419,7 +419,8 @@ struct statement_rule {
         },
         [](Location loc, BodyLiteralVec body) {
             auto loc_head = loc + loc.begin;
-            return Rule{std::move(loc), Disjunction{std::move(loc_head), ConditionalLiteralVec{}}, std::move(body)};
+            return Rule{std::move(loc), SimpleHeadLiteral{LiteralBoolean{std::move(loc_head), Sign::none, false}},
+                        std::move(body)};
         });
 };
 

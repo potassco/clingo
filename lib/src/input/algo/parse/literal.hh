@@ -93,8 +93,8 @@ struct literal {
     static constexpr char const *name = "literal";
     static constexpr auto rule = dsl::p<naf_sign> + dsl::p<atom>;
     static constexpr auto value = lexy::callback<Literal>([](auto sign, Literal lit) {
-        add_sign(lit, sign.second, std::move(sign.first));
-        return lit;
+        auto res = add_sign(lit, sign.second, std::move(sign.first));
+        return std::move(res).value_or(std::move(lit));
     });
 };
 

@@ -132,12 +132,12 @@ using LiteralVecVec = std::vector<LiteralVec>;
 struct ConditionalLiteral {
   public:
     //! Construct a conditional literal.
-    explicit ConditionalLiteral(Location loc, LiteralVec lits, LiteralVec cond)
-        : loc{std::move(loc)}, lits{std::move(lits)}, cond{std::move(cond)} {}
+    explicit ConditionalLiteral(Location loc, Literal lit, LiteralVec cond)
+        : loc{std::move(loc)}, lit{std::move(lit)}, cond{std::move(cond)} {}
     //! The location of the literal.
     Location loc;
     //! The literals on the left-hand-side.
-    LiteralVec lits;
+    Literal lit;
     //! The literals on the right-hand-side.
     LiteralVec cond;
 };

@@ -22,7 +22,16 @@ struct SimpleHeadLiteral {
 };
 
 //! A disjunction of conditional literals.
-using Disjunction = Junction<false>;
+struct Disjunction {
+    using Element = std::variant<Literal, ConditionalLiteral>;
+    using ElementVec = std::vector<Element>;
+    //! Wrap a literal in a head literal.
+    Disjunction(Location loc, ElementVec elems) : loc{loc}, elems{std::move(elems)} {}
+    //! The location of the disjunction.
+    Location loc;
+    //! The location of the disjunction.
+    ElementVec elems;
+};
 
 //! A head aggregate.
 //!

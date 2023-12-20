@@ -79,7 +79,7 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nul
     return std::nullopt;
 }
 
-//! Check whether the literal is an atoms.
+//! Check whether the literal is an atom.
 //!
 //! A literal is an atom if it is a symbolic literal without a sign.
 auto is_atom(Literal const &lit) -> bool;
@@ -94,11 +94,6 @@ auto is_atom(HeadLiteral const &lit) -> bool;
 //! This extends the test to conjunctions with exactly one element corresponding to an atom.
 auto is_atom(BodyLiteral const &lit) -> bool;
 
-//! Check whether the literal is a test.
-//!
-//! A test is a negated or not a symbolic literal.
-auto is_test(Literal const &lit) -> bool;
-
 //! Check if a literal is a boolean constant.
 inline auto is_boolean(Literal const &lit) -> std::optional<bool> {
     if (auto const *lb = std::get_if<LiteralBoolean>(&lit); lb != nullptr) {
@@ -109,18 +104,17 @@ inline auto is_boolean(Literal const &lit) -> std::optional<bool> {
 
 //! Check if the literal is a test.
 //!
-//! This extends the test to disjunctions with empty conditions where all literals are tests.
-auto is_test(HeadLiteral const &lit) -> bool;
-
-//! Check if the literal is a test.
-//!
-//! This extends the test to conjunctions with empty conditions where all literals are tests.
+//! This is used to prevent projection in projection-like rules.
+//! For example, variable Y in `p(X) :- p(X,Y), X>10` is not projected
+//! because `X>10` is classified as a test.
 auto is_test(BodyLiteral const &lit) -> bool;
 
 //! Check if the literal is classical.
 //!
-//! The head of a rule is classical if it is neither an aggregate nor a theory atom nor contains a strictly positive
-//! atom.
+//! This function is used to enable additional projction in rule bodies
+//! whenever it can be statically determined that the head does not derive anything.
+//!
+//! Note that this function could also be extended to aggregates that do not derive atoms.
 auto is_classical(HeadLiteral const &lit) -> bool;
 
 //! Check if a rule is a fact.

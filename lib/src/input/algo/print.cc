@@ -429,28 +429,12 @@ struct Print {
 
     // conditional literal
 
-    template <bool Conjunctive> void operator()(Junction<Conjunctive> const &lit) const {
-        auto is_simple = lit.elems.empty() ? !Conjunctive
-                                           : std::all_of(lit.elems.begin(), lit.elems.end(),
-                                                         [&](auto const &elem) { return elem.lits.size() == 1; });
-        if (is_simple) {
-            apply_to_range_with(lit.elems, "; ", [this](auto const &elem) {
-                auto cs = elem.cond.empty() ? "" : ": ";
-                operator()(elem.lits.front());
-                out << cs;
-                visit_range(elem.cond, ", ");
-            });
-        } else {
-            char const *sp = lit.elems.empty() ? "" : " ";
-            out << (Conjunctive ? "#and" : "#or") << " { ";
-            apply_to_range_with(lit.elems, "; ", [this](auto const &elem) {
-                char const *cs = !elem.cond.empty() ? ": " : elem.lits.empty() ? ":" : "";
-                visit_range(elem.lits, ", ");
-                out << cs;
-                visit_range(elem.cond, ", ");
-            });
-            out << sp << "}";
-        }
+    void operator()(LiteralVec const &lits) const { visit_range(lits, ", "); }
+
+    void operator()(ConditionalLiteral const &lit) const {
+        operator()(lit.lit);
+        out << ": ";
+        operator()(lit.cond);
     }
 
     template <bool HasSign> void operator()(SetAggregate<HasSign> const &aggr) const {
@@ -465,7 +449,7 @@ struct Print {
             operator()(elem.lit);
             if (!elem.cond.empty()) {
                 out << ": ";
-                visit_range(elem.cond, ", ");
+                operator()(elem.cond);
             }
         });
         out << (aggr.elems.empty() ? "}" : " }");
@@ -502,6 +486,10 @@ struct Print {
     void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
 
     void operator()(SimpleHeadLiteral const &lit) const { operator()(lit.lit); }
+
+    void operator()(Disjunction const &lit) const {
+        apply_to_range_with(lit.elems, "; ", [this](auto const &elem) { std::visit(*this, elem); });
+    }
 
     void operator()(HeadAggregate::Element const &elem) const {
         visit_range(elem.tuple);

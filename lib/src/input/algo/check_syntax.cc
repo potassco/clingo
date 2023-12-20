@@ -184,17 +184,15 @@ struct CheckSyntax {
 
     // conditional literal
 
-    auto operator()(LiteralVec const &lits, SyntaxCheck check = SyntaxCheck::project | SyntaxCheck::project_tuple) const
-        -> bool {
-        return std::all_of(lits.begin(), lits.end(), [this, check](auto const &lit) { return operator()(lit, check); });
+    auto operator()(LiteralVec const &lits) const -> bool {
+        return std::all_of(lits.begin(), lits.end(), [this](auto const &lit) {
+            return operator()(lit, SyntaxCheck::project | SyntaxCheck::project_tuple);
+        });
     }
 
-    template <bool Conjunctive> auto operator()(Junction<Conjunctive> const &lit) const -> bool {
-        return std::all_of(lit.elems.begin(), lit.elems.end(), [this](auto const &elem) {
-            return this->operator()(elem.lits, Conjunctive ? SyntaxCheck::project | SyntaxCheck::project_tuple
-                                                           : SyntaxCheck::none) &&
-                   operator()(elem.cond);
-        });
+    auto operator()(ConditionalLiteral const &lit,
+                    SyntaxCheck check = SyntaxCheck::project | SyntaxCheck::project_tuple) const -> bool {
+        return this->operator()(lit.lit, check) && operator()(lit.cond);
     }
 
     // aggregate
@@ -230,6 +228,12 @@ struct CheckSyntax {
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
     auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit, SyntaxCheck::none); }
+
+    auto operator()(Disjunction const &lit) const -> bool {
+        return std::all_of(lit.elems.begin(), lit.elems.end(), [this](auto const &elem) {
+            return std::visit([this](auto const &elem) { return this->operator()(elem, SyntaxCheck::none); }, elem);
+        });
+    }
 
     auto operator()(HeadAggregate const &lit) const -> bool {
         return std::all_of(lit.elems.begin(), lit.elems.end(),

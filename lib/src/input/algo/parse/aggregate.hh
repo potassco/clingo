@@ -41,69 +41,24 @@ struct condition {
     static constexpr auto value = lexy::as_list<LiteralVec>;
 };
 
-struct opt_condition {
+struct if_condition {
     static constexpr char const *name = "condition";
     static constexpr auto rule = dsl::if_(dsl::p<condition>);
     static constexpr auto value = lexy::construct<LiteralVec>;
 };
 
-struct conditional_literal {
-    static constexpr char const *name = "conditional literal";
-    static constexpr auto rule = dsl::p<literal> + dsl::p<opt_condition> + Detail::post_position;
-    static constexpr auto value = lexy::callback<ConditionalLiteral>([](Literal lit, LiteralVec cond, Position end) {
-        auto loc = location(lit) + std::move(end);
-        return ConditionalLiteral{std::move(loc), LiteralVec{std::move(lit)}, std::move(cond)};
-    });
+struct opt_condition {
+    static constexpr char const *name = "condition";
+    static constexpr auto rule = dsl::if_(dsl::p<condition>);
+    static constexpr auto value = lexy::construct<std::optional<LiteralVec>>;
 };
 
 struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
-    static constexpr auto rule = Detail::location(dsl::p<literal> + dsl::p<opt_condition>);
+    static constexpr auto rule = Detail::location(dsl::p<literal> + dsl::p<if_condition>);
     static constexpr auto value = lexy::callback<SetAggregateElement>([](Location loc, Literal lit, LiteralVec cond) {
         return SetAggregateElement{std::move(loc), std::move(lit), std::move(cond)};
     });
-};
-
-struct junction_element {
-    static constexpr auto rule = []() {
-        auto peek = dsl::peek_not(LEXY_LIT(":"));
-        return Detail::location(dsl::if_(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(",")))) +
-                                dsl::p<opt_condition>);
-    }();
-    static constexpr auto value = lexy::as_list<LiteralVec> >>
-                                  lexy::callback<ConditionalLiteral>(
-                                      [](Location loc, LiteralVec cond) {
-                                          return ConditionalLiteral{std::move(loc), {}, std::move(cond)};
-                                      },
-                                      [](Location loc, LiteralVec lits, LiteralVec cond) {
-                                          return ConditionalLiteral{std::move(loc), std::move(lits), std::move(cond)};
-                                      });
-};
-
-template <class S, class J, class L> struct junction {
-    static constexpr auto make_rule = [](auto kw) {
-        auto sep = dsl::sep(LEXY_LIT(";"));
-        auto elems = dsl::curly_bracketed.opt_list(dsl::p<junction_element>, sep);
-        return Detail::location(kw >> elems);
-    };
-    static constexpr auto value = lexy::as_list<ConditionalLiteralVec> >>
-                                  lexy::callback<L>(
-                                      [](Location loc, ConditionalLiteralVec elems) -> L {
-                                          if (elems.size() == 1 && elems.front().lits.size() == 1 &&
-                                              elems.front().cond.empty()) {
-                                              return S{std::move(elems.front().lits.front())};
-                                          }
-                                          return J{std::move(loc), ConditionalLiteralVec{std::move(elems)}};
-                                      },
-                                      [](Location loc, lexy::nullopt) -> L {
-                                          return J{std::move(loc), ConditionalLiteralVec{}};
-                                      });
-};
-
-template <class E>
-static constexpr auto rule_junction = [](auto kw) {
-    auto sep = dsl::sep(LEXY_LIT(";"));
-    return kw >> dsl::curly_bracketed.opt_list(dsl::p<E>, sep);
 };
 
 static constexpr auto aggregate_right_guard = []() {
