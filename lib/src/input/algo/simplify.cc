@@ -1104,39 +1104,34 @@ struct LiteralToTuple {
 
 //! Simplify a conditional literal.
 //!
+//! In case the truth value of the conditional literal is fixed,
+//! the resulting literal has an empty condtion and its literal is a Boolean literal.
+//!
+//!
 //! Example for the head (not conjunctive):
-//! - p((X;A+B),Z): q(Z) :- r.
-//!   - p(X,Z) & (p(Y,Z)|Y!=A+B): q(Z) :- r.
-//!     - p(X,Z): q(Z) :- r.
-//!     - p(Y,Z)|Y!=A+B: q(Z) :- r.
-//!   - case: A+B is undefined
-//!     - #true : q(Z) :- r.
-//!     - this is the same as obtained from p(A+B,Z)
-//!   - case: Y=A+B
-//!     - p(A+B,Z): q(Z) :- r.
-//!     - this corresponds to the original form
-//!   - case: Y!=A+B
-//!     - #true : q(Z) :- r.
-//!     - this is fine because Y is a global variable
-//!     - it gives rise to a weaker rule as compared to the previous one
-//!       (the rule can be ignored)
-//!     - only values of Y equal to A+B are relevant
-//!       (noting  that Y is an auxiliary variable that does not appear anywhere else)
+//! - pools have to be evaluated disjunctively in conclusions
+//!   to see this, we have a look at the example below
+//! - p((X;A+B),Z): q(Z) :- r.                      % 1
+//!   - (p(X,Z) | p(A+B,Z)): q(Z) :- r.             % 1.1
+//!     - p(X,Z) : q(Z); p(Y,Z): q(Z), Y=A+B :- r.  % 1.1.1
+//! - case: A+B is undefined
+//!   - p(X,Z) : q(Z) :- r.
+//!   - this is the same as obtained from 1.1.1
 //!
 //! Example for the body (conjunctive):
-//! - p :- q((X;A+B),Z): r.
-//!   - p :- (q(X,Z)|q(A+B,Z)): r(Z).
-//!     - p :- (q(X,Z)|(q(Y,Z)&Y!=A+B)): r(Z).
-//!       - p :- q(X,Z): r(Z).
-//!       - p :- q(Y,Z) & Y=A+B: r(Z).
-//!   - case: A+B is undefined
-//!     - p :- #false: r(Z).
-//!     - this is the same as obtained from q(A+B,Z)
-//!   - cases Y=A+B and Y!=A+B analogous to head case
+//! - pools have to be evaluated conjunctively in conclusions
+//!   to see this, we have a look at the example below
+//! - p :- q((X;A+B),Z): r.                        % 1
+//!   - p :- (q(X,Z) & q(A+B,Z)): r(Z).            % 1.1
+//!     - p :- q(X,Z): r(Z); q(Y,Z): r(Z), Y=A+B.  % 1.1.1
+//! - case: A+B is undefined
+//!   - p :- q(X,Z): r(Z).
+//!   - this is the same as obtained from 1.1.1
 [[nodiscard]] auto simplify_condlit(RewriteContext &ctx, ConditionalLiteral const &lit, bool conjunctive)
     -> SimplifyResult<ConditionalLiteral> {
     auto guard = ctx.push();
-    auto [state_lits, res_lits] = simplify_litvec(ctx, lit.lits, conjunctive);
+    auto [state_lit, res_lit] =
+        simplify(conjunctive ? SimplifyLiteralFlags::matchable : SimplifyLiteralFlags::head, ctx, lit.lit);
     guard.reset();
     guard = ctx.push();
     auto [state_cond, res_cond] = simplify_litvec(ctx, lit.cond);
@@ -1145,8 +1140,8 @@ struct LiteralToTuple {
     auto state = TruthValue::unknown;
 
     // elements of *junctions can be removed if their conclusion is neutral
-    if (state_lits == state_fixed) {
-        // ensure result: ":"
+    if (state_lit == state_fixed) {
+        // ensure result: "#true/#false:"
         if (!lit.cond.empty()) {
             res_cond = LiteralVec{};
         }
@@ -1155,54 +1150,17 @@ struct LiteralToTuple {
     // elements of *junctions can be removed if their condition is false
     else if (state_cond == TruthValue::bot) {
         // ensure result: ":#false"
-        if (!lit.lits.empty()) {
-            res_lits = LiteralVec{};
-        }
+        res_lit = LiteralBoolean{lit.loc, Sign::none, conjunctive};
         state = state_fixed;
-    } else if (state_cond == TruthValue::top && state_lits != TruthValue::unknown) {
-        state = state_lits;
+    } else if (state_cond == TruthValue::top && state_lit != TruthValue::unknown) {
+        state = state_lit;
     }
 
-    if (res_lits.has_value() || res_cond.has_value()) {
-        return {state, ConditionalLiteral{lit.loc, std::move(res_lits).value_or(lit.lits),
+    if (res_lit || res_cond) {
+        return {state, ConditionalLiteral{lit.loc, std::move(res_lit).value_or(lit.lit),
                                           std::move(res_cond).value_or(lit.cond)}};
     }
     return {state};
-}
-
-//! Simplify a conjunction/disjunction of conditional literals.
-template <bool Conjunctive>
-[[nodiscard]] auto simplify_junction(RewriteContext &ctx, Junction<Conjunctive> const &lit)
-    -> SimplifyResult<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
-    auto state_fixed = Conjunctive ? TruthValue::bot : TruthValue::top;
-    auto state_empty = Conjunctive ? TruthValue::top : TruthValue::bot;
-    auto state_elems = state_empty;
-
-    auto res_elems = Util::ResultVec{lit.elems};
-    for (auto const &cond_lit : lit.elems) {
-        auto [state, res_elem] = simplify_condlit(ctx, cond_lit, Conjunctive);
-        if (state_elems == state_fixed) {
-            continue;
-        }
-        if (state == state_empty) {
-            res_elems.remove();
-        } else if (state == TruthValue::unknown) {
-            state_elems = TruthValue::unknown;
-            res_elems.update(std::move(res_elem));
-        } else if (state == state_fixed) {
-            if (lit.elems.size() != 1 || res_elem.has_value()) {
-                res_elems.as_optional() = Util::make_vec<ConditionalLiteral>(std::move(res_elem).value_or(cond_lit));
-            }
-            state_elems = state_fixed;
-        }
-    }
-    if (state_elems != TruthValue::unknown) {
-        using SimpleLiteral = std::conditional_t<Conjunctive, SimpleBodyLiteral, SimpleHeadLiteral>;
-        return {state_elems, SimpleLiteral{make_constant(lit.loc, state_elems == TruthValue::top)}};
-    }
-    return {state_elems, Util::transform(std::move(res_elems).as_optional(), [&](auto value) {
-                return Junction<Conjunctive>{lit.loc, std::move(value)};
-            })};
 }
 
 //! Simplify the left guard of an aggregate.
@@ -1605,8 +1563,46 @@ struct SimplifyHeadLiteral {
         return {state, Util::transform(std::move(res), [](auto &&res) { return SimpleHeadLiteral{GRINGO_FWD(res)}; })};
     }
 
-    auto operator()(Disjunction const &lit) const -> SimplifyResult<HeadLiteral> { return simplify_junction(ctx, lit); }
+    auto operator()(Disjunction const &lit) const -> SimplifyResult<HeadLiteral> {
+        auto state_fixed = TruthValue::top;
+        auto state_empty = TruthValue::bot;
+        auto state_elems = state_empty;
 
+        auto res_elems = Util::ResultVec{lit.elems};
+        for (auto const &elem : lit.elems) {
+            std::visit(
+                [&, this](auto const &elem) {
+                    auto [state, res_elem] = [&, this]() {
+                        GRINGO_MATCH(elem, ConditionalLiteral) { return simplify_condlit(ctx, elem, false); }
+                        else {
+                            return simplify(SimplifyLiteralFlags::head, ctx, elem);
+                        }
+                    }();
+                    if (state_elems == state_fixed) {
+                        return;
+                    }
+                    if (state == state_empty) {
+                        res_elems.remove();
+                    } else if (state == TruthValue::unknown) {
+                        state_elems = TruthValue::unknown;
+                        res_elems.update(std::move(res_elem));
+                    } else if (state == state_fixed) {
+                        if (lit.elems.size() != 1 || res_elem) {
+                            res_elems.as_optional() =
+                                Util::make_vec<Disjunction::Element>(std::move(res_elem).value_or(elem));
+                        }
+                        state_elems = state_fixed;
+                    }
+                },
+                elem);
+        }
+        if (state_elems != TruthValue::unknown) {
+            return {state_elems, SimpleHeadLiteral{make_constant(lit.loc, state_elems == TruthValue::top)}};
+        }
+        return {state_elems, Util::transform(std::move(res_elems).as_optional(), [&](auto value) {
+                    return Disjunction{lit.loc, std::move(value)};
+                })};
+    }
     auto operator()(HeadSetAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
         static_cast<void>(lit);
         throw std::runtime_error("set aggregates must be unpooled before simplifying");
@@ -1634,7 +1630,9 @@ struct SimplifyBodyLiteral {
         return {state, Util::transform(std::move(res), [](auto &&res) { return SimpleBodyLiteral{GRINGO_FWD(res)}; })};
     }
 
-    auto operator()(Conjunction const &lit) const -> SimplifyResult<BodyLiteral> { return simplify_junction(ctx, lit); }
+    auto operator()(Conjunction const &lit) const -> SimplifyResult<BodyLiteral> {
+        return simplify_condlit(ctx, lit.lit, true);
+    }
 
     auto operator()(BodySetAggregate const &lit) const -> SimplifyResult<BodyLiteral> {
         static_cast<void>(lit);

@@ -126,6 +126,15 @@ enum class TruthValue {
 //! The result consists of a state resulting from simplification
 //! together with an optional value in case the expression has changed.
 template <class E, class S = bool> struct ResultState {
+    //! Construct from state and value.
+    ResultState(S state = S{}, std::optional<E> value = std::nullopt)
+        : state{std::move(state)}, value{std::move(value)} {}
+    //! Construct from compatible result state.
+    template <class F> ResultState(ResultState<F, S> const &res) : state{res.state}, value{res.value} {}
+    //! Construct from compatible result state.
+    template <class F>
+    ResultState(ResultState<F, S> &&res) : state{std::move(res.state)}, value{std::move(res.value)} {}
+
     //! A truth value or state.
     S state = S{};
     //! An optional rewritten expression.
