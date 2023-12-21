@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <sstream>
 
 #include <util/algorithm.hh>
@@ -520,6 +519,8 @@ struct Print {
     void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
 
     void operator()(SimpleBodyLiteral const &lit) const { operator()(lit.lit); }
+
+    void operator()(Conjunction const &lit) const { operator()(lit.lit); }
 
     void operator()(BodyAggregate::Element const &elem) const {
         visit_range(elem.tuple);

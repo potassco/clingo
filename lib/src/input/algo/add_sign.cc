@@ -5,6 +5,8 @@ namespace Gringo::Input {
 namespace {
 
 struct AddSign {
+    template <class T> void operator()(T const &lit) const = delete;
+
     auto operator()(Literal const &lit) const -> Literal { return std::visit(*this, lit); }
 
     auto operator()(LiteralBoolean const &lit) const -> Literal {
@@ -22,9 +24,8 @@ struct AddSign {
     auto operator()(SimpleBodyLiteral const &lit) const -> BodyLiteral {
         return SimpleBodyLiteral{operator()(lit.lit)};
     }
-
-    auto operator()(ConditionalLiteral const &lit) const -> BodyLiteral {
-        return ConditionalLiteral{lit.loc + pos, operator()(lit.lit), lit.cond};
+    auto operator()(Conjunction const &lit) const -> BodyLiteral {
+        return Conjunction{ConditionalLiteral{lit.lit.loc + pos, operator()(lit.lit.lit), lit.lit.cond}};
     }
     auto operator()(BodyAggregate const &lit) const -> BodyLiteral {
         return BodyAggregate{lit.loc + pos, lit.sign + sign, lit.lhs, lit.fun, lit.elems, lit.rhs};

@@ -123,9 +123,7 @@ template <class T> class Visitor {
 
     // conditional literal
 
-    void accept_(ConditionalLiteral const &cond_lit) const { visit(cond_lit.lits, cond_lit.cond); }
-
-    template <bool Conjunctive> void accept_(Junction<Conjunctive> const &lit) const { visit(lit.elems); }
+    void accept_(ConditionalLiteral const &cond_lit) const { visit(cond_lit.lit, cond_lit.cond); }
 
     // aggregate
 
@@ -146,6 +144,8 @@ template <class T> class Visitor {
 
     void accept_(SimpleHeadLiteral const &lit) const { visit(lit.lit); }
 
+    void accept_(Disjunction const &lit) const { visit(lit.elems); }
+
     void accept_(HeadAggregate::Element const &elem) const { visit(elem.tuple, elem.lit, elem.cond); }
 
     void accept_(HeadAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
@@ -153,6 +153,8 @@ template <class T> class Visitor {
     // body literal
 
     void accept_(SimpleBodyLiteral const &lit) const { visit(lit.lit); }
+
+    void accept_(Conjunction const &lit) const { visit(lit.lit); }
 
     void accept_(BodyAggregate::Element const &elem) const { visit(elem.tuple, elem.cond); }
 

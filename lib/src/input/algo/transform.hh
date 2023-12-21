@@ -232,6 +232,12 @@ template <class T> class Transformer {
         return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
     }
 
+    // conditional literal
+
+    [[nodiscard]] auto accept_(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
+        return transform_construct<ConditionalLiteral>(lit.loc, tr(lit.lit), tr(lit.cond));
+    }
+
     // set aggregate
 
     [[nodiscard]] auto accept_(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
@@ -246,14 +252,7 @@ template <class T> class Transformer {
 
     [[nodiscard]] auto accept_(Disjunction::Element const &elem) const -> std::optional<Disjunction::Element> {
         return std::visit(
-            [this](auto const &elem) -> std::optional<Disjunction::Element> {
-                static_cast<void>(this);
-                GRINGO_MATCH(elem, Literal) { return transform(elem); }
-                GRINGO_MATCH(elem, ConditionalLiteral) {
-                    return transform_construct<ConditionalLiteral>(elem.loc, tr(elem.lit), tr(elem.cond));
-                }
-            },
-            elem);
+            [this](auto const &elem) -> std::optional<Disjunction::Element> { return this->transform(elem); }, elem);
     }
 
     [[nodiscard]] auto accept_(Disjunction const &lit) const -> std::optional<HeadLiteral> {
@@ -279,11 +278,11 @@ template <class T> class Transformer {
     // body literal
 
     [[nodiscard]] auto accept_(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteral> {
-        return accept_(lit.lit);
+        return transform(lit.lit);
     }
 
-    [[nodiscard]] auto accept_(ConditionalLiteral const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<ConditionalLiteral>(lit.loc, tr(lit.lit), tr(lit.cond));
+    [[nodiscard]] auto accept_(Conjunction const &lit) const -> std::optional<BodyLiteral> {
+        return transform(lit.lit);
     }
 
     [[nodiscard]] auto accept_(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {

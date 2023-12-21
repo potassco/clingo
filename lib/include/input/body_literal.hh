@@ -23,6 +23,12 @@ struct SimpleBodyLiteral {
     Literal lit;
 };
 
+//! A conditional literal in a rule body.
+struct Conjunction {
+    Conjunction(ConditionalLiteral lit) : lit{std::move(lit)} {}
+    ConditionalLiteral lit;
+};
+
 //! A body aggregate.
 //!
 //! For example: <tt>\#count { X: q(X) } = 1</tt>
@@ -65,8 +71,7 @@ using BodySetAggregate = SetAggregate<true>;
 using BodyTheoryAtom = TheoryAtom<true>;
 
 //! A body literal.
-using BodyLiteral =
-    std::variant<SimpleBodyLiteral, ConditionalLiteral, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;
+using BodyLiteral = std::variant<SimpleBodyLiteral, Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;
 //! A vector of body literals.
 using BodyLiteralVec = std::vector<BodyLiteral>;
 //! A vector of body literal vectors.

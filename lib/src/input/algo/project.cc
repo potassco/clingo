@@ -93,42 +93,25 @@ struct Project : Transformer<Project> {
     // conditional literal
 
     [[nodiscard]] auto accept(ConditionalLiteral const &elem) const -> std::optional<ConditionalLiteral> {
-        bool project_cond = in_classical_scope || std::all_of(elem.lits.begin(), elem.lits.end(),
-                                                              [](auto const &lit) { return !is_atom(lit); });
+        bool project_cond = in_classical_scope || !is_atom(elem.lit);
+        // add counts of local variables
+        auto counts = get_counts(project, elem);
+        auto sub_project = Project{ProjectionMap{project.mode(), counts}};
         // project conclusion
-        std::optional<LiteralVec> projected_lits = std::nullopt;
+        auto res_lit = std::optional<Literal>{};
         if (project_lits) {
-            projected_lits = transform(elem.lits);
+            res_lit = sub_project.transform(elem.lit);
         }
         // project premise
-        std::optional<LiteralVec> projected_cond = std::nullopt;
+        std::optional<LiteralVec> res_cond = std::nullopt;
         if (project_cond) {
-            // add counts of local variables
-            auto counts = get_counts(project, elem);
-            auto sub_project = Project{ProjectionMap{project.mode(), counts}};
-
-            // Note that there can be no global variables with just one
-            // occurrence in a condition. However, we can project local
-            // variables.
-            projected_cond = sub_project.transform(elem.cond);
+            res_cond = sub_project.transform(elem.cond);
         }
-        if (projected_lits.has_value() || projected_cond.has_value()) {
-            return ConditionalLiteral{elem.loc, std::move(projected_lits).value_or(elem.lits),
-                                      std::move(projected_cond).value_or(elem.cond)};
+        if (res_lit || res_cond) {
+            return ConditionalLiteral{elem.loc, std::move(res_lit).value_or(elem.lit),
+                                      std::move(res_cond).value_or(elem.cond)};
         }
         return std::nullopt;
-    }
-
-    template <bool Conjunctive>
-    [[nodiscard]] auto accept(Junction<Conjunctive> const &lit) const
-        -> std::optional<std::conditional_t<Conjunctive, BodyLiteral, HeadLiteral>> {
-        // Projection in disjunctions:
-        // - variables in premise (almost body literals)
-        // Projection in conjunction:
-        // - variables in premise if in classical scope,
-        // - variables in conclusion.
-        auto sub_project = Project{project, !Conjunctive || in_classical_scope, Conjunctive};
-        return sub_project.transform_construct<Junction<Conjunctive>>(lit.loc, tr(lit.elems));
     }
 
     // aggregate
@@ -147,6 +130,24 @@ struct Project : Transformer<Project> {
     [[nodiscard]] static auto accept(SimpleHeadLiteral const &lit) -> std::optional<HeadLiteral> {
         static_cast<void>(lit);
         return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept(Disjunction::Element const &elem) const -> std::optional<Disjunction::Element> {
+        return std::visit(
+            [this](auto const &elem) -> std::optional<Disjunction::Element> {
+                GRINGO_MATCH(elem, Literal) {
+                    if (!project_lits) {
+                        return std::nullopt;
+                    }
+                }
+                return transform(elem);
+            },
+            elem);
+    }
+    [[nodiscard]] auto accept(Disjunction const &lit) const -> std::optional<HeadLiteral> {
+        // only projects variables in premise (almost body literals)
+        auto sub_project = Project{project, true, false};
+        return sub_project.transform_construct<Disjunction>(lit.loc, tr(lit.elems));
     }
 
     [[nodiscard]] static auto accept(HeadTheoryAtom const &lit) -> std::optional<HeadLiteral> {
@@ -176,6 +177,12 @@ struct Project : Transformer<Project> {
 
     // body literal
 
+    [[nodiscard]] auto accept(Conjunction const &lit) const -> std::optional<BodyLiteral> {
+        // we project variables in premise if in classical scope,
+        // we always project variables in conclusion.
+        auto sub_project = Project{project, in_classical_scope, true};
+        return sub_project.transform_construct<ConditionalLiteral>(tr(lit.lit));
+    }
     [[nodiscard]] auto accept(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
         // counts of local variables
         auto counts = get_counts(project, elem);

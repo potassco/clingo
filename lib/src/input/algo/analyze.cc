@@ -207,7 +207,7 @@ struct IsTest {
 
     auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit); }
 
-    auto operator()(ConditionalLiteral const &lit) const -> bool {
+    auto operator()(Conjunction const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
@@ -286,7 +286,7 @@ struct IsAtom {
 
     auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit); }
 
-    auto operator()(ConditionalLiteral const &lit) const -> bool {
+    auto operator()(Conjunction const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }

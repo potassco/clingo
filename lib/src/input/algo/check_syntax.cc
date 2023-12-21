@@ -252,6 +252,8 @@ struct CheckSyntax {
         return operator()(lit.lit, SyntaxCheck::project | SyntaxCheck::project_tuple);
     }
 
+    auto operator()(Conjunction const &lit) const -> bool { return operator()(lit.lit); }
+
     auto operator()(BodyAggregate const &lit) const -> bool {
         return std::all_of(lit.elems.begin(), lit.elems.end(),
                            [this](auto const &elem) { return operator()(elem.tuple) && operator()(elem.cond); }) &&
