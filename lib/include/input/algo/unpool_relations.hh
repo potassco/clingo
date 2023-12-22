@@ -8,8 +8,7 @@ namespace Gringo::Input {
 //! @{
 
 //! Unpool non-binary relation literals.
-[[nodiscard]] auto unpool_relations(RewriteContext &ctx, Literal const &lit, bool conjunctive)
-    -> std::optional<LiteralVec>;
+[[nodiscard]] auto unpool_relations(Literal const &lit, bool conjunctive) -> std::optional<LiteralVec>;
 
 //! Unpool all non-binary relation in the literal.
 [[nodiscard]] auto unpool_relations(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteralVec>;

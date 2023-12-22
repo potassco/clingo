@@ -375,6 +375,7 @@ struct Unpool {
                     };
                     auto res_clit = unpool_crossproducts(build, *this, clit->lit, clit->cond);
                     if (res_clit) {
+                        res_elems.remove();
                         res_elems.extend(std::make_move_iterator(res_clit->begin()),
                                          std::make_move_iterator(res_clit->end()));
                     } else {
@@ -452,6 +453,7 @@ struct Unpool {
                     };
                     auto res_conj = unpool_crossproducts(build, *this, conj->lit.lit, conj->lit.cond);
                     if (res_conj) {
+                        res_lits.remove();
                         res_lits.extend(std::make_move_iterator(res_conj->begin()),
                                         std::make_move_iterator(res_conj->end()));
                     } else {
