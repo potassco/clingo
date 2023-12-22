@@ -3,6 +3,7 @@
 
 #include <input/algo/analyze.hh>
 #include <input/algo/unpool_relations.hh>
+#include <input/algo/visit_variables.hh>
 
 #include "unpool.hh"
 
@@ -484,7 +485,14 @@ struct UnpoolStatement {
 }
 
 [[nodiscard]] auto unpool_relations(RewriteContext &ctx, Statement const &stm) -> std::optional<StatementVec> {
-    return UnpoolStatement{ctx}(stm);
+    auto stms = UnpoolStatement{ctx}(stm);
+    if (stms) {
+        VariableSet global = select_variables(stm, VariableContext::global);
+        for (auto const &unpooled : stms.value()) {
+            check_global(ctx.logger(), global, unpooled);
+        }
+    }
+    return stms;
 }
 
 } // namespace Gringo::Input

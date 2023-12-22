@@ -1,5 +1,7 @@
 #pragma once
 
+#include <logger.hh>
+
 #include <input/statement.hh>
 
 namespace Gringo::Input {
@@ -128,6 +130,9 @@ auto is_fact(SymbolStore &store, Rule const &rule) -> std::optional<Symbol>;
 //! Returns the symbol representing the fact.
 //! This function evaluates arithmetic expressions as long as they evaluate to one-elementary pools.
 auto is_fact(SymbolStore &store, Statement const &stm) -> std::optional<Symbol>;
+
+//! Check that none of the given varables are local in the statement.
+auto check_global(Logger &log, VariableSet const &global, Statement const &stm) -> bool;
 
 //! @}
 

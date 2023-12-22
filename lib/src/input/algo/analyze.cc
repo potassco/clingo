@@ -4,6 +4,8 @@
 
 #include <input/algo/analyze.hh>
 #include <input/algo/evaluate.hh>
+#include <input/algo/print.hh>
+#include <input/algo/visit_variables.hh>
 
 namespace Gringo::Input {
 
@@ -428,6 +430,15 @@ struct IsFact {
     SymbolStore &store;
 };
 
+template <class F> struct print {
+    print(F const &f) : f{f} {}
+    friend auto operator<<(std::ostream &out, print const &p) -> std::ostream & {
+        p.f(out);
+        return out;
+    }
+    F const &f;
+};
+
 } // namespace
 
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> bool {
@@ -497,6 +508,30 @@ auto is_fact(SymbolStore &store, Statement const &stm) -> std::optional<Symbol> 
         return is_fact(store, *rule);
     }
     return std::nullopt;
+}
+
+auto check_global(Logger &log, VariableSet const &global, Statement const &stm) -> bool {
+    VariableSet new_global = select_variables(stm, VariableContext::global, global.size());
+    Util::ordered_map<String, Location> unsafe;
+    visit_variables(
+        stm,
+        [&](Location const &loc, String var) {
+            if (global.contains(var) != new_global.contains(var)) {
+                unsafe.try_emplace(var, loc);
+            }
+        },
+        VariableContext::all);
+    if (!unsafe.empty()) {
+        GRINGO_REPORT_LOC(log, error, location(stm)) << "unsafe variables in:\n"
+                                                     << "  " << stm << "\n"
+                                                     << print{[&unsafe](std::ostream &out) {
+                                                            for (auto const &[loc, var] : unsafe) {
+                                                                out << loc << ": note: '" << var << "' is unsafe\n";
+                                                            }
+                                                        }};
+        return false;
+    }
+    return true;
 }
 
 } // namespace Gringo::Input

@@ -93,6 +93,7 @@ TEST_CASE("unpool_relations_stms") {
             "[#edge (X,Y): 1<=X; X<=Y; 1>A. #edge (X,Y): 1<=X; X<=Y; A>B.]");
     REQUIRE(unpool_statement("#heuristic p(X): 1<=X<=Y; not 1<=A<=B. [1@2,3]") ==
             "[#heuristic p(X): 1<=X; X<=Y; 1>A. [1@2,3] #heuristic p(X): 1<=X; X<=Y; A>B. [1@2,3]]");
+    REQUIRE_THROWS(unpool_statement(":- not X<Y<Z; #false: X<Y<Z."));
 }
 
 } // namespace Gringo::Input::Test
