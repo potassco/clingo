@@ -31,6 +31,7 @@ auto unpool_conjunctive(LiteralVec const &lits) -> Util::ResultVec<Literal> {
     auto res_lits = Util::ResultVec{lits};
     for (auto const &lit : lits) {
         if (auto res = unpool_relations(lit, true); res) {
+            res_lits.remove();
             res_lits.extend(std::make_move_iterator(res->begin()), std::make_move_iterator(res->end()));
         } else {
             res_lits.keep();
@@ -48,7 +49,7 @@ void append_conjunctive(auto &lits, Literal lit) {
 }
 
 auto shift(auto const &lit, auto &lits, bool negate) -> std::optional<Literal> {
-    // TODO: there shoudl be something in analyze
+    // TODO: there should be something in analyze
     if (auto const *rel = std::get_if<LiteralRelation>(&lit); rel != nullptr) {
         append_conjunctive(lits, negate ? NegateLiteral{}(*rel) : Literal{*rel});
         return LiteralBoolean{location(lit), Sign::none, !negate};
@@ -168,7 +169,7 @@ struct ShiftBody {
 
     void operator()(Conjunction const &lit) const {
         auto res_cond = unpool_conjunctive(lit.lit.cond);
-        auto res_lit = shift(lit.lit.lit, res_cond, false);
+        auto res_lit = shift(lit.lit.lit, res_cond, true);
         if (res_lit || res_cond) {
             body.replace(
                 ConditionalLiteral{lit.lit.loc, std::move(res_lit).value_or(lit.lit.lit), std::move(res_cond).value()});
@@ -186,7 +187,7 @@ struct ShiftBody {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
             if (auto res_cond = unpool_conjunctive(elem.cond); res_cond) {
-                res_elems.replace(BodyAggregate::Element{elem.loc, elem.tuple, std::move(res_cond).value()});
+                res_elems.replace(BodyAggregate::Element{elem.loc, elem.tuple, *std::move(res_cond)});
             } else {
                 res_elems.keep();
             }
@@ -217,6 +218,11 @@ auto shift_body(BodyLiteralVec const &body) -> Util::ResultVec<BodyLiteral> {
     return res_body;
 }
 
+auto unpool_disjunctive(LiteralVec const &lits) -> std::optional<std::vector<LiteralVec>> {
+    auto unpool = [](auto const &lit) { return unpool_relations(lit, false); };
+    return unpool_crossproduct(lits, unpool);
+}
+
 struct UnpoolHeadBody {
     // protect ourselves -> no unintended overloads
 
@@ -236,29 +242,11 @@ struct UnpoolHeadBody {
 
     template <bool HasSign>
     auto operator()(TheoryAtom<HasSign> const &atom) const -> std::optional<HBLitVecVec<!HasSign>> {
-        auto res_elems = Util::ResultVec{atom.elems};
-        auto unpool_lit = [](auto const &lit) { return unpool_relations(lit, true); };
-        for (auto const &elem : atom.elems) {
-            auto extend = [&elem, &res_elems](auto const &lits) {
-                auto unpool = [](auto const &lits) {
-                    return unpool_crossproduct(lits, [](auto const &lit) { return unpool_relations(lit, false); });
-                };
-                auto build = [&elem](auto lits) { return TheoryElement{elem.first, std::move(lits)}; };
-                if (auto res_elem = unpool_crossproducts(build, unpool, lits)) {
-                    res_elems.extend(std::make_move_iterator(res_elem->begin()),
-                                     std::make_move_iterator(res_elem->end()));
-                    return true;
-                }
-                return false;
-            };
-            if (auto res_lits = unpool_union(elem.second, unpool_lit); res_lits) {
-                if (!extend(*res_lits)) {
-                    res_elems.replace(elem.first, *std::move(res_lits));
-                }
-            } else if (!extend(elem.second)) {
-                res_elems.keep();
-            }
-        }
+        auto unpool_elem = [](TheoryElement const &elem) {
+            auto build = [&elem](auto lits) -> TheoryElement { return {elem.first, std::move(lits)}; };
+            return unpool_crossproducts(build, unpool_disjunctive, elem.second);
+        };
+        auto res_elems = unpool_union(atom.elems, unpool_elem);
         if (res_elems) {
             if constexpr (HasSign) {
                 return Util::make_vec<BodyLiteral>(
@@ -290,11 +278,7 @@ struct UnpoolHeadBody {
                         auto build = [&elem](auto lits) -> Disjunction::Element {
                             return ConditionalLiteral{elem.loc, elem.lit, std::move(lits)};
                         };
-                        auto unpool = [](auto const &lits) {
-                            auto unpool = [](auto const &lit) { return unpool_relations(lit, false); };
-                            return unpool_crossproduct(lits, unpool);
-                        };
-                        return unpool_crossproducts(build, unpool, elem.cond);
+                        return unpool_crossproducts(build, unpool_disjunctive, elem.cond);
                     }
                 },
                 elem);
@@ -307,44 +291,13 @@ struct UnpoolHeadBody {
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteralVec> {
-        auto res_elems = Util::ResultVec{lit.elems};
-        auto unpool_lit = [](auto const &lit) { return unpool_relations(lit, true); };
-        for (auto const &elem : lit.elems) {
-            auto res_elem = std::optional<HeadAggregate::Element>{};
-            if (!is_atom(elem.lit) && !is_boolean(elem.lit)) {
-                auto bool_lit = LiteralBoolean{elem.loc, Sign::none, true};
-                auto cond = elem.cond;
-                cond.emplace_back(elem.lit);
-                res_elem.emplace(elem.loc, elem.tuple, std::move(bool_lit), std::move(cond));
-            }
-            auto const &elem_lit = res_elem.has_value() ? res_elem->lit : elem.lit;
-            auto const &elem_cond = res_elem.has_value() ? res_elem->cond : elem.cond;
-            auto extend = [&](auto const &lits) {
-                auto unpool = [](auto const &lits) {
-                    return unpool_crossproduct(lits, [](auto const &lit) { return unpool_relations(lit, false); });
-                };
-                auto build = [&](auto lits) {
-                    return HeadAggregate::Element{elem.loc, elem.tuple, elem_lit, std::move(lits)};
-                };
-                if (auto res_elem = unpool_crossproducts(build, unpool, lits)) {
-                    res_elems.extend(std::make_move_iterator(res_elem->begin()),
-                                     std::make_move_iterator(res_elem->end()));
-                    return true;
-                }
-                return false;
+        auto unpool_elem = [](HeadAggregate::Element const &elem) {
+            auto build = [&elem](auto cond) -> HeadAggregate::Element {
+                return {elem.loc, elem.tuple, elem.lit, std::move(cond)};
             };
-            if (auto res_lits = unpool_union(elem_cond, unpool_lit); res_lits) {
-                if (!extend(*res_lits)) {
-                    res_elems.replace(elem.loc, elem.tuple, elem_lit, *std::move(res_lits));
-                }
-            } else if (!extend(elem_cond)) {
-                if (res_elem) {
-                    res_elems.replace(*std::move(res_elem));
-                } else {
-                    res_elems.keep();
-                }
-            }
-        }
+            return unpool_crossproducts(build, unpool_disjunctive, elem.cond);
+        };
+        auto res_elems = unpool_union(lit.elems, unpool_elem);
         if (res_elems) {
             return Util::make_vec<HeadLiteral>(
                 HeadAggregate{lit.loc, lit.lhs, lit.fun, *std::move(res_elems), lit.rhs});
@@ -363,90 +316,20 @@ struct UnpoolHeadBody {
     }
 
     auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteralVec> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me!!!");
-        /*
-        auto unpool_elem = [this](ConditionalLiteral const &lit) {
-            auto unpool = [&](auto const &lits) {
-                // the hack would be avoidable by tagging
-                bool conjunctive = &lits == &lit.lits ? !Conjunctive : false;
-                return unpool_crossproduct(
-                    lits, [this, conjunctive](auto const &lit) { return this->operator()(lit, conjunctive); });
-            };
-            auto build = [&lit](auto lits, auto cond) {
-                return ConditionalLiteral{lit.loc, std::move(lits), std::move(cond)};
-            };
-            return unpool_crossproducts(build, unpool, lit.lits, lit.cond);
+        auto build = [&lit](auto cond) -> BodyLiteral {
+            return ConditionalLiteral{lit.lit.loc, lit.lit.lit, std::move(cond)};
         };
-        auto unpool_lits = [&](auto const &lits, bool conjunctive) {
-            auto res_lits = Util::ResultVec{lits};
-            for (auto &lit : lits) {
-                if (auto res_lit = operator()(lit, conjunctive); res_lit) {
-                    res_lits.remove();
-                    for (auto &unpooled : *res_lit) {
-                        res_lits.append(std::move(unpooled));
-                    }
-                } else {
-                    res_lits.keep();
-                }
-            }
-            return res_lits;
-        };
-        // expand horizontally
-        auto res_elems = Util::ResultVec{lit.elems};
-        for (auto &elem : lit.elems) {
-            auto res_lits = unpool_lits(elem.lits, Conjunctive);
-            auto res_cond = unpool_lits(elem.cond, true);
-            if (res_lits || res_cond) {
-                res_elems.update(ConditionalLiteral{elem.loc, *std::move(res_lits), *std::move(res_cond)});
-            } else {
-                res_elems.keep();
-            }
-        }
-        // expand horizontally
-        auto unpooled = unpool_crossproduct(res_elems.value(), unpool_elem);
-        if (res_elems || unpooled) {
-            HBLitVecVec<!Conjunctive> res;
-            if (!unpooled) {
-                res.emplace_back(Junction<Conjunctive>{lit.loc, *std::move(res_elems)});
-            } else {
-                res.reserve(unpooled->size());
-                for (auto &elems : *unpooled) {
-                    res.emplace_back(Junction<Conjunctive>{lit.loc, std::move(elems)});
-                }
-            }
-            return res;
-        }
-        return std::nullopt;
-        */
+        return unpool_crossproducts(build, unpool_disjunctive, lit.lit.cond);
     }
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteralVec> {
-        auto res_elems = Util::ResultVec{lit.elems};
-        auto unpool_lit = [](auto const &lit) { return unpool_relations(lit, true); };
-        for (auto const &elem : lit.elems) {
-            auto extend = [&elem, &res_elems](auto const &lits) {
-                auto unpool = [](auto const &lits) {
-                    return unpool_crossproduct(lits, [](auto const &lit) { return unpool_relations(lit, false); });
-                };
-                auto build = [&elem](auto lits) {
-                    return BodyAggregate::Element{elem.loc, elem.tuple, std::move(lits)};
-                };
-                if (auto res_elem = unpool_crossproducts(build, unpool, lits)) {
-                    res_elems.extend(std::make_move_iterator(res_elem->begin()),
-                                     std::make_move_iterator(res_elem->end()));
-                    return true;
-                }
-                return false;
+        auto unpool_elem = [](BodyAggregate::Element const &elem) {
+            auto build = [&elem](auto cond) -> BodyAggregate::Element {
+                return {elem.loc, elem.tuple, std::move(cond)};
             };
-            if (auto res_lits = unpool_union(elem.cond, unpool_lit); res_lits) {
-                if (!extend(*res_lits)) {
-                    res_elems.replace(elem.loc, elem.tuple, *std::move(res_lits));
-                }
-            } else if (!extend(elem.cond)) {
-                res_elems.keep();
-            }
-        }
+            return unpool_crossproducts(build, unpool_disjunctive, elem.cond);
+        };
+        auto res_elems = unpool_union(lit.elems, unpool_elem);
         if (res_elems) {
             return Util::make_vec<BodyLiteral>(
                 BodyAggregate{lit.loc, lit.sign, lit.lhs, lit.fun, *std::move(res_elems), lit.rhs});

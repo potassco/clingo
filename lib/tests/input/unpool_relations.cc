@@ -62,12 +62,14 @@ TEST_CASE("unpool_relations_body") {
     REQUIRE(unpool_statement("h :- a, 1<=X<=Y, b.") == "[h :- a; 1<=X; X<=Y; b.]");
     REQUIRE(unpool_statement("h :- not 1<=X<=Y.") == "[h :- 1>X. h :- X>Y.]");
     REQUIRE(unpool_statement("h :- a, not 1<=X<=Y, b.") == "[h :- a; 1>X; b. h :- a; X>Y; b.]");
-    REQUIRE(unpool_statement("p :- not p:; 1<=X<=Y:; not 1<=A<=B:.") == "TODO");
+    REQUIRE(unpool_statement("p :- not p:; 1<=X<=Y:; not 1<=A<=B:.") ==
+            "[p :- #false: not not p; #false: 1>X; #false: 1<=A, A<=B."
+            " p :- #false: not not p; #false: X>Y; #false: 1<=A, A<=B.]");
     REQUIRE(unpool_statement("h :- 1<2<3: not 4<5<6; not a<b<c: d<e<f.") ==
-            "[h :- #and { 1<2, 2<3: 4>=5 }; a>=b: d<e, e<f."
-            " h :- #and { 1<2, 2<3: 5>=6 }; a>=b: d<e, e<f."
-            " h :- #and { 1<2, 2<3: 4>=5 }; b>=c: d<e, e<f."
-            " h :- #and { 1<2, 2<3: 5>=6 }; b>=c: d<e, e<f.]");
+            "[h :- #false: 4>=5, 1>=2; #false: d<e, e<f, a<b, b<c."
+            " h :- #false: 5>=6, 1>=2; #false: d<e, e<f, a<b, b<c."
+            " h :- #false: 4>=5, 2>=3; #false: d<e, e<f, a<b, b<c."
+            " h :- #false: 5>=6, 2>=3; #false: d<e, e<f, a<b, b<c.]");
     REQUIRE(unpool_statement("h :- &f{ : 1<=X<=Y }.") == "[h :- &f { : 1<=X, X<=Y }.]");
     REQUIRE(unpool_statement("h :- &f{ a,b,c : not 1<=X<=Y }.") == "[h :- &f { a,b,c: 1>X; a,b,c: X>Y }.]");
     REQUIRE(unpool_statement("h :- &f{ a,b,c : not 1<=X<=Y, 2<=A<=B }.") ==

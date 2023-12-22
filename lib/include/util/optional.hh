@@ -208,7 +208,7 @@ template <class T> class ResultVec {
     //! Get a const reference to the current vector.
     //!
     //! This returns a reference to the old vector if it does not have a new one.
-    [[nodiscard]] auto operator*() const & -> std::vector<T> const & { value(); }
+    [[nodiscard]] auto operator*() const & -> std::vector<T> const & { return value(); }
     //! Move out the new vector or return a copy of the old one.
     [[nodiscard]] auto operator*() && -> std::vector<T> { return value(); }
     //! Arrow operator based on (const ref) value.
