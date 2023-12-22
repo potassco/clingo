@@ -16,113 +16,16 @@ struct NegateLiteral {
         return LiteralBoolean{lit.loc, lit.sign, !lit.value};
     }
     auto operator()(LiteralRelation const &lit) const -> Literal {
-        assert(lit.rhs.size() == 1);
-        auto const &[rel, rhs] = lit.rhs.front();
-        return LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::make_vec<Guard>(Guard{complement(rel), rhs})};
+        if (lit.rhs.size() == 1) {
+            auto const &[rel, rhs] = lit.rhs.front();
+            return LiteralRelation{lit.loc, lit.sign, lit.lhs, Util::make_vec<Guard>(Guard{complement(rel), rhs})};
+        }
+        return LiteralRelation{lit.loc, lit.sign + Sign::once, lit.lhs, lit.rhs};
     }
     auto operator()(LiteralSymbolic const &lit) const -> Literal {
         return LiteralSymbolic{lit.loc, lit.sign + Sign::once, lit.term};
     }
 };
-
-auto rewrite_head(HeadLiteral const &head, Util::ResultVec<BodyLiteral> &body) -> std::optional<HeadLiteral> {
-    std::optional<HeadLiteral> res_head;
-    auto res = std::optional<std::pair<HeadLiteral, BodyLiteralVec>>{};
-    if (auto const *lit = std::get_if<SimpleHeadLiteral>(&head); lit != nullptr) {
-        if (!is_atom(lit->lit) && !is_boolean(lit->lit)) {
-            body.append(NegateLiteral{}(lit->lit));
-            res_head = SimpleHeadLiteral{LiteralBoolean{location(lit->lit), Sign::none, false}};
-        }
-    } else if (auto const *disj = std::get_if<Disjunction>(&head); disj != nullptr) {
-        static_cast<void>(disj);
-        throw std::logic_error("implement me!!!");
-        /*
-        auto res_elems = Util::ResultVec{disj->elems};
-        for (auto const &elem : disj->elems) {
-            if (elem.cond.empty()) {
-                auto res_lits = Util::ResultVec{elem.lits};
-                for (auto const &lit : elem.lits) {
-                    // Note: we should never get a boolean literal
-                    // here. False literals are removed from the
-                    // set of literals and true literals with an
-                    // empty conditions would make the whole
-                    // disjunction true.
-                    if (!is_atom(lit)) {
-                        res_lits.remove();
-                        body.append(NegateLiteral{}(lit));
-                    } else {
-                        res_lits.keep();
-                    }
-                }
-                if (res_lits->empty()) {
-                    res_elems.remove();
-                } else if (res_lits) {
-                    res_elems.replace(ConditionalLiteral{elem.loc, *std::move(res_lits), {}});
-                } else {
-                    res_elems.keep();
-                }
-            } else {
-                res_elems.keep();
-            }
-        }
-        if (res_elems) {
-            if (res_elems->empty()) {
-                res_head = SimpleHeadLiteral{LiteralBoolean{disj->loc, Sign::none, false}};
-            } else {
-                res_head = Disjunction{disj->loc, *std::move(res_elems)};
-            }
-        }
-        */
-    }
-    return res_head;
-}
-
-auto rewrite_body(BodyLiteralVec const &body) -> Util::ResultVec<BodyLiteral> {
-    auto res_body = Util::ResultVec{body};
-    for (auto const &blit : body) {
-        if (auto const *conj = std::get_if<Conjunction>(&blit); conj != nullptr) {
-            static_cast<void>(conj);
-            if (!body.empty()) {
-                throw std::logic_error("implement me!!!");
-            }
-            /*
-            for (auto const &elem : conj->lit) {
-                if (elem.cond.empty()) {
-                    res_elems.remove();
-                    for (auto const &lit : elem.lits) {
-                        res_body.append(SimpleBodyLiteral{lit});
-                    }
-                } else {
-                    res_elems.keep();
-                }
-            }
-            // construct conjunctions from the modified elements
-            if (res_elems) {
-                res_body.remove();
-                for (auto &elem : *std::move(res_elems)) {
-                    res_body.append(Conjunction{conj->loc, Util::make_vec<ConditionalLiteral>(std::move(elem))});
-                }
-            }
-            // construct conjunctions from the existing elements
-            else if (conj->elems.size() != 1) {
-                res_body.remove();
-                for (auto const &elem : conj->elems) {
-                    res_body.append(Conjunction{conj->loc, Util::make_vec<ConditionalLiteral>(elem)});
-                }
-            }
-            // keep existing literal
-            else {
-                res_body.keep();
-            }
-            */
-        }
-        // keep existing literal
-        else {
-            res_body.keep();
-        }
-    }
-    return res_body;
-}
 
 auto unpool_conjunctive(LiteralVec const &lits) -> Util::ResultVec<Literal> {
     auto res_lits = Util::ResultVec{lits};
@@ -145,9 +48,14 @@ void append_conjunctive(auto &lits, Literal lit) {
 }
 
 auto shift(auto const &lit, auto &lits, bool negate) -> std::optional<Literal> {
+    // TODO: there shoudl be something in analyze
     if (auto const *rel = std::get_if<LiteralRelation>(&lit); rel != nullptr) {
         append_conjunctive(lits, negate ? NegateLiteral{}(*rel) : Literal{*rel});
-        return LiteralBoolean{location(lit), Sign::none, false};
+        return LiteralBoolean{location(lit), Sign::none, !negate};
+    }
+    if (auto const *sym = std::get_if<LiteralSymbolic>(&lit); sym != nullptr && sym->sign != Sign::none) {
+        append_conjunctive(lits, negate ? NegateLiteral{}(*sym) : Literal{*sym});
+        return LiteralBoolean{location(lit), Sign::none, !negate};
     }
     return std::nullopt;
 }
@@ -162,30 +70,6 @@ auto shift(TheoryElementVec const &elems) -> Util::ResultVec<TheoryElement> {
         }
     }
     return res_elems;
-}
-
-template <class F, class... Args>
-auto rewrite_statement(std::optional<StatementVec> res, F &&fun, Args &&...args) -> std::optional<StatementVec> {
-    if (!res) {
-        auto res_stm = std::invoke(std::forward<F>(fun), std::forward<Args>(args)...);
-        if (res_stm) {
-            return Util::make_vec<Statement>(*std::move(res_stm));
-        }
-    }
-    return res;
-}
-
-template <class F, class U, class... Args>
-auto rewrite_with_body(F &&build, U &&unpool, BodyLiteralVec const &body) -> std::optional<StatementVec> {
-    auto rewrite = [&](auto const &body, bool not_null) -> std::optional<Statement> {
-        if (auto res_body = rewrite_body(body); res_body || not_null) {
-            return build(*std::move(res_body));
-        }
-        return std::nullopt;
-    };
-    return rewrite_statement(
-        unpool_crossproducts([&](auto body) -> Statement { return *rewrite(std::move(body), true); }, unpool, body),
-        rewrite, body, false);
 }
 
 struct ShiftHead {
@@ -265,11 +149,75 @@ struct ShiftHead {
     Util::ResultVec<BodyLiteral> &body;
 };
 
-// TODO: shift body
-// TODO: shift statement
+struct ShiftBody {
+    // protect ourselves -> no unintended overloads
 
-struct UnpoolRelations {
+    template <class T> auto operator()(T const &x) const -> std::optional<T> = delete;
 
+    // head literal
+
+    void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
+
+    void operator()(SimpleBodyLiteral const &lit) const {
+        if (auto res = shift(lit.lit, body, false); res) {
+            body.remove();
+        } else {
+            body.keep();
+        }
+    }
+
+    void operator()(Conjunction const &lit) const {
+        auto res_cond = unpool_conjunctive(lit.lit.cond);
+        auto res_lit = shift(lit.lit.lit, res_cond, false);
+        if (res_lit || res_cond) {
+            body.replace(
+                ConditionalLiteral{lit.lit.loc, std::move(res_lit).value_or(lit.lit.lit), std::move(res_cond).value()});
+        } else {
+            body.keep();
+        }
+    }
+
+    void operator()(BodySetAggregate const &lit) const {
+        static_cast<void>(lit);
+        throw std::runtime_error("simplify must be called before unpooling of relations");
+    }
+
+    void operator()(BodyAggregate const &lit) const {
+        auto res_elems = Util::ResultVec{lit.elems};
+        for (auto const &elem : lit.elems) {
+            if (auto res_cond = unpool_conjunctive(elem.cond); res_cond) {
+                res_elems.replace(BodyAggregate::Element{elem.loc, elem.tuple, std::move(res_cond).value()});
+            } else {
+                res_elems.keep();
+            }
+        }
+        if (res_elems) {
+            body.replace(BodyAggregate{lit.loc, lit.sign, lit.lhs, lit.fun, *std::move(res_elems), lit.rhs});
+        } else {
+            body.keep();
+        }
+    }
+
+    void operator()(BodyTheoryAtom const &atom) const {
+        if (auto res_elems = shift(atom.elems); res_elems) {
+            body.replace(BodyTheoryAtom{atom.loc, atom.sign, atom.name, *std::move(res_elems), atom.rhs});
+        } else {
+            body.keep();
+        }
+    }
+
+    Util::ResultVec<BodyLiteral> &body;
+};
+
+auto shift_body(BodyLiteralVec const &body) -> Util::ResultVec<BodyLiteral> {
+    auto res_body = Util::ResultVec{body};
+    for (auto const &lit : body) {
+        ShiftBody{res_body}(lit);
+    }
+    return res_body;
+}
+
+struct UnpoolHeadBody {
     // protect ourselves -> no unintended overloads
 
     template <class T> auto operator()(T const &x) const -> std::optional<std::vector<T>> = delete;
@@ -325,11 +273,10 @@ struct UnpoolRelations {
 
     // head literal
 
-    // TODO: does not need to return a vector!!!
-
     auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteralVec> { return std::visit(*this, lit); }
 
     auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteralVec> {
+        // Note: anything that could be unpooled has been shifted
         static_cast<void>(lit);
         return std::nullopt;
     }
@@ -507,29 +454,43 @@ struct UnpoolRelations {
         return std::nullopt;
     }
 
-    // statement
+    auto operator()(BodyLiteralVec const &body) const -> std::optional<std::vector<BodyLiteralVec>> {
+        return unpool_crossproduct(body, *this);
+    }
+
+    RewriteContext const &ctx;
+};
+
+struct UnpoolStatement {
+    template <class F>
+    auto rewrite_with_body(F &&build, BodyLiteralVec const &body) const -> std::optional<StatementVec> {
+        auto unpool = UnpoolHeadBody{ctx};
+        if (auto res_body = shift_body(body); res_body) {
+            if (auto res = unpool_crossproducts(build, unpool, res_body.value()); res) {
+                return res;
+            }
+            return Util::make_vec<Statement>(build(std::move(res_body).value()));
+        }
+        return unpool_crossproducts(build, unpool, body);
+    }
 
     auto operator()(Statement const &stm) const -> std::optional<StatementVec> { return std::visit(*this, stm); }
 
-    auto operator()(BodyLiteralVec const &lits) const -> std::optional<std::vector<BodyLiteralVec>> {
-        return unpool_crossproduct(lits, *this);
-    }
-
     auto operator()(Rule const &stm) const -> std::optional<StatementVec> {
-        auto rewrite_rule = [&](auto const &rule, bool not_null) -> std::optional<Statement> {
-            auto body = rewrite_body(rule.body);
-            auto head = rewrite_head(rule.head, body);
-            if (head || body || not_null) {
-                return Rule{stm.loc, std::move(head).value_or(rule.head), *std::move(body)};
-            }
-            return std::nullopt;
+        auto body = shift_body(stm.body);
+        auto head = ShiftHead{body}(stm.head);
+        auto build = [&stm](auto head, auto body) -> Statement {
+            return Rule{stm.loc, std::move(head), std::move(body)};
         };
-        return rewrite_statement(unpool_crossproducts(
-                                     [&](auto head, auto body) -> Statement {
-                                         return *rewrite_rule(Rule{stm.loc, std::move(head), std::move(body)}, true);
-                                     },
-                                     *this, stm.head, stm.body),
-                                 rewrite_rule, stm, false);
+        auto unpool = UnpoolHeadBody{ctx};
+        if (head || body) {
+            auto shifted = Rule{stm.loc, std::move(head).value_or(stm.head), std::move(body).value()};
+            if (auto res = unpool_crossproducts(build, unpool, shifted.head, shifted.body); res) {
+                return res;
+            }
+            return Util::make_vec<Statement>(std::move(shifted));
+        }
+        return unpool_crossproducts(build, unpool, stm.head, stm.body);
     }
 
     auto operator()(TheoryDefinition const &stm) const -> std::optional<StatementVec> {
@@ -546,12 +507,12 @@ struct UnpoolRelations {
         auto build = [&stm](auto body) -> Statement {
             return StatementWeakConstraint{stm.loc, std::move(body), stm.tuple};
         };
-        return rewrite_with_body(build, *this, stm.body);
+        return rewrite_with_body(build, stm.body);
     }
 
     auto operator()(StatementShow const &stm) const -> std::optional<StatementVec> {
         auto build = [&stm](auto body) -> Statement { return StatementShow{stm.loc, stm.term, std::move(body)}; };
-        return rewrite_with_body(build, *this, stm.body);
+        return rewrite_with_body(build, stm.body);
     }
 
     auto operator()(StatementShowSig const &stm) const -> std::optional<StatementVec> {
@@ -561,7 +522,7 @@ struct UnpoolRelations {
 
     auto operator()(StatementProject const &stm) const -> std::optional<StatementVec> {
         auto build = [&stm](auto body) -> Statement { return StatementProject{stm.loc, stm.term, std::move(body)}; };
-        return rewrite_with_body(build, *this, stm.body);
+        return rewrite_with_body(build, stm.body);
     }
 
     auto operator()(StatementProjectSig const &stm) const -> std::optional<StatementVec> {
@@ -578,19 +539,19 @@ struct UnpoolRelations {
         auto build = [&stm](auto body) -> Statement {
             return StatementExternal{stm.loc, stm.term, std::move(body), stm.type};
         };
-        return rewrite_with_body(build, *this, stm.body);
+        return rewrite_with_body(build, stm.body);
     }
 
     auto operator()(StatementEdge const &stm) const -> std::optional<StatementVec> {
         auto build = [&stm](auto body) -> Statement { return StatementEdge{stm.loc, stm.edges, std::move(body)}; };
-        return rewrite_with_body(build, *this, stm.body);
+        return rewrite_with_body(build, stm.body);
     }
 
     auto operator()(StatementHeuristic const &stm) const -> std::optional<StatementVec> {
         auto build = [&stm](auto body) -> Statement {
             return StatementHeuristic{stm.loc, stm.atom, std::move(body), stm.type, stm.prio, stm.mod};
         };
-        return rewrite_with_body(build, *this, stm.body);
+        return rewrite_with_body(build, stm.body);
     }
 
     auto operator()(StatementScript const &stm) const -> std::optional<StatementVec> {
@@ -629,7 +590,7 @@ struct UnpoolRelations {
         auto const *lhs = &rel->lhs;
         LiteralVec res;
         for (auto const &rhs : rel->rhs) {
-            auto cmp = rel->sign == Sign::none ? rhs.first : complement(rhs.first);
+            auto cmp = rel->sign != Sign::once ? rhs.first : complement(rhs.first);
             res.emplace_back(
                 LiteralRelation{rel->loc, Sign::none, *lhs, Util::make_vec<Guard>(Guard{cmp, rhs.second})});
             lhs = &rhs.second;
@@ -639,16 +600,8 @@ struct UnpoolRelations {
     return std::nullopt;
 }
 
-[[nodiscard]] auto unpool_relations(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteralVec> {
-    return UnpoolRelations{ctx}(lit);
-}
-
-[[nodiscard]] auto unpool_relations(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<BodyLiteralVec> {
-    return UnpoolRelations{ctx}(lit);
-}
-
 [[nodiscard]] auto unpool_relations(RewriteContext &ctx, Statement const &stm) -> std::optional<StatementVec> {
-    return UnpoolRelations{ctx}(stm);
+    return UnpoolStatement{ctx}(stm);
 }
 
 } // namespace Gringo::Input
