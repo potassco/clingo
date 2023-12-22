@@ -159,12 +159,6 @@ TEST_CASE("parse_head_literal") {
     REQUIRE(parse_head_literal("{1<2;1<2:a;a:b;a:b,c}") == "{ 1<2; 1<2: a; a: b; a: b, c }");
     // theory atoms
     REQUIRE(parse_head_literal("&p(X){43+-Y:a} <== 7") == "&p(X) { (43 +- Y): a } <== 7");
-    // conjunction literal
-    REQUIRE(parse_head_literal("#or { : q(X); p(X): q(X); p(X), q(X): r(X) }") ==
-            "#or { : q(X); p(X): q(X); p(X), q(X): r(X) }");
-    REQUIRE(parse_head_literal("#or { }").empty());
-    REQUIRE(parse_head_literal("#or { }").empty());
-    REQUIRE(parse_head_literal("#or { : }") == "#or { : }");
 }
 
 TEST_CASE("parse_body_literal") {
@@ -209,12 +203,6 @@ TEST_CASE("parse_body_literal") {
     // aggregate elements
     REQUIRE(parse_body_literal("#sum{:a;1:a;1,2:a,b,c}") == "#sum { : a; 1: a; 1,2: a, b, c }");
     REQUIRE(parse_body_literal("{1<2;1<2:a;a:b;a:b,c}") == "{ 1<2; 1<2: a; a: b; a: b, c }");
-    // conjunction literal
-    REQUIRE(parse_body_literal("#and { : q(X); p(X): q(X); p(X), q(X): r(X) }") ==
-            "#and { : q(X); p(X): q(X); p(X), q(X): r(X) }");
-    REQUIRE(parse_body_literal("#and { }") == "#and { }");
-    REQUIRE(parse_body_literal("#and { }") == "#and { }");
-    REQUIRE(parse_body_literal("#and { : }") == "#and { : }");
 }
 
 TEST_CASE("parse_statement") {

@@ -1131,9 +1131,7 @@ struct LiteralToTuple {
     -> SimplifyResult<ConditionalLiteral> {
     auto guard = ctx.push();
     auto [state_lit, res_lit] =
-        simplify(conjunctive ? SimplifyLiteralFlags::matchable : SimplifyLiteralFlags::head, ctx, lit.lit);
-    guard.reset();
-    guard = ctx.push();
+        simplify(conjunctive ? SimplifyLiteralFlags::head : SimplifyLiteralFlags::matchable, ctx, lit.lit);
     auto [state_cond, res_cond] = simplify_litvec(ctx, lit.cond);
 
     auto state_fixed = conjunctive ? TruthValue::top : TruthValue::bot;

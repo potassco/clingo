@@ -31,9 +31,9 @@ auto unpool_statement(std::string const &str) -> std::string {
 } // namespace
 
 TEST_CASE("unpool_relations_head") {
-    REQUIRE(unpool_statement("not p.") == "[#false :- not not p.]");
-    REQUIRE(unpool_statement("1<=X<=Y.") == "[#false :- 1>X. #false :- X>Y.]");
-    REQUIRE(unpool_statement("not 1<=X<=Y.") == "[#false :- 1<=X; X<=Y.]");
+    REQUIRE(unpool_statement("not p.") == "[ :- not not p.]");
+    REQUIRE(unpool_statement("1<=X<=Y.") == "[ :- 1>X.  :- X>Y.]");
+    REQUIRE(unpool_statement("not 1<=X<=Y.") == "[ :- 1<=X; X<=Y.]");
     REQUIRE(unpool_statement("not p | 1<=X<=Y | not 1<=A<=B.") == "[#false :- not not p; 1>X; 1<=A; A<=B."
                                                                   " #false :- not not p; X>Y; 1<=A; A<=B.]");
     REQUIRE(unpool_statement("1<2<3: not 4<5<6; not a<b<c: d<e<f.") == "[#or { 1<2: 4>=5; a>=b, b>=c: d<e, e<f }."

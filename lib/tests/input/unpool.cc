@@ -74,8 +74,8 @@ TEST_CASE("unpool_literal") {
 TEST_CASE("unpool_head_literal") {
     ParseHelper ph;
     REQUIRE(unpool_head_literal("x: y, z; a: b, c") == "[x: y, z; a: b, c]");
-    REQUIRE(unpool_head_literal("p(1;2):p(3;4)") == "[p(1): p(3); p(1): p(4). p(2): p(3); p(2): p(4)]");
-    REQUIRE(unpool_head_literal("p(1;2):p(3)") == "[p(1): p(3). p(2): p(3)]");
+    REQUIRE(unpool_head_literal("p(1;2):p(3;4)") == "[p(1): p(3); p(1): p(4); p(2): p(3); p(2): p(4)]");
+    REQUIRE(unpool_head_literal("p(1;2):p(3)") == "[p(1): p(3); p(2): p(3)]");
     REQUIRE(unpool_head_literal("p(1):p(2;3)") == "[p(1): p(2); p(1): p(3)]");
     REQUIRE(unpool_head_literal("(1;2) #count {} (3;4)") ==
             "[1 <= #count { } <= 3. 1 <= #count { } <= 4. 2 <= #count { } <= 3. 2 <= #count { } <= 4]");
@@ -113,9 +113,11 @@ TEST_CASE("unpool_head_literal") {
 TEST_CASE("unpool_body_literal") {
     ParseHelper ph;
     REQUIRE(unpool_body_literal("x: y, z") == "[x: y, z]");
-    REQUIRE(unpool_body_literal("p(1;2):p(3;4)") == "[p(1): p(3); p(1): p(4). p(2): p(3); p(2): p(4)]");
-    REQUIRE(unpool_body_literal("p(1;2):p(3)") == "[p(1): p(3). p(2): p(3)]");
-    REQUIRE(unpool_body_literal("p(1):p(2;3)") == "[p(1): p(2); p(1): p(3)]");
+    REQUIRE(unpool_body_literal("p(1;2):p(3;4)") == "[p(1;2): p(3;4)]");
+    REQUIRE(unpool_body_literal("p(1;2):p(3)") == "[p(1;2): p(3)]");
+    REQUIRE(unpool_body_literal("p(1):p(2;3)") == "[p(1): p(2;3)]");
+    REQUIRE(unpool_body_literal("p(X): q(X;Y)") == "[p(X): q(X;Y)]");
+    REQUIRE(unpool_body_literal("p(X;Y,B) : p(A)") == "[p(X;Y,B): p(A)]");
     REQUIRE(unpool_body_literal("(1;2) #count {} (3;4)") ==
             "[1 <= #count { } <= 3. 1 <= #count { } <= 4. 2 <= #count { } <= 3. 2 <= #count { } <= 4]");
     REQUIRE(unpool_body_literal("#count { a(1;2),b(3;4): c(5;6) }") == "[#count { "
@@ -132,8 +134,6 @@ TEST_CASE("unpool_body_literal") {
     REQUIRE(unpool_body_literal("&p(1;2)") == "[&p(1). &p(2)]");
     REQUIRE(unpool_body_literal("&p { : a(1;2) }") == "[&p { : a(1); : a(2) }]");
     REQUIRE(unpool_body_literal("&p(1;2) { : a(1;2) }") == "[&p(1) { : a(1); : a(2) }. &p(2) { : a(1); : a(2) }]");
-    REQUIRE(unpool_body_literal("p(X): q(X;Y)") == "[p(X): q(X); p(X): q(Y)]");
-    REQUIRE(unpool_body_literal("#and { p(X;Y,B) : p(A) }") == "[p(X): p(A). p(Y,B): p(A)]");
     REQUIRE(unpool_body_literal("S = { X<(Y;X): q(X,Y); X<Y: q(X,Y); p(X;Y); not p(X;Y); not not p(X;Y) }") ==
             "[S = #count { 3,X,Y: q(X,Y), X<Y; 3,X,Y: q(X,Y), X<X"
             "; 4,X,Y: q(X,Y), X<Y"
@@ -202,9 +202,9 @@ TEST_CASE("unpool_statement") {
     REQUIRE(unpool_statement("#const x=(1).") == "[#const x=1. [default]]");
 
     // local <-> global
-    REQUIRE(unpool_statement(":- p(X;Y): q(X).") == "[ :- p(X): q(X).  :- p(Y): q(X).]");
-    REQUIRE_THROWS(unpool_statement(":- p(X): q(X;Y)."));
-    REQUIRE_THROWS(unpool_statement(":- p(X;Y): q(X;Y)."));
+    REQUIRE(unpool_statement(":- p(X;Y): q(X).") == "[ :- p(X): q(X); p(Y): q(X).]");
+    REQUIRE(unpool_statement(":- p(X): q(X;Y).") == "[ :- p(X): q(X); p(X): q(Y).]");
+    REQUIRE(unpool_statement(":- p(X;Y): q(X;Y).") == "[ :- p(X): q(X); p(X): q(Y); p(Y): q(X); p(Y): q(Y).]");
     REQUIRE_THROWS(unpool_statement(":- p(X): q(Y); r(X;Y)."));
 }
 

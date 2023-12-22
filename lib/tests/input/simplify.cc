@@ -202,19 +202,18 @@ TEST_CASE("simplify_literal") {
 }
 
 TEST_CASE("simplify_head_cond_lit") {
-    REQUIRE(simplify_statement("#or {}.") == "#false., B");
-    REQUIRE(simplify_statement("X=Y+Z=Z: cond.") == "#or { X=__A_0=Z, __A_0!=Y+Z: cond }., U");
-    REQUIRE(simplify_statement("not not X=Y+Z=Z: cond.") == "#or { X=__A_0=Z, __A_0!=Y+Z: cond }., U");
-    REQUIRE(simplify_statement("not X=Y+Z=Z: cond.") == "not X=Y+Z=Z: cond., U");
-    REQUIRE(simplify_statement("not X=Y+Z=Z: cond(Z).") == "<unchanged>, U");
+    REQUIRE(simplify_statement(":-.") == "<unchanged>, B");
+    REQUIRE(simplify_statement("X=Y+Z=Z: cond.") == "X=Y+Z=Z: cond., U");
+    REQUIRE(simplify_statement("X=Y+Z=Z: cond(Y).") == "<unchanged>, U");
+    REQUIRE(simplify_statement("not not X=Y+Z=Z: cond.") == "X=Y+Z=Z: cond., U");
+    REQUIRE(simplify_statement("not X=Y+Z=Z: cond.") == "not X=__A_0=Z: cond, __A_0=Y+Z., U");
 }
 
 TEST_CASE("simplify_body_cond_lit") {
-    REQUIRE(simplify_statement("x :- #and{}.") == "x., U");
-    REQUIRE(simplify_statement("x :- X=Y+Z=Z: cond.") == "x :- X=Y+Z=Z: cond., U");
-    REQUIRE(simplify_statement("x(X) :- X=Y+Z=Z: cond(Z).") == "<unchanged>, U");
-    REQUIRE(simplify_statement("x :- not not X=Y+Z=Z: cond.") == "x :- X=Y+Z=Z: cond., U");
-    REQUIRE(simplify_statement("x :- not X=Y+Z=Z: cond.") == "x :- #and { not X=__A_0=Z, __A_0=Y+Z: cond }., U");
+    REQUIRE(simplify_statement("x :- X=Y+Z=Z: cond.") == "x :- X=__A_0=Z: cond, __A_0=Y+Z., U");
+    REQUIRE(simplify_statement("x :- not not X=Y+Z=Z: cond.") == "x :- X=__A_0=Z: cond, __A_0=Y+Z., U");
+    REQUIRE(simplify_statement("x :- not X=Y+Z=Z: cond.") == "x :- not X=Y+Z=Z: cond., U");
+    REQUIRE(simplify_statement("x(X) :- not X=Y+Z=Z: cond(X).") == "<unchanged>, U");
 }
 
 TEST_CASE("simplify_head_set_aggregate") {
@@ -232,7 +231,7 @@ TEST_CASE("simplify_head_set_aggregate") {
 
     REQUIRE(simplify_statement("X <= {1!=2;2!=2;#true;#false} <= Y.") == "X<=2<=Y., U");
     REQUIRE(simplify_statement("1 <= {1!=2;2!=2;#true;#false} <= 2.") == "#true., T");
-    REQUIRE(simplify_statement("1 <= {1!=2;2!=2;#true;#false} <= 1.") == "#false., B");
+    REQUIRE(simplify_statement("1 <= {1!=2;2!=2;#true;#false} <= 1.") == " :- ., B");
 }
 
 TEST_CASE("simplify_body_set_aggregate") {
@@ -255,16 +254,16 @@ TEST_CASE("simplify_head_aggregate") {
     REQUIRE(simplify_statement("#count { X: #true } >= 1 :- p(X).") == "<unchanged>, U");
     REQUIRE(simplify_statement("#count { 1: #true } >= 1 :- p(X).") == "#true., T");
     REQUIRE(simplify_statement("#count { : #true } >= 1 :- p(X).") == "#true., T");
-    REQUIRE(simplify_statement("#count { 1: #true } >= 2 :- p(X).") == "#false :- p(X)., U");
-    REQUIRE(simplify_statement("#min { : #true } <= 1 :- p(X).") == "#false :- p(X)., U");
-    REQUIRE(simplify_statement("#max { : #true } >= 1 :- p(X).") == "#false :- p(X)., U");
+    REQUIRE(simplify_statement("#count { 1: #true } >= 2 :- p(X).") == " :- p(X)., U");
+    REQUIRE(simplify_statement("#min { : #true } <= 1 :- p(X).") == " :- p(X)., U");
+    REQUIRE(simplify_statement("#max { : #true } >= 1 :- p(X).") == " :- p(X)., U");
     REQUIRE(simplify_statement("#min { : #true } >= 1 :- p(X).") == "#true., T");
     REQUIRE(simplify_statement("#max { : #true } <= 1 :- p(X).") == "#true., T");
     REQUIRE(simplify_statement("#min { 1 : #true } >= 1 :- p(X).") == "#true., T");
     REQUIRE(simplify_statement("#max { 1 : #true } >= 1 :- p(X).") == "#true., T");
-    REQUIRE(simplify_statement("#sum { 1 : #true; -1: #true; -1: #true } >= 1 :- p(X).") == "#false :- p(X)., U");
+    REQUIRE(simplify_statement("#sum { 1 : #true; -1: #true; -1: #true } >= 1 :- p(X).") == " :- p(X)., U");
     REQUIRE(simplify_statement("#sum { 1 : #true; -1: #true; -1: #true } >= 0 :- p(X).") == "#true., T");
-    REQUIRE(simplify_statement("#sum+ { 1 : #true; -1: #true; -1: #true } >= 2 :- p(X).") == "#false :- p(X)., U");
+    REQUIRE(simplify_statement("#sum+ { 1 : #true; -1: #true; -1: #true } >= 2 :- p(X).") == " :- p(X)., U");
     REQUIRE(simplify_statement("#sum+ { 1 : #true; -1: #true; -1: #true } >= 1 :- p(X).") == "#true., T");
     REQUIRE(simplify_statement("#sum+ { f(X) : #true; X: #true } >= 1 :- p(X).") ==
             "#sum+ { X: #true } >= 1 :- p(X)., U");
@@ -313,20 +312,20 @@ TEST_CASE("simplify_rule") {
     REQUIRE(simplify_statement("p(X+1) :- q(2*X,Y+Z).") == "p(1*X+1) :- q(2*X+0,1*__A_0+0); __A_0=Y+Z., U");
     REQUIRE(simplify_statement("p(X+1) | p(X+Y).") == "p(1*X+1); p(X+Y)., U");
     REQUIRE(simplify_statement("p(X) | p(X+Y).") == "<unchanged>, U");
-    REQUIRE(simplify_statement("p(X+1) | p(X+Y): q(X+Y).") == "p(1*X+1); p(X+Y): q(1*__A_0+0), __A_0=X+Y., U");
-    REQUIRE(simplify_statement("#false | p(X+Y): q(X+Y).") == "p(X+Y): q(1*__A_0+0), __A_0=X+Y., U");
+    REQUIRE(simplify_statement("p(X+1) | p(X+Y): q(X+Y).") ==
+            "p(1*X+1); p(1*__A_0+0): q(1*__A_1+0), __A_0=X+Y, __A_1=X+Y., U");
+    REQUIRE(simplify_statement("#false | p(X+Y): q(X+Y).") == "p(1*__A_0+0): q(1*__A_1+0), __A_0=X+Y, __A_1=X+Y., U");
     REQUIRE(simplify_statement("#false | #true: q(X+Y).") == "#true: q(1*__A_0+0), __A_0=X+Y., U");
-    REQUIRE(simplify_statement("#false | #false: q(X+Y).") == "#false., B");
+    REQUIRE(simplify_statement("#false | #false: q(X+Y).") == " :- ., B");
     REQUIRE(simplify_statement("#true | p(X+Y): q(X+Y).") == "#true., T");
-    REQUIRE(simplify_statement("x :- #and { #true; p(X+Y): q(X+Y) }.") ==
-            "x :- #and { p(1*__A_0+0), __A_0=X+Y: q(1*__A_1+0), __A_1=X+Y }., U");
-    REQUIRE(simplify_statement("x :- #and { #true; not p(X+Y): q(X+Y) }.") ==
-            "x :- not p(X+Y): q(1*__A_0+0), __A_0=X+Y., U");
-    REQUIRE(simplify_statement("x :- #and { #true; #false: q(X+Y) }.") == "x :- #false: q(1*__A_0+0), __A_0=X+Y., U");
-    REQUIRE(simplify_statement("x :- #and { #true; #true: q(X+Y) }.") == "x., U");
-    REQUIRE(simplify_statement("x :- #and { #false; p(X+Y): q(X+Y) }.") == "#true., T");
+    REQUIRE(simplify_statement("x :- p(X+Y): q(X+Y).") == "x :- p(X+Y): q(1*__A_0+0), __A_0=X+Y., U");
+    REQUIRE(simplify_statement("x :- not p(X+Y): q(X+Y).") == "x :- not p(X+Y): q(1*__A_0+0), __A_0=X+Y., U");
+    REQUIRE(simplify_statement("x :- #false: q(X+Y).") == "x :- #false: q(1*__A_0+0), __A_0=X+Y., U");
+    REQUIRE(simplify_statement("x :- #true: q(X+Y).") == "x., U");
+    REQUIRE(simplify_statement("x :- p(X+a): q(X+Y).") == "x., U");
+    REQUIRE(simplify_statement("x :- p(X+Y): q(X+a).") == "x., U");
     REQUIRE(simplify_statement("#false.") == "<unchanged>, B");
-    REQUIRE(simplify_statement("#false :- #true.") == "#false., B");
+    REQUIRE(simplify_statement("#false :- #true.") == " :- ., B");
     REQUIRE(simplify_statement("p(X) :- q(*).") == "<unchanged>, U");
     REQUIRE(simplify_statement("h(Y) :- X=1..2, Y=@x(X).") == "<unchanged>, U");
 }

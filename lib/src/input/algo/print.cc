@@ -548,8 +548,16 @@ struct Print {
     void operator()(Statement const &stm) const { std::visit(*this, stm); }
 
     void operator()(Rule const &stm) const {
-        auto const *disj = std::get_if<Disjunction>(&stm.head);
-        bool empty_head = disj != nullptr && disj->elems.empty();
+        bool empty_head = std::visit(
+            [](auto const &head) {
+                GRINGO_MATCH(head, Disjunction) { return head.elems.empty(); }
+                GRINGO_MATCH(head, SimpleHeadLiteral) {
+                    auto val = is_boolean(head.lit);
+                    return val && !*val;
+                }
+                return false;
+            },
+            stm.head);
         if (!empty_head) {
             out << stm.head;
         }
