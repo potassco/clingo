@@ -13,6 +13,84 @@ using Util::TruthValue;
 
 namespace {
 
+//! Struct to indicate whether there is a relation literal (or interval) that asserts a bound.
+struct BoundState {
+    uint8_t lower : 1 = 0;
+    uint8_t upper : 1 = 0;
+    uint8_t both : 1 = 0;
+
+    //! Check if the given bound is covered.
+    [[nodiscard]] auto value(IEInterval::Type type) const -> bool {
+        if (both == 1) {
+            return true;
+        }
+        switch (type) {
+            case IEInterval::Lower: {
+                return lower == 1;
+            }
+            case IEInterval::Upper: {
+                break;
+            }
+        }
+        return upper == 1;
+    }
+
+    //! Mark a bound as covered.
+    void set_value(IEInterval::Type type) {
+        switch (type) {
+            case IEInterval::Lower: {
+                lower = 1;
+                break;
+            }
+            case IEInterval::Upper: {
+                upper = 1;
+                break;
+            }
+        }
+    }
+};
+using BoundStateMap = std::vector<BoundState>;
+
+//! Compare two numbers according to the given relation and return a comparator.
+[[nodiscard]] auto cmp(Number const &a, Relation rel, Number const &b) -> bool {
+    auto cmp = compare(a, b);
+    switch (rel) {
+        case Relation::equal: {
+            return cmp == 0;
+        }
+        case Relation::inequal: {
+            return cmp != 0;
+        }
+        case Relation::less: {
+            return cmp < 0;
+        }
+        case Relation::less_equal: {
+            return cmp <= 0;
+        }
+        case Relation::greater: {
+            return cmp > 0;
+        }
+        case Relation::greater_equal: {
+            break;
+        }
+    }
+    return cmp >= 0;
+}
+
+//! Flip the given bound type.
+[[nodiscard]] auto flip(IEInterval::Type type) -> IEInterval::Type {
+    switch (type) {
+        case IEInterval::Lower: {
+            return IEInterval::Upper;
+        }
+        case IEInterval::Upper: {
+            break;
+        }
+    }
+    return IEInterval::Lower;
+}
+
+//! Extract (and classify) linear terms from terms.
 struct ExtractTerms {
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
@@ -111,7 +189,8 @@ struct ExtractTerms {
     bool add = true;
 };
 
-struct ExtractBounds {
+//! Extract inequalities from relation literals.
+struct ExtractInequalities {
     void operator()(Literal const &lit) const { std::visit(*this, lit); }
 
     void operator()(auto const &lit) const { static_cast<void>(lit); }
@@ -181,13 +260,12 @@ struct ExtractBounds {
     IESolver &slv;
 };
 
-struct BoundState {
-    uint8_t lower : 1 = 0;
-    uint8_t upper : 1 = 0;
-    uint8_t both : 1 = 0;
-};
-using BoundStateMap = std::vector<BoundState>;
-
+//! Apply bounds modifying relation literals.
+//!
+//! The following comparisons are handled:
+//! Number n in `X rel n` is adjusted according to relation and bounds.
+//! Numbers n and m in `X = m..n` are adjusted according to bounds.
+//! Unnecessary relations are dropped.
 struct ApplyBounds {
     auto operator()(Literal const &lit) const -> Util::ResultState<Literal> { return std::visit(*this, lit); }
 
@@ -206,15 +284,15 @@ struct ApplyBounds {
             return TermSymbol{sym.loc, store.num(GRINGO_FWD(bound))};
         };
         auto make_relation = [this, &lit](auto const &lhs, Relation rel, Location loc, auto const &bound) {
-            return LiteralRelation{lit.loc, lit.sign, lhs,
+            return LiteralRelation{lit.loc, Sign::none, lhs,
                                    Util::make_vec<Guard>(Guard{rel, TermSymbol{std::move(loc), store.num(bound)}})};
         };
         auto make_interval = [&lit](auto var, auto loc, auto u, auto v) -> Util::ResultState<Literal> {
             if (u.value == v.value) {
                 return {true,
-                        LiteralRelation{lit.loc, lit.sign, var, Util::make_vec<Guard>(Guard{Relation::equal, u})}};
+                        LiteralRelation{lit.loc, Sign::none, var, Util::make_vec<Guard>(Guard{Relation::equal, u})}};
             }
-            return {true, LiteralRelation{lit.loc, lit.sign, std::move(var),
+            return {true, LiteralRelation{lit.loc, Sign::none, std::move(var),
                                           Util::make_vec<Guard>(
                                               Guard{Relation::equal, TermBinary{std::move(loc), std::move(u),
                                                                                 BinaryOperator::dots, std::move(v)}})}};
@@ -268,55 +346,16 @@ struct ApplyBounds {
             }
             auto &state = states[std::distance(dom.begin(), it)];
             auto const &num = *sym->value.num();
+            auto bound_type = IEInterval::Lower;
             switch (rel) {
                 case Relation::greater:
                 case Relation::greater_equal: {
-                    // drop if covered
-                    if (state.lower == 1 || state.both == 1) {
-                        return {false};
-                    }
-                    // var >= num
-                    if (!it->second.has_value(IEInterval::Lower)) {
-                        return {true};
-                    }
-                    auto bound = it->second.value(IEInterval::Lower);
-                    if (it->second.has_value(IEInterval::Upper)) {
-                        state.both = 1;
-                        return make_interval(*var, location(rhs),
-                                             make_symbol(*sym, it->second.value(IEInterval::Lower)),
-                                             make_symbol(*sym, it->second.value(IEInterval::Upper)));
-                    }
-                    // mark as covered
-                    state.lower = 1;
-                    // update if changed
-                    if (rel == Relation::greater_equal ? bound > num : bound >= num) {
-                        return {true, make_relation(lhs, Relation::greater_equal, location(rhs), bound)};
-                    }
+                    bound_type = IEInterval::Lower;
                     break;
                 }
                 case Relation::less:
                 case Relation::less_equal: {
-                    // drop if covered
-                    if (state.upper == 1 || state.both == 1) {
-                        return {false};
-                    }
-                    // var >= num
-                    if (!it->second.has_value(IEInterval::Upper)) {
-                        return {true};
-                    }
-                    // mark as covered
-                    auto bound = it->second.value(IEInterval::Upper);
-                    if (it->second.has_value(IEInterval::Lower)) {
-                        state.both = 1;
-                        return make_interval(*var, location(rhs),
-                                             make_symbol(*sym, it->second.value(IEInterval::Lower)),
-                                             make_symbol(*sym, it->second.value(IEInterval::Upper)));
-                    }
-                    state.upper = 1;
-                    // update if changed
-                    if (rel == Relation::less_equal ? bound < num : bound <= num) {
-                        return {true, make_relation(lhs, Relation::less_equal, location(rhs), bound)};
-                    }
+                    bound_type = IEInterval::Upper;
                     break;
                 }
                 case Relation::equal: {
@@ -324,11 +363,33 @@ struct ApplyBounds {
                         return {false};
                     }
                     state.both = 1;
-                    break;
+                    return {true};
                 }
                 case Relation::inequal: {
-                    break;
+                    return {true};
                 }
+            }
+            // drop if covered
+            if (state.value(bound_type)) {
+                return {false};
+            }
+            // ignore if not bounded
+            if (!it->second.has_value(bound_type)) {
+                return {true};
+            }
+            auto bound = it->second.value(bound_type);
+            if (it->second.has_value(flip(bound_type))) {
+                state.both = 1;
+                return make_interval(*var, location(rhs), make_symbol(*sym, it->second.value(IEInterval::Lower)),
+                                     make_symbol(*sym, it->second.value(IEInterval::Upper)));
+            }
+            // mark as covered
+            state.set_value(bound_type);
+            // update if changed
+            auto adjust = bound_type == IEInterval::Lower ? 1 : -1;
+            if (cmp(bound, rel, num + adjust)) {
+                auto rel = bound_type == IEInterval::Lower > 0 ? Relation::greater_equal : Relation::less_equal;
+                return {true, make_relation(lhs, rel, location(rhs), bound)};
             }
             return {true};
         };
@@ -353,11 +414,13 @@ struct ComputeBounds {
     }
     auto operator()(Rule const &stm) const -> Util::ResultState<Statement> {
         IESolver slv;
+        // add inequalities to solver
         for (auto const &lit : stm.body) {
             if (auto const *slit = std::get_if<SimpleBodyLiteral>(&lit); slit != nullptr) {
-                ExtractBounds{slv}(slit->lit);
+                ExtractInequalities{slv}(slit->lit);
             }
         }
+        // compute bounds
         if (!slv.compute(ctx.logger())) {
             return {false};
         }
@@ -369,6 +432,7 @@ struct ComputeBounds {
         for (auto const &bound : slv.domain()) {
             std::cerr << "  " << bound.first << ": " << bound.second << std::endl;
         }
+        // adjust relation literals in rule bodies
         BoundStateMap states;
         states.resize(dom.size());
         states.reserve(dom.size());
@@ -385,10 +449,50 @@ struct ComputeBounds {
                 res_body.keep();
             }
         }
+        // add additional relation literals to rule body if required
+        auto make_relation = [this, &stm](auto const &var, Relation rel, auto const &bound) -> Literal {
+            auto term_var = TermVariable{stm.loc, var};
+            return LiteralRelation{stm.loc, Sign::none, std::move(term_var),
+                                   Util::make_vec<Guard>(Guard{rel, TermSymbol{stm.loc, ctx.store().num(bound)}})};
+        };
+        auto make_interval = [this, &stm](auto var, Number const &u, Number const &v) -> Literal {
+            auto term_var = TermVariable{stm.loc, var};
+            auto term_u = TermSymbol{stm.loc, ctx.store().num(u)};
+            if (u == v) {
+                return LiteralRelation{stm.loc, Sign::none, std::move(term_var),
+                                       Util::make_vec<Guard>(Guard{Relation::equal, std::move(term_u)})};
+            }
+            auto term_v = TermSymbol{stm.loc, ctx.store().num(v)};
+            return LiteralRelation{
+                stm.loc, Sign::none, std::move(term_var),
+                Util::make_vec<Guard>(Guard{
+                    Relation::equal, TermBinary{stm.loc, std::move(term_u), BinaryOperator::dots, std::move(term_v)}})};
+        };
+        auto it = dom.begin();
+        for (auto &state : states) {
+            if (it->second.has_value(IEInterval::Lower) && it->second.has_value(IEInterval::Upper)) {
+                if (state.both == 0) {
+                    res_body.append(make_interval(it->first, it->second.value(IEInterval::Lower),
+                                                  it->second.value(IEInterval::Upper)));
+                }
+            } else if (it->second.has_value(IEInterval::Lower)) {
+                if (state.lower == 0) {
+                    res_body.append(
+                        make_relation(it->first, Relation::greater_equal, it->second.value(IEInterval::Lower)));
+                }
+            } else if (it->second.has_value(IEInterval::Upper)) {
+                if (state.upper == 0) {
+                    res_body.append(
+                        make_relation(it->first, Relation::less_equal, it->second.value(IEInterval::Upper)));
+                }
+            }
+            ++it;
+        }
         if (res_body) {
             std::cerr << Statement{Rule{stm.loc, stm.head, res_body.value()}} << std::endl;
             return {true, Rule{stm.loc, stm.head, std::move(res_body).value()}};
         }
+        // TODO: apply to nested contexts
         return {true};
     }
 
