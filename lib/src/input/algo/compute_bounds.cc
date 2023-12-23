@@ -145,6 +145,7 @@ struct ExtractBounds {
         switch (rhs.first) {
             case Relation::greater: {
                 bound = -1;
+                [[fallthrough]];
             }
             case Relation::greater_equal: {
                 if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs) && ExtractTerms{terms, false}(rhs.second)) {
@@ -154,6 +155,7 @@ struct ExtractBounds {
             }
             case Relation::less: {
                 bound = 1;
+                [[fallthrough]];
             }
             case Relation::less_equal: {
                 if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs) && ExtractTerms{terms, true}(rhs.second)) {
