@@ -406,22 +406,83 @@ struct ApplyBounds {
 
 struct ComputeBounds {
 
-    auto operator()(Statement const &stm) const -> Util::ResultState<Statement> { return std::visit(*this, stm); }
+    // head literals
 
-    auto operator()(auto const &stm) const -> Util::ResultState<Statement> {
+    auto operator()(HeadLiteral const &lit) -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(SimpleHeadLiteral const &lit) -> std::optional<HeadLiteral> {
+        static_cast<void>(lit);
+        return std::nullopt;
+    }
+
+    auto operator()(Disjunction const &lit) -> std::optional<HeadLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(HeadAggregate const &lit) -> std::optional<HeadLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(HeadSetAggregate const &lit) -> std::optional<HeadLiteral> {
+        static_cast<void>(lit);
+        throw std::runtime_error("unpool must be called before computing bounds");
+    }
+
+    auto operator()(HeadTheoryAtom const &lit) -> std::optional<HeadLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me!!!");
+    }
+
+    // body literals
+
+    auto operator()(BodyLiteral const &lit) -> Util::ResultState<BodyLiteral> { return std::visit(*this, lit); }
+
+    auto operator()(SimpleBodyLiteral const &lit) -> Util::ResultState<BodyLiteral> {
+        static_cast<void>(lit);
+        return {true};
+    }
+
+    auto operator()(Conjunction const &lit) -> Util::ResultState<BodyLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(BodyAggregate const &lit) -> Util::ResultState<BodyLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(BodySetAggregate const &lit) -> Util::ResultState<BodyLiteral> {
+        static_cast<void>(lit);
+        throw std::runtime_error("unpool must be called before computing bounds");
+    }
+
+    auto operator()(BodyTheoryAtom const &lit) -> Util::ResultState<BodyLiteral> {
+        static_cast<void>(lit);
+        throw std::logic_error("implement me!!!");
+    }
+
+    // statements
+
+    auto operator()(Statement const &stm) -> Util::ResultState<Statement> { return std::visit(*this, stm); }
+
+    auto operator()(auto const &stm) -> Util::ResultState<Statement> {
         static_cast<void>(stm);
         throw std::logic_error("implement me: computer bounds other statements");
     }
-    auto operator()(Rule const &stm) const -> Util::ResultState<Statement> {
-        IESolver slv;
+    auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
         // add inequalities to solver
         for (auto const &lit : stm.body) {
             if (auto const *slit = std::get_if<SimpleBodyLiteral>(&lit); slit != nullptr) {
                 ExtractInequalities{slv}(slit->lit);
             }
         }
+
         // compute bounds
         if (!slv.compute(ctx.logger())) {
+            // TODO: maybe add rep
             return {false};
         }
         auto const &dom = slv.domain();
@@ -432,6 +493,7 @@ struct ComputeBounds {
         for (auto const &bound : slv.domain()) {
             std::cerr << "  " << bound.first << ": " << bound.second << std::endl;
         }
+
         // adjust relation literals in rule bodies
         BoundStateMap states;
         states.resize(dom.size());
@@ -449,6 +511,7 @@ struct ComputeBounds {
                 res_body.keep();
             }
         }
+
         // add additional relation literals to rule body if required
         auto make_relation = [this, &stm](auto const &var, Relation rel, auto const &bound) -> Literal {
             auto term_var = TermVariable{stm.loc, var};
@@ -488,15 +551,35 @@ struct ComputeBounds {
             }
             ++it;
         }
-        if (res_body) {
-            std::cerr << Statement{Rule{stm.loc, stm.head, res_body.value()}} << std::endl;
-            return {true, Rule{stm.loc, stm.head, std::move(res_body).value()}};
+
+        // refine bounds in nested body contexts
+        auto res_body_nested = Util::ResultVec{res_body.value()};
+        for (auto const &lit : res_body.value()) {
+            // Note: only the case that a literal became false is handled here.
+            if (auto res_lit = operator()(lit); res_lit.state) {
+                res_body_nested.update(std::move(res_lit).value);
+            } else {
+                // TODO: maybe add rep
+                return {false};
+            }
         }
-        // TODO: apply to nested contexts
+        if (res_body_nested) {
+            res_body.as_optional() = std::move(res_body_nested).as_optional();
+        }
+
+        // refine bounds in nested head contexts
+        auto res_head = operator()(stm.head);
+
+        // return updated result
+        if (res_head || res_body) {
+            std::cerr << Statement{Rule{stm.loc, stm.head, res_body.value()}} << std::endl;
+            return {true, Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
+        }
         return {true};
     }
 
     RewriteContext &ctx;
+    IESolver slv = {};
 };
 
 } // namespace
