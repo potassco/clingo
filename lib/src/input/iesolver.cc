@@ -229,6 +229,18 @@ auto IESolver::compute(Logger &log) -> bool {
     return true;
 }
 
+auto IESolver::strengthens(String var) const -> bool {
+    if (parent_ == nullptr) {
+        return true;
+    }
+    auto jt = parent_->domain_.find(var);
+    if (jt == parent_->domain_.end()) {
+        return true;
+    }
+    auto it = domain_.find(var);
+    return it != domain_.end() && it->second != jt->second;
+}
+
 auto IESolver::update_bound_(IETerm const &term, Number slack, size_t num_unbounded) -> bool {
     bool positive = term.coefficient > 0;
     auto type = positive ? IEInterval::Upper : IEInterval::Lower;

@@ -444,9 +444,91 @@ struct ComputeBounds {
         return {true};
     }
 
-    auto operator()(Conjunction const &lit) -> Util::ResultState<BodyLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me!!!");
+    auto operator()(Conjunction const &conj) -> Util::ResultState<BodyLiteral> {
+        // TODO: too much c&p
+        auto sub_slv = IESolver{&slv};
+
+        // add inequalities to solver
+        for (auto const &lit : conj.lit.cond) {
+            ExtractInequalities{sub_slv}(lit);
+        }
+
+        // compute bounds
+        if (!sub_slv.compute(ctx.logger())) {
+            // TODO: maybe add rep
+            return {false};
+        }
+        auto const &dom = sub_slv.domain();
+        if (dom.empty()) {
+            return {true};
+        }
+        std::cerr << "Refine bounds of conjunction:" << std::endl;
+        for (auto const &bound : sub_slv.domain()) {
+            std::cerr << "  " << bound.first << ": " << bound.second << std::endl;
+        }
+
+        // adjust relation literals in condition
+        BoundStateMap states;
+        states.resize(dom.size());
+        states.reserve(dom.size());
+        auto res_cond = Util::ResultVec{conj.lit.cond};
+        for (auto const &lit : conj.lit.cond) {
+            auto res = ApplyBounds{dom, states, ctx.store()}(lit);
+            if (!res.state) {
+                res_cond.remove();
+            } else {
+                res_cond.update(std::move(res.value));
+            }
+        }
+
+        // add additional relation literals to condition if required
+        auto make_relation = [this, &conj](auto const &var, Relation rel, auto const &bound) -> Literal {
+            auto term_var = TermVariable{conj.lit.loc, var};
+            return LiteralRelation{conj.lit.loc, Sign::none, std::move(term_var),
+                                   Util::make_vec<Guard>(Guard{rel, TermSymbol{conj.lit.loc, ctx.store().num(bound)}})};
+        };
+        auto make_interval = [this, &conj](auto var, Number const &u, Number const &v) -> Literal {
+            auto term_var = TermVariable{conj.lit.loc, var};
+            auto term_u = TermSymbol{conj.lit.loc, ctx.store().num(u)};
+            if (u == v) {
+                return LiteralRelation{conj.lit.loc, Sign::none, std::move(term_var),
+                                       Util::make_vec<Guard>(Guard{Relation::equal, std::move(term_u)})};
+            }
+            auto term_v = TermSymbol{conj.lit.loc, ctx.store().num(v)};
+            return LiteralRelation{
+                conj.lit.loc, Sign::none, std::move(term_var),
+                Util::make_vec<Guard>(Guard{Relation::equal, TermBinary{conj.lit.loc, std::move(term_u),
+                                                                        BinaryOperator::dots, std::move(term_v)}})};
+        };
+        auto it = dom.begin();
+        for (auto &state : states) {
+            if (!slv.strengthens(it->first)) {
+                continue;
+            }
+            if (it->second.has_value(IEInterval::Lower) && it->second.has_value(IEInterval::Upper)) {
+                if (state.both == 0) {
+                    res_cond.append(make_interval(it->first, it->second.value(IEInterval::Lower),
+                                                  it->second.value(IEInterval::Upper)));
+                }
+            } else if (it->second.has_value(IEInterval::Lower)) {
+                if (state.lower == 0) {
+                    res_cond.append(
+                        make_relation(it->first, Relation::greater_equal, it->second.value(IEInterval::Lower)));
+                }
+            } else if (it->second.has_value(IEInterval::Upper)) {
+                if (state.upper == 0) {
+                    res_cond.append(
+                        make_relation(it->first, Relation::less_equal, it->second.value(IEInterval::Upper)));
+                }
+            }
+            ++it;
+        }
+
+        // return update literal
+        if (res_cond) {
+            return {true, Conjunction{ConditionalLiteral{conj.lit.loc, conj.lit.lit, std::move(res_cond).value()}}};
+        }
+        return {true};
     }
 
     auto operator()(BodyAggregate const &lit) -> Util::ResultState<BodyLiteral> {
@@ -552,7 +634,8 @@ struct ComputeBounds {
             ++it;
         }
 
-        // refine bounds in nested body contexts
+        // refine bounds in nested contexts
+        auto res_head = operator()(stm.head);
         auto res_body_nested = Util::ResultVec{res_body.value()};
         for (auto const &lit : res_body.value()) {
             // Note: only the case that a literal became false is handled here.
@@ -566,9 +649,6 @@ struct ComputeBounds {
         if (res_body_nested) {
             res_body.as_optional() = std::move(res_body_nested).as_optional();
         }
-
-        // refine bounds in nested head contexts
-        auto res_head = operator()(stm.head);
 
         // return updated result
         if (res_head || res_body) {

@@ -102,7 +102,10 @@ class IESolver {
     //! should be subject to refinement given the computed bounds.
     void add(IE ie);
     [[nodiscard]] auto compute(Logger &log) -> bool;
+    //! Get the domains of variables.
     [[nodiscard]] auto domain() const -> IEDomain const & { return domain_; }
+    //! Return true if the solver strengthens the domain of the given variable.
+    [[nodiscard]] auto strengthens(String var) const -> bool;
 
   private:
     //! Update the bound of the given term's variable.
