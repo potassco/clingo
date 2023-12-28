@@ -1,7 +1,5 @@
 #include <input/iesolver.hh>
 
-#include <iostream>
-
 namespace Gringo::Input {
 
 namespace {
@@ -65,7 +63,7 @@ auto operator==(IEInterval const &a, IEInterval const &b) -> bool {
     return a.lower_ == b.lower_ && a.upper_ == b.upper_;
 }
 
-auto operator!=(IEInterval const &a, IEInterval const &b) -> bool { return a == b; }
+auto operator!=(IEInterval const &a, IEInterval const &b) -> bool { return !(a == b); }
 
 auto operator<(IETerm const &a, IETerm const &b) -> bool {
     if (a.variable != b.variable) {
