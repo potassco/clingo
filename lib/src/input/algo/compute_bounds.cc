@@ -498,14 +498,16 @@ struct ComputeBounds {
     }
 
     //! Helper a la std::placeholders to map to literals.
-    struct Lits {};
+    struct RT {};
+    static auto constexpr rt = RT{};
+
     //! Map to literals.
-    auto map_lits(Lits const &x, auto &elems) {
+    auto map_rt(RT const &x, auto &elems) {
         static_cast<void>(x);
         return std::move(elems).value();
     }
     //! Map to value.
-    auto map_lits(auto const &x, auto &elems) {
+    auto map_rt(auto const &x, auto &elems) {
         static_cast<void>(elems);
         return x;
     }
@@ -518,7 +520,7 @@ struct ComputeBounds {
         if (!state_lits) {
             elems.remove();
         } else if (res_lits) {
-            elems.replace(map_lits(args, res_lits)...);
+            elems.replace(map_rt(args, res_lits)...);
         } else {
             elems.keep();
         }
@@ -537,7 +539,7 @@ struct ComputeBounds {
     template <bool Body> auto operator()(TheoryAtom<Body> const &lit) -> HBRes<Body> {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
-            compute_bounds_elem(lit.loc, res_elems, elem.second, elem.first, Lits{});
+            compute_bounds_elem(lit.loc, res_elems, elem.second, elem.first, rt);
         }
         if constexpr (Body) {
             if (res_elems) {
@@ -566,7 +568,7 @@ struct ComputeBounds {
         for (auto const &elem : lit.elems) {
             if (auto const *clit = std::get_if<ConditionalLiteral>(&elem)) {
                 compute_bounds_elem(clit->loc, res_elems, clit->cond, std::in_place_type<ConditionalLiteral>, clit->loc,
-                                    clit->lit, Lits{});
+                                    clit->lit, rt);
             }
         }
         if (res_elems) {
@@ -578,7 +580,7 @@ struct ComputeBounds {
     auto operator()(HeadAggregate const &lit) -> std::optional<HeadLiteral> {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
-            compute_bounds_elem(elem.loc, res_elems, elem.cond, elem.loc, elem.tuple, elem.lit, Lits{});
+            compute_bounds_elem(elem.loc, res_elems, elem.cond, elem.loc, elem.tuple, elem.lit, rt);
         }
         if (res_elems) {
             return HeadAggregate{lit.loc, lit.lhs, lit.fun, std::move(res_elems).value(), lit.rhs};
@@ -610,7 +612,7 @@ struct ComputeBounds {
     auto operator()(BodyAggregate const &lit) -> Util::ResultState<BodyLiteral> {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
-            compute_bounds_elem(elem.loc, res_elems, elem.cond, elem.loc, elem.tuple, Lits{});
+            compute_bounds_elem(elem.loc, res_elems, elem.cond, elem.loc, elem.tuple, rt);
         }
         if (res_elems) {
             return {true, BodyAggregate{lit.loc, lit.sign, lit.lhs, lit.fun, std::move(res_elems).value(), lit.rhs}};
@@ -622,16 +624,11 @@ struct ComputeBounds {
 
     auto operator()(Statement const &stm) -> Util::ResultState<Statement> { return std::visit(*this, stm); }
 
-    auto operator()(auto const &stm) -> Util::ResultState<Statement> {
-        static_cast<void>(stm);
-        throw std::logic_error("implement me: computer bounds other statements");
-    }
     auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
         // compute bounds
         auto [state_body, res_body] = compute_bounds(slv, stm.loc, stm.body);
         if (!state_body) {
-            // TODO: maybe add rep
-            return {false};
+            return {false, Rule{stm.loc, SimpleHeadLiteral{LiteralBoolean{stm.loc, Sign::none, true}}, {}}};
         }
 
         // refine bounds in nested contexts
@@ -642,8 +639,7 @@ struct ComputeBounds {
             if (auto res_lit = operator()(lit); res_lit.state) {
                 res_body_nested.update(std::move(res_lit).value);
             } else {
-                // TODO: maybe add rep
-                return {false};
+                return {false, Rule{stm.loc, SimpleHeadLiteral{LiteralBoolean{stm.loc, Sign::none, true}}, {}}};
             }
         }
         if (res_body_nested) {
@@ -654,6 +650,110 @@ struct ComputeBounds {
         if (res_head || res_body) {
             return {true, Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
         }
+        return {true};
+    }
+
+    auto operator()(TheoryDefinition const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementOptimize const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        throw std::runtime_error("unpool must be called before computing bounds");
+    }
+
+    auto compute_bounds_body(auto const &loc, auto const &body, auto const &...args) -> Util::ResultState<Statement> {
+        // compute bounds
+        auto [state_body, res_body] = compute_bounds(slv, loc, body);
+        if (!state_body) {
+            return {false, Rule{loc, SimpleHeadLiteral{LiteralBoolean{loc, Sign::none, true}}, {}}};
+        }
+
+        // refine bounds in nested contexts
+        auto res_body_nested = Util::ResultVec{res_body.value()};
+        for (auto const &lit : res_body.value()) {
+            // Note: only the case that a literal became false is handled here.
+            if (auto res_lit = operator()(lit); res_lit.state) {
+                res_body_nested.update(std::move(res_lit).value);
+            } else {
+                return {false, Rule{loc, SimpleHeadLiteral{LiteralBoolean{loc, Sign::none, true}}, {}}};
+            }
+        }
+        if (res_body_nested) {
+            res_body.as_optional() = std::move(res_body_nested).as_optional();
+        }
+
+        if (res_body) {
+            return {true, Statement{map_rt(args, res_body)...}};
+        }
+        return {true};
+    }
+
+    auto operator()(StatementWeakConstraint const &stm) -> Util::ResultState<Statement> {
+        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementWeakConstraint>, stm.loc, rt,
+                                   stm.tuple);
+    }
+
+    auto operator()(StatementShow const &stm) -> Util::ResultState<Statement> {
+        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementShow>, stm.loc, stm.term, rt);
+    }
+
+    auto operator()(StatementShowSig const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementProject const &stm) -> Util::ResultState<Statement> {
+        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementProject>, stm.loc, stm.term, rt);
+    }
+
+    auto operator()(StatementProjectSig const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementDefined const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementExternal const &stm) -> Util::ResultState<Statement> {
+        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementExternal>, stm.loc, stm.term, rt,
+                                   stm.type);
+    }
+
+    auto operator()(StatementEdge const &stm) -> Util::ResultState<Statement> {
+        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementEdge>, stm.loc, stm.edges, rt);
+    }
+
+    auto operator()(StatementHeuristic const &stm) -> Util::ResultState<Statement> {
+        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementHeuristic>, stm.loc, stm.atom, rt,
+                                   stm.type, stm.prio, stm.mod);
+    }
+
+    auto operator()(StatementScript const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementInclude const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementProgram const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementConst const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(Comment const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
         return {true};
     }
 

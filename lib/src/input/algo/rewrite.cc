@@ -1,5 +1,6 @@
 #include <logger.hh>
 
+#include <input/algo/compute_bounds.hh>
 #include <input/algo/print.hh>
 #include <input/algo/project.hh>
 #include <input/algo/rewrite.hh>
@@ -43,6 +44,17 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
     auto res = std::move(opt).value_or(stm);
 
     auto rewrite_unpooled = [&opts, &stms, &ctx](Statement stm, char const *indent) {
+        auto rewrite_unpooled = [&opts, &stms, &ctx, indent](Statement stm, char const *sub_indent) {
+            auto [state_cb, res_cb] = compute_bounds(ctx, stm);
+            if (res_cb) {
+                GRINGO_REPORT(ctx.logger(), trace) << indent << sub_indent << "compute bounds: " << *res_cb;
+            }
+            if (state_cb) {
+                stm = std::move(res_cb).value_or(std::move(stm));
+                stms.emplace_back(std::move(stm));
+            }
+        };
+
         auto res_project = project(stm, opts.project_mode, opts.project_anonymous);
         if (res_project) {
             GRINGO_REPORT(ctx.logger(), trace) << indent << "project: " << *res_project;
@@ -62,10 +74,10 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
             if (auto res_stms = unpool_relations(ctx, stm); res_stms) {
                 for (auto &stm : *res_stms) {
                     GRINGO_REPORT(ctx.logger(), trace) << indent << "unpool relations: " << stm;
-                    stms.emplace_back(std::move(stm));
+                    rewrite_unpooled(std::move(stm), "  ");
                 }
             } else {
-                stms.emplace_back(std::move(stm));
+                rewrite_unpooled(std::move(stm), "");
             }
         }
     };

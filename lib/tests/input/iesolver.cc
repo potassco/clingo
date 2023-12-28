@@ -61,6 +61,7 @@ TEST_CASE("compute_bounds") {
 
     REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=0; p(X): X+Y=6, -3*X+Y=2.")).state);
     REQUIRE(compute_bounds(ctx, *ph.statement("h :- #count { X: 1<=X, X<=3 } >= 6.")).state);
+    REQUIRE(compute_bounds(ctx, *ph.statement("h :- p(X),-0x80000000<=X, X<=0x2147483648.")).state);
 }
 
 // NOLINTEND(readability-magic-numbers)
