@@ -544,12 +544,10 @@ struct ComputeBounds {
 
     auto operator()(Conjunction const &conj) -> Util::ResultState<BodyLiteral> {
         auto sub_slv = IESolver{&slv};
-
         auto [state_cond, res_cond] = compute_bounds(sub_slv, conj.lit.loc, conj.lit.cond);
         if (!state_cond) {
-            return {false};
+            return {false, SimpleBodyLiteral{LiteralBoolean{conj.lit.loc, Sign::none, false}}};
         }
-
         if (res_cond) {
             return {true, Conjunction{ConditionalLiteral{conj.lit.loc, conj.lit.lit, std::move(res_cond).value()}}};
         }
@@ -557,8 +555,22 @@ struct ComputeBounds {
     }
 
     auto operator()(BodyAggregate const &lit) -> Util::ResultState<BodyLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me!!!");
+        auto res_elems = Util::ResultVec{lit.elems};
+        for (auto const &elem : lit.elems) {
+            auto sub_slv = IESolver{&slv};
+            auto [state_lits, res_lits] = compute_bounds(sub_slv, elem.loc, elem.cond);
+            if (state_lits) {
+                res_elems.remove();
+            } else if (res_elems) {
+                res_elems.replace(elem.loc, elem.tuple, std::move(res_lits).value());
+            } else {
+                res_elems.keep();
+            }
+        }
+        if (res_elems) {
+            return {true, BodyAggregate{lit.loc, lit.sign, lit.lhs, lit.fun, std::move(res_elems).value(), lit.rhs}};
+        }
+        return {true};
     }
 
     auto operator()(BodySetAggregate const &lit) -> Util::ResultState<BodyLiteral> {
@@ -567,8 +579,23 @@ struct ComputeBounds {
     }
 
     auto operator()(BodyTheoryAtom const &lit) -> Util::ResultState<BodyLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me!!!");
+        // TODO: can be made generic for head/body
+        auto res_elems = Util::ResultVec{lit.elems};
+        for (auto const &elem : lit.elems) {
+            auto sub_slv = IESolver{&slv};
+            auto [state_lits, res_lits] = compute_bounds(sub_slv, lit.loc, elem.second);
+            if (state_lits) {
+                res_elems.remove();
+            } else if (res_elems) {
+                res_elems.replace(elem.first, std::move(res_lits).value());
+            } else {
+                res_elems.keep();
+            }
+        }
+        if (res_elems) {
+            return {true, BodyTheoryAtom{lit.loc, lit.sign, lit.name, std::move(res_elems).value(), lit.rhs}};
+        }
+        return {true};
     }
 
     // statements
