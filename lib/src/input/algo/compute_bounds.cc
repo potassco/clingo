@@ -3,10 +3,6 @@
 
 #include <input/iesolver.hh>
 
-// TODO: remove
-#include <input/algo/print.hh>
-#include <iostream>
-
 namespace Gringo::Input {
 
 using Util::TruthValue;
@@ -411,6 +407,7 @@ struct ApplyBounds {
 };
 
 struct ComputeBounds {
+    //! Compute bounds given a set of literals/body literals.
     template <class T>
     auto compute_bounds(IESolver &slv, Location const &loc, std::vector<T> const &lits)
         -> std::pair<bool, Util::ResultVec<T>> {
@@ -428,10 +425,6 @@ struct ComputeBounds {
         auto const &dom = slv.domain();
         if (dom.empty()) {
             return {true, std::move(res_lits)};
-        }
-        std::cerr << "Refine bounds of conjunction:" << std::endl;
-        for (auto const &bound : slv.domain()) {
-            std::cerr << "  " << bound.first << ": " << bound.second << std::endl;
         }
 
         // adjust relation literals in condition
@@ -504,6 +497,61 @@ struct ComputeBounds {
         return {true, res_lits};
     }
 
+    //! Helper a la std::placeholders to map to literals.
+    struct Lits {};
+    //! Map to literals.
+    auto map_lits(Lits const &x, auto &elems) {
+        static_cast<void>(x);
+        return std::move(elems).value();
+    }
+    //! Map to value.
+    auto map_lits(auto const &x, auto &elems) {
+        static_cast<void>(elems);
+        return x;
+    }
+
+    //! Helper to compute bounds for a set of elements.
+    template <class T, class... A>
+    auto compute_bounds_elem(Location const &loc, Util::ResultVec<T> &elems, LiteralVec const &lits, A const &...args) {
+        auto sub_slv = IESolver{&slv};
+        auto [state_lits, res_lits] = compute_bounds(sub_slv, loc, lits);
+        if (!state_lits) {
+            elems.remove();
+        } else if (res_lits) {
+            elems.replace(map_lits(args, res_lits)...);
+        } else {
+            elems.keep();
+        }
+    }
+
+    // set aggregates and theory atoms
+
+    template <bool Body>
+    using HBRes = std::conditional_t<Body, Util::ResultState<BodyLiteral>, std::optional<HeadLiteral>>;
+
+    template <bool Body> auto operator()(SetAggregate<Body> const &lit) -> HBRes<Body> {
+        static_cast<void>(lit);
+        throw std::runtime_error("unpool must be called before computing bounds");
+    }
+
+    template <bool Body> auto operator()(TheoryAtom<Body> const &lit) -> HBRes<Body> {
+        auto res_elems = Util::ResultVec{lit.elems};
+        for (auto const &elem : lit.elems) {
+            compute_bounds_elem(lit.loc, res_elems, elem.second, elem.first, Lits{});
+        }
+        if constexpr (Body) {
+            if (res_elems) {
+                return {true, BodyTheoryAtom{lit.loc, lit.sign, lit.name, std::move(res_elems).value(), lit.rhs}};
+            }
+            return {true};
+        } else {
+            if (res_elems) {
+                return HeadTheoryAtom{lit.loc, lit.name, std::move(res_elems).value(), lit.rhs};
+            }
+            return std::nullopt;
+        }
+    }
+
     // head literals
 
     auto operator()(HeadLiteral const &lit) -> std::optional<HeadLiteral> { return std::visit(*this, lit); }
@@ -514,23 +562,28 @@ struct ComputeBounds {
     }
 
     auto operator()(Disjunction const &lit) -> std::optional<HeadLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me!!!");
+        auto res_elems = Util::ResultVec{lit.elems};
+        for (auto const &elem : lit.elems) {
+            if (auto const *clit = std::get_if<ConditionalLiteral>(&elem)) {
+                compute_bounds_elem(clit->loc, res_elems, clit->cond, std::in_place_type<ConditionalLiteral>, clit->loc,
+                                    clit->lit, Lits{});
+            }
+        }
+        if (res_elems) {
+            return Disjunction{lit.loc, std::move(res_elems).value()};
+        }
+        return std::nullopt;
     }
 
     auto operator()(HeadAggregate const &lit) -> std::optional<HeadLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me!!!");
-    }
-
-    auto operator()(HeadSetAggregate const &lit) -> std::optional<HeadLiteral> {
-        static_cast<void>(lit);
-        throw std::runtime_error("unpool must be called before computing bounds");
-    }
-
-    auto operator()(HeadTheoryAtom const &lit) -> std::optional<HeadLiteral> {
-        static_cast<void>(lit);
-        throw std::logic_error("implement me!!!");
+        auto res_elems = Util::ResultVec{lit.elems};
+        for (auto const &elem : lit.elems) {
+            compute_bounds_elem(elem.loc, res_elems, elem.cond, elem.loc, elem.tuple, elem.lit, Lits{});
+        }
+        if (res_elems) {
+            return HeadAggregate{lit.loc, lit.lhs, lit.fun, std::move(res_elems).value(), lit.rhs};
+        }
+        return std::nullopt;
     }
 
     // body literals
@@ -557,43 +610,10 @@ struct ComputeBounds {
     auto operator()(BodyAggregate const &lit) -> Util::ResultState<BodyLiteral> {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
-            auto sub_slv = IESolver{&slv};
-            auto [state_lits, res_lits] = compute_bounds(sub_slv, elem.loc, elem.cond);
-            if (state_lits) {
-                res_elems.remove();
-            } else if (res_elems) {
-                res_elems.replace(elem.loc, elem.tuple, std::move(res_lits).value());
-            } else {
-                res_elems.keep();
-            }
+            compute_bounds_elem(elem.loc, res_elems, elem.cond, elem.loc, elem.tuple, Lits{});
         }
         if (res_elems) {
             return {true, BodyAggregate{lit.loc, lit.sign, lit.lhs, lit.fun, std::move(res_elems).value(), lit.rhs}};
-        }
-        return {true};
-    }
-
-    auto operator()(BodySetAggregate const &lit) -> Util::ResultState<BodyLiteral> {
-        static_cast<void>(lit);
-        throw std::runtime_error("unpool must be called before computing bounds");
-    }
-
-    auto operator()(BodyTheoryAtom const &lit) -> Util::ResultState<BodyLiteral> {
-        // TODO: can be made generic for head/body
-        auto res_elems = Util::ResultVec{lit.elems};
-        for (auto const &elem : lit.elems) {
-            auto sub_slv = IESolver{&slv};
-            auto [state_lits, res_lits] = compute_bounds(sub_slv, lit.loc, elem.second);
-            if (state_lits) {
-                res_elems.remove();
-            } else if (res_elems) {
-                res_elems.replace(elem.first, std::move(res_lits).value());
-            } else {
-                res_elems.keep();
-            }
-        }
-        if (res_elems) {
-            return {true, BodyTheoryAtom{lit.loc, lit.sign, lit.name, std::move(res_elems).value(), lit.rhs}};
         }
         return {true};
     }
@@ -632,7 +652,6 @@ struct ComputeBounds {
 
         // return updated result
         if (res_head || res_body) {
-            std::cerr << Statement{Rule{stm.loc, stm.head, res_body.value()}} << std::endl;
             return {true, Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
         }
         return {true};

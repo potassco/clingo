@@ -54,11 +54,13 @@ TEST_CASE("compute_bounds") {
     ParamMap param_map;
     RewriteContext ctx{ph, ph, param_map, const_map, {}, "__A_"};
 
-    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=1; X<= 5, X>=3, X<=7.")).state);
-    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=1; X<= 5, X=3..7.")).state);
+    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=1; X<=3.")).state);
+    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=1; X<=5, X>=3, X<=7.")).state);
+    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=1; X<=5, X=3..7.")).state);
     REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=0; X+Y=6; -3*X+Y=2.")).state);
 
     REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=0; p(X): X+Y=6, -3*X+Y=2.")).state);
+    REQUIRE(compute_bounds(ctx, *ph.statement("h :- #count { X: 1<=X, X<=3 } >= 6.")).state);
 }
 
 // NOLINTEND(readability-magic-numbers)
