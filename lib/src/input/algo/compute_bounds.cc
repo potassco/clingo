@@ -257,6 +257,12 @@ struct ExtractInequalities {
         }
     }
 
+    void operator()(BodyLiteral const &lit) const {
+        if (auto const *slit = std::get_if<SimpleBodyLiteral>(&lit); slit != nullptr) {
+            operator()(slit->lit);
+        }
+    }
+
     IESolver &slv;
 };
 
@@ -405,6 +411,98 @@ struct ApplyBounds {
 };
 
 struct ComputeBounds {
+    template <class T>
+    auto compute_bounds(IESolver &slv, Location const &loc, std::vector<T> const &lits)
+        -> std::pair<bool, Util::ResultVec<T>> {
+        auto res_lits = Util::ResultVec{lits};
+
+        // add inequalities to solver
+        for (auto const &lit : lits) {
+            ExtractInequalities{slv}(lit);
+        }
+
+        // compute bounds
+        if (!slv.compute(ctx.logger())) {
+            return {false, std::move(res_lits)};
+        }
+        auto const &dom = slv.domain();
+        if (dom.empty()) {
+            return {true, std::move(res_lits)};
+        }
+        std::cerr << "Refine bounds of conjunction:" << std::endl;
+        for (auto const &bound : slv.domain()) {
+            std::cerr << "  " << bound.first << ": " << bound.second << std::endl;
+        }
+
+        // adjust relation literals in condition
+        BoundStateMap states;
+        states.resize(dom.size());
+        states.reserve(dom.size());
+        for (auto const &lit : lits) {
+            Literal const *slit = nullptr;
+            if constexpr (std::is_same_v<T, BodyLiteral>) {
+                if (auto sblit = std::get_if<SimpleBodyLiteral>(&lit); sblit != nullptr) {
+                    slit = &sblit->lit;
+                }
+            } else {
+                slit = &lit;
+            }
+            if (slit != nullptr) {
+                auto res = ApplyBounds{dom, states, ctx.store()}(*slit);
+                if (!res.state) {
+                    res_lits.remove();
+                } else {
+                    res_lits.update(std::move(res.value));
+                }
+            } else {
+                res_lits.keep();
+            }
+        }
+
+        // add relation literals to literals if required
+        auto make_relation = [this, &loc](auto const &var, Relation rel, auto const &bound) -> Literal {
+            auto term_var = TermVariable{loc, var};
+            return LiteralRelation{loc, Sign::none, std::move(term_var),
+                                   Util::make_vec<Guard>(Guard{rel, TermSymbol{loc, ctx.store().num(bound)}})};
+        };
+        auto make_interval = [this, &loc](auto var, Number const &u, Number const &v) -> Literal {
+            auto term_var = TermVariable{loc, var};
+            auto term_u = TermSymbol{loc, ctx.store().num(u)};
+            if (u == v) {
+                return LiteralRelation{loc, Sign::none, std::move(term_var),
+                                       Util::make_vec<Guard>(Guard{Relation::equal, std::move(term_u)})};
+            }
+            auto term_v = TermSymbol{loc, ctx.store().num(v)};
+            return LiteralRelation{
+                loc, Sign::none, std::move(term_var),
+                Util::make_vec<Guard>(Guard{
+                    Relation::equal, TermBinary{loc, std::move(term_u), BinaryOperator::dots, std::move(term_v)}})};
+        };
+        auto it = dom.begin();
+        for (auto &state : states) {
+            if (!slv.strengthens(it->first)) {
+                continue;
+            }
+            if (it->second.has_value(IEInterval::Lower) && it->second.has_value(IEInterval::Upper)) {
+                if (state.both == 0) {
+                    res_lits.append(make_interval(it->first, it->second.value(IEInterval::Lower),
+                                                  it->second.value(IEInterval::Upper)));
+                }
+            } else if (it->second.has_value(IEInterval::Lower)) {
+                if (state.lower == 0) {
+                    res_lits.append(
+                        make_relation(it->first, Relation::greater_equal, it->second.value(IEInterval::Lower)));
+                }
+            } else if (it->second.has_value(IEInterval::Upper)) {
+                if (state.upper == 0) {
+                    res_lits.append(
+                        make_relation(it->first, Relation::less_equal, it->second.value(IEInterval::Upper)));
+                }
+            }
+            ++it;
+        }
+        return {true, res_lits};
+    }
 
     // head literals
 
@@ -445,86 +543,13 @@ struct ComputeBounds {
     }
 
     auto operator()(Conjunction const &conj) -> Util::ResultState<BodyLiteral> {
-        // TODO: too much c&p
         auto sub_slv = IESolver{&slv};
 
-        // add inequalities to solver
-        for (auto const &lit : conj.lit.cond) {
-            ExtractInequalities{sub_slv}(lit);
-        }
-
-        // compute bounds
-        if (!sub_slv.compute(ctx.logger())) {
-            // TODO: maybe add rep
+        auto [state_cond, res_cond] = compute_bounds(sub_slv, conj.lit.loc, conj.lit.cond);
+        if (!state_cond) {
             return {false};
         }
-        auto const &dom = sub_slv.domain();
-        if (dom.empty()) {
-            return {true};
-        }
-        std::cerr << "Refine bounds of conjunction:" << std::endl;
-        for (auto const &bound : sub_slv.domain()) {
-            std::cerr << "  " << bound.first << ": " << bound.second << std::endl;
-        }
 
-        // adjust relation literals in condition
-        BoundStateMap states;
-        states.resize(dom.size());
-        states.reserve(dom.size());
-        auto res_cond = Util::ResultVec{conj.lit.cond};
-        for (auto const &lit : conj.lit.cond) {
-            auto res = ApplyBounds{dom, states, ctx.store()}(lit);
-            if (!res.state) {
-                res_cond.remove();
-            } else {
-                res_cond.update(std::move(res.value));
-            }
-        }
-
-        // add additional relation literals to condition if required
-        auto make_relation = [this, &conj](auto const &var, Relation rel, auto const &bound) -> Literal {
-            auto term_var = TermVariable{conj.lit.loc, var};
-            return LiteralRelation{conj.lit.loc, Sign::none, std::move(term_var),
-                                   Util::make_vec<Guard>(Guard{rel, TermSymbol{conj.lit.loc, ctx.store().num(bound)}})};
-        };
-        auto make_interval = [this, &conj](auto var, Number const &u, Number const &v) -> Literal {
-            auto term_var = TermVariable{conj.lit.loc, var};
-            auto term_u = TermSymbol{conj.lit.loc, ctx.store().num(u)};
-            if (u == v) {
-                return LiteralRelation{conj.lit.loc, Sign::none, std::move(term_var),
-                                       Util::make_vec<Guard>(Guard{Relation::equal, std::move(term_u)})};
-            }
-            auto term_v = TermSymbol{conj.lit.loc, ctx.store().num(v)};
-            return LiteralRelation{
-                conj.lit.loc, Sign::none, std::move(term_var),
-                Util::make_vec<Guard>(Guard{Relation::equal, TermBinary{conj.lit.loc, std::move(term_u),
-                                                                        BinaryOperator::dots, std::move(term_v)}})};
-        };
-        auto it = dom.begin();
-        for (auto &state : states) {
-            if (!slv.strengthens(it->first)) {
-                continue;
-            }
-            if (it->second.has_value(IEInterval::Lower) && it->second.has_value(IEInterval::Upper)) {
-                if (state.both == 0) {
-                    res_cond.append(make_interval(it->first, it->second.value(IEInterval::Lower),
-                                                  it->second.value(IEInterval::Upper)));
-                }
-            } else if (it->second.has_value(IEInterval::Lower)) {
-                if (state.lower == 0) {
-                    res_cond.append(
-                        make_relation(it->first, Relation::greater_equal, it->second.value(IEInterval::Lower)));
-                }
-            } else if (it->second.has_value(IEInterval::Upper)) {
-                if (state.upper == 0) {
-                    res_cond.append(
-                        make_relation(it->first, Relation::less_equal, it->second.value(IEInterval::Upper)));
-                }
-            }
-            ++it;
-        }
-
-        // return update literal
         if (res_cond) {
             return {true, Conjunction{ConditionalLiteral{conj.lit.loc, conj.lit.lit, std::move(res_cond).value()}}};
         }
@@ -555,83 +580,11 @@ struct ComputeBounds {
         throw std::logic_error("implement me: computer bounds other statements");
     }
     auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
-        // add inequalities to solver
-        for (auto const &lit : stm.body) {
-            if (auto const *slit = std::get_if<SimpleBodyLiteral>(&lit); slit != nullptr) {
-                ExtractInequalities{slv}(slit->lit);
-            }
-        }
-
         // compute bounds
-        if (!slv.compute(ctx.logger())) {
+        auto [state_body, res_body] = compute_bounds(slv, stm.loc, stm.body);
+        if (!state_body) {
             // TODO: maybe add rep
             return {false};
-        }
-        auto const &dom = slv.domain();
-        if (dom.empty()) {
-            return {true};
-        }
-        std::cerr << "Refine bounds:" << std::endl;
-        for (auto const &bound : slv.domain()) {
-            std::cerr << "  " << bound.first << ": " << bound.second << std::endl;
-        }
-
-        // adjust relation literals in rule bodies
-        BoundStateMap states;
-        states.resize(dom.size());
-        states.reserve(dom.size());
-        auto res_body = Util::ResultVec{stm.body};
-        for (auto const &lit : stm.body) {
-            if (auto const *slit = std::get_if<SimpleBodyLiteral>(&lit); slit != nullptr) {
-                auto res = ApplyBounds{dom, states, ctx.store()}(slit->lit);
-                if (!res.state) {
-                    res_body.remove();
-                } else {
-                    res_body.update(std::move(res.value));
-                }
-            } else {
-                res_body.keep();
-            }
-        }
-
-        // add additional relation literals to rule body if required
-        auto make_relation = [this, &stm](auto const &var, Relation rel, auto const &bound) -> Literal {
-            auto term_var = TermVariable{stm.loc, var};
-            return LiteralRelation{stm.loc, Sign::none, std::move(term_var),
-                                   Util::make_vec<Guard>(Guard{rel, TermSymbol{stm.loc, ctx.store().num(bound)}})};
-        };
-        auto make_interval = [this, &stm](auto var, Number const &u, Number const &v) -> Literal {
-            auto term_var = TermVariable{stm.loc, var};
-            auto term_u = TermSymbol{stm.loc, ctx.store().num(u)};
-            if (u == v) {
-                return LiteralRelation{stm.loc, Sign::none, std::move(term_var),
-                                       Util::make_vec<Guard>(Guard{Relation::equal, std::move(term_u)})};
-            }
-            auto term_v = TermSymbol{stm.loc, ctx.store().num(v)};
-            return LiteralRelation{
-                stm.loc, Sign::none, std::move(term_var),
-                Util::make_vec<Guard>(Guard{
-                    Relation::equal, TermBinary{stm.loc, std::move(term_u), BinaryOperator::dots, std::move(term_v)}})};
-        };
-        auto it = dom.begin();
-        for (auto &state : states) {
-            if (it->second.has_value(IEInterval::Lower) && it->second.has_value(IEInterval::Upper)) {
-                if (state.both == 0) {
-                    res_body.append(make_interval(it->first, it->second.value(IEInterval::Lower),
-                                                  it->second.value(IEInterval::Upper)));
-                }
-            } else if (it->second.has_value(IEInterval::Lower)) {
-                if (state.lower == 0) {
-                    res_body.append(
-                        make_relation(it->first, Relation::greater_equal, it->second.value(IEInterval::Lower)));
-                }
-            } else if (it->second.has_value(IEInterval::Upper)) {
-                if (state.upper == 0) {
-                    res_body.append(
-                        make_relation(it->first, Relation::less_equal, it->second.value(IEInterval::Upper)));
-                }
-            }
-            ++it;
         }
 
         // refine bounds in nested contexts
