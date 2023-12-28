@@ -431,7 +431,7 @@ class Number::Impl {
                 }
                 mp_int_ptr z;
                 handle_error(mp_int_init_value(z, repr_to_int(a.repr_)));
-                handle_error(op_value(z, repr_to_int(a.repr_), z));
+                handle_error(op_value(z, repr_to_int(b.repr_), z));
                 a.repr_ = z.release_repr(true);
             }
             // op(int, big)
