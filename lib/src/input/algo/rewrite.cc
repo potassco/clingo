@@ -44,7 +44,7 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
     auto res = std::move(opt).value_or(stm);
 
     auto rewrite_unpooled = [&opts, &stms, &ctx](Statement stm, char const *indent) {
-        auto rewrite_unpooled = [&opts, &stms, &ctx, indent](Statement stm, char const *sub_indent) {
+        auto rewrite_unpooled = [&stms, &ctx, indent](Statement stm, char const *sub_indent) {
             auto [state_cb, res_cb] = compute_bounds(ctx, stm);
             if (res_cb) {
                 GRINGO_REPORT(ctx.logger(), trace) << indent << sub_indent << "compute bounds: " << *res_cb;
