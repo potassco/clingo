@@ -39,10 +39,12 @@ struct theory_op {
         auto kw_semicolon = LEXY_KEYWORD(";", theory_op_base);
         auto kw_colon = LEXY_KEYWORD(":", theory_op_base);
         auto kw_dot = LEXY_KEYWORD(".", theory_op_base);
+        auto kw_if = LEXY_KEYWORD(":-", theory_op_base);
         return theory_op_base //
                    .reserve(kw_semicolon)
                    .reserve(kw_colon)
-                   .reserve(kw_dot) |
+                   .reserve(kw_dot)
+                   .reserve(kw_if) |
                kw_not;
     }();
 
