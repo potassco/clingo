@@ -45,7 +45,13 @@ TEST_CASE("compute_bounds") {
     REQUIRE(cb_stm("&count { X: X+Y=6, -3*X+Y=2 } >= 1 :- X>=0.") ==
             "&count { X: X+Y=6, -3*X+Y=2, X=1, Y=5 } >= 1 :- X>=0.");
 
-    // TODO: statements
+    // statements
+    REQUIRE(cb_stm("#heuristic a(X): X>=1; X<=3. [level@1,true]") == "#heuristic a(X): X=1..3. [level@1,true]");
+    REQUIRE(cb_stm("#edge (X,Y): X>=1; X<=3.") == "#edge (X,Y): X=1..3.");
+    REQUIRE(cb_stm("#external p(X): X>=1; X<=3. [true]") == "#external p(X): X=1..3. [true]");
+    REQUIRE(cb_stm("#project p(X): X>=1; X<=3.") == "#project p(X): X=1..3.");
+    REQUIRE(cb_stm("#show p(X): X>=1; X<=3.") == "#show p(X): X=1..3.");
+    REQUIRE(cb_stm(":~ X>=1; X<=3. [1,X]") == " :~ X=1..3. [1,X]");
 }
 
 } // namespace Gringo::Input::Test

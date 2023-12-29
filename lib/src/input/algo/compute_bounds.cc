@@ -502,12 +502,12 @@ struct ComputeBounds {
     static auto constexpr rt = RT{};
 
     //! Map to literals.
-    auto map_rt(RT const &x, auto &elems) {
+    static auto map_rt(RT const &x, auto &elems) {
         static_cast<void>(x);
         return std::move(elems).value();
     }
     //! Map to value.
-    auto map_rt(auto const &x, auto &elems) {
+    static auto map_rt(auto const &x, auto &elems) {
         static_cast<void>(elems);
         return x;
     }
@@ -622,48 +622,7 @@ struct ComputeBounds {
 
     // statements
 
-    auto operator()(Statement const &stm) -> Util::ResultState<Statement> { return std::visit(*this, stm); }
-
-    auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
-        // compute bounds
-        auto [state_body, res_body] = compute_bounds(slv, stm.loc, stm.body);
-        if (!state_body) {
-            return {false, Rule{stm.loc, SimpleHeadLiteral{LiteralBoolean{stm.loc, Sign::none, true}}, {}}};
-        }
-
-        // refine bounds in nested contexts
-        auto res_head = operator()(stm.head);
-        auto res_body_nested = Util::ResultVec{res_body.value()};
-        for (auto const &lit : res_body.value()) {
-            // Note: only the case that a literal became false is handled here.
-            if (auto res_lit = operator()(lit); res_lit.state) {
-                res_body_nested.update(std::move(res_lit).value);
-            } else {
-                return {false, Rule{stm.loc, SimpleHeadLiteral{LiteralBoolean{stm.loc, Sign::none, true}}, {}}};
-            }
-        }
-        if (res_body_nested) {
-            res_body.as_optional() = std::move(res_body_nested).as_optional();
-        }
-
-        // return updated result
-        if (res_head || res_body) {
-            return {true, Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
-        }
-        return {true};
-    }
-
-    auto operator()(TheoryDefinition const &stm) -> Util::ResultState<Statement> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StatementOptimize const &stm) -> Util::ResultState<Statement> {
-        static_cast<void>(stm);
-        throw std::runtime_error("unpool must be called before computing bounds");
-    }
-
-    auto compute_bounds_body(auto const &loc, auto const &body, auto const &...args) -> Util::ResultState<Statement> {
+    auto compute_bounds_body(auto const &loc, auto const &body, auto &&fun) -> Util::ResultState<Statement> {
         // compute bounds
         auto [state_body, res_body] = compute_bounds(slv, loc, body);
         if (!state_body) {
@@ -684,10 +643,37 @@ struct ComputeBounds {
             res_body.as_optional() = std::move(res_body_nested).as_optional();
         }
 
-        if (res_body) {
-            return {true, Statement{map_rt(args, res_body)...}};
-        }
+        return fun(std::move(res_body));
+    }
+    auto compute_bounds_body(auto const &loc, auto const &body, auto const &...args) -> Util::ResultState<Statement> {
+        return compute_bounds_body(loc, body, [&](auto res_body) -> Util::ResultState<Statement> {
+            if (res_body) {
+                return {true, Statement{map_rt(args, res_body)...}};
+            }
+            return {true};
+        });
+    }
+
+    auto operator()(Statement const &stm) -> Util::ResultState<Statement> { return std::visit(*this, stm); }
+
+    auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
+        return compute_bounds_body(stm.loc, stm.body, [&](auto res_body) -> Util::ResultState<Statement> {
+            auto res_head = operator()(stm.head);
+            if (res_head || res_body) {
+                return {true, Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
+            }
+            return {true};
+        });
+    }
+
+    auto operator()(TheoryDefinition const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
         return {true};
+    }
+
+    auto operator()(StatementOptimize const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        throw std::runtime_error("unpool must be called before computing bounds");
     }
 
     auto operator()(StatementWeakConstraint const &stm) -> Util::ResultState<Statement> {
