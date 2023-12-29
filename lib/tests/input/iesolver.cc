@@ -1,4 +1,3 @@
-#include <input/algo/compute_bounds.hh>
 #include <input/iesolver.hh>
 
 #include "input/test.hh"
@@ -11,7 +10,6 @@ namespace {}
 
 TEST_CASE("iesolver") {
     auto log = Logger{};
-    log.set_level(LogLevel::trace);
     auto &store = default_store();
     auto x = store.string("x");
     auto y = store.string("y");
@@ -44,25 +42,6 @@ TEST_CASE("iesolver") {
         REQUIRE(solver.domain().at(y) == IEInterval{Number{5}, Number{5}});
     }
 };
-
-TEST_CASE("compute_bounds") {
-    // TODO: move into separate file
-    ParseHelper ph;
-    ph.logger() = Logger{};
-    ph.logger().set_level(LogLevel::debug);
-    ConstMap const_map;
-    ParamMap param_map;
-    RewriteContext ctx{ph, ph, param_map, const_map, {}, "__A_"};
-
-    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=1; X<=3.")).state);
-    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=1; X<=5, X>=3, X<=7.")).state);
-    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=1; X<=5, X=3..7.")).state);
-    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=0; X+Y=6; -3*X+Y=2.")).state);
-
-    REQUIRE(compute_bounds(ctx, *ph.statement("h :- X>=0; p(X): X+Y=6, -3*X+Y=2.")).state);
-    REQUIRE(compute_bounds(ctx, *ph.statement("h :- #count { X: 1<=X, X<=3 } >= 6.")).state);
-    REQUIRE(compute_bounds(ctx, *ph.statement("h :- p(X),-0x80000000<=X, X<=0x2147483648.")).state);
-}
 
 // NOLINTEND(readability-magic-numbers)
 
