@@ -32,6 +32,8 @@ struct GetDep {
     void operator()(TermVariable const &term, bool can_provide) const {
         if (can_provide) {
             provide.emplace_back(term.name);
+        } else {
+            depend.emplace_back(term.name);
         }
     }
 
@@ -77,8 +79,46 @@ struct GetDep {
         operator()(*term.rhs, can_provide);
     }
 
-    StringVec &depend;
     StringVec &provide;
+    StringVec &depend;
+};
+
+template <class Lit> struct Node {
+    Node(Literal const &lit, StringVec provide, StringVec depend) {
+        static_cast<void>(lit);
+        static_cast<void>(provide);
+        static_cast<void>(depend);
+    }
+};
+
+template <class Lit> struct MakeNode {
+    auto operator()(Literal const &lit, bool can_provide) -> Node<Lit> {
+        return std::visit(*this, lit, std::variant<bool>{can_provide});
+    }
+
+    auto operator()(LiteralBoolean const &lit, bool can_provide) -> Node<Lit> {
+        static_cast<void>(can_provide);
+        return {lit, {}, {}};
+    }
+
+    auto operator()(LiteralRelation const &lit, bool can_provide) -> Node<Lit> {
+        static_cast<void>(can_provide);
+        if (lit.rhs.front().first == Relation::equal) {
+            StringVec provide;
+            StringVec depend;
+            GetDep{provide, depend}(lit.lhs, can_provide && lit.sign == Sign::none);
+            // we need two nodes
+        }
+        throw std::logic_error("fix relation");
+        // return {lit, {}, {}};
+    }
+
+    auto operator()(LiteralSymbolic const &lit, bool can_provide) -> Node<Lit> {
+        StringVec provide;
+        StringVec depend;
+        GetDep{provide, depend}(lit.term, can_provide && lit.sign == Sign::none);
+        return {lit, std::move(provide), std::move(depend)};
+    }
 };
 
 } // namespace
