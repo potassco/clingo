@@ -90,35 +90,50 @@ template <class Lit> struct Node {
         static_cast<void>(depend);
     }
 };
+template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 
 template <class Lit> struct MakeNode {
-    auto operator()(Literal const &lit, bool can_provide) -> Node<Lit> {
-        return std::visit(*this, lit, std::variant<bool>{can_provide});
+    void operator()(Literal const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
+
+    void operator()(LiteralBoolean const &lit, bool can_provide) {
+        static_cast<void>(can_provide);
+        nodes.emplace_back(lit, StringVec{}, StringVec{});
     }
 
-    auto operator()(LiteralBoolean const &lit, bool can_provide) -> Node<Lit> {
+    void operator()(LiteralRelation const &lit, bool can_provide) {
         static_cast<void>(can_provide);
-        return {lit, {}, {}};
-    }
-
-    auto operator()(LiteralRelation const &lit, bool can_provide) -> Node<Lit> {
-        static_cast<void>(can_provide);
-        if (lit.rhs.front().first == Relation::equal) {
+        if (lit.rhs.front().first == Relation::equal && can_provide) {
+            {
+                StringVec provide;
+                StringVec depend;
+                GetDep{provide, depend}(lit.lhs, true);
+                GetDep{provide, depend}(lit.rhs.front().second, false);
+                nodes.emplace_back(lit, std::move(provide), std::move(depend));
+            }
+            {
+                StringVec provide;
+                StringVec depend;
+                GetDep{provide, depend}(lit.lhs, false);
+                GetDep{provide, depend}(lit.rhs.front().second, true);
+                nodes.emplace_back(lit, std::move(provide), std::move(depend));
+            }
+        } else {
             StringVec provide;
             StringVec depend;
-            GetDep{provide, depend}(lit.lhs, can_provide && lit.sign == Sign::none);
-            // we need two nodes
+            GetDep{provide, depend}(lit.lhs, false);
+            GetDep{provide, depend}(lit.rhs.front().second, false);
+            nodes.emplace_back(lit, std::move(provide), std::move(depend));
         }
-        throw std::logic_error("fix relation");
-        // return {lit, {}, {}};
     }
 
-    auto operator()(LiteralSymbolic const &lit, bool can_provide) -> Node<Lit> {
+    void operator()(LiteralSymbolic const &lit, bool can_provide) {
         StringVec provide;
         StringVec depend;
         GetDep{provide, depend}(lit.term, can_provide && lit.sign == Sign::none);
-        return {lit, std::move(provide), std::move(depend)};
+        nodes.emplace_back(lit, std::move(provide), std::move(depend));
     }
+
+    NodeVec<Lit> &nodes;
 };
 
 } // namespace
