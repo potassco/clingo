@@ -26,10 +26,12 @@ whole process as in gringo atm
      X=1+a, not X < 5 < 10
    so any term that can fail to evaluate should be stripped during simplification
    this also includes intervals and scripts!
+   currently includes a shifting step that can be done earlier
+   for example, simplify would be a candidate
 7. rewrite
   1. aggregates (done)
   2. arithmetics (done)
-  4. comparisons to intervals (todo)
+  4. comparisons to intervals (done)
   5. assignment aggregates (todo; let's see)
 */
 
