@@ -101,28 +101,18 @@ template <class Lit> struct MakeNode {
     }
 
     void operator()(LiteralRelation const &lit, bool can_provide) {
-        static_cast<void>(can_provide);
-        if (lit.rhs.front().first == Relation::equal && can_provide) {
-            {
-                StringVec provide;
-                StringVec depend;
-                GetDep{provide, depend}(lit.lhs, true);
-                GetDep{provide, depend}(lit.rhs.front().second, false);
-                nodes.emplace_back(lit, std::move(provide), std::move(depend));
-            }
-            {
-                StringVec provide;
-                StringVec depend;
-                GetDep{provide, depend}(lit.lhs, false);
-                GetDep{provide, depend}(lit.rhs.front().second, true);
-                nodes.emplace_back(lit, std::move(provide), std::move(depend));
-            }
-        } else {
+        auto add = [this, &lit](bool lhs, bool rhs) {
             StringVec provide;
             StringVec depend;
-            GetDep{provide, depend}(lit.lhs, false);
-            GetDep{provide, depend}(lit.rhs.front().second, false);
+            GetDep{provide, depend}(lit.lhs, lhs);
+            GetDep{provide, depend}(lit.rhs.front().second, rhs);
             nodes.emplace_back(lit, std::move(provide), std::move(depend));
+        };
+        if (lit.rhs.front().first == Relation::equal && can_provide) {
+            add(true, false);
+            add(false, true);
+        } else {
+            add(false, false);
         }
     }
 
