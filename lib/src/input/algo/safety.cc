@@ -83,21 +83,13 @@ struct GetDep {
     StringVec &depend;
 };
 
-template <class Lit> struct Node {
-    Node(Literal const &lit, StringVec provide, StringVec depend) {
-        static_cast<void>(lit);
-        static_cast<void>(provide);
-        static_cast<void>(depend);
-    }
-};
-template <class Lit> using NodeVec = std::vector<Node<Lit>>;
-
-template <class Lit> struct MakeNode {
+template <class CB> struct MakeNode {
     void operator()(Literal const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
 
     void operator()(LiteralBoolean const &lit, bool can_provide) {
+        static_cast<void>(lit);
         static_cast<void>(can_provide);
-        nodes.emplace_back(lit, StringVec{}, StringVec{});
+        std::invoke(cb, StringVec{}, StringVec{});
     }
 
     void operator()(LiteralRelation const &lit, bool can_provide) {
@@ -106,9 +98,12 @@ template <class Lit> struct MakeNode {
             StringVec depend;
             GetDep{provide, depend}(lit.lhs, lhs);
             GetDep{provide, depend}(lit.rhs.front().second, rhs);
-            nodes.emplace_back(lit, std::move(provide), std::move(depend));
+            if (!rhs || provide.empty()) {
+                std::invoke(cb, std::move(provide), std::move(depend));
+            }
         };
         if (lit.rhs.front().first == Relation::equal && can_provide) {
+            // Note: might somehow have to indicate direction...
             add(true, false);
             add(false, true);
         } else {
@@ -120,11 +115,22 @@ template <class Lit> struct MakeNode {
         StringVec provide;
         StringVec depend;
         GetDep{provide, depend}(lit.term, can_provide && lit.sign == Sign::none);
-        nodes.emplace_back(lit, std::move(provide), std::move(depend));
+        std::invoke(cb, std::move(provide), std::move(depend));
     }
 
-    NodeVec<Lit> &nodes;
+    // TODO: add BLs
+
+    CB cb;
 };
+
+template <class Lit> struct Node {
+    Node(Literal const &lit, StringVec provide, StringVec depend) {
+        static_cast<void>(lit);
+        static_cast<void>(provide);
+        static_cast<void>(depend);
+    }
+};
+template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 
 } // namespace
 
