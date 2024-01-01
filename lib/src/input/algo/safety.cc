@@ -2,6 +2,7 @@
 
 #include <input/algo/analyze.hh>
 #include <input/algo/safety.hh>
+#include <input/algo/visit_variables.hh>
 
 namespace Gringo::Input {
 
@@ -84,6 +85,8 @@ struct GetDep {
 };
 
 template <class CB> struct MakeNode {
+    // TODO: in nested contexts should not depend on global variables
+    // there should be a vector of already bound variables
     void operator()(Literal const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
 
     void operator()(LiteralBoolean const &lit, bool can_provide) {
@@ -118,7 +121,23 @@ template <class CB> struct MakeNode {
         std::invoke(cb, std::move(provide), std::move(depend));
     }
 
-    // TODO: add BLs
+    // TODO: should be split...
+    // SimpleBodyLiteral, Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom
+    void operator()(BodyLiteral const &lit) { std::visit(*this, lit); }
+
+    void operator()(SimpleBodyLiteral const &lit) { std::visit(*this, lit.lit, true); }
+
+    void operator()(Conjunction const &lit) {
+        // TODO: must be a global member
+        VariableSet global;
+        VariableVec depend;
+        visit_variables(lit, [&global, &depend](auto const &var) {
+            if (global.contains(var)) {
+                depend.emplace_back(var);
+            }
+        });
+        std::invoke(cb, StringVec{}, std::move(depend));
+    }
 
     CB cb;
 };
