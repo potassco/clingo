@@ -4,26 +4,7 @@
 #include <input/algo/safety.hh>
 #include <input/algo/visit_variables.hh>
 
-// TODO: remove
-
-#include <input/algo/print.hh>
-#include <iostream>
-#include <util/print.hh>
-
 namespace Gringo::Input {
-
-// TODO:
-// - check whether statements are safe
-// - maybe even order rule bodies
-//   - maybe try to stay close to the given rule
-//   - maybe give preference to comparisons (or at least assignments)
-// - checking:
-//   - [(literal, provide, depend)]
-//   - pick if depend <= provided
-//   - set provided = provide + provided
-//   - it only makes sense to add assignments once!
-//     - they should be added in both directions to the check list
-//     - their "second direction" should not be added to a ordered body
 
 namespace {
 
@@ -96,6 +77,9 @@ struct GetDep {
 template <class CB> struct MakeNode {
     // TODO: in nested contexts should not depend on global variables
     // there should be a vector of already bound variables
+    MakeNode(CB cb, VariableSet const &global, VariableSet const &provided)
+        : cb{std::move(cb)}, global{global}, provided{provided} {}
+
     void operator()(Literal const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
 
     void operator()(LiteralBoolean const &lit, bool can_provide) {
@@ -207,18 +191,15 @@ template <class Lit> struct Node {
 template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 
 struct CheckSafety {
-    auto operator()(auto const &stm) -> bool {
+    auto operator()(auto const &stm) -> Util::ResultState<Statement> {
         static_cast<void>(stm);
         throw std::logic_error("implement me!!!");
     }
 
-    auto operator()(Statement const &stm) -> bool { return std::visit(*this, stm); }
+    auto operator()(Statement const &stm) -> Util::ResultState<Statement> { return std::visit(*this, stm); }
 
-    auto operator()(Rule const &stm) -> bool {
-        // TODO:
-        // 1. return statements with ordered elements
-        // 2. check nested contexts
-        std::cerr << "dep for " << stm << std::endl;
+    auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
+        // TODO: check nested contexts
         NodeVec<BodyLiteral> nodes;
         std::vector<bool> done;
         nodes.reserve(2 * stm.body.size());
@@ -226,9 +207,6 @@ struct CheckSafety {
         size_t index = 0;
         for (auto const &lit : stm.body) {
             auto add_node = [&lit, &nodes, &index](StringVec provide, StringVec depend) {
-                std::cerr << "  "
-                          << "[" << lit << ", {" << Util::p_range{provide} << "}, {" << Util::p_range{depend} << "}]"
-                          << std::endl;
                 nodes.emplace_back(lit, index, std::move(provide), std::move(depend));
             };
             VariableSet global = select_variables(stm, VariableContext::global);
@@ -242,7 +220,7 @@ struct CheckSafety {
                                [&provided](auto const &var) { return provided.contains(var); });
         };
 
-        std::cerr << "order:";
+        auto res_body = Util::ResultVec{stm.body};
         for (auto it = nodes.begin(); it != nodes.end();) {
             auto jt = std::stable_partition(nodes.begin(), nodes.end(),
                                             [&is_provided](auto const &node) { return is_provided(node.depend); });
@@ -252,12 +230,16 @@ struct CheckSafety {
             for (; it != jt; ++it) {
                 if (!done[it->done]) {
                     done[it->done] = true;
-                    std::cerr << " " << *it->lit;
                     provided.insert(it->provide.begin(), it->provide.end());
+                    if (&res_body.currrent() == it->lit) {
+                        res_body.keep();
+                    } else {
+                        // TODO: better add the swapped form of assignment literals (if necessary)
+                        res_body.replace(*it->lit);
+                    }
                 }
             }
         }
-        std::cerr << std::endl;
 
         VariableVec depend;
         visit_variables(
@@ -270,7 +252,13 @@ struct CheckSafety {
             },
             VariableContext::all);
 
-        return is_provided(depend);
+        if (!is_provided(depend)) {
+            return {false};
+        }
+        if (res_body) {
+            return {true, Rule{stm.loc, stm.head, std::move(res_body).value()}};
+        }
+        return {true};
     }
 
     VariableSet const &global;
@@ -278,8 +266,8 @@ struct CheckSafety {
 
 } // namespace
 
-auto check_safety(Statement const &stm) -> bool {
-    VariableSet global;
+auto check_safety(Statement const &stm) -> Util::ResultState<Statement> {
+    VariableSet global = select_variables(stm, VariableContext::global);
     return CheckSafety{global}(stm);
 }
 

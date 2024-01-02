@@ -148,6 +148,9 @@ template <class T> class ResultVec {
   public:
     ResultVec(std::vector<T> const &source) : source_{source}, current_{source.begin()} {}
 
+    //! Get current element.
+    [[nodiscard]] auto currrent() const -> T const & { return *current_; }
+
     //! Keep the current element.
     void keep() {
         if (result_) {
