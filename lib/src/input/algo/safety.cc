@@ -4,6 +4,12 @@
 #include <input/algo/safety.hh>
 #include <input/algo/visit_variables.hh>
 
+// TODO: remove
+
+#include <input/algo/print.hh>
+#include <iostream>
+#include <util/print.hh>
+
 namespace Gringo::Input {
 
 // TODO:
@@ -31,10 +37,12 @@ struct GetDep {
     }
 
     void operator()(TermVariable const &term, bool can_provide) const {
-        if (can_provide) {
-            provide.emplace_back(term.name);
-        } else {
-            depend.emplace_back(term.name);
+        if (!ignore.contains(term.name)) {
+            if (can_provide) {
+                provide.emplace_back(term.name);
+            } else {
+                depend.emplace_back(term.name);
+            }
         }
     }
 
@@ -80,6 +88,7 @@ struct GetDep {
         operator()(*term.rhs, can_provide);
     }
 
+    VariableSet const &ignore;
     StringVec &provide;
     StringVec &depend;
 };
@@ -99,8 +108,8 @@ template <class CB> struct MakeNode {
         auto add = [this, &lit](bool lhs, bool rhs) {
             StringVec provide;
             StringVec depend;
-            GetDep{provide, depend}(lit.lhs, lhs);
-            GetDep{provide, depend}(lit.rhs.front().second, rhs);
+            GetDep{provided, provide, depend}(lit.lhs, lhs);
+            GetDep{provided, provide, depend}(lit.rhs.front().second, rhs);
             if (!rhs || provide.empty()) {
                 std::invoke(cb, std::move(provide), std::move(depend));
             }
@@ -117,29 +126,74 @@ template <class CB> struct MakeNode {
     void operator()(LiteralSymbolic const &lit, bool can_provide) {
         StringVec provide;
         StringVec depend;
-        GetDep{provide, depend}(lit.term, can_provide && lit.sign == Sign::none);
+        GetDep{provided, provide, depend}(lit.term, can_provide && lit.sign == Sign::none);
         std::invoke(cb, std::move(provide), std::move(depend));
     }
 
-    // TODO: should be split...
-    // SimpleBodyLiteral, Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom
+    // BodyTheoryAtom
+
     void operator()(BodyLiteral const &lit) { std::visit(*this, lit); }
 
-    void operator()(SimpleBodyLiteral const &lit) { std::visit(*this, lit.lit, true); }
+    void operator()(SimpleBodyLiteral const &lit) { operator()(lit.lit, true); }
 
     void operator()(Conjunction const &lit) {
-        // TODO: must be a global member
-        VariableSet global;
         VariableVec depend;
-        visit_variables(lit, [&global, &depend](auto const &var) {
-            if (global.contains(var)) {
-                depend.emplace_back(var);
-            }
-        });
+        visit_variables(
+            lit,
+            [this, &depend](Location const &loc, auto const &var) {
+                static_cast<void>(loc);
+                if (global.contains(var)) {
+                    depend.emplace_back(var);
+                }
+            },
+            VariableContext::global);
+        std::invoke(cb, StringVec{}, std::move(depend));
+    }
+
+    void operator()(BodyAggregate const &lit) {
+        VariableVec provide;
+        VariableVec depend;
+        // TODO: aggregate has to be brought into this form in unpool_relations
+        bool can_provide = lit.sign == Sign::none && !lit.rhs && lit.lhs && lit.lhs->second == Relation::equal;
+        if (lit.lhs) {
+            GetDep{provided, provide, depend}(lit.lhs->first, can_provide);
+        }
+        if (lit.rhs) {
+            GetDep{provided, provide, depend}(lit.rhs->second, false);
+        }
+        for (auto const &elem : lit.elems) {
+            visit_variables(elem, [this, &depend](Location const &loc, auto const &var) {
+                static_cast<void>(loc);
+                if (global.contains(var)) {
+                    depend.emplace_back(var);
+                }
+            });
+        }
+        std::invoke(cb, std::move(provide), std::move(depend));
+    }
+
+    void operator()(BodySetAggregate const &lit) {
+        static_cast<void>(lit);
+        throw std::runtime_error("unpool must be called before safety checking");
+    }
+
+    void operator()(BodyTheoryAtom const &lit) {
+        VariableVec depend;
+        visit_variables(
+            lit,
+            [this, &depend](Location const &loc, auto const &var) {
+                static_cast<void>(loc);
+                if (global.contains(var)) {
+                    depend.emplace_back(var);
+                }
+            },
+            VariableContext::all);
         std::invoke(cb, StringVec{}, std::move(depend));
     }
 
     CB cb;
+    VariableSet const &global;
+    VariableSet const &provided;
 };
 
 template <class Lit> struct Node {
@@ -151,6 +205,39 @@ template <class Lit> struct Node {
 };
 template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 
+struct CheckSafety {
+    auto operator()(auto const &stm) -> bool {
+        static_cast<void>(stm);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(Statement const &stm) -> bool { return std::visit(*this, stm); }
+
+    auto operator()(Rule const &stm) -> bool {
+        std::cerr << "dep for " << stm << std::endl;
+        for (auto const &lit : stm.body) {
+            auto add_node = [&lit](StringVec provide, StringVec depend) {
+                std::cerr << "  "
+                          << "[" << lit << ", {" << Util::p_range{provide} << "}, {" << Util::p_range{depend} << "}]"
+                          << std::endl;
+                static_cast<void>(provide);
+                static_cast<void>(depend);
+            };
+            VariableSet global = select_variables(stm, VariableContext::global);
+            VariableSet provided;
+            MakeNode{add_node, global, provided}(lit);
+        }
+        return true;
+    }
+
+    VariableSet const &global;
+};
+
 } // namespace
+
+auto check_safety(Statement const &stm) -> bool {
+    VariableSet global;
+    return CheckSafety{global}(stm);
+}
 
 } // namespace Gringo::Input

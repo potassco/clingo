@@ -2,4 +2,8 @@
 
 #include <input/program.hh>
 
-namespace Gringo::Input {}
+namespace Gringo::Input {
+
+[[nodiscard]] auto check_safety(Statement const &stm) -> bool;
+
+}
