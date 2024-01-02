@@ -110,7 +110,7 @@ template <class CB> struct MakeNode {
             StringVec depend;
             GetDep{provided, provide, depend}(lit.lhs, lhs);
             GetDep{provided, provide, depend}(lit.rhs.front().second, rhs);
-            if (!rhs || provide.empty()) {
+            if (!rhs || !provide.empty()) {
                 std::invoke(cb, std::move(provide), std::move(depend));
             }
         };
@@ -197,11 +197,12 @@ template <class CB> struct MakeNode {
 };
 
 template <class Lit> struct Node {
-    Node(Literal const &lit, StringVec provide, StringVec depend) {
-        static_cast<void>(lit);
-        static_cast<void>(provide);
-        static_cast<void>(depend);
-    }
+    Node(Lit const &lit, size_t done, StringVec provide, StringVec depend)
+        : lit{&lit}, done{done}, provide{std::move(provide)}, depend{std::move(depend)} {}
+    Lit const *lit;
+    size_t done;
+    StringVec provide;
+    StringVec depend;
 };
 template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 
@@ -214,20 +215,62 @@ struct CheckSafety {
     auto operator()(Statement const &stm) -> bool { return std::visit(*this, stm); }
 
     auto operator()(Rule const &stm) -> bool {
+        // TODO:
+        // 1. return statements with ordered elements
+        // 2. check nested contexts
         std::cerr << "dep for " << stm << std::endl;
+        NodeVec<BodyLiteral> nodes;
+        std::vector<bool> done;
+        nodes.reserve(2 * stm.body.size());
+        done.resize(stm.body.size(), false);
+        size_t index = 0;
         for (auto const &lit : stm.body) {
-            auto add_node = [&lit](StringVec provide, StringVec depend) {
+            auto add_node = [&lit, &nodes, &index](StringVec provide, StringVec depend) {
                 std::cerr << "  "
                           << "[" << lit << ", {" << Util::p_range{provide} << "}, {" << Util::p_range{depend} << "}]"
                           << std::endl;
-                static_cast<void>(provide);
-                static_cast<void>(depend);
+                nodes.emplace_back(lit, index, std::move(provide), std::move(depend));
             };
             VariableSet global = select_variables(stm, VariableContext::global);
             VariableSet provided;
             MakeNode{add_node, global, provided}(lit);
+            ++index;
         }
-        return true;
+        VariableSet provided;
+        auto is_provided = [&provided](auto const &vars) {
+            return std::all_of(vars.begin(), vars.end(),
+                               [&provided](auto const &var) { return provided.contains(var); });
+        };
+
+        std::cerr << "order:";
+        for (auto it = nodes.begin(); it != nodes.end();) {
+            auto jt = std::stable_partition(nodes.begin(), nodes.end(),
+                                            [&is_provided](auto const &node) { return is_provided(node.depend); });
+            if (jt == it) {
+                return false;
+            }
+            for (; it != jt; ++it) {
+                if (!done[it->done]) {
+                    done[it->done] = true;
+                    std::cerr << " " << *it->lit;
+                    provided.insert(it->provide.begin(), it->provide.end());
+                }
+            }
+        }
+        std::cerr << std::endl;
+
+        VariableVec depend;
+        visit_variables(
+            stm.head,
+            [this, &depend](Location const &loc, auto const &var) {
+                static_cast<void>(loc);
+                if (global.contains(var)) {
+                    depend.emplace_back(var);
+                }
+            },
+            VariableContext::all);
+
+        return is_provided(depend);
     }
 
     VariableSet const &global;
