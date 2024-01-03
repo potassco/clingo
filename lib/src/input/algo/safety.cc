@@ -251,10 +251,107 @@ using PrepareResult = std::pair<std::decay_t<decltype(Util::ResultVec{std::declv
     return res;
 }
 
-struct CheckBL {
-    auto operator()(auto const &blit) -> Util::ResultState<BodyLiteral> {
-        static_cast<void>(blit);
-        throw std::logic_error("implement me!!!");
+void vv_(auto const &x, VarVisitFun fun) { visit_variables(x, std::move(fun)); }
+template <class T> void vv_(std::vector<T> const &vec, VarVisitFun fun) {
+    for (auto const &term : vec) {
+        vv_(term, fun);
+    }
+}
+
+auto check_provided(VariableSet const &bound, VariableSet const &provided, auto &&...args) -> bool {
+    VariableVec depend;
+    (vv_(args,
+         [&bound, &depend](Location const &loc, auto const &var) {
+             static_cast<void>(loc);
+             if (!bound.contains(var)) {
+                 depend.emplace_back(var);
+             }
+         }),
+     ...);
+    return is_provided(provided, depend);
+}
+
+//! Check safety of local variables.
+struct CheckLocal {
+    auto operator()(TheoryElementVec const &elems) {
+        auto res_elems = Util::ResultVec{elems};
+        for (auto const &elem : elems) {
+            auto [res_cond, provided] = prepare_lits(elem.second, VariableSet{}, bound);
+            if (!res_cond.complete() || !check_provided(bound, provided, elem.first)) {
+                break;
+            }
+            if (res_cond) {
+                res_elems.replace(elem.first, res_cond.value());
+            } else {
+                res_elems.keep();
+            }
+        }
+        return res_elems;
+    }
+
+    auto operator()(HeadLiteral const &hlit) -> Util::ResultState<HeadLiteral> { return std::visit(*this, hlit); }
+
+    auto operator()(SimpleHeadLiteral const &hlit) -> Util::ResultState<HeadLiteral> {
+        static_cast<void>(hlit);
+        return {true};
+    }
+
+    auto operator()(Disjunction const &hlit) -> Util::ResultState<HeadLiteral> {
+        auto res_elems = Util::ResultVec{hlit.elems};
+        for (auto const &elem : hlit.elems) {
+            if (auto const *clit = std::get_if<ConditionalLiteral>(&elem); clit != nullptr) {
+                auto [res_cond, provided] = prepare_lits(clit->cond, VariableSet{}, bound);
+                if (!res_cond.complete() || !check_provided(bound, provided, clit->lit)) {
+                    return {false};
+                }
+                if (res_cond) {
+                    res_elems.replace(ConditionalLiteral{clit->loc, clit->lit, res_cond.value()});
+                } else {
+                    res_elems.keep();
+                }
+            } else {
+                res_elems.keep();
+            }
+        }
+        if (res_elems) {
+            return {true, Disjunction{hlit.loc, std::move(res_elems).value()}};
+        }
+        return {true};
+    }
+
+    auto operator()(HeadAggregate const &hlit) -> Util::ResultState<HeadLiteral> {
+        auto res_elems = Util::ResultVec{hlit.elems};
+        for (auto const &elem : hlit.elems) {
+            auto [res_cond, provided] = prepare_lits(elem.cond, VariableSet{}, bound);
+            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple, elem.lit)) {
+                return {false};
+            }
+            if (res_cond) {
+                res_elems.replace(elem.loc, elem.tuple, elem.lit, res_cond.value());
+            } else {
+                res_elems.keep();
+            }
+        }
+        if (res_elems) {
+            return {true, HeadAggregate{hlit.loc, hlit.lhs, hlit.fun, std::move(res_elems).value(), hlit.rhs}};
+        }
+        return {true};
+    }
+
+    auto operator()(HeadSetAggregate const &hlit) -> Util::ResultState<HeadLiteral> {
+        static_cast<void>(hlit);
+        throw std::runtime_error("unpool must be called before checking safety");
+    }
+
+    auto operator()(HeadTheoryAtom const &hlit) -> Util::ResultState<HeadLiteral> {
+        auto res_elems = operator()(hlit.elems);
+        if (!res_elems.complete()) {
+            return {false};
+        }
+        if (res_elems) {
+            return {true, HeadTheoryAtom{hlit.loc, hlit.name, std::move(res_elems).value(), hlit.rhs}};
+        }
+        return {true};
     }
 
     auto operator()(BodyLiteral const &blit) -> Util::ResultState<BodyLiteral> { return std::visit(*this, blit); }
@@ -266,23 +363,48 @@ struct CheckBL {
 
     auto operator()(Conjunction const &blit) -> Util::ResultState<BodyLiteral> {
         auto [res_cond, provided] = prepare_lits(blit.lit.cond, VariableSet{}, bound);
-        if (!res_cond.complete()) {
+        if (!res_cond.complete() || !check_provided(bound, provided, blit.lit.lit)) {
             return {false};
         }
 
-        VariableVec depend;
-        visit_variables(blit.lit.lit, [this, &depend](Location const &loc, auto const &var) {
-            static_cast<void>(loc);
-            if (!bound.contains(var)) {
-                depend.emplace_back(var);
-            }
-        });
-
-        if (!is_provided(provided, depend)) {
-            return {false};
-        }
         if (res_cond) {
             return {true, Conjunction{ConditionalLiteral{blit.lit.loc, blit.lit.lit, std::move(res_cond).value()}}};
+        }
+        return {true};
+    }
+
+    auto operator()(BodyAggregate const &blit) -> Util::ResultState<BodyLiteral> {
+        auto res_elems = Util::ResultVec{blit.elems};
+        for (auto const &elem : blit.elems) {
+            auto [res_cond, provided] = prepare_lits(elem.cond, VariableSet{}, bound);
+            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple)) {
+                return {false};
+            }
+            if (res_cond) {
+                res_elems.replace(elem.loc, elem.tuple, res_cond.value());
+            } else {
+                res_elems.keep();
+            }
+        }
+        if (res_elems) {
+            return {true,
+                    BodyAggregate{blit.loc, blit.sign, blit.lhs, blit.fun, std::move(res_elems).value(), blit.rhs}};
+        }
+        return {true};
+    }
+
+    auto operator()(BodySetAggregate const &blit) -> Util::ResultState<BodyLiteral> {
+        static_cast<void>(blit);
+        throw std::runtime_error("unpool must be called before checking safety");
+    }
+
+    auto operator()(BodyTheoryAtom const &blit) -> Util::ResultState<BodyLiteral> {
+        auto res_elems = operator()(blit.elems);
+        if (!res_elems.complete()) {
+            return {false};
+        }
+        if (res_elems) {
+            return {true, BodyTheoryAtom{blit.loc, blit.sign, blit.name, std::move(res_elems).value(), blit.rhs}};
         }
         return {true};
     }
@@ -290,7 +412,7 @@ struct CheckBL {
     VariableSet const &bound;
 };
 
-struct CheckStm {
+struct CheckGlobal {
     auto operator()(auto const &stm) -> Util::ResultState<Statement> {
         static_cast<void>(stm);
         throw std::logic_error("implement me!!!");
@@ -305,25 +427,15 @@ struct CheckStm {
             return {false};
         }
 
-        // check head
-        VariableVec depend;
-        visit_variables(
-            stm.head,
-            [this, &depend](Location const &loc, auto const &var) {
-                static_cast<void>(loc);
-                if (global.contains(var)) {
-                    depend.emplace_back(var);
-                }
-            },
-            VariableContext::all);
-        if (!is_provided(provided, depend)) {
+        // all global variables have to be provided
+        if (!is_provided(provided, global)) {
             return {false};
         }
 
         // check nested body
         auto res_body_nested = Util::ResultVec{res_body.value()};
         for (auto const &lit : res_body.value()) {
-            auto [res_state, res_lit] = CheckBL{provided}(lit);
+            auto [res_state, res_lit] = CheckLocal{provided}(lit);
             if (!res_state) {
                 return {false};
             }
@@ -333,11 +445,15 @@ struct CheckStm {
             res_body.as_optional() = std::move(res_body_nested).as_optional();
         }
 
-        // TODO: check nested head
+        // check nested head
+        auto [state_head, res_head] = CheckLocal{provided}(stm.head);
+        if (!state_head) {
+            return {false};
+        }
 
         // construct new rule if necessary
-        if (res_body) {
-            return {true, Rule{stm.loc, stm.head, std::move(res_body).value()}};
+        if (res_body || res_head) {
+            return {true, Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
         }
         return {true};
     }
@@ -348,8 +464,9 @@ struct CheckStm {
 } // namespace
 
 auto check_safety(Statement const &stm) -> Util::ResultState<Statement> {
+    // TODO: error reporting
     VariableSet global = select_variables(stm, VariableContext::global);
-    return CheckStm{global}(stm);
+    return CheckGlobal{global}(stm);
 }
 
 } // namespace Gringo::Input
