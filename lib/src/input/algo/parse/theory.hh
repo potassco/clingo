@@ -196,13 +196,13 @@ struct theory_atom_element_tuple {
 struct theory_atom_element {
     static constexpr char const *name = "theory atom element";
     static constexpr auto rule =
-        dsl::p<condition> | dsl::else_ >> dsl::p<theory_atom_element_tuple> + dsl::p<if_condition>;
+        Detail::location(dsl::p<condition> | dsl::else_ >> dsl::p<theory_atom_element_tuple> + dsl::p<if_condition>);
     static constexpr auto value = lexy::callback<TheoryElement>(
-        [](TheoryTermVec tuple, LiteralVec cond) {
-            return TheoryElement{std::move(tuple), std::move(cond)};
+        [](Location loc, TheoryTermVec tuple, LiteralVec cond) {
+            return TheoryElement{std::move(loc), std::move(tuple), std::move(cond)};
         },
-        [](LiteralVec cond) {
-            return TheoryElement{TheoryTermVec{}, std::move(cond)};
+        [](Location loc, LiteralVec cond) {
+            return TheoryElement{std::move(loc), TheoryTermVec{}, std::move(cond)};
         });
 };
 

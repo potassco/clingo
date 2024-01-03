@@ -539,7 +539,7 @@ struct ComputeBounds {
     template <bool Body> auto operator()(TheoryAtom<Body> const &lit) -> HBRes<Body> {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
-            compute_bounds_elem(lit.loc, res_elems, elem.second, elem.first, rt);
+            compute_bounds_elem(lit.loc, res_elems, elem.cond, elem.loc, elem.tuple, rt);
         }
         if constexpr (Body) {
             if (res_elems) {

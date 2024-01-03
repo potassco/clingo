@@ -457,6 +457,14 @@ struct Print {
         }
     }
 
+    void operator()(TheoryElement const &elem) const {
+        visit_range(elem.tuple);
+        if (!elem.cond.empty() || elem.tuple.empty()) {
+            out << ": ";
+            visit_range(elem.cond, ", ");
+        }
+    }
+
     template <bool HasSign> void operator()(TheoryAtom<HasSign> const &atom) const {
         if constexpr (HasSign) {
             out << atom.sign;
@@ -465,13 +473,7 @@ struct Print {
         auto const &elems = atom.elems;
         if (!elems.empty() || atom.rhs.has_value()) {
             out << " { ";
-            apply_to_range_with(elems, "; ", [this](TheoryElement const &elem) {
-                visit_range(elem.first);
-                if (!elem.second.empty() || elem.first.empty()) {
-                    out << ": ";
-                    visit_range(elem.second, ", ");
-                }
-            });
+            apply_to_range(elems, "; ");
             out << (elems.empty() ? "}" : " }");
         }
         if (atom.rhs.has_value()) {
@@ -838,6 +840,11 @@ auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
 
 auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
     Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream & {
+    Print{out}(elem);
     return out;
 }
 

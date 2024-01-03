@@ -65,8 +65,8 @@ auto shift(auto const &lit, auto &lits, bool negate) -> std::optional<Literal> {
 auto shift(TheoryElementVec const &elems) -> Util::ResultVec<TheoryElement> {
     auto res_elems = Util::ResultVec{elems};
     for (auto const &elem : elems) {
-        if (auto res_cond = unpool_conjunctive(elem.second); res_cond) {
-            res_elems.replace(TheoryElement{elem.first, std::move(res_cond).value()});
+        if (auto res_cond = unpool_conjunctive(elem.cond); res_cond) {
+            res_elems.replace(TheoryElement{elem.loc, elem.tuple, std::move(res_cond).value()});
         } else {
             res_elems.keep();
         }
@@ -244,8 +244,8 @@ struct UnpoolHeadBody {
     template <bool HasSign>
     auto operator()(TheoryAtom<HasSign> const &atom) const -> std::optional<HBLitVecVec<!HasSign>> {
         auto unpool_elem = [](TheoryElement const &elem) {
-            auto build = [&elem](auto lits) -> TheoryElement { return {elem.first, std::move(lits)}; };
-            return unpool_crossproducts(build, unpool_disjunctive, elem.second);
+            auto build = [&elem](auto lits) -> TheoryElement { return {elem.loc, elem.tuple, std::move(lits)}; };
+            return unpool_crossproducts(build, unpool_disjunctive, elem.cond);
         };
         auto res_elems = unpool_union(atom.elems, unpool_elem);
         if (res_elems) {

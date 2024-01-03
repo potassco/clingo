@@ -97,6 +97,8 @@ void visit_variables(Term const &term, VarVisitFun fun) { VisitVariables{std::mo
 
 void visit_variables(TheoryTerm const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(term); }
 
+void visit_variables(TheoryElement const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(term); }
+
 void visit_variables(Literal const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(lit); }
 
 void visit_variables(ConditionalLiteral const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(lit); }

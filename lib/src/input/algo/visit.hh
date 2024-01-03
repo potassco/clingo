@@ -136,6 +136,8 @@ template <class T> class Visitor {
 
     // theory
 
+    void accept_(TheoryElement const &elem) const { visit(elem.tuple, elem.cond); }
+
     template <bool HasSign> void accept_(TheoryAtom<HasSign> const &atom) const {
         visit(atom.name, atom.elems, atom.rhs);
     }

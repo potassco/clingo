@@ -131,8 +131,16 @@ inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, ElementVec elems)
 
 //! The optional right guard of the theory atom.
 using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
+
 //! An element of the theory atom.
-using TheoryElement = std::pair<TheoryTermVec, LiteralVec>;
+struct TheoryElement {
+    //! The location of the theory element.
+    Location loc;
+    //! The tuple of the theory element.
+    TheoryTermVec tuple;
+    //! The condition of the theory element.
+    LiteralVec cond;
+};
 //! A vector of theory atom elements.
 using TheoryElementVec = std::vector<TheoryElement>;
 

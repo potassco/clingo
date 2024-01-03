@@ -1499,24 +1499,24 @@ template <bool head>
 [[nodiscard]] auto simplify_element(RewriteContext &ctx, TheoryElement const &elem) -> SimplifyResult<TheoryElement> {
     auto guard = ctx.push();
     auto res_tuple = std::optional<TheoryTermVec>{};
-    auto [state_cond, res_cond] = simplify_litvec(ctx, elem.second);
+    auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond);
 
     auto state_elem = TruthValue::unknown;
     if (state_cond == TruthValue::top) {
         state_elem = TruthValue::unknown;
-        if (!elem.second.empty()) {
+        if (!elem.cond.empty()) {
             res_cond = LiteralVec{};
         }
     }
     if (state_cond == TruthValue::bot) {
         state_elem = TruthValue::bot;
-        if (!elem.first.empty()) {
+        if (!elem.tuple.empty()) {
             res_tuple = TheoryTermVec{};
         }
     }
     if (res_tuple.has_value() || res_cond.has_value()) {
-        return {state_elem,
-                TheoryElement{std::move(res_tuple).value_or(elem.first), std::move(res_cond).value_or(elem.second)}};
+        return {state_elem, TheoryElement{elem.loc, std::move(res_tuple).value_or(elem.tuple),
+                                          std::move(res_cond).value_or(elem.cond)}};
     }
     return {state_elem};
 }

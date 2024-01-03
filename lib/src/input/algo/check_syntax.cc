@@ -220,7 +220,7 @@ struct CheckSyntax {
 
     template <bool HasSign> auto operator()(TheoryAtom<HasSign> const &atom) const -> bool {
         return operator()(atom.name) && std::all_of(atom.elems.begin(), atom.elems.end(),
-                                                    [this](auto const &elem) { return this->operator()(elem.second); });
+                                                    [this](auto const &elem) { return this->operator()(elem.cond); });
     }
 
     // head literal

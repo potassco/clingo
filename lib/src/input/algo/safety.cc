@@ -306,13 +306,13 @@ struct CheckLocal {
     auto operator()(TheoryElementVec const &elems) {
         auto res_elems = Util::ResultVec{elems};
         for (auto const &elem : elems) {
-            auto [res_cond, provided] = prepare_lits(log, elem.second, VariableSet{}, bound);
-            if (!res_cond.complete() || !check_provided(bound, provided, elem.first)) {
-                // TODO: report
+            auto [res_cond, provided] = prepare_lits(log, elem.cond, VariableSet{}, bound);
+            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple)) {
+                report_local(log, bound, provided, elem);
                 break;
             }
             if (res_cond) {
-                res_elems.replace(elem.first, res_cond.value());
+                res_elems.replace(elem.loc, elem.tuple, res_cond.value());
             } else {
                 res_elems.keep();
             }

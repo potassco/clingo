@@ -271,6 +271,10 @@ template <class T> class Transformer {
         return transform_construct<HeadAggregate>(lit.loc, tr(lit.lhs), lit.fun, tr(lit.elems), tr(lit.rhs));
     }
 
+    [[nodiscard]] auto accept_(TheoryElement const elem) const -> std::optional<TheoryElement> {
+        return transform_construct<TheoryElement>(elem.loc, tr(elem.tuple), tr(elem.cond));
+    }
+
     [[nodiscard]] auto accept_(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
         return transform_construct<HeadTheoryAtom>(lit.loc, tr(lit.name), tr(lit.elems), tr(lit.rhs));
     }

@@ -316,9 +316,9 @@ struct Unpool {
     auto operator()(TheoryElement const &elem) const -> std::optional<std::vector<TheoryElement>> {
         return unpool_crossproducts(
             [&elem](auto cond) {
-                return TheoryElement{std::get<0>(elem), std::move(cond)};
+                return TheoryElement{elem.loc, elem.tuple, std::move(cond)};
             },
-            *this, std::get<1>(elem));
+            *this, elem.cond);
     }
 
     auto operator()(TheoryElementVec const &elems) const -> std::optional<std::vector<TheoryElementVec>> {
