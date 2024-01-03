@@ -130,7 +130,7 @@ template <class CB> struct MakeNode {
                     depend.emplace_back(var);
                 }
             },
-            VariableContext::global);
+            VariableContext::all);
         std::invoke(cb, StringVec{}, std::move(depend), false);
     }
 
@@ -266,9 +266,23 @@ struct CheckBL {
 
     auto operator()(Conjunction const &blit) -> Util::ResultState<BodyLiteral> {
         auto [res_cond, provided] = prepare_lits(blit.lit.cond, VariableSet{}, bound);
-        // TODO: check the conclusion as well
         if (!res_cond.complete()) {
             return {false};
+        }
+
+        VariableVec depend;
+        visit_variables(blit.lit.lit, [this, &depend](Location const &loc, auto const &var) {
+            static_cast<void>(loc);
+            if (!bound.contains(var)) {
+                depend.emplace_back(var);
+            }
+        });
+
+        if (!is_provided(provided, depend)) {
+            return {false};
+        }
+        if (res_cond) {
+            return {true, Conjunction{ConditionalLiteral{blit.lit.loc, blit.lit.lit, std::move(res_cond).value()}}};
         }
         return {true};
     }
@@ -285,12 +299,13 @@ struct CheckStm {
     auto operator()(Statement const &stm) -> Util::ResultState<Statement> { return std::visit(*this, stm); }
 
     auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
-        // TODO: check nested contexts
+        // check body
         auto [res_body, provided] = prepare_lits(stm.body, global, VariableSet{});
         if (!res_body.complete()) {
             return {false};
         }
 
+        // check head
         VariableVec depend;
         visit_variables(
             stm.head,
@@ -301,10 +316,26 @@ struct CheckStm {
                 }
             },
             VariableContext::all);
-
         if (!is_provided(provided, depend)) {
             return {false};
         }
+
+        // check nested body
+        auto res_body_nested = Util::ResultVec{res_body.value()};
+        for (auto const &lit : res_body.value()) {
+            auto [res_state, res_lit] = CheckBL{provided}(lit);
+            if (!res_state) {
+                return {false};
+            }
+            res_body_nested.update(std::move(res_lit));
+        }
+        if (res_body_nested) {
+            res_body.as_optional() = std::move(res_body_nested).as_optional();
+        }
+
+        // TODO: check nested head
+
+        // construct new rule if necessary
         if (res_body) {
             return {true, Rule{stm.loc, stm.head, std::move(res_body).value()}};
         }
