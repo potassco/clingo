@@ -218,6 +218,8 @@ template <class T> class ResultVec {
     auto operator->() const -> std::vector<T> const * { return result_ ? &result_.value() : &source_; }
     //! Check if the old vector has been updated.
     explicit operator bool() const { return has_value(); }
+    //! Check if all elements have been processed.
+    [[nodiscard]] auto complete() const { return current_ == source_.end(); }
 
   private:
     std::vector<T> const &source_;

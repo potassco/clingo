@@ -113,11 +113,14 @@ template <class CB> struct MakeNode {
 
     // BodyTheoryAtom
 
-    void operator()(BodyLiteral const &lit) { std::visit(*this, lit); }
+    void operator()(BodyLiteral const &lit, bool can_provide) {
+        std::visit(*this, lit, std::variant<bool>{can_provide});
+    }
 
-    void operator()(SimpleBodyLiteral const &lit) { operator()(lit.lit, true); }
+    void operator()(SimpleBodyLiteral const &lit, bool can_provide) { operator()(lit.lit, can_provide); }
 
-    void operator()(Conjunction const &lit) {
+    void operator()(Conjunction const &lit, bool can_provide) {
+        static_cast<void>(can_provide);
         VariableVec depend;
         visit_variables(
             lit,
@@ -131,11 +134,12 @@ template <class CB> struct MakeNode {
         std::invoke(cb, StringVec{}, std::move(depend), false);
     }
 
-    void operator()(BodyAggregate const &lit) {
+    void operator()(BodyAggregate const &lit, bool can_provide) {
         VariableVec provide;
         VariableVec depend;
         // TODO: aggregate has to be brought into this form in unpool_relations
-        bool can_provide = lit.sign == Sign::none && !lit.rhs && lit.lhs && lit.lhs->second == Relation::equal;
+        can_provide =
+            can_provide && lit.sign == Sign::none && !lit.rhs && lit.lhs && lit.lhs->second == Relation::equal;
         if (lit.lhs) {
             GetDep{provided, provide, depend}(lit.lhs->first, can_provide);
         }
@@ -153,12 +157,14 @@ template <class CB> struct MakeNode {
         std::invoke(cb, std::move(provide), std::move(depend), false);
     }
 
-    void operator()(BodySetAggregate const &lit) {
+    void operator()(BodySetAggregate const &lit, bool can_provide) {
         static_cast<void>(lit);
+        static_cast<void>(can_provide);
         throw std::runtime_error("unpool must be called before safety checking");
     }
 
-    void operator()(BodyTheoryAtom const &lit) {
+    void operator()(BodyTheoryAtom const &lit, bool can_provide) {
+        static_cast<void>(can_provide);
         VariableVec depend;
         visit_variables(
             lit,
@@ -188,7 +194,89 @@ template <class Lit> struct Node {
 };
 template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 
-struct CheckSafety {
+[[nodiscard]] auto flip(Literal const &lit) -> Literal {
+    auto const &rel = std::get<LiteralRelation>(lit);
+    auto const &[sym, rhs] = rel.rhs.front();
+    assert(sym == Relation::equal && rel.rhs.size() == 1);
+    return LiteralRelation{rel.loc, rel.sign, rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs})};
+}
+
+[[nodiscard]] auto flip(BodyLiteral const &lit) -> BodyLiteral { return flip(std::get<SimpleBodyLiteral>(lit).lit); }
+
+[[nodiscard]] auto is_provided(VariableSet const &provided, auto const &vars) {
+    return std::all_of(vars.begin(), vars.end(), [&provided](auto const &var) { return provided.contains(var); });
+}
+
+template <class Lits>
+using PrepareResult = std::pair<std::decay_t<decltype(Util::ResultVec{std::declval<Lits>()})>, VariableSet>;
+
+[[nodiscard]] auto prepare_lits(auto const &lits, VariableSet const &global, VariableSet const &bound)
+    -> PrepareResult<decltype(lits)> {
+    auto res = PrepareResult<decltype(lits)>{lits, VariableSet{}};
+
+    auto &[res_body, provided] = res;
+    auto nodes = NodeVec<typename std::decay_t<decltype(lits)>::value_type>{};
+    auto done = std::vector<bool>{};
+
+    nodes.reserve(2 * lits.size());
+    done.resize(lits.size(), false);
+    size_t index = 0;
+    for (auto const &lit : lits) {
+        auto add_node = [&lit, &nodes, &index](StringVec provide, StringVec depend, bool swap) {
+            nodes.emplace_back(lit, index, std::move(provide), std::move(depend), swap);
+        };
+        MakeNode{add_node, global, bound}(lit, true);
+        ++index;
+    }
+
+    for (auto it = nodes.begin(); it != nodes.end();) {
+        auto jt = std::stable_partition(nodes.begin(), nodes.end(),
+                                        [&provided](auto const &node) { return is_provided(provided, node.depend); });
+        if (jt == it) {
+            break;
+        }
+        for (; it != jt; ++it) {
+            if (!done[it->done]) {
+                done[it->done] = true;
+                provided.insert(it->provide.begin(), it->provide.end());
+                if (&res_body.currrent() == it->lit) {
+                    res_body.keep();
+                } else {
+                    res_body.replace(it->swap ? flip(*it->lit) : *it->lit);
+                }
+            }
+        }
+    }
+
+    return res;
+}
+
+struct CheckBL {
+    auto operator()(auto const &blit) -> Util::ResultState<BodyLiteral> {
+        static_cast<void>(blit);
+        throw std::logic_error("implement me!!!");
+    }
+
+    auto operator()(BodyLiteral const &blit) -> Util::ResultState<BodyLiteral> { return std::visit(*this, blit); }
+
+    auto operator()(SimpleBodyLiteral const &blit) -> Util::ResultState<BodyLiteral> {
+        static_cast<void>(blit);
+        return {true};
+    }
+
+    auto operator()(Conjunction const &blit) -> Util::ResultState<BodyLiteral> {
+        auto [res_cond, provided] = prepare_lits(blit.lit.cond, VariableSet{}, bound);
+        // TODO: check the conclusion as well
+        if (!res_cond.complete()) {
+            return {false};
+        }
+        return {true};
+    }
+
+    VariableSet const &bound;
+};
+
+struct CheckStm {
     auto operator()(auto const &stm) -> Util::ResultState<Statement> {
         static_cast<void>(stm);
         throw std::logic_error("implement me!!!");
@@ -198,50 +286,9 @@ struct CheckSafety {
 
     auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
         // TODO: check nested contexts
-        NodeVec<BodyLiteral> nodes;
-        std::vector<bool> done;
-        nodes.reserve(2 * stm.body.size());
-        done.resize(stm.body.size(), false);
-        size_t index = 0;
-        for (auto const &lit : stm.body) {
-            auto add_node = [&lit, &nodes, &index](StringVec provide, StringVec depend, bool swap) {
-                nodes.emplace_back(lit, index, std::move(provide), std::move(depend), swap);
-            };
-            VariableSet global = select_variables(stm, VariableContext::global);
-            VariableSet provided;
-            MakeNode{add_node, global, provided}(lit);
-            ++index;
-        }
-        VariableSet provided;
-        auto is_provided = [&provided](auto const &vars) {
-            return std::all_of(vars.begin(), vars.end(),
-                               [&provided](auto const &var) { return provided.contains(var); });
-        };
-
-        auto res_body = Util::ResultVec{stm.body};
-        for (auto it = nodes.begin(); it != nodes.end();) {
-            auto jt = std::stable_partition(nodes.begin(), nodes.end(),
-                                            [&is_provided](auto const &node) { return is_provided(node.depend); });
-            if (jt == it) {
-                return false;
-            }
-            for (; it != jt; ++it) {
-                if (!done[it->done]) {
-                    done[it->done] = true;
-                    provided.insert(it->provide.begin(), it->provide.end());
-                    if (&res_body.currrent() == it->lit) {
-                        res_body.keep();
-                    } else if (it->swap) {
-                        auto const &rel = std::get<LiteralRelation>(std::get<SimpleBodyLiteral>(*it->lit).lit);
-                        auto const &[sym, rhs] = rel.rhs.front();
-                        assert(sym == Relation::equal && rel.rhs.size() == 1);
-                        res_body.replace(Literal{
-                            LiteralRelation{rel.loc, rel.sign, rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs})}});
-                    } else {
-                        res_body.replace(*it->lit);
-                    }
-                }
-            }
+        auto [res_body, provided] = prepare_lits(stm.body, global, VariableSet{});
+        if (!res_body.complete()) {
+            return {false};
         }
 
         VariableVec depend;
@@ -255,7 +302,7 @@ struct CheckSafety {
             },
             VariableContext::all);
 
-        if (!is_provided(depend)) {
+        if (!is_provided(provided, depend)) {
             return {false};
         }
         if (res_body) {
@@ -271,7 +318,7 @@ struct CheckSafety {
 
 auto check_safety(Statement const &stm) -> Util::ResultState<Statement> {
     VariableSet global = select_variables(stm, VariableContext::global);
-    return CheckSafety{global}(stm);
+    return CheckStm{global}(stm);
 }
 
 } // namespace Gringo::Input
