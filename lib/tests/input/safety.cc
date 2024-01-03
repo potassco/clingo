@@ -27,7 +27,8 @@ auto cs_stm(char const *str) -> std::string {
 
 TEST_CASE("check_safety") {
     // rule bodies
-    REQUIRE(cs_stm("h :- X=Y, not q(Y), p(X).") == "h :- p(X); X=Y; not q(Y)., S");
+    REQUIRE(cs_stm("h :- X=Y, not q(Y), p(X).") == "h :- p(X); Y=X; not q(Y)., S");
+    REQUIRE(cs_stm("h :- X=Y, not q(X), p(Y).") == "h :- p(Y); X=Y; not q(X)., S");
 }
 
 } // namespace Gringo::Input::Test

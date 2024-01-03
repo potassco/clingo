@@ -75,8 +75,6 @@ struct GetDep {
 };
 
 template <class CB> struct MakeNode {
-    // TODO: in nested contexts should not depend on global variables
-    // there should be a vector of already bound variables
     MakeNode(CB cb, VariableSet const &global, VariableSet const &provided)
         : cb{std::move(cb)}, global{global}, provided{provided} {}
 
@@ -85,7 +83,7 @@ template <class CB> struct MakeNode {
     void operator()(LiteralBoolean const &lit, bool can_provide) {
         static_cast<void>(lit);
         static_cast<void>(can_provide);
-        std::invoke(cb, StringVec{}, StringVec{});
+        std::invoke(cb, StringVec{}, StringVec{}, false);
     }
 
     void operator()(LiteralRelation const &lit, bool can_provide) {
@@ -95,11 +93,10 @@ template <class CB> struct MakeNode {
             GetDep{provided, provide, depend}(lit.lhs, lhs);
             GetDep{provided, provide, depend}(lit.rhs.front().second, rhs);
             if (!rhs || !provide.empty()) {
-                std::invoke(cb, std::move(provide), std::move(depend));
+                std::invoke(cb, std::move(provide), std::move(depend), rhs);
             }
         };
         if (lit.rhs.front().first == Relation::equal && can_provide) {
-            // Note: might somehow have to indicate direction...
             add(true, false);
             add(false, true);
         } else {
@@ -111,7 +108,7 @@ template <class CB> struct MakeNode {
         StringVec provide;
         StringVec depend;
         GetDep{provided, provide, depend}(lit.term, can_provide && lit.sign == Sign::none);
-        std::invoke(cb, std::move(provide), std::move(depend));
+        std::invoke(cb, std::move(provide), std::move(depend), false);
     }
 
     // BodyTheoryAtom
@@ -131,7 +128,7 @@ template <class CB> struct MakeNode {
                 }
             },
             VariableContext::global);
-        std::invoke(cb, StringVec{}, std::move(depend));
+        std::invoke(cb, StringVec{}, std::move(depend), false);
     }
 
     void operator()(BodyAggregate const &lit) {
@@ -153,7 +150,7 @@ template <class CB> struct MakeNode {
                 }
             });
         }
-        std::invoke(cb, std::move(provide), std::move(depend));
+        std::invoke(cb, std::move(provide), std::move(depend), false);
     }
 
     void operator()(BodySetAggregate const &lit) {
@@ -172,7 +169,7 @@ template <class CB> struct MakeNode {
                 }
             },
             VariableContext::all);
-        std::invoke(cb, StringVec{}, std::move(depend));
+        std::invoke(cb, StringVec{}, std::move(depend), false);
     }
 
     CB cb;
@@ -181,12 +178,13 @@ template <class CB> struct MakeNode {
 };
 
 template <class Lit> struct Node {
-    Node(Lit const &lit, size_t done, StringVec provide, StringVec depend)
-        : lit{&lit}, done{done}, provide{std::move(provide)}, depend{std::move(depend)} {}
+    Node(Lit const &lit, size_t done, StringVec provide, StringVec depend, bool swap)
+        : lit{&lit}, done{done}, provide{std::move(provide)}, depend{std::move(depend)}, swap{swap} {}
     Lit const *lit;
     size_t done;
     StringVec provide;
     StringVec depend;
+    bool swap;
 };
 template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 
@@ -206,8 +204,8 @@ struct CheckSafety {
         done.resize(stm.body.size(), false);
         size_t index = 0;
         for (auto const &lit : stm.body) {
-            auto add_node = [&lit, &nodes, &index](StringVec provide, StringVec depend) {
-                nodes.emplace_back(lit, index, std::move(provide), std::move(depend));
+            auto add_node = [&lit, &nodes, &index](StringVec provide, StringVec depend, bool swap) {
+                nodes.emplace_back(lit, index, std::move(provide), std::move(depend), swap);
             };
             VariableSet global = select_variables(stm, VariableContext::global);
             VariableSet provided;
@@ -233,8 +231,13 @@ struct CheckSafety {
                     provided.insert(it->provide.begin(), it->provide.end());
                     if (&res_body.currrent() == it->lit) {
                         res_body.keep();
+                    } else if (it->swap) {
+                        auto const &rel = std::get<LiteralRelation>(std::get<SimpleBodyLiteral>(*it->lit).lit);
+                        auto const &[sym, rhs] = rel.rhs.front();
+                        assert(sym == Relation::equal && rel.rhs.size() == 1);
+                        res_body.replace(Literal{
+                            LiteralRelation{rel.loc, rel.sign, rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs})}});
                     } else {
-                        // TODO: better add the swapped form of assignment literals (if necessary)
                         res_body.replace(*it->lit);
                     }
                 }
