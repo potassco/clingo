@@ -281,6 +281,26 @@ auto check_provided(VariableSet const &bound, VariableSet const &provided, auto 
     return is_provided(provided, depend);
 }
 
+auto report(Logger &log, VariableSet const &vars, VariableSet const &bound, auto const &x) {
+    VariableVec unsafe;
+    unsafe.reserve(vars.size() - bound.size());
+    std::copy_if(vars.begin(), vars.end(), std::back_inserter(unsafe),
+                 [&bound](auto const &var) { return !bound.contains(var); });
+    std::sort(unsafe.begin(), unsafe.end());
+    GRINGO_REPORT_LOC(log, error, location(x)) << "unsafe variables in:\n"
+                                               << "  " << x << "\n"
+                                               << "note: the following variables are unsafe:\n"
+                                               << "  " << Util::p_range{unsafe, ", "};
+}
+
+auto report_local(Logger &log, VariableSet const &global, VariableSet const &bound, auto const &x) {
+    auto local = select_variables(x);
+    for (auto const &var : global) {
+        local.erase(var);
+    }
+    report(log, local, bound, x);
+}
+
 //! Check safety of local variables.
 struct CheckLocal {
     auto operator()(TheoryElementVec const &elems) {
@@ -288,6 +308,7 @@ struct CheckLocal {
         for (auto const &elem : elems) {
             auto [res_cond, provided] = prepare_lits(log, elem.second, VariableSet{}, bound);
             if (!res_cond.complete() || !check_provided(bound, provided, elem.first)) {
+                // TODO: report
                 break;
             }
             if (res_cond) {
@@ -312,6 +333,7 @@ struct CheckLocal {
             if (auto const *clit = std::get_if<ConditionalLiteral>(&elem); clit != nullptr) {
                 auto [res_cond, provided] = prepare_lits(log, clit->cond, VariableSet{}, bound);
                 if (!res_cond.complete() || !check_provided(bound, provided, clit->lit)) {
+                    report_local(log, bound, provided, *clit);
                     return {false};
                 }
                 if (res_cond) {
@@ -334,6 +356,7 @@ struct CheckLocal {
         for (auto const &elem : hlit.elems) {
             auto [res_cond, provided] = prepare_lits(log, elem.cond, VariableSet{}, bound);
             if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple, elem.lit)) {
+                report_local(log, bound, provided, elem);
                 return {false};
             }
             if (res_cond) {
@@ -374,6 +397,7 @@ struct CheckLocal {
     auto operator()(Conjunction const &blit) -> Util::ResultState<BodyLiteral> {
         auto [res_cond, provided] = prepare_lits(log, blit.lit.cond, VariableSet{}, bound);
         if (!res_cond.complete() || !check_provided(bound, provided, blit.lit.lit)) {
+            report_local(log, bound, provided, blit.lit);
             return {false};
         }
 
@@ -388,6 +412,7 @@ struct CheckLocal {
         for (auto const &elem : blit.elems) {
             auto [res_cond, provided] = prepare_lits(log, elem.cond, VariableSet{}, bound);
             if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple)) {
+                report_local(log, bound, provided, elem);
                 return {false};
             }
             if (res_cond) {
@@ -430,15 +455,7 @@ struct CheckGlobal {
         // check body
         auto [res_body, provided] = prepare_lits(log, stm.body, global, VariableSet{});
         if (!res_body.complete() || !is_provided(provided, global)) {
-            VariableVec unsafe;
-            unsafe.reserve(global.size() - provided.size());
-            std::copy_if(global.begin(), global.end(), std::back_inserter(unsafe),
-                         [&provided](auto const &var) { return !provided.contains(var); });
-            std::sort(unsafe.begin(), unsafe.end());
-            GRINGO_REPORT_LOC(log, error, stm.loc) << "unsafe variables in:\n"
-                                                   << "  " << stm << "\n"
-                                                   << "note: the following variables are unsafe:\n"
-                                                   << "  " << Util::p_range{unsafe};
+            report(log, global, provided, stm);
             return {false};
         }
 
@@ -447,8 +464,6 @@ struct CheckGlobal {
         for (auto const &lit : res_body.value()) {
             auto [res_state, res_lit] = CheckLocal{log, provided}(lit);
             if (!res_state) {
-                // TODO: error reporting here...
-                // for this, CheckLocal, has to return the unsafe or at least the bound variables
                 return {false};
             }
             res_body_nested.update(std::move(res_lit));
@@ -460,7 +475,6 @@ struct CheckGlobal {
         // check nested head
         auto [state_head, res_head] = CheckLocal{log, provided}(stm.head);
         if (!state_head) {
-            // TODO: error reporting here...
             return {false};
         }
 
