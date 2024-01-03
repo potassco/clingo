@@ -6,6 +6,6 @@
 
 namespace Gringo::Input {
 
-[[nodiscard]] auto check_safety(Statement const &stm) -> Util::ResultState<Statement>;
+[[nodiscard]] auto check_safety(Logger &log, Statement const &stm) -> Util::ResultState<Statement>;
 
 }

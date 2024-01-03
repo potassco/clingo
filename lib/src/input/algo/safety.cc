@@ -1,6 +1,8 @@
 #include <util/algorithm.hh>
+#include <util/print.hh>
 
 #include <input/algo/analyze.hh>
+#include <input/algo/print.hh>
 #include <input/algo/safety.hh>
 #include <input/algo/visit_variables.hh>
 
@@ -74,9 +76,12 @@ struct GetDep {
     StringVec &depend;
 };
 
+//! Turn literals into nodes that depend or provide variables.
 template <class CB> struct MakeNode {
     MakeNode(CB cb, VariableSet const &global, VariableSet const &provided)
         : cb{std::move(cb)}, global{global}, provided{provided} {}
+
+    // literals
 
     void operator()(Literal const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
 
@@ -111,7 +116,7 @@ template <class CB> struct MakeNode {
         std::invoke(cb, std::move(provide), std::move(depend), false);
     }
 
-    // BodyTheoryAtom
+    // body literals
 
     void operator()(BodyLiteral const &lit, bool can_provide) {
         std::visit(*this, lit, std::variant<bool>{can_provide});
@@ -210,7 +215,7 @@ template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 template <class Lits>
 using PrepareResult = std::pair<std::decay_t<decltype(Util::ResultVec{std::declval<Lits>()})>, VariableSet>;
 
-[[nodiscard]] auto prepare_lits(auto const &lits, VariableSet const &global, VariableSet const &bound)
+[[nodiscard]] auto prepare_lits(Logger &log, auto const &lits, VariableSet const &global, VariableSet const &bound)
     -> PrepareResult<decltype(lits)> {
     auto res = PrepareResult<decltype(lits)>{lits, VariableSet{}};
 
@@ -221,14 +226,18 @@ using PrepareResult = std::pair<std::decay_t<decltype(Util::ResultVec{std::declv
     nodes.reserve(2 * lits.size());
     done.resize(lits.size(), false);
     size_t index = 0;
+    GRINGO_REPORT(log, debug) << "literal dependencies";
     for (auto const &lit : lits) {
-        auto add_node = [&lit, &nodes, &index](StringVec provide, StringVec depend, bool swap) {
+        auto add_node = [&log, &lit, &nodes, &index](StringVec provide, StringVec depend, bool swap) {
+            GRINGO_REPORT(log, debug) << "  " << lit << ", {" << Util::p_range{provide} << "}, {"
+                                      << Util::p_range{depend} << "}";
             nodes.emplace_back(lit, index, std::move(provide), std::move(depend), swap);
         };
         MakeNode{add_node, global, bound}(lit, true);
         ++index;
     }
 
+    GRINGO_REPORT(log, debug) << "literal order";
     for (auto it = nodes.begin(); it != nodes.end();) {
         auto jt = std::stable_partition(nodes.begin(), nodes.end(),
                                         [&provided](auto const &node) { return is_provided(provided, node.depend); });
@@ -237,6 +246,7 @@ using PrepareResult = std::pair<std::decay_t<decltype(Util::ResultVec{std::declv
         }
         for (; it != jt; ++it) {
             if (!done[it->done]) {
+                GRINGO_REPORT(log, debug) << "  " << it->lit;
                 done[it->done] = true;
                 provided.insert(it->provide.begin(), it->provide.end());
                 if (&res_body.currrent() == it->lit) {
@@ -276,7 +286,7 @@ struct CheckLocal {
     auto operator()(TheoryElementVec const &elems) {
         auto res_elems = Util::ResultVec{elems};
         for (auto const &elem : elems) {
-            auto [res_cond, provided] = prepare_lits(elem.second, VariableSet{}, bound);
+            auto [res_cond, provided] = prepare_lits(log, elem.second, VariableSet{}, bound);
             if (!res_cond.complete() || !check_provided(bound, provided, elem.first)) {
                 break;
             }
@@ -300,7 +310,7 @@ struct CheckLocal {
         auto res_elems = Util::ResultVec{hlit.elems};
         for (auto const &elem : hlit.elems) {
             if (auto const *clit = std::get_if<ConditionalLiteral>(&elem); clit != nullptr) {
-                auto [res_cond, provided] = prepare_lits(clit->cond, VariableSet{}, bound);
+                auto [res_cond, provided] = prepare_lits(log, clit->cond, VariableSet{}, bound);
                 if (!res_cond.complete() || !check_provided(bound, provided, clit->lit)) {
                     return {false};
                 }
@@ -322,7 +332,7 @@ struct CheckLocal {
     auto operator()(HeadAggregate const &hlit) -> Util::ResultState<HeadLiteral> {
         auto res_elems = Util::ResultVec{hlit.elems};
         for (auto const &elem : hlit.elems) {
-            auto [res_cond, provided] = prepare_lits(elem.cond, VariableSet{}, bound);
+            auto [res_cond, provided] = prepare_lits(log, elem.cond, VariableSet{}, bound);
             if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple, elem.lit)) {
                 return {false};
             }
@@ -362,7 +372,7 @@ struct CheckLocal {
     }
 
     auto operator()(Conjunction const &blit) -> Util::ResultState<BodyLiteral> {
-        auto [res_cond, provided] = prepare_lits(blit.lit.cond, VariableSet{}, bound);
+        auto [res_cond, provided] = prepare_lits(log, blit.lit.cond, VariableSet{}, bound);
         if (!res_cond.complete() || !check_provided(bound, provided, blit.lit.lit)) {
             return {false};
         }
@@ -376,7 +386,7 @@ struct CheckLocal {
     auto operator()(BodyAggregate const &blit) -> Util::ResultState<BodyLiteral> {
         auto res_elems = Util::ResultVec{blit.elems};
         for (auto const &elem : blit.elems) {
-            auto [res_cond, provided] = prepare_lits(elem.cond, VariableSet{}, bound);
+            auto [res_cond, provided] = prepare_lits(log, elem.cond, VariableSet{}, bound);
             if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple)) {
                 return {false};
             }
@@ -409,6 +419,7 @@ struct CheckLocal {
         return {true};
     }
 
+    Logger &log;
     VariableSet const &bound;
 };
 
@@ -422,7 +433,7 @@ struct CheckGlobal {
 
     auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
         // check body
-        auto [res_body, provided] = prepare_lits(stm.body, global, VariableSet{});
+        auto [res_body, provided] = prepare_lits(log, stm.body, global, VariableSet{});
         if (!res_body.complete()) {
             return {false};
         }
@@ -435,7 +446,7 @@ struct CheckGlobal {
         // check nested body
         auto res_body_nested = Util::ResultVec{res_body.value()};
         for (auto const &lit : res_body.value()) {
-            auto [res_state, res_lit] = CheckLocal{provided}(lit);
+            auto [res_state, res_lit] = CheckLocal{log, provided}(lit);
             if (!res_state) {
                 return {false};
             }
@@ -446,7 +457,7 @@ struct CheckGlobal {
         }
 
         // check nested head
-        auto [state_head, res_head] = CheckLocal{provided}(stm.head);
+        auto [state_head, res_head] = CheckLocal{log, provided}(stm.head);
         if (!state_head) {
             return {false};
         }
@@ -458,15 +469,16 @@ struct CheckGlobal {
         return {true};
     }
 
+    Logger &log;
     VariableSet const &global;
 };
 
 } // namespace
 
-auto check_safety(Statement const &stm) -> Util::ResultState<Statement> {
+auto check_safety(Logger &log, Statement const &stm) -> Util::ResultState<Statement> {
     // TODO: error reporting
     VariableSet global = select_variables(stm, VariableContext::global);
-    return CheckGlobal{global}(stm);
+    return CheckGlobal{log, global}(stm);
 }
 
 } // namespace Gringo::Input

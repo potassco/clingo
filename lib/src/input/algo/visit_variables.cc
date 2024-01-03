@@ -56,7 +56,7 @@ struct VisitVariables : Visitor<VisitVariables> {
         if (ctx == VariableContext::all) {
             visit(atom.elems);
         }
-        visit(atom.name);
+        visit(atom.name, atom.rhs);
     }
 
     // head literal
