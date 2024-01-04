@@ -1,6 +1,7 @@
 #include <algorithm>
 
 #include <gringo/util/algorithm.hh>
+#include <gringo/util/print.hh>
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/evaluate.hh>
@@ -512,23 +513,23 @@ auto is_fact(SymbolStore &store, Statement const &stm) -> std::optional<Symbol> 
 
 auto check_global(Logger &log, VariableSet const &global, Statement const &stm) -> bool {
     VariableSet new_global = select_variables(stm, VariableContext::global, global.size());
-    Util::ordered_map<String, Location> unsafe;
+    std::vector<String> unsafe;
     visit_variables(
         stm,
         [&](Location const &loc, String var) {
+            static_cast<void>(loc);
             if (global.contains(var) != new_global.contains(var)) {
-                unsafe.try_emplace(var, loc);
+                unsafe.emplace_back(var);
             }
         },
         VariableContext::all);
     if (!unsafe.empty()) {
+        std::sort(unsafe.begin(), unsafe.end());
+        unsafe.erase(std::unique(unsafe.begin(), unsafe.end()), unsafe.end());
         GRINGO_REPORT_LOC(log, error, location(stm)) << "unsafe variables in:\n"
                                                      << "  " << stm << "\n"
-                                                     << print{[&unsafe](std::ostream &out) {
-                                                            for (auto const &[loc, var] : unsafe) {
-                                                                out << loc << ": note: '" << var << "' is unsafe\n";
-                                                            }
-                                                        }};
+                                                     << "note: the following variables are unsafe:\n"
+                                                     << "  " << Util::p_range{unsafe, ", "};
         return false;
     }
     return true;

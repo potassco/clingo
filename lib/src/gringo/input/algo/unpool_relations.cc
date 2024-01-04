@@ -528,7 +528,9 @@ struct UnpoolStatement {
     if (stms) {
         VariableSet global = select_variables(stm, VariableContext::global);
         for (auto const &unpooled : stms.value()) {
-            check_global(ctx.logger(), global, unpooled);
+            if (!check_global(ctx.logger(), global, unpooled)) {
+                return StatementVec{};
+            }
         }
     }
     return stms;

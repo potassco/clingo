@@ -696,7 +696,9 @@ auto unpool(RewriteContext &ctx, Statement const &stm) -> std::optional<Statemen
     if (stms.has_value() && !std::holds_alternative<StatementOptimize>(stm)) {
         VariableSet global = select_variables(stm, VariableContext::global);
         for (auto const &unpooled : stms.value()) {
-            check_global(ctx.logger(), global, unpooled);
+            if (!check_global(ctx.logger(), global, unpooled)) {
+                return StatementVec{};
+            }
         }
     }
     return stms;
