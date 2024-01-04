@@ -24,6 +24,7 @@ auto cb_stm(char const *str) -> std::string {
 
 TEST_CASE("compute_bounds") {
     // rule bodies
+    REQUIRE(cb_stm("h :- X>1; X<=2.") == "h :- X=2.");
     REQUIRE(cb_stm("h :- X>=1; X<=3.") == "h :- X=1..3.");
     REQUIRE(cb_stm("h :- X>=1; X<=5, X>=3, X<=7.") == "h :- X=3..5.");
     REQUIRE(cb_stm("h :- X>=1; X<=5, X=3..7.") == "h :- X=3..5.");

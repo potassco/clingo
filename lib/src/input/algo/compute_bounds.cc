@@ -210,16 +210,16 @@ struct ExtractInequalities {
             return;
         }
         // handle linear terms
-        //   X >= Y -> X - Y >=  0
-        //   X >  Y -> X - Y >= -1
-        //   X <= Y -> Y - X >=  0
-        //   X <  Y -> Y - X >=  1
-        //   X =  Y -> X - Y >=  0
-        //             Y - X >=  0
+        //   X >= Y -> X - Y >= 0
+        //   X >  Y -> X - Y >= 1
+        //   X <= Y -> Y - X >= 0
+        //   X <  Y -> Y - X >= 1
+        //   X =  Y -> X - Y >= 0
+        //             Y - X >= 0
         //   X != Y -> cannot handle
         switch (rhs.first) {
             case Relation::greater: {
-                bound = -1;
+                bound = 1;
                 [[fallthrough]];
             }
             case Relation::greater_equal: {

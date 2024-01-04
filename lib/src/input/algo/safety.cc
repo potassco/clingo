@@ -230,10 +230,10 @@ using PrepareResult = std::pair<std::decay_t<decltype(Util::ResultVec{std::declv
     nodes.reserve(2 * lits.size());
     done.resize(lits.size(), false);
     size_t index = 0;
-    GRINGO_REPORT(log, debug) << "literal dependencies";
+    GRINGO_REPORT(log, trace) << "literal dependencies";
     for (auto const &lit : lits) {
         auto add_node = [&log, &lit, &nodes, &index](StringVec provide, StringVec depend, bool swap) {
-            GRINGO_REPORT(log, debug) << "  " << lit << ", {" << Util::p_range{provide} << "}, {"
+            GRINGO_REPORT(log, trace) << "  " << lit << ", {" << Util::p_range{provide} << "}, {"
                                       << Util::p_range{depend} << "}";
             nodes.emplace_back(lit, index, std::move(provide), std::move(depend), swap);
         };
@@ -241,7 +241,7 @@ using PrepareResult = std::pair<std::decay_t<decltype(Util::ResultVec{std::declv
         ++index;
     }
 
-    GRINGO_REPORT(log, debug) << "literal order";
+    GRINGO_REPORT(log, trace) << "literal order";
     for (auto it = nodes.begin(); it != nodes.end();) {
         auto jt = std::stable_partition(nodes.begin(), nodes.end(),
                                         [&provided](auto const &node) { return is_provided(provided, node.depend); });
@@ -250,7 +250,7 @@ using PrepareResult = std::pair<std::decay_t<decltype(Util::ResultVec{std::declv
         }
         for (; it != jt; ++it) {
             if (!done[it->done]) {
-                GRINGO_REPORT(log, debug) << "  " << *it->lit;
+                GRINGO_REPORT(log, trace) << "  " << *it->lit;
                 done[it->done] = true;
                 provided.insert(it->provide.begin(), it->provide.end());
                 if (&res_body.currrent() == it->lit && !it->swap) {

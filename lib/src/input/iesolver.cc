@@ -175,11 +175,11 @@ auto IESolver::compute(Logger &log) -> bool {
     if (ies_.empty()) {
         return true;
     }
-    if (log.enabled(MessageCode::debug)) {
-        GRINGO_REPORT(log, debug) << "computing bounds";
-        GRINGO_REPORT(log, debug) << "  using the following inequalities:";
+    if (log.enabled(MessageCode::trace)) {
+        GRINGO_REPORT(log, trace) << "computing bounds";
+        GRINGO_REPORT(log, trace) << "  using the following inequalities:";
         for (auto &ie : ies_) {
-            GRINGO_REPORT(log, debug) << "    " << ie;
+            GRINGO_REPORT(log, trace) << "    " << ie;
         }
     }
     // initialize bound computation and incorporate bounds from parent
@@ -203,25 +203,25 @@ auto IESolver::compute(Logger &log) -> bool {
             }
             if (num_unbounded == 0 && slack > 0) {
                 domain_.clear();
-                GRINGO_REPORT(log, debug) << "  the inequalities are unsatisfiable";
+                GRINGO_REPORT(log, trace) << "  the inequalities are unsatisfiable";
                 return false;
             }
             if (num_unbounded <= 1) {
                 for (auto const &term : ie.terms) {
                     if (update_bound_(term, slack, num_unbounded)) {
-                        GRINGO_REPORT(log, debug)
+                        GRINGO_REPORT(log, trace)
                             << "  set range of " << term.variable << " to " << domain_[term.variable] << " using";
-                        GRINGO_REPORT(log, debug) << "    " << ie;
+                        GRINGO_REPORT(log, trace) << "    " << ie;
                         changed = true;
                     }
                 }
             }
         }
     }
-    if (log.enabled(MessageCode::debug)) {
-        GRINGO_REPORT(log, debug) << "  obtained the following bounds:";
+    if (log.enabled(MessageCode::trace)) {
+        GRINGO_REPORT(log, trace) << "  obtained the following bounds:";
         for (auto const &ie : domain_) {
-            GRINGO_REPORT(log, debug) << "    " << ie.first << ": " << ie.second;
+            GRINGO_REPORT(log, trace) << "    " << ie.first << ": " << ie.second;
         }
     }
     return true;

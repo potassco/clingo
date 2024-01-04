@@ -100,7 +100,6 @@ TEST_CASE("evaluate_binary") {
 
 TEST_CASE("evaluate_const") {
     ConstHelper ch;
-    ch.logger().set_level(LogLevel::trace);
     auto stms = std::vector<StatementConst>{};
 
     SECTION("cycle") {
