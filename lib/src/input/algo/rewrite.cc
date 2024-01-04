@@ -5,6 +5,7 @@
 #include <input/algo/project.hh>
 #include <input/algo/rewrite.hh>
 #include <input/algo/rewrite_anonymous.hh>
+#include <input/algo/safety.hh>
 #include <input/algo/simplify.hh>
 #include <input/algo/substitute.hh>
 #include <input/algo/unpool.hh>
@@ -12,28 +13,6 @@
 #include <input/algo/visit_variables.hh>
 
 namespace Gringo::Input {
-
-/*
-whole process as in gringo atm
-1. apply #const statements (done)
-2. unpool (done)
-3. init theory (todo)
-4. simplify (done)
-6. unpool comparison (done)
-   the comparison
-     not 1+a < 5 < 10
-   is equivalent to
-     X=1+a, not X < 5 < 10
-   so any term that can fail to evaluate should be stripped during simplification
-   this also includes intervals and scripts!
-   currently includes a shifting step that can be done earlier
-   for example, simplify would be a candidate
-7. rewrite
-  1. aggregates (done)
-  2. arithmetics (done)
-  4. comparisons to intervals (done)
-  5. assignment aggregates (todo; let's see)
-*/
 
 void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, Statement const &stm,
              RewriteOptions opts, StatementVec &stms) {
@@ -53,7 +32,14 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
             }
             if (state_cb) {
                 stm = std::move(res_cb).value_or(std::move(stm));
-                stms.emplace_back(std::move(stm));
+                auto [state_cs, res_cs] = check_safety(ctx.logger(), stm);
+                if (res_cs) {
+                    GRINGO_REPORT(ctx.logger(), trace) << indent << sub_indent << "check safety: " << *res_cs;
+                }
+                if (state_cs) {
+                    stm = std::move(res_cs).value_or(std::move(stm));
+                    stms.emplace_back(std::move(stm));
+                }
             }
         };
 

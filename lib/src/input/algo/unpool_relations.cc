@@ -87,6 +87,15 @@ struct ShiftHead {
         return shift(lit.lit, body, true);
     }
 
+    //! This also shifts disjunctions with non-atomic literals into the rule body.
+    //!
+    //! For example, the rule
+    //!
+    //!   #true : p(X) :- q(X).
+    //!
+    //! is equivalent to
+    //!
+    //!   #false :- q(X); #false: p(X).
     auto operator()(Disjunction const &lit) const -> std::optional<HeadLiteral> {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
@@ -103,14 +112,34 @@ struct ShiftHead {
                         auto res_cond = unpool_conjunctive(x.cond);
                         auto res_lit = shift(x.lit, res_cond, false);
                         if (res_lit || res_cond) {
-                            res_elems.replace(ConditionalLiteral{x.loc, std::move(res_lit).value_or(x.lit),
-                                                                 std::move(res_cond).value()});
+                            auto clit = ConditionalLiteral{x.loc, std::move(res_lit).value_or(x.lit),
+                                                           std::move(res_cond).value()};
+                            if (auto *blit = std::get_if<LiteralBoolean>(&clit.lit); blit != nullptr) {
+                                res_elems.remove();
+                                assert(blit->sign == Sign::none);
+                                if (blit->value) {
+                                    blit->value = false;
+                                    body.append(Conjunction{std::move(clit)});
+                                }
+                            } else {
+                                res_elems.replace(std::move(clit));
+                            }
+
+                        } else if (auto *blit = std::get_if<LiteralBoolean>(&x.lit); blit != nullptr) {
+                            res_elems.remove();
+                            assert(blit->sign == Sign::none);
+                            if (blit->value) {
+                                body.append(Conjunction{ConditionalLiteral{x.loc, NegateLiteral{}(*blit), x.cond}});
+                            }
                         } else {
                             res_elems.keep();
                         }
                     }
                 },
                 elem);
+        }
+        if (res_elems.value().empty()) {
+            return SimpleHeadLiteral{LiteralBoolean{lit.loc, Sign::none, false}};
         }
         if (res_elems) {
             return Disjunction{lit.loc, std::move(res_elems).value()};

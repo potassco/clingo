@@ -36,10 +36,15 @@ TEST_CASE("unpool_relations_head") {
     REQUIRE(unpool_statement("not 1<=X<=Y.") == "[ :- 1<=X; X<=Y.]");
     REQUIRE(unpool_statement("not p | 1<=X<=Y | not 1<=A<=B.") == "[ :- not not p; 1>X; 1<=A; A<=B."
                                                                   "  :- not not p; X>Y; 1<=A; A<=B.]");
-    REQUIRE(unpool_statement("1<2<3: not 4<5<6; not a<b<c: d<e<f.") == "[#true: 4>=5, 1<2, 2<3;"
-                                                                       " #true: 5>=6, 1<2, 2<3;"
-                                                                       " #true: d<e, e<f, a>=b;"
-                                                                       " #true: d<e, e<f, b>=c.]");
+    REQUIRE(unpool_statement("1<Y<3: not 4<X<6.") == "[ :- #false: 4>=X, 1<Y, Y<3."
+                                                     "  :- #false: X>=6, 1<Y, Y<3.]");
+    REQUIRE(unpool_statement("not 1<Y<3: 4<X<6.") == "[ :- #false: 4<X, X<6, 1>=Y."
+                                                     "  :- #false: 4<X, X<6, Y>=3.]");
+    REQUIRE(unpool_statement("1<Y<3: not 4<X<6; not 1<A<3: 4<B<6.") ==
+            "[ :- #false: 4>=X, 1<Y, Y<3; #false: 4<B, B<6, 1>=A."
+            "  :- #false: X>=6, 1<Y, Y<3; #false: 4<B, B<6, 1>=A."
+            "  :- #false: 4>=X, 1<Y, Y<3; #false: 4<B, B<6, A>=3."
+            "  :- #false: X>=6, 1<Y, Y<3; #false: 4<B, B<6, A>=3.]");
     REQUIRE(unpool_statement("&f{ : 1<=X<=Y }.") == "[&f { : 1<=X, X<=Y }.]");
     REQUIRE(unpool_statement("&f{ a,b,c : not 1<=X<=Y }.") == "[&f { a,b,c: 1>X; a,b,c: X>Y }.]");
     REQUIRE(unpool_statement("&f{ a,b,c : not 1<=X<=Y, 2<=A<=B }.") ==
