@@ -23,7 +23,9 @@ struct SimpleHeadLiteral {
 
 //! A disjunction of conditional literals.
 struct Disjunction {
+    //! An element of a disjunction.
     using Element = std::variant<Literal, ConditionalLiteral>;
+    //! A vector of elements.
     using ElementVec = std::vector<Element>;
     //! Wrap a literal in a head literal.
     Disjunction(Location loc, ElementVec elems) : loc{loc}, elems{std::move(elems)} {}

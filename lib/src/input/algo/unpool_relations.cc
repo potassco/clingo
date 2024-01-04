@@ -193,7 +193,17 @@ struct ShiftBody {
                 res_elems.keep();
             }
         }
-        if (res_elems) {
+        bool assign_lhs = lit.lhs && lit.lhs->second == Relation::equal;
+        bool assign_rhs = lit.rhs && lit.rhs->first == Relation::equal;
+        bool has_assign = assign_lhs || assign_rhs;
+        if (lit.sign == Sign::none && has_assign && lit.rhs) {
+            body.remove();
+            if (lit.lhs) {
+                body.append(BodyAggregate{lit.loc, lit.sign, lit.lhs, lit.fun, *res_elems, std::nullopt});
+            }
+            body.append(BodyAggregate{lit.loc, lit.sign, std::make_pair(lit.rhs->second, lit.rhs->first), lit.fun,
+                                      *std::move(res_elems), std::nullopt});
+        } else if (res_elems) {
             body.replace(BodyAggregate{lit.loc, lit.sign, lit.lhs, lit.fun, *std::move(res_elems), lit.rhs});
         } else {
             body.keep();

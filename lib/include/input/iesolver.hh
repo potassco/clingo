@@ -85,6 +85,7 @@ class IEInterval {
 //! A map from variables to intervals.
 using IEDomain = Util::ordered_map<String, IEInterval>;
 
+//! A (partial) solver for inequalities.
 class IESolver {
   public:
     //! Construct an IESolver with an optional parent.
@@ -101,6 +102,9 @@ class IESolver {
     //! for variables X, constants u and t, and relations R among <, <=, =, >, >=
     //! should be subject to refinement given the computed bounds.
     void add(IE ie);
+    //! Compute the bounds of variables in added inequalities.
+    //!
+    //! Returns false if the inequalities are not satisfiable.
     [[nodiscard]] auto compute(Logger &log) -> bool;
     //! Get the domains of variables.
     [[nodiscard]] auto domain() const -> IEDomain const & { return domain_; }

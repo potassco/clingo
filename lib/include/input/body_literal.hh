@@ -25,7 +25,9 @@ struct SimpleBodyLiteral {
 
 //! A conditional literal in a rule body.
 struct Conjunction {
+    //! Construct a conjunction.
     Conjunction(ConditionalLiteral lit) : lit{std::move(lit)} {}
+    //! The conditional literal representing the elements of the conjunction.
     ConditionalLiteral lit;
 };
 

@@ -142,10 +142,9 @@ template <class E, class S = bool> struct ResultState {
 };
 
 //! Helper to update a vector of elements.
-//!
-//! @todo: this is rather generic and a candidate for Util.
 template <class T> class ResultVec {
   public:
+    //! Construct a result vec to track changes to the given source.
     ResultVec(std::vector<T> const &source) : source_{source}, current_{source.begin()} {}
 
     //! Get current element.
