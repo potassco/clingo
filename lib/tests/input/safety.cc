@@ -64,6 +64,29 @@ TEST_CASE("check_safety") {
     REQUIRE(cs_stm("&count(Z) { X: not q(X), X=Y} >= Y :- p(Y).") == "<unsafe>");
     REQUIRE(cs_stm("&count(Y) { X,Z: not q(X), X=Y} >= Y :- p(Y).") == "<unsafe>");
     REQUIRE(cs_stm("&count(Y) { X: not q(X), X=Y} >= Z :- p(Y).") == "<unsafe>");
+
+    // statements
+    REQUIRE(cs_stm(":~ X=Y, not q(Y), p(X). [X]") == " :~ p(X); Y=X; not q(Y). [X], C");
+    REQUIRE(cs_stm(":~ X=Y, not q(Y), p(X). [Z]") == "<unsafe>");
+    //
+    REQUIRE(cs_stm("#show X : X=Y, not q(Y), p(X).") == "#show X: p(X); Y=X; not q(Y)., C");
+    REQUIRE(cs_stm("#show Z : X=Y, not q(Y), p(X).") == "<unsafe>");
+    //
+    REQUIRE(cs_stm("#project p(X) : X=Y, not q(Y).") == "#project p(X): Y=X; not q(Y)., C");
+    REQUIRE(cs_stm("#project p(Z) : X=Y, not q(Y).") == "<unsafe>");
+    //
+    REQUIRE(cs_stm("#external p(X) : X=Y, not q(Y), p(X). [X]") == "#external p(X): p(X); Y=X; not q(Y). [X], C");
+    REQUIRE(cs_stm("#external p(Z) : X=Y, not q(Y), p(X). [X]") == "<unsafe>");
+    REQUIRE(cs_stm("#external p(X) : X=Y, not q(Y), p(X). [Z]") == "<unsafe>");
+    //
+    REQUIRE(cs_stm("#edge (X,Y) : X=Y, not q(Y), p(X).") == "#edge (X,Y): p(X); Y=X; not q(Y)., C");
+    REQUIRE(cs_stm("#edge (Z,Y) : X=Y, not q(Y), p(X).") == "<unsafe>");
+    //
+    REQUIRE(cs_stm("#heuristic p(X) : X=Y, not q(Y). [X@Y,X]") == "#heuristic p(X): Y=X; not q(Y). [X@Y,X], C");
+    REQUIRE(cs_stm("#heuristic p(Z) : X=Y, not q(Y). [X@Y,X]") == "<unsafe>");
+    REQUIRE(cs_stm("#heuristic p(X) : X=Y, not q(Y). [Z@Y,X]") == "<unsafe>");
+    REQUIRE(cs_stm("#heuristic p(X) : X=Y, not q(Y). [X@Z,X]") == "<unsafe>");
+    REQUIRE(cs_stm("#heuristic p(X) : X=Y, not q(Y). [X@Y,Z]") == "<unsafe>");
 }
 
 } // namespace Gringo::Input::Test

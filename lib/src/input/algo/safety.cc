@@ -215,13 +215,17 @@ template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 template <class Lits>
 using PrepareResult = std::pair<std::decay_t<decltype(Util::ResultVec{std::declval<Lits>()})>, VariableSet>;
 
-[[nodiscard]] auto prepare_lits(Logger &log, auto const &lits, VariableSet const &global, VariableSet const &bound)
-    -> PrepareResult<decltype(lits)> {
+[[nodiscard]] auto prepare_lits(Logger &log, auto const &lits, VariableSet const &global, VariableSet const &bound,
+                                VariableSet const &extra = VariableSet{}) -> PrepareResult<decltype(lits)> {
     auto res = PrepareResult<decltype(lits)>{lits, VariableSet{}};
 
     auto &[res_body, provided] = res;
     auto nodes = NodeVec<typename std::decay_t<decltype(lits)>::value_type>{};
     auto done = std::vector<bool>{};
+
+    for (auto const &var : extra) {
+        provided.insert(var);
+    }
 
     nodes.reserve(2 * lits.size());
     done.resize(lits.size(), false);
@@ -249,7 +253,7 @@ using PrepareResult = std::pair<std::decay_t<decltype(Util::ResultVec{std::declv
                 GRINGO_REPORT(log, debug) << "  " << *it->lit;
                 done[it->done] = true;
                 provided.insert(it->provide.begin(), it->provide.end());
-                if (&res_body.currrent() == it->lit) {
+                if (&res_body.currrent() == it->lit && !it->swap) {
                     res_body.keep();
                 } else {
                     res_body.replace(it->swap ? flip(*it->lit) : *it->lit);
@@ -450,9 +454,13 @@ struct CheckLocal {
 
 struct CheckGlobal {
     template <bool pass_intermediate = false, class F>
-    auto check_body(auto const &stm, F build) -> Util::ResultState<Statement> {
+    auto check_body(auto const &stm, F build, Term const *atom = nullptr) -> Util::ResultState<Statement> {
         // check body
-        auto [res_body, provided] = prepare_lits(log, stm.body, global, VariableSet{});
+        VariableSet extra;
+        if (atom != nullptr) {
+            extra = select_variables(*atom);
+        }
+        auto [res_body, provided] = prepare_lits(log, stm.body, global, VariableSet{}, extra);
         if (!res_body.complete() || !is_provided(provided, global)) {
             report(log, global, provided, stm);
             return {false};
@@ -524,7 +532,12 @@ struct CheckGlobal {
     }
 
     auto operator()(StatementProject const &stm) -> Util::ResultState<Statement> {
-        return check_body(stm, [&stm](auto body) { return StatementProject{stm.loc, stm.term, std::move(body)}; });
+        return check_body(
+            stm,
+            [&stm](auto body) {
+                return StatementProject{stm.loc, stm.term, std::move(body)};
+            },
+            &stm.term);
     }
 
     auto operator()(StatementProjectSig const &stm) -> Util::ResultState<Statement> {
@@ -548,9 +561,12 @@ struct CheckGlobal {
     }
 
     auto operator()(StatementHeuristic const &stm) -> Util::ResultState<Statement> {
-        return check_body(stm, [&stm](auto body) {
-            return StatementHeuristic{stm.loc, stm.atom, std::move(body), stm.type, stm.prio, stm.mod};
-        });
+        return check_body(
+            stm,
+            [&stm](auto body) {
+                return StatementHeuristic{stm.loc, stm.atom, std::move(body), stm.type, stm.prio, stm.mod};
+            },
+            &stm.atom);
     }
 
     auto operator()(StatementScript const &stm) -> Util::ResultState<Statement> {
