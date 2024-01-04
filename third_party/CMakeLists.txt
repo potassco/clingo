@@ -31,6 +31,6 @@ if (PARSER_BUILD_TESTS)
     add_subdirectory(Catch2)
 endif()
 
-if (NOT PARSER_BUILD_WEB)
+#if (NOT PARSER_BUILD_WEB)
     add_subdirectory(CLI11)
-endif()
+#endif()

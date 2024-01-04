@@ -48,7 +48,7 @@ auto main(int argc, char *argv[]) -> int {
         using P = std::pair<char const *, Gringo::Input::ProjectionMode>;
         auto levels = std::array{P{"off", Gringo::Input::ProjectionMode::disabled},
                                  P{"anonymous", Gringo::Input::ProjectionMode::anonymous},
-                                 P{"unpool", Gringo::Input::ProjectionMode::pure}};
+                                 P{"pure", Gringo::Input::ProjectionMode::pure}};
         for (auto &[name, mode] : levels) {
             if (value == name) {
                 opts.project_mode = mode;
