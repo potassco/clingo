@@ -6,12 +6,12 @@
 
 #include <iostream>
 
-#include <logger.hh>
+#include <gringo/logger.hh>
 
-#include <input/program.hh>
+#include <gringo/input/program.hh>
 
-#include <input/algo/parse.hh>
-#include <input/algo/print.hh>
+#include <gringo/input/algo/parse.hh>
+#include <gringo/input/algo/print.hh>
 
 using namespace Gringo::Input;
 

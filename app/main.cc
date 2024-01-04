@@ -2,21 +2,27 @@
 
 #include <CLI/CLI.hpp>
 
-#include <input/program.hh>
+#include <gringo/input/program.hh>
 
-#include <input/algo/parse.hh>
-#include <input/algo/print.hh>
+#include <gringo/input/algo/parse.hh>
+#include <gringo/input/algo/print.hh>
 
 using namespace Gringo::Input;
 
-template <class Scanner> void process(Gringo::SymbolStore &store, Scanner &&scanner, UnprocessedProgram &prg) {
+template <class Scanner>
+void process(Gringo::SymbolStore &store, Scanner &&scanner, std::optional<UnprocessedProgram> &prg) {
     for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
-        add(store, std::move(stm).value(), prg);
+        if (prg) {
+            add(store, std::move(stm).value(), *prg);
+        } else {
+            std::cout << *stm << "\n";
+        }
     }
 }
 
 auto main(int argc, char *argv[]) -> int {
     auto opts = RewriteOptions{};
+    bool parse_only = false;
     std::vector<std::string> files;
     auto log_level = Gringo::LogLevel::info;
 
@@ -52,6 +58,7 @@ auto main(int argc, char *argv[]) -> int {
         return std::string{"unexpected value"};
     });
     app.add_flag("--project-anonymous", opts.project_anonymous, "project anoymous variables in negated literals");
+    app.add_flag("--parse-only", parse_only, "project anoymous variables in negated literals");
     try {
         app.parse(argc, argv);
     } catch (CLI::ParseError const &e) {
@@ -60,7 +67,10 @@ auto main(int argc, char *argv[]) -> int {
 
     auto log = Gringo::Logger{};
     try {
-        UnprocessedProgram uprg;
+        std::optional<UnprocessedProgram> uprg;
+        if (!parse_only) {
+            uprg.emplace();
+        }
         auto store = Gringo::make_symbol_store(true, false);
         log.set_level(log_level);
         GRINGO_REPORT(log, debug) << "starting up";
@@ -71,9 +81,11 @@ auto main(int argc, char *argv[]) -> int {
                 process(*store, scan_file(log, *store, file.c_str()), uprg);
             }
         }
-        Program prg{opts};
-        prg.join(log, *store, std::move(uprg));
-        prg.visit_stms(*store, [](auto const &stm) { std::cout << stm << "\n"; });
+        if (uprg) {
+            Program prg{opts};
+            prg.join(log, *store, std::move(uprg).value());
+            prg.visit_stms(*store, [](auto const &stm) { std::cout << stm << "\n"; });
+        }
     } catch (std::exception const &e) {
         fprintf(stderr, "%s: %s\n", log.message_prefix(Gringo::MessageCode::error), e.what());
         fflush(stderr);
