@@ -8,8 +8,6 @@ namespace {
 
 auto cs_stm(char const *str) -> std::string {
     ParseHelper ph;
-    ph.logger() = Logger();
-    ph.logger().set_level(LogLevel::trace);
     auto stm = ph.statement(str);
     if (!stm) {
         return "<failed>";
