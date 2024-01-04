@@ -449,9 +449,8 @@ struct CheckLocal {
 };
 
 struct CheckGlobal {
-    auto operator()(Statement const &stm) -> Util::ResultState<Statement> { return std::visit(*this, stm); }
-
-    auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
+    template <bool pass_intermediate = false, class F>
+    auto check_body(auto const &stm, F build) -> Util::ResultState<Statement> {
         // check body
         auto [res_body, provided] = prepare_lits(log, stm.body, global, VariableSet{});
         if (!res_body.complete() || !is_provided(provided, global)) {
@@ -471,23 +470,112 @@ struct CheckGlobal {
         if (res_body_nested) {
             res_body.as_optional() = std::move(res_body_nested).as_optional();
         }
-
-        // check nested head
-        auto [state_head, res_head] = CheckLocal{log, provided}(stm.head);
-        if (!state_head) {
-            return {false};
+        if constexpr (pass_intermediate) {
+            return build(provided, std::move(res_body));
+        } else {
+            if (res_body) {
+                return {true, build(std::move(res_body).value())};
+            }
+            return {true};
         }
+    }
 
-        // construct new rule if necessary
-        if (res_body || res_head) {
-            return {true, Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
-        }
+    auto operator()(Statement const &stm) -> Util::ResultState<Statement> { return std::visit(*this, stm); }
+
+    auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
+        return check_body<true>(stm, [this, &stm](auto &provided, auto res_body) -> Util::ResultState<Statement> {
+            // check nested head
+            auto [state_head, res_head] = CheckLocal{log, provided}(stm.head);
+            if (!state_head) {
+                return {false};
+            }
+
+            // construct new rule if necessary
+            if (res_body || res_head) {
+                return {true, Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
+            }
+            return {true};
+        });
+    }
+
+    auto operator()(TheoryDefinition const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
         return {true};
     }
 
-    auto operator()(auto const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StatementOptimize const &stm) -> Util::ResultState<Statement> {
         static_cast<void>(stm);
-        throw std::logic_error("implement me!!!");
+        throw std::runtime_error("unpool must be called before safety checking");
+    }
+
+    auto operator()(StatementWeakConstraint const &stm) -> Util::ResultState<Statement> {
+        return check_body(stm, [&stm](auto body) {
+            return StatementWeakConstraint{stm.loc, std::move(body), stm.tuple};
+        });
+    }
+
+    auto operator()(StatementShow const &stm) -> Util::ResultState<Statement> {
+        return check_body(stm, [&stm](auto body) { return StatementShow{stm.loc, stm.term, std::move(body)}; });
+    }
+
+    auto operator()(StatementShowSig const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementProject const &stm) -> Util::ResultState<Statement> {
+        return check_body(stm, [&stm](auto body) { return StatementProject{stm.loc, stm.term, std::move(body)}; });
+    }
+
+    auto operator()(StatementProjectSig const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementDefined const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementExternal const &stm) -> Util::ResultState<Statement> {
+        return check_body(stm, [&stm](auto body) {
+            return StatementExternal{stm.loc, stm.term, std::move(body), stm.type};
+        });
+    }
+
+    auto operator()(StatementEdge const &stm) -> Util::ResultState<Statement> {
+        return check_body(stm, [&stm](auto body) { return StatementEdge{stm.loc, stm.edges, std::move(body)}; });
+    }
+
+    auto operator()(StatementHeuristic const &stm) -> Util::ResultState<Statement> {
+        return check_body(stm, [&stm](auto body) {
+            return StatementHeuristic{stm.loc, stm.atom, std::move(body), stm.type, stm.prio, stm.mod};
+        });
+    }
+
+    auto operator()(StatementScript const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementInclude const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementProgram const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(StatementConst const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
+    }
+
+    auto operator()(Comment const &stm) -> Util::ResultState<Statement> {
+        static_cast<void>(stm);
+        return {true};
     }
 
     Logger &log;
