@@ -13,9 +13,9 @@
 namespace Gringo::Input {
 
 //! @defgroup input_program Programs
-//! @ingroup input_language
-//!
 //! Data structures and functions to represent and rewrite programs.
+//!
+//! @ingroup input_language
 //!
 //! @{
 

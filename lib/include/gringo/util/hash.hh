@@ -12,9 +12,9 @@
 namespace Gringo::Util {
 
 //! @defgroup core_hash Hash Functions
-//! @ingroup core_util
-//!
 //! Generic functions for equality comparison and hash computation.
+//!
+//! @ingroup core_util
 //!
 //! @{
 

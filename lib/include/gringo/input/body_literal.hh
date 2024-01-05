@@ -9,9 +9,9 @@
 namespace Gringo::Input {
 
 //! @defgroup input_body_literal Body Literals
-//! @ingroup input_language
-//!
 //! Data structures and functions to represent body literals.
+//!
+//! @ingroup input_language
 //!
 //! @{
 

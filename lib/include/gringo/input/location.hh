@@ -9,9 +9,9 @@
 namespace Gringo::Input {
 
 //! @defgroup input_location Source Locations
-//! @ingroup input_language
-//!
 //! Data structures and functions to track source locations.
+//!
+//! @ingroup input_language
 //!
 //! @{
 

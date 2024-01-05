@@ -236,6 +236,17 @@ struct Evaluate {
         return store.fun(term.name, args.value(), false);
     }
 
+    struct ErrorContext {
+        friend auto operator<<(std::ostream &out, ErrorContext const &ctx) -> std::ostream & {
+            if (ctx.root != nullptr) {
+                out << location(*ctx.root) << ": note: operation appears in:\n"
+                    << "  " << *ctx.root << "\n";
+            }
+            return out;
+        }
+        StatementConst const *root;
+    };
+
     auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
         if (term.pool.size() != 1) {
             return std::nullopt;
@@ -252,8 +263,7 @@ struct Evaluate {
         if (!val.has_value()) {
             GRINGO_REPORT_LOC(log, error, location(term)) << "operation undefined:\n"
                                                           << "  |" << val.value() << "|\n"
-                                                          << location(root) << ": note: operation appears in:\n"
-                                                          << "  " << root << "\n";
+                                                          << ErrorContext{root};
             return std::nullopt;
         }
         return val;
@@ -274,8 +284,7 @@ struct Evaluate {
             }
             GRINGO_REPORT_LOC(log, error, location(term)) << "operation undefined:\n"
                                                           << "  " << term.op << lp << rhs.value() << rp << "\n"
-                                                          << location(root) << ": note: operation appears in:\n"
-                                                          << "  " << root << "\n";
+                                                          << ErrorContext{root};
         }
         return res;
     }
@@ -297,8 +306,7 @@ struct Evaluate {
             GRINGO_REPORT_LOC(log, error, location(term))
                 << "operation undefined:\n"
                 << "  " << lhs.value() << term.op << lp << rhs.value() << rp << "\n"
-                << location(root) << ": note: operation appears in:\n"
-                << "  " << root << "\n";
+                << ErrorContext{root};
         }
         return res;
     }
@@ -306,12 +314,12 @@ struct Evaluate {
     Logger &log;
     SymbolStore &store;
     ConstMap const &map;
-    StatementConst const &root;
+    StatementConst const *root;
 };
 
 auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StatementConst const &stm)
     -> std::optional<Symbol> {
-    return std::visit(Evaluate{log, store, map, stm}, stm.value);
+    return std::visit(Evaluate{log, store, map, &stm}, stm.value);
 }
 
 } // namespace
@@ -464,6 +472,10 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
             GRINGO_REPORT_STR(log, error, oss.str());
         }
     });
+}
+
+auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, Term const &term) -> std::optional<Symbol> {
+    return std::visit(Evaluate{log, store, map, nullptr}, term);
 }
 
 } // namespace Gringo::Input

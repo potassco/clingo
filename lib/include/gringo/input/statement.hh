@@ -6,9 +6,9 @@
 namespace Gringo::Input {
 
 //! @defgroup input_statement Statements
-//! @ingroup input_language
-//!
 //! Data structures and functions to represent statements.
+//!
+//! @ingroup input_language
 //!
 //! @{
 

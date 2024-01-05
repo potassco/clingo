@@ -7,9 +7,9 @@
 namespace Gringo::Input {
 
 //! @defgroup input_check Check
-//! @ingroup input_algo
-//!
 //! Additional syntax checks.
+//!
+//! @ingroup input_algo
 //!
 //! @{
 

@@ -5,9 +5,9 @@
 namespace Gringo::Util {
 
 //! @defgroup core_print Printing
-//! @ingroup core_util
-//!
 //! Generic functions for printing.
+//!
+//! @ingroup core_util
 //!
 //! @{
 

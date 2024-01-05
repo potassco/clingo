@@ -9,7 +9,7 @@
 //! This API provides functions to ground and solve logic programs.
 //!
 //! The documentation is structured into different modules.
-//! To get an overview, checkout the [Modules](modules.html) page.
+//! To get an overview, checkout the [Topics](topics.html) page.
 //! To get started, take a look at the documentation of the @ref Control module.
 //!
 //! The source code of clingo is available on [github.com/potassco/clingo](https://github.com/potassco/clingo).
@@ -66,6 +66,11 @@ extern "C" {
 #define CLINGO_DEPRECATED
 #endif
 
+//! @defgroup CAPI C API
+//! API providing a stable interface for applications using Clingo.
+//!
+//! The API is mainly intended for developing higher level language bindings.
+
 // {{{1 Core
 
 //! @example version.c
@@ -80,8 +85,10 @@ extern "C" {
 //!
 //! ## Code ##
 
-//! @defgroup Core Core Data Types and Functions
+//! @defgroup Core Core
 //! Core types and functions used throughout all modules and version information.
+//!
+//! @ingroup CAPI
 //!
 //! For an example, see @ref version.c.
 
@@ -259,7 +266,9 @@ typedef struct clingo_location {
 //! @defgroup Symbols Symbols
 //! Working with (evaluated) ground terms and related functions.
 //!
-//! @note All functions in this module are thread-safe.
+//! @ingroup CAPI
+//!
+//! @note Functions to create symbols are only thread-safe if library flags have been requested accordingly.
 //!
 //! For an example, see @ref symbol.c.
 
@@ -335,23 +344,36 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_signature_hash(clingo_signature_t signat
 
 //! Enumeration of available symbol types.
 enum clingo_symbol_type_e {
-    clingo_symbol_type_infimum = 0,  //!< the <tt>\#inf</tt> symbol
-    clingo_symbol_type_number = 1,   //!< a numeric symbol, e.g., `1`
-    clingo_symbol_type_string = 4,   //!< a string symbol, e.g., `"a"`
-    clingo_symbol_type_function = 5, //!< a numeric symbol, e.g., `c`, `(1, "a")`, or `f(1,"a")`
-    clingo_symbol_type_supremum = 7  //!< the <tt>\#sup</tt> symbol
+    clingo_symbol_type_number = 0,   //!< a numeric symbol, e.g., `1`
+    clingo_symbol_type_supremum = 1, //!< the <tt>\#sup</tt> symbol
+    clingo_symbol_type_infimum = 2,  //!< the <tt>\#inf</tt> symbol
+    clingo_symbol_type_string = 3,   //!< a string symbol, e.g., `"a"`
+    clingo_symbol_type_tuple = 4,    //!< a tuple symbol, e.g., `(1, "a")``
+    clingo_symbol_type_function = 5  //!< a function symbol, e.g., `c`, `-c`, or `f(1,"a")`
 };
 //! Corresponding type to ::clingo_symbol_type.
 typedef int clingo_symbol_type_t;
 
-//! Represents a symbol.
+//! Type to represent a symbol.
 //!
-//! This includes numbers, strings, functions (including constants when
-//! arguments are empty and tuples when the name is empty), <tt>\#inf</tt> and <tt>\#sup</tt>.
+//! This includes numbers, strings, tuples, functions (including constants when arguments are empty), <tt>\#inf</tt> and
+//! <tt>\#sup</tt>.
 typedef uint64_t clingo_symbol_t;
 
 //! @name Symbol Construction Functions
 //! @{
+
+//! Internalize a string.
+//!
+//! This functions takes a string as input and returns an equal unique string
+//! that is stored in the given library.
+//!
+//! @param[in] lib library object storing the symbol
+//! @param[in] string the string to internalize
+//! @param[out] result the internalized string
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_add_string(clingo_lib_t *lib, char const *string, char const **result);
 
 //! Construct a symbol representing <tt>\#inf</tt>.
 //!
@@ -403,9 +425,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_string(clingo_lib_t *lib, ch
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool positive,
                                                        clingo_symbol_t *symbol);
 
-//! Construct a symbol representing a function or tuple.
+//! Construct a symbol representing a tuple.
 //!
-//! @note To create tuples, the empty string has to be used as name.
+//! @param[in] lib library object storing the symbol
+//! @param[in] arguments the arguments of the function
+//! @param[in] arguments_size the number of arguments
+//! @param[out] symbol the resulting symbol
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_tuple(clingo_lib_t *lib, clingo_symbol_t const *arguments,
+                                                          size_t arguments_size, clingo_symbol_t *symbol);
+
+//! Construct a symbol representing a function.
 //!
 //! @param[in] lib library object storing the symbol
 //! @param[in] name the name of the function
@@ -419,6 +450,19 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(clingo_lib_t *lib, 
                                                              clingo_symbol_t const *arguments, size_t arguments_size,
                                                              bool positive, clingo_symbol_t *symbol);
 
+//! Parse a term in string form.
+//!
+//! The result of this function is a symbol. The input term can contain
+//! unevaluated functions, which are evaluated during parsing.
+//!
+//! @param[in] lib library object storing the symbol
+//! @param[in] string the string to parse
+//! @param[out] symbol the resulting symbol
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol);
+
 //! @}
 
 //! @name Symbol Inspection Functions
@@ -426,11 +470,15 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(clingo_lib_t *lib, 
 
 //! Get the number of a symbol.
 //!
+//! @note
+//! There is currently no explicit function to get representation of a number that does not fit an integer.
+//! For now, the clingo_symbol_to_string function should be used.
+//!
 //! @param[in] symbol the target symbol
 //! @param[out] number the resulting number
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_number
+//! @return whether the number has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_number(clingo_symbol_t symbol, int32_t *number);
+
 //! Get the name of a symbol.
 //!
 //! @note
@@ -438,9 +486,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_number(clingo_symbol_t symbol, int3
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] name the resulting name
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
+//! @return whether the name has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_name(clingo_symbol_t symbol, char const **name);
+
 //! Get the string of a symbol.
 //!
 //! @note
@@ -448,53 +496,44 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_name(clingo_symbol_t symbol, char c
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_string
+//! @return whether the string has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_string(clingo_symbol_t symbol, char const **string);
-//! Check if a function is positive (does not have a sign).
+
+//! Check whether a function or number has a sign.
 //!
 //! @param[in] symbol the target symbol
-//! @param[out] positive the result
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_is_positive(clingo_symbol_t symbol, bool *positive);
-//! Check if a function is negative (has a sign).
-//!
-//! @param[in] symbol the target symbol
-//! @param[out] negative the result
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_is_negative(clingo_symbol_t symbol, bool *negative);
+//! @param[out] has_sign the result
+//! @return whether the sign has been set
+CLINGO_VISIBILITY_DEFAULT auto clingo_symbol_has_sign(clingo_symbol_t symbol, bool *has_sign) -> bool;
+
 //! Get the arguments of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] arguments the resulting arguments
 //! @param[out] arguments_size the number of arguments
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
+//! @return whether the arguments have been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_arguments(clingo_symbol_t symbol, clingo_symbol_t const **arguments,
                                                        size_t *arguments_size);
+
 //! Get the type of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @return the type of the symbol
 CLINGO_VISIBILITY_DEFAULT clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t symbol);
+
 //! Get the size of the string representation of a symbol (including the terminating 0).
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] size the resulting size
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
+//! @return whether the size has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size);
+
 //! Get the string representation of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
 //! @param[in] size the size of the string
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//!
-//! @see clingo_symbol_to_string_size()
+//! @return whether the string has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_to_string(clingo_symbol_t symbol, char *string, size_t size);
 
 //! @}
@@ -508,6 +547,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_to_string(clingo_symbol_t symbol, c
 //! @param[in] b second symbol
 //! @return whether a == b
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b);
+
 //! Check if a symbol is less than another symbol.
 //!
 //! Symbols are first compared by type.  If the types are equal, the values are
@@ -518,6 +558,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_is_equal_to(clingo_symbol_t a, clin
 //! @param[in] b second symbol
 //! @return whether a < b
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b);
+
 //! Calculate a hash code of a symbol.
 //!
 //! @param[in] symbol the target symbol
@@ -525,32 +566,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_is_less_than(clingo_symbol_t a, cli
 CLINGO_VISIBILITY_DEFAULT size_t clingo_symbol_hash(clingo_symbol_t symbol);
 
 //! @}
-
-//! Internalize a string.
-//!
-//! This functions takes a string as input and returns an equal unique string
-//! that is (at the moment) not freed until the program is closed.
-//!
-//! @param[in] string the string to internalize
-//! @param[out] result the internalized string
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_add_string(char const *string, char const **result);
-//! Parse a term in string form.
-//!
-//! The result of this function is a symbol. The input term can contain
-//! unevaluated functions, which are evaluated during parsing.
-//!
-//! @param[in] string the string to parse
-//! @param[in] logger optional logger to report warnings during parsing
-//! @param[in] logger_data user data for the logger
-//! @param[in] message_limit maximum number of times to call the logger
-//! @param[out] symbol the resulting symbol
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if parsing fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_parse_term(char const *string, clingo_logger_t logger, void *logger_data,
-                                                 unsigned message_limit, clingo_symbol_t *symbol);
 
 //! @}
 
@@ -581,6 +596,8 @@ typedef struct clingo_control clingo_control_t;
 
 //! @defgroup AST Abstract Syntax Trees
 //! Functions and data structures to work with program ASTs.
+//!
+//! @ingroup CAPI
 
 //! @addtogroup AST
 //! @{
@@ -1272,6 +1289,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const *const *files, 
                                                       clingo_ast_callback_t callback, void *callback_data,
                                                       clingo_control_t *control, clingo_logger_t logger,
                                                       void *logger_data, unsigned message_limit);
+
+//! @}
 
 //! @}
 

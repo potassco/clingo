@@ -13,18 +13,19 @@
 namespace Gringo::Input {
 
 //! @defgroup input Input
-//!
 //! Data structures and functions to parse and rewrite the gringo language.
+//!
+//! @ingroup API
 
 //! @defgroup input_language Language
-//! @ingroup input
-//!
 //! Data structures and functions to capture the gringo language.
+//!
+//! @ingroup input
 
 //! @defgroup input_term Terms
-//! @ingroup input_language
-//!
 //! Data structures and functions to represent terms.
+//!
+//! @ingroup input_language
 //!
 //! @{
 

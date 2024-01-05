@@ -7,9 +7,9 @@
 namespace Gringo::Util {
 
 //! @defgroup core_algorithm Generic Algorithms
-//! @ingroup core_util
-//!
 //! Generic algorithms used throughout the library.
+//!
+//! @ingroup core_util
 //!
 //! @{
 

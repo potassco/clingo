@@ -7,9 +7,9 @@
 namespace Gringo::Input {
 
 //! @defgroup input_parse Parse
-//! @ingroup input_algo
-//!
 //! Functions to parse the input language.
+//!
+//! @ingroup input_algo
 //!
 //! @{
 

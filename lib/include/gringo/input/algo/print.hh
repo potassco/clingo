@@ -5,9 +5,9 @@
 namespace Gringo::Input {
 
 //! @defgroup input_print Print
-//! @ingroup input_algo
-//!
 //! Functions to output expressions.
+//!
+//! @ingroup input_algo
 //!
 //! @{
 

@@ -6,9 +6,9 @@
 namespace Gringo {
 
 //! @defgroup core_number Numbers
-//! @ingroup core
-//!
 //! Data structures and functions to represent arbitrary precision integers.
+//!
+//! @ingroup core
 //!
 //! @{
 

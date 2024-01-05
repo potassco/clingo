@@ -7,14 +7,14 @@
 namespace Gringo::Input {
 
 //! @defgroup input_algo Algorithms
-//! @ingroup input
-//!
 //! Algorithms for the input language.
+//!
+//! @ingroup input
 
 //! @defgroup input_analyze Analyze
-//! @ingroup input_algo
-//!
 //! Functions to analyze expressions.
+//!
+//! @ingroup input_algo
 //!
 //! @{
 

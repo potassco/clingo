@@ -5,9 +5,9 @@
 namespace Gringo::Input {
 
 //! @defgroup input_rewrite Rewrite
-//! @ingroup input_algo
-//!
 //! Functions to rewrite expressions.
+//!
+//! @ingroup input_algo
 //!
 //! @{
 

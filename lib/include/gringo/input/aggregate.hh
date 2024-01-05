@@ -7,9 +7,9 @@
 namespace Gringo::Input {
 
 //! @defgroup input_aggregate Aggregates
-//! @ingroup input_language
-//!
 //! Common data structures and functions for head and body aggregates.
+//!
+//! @ingroup input_language
 //!
 //! @{
 

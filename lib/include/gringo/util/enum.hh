@@ -4,9 +4,9 @@
 #include <type_traits>
 
 //! @defgroup core_enum Helpers for enumurations
-//! @ingroup core_util
-//!
 //! Currently, just provides a macro to create bitsets.
+//!
+//! @ingroup core_util
 //!
 //! @{
 

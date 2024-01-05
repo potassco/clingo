@@ -12,9 +12,9 @@
 namespace Gringo {
 
 //! @defgroup core_logger Logging
-//! @ingroup core
-//!
 //! Functions and classes for logging.
+//!
+//! @ingroup core
 //!
 //! @{
 

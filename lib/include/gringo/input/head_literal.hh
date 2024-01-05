@@ -7,9 +7,9 @@
 namespace Gringo::Input {
 
 //! @defgroup input_head_literal Head Literals
-//! @ingroup input_language
-//!
 //! Data structures and functions to represent head literals.
+//!
+//! @ingroup input_language
 //!
 //! @{
 
