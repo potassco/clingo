@@ -93,16 +93,6 @@ class IESolver {
     //! Construct an IESolver with an optional parent.
     IESolver(IESolver *parent = nullptr) : parent_{parent} {}
     //! Add the given inequality to the solver.
-    //!
-    //! @todo: I belive the ignore if fixed had something to do with existing assignments and intervals.
-    //!
-    //! For example, given X=1, we do not want to add the interval X=1..1.
-    //! Similarly, given X=1..2, we do not want to add the interval X=1..2.
-    //!
-    //! It seems like fixed ranges should be handled specially.
-    //! Any literal of form X=u..t and X R u
-    //! for variables X, constants u and t, and relations R among <, <=, =, >, >=
-    //! should be subject to refinement given the computed bounds.
     void add(IE ie);
     //! Compute the bounds of variables in added inequalities.
     //!
