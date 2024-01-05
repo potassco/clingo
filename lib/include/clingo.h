@@ -266,6 +266,7 @@ typedef struct clingo_location {
 //! @addtogroup Symbols
 //! @{
 
+/*
 //! Represents a predicate signature.
 //!
 //! Signatures have a name and an arity, and can be positive or negative (to
@@ -330,6 +331,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_signature_is_less_than(clingo_signature_t 
 CLINGO_VISIBILITY_DEFAULT size_t clingo_signature_hash(clingo_signature_t signature);
 
 //! @}
+*/
 
 //! Enumeration of available symbol types.
 enum clingo_symbol_type_e {
@@ -351,41 +353,61 @@ typedef uint64_t clingo_symbol_t;
 //! @name Symbol Construction Functions
 //! @{
 
+//! Construct a symbol representing <tt>\#inf</tt>.
+//!
+//! @param[out] symbol the resulting symbol
+CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_infimum();
+
+//! Construct a symbol representing \#sup.
+//!
+//! @param[out] symbol the resulting symbol
+CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_supremum();
+
 //! Construct a symbol representing a number.
 //!
 //! @param[in] number the number
 //! @param[out] symbol the resulting symbol
-CLINGO_VISIBILITY_DEFAULT void clingo_symbol_create_number(int number, clingo_symbol_t *symbol);
-//! Construct a symbol representing \#sup.
+CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_number(int32_t number);
+
+//! Construct a symbol representing a number.
 //!
+//! @param[in] lib library object storing the symbol
+//! @param[in] number the number
 //! @param[out] symbol the resulting symbol
-CLINGO_VISIBILITY_DEFAULT void clingo_symbol_create_supremum(clingo_symbol_t *symbol);
-//! Construct a symbol representing <tt>\#inf</tt>.
-//!
-//! @param[out] symbol the resulting symbol
-CLINGO_VISIBILITY_DEFAULT void clingo_symbol_create_infimum(clingo_symbol_t *symbol);
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number,
+                                                               clingo_symbol_t *symbol);
+
 //! Construct a symbol representing a string.
 //!
+//! @param[in] lib library object storing the symbol
 //! @param[in] string the string
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_string(char const *string, clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_string(clingo_lib_t *lib, char const *string,
+                                                           clingo_symbol_t *symbol);
+
 //! Construct a symbol representing an id.
 //!
 //! @note This is just a shortcut for clingo_symbol_create_function() with
 //! empty arguments.
 //!
+//! @param[in] lib library object storing the symbol
 //! @param[in] name the name
 //! @param[in] positive whether the symbol has a classical negation sign
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_id(char const *name, bool positive, clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool positive,
+                                                       clingo_symbol_t *symbol);
+
 //! Construct a symbol representing a function or tuple.
 //!
 //! @note To create tuples, the empty string has to be used as name.
 //!
+//! @param[in] lib library object storing the symbol
 //! @param[in] name the name of the function
 //! @param[in] arguments the arguments of the function
 //! @param[in] arguments_size the number of arguments
@@ -393,9 +415,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_id(char const *name, bool po
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(char const *name, clingo_symbol_t const *arguments,
-                                                             size_t arguments_size, bool positive,
-                                                             clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(clingo_lib_t *lib, char const *name,
+                                                             clingo_symbol_t const *arguments, size_t arguments_size,
+                                                             bool positive, clingo_symbol_t *symbol);
 
 //! @}
 
@@ -408,7 +430,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(char const *name, c
 //! @param[out] number the resulting number
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_number
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_number(clingo_symbol_t symbol, int *number);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_number(clingo_symbol_t symbol, int32_t *number);
 //! Get the name of a symbol.
 //!
 //! @note
