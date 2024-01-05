@@ -47,13 +47,13 @@ class GringoError : public std::runtime_error {
 enum class MessageCode : int {
     trace = 0,                    //! Trace messages.
     debug = 1,                    //! Debug messages.
-    info = 3,                     //! Generic info messages.
-    info_operation_undefined = 4, //! Info message for undefined operations.
-    info_atom_undefined = 5,      //! Info message for undefined atoms.
-    info_file_included = 6,       //! Info message for duplicate includes.
-    info_global_variable = 7,     //! Info message for global variables.
-    warn = 8,                     //! A warning.
-    error = 9,                    //! An error.
+    info = 2,                     //! Generic info messages.
+    info_operation_undefined = 3, //! Info message for undefined operations.
+    info_atom_undefined = 4,      //! Info message for undefined atoms.
+    info_file_included = 5,       //! Info message for duplicate includes.
+    info_global_variable = 6,     //! Info message for global variables.
+    warn = 7,                     //! A warning.
+    error = 8,                    //! An error.
 };
 
 //! Exception thrown when there is an error and the message limit has been reached.

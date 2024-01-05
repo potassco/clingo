@@ -31,6 +31,13 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(parsertest PUBLIC "-Wno-parentheses")
 endif()
 
+add_library(clingo
+    "src/c-api/core.cc"
+    "src/c-api/symbol.cc"
+    )
+target_link_libraries(clingo PRIVATE parsertest)
+target_include_directories(clingo PUBLIC "include")
+
 if (PARSER_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
