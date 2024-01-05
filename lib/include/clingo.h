@@ -377,18 +377,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_add_string(clingo_lib_t *lib, char const *
 
 //! Construct a symbol representing <tt>\#inf</tt>.
 //!
-//! @param[out] symbol the resulting symbol
+//! @return the resulting symbol
 CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_infimum();
 
 //! Construct a symbol representing \#sup.
 //!
-//! @param[out] symbol the resulting symbol
+//! @return the resulting symbol
 CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_supremum();
 
 //! Construct a symbol representing a number.
 //!
 //! @param[in] number the number
-//! @param[out] symbol the resulting symbol
+//! @return the resulting symbol
 CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_number(int32_t number);
 
 //! Construct a symbol representing a number.
@@ -504,7 +504,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_string(clingo_symbol_t symbol, char
 //! @param[in] symbol the target symbol
 //! @param[out] has_sign the result
 //! @return whether the sign has been set
-CLINGO_VISIBILITY_DEFAULT auto clingo_symbol_has_sign(clingo_symbol_t symbol, bool *has_sign) -> bool;
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_has_sign(clingo_symbol_t symbol, bool *has_sign);
 
 //! Get the arguments of a symbol.
 //!

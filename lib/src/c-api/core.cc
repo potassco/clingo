@@ -129,5 +129,5 @@ extern "C" auto clingo_error_code(clingo_lib_t *lib) -> clingo_error_t {
     if (lib != nullptr) {
         return lib->last_code;
     }
-    return clingo_error_success;
+    return clingo_error_runtime;
 }

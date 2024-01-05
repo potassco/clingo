@@ -1,0 +1,5 @@
+add_executable(version "version.c")
+target_link_libraries(version PRIVATE clingo)
+
+add_executable(symbol "symbol.c")
+target_link_libraries(symbol PRIVATE clingo)
