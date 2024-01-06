@@ -14,7 +14,7 @@ add_executable(tests
     "gringo/input/variables.cc"
     "gringo/number.cc"
     "gringo/symbol.cc")
-target_link_libraries(tests PRIVATE parsertest foonathan::lexy::core Catch2::Catch2WithMain)
+target_link_libraries(tests PRIVATE gringo foonathan::lexy::core Catch2::Catch2WithMain)
 target_include_directories(tests PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
