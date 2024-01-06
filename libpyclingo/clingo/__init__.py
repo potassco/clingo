@@ -82,7 +82,7 @@ The second example shows how to use Python code from clingo.
 
     class Context:
         def inc(self, x):
-            return Number(x.number)
+            return Number(x.number + 1)
 
         def seq(self, x, y):
             return [x, y]
