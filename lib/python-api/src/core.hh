@@ -16,7 +16,7 @@ auto version() -> pybind11::tuple {
 
 void register_module(pybind11::module &m) {
     auto core = m.def_submodule("core");
-    core.def("version", &Clingo::Core::version, "Clingo's version as a tuple (major, minor, revision).");
+    core.def("version", &version, "Clingo's version as a tuple (major, minor, revision).");
 
     py::enum_<clingo_message_e>(core, "MessageType")
         .value("Trace", clingo_message_trace)
@@ -27,8 +27,7 @@ void register_module(pybind11::module &m) {
         .value("FileIncluded", clingo_message_file_included)
         .value("GlobalVariable", clingo_message_global_variable)
         .value("Warn", clingo_message_warn)
-        .value("Error", clingo_message_error)
-        .export_values();
+        .value("Error", clingo_message_error);
 }
 
 } // namespace Clingo::Core
