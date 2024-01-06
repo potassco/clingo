@@ -1,3 +1,5 @@
+#pragma once
+
 #include <pybind11/pybind11.h>
 
 #include <clingo.h>
@@ -5,6 +7,41 @@
 namespace Clingo::Core {
 
 namespace py = pybind11;
+
+class Library {
+  public:
+    Library() {
+        // TODO: make arguments available
+        lib_ = clingo_lib_new(0, nullptr, nullptr, 25);
+        if (lib_ == nullptr) {
+            throw std::bad_alloc{};
+        }
+    }
+    ~Library() { clingo_lib_free(lib_); }
+    operator clingo_lib_t *() const { return lib_; }
+
+  private:
+    clingo_lib_t *lib_ = nullptr;
+};
+
+void handle_error(Library &lib, bool success) {
+    if (!success) {
+        auto const *msg = clingo_error_message(lib);
+        switch (clingo_error_code(lib)) {
+            case clingo_error_success:
+            case clingo_error_unknown:
+            case clingo_error_runtime: {
+                throw std::logic_error(msg);
+            }
+            case clingo_error_logic: {
+                throw std::logic_error(msg);
+            }
+            case clingo_error_bad_alloc: {
+                throw std::bad_alloc();
+            }
+        }
+    }
+}
 
 auto version() -> pybind11::tuple {
     int major;
@@ -28,6 +65,8 @@ void register_module(pybind11::module &m) {
         .value("GlobalVariable", clingo_message_global_variable)
         .value("Warn", clingo_message_warn)
         .value("Error", clingo_message_error);
+
+    py::class_<Library>(core, "Library").def(py::init());
 }
 
 } // namespace Clingo::Core

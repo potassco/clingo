@@ -118,11 +118,11 @@ extern "C" auto clingo_error_message(clingo_lib_t *lib) -> char const * {
                 lib->last_message = e.what();
                 return lib->last_message.c_str();
             } catch (std::exception const &) {
-                return nullptr;
+                return "no message";
             }
         }
     }
-    return nullptr;
+    return "no message";
 }
 
 extern "C" auto clingo_error_code(clingo_lib_t *lib) -> clingo_error_t {
