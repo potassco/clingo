@@ -1,6 +1,7 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "core.hh"
 
@@ -39,6 +40,10 @@ class Symbol {
     friend auto Number(Clingo::Core::Library &lib, py::int_ num) -> Symbol;
     friend auto Infimum() -> Symbol;
     friend auto Supremum() -> Symbol;
+    friend auto Tuple(Library &lib, std::vector<Symbol> const &args) -> Symbol;
+    friend auto Function(Library &lib, std::string const &name, std::vector<Symbol> const &args, bool positive)
+        -> Symbol;
+    friend auto String(Library &lib, std::string const &str) -> Symbol;
 
   private:
     Symbol(clingo_symbol_t sym) : sym_{sym} {}
@@ -62,6 +67,27 @@ auto Number(Library &lib, py::int_ num) -> Symbol {
     }
 }
 
+auto String(Library &lib, std::string const &str) -> Symbol {
+    clingo_symbol_t sym = 0;
+    handle_error(lib, clingo_symbol_create_string(lib, str.data(), &sym));
+    return sym;
+}
+
+auto Tuple(Library &lib, std::vector<Symbol> const &args) -> Symbol {
+    clingo_symbol_t sym = 0;
+    handle_error(lib, clingo_symbol_create_tuple(lib, reinterpret_cast<clingo_symbol_t const *>(args.data()),
+                                                 args.size(), &sym));
+    return sym;
+}
+
+auto Function(Library &lib, std::string const &name, std::vector<Symbol> const &args, bool positive) -> Symbol {
+    clingo_symbol_t sym = 0;
+    handle_error(lib,
+                 clingo_symbol_create_function(lib, name.data(), reinterpret_cast<clingo_symbol_t const *>(args.data()),
+                                               args.size(), positive, &sym));
+    return sym;
+}
+
 void register_module(pybind11::module &m) {
     auto symbol = m.def_submodule("symbol");
 
@@ -74,12 +100,16 @@ void register_module(pybind11::module &m) {
         .value("Function", clingo_symbol_type_function);
 
     py::class_<Symbol>(symbol, "Symbol")
-        .def_property_readonly("type", &Symbol::type)
-        .def_property_readonly("number", &Symbol::number);
+        .def_property_readonly("type", &Symbol::type, "the type of the symbol")
+        .def_property_readonly("number", &Symbol::number, "the numeric value");
 
-    symbol.def("Number", &Number);
     symbol.add_object("Infimum", py::cast(Infimum()));
     symbol.add_object("Supremum", py::cast(Supremum()));
+    symbol.def("Number", &Number, py::arg("lib"), py::arg("num"));
+    symbol.def("String", &String, py::arg("lib"), py::arg("str"));
+    symbol.def("Tuple_", &Tuple, py::arg("lib"), py::arg("args"));
+    symbol.def("Function", &Function, py::arg("lib"), py::arg("name"), py::arg("args") = std::vector<Symbol>{},
+               py::arg("positive") = true);
 }
 
 } // namespace Clingo::Symbol

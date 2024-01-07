@@ -90,8 +90,8 @@ void register_module(pybind11::module &m) {
         .value("Error", clingo_message_error);
 
     py::class_<Library>(core, "Library")
-        .def(py::init<bool, bool, LoggerCB, size_t>(), py::arg("shared") = true, py::arg("slotted") = true,
-             py::arg("logger") = nullptr, py::arg("default_message_limit") = default_message_limit);
+        .def(py::init<bool, bool, LoggerCB, size_t>(), "Create a library object.", py::arg("shared") = true,
+             py::arg("slotted") = true, py::arg("logger") = nullptr, py::arg("message_limit") = default_message_limit);
 }
 
 } // namespace Clingo::Core
