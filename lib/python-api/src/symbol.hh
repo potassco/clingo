@@ -26,17 +26,37 @@ class Symbol {
         if (clingo_symbol_number(sym_, &num)) {
             return num;
         }
+        return py::reinterpret_steal<py::int_>(PyLong_FromString(str().c_str(), nullptr, decimal_base));
+    }
+    [[nodiscard]] auto args() const -> py::list {
+        auto t = type();
+        if (t != clingo_symbol_type_tuple && t != clingo_symbol_type_function) {
+            throw std::invalid_argument("symbol is not a tuple or function");
+        }
+        clingo_symbol_t const *args = nullptr;
+        size_t size = 0;
+        if (!clingo_symbol_arguments(sym_, &args, &size)) {
+            throw std::runtime_error("could not get arguments");
+        }
+        py::list ret;
+        for (size_t i = 0; i < size; ++i) {
+            ret.append(Symbol{args[i]});
+        }
+        return ret;
+    }
+    [[nodiscard]] auto str() const -> std::string {
         size_t len = 0;
         if (!clingo_symbol_to_string_size(sym_, &len)) {
-            throw std::runtime_error("could convert number");
+            throw std::runtime_error("could convert to string");
         }
         std::string str;
         str.resize(len);
         if (!clingo_symbol_to_string(sym_, str.data(), len)) {
-            throw std::runtime_error("could convert number");
+            throw std::runtime_error("could convert to string");
         }
-        return py::reinterpret_steal<py::int_>(PyLong_FromString(str.c_str(), nullptr, decimal_base));
+        return str;
     }
+
     friend auto Number(Clingo::Core::Library &lib, py::int_ num) -> Symbol;
     friend auto Infimum() -> Symbol;
     friend auto Supremum() -> Symbol;
@@ -100,6 +120,7 @@ void register_module(pybind11::module &m) {
         .value("Function", clingo_symbol_type_function);
 
     py::class_<Symbol>(symbol, "Symbol")
+        .def("__str__", &Symbol::str)
         .def_property_readonly("type", &Symbol::type, "the type of the symbol")
         .def_property_readonly("number", &Symbol::number, "the numeric value");
 

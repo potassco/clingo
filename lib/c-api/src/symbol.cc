@@ -31,7 +31,7 @@ extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *n
 }
 
 extern "C" auto clingo_symbol_create_infimum() -> clingo_symbol_t {
-    return Gringo::Symbol::to_rep(Gringo::SymbolStore::sup());
+    return Gringo::Symbol::to_rep(Gringo::SymbolStore::inf());
 }
 
 extern "C" auto clingo_symbol_create_supremum() -> clingo_symbol_t {
