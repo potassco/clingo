@@ -10,19 +10,47 @@ using Clingo::Core::Library;
 
 namespace py = pybind11;
 
+static constexpr int decimal_base = 10;
+
 class Symbol {
   public:
     [[nodiscard]] auto type() const -> clingo_symbol_type_e {
         return static_cast<clingo_symbol_type_e>(clingo_symbol_type(sym_));
     }
+    [[nodiscard]] auto number() const -> py::int_ {
+        if (type() != clingo_symbol_type_number) {
+            throw std::invalid_argument("symbol is not a number");
+        }
+        int32_t num = 0;
+        if (clingo_symbol_number(sym_, &num)) {
+            return num;
+        }
+        size_t len = 0;
+        if (!clingo_symbol_to_string_size(sym_, &len)) {
+            throw std::runtime_error("could convert number");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_symbol_to_string(sym_, str.data(), len)) {
+            throw std::runtime_error("could convert number");
+        }
+        return py::reinterpret_steal<py::int_>(PyLong_FromString(str.c_str(), nullptr, decimal_base));
+    }
     friend auto Number(Clingo::Core::Library &lib, py::int_ num) -> Symbol;
+    friend auto Infimum() -> Symbol;
+    friend auto Supremum() -> Symbol;
 
   private:
     Symbol(clingo_symbol_t sym) : sym_{sym} {}
     clingo_symbol_t sym_;
 };
 
+auto Infimum() -> Symbol { return clingo_symbol_create_infimum(); }
+
+auto Supremum() -> Symbol { return clingo_symbol_create_supremum(); }
+
 auto Number(Library &lib, py::int_ num) -> Symbol {
+    // TODO: check if try/catch can be avoided
     try {
         auto val = num.cast<int32_t>();
         return Symbol{clingo_symbol_create_number(val)};
@@ -45,9 +73,13 @@ void register_module(pybind11::module &m) {
         .value("Tuple", clingo_symbol_type_tuple)
         .value("Function", clingo_symbol_type_function);
 
-    py::class_<Symbol>(symbol, "Symbol").def("type", &Symbol::type);
+    py::class_<Symbol>(symbol, "Symbol")
+        .def_property_readonly("type", &Symbol::type)
+        .def_property_readonly("number", &Symbol::number);
 
     symbol.def("Number", &Number);
+    symbol.add_object("Infimum", py::cast(Infimum()));
+    symbol.add_object("Supremum", py::cast(Supremum()));
 }
 
 } // namespace Clingo::Symbol

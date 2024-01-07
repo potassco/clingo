@@ -11,9 +11,11 @@ namespace py = pybind11;
 
 using LoggerCB = std::function<void(clingo_message_e, char const *)>;
 
+static constexpr size_t default_message_limit = 25;
+
 class Library {
   public:
-    Library(bool shared, bool slotted, LoggerCB cb, size_t message_limit) {
+    Library(bool shared, bool slotted, LoggerCB cb, size_t default_message_limit) {
         clingo_lib_flags_t flags = 0;
         if (shared) {
             flags |= clingo_lib_flags_shared;
@@ -22,7 +24,8 @@ class Library {
             flags |= clingo_lib_flags_slotted;
         }
         cb_ = std::move(cb);
-        lib_ = clingo_lib_new(flags, cb_ ? static_cast<clingo_logger_t>(&logger_) : nullptr, &cb_, message_limit);
+        lib_ =
+            clingo_lib_new(flags, cb_ ? static_cast<clingo_logger_t>(&logger_) : nullptr, this, default_message_limit);
         if (lib_ == nullptr) {
             throw std::bad_alloc{};
         }
@@ -31,9 +34,9 @@ class Library {
     operator clingo_lib_t *() const { return lib_; }
 
   private:
-    static void logger_(clingo_message_t code, char const *message, void *cb) {
+    static void logger_(clingo_message_t code, char const *message, void *self) {
         try {
-            std::invoke(*static_cast<LoggerCB *>(cb), static_cast<clingo_message_e>(code), message);
+            static_cast<Library *>(self)->cb_(static_cast<clingo_message_e>(code), message);
         } catch (std::exception const &e) {
             printf("panic: exception with message %s thrown in logger\n", e.what());
             std::terminate();
@@ -88,7 +91,7 @@ void register_module(pybind11::module &m) {
 
     py::class_<Library>(core, "Library")
         .def(py::init<bool, bool, LoggerCB, size_t>(), py::arg("shared") = true, py::arg("slotted") = true,
-             py::arg("logger") = nullptr, py::arg("message_limit") = 25);
+             py::arg("logger") = nullptr, py::arg("default_message_limit") = default_message_limit);
 }
 
 } // namespace Clingo::Core
