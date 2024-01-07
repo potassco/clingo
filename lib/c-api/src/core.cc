@@ -108,7 +108,7 @@ extern "C" void clingo_set_error(clingo_lib_t *lib, clingo_error_t code, char co
 }
 
 extern "C" auto clingo_error_message(clingo_lib_t *lib) -> char const * {
-    if (lib != nullptr) {
+    if (lib != nullptr && lib->last_exception) {
         try {
             std::rethrow_exception(lib->last_exception);
         } catch (std::bad_alloc const &) {

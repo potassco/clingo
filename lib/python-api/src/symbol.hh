@@ -122,13 +122,14 @@ class Symbol {
         return sign;
     }
     [[nodiscard]] auto hash() const -> size_t { return clingo_symbol_hash(sym_); }
-    friend auto Number(Clingo::Core::Library &lib, py::int_ num) -> Symbol;
     friend auto Infimum() -> Symbol;
     friend auto Supremum() -> Symbol;
+    friend auto Number(Clingo::Core::Library &lib, py::int_ num) -> Symbol;
+    friend auto String(Library &lib, std::string const &str) -> Symbol;
     friend auto Tuple(Library &lib, std::vector<Symbol> const &args) -> Symbol;
     friend auto Function(Library &lib, std::string const &name, std::vector<Symbol> const &args, bool positive)
         -> Symbol;
-    friend auto String(Library &lib, std::string const &str) -> Symbol;
+    friend auto parse_term(Library &lib, std::string str) -> Symbol;
     friend auto operator==(Symbol const &a, Symbol const &b) -> bool {
         return clingo_symbol_is_equal_to(a.sym_, b.sym_);
     }
@@ -180,6 +181,12 @@ auto Function(Library &lib, std::string const &name, std::vector<Symbol> const &
     return sym;
 }
 
+auto parse_term(Library &lib, std::string str) -> Symbol {
+    clingo_symbol_t sym = 0;
+    handle_error(lib, clingo_parse_term(lib, str.data(), &sym));
+    return Symbol{sym};
+}
+
 void register_module(pybind11::module &m) {
     auto symbol = m.def_submodule("symbol");
 
@@ -208,6 +215,7 @@ void register_module(pybind11::module &m) {
     symbol.def("Tuple_", &Tuple, py::arg("lib"), py::arg("args"));
     symbol.def("Function", &Function, py::arg("lib"), py::arg("name"), py::arg("args") = std::vector<Symbol>{},
                py::arg("sign") = false);
+    symbol.def("parse_term", &parse_term, py::arg("lib"), py::arg("str"));
 }
 
 } // namespace Clingo::Symbol
