@@ -1,5 +1,8 @@
 #pragma once
 
+#include <sstream>
+
+#include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -78,6 +81,35 @@ class Symbol {
         }
         return str;
     }
+    [[nodiscard]] auto repr() const -> std::string {
+        std::ostringstream oss;
+        switch (type()) {
+            case clingo_symbol_type_infimum: {
+                return "Infimum";
+            }
+            case clingo_symbol_type_supremum: {
+                return "Supremum";
+            }
+            case clingo_symbol_type_number: {
+                oss << "Number(" << number() << ")";
+                break;
+            }
+            case clingo_symbol_type_string: {
+                // NOTE: gringo representation is compatible with python
+                oss << str();
+                break;
+            }
+            case clingo_symbol_type_tuple: {
+                oss << "Tuple(" << args() << ")";
+                break;
+            }
+            case clingo_symbol_type_function: {
+                oss << "Function(" << name() << ", " << args() << ", " << (sign() ? "True" : "False") << ")";
+                break;
+            }
+        }
+        return oss.str();
+    }
     [[nodiscard]] auto sign() const -> bool {
         auto t = type();
         if (t != clingo_symbol_type_number && t != clingo_symbol_type_function) {
@@ -89,7 +121,7 @@ class Symbol {
         }
         return sign;
     }
-
+    [[nodiscard]] auto hash() const -> size_t { return clingo_symbol_hash(sym_); }
     friend auto Number(Clingo::Core::Library &lib, py::int_ num) -> Symbol;
     friend auto Infimum() -> Symbol;
     friend auto Supremum() -> Symbol;
@@ -97,6 +129,13 @@ class Symbol {
     friend auto Function(Library &lib, std::string const &name, std::vector<Symbol> const &args, bool positive)
         -> Symbol;
     friend auto String(Library &lib, std::string const &str) -> Symbol;
+    friend auto operator==(Symbol const &a, Symbol const &b) -> bool {
+        return clingo_symbol_is_equal_to(a.sym_, b.sym_);
+    }
+    friend auto operator<(Symbol const &a, Symbol const &b) -> bool {
+        return clingo_symbol_is_less_than(a.sym_, b.sym_);
+    }
+    CLINGO_CPP_TOTAL_ORDER(Symbol)
 
   private:
     Symbol(clingo_symbol_t sym) : sym_{sym} {}
@@ -152,8 +191,9 @@ void register_module(pybind11::module &m) {
         .value("Tuple", clingo_symbol_type_tuple)
         .value("Function", clingo_symbol_type_function);
 
-    py::class_<Symbol>(symbol, "Symbol")
-        .def("__str__", &Symbol::str)
+    py::class_<Symbol>(symbol, "Symbol") CLINGO_PY_TOTAL_ORDER.def("__str__", &Symbol::str)
+        .def("__repr__", &Symbol::repr)
+        .def("__hash__", &Symbol::hash)
         .def_property_readonly("type", &Symbol::type, "the type of the symbol")
         .def_property_readonly("number", &Symbol::number, "the numeric value")
         .def_property_readonly("string", &Symbol::string, "the string value")

@@ -5,6 +5,20 @@
 
 #include <clingo.h>
 
+#define CLINGO_PY_TOTAL_ORDER                                                                                          \
+    .def(py::self == py::self)                                                                                         \
+        .def(py::self != py::self)                                                                                     \
+        .def(py::self < py::self)                                                                                      \
+        .def(py::self <= py::self)                                                                                     \
+        .def(py::self > py::self)                                                                                      \
+        .def(py::self >= py::self)
+
+#define CLINGO_CPP_TOTAL_ORDER(T)                                                                                      \
+    friend auto operator!=(T const &a, T const &b) -> bool { return !(a == b); }                                       \
+    friend auto operator<=(T const &a, T const &b) -> bool { return !(b < a); }                                        \
+    friend auto operator>(T const &a, T const &b) -> bool { return b < a; }                                            \
+    friend auto operator>=(T const &a, T const &b) -> bool { return !(a < b); }
+
 namespace Clingo::Core {
 
 namespace py = pybind11;
