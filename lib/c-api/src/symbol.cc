@@ -72,14 +72,14 @@ extern "C" auto clingo_symbol_create_tuple(clingo_lib_t *lib, clingo_symbol_t co
 }
 
 extern "C" auto clingo_symbol_create_function(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments,
-                                              size_t arguments_size, bool positive, clingo_symbol_t *symbol) -> bool {
+                                              size_t arguments_size, bool sign, clingo_symbol_t *symbol) -> bool {
     CLINGO_TRY {
         if (lib == nullptr || name == nullptr || symbol == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
         *symbol = Gringo::Symbol::to_rep(lib->store->fun(
             lib->store->string(name),
-            Gringo::SymbolSpan{reinterpret_cast<Gringo::Symbol const *>(arguments), arguments_size}, positive));
+            Gringo::SymbolSpan{reinterpret_cast<Gringo::Symbol const *>(arguments), arguments_size}, sign));
     }
     CLINGO_CATCH(lib);
 }

@@ -28,6 +28,28 @@ class Symbol {
         }
         return py::reinterpret_steal<py::int_>(PyLong_FromString(str().c_str(), nullptr, decimal_base));
     }
+    [[nodiscard]] auto string() const -> py::str {
+        auto t = type();
+        if (t != clingo_symbol_type_string) {
+            throw std::invalid_argument("symbol is not a string");
+        }
+        char const *name = nullptr;
+        if (!clingo_symbol_string(sym_, &name)) {
+            throw std::runtime_error("could not get string value");
+        }
+        return name;
+    }
+    [[nodiscard]] auto name() const -> py::str {
+        auto t = type();
+        if (t != clingo_symbol_type_function) {
+            throw std::invalid_argument("symbol is not a function");
+        }
+        char const *name = nullptr;
+        if (!clingo_symbol_name(sym_, &name)) {
+            throw std::runtime_error("could not get name");
+        }
+        return name;
+    }
     [[nodiscard]] auto args() const -> py::list {
         auto t = type();
         if (t != clingo_symbol_type_tuple && t != clingo_symbol_type_function) {
@@ -55,6 +77,17 @@ class Symbol {
             throw std::runtime_error("could convert to string");
         }
         return str;
+    }
+    [[nodiscard]] auto sign() const -> bool {
+        auto t = type();
+        if (t != clingo_symbol_type_number && t != clingo_symbol_type_function) {
+            throw std::invalid_argument("symbol is not a number or function");
+        }
+        bool sign = false;
+        if (!clingo_symbol_has_sign(sym_, &sign)) {
+            throw std::runtime_error("could not get name");
+        }
+        return sign;
     }
 
     friend auto Number(Clingo::Core::Library &lib, py::int_ num) -> Symbol;
@@ -122,7 +155,11 @@ void register_module(pybind11::module &m) {
     py::class_<Symbol>(symbol, "Symbol")
         .def("__str__", &Symbol::str)
         .def_property_readonly("type", &Symbol::type, "the type of the symbol")
-        .def_property_readonly("number", &Symbol::number, "the numeric value");
+        .def_property_readonly("number", &Symbol::number, "the numeric value")
+        .def_property_readonly("string", &Symbol::string, "the string value")
+        .def_property_readonly("name", &Symbol::name, "the name")
+        .def_property_readonly("arguments", &Symbol::args, "the list of arguments")
+        .def_property_readonly("sign", &Symbol::sign, "whether the symbol has a sign");
 
     symbol.add_object("Infimum", py::cast(Infimum()));
     symbol.add_object("Supremum", py::cast(Supremum()));
@@ -130,7 +167,7 @@ void register_module(pybind11::module &m) {
     symbol.def("String", &String, py::arg("lib"), py::arg("str"));
     symbol.def("Tuple_", &Tuple, py::arg("lib"), py::arg("args"));
     symbol.def("Function", &Function, py::arg("lib"), py::arg("name"), py::arg("args") = std::vector<Symbol>{},
-               py::arg("positive") = true);
+               py::arg("sign") = false);
 }
 
 } // namespace Clingo::Symbol

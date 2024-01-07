@@ -418,11 +418,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_string(clingo_lib_t *lib, ch
 //!
 //! @param[in] lib library object storing the symbol
 //! @param[in] name the name
-//! @param[in] positive whether the symbol has a classical negation sign
+//! @param[in] sign whether the symbol has a classical negation sign
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool positive,
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool sign,
                                                        clingo_symbol_t *symbol);
 
 //! Construct a symbol representing a tuple.
