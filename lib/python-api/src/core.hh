@@ -91,23 +91,50 @@ auto version() -> pybind11::tuple {
 }
 
 void register_module(pybind11::module &m) {
-    auto core = m.def_submodule("core");
+    auto core = m.def_submodule("core", doc(R"(
+Core functionality used throughout the clingo package.
+)"));
     core.def("version", &version, "Clingo's version as a tuple (major, minor, revision).");
 
-    py::enum_<clingo_message_e>(core, "MessageType")
-        .value("Trace", clingo_message_trace)
-        .value("Debug", clingo_message_debug)
-        .value("Info", clingo_message_info)
-        .value("OperationUndefined", clingo_message_operation_undefined)
-        .value("AtomUndefined", clingo_message_atom_undefined)
-        .value("FileIncluded", clingo_message_file_included)
-        .value("GlobalVariable", clingo_message_global_variable)
-        .value("Warn", clingo_message_warn)
-        .value("Error", clingo_message_error);
+    py::enum_<clingo_message_e>(core, "MessageType", "Message categories emitted by the logger.")
+        .value("Trace", clingo_message_trace, R"(A trace message.)")
+        .value("Debug", clingo_message_debug, R"(A debug message.)")
+        .value("Info", clingo_message_info, R"(A generic info message.)")
+        .value("OperationUndefined", clingo_message_operation_undefined,
+               R"(An info message about an undefined operation.)")
+        .value("AtomUndefined", clingo_message_atom_undefined, R"(An info message about an undefined atom.)")
+        .value("FileIncluded", clingo_message_file_included, R"(An info message about an already included file.)")
+        .value("GlobalVariable", clingo_message_global_variable,
+               R"(An info message about a global variable in the tuple of an aggregate.)")
+        .value("Warn", clingo_message_warn, R"(A warning message.)")
+        .value("Error", clingo_message_error, R"(An error message.)");
 
+    // TODO: make a context manager
     py::class_<Library>(core, "Library")
         .def(py::init<bool, bool, LoggerCB, size_t>(), "Create a library object.", py::arg("shared") = true,
-             py::arg("slotted") = true, py::arg("logger") = nullptr, py::arg("message_limit") = default_message_limit);
+             py::arg("slotted") = true, py::arg("logger") = nullptr, py::arg("message_limit") = default_message_limit,
+             doc(R"(
+Create a library object.
+
+Library objects are used to store symbols. Any function/or class that needs to
+create symbols takes this object as a parameter.
+
+Destroying the library object frees all symbols.
+
+Parameters
+----------
+slotted
+    Use a slotted allocator to store symbols. Setting this to true might
+    improve performance.
+shared
+    Indicates whether symbols should be created in a thread-safe manner.
+    Setting this to false might improve performance in single-threaded
+    application.
+logger
+    A logger to emit/intercept messages.
+message_limit
+    The maximum number of messages to emit.
+)"));
 }
 
 } // namespace Clingo
