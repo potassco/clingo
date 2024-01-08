@@ -1,6 +1,7 @@
 #pragma once
 
 #include <pybind11/functional.h>
+#include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
 #include <clingo.h>
@@ -46,8 +47,19 @@ class Library {
             throw std::bad_alloc{};
         }
     }
+    Library(Library const &) = delete;
+    Library(Library &&) = delete;
     ~Library() { clingo_lib_free(lib_); }
-    operator clingo_lib_t *() const { return lib_; }
+    void close() {
+        clingo_lib_free(lib_);
+        lib_ = nullptr;
+    }
+    operator clingo_lib_t *() const {
+        if (lib_ == nullptr) {
+            throw std::runtime_error("library has already been closed");
+        }
+        return lib_;
+    }
 
   private:
     static void logger_(clingo_message_t code, char const *message, void *self) {
@@ -82,12 +94,12 @@ void handle_error(Library &lib, bool success) {
     }
 }
 
-auto version() -> pybind11::tuple {
+auto version() -> std::tuple<int, int, int> {
     int major;
     int minor;
     int patch;
     clingo_version(&major, &minor, &patch);
-    return pybind11::make_tuple(major, minor, patch);
+    return {major, minor, patch};
 }
 
 void register_module(pybind11::module &m) {
@@ -109,17 +121,18 @@ Core functionality used throughout the clingo package.
         .value("Warn", clingo_message_warn, R"(A warning message.)")
         .value("Error", clingo_message_error, R"(An error message.)");
 
-    // TODO: make a context manager
-    py::class_<Library>(core, "Library")
-        .def(py::init<bool, bool, LoggerCB, size_t>(), "Create a library object.", py::arg("shared") = true,
-             py::arg("slotted") = true, py::arg("logger") = nullptr, py::arg("message_limit") = default_message_limit,
-             doc(R"(
-Create a library object.
-
+    py::class_<Library>(core, "Library", doc(R"(
 Library objects are used to store symbols. Any function/or class that needs to
 create symbols takes this object as a parameter.
 
 Destroying the library object frees all symbols.
+
+This class implements the ContextManager interface.
+)"))
+        .def(py::init<bool, bool, LoggerCB, size_t>(), "Create a library object.", py::arg("shared") = true,
+             py::arg("slotted") = true, py::arg("logger") = nullptr, py::arg("message_limit") = default_message_limit,
+             doc(R"(
+Create a library object.
 
 Parameters
 ----------
@@ -134,6 +147,19 @@ logger
     A logger to emit/intercept messages.
 message_limit
     The maximum number of messages to emit.
+)"))
+        .def(
+            "__enter__", [](Library &lib) -> Library & { return lib; }, doc(R"(
+Return self.
+)"))
+        .def(
+            "__exit__",
+            [](Library &lib, py::object, py::object, py::object) -> bool {
+                lib.close();
+                return false;
+            },
+            doc(R"(
+Close the library object.
 )"));
 }
 

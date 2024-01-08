@@ -87,6 +87,9 @@ class Symbol {
         if (!clingo_symbol_to_string(sym_, str.data(), len)) {
             throw std::runtime_error("could convert to string");
         }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
         return str;
     }
     [[nodiscard]] auto repr() const -> std::string {
@@ -163,7 +166,19 @@ auto Infimum() -> Symbol { return clingo_symbol_create_infimum(); }
 auto Supremum() -> Symbol { return clingo_symbol_create_supremum(); }
 
 auto Number(Library &lib, py::int_ num) -> Symbol {
-    // TODO: check if try/catch can be avoided
+    int overflow = 0;
+    auto val = PyLong_AsLongAndOverflow(num.ptr(), &overflow);
+    if (PyErr_Occurred() != nullptr) {
+        throw py::error_already_set();
+    }
+    if (overflow == 0 && std::numeric_limits<int32_t>::min() <= val && val <= std::numeric_limits<int32_t>::max()) {
+        return Symbol{clingo_symbol_create_number(static_cast<int32_t>(val))};
+    }
+    auto sym = clingo_symbol_t{0};
+    auto str = static_cast<std::string>(py::str(num));
+    handle_error(lib, clingo_symbol_create_number_str(lib, str.c_str(), &sym));
+    return Symbol{sym};
+    /*
     try {
         auto val = num.cast<int32_t>();
         return Symbol{clingo_symbol_create_number(val)};
@@ -173,6 +188,7 @@ auto Number(Library &lib, py::int_ num) -> Symbol {
         handle_error(lib, clingo_symbol_create_number_str(lib, str.c_str(), &sym));
         return Symbol{sym};
     }
+    */
 }
 
 auto String(Library &lib, std::string const &str) -> Symbol {
@@ -310,7 +326,7 @@ name: str
 The name.
 )"))
             .def_property_readonly("arguments", &Symbol::args, doc(R"(
-arguments: list(clingo.symbol.Symbol)
+arguments: list[clingo.symbol.Symbol]
 
 The list of arguments.
 )"))
@@ -348,7 +364,7 @@ string
     The given string.
 )"));
     symbol.def("Tuple_", &Tuple, py::arg("lib"), py::arg("arguments"), doc(R"(
-A shortcut for `Function("", arguments)`.
+Construct a tuple symbol.
 
 Parameters
 ----------
