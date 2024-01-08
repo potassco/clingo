@@ -116,7 +116,7 @@ var LuaHighlightRules = function() {
                         }
                         return "comment";
                     },
-                    
+
                     regex : /\]=*\]/,
                     next  : "start"
                 }, {
@@ -153,7 +153,7 @@ var LuaHighlightRules = function() {
             regex : "\\s+|\\w+"
         } ]
     };
-    
+
     this.normalizeRules();
 }
 
@@ -308,16 +308,16 @@ var WorkerClient = require("../worker/worker_client").WorkerClient;
 
 var Mode = function() {
     this.HighlightRules = LuaHighlightRules;
-    
+
     this.foldingRules = new LuaFoldMode();
 };
 oop.inherits(Mode, TextMode);
 
 (function() {
-   
+
     this.lineCommentStart = "--";
     this.blockComment = {start: "--[", end: "]--"};
-    
+
     var indentKeywords = {
         "function": 1,
         "then": 1,
@@ -409,15 +409,15 @@ oop.inherits(Mode, TextMode);
     this.createWorker = function(session) {
         var worker = new WorkerClient(["ace"], "ace/mode/lua_worker", "Worker");
         worker.attachToDocument(session.getDocument());
-        
+
         worker.on("annotate", function(e) {
             session.setAnnotations(e.data);
         });
-        
+
         worker.on("terminate", function() {
             session.clearAnnotations();
         });
-        
+
         return worker;
     };
 
@@ -437,7 +437,7 @@ var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
 var LuaHighlightRules  = ace.require("ace/mode/lua_highlight_rules").LuaHighlightRules;
 
 var GringoHighlightRules = function() {
-    this.$rules = { start: 
+    this.$rules = { start:
       [ { include: '#comment' },
         { include: '#lua' },
         { include: '#weak' },
@@ -449,18 +449,18 @@ var GringoHighlightRules = function() {
           next: 'lua-start',
         },
       ],
-      '#comment': 
+      '#comment':
       [ { // block comment
           token: 'punctuation.definition.comment.gringo',
           regex: '%\\*',
-          push: 
+          push:
           [ { token: 'punctuation.definition.comment.gringo',
               regex: '\\*%',
               next: 'pop'
             },
             { include: '#comment' }, // allow for nesting
             { defaultToken: 'comment.block.gringo' }
-          ] 
+          ]
         },
         { // line comment
           token:
@@ -470,17 +470,17 @@ var GringoHighlightRules = function() {
           regex: '(%)(.*$)'
         },
       ],
-      '#keyword': 
-      [ { token: 'keyword.control', 
+      '#keyword':
+      [ { token: 'keyword.control',
           regex: '#include\\b|#show\\b|#program\\b|#const\\b|#sum\\+|#sum\\b|#count\\b|#minimize\\b|#maximize\\b|#true\\b|#false\\b|#theory\\b'
         },
       ],
-      '#operator': 
+      '#operator':
       [ { token: 'keyword.operator.gringo',
           regex: '\\bnot\\b|[><]=?|[!]?=|\\.\\.|\\+|-|\\*|/|\\|\\?|\\^|~|@|&|\\|'
         },
       ],
-      '#punctuation': 
+      '#punctuation':
       [ { token: 'punctuation.separator',
           regex: ',|\\:-|\\:~|\\:|{|}|\\(|\\)|;',
         },
@@ -503,23 +503,23 @@ var GringoHighlightRules = function() {
           regex: '\\b_\\b',
         },
       ],
-      '#string': 
+      '#string':
       [ { token: 'string.quoted',
           regex: '"',
-          push: 
-          [ { token: 'constant.character', 
-              regex: '\\\\\\\\' 
+          push:
+          [ { token: 'constant.character',
+              regex: '\\\\\\\\'
             },
             { token: 'constant.character',
-              regex: '\\\\"' 
+              regex: '\\\\"'
             },
             { token: 'string.quoted',
               regex: '"',
-              next: 'pop' 
+              next: 'pop'
             },
-            { defaultToken: 'string.quoted' } 
+            { defaultToken: 'string.quoted' }
           ]
-        } 
+        }
       ],
       '#weak':
       [ { token: 'punctuation.separator',
@@ -544,7 +544,7 @@ var GringoHighlightRules = function() {
       '#statement':
       [ { token: 'meta.statement.gringo',
           regex: '(?=[^\\s])',
-          push: 
+          push:
           [ { include: '#punctuation' },
             { include: '#operator' },
             { include: '#identifier' },
@@ -558,8 +558,8 @@ var GringoHighlightRules = function() {
             { token: 'invalid.illegal',
               regex: '[^\\s]',
             },
-          ] 
-        } 
+          ]
+        }
       ],
     }
 
@@ -574,7 +574,7 @@ var GringoHighlightRules = function() {
     this.metaData = {
       fileTypes: [ 'gringo' ],
       name: 'Gringo',
-      scopeName: 'source.gringo' 
+      scopeName: 'source.gringo'
     }
 };
 
@@ -608,5 +608,3 @@ oop.inherits(Mode, TextMode);
 
 exports.Mode = Mode;
 })
-
-

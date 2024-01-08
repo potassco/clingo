@@ -119,4 +119,3 @@ web:
 	cmake --build build --target $@ --parallel
 
 .PHONY: all doc test compdb configure reconfigure format web
-

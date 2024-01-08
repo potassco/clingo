@@ -14,3 +14,4 @@ examples/js/parser.wasm
 doc/html
 doc/latex
 example.*
+__pycache__
