@@ -603,8 +603,6 @@ typedef struct clingo_control clingo_control_t;
 //! @{
 
 //! Enumeration of theory sequence types.
-//!
-//! Same as clingo_theory_sequence_type_e but kept for backward compatibility.
 enum clingo_ast_theory_sequence_type_e {
     clingo_ast_theory_sequence_type_tuple = 0, //!< Theory tuples "(t1,...,tn)".
     clingo_ast_theory_sequence_type_list = 1,  //!< Theory lists "[t1,...,tn]".
