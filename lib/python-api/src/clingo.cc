@@ -5,6 +5,6 @@
 
 PYBIND11_MODULE(clingo, m) {
     m.doc() = "the clingo python module";
-    Clingo::Core::register_module(m);
+    Clingo::register_module(m);
     Clingo::Symbol::register_module(m);
 }

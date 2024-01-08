@@ -19,13 +19,15 @@
     friend auto operator>(T const &a, T const &b) -> bool { return b < a; }                                            \
     friend auto operator>=(T const &a, T const &b) -> bool { return !(a < b); }
 
-namespace Clingo::Core {
+namespace Clingo {
 
 namespace py = pybind11;
 
 using LoggerCB = std::function<void(clingo_message_e, char const *)>;
 
 static constexpr size_t default_message_limit = 25;
+
+constexpr auto doc(char const *str) -> char const * { return str + 1; }
 
 class Library {
   public:
@@ -108,4 +110,4 @@ void register_module(pybind11::module &m) {
              py::arg("slotted") = true, py::arg("logger") = nullptr, py::arg("message_limit") = default_message_limit);
 }
 
-} // namespace Clingo::Core
+} // namespace Clingo
