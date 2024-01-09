@@ -1,4 +1,5 @@
 add_library(clingo
+    "src/ast.cc"
     "src/core.cc"
     "src/symbol.cc"
     )

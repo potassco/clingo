@@ -605,20 +605,20 @@ typedef struct clingo_control clingo_control_t;
 //! Enumeration of theory sequence types.
 enum clingo_ast_theory_sequence_type_e {
     clingo_ast_theory_sequence_type_tuple = 0, //!< Theory tuples "(t1,...,tn)".
-    clingo_ast_theory_sequence_type_list = 1,  //!< Theory lists "[t1,...,tn]".
-    clingo_ast_theory_sequence_type_set = 2    //!< Theory sets "{t1,...,tn}".
+    clingo_ast_theory_sequence_type_set = 1,   //!< Theory sets "{t1,...,tn}".
+    clingo_ast_theory_sequence_type_list = 2   //!< Theory lists "[t1,...,tn]".
 };
 //! Corresponding type to ::clingo_ast_theory_sequence_type_e.
 typedef int clingo_ast_theory_sequence_type_t;
 
 //! Enumeration of comparison relations.
 enum clingo_ast_comparison_operator_e {
-    clingo_ast_comparison_operator_greater_than = 0,  //!< Operator ">".
-    clingo_ast_comparison_operator_less_than = 1,     //!< Operator "<".
-    clingo_ast_comparison_operator_less_equal = 2,    //!< Operator "<=".
-    clingo_ast_comparison_operator_greater_equal = 3, //!< Operator ">=".
-    clingo_ast_comparison_operator_not_equal = 4,     //!< Operator "!=".
-    clingo_ast_comparison_operator_equal = 5          //!< Operator "==".
+    clingo_ast_comparison_operator_equal = 0,        //!< Operator "==".
+    clingo_ast_comparison_operator_not_equal = 1,    //!< Operator "!=".
+    clingo_ast_comparison_operator_less_than = 2,    //!< Operator "<".
+    clingo_ast_comparison_operator_less_equal = 3,   //!< Operator "<=".
+    clingo_ast_comparison_operator_greater_than = 4, //!< Operator ">".
+    clingo_ast_comparison_operator_greater_equal = 5 //!< Operator ">=".
 };
 //! Corresponding type to ::clingo_ast_comparison_operator_e.
 typedef int clingo_ast_comparison_operator_t;
@@ -636,22 +636,21 @@ typedef int clingo_ast_sign_t;
 enum clingo_ast_unary_operator_e {
     clingo_ast_unary_operator_minus = 0,    //!< Operator "-".
     clingo_ast_unary_operator_negation = 1, //!< Operator "~".
-    clingo_ast_unary_operator_absolute = 2  //!< Operator "|.|".
 };
 //! Corresponding type to ::clingo_ast_unary_operator_e.
 typedef int clingo_ast_unary_operator_t;
 
 //! Enumeration of binary operators.
 enum clingo_ast_binary_operator_e {
-    clingo_ast_binary_operator_xor = 0,            //!< Operator "^".
-    clingo_ast_binary_operator_or = 1,             //!< Operator "?".
-    clingo_ast_binary_operator_and = 2,            //!< Operator "&".
-    clingo_ast_binary_operator_plus = 3,           //!< Operator "+".
-    clingo_ast_binary_operator_minus = 4,          //!< Operator "-".
-    clingo_ast_binary_operator_multiplication = 5, //!< Operator "*".
-    clingo_ast_binary_operator_division = 6,       //!< Operator "/".
-    clingo_ast_binary_operator_modulo = 7,         //!< Operator "\".
-    clingo_ast_binary_operator_power = 8           //!< Operator "**".
+    clingo_ast_binary_operator_and = 0,            //!< Operator "&".
+    clingo_ast_binary_operator_division = 1,       //!< Operator "/".
+    clingo_ast_binary_operator_minus = 2,          //!< Operator "-".
+    clingo_ast_binary_operator_modulo = 3,         //!< Operator "\".
+    clingo_ast_binary_operator_multiplication = 4, //!< Operator "*".
+    clingo_ast_binary_operator_or = 5,             //!< Operator "?".
+    clingo_ast_binary_operator_plus = 6,           //!< Operator "+".
+    clingo_ast_binary_operator_power = 7,          //!< Operator "**".
+    clingo_ast_binary_operator_xor = 8             //!< Operator "^".
 };
 //! Corresponding type to ::clingo_ast_binary_operator_e.
 typedef int clingo_ast_binary_operator_t;

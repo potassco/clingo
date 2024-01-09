@@ -205,16 +205,16 @@ auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
 
 //! Enumeration of available binary operators.
 enum class BinaryOperator : int {
-    dots,  //!< The interval operator.
-    xor_,  //!< The XOR bit operation.
-    or_,   //!< The OR bit operation.
     and_,  //!< The AND bit operation.
-    plus,  //!< The plus arithmetic operation.
-    minus, //!< The minus arithmetic operation.
-    times, //!< The multiply arithmetic operation.
     div,   //!< The (integer) divide arithmetic operation.
+    minus, //!< The minus arithmetic operation.
     mod,   //!< The modulo arithmetic operation.
+    times, //!< The multiply arithmetic operation.
+    or_,   //!< The OR bit operation.
+    plus,  //!< The plus arithmetic operation.
     pow,   //!< The exponentiation arithmetic operation.
+    xor_,  //!< The XOR bit operation.
+    dots,  //!< The interval operator.
 };
 
 //! Term representing a binary operation.

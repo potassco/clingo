@@ -36,12 +36,12 @@ struct Unsigned {};
 
 //! Enumeration of relation symbols.
 enum class Relation {
+    equal,         //!< The equal to symbol (=).
+    inequal,       //!< The not equal to symbol (!=).
     less,          //!< The less than symbol (<).
     less_equal,    //!< The less than or equal to symbol (<=).
     greater,       //!< The greater than symbol (>).
     greater_equal, //!< The greater than or equal to symbol (>=).
-    equal,         //!< The equal to symbol (=).
-    inequal,       //!< The not equal to symbol (!=).
 };
 
 //! The right-hand-side of a relation atom including the symbol.
