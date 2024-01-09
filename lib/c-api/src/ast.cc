@@ -1,9 +1,14 @@
+#include <cstdarg>
+
 #include "lib.hh"
 
 #include <gringo/input/algo/parse.hh>
 
 struct clingo_ast {
     virtual auto get_number(clingo_ast_attribute_t attr) -> std::optional<int> = 0;
+    virtual auto get_symbol(clingo_ast_attribute_t attr) -> std::optional<clingo_symbol_t> = 0;
+    virtual auto get_location(clingo_ast_attribute_t attr) -> std::optional<clingo_location_t> = 0;
+    virtual auto get_string(clingo_ast_attribute_t attr) -> std::optional<char const *> = 0;
     virtual ~clingo_ast() = default;
 };
 
@@ -123,48 +128,108 @@ struct GetNumber {
         return std::nullopt;
     }
     // terms
-    auto operator()(Gringo::Input::TermVariable const &var) const -> std::optional<int> {
+    auto operator()(Gringo::Input::TermVariable const &term) const -> std::optional<int> {
         switch (attr) {
             case clingo_ast_attribute_anonymous: {
-                return static_cast<int>(var.is_anonymous);
+                return static_cast<int>(term.is_anonymous);
             }
             default: {
-                return false;
+                return std::nullopt;
             }
         }
     }
-    auto operator()(Gringo::Input::TermFunction const &var) const -> std::optional<int> {
+    auto operator()(Gringo::Input::TermFunction const &term) const -> std::optional<int> {
         switch (attr) {
             case clingo_ast_attribute_external: {
-                return static_cast<int>(var.external);
+                return static_cast<int>(term.external);
             }
             default: {
-                return false;
+                return std::nullopt;
             }
         }
     }
-    auto operator()(Gringo::Input::TermUnary const &var) const -> std::optional<int> {
+    auto operator()(Gringo::Input::TermUnary const &term) const -> std::optional<int> {
         switch (attr) {
             case clingo_ast_attribute_operator_type: {
-                return static_cast<int>(var.op);
+                return static_cast<int>(term.op);
             }
             default: {
-                return false;
+                return std::nullopt;
             }
         }
     }
-    auto operator()(Gringo::Input::TermBinary const &var) const -> std::optional<int> {
+    auto operator()(Gringo::Input::TermBinary const &term) const -> std::optional<int> {
         switch (attr) {
             case clingo_ast_attribute_operator_type: {
-                return static_cast<int>(var.op);
+                return static_cast<int>(term.op);
             }
             default: {
-                return false;
+                return std::nullopt;
             }
         }
     }
     clingo_ast_attribute_t attr;
 };
+
+struct GetSymbol {
+    // default
+    template <class T> auto operator()(T const &term) const -> std::optional<clingo_symbol_t> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+    // terms
+    auto operator()(Gringo::Input::TermSymbol const &term) const -> std::optional<clingo_symbol_t> {
+        switch (attr) {
+            case clingo_ast_attribute_symbol: {
+                return static_cast<clingo_symbol_t>(Gringo::Symbol::to_rep(term.value));
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    clingo_ast_attribute_t attr;
+};
+
+struct GetString {
+    // default
+    template <class T> auto operator()(T const &term) const -> std::optional<char const *> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+    // terms
+    auto operator()(Gringo::Input::TermVariable const &term) const -> std::optional<char const *> {
+        switch (attr) {
+            case clingo_ast_attribute_name: {
+                return term.name.c_str();
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    auto operator()(Gringo::Input::TermFunction const &term) const -> std::optional<char const *> {
+        switch (attr) {
+            case clingo_ast_attribute_name: {
+                return term.name.c_str();
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    clingo_ast_attribute_t attr;
+};
+
+auto convert_loc(clingo_lib_t *lib, clingo_location_t const *loc) -> Gringo::Input::Location {
+    return {{lib->store->string(loc->begin_file), loc->begin_line, loc->begin_column},
+            {lib->store->string(loc->end_file), loc->end_line, loc->end_column}};
+}
+
+auto convert_loc(Gringo::Input::Location const &loc) -> clingo_location_t {
+    return {loc.begin.file.c_str(), loc.end.file.c_str(), loc.begin.line,
+            loc.end.line,           loc.begin.column,     loc.end.column};
+}
 
 struct ASTTerm : clingo_ast {
     ASTTerm(Gringo::Input::Term term) : term{std::move(term)} {}
@@ -172,13 +237,20 @@ struct ASTTerm : clingo_ast {
     auto get_number(clingo_ast_attribute_t attr) -> std::optional<int> override {
         return std::visit(GetNumber{attr}, term);
     }
+    auto get_symbol(clingo_ast_attribute_t attr) -> std::optional<clingo_symbol_t> override {
+        return std::visit(GetSymbol{attr}, term);
+    }
+    auto get_location(clingo_ast_attribute_t attr) -> std::optional<clingo_location_t> override {
+        if (attr == clingo_ast_attribute_location) {
+            return convert_loc(location(term));
+        }
+        return std::nullopt;
+    }
+    auto get_string(clingo_ast_attribute_t attr) -> std::optional<char const *> override {
+        return std::visit(GetString{attr}, term);
+    }
     Gringo::Input::Term term;
 };
-
-auto convert_loc(clingo_lib_t *lib, clingo_location_t const *loc) -> Gringo::Input::Location {
-    return {{lib->store->string(loc->begin_file), loc->begin_line, loc->begin_column},
-            {lib->store->string(loc->end_file), loc->end_line, loc->end_column}};
-}
 
 }; // namespace
 
@@ -198,6 +270,15 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 *ast = new ASTTerm{Gringo::Input::TermVariable{convert_loc(lib, loc), lib->store->string(name)}};
                 return true;
             }
+            case clingo_ast_type_term_symbolic: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto sym = va_arg(args, clingo_symbol_t);
+                va_end(args);
+                *ast = new ASTTerm{Gringo::Input::TermSymbol{convert_loc(lib, loc), Gringo::Symbol::from_rep(sym)}};
+                return true;
+            }
             default: {
                 throw std::logic_error("implement me!!!");
             }
@@ -212,6 +293,33 @@ extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_at
     -> bool {
     if (auto num = ast->get_number(attribute); num) {
         *value = *num;
+        return true;
+    }
+    return false;
+}
+
+extern "C" auto clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                clingo_symbol_t *value) -> bool {
+    if (auto sym = ast->get_symbol(attribute); sym) {
+        *value = *sym;
+        return true;
+    }
+    return false;
+}
+
+extern "C" auto clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                  clingo_location_t *value) -> bool {
+    if (auto loc = ast->get_location(attribute); loc) {
+        *value = *loc;
+        return true;
+    }
+    return false;
+}
+
+extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute, char const **value)
+    -> bool {
+    if (auto str = ast->get_string(attribute); str) {
+        *value = *str;
         return true;
     }
     return false;

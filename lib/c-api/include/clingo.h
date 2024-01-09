@@ -766,6 +766,9 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_anonymous,
     clingo_ast_attribute_external,
     clingo_ast_attribute_operator_type,
+    clingo_ast_attribute_symbol,
+    clingo_ast_attribute_location,
+    clingo_ast_attribute_name,
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arguments,
@@ -789,9 +792,7 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_left,
     clingo_ast_attribute_left_guard,
     clingo_ast_attribute_literal,
-    clingo_ast_attribute_location,
     clingo_ast_attribute_modifier,
-    clingo_ast_attribute_name,
     clingo_ast_attribute_node_u,
     clingo_ast_attribute_node_v,
     clingo_ast_attribute_operator_name,
@@ -803,7 +804,6 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_right_guard,
     clingo_ast_attribute_sequence_type,
     clingo_ast_attribute_sign,
-    clingo_ast_attribute_symbol,
     clingo_ast_attribute_term,
     clingo_ast_attribute_terms,
     clingo_ast_attribute_value,
@@ -854,6 +854,35 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_free(clingo_ast_t *ast);
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                                int *value);
 
+//! Get the value of an attribute of type "clingo_ast_attribute_type_symbol".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                               clingo_symbol_t *value);
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_location".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                                 clingo_location_t *value);
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_string".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                               char const **value);
 //! @}
 
 /*
