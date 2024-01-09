@@ -122,8 +122,8 @@ template <class T> void shared_ptr<T>::dec_() noexcept {
         --data_->refs;
         if (data_->refs == 0) {
             delete data_;
-            data_ = nullptr;
         }
+        data_ = nullptr;
     }
 }
 

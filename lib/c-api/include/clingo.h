@@ -688,14 +688,14 @@ typedef int clingo_ast_theory_atom_definition_type_t;
 //! Enumeration of AST types.
 enum clingo_ast_type_e {
     // terms
-    clingo_ast_type_id,
-    clingo_ast_type_variable,
-    clingo_ast_type_symbolic_term,
-    clingo_ast_type_unary_operation,
-    clingo_ast_type_binary_operation,
-    clingo_ast_type_interval,
-    clingo_ast_type_function,
-    clingo_ast_type_pool,
+    clingo_ast_type_term_variable,
+    clingo_ast_type_term_symbolic,
+    clingo_ast_type_term_absolute,
+    clingo_ast_type_term_unary,
+    clingo_ast_type_term_binary,
+    clingo_ast_type_term_tuple,
+    clingo_ast_type_term_function,
+    /*
     // simple atoms
     clingo_ast_type_boolean_constant,
     clingo_ast_type_symbolic_atom,
@@ -740,13 +740,15 @@ enum clingo_ast_type_e {
     clingo_ast_type_defined,
     clingo_ast_type_theory_definition,
     clingo_ast_type_comment
+    */
 };
 //! Corresponding type to ::clingo_ast_type_e.
 typedef int clingo_ast_type_t;
 
 //! Enumeration of attributes types used by the AST.
 enum clingo_ast_attribute_type_e {
-    clingo_ast_attribute_type_number = 0,       //!< For an attribute of type "int".
+    clingo_ast_attribute_type_number = 0, //!< For an attribute of type "int".
+    /*
     clingo_ast_attribute_type_symbol = 1,       //!< For an attribute of type "clingo_ast_symbol_t".
     clingo_ast_attribute_type_location = 2,     //!< For an attribute of type "clingo_location_t".
     clingo_ast_attribute_type_string = 3,       //!< For an attribute of type "char const *".
@@ -754,12 +756,17 @@ enum clingo_ast_attribute_type_e {
     clingo_ast_attribute_type_optional_ast = 5, //!< For an attribute of type "clingo_ast_t *" that can be NULL.
     clingo_ast_attribute_type_string_array = 6, //!< For an attribute of type "char const **".
     clingo_ast_attribute_type_ast_array = 7,    //!< For an attribute of type "clingo_ast_t **".
+    */
 };
 //! Corresponding type to ::clingo_ast_attribute_type.
 typedef int clingo_ast_attribute_type_t;
 
 //! Enumeration of attributes used by the AST.
 enum clingo_ast_attribute_e {
+    clingo_ast_attribute_anonymous,
+    clingo_ast_attribute_external,
+    clingo_ast_attribute_operator_type,
+    /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arguments,
     clingo_ast_attribute_arity,
@@ -773,7 +780,6 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_comparison,
     clingo_ast_attribute_condition,
     clingo_ast_attribute_elements,
-    clingo_ast_attribute_external,
     clingo_ast_attribute_external_type,
     clingo_ast_attribute_function,
     clingo_ast_attribute_guard,
@@ -789,7 +795,6 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_node_u,
     clingo_ast_attribute_node_v,
     clingo_ast_attribute_operator_name,
-    clingo_ast_attribute_operator_type,
     clingo_ast_attribute_operators,
     clingo_ast_attribute_parameters,
     clingo_ast_attribute_positive,
@@ -805,10 +810,54 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_variable,
     clingo_ast_attribute_weight,
     clingo_ast_attribute_comment_type,
+    */
 };
+
 //! Corresponding type to ::clingo_ast_attribute_e.
 typedef int clingo_ast_attribute_t;
 
+//! This struct provides a view to nodes in the AST.
+typedef struct clingo_ast clingo_ast_t;
+
+//! @name Functions to create/free ASTs
+//! @{
+
+//! Construct an AST of the given type.
+//!
+//! @note The arguments corresponding to the given type can be inspected using
+//! "g_clingo_ast_constructors.constructors[type]".
+//!
+//! @param[in] type the type of AST to construct
+//! @param[out] ast the resulting AST
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if one of the arguments is incompatible with the type
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...);
+
+//! Free an AST node.
+//!
+//! @param[in] ast the target AST
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_free(clingo_ast_t *ast);
+
+//! @}
+
+//! @name Functions to get attributes of ASTs
+//! @{
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_number".
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                               int *value);
+
+//! @}
+
+/*
+// should go into introspection or similar
 //! Struct to map attributes to their string representation.
 typedef struct clingo_ast_attribute_names {
     char const *const *names;
@@ -817,6 +866,7 @@ typedef struct clingo_ast_attribute_names {
 
 //! A map from attributes to their string representation.
 CLINGO_VISIBILITY_DEFAULT extern clingo_ast_attribute_names_t g_clingo_ast_attribute_names;
+
 
 //! Struct to define an argument that consists of a name and a type.
 typedef struct clingo_ast_argument {
@@ -841,45 +891,6 @@ typedef struct clingo_ast_constructors {
 //!
 //! @note The idea of this variable is to provide enough information to auto-generate code for language bindings.
 CLINGO_VISIBILITY_DEFAULT extern clingo_ast_constructors_t g_clingo_ast_constructors;
-
-//! This struct provides a view to nodes in the AST.
-typedef struct clingo_ast clingo_ast_t;
-
-//! @name Functions to construct ASTs
-//! @{
-
-//! Construct an AST of the given type.
-//!
-//! @note The arguments corresponding to the given type can be inspected using
-//! "g_clingo_ast_constructors.constructors[type]".
-//!
-//! @param[in] type the type of AST to construct
-//! @param[out] ast the resulting AST
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if one of the arguments is incompatible with the type
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...);
-
-//! @}
-
-//! @name Functions to manage life time of ASTs
-//! @{
-
-//! Increment the reference count of an AST node.
-//!
-//! @note All functions that return AST nodes already increment the reference count.
-//! The reference count of callback arguments is not incremented.
-//!
-//! @param[in] ast the target AST
-CLINGO_VISIBILITY_DEFAULT void clingo_ast_acquire(clingo_ast_t *ast);
-//! Decrement the reference count of an AST node.
-//!
-//! @note The node is deleted if the reference count reaches zero.
-//!
-//! @param[in] ast the target AST
-CLINGO_VISIBILITY_DEFAULT void clingo_ast_release(clingo_ast_t *ast);
-
-//! @}
 
 //! @name Functions to copy ASTs
 //! @{
@@ -1286,6 +1297,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const *const *files, 
                                                       clingo_ast_callback_t callback, void *callback_data,
                                                       clingo_control_t *control, clingo_logger_t logger,
                                                       void *logger_data, unsigned message_limit);
+
+*/
 
 //! @}
 
