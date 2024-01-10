@@ -844,6 +844,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_as
 //! @param[in] ast the target AST
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_free(clingo_ast_t *ast);
 
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_array_free(clingo_ast_t **ast, size_t size);
+
 //! @}
 
 //! @name Functions to get attributes of ASTs
@@ -900,6 +902,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast
 //! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                             clingo_ast_t **value);
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                                  clingo_ast_t ***value, size_t *size);
+
 //! @}
 
 /*

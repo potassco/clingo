@@ -4,29 +4,31 @@
 
 #include <gringo/input/algo/parse.hh>
 
+namespace {
+class ASTVec;
+
+template <class T> auto ast_convert(clingo_ast const *ast) -> T = delete;
+
+template <class T> auto ast_vec_convert(clingo_ast const **ast, size_t size) -> std::vector<T> {
+    std::vector<T> res;
+    res.reserve(size);
+    for (auto it = ast, ie = ast + size; it != ie; ++it) {
+        res.emplace_back(ast_convert<T>(*it));
+    }
+    return res;
+}
+} // namespace
+
 struct clingo_ast {
-    virtual auto copy() -> std::unique_ptr<clingo_ast_t> = 0;
-    virtual auto get_type() -> clingo_ast_type_e = 0;
-    virtual auto get_number(clingo_ast_attribute_t attr) -> std::optional<int> {
-        static_cast<void>(attr);
-        return std::nullopt;
-    }
-    virtual auto get_symbol(clingo_ast_attribute_t attr) -> std::optional<clingo_symbol_t> {
-        static_cast<void>(attr);
-        return std::nullopt;
-    }
-    virtual auto get_location(clingo_ast_attribute_t attr) -> std::optional<clingo_location_t> {
-        static_cast<void>(attr);
-        return std::nullopt;
-    }
-    virtual auto get_string(clingo_ast_attribute_t attr) -> std::optional<char const *> {
-        static_cast<void>(attr);
-        return std::nullopt;
-    }
-    virtual auto get_ast(clingo_ast_attribute_t attr) -> std::optional<std::unique_ptr<clingo_ast_t>> {
-        static_cast<void>(attr);
-        return std::nullopt;
-    }
+    [[nodiscard]] virtual auto copy() const -> std::unique_ptr<clingo_ast_t> = 0;
+    [[nodiscard]] virtual auto get_type() const -> clingo_ast_type_e = 0;
+    [[nodiscard]] virtual auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int>;
+    [[nodiscard]] virtual auto get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t>;
+    [[nodiscard]] virtual auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t>;
+    [[nodiscard]] virtual auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *>;
+    [[nodiscard]] virtual auto get_ast(clingo_ast_attribute_t attr) const
+        -> std::optional<std::unique_ptr<clingo_ast_t>>;
+    [[nodiscard]] virtual auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec>;
     virtual ~clingo_ast() = default;
 };
 
@@ -116,12 +118,12 @@ class ASTVec {
             size_ = size;
         }
     }
-    ASTVec(clingo_ast_t **data, size_t size) : data_{data}, size_{size} {}
-    ASTVec(ASTVec const &other) : ASTVec{other.size()} {
-        for (size_t i = 0; i < size(); ++i) {
-            operator[](i) = other[i]->copy().release();
+    ASTVec(clingo_ast_t const **data, size_t size) : ASTVec{size} {
+        for (size_t i = 0; i < size; ++i) {
+            operator[](i) = data[i]->copy().release();
         }
     }
+    ASTVec(ASTVec const &other) : ASTVec{other.data_, other.size()} {}
     ASTVec(ASTVec &&other) noexcept {
         std::swap(other.data_, data_);
         std::swap(other.size_, size_);
@@ -143,6 +145,8 @@ class ASTVec {
     }
     [[nodiscard]] auto empty() const -> bool { return size_ == 0; }
     [[nodiscard]] auto size() const -> size_t { return size_; }
+    [[nodiscard]] auto begin() const -> clingo_ast_t ** { return data_; }
+    [[nodiscard]] auto end() const -> clingo_ast_t ** { return data_ + size_; }
     auto operator[](size_t i) const -> clingo_ast_t *& {
         return data_[i]; // NOLINT
     }
@@ -152,8 +156,11 @@ class ASTVec {
         size_ = 0;
         return res;
     }
+    static auto acquire(clingo_ast_t **data, size_t size) -> ASTVec { return ASTVec{data, size}; }
 
   private:
+    ASTVec(clingo_ast_t **data, size_t size) : data_{data}, size_{size} {}
+
     clingo_ast_t **data_ = nullptr;
     size_t size_ = 0;
 };
@@ -385,40 +392,98 @@ struct GetASTVec {
 class ASTTerm : public clingo_ast {
   public:
     ASTTerm(Gringo::Input::Term term) : term{std::move(term)} {}
-    auto copy() -> std::unique_ptr<clingo_ast_t> override { return std::make_unique<ASTTerm>(term); }
-    auto get_type() -> clingo_ast_type_e override { return std::visit(GetType{}, term); }
-    auto get_number(clingo_ast_attribute_t attr) -> std::optional<int> override {
+    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
+        return std::make_unique<ASTTerm>(term);
+    }
+    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return std::visit(GetType{}, term); }
+    [[nodiscard]] auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int> override {
         return std::visit(GetNumber{attr}, term);
     }
-    auto get_symbol(clingo_ast_attribute_t attr) -> std::optional<clingo_symbol_t> override {
+    [[nodiscard]] auto get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t> override {
         return std::visit(GetSymbol{attr}, term);
     }
-    auto get_location(clingo_ast_attribute_t attr) -> std::optional<clingo_location_t> override {
+    [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> override {
         if (attr == clingo_ast_attribute_location) {
             return convert_loc(location(term));
         }
         return std::nullopt;
     }
-    auto get_string(clingo_ast_attribute_t attr) -> std::optional<char const *> override {
+    [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *> override {
         return std::visit(GetString{attr}, term);
     }
-    auto get_ast(clingo_ast_attribute_t attr) -> std::optional<std::unique_ptr<clingo_ast_t>> override {
+    [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const
+        -> std::optional<std::unique_ptr<clingo_ast_t>> override {
         return std::visit(GetAST{attr}, term);
     }
+
+    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
 
   private:
     Gringo::Input::Term term;
 };
 
+template <> auto ast_convert<Gringo::Input::Term>(clingo_ast const *ast) -> Gringo::Input::Term {
+    if (auto const *res = dynamic_cast<ASTTerm const *>(ast); res != nullptr) {
+        return res->term;
+    }
+    throw std::runtime_error("invalid type: term expected");
+}
+
+template <>
+auto ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(clingo_ast const *ast)
+    -> Gringo::Util::shared_ptr<Gringo::Input::Term> {
+    return Gringo::Util::construct_shared<Gringo::Input::Term>(ast_convert<Gringo::Input::Term>(ast));
+}
+
 class ASTTermPool : public clingo_ast {
   public:
     ASTTermPool(ASTVec tuple) : tuple_{std::move(tuple)} {}
-    auto copy() -> std::unique_ptr<clingo_ast_t> override { return std::make_unique<ASTTermPool>(tuple_); }
-    auto get_type() -> clingo_ast_type_e override { return clingo_ast_type_term_pool; }
+    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
+        return std::make_unique<ASTTermPool>(tuple_);
+    }
+    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_term_pool; }
+
+    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
 
   private:
     ASTVec tuple_;
 };
+
+template <> auto ast_convert<Gringo::Input::TupleVec>(clingo_ast const *ast) -> Gringo::Input::TupleVec {
+    if (auto const *res = dynamic_cast<ASTTermPool const *>(ast); res != nullptr) {
+        Gringo::Input::TupleVec tuple;
+        tuple.reserve(res->tuple_.size());
+        for (auto const *elem : res->tuple_) {
+            if (elem != nullptr) {
+                tuple.emplace_back(ast_convert<Gringo::Input::Term>(elem));
+            } else {
+                tuple.emplace_back(Gringo::Input::Projection{});
+            }
+        }
+        return tuple;
+    }
+    throw std::runtime_error("invalid type: pool expected");
+}
+
+template <>
+auto ast_convert<Gringo::Input::TermTuple::Element>(clingo_ast const *ast) -> Gringo::Input::TermTuple::Element {
+    if (auto const *res = dynamic_cast<ASTTerm const *>(ast); res != nullptr) {
+        return res->term;
+    }
+    if (auto const *res = dynamic_cast<ASTTermPool const *>(ast); res != nullptr) {
+        Gringo::Input::TupleVec tuple;
+        tuple.reserve(res->tuple_.size());
+        for (auto const *elem : res->tuple_) {
+            if (elem != nullptr) {
+                tuple.emplace_back(ast_convert<Gringo::Input::Term>(elem));
+            } else {
+                tuple.emplace_back(Gringo::Input::Projection{});
+            }
+        }
+        return tuple;
+    }
+    throw std::runtime_error("invalid type: term or pool expected");
+}
 
 auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<ASTTerm>(term);
@@ -472,6 +537,31 @@ auto make_ast_vec(Gringo::Input::TermVec const &terms) -> ASTVec {
 
 }; // namespace
 
+auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<int> {
+    static_cast<void>(attr);
+    return std::nullopt;
+}
+auto clingo_ast::get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t> {
+    static_cast<void>(attr);
+    return std::nullopt;
+}
+auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> {
+    static_cast<void>(attr);
+    return std::nullopt;
+}
+auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *> {
+    static_cast<void>(attr);
+    return std::nullopt;
+}
+auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
+    static_cast<void>(attr);
+    return std::nullopt;
+}
+auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec> {
+    static_cast<void>(attr);
+    return std::nullopt;
+}
+
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
     CLINGO_TRY {
         if (lib == nullptr || ast == nullptr) {
@@ -486,7 +576,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *name = va_arg(args, char const *);
                 va_end(args);
                 *ast = new ASTTerm{Gringo::Input::TermVariable{convert_loc(lib, loc), lib->store->string(name)}};
-                return true;
+                break;
             }
             case clingo_ast_type_term_symbolic: {
                 std::va_list args;
@@ -495,10 +585,78 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sym = va_arg(args, clingo_symbol_t);
                 va_end(args);
                 *ast = new ASTTerm{Gringo::Input::TermSymbol{convert_loc(lib, loc), Gringo::Symbol::from_rep(sym)}};
+                break;
+            }
+            case clingo_ast_type_term_tuple: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **pool = va_arg(args, clingo_ast_t const **);
+                auto size = va_arg(args, size_t);
+                va_end(args);
+                *ast = new ASTTerm{Gringo::Input::TermTuple{
+                    convert_loc(lib, loc), ast_vec_convert<Gringo::Input::TermTuple::Element>(pool, size)}};
                 return true;
             }
-            default: {
-                throw std::logic_error("implement me!!!");
+            case clingo_ast_type_term_function: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *name = va_arg(args, char const *);
+                auto const **pool = va_arg(args, clingo_ast_t const **);
+                auto size = va_arg(args, size_t);
+                auto sign = va_arg(args, int);
+                va_end(args);
+                *ast = new ASTTerm{Gringo::Input::TermFunction{convert_loc(lib, loc), lib->store->string(name),
+                                                               ast_vec_convert<Gringo::Input::TupleVec>(pool, size),
+                                                               sign != 0}};
+                break;
+            }
+            case clingo_ast_type_term_absolute: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **pool = va_arg(args, clingo_ast_t const **);
+                auto size = va_arg(args, size_t);
+                va_end(args);
+                *ast = new ASTTerm{
+                    Gringo::Input::TermAbs{convert_loc(lib, loc), ast_vec_convert<Gringo::Input::Term>(pool, size)}};
+                break;
+            }
+            case clingo_ast_type_term_unary: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto op = va_arg(args, clingo_ast_unary_operator_t);
+                auto const *rhs = va_arg(args, clingo_ast_t *);
+                va_end(args);
+                *ast = new ASTTerm{
+                    Gringo::Input::TermUnary{convert_loc(lib, loc), static_cast<Gringo::Input::UnaryOperator>(op),
+                                             ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
+                break;
+            }
+            case clingo_ast_type_term_binary: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *lhs = va_arg(args, clingo_ast_t *);
+                auto op = va_arg(args, clingo_ast_unary_operator_t);
+                auto const *rhs = va_arg(args, clingo_ast_t *);
+                va_end(args);
+                *ast = new ASTTerm{Gringo::Input::TermBinary{
+                    convert_loc(lib, loc), ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(lhs),
+                    static_cast<Gringo::Input::BinaryOperator>(op),
+                    ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
+                break;
+            }
+            case clingo_ast_type_term_pool: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const **pool = va_arg(args, clingo_ast_t const **);
+                auto size = va_arg(args, size_t);
+                va_end(args);
+                *ast = new ASTTermPool{ASTVec{pool, size}};
+                break;
             }
         }
     }
@@ -506,6 +664,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
 }
 
 extern "C" void clingo_ast_free(clingo_ast_t *ast) { delete ast; }
+
+extern "C" void clingo_ast_array_free(clingo_ast_t **ast, size_t size) { ASTVec::acquire(ast, size); }
 
 extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int *value)
     -> bool {
@@ -547,6 +707,15 @@ extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attri
     -> bool {
     if (auto val = ast->get_ast(attribute); val) {
         *value = val->release();
+        return true;
+    }
+    return false;
+}
+
+extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                   clingo_ast_t ***value, size_t *size) -> bool {
+    if (auto val = ast->get_ast_vec(attribute); val) {
+        std::tie(*value, *size) = val->release();
         return true;
     }
     return false;
