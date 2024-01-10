@@ -5,11 +5,28 @@
 #include <gringo/input/algo/parse.hh>
 
 struct clingo_ast {
-    virtual auto get_number(clingo_ast_attribute_t attr) -> std::optional<int> = 0;
-    virtual auto get_symbol(clingo_ast_attribute_t attr) -> std::optional<clingo_symbol_t> = 0;
-    virtual auto get_location(clingo_ast_attribute_t attr) -> std::optional<clingo_location_t> = 0;
-    virtual auto get_string(clingo_ast_attribute_t attr) -> std::optional<char const *> = 0;
-    virtual auto get_ast(clingo_ast_attribute_t attr) -> std::optional<std::unique_ptr<clingo_ast_t>> = 0;
+    virtual auto copy() -> std::unique_ptr<clingo_ast_t> = 0;
+    virtual auto get_type() -> clingo_ast_type_e = 0;
+    virtual auto get_number(clingo_ast_attribute_t attr) -> std::optional<int> {
+        static_cast<void>(attr);
+        return std::nullopt;
+    }
+    virtual auto get_symbol(clingo_ast_attribute_t attr) -> std::optional<clingo_symbol_t> {
+        static_cast<void>(attr);
+        return std::nullopt;
+    }
+    virtual auto get_location(clingo_ast_attribute_t attr) -> std::optional<clingo_location_t> {
+        static_cast<void>(attr);
+        return std::nullopt;
+    }
+    virtual auto get_string(clingo_ast_attribute_t attr) -> std::optional<char const *> {
+        static_cast<void>(attr);
+        return std::nullopt;
+    }
+    virtual auto get_ast(clingo_ast_attribute_t attr) -> std::optional<std::unique_ptr<clingo_ast_t>> {
+        static_cast<void>(attr);
+        return std::nullopt;
+    }
     virtual ~clingo_ast() = default;
 };
 
@@ -89,6 +106,57 @@ static_assert(clingo_ast_theory_atom_definition_type_any ==
               static_cast<clingo_ast_theory_atom_definition_type_e>(Gringo::Input::TheoryAtomType::any));
 static_assert(clingo_ast_theory_atom_definition_type_directive ==
               static_cast<clingo_ast_theory_atom_definition_type_e>(Gringo::Input::TheoryAtomType::directive));
+
+class ASTVec {
+  public:
+    ASTVec() = default;
+    ASTVec(size_t size) {
+        if (size > 0) {
+            data_ = new clingo_ast_t *[size] { nullptr };
+            size_ = size;
+        }
+    }
+    ASTVec(clingo_ast_t **data, size_t size) : data_{data}, size_{size} {}
+    ASTVec(ASTVec const &other) : ASTVec{other.size()} {
+        for (size_t i = 0; i < size(); ++i) {
+            operator[](i) = other[i]->copy().release();
+        }
+    }
+    ASTVec(ASTVec &&other) noexcept {
+        std::swap(other.data_, data_);
+        std::swap(other.size_, size_);
+    }
+    auto operator=(ASTVec const &other) -> ASTVec & {
+        *this = ASTVec{other};
+        return *this;
+    }
+    auto operator=(ASTVec &&other) noexcept -> ASTVec & {
+        std::swap(other.data_, data_);
+        std::swap(other.size_, size_);
+        return *this;
+    }
+    ~ASTVec() {
+        for (auto it = data_, ie = data_ + size_; it != ie; ++it) {
+            delete *it;
+        }
+        delete[] data_;
+    }
+    [[nodiscard]] auto empty() const -> bool { return size_ == 0; }
+    [[nodiscard]] auto size() const -> size_t { return size_; }
+    auto operator[](size_t i) const -> clingo_ast_t *& {
+        return data_[i]; // NOLINT
+    }
+    auto release() -> std::pair<clingo_ast_t **, size_t> {
+        auto res = std::make_pair(data_, size_);
+        data_ = nullptr;
+        size_ = 0;
+        return res;
+    }
+
+  private:
+    clingo_ast_t **data_ = nullptr;
+    size_t size_ = 0;
+};
 
 struct GetType {
     // terms
@@ -233,6 +301,11 @@ auto convert_loc(Gringo::Input::Location const &loc) -> clingo_location_t {
 }
 
 auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Gringo::Input::TermTuple::Element const &tuple) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast_vec(Gringo::Input::TermVec const &terms) -> ASTVec;
+auto make_ast_vec(Gringo::Input::PoolVec const &pool) -> ASTVec;
+auto make_ast_vec(Gringo::Input::TermTuple::ElementVec const &pool) -> ASTVec;
 
 struct GetAST {
     // default
@@ -269,27 +342,35 @@ struct GetAST {
 
 struct GetASTVec {
     // default
-    template <class T> auto operator()(T const &term) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
+    template <class T> auto operator()(T const &term) const -> std::optional<ASTVec> {
         static_cast<void>(term);
         return std::nullopt;
     }
     // terms
-    auto operator()(Gringo::Input::TermAbs const &term) const
-        -> std::optional<std::vector<std::unique_ptr<clingo_ast_t>>> {
+    auto operator()(Gringo::Input::TermAbs const &term) const -> std::optional<ASTVec> {
         switch (attr) {
             case clingo_ast_attribute_pool: {
-                // for performance it would probably be a good idea to return a vector of ASTS
-                // how to handle pools of functions/tuples
-                // pool:
-                //   elements: [Term|Null]
-                //   a pool is an AST without location
-                //   with this helper ast; the definition of functions and tuples can simply use this ASTVec class
-                // function:
-                //   pool: [Pool]
-                // tuple:
-                //   pool: [Pool|Term]
-                static_cast<void>(term);
-                throw std::logic_error("implement me!!!");
+                return make_ast_vec(term.pool);
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    auto operator()(Gringo::Input::TermTuple const &term) const -> std::optional<ASTVec> {
+        switch (attr) {
+            case clingo_ast_attribute_pool: {
+                return make_ast_vec(term.pool);
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    auto operator()(Gringo::Input::TermFunction const &term) const -> std::optional<ASTVec> {
+        switch (attr) {
+            case clingo_ast_attribute_pool: {
+                return make_ast_vec(term.pool);
             }
             default: {
                 return std::nullopt;
@@ -301,9 +382,11 @@ struct GetASTVec {
 
 // Note: the AST could simply store the library object for error reporting.
 // This would allow for better error reporting at the expense of a tiny memory overhead.
-struct ASTTerm : clingo_ast {
+class ASTTerm : public clingo_ast {
+  public:
     ASTTerm(Gringo::Input::Term term) : term{std::move(term)} {}
-    auto get_type() -> clingo_ast_type_e { return std::visit(GetType{}, term); }
+    auto copy() -> std::unique_ptr<clingo_ast_t> override { return std::make_unique<ASTTerm>(term); }
+    auto get_type() -> clingo_ast_type_e override { return std::visit(GetType{}, term); }
     auto get_number(clingo_ast_attribute_t attr) -> std::optional<int> override {
         return std::visit(GetNumber{attr}, term);
     }
@@ -322,11 +405,69 @@ struct ASTTerm : clingo_ast {
     auto get_ast(clingo_ast_attribute_t attr) -> std::optional<std::unique_ptr<clingo_ast_t>> override {
         return std::visit(GetAST{attr}, term);
     }
+
+  private:
     Gringo::Input::Term term;
+};
+
+class ASTTermPool : public clingo_ast {
+  public:
+    ASTTermPool(ASTVec tuple) : tuple_{std::move(tuple)} {}
+    auto copy() -> std::unique_ptr<clingo_ast_t> override { return std::make_unique<ASTTermPool>(tuple_); }
+    auto get_type() -> clingo_ast_type_e override { return clingo_ast_type_term_pool; }
+
+  private:
+    ASTVec tuple_;
 };
 
 auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<ASTTerm>(term);
+}
+
+auto make_ast(Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t> {
+    ASTVec res{tuple.size()};
+    size_t i = 0;
+    for (auto const &term_or_projection : tuple) {
+        if (auto const *term = std::get_if<Gringo::Input::Term>(&term_or_projection); term != nullptr) {
+            res[i] = make_ast(*term).release();
+        }
+        ++i;
+    }
+    return std::make_unique<ASTTermPool>(std::move(res));
+}
+
+auto make_ast(Gringo::Input::TermTuple::Element const &term_or_tuple) -> std::unique_ptr<clingo_ast_t> {
+    return std::visit([](auto const &x) { return make_ast(x); }, term_or_tuple);
+}
+
+auto make_ast_vec(Gringo::Input::PoolVec const &pool) -> ASTVec {
+    ASTVec res{pool.size()};
+    size_t i = 0;
+    for (auto const &tuple : pool) {
+        res[i] = make_ast(tuple).release();
+        ++i;
+    }
+    return res;
+}
+
+auto make_ast_vec(Gringo::Input::TermTuple::ElementVec const &pool) -> ASTVec {
+    ASTVec res{pool.size()};
+    size_t i = 0;
+    for (auto const &tuple : pool) {
+        res[i] = make_ast(tuple).release();
+        ++i;
+    }
+    return res;
+}
+
+auto make_ast_vec(Gringo::Input::TermVec const &terms) -> ASTVec {
+    ASTVec res{terms.size()};
+    size_t i = 0;
+    for (auto const &term : terms) {
+        res[i] = make_ast(term).release();
+        ++i;
+    }
+    return res;
 }
 
 }; // namespace
