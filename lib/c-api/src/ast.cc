@@ -669,6 +669,7 @@ extern "C" void clingo_ast_array_free(clingo_ast_t **ast, size_t size) { ASTVec:
 
 extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int *value)
     -> bool {
+    // TODO: check args and error handling
     if (auto num = ast->get_number(attribute); num) {
         *value = *num;
         return true;
@@ -678,6 +679,7 @@ extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_at
 
 extern "C" auto clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                 clingo_symbol_t *value) -> bool {
+    // TODO: check args and error handling
     if (auto sym = ast->get_symbol(attribute); sym) {
         *value = *sym;
         return true;
@@ -687,6 +689,7 @@ extern "C" auto clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_at
 
 extern "C" auto clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                   clingo_location_t *value) -> bool {
+    // TODO: check args and error handling
     if (auto loc = ast->get_location(attribute); loc) {
         *value = *loc;
         return true;
@@ -696,6 +699,7 @@ extern "C" auto clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_
 
 extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute, char const **value)
     -> bool {
+    // TODO: check args and error handling
     if (auto str = ast->get_string(attribute); str) {
         *value = *str;
         return true;
@@ -705,6 +709,7 @@ extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_at
 
 extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value)
     -> bool {
+    // TODO: check args and error handling
     if (auto val = ast->get_ast(attribute); val) {
         *value = val->release();
         return true;
@@ -714,6 +719,7 @@ extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attri
 
 extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                    clingo_ast_t ***value, size_t *size) -> bool {
+    // TODO: check args and error handling
     if (auto val = ast->get_ast_vec(attribute); val) {
         std::tie(*value, *size) = val->release();
         return true;
