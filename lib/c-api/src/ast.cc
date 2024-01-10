@@ -9,6 +9,7 @@ struct clingo_ast {
     virtual auto get_symbol(clingo_ast_attribute_t attr) -> std::optional<clingo_symbol_t> = 0;
     virtual auto get_location(clingo_ast_attribute_t attr) -> std::optional<clingo_location_t> = 0;
     virtual auto get_string(clingo_ast_attribute_t attr) -> std::optional<char const *> = 0;
+    virtual auto get_ast(clingo_ast_attribute_t attr) -> std::optional<std::unique_ptr<clingo_ast_t>> = 0;
     virtual ~clingo_ast() = default;
 };
 
@@ -231,6 +232,43 @@ auto convert_loc(Gringo::Input::Location const &loc) -> clingo_location_t {
             loc.end.line,           loc.begin.column,     loc.end.column};
 }
 
+auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t>;
+
+struct GetAST {
+    // default
+    template <class T> auto operator()(T const &term) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+    // terms
+    auto operator()(Gringo::Input::TermUnary const &term) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
+        switch (attr) {
+            case clingo_ast_attribute_right: {
+                return make_ast(*term.rhs);
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    auto operator()(Gringo::Input::TermBinary const &term) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
+        switch (attr) {
+            case clingo_ast_attribute_left: {
+                return make_ast(*term.lhs);
+            }
+            case clingo_ast_attribute_right: {
+                return make_ast(*term.rhs);
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    clingo_ast_attribute_t attr;
+};
+
+// Note: the AST could simply store the library object for error reporting.
+// This would allow for better error reporting at the expense of a tiny memory overhead.
 struct ASTTerm : clingo_ast {
     ASTTerm(Gringo::Input::Term term) : term{std::move(term)} {}
     auto get_type() -> clingo_ast_type_e { return std::visit(GetType{}, term); }
@@ -249,8 +287,15 @@ struct ASTTerm : clingo_ast {
     auto get_string(clingo_ast_attribute_t attr) -> std::optional<char const *> override {
         return std::visit(GetString{attr}, term);
     }
+    auto get_ast(clingo_ast_attribute_t attr) -> std::optional<std::unique_ptr<clingo_ast_t>> override {
+        return std::visit(GetAST{attr}, term);
+    }
     Gringo::Input::Term term;
 };
+
+auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<ASTTerm>(term);
+}
 
 }; // namespace
 
@@ -320,6 +365,15 @@ extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_at
     -> bool {
     if (auto str = ast->get_string(attribute); str) {
         *value = *str;
+        return true;
+    }
+    return false;
+}
+
+extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value)
+    -> bool {
+    if (auto val = ast->get_ast(attribute); val) {
+        *value = val->release();
         return true;
     }
     return false;

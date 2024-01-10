@@ -769,6 +769,8 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_symbol,
     clingo_ast_attribute_location,
     clingo_ast_attribute_name,
+    clingo_ast_attribute_left,
+    clingo_ast_attribute_right,
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arguments,
@@ -883,6 +885,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_location(clingo_ast_t *a
 //! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                                char const **value);
+
+//! Get the value of an attribute of type "clingo_ast_attribute_type_ast" or "clingo_ast_attribute_type_optional_ast".
+//!
+//! The value will be set to NULL if the optional AST does not have a value.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                            clingo_ast_t **value);
 //! @}
 
 /*
