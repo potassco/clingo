@@ -267,6 +267,38 @@ struct GetAST {
     clingo_ast_attribute_t attr;
 };
 
+struct GetASTVec {
+    // default
+    template <class T> auto operator()(T const &term) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
+        static_cast<void>(term);
+        return std::nullopt;
+    }
+    // terms
+    auto operator()(Gringo::Input::TermAbs const &term) const
+        -> std::optional<std::vector<std::unique_ptr<clingo_ast_t>>> {
+        switch (attr) {
+            case clingo_ast_attribute_pool: {
+                // for performance it would probably be a good idea to return a vector of ASTS
+                // how to handle pools of functions/tuples
+                // pool:
+                //   elements: [Term|Null]
+                //   a pool is an AST without location
+                //   with this helper ast; the definition of functions and tuples can simply use this ASTVec class
+                // function:
+                //   pool: [Pool]
+                // tuple:
+                //   pool: [Pool|Term]
+                static_cast<void>(term);
+                throw std::logic_error("implement me!!!");
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    clingo_ast_attribute_t attr;
+};
+
 // Note: the AST could simply store the library object for error reporting.
 // This would allow for better error reporting at the expense of a tiny memory overhead.
 struct ASTTerm : clingo_ast {

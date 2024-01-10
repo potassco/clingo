@@ -771,6 +771,7 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_name,
     clingo_ast_attribute_left,
     clingo_ast_attribute_right,
+    clingo_ast_attribute_pool,
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arguments,
