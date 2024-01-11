@@ -915,6 +915,8 @@ typedef struct clingo_ast_type_info_array {
 
 CLINGO_VISIBILITY_DEFAULT extern clingo_ast_type_info_array_t g_clingo_ast_type_info_array;
 
+CLINGO_VISIBILITY_DEFAULT char const *clingo_ast_type_info_json();
+
 //! @}
 
 /*

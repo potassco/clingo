@@ -1,4 +1,5 @@
 #include <cstdarg>
+#include <cstring>
 
 #include "lib.hh"
 
@@ -138,10 +139,11 @@ class ASTVec {
         return *this;
     }
     ~ASTVec() {
+        // TODO: check nolints
         for (auto it = data_, ie = data_ + size_; it != ie; ++it) {
-            delete *it;
+            delete *it; // NOLINT
         }
-        delete[] data_;
+        delete[] data_; // NOLINT
     }
     [[nodiscard]] auto empty() const -> bool { return size_ == 0; }
     [[nodiscard]] auto size() const -> size_t { return size_; }
@@ -759,6 +761,58 @@ static constexpr auto ast_type_info = std::array{CONSTRUCTORS};
 
 clingo_ast_type_info_array_t g_clingo_ast_type_info_array = {ast_type_info.data(), ast_type_info.size()};
 
+extern "C" auto clingo_ast_type_info_json() -> char const * {
+    static std::string result;
+    if (result.empty()) {
+        std::ostringstream oss;
+        Gringo::Util::unordered_set<std::string> base_types;
+        oss << "{";
+        oss << "\"base_types\":[";
+        bool comma = false;
+        for (auto const &type_info : ast_type_info) {
+            if (std::strcmp(type_info.type, type_info.base_type) != 0 &&
+                base_types.insert(type_info.base_type).second) {
+                if (comma) {
+                    oss << ",";
+                } else {
+                    comma = true;
+                }
+                oss << "{"
+                    << R"("name":")" << type_info.base_type << "\"}";
+            }
+        }
+        oss << "],\"types\":[";
+        comma = false;
+        for (auto const &type_info : ast_type_info) {
+            if (comma) {
+                oss << ",";
+            } else {
+                comma = true;
+            }
+            oss << "{";
+            oss << R"("name":")" << type_info.type << "\",";
+            if (std::strcmp(type_info.type, type_info.base_type) != 0) {
+                oss << R"("base_type":")" << type_info.base_type << "\",";
+            }
+            oss << "\"arguments\":[";
+            bool sub_comma = false;
+            std::for_each_n(type_info.arguments, type_info.size, [&](clingo_ast_argument_info_t const &arg_info) {
+                if (sub_comma) {
+                    oss << ",";
+                } else {
+                    sub_comma = true;
+                }
+                oss << R"({ "name":")" << arg_info.name << R"(", "type": ")" << arg_info.type << "\"}";
+            });
+            oss << "]";
+            oss << "}";
+        }
+        oss << "]";
+        oss << "}";
+        result = oss.str();
+    }
+    return result.c_str();
+}
 /*
 static constexpr auto attribute_names = std::array{
     "anonymous", "argument",      "arguments",     "arity",        "atom",       "atoms",     "atom_type",  "bias",
