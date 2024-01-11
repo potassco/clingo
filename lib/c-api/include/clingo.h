@@ -746,37 +746,21 @@ enum clingo_ast_type_e {
 //! Corresponding type to ::clingo_ast_type_e.
 typedef int clingo_ast_type_t;
 
-//! Enumeration of attributes types used by the AST.
-enum clingo_ast_attribute_type_e {
-    clingo_ast_attribute_type_number = 0, //!< For an attribute of type "int".
-    /*
-    clingo_ast_attribute_type_symbol = 1,       //!< For an attribute of type "clingo_ast_symbol_t".
-    clingo_ast_attribute_type_location = 2,     //!< For an attribute of type "clingo_location_t".
-    clingo_ast_attribute_type_string = 3,       //!< For an attribute of type "char const *".
-    clingo_ast_attribute_type_ast = 4,          //!< For an attribute of type "clingo_ast_t *".
-    clingo_ast_attribute_type_optional_ast = 5, //!< For an attribute of type "clingo_ast_t *" that can be NULL.
-    clingo_ast_attribute_type_string_array = 6, //!< For an attribute of type "char const **".
-    clingo_ast_attribute_type_ast_array = 7,    //!< For an attribute of type "clingo_ast_t **".
-    */
-};
-//! Corresponding type to ::clingo_ast_attribute_type.
-typedef int clingo_ast_attribute_type_t;
-
 //! Enumeration of attributes used by the AST.
 enum clingo_ast_attribute_e {
     clingo_ast_attribute_anonymous,
     clingo_ast_attribute_external,
-    clingo_ast_attribute_operator_type,
-    clingo_ast_attribute_symbol,
+    clingo_ast_attribute_left,
     clingo_ast_attribute_location,
     clingo_ast_attribute_name,
-    clingo_ast_attribute_left,
-    clingo_ast_attribute_right,
+    clingo_ast_attribute_operator_type,
     clingo_ast_attribute_pool,
+    clingo_ast_attribute_right,
+    clingo_ast_attribute_symbol,
     clingo_ast_attribute_tuple,
+    clingo_ast_attribute_arguments,
     /*
     clingo_ast_attribute_argument,
-    clingo_ast_attribute_arguments,
     clingo_ast_attribute_arity,
     clingo_ast_attribute_atom,
     clingo_ast_attribute_atoms,
@@ -905,6 +889,31 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, c
 
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                                   clingo_ast_t ***value, size_t *size);
+
+//! Struct to define an argument that consists of a name, type, and base type.
+typedef struct clingo_ast_argument_info {
+    char const *name;
+    char const *type;
+    char const *base_type;
+} clingo_ast_argument_info_t;
+
+//! A lists of attributes to construct an AST.
+typedef struct clingo_ast_type_info {
+    char const *type;
+    char const *base_type;
+    clingo_ast_argument_info_t const *arguments;
+    size_t size;
+} clingo_ast_type_info_t;
+
+//! Detailed type information for all AST types.
+//!
+//! The array contains enough information to generate structured bindings for the AST.
+typedef struct clingo_ast_type_info_array {
+    clingo_ast_type_info_t const *array;
+    size_t size;
+} clingo_ast_type_info_array_t;
+
+CLINGO_VISIBILITY_DEFAULT extern clingo_ast_type_info_array_t g_clingo_ast_type_info_array;
 
 //! @}
 

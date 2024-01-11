@@ -727,6 +727,38 @@ extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast
     return false;
 }
 
+// Type:
+//   BaseType
+//   attributes: [(Name, Type)]
+
+#define CONSTRUCTORS                                                                                                   \
+    C(variable, term, A(location, location, location), A(name, string, string))                                        \
+    C(symbolic_term, term, A(symbol, symbol, symbol))                                                                  \
+    C(unary_operation, term, A(operator_type, unary_operator, number), A(right, term, ast))                            \
+    C(binary_operation, term, A(left, term, ast), A(operator_type, binary_operator, number), A(right, term, ast))      \
+    C(tuple, term, A(arguments, term_or_pool_array, ast_array))                                                        \
+    C(function, term, A(name, string, string), A(arguments, pool_array, ast_array), A(external, number, none))         \
+    C(pool, pool, A(location, location, none), A(arguments, optional_term_array, ast_array))
+
+#define S(x) #x
+#define A(name, type, base_type)                                                                                       \
+    clingo_ast_argument_info_t {                                                                                       \
+        #name, S(clingo_ast_attribute_type_##type), S(clingo_ast_attribute_base_type_##base_type)                      \
+    }
+#define C(name, base_type, ...) static constexpr auto clingo_ast_argument_##name = std::array{__VA_ARGS__};
+CONSTRUCTORS
+#undef C
+#undef A
+
+#define A(name, type) 1
+#define C(name, base_type, ...)                                                                                        \
+    clingo_ast_type_info_t{#name, #base_type, clingo_ast_argument_##name.data(), clingo_ast_argument_##name.size()},
+static constexpr auto ast_type_info = std::array{CONSTRUCTORS};
+#undef C
+#undef A
+
+clingo_ast_type_info_array_t g_clingo_ast_type_info_array = {ast_type_info.data(), ast_type_info.size()};
+
 /*
 static constexpr auto attribute_names = std::array{
     "anonymous", "argument",      "arguments",     "arity",        "atom",       "atoms",     "atom_type",  "bias",
@@ -799,19 +831,6 @@ ast_array), \
     C(defined, TODO, A(location, location), A(name, string), A(arity, number), A(positive, number)) \
     C(theory_definition, TODO, A(location, location), A(name, string), A(terms, ast_array), A(atoms, ast_array)) \
     C(comment, TODO, A(location, location), A(value, string), A(comment_type, number))
-
-#define A(name, type)                                                                                                  \
-    clingo_ast_argument_t { clingo_ast_attribute_##name, clingo_ast_attribute_type_##type }
-#define C(name, type, ...) static constexpr auto clingo_ast_argument_##name = std::array{__VA_ARGS__};
-CONSTRUCTORS
-#undef C
-#undef A
-
-#define C(name, type, ...) \ clingo_ast_constructor_t{#name, clingo_ast_argument_##name.data(),
-clingo_ast_argument_##name.size()}, #define A(name, type) 1 static constexpr auto ast_constructors =
-std::array{CONSTRUCTORS}; #undef C #undef A
-
-clingo_ast_constructors_t g_clingo_ast_constructors = {ast_constructors.data(), ast_constructors.size()};
 
 struct clingo_ast {
     clingo_ast_type_t type;
