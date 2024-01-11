@@ -632,14 +632,6 @@ enum clingo_ast_sign_e {
 //! Corresponding type to ::clingo_ast_sign_t.
 typedef int clingo_ast_sign_t;
 
-//! Enumeration of unary operators.
-enum clingo_ast_unary_operator_e {
-    clingo_ast_unary_operator_minus = 0,    //!< Operator "-".
-    clingo_ast_unary_operator_negation = 1, //!< Operator "~".
-};
-//! Corresponding type to ::clingo_ast_unary_operator_e.
-typedef int clingo_ast_unary_operator_t;
-
 //! Enumeration of binary operators.
 enum clingo_ast_binary_operator_e {
     clingo_ast_binary_operator_and = 0,            //!< Operator "&".
@@ -695,7 +687,7 @@ enum clingo_ast_type_e {
     clingo_ast_type_term_binary,
     clingo_ast_type_term_tuple,
     clingo_ast_type_term_function,
-    clingo_ast_type_term_pool,
+    clingo_ast_type_pool,
     /*
     // simple atoms
     clingo_ast_type_boolean_constant,

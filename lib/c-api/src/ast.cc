@@ -3,6 +3,9 @@
 
 #include "lib.hh"
 
+#include <gringo/util/ordered_map.hh>
+#include <gringo/util/ordered_set.hh>
+
 #include <gringo/input/algo/parse.hh>
 
 namespace {
@@ -35,6 +38,7 @@ struct clingo_ast {
 
 namespace {
 
+/*
 static_assert(clingo_ast_theory_sequence_type_tuple ==
               static_cast<clingo_ast_theory_sequence_type_e>(Gringo::Input::TheoryTermTupleType::tuple));
 static_assert(clingo_ast_theory_sequence_type_list ==
@@ -109,6 +113,8 @@ static_assert(clingo_ast_theory_atom_definition_type_any ==
               static_cast<clingo_ast_theory_atom_definition_type_e>(Gringo::Input::TheoryAtomType::any));
 static_assert(clingo_ast_theory_atom_definition_type_directive ==
               static_cast<clingo_ast_theory_atom_definition_type_e>(Gringo::Input::TheoryAtomType::directive));
+
+*/
 
 class ASTVec {
   public:
@@ -443,7 +449,7 @@ class ASTTermPool : public clingo_ast {
     [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
         return std::make_unique<ASTTermPool>(tuple_);
     }
-    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_term_pool; }
+    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_pool; }
 
     template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
 
@@ -629,7 +635,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 std::va_list args;
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
-                auto op = va_arg(args, clingo_ast_unary_operator_t);
+                auto op = va_arg(args, int);
                 auto const *rhs = va_arg(args, clingo_ast_t *);
                 va_end(args);
                 *ast = new ASTTerm{
@@ -642,7 +648,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 auto const *lhs = va_arg(args, clingo_ast_t *);
-                auto op = va_arg(args, clingo_ast_unary_operator_t);
+                auto op = va_arg(args, int);
                 auto const *rhs = va_arg(args, clingo_ast_t *);
                 va_end(args);
                 *ast = new ASTTerm{Gringo::Input::TermBinary{
@@ -651,7 +657,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
                 break;
             }
-            case clingo_ast_type_term_pool: {
+            case clingo_ast_type_pool: {
                 std::va_list args;
                 va_start(args, ast);
                 auto const **pool = va_arg(args, clingo_ast_t const **);
@@ -729,106 +735,311 @@ extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast
     return false;
 }
 
-// Type:
-//   BaseType
-//   attributes: [(Name, Type)]
-
-#define CONSTRUCTORS                                                                                                   \
-    C(variable, term, A(location, location, location), A(name, string, string))                                        \
-    C(symbolic_term, term, A(symbol, symbol, symbol))                                                                  \
-    C(unary_operation, term, A(operator_type, unary_operator, number), A(right, term, ast))                            \
-    C(binary_operation, term, A(left, term, ast), A(operator_type, binary_operator, number), A(right, term, ast))      \
-    C(tuple, term, A(arguments, term_or_pool_array, ast_array))                                                        \
-    C(function, term, A(name, string, string), A(arguments, pool_array, ast_array), A(external, number, none))         \
-    C(pool, pool, A(location, location, none), A(arguments, optional_term_array, ast_array))
-
-#define S(x) #x
-#define A(name, type, base_type)                                                                                       \
-    clingo_ast_argument_info_t {                                                                                       \
-        #name, S(clingo_ast_attribute_type_##type), S(clingo_ast_attribute_base_type_##base_type)                      \
+template <class T> struct Q {
+    Q(T const &value) : value{value} {}
+    friend auto operator<<(std::ostream &out, Q const &q) -> std::ostream & {
+        out << '"' << q.value << '"';
+        return out;
     }
-#define C(name, base_type, ...) static constexpr auto clingo_ast_argument_##name = std::array{__VA_ARGS__};
-CONSTRUCTORS
-#undef C
-#undef A
-
-#define A(name, type) 1
-#define C(name, base_type, ...)                                                                                        \
-    clingo_ast_type_info_t{#name, #base_type, clingo_ast_argument_##name.data(), clingo_ast_argument_##name.size()},
-static constexpr auto ast_type_info = std::array{CONSTRUCTORS};
-#undef C
-#undef A
-
-clingo_ast_type_info_array_t g_clingo_ast_type_info_array = {ast_type_info.data(), ast_type_info.size()};
-
-extern "C" auto clingo_ast_type_info_json() -> char const * {
-    static std::string result;
-    if (result.empty()) {
-        std::ostringstream oss;
-        Gringo::Util::unordered_set<std::string> base_types;
-        oss << "{";
-        oss << "\"base_types\":[";
-        bool comma = false;
-        for (auto const &type_info : ast_type_info) {
-            if (std::strcmp(type_info.type, type_info.base_type) != 0 &&
-                base_types.insert(type_info.base_type).second) {
-                if (comma) {
-                    oss << ",";
-                } else {
-                    comma = true;
-                }
-                oss << "{"
-                    << R"("name":")" << type_info.base_type << "\"}";
-            }
-        }
-        oss << "],\"types\":[";
-        comma = false;
-        for (auto const &type_info : ast_type_info) {
-            if (comma) {
-                oss << ",";
-            } else {
-                comma = true;
-            }
-            oss << "{";
-            oss << R"("name":")" << type_info.type << "\",";
-            if (std::strcmp(type_info.type, type_info.base_type) != 0) {
-                oss << R"("base_type":")" << type_info.base_type << "\",";
-            }
-            oss << "\"arguments\":[";
-            bool sub_comma = false;
-            std::for_each_n(type_info.arguments, type_info.size, [&](clingo_ast_argument_info_t const &arg_info) {
-                if (sub_comma) {
-                    oss << ",";
-                } else {
-                    sub_comma = true;
-                }
-                oss << R"({ "name":")" << arg_info.name << R"(", "type": ")" << arg_info.type << "\"}";
-            });
-            oss << "]";
-            oss << "}";
-        }
-        oss << "]";
-        oss << "}";
-        result = oss.str();
-    }
-    return result.c_str();
-}
-/*
-static constexpr auto attribute_names = std::array{
-    "anonymous", "argument",      "arguments",     "arity",        "atom",       "atoms",     "atom_type",  "bias",
-    "body",          "code",          "coefficient",  "comparison", "condition", "elements",   "external",
-    "external_type", "function",      "guard",        "guards",     "head",      "is_default", "left",
-    "left_guard",    "literal",       "location",     "modifier",   "name",      "node_u",     "node_v",
-    "operator_name", "operator_type", "operators",    "parameters", "positive",  "priority",   "right",
-    "right_guard",   "sequence_type", "sign",         "symbol",     "term",      "terms",      "value",
-    "variable",      "weight",        "comment_type",
+    T const &value;
 };
 
-clingo_ast_attribute_names_t g_clingo_ast_attribute_names = {attribute_names.data(), attribute_names.size()};
+struct Comma {
+    friend auto operator<<(std::ostream &out, Comma &q) -> std::ostream & {
+        if (q.comma) {
+            out << ",";
+        } else {
+            q.comma = true;
+        }
+        return out;
+    }
+    bool comma = false;
+};
 
+extern "C" auto clingo_ast_type_info_json() -> char const * {
+    return R"([
+  {
+    "name": "unary_operator",
+    "type": "enum",
+    "doc": "Available unary operators.",
+    "values": {
+      "minus": {
+        "value": 0,
+        "doc": "Operator `-`."
+      },
+      "negation": {
+        "value": 1,
+        "doc": "Operator `~`."
+      }
+    }
+  },
+  {
+    "name": "binary_operator",
+    "type": "enum",
+    "doc": "Available binary operators.",
+    "values": {
+      "and": {
+        "value": 0,
+        "doc": "Operator `&`."
+      },
+      "division": {
+        "value": 1,
+        "doc": "Operator `/`."
+      },
+      "minus": {
+        "value": 2,
+        "doc": "Operator `-`."
+      },
+      "modulo": {
+        "value": 3,
+        "doc": "Operator `%`."
+      },
+      "multiplication": {
+        "value": 4,
+        "doc": "Operator `*`."
+      },
+      "or": {
+        "value": 5,
+        "doc": "Operator `|`."
+      },
+      "plus": {
+        "value": 6,
+        "doc": "Operator `+`."
+      },
+      "power": {
+        "value": 7,
+        "doc": "Operator `**`."
+      },
+      "xor": {
+        "value": 8,
+        "doc": "Operator `^`."
+      }
+    }
+  },
+  {
+    "name": "term_variable",
+    "type": "forward"
+  },
+  {
+    "name": "term_symbolic",
+    "type": "forward"
+  },
+  {
+    "name": "term_absolute",
+    "type": "forward"
+  },
+  {
+    "name": "term_unary_operation",
+    "type": "forward"
+  },
+  {
+    "name": "term_binary_operation",
+    "type": "forward"
+  },
+  {
+    "name": "term_tuple",
+    "type": "forward"
+  },
+  {
+    "name": "term_function",
+    "type": "forward"
+  },
+  {
+    "name": "term_variable",
+    "type": "forward"
+  },
+  {
+    "name": "term",
+    "type": "union",
+    "types": [
+      "term_variable",
+      "term_symbolic",
+      "term_absolute",
+      "term_unary_operation",
+      "term_binary_operation",
+      "term_tuple",
+      "term_function"
+    ]
+  },
+  {
+    "name": "term_array",
+    "type": "array",
+    "value_type": "term"
+  },
+  {
+    "name": "projection",
+    "type": "record",
+    "arguments": [
+      {
+        "name": "location",
+        "type": "location"
+      }
+    ]
+  },
+  {
+    "name": "term_or_projection",
+    "type": "union",
+    "types": ["term", "projection"]
+  },
+  {
+    "name": "term_or_projection_array",
+    "type": "array",
+    "value_type": "term_or_projection"
+  },
+  {
+    "name": "pool",
+    "type": "forward"
+  },
+  {
+    "name": "pool_array",
+    "type": "array",
+    "value_type": "pool"
+  },
+  {
+    "name": "term_or_pool",
+    "type": "union",
+    "types": [
+      "term",
+      "pool"
+    ]
+  },
+  {
+    "name": "term_or_pool_array",
+    "type": "array",
+    "value_type": "term_or_pool"
+  },
+  {
+    "name": "term_variable",
+    "type": "record",
+    "arguments": [
+      {
+        "name": "location",
+        "type": "location"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "term_symbolic",
+    "type": "record",
+    "arguments": [
+      {
+        "name": "location",
+        "type": "location"
+      },
+      {
+        "name": "symbol",
+        "type": "symbol"
+      }
+    ]
+  },
+  {
+    "name": "term_absolute",
+    "type": "record",
+    "arguments": [
+      {
+        "name": "location",
+        "type": "location"
+      },
+      {
+        "name": "pool",
+        "type": "term_array"
+      }
+    ]
+  },
+  {
+    "name": "term_unary_operation",
+    "type": "record",
+    "arguments": [
+      {
+        "name": "location",
+        "type": "location"
+      },
+      {
+        "name": "operator_type",
+        "type": "unary_operator"
+      },
+      {
+        "name": "right",
+        "type": "term"
+      }
+    ]
+  },
+  {
+    "name": "term_binary_operation",
+    "type": "record",
+    "arguments": [
+      {
+        "name": "location",
+        "type": "location"
+      },
+      {
+        "name": "left",
+        "type": "term"
+      },
+      {
+        "name": "operator_type",
+        "type": "binary_operator"
+      },
+      {
+        "name": "right",
+        "type": "term"
+      }
+    ]
+  },
+  {
+    "name": "term_tuple",
+    "type": "record",
+    "arguments": [
+      {
+        "name": "location",
+        "type": "location"
+      },
+      {
+        "name": "arguments",
+        "type": "term_or_pool_array"
+      }
+    ]
+  },
+  {
+    "name": "term_function",
+    "type": "record",
+    "arguments": [
+      {
+        "name": "location",
+        "type": "location"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "arguments",
+        "type": "pool_array"
+      },
+      {
+        "name": "external",
+        "type": "bool"
+      }
+    ]
+  },
+  {
+    "name": "pool",
+    "type": "record",
+    "arguments": [
+      {
+        "name": "arguments",
+        "type": "term_or_projection_array"
+      }
+    ]
+  }
+])";
+}
 
-struct TODO {};
-
+/*
 #define CONSTRUCTORS                                                                                                   \
     C(id, TODO, A(location, location), A(name, string)) \
     C(variable, Gringo::Input::TermVariable, A(location, location), A(name, string)) \
@@ -885,16 +1096,4 @@ ast_array), \
     C(defined, TODO, A(location, location), A(name, string), A(arity, number), A(positive, number)) \
     C(theory_definition, TODO, A(location, location), A(name, string), A(terms, ast_array), A(atoms, ast_array)) \
     C(comment, TODO, A(location, location), A(value, string), A(comment_type, number))
-
-struct clingo_ast {
-    clingo_ast_type_t type;
-    size_t use_count;
-};
-
-template <class T>
-struct clingo_ast_value : clingo_ast {
-    clingo_ast_value(clingo_ast_type_t type, T value) : clingo_ast{type, 1}, value(std::move(value)) {}
-    T value;
-};
-
 */
