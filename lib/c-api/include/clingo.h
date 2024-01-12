@@ -680,6 +680,7 @@ typedef int clingo_ast_theory_atom_definition_type_t;
 //! Enumeration of AST types.
 enum clingo_ast_type_e {
     // terms
+    clingo_ast_type_projection,
     clingo_ast_type_term_variable,
     clingo_ast_type_term_symbolic,
     clingo_ast_type_term_absolute,

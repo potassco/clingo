@@ -104,34 +104,35 @@ auto {type_name}::{arg["name"]}() -> Symbol {{
 """
 
 
-def generate_union_declare_cpp(arg):
+def attribute_array_declare_cpp(arg):
     return f"""auto {arg["name"]}() -> {snake_to_camel(arg["type"])};"""
 
 
-def generate_union_define_cpp(type_name, type_attr, arg):
-    type_ = snake_to_camel(arg["type"])
-    cases = ""
-    for result_type in type_attr["types"]:
-        cases += f"""\
-        case clingo_ast_type_{result_type}: {{
-            return {snake_to_camel(result_type)}::acquire(ret);
-        }}
-"""
+def attribute_array_define_cpp(type_name, arg):
     return f"""\
-auto {type_name}::{arg["name"]}() -> {type_} {{
-    clingo_ast_t *ret;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
+auto {type_name}::{arg["name"]}() -> {snake_to_camel(arg["type"])} {{
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_{arg["name"]}, &ast, &size)) {{
+        throw std::runtime_error("could not get ast array attribute");
+    }}
+    return construct_{arg["type"]}(ast, size);
+}}
+"""
+
+
+def union_attribute_declare_cpp(arg):
+    return f"""auto {arg["name"]}() -> {snake_to_camel(arg["type"])};"""
+
+
+def union_attribute_define_cpp(type_name, type_attr, arg):
+    return f"""\
+auto {type_name}::{arg["name"]}() -> {snake_to_camel(arg["type"])} {{
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_{arg["name"]}, &ast)) {{
         throw std::runtime_error("could not get ast attribute");
     }}
-    clingo_ast_type_t type;
-    if (!clingo_ast_get_type(ret, &type)) {{
-        clingo_ast_free(ret);
-        throw std::runtime_error("could not get type");
-    }}
-    switch (type) {{
-{cases}\
-    }}
-    throw std::runtime_error("unexpected ast type");
+    return construct_{arg["type"]}(ast);
 }}
 """
 
@@ -160,8 +161,11 @@ def generate_record_define_cpp(type_dict, type_name, args):
             decl += generate_enum_declare_cpp(arg) + "\n"
             defs += indent + generate_enum_define_cpp(type_name, arg)
         elif type_dict[arg["type"]]["type"] == "union":
-            decl += indent + generate_union_declare_cpp(arg) + "\n"
-            defs += generate_union_define_cpp(type_name, type_dict[arg["type"]], arg)
+            decl += indent + union_attribute_declare_cpp(arg) + "\n"
+            defs += union_attribute_define_cpp(type_name, type_dict[arg["type"]], arg)
+        elif type_dict[arg["type"]]["type"] == "array":
+            decl += indent + attribute_array_declare_cpp(arg) + "\n"
+            defs += attribute_array_define_cpp(type_name, arg)
         else:
             pass
             # print("handle:", arg["type"])
@@ -200,12 +204,87 @@ def generate_record_reg(type_dict, type_name, args):
             "number",
             "bool",
             "symbol",
-        ) or type_dict[arg["type"]]["type"] in ("enum", "union"):
+        ) or type_dict[arg["type"]]["type"] in ("enum", "union", "array"):
             attr += generate_property_reg(type_name, arg)
     return f"""\
     py::class_<{type_name}>(ast, "{type_name}", R"(TODO.)")
 {attr}        ;
 
+"""
+
+
+def union_declare_cpp(arg):
+    return f"""auto construct_{arg["name"]}(clingo_ast_t *ast) -> {snake_to_camel(arg["name"])};"""
+
+
+def union_define_cpp(arg, type_dict):
+    type_ = snake_to_camel(arg["name"])
+    cases = ""
+    types = []
+
+    def flatten_type(t):
+        type_info = type_dict[t]
+        if type_info["type"] in ("record", "forward"):
+            types.append(t)
+        elif type_info["type"] == "union":
+            for u in type_info["types"]:
+                flatten_type(u)
+        else:
+            raise RuntimeError("unhandled type")
+
+    for result_type in arg["types"]:
+        flatten_type(result_type)
+
+    for result_type in types:
+        cases += f"""\
+        case clingo_ast_type_{result_type}: {{
+            return {snake_to_camel(result_type)}::acquire(ast);
+        }}
+"""
+    return f"""\
+auto construct_{arg["name"]}(clingo_ast_t *ast) -> {type_} {{
+    clingo_ast_type_t type;
+    if (!clingo_ast_get_type(ast, &type)) {{
+        clingo_ast_free(ast);
+        throw std::runtime_error("could not get type");
+    }}
+    switch (type) {{
+{cases}\
+    }}
+    throw std::runtime_error("unexpected ast type");
+}}
+"""
+
+
+def array_declare_cpp(arg):
+    return f"""auto construct_{arg["name"]}(clingo_ast_t **ast, size_t size) -> {snake_to_camel(arg["name"])};"""
+
+
+def array_define_cpp(arg, type_dict):
+    if type_dict[arg["value_type"]]["type"] == "union":
+        cons = f'construct_{arg["value_type"]}'
+    elif type_dict[arg["value_type"]]["type"] in ("forward", "record"):
+        cons = f'{snake_to_camel(arg["value_type"])}::acquire'
+    else:
+        raise RuntimeError("unhandled type")
+    return f"""\
+auto construct_{arg["name"]}(clingo_ast_t **ast, size_t size) -> {snake_to_camel(arg["name"])} {{
+    {snake_to_camel(arg["name"])} ret;
+    try {{
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg){{
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back({cons}(tmp));
+        }});
+        clingo_ast_array_free(ast, size);
+    }}
+    catch (...) {{
+        clingo_ast_array_free(ast, size);
+        throw;
+    }}
+    return ret;
+}}
 """
 
 
@@ -227,9 +306,17 @@ def generate():
             value_type = snake_to_camel(type_attr["value_type"])
             preamble += f"using {type_name} = std::optional<{value_type}>;\n\n"
 
+        if type_attr["type"] == "array":
+            value_type = snake_to_camel(type_attr["value_type"])
+            preamble += f"using {type_name} = std::vector<{value_type}>;\n"
+            preamble += array_declare_cpp(type_attr) + "\n\n"
+            defines += array_define_cpp(type_attr, type_dict)
+
         if type_attr["type"] == "union":
             types = ", ".join(snake_to_camel(x) for x in type_attr["types"])
-            preamble += f"using {type_name} = std::variant<{types}>;\n\n"
+            preamble += f"using {type_name} = std::variant<{types}>;\n"
+            preamble += union_declare_cpp(type_attr) + "\n\n"
+            defines += union_define_cpp(type_attr, type_dict)
 
         if type_attr["type"] == "enum":
             preamble += f"enum class {type_name} {{\n"
