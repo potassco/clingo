@@ -7,131 +7,169 @@ def snake_to_camel(name):
     return "".join(x.title() for x in name.split("_"))
 
 
-def generate_location_pre(arg):
+def generate_location_declare_cpp(arg):
+    return f"""auto {arg["name"]}() -> clingo_location_t;"""
+
+
+def generate_location_define_cpp(type_name, arg):
     return f"""\
-    auto {arg["name"]}() -> clingo_location_t {{
-        clingo_location_t ret;
-        if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
-            throw std::runtime_error("could not get location attribute");
-        }}
-        return ret;
+auto {type_name}::{arg["name"]}() -> clingo_location_t {{
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
+        throw std::runtime_error("could not get location attribute");
     }}
+    return ret;
+}}
 """
 
 
-def generate_number_pre(arg):
+def generate_number_declare_cpp(arg):
+    return f"""auto {arg["name"]}() -> int;"""
+
+
+def generate_number_define_cpp(type_name, arg):
     return f"""\
-    auto {arg["name"]}() -> int {{
-        int ret;
-        if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
-            throw std::runtime_error("could not get number attribute");
-        }}
-        return ret;
+auto {type_name}::{arg["name"]}() -> int {{
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
+        throw std::runtime_error("could not get number attribute");
     }}
+    return ret;
+}}
 """
 
 
-def generate_bool_pre(arg):
+def generate_bool_declare_cpp(arg):
+    return f"""auto {arg["name"]}() -> bool;"""
+
+
+def generate_bool_define_cpp(type_name, arg):
     return f"""\
-    auto {arg["name"]}() -> bool {{
-        int ret;
-        if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
-            throw std::runtime_error("could not get number attribute");
-        }}
-        return ret != 0;
+auto {type_name}::{arg["name"]}() -> bool {{
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
+        throw std::runtime_error("could not get number attribute");
     }}
+    return ret != 0;
+}}
 """
 
 
-def generate_enum_pre(arg):
+def generate_enum_declare_cpp(arg):
+    return f"""auto {arg["name"]}() -> {snake_to_camel(arg["type"])};"""
+
+
+def generate_enum_define_cpp(type_name, arg):
     type_ = snake_to_camel(arg["type"])
     return f"""\
-    auto {arg["name"]}() -> {type_} {{
-        int ret;
-        if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
-            throw std::runtime_error("could not get number attribute");
-        }}
-        return static_cast<{type_}>(ret);
+auto {type_name}::{arg["name"]}() -> {type_} {{
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
+        throw std::runtime_error("could not get number attribute");
     }}
+    return static_cast<{type_}>(ret);
+}}
 """
 
 
-def generate_string_pre(arg):
+def generate_string_declare_cpp(arg):
+    return f"""auto {arg["name"]}() -> char const *;"""
+
+
+def generate_string_define_cpp(type_name, arg):
     return f"""\
-    auto {arg["name"]}() -> char const * {{
-        char const *ret;
-        if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
-            throw std::runtime_error("could not get string attribute");
-        }}
-        return ret;
+auto {type_name}::{arg["name"]}() -> char const * {{
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
+        throw std::runtime_error("could not get string attribute");
     }}
+    return ret;
+}}
 """
 
 
-def generate_symbol_pre(arg):
+def generate_symbol_declare_cpp(arg):
+    return f"""auto {arg["name"]}() -> Symbol;"""
+
+
+def generate_symbol_define_cpp(type_name, arg):
     return f"""\
-    auto {arg["name"]}() -> Symbol {{
-        clingo_symbol_t ret;
-        if (!clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
-            throw std::runtime_error("could not get symbol attribute");
-        }}
-        return Symbol::acquire(ret);
+auto {type_name}::{arg["name"]}() -> Symbol {{
+    clingo_symbol_t ret;
+    if (!clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
+        throw std::runtime_error("could not get symbol attribute");
     }}
+    return Symbol::acquire(ret);
+}}
 """
 
 
-def generate_union_pre(type_attr, arg):
-    # TODO: needs to be declared then defined
+def generate_union_declare_cpp(arg):
+    return f"""auto {arg["name"]}() -> {snake_to_camel(arg["type"])};"""
+
+
+def generate_union_define_cpp(type_name, type_attr, arg):
     type_ = snake_to_camel(arg["type"])
     cases = ""
     for result_type in type_attr["types"]:
         cases += f"""\
-            case clingo_ast_type_{result_type}: {{
-                return {snake_to_camel(result_type)}::acquire(ret);
-            }}
+        case clingo_ast_type_{result_type}: {{
+            return {snake_to_camel(result_type)}::acquire(ret);
+        }}
 """
     return f"""\
-    auto {arg["name"]}() -> {type_} {{
-        clingo_ast_t *ret;
-        if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
-            throw std::runtime_error("could not get ast attribute");
-        }}
-        clingo_ast_type_t type;
-        if (!clingo_ast_get_type(ret, &type)) {{
-            clingo_ast_free(ret);
-            throw std::runtime_error("could not get type");
-        }}
-        switch (type) {{
-{cases}        }}
-        throw std::runtime_error("unexpected ast type");
+auto {type_name}::{arg["name"]}() -> {type_} {{
+    clingo_ast_t *ret;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_{arg["name"]}, &ret)) {{
+        throw std::runtime_error("could not get ast attribute");
     }}
+    clingo_ast_type_t type;
+    if (!clingo_ast_get_type(ret, &type)) {{
+        clingo_ast_free(ret);
+        throw std::runtime_error("could not get type");
+    }}
+    switch (type) {{
+{cases}\
+    }}
+    throw std::runtime_error("unexpected ast type");
+}}
 """
 
 
-def generate_record_pre(type_dict, type_name, args):
-    attr = ""
+def generate_record_define_cpp(type_dict, type_name, args):
+    decl = ""
+    defs = ""
     for arg in args:
+        indent = "    "
         if arg["type"] == "location":
-            attr += generate_location_pre(arg)
+            decl += indent + generate_location_declare_cpp(arg) + "\n"
+            defs += generate_location_define_cpp(type_name, arg)
         elif arg["type"] == "string":
-            attr += generate_string_pre(arg)
+            decl += indent + generate_string_declare_cpp(arg) + "\n"
+            defs += generate_string_define_cpp(type_name, arg)
         elif arg["type"] == "number":
-            attr += generate_number_pre(arg)
+            decl += indent + generate_number_declare_cpp(arg) + "\n"
+            defs += generate_number_define_cpp(type_name, arg)
         elif arg["type"] == "bool":
-            attr += generate_bool_pre(arg)
+            decl += indent + generate_bool_declare_cpp(arg) + "\n"
+            defs += generate_bool_define_cpp(type_name, arg)
         elif arg["type"] == "symbol":
-            attr += generate_symbol_pre(arg)
+            decl += indent + generate_symbol_declare_cpp(arg) + "\n"
+            defs += generate_symbol_define_cpp(type_name, arg)
         elif type_dict[arg["type"]]["type"] == "enum":
-            attr += generate_enum_pre(arg)
+            decl += generate_enum_declare_cpp(arg) + "\n"
+            defs += indent + generate_enum_define_cpp(type_name, arg)
         elif type_dict[arg["type"]]["type"] == "union":
-            attr += generate_union_pre(type_dict[arg["type"]], arg)
+            decl += indent + generate_union_declare_cpp(arg) + "\n"
+            defs += generate_union_define_cpp(type_name, type_dict[arg["type"]], arg)
         else:
             pass
             # print("handle:", arg["type"])
-    return f"""
+    return (
+        f"""
 class {type_name} {{
 public:
-{attr}\
+{decl}\
     static auto acquire(clingo_ast_t *ast) -> {type_name} {{
         return {{ast}};
     }}
@@ -142,7 +180,9 @@ private:
     {type_name}(clingo_ast_t *ast) : ast_{{ast}} {{}}
     clingo_ast_t *ast_;
 }};
-"""
+""",
+        defs,
+    )
 
 
 def generate_property_reg(type_name, arg):
@@ -171,6 +211,7 @@ def generate_record_reg(type_dict, type_name, args):
 
 def generate():
     types = json.loads(_type_info_json())
+    defines = ""
     preamble = ""
     register = ""
 
@@ -202,15 +243,16 @@ def generate():
             preamble += "};\n\n"
 
         if type_attr["type"] == "record":
-            preamble += generate_record_pre(
+            decl, defs = generate_record_define_cpp(
                 type_dict, type_name, type_attr["arguments"]
             )
+            preamble += decl
+            defines += defs
             register += generate_record_reg(
                 type_dict, type_name, type_attr["arguments"]
             )
 
-    result = (
-        """\
+    result = f"""\
 #pragma once
 
 #include <pybind11/functional.h>
@@ -220,22 +262,21 @@ def generate():
 #include "core.hh"
 #include "symbol.hh"
 
-namespace Clingo::AST {
+namespace Clingo::AST {{
 
 namespace py = pybind11;
 
 using Clingo::Symbol::Symbol;
 
-struct Position {
+struct Position {{
     char const *file;
     size_t line;
     size_t column;
-};
-
-"""
-        + preamble
-        + """\
-void register_module(pybind11::module &m) {
+}};
+\
+{preamble}
+{defines}
+void register_module(pybind11::module &m) {{
     auto ast = m.def_submodule("ast", doc(R"(
 TODO
 )"));
@@ -251,15 +292,16 @@ TODO
         ;
 
     py::class_<clingo_location_t>(ast, "Location", R"(Location tracking object.)")
-        .def_property_readonly("begin", [](clingo_location_t const &loc) {
-            return Position{loc.begin_file, loc.begin_line, loc.begin_column}; })
-        .def_property_readonly("end", [](clingo_location_t const &loc) {
-            return Position{loc.end_file, loc.end_line, loc.end_column}; })
-        ;
+        .def_property_readonly("begin", [](clingo_location_t const &loc) {{
+            return Position{{loc.begin_file, loc.begin_line, loc.begin_column}}; }})
+        .def_property_readonly("end", [](clingo_location_t const &loc) {{
+            return Position{{loc.end_file, loc.end_line, loc.end_column}}; }})
+        ;\
+{register}\
+}}
+
+}}\
 """
-        + register
-        + "}\n\n}"
-    )
 
     return result
 
