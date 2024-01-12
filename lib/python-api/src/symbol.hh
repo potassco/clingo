@@ -156,6 +156,8 @@ class Symbol {
     }
     CLINGO_CPP_TOTAL_ORDER(Symbol)
 
+    static auto acquire(clingo_symbol_t sym) -> Symbol { return Symbol{sym}; }
+
   private:
     Symbol(clingo_symbol_t sym) : sym_{sym} {}
     clingo_symbol_t sym_;

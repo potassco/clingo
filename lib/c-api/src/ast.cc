@@ -197,11 +197,11 @@ struct GetType {
     }
     auto operator()(Gringo::Input::TermUnary const &term) const -> clingo_ast_type_e {
         static_cast<void>(term);
-        return clingo_ast_type_term_unary;
+        return clingo_ast_type_term_unary_operation;
     }
     auto operator()(Gringo::Input::TermBinary const &term) const -> clingo_ast_type_e {
         static_cast<void>(term);
-        return clingo_ast_type_term_binary;
+        return clingo_ast_type_term_binary_operation;
     }
 };
 
@@ -631,7 +631,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     Gringo::Input::TermAbs{convert_loc(lib, loc), ast_vec_convert<Gringo::Input::Term>(pool, size)}};
                 break;
             }
-            case clingo_ast_type_term_unary: {
+            case clingo_ast_type_term_unary_operation: {
                 std::va_list args;
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
@@ -643,7 +643,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                                              ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
                 break;
             }
-            case clingo_ast_type_term_binary: {
+            case clingo_ast_type_term_binary_operation: {
                 std::va_list args;
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
@@ -674,6 +674,11 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
 extern "C" void clingo_ast_free(clingo_ast_t *ast) { delete ast; }
 
 extern "C" void clingo_ast_array_free(clingo_ast_t **ast, size_t size) { ASTVec::acquire(ast, size); }
+
+extern "C" auto clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) -> bool {
+    *type = ast->get_type();
+    return true;
+}
 
 extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int *value)
     -> bool {

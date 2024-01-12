@@ -683,8 +683,8 @@ enum clingo_ast_type_e {
     clingo_ast_type_term_variable,
     clingo_ast_type_term_symbolic,
     clingo_ast_type_term_absolute,
-    clingo_ast_type_term_unary,
-    clingo_ast_type_term_binary,
+    clingo_ast_type_term_unary_operation,
+    clingo_ast_type_term_binary_operation,
     clingo_ast_type_term_tuple,
     clingo_ast_type_term_function,
     clingo_ast_type_pool,
@@ -826,6 +826,17 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_array_free(clingo_ast_t **ast, size_t 
 
 //! @name Functions to get attributes of ASTs
 //! @{
+
+//! @name Functions to inspect ASTs
+//! @{
+
+//! Get the type of an AST node.
+//!
+//! @param[in] ast the target AST
+//! @param[out] type the resulting type
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
 
 //! Get the value of an attribute of type "clingo_ast_attribute_type_number".
 //!
