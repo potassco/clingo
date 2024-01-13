@@ -19,6 +19,19 @@ struct Position {
         handle_error(lib, clingo_add_string(lib, file_name, &str));
         return {str, line, column};
     }
+    friend auto operator==(Position const &a, Position const &b) -> bool {
+        return a.file == b.file && a.line == b.line && a.column == b.column;
+    }
+    friend auto operator<(Position const &a, Position const &b) -> bool {
+        if (a.file != b.file) {
+            return std::strcmp(a.file, b.file) < 0;
+        }
+        if (a.line != b.line) {
+            return a.line < b.line;
+        }
+        return a.column < b.column;
+    }
+    CLINGO_CPP_TOTAL_ORDER(Position)
     char const *file;
     size_t line;
     size_t column;
@@ -179,8 +192,10 @@ class TermVariable {
 
     auto location() -> clingo_location_t;
     auto name() -> char const *;
+    auto anonymous() -> bool;
     static auto acquire(clingo_ast_t *ast) -> TermVariable { return {ast}; }
-    static auto construct(Library const &lib, clingo_location_t const &location, char const *name) -> TermVariable;
+    static auto construct(Library const &lib, clingo_location_t const &location, char const *name, bool anonymous)
+        -> TermVariable;
     friend auto c_cast(TermVariable const &x) -> clingo_ast_t *;
 
   private:
@@ -754,10 +769,19 @@ auto TermVariable::name() -> char const * {
     }
     return ret;
 }
+auto TermVariable::anonymous() -> bool {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret != 0;
+}
 
-auto TermVariable::construct(Library const &lib, clingo_location_t const &location, char const *name) -> TermVariable {
+auto TermVariable::construct(Library const &lib, clingo_location_t const &location, char const *name, bool anonymous)
+    -> TermVariable {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_term_variable, &res_, &location, name)) {
+    if (!clingo_ast_construct(lib, clingo_ast_type_term_variable, &res_, &location, name,
+                              static_cast<int>(anonymous))) {
         throw std::runtime_error("better handle error properly here");
     }
     return TermVariable::acquire(res_);
@@ -985,7 +1009,7 @@ TODO
         .def(py::init(&Position::construct))
         .def_readonly("file", &Position::file)
         .def_readonly("line", &Position::line)
-        .def_readonly("column", &Position::column);
+        .def_readonly("column", &Position::column) CLINGO_PY_TOTAL_ORDER;
 
     py::class_<clingo_location_t>(ast, "Location", R"(Location tracking object.)")
         .def(py::init(&construct_location))
@@ -1020,7 +1044,8 @@ TODO
         .def(py::init(&TermVariable::construct))
         .def("__str__", &TermVariable::to_string)
         .def_property_readonly("location", &TermVariable::location)
-        .def_property_readonly("name", &TermVariable::name);
+        .def_property_readonly("name", &TermVariable::name)
+        .def_property_readonly("anonymous", &TermVariable::anonymous);
 
     py::class_<TermSymbolic>(ast, "TermSymbolic", R"(TODO.)")
         .def(py::init(&TermSymbolic::construct))

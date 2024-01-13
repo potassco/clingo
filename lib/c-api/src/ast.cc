@@ -618,8 +618,10 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 auto const *name = va_arg(args, char const *);
+                auto anonymous = va_arg(args, int);
                 va_end(args);
-                *ast = new ASTTerm{Gringo::Input::TermVariable{convert_loc(lib, loc), lib->store->string(name)}};
+                *ast = new ASTTerm{
+                    Gringo::Input::TermVariable{convert_loc(lib, loc), lib->store->string(name), anonymous != 0}};
                 break;
             }
             case clingo_ast_type_term_symbolic: {
@@ -996,6 +998,10 @@ extern "C" auto clingo_ast_type_info_json() -> char const * {
       {
         "name": "name",
         "type": "string"
+      },
+      {
+        "name": "anonymous",
+        "type": "bool"
       }
     ]
   },

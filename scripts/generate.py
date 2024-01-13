@@ -428,6 +428,19 @@ struct Position {{
         handle_error(lib, clingo_add_string(lib, file_name, &str));
         return {{str, line, column}};
     }}
+    friend auto operator==(Position const &a, Position const &b) -> bool {{
+        return a.file == b.file && a.line == b.line && a.column == b.column;
+    }}
+    friend auto operator<(Position const &a, Position const &b) -> bool {{
+        if (a.file != b.file) {{
+            return std::strcmp(a.file, b.file) < 0;
+        }}
+        if (a.line != b.line) {{
+            return a.line < b.line;
+        }}
+        return a.column < b.column;
+    }}
+    CLINGO_CPP_TOTAL_ORDER(Position)
     char const *file;
     size_t line;
     size_t column;
@@ -473,6 +486,7 @@ TODO
         .def_readonly("file", &Position::file)
         .def_readonly("line", &Position::line)
         .def_readonly("column", &Position::column)
+        CLINGO_PY_TOTAL_ORDER
         ;
 
     py::class_<clingo_location_t>(ast, "Location", R"(Location tracking object.)")

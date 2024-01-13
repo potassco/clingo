@@ -271,14 +271,10 @@ Note that this class does not have a constructor. Instead there are the
 preconstructed symbols `Infimum` and `Supremum` and the functions `Number`,
 `String`, `Tuple_`, and `Function` to construct symbol objects.
 )"))
-        //
-        CLINGO_PY_TOTAL_ORDER
-            //
-            .def("__str__", &Symbol::str)
-            .def("__repr__", &Symbol::repr)
-            .def("__hash__", &Symbol::hash)
-            .def("match", &Symbol::match_function, py::arg("name"), py::arg("arity") = 0, py::arg("sign") = false,
-                 doc(R"(
+        .def("__str__", &Symbol::str)
+        .def("__repr__", &Symbol::repr)
+        .def("__hash__", &Symbol::hash)
+        .def("match", &Symbol::match_function, py::arg("name"), py::arg("arity") = 0, py::arg("sign") = false, doc(R"(
 Check if this is a function symbol with the given signature.
 
 Parameters
@@ -296,7 +292,7 @@ Returns
 -------
 Whether the function matches.
 )"))
-            .def("match", &Symbol::match_tuple, py::arg("arity") = 0, doc(R"(
+        .def("match", &Symbol::match_tuple, py::arg("arity") = 0, doc(R"(
 Check if this is a tuple symbol with the given arity.
 
 Parameters
@@ -308,41 +304,41 @@ Returns
 -------
 Whether the tuple matches.
 )"))
-            .def_property_readonly("type", &Symbol::type, doc(R"(
+        .def_property_readonly("type", &Symbol::type, doc(R"(
 type: clingo.symbol.SymbolType
 
 The type of the symbol.
 )"))
-            .def_property_readonly("number", &Symbol::number, doc(R"(
+        .def_property_readonly("number", &Symbol::number, doc(R"(
 number: int
 
 The numeric value.
 )"))
-            .def_property_readonly("string", &Symbol::string, doc(R"(
+        .def_property_readonly("string", &Symbol::string, doc(R"(
 string: str
 
 The string value.
 )"))
-            .def_property_readonly("name", &Symbol::name, doc(R"(
+        .def_property_readonly("name", &Symbol::name, doc(R"(
 name: str
 
 The name.
 )"))
-            .def_property_readonly("arguments", &Symbol::args, doc(R"(
+        .def_property_readonly("arguments", &Symbol::args, doc(R"(
 arguments: list[clingo.symbol.Symbol]
 
 The list of arguments.
 )"))
-            .def_property_readonly("arity", &Symbol::arity, doc(R"(
+        .def_property_readonly("arity", &Symbol::arity, doc(R"(
 arity: int
 
 The arity of a function or tuple.
 )"))
-            .def_property_readonly("sign", &Symbol::sign, doc(R"(
+        .def_property_readonly("sign", &Symbol::sign, doc(R"(
 sign: bool
 
 Whether the symbol has a sign.
-)"));
+)")) CLINGO_PY_TOTAL_ORDER;
 
     symbol.add_object("Infimum", py::cast(Infimum()));
     symbol.add_object("Supremum", py::cast(Supremum()));
