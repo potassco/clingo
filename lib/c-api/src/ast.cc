@@ -395,6 +395,32 @@ struct GetASTVec {
     clingo_ast_attribute_t attr;
 };
 
+class ASTProjection : public clingo_ast {
+  public:
+    ASTProjection(Gringo::Input::Projection projection) : projection_{std::move(projection)} {}
+    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
+        return std::make_unique<ASTProjection>(projection_);
+    }
+    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_projection; }
+    [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> override {
+        if (attr == clingo_ast_attribute_location) {
+            return convert_loc(projection_.loc);
+        }
+        return std::nullopt;
+    }
+    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
+
+  private:
+    Gringo::Input::Projection projection_;
+};
+
+template <> auto ast_convert<Gringo::Input::Projection>(clingo_ast const *ast) -> Gringo::Input::Projection {
+    if (auto const *res = dynamic_cast<ASTProjection const *>(ast); res != nullptr) {
+        return res->projection_;
+    }
+    throw std::runtime_error("invalid type: term expected");
+}
+
 // Note: the AST could simply store the library object for error reporting.
 // This would allow for better error reporting at the expense of a tiny memory overhead.
 class ASTTerm : public clingo_ast {
@@ -462,10 +488,10 @@ template <> auto ast_convert<Gringo::Input::TupleVec>(clingo_ast const *ast) -> 
         Gringo::Input::TupleVec tuple;
         tuple.reserve(res->tuple_.size());
         for (auto const *elem : res->tuple_) {
-            if (elem != nullptr) {
-                tuple.emplace_back(ast_convert<Gringo::Input::Term>(elem));
+            if (auto const *projection = dynamic_cast<ASTProjection const *>(ast)) {
+                tuple.emplace_back(projection->projection_);
             } else {
-                tuple.emplace_back(Gringo::Input::Projection{});
+                tuple.emplace_back(ast_convert<Gringo::Input::Term>(elem));
             }
         }
         return tuple;
@@ -478,19 +504,7 @@ auto ast_convert<Gringo::Input::TermTuple::Element>(clingo_ast const *ast) -> Gr
     if (auto const *res = dynamic_cast<ASTTerm const *>(ast); res != nullptr) {
         return res->term;
     }
-    if (auto const *res = dynamic_cast<ASTTermPool const *>(ast); res != nullptr) {
-        Gringo::Input::TupleVec tuple;
-        tuple.reserve(res->tuple_.size());
-        for (auto const *elem : res->tuple_) {
-            if (elem != nullptr) {
-                tuple.emplace_back(ast_convert<Gringo::Input::Term>(elem));
-            } else {
-                tuple.emplace_back(Gringo::Input::Projection{});
-            }
-        }
-        return tuple;
-    }
-    throw std::runtime_error("invalid type: term or pool expected");
+    return ast_convert<Gringo::Input::TupleVec>(ast);
 }
 
 auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
@@ -577,6 +591,14 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
         }
         *ast = nullptr;
         switch (static_cast<clingo_ast_type_e>(type)) {
+            case clingo_ast_type_projection: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                va_end(args);
+                *ast = new ASTProjection{Gringo::Input::Projection{convert_loc(lib, loc)}};
+                break;
+            }
             case clingo_ast_type_term_variable: {
                 std::va_list args;
                 va_start(args, ast);
