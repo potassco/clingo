@@ -93,6 +93,21 @@ class Projection {
         std::swap(ast_, x.ast_);
         return *this;
     }
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
     ~Projection() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
@@ -145,6 +160,21 @@ class TermVariable {
         std::swap(ast_, x.ast_);
         return *this;
     }
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
     ~TermVariable() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
@@ -181,6 +211,21 @@ class TermSymbolic {
     auto operator=(TermSymbolic &&x) noexcept -> TermSymbolic & {
         std::swap(ast_, x.ast_);
         return *this;
+    }
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
     }
     ~TermSymbolic() { clingo_ast_free(ast_); }
 
@@ -219,6 +264,21 @@ class TermAbsolute {
         std::swap(ast_, x.ast_);
         return *this;
     }
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
     ~TermAbsolute() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
@@ -255,6 +315,21 @@ class TermUnaryOperation {
     auto operator=(TermUnaryOperation &&x) noexcept -> TermUnaryOperation & {
         std::swap(ast_, x.ast_);
         return *this;
+    }
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
     }
     ~TermUnaryOperation() { clingo_ast_free(ast_); }
 
@@ -294,6 +369,21 @@ class TermBinaryOperation {
     auto operator=(TermBinaryOperation &&x) noexcept -> TermBinaryOperation & {
         std::swap(ast_, x.ast_);
         return *this;
+    }
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
     }
     ~TermBinaryOperation() { clingo_ast_free(ast_); }
 
@@ -335,6 +425,21 @@ class TermTuple {
         std::swap(ast_, x.ast_);
         return *this;
     }
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
     ~TermTuple() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
@@ -372,6 +477,21 @@ class TermFunction {
     auto operator=(TermFunction &&x) noexcept -> TermFunction & {
         std::swap(ast_, x.ast_);
         return *this;
+    }
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
     }
     ~TermFunction() { clingo_ast_free(ast_); }
 
@@ -412,6 +532,21 @@ class Pool {
     auto operator=(Pool &&x) noexcept -> Pool & {
         std::swap(ast_, x.ast_);
         return *this;
+    }
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
     }
     ~Pool() { clingo_ast_free(ast_); }
 
@@ -878,31 +1013,37 @@ TODO
 
     py::class_<Projection>(ast, "Projection", R"(TODO.)")
         .def(py::init(&Projection::construct))
+        .def("__str__", &Projection::to_string)
         .def_property_readonly("location", &Projection::location);
 
     py::class_<TermVariable>(ast, "TermVariable", R"(TODO.)")
         .def(py::init(&TermVariable::construct))
+        .def("__str__", &TermVariable::to_string)
         .def_property_readonly("location", &TermVariable::location)
         .def_property_readonly("name", &TermVariable::name);
 
     py::class_<TermSymbolic>(ast, "TermSymbolic", R"(TODO.)")
         .def(py::init(&TermSymbolic::construct))
+        .def("__str__", &TermSymbolic::to_string)
         .def_property_readonly("location", &TermSymbolic::location)
         .def_property_readonly("symbol", &TermSymbolic::symbol);
 
     py::class_<TermAbsolute>(ast, "TermAbsolute", R"(TODO.)")
         .def(py::init(&TermAbsolute::construct))
+        .def("__str__", &TermAbsolute::to_string)
         .def_property_readonly("location", &TermAbsolute::location)
         .def_property_readonly("pool", &TermAbsolute::pool);
 
     py::class_<TermUnaryOperation>(ast, "TermUnaryOperation", R"(TODO.)")
         .def(py::init(&TermUnaryOperation::construct))
+        .def("__str__", &TermUnaryOperation::to_string)
         .def_property_readonly("location", &TermUnaryOperation::location)
         .def_property_readonly("operator_type", &TermUnaryOperation::operator_type)
         .def_property_readonly("right", &TermUnaryOperation::right);
 
     py::class_<TermBinaryOperation>(ast, "TermBinaryOperation", R"(TODO.)")
         .def(py::init(&TermBinaryOperation::construct))
+        .def("__str__", &TermBinaryOperation::to_string)
         .def_property_readonly("location", &TermBinaryOperation::location)
         .def_property_readonly("left", &TermBinaryOperation::left)
         .def_property_readonly("operator_type", &TermBinaryOperation::operator_type)
@@ -910,11 +1051,13 @@ TODO
 
     py::class_<TermTuple>(ast, "TermTuple", R"(TODO.)")
         .def(py::init(&TermTuple::construct))
+        .def("__str__", &TermTuple::to_string)
         .def_property_readonly("location", &TermTuple::location)
         .def_property_readonly("arguments", &TermTuple::arguments);
 
     py::class_<TermFunction>(ast, "TermFunction", R"(TODO.)")
         .def(py::init(&TermFunction::construct))
+        .def("__str__", &TermFunction::to_string)
         .def_property_readonly("location", &TermFunction::location)
         .def_property_readonly("name", &TermFunction::name)
         .def_property_readonly("arguments", &TermFunction::arguments)
@@ -922,6 +1065,7 @@ TODO
 
     py::class_<Pool>(ast, "Pool", R"(TODO.)")
         .def(py::init(&Pool::construct))
+        .def("__str__", &Pool::to_string)
         .def_property_readonly("arguments", &Pool::arguments);
 }
 

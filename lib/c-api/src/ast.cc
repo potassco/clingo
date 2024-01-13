@@ -2,11 +2,13 @@
 #include <cstring>
 
 #include "lib.hh"
+#include "streams.hh"
 
 #include <gringo/util/ordered_map.hh>
 #include <gringo/util/ordered_set.hh>
 
 #include <gringo/input/algo/parse.hh>
+#include <gringo/input/algo/print.hh>
 
 namespace {
 class ASTVec;
@@ -25,6 +27,7 @@ template <class T> auto ast_vec_convert(clingo_ast const **ast, size_t size) -> 
 
 struct clingo_ast {
     [[nodiscard]] virtual auto copy() const -> std::unique_ptr<clingo_ast_t> = 0;
+    virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] virtual auto get_type() const -> clingo_ast_type_e = 0;
     [[nodiscard]] virtual auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int>;
     [[nodiscard]] virtual auto get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t>;
@@ -34,6 +37,11 @@ struct clingo_ast {
         -> std::optional<std::unique_ptr<clingo_ast_t>>;
     [[nodiscard]] virtual auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec>;
     virtual ~clingo_ast() = default;
+
+    friend auto operator<<(std::ostream &out, clingo_ast_t const &ast) -> std::ostream & {
+        ast.print(out);
+        return out;
+    }
 };
 
 namespace {
@@ -401,6 +409,7 @@ class ASTProjection : public clingo_ast {
     [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
         return std::make_unique<ASTProjection>(projection_);
     }
+    void print(std::ostream &out) const override { out << "*"; }
     [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_projection; }
     [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> override {
         if (attr == clingo_ast_attribute_location) {
@@ -422,6 +431,7 @@ class ASTTerm : public clingo_ast {
     [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
         return std::make_unique<ASTTerm>(term);
     }
+    void print(std::ostream &out) const override { out << term; }
     [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return std::visit(GetType{}, term); }
     [[nodiscard]] auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int> override {
         return std::visit(GetNumber{attr}, term);
@@ -467,6 +477,17 @@ class ASTTermPool : public clingo_ast {
     ASTTermPool(ASTVec tuple) : tuple_{std::move(tuple)} {}
     [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
         return std::make_unique<ASTTermPool>(tuple_);
+    }
+    void print(std::ostream &out) const override {
+        bool comma = false;
+        for (auto &term : tuple_) {
+            if (comma) {
+                out << ",";
+            } else {
+                comma = true;
+            }
+            out << term;
+        }
     }
     [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_pool; }
 
@@ -684,6 +705,30 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
         }
     }
     CLINGO_CATCH(lib);
+}
+
+extern "C" auto clingo_ast_to_string_size(clingo_ast_t *ast, size_t *size) -> bool {
+    if (size == nullptr) {
+        return false;
+    }
+    try {
+        *size = print_size(*ast);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t size) -> bool {
+    if (string == nullptr) {
+        return false;
+    }
+    try {
+        print(string, size, *ast);
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 extern "C" auto clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) -> bool {

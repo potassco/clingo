@@ -225,6 +225,21 @@ public:
         std::swap(ast_, x.ast_);
         return *this;
     }}
+    auto to_string() -> std::string {{
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {{
+            throw std::runtime_error("could convert to string");
+        }}
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {{
+            throw std::runtime_error("could convert to string");
+        }}
+        if (!str.empty() && str.back() == '\\0') {{
+            str.pop_back();
+        }}
+        return str;
+    }}
     ~{type_name}() {{
         clingo_ast_free(ast_);
     }}
@@ -258,6 +273,7 @@ def record_reg(type_dict, type_name, args):
     attr = ""
     attr += f"""\
         .def(py::init(&{type_name}::construct))
+        .def("__str__", &{type_name}::to_string)
 """
     for arg in args:
         attr += property_attribute_reg(type_name, arg)

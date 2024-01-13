@@ -827,6 +827,27 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_array_free(clingo_ast_t **ast, size_t 
 
 //! @}
 
+//! @name Functions to convert ASTs to strings
+//! @{
+
+//! Get the size of the string representation of an AST node.
+//!
+//! @param[in] ast the target AST
+//! @param[out] size the size of the string representation
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string_size(clingo_ast_t *ast, size_t *size);
+//! Get the string representation of an AST node.
+//!
+//! @param[in] ast the target AST
+//! @param[out] string the string representation
+//! @param[out] size the size of the string representation
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t size);
+
+//! @}
+
 //! @name Functions to get attributes of ASTs
 //! @{
 
