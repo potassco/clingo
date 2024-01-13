@@ -30,6 +30,10 @@ static constexpr size_t default_message_limit = 25;
 
 constexpr auto doc(char const *str) -> char const * { return str + 1; }
 
+class Library;
+
+void handle_error(Library &lib, bool success);
+
 class Library {
   public:
     Library(bool shared, bool slotted, LoggerCB cb, size_t default_message_limit) {

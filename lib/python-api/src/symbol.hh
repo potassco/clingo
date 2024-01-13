@@ -157,6 +157,7 @@ class Symbol {
     CLINGO_CPP_TOTAL_ORDER(Symbol)
 
     static auto acquire(clingo_symbol_t sym) -> Symbol { return Symbol{sym}; }
+    [[nodiscard]] auto handle() const -> clingo_symbol_t { return sym_; }
 
   private:
     Symbol(clingo_symbol_t sym) : sym_{sym} {}

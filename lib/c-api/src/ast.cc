@@ -414,13 +414,6 @@ class ASTProjection : public clingo_ast {
     Gringo::Input::Projection projection_;
 };
 
-template <> auto ast_convert<Gringo::Input::Projection>(clingo_ast const *ast) -> Gringo::Input::Projection {
-    if (auto const *res = dynamic_cast<ASTProjection const *>(ast); res != nullptr) {
-        return res->projection_;
-    }
-    throw std::runtime_error("invalid type: term expected");
-}
-
 // Note: the AST could simply store the library object for error reporting.
 // This would allow for better error reporting at the expense of a tiny memory overhead.
 class ASTTerm : public clingo_ast {
@@ -691,6 +684,18 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
         }
     }
     CLINGO_CATCH(lib);
+}
+
+extern "C" auto clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) -> bool {
+    if (ast == nullptr || copy == nullptr) {
+        return false;
+    }
+    try {
+        *copy = ast->copy().release();
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 extern "C" void clingo_ast_free(clingo_ast_t *ast) { delete ast; }

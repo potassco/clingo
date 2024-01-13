@@ -7,11 +7,11 @@ def snake_to_camel(name):
     return "".join(x.title() for x in name.split("_"))
 
 
-def generate_location_declare_cpp(arg):
+def location_attribute_declare_cpp(arg):
     return f"""auto {arg["name"]}() -> clingo_location_t;"""
 
 
-def generate_location_define_cpp(type_name, arg):
+def location_attribute_define_cpp(type_name, arg):
     return f"""\
 auto {type_name}::{arg["name"]}() -> clingo_location_t {{
     clingo_location_t ret;
@@ -23,11 +23,11 @@ auto {type_name}::{arg["name"]}() -> clingo_location_t {{
 """
 
 
-def generate_number_declare_cpp(arg):
+def number_attribute_declare_cpp(arg):
     return f"""auto {arg["name"]}() -> int;"""
 
 
-def generate_number_define_cpp(type_name, arg):
+def number_attribute_define_cpp(type_name, arg):
     return f"""\
 auto {type_name}::{arg["name"]}() -> int {{
     int ret;
@@ -39,11 +39,11 @@ auto {type_name}::{arg["name"]}() -> int {{
 """
 
 
-def generate_bool_declare_cpp(arg):
+def bool_attribute_declare_cpp(arg):
     return f"""auto {arg["name"]}() -> bool;"""
 
 
-def generate_bool_define_cpp(type_name, arg):
+def bool_attribute_define_cpp(type_name, arg):
     return f"""\
 auto {type_name}::{arg["name"]}() -> bool {{
     int ret;
@@ -55,11 +55,11 @@ auto {type_name}::{arg["name"]}() -> bool {{
 """
 
 
-def generate_enum_declare_cpp(arg):
+def enum_attribute_declare_cpp(arg):
     return f"""auto {arg["name"]}() -> {snake_to_camel(arg["type"])};"""
 
 
-def generate_enum_define_cpp(type_name, arg):
+def enum_attribute_define_cpp(type_name, arg):
     type_ = snake_to_camel(arg["type"])
     return f"""\
 auto {type_name}::{arg["name"]}() -> {type_} {{
@@ -72,11 +72,11 @@ auto {type_name}::{arg["name"]}() -> {type_} {{
 """
 
 
-def generate_string_declare_cpp(arg):
+def string_attribute_declare_cpp(arg):
     return f"""auto {arg["name"]}() -> char const *;"""
 
 
-def generate_string_define_cpp(type_name, arg):
+def string_attribute_define_cpp(type_name, arg):
     return f"""\
 auto {type_name}::{arg["name"]}() -> char const * {{
     char const *ret;
@@ -88,11 +88,11 @@ auto {type_name}::{arg["name"]}() -> char const * {{
 """
 
 
-def generate_symbol_declare_cpp(arg):
+def symbol_attribute_declare_cpp(arg):
     return f"""auto {arg["name"]}() -> Symbol;"""
 
 
-def generate_symbol_define_cpp(type_name, arg):
+def symbol_attribute_define_cpp(type_name, arg):
     return f"""\
 auto {type_name}::{arg["name"]}() -> Symbol {{
     clingo_symbol_t ret;
@@ -137,75 +137,130 @@ auto {type_name}::{arg["name"]}() -> {snake_to_camel(arg["type"])} {{
 """
 
 
-def generate_record_define_cpp(type_dict, type_name, args):
+def record_define_cpp(type_dict, type_name, type_attr):
+    args = type_attr["arguments"]
     decl = ""
     defs = ""
+    cons_args = ["Library const &lib"]
+    cons_def_args = ["lib", f'clingo_ast_type_{type_attr["name"]}', "&res_"]
     for arg in args:
         indent = "    "
         if arg["type"] == "location":
-            decl += indent + generate_location_declare_cpp(arg) + "\n"
-            defs += generate_location_define_cpp(type_name, arg)
+            cons_args.append("clingo_location_t const &" + arg["name"])
+            cons_def_args.append(f'&{arg["name"]}')
+            decl += indent + location_attribute_declare_cpp(arg) + "\n"
+            defs += location_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "string":
-            decl += indent + generate_string_declare_cpp(arg) + "\n"
-            defs += generate_string_define_cpp(type_name, arg)
+            cons_args.append("char const *" + arg["name"])
+            cons_def_args.append(f'{arg["name"]}')
+            decl += indent + string_attribute_declare_cpp(arg) + "\n"
+            defs += string_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "number":
-            decl += indent + generate_number_declare_cpp(arg) + "\n"
-            defs += generate_number_define_cpp(type_name, arg)
+            cons_args.append("int " + arg["name"])
+            cons_def_args.append(f'{arg["name"]}')
+            decl += indent + number_attribute_declare_cpp(arg) + "\n"
+            defs += number_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "bool":
-            decl += indent + generate_bool_declare_cpp(arg) + "\n"
-            defs += generate_bool_define_cpp(type_name, arg)
+            cons_args.append("bool " + arg["name"])
+            cons_def_args.append(f'static_cast<int>({arg["name"]})')
+            decl += indent + bool_attribute_declare_cpp(arg) + "\n"
+            defs += bool_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "symbol":
-            decl += indent + generate_symbol_declare_cpp(arg) + "\n"
-            defs += generate_symbol_define_cpp(type_name, arg)
+            cons_args.append("Symbol const &" + arg["name"])
+            cons_def_args.append(f'{arg["name"]}.handle()')
+            decl += indent + symbol_attribute_declare_cpp(arg) + "\n"
+            defs += symbol_attribute_define_cpp(type_name, arg)
         elif type_dict[arg["type"]]["type"] == "enum":
-            decl += generate_enum_declare_cpp(arg) + "\n"
-            defs += indent + generate_enum_define_cpp(type_name, arg)
+            cons_args.append(snake_to_camel(arg["type"]) + " " + arg["name"])
+            cons_def_args.append(f'static_cast<int>({arg["name"]})')
+            decl += enum_attribute_declare_cpp(arg) + "\n"
+            defs += indent + enum_attribute_define_cpp(type_name, arg)
         elif type_dict[arg["type"]]["type"] == "union":
+            cons_args.append(snake_to_camel(arg["type"]) + " const &" + arg["name"])
+            cons_def_args.append(f'c_cast({arg["name"]})')
             decl += indent + union_attribute_declare_cpp(arg) + "\n"
             defs += union_attribute_define_cpp(type_name, type_dict[arg["type"]], arg)
         elif type_dict[arg["type"]]["type"] == "array":
+            cons_args.append(snake_to_camel(arg["type"]) + " const &" + arg["name"])
+            cons_def_args.append(f'c_cast({arg["name"]}).data()')
+            cons_def_args.append(f'{arg["name"]}.size()')
             decl += indent + attribute_array_declare_cpp(arg) + "\n"
             defs += attribute_array_define_cpp(type_name, arg)
         else:
             pass
             # print("handle:", arg["type"])
+    cons_decl = "static auto construct(" + ", ".join(cons_args) + ") -> " + type_name
+    defs += f"""
+auto {type_name}::construct({", ".join(cons_args)}) -> {type_name} {{
+    clingo_ast_t *res_;
+    if (!clingo_ast_construct({", ".join(cons_def_args)})) {{
+        throw std::runtime_error("better handle error properly here");
+    }}
+    return {type_name}::acquire(res_);
+}}
+"""
     return (
         f"""
 class {type_name} {{
 public:
-{decl}\
-    static auto acquire(clingo_ast_t *ast) -> {type_name} {{
-        return {{ast}};
+    // Note: for pybind
+    {type_name}() = default;
+    {type_name}({type_name} const &x) {{
+        if (!clingo_ast_copy(x.ast_, &ast_)) {{
+            throw std::runtime_error("could not copy ast");
+        }}
+    }}
+    {type_name}({type_name} &&x) noexcept {{
+        std::swap(ast_, x.ast_);
+    }}
+    auto operator=({type_name} const &x) -> {type_name}& {{
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {{
+            throw std::runtime_error("could not copy ast");
+        }}
+        return *this;
+    }}
+    auto operator=({type_name} &&x) noexcept -> {type_name}& {{
+        std::swap(ast_, x.ast_);
+        return *this;
     }}
     ~{type_name}() {{
         clingo_ast_free(ast_);
     }}
+
+{decl}\
+    static auto acquire(clingo_ast_t *ast) -> {type_name} {{
+        return {{ast}};
+    }}
+    {cons_decl};
+    friend auto c_cast({type_name} const &x) -> clingo_ast_t *;
 private:
     {type_name}(clingo_ast_t *ast) : ast_{{ast}} {{}}
-    clingo_ast_t *ast_;
+    clingo_ast_t *ast_ = nullptr;
 }};
+
+inline auto c_cast({type_name} const &x) -> clingo_ast_t * {{
+    return x.ast_;
+}}
 """,
         defs,
     )
 
 
-def generate_property_reg(type_name, arg):
+def property_attribute_reg(type_name, arg):
     return f"""\
         .def_property_readonly("{arg["name"]}", &{type_name}::{arg["name"]})
 """
 
 
-def generate_record_reg(type_dict, type_name, args):
+def record_reg(type_dict, type_name, args):
     attr = ""
+    attr += f"""\
+        .def(py::init(&{type_name}::construct))
+"""
     for arg in args:
-        if arg["type"] in (
-            "location",
-            "string",
-            "number",
-            "bool",
-            "symbol",
-        ) or type_dict[arg["type"]]["type"] in ("enum", "union", "array"):
-            attr += generate_property_reg(type_name, arg)
+        attr += property_attribute_reg(type_name, arg)
     return f"""\
     py::class_<{type_name}>(ast, "{type_name}", R"(TODO.)")
 {attr}        ;
@@ -268,7 +323,7 @@ def array_define_cpp(arg, type_dict):
     else:
         raise RuntimeError("unhandled type")
     return f"""\
-auto construct_{arg["name"]}(clingo_ast_t **ast, size_t size) -> {snake_to_camel(arg["name"])} {{
+inline auto construct_{arg["name"]}(clingo_ast_t **ast, size_t size) -> {snake_to_camel(arg["name"])} {{
     {snake_to_camel(arg["name"])} ret;
     try {{
         ret.reserve(size);
@@ -330,14 +385,10 @@ def generate():
             preamble += "};\n\n"
 
         if type_attr["type"] == "record":
-            decl, defs = generate_record_define_cpp(
-                type_dict, type_name, type_attr["arguments"]
-            )
+            decl, defs = record_define_cpp(type_dict, type_name, type_attr)
             preamble += decl
             defines += defs
-            register += generate_record_reg(
-                type_dict, type_name, type_attr["arguments"]
-            )
+            register += record_reg(type_dict, type_name, type_attr["arguments"])
 
     result = f"""\
 #pragma once
@@ -356,13 +407,42 @@ namespace py = pybind11;
 using Clingo::Symbol::Symbol;
 
 struct Position {{
+    static auto construct(Library &lib, char const *file_name, size_t line, size_t column) -> Position {{
+        char const *str;
+        handle_error(lib, clingo_add_string(lib, file_name, &str));
+        return {{str, line, column}};
+    }}
     char const *file;
     size_t line;
     size_t column;
 }};
-\
+
+inline auto construct_location(Position const &begin, Position const &end) -> clingo_location_t {{
+    return {{begin.file, end.file, begin.line, end.line, begin.column, end.column}};
+}}
+
+template <class... Ts>
+auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t*;
+
+template <class T>
+auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*>;\
 {preamble}
 {defines}
+template <class... Ts>
+auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t* {{
+    return std::visit([](auto const &x) {{ return c_cast(x); }}, var);
+}}
+
+template <class T>
+auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*> {{
+    std::vector<clingo_ast_t*> ret;
+    ret.reserve(arr.size());
+    for (auto const &x : arr)  {{
+        ret.emplace_back(c_cast(x));
+    }}
+    return ret;
+}}
+
 void register_module(pybind11::module &m) {{
     auto ast = m.def_submodule("ast", doc(R"(
 TODO
@@ -373,12 +453,14 @@ TODO
 )"));
 
     py::class_<Position>(ast, "Position", R"(Position tracking object.)")
+        .def(py::init(&Position::construct))
         .def_readonly("file", &Position::file)
         .def_readonly("line", &Position::line)
         .def_readonly("column", &Position::column)
         ;
 
     py::class_<clingo_location_t>(ast, "Location", R"(Location tracking object.)")
+        .def(py::init(&construct_location))
         .def_property_readonly("begin", [](clingo_location_t const &loc) {{
             return Position{{loc.begin_file, loc.begin_line, loc.begin_column}}; }})
         .def_property_readonly("end", [](clingo_location_t const &loc) {{

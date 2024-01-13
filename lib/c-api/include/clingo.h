@@ -816,6 +816,8 @@ typedef struct clingo_ast clingo_ast_t;
 //! - ::clingo_error_runtime if one of the arguments is incompatible with the type
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...);
 
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy);
+
 //! Free an AST node.
 //!
 //! @param[in] ast the target AST
