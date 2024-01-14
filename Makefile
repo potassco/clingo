@@ -118,6 +118,9 @@ web:
 gen:
 	PYTHONPATH=build/lib/python-api python scripts/generate.py > lib/python-api/src/ast.hh
 
+format_yaml:
+	PYTHONPATH=build/lib/python-api python scripts/format_yaml.py
+
 %: configure
 	cmake --build build --target $@ --parallel
 

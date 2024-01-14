@@ -902,290 +902,169 @@ struct Comma {
 };
 
 extern "C" auto clingo_ast_type_info_yaml() -> char const * {
-    return R"yaml([
-  {
-    "name": "unary_operator",
-    "type": "enum",
-    "doc": "Available unary operators.",
-    "values": {
-      "minus": {
-        "value": 0,
-        "doc": "Operator `-`."
-      },
-      "negation": {
-        "value": 1,
-        "doc": "Operator `~`."
-      }
-    }
-  },
-  {
-    "name": "binary_operator",
-    "type": "enum",
-    "doc": "Available binary operators.",
-    "values": {
-      "and": {
-        "value": 0,
-        "doc": "Operator `&`."
-      },
-      "division": {
-        "value": 1,
-        "doc": "Operator `/`."
-      },
-      "minus": {
-        "value": 2,
-        "doc": "Operator `-`."
-      },
-      "modulo": {
-        "value": 3,
-        "doc": "Operator `%`."
-      },
-      "multiplication": {
-        "value": 4,
-        "doc": "Operator `*`."
-      },
-      "or": {
-        "value": 5,
-        "doc": "Operator `|`."
-      },
-      "plus": {
-        "value": 6,
-        "doc": "Operator `+`."
-      },
-      "power": {
-        "value": 7,
-        "doc": "Operator `**`."
-      },
-      "xor": {
-        "value": 8,
-        "doc": "Operator `^`."
-      }
-    }
-  },
-  {
-    "name": "term_variable",
-    "type": "forward"
-  },
-  {
-    "name": "term_symbolic",
-    "type": "forward"
-  },
-  {
-    "name": "term_absolute",
-    "type": "forward"
-  },
-  {
-    "name": "term_unary_operation",
-    "type": "forward"
-  },
-  {
-    "name": "term_binary_operation",
-    "type": "forward"
-  },
-  {
-    "name": "term_tuple",
-    "type": "forward"
-  },
-  {
-    "name": "term_function",
-    "type": "forward"
-  },
-  {
-    "name": "term_variable",
-    "type": "forward"
-  },
-  {
-    "name": "term",
-    "type": "union",
-    "types": [
-      "term_variable",
-      "term_symbolic",
-      "term_absolute",
-      "term_unary_operation",
-      "term_binary_operation",
-      "term_tuple",
-      "term_function"
-    ]
-  },
-  {
-    "name": "term_array",
-    "type": "array",
-    "value_type": "term"
-  },
-  {
-    "name": "projection",
-    "type": "record",
-    "arguments": [
-      {
-        "name": "location",
-        "type": "location"
-      }
-    ]
-  },
-  {
-    "name": "term_or_projection",
-    "type": "union",
-    "types": ["term", "projection"]
-  },
-  {
-    "name": "term_or_projection_array",
-    "type": "array",
-    "value_type": "term_or_projection"
-  },
-  {
-    "name": "pool",
-    "type": "forward"
-  },
-  {
-    "name": "pool_array",
-    "type": "array",
-    "value_type": "pool"
-  },
-  {
-    "name": "term_or_pool",
-    "type": "union",
-    "types": [
-      "term",
-      "pool"
-    ]
-  },
-  {
-    "name": "term_or_pool_array",
-    "type": "array",
-    "value_type": "term_or_pool"
-  },
-  {
-    "name": "term_variable",
-    "type": "record",
-    "arguments": [
-      {
-        "name": "location",
-        "type": "location"
-      },
-      {
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "name": "anonymous",
-        "type": "bool"
-      }
-    ]
-  },
-  {
-    "name": "term_symbolic",
-    "type": "record",
-    "arguments": [
-      {
-        "name": "location",
-        "type": "location"
-      },
-      {
-        "name": "symbol",
-        "type": "symbol"
-      }
-    ]
-  },
-  {
-    "name": "term_absolute",
-    "type": "record",
-    "arguments": [
-      {
-        "name": "location",
-        "type": "location"
-      },
-      {
-        "name": "pool",
-        "type": "term_array"
-      }
-    ]
-  },
-  {
-    "name": "term_unary_operation",
-    "type": "record",
-    "arguments": [
-      {
-        "name": "location",
-        "type": "location"
-      },
-      {
-        "name": "operator_type",
-        "type": "unary_operator"
-      },
-      {
-        "name": "right",
-        "type": "term"
-      }
-    ]
-  },
-  {
-    "name": "term_binary_operation",
-    "type": "record",
-    "arguments": [
-      {
-        "name": "location",
-        "type": "location"
-      },
-      {
-        "name": "left",
-        "type": "term"
-      },
-      {
-        "name": "operator_type",
-        "type": "binary_operator"
-      },
-      {
-        "name": "right",
-        "type": "term"
-      }
-    ]
-  },
-  {
-    "name": "term_tuple",
-    "type": "record",
-    "arguments": [
-      {
-        "name": "location",
-        "type": "location"
-      },
-      {
-        "name": "arguments",
-        "type": "term_or_pool_array"
-      }
-    ]
-  },
-  {
-    "name": "term_function",
-    "type": "record",
-    "arguments": [
-      {
-        "name": "location",
-        "type": "location"
-      },
-      {
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "name": "arguments",
-        "type": "pool_array"
-      },
-      {
-        "name": "external",
-        "type": "bool"
-      }
-    ]
-  },
-  {
-    "name": "pool",
-    "type": "record",
-    "arguments": [
-      {
-        "name": "arguments",
-        "type": "term_or_projection_array"
-      }
-    ]
-  }
-])yaml";
+    return R"yaml(- name: unary_operator
+  type: enum
+  doc: Available unary operators.
+  values:
+    minus:
+      value: 0
+      doc: Operator `-`.
+    negation:
+      value: 1
+      doc: Operator `~`.
+- name: binary_operator
+  type: enum
+  doc: Available binary operators.
+  values:
+    and:
+      value: 0
+      doc: Operator `&`.
+    division:
+      value: 1
+      doc: Operator `/`.
+    minus:
+      value: 2
+      doc: Operator `-`.
+    modulo:
+      value: 3
+      doc: Operator `%`.
+    multiplication:
+      value: 4
+      doc: Operator `*`.
+    or:
+      value: 5
+      doc: Operator `|`.
+    plus:
+      value: 6
+      doc: Operator `+`.
+    power:
+      value: 7
+      doc: Operator `**`.
+    xor:
+      value: 8
+      doc: Operator `^`.
+- name: term_variable
+  type: forward
+- name: term_symbolic
+  type: forward
+- name: term_absolute
+  type: forward
+- name: term_unary_operation
+  type: forward
+- name: term_binary_operation
+  type: forward
+- name: term_tuple
+  type: forward
+- name: term_function
+  type: forward
+- name: term_variable
+  type: forward
+- name: term
+  type: union
+  types:
+  - term_variable
+  - term_symbolic
+  - term_absolute
+  - term_unary_operation
+  - term_binary_operation
+  - term_tuple
+  - term_function
+- name: term_array
+  type: array
+  value_type: term
+- name: projection
+  type: record
+  arguments:
+  - name: location
+    type: location
+- name: term_or_projection
+  type: union
+  types:
+  - term
+  - projection
+- name: term_or_projection_array
+  type: array
+  value_type: term_or_projection
+- name: pool
+  type: forward
+- name: pool_array
+  type: array
+  value_type: pool
+- name: term_or_pool
+  type: union
+  types:
+  - term
+  - pool
+- name: term_or_pool_array
+  type: array
+  value_type: term_or_pool
+- name: term_variable
+  type: record
+  arguments:
+  - name: location
+    type: location
+  - name: name
+    type: string
+  - name: anonymous
+    type: bool
+- name: term_symbolic
+  type: record
+  arguments:
+  - name: location
+    type: location
+  - name: symbol
+    type: symbol
+- name: term_absolute
+  type: record
+  arguments:
+  - name: location
+    type: location
+  - name: pool
+    type: term_array
+- name: term_unary_operation
+  type: record
+  arguments:
+  - name: location
+    type: location
+  - name: operator_type
+    type: unary_operator
+  - name: right
+    type: term
+- name: term_binary_operation
+  type: record
+  arguments:
+  - name: location
+    type: location
+  - name: left
+    type: term
+  - name: operator_type
+    type: binary_operator
+  - name: right
+    type: term
+- name: term_tuple
+  type: record
+  arguments:
+  - name: location
+    type: location
+  - name: arguments
+    type: term_or_pool_array
+- name: term_function
+  type: record
+  arguments:
+  - name: location
+    type: location
+  - name: name
+    type: string
+  - name: arguments
+    type: pool_array
+  - name: external
+    type: bool
+- name: pool
+  type: record
+  arguments:
+  - name: arguments
+    type: term_or_projection_array
+)yaml";
 }
 
 /*
