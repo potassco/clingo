@@ -7,7 +7,7 @@ def snake_to_camel(name):
     return "".join(x.title() for x in name.split("_"))
 
 
-ENV = jinja2.Environment()
+ENV = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="scripts/"))
 ENV.filters["camel"] = snake_to_camel
 
 
@@ -424,84 +424,9 @@ def generate():
             defines += defs
             register += record_reg(type_dict, type_name, type_attr["arguments"])
 
-    module_template = ENV.from_string(
-        """\
-#pragma once
-
-#include <pybind11/functional.h>
-#include <pybind11/operators.h>
-#include <pybind11/pybind11.h>
-
-#include "core.hh"
-#include "symbol.hh"
-
-namespace Clingo::AST {
-
-namespace py = pybind11;
-
-using Clingo::Symbol::Symbol;
-
-template <class... Ts>
-auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t*;
-
-template <class T>
-auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*>;
-
-{%- for type in types -%}
-{% if type.type == 'forward' %}
-class {{ type.name | camel }};
-{% elif type.type == 'optional' %}
-using {{ type.name | camel }} = std::optional<{{ type.value_type | camel }}>;
-{% elif type.type == 'array' %}
-using {{ type.name | camel }} = std::vector<{{ type.value_type | camel }}>;
-
-auto construct_{{ type.name }}(clingo_ast_t **ast, size_t size) -> {{ type.name | camel }};
-{% elif type.type == 'union' %}
-using {{ type.name | camel }} = std::variant<{{ type.types | map("camel") | join(", ") }}>;
-
-auto construct_{{ type.name }}(clingo_ast_t *ast) -> {{ type.name | camel }};
-{% elif type.type == 'enum' %}
-enum class {{ type.name | camel }} {
-{%- for name, attr in type["values"].items() %}
-    {{name | camel }} = {{ attr.value }},
-{%- endfor %}
-};
-{% elif type.type == 'record' %}
-{{ type.decl }}
-{% endif %}
-{%- endfor %}
-{{ defines }}\
-template <class... Ts>
-auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t* {
-    return std::visit([](auto const &x) { return c_cast(x); }, var);
-}
-
-template <class T>
-auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*> {
-    std::vector<clingo_ast_t*> ret;
-    ret.reserve(arr.size());
-    for (auto const &x : arr)  {
-        ret.emplace_back(c_cast(x));
-    }
-    return ret;
-}
-
-void register_module(pybind11::module &m) {
-    auto ast = m.def_submodule("ast", doc(R"(
-TODO
-)"));
-
-    ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, doc(R"(
-TODO
-)"));
-
-{{register[:-1]}}\
-}
-
-}\
-"""
+    return ENV.get_template("module.j2").render(
+        register=register, defines=defines, types=types
     )
-    return module_template.render(register=register, defines=defines, types=types)
 
 
 print(generate())
