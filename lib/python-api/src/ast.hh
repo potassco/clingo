@@ -13,34 +13,6 @@ namespace py = pybind11;
 
 using Clingo::Symbol::Symbol;
 
-struct Position {
-    static auto construct(Library &lib, char const *file_name, size_t line, size_t column) -> Position {
-        char const *str;
-        handle_error(lib, clingo_add_string(lib, file_name, &str));
-        return {str, line, column};
-    }
-    friend auto operator==(Position const &a, Position const &b) -> bool {
-        return a.file == b.file && a.line == b.line && a.column == b.column;
-    }
-    friend auto operator<(Position const &a, Position const &b) -> bool {
-        if (a.file != b.file) {
-            return std::strcmp(a.file, b.file) < 0;
-        }
-        if (a.line != b.line) {
-            return a.line < b.line;
-        }
-        return a.column < b.column;
-    }
-    CLINGO_CPP_TOTAL_ORDER(Position)
-    char const *file;
-    size_t line;
-    size_t column;
-};
-
-inline auto construct_location(Position const &begin, Position const &end) -> clingo_location_t {
-    return {begin.file, end.file, begin.line, end.line, begin.column, end.column};
-}
-
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t *;
 
 template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t *>;
@@ -106,6 +78,19 @@ class Projection {
         std::swap(ast_, x.ast_);
         return *this;
     }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(Projection const &a, Projection const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(Projection const &a, Projection const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, Projection)
+
     auto to_string() -> std::string {
         size_t len = 0;
         if (!clingo_ast_to_string_size(ast_, &len)) {
@@ -173,6 +158,19 @@ class TermVariable {
         std::swap(ast_, x.ast_);
         return *this;
     }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TermVariable const &a, TermVariable const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TermVariable const &a, TermVariable const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TermVariable)
+
     auto to_string() -> std::string {
         size_t len = 0;
         if (!clingo_ast_to_string_size(ast_, &len)) {
@@ -227,6 +225,19 @@ class TermSymbolic {
         std::swap(ast_, x.ast_);
         return *this;
     }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TermSymbolic const &a, TermSymbolic const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TermSymbolic const &a, TermSymbolic const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TermSymbolic)
+
     auto to_string() -> std::string {
         size_t len = 0;
         if (!clingo_ast_to_string_size(ast_, &len)) {
@@ -279,6 +290,19 @@ class TermAbsolute {
         std::swap(ast_, x.ast_);
         return *this;
     }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TermAbsolute const &a, TermAbsolute const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TermAbsolute const &a, TermAbsolute const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TermAbsolute)
+
     auto to_string() -> std::string {
         size_t len = 0;
         if (!clingo_ast_to_string_size(ast_, &len)) {
@@ -331,6 +355,19 @@ class TermUnaryOperation {
         std::swap(ast_, x.ast_);
         return *this;
     }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TermUnaryOperation const &a, TermUnaryOperation const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TermUnaryOperation const &a, TermUnaryOperation const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TermUnaryOperation)
+
     auto to_string() -> std::string {
         size_t len = 0;
         if (!clingo_ast_to_string_size(ast_, &len)) {
@@ -385,6 +422,19 @@ class TermBinaryOperation {
         std::swap(ast_, x.ast_);
         return *this;
     }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TermBinaryOperation const &a, TermBinaryOperation const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TermBinaryOperation const &a, TermBinaryOperation const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TermBinaryOperation)
+
     auto to_string() -> std::string {
         size_t len = 0;
         if (!clingo_ast_to_string_size(ast_, &len)) {
@@ -440,6 +490,17 @@ class TermTuple {
         std::swap(ast_, x.ast_);
         return *this;
     }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
+
+    friend auto operator<(TermTuple const &a, TermTuple const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TermTuple)
+
     auto to_string() -> std::string {
         size_t len = 0;
         if (!clingo_ast_to_string_size(ast_, &len)) {
@@ -493,6 +554,19 @@ class TermFunction {
         std::swap(ast_, x.ast_);
         return *this;
     }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TermFunction const &a, TermFunction const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TermFunction)
+
     auto to_string() -> std::string {
         size_t len = 0;
         if (!clingo_ast_to_string_size(ast_, &len)) {
@@ -548,6 +622,15 @@ class Pool {
         std::swap(ast_, x.ast_);
         return *this;
     }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(Pool const &a, Pool const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
+
+    friend auto operator<(Pool const &a, Pool const &b) -> bool { return clingo_ast_less_than(a.ast_, b.ast_); }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, Pool)
+
     auto to_string() -> std::string {
         size_t len = 0;
         if (!clingo_ast_to_string_size(ast_, &len)) {
@@ -1005,21 +1088,6 @@ TODO
 TODO
 )"));
 
-    py::class_<Position>(ast, "Position", R"(Position tracking object.)")
-        .def(py::init(&Position::construct))
-        .def_readonly("file", &Position::file)
-        .def_readonly("line", &Position::line)
-        .def_readonly("column", &Position::column) CLINGO_PY_TOTAL_ORDER;
-
-    py::class_<clingo_location_t>(ast, "Location", R"(Location tracking object.)")
-        .def(py::init(&construct_location))
-        .def_property_readonly("begin",
-                               [](clingo_location_t const &loc) {
-                                   return Position{loc.begin_file, loc.begin_line, loc.begin_column};
-                               })
-        .def_property_readonly("end", [](clingo_location_t const &loc) {
-            return Position{loc.end_file, loc.end_line, loc.end_column};
-        });
     py::enum_<UnaryOperator>(ast, "UnaryOperator", R"(Available unary operators.)")
         .value("Minus", UnaryOperator::Minus, R"(Operator `-`.)")
         .value("Negation", UnaryOperator::Negation, R"(Operator `~`.)");
@@ -1038,33 +1106,48 @@ TODO
     py::class_<Projection>(ast, "Projection", R"(TODO.)")
         .def(py::init(&Projection::construct))
         .def("__str__", &Projection::to_string)
-        .def_property_readonly("location", &Projection::location);
+        .def_property_readonly("location", &Projection::location)
+        .def("__hash__", &Projection::hash)
+
+            CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermVariable>(ast, "TermVariable", R"(TODO.)")
         .def(py::init(&TermVariable::construct))
         .def("__str__", &TermVariable::to_string)
         .def_property_readonly("location", &TermVariable::location)
         .def_property_readonly("name", &TermVariable::name)
-        .def_property_readonly("anonymous", &TermVariable::anonymous);
+        .def_property_readonly("anonymous", &TermVariable::anonymous)
+        .def("__hash__", &TermVariable::hash)
+
+            CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermSymbolic>(ast, "TermSymbolic", R"(TODO.)")
         .def(py::init(&TermSymbolic::construct))
         .def("__str__", &TermSymbolic::to_string)
         .def_property_readonly("location", &TermSymbolic::location)
-        .def_property_readonly("symbol", &TermSymbolic::symbol);
+        .def_property_readonly("symbol", &TermSymbolic::symbol)
+        .def("__hash__", &TermSymbolic::hash)
+
+            CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermAbsolute>(ast, "TermAbsolute", R"(TODO.)")
         .def(py::init(&TermAbsolute::construct))
         .def("__str__", &TermAbsolute::to_string)
         .def_property_readonly("location", &TermAbsolute::location)
-        .def_property_readonly("pool", &TermAbsolute::pool);
+        .def_property_readonly("pool", &TermAbsolute::pool)
+        .def("__hash__", &TermAbsolute::hash)
+
+            CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermUnaryOperation>(ast, "TermUnaryOperation", R"(TODO.)")
         .def(py::init(&TermUnaryOperation::construct))
         .def("__str__", &TermUnaryOperation::to_string)
         .def_property_readonly("location", &TermUnaryOperation::location)
         .def_property_readonly("operator_type", &TermUnaryOperation::operator_type)
-        .def_property_readonly("right", &TermUnaryOperation::right);
+        .def_property_readonly("right", &TermUnaryOperation::right)
+        .def("__hash__", &TermUnaryOperation::hash)
+
+            CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermBinaryOperation>(ast, "TermBinaryOperation", R"(TODO.)")
         .def(py::init(&TermBinaryOperation::construct))
@@ -1072,13 +1155,19 @@ TODO
         .def_property_readonly("location", &TermBinaryOperation::location)
         .def_property_readonly("left", &TermBinaryOperation::left)
         .def_property_readonly("operator_type", &TermBinaryOperation::operator_type)
-        .def_property_readonly("right", &TermBinaryOperation::right);
+        .def_property_readonly("right", &TermBinaryOperation::right)
+        .def("__hash__", &TermBinaryOperation::hash)
+
+            CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermTuple>(ast, "TermTuple", R"(TODO.)")
         .def(py::init(&TermTuple::construct))
         .def("__str__", &TermTuple::to_string)
         .def_property_readonly("location", &TermTuple::location)
-        .def_property_readonly("arguments", &TermTuple::arguments);
+        .def_property_readonly("arguments", &TermTuple::arguments)
+        .def("__hash__", &TermTuple::hash)
+
+            CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermFunction>(ast, "TermFunction", R"(TODO.)")
         .def(py::init(&TermFunction::construct))
@@ -1086,12 +1175,18 @@ TODO
         .def_property_readonly("location", &TermFunction::location)
         .def_property_readonly("name", &TermFunction::name)
         .def_property_readonly("arguments", &TermFunction::arguments)
-        .def_property_readonly("external", &TermFunction::external);
+        .def_property_readonly("external", &TermFunction::external)
+        .def("__hash__", &TermFunction::hash)
+
+            CLINGO_PY_TOTAL_ORDER;
 
     py::class_<Pool>(ast, "Pool", R"(TODO.)")
         .def(py::init(&Pool::construct))
         .def("__str__", &Pool::to_string)
-        .def_property_readonly("arguments", &Pool::arguments);
+        .def_property_readonly("arguments", &Pool::arguments)
+        .def("__hash__", &Pool::hash)
+
+            CLINGO_PY_TOTAL_ORDER;
 }
 
 } // namespace Clingo::AST

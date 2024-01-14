@@ -61,6 +61,11 @@ struct Projection {
 //! @related Projection
 auto operator==(Projection const &a, Projection const &b) -> bool;
 
+//! Compare two projected positions.
+//!
+//! @related Projection
+auto operator<(Projection const &a, Projection const &b) -> bool;
+
 //! A variant capturing either a term or a position that is to be projected.
 using TupleElem = std::variant<Projection, Term>;
 //! A tuple of terms or positions to project.
@@ -89,6 +94,11 @@ struct TermVariable {
 //! @related TermVariable
 auto operator==(TermVariable const &a, TermVariable const &b) -> bool;
 
+//! Compare two variables.
+//!
+//! @related TermVariable
+auto operator<(TermVariable const &a, TermVariable const &b) -> bool;
+
 //! Term representing a symbol.
 //!
 //! For example <tt>1</tt>.
@@ -106,6 +116,11 @@ struct TermSymbol {
 //!
 //! @related TermSymbol
 auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
+
+//! Compare two symbols.
+//!
+//! @related TermSymbol
+auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool;
 
 //! Term representing a tuple.
 //!
@@ -129,6 +144,11 @@ struct TermTuple {
 //!
 //! @related TermTuple
 auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
+
+//! Compare two tuple terms.
+//!
+//! @related TermTuple
+auto operator<(TermTuple const &a, TermTuple const &b) -> bool;
 
 //! Term representing a symbolic or external function.
 //!
@@ -155,6 +175,11 @@ struct TermFunction {
 //! @related TermFunction
 auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
 
+//! Compare two function terms.
+//!
+//! @related TermFunction
+auto operator<(TermFunction const &a, TermFunction const &b) -> bool;
+
 //! Term representing the absolute function.
 //!
 //! For example <tt>|-X|</tt>.
@@ -174,6 +199,11 @@ struct TermAbs {
 //!
 //! @related TermAbs
 auto operator==(TermAbs const &a, TermAbs const &b) -> bool;
+
+//! Compare two absolute terms.
+//!
+//! @related TermAbs
+auto operator<(TermAbs const &a, TermAbs const &b) -> bool;
 
 //! Enumeration of available unary operators.
 enum class UnaryOperator : int {
@@ -202,6 +232,11 @@ struct TermUnary {
 //!
 //! @related TermUnary
 auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
+
+//! Compare two unary terms.
+//!
+//! @related TermUnary
+auto operator<(TermUnary const &a, TermUnary const &b) -> bool;
 
 //! Enumeration of available binary operators.
 enum class BinaryOperator : int {
@@ -240,6 +275,11 @@ struct TermBinary {
 //!
 //! @related TermBinary
 auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
+
+//! Compare two binary terms.
+//!
+//! @related TermBinary
+auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
 
 //! @}
 

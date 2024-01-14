@@ -228,7 +228,21 @@ enum clingo_truth_value_e {
 //! Corresponding type to ::clingo_truth_value_e.
 typedef int clingo_truth_value_t;
 
+//! Internalize a string.
+//!
+//! This functions takes a string as input and returns an equal unique string
+//! that is stored in the given library.
+//!
+//! @param[in] lib library object storing the symbol
+//! @param[in] string the string to internalize
+//! @param[out] result the internalized string
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_add_string(clingo_lib_t *lib, char const *string, char const **result);
+
 //! Represents a source code location marking its beginning and end.
+//!
+//! @note Strings in locations must be internalized.
 //!
 //! @note Not all locations refer to physical files.
 //! By convention, such locations use a name put in angular brackets as filename.
@@ -242,6 +256,38 @@ typedef struct clingo_location {
     size_t end_column;      //!< the column where the location ends
 } clingo_location_t;
 
+//! Less than compare two locations.
+//!
+//! @param[in] a the left-hand-side
+//! @param[in] b the right-hand-side
+//! @return the result of the comparison
+CLINGO_VISIBILITY_DEFAULT bool clingo_location_less_than(clingo_location_t const *a, clingo_location_t const *b);
+//! Equality compare two locations.
+//!
+//! @param[in] a the left-hand-side
+//! @param[in] b the right-hand-side
+//! @return the result of the comparison
+CLINGO_VISIBILITY_DEFAULT bool clingo_location_equal(clingo_location_t const *a, clingo_location_t const *b);
+//! Compute a hash for a location.
+//!
+//! @param[in] ast the target
+//! @return the resulting hash code
+CLINGO_VISIBILITY_DEFAULT size_t clingo_location_hash(clingo_location_t const *loc);
+
+//! Get the size of the string representation of a location (including the terminating 0).
+//!
+//! @param[in] location the target location
+//! @param[out] size the resulting size
+//! @return whether the size has been set
+CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string_size(clingo_location_t location, size_t *size);
+
+//! Get the string representation of a location.
+//!
+//! @param[in] location the target location
+//! @param[out] string the resulting string
+//! @param[in] size the size of the string
+//! @return whether the string has been set
+CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string(clingo_location_t location, char *string, size_t size);
 //! @}
 
 // {{{1 Symbol
@@ -362,18 +408,6 @@ typedef uint64_t clingo_symbol_t;
 
 //! @name Symbol Construction Functions
 //! @{
-
-//! Internalize a string.
-//!
-//! This functions takes a string as input and returns an equal unique string
-//! that is stored in the given library.
-//!
-//! @param[in] lib library object storing the symbol
-//! @param[in] string the string to internalize
-//! @param[out] result the internalized string
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_add_string(clingo_lib_t *lib, char const *string, char const **result);
 
 //! Construct a symbol representing <tt>\#inf</tt>.
 //!
@@ -845,6 +879,29 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string_size(clingo_ast_t *ast, size
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t size);
+
+//! @}
+
+//! @name Functions to compare ASTs
+//! @{
+
+//! Less than compare two AST nodes.
+//!
+//! @param[in] a the left-hand-side AST
+//! @param[in] b the right-hand-side AST
+//! @return the result of the comparison
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_less_than(clingo_ast_t *a, clingo_ast_t *b);
+//! Equality compare two AST nodes.
+//!
+//! @param[in] a the left-hand-side AST
+//! @param[in] b the right-hand-side AST
+//! @return the result of the comparison
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_equal(clingo_ast_t *a, clingo_ast_t *b);
+//! Compute a hash for an AST node.
+//!
+//! @param[in] ast the target AST
+//! @return the resulting hash code
+CLINGO_VISIBILITY_DEFAULT size_t clingo_ast_hash(clingo_ast_t *ast);
 
 //! @}
 

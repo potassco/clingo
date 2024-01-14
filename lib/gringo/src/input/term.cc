@@ -4,27 +4,74 @@ namespace Gringo::Input {
 
 auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return Util::value_equal(a.name, b.name); }
 
+auto operator<(TermVariable const &a, TermVariable const &b) -> bool { return a.name < b.name; }
+
 auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool { return Util::value_equal(a.value, b.value); }
 
+auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool { return a.value < b.value; }
+
 auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return Util::value_equal(a.pool, b.pool); }
+
+auto operator<(TermTuple const &a, TermTuple const &b) -> bool {
+    return std::lexicographical_compare(a.pool.begin(), a.pool.end(), b.pool.begin(), b.pool.end());
+}
 
 auto operator==(TermFunction const &a, TermFunction const &b) -> bool {
     return Util::value_equal(a.name, b.name, a.pool, b.pool, a.external, b.external);
 }
 
+namespace {
+
+template <class T> struct lex_comp {
+    lex_comp(T const &rng) : rng{rng} {}
+    friend auto operator<(lex_comp const &a, lex_comp const &b) -> bool {
+        return std::lexicographical_compare(a.rng.begin(), a.rng.end(), b.rng.begin(), b.rng.end());
+    }
+    T const &rng;
+};
+
+} // namespace
+
+auto operator<(TermFunction const &a, TermFunction const &b) -> bool {
+    // TODO: a value less then construction would also work
+    auto p_a = lex_comp{a.pool};
+    auto p_b = lex_comp{b.pool};
+    return std::tie(a.name, p_a, a.external) < std::tie(b.name, p_b, b.external);
+}
+
 auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return Util::value_equal(a.pool, b.pool); }
 
+auto operator<(TermAbs const &a, TermAbs const &b) -> bool {
+    return std::lexicographical_compare(a.pool.begin(), a.pool.end(), b.pool.begin(), b.pool.end());
+}
+
 auto operator==(TermUnary const &a, TermUnary const &b) -> bool { return Util::value_equal(a.op, b.op, a.rhs, b.rhs); };
+
+auto operator<(TermUnary const &a, TermUnary const &b) -> bool {
+    return std::tie(reinterpret_cast<int const &>(a.op), *a.rhs) <
+           std::tie(reinterpret_cast<int const &>(b.op), *b.rhs);
+}
 
 auto operator==(TermBinary const &a, TermBinary const &b) -> bool {
     return Util::value_equal(a.op, b.op, a.lhs, b.lhs, a.rhs, b.rhs);
 };
+
+auto operator<(TermBinary const &a, TermBinary const &b) -> bool {
+    return std::tie(*a.lhs, reinterpret_cast<int const &>(a.op), *a.rhs) <
+           std::tie(*b.lhs, reinterpret_cast<int const &>(b.op), *b.rhs);
+}
 
 auto operator==(Projection const &a, Projection const &b) -> bool {
     static_cast<void>(a);
     static_cast<void>(b);
     return true;
 };
+
+auto operator<(Projection const &a, Projection const &b) -> bool {
+    static_cast<void>(a);
+    static_cast<void>(b);
+    return false;
+}
 
 } // namespace Gringo::Input
 

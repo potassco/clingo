@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sstream>
+
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
@@ -14,11 +16,21 @@
         .def(py::self > py::self)                                                                                      \
         .def(py::self >= py::self)
 
-#define CLINGO_CPP_TOTAL_ORDER(T)                                                                                      \
-    friend auto operator!=(T const &a, T const &b) -> bool { return !(a == b); }                                       \
-    friend auto operator<=(T const &a, T const &b) -> bool { return !(b < a); }                                        \
-    friend auto operator>(T const &a, T const &b) -> bool { return b < a; }                                            \
-    friend auto operator>=(T const &a, T const &b) -> bool { return !(a < b); }
+#define CLINGO_CPP_TOTAL_ORDER(type, T)                                                                                \
+    type auto operator!=(T const &a, T const &b) -> bool { return !(a == b); }                                         \
+    type auto operator<=(T const &a, T const &b) -> bool { return !(b < a); }                                          \
+    type auto operator>(T const &a, T const &b) -> bool { return b < a; }                                              \
+    type auto operator>=(T const &a, T const &b) -> bool { return !(a < b); }
+
+static auto operator==(clingo_location_t const &a, clingo_location_t const &b) -> bool {
+    return clingo_location_equal(&a, &b);
+}
+
+static auto operator<(clingo_location_t const &a, clingo_location_t const &b) -> bool {
+    return clingo_location_less_than(&a, &b);
+}
+
+CLINGO_CPP_TOTAL_ORDER(static, clingo_location_t)
 
 namespace Clingo {
 
@@ -106,6 +118,79 @@ auto version() -> std::tuple<int, int, int> {
     return {major, minor, patch};
 }
 
+struct Position {
+    static auto construct(Library &lib, char const *file_name, size_t line, size_t column) -> Position {
+        char const *str;
+        handle_error(lib, clingo_add_string(lib, file_name, &str));
+        return {str, line, column};
+    }
+    [[nodiscard]] auto str() const -> std::string {
+        std::ostringstream oss;
+        oss << file << ":" << line << ":" << column;
+        return oss.str();
+    }
+
+    [[nodiscard]] auto repr() const -> std::string {
+        std::ostringstream oss;
+        oss << "Position(" << py::cast<std::string>(py::str{file}.attr("__repr__")()) << "," << line << "," << column
+            << ")";
+        return oss.str();
+    }
+
+    [[nodiscard]] auto hash() const -> size_t {
+        clingo_location_t loc = {file, "", line, 0, column, 0};
+        return clingo_location_hash(&loc);
+    }
+    friend auto operator==(Position const &a, Position const &b) -> bool {
+        return a.file == b.file && a.line == b.line && a.column == b.column;
+    }
+    friend auto operator<(Position const &a, Position const &b) -> bool {
+        if (a.file != b.file) {
+            return std::strcmp(a.file, b.file) < 0;
+        }
+        if (a.line != b.line) {
+            return a.line < b.line;
+        }
+        return a.column < b.column;
+    }
+    CLINGO_CPP_TOTAL_ORDER(friend, Position)
+    char const *file;
+    size_t line;
+    size_t column;
+};
+
+inline auto location_hash(clingo_location_t const &a) -> size_t { return clingo_location_hash(&a); }
+
+[[nodiscard]] auto location_str(clingo_location_t const &loc) -> std::string {
+    size_t len = 0;
+    if (!clingo_location_to_string_size(loc, &len)) {
+        throw std::runtime_error("could convert to string");
+    }
+    std::string str;
+    str.resize(len);
+    if (!clingo_location_to_string(loc, str.data(), len)) {
+        throw std::runtime_error("could convert to string");
+    }
+    if (!str.empty() && str.back() == '\0') {
+        str.pop_back();
+    }
+    return str;
+}
+
+[[nodiscard]] auto location_repr(clingo_location_t const &loc) -> std::string {
+    std::ostringstream oss;
+    oss << "Location("
+        << "Position(" << py::cast<std::string>(py::str{loc.begin_file}.attr("__repr__")()) << "," << loc.begin_line
+        << "," << loc.begin_column << "),"
+        << "Position(" << py::cast<std::string>(py::str{loc.end_file}.attr("__repr__")()) << "," << loc.end_line << ","
+        << loc.end_column << "))";
+    return oss.str();
+}
+
+inline auto construct_location(Position const &begin, Position const &end) -> clingo_location_t {
+    return {begin.file, end.file, begin.line, end.line, begin.column, end.column};
+}
+
 void register_module(pybind11::module &m) {
     auto core = m.def_submodule("core", doc(R"(
 Core functionality used throughout the clingo package.
@@ -165,6 +250,32 @@ Return self.
             doc(R"(
 Close the library object.
 )"));
+    py::class_<Position>(core, "Position", R"(Position tracking object.)")
+        .def(py::init(&Position::construct))
+        .def_readonly("file", &Position::file)
+        .def_readonly("line", &Position::line)
+        .def_readonly("column", &Position::column)
+        .def("__str__", &Position::str)
+        .def("__repr__", &Position::repr)
+        .def("__hash__", &Position::hash)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py::class_<clingo_location_t>(core, "Location", R"(Location tracking object.)")
+        .def(py::init(&construct_location))
+        .def_property_readonly("begin",
+                               [](clingo_location_t const &loc) {
+                                   return Position{loc.begin_file, loc.begin_line, loc.begin_column};
+                               })
+        .def_property_readonly("end",
+                               [](clingo_location_t const &loc) {
+                                   return Position{loc.end_file, loc.end_line, loc.end_column};
+                               })
+        .def("__str__", &location_str)
+        .def("__repr__", &location_repr)
+        .def("__hash__", &location_hash)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 }
 
 } // namespace Clingo

@@ -115,6 +115,9 @@ web:
 	$(MAKE) -C build_web
 	$(MAKE) -C build_web test
 
+gen:
+	PYTHONPATH=build/lib/python-api python scripts/generate.py > lib/python-api/src/ast.hh
+
 %: configure
 	cmake --build build --target $@ --parallel
 

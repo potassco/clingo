@@ -154,7 +154,7 @@ class Symbol {
     friend auto operator<(Symbol const &a, Symbol const &b) -> bool {
         return clingo_symbol_is_less_than(a.sym_, b.sym_);
     }
-    CLINGO_CPP_TOTAL_ORDER(Symbol)
+    CLINGO_CPP_TOTAL_ORDER(friend, Symbol)
 
     static auto acquire(clingo_symbol_t sym) -> Symbol { return Symbol{sym}; }
     [[nodiscard]] auto handle() const -> clingo_symbol_t { return sym_; }

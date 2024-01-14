@@ -225,6 +225,21 @@ public:
         std::swap(ast_, x.ast_);
         return *this;
     }}
+
+    [[nodiscard]] auto hash() const -> size_t {{
+        return clingo_ast_hash(ast_);
+    }}
+
+    friend auto operator==({type_name} const &a, {type_name} const &b) -> bool {{
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }}
+
+    friend auto operator<({type_name} const &a, {type_name} const &b) -> bool {{
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }}
+
+    CLINGO_CPP_TOTAL_ORDER(friend, {type_name})
+
     auto to_string() -> std::string {{
         size_t len = 0;
         if (!clingo_ast_to_string_size(ast_, &len)) {{
@@ -279,7 +294,9 @@ def record_reg(type_dict, type_name, args):
         attr += property_attribute_reg(type_name, arg)
     return f"""\
     py::class_<{type_name}>(ast, "{type_name}", R"(TODO.)")
-{attr}        ;
+{attr}        .def("__hash__", &{type_name}::hash)
+
+CLINGO_PY_TOTAL_ORDER;
 
 """
 
@@ -422,34 +439,6 @@ namespace py = pybind11;
 
 using Clingo::Symbol::Symbol;
 
-struct Position {{
-    static auto construct(Library &lib, char const *file_name, size_t line, size_t column) -> Position {{
-        char const *str;
-        handle_error(lib, clingo_add_string(lib, file_name, &str));
-        return {{str, line, column}};
-    }}
-    friend auto operator==(Position const &a, Position const &b) -> bool {{
-        return a.file == b.file && a.line == b.line && a.column == b.column;
-    }}
-    friend auto operator<(Position const &a, Position const &b) -> bool {{
-        if (a.file != b.file) {{
-            return std::strcmp(a.file, b.file) < 0;
-        }}
-        if (a.line != b.line) {{
-            return a.line < b.line;
-        }}
-        return a.column < b.column;
-    }}
-    CLINGO_CPP_TOTAL_ORDER(Position)
-    char const *file;
-    size_t line;
-    size_t column;
-}};
-
-inline auto construct_location(Position const &begin, Position const &end) -> clingo_location_t {{
-    return {{begin.file, end.file, begin.line, end.line, begin.column, end.column}};
-}}
-
 template <class... Ts>
 auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t*;
 
@@ -481,21 +470,6 @@ TODO
 TODO
 )"));
 
-    py::class_<Position>(ast, "Position", R"(Position tracking object.)")
-        .def(py::init(&Position::construct))
-        .def_readonly("file", &Position::file)
-        .def_readonly("line", &Position::line)
-        .def_readonly("column", &Position::column)
-        CLINGO_PY_TOTAL_ORDER
-        ;
-
-    py::class_<clingo_location_t>(ast, "Location", R"(Location tracking object.)")
-        .def(py::init(&construct_location))
-        .def_property_readonly("begin", [](clingo_location_t const &loc) {{
-            return Position{{loc.begin_file, loc.begin_line, loc.begin_column}}; }})
-        .def_property_readonly("end", [](clingo_location_t const &loc) {{
-            return Position{{loc.end_file, loc.end_line, loc.end_column}}; }})
-        ;\
 {register}\
 }}
 

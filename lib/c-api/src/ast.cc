@@ -28,6 +28,9 @@ template <class T> auto ast_vec_convert(clingo_ast const **ast, size_t size) -> 
 struct clingo_ast {
     [[nodiscard]] virtual auto copy() const -> std::unique_ptr<clingo_ast_t> = 0;
     virtual void print(std::ostream &out) const = 0;
+    [[nodiscard]] virtual auto hash() const -> size_t = 0;
+    [[nodiscard]] virtual auto equal_to(clingo_ast_t const &other) const -> bool = 0;
+    [[nodiscard]] virtual auto less_than(clingo_ast_t const &other) const -> bool = 0;
     [[nodiscard]] virtual auto get_type() const -> clingo_ast_type_e = 0;
     [[nodiscard]] virtual auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int>;
     [[nodiscard]] virtual auto get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t>;
@@ -417,6 +420,16 @@ class ASTProjection : public clingo_ast {
         }
         return std::nullopt;
     }
+
+    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
+        return dynamic_cast<ASTProjection const *>(&other) != nullptr;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t override { return typeid(projection_).hash_code(); }
+
+    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
+        return get_type() < other.get_type();
+    }
     template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
 
   private:
@@ -451,6 +464,25 @@ class ASTTerm : public clingo_ast {
     [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const
         -> std::optional<std::unique_ptr<clingo_ast_t>> override {
         return std::visit(GetAST{attr}, term);
+    }
+
+    [[nodiscard]] auto hash() const -> size_t override { return Gringo::Util::value_hash(term); }
+
+    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
+        auto const *b = dynamic_cast<ASTTerm const *>(&other);
+        if (b == nullptr) {
+            return false;
+        }
+        return term == b->term;
+    }
+
+    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
+        auto t_a = get_type();
+        auto t_b = other.get_type();
+        if (t_a != t_b) {
+            return t_a < t_b;
+        }
+        return term < static_cast<ASTTerm const &>(other).term;
     }
 
     template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
@@ -490,6 +522,34 @@ class ASTTermPool : public clingo_ast {
         }
     }
     [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_pool; }
+
+    [[nodiscard]] auto hash() const -> size_t override {
+        size_t hash = typeid(ASTTermPool).hash_code();
+        for (auto const *elem : tuple_) {
+            hash = Gringo::Util::hash_combine({hash, elem->hash()});
+        }
+        return hash;
+    }
+
+    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
+        auto const *b = dynamic_cast<ASTTermPool const *>(&other);
+        if (b == nullptr) {
+            return false;
+        }
+        return std::equal(tuple_.begin(), tuple_.end(), b->tuple_.begin(), b->tuple_.end(),
+                          [](auto const *a, auto const *b) { return a->equal_to(*b); });
+    }
+
+    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
+        auto t_a = get_type();
+        auto t_b = other.get_type();
+        if (t_a != t_b) {
+            return t_a < t_b;
+        }
+        auto const &b = static_cast<ASTTermPool const &>(other);
+        return std::lexicographical_compare(tuple_.begin(), tuple_.end(), b.tuple_.begin(), b.tuple_.end(),
+                                            [](auto const *a, auto const *b) { return a->less_than(*b); });
+    }
 
     template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
 
@@ -732,6 +792,12 @@ extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t siz
         return false;
     }
 }
+
+extern "C" auto clingo_ast_less_than(clingo_ast_t *a, clingo_ast_t *b) -> bool { return a->less_than(*b); }
+
+extern "C" auto clingo_ast_equal(clingo_ast_t *a, clingo_ast_t *b) -> bool { return a->equal_to(*b); }
+
+extern "C" auto clingo_ast_hash(clingo_ast_t *ast) -> size_t { return ast->hash(); }
 
 extern "C" auto clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) -> bool {
     if (ast == nullptr || copy == nullptr) {

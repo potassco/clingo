@@ -1,4 +1,10 @@
 #include "lib.hh"
+#include "streams.hh"
+
+#include <cstring>
+
+#include <gringo/input/algo/print.hh>
+#include <gringo/input/location.hh>
 
 extern "C" void clingo_version(int *major, int *minor, int *revision) {
     *major = CLINGO_VERSION_MAJOR;
@@ -130,4 +136,66 @@ extern "C" auto clingo_error_code(clingo_lib_t *lib) -> clingo_error_t {
         return lib->last_code;
     }
     return clingo_error_runtime;
+}
+
+extern "C" auto clingo_location_less_than(clingo_location_t const *a, clingo_location_t const *b) -> bool {
+    if (a->begin_file != b->begin_file) {
+        return std::strcmp(a->begin_file, b->begin_file) < 0;
+    }
+    if (a->begin_line != b->begin_line) {
+        return a->begin_line < b->begin_line;
+    }
+    if (a->begin_column != b->begin_column) {
+        return a->begin_column < b->begin_column;
+    }
+    if (a->end_file != b->end_file) {
+        return std::strcmp(a->end_file, b->end_file) < 0;
+    }
+    if (a->end_line != b->end_line) {
+        return a->end_line < b->end_line;
+    }
+    return a->end_column < b->end_column;
+}
+
+extern "C" auto clingo_location_equal(clingo_location_t const *a, clingo_location_t const *b) -> bool {
+    return a->begin_file == b->begin_file && a->begin_line == b->begin_line && a->begin_column == b->begin_column &&
+           a->end_file == b->end_file && a->end_line == b->end_line && a->end_column == b->end_column;
+}
+
+extern "C" auto clingo_location_hash(clingo_location_t const *loc) -> size_t {
+    return Gringo::Util::value_hash(typeid(clingo_location_t).hash_code(), reinterpret_cast<uintptr_t>(loc->begin_file),
+                                    reinterpret_cast<uintptr_t>(loc->end_file), loc->begin_line, loc->end_line,
+                                    loc->begin_column, loc->end_column);
+}
+
+extern "C" auto clingo_location_to_string_size(clingo_location_t location, size_t *size) -> bool {
+    if (size == nullptr) {
+        return false;
+    }
+    try {
+        auto loc = Gringo::Input::Location{{Gringo::String::from_rep(reinterpret_cast<uint64_t>(location.begin_file)),
+                                            location.begin_line, location.begin_column},
+                                           {Gringo::String::from_rep(reinterpret_cast<uint64_t>(location.end_file)),
+                                            location.end_line, location.end_column}};
+        *size = print_size(loc);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+extern "C" auto clingo_location_to_string(clingo_location_t location, char *string, size_t size) -> bool {
+    if (string == nullptr) {
+        return false;
+    }
+    try {
+        auto loc = Gringo::Input::Location{{Gringo::String::from_rep(reinterpret_cast<uint64_t>(location.begin_file)),
+                                            location.begin_line, location.begin_column},
+                                           {Gringo::String::from_rep(reinterpret_cast<uint64_t>(location.end_file)),
+                                            location.end_line, location.end_column}};
+        print(string, size, loc);
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
