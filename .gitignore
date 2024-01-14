@@ -15,3 +15,4 @@ doc/html
 doc/latex
 example.*
 __pycache__
+.venv

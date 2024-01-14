@@ -1,9 +1,14 @@
+import jinja2
 import yaml
 from clingo.ast import _type_info_yaml
 
 
 def snake_to_camel(name):
     return "".join(x.title() for x in name.split("_"))
+
+
+ENV = jinja2.Environment()
+ENV.filters["camel"] = snake_to_camel
 
 
 def location_attribute_declare_cpp(arg):
@@ -289,8 +294,7 @@ private:
 
 inline auto c_cast({type_name} const &x) -> clingo_ast_t * {{
     return x.ast_;
-}}
-
+}}\
 """,
         defs,
     )
@@ -318,10 +322,6 @@ def record_reg(type_dict, type_name, args):
         CLINGO_PY_TOTAL_ORDER;
 
 """
-
-
-def union_declare_cpp(arg):
-    return f"""auto construct_{arg["name"]}(clingo_ast_t *ast) -> {snake_to_camel(arg["name"])};"""
 
 
 def union_define_cpp(arg, type_dict):
@@ -364,10 +364,6 @@ auto construct_{arg["name"]}(clingo_ast_t *ast) -> {type_} {{
 """
 
 
-def array_declare_cpp(arg):
-    return f"""auto construct_{arg["name"]}(clingo_ast_t **ast, size_t size) -> {snake_to_camel(arg["name"])};"""
-
-
 def array_define_cpp(arg, type_dict):
     if type_dict[arg["value_type"]]["type"] == "union":
         cons = f'construct_{arg["value_type"]}'
@@ -400,51 +396,36 @@ inline auto construct_{arg["name"]}(clingo_ast_t **ast, size_t size) -> {snake_t
 def generate():
     types = yaml.safe_load(_type_info_yaml())
     defines = ""
-    preamble = ""
     register = ""
 
     type_dict = {}
 
     for type_attr in types:
+        type_attr["pyname"] = snake_to_camel(type_attr["name"])
         type_dict[type_attr["name"]] = type_attr
         type_name = snake_to_camel(type_attr["name"])
-        if type_attr["type"] == "forward":
-            preamble += f"class {type_name};\n\n"
-
-        if type_attr["type"] == "optional":
-            value_type = snake_to_camel(type_attr["value_type"])
-            preamble += f"using {type_name} = std::optional<{value_type}>;\n\n"
-
         if type_attr["type"] == "array":
-            value_type = snake_to_camel(type_attr["value_type"])
-            preamble += f"using {type_name} = std::vector<{value_type}>;\n\n"
-            preamble += array_declare_cpp(type_attr) + "\n\n"
             defines += array_define_cpp(type_attr, type_dict)
 
         if type_attr["type"] == "union":
-            types = ", ".join(snake_to_camel(x) for x in type_attr["types"])
-            preamble += f"using {type_name} = std::variant<{types}>;\n\n"
-            preamble += union_declare_cpp(type_attr) + "\n\n"
             defines += union_define_cpp(type_attr, type_dict)
 
         if type_attr["type"] == "enum":
-            preamble += f"enum class {type_name} {{\n"
             register += f"""    py::enum_<{type_name}>(ast, "{type_name}", R"({type_attr["doc"]})")\n"""
             for value_name, value_attr in type_attr["values"].items():
                 value_name = snake_to_camel(value_name)
                 value = f"{type_name}::{value_name}"
                 register += f"""        .value("{value_name}", {value}, R"({value_attr["doc"]})")\n"""
-                preamble += f'    {value_name} = {value_attr["value"]},\n'
             register += "        ;\n\n"
-            preamble += "};\n\n"
 
         if type_attr["type"] == "record":
             decl, defs = record_define_cpp(type_dict, type_name, type_attr)
-            preamble += decl
+            type_attr["decl"] = decl
             defines += defs
             register += record_reg(type_dict, type_name, type_attr["arguments"])
 
-    result = f"""\
+    module_template = ENV.from_string(
+        """\
 #pragma once
 
 #include <pybind11/functional.h>
@@ -454,7 +435,7 @@ def generate():
 #include "core.hh"
 #include "symbol.hh"
 
-namespace Clingo::AST {{
+namespace Clingo::AST {
 
 namespace py = pybind11;
 
@@ -464,25 +445,48 @@ template <class... Ts>
 auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t*;
 
 template <class T>
-auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*>;\
-{preamble}\
-{defines}\
+auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*>;
+
+{%- for type in types -%}
+{% if type.type == 'forward' %}
+class {{ type.name | camel }};
+{% elif type.type == 'optional' %}
+using {{ type.name | camel }} = std::optional<{{ type.value_type | camel }}>;
+{% elif type.type == 'array' %}
+using {{ type.name | camel }} = std::vector<{{ type.value_type | camel }}>;
+
+auto construct_{{ type.name }}(clingo_ast_t **ast, size_t size) -> {{ type.name | camel }};
+{% elif type.type == 'union' %}
+using {{ type.name | camel }} = std::variant<{{ type.types | map("camel") | join(", ") }}>;
+
+auto construct_{{ type.name }}(clingo_ast_t *ast) -> {{ type.name | camel }};
+{% elif type.type == 'enum' %}
+enum class {{ type.name | camel }} {
+{%- for name, attr in type["values"].items() %}
+    {{name | camel }} = {{ attr.value }},
+{%- endfor %}
+};
+{% elif type.type == 'record' %}
+{{ type.decl }}
+{% endif %}
+{%- endfor %}
+{{ defines }}\
 template <class... Ts>
-auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t* {{
-    return std::visit([](auto const &x) {{ return c_cast(x); }}, var);
-}}
+auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t* {
+    return std::visit([](auto const &x) { return c_cast(x); }, var);
+}
 
 template <class T>
-auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*> {{
+auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*> {
     std::vector<clingo_ast_t*> ret;
     ret.reserve(arr.size());
-    for (auto const &x : arr)  {{
+    for (auto const &x : arr)  {
         ret.emplace_back(c_cast(x));
-    }}
+    }
     return ret;
-}}
+}
 
-void register_module(pybind11::module &m) {{
+void register_module(pybind11::module &m) {
     auto ast = m.def_submodule("ast", doc(R"(
 TODO
 )"));
@@ -491,13 +495,13 @@ TODO
 TODO
 )"));
 
-{register[:-1]}\
-}}
+{{register[:-1]}}\
+}
 
-}}\
+}\
 """
-
-    return result
+    )
+    return module_template.render(register=register, defines=defines, types=types)
 
 
 print(generate())

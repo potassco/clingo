@@ -121,6 +121,12 @@ gen:
 format_yaml:
 	PYTHONPATH=build/lib/python-api python scripts/format_yaml.py
 
+venv: SHELL:=/bin/bash
+venv:
+	python -m venv .venv
+	source .venv/bin/activate && pip install pynvim pyyaml jinja2
+	ln -rft .venv/lib/python*/site-packages -s build/lib/python-api/clingo.*.so
+
 %: configure
 	cmake --build build --target $@ --parallel
 
