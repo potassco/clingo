@@ -901,8 +901,8 @@ struct Comma {
     bool comma = false;
 };
 
-extern "C" auto clingo_ast_type_info_json() -> char const * {
-    return R"([
+extern "C" auto clingo_ast_type_info_yaml() -> char const * {
+    return R"yaml([
   {
     "name": "unary_operator",
     "type": "enum",
@@ -1185,7 +1185,7 @@ extern "C" auto clingo_ast_type_info_json() -> char const * {
       }
     ]
   }
-])";
+])yaml";
 }
 
 /*

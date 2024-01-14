@@ -1,6 +1,5 @@
-import json
-
-from clingo.ast import _type_info_json
+import yaml
+from clingo.ast import _type_info_yaml
 
 
 def snake_to_camel(name):
@@ -20,6 +19,7 @@ auto {type_name}::{arg["name"]}() -> clingo_location_t {{
     }}
     return ret;
 }}
+
 """
 
 
@@ -36,6 +36,7 @@ auto {type_name}::{arg["name"]}() -> int {{
     }}
     return ret;
 }}
+
 """
 
 
@@ -52,6 +53,7 @@ auto {type_name}::{arg["name"]}() -> bool {{
     }}
     return ret != 0;
 }}
+
 """
 
 
@@ -69,6 +71,7 @@ auto {type_name}::{arg["name"]}() -> {type_} {{
     }}
     return static_cast<{type_}>(ret);
 }}
+
 """
 
 
@@ -85,6 +88,7 @@ auto {type_name}::{arg["name"]}() -> char const * {{
     }}
     return ret;
 }}
+
 """
 
 
@@ -101,6 +105,7 @@ auto {type_name}::{arg["name"]}() -> Symbol {{
     }}
     return Symbol::acquire(ret);
 }}
+
 """
 
 
@@ -118,6 +123,7 @@ auto {type_name}::{arg["name"]}() -> {snake_to_camel(arg["type"])} {{
     }}
     return construct_{arg["type"]}(ast, size);
 }}
+
 """
 
 
@@ -134,6 +140,7 @@ auto {type_name}::{arg["name"]}() -> {snake_to_camel(arg["type"])} {{
     }}
     return construct_{arg["type"]}(ast);
 }}
+
 """
 
 
@@ -148,49 +155,49 @@ def record_define_cpp(type_dict, type_name, type_attr):
         if arg["type"] == "location":
             cons_args.append("clingo_location_t const &" + arg["name"])
             cons_def_args.append(f'&{arg["name"]}')
-            decl += indent + location_attribute_declare_cpp(arg) + "\n"
+            decl += indent + location_attribute_declare_cpp(arg) + "\n\n"
             defs += location_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "string":
             cons_args.append("char const *" + arg["name"])
             cons_def_args.append(f'{arg["name"]}')
-            decl += indent + string_attribute_declare_cpp(arg) + "\n"
+            decl += indent + string_attribute_declare_cpp(arg) + "\n\n"
             defs += string_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "number":
             cons_args.append("int " + arg["name"])
             cons_def_args.append(f'{arg["name"]}')
-            decl += indent + number_attribute_declare_cpp(arg) + "\n"
+            decl += indent + number_attribute_declare_cpp(arg) + "\n\n"
             defs += number_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "bool":
             cons_args.append("bool " + arg["name"])
             cons_def_args.append(f'static_cast<int>({arg["name"]})')
-            decl += indent + bool_attribute_declare_cpp(arg) + "\n"
+            decl += indent + bool_attribute_declare_cpp(arg) + "\n\n"
             defs += bool_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "symbol":
             cons_args.append("Symbol const &" + arg["name"])
             cons_def_args.append(f'{arg["name"]}.handle()')
-            decl += indent + symbol_attribute_declare_cpp(arg) + "\n"
+            decl += indent + symbol_attribute_declare_cpp(arg) + "\n\n"
             defs += symbol_attribute_define_cpp(type_name, arg)
         elif type_dict[arg["type"]]["type"] == "enum":
             cons_args.append(snake_to_camel(arg["type"]) + " " + arg["name"])
             cons_def_args.append(f'static_cast<int>({arg["name"]})')
-            decl += enum_attribute_declare_cpp(arg) + "\n"
-            defs += indent + enum_attribute_define_cpp(type_name, arg)
+            decl += indent + enum_attribute_declare_cpp(arg) + "\n\n"
+            defs += enum_attribute_define_cpp(type_name, arg)
         elif type_dict[arg["type"]]["type"] == "union":
             cons_args.append(snake_to_camel(arg["type"]) + " const &" + arg["name"])
             cons_def_args.append(f'c_cast({arg["name"]})')
-            decl += indent + union_attribute_declare_cpp(arg) + "\n"
+            decl += indent + union_attribute_declare_cpp(arg) + "\n\n"
             defs += union_attribute_define_cpp(type_name, type_dict[arg["type"]], arg)
         elif type_dict[arg["type"]]["type"] == "array":
             cons_args.append(snake_to_camel(arg["type"]) + " const &" + arg["name"])
             cons_def_args.append(f'c_cast({arg["name"]}).data()')
             cons_def_args.append(f'{arg["name"]}.size()')
-            decl += indent + attribute_array_declare_cpp(arg) + "\n"
+            decl += indent + attribute_array_declare_cpp(arg) + "\n\n"
             defs += attribute_array_define_cpp(type_name, arg)
         else:
             pass
             # print("handle:", arg["type"])
     cons_decl = "static auto construct(" + ", ".join(cons_args) + ") -> " + type_name
-    defs += f"""
+    defs += f"""\
 auto {type_name}::construct({", ".join(cons_args)}) -> {type_name} {{
     clingo_ast_t *res_;
     if (!clingo_ast_construct({", ".join(cons_def_args)})) {{
@@ -198,21 +205,25 @@ auto {type_name}::construct({", ".join(cons_args)}) -> {type_name} {{
     }}
     return {type_name}::acquire(res_);
 }}
+
 """
     return (
-        f"""
+        f"""\
 class {type_name} {{
 public:
     // Note: for pybind
     {type_name}() = default;
+
     {type_name}({type_name} const &x) {{
         if (!clingo_ast_copy(x.ast_, &ast_)) {{
             throw std::runtime_error("could not copy ast");
         }}
     }}
+
     {type_name}({type_name} &&x) noexcept {{
         std::swap(ast_, x.ast_);
     }}
+
     auto operator=({type_name} const &x) -> {type_name}& {{
         clingo_ast_free(ast_);
         ast_ = nullptr;
@@ -221,6 +232,7 @@ public:
         }}
         return *this;
     }}
+
     auto operator=({type_name} &&x) noexcept -> {type_name}& {{
         std::swap(ast_, x.ast_);
         return *this;
@@ -255,6 +267,7 @@ public:
         }}
         return str;
     }}
+
     ~{type_name}() {{
         clingo_ast_free(ast_);
     }}
@@ -263,16 +276,21 @@ public:
     static auto acquire(clingo_ast_t *ast) -> {type_name} {{
         return {{ast}};
     }}
+
     {cons_decl};
+
     friend auto c_cast({type_name} const &x) -> clingo_ast_t *;
+
 private:
     {type_name}(clingo_ast_t *ast) : ast_{{ast}} {{}}
+
     clingo_ast_t *ast_ = nullptr;
 }};
 
 inline auto c_cast({type_name} const &x) -> clingo_ast_t * {{
     return x.ast_;
 }}
+
 """,
         defs,
     )
@@ -294,9 +312,10 @@ def record_reg(type_dict, type_name, args):
         attr += property_attribute_reg(type_name, arg)
     return f"""\
     py::class_<{type_name}>(ast, "{type_name}", R"(TODO.)")
-{attr}        .def("__hash__", &{type_name}::hash)
-
-CLINGO_PY_TOTAL_ORDER;
+{attr}\
+        .def("__hash__", &{type_name}::hash)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 
 """
 
@@ -341,6 +360,7 @@ auto construct_{arg["name"]}(clingo_ast_t *ast) -> {type_} {{
     }}
     throw std::runtime_error("unexpected ast type");
 }}
+
 """
 
 
@@ -373,11 +393,12 @@ inline auto construct_{arg["name"]}(clingo_ast_t **ast, size_t size) -> {snake_t
     }}
     return ret;
 }}
+
 """
 
 
 def generate():
-    types = json.loads(_type_info_json())
+    types = yaml.safe_load(_type_info_yaml())
     defines = ""
     preamble = ""
     register = ""
@@ -396,13 +417,13 @@ def generate():
 
         if type_attr["type"] == "array":
             value_type = snake_to_camel(type_attr["value_type"])
-            preamble += f"using {type_name} = std::vector<{value_type}>;\n"
+            preamble += f"using {type_name} = std::vector<{value_type}>;\n\n"
             preamble += array_declare_cpp(type_attr) + "\n\n"
             defines += array_define_cpp(type_attr, type_dict)
 
         if type_attr["type"] == "union":
             types = ", ".join(snake_to_camel(x) for x in type_attr["types"])
-            preamble += f"using {type_name} = std::variant<{types}>;\n"
+            preamble += f"using {type_name} = std::variant<{types}>;\n\n"
             preamble += union_declare_cpp(type_attr) + "\n\n"
             defines += union_define_cpp(type_attr, type_dict)
 
@@ -444,8 +465,8 @@ auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t*;
 
 template <class T>
 auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*>;\
-{preamble}
-{defines}
+{preamble}\
+{defines}\
 template <class... Ts>
 auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t* {{
     return std::visit([](auto const &x) {{ return c_cast(x); }}, var);
@@ -466,11 +487,11 @@ void register_module(pybind11::module &m) {{
 TODO
 )"));
 
-    ast.def("_type_info_json", &clingo_ast_type_info_json, doc(R"(
+    ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, doc(R"(
 TODO
 )"));
 
-{register}\
+{register[:-1]}\
 }}
 
 }}\

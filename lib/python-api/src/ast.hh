@@ -51,21 +51,26 @@ class TermVariable;
 
 using Term = std::variant<TermVariable, TermSymbolic, TermAbsolute, TermUnaryOperation, TermBinaryOperation, TermTuple,
                           TermFunction>;
+
 auto construct_term(clingo_ast_t *ast) -> Term;
 
 using TermArray = std::vector<Term>;
+
 auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray;
 
 class Projection {
   public:
     // Note: for pybind
     Projection() = default;
+
     Projection(Projection const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
+
     Projection(Projection &&x) noexcept { std::swap(ast_, x.ast_); }
+
     auto operator=(Projection const &x) -> Projection & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
@@ -74,6 +79,7 @@ class Projection {
         }
         return *this;
     }
+
     auto operator=(Projection &&x) noexcept -> Projection & {
         std::swap(ast_, x.ast_);
         return *this;
@@ -106,46 +112,60 @@ class Projection {
         }
         return str;
     }
+
     ~Projection() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
+
     static auto acquire(clingo_ast_t *ast) -> Projection { return {ast}; }
+
     static auto construct(Library const &lib, clingo_location_t const &location) -> Projection;
+
     friend auto c_cast(Projection const &x) -> clingo_ast_t *;
 
   private:
     Projection(clingo_ast_t *ast) : ast_{ast} {}
+
     clingo_ast_t *ast_ = nullptr;
 };
 
 inline auto c_cast(Projection const &x) -> clingo_ast_t * { return x.ast_; }
+
 using TermOrProjection = std::variant<Term, Projection>;
+
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection;
 
 using TermOrProjectionArray = std::vector<TermOrProjection>;
+
 auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) -> TermOrProjectionArray;
 
 class Pool;
 
 using PoolArray = std::vector<Pool>;
+
 auto construct_pool_array(clingo_ast_t **ast, size_t size) -> PoolArray;
 
 using TermOrPool = std::variant<Term, Pool>;
+
 auto construct_term_or_pool(clingo_ast_t *ast) -> TermOrPool;
 
 using TermOrPoolArray = std::vector<TermOrPool>;
+
 auto construct_term_or_pool_array(clingo_ast_t **ast, size_t size) -> TermOrPoolArray;
 
 class TermVariable {
   public:
     // Note: for pybind
     TermVariable() = default;
+
     TermVariable(TermVariable const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
+
     TermVariable(TermVariable &&x) noexcept { std::swap(ast_, x.ast_); }
+
     auto operator=(TermVariable const &x) -> TermVariable & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
@@ -154,6 +174,7 @@ class TermVariable {
         }
         return *this;
     }
+
     auto operator=(TermVariable &&x) noexcept -> TermVariable & {
         std::swap(ast_, x.ast_);
         return *this;
@@ -186,18 +207,25 @@ class TermVariable {
         }
         return str;
     }
+
     ~TermVariable() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
+
     auto name() -> char const *;
+
     auto anonymous() -> bool;
+
     static auto acquire(clingo_ast_t *ast) -> TermVariable { return {ast}; }
+
     static auto construct(Library const &lib, clingo_location_t const &location, char const *name, bool anonymous)
         -> TermVariable;
+
     friend auto c_cast(TermVariable const &x) -> clingo_ast_t *;
 
   private:
     TermVariable(clingo_ast_t *ast) : ast_{ast} {}
+
     clingo_ast_t *ast_ = nullptr;
 };
 
@@ -207,12 +235,15 @@ class TermSymbolic {
   public:
     // Note: for pybind
     TermSymbolic() = default;
+
     TermSymbolic(TermSymbolic const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
+
     TermSymbolic(TermSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
+
     auto operator=(TermSymbolic const &x) -> TermSymbolic & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
@@ -221,6 +252,7 @@ class TermSymbolic {
         }
         return *this;
     }
+
     auto operator=(TermSymbolic &&x) noexcept -> TermSymbolic & {
         std::swap(ast_, x.ast_);
         return *this;
@@ -253,16 +285,22 @@ class TermSymbolic {
         }
         return str;
     }
+
     ~TermSymbolic() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
+
     auto symbol() -> Symbol;
+
     static auto acquire(clingo_ast_t *ast) -> TermSymbolic { return {ast}; }
+
     static auto construct(Library const &lib, clingo_location_t const &location, Symbol const &symbol) -> TermSymbolic;
+
     friend auto c_cast(TermSymbolic const &x) -> clingo_ast_t *;
 
   private:
     TermSymbolic(clingo_ast_t *ast) : ast_{ast} {}
+
     clingo_ast_t *ast_ = nullptr;
 };
 
@@ -272,12 +310,15 @@ class TermAbsolute {
   public:
     // Note: for pybind
     TermAbsolute() = default;
+
     TermAbsolute(TermAbsolute const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
+
     TermAbsolute(TermAbsolute &&x) noexcept { std::swap(ast_, x.ast_); }
+
     auto operator=(TermAbsolute const &x) -> TermAbsolute & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
@@ -286,6 +327,7 @@ class TermAbsolute {
         }
         return *this;
     }
+
     auto operator=(TermAbsolute &&x) noexcept -> TermAbsolute & {
         std::swap(ast_, x.ast_);
         return *this;
@@ -318,16 +360,22 @@ class TermAbsolute {
         }
         return str;
     }
+
     ~TermAbsolute() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
+
     auto pool() -> TermArray;
+
     static auto acquire(clingo_ast_t *ast) -> TermAbsolute { return {ast}; }
+
     static auto construct(Library const &lib, clingo_location_t const &location, TermArray const &pool) -> TermAbsolute;
+
     friend auto c_cast(TermAbsolute const &x) -> clingo_ast_t *;
 
   private:
     TermAbsolute(clingo_ast_t *ast) : ast_{ast} {}
+
     clingo_ast_t *ast_ = nullptr;
 };
 
@@ -337,12 +385,15 @@ class TermUnaryOperation {
   public:
     // Note: for pybind
     TermUnaryOperation() = default;
+
     TermUnaryOperation(TermUnaryOperation const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
+
     TermUnaryOperation(TermUnaryOperation &&x) noexcept { std::swap(ast_, x.ast_); }
+
     auto operator=(TermUnaryOperation const &x) -> TermUnaryOperation & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
@@ -351,6 +402,7 @@ class TermUnaryOperation {
         }
         return *this;
     }
+
     auto operator=(TermUnaryOperation &&x) noexcept -> TermUnaryOperation & {
         std::swap(ast_, x.ast_);
         return *this;
@@ -383,18 +435,25 @@ class TermUnaryOperation {
         }
         return str;
     }
+
     ~TermUnaryOperation() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
+
     auto operator_type() -> UnaryOperator;
+
     auto right() -> Term;
+
     static auto acquire(clingo_ast_t *ast) -> TermUnaryOperation { return {ast}; }
+
     static auto construct(Library const &lib, clingo_location_t const &location, UnaryOperator operator_type,
                           Term const &right) -> TermUnaryOperation;
+
     friend auto c_cast(TermUnaryOperation const &x) -> clingo_ast_t *;
 
   private:
     TermUnaryOperation(clingo_ast_t *ast) : ast_{ast} {}
+
     clingo_ast_t *ast_ = nullptr;
 };
 
@@ -404,12 +463,15 @@ class TermBinaryOperation {
   public:
     // Note: for pybind
     TermBinaryOperation() = default;
+
     TermBinaryOperation(TermBinaryOperation const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
+
     TermBinaryOperation(TermBinaryOperation &&x) noexcept { std::swap(ast_, x.ast_); }
+
     auto operator=(TermBinaryOperation const &x) -> TermBinaryOperation & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
@@ -418,6 +480,7 @@ class TermBinaryOperation {
         }
         return *this;
     }
+
     auto operator=(TermBinaryOperation &&x) noexcept -> TermBinaryOperation & {
         std::swap(ast_, x.ast_);
         return *this;
@@ -450,19 +513,27 @@ class TermBinaryOperation {
         }
         return str;
     }
+
     ~TermBinaryOperation() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
+
     auto left() -> Term;
+
     auto operator_type() -> BinaryOperator;
+
     auto right() -> Term;
+
     static auto acquire(clingo_ast_t *ast) -> TermBinaryOperation { return {ast}; }
+
     static auto construct(Library const &lib, clingo_location_t const &location, Term const &left,
                           BinaryOperator operator_type, Term const &right) -> TermBinaryOperation;
+
     friend auto c_cast(TermBinaryOperation const &x) -> clingo_ast_t *;
 
   private:
     TermBinaryOperation(clingo_ast_t *ast) : ast_{ast} {}
+
     clingo_ast_t *ast_ = nullptr;
 };
 
@@ -472,12 +543,15 @@ class TermTuple {
   public:
     // Note: for pybind
     TermTuple() = default;
+
     TermTuple(TermTuple const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
+
     TermTuple(TermTuple &&x) noexcept { std::swap(ast_, x.ast_); }
+
     auto operator=(TermTuple const &x) -> TermTuple & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
@@ -486,6 +560,7 @@ class TermTuple {
         }
         return *this;
     }
+
     auto operator=(TermTuple &&x) noexcept -> TermTuple & {
         std::swap(ast_, x.ast_);
         return *this;
@@ -516,17 +591,23 @@ class TermTuple {
         }
         return str;
     }
+
     ~TermTuple() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
+
     auto arguments() -> TermOrPoolArray;
+
     static auto acquire(clingo_ast_t *ast) -> TermTuple { return {ast}; }
+
     static auto construct(Library const &lib, clingo_location_t const &location, TermOrPoolArray const &arguments)
         -> TermTuple;
+
     friend auto c_cast(TermTuple const &x) -> clingo_ast_t *;
 
   private:
     TermTuple(clingo_ast_t *ast) : ast_{ast} {}
+
     clingo_ast_t *ast_ = nullptr;
 };
 
@@ -536,12 +617,15 @@ class TermFunction {
   public:
     // Note: for pybind
     TermFunction() = default;
+
     TermFunction(TermFunction const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
+
     TermFunction(TermFunction &&x) noexcept { std::swap(ast_, x.ast_); }
+
     auto operator=(TermFunction const &x) -> TermFunction & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
@@ -550,6 +634,7 @@ class TermFunction {
         }
         return *this;
     }
+
     auto operator=(TermFunction &&x) noexcept -> TermFunction & {
         std::swap(ast_, x.ast_);
         return *this;
@@ -582,19 +667,27 @@ class TermFunction {
         }
         return str;
     }
+
     ~TermFunction() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
+
     auto name() -> char const *;
+
     auto arguments() -> PoolArray;
+
     auto external() -> bool;
+
     static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
+
     static auto construct(Library const &lib, clingo_location_t const &location, char const *name,
                           PoolArray const &arguments, bool external) -> TermFunction;
+
     friend auto c_cast(TermFunction const &x) -> clingo_ast_t *;
 
   private:
     TermFunction(clingo_ast_t *ast) : ast_{ast} {}
+
     clingo_ast_t *ast_ = nullptr;
 };
 
@@ -604,12 +697,15 @@ class Pool {
   public:
     // Note: for pybind
     Pool() = default;
+
     Pool(Pool const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
+
     Pool(Pool &&x) noexcept { std::swap(ast_, x.ast_); }
+
     auto operator=(Pool const &x) -> Pool & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
@@ -618,6 +714,7 @@ class Pool {
         }
         return *this;
     }
+
     auto operator=(Pool &&x) noexcept -> Pool & {
         std::swap(ast_, x.ast_);
         return *this;
@@ -646,15 +743,20 @@ class Pool {
         }
         return str;
     }
+
     ~Pool() { clingo_ast_free(ast_); }
 
     auto arguments() -> TermOrProjectionArray;
+
     static auto acquire(clingo_ast_t *ast) -> Pool { return {ast}; }
+
     static auto construct(Library const &lib, TermOrProjectionArray const &arguments) -> Pool;
+
     friend auto c_cast(Pool const &x) -> clingo_ast_t *;
 
   private:
     Pool(clingo_ast_t *ast) : ast_{ast} {}
+
     clingo_ast_t *ast_ = nullptr;
 };
 
@@ -691,6 +793,7 @@ auto construct_term(clingo_ast_t *ast) -> Term {
     }
     throw std::runtime_error("unexpected ast type");
 }
+
 inline auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray {
     TermArray ret;
     try {
@@ -707,6 +810,7 @@ inline auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray {
     }
     return ret;
 }
+
 auto Projection::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -722,6 +826,7 @@ auto Projection::construct(Library const &lib, clingo_location_t const &location
     }
     return Projection::acquire(res_);
 }
+
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
     clingo_ast_type_t type;
     if (!clingo_ast_get_type(ast, &type)) {
@@ -756,6 +861,7 @@ auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
     }
     throw std::runtime_error("unexpected ast type");
 }
+
 inline auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) -> TermOrProjectionArray {
     TermOrProjectionArray ret;
     try {
@@ -772,6 +878,7 @@ inline auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) 
     }
     return ret;
 }
+
 inline auto construct_pool_array(clingo_ast_t **ast, size_t size) -> PoolArray {
     PoolArray ret;
     try {
@@ -788,6 +895,7 @@ inline auto construct_pool_array(clingo_ast_t **ast, size_t size) -> PoolArray {
     }
     return ret;
 }
+
 auto construct_term_or_pool(clingo_ast_t *ast) -> TermOrPool {
     clingo_ast_type_t type;
     if (!clingo_ast_get_type(ast, &type)) {
@@ -822,6 +930,7 @@ auto construct_term_or_pool(clingo_ast_t *ast) -> TermOrPool {
     }
     throw std::runtime_error("unexpected ast type");
 }
+
 inline auto construct_term_or_pool_array(clingo_ast_t **ast, size_t size) -> TermOrPoolArray {
     TermOrPoolArray ret;
     try {
@@ -838,6 +947,7 @@ inline auto construct_term_or_pool_array(clingo_ast_t **ast, size_t size) -> Ter
     }
     return ret;
 }
+
 auto TermVariable::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -845,6 +955,7 @@ auto TermVariable::location() -> clingo_location_t {
     }
     return ret;
 }
+
 auto TermVariable::name() -> char const * {
     char const *ret;
     if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
@@ -852,6 +963,7 @@ auto TermVariable::name() -> char const * {
     }
     return ret;
 }
+
 auto TermVariable::anonymous() -> bool {
     int ret;
     if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret)) {
@@ -869,6 +981,7 @@ auto TermVariable::construct(Library const &lib, clingo_location_t const &locati
     }
     return TermVariable::acquire(res_);
 }
+
 auto TermSymbolic::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -876,6 +989,7 @@ auto TermSymbolic::location() -> clingo_location_t {
     }
     return ret;
 }
+
 auto TermSymbolic::symbol() -> Symbol {
     clingo_symbol_t ret;
     if (!clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_symbol, &ret)) {
@@ -892,6 +1006,7 @@ auto TermSymbolic::construct(Library const &lib, clingo_location_t const &locati
     }
     return TermSymbolic::acquire(res_);
 }
+
 auto TermAbsolute::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -899,6 +1014,7 @@ auto TermAbsolute::location() -> clingo_location_t {
     }
     return ret;
 }
+
 auto TermAbsolute::pool() -> TermArray {
     clingo_ast_t **ast;
     size_t size;
@@ -916,6 +1032,7 @@ auto TermAbsolute::construct(Library const &lib, clingo_location_t const &locati
     }
     return TermAbsolute::acquire(res_);
 }
+
 auto TermUnaryOperation::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -923,6 +1040,7 @@ auto TermUnaryOperation::location() -> clingo_location_t {
     }
     return ret;
 }
+
 auto TermUnaryOperation::operator_type() -> UnaryOperator {
     int ret;
     if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_operator_type, &ret)) {
@@ -930,6 +1048,7 @@ auto TermUnaryOperation::operator_type() -> UnaryOperator {
     }
     return static_cast<UnaryOperator>(ret);
 }
+
 auto TermUnaryOperation::right() -> Term {
     clingo_ast_t *ast;
     if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
@@ -947,6 +1066,7 @@ auto TermUnaryOperation::construct(Library const &lib, clingo_location_t const &
     }
     return TermUnaryOperation::acquire(res_);
 }
+
 auto TermBinaryOperation::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -954,6 +1074,7 @@ auto TermBinaryOperation::location() -> clingo_location_t {
     }
     return ret;
 }
+
 auto TermBinaryOperation::left() -> Term {
     clingo_ast_t *ast;
     if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
@@ -961,6 +1082,7 @@ auto TermBinaryOperation::left() -> Term {
     }
     return construct_term(ast);
 }
+
 auto TermBinaryOperation::operator_type() -> BinaryOperator {
     int ret;
     if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_operator_type, &ret)) {
@@ -968,6 +1090,7 @@ auto TermBinaryOperation::operator_type() -> BinaryOperator {
     }
     return static_cast<BinaryOperator>(ret);
 }
+
 auto TermBinaryOperation::right() -> Term {
     clingo_ast_t *ast;
     if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
@@ -985,6 +1108,7 @@ auto TermBinaryOperation::construct(Library const &lib, clingo_location_t const 
     }
     return TermBinaryOperation::acquire(res_);
 }
+
 auto TermTuple::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -992,6 +1116,7 @@ auto TermTuple::location() -> clingo_location_t {
     }
     return ret;
 }
+
 auto TermTuple::arguments() -> TermOrPoolArray {
     clingo_ast_t **ast;
     size_t size;
@@ -1010,6 +1135,7 @@ auto TermTuple::construct(Library const &lib, clingo_location_t const &location,
     }
     return TermTuple::acquire(res_);
 }
+
 auto TermFunction::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -1017,6 +1143,7 @@ auto TermFunction::location() -> clingo_location_t {
     }
     return ret;
 }
+
 auto TermFunction::name() -> char const * {
     char const *ret;
     if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
@@ -1024,6 +1151,7 @@ auto TermFunction::name() -> char const * {
     }
     return ret;
 }
+
 auto TermFunction::arguments() -> PoolArray {
     clingo_ast_t **ast;
     size_t size;
@@ -1032,6 +1160,7 @@ auto TermFunction::arguments() -> PoolArray {
     }
     return construct_pool_array(ast, size);
 }
+
 auto TermFunction::external() -> bool {
     int ret;
     if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_external, &ret)) {
@@ -1049,6 +1178,7 @@ auto TermFunction::construct(Library const &lib, clingo_location_t const &locati
     }
     return TermFunction::acquire(res_);
 }
+
 auto Pool::arguments() -> TermOrProjectionArray {
     clingo_ast_t **ast;
     size_t size;
@@ -1084,7 +1214,7 @@ void register_module(pybind11::module &m) {
 TODO
 )"));
 
-    ast.def("_type_info_json", &clingo_ast_type_info_json, doc(R"(
+    ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, doc(R"(
 TODO
 )"));
 
@@ -1108,8 +1238,8 @@ TODO
         .def("__str__", &Projection::to_string)
         .def_property_readonly("location", &Projection::location)
         .def("__hash__", &Projection::hash)
-
-            CLINGO_PY_TOTAL_ORDER;
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermVariable>(ast, "TermVariable", R"(TODO.)")
         .def(py::init(&TermVariable::construct))
@@ -1118,8 +1248,8 @@ TODO
         .def_property_readonly("name", &TermVariable::name)
         .def_property_readonly("anonymous", &TermVariable::anonymous)
         .def("__hash__", &TermVariable::hash)
-
-            CLINGO_PY_TOTAL_ORDER;
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermSymbolic>(ast, "TermSymbolic", R"(TODO.)")
         .def(py::init(&TermSymbolic::construct))
@@ -1127,8 +1257,8 @@ TODO
         .def_property_readonly("location", &TermSymbolic::location)
         .def_property_readonly("symbol", &TermSymbolic::symbol)
         .def("__hash__", &TermSymbolic::hash)
-
-            CLINGO_PY_TOTAL_ORDER;
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermAbsolute>(ast, "TermAbsolute", R"(TODO.)")
         .def(py::init(&TermAbsolute::construct))
@@ -1136,8 +1266,8 @@ TODO
         .def_property_readonly("location", &TermAbsolute::location)
         .def_property_readonly("pool", &TermAbsolute::pool)
         .def("__hash__", &TermAbsolute::hash)
-
-            CLINGO_PY_TOTAL_ORDER;
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermUnaryOperation>(ast, "TermUnaryOperation", R"(TODO.)")
         .def(py::init(&TermUnaryOperation::construct))
@@ -1146,8 +1276,8 @@ TODO
         .def_property_readonly("operator_type", &TermUnaryOperation::operator_type)
         .def_property_readonly("right", &TermUnaryOperation::right)
         .def("__hash__", &TermUnaryOperation::hash)
-
-            CLINGO_PY_TOTAL_ORDER;
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermBinaryOperation>(ast, "TermBinaryOperation", R"(TODO.)")
         .def(py::init(&TermBinaryOperation::construct))
@@ -1157,8 +1287,8 @@ TODO
         .def_property_readonly("operator_type", &TermBinaryOperation::operator_type)
         .def_property_readonly("right", &TermBinaryOperation::right)
         .def("__hash__", &TermBinaryOperation::hash)
-
-            CLINGO_PY_TOTAL_ORDER;
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermTuple>(ast, "TermTuple", R"(TODO.)")
         .def(py::init(&TermTuple::construct))
@@ -1166,8 +1296,8 @@ TODO
         .def_property_readonly("location", &TermTuple::location)
         .def_property_readonly("arguments", &TermTuple::arguments)
         .def("__hash__", &TermTuple::hash)
-
-            CLINGO_PY_TOTAL_ORDER;
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermFunction>(ast, "TermFunction", R"(TODO.)")
         .def(py::init(&TermFunction::construct))
@@ -1177,16 +1307,16 @@ TODO
         .def_property_readonly("arguments", &TermFunction::arguments)
         .def_property_readonly("external", &TermFunction::external)
         .def("__hash__", &TermFunction::hash)
-
-            CLINGO_PY_TOTAL_ORDER;
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 
     py::class_<Pool>(ast, "Pool", R"(TODO.)")
         .def(py::init(&Pool::construct))
         .def("__str__", &Pool::to_string)
         .def_property_readonly("arguments", &Pool::arguments)
         .def("__hash__", &Pool::hash)
-
-            CLINGO_PY_TOTAL_ORDER;
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
 }
 
 } // namespace Clingo::AST
