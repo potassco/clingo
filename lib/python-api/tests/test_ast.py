@@ -134,17 +134,37 @@ class TestSymbol(TestCase):
         """
         Test tuple term.
         """
+        a = [
+            ast.ArgumentTuple(self.lib, [self.sym("1"), self.sym("2")]),
+            self.sym("3"),
+        ]
         p = ast.TermTuple(
             self.lib,
             self.loc,
-            [
-                ast.ArgumentTuple(self.lib, [self.sym("1"), self.sym("2")]),
-                self.sym("3"),
-            ],
+            a,
         )
 
         self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.pool, a)
         self.assertEqual(str(p), "(1,2;3)")
+
+    def test_function(self):
+        """
+        Test function term.
+        """
+        a = [
+            ast.ArgumentTuple(self.lib, [self.sym("1"), self.sym("2")]),
+            ast.ArgumentTuple(
+                self.lib, [self.sym("3"), ast.Projection(self.lib, self.loc)]
+            ),
+        ]
+        p = ast.TermFunction(self.lib, self.loc, "f", a, False)
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.name, "f")
+        self.assertEqual(p.pool, a)
+        self.assertFalse(p.external)
+        self.assertEqual(str(p), "f(1,2;3,*)")
 
     def test_cmp(self):
         """

@@ -120,7 +120,7 @@ class Projection {
 
     static auto acquire(clingo_ast_t *ast) -> Projection { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location) -> Projection;
+    static auto construct(Library &lib, clingo_location_t const &location) -> Projection;
 
     friend auto c_cast(Projection const &x) -> clingo_ast_t *;
 
@@ -219,7 +219,7 @@ class TermVariable {
 
     static auto acquire(clingo_ast_t *ast) -> TermVariable { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location, char const *name, bool anonymous)
+    static auto construct(Library &lib, clingo_location_t const &location, char const *name, bool anonymous)
         -> TermVariable;
 
     friend auto c_cast(TermVariable const &x) -> clingo_ast_t *;
@@ -295,7 +295,7 @@ class TermSymbolic {
 
     static auto acquire(clingo_ast_t *ast) -> TermSymbolic { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location, Symbol const &symbol) -> TermSymbolic;
+    static auto construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TermSymbolic;
 
     friend auto c_cast(TermSymbolic const &x) -> clingo_ast_t *;
 
@@ -370,7 +370,7 @@ class TermAbsolute {
 
     static auto acquire(clingo_ast_t *ast) -> TermAbsolute { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location, TermArray const &pool) -> TermAbsolute;
+    static auto construct(Library &lib, clingo_location_t const &location, TermArray const &pool) -> TermAbsolute;
 
     friend auto c_cast(TermAbsolute const &x) -> clingo_ast_t *;
 
@@ -447,7 +447,7 @@ class TermUnaryOperation {
 
     static auto acquire(clingo_ast_t *ast) -> TermUnaryOperation { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location, UnaryOperator const &operator_type,
+    static auto construct(Library &lib, clingo_location_t const &location, UnaryOperator const &operator_type,
                           Term const &right) -> TermUnaryOperation;
 
     friend auto c_cast(TermUnaryOperation const &x) -> clingo_ast_t *;
@@ -527,7 +527,7 @@ class TermBinaryOperation {
 
     static auto acquire(clingo_ast_t *ast) -> TermBinaryOperation { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location, Term const &left,
+    static auto construct(Library &lib, clingo_location_t const &location, Term const &left,
                           BinaryOperator const &operator_type, Term const &right) -> TermBinaryOperation;
 
     friend auto c_cast(TermBinaryOperation const &x) -> clingo_ast_t *;
@@ -601,7 +601,7 @@ class TermTuple {
 
     static auto acquire(clingo_ast_t *ast) -> TermTuple { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location, TermOrArgumentTupleArray const &pool)
+    static auto construct(Library &lib, clingo_location_t const &location, TermOrArgumentTupleArray const &pool)
         -> TermTuple;
 
     friend auto c_cast(TermTuple const &x) -> clingo_ast_t *;
@@ -681,7 +681,7 @@ class TermFunction {
 
     static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location, char const *name,
+    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           ArgumentTupleArray const &pool, bool external) -> TermFunction;
 
     friend auto c_cast(TermFunction const &x) -> clingo_ast_t *;
@@ -755,7 +755,7 @@ class ArgumentTuple {
 
     static auto acquire(clingo_ast_t *ast) -> ArgumentTuple { return {ast}; }
 
-    static auto construct(Library const &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple;
+    static auto construct(Library &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple;
 
     friend auto c_cast(ArgumentTuple const &x) -> clingo_ast_t *;
 
@@ -824,11 +824,9 @@ auto Projection::location() -> clingo_location_t {
     return ret;
 }
 
-auto Projection::construct(Library const &lib, clingo_location_t const &location) -> Projection {
+auto Projection::construct(Library &lib, clingo_location_t const &location) -> Projection {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_projection, &res_, &location)) {
-        throw std::runtime_error("better handle error properly here");
-    }
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_projection, &res_, &location));
     return Projection::acquire(res_);
 }
 
@@ -977,13 +975,11 @@ auto TermVariable::anonymous() -> bool {
     return ret != 0;
 }
 
-auto TermVariable::construct(Library const &lib, clingo_location_t const &location, char const *name, bool anonymous)
+auto TermVariable::construct(Library &lib, clingo_location_t const &location, char const *name, bool anonymous)
     -> TermVariable {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_term_variable, &res_, &location, name,
-                              static_cast<int>(anonymous))) {
-        throw std::runtime_error("better handle error properly here");
-    }
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_variable, &res_, &location, name,
+                                           static_cast<int>(anonymous)));
     return TermVariable::acquire(res_);
 }
 
@@ -1003,12 +999,9 @@ auto TermSymbolic::symbol() -> Symbol {
     return Symbol::acquire(ret);
 }
 
-auto TermSymbolic::construct(Library const &lib, clingo_location_t const &location, Symbol const &symbol)
-    -> TermSymbolic {
+auto TermSymbolic::construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TermSymbolic {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_term_symbolic, &res_, &location, symbol.handle())) {
-        throw std::runtime_error("better handle error properly here");
-    }
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_symbolic, &res_, &location, symbol.handle()));
     return TermSymbolic::acquire(res_);
 }
 
@@ -1029,12 +1022,10 @@ auto TermAbsolute::pool() -> TermArray {
     return construct_term_array(ast, size);
 }
 
-auto TermAbsolute::construct(Library const &lib, clingo_location_t const &location, TermArray const &pool)
-    -> TermAbsolute {
+auto TermAbsolute::construct(Library &lib, clingo_location_t const &location, TermArray const &pool) -> TermAbsolute {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_term_absolute, &res_, &location, c_cast(pool).data(), pool.size())) {
-        throw std::runtime_error("better handle error properly here");
-    }
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_absolute, &res_, &location, c_cast(pool).data(),
+                                           pool.size()));
     return TermAbsolute::acquire(res_);
 }
 
@@ -1062,13 +1053,11 @@ auto TermUnaryOperation::right() -> Term {
     return construct_term(ast);
 }
 
-auto TermUnaryOperation::construct(Library const &lib, clingo_location_t const &location,
-                                   UnaryOperator const &operator_type, Term const &right) -> TermUnaryOperation {
+auto TermUnaryOperation::construct(Library &lib, clingo_location_t const &location, UnaryOperator const &operator_type,
+                                   Term const &right) -> TermUnaryOperation {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_term_unary_operation, &res_, &location,
-                              static_cast<int>(operator_type), c_cast(right))) {
-        throw std::runtime_error("better handle error properly here");
-    }
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_unary_operation, &res_, &location,
+                                           static_cast<int>(operator_type), c_cast(right)));
     return TermUnaryOperation::acquire(res_);
 }
 
@@ -1104,13 +1093,11 @@ auto TermBinaryOperation::right() -> Term {
     return construct_term(ast);
 }
 
-auto TermBinaryOperation::construct(Library const &lib, clingo_location_t const &location, Term const &left,
+auto TermBinaryOperation::construct(Library &lib, clingo_location_t const &location, Term const &left,
                                     BinaryOperator const &operator_type, Term const &right) -> TermBinaryOperation {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_term_binary_operation, &res_, &location, c_cast(left),
-                              static_cast<int>(operator_type), c_cast(right))) {
-        throw std::runtime_error("better handle error properly here");
-    }
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_binary_operation, &res_, &location, c_cast(left),
+                                           static_cast<int>(operator_type), c_cast(right)));
     return TermBinaryOperation::acquire(res_);
 }
 
@@ -1131,12 +1118,11 @@ auto TermTuple::pool() -> TermOrArgumentTupleArray {
     return construct_term_or_argument_tuple_array(ast, size);
 }
 
-auto TermTuple::construct(Library const &lib, clingo_location_t const &location, TermOrArgumentTupleArray const &pool)
+auto TermTuple::construct(Library &lib, clingo_location_t const &location, TermOrArgumentTupleArray const &pool)
     -> TermTuple {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_, &location, c_cast(pool).data(), pool.size())) {
-        throw std::runtime_error("better handle error properly here");
-    }
+    handle_error(
+        lib, clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_, &location, c_cast(pool).data(), pool.size()));
     return TermTuple::acquire(res_);
 }
 
@@ -1173,13 +1159,11 @@ auto TermFunction::external() -> bool {
     return ret != 0;
 }
 
-auto TermFunction::construct(Library const &lib, clingo_location_t const &location, char const *name,
+auto TermFunction::construct(Library &lib, clingo_location_t const &location, char const *name,
                              ArgumentTupleArray const &pool, bool external) -> TermFunction {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_term_function, &res_, &location, name, c_cast(pool).data(),
-                              pool.size(), static_cast<int>(external))) {
-        throw std::runtime_error("better handle error properly here");
-    }
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_function, &res_, &location, name,
+                                           c_cast(pool).data(), pool.size(), static_cast<int>(external)));
     return TermFunction::acquire(res_);
 }
 
@@ -1192,11 +1176,10 @@ auto ArgumentTuple::arguments() -> TermOrProjectionArray {
     return construct_term_or_projection_array(ast, size);
 }
 
-auto ArgumentTuple::construct(Library const &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple {
+auto ArgumentTuple::construct(Library &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_argument_tuple, &res_, c_cast(arguments).data(), arguments.size())) {
-        throw std::runtime_error("better handle error properly here");
-    }
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_argument_tuple, &res_, c_cast(arguments).data(),
+                                           arguments.size()));
     return ArgumentTuple::acquire(res_);
 }
 

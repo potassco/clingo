@@ -80,7 +80,7 @@ public:
         return {ast};
     }
 
-    static auto construct(Library const &lib{% for argument in type.arguments %}, {{ argument.type | cref }}{{ argument.name }}{% endfor %}) -> {{ type_name }};
+    static auto construct(Library &lib{% for argument in type.arguments %}, {{ argument.type | cref }}{{ argument.name }}{% endfor %}) -> {{ type_name }};
 
     friend auto c_cast({{ type_name }} const &x) -> clingo_ast_t *;
 

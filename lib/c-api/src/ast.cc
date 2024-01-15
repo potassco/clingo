@@ -574,7 +574,7 @@ template <> auto ast_convert<Gringo::Input::TupleVec>(clingo_ast const *ast) -> 
         Gringo::Input::TupleVec tuple;
         tuple.reserve(res->tuple_.size());
         for (auto const *elem : res->tuple_) {
-            if (auto const *projection = dynamic_cast<ASTProjection const *>(ast)) {
+            if (auto const *projection = dynamic_cast<ASTProjection const *>(elem)) {
                 tuple.emplace_back(projection->projection_);
             } else {
                 tuple.emplace_back(ast_convert<Gringo::Input::Term>(elem));
@@ -603,6 +603,8 @@ auto make_ast(Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_as
     for (auto const &term_or_projection : tuple) {
         if (auto const *term = std::get_if<Gringo::Input::Term>(&term_or_projection); term != nullptr) {
             res[i] = make_ast(*term).release();
+        } else {
+            res[i] = std::make_unique<ASTProjection>(std::get<Gringo::Input::Projection>(term_or_projection)).release();
         }
         ++i;
     }
