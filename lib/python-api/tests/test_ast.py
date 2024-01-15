@@ -144,7 +144,7 @@ class TestSymbol(TestCase):
         )
 
         self.assertEqual(p.location, self.loc)
-        self.assertEqual(str(p), "1+(-2)")
+        self.assertEqual(str(p), "(1,2;3)")
 
     def test_cmp(self):
         """

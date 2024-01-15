@@ -136,27 +136,29 @@ class ASTVec {
             size_ = size;
         }
     }
-    ASTVec(clingo_ast_t const **data, size_t size) : ASTVec{size} {
-        for (size_t i = 0; i < size; ++i) {
-            operator[](i) = data[i]->copy().release();
+    ASTVec(ASTVec const &other) : ASTVec{other.size()} {
+        for (size_t i = 0; i < size_; ++i) {
+            operator[](i) = other.operator[](i)->copy().release();
         }
     }
-    ASTVec(ASTVec const &other) : ASTVec{other.data_, other.size()} {}
     ASTVec(ASTVec &&other) noexcept {
         std::swap(other.data_, data_);
         std::swap(other.size_, size_);
     }
     auto operator=(ASTVec const &other) -> ASTVec & {
-        *this = ASTVec{other};
+        if (this != &other) {
+            *this = ASTVec{other};
+        }
         return *this;
     }
     auto operator=(ASTVec &&other) noexcept -> ASTVec & {
-        std::swap(other.data_, data_);
-        std::swap(other.size_, size_);
+        if (this != &other) {
+            std::swap(other.data_, data_);
+            std::swap(other.size_, size_);
+        }
         return *this;
     }
     ~ASTVec() {
-        // TODO: check nolints
         for (auto it = data_, ie = data_ + size_; it != ie; ++it) {
             delete *it;
         }
@@ -176,6 +178,13 @@ class ASTVec {
         return res;
     }
     static auto acquire(clingo_ast_t **data, size_t size) -> ASTVec { return ASTVec{data, size}; }
+    static auto copy(clingo_ast_t const **data, size_t size) -> ASTVec {
+        auto ret = ASTVec{size};
+        for (size_t i = 0; i < size; ++i) {
+            ret[i] = data[i]->copy().release();
+        }
+        return ret;
+    }
 
   private:
     ASTVec(clingo_ast_t **data, size_t size) : data_{data}, size_{size} {}
@@ -764,7 +773,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **tuple = va_arg(args, clingo_ast_t const **);
                 auto size = va_arg(args, size_t);
                 va_end(args);
-                *ast = new ASTArgumentTuple{ASTVec{tuple, size}};
+                *ast = new ASTArgumentTuple{ASTVec::copy(tuple, size)};
                 break;
             }
         }
