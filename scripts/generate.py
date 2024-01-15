@@ -2,7 +2,6 @@
 """
 Script to generate python ast module.
 """
-
 import jinja2
 import yaml
 from clingo.ast import _type_info_yaml
@@ -82,30 +81,6 @@ def flatten_types(types, type_map):
     return res
 
 
-def property_attribute_reg(type_name, arg):
-    return f"""\
-        .def_property_readonly("{arg["name"]}", &{type_name}::{arg["name"]})
-"""
-
-
-def record_reg(type_dict, type_name, args):
-    attr = ""
-    attr += f"""\
-        .def(py::init(&{type_name}::construct))
-        .def("__str__", &{type_name}::to_string)
-"""
-    for arg in args:
-        attr += property_attribute_reg(type_name, arg)
-    return f"""\
-    py::class_<{type_name}>(ast, "{type_name}", R"(TODO.)")
-{attr}\
-        .def("__hash__", &{type_name}::hash)
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
-
-"""
-
-
 def generate():
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="scripts/"))
     env.filters["camel"] = camel
@@ -114,28 +89,9 @@ def generate():
     env.filters["flatten_types"] = flatten_types
 
     types = yaml.safe_load(_type_info_yaml())
-    register = ""
-
     type_map = {type_attr["name"]: type_attr for type_attr in types}
 
-    for type_attr in types:
-        type_attr["pyname"] = camel(type_attr["name"])
-        type_name = camel(type_attr["name"])
-
-        if type_attr["type"] == "enum":
-            register += f"""    py::enum_<{type_name}>(ast, "{type_name}", R"({type_attr["doc"]})")\n"""
-            for value_name, value_attr in type_attr["values"].items():
-                value_name = camel(value_name)
-                value = f"{type_name}::{value_name}"
-                register += f"""        .value("{value_name}", {value}, R"({value_attr["doc"]})")\n"""
-            register += "        ;\n\n"
-
-        if type_attr["type"] == "record":
-            register += record_reg(type_map, type_name, type_attr["arguments"])
-
-    return env.get_template("module.j2").render(
-        register=register, types=types, type_map=type_map
-    )
+    return env.get_template("ast_module.j2").render(types=types, type_map=type_map)
 
 
 print(generate())

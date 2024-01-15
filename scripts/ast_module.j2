@@ -110,8 +110,26 @@ TODO
     ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, doc(R"(
 TODO
 )"));
-
-{{ register[:-1] -}}
+{%  for type in types -%}
+{%    set type_name = type.name | camel -%}
+{%    if type.type == 'enum' %}
+    py::enum_<{{ type_name }}>(ast, "{{ type_name }}", R"({{ type.doc }})")
+{%-     for value_name, value_type in type["values"].items() %}
+        .value("{{ value_name | camel }}", {{ type_name }}::{{ value_name | camel }}, R"({{ value_type.doc }})")
+{%-       if loop.last %};{% endif -%}
+{%-     endfor %}
+{%    elif type.type == 'record' %}
+    py::class_<{{ type_name }}>(ast, "{{ type_name }}", R"(TODO.)")
+        .def(py::init(&{{ type_name }}::construct))
+        .def("__str__", &{{ type_name }}::to_string)
+        .def("__hash__", &{{ type_name }}::hash)
+{%-     for argument in type.arguments %}
+        .def_property_readonly("{{argument.name}}", &{{ type_name }}::{{argument.name}})
+{%-     endfor %}
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+{%    endif %}
+{%- endfor -%}
 }
 
 }

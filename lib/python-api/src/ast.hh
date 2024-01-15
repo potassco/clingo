@@ -1237,85 +1237,85 @@ TODO
     py::class_<Projection>(ast, "Projection", R"(TODO.)")
         .def(py::init(&Projection::construct))
         .def("__str__", &Projection::to_string)
-        .def_property_readonly("location", &Projection::location)
         .def("__hash__", &Projection::hash)
+        .def_property_readonly("location", &Projection::location)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermVariable>(ast, "TermVariable", R"(TODO.)")
         .def(py::init(&TermVariable::construct))
         .def("__str__", &TermVariable::to_string)
+        .def("__hash__", &TermVariable::hash)
         .def_property_readonly("location", &TermVariable::location)
         .def_property_readonly("name", &TermVariable::name)
         .def_property_readonly("anonymous", &TermVariable::anonymous)
-        .def("__hash__", &TermVariable::hash)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermSymbolic>(ast, "TermSymbolic", R"(TODO.)")
         .def(py::init(&TermSymbolic::construct))
         .def("__str__", &TermSymbolic::to_string)
+        .def("__hash__", &TermSymbolic::hash)
         .def_property_readonly("location", &TermSymbolic::location)
         .def_property_readonly("symbol", &TermSymbolic::symbol)
-        .def("__hash__", &TermSymbolic::hash)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermAbsolute>(ast, "TermAbsolute", R"(TODO.)")
         .def(py::init(&TermAbsolute::construct))
         .def("__str__", &TermAbsolute::to_string)
+        .def("__hash__", &TermAbsolute::hash)
         .def_property_readonly("location", &TermAbsolute::location)
         .def_property_readonly("pool", &TermAbsolute::pool)
-        .def("__hash__", &TermAbsolute::hash)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermUnaryOperation>(ast, "TermUnaryOperation", R"(TODO.)")
         .def(py::init(&TermUnaryOperation::construct))
         .def("__str__", &TermUnaryOperation::to_string)
+        .def("__hash__", &TermUnaryOperation::hash)
         .def_property_readonly("location", &TermUnaryOperation::location)
         .def_property_readonly("operator_type", &TermUnaryOperation::operator_type)
         .def_property_readonly("right", &TermUnaryOperation::right)
-        .def("__hash__", &TermUnaryOperation::hash)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermBinaryOperation>(ast, "TermBinaryOperation", R"(TODO.)")
         .def(py::init(&TermBinaryOperation::construct))
         .def("__str__", &TermBinaryOperation::to_string)
+        .def("__hash__", &TermBinaryOperation::hash)
         .def_property_readonly("location", &TermBinaryOperation::location)
         .def_property_readonly("left", &TermBinaryOperation::left)
         .def_property_readonly("operator_type", &TermBinaryOperation::operator_type)
         .def_property_readonly("right", &TermBinaryOperation::right)
-        .def("__hash__", &TermBinaryOperation::hash)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermTuple>(ast, "TermTuple", R"(TODO.)")
         .def(py::init(&TermTuple::construct))
         .def("__str__", &TermTuple::to_string)
+        .def("__hash__", &TermTuple::hash)
         .def_property_readonly("location", &TermTuple::location)
         .def_property_readonly("arguments", &TermTuple::arguments)
-        .def("__hash__", &TermTuple::hash)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<TermFunction>(ast, "TermFunction", R"(TODO.)")
         .def(py::init(&TermFunction::construct))
         .def("__str__", &TermFunction::to_string)
+        .def("__hash__", &TermFunction::hash)
         .def_property_readonly("location", &TermFunction::location)
         .def_property_readonly("name", &TermFunction::name)
         .def_property_readonly("arguments", &TermFunction::arguments)
         .def_property_readonly("external", &TermFunction::external)
-        .def("__hash__", &TermFunction::hash)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<Pool>(ast, "Pool", R"(TODO.)")
         .def(py::init(&Pool::construct))
         .def("__str__", &Pool::to_string)
-        .def_property_readonly("arguments", &Pool::arguments)
         .def("__hash__", &Pool::hash)
+        .def_property_readonly("arguments", &Pool::arguments)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 }
