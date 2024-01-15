@@ -5,6 +5,7 @@ from unittest import TestCase
 
 from clingo import ast
 from clingo.core import Library, Location, Position
+from clingo.symbol import parse_term
 
 
 class TestSymbol(TestCase):
@@ -20,6 +21,12 @@ class TestSymbol(TestCase):
 
     def tearDown(self):
         self.lib = None
+
+    def sym(self, val):
+        """
+        Generate a symbol for testing.
+        """
+        return ast.TermSymbolic(self.lib, self.loc, parse_term(self.lib, val))
 
     def test_location(self):
         """
@@ -53,7 +60,7 @@ class TestSymbol(TestCase):
 
     def test_projection(self):
         """
-        Test projection..
+        Test projection.
         """
         p = ast.Projection(self.lib, self.loc)
 
@@ -74,6 +81,70 @@ class TestSymbol(TestCase):
         self.assertTrue(a.anonymous)
         self.assertEqual(str(x), "X")
         self.assertEqual(str(a), "_")
+
+    def test_symbol(self):
+        """
+        Test symbolic term.
+        """
+        s = parse_term(self.lib, "f(1,2)")
+        p = ast.TermSymbolic(self.lib, self.loc, s)
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.symbol, s)
+        self.assertEqual(str(p), "f(1,2)")
+
+    def test_absolute(self):
+        """
+        Test absolute term.
+        """
+        p = ast.TermAbsolute(self.lib, self.loc, [self.sym("1"), self.sym("-2")])
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.pool, [self.sym("1"), self.sym("-2")])
+        self.assertEqual(str(p), "|1;-2|")
+
+    def test_unary(self):
+        """
+        Test unary term.
+        """
+        p = ast.TermUnaryOperation(
+            self.lib, self.loc, ast.UnaryOperator.Minus, self.sym("-2")
+        )
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.operator_type, ast.UnaryOperator.Minus)
+        self.assertEqual(p.right, self.sym("-2"))
+        self.assertEqual(str(p), "-(-2)")
+
+    def test_binary(self):
+        """
+        Test binary term.
+        """
+        p = ast.TermBinaryOperation(
+            self.lib, self.loc, self.sym("1"), ast.BinaryOperator.Plus, self.sym("-2")
+        )
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.left, self.sym("1"))
+        self.assertEqual(p.operator_type, ast.BinaryOperator.Plus)
+        self.assertEqual(p.right, self.sym("-2"))
+        self.assertEqual(str(p), "1+(-2)")
+
+    def test_tuple(self):
+        """
+        Test tuple term.
+        """
+        p = ast.TermTuple(
+            self.lib,
+            self.loc,
+            [
+                ast.ArgumentTuple(self.lib, [self.sym("1"), self.sym("2")]),
+                self.sym("3"),
+            ],
+        )
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(str(p), "1+(-2)")
 
     def test_cmp(self):
         """

@@ -158,9 +158,9 @@ class ASTVec {
     ~ASTVec() {
         // TODO: check nolints
         for (auto it = data_, ie = data_ + size_; it != ie; ++it) {
-            delete *it; // NOLINT
+            delete *it;
         }
-        delete[] data_; // NOLINT
+        delete[] data_;
     }
     [[nodiscard]] auto empty() const -> bool { return size_ == 0; }
     [[nodiscard]] auto size() const -> size_t { return size_; }
@@ -465,6 +465,9 @@ class ASTTerm : public clingo_ast {
         -> std::optional<std::unique_ptr<clingo_ast_t>> override {
         return std::visit(GetAST{attr}, term);
     }
+    [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec> override {
+        return std::visit(GetASTVec{attr}, term);
+    }
 
     [[nodiscard]] auto hash() const -> size_t override { return Gringo::Util::value_hash(term); }
 
@@ -504,11 +507,11 @@ auto ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(clingo_ast const
     return Gringo::Util::construct_shared<Gringo::Input::Term>(ast_convert<Gringo::Input::Term>(ast));
 }
 
-class ASTTermPool : public clingo_ast {
+class ASTArgumentTuple : public clingo_ast {
   public:
-    ASTTermPool(ASTVec tuple) : tuple_{std::move(tuple)} {}
+    ASTArgumentTuple(ASTVec tuple) : tuple_{std::move(tuple)} {}
     [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
-        return std::make_unique<ASTTermPool>(tuple_);
+        return std::make_unique<ASTArgumentTuple>(tuple_);
     }
     void print(std::ostream &out) const override {
         bool comma = false;
@@ -521,10 +524,10 @@ class ASTTermPool : public clingo_ast {
             out << term;
         }
     }
-    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_pool; }
+    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_argument_tuple; }
 
     [[nodiscard]] auto hash() const -> size_t override {
-        size_t hash = typeid(ASTTermPool).hash_code();
+        size_t hash = typeid(ASTArgumentTuple).hash_code();
         for (auto const *elem : tuple_) {
             hash = Gringo::Util::hash_combine({hash, elem->hash()});
         }
@@ -532,7 +535,7 @@ class ASTTermPool : public clingo_ast {
     }
 
     [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
-        auto const *b = dynamic_cast<ASTTermPool const *>(&other);
+        auto const *b = dynamic_cast<ASTArgumentTuple const *>(&other);
         if (b == nullptr) {
             return false;
         }
@@ -546,7 +549,7 @@ class ASTTermPool : public clingo_ast {
         if (t_a != t_b) {
             return t_a < t_b;
         }
-        auto const &b = static_cast<ASTTermPool const &>(other);
+        auto const &b = static_cast<ASTArgumentTuple const &>(other);
         return std::lexicographical_compare(tuple_.begin(), tuple_.end(), b.tuple_.begin(), b.tuple_.end(),
                                             [](auto const *a, auto const *b) { return a->less_than(*b); });
     }
@@ -558,7 +561,7 @@ class ASTTermPool : public clingo_ast {
 };
 
 template <> auto ast_convert<Gringo::Input::TupleVec>(clingo_ast const *ast) -> Gringo::Input::TupleVec {
-    if (auto const *res = dynamic_cast<ASTTermPool const *>(ast); res != nullptr) {
+    if (auto const *res = dynamic_cast<ASTArgumentTuple const *>(ast); res != nullptr) {
         Gringo::Input::TupleVec tuple;
         tuple.reserve(res->tuple_.size());
         for (auto const *elem : res->tuple_) {
@@ -570,7 +573,7 @@ template <> auto ast_convert<Gringo::Input::TupleVec>(clingo_ast const *ast) -> 
         }
         return tuple;
     }
-    throw std::runtime_error("invalid type: pool expected");
+    throw std::runtime_error("invalid type: argument tuple expected");
 }
 
 template <>
@@ -594,7 +597,7 @@ auto make_ast(Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_as
         }
         ++i;
     }
-    return std::make_unique<ASTTermPool>(std::move(res));
+    return std::make_unique<ASTArgumentTuple>(std::move(res));
 }
 
 auto make_ast(Gringo::Input::TermTuple::Element const &term_or_tuple) -> std::unique_ptr<clingo_ast_t> {
@@ -755,13 +758,13 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
                 break;
             }
-            case clingo_ast_type_pool: {
+            case clingo_ast_type_argument_tuple: {
                 std::va_list args;
                 va_start(args, ast);
-                auto const **pool = va_arg(args, clingo_ast_t const **);
+                auto const **tuple = va_arg(args, clingo_ast_t const **);
                 auto size = va_arg(args, size_t);
                 va_end(args);
-                *ast = new ASTTermPool{ASTVec{pool, size}};
+                *ast = new ASTArgumentTuple{ASTVec{tuple, size}};
                 break;
             }
         }
@@ -841,52 +844,77 @@ extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_at
 
 extern "C" auto clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                 clingo_symbol_t *value) -> bool {
-    // TODO: check args and error handling
-    if (auto sym = ast->get_symbol(attribute); sym) {
-        *value = *sym;
-        return true;
+    CLINGO_TRY {
+        if (ast == nullptr || value == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        if (auto sym = ast->get_symbol(attribute); sym) {
+            *value = *sym;
+            return true;
+        }
+        return false;
     }
-    return false;
+    CLINGO_CATCH(nullptr);
 }
 
 extern "C" auto clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                   clingo_location_t *value) -> bool {
-    // TODO: check args and error handling
-    if (auto loc = ast->get_location(attribute); loc) {
-        *value = *loc;
-        return true;
+    CLINGO_TRY {
+        if (ast == nullptr || value == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        if (auto loc = ast->get_location(attribute); loc) {
+            *value = *loc;
+            return true;
+        }
+        return false;
     }
-    return false;
+    CLINGO_CATCH(nullptr);
 }
 
 extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute, char const **value)
     -> bool {
-    // TODO: check args and error handling
-    if (auto str = ast->get_string(attribute); str) {
-        *value = *str;
-        return true;
+    CLINGO_TRY {
+        if (ast == nullptr || value == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        if (auto str = ast->get_string(attribute); str) {
+            *value = *str;
+            return true;
+        }
+        return false;
     }
-    return false;
+    CLINGO_CATCH(nullptr);
 }
 
 extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value)
     -> bool {
-    // TODO: check args and error handling
-    if (auto val = ast->get_ast(attribute); val) {
-        *value = val->release();
-        return true;
+    CLINGO_TRY {
+        if (ast == nullptr || value == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        if (auto val = ast->get_ast(attribute); val) {
+            *value = val->release();
+            return true;
+        }
+        return false;
     }
-    return false;
+    CLINGO_CATCH(nullptr);
 }
 
 extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                    clingo_ast_t ***value, size_t *size) -> bool {
-    // TODO: check args and error handling
-    if (auto val = ast->get_ast_vec(attribute); val) {
-        std::tie(*value, *size) = val->release();
-        return true;
+    CLINGO_TRY {
+        if (ast == nullptr || value == nullptr || size == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        if (auto val = ast->get_ast_vec(attribute); val) {
+            std::tie(*value, *size) = val->release();
+            return true;
+        }
+        return false;
     }
-    return false;
+    CLINGO_CATCH(nullptr);
 }
 
 extern "C" auto clingo_ast_type_info_yaml() -> char const * {
@@ -975,19 +1003,19 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
 - name: term_or_projection_array
   type: array
   value_type: term_or_projection
-- name: pool
+- name: argument_tuple
   type: forward
-- name: pool_array
+- name: argument_tuple_array
   type: array
-  value_type: pool
-- name: term_or_pool
+  value_type: argument_tuple
+- name: term_or_argument_tuple
   type: union
   types:
   - term
-  - pool
-- name: term_or_pool_array
+  - argument_tuple
+- name: term_or_argument_tuple_array
   type: array
-  value_type: term_or_pool
+  value_type: term_or_argument_tuple
 - name: term_variable
   type: record
   doc: A term representing a variable.
@@ -1064,7 +1092,7 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     type: location
     doc: The location of the tuple.
   - name: pool
-    type: term_or_pool_array
+    type: term_or_argument_tuple_array
     doc: >-
       The argument pool of the tuple.
 
@@ -1080,7 +1108,7 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     type: string
     doc: The name of the function.
   - name: pool
-    type: pool_array
+    type: argument_tuple_array
     doc: >-
       The argument pool of the tuple.
 
@@ -1088,12 +1116,9 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: external
     type: bool
     doc: Whether the function is external.
-- name: pool
+- name: argument_tuple
   type: record
-  doc: >-
-    A list of arguments for a function or tuple.
-
-    TODO: this is a misnomer. It should rather be called ArgumentTuple or something.
+  doc: A list of arguments for a function or tuple.
   arguments:
   - name: arguments
     type: term_or_projection_array

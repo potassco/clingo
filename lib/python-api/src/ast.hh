@@ -140,19 +140,19 @@ using TermOrProjectionArray = std::vector<TermOrProjection>;
 
 auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) -> TermOrProjectionArray;
 
-class Pool;
+class ArgumentTuple;
 
-using PoolArray = std::vector<Pool>;
+using ArgumentTupleArray = std::vector<ArgumentTuple>;
 
-auto construct_pool_array(clingo_ast_t **ast, size_t size) -> PoolArray;
+auto construct_argument_tuple_array(clingo_ast_t **ast, size_t size) -> ArgumentTupleArray;
 
-using TermOrPool = std::variant<Term, Pool>;
+using TermOrArgumentTuple = std::variant<Term, ArgumentTuple>;
 
-auto construct_term_or_pool(clingo_ast_t *ast) -> TermOrPool;
+auto construct_term_or_argument_tuple(clingo_ast_t *ast) -> TermOrArgumentTuple;
 
-using TermOrPoolArray = std::vector<TermOrPool>;
+using TermOrArgumentTupleArray = std::vector<TermOrArgumentTuple>;
 
-auto construct_term_or_pool_array(clingo_ast_t **ast, size_t size) -> TermOrPoolArray;
+auto construct_term_or_argument_tuple_array(clingo_ast_t **ast, size_t size) -> TermOrArgumentTupleArray;
 
 class TermVariable {
   public:
@@ -597,11 +597,11 @@ class TermTuple {
 
     auto location() -> clingo_location_t;
 
-    auto pool() -> TermOrPoolArray;
+    auto pool() -> TermOrArgumentTupleArray;
 
     static auto acquire(clingo_ast_t *ast) -> TermTuple { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location, TermOrPoolArray const &pool)
+    static auto construct(Library const &lib, clingo_location_t const &location, TermOrArgumentTupleArray const &pool)
         -> TermTuple;
 
     friend auto c_cast(TermTuple const &x) -> clingo_ast_t *;
@@ -675,14 +675,14 @@ class TermFunction {
 
     auto name() -> char const *;
 
-    auto pool() -> PoolArray;
+    auto pool() -> ArgumentTupleArray;
 
     auto external() -> bool;
 
     static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
 
     static auto construct(Library const &lib, clingo_location_t const &location, char const *name,
-                          PoolArray const &pool, bool external) -> TermFunction;
+                          ArgumentTupleArray const &pool, bool external) -> TermFunction;
 
     friend auto c_cast(TermFunction const &x) -> clingo_ast_t *;
 
@@ -694,20 +694,20 @@ class TermFunction {
 
 inline auto c_cast(TermFunction const &x) -> clingo_ast_t * { return x.ast_; }
 
-class Pool {
+class ArgumentTuple {
   public:
     // Note: for pybind
-    Pool() = default;
+    ArgumentTuple() = default;
 
-    Pool(Pool const &x) {
+    ArgumentTuple(ArgumentTuple const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
 
-    Pool(Pool &&x) noexcept { std::swap(ast_, x.ast_); }
+    ArgumentTuple(ArgumentTuple &&x) noexcept { std::swap(ast_, x.ast_); }
 
-    auto operator=(Pool const &x) -> Pool & {
+    auto operator=(ArgumentTuple const &x) -> ArgumentTuple & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
         if (!clingo_ast_copy(x.ast_, &ast_)) {
@@ -716,18 +716,22 @@ class Pool {
         return *this;
     }
 
-    auto operator=(Pool &&x) noexcept -> Pool & {
+    auto operator=(ArgumentTuple &&x) noexcept -> ArgumentTuple & {
         std::swap(ast_, x.ast_);
         return *this;
     }
 
     [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
 
-    friend auto operator==(Pool const &a, Pool const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
+    friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
 
-    friend auto operator<(Pool const &a, Pool const &b) -> bool { return clingo_ast_less_than(a.ast_, b.ast_); }
+    friend auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
 
-    CLINGO_CPP_TOTAL_ORDER(friend, Pool)
+    CLINGO_CPP_TOTAL_ORDER(friend, ArgumentTuple)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -745,23 +749,23 @@ class Pool {
         return str;
     }
 
-    ~Pool() { clingo_ast_free(ast_); }
+    ~ArgumentTuple() { clingo_ast_free(ast_); }
 
     auto arguments() -> TermOrProjectionArray;
 
-    static auto acquire(clingo_ast_t *ast) -> Pool { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> ArgumentTuple { return {ast}; }
 
-    static auto construct(Library const &lib, TermOrProjectionArray const &arguments) -> Pool;
+    static auto construct(Library const &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple;
 
-    friend auto c_cast(Pool const &x) -> clingo_ast_t *;
+    friend auto c_cast(ArgumentTuple const &x) -> clingo_ast_t *;
 
   private:
-    Pool(clingo_ast_t *ast) : ast_{ast} {}
+    ArgumentTuple(clingo_ast_t *ast) : ast_{ast} {}
 
     clingo_ast_t *ast_ = nullptr;
 };
 
-inline auto c_cast(Pool const &x) -> clingo_ast_t * { return x.ast_; }
+inline auto c_cast(ArgumentTuple const &x) -> clingo_ast_t * { return x.ast_; }
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
@@ -880,14 +884,14 @@ auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) -> Term
     return ret;
 }
 
-auto construct_pool_array(clingo_ast_t **ast, size_t size) -> PoolArray {
-    PoolArray ret;
+auto construct_argument_tuple_array(clingo_ast_t **ast, size_t size) -> ArgumentTupleArray {
+    ArgumentTupleArray ret;
     try {
         ret.reserve(size);
         std::for_each_n(ast, size, [&ret](auto &arg) {
             auto tmp = arg;
             arg = nullptr;
-            ret.emplace_back(Pool::acquire(tmp));
+            ret.emplace_back(ArgumentTuple::acquire(tmp));
         });
         clingo_ast_array_free(ast, size);
     } catch (...) {
@@ -897,7 +901,7 @@ auto construct_pool_array(clingo_ast_t **ast, size_t size) -> PoolArray {
     return ret;
 }
 
-auto construct_term_or_pool(clingo_ast_t *ast) -> TermOrPool {
+auto construct_term_or_argument_tuple(clingo_ast_t *ast) -> TermOrArgumentTuple {
     clingo_ast_type_t type;
     if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
@@ -925,21 +929,21 @@ auto construct_term_or_pool(clingo_ast_t *ast) -> TermOrPool {
         case clingo_ast_type_term_function: {
             return TermFunction::acquire(ast);
         }
-        case clingo_ast_type_pool: {
-            return Pool::acquire(ast);
+        case clingo_ast_type_argument_tuple: {
+            return ArgumentTuple::acquire(ast);
         }
     }
     throw std::runtime_error("unexpected ast type");
 }
 
-auto construct_term_or_pool_array(clingo_ast_t **ast, size_t size) -> TermOrPoolArray {
-    TermOrPoolArray ret;
+auto construct_term_or_argument_tuple_array(clingo_ast_t **ast, size_t size) -> TermOrArgumentTupleArray {
+    TermOrArgumentTupleArray ret;
     try {
         ret.reserve(size);
         std::for_each_n(ast, size, [&ret](auto &arg) {
             auto tmp = arg;
             arg = nullptr;
-            ret.emplace_back(construct_term_or_pool(tmp));
+            ret.emplace_back(construct_term_or_argument_tuple(tmp));
         });
         clingo_ast_array_free(ast, size);
     } catch (...) {
@@ -1118,16 +1122,16 @@ auto TermTuple::location() -> clingo_location_t {
     return ret;
 }
 
-auto TermTuple::pool() -> TermOrPoolArray {
+auto TermTuple::pool() -> TermOrArgumentTupleArray {
     clingo_ast_t **ast;
     size_t size;
     if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size)) {
         throw std::runtime_error("could not get ast array attribute");
     }
-    return construct_term_or_pool_array(ast, size);
+    return construct_term_or_argument_tuple_array(ast, size);
 }
 
-auto TermTuple::construct(Library const &lib, clingo_location_t const &location, TermOrPoolArray const &pool)
+auto TermTuple::construct(Library const &lib, clingo_location_t const &location, TermOrArgumentTupleArray const &pool)
     -> TermTuple {
     clingo_ast_t *res_;
     if (!clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_, &location, c_cast(pool).data(), pool.size())) {
@@ -1152,13 +1156,13 @@ auto TermFunction::name() -> char const * {
     return ret;
 }
 
-auto TermFunction::pool() -> PoolArray {
+auto TermFunction::pool() -> ArgumentTupleArray {
     clingo_ast_t **ast;
     size_t size;
     if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size)) {
         throw std::runtime_error("could not get ast array attribute");
     }
-    return construct_pool_array(ast, size);
+    return construct_argument_tuple_array(ast, size);
 }
 
 auto TermFunction::external() -> bool {
@@ -1170,7 +1174,7 @@ auto TermFunction::external() -> bool {
 }
 
 auto TermFunction::construct(Library const &lib, clingo_location_t const &location, char const *name,
-                             PoolArray const &pool, bool external) -> TermFunction {
+                             ArgumentTupleArray const &pool, bool external) -> TermFunction {
     clingo_ast_t *res_;
     if (!clingo_ast_construct(lib, clingo_ast_type_term_function, &res_, &location, name, c_cast(pool).data(),
                               pool.size(), static_cast<int>(external))) {
@@ -1179,7 +1183,7 @@ auto TermFunction::construct(Library const &lib, clingo_location_t const &locati
     return TermFunction::acquire(res_);
 }
 
-auto Pool::arguments() -> TermOrProjectionArray {
+auto ArgumentTuple::arguments() -> TermOrProjectionArray {
     clingo_ast_t **ast;
     size_t size;
     if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size)) {
@@ -1188,12 +1192,12 @@ auto Pool::arguments() -> TermOrProjectionArray {
     return construct_term_or_projection_array(ast, size);
 }
 
-auto Pool::construct(Library const &lib, TermOrProjectionArray const &arguments) -> Pool {
+auto ArgumentTuple::construct(Library const &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_pool, &res_, c_cast(arguments).data(), arguments.size())) {
+    if (!clingo_ast_construct(lib, clingo_ast_type_argument_tuple, &res_, c_cast(arguments).data(), arguments.size())) {
         throw std::runtime_error("better handle error properly here");
     }
-    return Pool::acquire(res_);
+    return ArgumentTuple::acquire(res_);
 }
 
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t * {
@@ -1395,19 +1399,17 @@ external
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<Pool>(ast, "Pool", R"doc(A list of arguments for a function or tuple.
-
-TODO: this is a misnomer. It should rather be called ArgumentTuple or
-something.)doc")
-        .def(py::init(&Pool::construct), py::arg("lib"), py::arg("arguments"), R"doc(Construct a Pool object.
+    py::class_<ArgumentTuple>(ast, "ArgumentTuple", R"doc(A list of arguments for a function or tuple.)doc")
+        .def(py::init(&ArgumentTuple::construct), py::arg("lib"), py::arg("arguments"),
+             R"doc(Construct a ArgumentTuple object.
 
 Parameters
 ----------
 arguments
     The arguments of the tuple.)doc")
-        .def("__str__", &Pool::to_string)
-        .def("__hash__", &Pool::hash)
-        .def_property_readonly("arguments", &Pool::arguments)
+        .def("__str__", &ArgumentTuple::to_string)
+        .def("__hash__", &ArgumentTuple::hash)
+        .def_property_readonly("arguments", &ArgumentTuple::arguments)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 }

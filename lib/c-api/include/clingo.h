@@ -722,7 +722,7 @@ enum clingo_ast_type_e {
     clingo_ast_type_term_binary_operation,
     clingo_ast_type_term_tuple,
     clingo_ast_type_term_function,
-    clingo_ast_type_pool,
+    clingo_ast_type_argument_tuple,
     /*
     // simple atoms
     clingo_ast_type_boolean_constant,
