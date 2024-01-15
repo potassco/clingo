@@ -1,0 +1,76 @@
+{%  for argument in type.arguments -%}
+{%    set argument_type = argument.type | camel -%}
+{%    if argument.type == 'location' %}
+auto {{ type_name }}::{{argument.name}}() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_{{argument.name}}, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+{%    elif argument.type == 'number' %}
+auto {{ type_name }}::{{ argument.name }}() -> int {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_{{ argument.name }}, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret;
+}
+{%    elif argument.type == 'bool' %}
+auto {{ type_name }}::{{ argument.name }}() -> bool {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_{{ argument.name }}, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret != 0;
+}
+{%    elif argument.type == 'symbol' %}
+auto {{ type_name }}::{{ argument.name }}() -> Symbol {
+    clingo_symbol_t ret;
+    if (!clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_{{ argument.name }}, &ret)) {
+        throw std::runtime_error("could not get symbol attribute");
+    }
+    return Symbol::acquire(ret);
+}
+{%    elif argument.type == 'string' %}
+auto {{ type_name }}::{{ argument.name }}() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_{{ argument.name }}, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+{%    elif type_map[argument.type].type == 'enum' %}
+auto {{ type_name }}::{{ argument.name }}() -> {{ argument_type }} {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_{{ argument.name }}, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<{{ argument_type }}>(ret);
+}
+{%    elif type_map[argument.type].type == 'array' %}
+auto {{ type_name }}::{{ argument.name }}() -> {{ argument_type }} {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_{{ argument.name }}, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_{{ argument.type }}(ast, size);
+}
+{%    elif type_map[argument.type].type == 'union' or type_map[argument.type].type == 'record' %}
+auto {{ type_name }}::{{ argument.name }}() -> {{ argument_type }} {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_{{ argument.name }}, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_{{ argument.type }}(ast);
+}
+{%    endif %}
+{%-  endfor %}
+auto {{ type_name }}::construct(Library const &lib{% for argument in type.arguments %}, {{ argument.type | cref }}{{ argument.name }}{% endfor %}) -> {{ type_name }} {
+    clingo_ast_t *res_;
+    if (!clingo_ast_construct(lib, clingo_ast_type_{{ type.name }}, &res_{% for argument in type.arguments | c_cast(type_map) %}, {{ argument }}{% endfor %})) {
+        throw std::runtime_error("better handle error properly here");
+    }
+    return {{ type_name }}::acquire(res_);
+}

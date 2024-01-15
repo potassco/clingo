@@ -19,7 +19,7 @@ auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t*;
 template <class T>
 auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*>;
 
-{%- for type in types -%}
+{% for type in types -%}
 {%    if type.type == 'forward' %}
 class {{ type.name | camel }};
 {%    elif type.type == 'optional' %}
@@ -39,10 +39,10 @@ enum class {{ type.name | camel }} {
 {%-     endfor %}
 };
 {%    elif type.type == 'record' %}
-{{ type.decl }}
+{% include "_record_declare_cpp.j2" %}
 {%    endif %}
 {%- endfor %}
-{%  for type in types -%}
+{%- for type in types -%}
 {%    set type_name = type.name | camel -%}
 {%    if type.type == 'array' %}
 {%      if type_map[type.value_type].type == "union" -%}
@@ -84,7 +84,7 @@ auto construct_{{ type.name }}(clingo_ast_t *ast) -> {{ type_name }} {
     throw std::runtime_error("unexpected ast type");
 }
 {%    elif type.type == 'record' %}
-{{ type.define }}
+{%- include "_record_define_cpp.j2" %}
 {%    endif %}
 {%- endfor %}
 template <class... Ts>

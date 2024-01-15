@@ -16,6 +16,7 @@ using Clingo::Symbol::Symbol;
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t *;
 
 template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t *>;
+
 enum class UnaryOperator {
     Minus = 0,
     Negation = 1,
